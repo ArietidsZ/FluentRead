@@ -14,6 +14,7 @@ rawdevart.art manga-shinchan.com yaoimangaonline.com mangalib.me novelcrow.com c
 atsu.moe fenoxo.com hanime1.me klmanga.my mangafreak.me mangafreak.net mangalove.me mangaraw.ac mangaraw.best mangarawjp.me manhuaus.com manhuaus.org manhwaclub.net mgread.io mn4u.net nhentaiyaoi.net nyxscans.com omemh8.com orchisasia.org qimanga.com rawkuma.com rawkuma.net revengeoftheiron-bloodedswordhound.one smokingbehindthesupermarket.com sololevelingfree.vip syosetu.si syosetu.cheap televikun-super-hero-comics.com topreadmanga.com kaijimanga.com uzakichanmanga.com hmttmh.com asurascans.com violetmanga.com ravenscans.org kirapo.jp
 bookwalker.jp mangafire.to reaperscans.com manhuatop.com dlsite.com shonenmagazine.com comic.naver.com comic-zenon.com webtoons.com lezhin.com lezhinus.com twbzmg.com beltoon.jp poipiku.com booklive.jp mrblue.com ganma.jp piccoma.com hentaizap.com globalcomix.com syosetu.com comick.io comick.dev comick.fun klz9.com idmzj.com hanimeone.me battwo.com mangabuddy.com readcomic.me
 jinmangas.com mangafree.info
+komiic.cc
 `.trim().split(/\s+/).map(host => new URL(`https://${host}`).hostname);
 const domains = new Set(MANGA_SITE_DOMAINS);
 export function isCatalogMangaHost(hostname: string): boolean {
@@ -183,7 +184,7 @@ manhwa404.com|manhwa404.com
 xmanga.org|xmanga.org
 florascans.net|florascans.net
 comic.mf-fleur.jp|comic.mf-fleur.jp
-komiic.com|komiic.com
+komiic.com|komiic.com komiic.cc
 manhwaus.org|manhwaus.org
 tichct.org|tichct.org
 manhuaplus.org|manhuaplus.org

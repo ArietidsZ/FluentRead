@@ -8,6 +8,13 @@ for (const name of ['urls-file', 'artifacts-dir', 'playwright-root', 'focus-safe
   if (!process.argv.includes(`--${name}`)) throw new Error(`Provide --${name}; no implicit full-site scan`);
 }
 const urls = JSON.parse(fs.readFileSync(arg('urls-file'), 'utf8'));
+assert.ok(Array.isArray(urls) && urls.length > 0, 'Explicit public URL subset is required');
+for (const sample of urls) {
+  const href=typeof sample==='string'?sample:sample?.url;
+  const url=new URL(href);
+  assert.ok(['http:','https:'].includes(url.protocol) && !url.username && !url.password, 'Public research requires HTTP(S) URLs without credentials');
+  if (typeof sample!=='string' && sample.openSelector!==undefined) assert.ok(typeof sample.openSelector==='string' && sample.openSelector.trim() && sample.openSelector.length<=1024, 'Per-page native opener must be an explicit selector of 1–1024 characters');
+}
 const settleMs = Number(process.argv.includes('--settle-ms') ? arg('settle-ms') : 3500);
 assert.ok(Number.isInteger(settleMs) && settleMs >= 0 && settleMs <= 30000, 'Settle time must be 0–30000 ms');
 const artifacts = path.resolve(arg('artifacts-dir'));
@@ -80,21 +87,33 @@ async function activateForInspection(page) {
       });
       assert.equal(disabled,true);report.activationControl={productionExtensionDisabled:true,method:'existing helper chrome.tabs.update; no host property override'};
     }
-    for (const href of urls) {
+    for (const sample of urls) {
+      const href=typeof sample==='string'?sample:sample.url;
       focusGuard('before-page-create');
       let page = await newPageWithoutForeground(launched.context);
       const parentPage = page, navigationResponses=[];
       const recordResponse=response=>{if(response.request().isNavigationRequest())navigationResponses.push({url:response.url(),status:response.status()});};
       launched.context.on('response',recordResponse);
-      const result = {requestedUrl:href,pageErrors:[],networkFailures:[]};
-      page.on('dialog',async dialog=>{
-        (result.publicDialogs??=[]).push({type:dialog.type(),message:dialog.message().slice(0,200)});
-        await dialog.dismiss();
-      });
-      page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
-      const publicRequest=request=>{const url=new URL(request.url());url.username='';url.password='';url.search='';url.hash='';return {url:['http:','https:'].includes(url.protocol)?url.href:`${url.protocol}[non-network source omitted]`,type:request.resourceType()};};
-      page.on('requestfailed',request=>{if(result.networkFailures.length<100)result.networkFailures.push({...publicRequest(request),error:request.failure()?.errorText});});
-      page.on('response',response=>{if(response.status()>=400&&['image','xhr','fetch'].includes(response.request().resourceType())&&result.networkFailures.length<100)result.networkFailures.push({...publicRequest(response.request()),status:response.status()});});
+      const result = {requestedUrl:href,pageErrors:[],consoleErrors:[],networkFailures:[]};
+      const observedPages=new WeakSet();
+      const observePage=target=>{
+        if(observedPages.has(target))return;
+        observedPages.add(target);
+        target.on('dialog',async dialog=>{
+          (result.publicDialogs??=[]).push({type:dialog.type(),message:dialog.message().slice(0,200)});
+          await dialog.dismiss();
+        });
+        target.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
+        target.on('console',message=>{
+          if (message.type()==='error' && result.consoleErrors.length<30) {
+            result.consoleErrors.push({message:message.text().slice(0,1000),source:message.location().url.split(/[?#]/)[0]});
+          }
+        });
+        const publicRequest=request=>{const url=new URL(request.url());url.username='';url.password='';url.search='';url.hash='';return {url:['http:','https:'].includes(url.protocol)?url.href:`${url.protocol}[non-network source omitted]`,type:request.resourceType()};};
+        target.on('requestfailed',request=>{if(result.networkFailures.length<100)result.networkFailures.push({...publicRequest(request),error:request.failure()?.errorText});});
+        target.on('response',response=>{if(response.status()>=400&&['image','xhr','fetch'].includes(response.request().resourceType())&&result.networkFailures.length<100)result.networkFailures.push({...publicRequest(response.request()),status:response.status()});});
+      };
+      observePage(page);
       try {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
         result.url=page.url();result.status=response?.status();result.navigationResponses=navigationResponses;
@@ -116,9 +135,9 @@ async function activateForInspection(page) {
           assert.ok(typeof fillValue==='string'&&fillValue.length>0&&fillValue.length<=100,'Public search requires an explicit value of 1–100 characters');
           await page.locator(fillSelector).fill(fillValue,{timeout:10000});result.readerSearch={selector:fillSelector,value:fillValue};
         }
-        const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
+        const clickSelector=typeof sample!=='string' && sample.openSelector!==undefined?sample.openSelector:process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
         if(clickSelector){
-          const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
+          const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>{observePage(value);return {page:value};},error=>({error})):null;
           await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};
           if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});if(activationExtension){await activateForInspection(page);}}
           await page.waitForTimeout(settleMs);

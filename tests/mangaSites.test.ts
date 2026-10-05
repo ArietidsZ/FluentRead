@@ -6,6 +6,16 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('Komiic 官方 .cc 线路保留原站名称，仅绑定域名且不虚构登录页正文规则', () => {
+        expect(MANGA_SITE_CATALOG.find(site => site.name === 'komiic.com')?.hosts).toEqual(['komiic.com','komiic.cc']);
+        for (const host of ['komiic.com','komiic.cc']) {
+            expect(isCatalogMangaHost(`www.${host}`)).toBe(true);
+            expect(resolveMangaSite(`https://${host}/comics/category/`)).toMatchObject({generic:true,custom:false});
+            expect(resolveMangaReaderProfile(host,'/login')).toBeNull();
+            expect(resolveMangaSite(`https://${host}/`)).toBeNull();
+            expect(isCatalogMangaHost(`${host}.attacker.test`)).toBe(false);
+        }
+    });
     it.each(['/serie/the-beginning-after-the-end-54f5cb7c/chapter-255/', '/serie/the-beginning-after-the-end-54f5cb7c/chapter-254'])('Toonily 公开章节 %s 只选择直系阅读页图片，排除封面、嵌套推广和异常路径', path => {
         const site = resolveMangaSite(`https://toonily.com${path}`)!;
         expect(site).toMatchObject({name: 'Toonily', requireContent: true});

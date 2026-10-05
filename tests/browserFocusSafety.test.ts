@@ -1,4 +1,6 @@
-import {readFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {tmpdir} from 'node:os';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
@@ -68,6 +70,28 @@ function readScript(path: string): string {
 }
 
 describe('browser regression focus safety', () => {
+    it.each([
+        {samples:[],error:'Explicit public URL subset'},
+        {samples:{url:'https://example.test'},error:'Explicit public URL subset'},
+        {samples:['file:///etc/hosts'],error:'HTTP(S) URLs without credentials'},
+        {samples:['https://user:password@example.test'],error:'HTTP(S) URLs without credentials'},
+        {samples:[{url:'https://example.test',openSelector:''}],error:'explicit selector'},
+        {samples:[{url:'https://example.test',openSelector:null}],error:'explicit selector'},
+        {samples:[{url:'https://example.test',openSelector:'x'.repeat(1025)}],error:'explicit selector'},
+    ])('公开调查 CLI 在加载浏览器依赖及创建 profile 前拒绝不合法样本 $error', ({samples,error}) => {
+        const directory=mkdtempSync(resolve(tmpdir(),'fluentread-inspection-cli-'));
+        try {
+            const urls=resolve(directory,'urls.json'),artifacts=resolve(directory,'artifacts');
+            writeFileSync(urls,JSON.stringify(samples));
+            const result=spawnSync(process.execPath,[resolve(PROJECT_ROOT,'scripts/testing/inspect-manga-readers.cjs'),
+                '--urls-file',urls,'--artifacts-dir',artifacts,'--playwright-root',resolve(directory,'missing-runtime'),
+                '--focus-safe-helper',resolve(directory,'missing-helper.cjs')],{encoding:'utf8',timeout:5000});
+            expect(result.status).toBe(1);
+            expect(result.stderr).toContain(error);
+            expect(result.stderr).not.toContain('MODULE_NOT_FOUND');
+            expect(existsSync(artifacts)).toBe(false);
+        } finally {rmSync(directory,{recursive:true,force:true});}
+    });
     it('实页入口在等待正文前保存 HTTP 状态，未预期的访问限制不能记为入口通过', () => {
         const source = readScript('scripts/testing/run-manga-entry-ui-test.cjs');
         const liveSource = source.slice(source.indexOf("const liveReadersFile=arg('reader-sites',null)"));

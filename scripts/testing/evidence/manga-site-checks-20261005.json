@@ -499,6 +499,47 @@
           "networkFailureCount": 0,
           "requestedUrl": "https://comic-top.com/",
           "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://comic-top.com/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "more-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 25,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Current root HTTP200 has no images, canvases or reader links. Previous parked-domain evidence retained; no new closure claim.",
+          "finalUrl": "https://comic-top.com/",
+          "status": 200,
+          "title": "Redirecting...",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://comic-top.com/",
+              "status": 200
+            }
+          ]
         }
       ]
     },
@@ -524,7 +565,189 @@
           "title": "カドコミ (コミックウォーカー)｜KADOKAWAの無料漫画が読める！"
         }
       ],
-      "adapter": "readable-canvas"
+      "adapter": "readable-canvas",
+      "browserRechecks": [
+        {
+          "url": "https://comic-walker.com/detail/KC_008276_S",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "webace-linked-titles-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-titles-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 13,
+          "readerFinding": "Actual ComicWalker title linked by Web Ace lineup; public chapter hrefs found. Title-level canvases or cover images are not counted as accepted episode body.",
+          "finalUrl": "https://comic-walker.com/detail/KC_008276_S?episodeType=first",
+          "status": 200,
+          "title": "異世界魔法少女ラジカル☆ハルナ｜カドコミ (コミックウォーカー)",
+          "imageCount": 43,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 36
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 36
+          },
+          "canvasCount": 56,
+          "consoleErrorCount": 0,
+          "navigationResponses": [
+            {
+              "url": "https://comic-walker.com/detail/KC_008276_S",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://comic-walker.com/detail/KC_020107_S",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "webace-linked-titles-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-titles-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 15,
+          "readerFinding": "Actual ComicWalker title linked by Web Ace lineup; public chapter hrefs found. Title-level canvases or cover images are not counted as accepted episode body.",
+          "finalUrl": "https://comic-walker.com/detail/KC_020107_S?episodeType=first",
+          "status": 200,
+          "title": "サキュバスの国のヒトオス｜カドコミ (コミックウォーカー)",
+          "imageCount": 30,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 25
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 25
+          },
+          "canvasCount": 47,
+          "consoleErrorCount": 3,
+          "navigationResponses": [
+            {
+              "url": "https://comic-walker.com/detail/KC_020107_S",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "webace-linked-episodes-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-episodes-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 25,
+          "readerFinding": "Actual episode link reached from Web Ace YoungAceUP lineup via a ComicWalker title. Existing ComicWalker body profile matches the contents-marked canvases; only currently readable nonblank samples are counted, not all placeholder pages. No OCR, translation, screenshot or chapter export.",
+          "finalUrl": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?episodeType=first",
+          "status": 200,
+          "title": "【第2話-1】異世界魔法少女ラジカル☆ハルナ｜カドコミ (コミックウォーカー)",
+          "imageCount": 43,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 36
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 36
+          },
+          "canvasCount": 23,
+          "consoleErrorCount": 0,
+          "navigationResponses": [
+            {
+              "url": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+              "status": 200
+            }
+          ],
+          "bodyCanvasCount": 23,
+          "readableNonblankCanvasCount": 3,
+          "readableNonblankSizes": [
+            [
+              1284,
+              1826
+            ]
+          ],
+          "bodySelector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
+          "linkedFrom": "https://web-ace.jp/youngaceup/lineup/"
+        },
+        {
+          "url": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "webace-linked-episodes-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-episodes-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 14,
+          "readerFinding": "Actual episode link reached from Web Ace YoungAceUP lineup via a ComicWalker title. Existing ComicWalker body profile matches the contents-marked canvases; only currently readable nonblank samples are counted, not all placeholder pages. No OCR, translation, screenshot or chapter export.",
+          "finalUrl": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?episodeType=first",
+          "status": 200,
+          "title": "【第2話】サキュバスの国のヒトオス｜カドコミ (コミックウォーカー)",
+          "imageCount": 34,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 27
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 27
+          },
+          "canvasCount": 24,
+          "consoleErrorCount": 3,
+          "navigationResponses": [
+            {
+              "url": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+              "status": 200
+            }
+          ],
+          "bodyCanvasCount": 24,
+          "readableNonblankCanvasCount": 3,
+          "readableNonblankSizes": [
+            [
+              1284,
+              1826
+            ]
+          ],
+          "bodySelector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
+          "linkedFrom": "https://web-ace.jp/youngaceup/lineup/"
+        }
+      ]
     },
     {
       "name": "Web Ace",
@@ -595,8 +818,145 @@
           "networkFailureCount": 1,
           "requestedUrl": "https://web-ace.jp/youngaceup/",
           "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://web-ace.jp/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "more-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 25,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 16,
+          "readerFinding": "Public homepage navigation includes YoungAceUP series lineup; homepage images are not chapter body.",
+          "finalUrl": "https://web-ace.jp/",
+          "status": 200,
+          "title": "WEBエース",
+          "imageCount": 61,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 106
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 106
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://web-ace.jp/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://web-ace.jp/youngaceup/comic/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "public-reader-pages-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 19,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "readerFinding": "Physical COMICS book catalog, not the free-episode lineup. Follow the observed lineup navigation.",
+          "finalUrl": "https://web-ace.jp/youngaceup/comic/",
+          "status": 200,
+          "title": "コミックス | ヤングエースUP",
+          "imageCount": 47,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 76
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 76
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://web-ace.jp/youngaceup/comic/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://web-ace.jp/youngaceup/lineup/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "native-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/native-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "readerFinding": "YoungAceUP series cards link directly to ComicWalker title pages; two linked episode bodies and production entries verified separately. No independent Web Ace reader selector invented.",
+          "finalUrl": "https://web-ace.jp/youngaceup/lineup/",
+          "status": 200,
+          "title": "作品一覧 | ヤングエースUP",
+          "imageCount": 32,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 53
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 53
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": 1,
+          "navigationResponses": [
+            {
+              "url": "https://web-ace.jp/youngaceup/lineup/",
+              "status": 200
+            }
+          ]
         }
-      ]
+      ],
+      "linkedReaderVerification": {
+        "source": "https://web-ace.jp/youngaceup/lineup/",
+        "readerHost": "comic-walker.com",
+        "titleIds": [
+          "KC_008276_S",
+          "KC_020107_S"
+        ],
+        "episodeIds": [
+          "KC_0082760000300011_E",
+          "KC_0201070000300011_E"
+        ],
+        "profile": "existing ComicWalker readable-canvas",
+        "status": "two linked episode entries verified in Chrome production",
+        "scope": "Web Ace original host remains generic; outbound reading uses existing ComicWalker profile. No extra independent body-profile count, all-chapter or OCR-quality acceptance."
+      }
     },
     {
       "name": "Antbyw",
@@ -1146,6 +1506,257 @@
           "ordinaryCanvasPixelsAfterScreenshot": [],
           "requestedUrl": "https://allmanga.to/manga/gyybhSytWofr4wyGp",
           "checkedAt": "2026-10-05T09:19:39.063948+00:00"
+        },
+        {
+          "url": "https://allmanga.to/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 31,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Public directory shell has chapter hrefs, but this page has no chapter body. Chapter href and normal native click attempts retained separately.",
+          "finalUrl": "https://allmanga.to/",
+          "status": 200,
+          "title": "All Manga",
+          "imageCount": 1,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 1
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 1
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "more-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 25,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Public directory shell has chapter hrefs, but this page has no chapter body. Chapter href and normal native click attempts retained separately.",
+          "finalUrl": "https://allmanga.to/manga?cty=ALL",
+          "status": 200,
+          "title": "All Manga - All Manga 2026 - All Manga",
+          "imageCount": 1,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/manga?cty=ALL",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "public-reader-pages-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 19,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Observed chapter href returns HTTP200 shell with All Manga text only, zero images/canvases. No body profile or reader acceptance.",
+          "finalUrl": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+          "status": 200,
+          "title": "All Manga",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "public-reader-pages-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 19,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Observed chapter href returns HTTP200 shell with All Manga text only, zero images/canvases. No body profile or reader acceptance.",
+          "finalUrl": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+          "status": 200,
+          "title": "All Manga",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "native-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/native-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 13,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Normal click on the observed chapter anchor leaves the directory URL and its lone image; no body. Cause of non-navigation not established.",
+          "finalUrl": "https://allmanga.to/manga?cty=ALL",
+          "status": 200,
+          "title": "All Manga - All Manga 2026 - All Manga",
+          "imageCount": 1,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": 1,
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/manga?cty=ALL",
+              "status": 200
+            }
+          ],
+          "nativeAction": {
+            "selector": "a[href=\"/manga/bcGNdNPgKsBezvThi/chapter-21-sub\"]"
+          }
+        },
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "allmanga-native-popup-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/allmanga-native-popup-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 6,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Normal click on the observed chapter anchor emitted no new page event within15s; popup assumption not confirmed. No chapter body or foreground workaround.",
+          "finalUrl": "https://allmanga.to/manga?cty=ALL",
+          "status": 200,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 14
+          },
+          "consoleErrorCount": 1,
+          "navigationResponses": [
+            {
+              "url": "https://allmanga.to/manga?cty=ALL",
+              "status": 200
+            }
+          ],
+          "nativeAction": {
+            "selector": "a[href=\"/manga/bcGNdNPgKsBezvThi/chapter-21-sub\"]"
+          },
+          "attemptFailure": {
+            "kind": "popup-event-timeout",
+            "details": "Raw native failure retained in the private report; no successful body assertion."
+          }
         }
       ]
     },
@@ -2539,6 +3150,55 @@
           "imageCount": 0,
           "canvasCount": 0,
           "networkFailureCount": 0
+        },
+        {
+          "url": "https://manhuatop.com/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 31,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Normal root navigation reaches HTTP200 domain parking at ww547.manhuatop.com. Query tracking omitted; parked hostname is not registered as a manga alias.",
+          "finalUrl": "http://ww547.manhuatop.com/",
+          "status": 200,
+          "title": "Manhuatop",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://manhuatop.com/",
+              "status": 302
+            },
+            {
+              "url": "http://ww547.manhuatop.com/",
+              "status": 307
+            },
+            {
+              "url": "http://ww547.manhuatop.com/",
+              "status": 200
+            }
+          ]
         }
       ]
     },
@@ -8197,7 +8857,8 @@
     {
       "name": "komiic.com",
       "hosts": [
-        "komiic.com"
+        "komiic.com",
+        "komiic.cc"
       ],
       "accessChecks": [
         {
@@ -8224,6 +8885,138 @@
           "title": "登录 | Komiic漫畫",
           "imageCount": 0,
           "finalUrl": "https://komiic.com/login"
+        },
+        {
+          "url": "https://komiic.com/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 22,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+          "finalUrl": "https://komiic.com/login",
+          "status": 200,
+          "title": "登录 | Komiic漫畫",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://komiic.com/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://komiic.com/comics/category/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 31,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+          "finalUrl": "https://komiic.com/login",
+          "status": 200,
+          "title": "登录 | Komiic漫畫",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://komiic.com/comics/category/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://komiic.cc/comics/category/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "more-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 25,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+          "finalUrl": "https://komiic.cc/login",
+          "status": 200,
+          "title": "登录 | Komiic漫畫",
+          "imageCount": 0,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://komiic.cc/comics/category/",
+              "status": 200
+            }
+          ]
+        }
+      ],
+      "officialAliases": [
+        {
+          "host": "komiic.cc",
+          "sourcePage": "https://komiic.com/login",
+          "observedAnchor": "https://komiic.cc/comics/category/",
+          "selector": ".CnMirrorHint a.CnMirrorHint__go",
+          "scope": "Explicit public official-mirror link; both guest targets currently require login, no body profile."
         }
       ]
     },
@@ -9746,6 +10539,179 @@
           "title": "账号登录_快看",
           "imageCount": 2,
           "finalUrl": "https://www.kuaikanmanhua.com/webs/loginh"
+        },
+        {
+          "url": "https://kuaikanmanhua.com/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 22,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "readerFinding": "Public directory homepage has actual chapter links; cover/navigation images are not accepted body.",
+          "finalUrl": "https://www.kuaikanmanhua.com/",
+          "status": 200,
+          "title": "快看漫画_官方漫画_漫画大全免费在线观看",
+          "imageCount": 101,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 76
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 76
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://kuaikanmanhua.com/",
+              "status": 301
+            },
+            {
+              "url": "https://www.kuaikanmanhua.com/",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 31,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Actual homepage chapter link redirects to login; two logo/captcha images are not body.",
+          "finalUrl": "https://www.kuaikanmanhua.com/webs/loginh",
+          "status": 200,
+          "title": "账号登录_快看",
+          "imageCount": 2,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 8
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 8
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+              "status": 302
+            }
+          ]
+        },
+        {
+          "url": "https://www.kuaikanmanhua.com/web/comic/853218",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-followups-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 31,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "readerFinding": "Actual chapter shows a visible paid-chapter gate and one430x430 QR image, no body. No purchase, recharge or automatic payment control clicked. Production absence of reader entry verified separately.",
+          "finalUrl": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "status": 200,
+          "title": "｜漫画｜官方在线漫画全集-快看漫画",
+          "imageCount": 1,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://www.kuaikanmanhua.com/web/comic/853218",
+              "status": 302
+            },
+            {
+              "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+              "status": 200
+            }
+          ]
+        },
+        {
+          "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "kuaikan-chapter-menu-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/kuaikan-chapter-menu-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 6,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 4,
+          "readerFinding": "Observed chapter-menu control could not be clicked normally: outside viewport after native scroll, timeout10s. No forced click, menu contents or free chapter acceptance.",
+          "finalUrl": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "status": 200,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+              "status": 200
+            }
+          ],
+          "attemptFailure": {
+            "kind": "native-control-outside-viewport-timeout",
+            "details": "Raw native failure retained in the private report; no successful body assertion."
+          }
         }
       ]
     },
@@ -10313,6 +11279,28 @@
           "status": 200,
           "title": "漫画無料読み放題ならブック放題 | 漫画65,000冊・雑誌800誌・旅行ガイド600冊 コスパ最強の漫画・雑誌サブスク",
           "imageCount": 14
+        },
+        {
+          "url": "https://viewer.bookhodai.jp/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 22,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Normal navigation times out25s before recording a response status or final URL. Previous subscription/login-home observation retained; no HTTP status or shutdown inferred.",
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "attemptFailure": {
+            "kind": "navigation-timeout",
+            "details": "Raw native failure retained in the private report; no successful body assertion."
+          }
         }
       ]
     },
@@ -10752,6 +11740,51 @@
           "status": 200,
           "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
           "imageCount": 0
+        },
+        {
+          "url": "https://comico.jp/",
+          "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+          "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+          "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+          "attempt": "generic-public-roots-wave37",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+          "launchMode": "macos-background-cdp",
+          "focusPolicy": "launchservices-no-foreground",
+          "focusCheckCount": 22,
+          "batchCompleted": true,
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "readerFinding": "Current homepage HTTP200 renders navigation/account controls and four non-body images, no public chapter links. No new service-end date inferred from this page.",
+          "finalUrl": "https://www.comico.jp/",
+          "status": 200,
+          "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
+          "imageCount": 4,
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 5
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 5
+          },
+          "canvasCount": 0,
+          "consoleErrorCount": null,
+          "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+          "navigationResponses": [
+            {
+              "url": "https://comico.jp/",
+              "status": 301
+            },
+            {
+              "url": "https://www.comico.jp/",
+              "status": 200
+            }
+          ]
         }
       ]
     },
@@ -18578,6 +19611,1012 @@
         ]
       ],
       "readerFinding": "Direct .entry-content_wrap/read-container/reading-content/page-break images use wp-manga-chapter-img. Profile excludes covers, recommendation/nested links and invalid chapter paths. Not OCR, continuous paging or quality acceptance."
+    },
+    {
+      "url": "https://komiic.com/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 22,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+      "finalUrl": "https://komiic.com/login",
+      "status": 200,
+      "title": "登录 | Komiic漫畫",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://komiic.com/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://kuaikanmanhua.com/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 22,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 7,
+      "readerFinding": "Public directory homepage has actual chapter links; cover/navigation images are not accepted body.",
+      "finalUrl": "https://www.kuaikanmanhua.com/",
+      "status": 200,
+      "title": "快看漫画_官方漫画_漫画大全免费在线观看",
+      "imageCount": 101,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 76
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 76
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://kuaikanmanhua.com/",
+          "status": 301
+        },
+        {
+          "url": "https://www.kuaikanmanhua.com/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://comico.jp/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 22,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Current homepage HTTP200 renders navigation/account controls and four non-body images, no public chapter links. No new service-end date inferred from this page.",
+      "finalUrl": "https://www.comico.jp/",
+      "status": 200,
+      "title": "comico (コミコ) | タテカラー漫画が毎日無料、毎日更新！",
+      "imageCount": 4,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 5
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 5
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://comico.jp/",
+          "status": 301
+        },
+        {
+          "url": "https://www.comico.jp/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://viewer.bookhodai.jp/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 22,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Normal navigation times out25s before recording a response status or final URL. Previous subscription/login-home observation retained; no HTTP status or shutdown inferred.",
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "attemptFailure": {
+        "kind": "navigation-timeout",
+        "details": "Raw native failure retained in the private report; no successful body assertion."
+      }
+    },
+    {
+      "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 31,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Actual homepage chapter link redirects to login; two logo/captcha images are not body.",
+      "finalUrl": "https://www.kuaikanmanhua.com/webs/loginh",
+      "status": 200,
+      "title": "账号登录_快看",
+      "imageCount": 2,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 8
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 8
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+          "status": 302
+        }
+      ]
+    },
+    {
+      "url": "https://www.kuaikanmanhua.com/web/comic/853218",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 31,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 3,
+      "readerFinding": "Actual chapter shows a visible paid-chapter gate and one430x430 QR image, no body. No purchase, recharge or automatic payment control clicked. Production absence of reader entry verified separately.",
+      "finalUrl": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+      "status": 200,
+      "title": "｜漫画｜官方在线漫画全集-快看漫画",
+      "imageCount": 1,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://www.kuaikanmanhua.com/web/comic/853218",
+          "status": 302
+        },
+        {
+          "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://komiic.com/comics/category/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 31,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+      "finalUrl": "https://komiic.com/login",
+      "status": 200,
+      "title": "登录 | Komiic漫畫",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://komiic.com/comics/category/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://manhuatop.com/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 31,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Normal root navigation reaches HTTP200 domain parking at ww547.manhuatop.com. Query tracking omitted; parked hostname is not registered as a manga alias.",
+      "finalUrl": "http://ww547.manhuatop.com/",
+      "status": 200,
+      "title": "Manhuatop",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://manhuatop.com/",
+          "status": 302
+        },
+        {
+          "url": "http://ww547.manhuatop.com/",
+          "status": 307
+        },
+        {
+          "url": "http://ww547.manhuatop.com/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "generic-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 31,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Public directory shell has chapter hrefs, but this page has no chapter body. Chapter href and normal native click attempts retained separately.",
+      "finalUrl": "https://allmanga.to/",
+      "status": 200,
+      "title": "All Manga",
+      "imageCount": 1,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 1
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 1
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "kuaikan-chapter-menu-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/kuaikan-chapter-menu-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 6,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4,
+      "readerFinding": "Observed chapter-menu control could not be clicked normally: outside viewport after native scroll, timeout10s. No forced click, menu contents or free chapter acceptance.",
+      "finalUrl": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+      "status": 200,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "status": 200
+        }
+      ],
+      "attemptFailure": {
+        "kind": "native-control-outside-viewport-timeout",
+        "details": "Raw native failure retained in the private report; no successful body assertion."
+      }
+    },
+    {
+      "url": "https://komiic.cc/comics/category/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "more-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 25,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 3,
+      "readerFinding": "Normal guest navigation reaches HTTP200 login with no body. Original .com login publishes an explicit official .cc mirror anchor. Both hosts remain generic bindings; no authenticated reading, account or OCR validation.",
+      "finalUrl": "https://komiic.cc/login",
+      "status": 200,
+      "title": "登录 | Komiic漫畫",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://komiic.cc/comics/category/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://comic-top.com/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "more-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 25,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Current root HTTP200 has no images, canvases or reader links. Previous parked-domain evidence retained; no new closure claim.",
+      "finalUrl": "https://comic-top.com/",
+      "status": 200,
+      "title": "Redirecting...",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://comic-top.com/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://web-ace.jp/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "more-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 25,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 16,
+      "readerFinding": "Public homepage navigation includes YoungAceUP series lineup; homepage images are not chapter body.",
+      "finalUrl": "https://web-ace.jp/",
+      "status": 200,
+      "title": "WEBエース",
+      "imageCount": 61,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 106
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 106
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://web-ace.jp/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/manga?cty=ALL",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "more-public-roots-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 25,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Public directory shell has chapter hrefs, but this page has no chapter body. Chapter href and normal native click attempts retained separately.",
+      "finalUrl": "https://allmanga.to/manga?cty=ALL",
+      "status": 200,
+      "title": "All Manga - All Manga 2026 - All Manga",
+      "imageCount": 1,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "public-reader-pages-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Observed chapter href returns HTTP200 shell with All Manga text only, zero images/canvases. No body profile or reader acceptance.",
+      "finalUrl": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+      "status": 200,
+      "title": "All Manga",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/manga/bcGNdNPgKsBezvThi/chapter-21-sub",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "public-reader-pages-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0,
+      "readerFinding": "Observed chapter href returns HTTP200 shell with All Manga text only, zero images/canvases. No body profile or reader acceptance.",
+      "finalUrl": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+      "status": 200,
+      "title": "All Manga",
+      "imageCount": 0,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/manga/6ac17af071e36839afd33798/chapter-6-sub",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://web-ace.jp/youngaceup/comic/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "public-reader-pages-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 19,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4,
+      "readerFinding": "Physical COMICS book catalog, not the free-episode lineup. Follow the observed lineup navigation.",
+      "finalUrl": "https://web-ace.jp/youngaceup/comic/",
+      "status": 200,
+      "title": "コミックス | ヤングエースUP",
+      "imageCount": 47,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 76
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 76
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": null,
+      "consoleScope": "Not collected by this earlier inspector version; missing is not zero.",
+      "navigationResponses": [
+        {
+          "url": "https://web-ace.jp/youngaceup/comic/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/manga?cty=ALL",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "native-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/native-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Normal click on the observed chapter anchor leaves the directory URL and its lone image; no body. Cause of non-navigation not established.",
+      "finalUrl": "https://allmanga.to/manga?cty=ALL",
+      "status": 200,
+      "title": "All Manga - All Manga 2026 - All Manga",
+      "imageCount": 1,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": 1,
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "status": 200
+        }
+      ],
+      "nativeAction": {
+        "selector": "a[href=\"/manga/bcGNdNPgKsBezvThi/chapter-21-sub\"]"
+      }
+    },
+    {
+      "url": "https://web-ace.jp/youngaceup/lineup/",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "native-public-followups-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/native-public-followups-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 4,
+      "readerFinding": "YoungAceUP series cards link directly to ComicWalker title pages; two linked episode bodies and production entries verified separately. No independent Web Ace reader selector invented.",
+      "finalUrl": "https://web-ace.jp/youngaceup/lineup/",
+      "status": 200,
+      "title": "作品一覧 | ヤングエースUP",
+      "imageCount": 32,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 53
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 53
+      },
+      "canvasCount": 0,
+      "consoleErrorCount": 1,
+      "navigationResponses": [
+        {
+          "url": "https://web-ace.jp/youngaceup/lineup/",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://allmanga.to/manga?cty=ALL",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "allmanga-native-popup-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/allmanga-native-popup-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 6,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "readerFinding": "Normal click on the observed chapter anchor emitted no new page event within15s; popup assumption not confirmed. No chapter body or foreground workaround.",
+      "finalUrl": "https://allmanga.to/manga?cty=ALL",
+      "status": 200,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 14
+      },
+      "consoleErrorCount": 1,
+      "navigationResponses": [
+        {
+          "url": "https://allmanga.to/manga?cty=ALL",
+          "status": 200
+        }
+      ],
+      "nativeAction": {
+        "selector": "a[href=\"/manga/bcGNdNPgKsBezvThi/chapter-21-sub\"]"
+      },
+      "attemptFailure": {
+        "kind": "popup-event-timeout",
+        "details": "Raw native failure retained in the private report; no successful body assertion."
+      }
+    },
+    {
+      "url": "https://comic-walker.com/detail/KC_008276_S",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "webace-linked-titles-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-titles-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 13,
+      "readerFinding": "Actual ComicWalker title linked by Web Ace lineup; public chapter hrefs found. Title-level canvases or cover images are not counted as accepted episode body.",
+      "finalUrl": "https://comic-walker.com/detail/KC_008276_S?episodeType=first",
+      "status": 200,
+      "title": "異世界魔法少女ラジカル☆ハルナ｜カドコミ (コミックウォーカー)",
+      "imageCount": 43,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 36
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 36
+      },
+      "canvasCount": 56,
+      "consoleErrorCount": 0,
+      "navigationResponses": [
+        {
+          "url": "https://comic-walker.com/detail/KC_008276_S",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://comic-walker.com/detail/KC_020107_S",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "webace-linked-titles-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-titles-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 15,
+      "readerFinding": "Actual ComicWalker title linked by Web Ace lineup; public chapter hrefs found. Title-level canvases or cover images are not counted as accepted episode body.",
+      "finalUrl": "https://comic-walker.com/detail/KC_020107_S?episodeType=first",
+      "status": 200,
+      "title": "サキュバスの国のヒトオス｜カドコミ (コミックウォーカー)",
+      "imageCount": 30,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 25
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 25
+      },
+      "canvasCount": 47,
+      "consoleErrorCount": 3,
+      "navigationResponses": [
+        {
+          "url": "https://comic-walker.com/detail/KC_020107_S",
+          "status": 200
+        }
+      ]
+    },
+    {
+      "url": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "webace-linked-episodes-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-episodes-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 25,
+      "readerFinding": "Actual episode link reached from Web Ace YoungAceUP lineup via a ComicWalker title. Existing ComicWalker body profile matches the contents-marked canvases; only currently readable nonblank samples are counted, not all placeholder pages. No OCR, translation, screenshot or chapter export.",
+      "finalUrl": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?episodeType=first",
+      "status": 200,
+      "title": "【第2話-1】異世界魔法少女ラジカル☆ハルナ｜カドコミ (コミックウォーカー)",
+      "imageCount": 43,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 36
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 36
+      },
+      "canvasCount": 23,
+      "consoleErrorCount": 0,
+      "navigationResponses": [
+        {
+          "url": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+          "status": 200
+        }
+      ],
+      "bodyCanvasCount": 23,
+      "readableNonblankCanvasCount": 3,
+      "readableNonblankSizes": [
+        [
+          1284,
+          1826
+        ]
+      ],
+      "bodySelector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
+      "linkedFrom": "https://web-ace.jp/youngaceup/lineup/"
+    },
+    {
+      "url": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+      "checkedAt": "2026-10-05T18:57:46.524871+00:00",
+      "scope": "Read-only normal active-tab DOM research with FluentRead explicitly disabled; no public reader screenshots, chapter export, OCR, private APIs or payments.",
+      "researchWave": "official-linked-readers-and-public-access-gates-wave37",
+      "attempt": "webace-linked-episodes-wave37",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-episodes-wave37/reader-inspection.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "focusCheckCount": 13,
+      "batchCompleted": true,
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 14,
+      "readerFinding": "Actual episode link reached from Web Ace YoungAceUP lineup via a ComicWalker title. Existing ComicWalker body profile matches the contents-marked canvases; only currently readable nonblank samples are counted, not all placeholder pages. No OCR, translation, screenshot or chapter export.",
+      "finalUrl": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?episodeType=first",
+      "status": 200,
+      "title": "【第2話】サキュバスの国のヒトオス｜カドコミ (コミックウォーカー)",
+      "imageCount": 34,
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 27
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 27
+      },
+      "canvasCount": 24,
+      "consoleErrorCount": 3,
+      "navigationResponses": [
+        {
+          "url": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+          "status": 200
+        }
+      ],
+      "bodyCanvasCount": 24,
+      "readableNonblankCanvasCount": 3,
+      "readableNonblankSizes": [
+        [
+          1284,
+          1826
+        ]
+      ],
+      "bodySelector": "[data-viewer-full-screen-helper] canvas[data-type=\"contents\"], [data-viewer-full-screen-helper] [data-type=\"contents\"] > canvas",
+      "linkedFrom": "https://web-ace.jp/youngaceup/lineup/"
     }
   ],
   "verification": {
@@ -31509,7 +33548,267 @@
         "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave36-final.log"
       },
       "scope": "Chrome production entry and403-boundary validation only; Firefox/userscript build evidence. One unrelated18-module strict-coverage registry failure remains separately recorded; not an all-suite pass. No engine/source authorization/permission/dependency/version/reference-repository change."
+    },
+    "publicReaderWave37Research": {
+      "status": "completed-with-three-preserved-attempt-failures",
+      "newResearchAttempts": 24,
+      "retainedResearchAttempts": 402,
+      "ownedNormalBrowserBatches": 9,
+      "focusChecks": 148,
+      "browserFrontmost": false,
+      "productionExtensionDisabled": true,
+      "publicArtworkCapture": "No screenshots, chapter export, OCR or translation",
+      "reports": [
+        "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-roots-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/generic-public-followups-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/kuaikan-chapter-menu-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/more-public-roots-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/public-reader-pages-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/native-public-followups-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/allmanga-native-popup-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-titles-wave37/reader-inspection.json",
+        "/private/tmp/fluentread-brand-manga-sites-20261005/webace-linked-episodes-wave37/reader-inspection.json"
+      ],
+      "officialMirrorAdded": "komiic.cc",
+      "newIndependentBodyProfiles": 0,
+      "linkedReaderSupport": "Web Ace YoungAceUP -> two existing ComicWalker episodes",
+      "consoleCollection": "First17 attempts did not collect console errors. Last7 parent pages did; no reader popup was opened in this wave. Current inspector now observes a created popup immediately; no successful popup runtime proof in this wave."
+    },
+    "publicReaderWave37Unit": {
+      "status": "passed",
+      "cases": 322,
+      "files": 2,
+      "modules": [
+        "src/core/config/manga.ts",
+        "src/core/config/mangaReaderProfiles.ts",
+        "src/core/config/mangaSiteCatalog.ts"
+      ],
+      "fourDimensionCoverage": "100% each",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave37-final.log",
+      "browserContracts": {
+        "status": "passed",
+        "cases": 97,
+        "files": 1,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-contracts-wave37.log"
+      },
+      "scope": "Official mirror host identity and spoof-domain boundaries; invalid explicit research subsets fail before browser dependencies/profile creation; existing affected site/caching behavior."
+    },
+    "publicReaderWave37Entries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "auto source consent: MangaLib local reader fixture",
+        "auto source consent: Mangahub local reader fixture",
+        "auto source consent: ComicNaver local reader fixture",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+        "live reader discovery: https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+        "200 page has no manga entry: https://komiic.com/comics/category/",
+        "200 page has no manga entry: https://komiic.cc/comics/category/",
+        "200 page has no manga entry: https://www.kuaikanmanhua.com/webs/comic-next/853218",
+        "master switch removes manga UI"
+      ],
+      "caseCount": 26,
+      "relatedBaseCases": 21,
+      "liveSamples": [
+        {
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed",
+          "url": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?co=true&episodeType=first",
+          "finalUrl": "https://comic-walker.com/detail/KC_008276_S/episodes/KC_0082760000300011_E?episodeType=first",
+          "bodyCanvasCount": 23,
+          "readableNonblankCanvasCount": 3,
+          "visibleBodyCount": 1
+        },
+        {
+          "status": 200,
+          "mode": "canvas",
+          "result": "reader-entry-confirmed",
+          "url": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?co=true&episodeType=first",
+          "finalUrl": "https://comic-walker.com/detail/KC_020107_S/episodes/KC_0201070000300011_E?episodeType=first",
+          "bodyCanvasCount": 24,
+          "readableNonblankCanvasCount": 3,
+          "visibleBodyCount": 1
+        },
+        {
+          "status": 200,
+          "mode": "unavailable",
+          "result": "visible-gate-no-reader",
+          "noReaderGate": {
+            "selector": "form input[type=\"password\"]",
+            "visible": true
+          },
+          "readerEntryAbsent": true,
+          "url": "https://komiic.com/comics/category/",
+          "finalUrl": "https://komiic.com/login"
+        },
+        {
+          "status": 200,
+          "mode": "unavailable",
+          "result": "visible-gate-no-reader",
+          "noReaderGate": {
+            "selector": "form input[type=\"password\"]",
+            "visible": true
+          },
+          "readerEntryAbsent": true,
+          "url": "https://komiic.cc/comics/category/",
+          "finalUrl": "https://komiic.cc/login"
+        },
+        {
+          "status": 200,
+          "mode": "unavailable",
+          "result": "visible-gate-no-reader",
+          "noReaderGate": {
+            "selector": ".comic-popup .title:has-text(\"当前章节为付费章节\")",
+            "visible": true
+          },
+          "readerEntryAbsent": true,
+          "url": "https://www.kuaikanmanhua.com/webs/comic-next/853218",
+          "finalUrl": "https://www.kuaikanmanhua.com/webs/comic-next/853218"
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-readers-wave37/report.json",
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 34750,
+          "name": "提醒事项"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "nativeActiveVisibleNormalUnfocusedSnapshots": 35,
+      "focusChecks": 42,
+      "extensionErrors": 0,
+      "extensionConsoleErrors": 0,
+      "hostScriptErrors": 2,
+      "hostExceptionContexts": [
+        "MANGA Plus default page; Google advertising script",
+        "ComicWalker default page; Amazon advertising script"
+      ],
+      "profileRemoved": true,
+      "profileCleanupReport": "/private/tmp/fluentread-brand-manga-sites-20261005/profile-cleanup-wave37.json",
+      "pureIcon": {
+        "width": 32,
+        "height": 32,
+        "radius": "50%"
+      },
+      "visualReview": [
+        "brand-resident-ordinary.png",
+        "brand-narrow-dragged.png"
+      ],
+      "scope": "Body pixels only sampled for readiness and existing-profile entry; no OCR/translation. HTTP200 negative samples require their explicit observed visible login/paywall marker and exact200 status; 403 behavior retained.12 screenshots cover settings/fixtures only, public chapter screenshots omitted."
+    },
+    "publicReaderWave37Diagnostics": {
+      "initialCoverage": {
+        "testsPassed": 285,
+        "files": 1,
+        "strictCoverage": "failed: manga.ts cache normalizer/pixel-budget functions not covered by the site-only selection",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave37.log",
+        "resolution": "Include existing37-case mangaPatchResult cache suite; final two-file selection322passed, all three modules four-dimension100%. No source coverage exception or cache implementation edit."
+      },
+      "nativeFailures": [
+        "Bookhodai navigation timeout25s, response status unavailable",
+        "Kuaikan observed chapter-menu control outside viewport, click timeout10s, no forced gesture",
+        "AllManga observed chapter click did not open a new page, popup wait timeout15s"
+      ],
+      "hostScriptErrors": "Production retains Google advertising int64 on MANGA Plus and Amazon advertising Unauthorized on ComicWalker. The latter is also observed with FluentRead disabled; private baseline flag remains false because earlier exact requested URL included a removed co parameter. Neither event originated in extension context. No all-host-error-free claim.",
+      "previousUnrelatedRegistryFailure": "Wave36 18 unrelated strict-source-registration gaps retained in browserContractsWave36Verification; not rerun or blanket exempted in this targeted wave."
+    },
+    "publicReaderWave37Coverage": {
+      "supplementDate": "2026-10-06",
+      "names": 235,
+      "newResearchAttempts": 24,
+      "retainedResearchAttempts": 402,
+      "adapterCounts": {
+        "images": 91,
+        "area": 23,
+        "canvas": 3,
+        "detect": 106,
+        "readable-canvas": 10,
+        "background": 2
+      },
+      "scope": "No new independent body profile. Web Ace outbound reading is verified separately through existing ComicWalker profile; Komiic.cc is only an official host binding. All235-site/all-chapter/authenticated/OCR/quality/all-device acceptance remains incomplete."
+    },
+    "publicReaderWave37Builds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave37.log",
+      "chromeSeconds": 29.2,
+      "firefoxSeconds": 30.3,
+      "userscriptSeconds": 3.81,
+      "userscriptBytes": 1917360,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave37.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave37.log",
+      "brandVerifier": "passed-seven-languages",
+      "brandReport": "/private/tmp/fluentread-brand-manga-sites-20261005/brand-copy-wave37.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave37.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6137,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave37.log"
+      },
+      "FirefoxAndUserscriptRuntime": "Build/artifact checks only, no new live browser runtime verification",
+      "unchanged": "Version, dependencies, permissions, translation/OCR engines, source authorization, reference projects",
+      "docs": {
+        "status": "passed",
+        "buildSeconds": 4.25,
+        "buildReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-build-wave37.log",
+        "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave37.log",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "scope": "Public docs production build/artifact checks. Maintainers/** are explicitly excluded by config; the two edited maintainer reports remain repository-only Markdown, not built/published pages.",
+        "maintainerMarkdown": {
+          "status": "passed-local-parser",
+          "tableRows": 235,
+          "wave37Heading": "present",
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/maintainer-markdown-wave37.json",
+          "scope": "Local VitePress parser only; maintainer files remain excluded from public build/publishing."
+        }
+      }
     }
   },
-  "lastSupplementOn": "2026-10-05T17:47:39.044028+00:00"
+  "lastSupplementOn": "2026-10-06"
 }

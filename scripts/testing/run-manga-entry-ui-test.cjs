@@ -279,13 +279,21 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                 const response=await gotoVisible(page,sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
                 const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
-                if(response?.status()!==200){
+                if(response?.status()!==200 || sample.verifyNoReaderEntry && sample.expectedStatus===200){
                     result.result='access-restricted';
                     if(sample.verifyNoReaderEntry){
-                        assert.equal(response?.status(),403,'Restricted-reader sample must retain observed403 boundary');
+                        const expectedStatus=sample.expectedStatus ?? 403;
+                        assert.ok([200,403].includes(expectedStatus),'No-entry proof requires an explicit observed 200 gate or 403 boundary');
+                        assert.equal(response?.status(),expectedStatus,'Restricted-reader sample must retain its observed HTTP boundary');
+                        if(expectedStatus===200){
+                            assert.ok(typeof sample.noReaderGateSelector==='string' && sample.noReaderGateSelector.trim(),'HTTP 200 no-entry proof requires an explicit visible login or paywall marker');
+                            await page.locator(sample.noReaderGateSelector).waitFor({state:'visible',timeout:10000});
+                            result.noReaderGate={selector:sample.noReaderGateSelector,visible:true};
+                            result.result='visible-gate-no-reader';
+                        }
                         assert.equal(Boolean(await ball('return !!this.querySelector(".floating-ball-manga")')),false);
                         assert.equal(Boolean(await entry('return !!this.querySelector(".fr-manga-launcher")')),false);
-                        result.readerEntryAbsent=true;report.cases.push(`403 page has no manga entry: ${sample.url}`);
+                        result.readerEntryAbsent=true;report.cases.push(`${expectedStatus} page has no manga entry: ${sample.url}`);
                         continue;
                     }
                     throw new Error(`Public reader access failed: HTTP ${response?.status() ?? 'unavailable'}`);
