@@ -1,11 +1,13 @@
 import {parseHTML} from 'linkedom';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {
     describeSectionElement,
+    describeSectionScope,
     expandSectionElement,
     isSectionPickerUi,
     resolveSectionElement,
     resolveSectionLabel,
+    sectionSourcePreview,
     type SectionGeometry,
     type SectionLabelSummary,
     type SectionRect,
@@ -129,6 +131,85 @@ describe('局部翻译区域判定', () => {
         plain.className = 'a'.repeat(60);
         expect(describeSectionElement(plain)).toHaveLength(40);
         expect(describeSectionElement(plain).endsWith('…')).toBe(true);
+    });
+});
+
+describe('局部翻译范围与原文预览', () => {
+    it.each([
+        ['paragraph', ['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li', 'figcaption', 'dt', 'dd']],
+        ['list', ['ul', 'ol', 'dl']],
+        ['table', ['table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th']],
+        ['article', ['article', 'main']],
+        ['region', ['section', 'div', 'aside', 'figure', 'b']],
+    ])('用 %s 阅读语义描述范围，不泄露 HTML id 与 class', (scope, tags) => {
+        const {document} = setup();
+        for (const tag of tags) {
+            const element = document.createElement(tag);
+            element.id = 'internal-generated-id';
+            element.className = 'implementation-details';
+            expect(describeSectionScope(element)).toBe(`sectionTranslation.scope.${scope}`);
+        }
+    });
+
+    it('合并嵌套原文和空白，跳过译文、加载重试、脚本样式、表单控件与 FluentRead 界面子树', () => {
+        const {document} = parseHTML(`<html><body><section id="source">
+            Hello <strong> world </strong><span> this   page </span>
+            <span class="fluent-read-bilingual-content"><b>译文</b></span>
+            <span class="fluent-read-loading">Loading</span>
+            <span class="fluent-read-retry-wrapper"><button>Retry</button></span>
+            <span data-fr-translation-owned="true">Owned translation</span>
+            <script>script source</script><style>style source</style>
+            <input value="input value"><textarea>textarea value</textarea>
+            <select><option>option value</option></select>
+            <div data-fluent-read-ui="notification"><p>Extension UI</p></div>
+        </section></body></html>`);
+        expect(sectionSourcePreview(document.getElementById('source')!)).toBe('Hello world this page');
+        expect(sectionSourcePreview(document.querySelector('.fluent-read-bilingual-content')!)).toBe('');
+        expect(sectionSourcePreview(document.querySelector('script')!)).toBe('');
+    });
+
+    it('88 字边界保留完整原文，超长文本截断含省略号，后续节点不再读取', () => {
+        const {document} = setup();
+        const region = document.createElement('section');
+        region.textContent = '文'.repeat(88);
+        expect(sectionSourcePreview(region)).toBe('文'.repeat(88));
+        region.textContent = '文'.repeat(2000);
+        const unread = document.createTextNode('must not read');
+        const read = vi.fn(() => {throw new Error('preview traversed beyond text budget');});
+        Object.defineProperty(unread, 'textContent', {get: read});
+        region.appendChild(unread);
+        expect(sectionSourcePreview(region)).toBe(`${'文'.repeat(87)}…`);
+        expect(sectionSourcePreview(region)).toHaveLength(88);
+        expect(read).not.toHaveBeenCalled();
+    });
+
+    it('含根节点最多检查 160 个节点，空包装层不会让预览扫描整棵大树', () => {
+        const {document} = setup();
+        const region = document.createElement('section');
+        const visits = [];
+        for (let index = 0; index < 300; index += 1) {
+            const wrapper = document.createElement('span');
+            visits.push(vi.spyOn(wrapper, 'matches'));
+            region.appendChild(wrapper);
+        }
+        const lateText = document.createTextNode('Deep source beyond node budget');
+        const read = vi.fn(() => {throw new Error('preview traversed beyond node budget');});
+        Object.defineProperty(lateText, 'textContent', {get: read});
+        region.appendChild(lateText);
+        expect(sectionSourcePreview(region)).toBe('');
+        expect(visits.slice(0, 159).every(visit => visit.mock.calls.length === 1)).toBe(true);
+        expect(visits.slice(159).every(visit => visit.mock.calls.length === 0)).toBe(true);
+        expect(read).not.toHaveBeenCalled();
+    });
+
+    it('空区域、纯注释与只有被排除内容的区域返回空预览', () => {
+        const {document} = setup();
+        const region = document.createElement('section');
+        expect(sectionSourcePreview(region)).toBe('');
+        region.appendChild(document.createComment('comment is not original text'));
+        region.appendChild(document.createTextNode(' \n\t '));
+        region.innerHTML += '<script>code</script><textarea>control</textarea>';
+        expect(sectionSourcePreview(region)).toBe('');
     });
 });
 

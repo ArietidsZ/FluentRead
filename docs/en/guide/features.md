@@ -47,6 +47,8 @@ Open **Settings Center → Tools and learning → Translation Center**, enter te
 
 When you only want to read part of a page, such as a GitHub README, an article body or one comment thread, you don’t have to translate the whole page.
 
+Move the pointer to preview a section, then click to lock the selection. Adjust the range with **↑/↓** or the toolbar after locking, then confirm translation or restoration. **Enter** confirms during either the preview or a locked selection; **Esc** or a right-click exits.
+
 [Open guide](/en/guide/webpage-translation)
 
 </details>

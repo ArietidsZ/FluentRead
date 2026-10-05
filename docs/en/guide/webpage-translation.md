@@ -50,11 +50,12 @@ Turning the ball off leaves the full-page translation shortcut (Alt+T by default
 
 When you only want to read part of a page, such as a GitHub README, an article body or one comment thread, you don’t have to translate the whole page. Click the **Section** button next to **Translate this page** in the extension menu to start picking:
 
-- The part of the page under the mouse is outlined, and a label tells you what a click will do: how many paragraphs it will translate, that it will show the original again, or that there is nothing to translate.
-- Click to translate just that section. Paragraphs on screen are translated first and the rest follow. Display mode, service and target language are the same as for page translation.
-- Press **↑** to widen the section to its outer container and **↓** to narrow it again. After widening, the selection stays put while the mouse is inside the outline.
-- Pick a translated section again to show its original text. If some paragraphs failed, picking the section again retries them.
-- Press **Esc**, right-click, or click **×** on the hint bar at the bottom to exit. While picking, clicks on the page don’t open links or press buttons.
+- Move the pointer to preview a section. An outline marks the current range, and the label shows its type, such as paragraph, list, table, article or region, along with its translation status.
+- Clicking a section only locks the selection; it does not start translation. Once locked, the toolbar offers **Expand selection**, **Shrink selection**, **Reselect**, **Translate selected section** (or **Restore original** for a translated section), and a close button. Choose **Reselect** to return to the hover preview.
+- Press **↑** to expand the selection to its outer container and **↓** to shrink it again. You can also use the toolbar to adjust a locked selection.
+- Click **Translate selected section**, or press **Enter** to confirm, to translate the current section. **Enter** works both during the preview and after locking the selection. Paragraphs on screen are translated first and the rest follow. Display mode, service and target language are the same as for page translation.
+- Select a translated section again, then click **Restore original** or press **Enter** to confirm restoration. If some paragraphs failed, confirming translation retries them.
+- Press **Esc**, right-click, or click the toolbar’s close button to exit. While picking, clicks on the page don’t open links or press buttons.
 
 If you use it often, turn on its shortcut in **Settings → Translation → Section translation** (default **Alt+R**, Option+R on a Mac); press it again while picking to exit. Headers, navigation and sidebars usually stay in the original language during page translation, but if you pick one of them yourself, its text is translated too and, like other interface text, replaces the original in place so the layout stays intact. Restoring page translation also restores any translated sections.
 
