@@ -195,6 +195,49 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: 20000});
   const pageUrl = page.url();
 
+  currentCase = 'locked closed-shadow toolbar handles range keys and Escape after webpage input focus';
+  await page.locator('#notes').focus();
+  await startFromPopupMessage();
+  await hover('#p1');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Enter');
+  assert.equal((await pickerState()).meta, '段落', 'webpage input keeps its editing keys before locking');
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), 0);
+  const lockPoint = await center('#p1');
+  await page.mouse.click(lockPoint.x, lockPoint.y);
+  await wait(async () => (await pickerState())?.selection === 'locked');
+  assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-fluent-read-ui="section-picker"]')), true, 'closed shadow focus is retargeted to the picker host');
+  await page.keyboard.press('ArrowUp');
+  await waitLabel(/翻译此区域 · 7 段/, '文章');
+  await page.keyboard.press('ArrowDown');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  await shot('00-locked-keyboard-range');
+  await page.keyboard.press('Escape');
+  await wait(async () => !(await pickerActive()), 3000);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'notes', 'Escape restores previous input focus');
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), 0, 'Escape cancels without a request');
+  await page.locator('#notes').evaluate(element => element.blur());
+  await page.evaluate(() => scrollTo(0, 0));
+  report.cases.push(currentCase);
+
+  currentCase = 'toolbar buttons keep range keys and native Enter activation after Tab';
+  await startFromPopupMessage();
+  await hover('#p1');
+  const buttonLockPoint = await center('#p1');
+  await page.mouse.click(buttonLockPoint.x, buttonLockPoint.y);
+  await wait(async () => (await pickerState())?.selection === 'locked');
+  await page.keyboard.press('Tab');
+  assert.equal(await picker('return this.activeElement?.classList.contains("fr-section-bar-close")'), true, 'Tab focuses the close button');
+  await page.keyboard.press('ArrowUp');
+  await waitLabel(/翻译此区域 · 7 段/, '文章');
+  await page.keyboard.press('ArrowDown');
+  await waitLabel(/翻译此区域 · 1 段/, '段落');
+  await page.keyboard.press('Enter');
+  await wait(async () => !(await pickerActive()), 3000);
+  assert.equal(await worker.evaluate(() => globalThis.__sectionFixture.origins.length), 0, 'Enter activates close without translation');
+  report.cases.push(currentCase);
+
   currentCase = 'stable boundary preview, explicit locking, visible range buttons and reselect';
   await startFromPopupMessage();
   await hover('#p1');
@@ -243,7 +286,7 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   state = await pickerState(); assert.equal(state.meta, '文章');
   report.cases.push(currentCase);
 
-  currentCase = 'click locks the section without navigation or requests; toolbar confirms only that section';
+  currentCase = 'click locks the section without navigation or requests; Enter confirms only that section';
   const linkPoint = await center('#inline-link');
   const beforeLock = await worker.evaluate(() => globalThis.__sectionFixture.origins.length);
   await page.mouse.click(linkPoint.x, linkPoint.y);
@@ -253,7 +296,7 @@ async function noticeText() {return page.evaluate(() => document.querySelector('
   assert.equal((await pickerState()).confirmDisabled, false);
   await hover('#about-text');
   assert.equal((await pickerState()).meta, '文章', 'locked section survives mouse movement and scrolling');
-  await clickPickerButton('.fr-section-confirm');
+  await page.keyboard.press('Enter');
   await wait(async () => !(await pickerActive()), 5000);
   assert.equal(page.url(), pageUrl, 'link must not navigate');
   assert.equal(await page.evaluate(() => window.__pageClicks), 0, 'page must not receive the picking click');
