@@ -8,13 +8,13 @@ const baseline = process.argv.includes('--baseline');
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-manga-entry'));
 const extension = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper'));
 const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-entry-');
 fs.mkdirSync(artifacts, {recursive: true});
-const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', cases: [], screenshots: [], consoleErrors: [], errors: [], hostErrors: []};
+const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', profileDir:profile, cases: [], screenshots: [], consoleErrors: [], errors: [], hostErrors: []};
 const hostBaselineFile=arg('host-baseline',null);
 const hostBaseline=hostBaselineFile?JSON.parse(fs.readFileSync(hostBaselineFile,'utf8')):null;
-if(hostBaseline)assert.ok(['read-only DOM research without extension; not extension runtime validation','read-only visible DOM research without extension'].includes(hostBaseline.purpose),'Host baseline must be an extension-free DOM research report');
+if(hostBaseline)assert.ok(['read-only DOM research without extension; not extension runtime validation','read-only visible DOM research without extension','read-only background-tab DOM research without extension; not onscreen validation'].includes(hostBaseline.purpose)||(hostBaseline.purpose==='read-only active-tab DOM research with FluentRead disabled; not extension runtime validation'&&hostBaseline.activationControl?.productionExtensionDisabled===true),'Host baseline must be extension-free or explicitly disabled public DOM research');
 report.hostBaselineFile=hostBaselineFile;
 let launched, popup, page, worker, cdp, browserPid;
 function focusGuard() {
@@ -39,18 +39,27 @@ async function patch(config) {await popup.evaluate(async config => {
     const response = await chrome.runtime.sendMessage({type: 'persistConfig', mode: 'patch', config, expected: Object.fromEntries(Object.keys(config).map(key => [key, current[key]])), clientId: 'manga-entry-test', sequence: Date.now(), baseRevision: current.__fluentConfigRevision || 0});
     if (!response.success) throw new Error(response.error);
 }, config);}
-async function shot(name) {focusGuard();const file = path.join(artifacts, `${name}.png`);await page.screenshot({path: file});report.screenshots.push(file);}
-async function clickEntry(selector) {let point = await entry(`const b=this.querySelector(${JSON.stringify(selector)});if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width*(getComputedStyle(b).clipPath!=='none'?.25:.5),y:r.y+r.height/2}`);assert.ok(point);await page.mouse.move(point.x,point.y);await page.waitForTimeout(550);point=await entry(`const r=this.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);await page.mouse.click(point.x, point.y);}
+async function activateVisible(target) {
+    await activateExtensionTabWithoutForeground(launched.context,target);focusGuard();
+    const tabId=target.url().startsWith('chrome-extension://')?await target.evaluate(async()=>{const tab=await chrome.tabs.getCurrent();if(!tab?.id)throw new Error('Owned extension tab missing');return tab.id;}):null;
+    const state=await worker.evaluate(async ({url,tabId})=>{const tab=tabId?await chrome.tabs.get(tabId):(await chrome.tabs.query({})).find(tab=>tab.url===url);if(!tab)throw new Error('Owned test tab missing');const window=await chrome.windows.get(tab.windowId);return {active:tab.active,windowState:window.state,windowFocused:window.focused};},{url:target.url(),tabId});
+    state.documentVisibility=await target.evaluate(()=>document.visibilityState);
+    assert.equal(state.active,true,'Actual owned browser tab must be selected');assert.equal(state.windowState,'normal');assert.equal(state.documentVisibility,'visible');
+    (report.tabVisibility??=[]).push({url:target.url(),...state});
+}
+async function gotoVisible(target,url,options) {const response=await target.goto(url,options);await activateVisible(target);return response;}
+async function shot(name) {await activateVisible(page);const file = path.join(artifacts, `${name}.png`);await page.screenshot({path: file});report.screenshots.push(file);}
+async function clickEntry(selector) {await activateVisible(page);let point = await entry(`const b=this.querySelector(${JSON.stringify(selector)});if(!b)return null;const r=b.getBoundingClientRect();return {x:r.x+r.width*(getComputedStyle(b).clipPath!=='none'?.25:.5),y:r.y+r.height/2}`);assert.ok(point);await page.mouse.move(point.x,point.y);await page.waitForTimeout(550);point=await entry(`const r=this.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);await page.mouse.click(point.x, point.y);}
 (async () => {
     launched = await launchFocusSafePersistentContext({chromium, profileDir: profile, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
         browserArgs: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000});
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
     const context = launched.context, system = await context.browser().newBrowserCDPSession();
-    browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p => p.type === 'browser').id;await system.detach();focusGuard();
+    browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p => p.type === 'browser').id;report.browserPid=browserPid;await system.detach();focusGuard();
     worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker');
     const id = new URL(worker.url()).host;
-    popup = context.pages()[0];popup.on('pageerror',e=>report.errors.push(e.message));popup.on('console',m=>{if(m.type()==='error')report.consoleErrors.push(m.text());});await popup.goto(`chrome-extension://${id}/popup.html`);
+    popup = context.pages()[0];popup.on('pageerror',e=>report.errors.push(e.message));popup.on('console',m=>{if(m.type()==='error')report.consoleErrors.push(m.text());});await gotoVisible(popup,`chrome-extension://${id}/popup.html`);
     await patch({on: true, uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, disableImageTranslator: true, disableFloatingBall: false,
         imageTranslationMangaEnabled: true, imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false, animations: false, service: 'google', from: 'en', to: 'zh-Hans'});
     page = await newPageWithoutForeground(context);page.on('pageerror', e => {
@@ -67,7 +76,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         (report.scriptExceptions??=[]).push({url:page.url(),details:event.exceptionDetails,context:executionContexts.get(event.exceptionDetails.executionContextId)});
     });
     await cdp.send('Runtime.enable');
-    await page.goto(arg('site-url', 'https://mangaplus.shueisha.co.jp/viewer/1028732'), {waitUntil: 'domcontentloaded', timeout: 60000});
+    await gotoVisible(page,arg('site-url', 'https://mangaplus.shueisha.co.jp/viewer/1028732'), {waitUntil: 'domcontentloaded', timeout: 60000});
     await page.waitForSelector('.zao-image-container img.zao-image', {timeout: 45000});
     const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:7000}).then(()=>reject.click()).catch(()=>undefined);
     report.readerImages = await page.locator('.zao-image-container img.zao-image').count();
@@ -117,7 +126,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         await page.waitForTimeout(1200);assert.equal(await entry('return !!this.querySelector(".fr-manga-launcher")'), false);
         await patch({from: 'auto'});await page.waitForTimeout(300);assert.equal(await entry('return !!this.querySelector(".fr-manga-launcher")'), false);report.cases.push(report.currentCase);
         report.currentCase = 'settings restore prompt through the actual switch';
-        await popup.goto(`chrome-extension://${id}/options.html#settings-image-translation`);
+        await gotoVisible(popup,`chrome-extension://${id}/options.html#settings-image-translation`);
         await popup.locator('.manga-advanced > summary').click();
         const switchPrompt=popup.getByRole('switch',{name:'独立漫画按钮',exact:true});await switchPrompt.waitFor({state:'attached'});
         await popup.locator('.el-switch').filter({has:switchPrompt}).waitFor();
@@ -147,14 +156,14 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         await popup.getByText('添加其他漫画网站',{exact:true}).click();assert.equal(await popup.locator('.manga-custom-site').count(),1);report.cases.push(report.currentCase);
         report.currentCase='custom reader is discovered with both ordinary image and floating button off';
         await context.route('https://comic.example.test/reader/1',route=>route.fulfill({contentType:'text/html',body:'<html><body><main><img width="400" height="800"></main></body></html>'}));
-        await page.goto('https://comic.example.test/reader/1');await wait(async()=>await entry('return !!this.querySelector(".fr-manga-launcher")'));assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'),false);
+        await gotoVisible(page,'https://comic.example.test/reader/1');await wait(async()=>await entry('return !!this.querySelector(".fr-manga-launcher")'));assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'),false);
         await shot('custom-reader-entry');report.cases.push(report.currentCase);
         report.currentCase='first download prompt fits narrow viewport and dark theme';
         await page.setViewportSize({width:320,height:550});await page.emulateMedia({colorScheme:'dark'});await clickEntry('.fr-manga-launcher');
         await wait(async()=>await entry('return this.textContent.includes("首次使用，先准备阅读资源")'));
         const bounds=await entry('const r=this.querySelector(".fr-manga-entry").getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom}');
         assert.ok(bounds.left>=0 && bounds.right<=320 && bounds.top>=0 && bounds.bottom<=550);await shot('entry-first-use-dark-narrow');report.cases.push(report.currentCase);
-        await popup.goto(`chrome-extension://${id}/popup.html`);
+        await gotoVisible(popup,`chrome-extension://${id}/popup.html`);
         report.currentCase='icon and first-use actions work in English and all UI locales';
         await patch({uiLanguage:'en-US',disableFloatingBall:false});
         await wait(async()=>await entry('return this.querySelector(".fr-manga-primary")?.textContent.trim() === "Prepare resources and start"'));
@@ -186,7 +195,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         report.currentCase = 'ordinary pages keep resident brand and translation controls; explicit hover remains available';
         await page.setViewportSize({width:1280,height:900});
         await context.route('https://ordinary.example.test/article', route => route.fulfill({contentType:'text/html',body:'<html><body><p>Ordinary reading page</p></body></html>'}));
-        await page.mouse.move(30,30);await page.goto('https://ordinary.example.test/article');
+        await page.mouse.move(30,30);await gotoVisible(page,'https://ordinary.example.test/article');
         await wait(async () => await ball('return !!this.querySelector(".floating-ball-main")'));
         assert.equal(await ball('return this.querySelector(".floating-ball-manga") !== null'), false);
         assert.equal(await ball('return this.querySelector(".floating-ball-main").textContent.trim()'), '');
@@ -216,7 +225,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         assert.ok(dragBounds.left>=0 && dragBounds.right<=320 && dragBounds.top>=0 && dragBounds.bottom<=550);await shot('brand-narrow-dragged');
         await page.setViewportSize({width:1280,height:900});report.cases.push(report.currentCase);
         report.currentCase = 'confirm closes immediately and continuous mode can pause without a dialog';
-        await patch({uiLanguage:'zh-CN'});await page.goto('https://comic.example.test/reader/1');
+        await patch({uiLanguage:'zh-CN'});await gotoVisible(page,'https://comic.example.test/reader/1');
         await wait(async () => await ball('return !!this.querySelector(".floating-ball-manga")'));
         const clickBall=async()=>{const p=await ball('const r=this.querySelector(".floating-ball-manga").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');await page.mouse.click(p.x,p.y);};
         await clickBall();await wait(async()=>await entry('return !!this.querySelector(".fr-manga-primary")'));
@@ -229,7 +238,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'),false);report.cases.push(report.currentCase);
         report.currentCase = 'canvas reader offers area translation without downloading continuous manga models';
         await context.route('https://comic-days.com/episode/10834108156634732370',route=>route.fulfill({contentType:'text/html',body:'<html><body><div class="page-area"><canvas class="js-page-image" width="688" height="1024" style="width:600px;height:850px"></canvas></div><div class="link-page-content"><img width="600" height="850"></div></body></html>'}));
-        await patch({selectionAreaEnabled:false});await page.goto('https://comic-days.com/episode/10834108156634732370');
+        await patch({selectionAreaEnabled:false});await gotoVisible(page,'https://comic-days.com/episode/10834108156634732370');
         await wait(async()=>await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-label") === "圈选漫画翻译"'));
         const areaClick=async()=>{const p=await ball('const r=this.querySelector(".floating-ball-manga").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');await page.mouse.click(p.x,p.y);};
         await areaClick();await wait(async()=>await entry('return this.textContent.includes("请在图片/漫画设置中启用圈选翻译")'));
@@ -242,7 +251,7 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         if(liveReadersFile){
             for(const sample of JSON.parse(fs.readFileSync(liveReadersFile,'utf8'))){
                 report.currentCase=`live reader discovery: ${sample.url}`;
-                const response=await page.goto(sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
+                const response=await gotoVisible(page,sample.url,{waitUntil:'domcontentloaded',timeout:30000});await page.waitForTimeout(3000);focusGuard();
                 if(sample.rejectCookies) {const reject=page.locator('#onetrust-reject-all-handler');await reject.waitFor({timeout:8000}).then(()=>reject.click()).catch(()=>undefined);}
                 if(sample.openSelector) {
                     const opener=sample.openFrameSelector?page.frameLocator(sample.openFrameSelector).locator(sample.openSelector):page.locator(sample.openSelector);

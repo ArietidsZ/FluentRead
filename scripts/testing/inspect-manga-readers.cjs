@@ -12,14 +12,21 @@ const settleMs = Number(process.argv.includes('--settle-ms') ? arg('settle-ms') 
 assert.ok(Number.isInteger(settleMs) && settleMs >= 0 && settleMs <= 30000, 'Settle time must be 0–30000 ms');
 const artifacts = path.resolve(arg('artifacts-dir'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper'));
 const profile = fs.mkdtempSync('/private/tmp/fluentread-reader-inspection-');
 const headlessResearch = process.argv.includes('--headless-research');
 const resetZoom = process.argv.includes('--reset-zoom');
+const activationExtension=process.argv.includes('--activation-extension-dir')?path.resolve(arg('activation-extension-dir')):null;
+assert.ok(!activationExtension||(!headlessResearch&&fs.existsSync(path.join(activationExtension,'manifest.json'))),'Visible tab activation requires an explicit built extension and normal browser');
 assert.ok(!resetZoom || !headlessResearch, 'Zoom reset requires a normal visible browser');
 fs.mkdirSync(artifacts, {recursive:true});
 const report = {scope: urls, pages: [], errors: []};
-let launched, browserPid;
+let launched, browserPid, activationWorker;
+async function tabState(page) {
+  const native=await activationWorker.evaluate(async url=>{const tab=(await chrome.tabs.query({})).find(tab=>tab.url===url);if(!tab)throw new Error('Owned public tab missing');return {active:tab.active,windowState:(await chrome.windows.get(tab.windowId)).state};},page.url());
+  const selector=process.argv.includes('--ready-selector')?arg('ready-selector'):'img';
+  return {...native,...await page.evaluate(selector=>({documentVisibility:document.visibilityState,loadedImages:Array.from(document.querySelectorAll(selector)).filter(image=>image.tagName==='IMG'&&image.complete&&image.naturalWidth>=80&&image.naturalHeight>=40).length}),selector)};
+}
 async function boundedPageRead(operation) {
   let timeout;
   try {return await Promise.race([operation,new Promise((_,reject)=>{timeout=setTimeout(()=>reject(new Error('Public DOM inspection timed out after 30 seconds')),30000);})]);}
@@ -36,15 +43,27 @@ function focusGuard() {
   try {
     launched = await launchFocusSafePersistentContext({chromium,profileDir:profile,
       browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:headlessResearch,background:true,
-      browserArgs:['--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+      browserArgs:[...(activationExtension?[`--disable-extensions-except=${activationExtension}`,`--load-extension=${activationExtension}`]:[]),'--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
     report.launchMode = launched.launchMode; report.focusPolicy = launched.focusPolicy; report.windowPlacement = launched.windowPlacement;
     if (!headlessResearch) assert.equal(report.windowPlacement.browserFrontmost, false);
-    report.purpose = headlessResearch ? 'read-only DOM research without extension; not extension runtime validation' : 'read-only visible DOM research without extension';
+    report.purpose = headlessResearch ? 'read-only DOM research without extension; not extension runtime validation' : activationExtension?'read-only active-tab DOM research with FluentRead disabled; not extension runtime validation':'read-only background-tab DOM research without extension; not onscreen validation';
     const system = await launched.context.browser().newBrowserCDPSession();
     browserPid = (await system.send('SystemInfo.getProcessInfo')).processInfo.find(p=>p.type==='browser').id;
     report.browserPid=browserPid;report.profileDir=profile;
     fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
     await system.detach();focusGuard();
+    if(activationExtension){
+      activationWorker=launched.context.serviceWorkers().find(worker=>worker.url().startsWith('chrome-extension://'))||await launched.context.waitForEvent('serviceworker',{timeout:20000});
+      const control=launched.context.pages()[0];await control.goto(`chrome-extension://${new URL(activationWorker.url()).host}/popup.html`);
+      const disabled=await control.evaluate(async()=>{
+        const patch={on:false,disableFloatingBall:true,disableImageTranslator:true,imageTranslationMangaEnabled:false};
+        const current=(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value;
+        const response=await chrome.runtime.sendMessage({type:'persistConfig',mode:'patch',config:patch,expected:Object.fromEntries(Object.keys(patch).map(key=>[key,current[key]])),clientId:'reader-inspection-visible-tab',sequence:Date.now(),baseRevision:current.__fluentConfigRevision||0});
+        if(!response?.success)throw new Error(response?.error||'Cannot disable extension before public inspection');
+        return (await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value.on===false;
+      });
+      assert.equal(disabled,true);report.activationControl={productionExtensionDisabled:true,method:'existing helper chrome.tabs.update; no host property override'};
+    }
     for (const href of urls) {
       let page = await newPageWithoutForeground(launched.context);
       const parentPage = page, navigationResponses=[];
@@ -61,7 +80,13 @@ function focusGuard() {
       page.on('response',response=>{if(response.status()>=400&&['image','xhr','fetch'].includes(response.request().resourceType())&&result.networkFailures.length<100)result.networkFailures.push({...publicRequest(response.request()),status:response.status()});});
       try {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
+        result.url=page.url();result.status=response?.status();result.navigationResponses=navigationResponses;
         await page.waitForTimeout(settleMs);result.settleMs=settleMs;
+        if(activationExtension){
+          result.beforeActivation=await tabState(page);
+          await activateExtensionTabWithoutForeground(launched.context,page);focusGuard();await page.waitForTimeout(settleMs);
+          result.afterActivation=await tabState(page);assert.equal(result.afterActivation.active,true);assert.equal(result.afterActivation.windowState,'normal');assert.equal(result.afterActivation.documentVisibility,'visible');
+        }
         if(resetZoom){await page.keyboard.press('Meta+0');await page.reload({waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(settleMs);result.zoomReset={key:'Meta+0',reload:true};}
         const fillSelector=process.argv.includes('--before-inspect-fill-selector')?arg('before-inspect-fill-selector'):null;
         if(fillSelector){
@@ -73,7 +98,7 @@ function focusGuard() {
         if(clickSelector){
           const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
           await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};
-          if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});}
+          if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});if(activationExtension){await activateExtensionTabWithoutForeground(launched.context,page);focusGuard();}}
           await page.waitForTimeout(settleMs);
         }
         const secondaryClick=process.argv.includes('--after-reader-click')?arg('after-reader-click'):null;
@@ -141,7 +166,7 @@ function focusGuard() {
             finally {image.onload=image.onerror=null;image.src='';canvas.width=canvas.height=0;}
             backgrounds.push(details);
           }
-          return {url:location.href,title:document.title,images:images.slice(0,30),imageCount:images.length,backgrounds,
+          return {url:location.href,title:document.title,documentVisibility:document.visibilityState,documentHasFocus:document.hasFocus(),images:images.slice(0,30),imageCount:images.length,backgrounds,
             canvases:Array.from(document.querySelectorAll('canvas')).map(c=>{
               const rect=c.getBoundingClientRect(),hit=document.elementFromPoint(Math.max(0,Math.min(innerWidth-1,rect.left+rect.width/2)),Math.max(0,Math.min(innerHeight-1,rect.top+rect.height/2)));
               let readable=false, nonblank=false, gridNonblank=false, pixelError='';
@@ -206,7 +231,8 @@ function focusGuard() {
     }
   } catch(error) {report.errors.push(error.stack);process.exitCode=1;}
   finally {
-    fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
     await launched?.close();fs.rmSync(profile,{recursive:true,force:true});
+    report.profileRemoved=!fs.existsSync(profile);
+    fs.writeFileSync(path.join(artifacts,'reader-inspection.json'),JSON.stringify(report,null,2));
   }
 })();

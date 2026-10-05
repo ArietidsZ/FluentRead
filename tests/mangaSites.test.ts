@@ -6,6 +6,14 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['/comic/high-society/chapter-99','/comic/i-thought-its-a-common-possession/95958-chapter-1'])('Templetoons 章节路径 %s 只选择直接正文长图', path => {
+        const site=resolveMangaSite(`https://templetoons.com${path}`)!;
+        expect(site).toMatchObject({name:'Templetoons',requireContent:true});
+        const {document}=parseHTML('<main><div class="protected-content"><div class="protected-content relative"><div class="relative"><img id="body" class="select-none"><a><img id="nested" class="select-none"></a></div></div><a class="protected-content"><div class="relative"><img id="promotion" class="select-none"></div></a><div class="cover"><img id="cover" class="select-none"></div></div><div class="protected-content"><img id="outside" class="select-none"></div></main>');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['body']);
+        for(const path of ['/','/comic/high-society','/comic/title/chapter-0','/comic/title/chapter-01','/comic/title/0-chapter-1','/comic/title/01-chapter-1','/comic/title/chapter-1/extra'])expect(resolveMangaReaderProfile('templetoons.com',path)).toBeNull();
+        expect(resolveMangaReaderProfile('templetoons.com.attacker.test',path)).toBeNull();
+    });
     it('MangaOI 只检测直系章节列表，排除列表推荐与异常阅读路径', () => {
         const site = resolveMangaSite('https://mangaoi.net/read-manga/colorist/chapter-50')!;
         expect(site).toMatchObject({name: 'MangaOI', requireContent: true});

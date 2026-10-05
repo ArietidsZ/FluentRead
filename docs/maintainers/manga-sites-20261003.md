@@ -40,7 +40,7 @@
 | 30 | Manhwatop | manhwatop.com | 通用正文图片检测 | 访问受限 |
 | 31 | Palcy | palcy.jp | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
 | 32 | Comic-Trail | comic-trail.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
-| 33 | Templetoons | templetoons.com | 通用正文图片检测 | 正常章节显示 14 个加载占位；正文未确认 |
+| 33 | Templetoons | templetoons.com | 专用直系长图正文，复用分段 | 另一免费章加载 720×10155 正文，标签页已选中且普通滚动后可见，实页入口通过；旧加载占位及关闭扩展的选中标签页空正文对照保留，未验 OCR 或全部章节 |
 | 34 | Batocomic | batocomic.net | 通用正文图片检测 | 当前首页是分类停放页；未推断替代域名 |
 | 35 | Comic-action | comic-action.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 36 | 腾讯动漫 | ac.qq.com | 专用正文图片 | 公开章节正文结构已核对 |
@@ -95,7 +95,7 @@
 | 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
 | 86 | MrBlue | mrblue.com | 通用正文图片检测 | 正常免费首话按钮打开 viewer.mrblue.com 阅读窗口，窗口明确要求登录；没有正文，未提交登录 |
 | 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
-| 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页可找到章节；有界面与无界面均只见空正文容器，未确认正文 |
+| 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 目录另外两部作品的 28.2、47 话仍只有空正文容器；此前正常窗口未测原生标签页选中状态，正文未确认，不据样本推断全站不可读 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 专用正文图片 | 最新免费章四张原稿及入口确认；推广遮挡下部，本轮未执行 OCR |
 | 90 | yaoimangaonline.com | yaoimangaonline.com | 专用单帖正文图片 | 公开单帖 76 张正文，正常滚动后两张已加载、一张可见；入口通过，未验 OCR |
 | 91 | nhentaiyaoi | nhentaiyaoi.net | 专用单帖正文图片 | 公开单帖 37 张正文已加载、一张可见；封面与推荐排除，入口通过，未验 OCR |
@@ -114,7 +114,7 @@
 | 104 | greentoon.net | greentoon.net | 通用正文图片检测 | 当前 HTTP 429；正文未确认 |
 | 105 | dynasty-scans.com | dynasty-scans.com | 专用正文图片 | 首页 HTML 可访问 |
 | 106 | mangaoi.net | mangaoi.net | 专用直系章节图片 | 另一部作品的公开 50 话正常显示 130 张正文图片，实页入口通过；旧 221 话及新 21 话仍为 HTTP 200 的 404 页面，未验实际 OCR |
-| 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
+| 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 另一目录作品实际 431 话的无界面调查仍只有 logo 与小图；旧加载提示保留，尚未确认选中标签页的正文 |
 | 108 | toptoon.com | toptoon.com | 首图/不可读画布：圈选入口 | 正常点击免费首话显示 720 像素宽正文；画布原生像素读取返回 SecurityError，首图和下一画布入口通过 |
 | 109 | acgmhh.com | acgmhh.com / acgmhn.com | 专用编号页正文图片 | 原站 301 转至当前目录；经用户授权确认年龄提示后正常下一页显示 1000×1398 主图，推荐封面排除，实页入口通过；未验 OCR 或跨文档续译 |
 | 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 本轮公开首页 HTTP 403 验证页，无正文 |

@@ -1334,7 +1334,7 @@
           "hostname": "templetoons.com"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "requestedUrl": "https://templetoons.com/",
@@ -1344,6 +1344,88 @@
           "status": 200,
           "title": "Read Manhwa & Comics Online Free - Temple Scan",
           "imageCount": 39
+        },
+        {
+          "url": "https://templetoons.com/",
+          "finalUrl": "https://templetoons.com/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "homes-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 53,
+          "canvasCount": 0,
+          "readerFinding": "Public original catalogue200 lists free and Premium entries. Unmarked chapter99 selected for further DOM-only inspection; no purchase or chapter acceptance from root.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 7,
+          "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent.",
+          "requestedUrl": "https://templetoons.com/",
+          "checkedAt": "2026-10-05T15:15:32.496Z"
+        },
+        {
+          "url": "https://templetoons.com/comic/high-society/chapter-99",
+          "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "temple-chapter-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 5,
+          "canvasCount": 0,
+          "readerFinding": "Actual unmarked free chapter99 has720x10155 primary IMG in headless DOM, directly under protected-content/div.relative; linked promotions are separate. Structural evidence only, not onscreen or translation acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 8,
+          "requestedUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "checkedAt": "2026-10-05T15:15:32.498Z"
+        },
+        {
+          "url": "https://templetoons.com/comic/high-society/chapter-99",
+          "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "temple-normal-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Same chapter normal-window DOM after20s still shows9 Loading image placeholders and no primary body. Native tab active was not measured; retained limited negative sample, not whole-site unavailability.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 10,
+          "requestedUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "checkedAt": "2026-10-05T15:15:32.499Z"
+        },
+        {
+          "url": "https://templetoons.com/comic/high-society/chapter-99",
+          "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "temple-active-disabled-wave32",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Paired control with FluentRead master/images/manga disabled: native tab active false then true, document reports visible in both states, but exact body count0 in both intervals. Normal body scroll times out. This does not establish tab activation alone as the cause of other positive samples; private failure retained.",
+          "profileRemoved": true,
+          "pageErrorCount": 1,
+          "networkFailureCount": 14,
+          "error": "Exact primary body scroll timed out; no body container or chapter acceptance in this control.",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 0
+          },
+          "requestedUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "checkedAt": "2026-10-05T15:15:32.499Z"
         }
       ]
     },
@@ -3531,6 +3613,58 @@
           "networkFailureCount": 1,
           "requestedUrl": "https://rawdevart.art/read/ne859000/chapter-15.2",
           "checkedAt": "2026-10-05T05:51:20.567756+00:00"
+        },
+        {
+          "url": "https://rawdevart.art/",
+          "finalUrl": "https://rawdevart.art/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "homes-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 6,
+          "canvasCount": 0,
+          "readerFinding": "Public original catalogue200 with actual alternate native chapter links. Legacy normal-window report lacks native tab active measurement; not onscreen body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent.",
+          "requestedUrl": "https://rawdevart.art/",
+          "checkedAt": "2026-10-05T15:15:32.495Z"
+        },
+        {
+          "url": "https://rawdevart.art/read/ne857157/chapter-28.2",
+          "finalUrl": "https://rawdevart.art/read/ne857157/chapter-28.2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "alternate-works-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Alternate native-listed chapter28.2 has empty chapter-imgs and only logo/chat artwork after20s normal-window DOM research. Original tab active not measured; body absence has that limitation.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://rawdevart.art/read/ne857157/chapter-28.2",
+          "checkedAt": "2026-10-05T15:15:32.497Z"
+        },
+        {
+          "url": "https://rawdevart.art/read/ne178/chapter-47",
+          "finalUrl": "https://rawdevart.art/read/ne178/chapter-47",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "alternate-works-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Another native-listed chapter47 has empty chapter-imgs and logo/chat artwork after20s. Native tab active not measured; no chapter rule inferred.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://rawdevart.art/read/ne178/chapter-47",
+          "checkedAt": "2026-10-05T15:15:32.497Z"
         }
       ]
     },
@@ -4427,6 +4561,58 @@
           "title": "ブルーロック – Raw 【第363話】 | Manga Raw",
           "imageCount": 4,
           "finalUrl": "https://rawlazy.io/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-%e3%80%90%e7%ac%ac363%e8%a9%b1%e3%80%91/"
+        },
+        {
+          "url": "https://rawlazy.io/",
+          "finalUrl": "https://rawlazy.io/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "homes-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 41,
+          "canvasCount": 0,
+          "readerFinding": "Public original work directory200 with actual alternate work links. Legacy normal-window report lacks native tab active measurement; not body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent.",
+          "requestedUrl": "https://rawlazy.io/",
+          "checkedAt": "2026-10-05T15:15:32.496Z"
+        },
+        {
+          "url": "https://rawlazy.io/manga-lazy/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-free/",
+          "finalUrl": "https://rawlazy.io/manga-lazy/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-free/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "alternate-works-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 13,
+          "canvasCount": 0,
+          "readerFinding": "Actual alternate work directory links chapter431; no chapter acceptance. Next target creation later stopped on native foreground safeguard before Temple chapter navigation.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://rawlazy.io/manga-lazy/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-free/",
+          "checkedAt": "2026-10-05T15:15:32.497Z"
+        },
+        {
+          "url": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "finalUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+          "attempt": "rawlazy-chapter-wave32",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 4,
+          "canvasCount": 0,
+          "readerFinding": "Actual alternate native-linked chapter431, headless200, only logo and small non-body images. No body IMG/canvas; headless absence is not whole-site or normal active-tab acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+          "checkedAt": "2026-10-05T15:15:32.498Z"
         }
       ]
     },
@@ -15208,6 +15394,172 @@
       "pageErrorCount": 0,
       "networkFailureCount": 0,
       "profileCleanup": "Late residue removed after inspector terminal success and browser PID verified absent; private cleanup report retained."
+    },
+    {
+      "url": "https://rawdevart.art/",
+      "finalUrl": "https://rawdevart.art/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "homes-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 6,
+      "canvasCount": 0,
+      "readerFinding": "Public original catalogue200 with actual alternate native chapter links. Legacy normal-window report lacks native tab active measurement; not onscreen body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent."
+    },
+    {
+      "url": "https://rawlazy.io/",
+      "finalUrl": "https://rawlazy.io/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "homes-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 41,
+      "canvasCount": 0,
+      "readerFinding": "Public original work directory200 with actual alternate work links. Legacy normal-window report lacks native tab active measurement; not body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent."
+    },
+    {
+      "url": "https://templetoons.com/",
+      "finalUrl": "https://templetoons.com/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "homes-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 53,
+      "canvasCount": 0,
+      "readerFinding": "Public original catalogue200 lists free and Premium entries. Unmarked chapter99 selected for further DOM-only inspection; no purchase or chapter acceptance from root.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 7,
+      "profileCleanup": "Late residue manually removed after inspector exit and exact browser process absent."
+    },
+    {
+      "url": "https://rawdevart.art/read/ne857157/chapter-28.2",
+      "finalUrl": "https://rawdevart.art/read/ne857157/chapter-28.2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "alternate-works-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Alternate native-listed chapter28.2 has empty chapter-imgs and only logo/chat artwork after20s normal-window DOM research. Original tab active not measured; body absence has that limitation.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://rawdevart.art/read/ne178/chapter-47",
+      "finalUrl": "https://rawdevart.art/read/ne178/chapter-47",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "alternate-works-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Another native-listed chapter47 has empty chapter-imgs and logo/chat artwork after20s. Native tab active not measured; no chapter rule inferred.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://rawlazy.io/manga-lazy/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-free/",
+      "finalUrl": "https://rawlazy.io/manga-lazy/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-free/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "alternate-works-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 13,
+      "canvasCount": 0,
+      "readerFinding": "Actual alternate work directory links chapter431; no chapter acceptance. Next target creation later stopped on native foreground safeguard before Temple chapter navigation.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+      "finalUrl": "https://rawlazy.io/%e5%83%95%e3%81%ae%e3%83%92%e3%83%bc%e3%83%ad%e3%83%bc%e3%82%a2%e3%82%ab%e3%83%87%e3%83%9f%e3%82%a2-raw-%e3%80%90%e7%ac%ac431%e8%a9%b1%e3%80%91/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "rawlazy-chapter-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Actual alternate native-linked chapter431, headless200, only logo and small non-body images. No body IMG/canvas; headless absence is not whole-site or normal active-tab acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://templetoons.com/comic/high-society/chapter-99",
+      "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "temple-chapter-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 5,
+      "canvasCount": 0,
+      "readerFinding": "Actual unmarked free chapter99 has720x10155 primary IMG in headless DOM, directly under protected-content/div.relative; linked promotions are separate. Structural evidence only, not onscreen or translation acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 8
+    },
+    {
+      "url": "https://templetoons.com/comic/high-society/chapter-99",
+      "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "temple-normal-wave32",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 4,
+      "canvasCount": 0,
+      "readerFinding": "Same chapter normal-window DOM after20s still shows9 Loading image placeholders and no primary body. Native tab active was not measured; retained limited negative sample, not whole-site unavailability.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 10
+    },
+    {
+      "url": "https://templetoons.com/comic/high-society/chapter-99",
+      "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+      "scope": "read-only active-tab DOM research with FluentRead disabled; not extension runtime validation",
+      "researchWave": "alternate-public-chapters-and-native-tab-visibility-wave32",
+      "attempt": "temple-active-disabled-wave32",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Paired control with FluentRead master/images/manga disabled: native tab active false then true, document reports visible in both states, but exact body count0 in both intervals. Normal body scroll times out. This does not establish tab activation alone as the cause of other positive samples; private failure retained.",
+      "profileRemoved": true,
+      "pageErrorCount": 1,
+      "networkFailureCount": 14,
+      "error": "Exact primary body scroll timed out; no body container or chapter acceptance in this control.",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 0
+      }
     }
   ],
   "verification": {
@@ -25104,6 +25456,301 @@
         "anchors": 741,
         "images": 154,
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave31.log"
+      }
+    },
+    "readerInspectionTabVisibilityWave32": {
+      "scope": "Old normal-window DOM inspections did not assert browser-native tab active; they cannot exclude tab/rendering conditions from empty-body samples. New entry runner uses existing helper tabs activation and native active/normal-window plus document-visible assertions; no host-property override, source/header change or engine bypass. Disabled-extension active control failed to load same body, so no claim that activation alone explains differences.",
+      "researchAttemptsAdded": 10,
+      "researchAttemptsTotal": 342,
+      "foregroundStoppedBatch": {
+        "status": "diagnostic-stopped",
+        "pages": 3,
+        "pendingTargetNotInspected": "Templetoons chapter99",
+        "profileRemoved": true,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/alternate-works-wave32/reader-inspection.json",
+        "finding": "Before fourth target, helper detected own Edge foreground; stopped and cleaned. No foreground retry fallback; later independent checks keep same safe parameters."
+      },
+      "uiNativeLookupInitialAttempt": {
+        "status": "diagnostic-failed",
+        "cases": 0,
+        "profileRemoved": true,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-visible-temple-wave32/report.json",
+        "finding": "Worker cannot find own extension page by URL; fixed by native getCurrent/get ID for internal page. No public-reader cases executed."
+      },
+      "browserScriptContracts": {
+        "status": "failed",
+        "files": 2,
+        "casesPassed": 94,
+        "casesFailed": 3,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-script-contracts-wave32.log",
+        "finding": "Same named full-page fixture handler and two verificationOwnership assertions already appear in architecture-wave25.log. Triggering objects not edited; no complete baseline or full-suite-green claim."
+      },
+      "disabledActiveControl": {
+        "status": "body-not-confirmed",
+        "beforeActive": false,
+        "afterActive": true,
+        "loadedBodyImagesBefore": 0,
+        "loadedBodyImagesAfter": 0,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/temple-active-disabled-wave32/reader-inspection.json"
+      },
+      "preProfileEnabledReader": {
+        "status": "passed-generic-entry",
+        "cases": 19,
+        "bodyDimensions": [
+          720,
+          10155
+        ],
+        "bodyInViewport": false,
+        "nativeActive": true,
+        "documentVisibility": "visible",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-visible-temple-recheck-wave32/report.json",
+        "scope": "Intermediate generic entry found exact body below viewport. Final dedicated-rule normal-scroll evidence supersedes entry-only position proof."
+      }
+    },
+    "templeReaderUnit": {
+      "status": "passed",
+      "cases": 551,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave32.log",
+      "scope": "Native chapter and historical numeric-prefix path; exact main/protected-content/direct-div/select-none IMG excludes covers, linked promotions, nested ads and invalid path/host variants. Existing long-strip segmentation reused; no engine or source authorization change."
+    },
+    "templeReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://templetoons.com/comic/high-society/chapter-99",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "tabVisibility": [
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://templetoons.com/comic/high-society/chapter-99",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        }
+      ],
+      "profileRemoved": true,
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrorCount": 1,
+      "hostFinding": "One third-party Worker error from original site CSP; no extension/page-owned exception or extension console error.",
+      "liveReaders": [
+        {
+          "url": "https://templetoons.com/comic/high-society/chapter-99",
+          "finalUrl": "https://templetoons.com/comic/high-society/chapter-99",
+          "status": 200,
+          "mode": "images",
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 720,
+              "naturalHeight": 10155,
+              "width": 720,
+              "height": 10155,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-temple-final-wave32/report.json",
+      "scope": "19 actual Chrome entry cases,18 base/fixture plus actual Temple free chapter. Native active=true/normal-window/visible-document, normal scroll puts720x10155 direct body in viewport. Public live DOM and entry metadata only; no chapter image export/screenshot/OCR, source-read or full quality acceptance. Prior unselected/placeholder and disabled active controls retained; no activation-alone causality claim."
+    },
+    "templeReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave32.log",
+      "chromeSeconds": 40.8,
+      "firefoxSeconds": 37.4,
+      "userscriptSeconds": 4.04,
+      "userscriptBytes": 1917316,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave32.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave32.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave32.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6120,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave32.log"
+      },
+      "scope": "Templetoons direct long-strip body profile and selected-tab harness. Chrome entry runtime only; Firefox/userscript build and verifier evidence. Browser contract files retain94 passed/3 failed and older all-suite failures retained. No actual OCR/source-read/full quality/all-chapters/cross-document persistence/ru-ko-auto/all-devices acceptance. Source authorization, engines, permissions, dependencies, version and reference repositories unchanged.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave32.log"
       }
     }
   }
