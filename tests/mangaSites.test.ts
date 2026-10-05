@@ -6,6 +6,54 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('MangaYun 正文排除加载吉祥物、背景搜索封面与章节广告',()=>{
+        const site=resolveMangaSite('https://mangayun.com/read/Book_A/Chapter-1')!;
+        expect(site).toMatchObject({name:'MangaYun',requireContent:true,custom:false});
+        const {document}=parseHTML('<main><img id="search-cover" class="reader-page"></main><div class="reader" role="dialog"><div class="reader-scroll"><div class="reader-page-wrap"><div class="reader-hold"><img id="mascot" class="reader-hold-mascot"></div><img id="body" class="reader-page"></div><aside><img id="ad" class="reader-page"></aside></div></div><div class="reader"><div class="reader-scroll"><div class="reader-page-wrap"><img id="unrelated" class="reader-page"></div></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(e=>e.id)).toEqual(['body']);
+        expect(resolveMangaReaderProfile('www.mangayun.com','/read/Book_A/Chapter-1/')).toBeTruthy();
+    });
+    it('MangaYun 只接受公开阅读路由的两段标识和精确域名',()=>{
+        for(const path of ['/','/s/keyword','/read/Book_A','/read/Book_A/Chapter-1/extra','/read/Book.A/Chapter-1'])expect(resolveMangaReaderProfile('mangayun.com',path)).toBeNull();
+        for(const host of ['mangayun.com.attacker.test','fakemangayun.com'])expect(resolveMangaReaderProfile(host,'/read/Book_A/Chapter-1')).toBeNull();
+    });
+    it('Booklive 公开试读分片仅提供圈选并排除说明、广告与商店标识',()=>{
+        const url='https://booklive.jp/bviewer/s/';
+        const site=resolveMangaSite(url)!;
+        expect(site).toMatchObject({name:'Booklive',selector:':not(*)',requireContent:true,custom:false});
+        const {document}=parseHTML('<img id="store"><div id="tips"><img id="manual"></div><div id="content" class="pages"><div id="content-p1"><div class="pt-img"><div><img id="slice-1"></div><div><img id="slice-2"></div></div></div><aside><div class="pt-img"><img id="ad"></div></aside></div><div class="pt-img"><img id="cover"></div>');
+        expect([...document.querySelectorAll(site.areaSelector!)].map(e=>e.id)).toEqual(['slice-1','slice-2']);
+        expect([...document.querySelectorAll(site.selector)]).toEqual([]);
+        expect(resolveMangaReaderProfile('www.booklive.jp','/bviewer/s')).toBeTruthy();
+        for(const host of ['booklive.jp.attacker.test','fakebooklive.jp'])expect(resolveMangaReaderProfile(host,'/bviewer/s/')).toBeNull();
+        for(const path of ['/','/product/index/title_id/20017284/vol_no/001','/bviewer/','/bviewer/s/core/manual.html'])expect(resolveMangaReaderProfile('booklive.jp',path)).toBeNull();
+    });
+    it.each([
+        ['mangahub.ru','/read/962303','reader-viewer reader-scan.reader-viewer-scan > img.reader-viewer-img',
+            '<header><img id="logo" class="reader-viewer-img"></header><reader-viewer><reader-scan class="reader-viewer-scan"><img id="body" class="reader-viewer-img"></reader-scan><aside><img id="cover" class="reader-viewer-img"></aside></reader-viewer>',
+            ['/','/manga/title','/read/title','/read/962303/extra']],
+        ['rinkocomics.com','/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/','.chapter-images-section .images-flow > img.chapter-image[data-page]',
+            '<header><img id="logo" class="chapter-image" data-page="1"></header><div class="chapter-images-section"><div class="images-flow"><img id="body" class="chapter-image" data-page="1"><img id="ad"><a><img id="linked" class="chapter-image" data-page="2"></a></div></div>',
+            ['/','/comic/title','/chapter/title','/chapter/title-chapter-one','/chapter/title-chapter-5/extra']],
+        ['rawdex.net','/manga/keep-likes-private/4/','section.rdx-reader .rdx-reader-content img.wp-manga-chapter-img',
+            '<header><img id="logo" class="wp-manga-chapter-img"></header><section class="rdx-reader"><div class="rdx-reader-content"><figure><img id="body" class="wp-manga-chapter-img"></figure><img id="ad"></div><aside><img id="cover" class="wp-manga-chapter-img"></aside></section>',
+            ['/','/manga/title','/manga/title/latest','/manga/title/4/extra']],
+        ['raw1001.net','/manga/zhou-shu-hui-zhan001/di271hua','#chapterContent .separator > a.readImg > img',
+            '<header><img id="logo"></header><div id="chapterContent"><div class="separator"><a class="readImg"><img id="body"></a><img id="ad"></div></div><aside><div class="separator"><a class="readImg"><img id="cover"></a></div></aside>',
+            ['/','/home','/manga/title','/manga/title/diwordhua','/manga/title/di271hua/extra']],
+    ])('%s 已显示正文规则排除封面与广告并限制章节边界', (host,path,selector,html,invalidPaths)=>{
+        expect(resolveMangaSite(`https://${host}${path}`)).toMatchObject({selector,requireContent:true,custom:false});
+        const {document}=parseHTML(html as string);
+        expect([...document.querySelectorAll(selector as string)].map(e=>e.id)).toEqual(['body']);
+        for(const invalidPath of invalidPaths as string[])expect(resolveMangaReaderProfile(host as string,invalidPath)).toBeNull();
+        for(const invalidHost of [`${host}.attacker.test`,`fake${host}`])expect(resolveMangaReaderProfile(invalidHost,path as string)).toBeNull();
+    });
+    it('小数章节仍限定已核对阅读路径',()=>{
+        expect(resolveMangaReaderProfile('www.mangahub.ru','/read/123/')).toBeTruthy();
+        expect(resolveMangaReaderProfile('rinkocomics.com','/chapter/title-chapter-1.5')).toBeTruthy();
+        expect(resolveMangaReaderProfile('rawdex.net','/manga/title/1.5')).toBeTruthy();
+        expect(resolveMangaReaderProfile('raw1001.net','/manga/title/di1.5hua')).toBeTruthy();
+    });
     it.each([
         ['v5.luvyaa.co','/i-shall-master-this-family-chapter-236/','article #readerarea > img.ts-main-image',
             '<article><a><img id="ad" class="ts-main-image"></a><div id="readerarea"><img id="body" class="ts-main-image"><img id="other"></div></article>',

@@ -1436,7 +1436,21 @@
           "hostname": "beltoon.jp"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://www.beltoon.jp/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public home shows work covers only; no actual chapter opened.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "BeLTOON : ベルトゥーン | 女性向けフルカラーウェブマンガ・無料漫画・試し読みはBeLTOON",
+          "imageCount": 74,
+          "finalUrl": "https://www.beltoon.jp/app/all/main"
+        }
+      ]
     },
     {
       "name": "ManhwaClub",
@@ -1860,7 +1874,78 @@
           "title": "電子書籍・無料漫画ならブックライブ"
         }
       ],
-      "adapter": "detect"
+      "adapter": "area",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:58.725467+00:00",
+          "requestedUrl": "https://booklive.jp/bkmr/ojikawa_01_1",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public article excerpt contains 1x1 unloaded body placeholders and a host jQuery error. No body artwork acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "extra-wave16",
+          "status": 200,
+          "title": "『おじカワ』【第1話①】カワイイもの大好きおじさんの葛藤『おじさんはカワイイものがお好き。』",
+          "imageCount": 22,
+          "finalUrl": "https://booklive.jp/bkmr/ojikawa_01_1"
+        },
+        {
+          "checkedAt": "2026-10-05T02:29:38.086383+00:00",
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public product page used to discover a normal free-trial link; not artwork acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works2-wave16",
+          "status": 200,
+          "title": "おじさんはカワイイものがお好き。（１） - ツトム - 電子書籍・無料漫画ならブックライブ",
+          "imageCount": 9,
+          "finalUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001"
+        },
+        {
+          "checkedAt": "2026-10-05T02:35:52.168321+00:00",
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Normal public free-trial click stayed in the same page; initial popup wait timed out. Failed trial retained.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "booklive-trial-wave16",
+          "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\""
+        },
+        {
+          "checkedAt": "2026-10-05T02:40:42.252046+00:00",
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public free-trial click opens bviewer/s but initial inspection shows loading/instructions and store logo only; no body artwork yet.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "booklive-inline-wave16",
+          "status": 200,
+          "title": "おじさんはカワイイものがお好き。（４）",
+          "imageCount": 1,
+          "finalUrl": "https://booklive.jp/bviewer/s/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:56:14.271099+00:00",
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "After normal free-trial click and Escape, fragments loaded behind the instruction layer; not unobstructed entry acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "booklive-escape-wave16",
+          "status": 200,
+          "title": "おじさんはカワイイものがお好き。（４）",
+          "imageCount": 16,
+          "finalUrl": "https://booklive.jp/bviewer/s/"
+        },
+        {
+          "checkedAt": "2026-10-05T03:05:08.214996+00:00",
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Normal product trial opens same-page bviewer/s reader. Loaded body is split into pt-img fragments; area-only entry, not continuous fragment OCR.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "booklive-dismiss-wave16",
+          "status": 200,
+          "title": "おじさんはカワイイものがお好き。（４）",
+          "imageCount": 25,
+          "finalUrl": "https://booklive.jp/bviewer/s/"
+        }
+      ]
     },
     {
       "name": "MrBlue",
@@ -1890,6 +1975,39 @@
           "status": 200,
           "title": "미스터블루 - 웹툰, 만화, 소설",
           "imageCount": 1
+        },
+        {
+          "checkedAt": "2026-10-05T02:20:58.725467+00:00",
+          "requestedUrl": "https://www.mrblue.com/comic/C000070833",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public free-episode work page accessible. Normal episode-title click did not expose artwork; separate viewer control not visible, not force-clicked. No chapter acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "extra-wave16",
+          "status": 200,
+          "title": "S급 나무로 레벨업 [스크롤] | 미스터블루 - 웹툰, 만화, 소설",
+          "imageCount": 29,
+          "finalUrl": "https://www.mrblue.com/comic/C000070833"
+        },
+        {
+          "checkedAt": "2026-10-05T02:25:26.408885+00:00",
+          "requestedUrl": "https://www.mrblue.com/comic/C000070833",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public free-episode work page accessible. Normal episode-title click did not expose artwork; separate viewer control not visible, not force-clicked. No chapter acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "mrblue-wave16",
+          "status": 200,
+          "title": "S급 나무로 레벨업 [스크롤] | 미스터블루 - 웹툰, 만화, 소설",
+          "imageCount": 29,
+          "finalUrl": "https://www.mrblue.com/comic/C000070833"
+        },
+        {
+          "checkedAt": "2026-10-05T02:33:27.302822+00:00",
+          "requestedUrl": "https://www.mrblue.com/comic/C000070833",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public free-episode work page accessible. Normal episode-title click did not expose artwork; separate viewer control not visible, not force-clicked. No chapter acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "mrblue-view-wave16",
+          "error": "locator.click: Timeout 10000ms exceeded."
         }
       ]
     },
@@ -2024,7 +2142,46 @@
           "hostname": "mangalib.me"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://mangalib.me/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage exposes chapter links; actual chapter observations separately recorded.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "Манга. Читать мангу онлайн на русском. манга онлайн! • MangaLIB",
+          "imageCount": 13,
+          "finalUrl": "https://mangalib.me/ru"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter has no body IMG/canvas in headless or normal-window DOM; normal screenshot also timed out waiting for fonts. Not body acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "Манга · Приключения в другом мире: Воспитывая детей, будучи авантюристом · Читать 71 главу • MangaLIB",
+          "imageCount": 0,
+          "finalUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public chapter has no body IMG/canvas in headless or normal-window DOM; normal screenshot also timed out waiting for fonts. Not body acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "Манга · Приключения в другом мире: Воспитывая детей, будучи авантюристом · Читать 71 главу • MangaLIB",
+          "imageCount": 0,
+          "finalUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+          "error": "page.screenshot: Timeout 30000ms exceeded."
+        }
+      ]
     },
     {
       "name": "novelcrow",
@@ -2297,7 +2454,45 @@
           "hostname": "rawlazy.io"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://rawlazy.io/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage used only to discover ordinary chapter/work links; not body or OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "Manga Raw, 漫画 raw, 漫画、無料で読め, 無料漫画(マンガ)読む",
+          "imageCount": 35,
+          "finalUrl": "https://rawlazy.io/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://rawlazy.io/manga-lazy/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-free/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public work page exposes normal root-level chapter links; not reader artwork acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "ブルーロック (Raw - Free) | Manga Raw",
+          "imageCount": 13,
+          "finalUrl": "https://rawlazy.io/manga-lazy/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-free/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://rawlazy.io/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-%e3%80%90%e7%ac%ac363%e8%a9%b1%e3%80%91/",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Normal public chapter shows navigation and image-loading text but no loaded body artwork; no body acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "ブルーロック – Raw 【第363話】 | Manga Raw",
+          "imageCount": 4,
+          "finalUrl": "https://rawlazy.io/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-%e3%80%90%e7%ac%ac363%e8%a9%b1%e3%80%91/"
+        }
+      ]
     },
     {
       "name": "toptoon.com",
@@ -2583,7 +2778,45 @@
           "hostname": "rawdex.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://rawdex.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage used only to discover ordinary chapter/work links; not body or OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "Read Manga, Manhwa & Webtoon Raw Online | RawDEX",
+          "imageCount": 2,
+          "finalUrl": "https://rawdex.net/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public vertical chapter shows complete body images inside section.rdx-reader/rdx-reader-content. Paged mode and OCR not accepted.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "Keep ‘Likes’ Private - 4 - RawDEX",
+          "imageCount": 73,
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public vertical chapter shows complete body images inside section.rdx-reader/rdx-reader-content. Paged mode and OCR not accepted.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "Keep ‘Likes’ Private - 4 - RawDEX",
+          "imageCount": 73,
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/"
+        }
+      ]
     },
     {
       "name": "reset-scans.org",
@@ -3060,7 +3293,114 @@
           "hostname": "rinkocomics.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://rinkocomics.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage used only to discover ordinary chapter/work links; not body or OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "Rinko Comics – Immerse Yourself in Manhwa, Comics, Manga, and Manhua.",
+          "imageCount": 24,
+          "finalUrl": "https://rinkocomics.com/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public chapter shows full long-strip body images in chapter-images-section/images-flow; existing bounded segmentation applies. Entry only; no new OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "The Crazy Young Master’s Daily Life Is a Scheme Chapter 5 – Rinko Comics",
+          "imageCount": 21,
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public chapter shows full long-strip body images in chapter-images-section/images-flow; existing bounded segmentation applies. Entry only; no new OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "The Crazy Young Master’s Daily Life Is a Scheme Chapter 5 – Rinko Comics",
+          "imageCount": 21,
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/"
+        },
+        {
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "rinko-baseline-wave16",
+          "status": 200,
+          "imageCount": 21,
+          "readerFinding": "Normal extension-free same public chapter reproduces jQuery is not defined, including inline jquery-ui-core-js-before with no HTTPS stack. Existing exact URL/message baseline matcher can attribute that host-only error; no extension error suppression.",
+          "pageErrors": [
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "Cannot read properties of undefined (reading 'post')",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "jQuery is not defined",
+              "sourceHost": "rinkocomics.com"
+            },
+            {
+              "message": "Cannot read properties of undefined (reading 'post')",
+              "sourceHost": "rinkocomics.com"
+            }
+          ],
+          "networkFailureCount": 3,
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/"
+        }
+      ]
     },
     {
       "name": "roliascan.com",
@@ -3359,7 +3699,21 @@
           "hostname": "komiic.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://komiic.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Root redirects to public login; no body artwork confirmed.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "登录 | Komiic漫畫",
+          "imageCount": 0,
+          "finalUrl": "https://komiic.com/login"
+        }
+      ]
     },
     {
       "name": "manhwaus.org",
@@ -3559,7 +3913,45 @@
           "hostname": "mangahub.ru"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://mangahub.ru/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage used only to discover ordinary chapter/work links; not body or OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "Манга. Читать мангу онлайн. Mangahub.ru - открой свою мангу",
+          "imageCount": 71,
+          "finalUrl": "https://mangahub.ru/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public chapter shows complete body images in reader-viewer/reader-scan; entry confirms two loaded of fourteen body elements. Russian OCR not accepted: the pinned Paddle character dictionary lacks Cyrillic.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "Читать онлайн Хори-сан и Миямура-кун. Глава 428",
+          "imageCount": 2,
+          "finalUrl": "https://mangahub.ru/read/962303"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Normal public chapter shows complete body images in reader-viewer/reader-scan; entry confirms two loaded of fourteen body elements. Russian OCR not accepted: the pinned Paddle character dictionary lacks Cyrillic.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "Читать онлайн Хори-сан и Миямура-кун. Глава 428",
+          "imageCount": 2,
+          "finalUrl": "https://mangahub.ru/read/962303"
+        }
+      ]
     },
     {
       "name": "ezmanga.org",
@@ -3655,7 +4047,69 @@
           "hostname": "raw1001.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://raw1001.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage used only to discover ordinary chapter/work links; not body or OCR acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "無料漫画（漫画）- raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "imageCount": 64,
+          "finalUrl": "https://raw1001.net/home"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public work page used to discover chapter271/272 links; not reader artwork acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "呪術廻戦 が一番早く更新されました - raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "imageCount": 5,
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001"
+        },
+        {
+          "checkedAt": "2026-10-05T02:30:39.582277+00:00",
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public chapter shows full images in chapterContent/separator/readImg; body entry confirmed, production OCR sample separately recorded.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "readers-wave16",
+          "status": 200,
+          "title": "呪術廻戦 第271話 を早く読む - raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "imageCount": 33,
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua"
+        },
+        {
+          "checkedAt": "2026-10-05T03:04:56.504608+00:00",
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public chapter shows full images in chapterContent/separator/readImg; body entry confirmed, production OCR sample separately recorded.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "raw1001-ad-wave16",
+          "status": 200,
+          "title": "呪術廻戦 第271話 を早く読む - raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "imageCount": 33,
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua"
+        },
+        {
+          "checkedAt": "2026-10-05T03:07:46.673996+00:00",
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public chapter shows full images in chapterContent/separator/readImg; body entry confirmed, production OCR sample separately recorded.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "raw1001-dialogue-dom-wave16",
+          "status": 200,
+          "title": "呪術廻戦 第271話 を早く読む - raw1001 - 漫画ロウ, mangaraw, manga raw, manga1001, manga1000, 漫画raw, 漫画ばんく, 無料 漫画, 漫画 無料, 漫画ロウ |",
+          "imageCount": 33,
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua"
+        }
+      ]
     },
     {
       "name": "mkissa.to",
@@ -3734,7 +4188,33 @@
           "hostname": "jcomic.net"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://jcomic.net/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public home/category links only; actual chapter not confirmed.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "JComic - 歡迎光臨 JComic.net",
+          "imageCount": 0,
+          "finalUrl": "https://jcomic.net/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:24:16.696016+00:00",
+          "requestedUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public latest-updates category shows covers only; no actual chapter opened.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works-wave16",
+          "status": 200,
+          "title": "JComic - 最近更新",
+          "imageCount": 30,
+          "finalUrl": "https://jcomic.net/cat/%E6%9C%80%E8%BF%91%E6%9B%B4%E6%96%B0"
+        }
+      ]
     },
     {
       "name": "tapas.io",
@@ -4196,7 +4676,21 @@
           "hostname": "kuaikanmanhua.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:58.725467+00:00",
+          "requestedUrl": "https://www.kuaikanmanhua.com/web/comic/851143",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Public comic link redirects to login with logo/captcha only; no body artwork confirmed.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "extra-wave16",
+          "status": 200,
+          "title": "账号登录_快看",
+          "imageCount": 2,
+          "finalUrl": "https://www.kuaikanmanhua.com/webs/loginh"
+        }
+      ]
     },
     {
       "name": "mangapark.net",
@@ -4988,7 +5482,79 @@
           "hostname": "mangayun.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "checkedAt": "2026-10-05T02:20:21.958902+00:00",
+          "requestedUrl": "https://mangayun.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Public homepage has a normal search control; no chapter artwork on this page.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "homes-wave16",
+          "status": 200,
+          "title": "云漫 - 实现你的漫画自由 | 免费在线全网漫画阅读器",
+          "imageCount": 2,
+          "finalUrl": "https://mangayun.com/"
+        },
+        {
+          "checkedAt": "2026-10-05T02:25:08.085341+00:00",
+          "requestedUrl": "https://mangayun.com/",
+          "scope": "read-only visible DOM research without extension",
+          "readerFinding": "Normal public search for 海贼王 reaches search results with covers and chapter buttons; no actual chapter opened. Not reader acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "search-wave16",
+          "status": 200,
+          "title": "海贼王 - 漫画搜索 | 云漫 - 实现你的漫画自由",
+          "imageCount": 1,
+          "finalUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B"
+        },
+        {
+          "checkedAt": "2026-10-05T02:29:38.086383+00:00",
+          "requestedUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "readerFinding": "Normal public search for 海贼王 reaches search results with covers and chapter buttons; no actual chapter opened. Not reader acceptance.",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "works2-wave16",
+          "status": 200,
+          "title": "云漫 - 实现你的漫画自由 | 免费在线全网漫画阅读器",
+          "imageCount": 16,
+          "finalUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B"
+        },
+        {
+          "requestedUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "mangayun-chapter-wave17",
+          "sourceChosen": "读漫屋",
+          "status": 200,
+          "title": "第1话 ROMANCE DAWN - 漫画 | 云漫 - 实现你的漫画自由",
+          "imageCount": 129,
+          "readerFinding": "Normal public first-chapter click opens57 reader body slots, but initially visible images are broken and image requests return403; loader mascots/covers excluded from body acceptance.",
+          "bodyElements": 57,
+          "networkFailureCount": 21,
+          "finalUrlOmitted": true,
+          "finalOrigin": "https://mangayun.com",
+          "finalReaderPath": "/read/:work/:chapter",
+          "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks."
+        },
+        {
+          "requestedUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "public-body-and-fragment-readers-wave16",
+          "attempt": "mangayun-source-wave17",
+          "sourceChosen": "如漫画",
+          "status": 200,
+          "title": "第1话 ROMANCE DAWN - 漫画 | 云漫 - 实现你的漫画自由",
+          "imageCount": 129,
+          "readerFinding": "Normal public source selection followed by first-chapter click shows full800x1245 body images; screenshot confirms contiguous artwork. Entry separately recorded; not OCR acceptance.",
+          "bodyElements": 57,
+          "networkFailureCount": 8,
+          "finalUrlOmitted": true,
+          "finalOrigin": "https://mangayun.com",
+          "finalReaderPath": "/read/:work/:chapter",
+          "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks."
+        }
+      ]
     },
     {
       "name": "manhwaweb.com",
@@ -6454,6 +7020,324 @@
       "imageCount": 3,
       "canvases": [],
       "networkFailureCount": 2
+    },
+    {
+      "url": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public chapter has no body IMG/canvas in headless or normal-window DOM; normal screenshot also timed out waiting for fonts. Not body acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "works-wave16",
+      "finalUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+      "status": 200,
+      "imageCount": 0,
+      "canvases": [],
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://mangahub.ru/read/962303",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Normal public chapter shows complete body images in reader-viewer/reader-scan; entry confirms two loaded of fourteen body elements. Russian OCR not accepted: the pinned Paddle character dictionary lacks Cyrillic.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "works-wave16",
+      "finalUrl": "https://mangahub.ru/read/962303",
+      "status": 200,
+      "imageCount": 2,
+      "canvases": [],
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public chapter shows full long-strip body images in chapter-images-section/images-flow; existing bounded segmentation applies. Entry only; no new OCR acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "works-wave16",
+      "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "status": 200,
+      "imageCount": 21,
+      "canvases": [],
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://rawdex.net/manga/keep-likes-private/4/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "readerFinding": "Public vertical chapter shows complete body images inside section.rdx-reader/rdx-reader-content. Paged mode and OCR not accepted.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "works-wave16",
+      "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+      "status": 200,
+      "imageCount": 73,
+      "canvases": [],
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://mangahub.ru/read/962303",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public chapter shows complete body images in reader-viewer/reader-scan; entry confirms two loaded of fourteen body elements. Russian OCR not accepted: the pinned Paddle character dictionary lacks Cyrillic.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://mangahub.ru/read/962303",
+      "status": 200,
+      "imageCount": 2,
+      "canvases": [],
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public chapter shows full long-strip body images in chapter-images-section/images-flow; existing bounded segmentation applies. Entry only; no new OCR acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "status": 200,
+      "imageCount": 21,
+      "canvases": [],
+      "networkFailureCount": 3
+    },
+    {
+      "url": "https://rawdex.net/manga/keep-likes-private/4/",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public vertical chapter shows complete body images inside section.rdx-reader/rdx-reader-content. Paged mode and OCR not accepted.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+      "status": 200,
+      "imageCount": 73,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://rawlazy.io/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-%e3%80%90%e7%ac%ac363%e8%a9%b1%e3%80%91/",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public chapter shows navigation and image-loading text but no loaded body artwork; no body acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://rawlazy.io/%e3%83%96%e3%83%ab%e3%83%bc%e3%83%ad%e3%83%83%e3%82%af-raw-%e3%80%90%e7%ac%ac363%e8%a9%b1%e3%80%91/",
+      "status": 200,
+      "imageCount": 4,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public chapter shows full images in chapterContent/separator/readImg; body entry confirmed, production OCR sample separately recorded.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "status": 200,
+      "imageCount": 33,
+      "canvases": [],
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public chapter has no body IMG/canvas in headless or normal-window DOM; normal screenshot also timed out waiting for fonts. Not body acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "readers-wave16",
+      "finalUrl": "https://mangalib.me/ru/6801--isekai-yururi-kikou-kosodate-shinagara-bouken-sha-shimasu/read/v11/c71",
+      "status": 200,
+      "imageCount": 0,
+      "canvases": [],
+      "networkFailureCount": 0,
+      "error": "page.screenshot: Timeout 30000ms exceeded."
+    },
+    {
+      "url": "https://booklive.jp/bkmr/ojikawa_01_1",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public article excerpt contains 1x1 unloaded body placeholders and a host jQuery error. No body artwork acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "extra-wave16",
+      "finalUrl": "https://booklive.jp/bkmr/ojikawa_01_1",
+      "status": 200,
+      "imageCount": 22,
+      "canvases": [],
+      "networkFailureCount": 8
+    },
+    {
+      "url": "https://www.kuaikanmanhua.com/web/comic/851143",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public comic link redirects to login with logo/captcha only; no body artwork confirmed.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "extra-wave16",
+      "finalUrl": "https://www.kuaikanmanhua.com/webs/loginh",
+      "status": 200,
+      "imageCount": 2,
+      "canvases": [],
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public trial click stayed in the same page; initial popup wait timed out. Failed trial retained, not artwork acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "booklive-trial-wave16",
+      "canvases": [],
+      "networkFailureCount": 9,
+      "error": "browserContext.waitForEvent: Timeout 15000ms exceeded while waiting for event \"page\""
+    },
+    {
+      "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Same-page public trial initially showed blank loading and instruction layer, with store logo only. Failed body observation retained.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "booklive-inline-wave16",
+      "finalUrl": "https://booklive.jp/bviewer/s/",
+      "status": 200,
+      "imageCount": 1,
+      "canvases": [],
+      "networkFailureCount": 12
+    },
+    {
+      "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "After normal trial click and Escape, fragments loaded behind host instructions. Artwork confirmed but instruction layer remained; not unobstructed entry acceptance.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "booklive-escape-wave16",
+      "finalUrl": "https://booklive.jp/bviewer/s/",
+      "status": 200,
+      "imageCount": 16,
+      "canvases": [],
+      "networkFailureCount": 13
+    },
+    {
+      "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal click on observed tips_transparent at (10,10) dismisses public instructions; two normal ArrowLeft turns show loaded fragmented title artwork. Area entry separately verified; no area OCR.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "booklive-dismiss-wave16",
+      "finalUrl": "https://booklive.jp/bviewer/s/",
+      "status": 200,
+      "imageCount": 25,
+      "canvases": [],
+      "networkFailureCount": 15
+    },
+    {
+      "url": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Public chapter shows full images in chapterContent/separator/readImg; body entry confirmed, production OCR sample separately recorded.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "raw1001-ad-wave16",
+      "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "status": 200,
+      "imageCount": 33,
+      "canvases": [],
+      "networkFailureCount": 4
+    },
+    {
+      "url": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "scope": "read-only visible DOM research without extension",
+      "readerFinding": "Normal public scroll to third separator confirms title and following dialogue artwork without site advertisement in this read-only capture. No OCR in this scope.",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "raw1001-dialogue-dom-wave16",
+      "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "status": 200,
+      "imageCount": 33,
+      "canvases": [],
+      "networkFailureCount": 4
+    },
+    {
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "mangayun-chapter-wave17",
+      "sourceChosen": "读漫屋",
+      "status": 200,
+      "title": "第1话 ROMANCE DAWN - 漫画 | 云漫 - 实现你的漫画自由",
+      "imageCount": 129,
+      "readerFinding": "Normal public first-chapter click opens57 reader body slots, but initially visible images are broken and image requests return403; loader mascots/covers excluded from body acceptance.",
+      "bodyElements": 57,
+      "networkFailureCount": 21,
+      "finalUrlOmitted": true,
+      "finalOrigin": "https://mangayun.com",
+      "finalReaderPath": "/read/:work/:chapter",
+      "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks.",
+      "url": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B"
+    },
+    {
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "mangayun-source-wave17",
+      "sourceChosen": "如漫画",
+      "status": 200,
+      "title": "第1话 ROMANCE DAWN - 漫画 | 云漫 - 实现你的漫画自由",
+      "imageCount": 129,
+      "readerFinding": "Normal public source selection followed by first-chapter click shows full800x1245 body images; screenshot confirms contiguous artwork. Entry separately recorded; not OCR acceptance.",
+      "bodyElements": 57,
+      "networkFailureCount": 8,
+      "finalUrlOmitted": true,
+      "finalOrigin": "https://mangayun.com",
+      "finalReaderPath": "/read/:work/:chapter",
+      "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks.",
+      "url": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B"
+    },
+    {
+      "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "public-body-and-fragment-readers-wave16",
+      "attempt": "rinko-baseline-wave16",
+      "status": 200,
+      "imageCount": 21,
+      "readerFinding": "Normal extension-free same public chapter reproduces jQuery is not defined, including inline jquery-ui-core-js-before with no HTTPS stack. Existing exact URL/message baseline matcher can attribute that host-only error; no extension error suppression.",
+      "pageErrors": [
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com"
+        },
+        {
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com"
+        }
+      ],
+      "networkFailureCount": 3
     }
   ],
   "verification": {
@@ -8814,6 +9698,928 @@
       "selectedContracts": "3 files / 823 cases passed",
       "scope": "Three body profiles and observed Luvyaa domains. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained.",
       "docsBuild": "passed (4.10s)"
+    },
+    "publicBodyFragmentReadersUnit": {
+      "files": 7,
+      "cases": 457,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for eight manga config/reader/surface/source authorization modules",
+      "scope": "Five public image selectors and one Booklive area-only fragment selector. MangaYun body excludes loader mascot/search covers. Exact host/path, cover/ad exclusion; no OCR engine, permissions or pipeline change."
+    },
+    "publicBodyFragmentReadersEntriesInitialAttempt": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 20,
+      "baseCases": 16,
+      "scope": "Initial four public body entries and pure icon; no OCR in this suite. Booklive follow-up separate.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "finalUrl": "https://mangahub.ru/read/962303",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 18,
+          "loadedBodyElements": 18,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 73,
+          "loadedBodyElements": 73,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 22,
+          "loadedBodyElements": 21,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "url": "https://rawdex.net/manga/keep-likes-private/4/",
+          "message": "Cannot read properties of null (reading 'parentNode')",
+          "sourceHost": "waust.at",
+          "reproducedWithoutExtension": false
+        }
+      ]
+    },
+    "publicBodyFragmentReadersEntries": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 22,
+      "baseCases": 16,
+      "scope": "Pure icon and six actual public entries. Rinko unknown inline jQuery exception reproduces in normal extension-free same-page baseline; exact public URL and message match only, extension stacks still rejected. MangaYun normal 如漫画 source and chapter click shows loaded body excluding mascot/search covers. Booklive normal public trial and backdrop/ArrowLeft expose three visible fragments; no area OCR. No OCR in this entry suite.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "finalUrl": "https://mangahub.ru/read/962303",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 18,
+          "loadedBodyElements": 18,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 73,
+          "loadedBodyElements": 73,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 22,
+          "loadedBodyElements": 21,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "finalUrl": "https://booklive.jp/bviewer/s/",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 3,
+          "loadedBodyElements": 3,
+          "visibleBodyElements": 3,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B",
+          "finalUrlOmitted": true,
+          "finalOrigin": "https://mangayun.com",
+          "finalReaderPath": "/read/:work/:chapter",
+          "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks.",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 57,
+          "loadedBodyElements": 4,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "unknown",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": true
+        },
+        {
+          "url": "https://rawdex.net/manga/keep-likes-private/4/",
+          "message": "Cannot read properties of null (reading 'parentNode')",
+          "sourceHost": "waust.at",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "message": "jQuery callback_1791171460889 is not a function",
+          "sourceHost": "recommend.booklive.jp",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "message": "jQuery callback_1791171460890 is not a function",
+          "sourceHost": "recommend.booklive.jp",
+          "reproducedWithoutExtension": false
+        }
+      ]
+    },
+    "raw1001OpeningTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "ja",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 32786,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 122677,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        }
+      },
+      "profileRemoved": true,
+      "operations": 3,
+      "firstOperationCount": 1,
+      "result": "passed",
+      "publicUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "selectedImageIndices": [
+        0,
+        1
+      ],
+      "sourceDimensions": [
+        {
+          "width": 1403,
+          "height": 2048
+        },
+        {
+          "width": 2806,
+          "height": 2048
+        }
+      ],
+      "scope": "Two selected public opening/title pages with production PaddleOCR and live Google; a third visible page also caused an operation. First-cancel check skipped. Pause restores original source/style, resume reuses, scroll continues without panel. Site advertisement obscures lower image; no unobstructed dialogue or full-chapter acceptance.",
+      "qualityFinding": "Most handwritten Japanese and vertical text remains; isolated 術 mistranslated as 技术, title mistranslated as 柔术海战. Small title labels translated; lower artwork obscured by host advertisement. Not quality acceptance.",
+      "hostErrorCount": 0,
+      "sourceRequests": [
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        }
+      ]
+    },
+    "mangaOcrCharacterAudit": {
+      "result": "known-limitation",
+      "dictionaryPath": "recognition/ppocrv6_dict.txt",
+      "dictionaryBytes": 74948,
+      "dictionarySha256": "41557512862dfe31970cf22407742b629725461dd84c0d8771bde9c87c2202c8",
+      "russianAlphabetCharactersChecked": 66,
+      "presentRussianLetters": 0,
+      "hangulCharacters": 0,
+      "scope": "Pinned local dictionary hash matches src/features/image-translation/services/mangaOcrAssets.ts. Offscreen runtime forces Paddle for continuous manga. Existing ordinary-image Tesseract supports rus/kor but continuous routing has not been changed or accepted. Mangahub body/entry proof does not establish Russian OCR."
+    },
+    "publicBodyFragmentReadersBuilds": {
+      "chrome": "passed (30.1s)",
+      "firefox": "passed (32.9s)",
+      "userscript": "passed (4.77s)",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1917026 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6064 declarations",
+      "selectedContracts": "3 files / 823 cases passed",
+      "scope": "Five image profiles and Booklive area-only fragments. Three diagnostic scripts pass syntax checks; actual Raw1001 recheck and six-reader entry suite exercise changed diagnostics. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained.",
+      "docsBuild": "passed (4.16s)",
+      "docsVerifier": "passed (77 pages,3955 links,741 anchors,154 images)"
+    },
+    "raw1001DialogueScrollCountAttempt": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results"
+      ],
+      "sourceLanguage": "ja",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 149443,
+          "includesFirstModelPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 55990,
+          "name": "Claude"
+        },
+        "frontmostAfter": {
+          "pid": 55990,
+          "name": "Claude"
+        }
+      },
+      "profileRemoved": true,
+      "operations": 3,
+      "firstOperationCount": 3,
+      "result": "failed",
+      "publicUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "selectedImageIndices": [
+        1,
+        2
+      ],
+      "sourceDimensions": [],
+      "scope": "Initial adjacent-title/dialogue filtered attempt; next selected image was already translated. Test required a new operation and timed out despite visible results. Not a passed scroll scene. First-cancel check skipped; failed report retained.",
+      "qualityFinding": "Chinese dialogue visible, but Japanese remains, roman fragments enter Chinese, and meaning/order is wrong. First filtered capture still shows title artwork; no quality acceptance.",
+      "hostErrorCount": 0,
+      "sourceRequests": [
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        }
+      ],
+      "failureFinding": "Test waited for operation count increase after already completed visible result; no extension or console errors. Follow-up uses type-indexed body selection, aligns loaded image top, waits for its own displayed result and records new versus existing operations."
+    },
+    "raw1001DialogueTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "ja",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 124095,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 56294,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "modelRequests": [],
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "profileRemoved": true,
+      "operations": 3,
+      "firstOperationCount": 2,
+      "result": "passed",
+      "publicUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+      "selectedImageIndices": [
+        2,
+        3
+      ],
+      "sourceDimensions": [
+        {
+          "width": 1403,
+          "height": 2048
+        },
+        {
+          "width": 1403,
+          "height": 2048
+        }
+      ],
+      "scope": "Two selected public dialogue pages; previous visible title page also translated, three operations total. First-cancel check skipped. After diagnostic scroll alignment/cache-count correction, pause restores source/style, resume reuses, scroll displays next own result without panel. Host ad still obscures lower image. Not unobstructed or full-chapter/quality acceptance.",
+      "qualityFinding": "Chinese dialogue visible; vertical Japanese/furigana remain, roman fragments mix with Chinese and meaning/order is wrong. One balloon falsely describes melting and water; oversized Chinese overlaps Japanese and balloon boundaries. Host ad covers lower artwork.",
+      "hostErrorCount": 0,
+      "sourceRequests": [
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        },
+        {
+          "documentUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "sourceHost": "sg.cdnkk.top",
+          "frameId": 0
+        }
+      ],
+      "scrollOperationCounts": {
+        "before": 2,
+        "after": 3,
+        "mode": "new-operation"
+      }
+    },
+    "publicBodyFragmentReadersUnitInitialFive": {
+      "files": 7,
+      "cases": 455,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for eight manga config/reader/surface/source authorization modules",
+      "scope": "Four public image selectors and one Booklive area-only fragment selector; exact host/path boundaries, cover/ad exclusion. No OCR engine, permissions or pipeline change."
+    },
+    "publicBodyFragmentReadersSixEntriesInitialAttempt": {
+      "errors": [
+        "jQuery is not defined"
+      ],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 76304,
+          "name": "微信"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "profileRemoved": true,
+      "result": "failed",
+      "cases": 22,
+      "baseCases": 16,
+      "scope": "All 22 entry conditions completed, but suite fails on one unattributed jQuery exception at Rinko. Failed result retained; not an all-passed suite. MangaYun normal source/chapter clicks show four loaded of57 body images; no OCR in this suite.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "finalUrl": "https://mangahub.ru/read/962303",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 18,
+          "loadedBodyElements": 18,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 73,
+          "loadedBodyElements": 73,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 22,
+          "loadedBodyElements": 21,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "finalUrl": "https://booklive.jp/bviewer/s/",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 9,
+          "loadedBodyElements": 9,
+          "visibleBodyElements": 6,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://mangayun.com/s/%E6%B5%B7%E8%B4%BC%E7%8E%8B",
+          "finalUrlOmitted": true,
+          "finalOrigin": "https://mangayun.com",
+          "finalReaderPath": "/read/:work/:chapter",
+          "scopeOfFinalLocation": "Opaque public chapter identifiers omitted; reproduce through recorded normal source/chapter clicks.",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 57,
+          "loadedBodyElements": 4,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "jQuery is not defined",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "message": "Cannot read properties of undefined (reading 'post')",
+          "sourceHost": "rinkocomics.com",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://rawdex.net/manga/keep-likes-private/4/",
+          "message": "Cannot read properties of null (reading 'parentNode')",
+          "sourceHost": "waust.at",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "message": "jQuery callback_1791171040366 is not a function",
+          "sourceHost": "recommend.booklive.jp",
+          "reproducedWithoutExtension": false
+        }
+      ]
+    },
+    "publicBodyFragmentReadersBuildsInitialFive": {
+      "chrome": "passed (29.8s)",
+      "firefox": "passed (35.5s)",
+      "userscript": "passed (4.32s)",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1917026 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6062 declarations",
+      "selectedContracts": "3 files / 823 cases passed",
+      "scope": "Four image profiles and one Booklive fragmented public reader. Firefox/userscript runtime and full architecture suite not run; previous verificationOwnership baseline failures retained."
+    },
+    "publicBodyFragmentReadersEntriesInitialFive": {
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 55990,
+          "name": "Claude"
+        },
+        "frontmostAfter": {
+          "pid": 55990,
+          "name": "Claude"
+        }
+      },
+      "profileRemoved": true,
+      "result": "passed",
+      "cases": 21,
+      "baseCases": 16,
+      "scope": "Pure icon and five public body entries. Booklive normal free-trial click, observed backdrop click and ArrowLeft turns expose three loaded visible fragments; area entry only, no area OCR. Host-only script failures separately attributed by HTTPS stack; no claim that they were extension-free baseline reproductions.",
+      "publicReaders": [
+        {
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "finalUrl": "https://mangahub.ru/read/962303",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 14,
+          "loadedBodyElements": 2,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "finalUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 18,
+          "loadedBodyElements": 18,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "finalUrl": "https://rawdex.net/manga/keep-likes-private/4/",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 73,
+          "loadedBodyElements": 73,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "finalUrl": "https://raw1001.net/manga/zhou-shu-hui-zhan001/di271hua",
+          "status": 200,
+          "mode": "images",
+          "bodyElements": 22,
+          "loadedBodyElements": 21,
+          "visibleBodyElements": 1,
+          "result": "reader-entry-confirmed"
+        },
+        {
+          "requestedUrl": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "finalUrl": "https://booklive.jp/bviewer/s/",
+          "status": 200,
+          "mode": "area",
+          "bodyElements": 3,
+          "loadedBodyElements": 3,
+          "visibleBodyElements": 3,
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "hostErrors": [
+        {
+          "url": "https://rawdex.net/manga/keep-likes-private/4/",
+          "message": "Cannot read properties of null (reading 'parentNode')",
+          "sourceHost": "waust.at",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "message": "jQuery callback_1791169781668 is not a function",
+          "sourceHost": "recommend.booklive.jp",
+          "reproducedWithoutExtension": false
+        },
+        {
+          "url": "https://booklive.jp/product/index/title_id/20017284/vol_no/001",
+          "message": "jQuery callback_1791169781669 is not a function",
+          "sourceHost": "recommend.booklive.jp",
+          "reproducedWithoutExtension": false
+        }
+      ]
+    },
+    "rinkoExtensionFreeScriptBaseline": {
+      "result": "host-error-reproduced",
+      "publicUrl": "https://rinkocomics.com/chapter/the-crazy-young-masters-daily-life-is-a-scheme-chapter-5/",
+      "scope": "read-only visible DOM research without extension",
+      "status": 200,
+      "pageErrorCount": 14,
+      "matchingError": "jQuery is not defined",
+      "extensionLoaded": false,
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "errors": []
     }
   }
 }

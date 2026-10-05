@@ -51,6 +51,10 @@ function focusGuard() {
       const recordResponse=response=>{if(response.request().isNavigationRequest())navigationResponses.push({url:response.url(),status:response.status()});};
       launched.context.on('response',recordResponse);
       const result = {requestedUrl:href,pageErrors:[],networkFailures:[]};
+      page.on('dialog',async dialog=>{
+        (result.publicDialogs??=[]).push({type:dialog.type(),message:dialog.message().slice(0,200)});
+        await dialog.dismiss();
+      });
       page.on('pageerror',error=>result.pageErrors.push({message:error.message,stack:error.stack||''}));
       const publicRequest=request=>{const url=new URL(request.url());url.username='';url.password='';url.search='';url.hash='';return {url:['http:','https:'].includes(url.protocol)?url.href:`${url.protocol}[non-network source omitted]`,type:request.resourceType()};};
       page.on('requestfailed',request=>{if(result.networkFailures.length<100)result.networkFailures.push({...publicRequest(request),error:request.failure()?.errorText});});
@@ -59,11 +63,25 @@ function focusGuard() {
         const response = await page.goto(href,{waitUntil:'domcontentloaded',timeout:25000});
         await page.waitForTimeout(settleMs);result.settleMs=settleMs;
         if(resetZoom){await page.keyboard.press('Meta+0');await page.reload({waitUntil:'domcontentloaded',timeout:25000});await page.waitForTimeout(settleMs);result.zoomReset={key:'Meta+0',reload:true};}
+        const fillSelector=process.argv.includes('--before-inspect-fill-selector')?arg('before-inspect-fill-selector'):null;
+        if(fillSelector){
+          const fillValue=process.argv.includes('--before-inspect-fill-value')?arg('before-inspect-fill-value'):null;
+          assert.ok(typeof fillValue==='string'&&fillValue.length>0&&fillValue.length<=100,'Public search requires an explicit value of 1–100 characters');
+          await page.locator(fillSelector).fill(fillValue,{timeout:10000});result.readerSearch={selector:fillSelector,value:fillValue};
+        }
         const clickSelector=process.argv.includes('--before-inspect-click')?arg('before-inspect-click'):null;
         if(clickSelector){
           const popup=process.argv.includes('--inspect-popup')?launched.context.waitForEvent('page',{timeout:15000}).then(value=>({page:value}),error=>({error})):null;
           await page.locator(clickSelector).click({timeout:10000});result.readerAction={selector:clickSelector};
           if(popup){const opened=await popup;if(opened.error)throw opened.error;page=opened.page;await page.waitForLoadState('domcontentloaded',{timeout:20000}).catch(error=>{result.popupNavigationError=error.message;});}
+          await page.waitForTimeout(settleMs);
+        }
+        const secondaryClick=process.argv.includes('--after-reader-click')?arg('after-reader-click'):null;
+        if(secondaryClick){
+          const coordinates=process.argv.includes('--after-reader-click-position')?arg('after-reader-click-position').split(',').map(Number):null;
+          assert.ok(!coordinates||(coordinates.length===2&&coordinates.every(value=>Number.isInteger(value)&&value>=0&&value<=4096)),'Public click position requires two bounded integer coordinates');
+          const position=coordinates?{x:coordinates[0],y:coordinates[1]}:undefined;
+          await page.locator(secondaryClick).click({timeout:10000,position});result.secondaryReaderAction={selector:secondaryClick,position};
           await page.waitForTimeout(settleMs);
         }
         const scrollSelector=process.argv.includes('--before-inspect-scroll')?arg('before-inspect-scroll'):null;

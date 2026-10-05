@@ -14,7 +14,7 @@ fs.mkdirSync(artifacts, {recursive: true});
 const report = {suite: baseline ? 'baseline live discovery' : 'manga entry UI', cases: [], screenshots: [], consoleErrors: [], errors: [], hostErrors: []};
 const hostBaselineFile=arg('host-baseline',null);
 const hostBaseline=hostBaselineFile?JSON.parse(fs.readFileSync(hostBaselineFile,'utf8')):null;
-if(hostBaseline)assert.equal(hostBaseline.purpose,'read-only DOM research without extension; not extension runtime validation');
+if(hostBaseline)assert.ok(['read-only DOM research without extension; not extension runtime validation','read-only visible DOM research without extension'].includes(hostBaseline.purpose),'Host baseline must be an extension-free DOM research report');
 report.hostBaselineFile=hostBaselineFile;
 let launched, popup, page, worker, cdp, browserPid;
 function focusGuard() {
@@ -232,6 +232,12 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
                 if(sample.openSelector) {
                     const opener=sample.openFrameSelector?page.frameLocator(sample.openFrameSelector).locator(sample.openSelector):page.locator(sample.openSelector);
                     if(!sample.openIfVisible || await opener.isVisible())await opener.click({timeout:10000});
+                }
+                if(sample.afterOpenSelector){
+                    if(sample.afterOpenReadySelector)await page.locator(sample.afterOpenReadySelector).waitFor({state:'visible',timeout:20000});
+                    const position=sample.afterOpenPosition;
+                    assert.ok(!position||(Number.isInteger(position.x)&&Number.isInteger(position.y)&&position.x>=0&&position.y>=0&&position.x<=4096&&position.y<=4096),'Public control position must be bounded integer coordinates');
+                    await page.locator(sample.afterOpenSelector).click({timeout:15000,position});
                 }
                 if(sample.pageKey)for(let turn=0;turn<(sample.pageKeyTurns||1);turn++)await page.keyboard.press(sample.pageKey);
                 if(sample.readerReadySelector)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40),sample.readerReadySelector,{timeout:20000});

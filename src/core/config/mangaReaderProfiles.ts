@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：已核对章节站与 Luvyaa、ManhwaWeb、KL、Manhuaplus 正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 CMOA 等分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：已核对章节站与 MangaYun、Mangahub、Rinko、RawDEX、Raw1001、Luvyaa、ManhwaWeb、KL、Manhuaplus 正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 纵向完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界，GigaViewer、Comici、ComicWalker 与 Animate 正文画布规则、不可读画布和 Booklive、CMOA 等分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -13,6 +13,21 @@ const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
 export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; canvasSelector?: string; canvasInteractionSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'mangayun.com' && /^\/read\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/?$/.test(pathname)) return {
+        name: 'MangaYun', selector: '.reader[role="dialog"] .reader-scroll > .reader-page-wrap > img.reader-page',
+    };
+    if (host === 'mangahub.ru' && /^\/read\/\d+\/?$/.test(pathname)) return {
+        name: 'Mangahub', selector: 'reader-viewer reader-scan.reader-viewer-scan > img.reader-viewer-img',
+    };
+    if (host === 'rinkocomics.com' && /^\/chapter\/[^/]+-chapter-\d+(?:\.\d+)?\/?$/.test(pathname)) return {
+        name: 'Rinko Comics', selector: '.chapter-images-section .images-flow > img.chapter-image[data-page]',
+    };
+    if (host === 'rawdex.net' && /^\/manga\/[^/]+\/\d+(?:\.\d+)?\/?$/.test(pathname)) return {
+        name: 'RawDEX', selector: 'section.rdx-reader .rdx-reader-content img.wp-manga-chapter-img',
+    };
+    if (host === 'raw1001.net' && /^\/manga\/[^/]+\/di\d+(?:\.\d+)?hua\/?$/.test(pathname)) return {
+        name: 'Raw1001', selector: '#chapterContent .separator > a.readImg > img',
+    };
     if (host === 'v5.luvyaa.co' && /^\/[^/]+-chapter-\d+(?:\.\d+)?\/?$/.test(pathname)) return {
         name: 'Luvyaa', selector: 'article #readerarea > img.ts-main-image',
     };
@@ -61,6 +76,9 @@ export function resolveMangaReaderProfile(hostname: string, pathname: string, se
     if (host === 'cmoa.jp' && /^\/bib\/speedreader\/?$/.test(pathname)
         && /^\d+_jp_\d+$/.test(new URLSearchParams(search).get('cid') ?? '')) return {
         name: 'Comic CMOA', selector: ':not(*)', areaSelector: '#content .pt-img img',
+    };
+    if (host === 'booklive.jp' && /^\/bviewer\/s\/?$/.test(pathname)) return {
+        name: 'Booklive', selector: ':not(*)', areaSelector: '#content.pages > [id^="content-p"] .pt-img img',
     };
     if (host === 'tapas.io' && (/^\/episode\/\d+\/?$/.test(pathname) || /^\/series\/[^/]+\/?$/.test(pathname))) return {
         name: 'Tapas', selector: '[id^="episode-"].episode-unit .viewer__body img.content__img',

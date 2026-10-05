@@ -71,7 +71,7 @@
 | 61 | comic-zenon | comic-zenon.com | 不可读画布：圈选入口 | 公开章节结构已核对；画布受污染 |
 | 62 | Webtoons | webtoons.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 63 | Lezhin Comics | lezhin.com、lezhinus.com | 通用正文图片检测 | 英语站公开免费章节仍转至登录；正文未确认 |
-| 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 首页 HTML 可访问 |
+| 64 | BeLTOON | beltoon.jp | 通用正文图片检测 | 公开首页只确认作品封面；实际正文未确认 |
 | 65 | ManhwaClub | manhwaclub.net | 专用正文图片 | 公开章节正文已核对；未验 OCR |
 | 66 | JinMangas | 待确认 | 待确认 | 缺少可确认地址 |
 | 67 | Atsumaru | atsu.moe | 专用正文图片，长图分段 | 800×15744 原图的两段翻译链路通过；整条未验 |
@@ -92,15 +92,15 @@
 | 82 | Fenoxo | fenoxo.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
-| 85 | Booklive | booklive.jp | 通用正文图片检测 | 公开连载片段正文未加载；未验证 |
-| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开首页和免费目录可访问；尚未核对实际正文 |
+| 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
+| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开免费作品与章节列表可访问；正常点击尚未显示正文 |
 | 87 | MangaLove | mangalove.me | 通用正文图片检测 | 首页 HTML 可访问 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页 HTML 可访问 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 通用正文图片检测 | 章节样本仅见宣传图；正文待确认 |
 | 90 | yaoimangaonline.com | yaoimangaonline.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 91 | nhentaiyaoi | nhentaiyaoi.net | 通用正文图片检测 | 首页 HTML 可访问 |
 | 92 | orchisasia | orchisasia.org | 通用正文图片检测 | 首页 HTML 可访问 |
-| 93 | mangalib | mangalib.me | 通用正文图片检测 | 首页 HTML 可访问 |
+| 93 | mangalib | mangalib.me | 通用正文图片检测 | 公开实章两种窗口未显示正文；正常截图字体等待超时 |
 | 94 | novelcrow | novelcrow.com | 通用正文图片检测 | 访问受限 |
 | 95 | cn.twbzmg.com | cn.twbzmg.com | 包子漫画正文规则族 | 首页 HTML 可访问；本轮未验此域名章节 |
 | 96 | Nyx Scans | nyxscans.com | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -114,7 +114,7 @@
 | 104 | greentoon.net | greentoon.net | 通用正文图片检测 | 首页 HTML 可访问 |
 | 105 | dynasty-scans.com | dynasty-scans.com | 专用正文图片 | 首页 HTML 可访问 |
 | 106 | mangaoi.net | mangaoi.net | 通用正文图片检测 | 章节样本返回 200，但显示 404 |
-| 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 首页 HTML 可访问 |
+| 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
 | 108 | toptoon.com | toptoon.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 109 | acgmhh.com | acgmhh.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 访问受限 |
@@ -129,7 +129,7 @@
 | 119 | bakamh.com | bakamh.com | 通用正文图片检测 | 访问受限 |
 | 120 | yakshascans.com | yakshascans.com、ravenscans.org | 通用正文图片检测 | 重定向已确认；正文待确认 |
 | 121 | toonclash.com | toonclash.com | 通用正文图片检测 | 连接失败 |
-| 122 | rawdex.net | rawdex.net | 通用正文图片检测 | 首页 HTML 可访问 |
+| 122 | rawdex.net | rawdex.net | 专用正文图片 | 公开纵向章节正文和入口已核对；未验 OCR 或分页模式 |
 | 123 | reset-scans.org | reset-scans.org | 通用正文图片检测 | 连接失败 |
 | 124 | cultivationmanhua.com | cultivationmanhua.com | 通用正文图片检测 | HTTP 错误 |
 | 125 | manhwaread.com | manhwaread.com | 通用正文图片检测 | 连接失败 |
@@ -152,7 +152,7 @@
 | 142 | ctccomic.com | ctccomic.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 143 | nyaa.fan | nyaa.fan | 通用正文图片检测 | 连接失败 |
 | 144 | mangago.me | mangago.me | 通用正文图片检测 | 访问受限 |
-| 145 | rinkocomics.com | rinkocomics.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 145 | rinkocomics.com | rinkocomics.com | 专用正文图片 · 长条分段 | 公开章节完整长图和入口已核对；本轮未验 OCR |
 | 146 | roliascan.com | roliascan.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 147 | novelpia.com | novelpia.com | 通用正文图片检测 | 首页 HTML 可访问 |
 | 148 | zerobywai.com | zerobywai.com | 通用正文图片检测 | 首页 HTML 可访问 |
@@ -167,7 +167,7 @@
 | 157 | xmanga.org | xmanga.org | 通用正文图片检测 | 连接失败 |
 | 158 | florascans.net | florascans.net | 通用正文图片检测 | 连接失败 |
 | 159 | comic.mf-fleur.jp | comic.mf-fleur.jp | 专用正文图片 | 公开章节正文结构已核对 |
-| 160 | komiic.com | komiic.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 160 | komiic.com | komiic.com | 通用正文图片检测 | 根地址转向登录；正文未确认 |
 | 161 | manhwaus.org | manhwaus.org | 通用正文图片检测 | 连接失败 |
 | 162 | tichct.org | tichct.org | 通用正文图片检测 | 连接失败 |
 | 163 | manhuaplus.org | manhuaplus.org | 专用正文图片 | 公开章节 20 张完整正文；两张开头场景/SFX 阅读链路通过 |
@@ -178,15 +178,15 @@
 | 168 | webtoonraw.com | webtoonraw.com | 通用正文图片检测 | 连接失败 |
 | 169 | kissmanga.in | kissmanga.in | 通用正文图片检测 | 访问受限 |
 | 170 | 02.ikiru.wtf | 02.ikiru.wtf | 通用正文图片检测 | 连接失败 |
-| 171 | mangahub.ru | mangahub.ru | 通用正文图片检测 | 首页 HTML 可访问 |
+| 171 | mangahub.ru | mangahub.ru | 专用正文图片 | 正文和入口已核对；当前漫画 OCR 缺少俄语字符 |
 | 172 | ezmanga.org | ezmanga.org | 通用正文图片检测 | 访问受限 |
 | 173 | magustoon.org | magustoon.org | 通用正文图片检测 | 访问受限 |
 | 174 | violetscans.org | violetscans.org、violetmanga.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 175 | publicdiplomacymagazine.com | publicdiplomacymagazine.com | 通用正文图片检测 | 访问受限 |
-| 176 | raw1001.net | raw1001.net | 通用正文图片检测 | 首页 HTML 可访问 |
+| 176 | raw1001.net | raw1001.net | 专用正文图片 | 正文和入口通过；开头页 OCR 链路通过，质量有明显限制 |
 | 177 | mkissa.to | mkissa.to | 通用正文图片检测 | 公开作品有章节链接；实章 HTTP 403 验证页，正文未确认 |
 | 178 | iqiyi.com | iqiyi.com | 通用正文图片检测 | 首页 HTML 可访问 |
-| 179 | jcomic.net | jcomic.net | 通用正文图片检测 | 首页 HTML 可访问 |
+| 179 | jcomic.net | jcomic.net | 通用正文图片检测 | 公开最新更新分类只确认封面；正文未确认 |
 | 180 | tapas.io | tapas.io | 专用正文图片 | 公开章节 HTTP 200；两张实际对白翻译链路已核对 |
 | 181 | kagane.to | kagane.to | 通用正文图片检测 | 访问受限 |
 | 182 | soraraw.com | soraraw.com | 通用正文图片检测 | 正常窗口缩放提示持续遮住阅读器，正文未验收 |
@@ -206,7 +206,7 @@
 | 196 | manhwa-raw.com | manhwa-raw.com | 通用正文图片检测 | 访问受限 |
 | 197 | s1.managall.com | s1.managall.com | 通用正文图片检测 | 连接失败 |
 | 198 | manhwato.com | manhwato.com | 专用正文图片 | 公开章节正文及扩展入口已核对；无 OCR 验收 |
-| 199 | kuaikanmanhua.com | kuaikanmanhua.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 199 | kuaikanmanhua.com | kuaikanmanhua.com | 通用正文图片检测 | 公开章节样本转向登录；正文未显示 |
 | 200 | mangapark.net | mangapark.net | 通用正文图片检测 | 连接失败 |
 | 201 | mangasuika.com | mangasuika.com | 通用正文图片检测 | 连接失败 |
 | 202 | firemanga.com | firemanga.com | 通用正文图片检测 | 连接失败 |
@@ -240,6 +240,6 @@
 | 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 本轮公开漫画目录返回 403，无正文验收 |
 | 231 | sunday-webry.com | sunday-webry.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
 | 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 公开阅读器停在加载状态，未验证正文 |
-| 233 | mangayun.com | mangayun.com | 通用正文图片检测 | 首页 HTML 可访问 |
+| 233 | mangayun.com | mangayun.com | 专用正文图片 | 如漫画来源首话完整正文和入口通过；第一来源 403 保留 |
 | 234 | manhwaweb.com | manhwaweb.com | 已核对正文图片 | /leer/ 公开章节限定正文直系图片，完整长图复用分段链路；排除音乐按钮图片和封面 |
 | 235 | a-i-manga.com | a-i-manga.com | 专用正文图片检测 | 公开作品阅读页 HTTP 200；24 张编号正文图片 |

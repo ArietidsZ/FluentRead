@@ -285,6 +285,8 @@ async function scrollReaderImage(index) {
     await anchor.scrollIntoViewIfNeeded();
     await image.waitFor({state:'visible'});
     await wait(async()=>await image.evaluate(i=>i.complete&&i.naturalWidth>=80),30000);
+    // 懒加载完成后对齐正文顶部，避免只露出页尾便把上页当成当前质量样本。
+    await image.evaluate(i=>i.scrollIntoView({block:'start',inline:'nearest',behavior:'instant'}));
 }
 async function verifyPagedImageReader() {
     const source=()=>page.locator(readerSelector).first();
@@ -324,13 +326,14 @@ async function captureSource(image, name) {
     await image.evaluate(i=>i.complete && i.naturalWidth ? undefined : new Promise((resolve,reject)=>{i.addEventListener('load',resolve,{once:true});i.addEventListener('error',reject,{once:true});}));
     const source = await image.evaluate(i=>{
         const c=document.createElement('canvas');c.width=i.naturalWidth;c.height=i.naturalHeight;c.getContext('2d').drawImage(i,0,0);
-        try {return {data:c.toDataURL('image/png').split(',')[1]};}
-        catch(error){if(error.name!=='SecurityError')throw error;return {pixelError:error.name};}
+        const dimensions={width:i.naturalWidth,height:i.naturalHeight};
+        try {return {...dimensions,data:c.toDataURL('image/png').split(',')[1]};}
+        catch(error){if(error.name!=='SecurityError')throw error;return {...dimensions,pixelError:error.name};}
     });
     const file=path.join(artifacts,`${name}-original.png`);
     if(source.data)fs.writeFileSync(file,Buffer.from(source.data,'base64'));
     else {focusGuard();await image.screenshot({path:file});}
-    (report.sourceCaptures??=[]).push({name,file,method:source.data?'natural image pixels':'displayed element screenshot',pixelError:source.pixelError});
+    (report.sourceCaptures??=[]).push({name,file,width:source.width,height:source.height,method:source.data?'natural image pixels':'displayed element screenshot',pixelError:source.pixelError});
 }
 async function patch(config) {
     return popup.evaluate(async config=>{
@@ -1046,10 +1049,13 @@ async function verifyReadAhead() {
     report.currentCase='scroll automatically translates a new visible page';
     const second=page.locator(readerSelector).nth(1);started=Date.now();await scrollReaderImage(1);
     await captureSource(second,'02');
-    await wait(async()=>(await ops())>before);
+    // 可见页可能已在此前的阅读窗口完成，直接显示缓存也是正确的滚动结果。
+    await wait(async()=>await second.evaluate(i=>i.style.opacity==='0'));
     await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
     assert.ok((await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
     assert.equal(await second.evaluate(i=>i.style.opacity),'0','The new observed page displays its own translated result');
+    const afterScroll=await ops();assert.ok(afterScroll>=before);
+    report.scrollOperationCounts={before,after:afterScroll,mode:afterScroll>before?'new-operation':'existing-result'};
     report.pageDurationsMs.push({page:2,ms:Date.now()-started,mayIncludeFirstInpaintingPreparation:true});
     await screenshot('02-scrolled-translated');report.cases.push(report.currentCase);
     if(liveSite)for(let index=2;index<qualityPages;index++){
@@ -1057,10 +1063,11 @@ async function verifyReadAhead() {
         report.currentCase=`live page ${index+1} translates automatically`;
         const previous=await ops(), image=page.locator(readerSelector).nth(index);started=Date.now();
         await scrollReaderImage(index);await captureSource(image,String(index+1).padStart(2,'0'));
-        await wait(async()=>(await ops())>previous);
+        await wait(async()=>await image.evaluate(i=>i.style.opacity==='0'));
         await wait(async()=>(await ball(`return this.querySelector('.floating-ball-manga').getAttribute('aria-busy')`))==='false');
         assert.ok((await imageUi(`return this.querySelectorAll('.fluent-read-image-translation-bitmap').length`))>0);
         assert.equal(await image.evaluate(i=>i.style.opacity),'0');
+        (report.additionalScrollOperationCounts??=[]).push({page:index+1,before:previous,after:await ops()});
         report.pageDurationsMs.push({page:index+1,ms:Date.now()-started});
         await screenshot(`${String(index+1).padStart(2,'0')}-dialogue-translated`);report.cases.push(report.currentCase);
     }
