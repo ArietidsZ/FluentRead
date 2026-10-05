@@ -1332,16 +1332,19 @@ async function verifyReadAhead() {
 
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
     await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).waitFor();
-    await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');
+    if(baseline)await modelSettings.getByLabel('模型下载来源',{exact:true}).selectOption('mirror');
+    else {await modelSettings.getByRole('combobox',{name:'模型下载来源',exact:true}).press('Enter');await modelSettings.getByRole('option',{name:'备用镜像优先',exact:true}).click();}
     await modelSettings.reload();
 
-    await modelSettings.waitForFunction(()=>document.querySelector('.manga-model-settings select')?.value==='mirror');
+    await wait(async()=>(await modelSettings.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}))).source==='mirror');
     if(!baseline)await modelSettings.locator('.manga-download-settings > summary').click();
+    if(!baseline)assert.match(await modelSettings.getByRole('combobox',{name:'模型下载来源',exact:true}).locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," el-select ")][1]').textContent(),/备用镜像优先/);
     report.cases.push('model source selection persists on reopen');
     await modelSettings.locator('.manga-model-settings').scrollIntoViewIfNeeded();
     const modelShot=path.join(artifacts,'models-before-clear.png');await modelSettings.screenshot({path:modelShot});report.screenshots.push(modelShot);
     await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).click();
-    await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
+    if(baseline)await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
+    else await modelSettings.locator('.manga-resource-state').first().filter({hasText:'未下载'}).waitFor();
     report.modelStatusAfter=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));
     assert.deepEqual(report.modelStatusAfter,{success:true,ready:false,bytes:0,inpaintingReady:false,source:'mirror'});
     if(offlineModels){
@@ -1357,7 +1360,8 @@ async function verifyReadAhead() {
         const darkShot=path.join(artifacts,'models-dark-mobile.png');await modelSettings.screenshot({path:darkShot});report.screenshots.push(darkShot);
         report.cases.push('model controls fit narrow viewport and dark theme');
         await modelSettings.getByRole('button',{name:baseline?'清除漫画模型':'清除已下载资源',exact:true}).click();
-        await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
+        if(baseline)await modelSettings.locator('.manga-model-settings small').filter({hasText:/^(?:已占用空间 · )?0 MB$/}).waitFor();
+        else await modelSettings.locator('.manga-resource-state').first().filter({hasText:'未下载'}).waitFor();
     }
     report.cases.push(report.currentCase);
     report.progress=await worker.evaluate(()=>globalThis.__mangaTest.progress);

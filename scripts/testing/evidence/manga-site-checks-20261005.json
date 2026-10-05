@@ -34049,6 +34049,130 @@
           "finding": "Stale main-switch target. Native FeatureEnableCard button click now verifies persistence."
         }
       ]
+    },
+    "settingsMainRefreshReview": {
+      "date": "2026-10-06",
+      "baseCommit": "4b34f3d9ac3326ba0b4bc7ee35190078a006b376",
+      "rebasedHeadBeforeEvidenceCommit": "2e184617d5f8f59f9ed0a020fc74ff76992177c7",
+      "mainChange": "PR849 settings/resource layout, controls and copy. Preserve the new main UI while retaining task site search and public settings contract.",
+      "review": "Only two conflict blocks: keep main settings description and combine distinct main/task English keys. All source after blocks preserved; typecheck, bundle and header checks passed.",
+      "retryDiagnostic": "The first local conflict resolution consumed text after the block. The unpushed rebase was aborted and restarted from the verified backup; this discarded attempt is absent from final task history.",
+      "harnessUpdate": "Native branded source combobox selection and persisted model-status source; resource-ready state after clear replaces the obsolete zero-MB label expectation.",
+      "strictlyCoveredModulesUnchanged": 12,
+      "newSiteResearchAttempts": 0,
+      "sites": 235,
+      "retainedResearchAttempts": 402
+    },
+    "settingsMainRefreshEntryUI": {
+      "status": "passed",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-settings-main-refresh/report.json",
+      "cases": 26,
+      "nativeSnapshots": 35,
+      "focusChecks": 42,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "profileRemoved": true,
+      "scope": "Final production Chrome artifact: 21 interactions/fixtures plus two live reader entries and three live HTTP-200 login/paywall negative pages; no live chapter OCR or public chapter screenshots.",
+      "brandShape": {
+        "width": 32,
+        "height": 32,
+        "radius": "50%"
+      },
+      "hostErrors": "ComicWalker Amazon ad Unauthorized retained; not marked reproduced in the final exact-URL baseline. Earlier disabled-extension wave37 observed it."
+    },
+    "settingsMainRefreshLifecycle": {
+      "status": "passed",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/translation-settings-main-refresh/report.json",
+      "cases": 16,
+      "nativeSnapshots": 17,
+      "focusChecks": 36,
+      "extensionErrors": 0,
+      "consoleErrors": 0,
+      "profileRemoved": true,
+      "scope": "Production Chrome artifact in synthetic reader; real preloaded local OCR/inpainting and validated offline importer, deterministic text responses. No live-provider or all-site quality proof.",
+      "operations": 6,
+      "translationRequests": 5,
+      "transportRequests": [
+        {
+          "endpoint": "translateHtml",
+          "items": 2,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        },
+        {
+          "endpoint": "translateHtml",
+          "items": 1,
+          "live": false
+        }
+      ],
+      "modelNetworkRequests": 0
+    },
+    "settingsMainRefreshValidation": {
+      "status": "passed-scoped",
+      "testFiles": 6,
+      "cases": 979,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/tests-settings-main-refresh.log",
+      "typecheck": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-settings-main-refresh.log",
+      "sourceIntegrity": "Full main/task locale and Vue file preserved; no conflict markers. All 12 previously strictly covered module contents unchanged, so earlier 767-case four-dimensional 100% evidence is retained rather than described as newly rerun.",
+      "remainingBaseline": "18 unrelated strict coverage registry gaps remain; no full-suite green claim.",
+      "audit": {
+        "status": "passed",
+        "files": 469,
+        "declarations": 6259,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-settings-main-refresh.log"
+      }
+    },
+    "settingsMainRefreshBuilds": {
+      "status": "passed",
+      "chromeSeconds": 28.2,
+      "firefoxSeconds": 31.9,
+      "userscriptSeconds": 4.94,
+      "userscriptBytes": 1941656,
+      "chromeReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-chrome-settings-main-refresh.log",
+      "firefoxReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-firefox-settings-main-refresh.log",
+      "userscriptReport": "/private/tmp/fluentread-brand-manga-sites-20261005/build-userscript-settings-main-refresh.log",
+      "manifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifests-settings-main-refresh.log",
+      "userscriptVerifier": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-settings-main-refresh.log",
+      "brandVerifier": "/private/tmp/fluentread-brand-manga-sites-20261005/brand-settings-main-refresh.log",
+      "generatedLanguages": "/private/tmp/fluentread-brand-manga-sites-20261005/languages-settings-main-refresh.log",
+      "runtimeScope": "Chrome native UI and synthetic lifecycle only; Firefox/userscript build/artifact proof only.",
+      "docs": {
+        "status": "passed",
+        "seconds": 4.78,
+        "pages": 77,
+        "links": 3968,
+        "anchors": 754,
+        "images": 154,
+        "buildReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-build-settings-main-refresh.log",
+        "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-types-settings-main-refresh.log",
+        "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-settings-main-refresh.log",
+        "maintainerParser": {
+          "status": "passed",
+          "tableRows": 235,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/maintainer-markdown-settings-main-refresh.json"
+        }
+      }
+    },
+    "pr850InitialRunnerFailure": {
+      "headCommit": "3565d9f571c9a5ce085b42acbfa62485c79b5c10",
+      "workflowRun": 37366864108,
+      "workflowStatus": "failure",
+      "buildConclusion": "cancelled",
+      "executedSteps": 0,
+      "annotation": "The job was not acquired by Runner of type hosted even after multiple attempts",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/pr-850-initial-check-result.json",
+      "annotations": "/private/tmp/fluentread-brand-manga-sites-20261005/pr-850-initial-check-annotations.json",
+      "officialStatus": "https://www.githubstatus.com/incidents/3q1yb5m7ltvb",
+      "scope": "Runner acquisition failure, not execution of code checks. Never counted as CI success; latest rebased head requires fresh checks before merge."
     }
   },
   "lastSupplementOn": "2026-10-06"

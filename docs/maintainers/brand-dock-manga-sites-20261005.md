@@ -578,3 +578,16 @@ Chrome 最终生产入口专项 26 项通过：21 个交互/语言夹具、两�
 最终 Chrome（26.3 秒）、Firefox（28.3 秒）、userscript（4.22 秒，1,940,860 字节）构建以及 manifest、userscript 和七语言品牌校验通过。最新语言数据随 main 和任务变更重新生成，历史散列资源保留。Firefox/油猴仅为构建和产物验证，未新增真实运行时验收。公开文档构建 3.72 秒并校验通过，77 页、3968 链接、754 锚点、154 图片；本维护报告按配置不发布，只进行本地 Markdown 解析。
 
 所有私有记录位于 `/private/tmp/fluentread-brand-manga-sites-20261005`，最终浏览器结果分别为 `ui-delivery-final/report.json`、`translation-main-integration-wake/report.json`、`translation-main-integration-acceptance/report.json`。本轮没有新增站点调查：235 项与历史 402 个尝试完整保留，规则数量仍为 91 图片、23 圈选、10 可读画布、2 背景、3 其他画布、106 通用检测。清单、调查、当前适配及限制记录已完成；全部 235 站的所有章节、登录后阅读、OCR/翻译质量与全部设备不在已验证范围，失效或受限条目不冒充完整支持。
+
+
+## main 再更新：设置资源界面集成（2026-10-06）
+
+等待 PR850 检查期间，main 合入 PR849，最新基础更新为 `4b34f3d9ac3326ba0b4bc7ee35190078a006b376`。任务再次 rebase，保留 main 的预览右侧开关、单层资源组、自定义下载来源选择器、备用识别入口及各语言文案，同时保留任务的 235 项搜索和设置公开入口。最新资源布局来自 main，用户撤回的样式消息没有在本任务中实施。重放前版本 `3565d9f5` 保留在 `codex/brand-dock-manga-sites-before-settings-main-20261006`。
+
+首次本地冲突处理的匹配范围过宽，截断了两个文件；立即撤销尚未推送的 rebase，从已验证版本重新处理。最终仅合并两个冲突块，并断言块后全部内容保留，main 与任务词典键完整合并，文件头、类型检查和生产构建通过。被撤销的尝试不在最终任务历史中。12 个严格覆盖率模块的内容与此前验收版本逐字相同，保留原 767 项四维 100% 证据，没有把它描述成新一轮执行。
+
+资源脚本跟进 main 的原生自定义下拉框，通过键盘打开并点击“备用镜像优先”，重开后同时核对后台保存来源与界面选项；清理后验证实际“未下载”状态和后台空资源，替代旧零 MB 标签预期。六个直接相关文件 979 项通过，类型检查通过。最终 Chrome 入口 26 项通过，35 个原生快照、42 次焦点检查；生产完整生命周期与资源管理 16 项通过，6 次图像处理、5 个逻辑文本请求、17 个原生快照与 36 次焦点检查。离线导入、来源持久化、清除、窄屏暗色与常驻纯图标重新复核，模型网络请求为零，扩展与控制台错误为零，两个 profile 已清理。ComicWalker 宿主广告 Unauthorized 分别保留。阅读夹具仍用真实本地 OCR/修补模型与确定性文本响应，实页仍只检查 DOM 和入口，不作全面质量证明。
+
+新基础上的 Chrome（28.2 秒）、Firefox（31.9 秒）、userscript（4.94 秒，1,941,656 字节）构建，以及 manifest、userscript、七语言品牌校验通过；五个生成语言资源随 main 再更新。文档构建 4.78 秒、网站类型检查及链接校验通过，77 页、3968 链接、754 锚点、154 图片。Firefox/油猴只有构建和产物证明；18 个无关严格覆盖率登记缺口继续保留，未新增全量回归。235 项与 402 个调查尝试不变，本轮没有新站点调查。
+
+PR850 原始 `3565d9f5` 的远程作业等待约 15 分钟后失败，build 的结论为 cancelled、steps 为空，注释明确为 hosted runner 多次尝试后仍未分配到。该次没有执行代码检查，不能算作检查通过。[GitHub 官方事件](https://www.githubstatus.com/incidents/3q1yb5m7ltvb)同时报告 Actions 分配 runner 延迟。保留 `pr-850-initial-check-result.json` 与 `pr-850-initial-check-annotations.json`；更新后的分支须取得新检查成功才合并。最终新基础证据为 `ui-settings-main-refresh/report.json`、`translation-settings-main-refresh/report.json` 及对应 settings-main-refresh 构建与校验日志，均在私有证据目录。
