@@ -123,6 +123,11 @@ const state = () => page.evaluate(() => ({
       const callback=args.at(-1);if(typeof callback==='function'){queueMicrotask(()=>callback(result));return;}return Promise.resolve(result);
     };return true;
   })()`);
+  // A initially exposes only its MSE blob. Poster enrichment must not reset its own failure.
+  await page.evaluate(() => {
+    document.querySelector('#post-0 video').removeAttribute('poster');
+    document.querySelector('#post-0 a').removeAttribute('href');
+  });
   await page.locator('#post-0 video').hover();
   await page.waitForSelector('#post-0 #fluent-read-video-subtitle-button');
   await page.locator('#fluent-read-video-subtitle-button').click();
@@ -130,6 +135,11 @@ const state = () => page.evaluate(() => ({
   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('刷新页面'), null, {timeout: 15000});
   report.videoA = await state();
   check('Unreadable MSE audio gives an actionable refresh hint and preserves the model', /刷新页面/.test(report.videoA.detail) && /无需重新下载模型/.test(report.videoA.detail), report.videoA);
+  await page.locator('#post-0 video').evaluate(video => {video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/333/pu/img/proof.jpg';});
+  await page.waitForTimeout(500);
+  report.videoAEnriched = await state();
+  check('Poster enrichment of the same blob video retains its own failure', report.videoAEnriched.detail === report.videoA.detail
+    && report.videoAEnriched.label === report.videoA.label, report.videoAEnriched);
   await page.screenshot({path: path.join(artifacts, 'home-video-a-recovery-hint.png')});
   await page.locator('#post-1 video').hover();
   await page.waitForSelector('#post-1 #fluent-read-video-subtitle-button');
