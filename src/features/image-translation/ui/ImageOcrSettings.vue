@@ -1,82 +1,94 @@
 <!--
  * @file src/features/image-translation/ui/ImageOcrSettings.vue
  * 文件职责：提供图片与圈选共用的紧凑语言包管理界面，突出当前源语言需要的资源和可继续使用的状态。
- * 主要内容：紧凑模式复用页首语言选择，避免重复控件；用单层列表展示逐包排队、下载、就绪和错误，按当前识别语言准备缺失包；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除；漫画设置额外挂载专用模型的来源、进度、导入和清理组件。
+ * 主要内容：嵌入资源框时突出当前识别方式，备用模型与语言包管理按需展开，任务和错误会自动展开；独立使用时保留完整语言摘要与列表，用统一选择器设置原文语言，按当前识别语言准备缺失包；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除。
  * 模块边界：组件只通过既有后台消息管理语言包，不创建 Worker、不写缓存、不持有下载任务；关闭页面只停止状态订阅，后台仍负责去重、串行下载和部分成功持久化。
  -->
 <template>
-  <section class="image-ocr-section" :aria-labelledby="`${props.idPrefix}-ocr-pack-title`" data-testid="ocr-language-manager">
+  <section class="image-ocr-section" :class="{'is-embedded': props.embedded}" :aria-labelledby="`${props.idPrefix}-ocr-pack-title`" data-testid="ocr-language-manager">
     <div v-if="!browserCapabilities.imageOcr" class="image-ocr-unavailable" role="status">
       <strong>当前浏览器暂不支持图片翻译与 OCR</strong>
       <p>{{ t('ocr.packs.unavailable') }}</p>
     </div>
     <template v-else>
       <MangaModelSettings v-if="props.showManga" />
-      <header class="image-ocr-heading settings-card-heading">
-        <div class="settings-card-heading-copy"><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ props.compact ? translateLegacy('Tesseract（轻量模型）') : t('ocr.packs.title') }}</h2><p v-if="!props.compact">{{ t('ocr.packs.description') }}</p></div>
-        <div v-if="!props.compact" class="image-ocr-source">
-          <label :for="`${props.idPrefix}-ocr-source`">{{ t('area.settings.sourceLanguage') }}</label>
-          <select :id="`${props.idPrefix}-ocr-source`" :title="t('area.settings.sourceLanguageDescription')" :value="props.sourceLanguage" @change="emit('update:sourceLanguage', ($event.target as HTMLSelectElement).value)">
-            <option v-if="!IMAGE_OCR_SOURCE_LANGUAGES.some(item => item.value === props.sourceLanguage)" :value="props.sourceLanguage" disabled>{{ props.sourceLanguage }}</option>
-            <option v-for="language in IMAGE_OCR_SOURCE_LANGUAGES" :key="language.value" :value="language.value" data-i18n-ignore>{{ translateLegacy(language.label) }}</option>
-          </select>
-        </div>
-        <span v-if="initialized" class="image-ocr-count">{{ t('ocr.packs.count', {count: downloadedCodes.length, total: languagePacks.length}) }}</span>
-      </header>
-      <div class="image-ocr-recommendation" :data-ready="requiredReady">
-        <div class="image-ocr-summary">
-          <strong>{{ t(requiredReady ? 'ocr.packs.ready' : 'ocr.packs.required') }}</strong>
-          <p data-i18n-ignore>{{ requiredLabels }}</p>
-          <small>{{ t(props.sourceLanguage === 'auto' ? 'ocr.packs.autoHint' : 'ocr.packs.languageHint') }}</small>
-        </div>
-        <button type="button" class="image-ocr-primary-action" :disabled="!initialized || requiredReady || requiredBusy" @click="downloadLanguages(requiredCodes)">
-          {{ t(requiredReady ? 'ocr.packs.readyAction' : requiredBusy ? 'ocr.packs.preparing' : 'ocr.packs.prepare') }}
-        </button>
-      </div>
-      <p v-if="!initialized && !statusError" class="image-ocr-notice" role="status">{{ t('ocr.packs.loading') }}</p>
-      <div v-if="statusError" class="image-ocr-notice image-ocr-error" role="alert">
-        <span>{{ t('ocr.packs.statusError') }}</span><button type="button" @click="refreshStatus">{{ translateLegacy('重试') }}</button>
-      </div>
-      <div class="image-ocr-pack-list" role="list">
-        <article v-for="pack in visiblePacks" :key="pack.code" class="image-ocr-pack-card" role="listitem" :data-language="pack.code" :data-state="stateOf(pack.code)">
-          <div class="image-ocr-pack-icon" data-i18n-ignore aria-hidden="true">{{ pack.icon }}</div>
-          <div class="image-ocr-pack-copy">
-            <div class="image-ocr-pack-title"><strong data-i18n-ignore>{{ pack.label }}</strong><span v-if="requiredCodes.includes(pack.code)" class="image-ocr-required">{{ t('ocr.packs.inUse') }}</span></div>
-            <small data-i18n-ignore>{{ pack.size }}<template v-if="pack.code === 'jpn'"> · {{ t('ocr.packs.vertical') }}</template></small>
-            <p v-if="states[pack.code]?.phase === 'error'" class="image-ocr-error" role="alert" data-i18n-ignore>{{ translateLegacy(states[pack.code]?.error || '语言包下载失败') }}</p>
-            <p v-if="actionErrors[pack.code]" class="image-ocr-error" role="alert" data-i18n-ignore>{{ actionErrors[pack.code] }}</p>
+      <component :is="props.embedded ? 'details' : 'div'" class="image-ocr-engine-details" :open="props.embedded ? engineExpanded : undefined" @toggle="engineExpanded = ($event.target as HTMLDetailsElement).open">
+        <summary v-if="props.embedded" class="image-ocr-engine-summary">
+          <div><strong :id="`${props.idPrefix}-ocr-pack-title`">{{ translateLegacy('轻量识别') }}</strong><small>Tesseract · {{ translateLegacy(props.active ? '当前使用' : '备用识别') }}</small></div>
+          <span v-if="initialized" class="image-ocr-count">{{ t('ocr.packs.count', {count: downloadedCodes.length, total: languagePacks.length}) }}</span>
+        </summary>
+        <header v-else class="image-ocr-heading settings-card-heading">
+          <div class="settings-card-heading-copy"><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ props.compact ? translateLegacy('Tesseract（轻量模型）') : t('ocr.packs.title') }}</h2><p v-if="!props.compact">{{ t('ocr.packs.description') }}</p></div>
+          <div v-if="!props.compact" class="image-ocr-source">
+            <label :for="`${props.idPrefix}-ocr-source`">{{ t('area.settings.sourceLanguage') }}</label>
+            <UiSelect :id="`${props.idPrefix}-ocr-source`" :aria-label="t('area.settings.sourceLanguage')" :title="t('area.settings.sourceLanguageDescription')" :model-value="props.sourceLanguage" @update:model-value="emit('update:sourceLanguage', $event)">
+              <el-option v-if="!IMAGE_OCR_SOURCE_LANGUAGES.some(item => item.value === props.sourceLanguage)" :value="props.sourceLanguage" :label="props.sourceLanguage" disabled />
+              <el-option v-for="language in IMAGE_OCR_SOURCE_LANGUAGES" :key="language.value" :value="language.value" :label="translateLegacy(language.label)" />
+            </UiSelect>
           </div>
-          <div class="image-ocr-pack-action">
-            <span class="image-ocr-pack-status" :class="{ready: downloadedCodes.includes(pack.code)}" role="status">
-              <span v-if="isBusy(pack.code)" class="image-ocr-spinner" aria-hidden="true" />
-              {{ stateLabel(pack.code) }}
-            </span>
-            <button v-if="downloadedCodes.includes(pack.code)" type="button" class="image-ocr-download-button image-ocr-remove" :disabled="!initialized || isBusy(pack.code)" :aria-label="t('ocr.packs.removeNamed', {name: pack.label})" @click="removeLanguage(pack.code)">{{ t('ocr.packs.remove') }}</button>
-            <button v-else type="button" class="image-ocr-download-button" :disabled="!initialized || isBusy(pack.code)" :aria-label="t('ocr.packs.downloadNamed', {name: pack.label})" @click="downloadLanguages([pack.code])">
-              {{ translateLegacy(states[pack.code]?.phase === 'error' ? '重试' : '下载') }}
-            </button>
+          <span v-if="initialized" class="image-ocr-count">{{ t('ocr.packs.count', {count: downloadedCodes.length, total: languagePacks.length}) }}</span>
+        </header>
+        <div class="image-ocr-recommendation" :data-ready="requiredReady">
+          <div class="image-ocr-summary">
+            <strong>{{ t(requiredReady ? 'ocr.packs.ready' : 'ocr.packs.required') }}</strong>
+            <p data-i18n-ignore>{{ requiredLabels }}</p>
+            <small v-if="!props.embedded">{{ t(props.sourceLanguage === 'auto' ? 'ocr.packs.autoHint' : 'ocr.packs.languageHint') }}</small>
           </div>
-        </article>
-      </div>
-      <button v-if="optionalCount" type="button" class="image-ocr-more" :aria-expanded="showAll" @click="showAll = !showAll">{{ t(showAll ? 'ocr.packs.less' : 'ocr.packs.more', {count: optionalCount}) }} <span aria-hidden="true">{{ showAll ? '−' : '+' }}</span></button>
-      <footer class="image-ocr-footnote"><p>{{ t('ocr.packs.shared') }}</p><p>{{ t(hasActiveTasks ? 'ocr.packs.background' : 'ocr.packs.sizeHint') }}</p></footer>
+          <span v-if="props.embedded && requiredReady" class="image-ocr-ready" role="status">{{ t('ocr.packs.readyAction') }}</span>
+          <button v-else type="button" class="image-ocr-primary-action" :disabled="!initialized || requiredReady || requiredBusy" @click="downloadLanguages(requiredCodes)">
+            <span v-if="requiredBusy" class="image-ocr-spinner" aria-hidden="true" />
+            {{ t(requiredReady ? 'ocr.packs.readyAction' : requiredBusy ? 'ocr.packs.preparing' : 'ocr.packs.prepare') }}
+          </button>
+        </div>
+        <p v-if="!initialized && !statusError" class="image-ocr-notice" role="status">{{ t('ocr.packs.loading') }}</p>
+        <div v-if="statusError" class="image-ocr-notice image-ocr-error" role="alert">
+          <span>{{ t('ocr.packs.statusError') }}</span><button type="button" @click="refreshStatus">{{ translateLegacy('重试') }}</button>
+        </div>
+        <component :is="props.embedded ? 'details' : 'div'" class="image-ocr-language-details" :open="props.embedded ? languagesExpanded : undefined" @toggle="languagesExpanded = ($event.target as HTMLDetailsElement).open">
+          <summary v-if="props.embedded">{{ translateLegacy('语言包管理') }}</summary>
+          <div class="image-ocr-pack-list" role="list">
+            <article v-for="pack in visiblePacks" :key="pack.code" class="image-ocr-pack-card" role="listitem" :data-language="pack.code" :data-state="stateOf(pack.code)">
+              <div class="image-ocr-pack-icon" data-i18n-ignore aria-hidden="true">{{ pack.icon }}</div>
+              <div class="image-ocr-pack-copy">
+                <div class="image-ocr-pack-title"><strong data-i18n-ignore>{{ pack.label }}</strong><span v-if="requiredCodes.includes(pack.code)" class="image-ocr-required">{{ t('ocr.packs.inUse') }}</span></div>
+                <small data-i18n-ignore>{{ pack.size }}<template v-if="pack.code === 'jpn'"> · {{ t('ocr.packs.vertical') }}</template></small>
+                <p v-if="states[pack.code]?.phase === 'error'" class="image-ocr-error" role="alert" data-i18n-ignore>{{ translateLegacy(states[pack.code]?.error || '语言包下载失败') }}</p>
+                <p v-if="actionErrors[pack.code]" class="image-ocr-error" role="alert" data-i18n-ignore>{{ actionErrors[pack.code] }}</p>
+              </div>
+              <div class="image-ocr-pack-action">
+                <span class="image-ocr-pack-status" :class="{ready: downloadedCodes.includes(pack.code)}" role="status">
+                  <span v-if="isBusy(pack.code)" class="image-ocr-spinner" aria-hidden="true" />
+                  {{ stateLabel(pack.code) }}
+                </span>
+                <button v-if="downloadedCodes.includes(pack.code)" type="button" class="image-ocr-download-button image-ocr-remove" :disabled="!initialized || isBusy(pack.code)" :aria-label="t('ocr.packs.removeNamed', {name: pack.label})" @click="removeLanguage(pack.code)">{{ t('ocr.packs.remove') }}</button>
+                <button v-else type="button" class="image-ocr-download-button" :disabled="!initialized || isBusy(pack.code)" :aria-label="t('ocr.packs.downloadNamed', {name: pack.label})" @click="downloadLanguages([pack.code])">
+                  {{ translateLegacy(states[pack.code]?.phase === 'error' ? '重试' : '下载') }}
+                </button>
+              </div>
+            </article>
+          </div>
+          <button v-if="optionalCount" type="button" class="image-ocr-more" :aria-expanded="showAll" @click="showAll = !showAll">{{ t(showAll ? 'ocr.packs.less' : 'ocr.packs.more', {count: optionalCount}) }} <span aria-hidden="true">{{ showAll ? '−' : '+' }}</span></button>
+        </component>
+        <footer v-if="!props.embedded || hasActiveTasks" class="image-ocr-footnote"><p v-if="!props.embedded">{{ t('ocr.packs.shared') }}</p><p>{{ t(hasActiveTasks ? 'ocr.packs.background' : 'ocr.packs.sizeHint') }}</p></footer>
+      </component>
     </template>
   </section>
 </template>
 
 <script setup lang="ts">
-import {computed, onBeforeUnmount, onMounted, ref} from 'vue';
+import {computed, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import MangaModelSettings from './MangaModelSettings.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {configStorage} from '@/src/platform/storage/configStorageRuntime';
 import {useUiI18n} from '@/src/ui/i18n';
+import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {
   IMAGE_OCR_LANGUAGE_PACKS, IMAGE_OCR_SOURCE_LANGUAGES, IMAGE_OCR_LANGUAGE_STATE_KEY, getRequiredImageOcrLanguages,
   normalizeImageOcrLanguageCodes, type ImageOcrLanguageCode, type ImageOcrDownloadState, type ImageOcrStatusResponse,
 } from '../ocrLanguages';
 
-const props = withDefaults(defineProps<{idPrefix?: string; sourceLanguage?: string; showManga?: boolean; compact?: boolean}>(), {idPrefix: 'image', sourceLanguage: 'auto', showManga: false, compact: false});
+const props = withDefaults(defineProps<{idPrefix?: string; sourceLanguage?: string; showManga?: boolean; compact?: boolean; embedded?: boolean; active?: boolean}>(), {idPrefix: 'image', sourceLanguage: 'auto', showManga: false, compact: false, embedded: false, active: true});
 const emit = defineEmits<{'update:sourceLanguage': [language: string]}>();
 const {t, translateLegacy} = useUiI18n();
 const languagePacks = computed(() => IMAGE_OCR_LANGUAGE_PACKS.map(pack => ({...pack, label: translateLegacy(pack.label), size: translateLegacy(pack.size)})));
@@ -95,6 +107,14 @@ const statusError = ref(false);
 const requiredReady = computed(() => initialized.value && requiredCodes.value.every(code => downloadedCodes.value.includes(code)));
 const requiredBusy = computed(() => requiredCodes.value.some(isBusy));
 const hasActiveTasks = computed(() => IMAGE_OCR_LANGUAGE_PACKS.some(pack => isBusy(pack.code)));
+const hasPackErrors = computed(() => Object.values(states.value).some(state => state?.phase === 'error') || Object.values(actionErrors.value).some(Boolean));
+const engineExpanded = ref(props.active);
+const languagesExpanded = ref(false);
+watch(() => props.active, active => {engineExpanded.value = active || hasActiveTasks.value || statusError.value || hasPackErrors.value;});
+// 开始任务或失败时展开；完成后保留展开状态，便于查看结果并继续管理。
+watch([hasActiveTasks, hasPackErrors, statusError], feedback => {
+  if (feedback.some(Boolean)) {engineExpanded.value = true; languagesExpanded.value = true;}
+});
 let disposed = false;
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 let refreshing: Promise<void> | undefined;

@@ -5,6 +5,7 @@
 预览说明旧备份范围和恢复保护，不在选项区重复展示范围摘要与恢复提示。
 风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将云端删除范围、本机保留说明与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
+删除入口在核验和删除请求期间显示加载动画，完成或失败后恢复；同步操作不触发删除动画。
 通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响；WebDAV 内容核验兼容模式提示避免多设备同时同步，仍保留只读供应商的恢复限制；默认展示差异与连接变更类别，小屏保留操作区。
 Drive 已上传但未完成核验时单独显示警示，不误报未上传，也不更新成功记录。
@@ -34,7 +35,7 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
       </div>
       </slot>
     </div>
-    <div v-if="status?.available" class="cloud-delete-entry"><el-button link type="danger" :disabled="busy || previewVisible || consentVisible || deleteVisible" :data-testid="`${kind}-delete-backup`" @click="prepareDeletion"><el-icon><Delete /></el-icon>{{ t('settings.cloud.deleteBackup') }}</el-button></div>
+    <div v-if="status?.available" class="cloud-delete-entry"><el-button link type="danger" :loading="deleting" :aria-busy="deleting" :disabled="busy || previewVisible || consentVisible || deleteVisible" :data-testid="`${kind}-delete-backup`" @click="prepareDeletion"><el-icon v-if="!deleting"><Delete /></el-icon>{{ t('settings.cloud.deleteBackup') }}</el-button></div>
     <el-dialog v-model="deleteVisible" class="cloud-delete-dialog cloud-compact-dialog fluentread-cloud-sync-dialog" :title="t(deletion?.hasRemote ? 'settings.cloud.deleteTitle' : 'settings.cloud.deleteAbsent')" width="min(480px, calc(100vw - 24px))" :close-on-click-modal="!busy" :close-on-press-escape="!busy" :show-close="!busy" :before-close="cancelDeletion" destroy-on-close @closed="deletion = null">
       <template v-if="deletion">
         <div class="cloud-delete-account"><div class="cloud-delete-target"><strong><slot name="delete-account">{{ deletion.account.email || t('settings.cloud.selectedAccount') }}</slot></strong><slot name="delete-location" /></div><el-button v-if="kind === 'google-drive'" link :disabled="busy" data-testid="google-drive-delete-switch-account" @click="changeDeletionAccount">{{ t('settings.cloud.changeAccount') }}</el-button></div>
@@ -179,6 +180,7 @@ function t(key: string, params?: Record<string, string | number>) {return baseT(
 
 const status = ref<DriveSyncStatus | null>(null);
 const busy = ref(false);
+const deleting = ref(false);
 const includeSensitive = ref(false);
 const sensitivePreferenceKey = 'fluentread-cloud-backup-include-sensitive';
 try {includeSensitive.value = localStorage.getItem(sensitivePreferenceKey) === 'true';} catch { /* 无法读取已保存选择时保持默认关闭。 */ }
@@ -226,14 +228,14 @@ function toggleAutomatic() {automaticVisible.value = !automaticVisible.value; pa
 function selectMerge() {direction.value = 'merge'; step.value = 'review';}
 function backToChoose() {step.value = 'choose'; direction.value = '';}
 let alive = true;
-async function perform(operation: () => Promise<void>) {
+async function perform(operation: () => Promise<void>, deletionOperation = false) {
   if (busy.value) return;
-  busy.value = true; error.value = ''; uploadUnverified.value = false;
+  busy.value = true; deleting.value = deletionOperation; error.value = ''; uploadUnverified.value = false;
   try {await operation();} catch (failure) {if (alive) {
     uploadUnverified.value = failure instanceof CloudBackupRequestError && failure.errorKey === 'settings.cloud.uploadUnverified';
     error.value = failure instanceof CloudBackupRequestError && failure.errorKey ? t(failure.errorKey, failure.params) : failure instanceof Error ? translateLegacy(failure.message) : translateLegacy('同步未完成，请重试');
   }}
-  finally {if (alive) busy.value = false;}
+  finally {if (alive) {busy.value = false; deleting.value = false;}}
 }
 async function requestPreview() {
   const result = await client.prepare(includeSensitive.value);
@@ -254,13 +256,13 @@ async function requestDeletion() {
 }
 async function prepareDeletion() {
   if (previewVisible.value || consentVisible.value || deleteVisible.value) return;
-  await perform(requestDeletion);
+  await perform(requestDeletion, true);
 }
 async function changeDeletionAccount() {await perform(async () => {
   await client.cancel(deletion.value?.id);
   if (!alive) return;
   try {await requestDeletion();} catch (failure) {deleteVisible.value = false; throw failure;}
-});}
+}, true);}
 async function confirmDeletion() {
   if (!canConfirmDeletion.value || !deletion.value) return;
   const id = deletion.value.id;
@@ -269,7 +271,7 @@ async function confirmDeletion() {
       const result = await client.commitDelete(id);
       if (alive) {status.value = result; ElMessage.success(t(result.deleted ? 'settings.cloud.deleteSuccess' : 'settings.cloud.deleteAbsent'));}
     } finally {if (alive) deleteVisible.value = false;}
-  });
+  }, true);
 }
 async function cancelDeletion() {await perform(async () => {await client.cancel(deletion.value?.id); deleteVisible.value = false;});}
 function toggleSensitive(value: boolean | string | number) {
@@ -355,8 +357,9 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .cloud-consent-actions>.el-button {margin:0; max-width:100%; height:auto; min-height:32px; white-space:normal; line-height:1.5;}
 .cloud-delete-entry {display:flex; justify-content:flex-end; padding-top:12px; margin-top:12px; border-top:1px solid var(--el-border-color-lighter);}
 .cloud-delete-entry .el-icon {margin-inline-end:5px;}
-.cloud-delete-entry :deep(.el-button:not(.is-disabled)) {color:#b54444;}
-:global(.dark) .cloud-delete-entry :deep(.el-button:not(.is-disabled)) {color:var(--el-color-danger);}
+.cloud-delete-entry :deep(.el-button:not(.is-disabled)), .cloud-delete-entry :deep(.el-button.is-loading) {color:#b54444;}
+.cloud-delete-entry :deep(.el-button.is-loading::before) {background:transparent;}
+:global(.dark .cloud-delete-entry .el-button:not(.is-disabled)), :global(.dark .cloud-delete-entry .el-button.is-loading) {color:var(--el-color-danger);}
 .cloud-delete-account {display:flex; align-items:flex-start; gap:12px; margin-bottom:10px;}
 .cloud-delete-target {flex:1; min-width:0; font-size:13px; line-height:1.7; overflow-wrap:anywhere;}
 .cloud-delete-target strong {display:block; font-weight:600; color:var(--el-text-color-primary);}

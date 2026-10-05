@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/MangaSettings.vue
  * 文件职责：组织漫画连续阅读的设置，优先展示公共语言与翻译服务、单图识别方式和漫画提前翻译；直接呈现入口、缓存、资源状态和支持的网站。
- * 主要内容：图片默认选择与漫画共用的 PaddleOCR 标准模型，也可切换 Tesseract 轻量模型；漫画开关独立于单张图片和悬浮球，资源按用途分组，自定义网站规则按精确地址与图片选择器添加和删除，非法输入给出就地反馈；主要模块标记页内导航目标，左侧示例、右侧选择，只有离线导入和自定义规则等高级操作按需展开。
+ * 主要内容：图片识别方式和图片入口、漫画提前翻译和按钮及缓存分别归入对应预览右侧，漫画开关独立于单张图片和悬浮球；共享资源在单层设置框中按用途分隔，自定义网站规则按精确地址与图片选择器添加和删除，非法输入给出就地反馈；主要模块标记页内导航目标，备用模型、语言包管理、下载来源、离线导入和自定义规则按需展开。
  * 模块边界：编辑父级配置副本，由既有设置持久化负责保存；不调用漫画翻译、不扫描其他网站、不访问会员或章节接口。
  -->
 <template>
@@ -22,6 +22,8 @@
           <SettingsItem :label="t('图片识别方式')" :description="t(settings.imageTranslationOcrEngine === 'paddle' ? '适合普通图片、截图和漫画文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。' : '适合截图、图表与清晰排版文字。按原文语言准备语言包。')" stacked>
             <UiSelect v-model="settings.imageTranslationOcrEngine" :disabled="!available" :aria-label="t('图片识别方式')"><el-option value="paddle" :label="t('PaddleOCR（标准模型）')" /><el-option value="tesseract" :label="t('Tesseract（轻量模型）')" /></UiSelect>
           </SettingsItem>
+          <SettingsItem :label="t('image.hover')" :description="t('鼠标停在图片上时显示翻译入口')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationHoverEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.hover')" /></SettingsItem>
+          <SettingsItem :label="t('image.context')" :description="t('右键点击图片时提供翻译操作')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationContextMenuEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.context')" /></SettingsItem>
           <p>{{ t('在图片上点击翻译入口，完成后可切换原图和译图；文字面板可查看完整译文。') }}</p>
           <p v-if="!imageEnabled" role="status">{{ t('网页图片翻译已关闭，开启后使用这些设置。') }}</p>
         </div>
@@ -35,19 +37,15 @@
           <SettingsItem :label="t('提前翻译后续页面')" :description="t('使用 PaddleOCR，当前页优先，只提前处理已加载的图片。')" stacked>
             <UiSelect v-model="settings.imageTranslationMangaPrefetchPages" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('提前翻译后续页面')"><el-option :value="0" :label="t('只翻译当前页面')" /><el-option v-for="count in 5" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect>
           </SettingsItem>
+          <SettingsItem :label="t('独立漫画按钮')" :description="t('隐藏悬浮球时显示独立漫画按钮，阅读和翻译过程中不会自动弹出面板')" :disabled="!available || !settings.imageTranslationMangaEnabled"><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></SettingsItem>
+          <SettingsItem :label="t('快速缓存图片数量')" :description="t(settings.useCache ? '最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。' : '翻译缓存已关闭；开启通用设置中的翻译缓存后可调整。')" stacked :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache"><UiSelect v-model="settings.imageTranslationMangaCachePages" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache" :aria-label="t('快速缓存图片数量')"><el-option v-for="count in 24" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect></SettingsItem>
           <p>{{ t('漫画连续翻译独立于网页图片开关；开启后，在支持的阅读页按需启动。') }}</p>
         </div>
       </SettingsPreviewLayout>
     </SettingsGroup>
     <slot />
-    <SettingsGroup :title="t('入口与缓存')" :description="t('分别控制图片翻译入口、漫画按钮和已翻译页面的保留数量')" data-settings-anchor="entry-cache" :data-settings-anchor-label="t('入口与缓存')">
-      <SettingsItem :label="t('image.hover')" :description="t('鼠标停在图片上时显示翻译入口')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationHoverEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.hover')" /></SettingsItem>
-      <SettingsItem :label="t('image.context')" :description="t('右键点击图片时提供翻译操作')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationContextMenuEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.context')" /></SettingsItem>
-      <SettingsItem :label="t('独立漫画按钮')" :description="t('隐藏悬浮球时显示独立漫画按钮，阅读和翻译过程中不会自动弹出面板')" :disabled="!available || !settings.imageTranslationMangaEnabled"><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></SettingsItem>
-      <SettingsItem :label="t('快速缓存图片数量')" :description="t(settings.useCache ? '最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。' : '翻译缓存已关闭；开启通用设置中的翻译缓存后可调整。')" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache"><UiSelect v-model="settings.imageTranslationMangaCachePages" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache" :aria-label="t('快速缓存图片数量')"><el-option v-for="count in 24" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect></SettingsItem>
-    </SettingsGroup>
-    <SettingsGroup v-if="available" :title="t('识别资源与下载')" :description="t('查看文字识别与背景修补资源的准备状态；下载和离线导入按需操作')" data-settings-anchor="resources" :data-settings-anchor-label="t('识别资源与下载')">
-      <div class="manga-resource-body"><MangaModelSettings v-if="settings.imageTranslationMangaEnabled || settings.imageTranslationOcrEngine === 'paddle'" :show-inpainting="settings.imageTranslationMangaEnabled" /><slot name="resources" /></div>
+    <SettingsGroup v-if="available" :title="t('识别资源')" data-settings-anchor="resources" :data-settings-anchor-label="t('识别资源')">
+      <div class="manga-resource-body"><MangaModelSettings v-if="settings.imageTranslationMangaEnabled || settings.imageTranslationOcrEngine === 'paddle'" embedded :image-recognition="settings.imageTranslationOcrEngine === 'paddle'" :show-inpainting="settings.imageTranslationMangaEnabled" /><slot name="resources" /></div>
     </SettingsGroup>
     <section class="manga-settings-card manga-sites" data-settings-anchor="sites" :data-settings-anchor-label="t('支持的网站')">
       <header class="settings-card-heading"><h2>{{ t('支持的网站') }}</h2></header>
@@ -101,7 +99,9 @@ function addSite() {
 .manga-settings-card { border-color:var(--line); border-radius:10px; background:var(--surface); }
 .manga-settings .manga-language-note { margin-top:12px; font-size:11px; color:var(--muted); }
 .manga-resource-body { padding:20px; }
-.manga-preview-preferences :deep(.settings-item) { padding:0; gap:12px; }
+.manga-preview-preferences :deep(.settings-item) { grid-template-columns:minmax(0,1fr) auto; padding:16px 0; gap:12px; }
+.manga-preview-preferences :deep(.settings-item:first-child) { padding-top:0; }
+.manga-preview-preferences :deep(.settings-item.stacked) { grid-template-columns:minmax(0,1fr); }
 .manga-preview-preferences p { margin-top:16px; font-size:12px; color:var(--muted); }
 @media(max-width:480px) { .manga-resource-body { padding:14px 12px; } }
 .manga-settings-card > header.settings-card-heading { margin:-16px -16px 14px; padding:12px 20px; border-bottom:1px solid var(--line); border-radius:11px 11px 0 0; }

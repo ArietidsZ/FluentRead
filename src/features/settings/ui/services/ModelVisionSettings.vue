@@ -1,7 +1,7 @@
 <!--
  @file src/features/settings/ui/services/ModelVisionSettings.vue
  文件职责：展示当前模型的手动识图设置、规则或测试缓存结论，并提供真实图片检测与取消操作。
- 主要内容：先持久保存当前配置再发送带身份指纹的测试消息；切换模型、凭据、服务或卸载时取消旧任务，忽略过期响应，订阅独立本地测试缓存。
+ 主要内容：先持久保存当前配置再发送带身份指纹的测试消息；合并重复的能力结论与测试反馈，保留运行中、失败和取消信息；切换模型、凭据、服务或卸载时取消旧任务，忽略过期响应，订阅独立本地测试缓存。
  模块边界：UI 不发送模型 HTTP、不提供凭据或图片、不修改自动探测结论；请求由共享服务与后台实际适配器执行，手动选择保留用户优先级。
 -->
 <template>
@@ -18,7 +18,7 @@
     <FieldHelp :content="t('settings.services.visionProbeHelp')" />
     </div>
     <small data-testid="model-vision-status" role="status">{{ t(capabilityMessage) }}</small>
-    <small v-if="feedback" role="status" data-testid="model-vision-probe-feedback">{{ feedback }}</small>
+    <small v-if="distinctFeedback" role="status" data-testid="model-vision-probe-feedback">{{ distinctFeedback }}</small>
   </div>
 </template>
 <script setup lang="ts">
@@ -59,6 +59,7 @@ const capabilityMessage = computed(() => {
   return capability === 'supported' ? 'settings.services.visionConfirmed' : capability === 'unsupported'
     ? 'settings.services.visionTextOnlyMessage' : 'settings.services.visionUnknown'
 })
+const distinctFeedback = computed(() => feedback.value === t(capabilityMessage.value) ? '' : feedback.value)
 let generation = 0
 let requestId = ''
 function cancel(): void {

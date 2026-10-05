@@ -399,7 +399,7 @@ describe('options UI composition architecture', () => {
     expect(paletteSkinStyles).toContain('--el-bg-color: var(--surface)')
     expect(interfaceAppearance).toContain('dataset.interfaceSkinKind = skin.kind')
     expect(interfaceAppearance).toContain("style.setProperty('--interface-popup-width'")
-    expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" compact v-model:source-language="config.from" />')
+    expect(settingsSections).toContain('<ImageOcrSettings v-if="props.activeSection === \'settings-image-translation\'" compact embedded :active="config.imageTranslationOcrEngine === \'tesseract\'" v-model:source-language="config.from" />')
     expect(source('src/features/image-translation/ui/MangaSettings.vue')).toContain('data-settings-anchor="resources"')
     expect(settingsSections).toContain("v-if=\"hasVisitedSection('settings-image-translation')\"")
     expect(settingsSections).toContain('<AreaTranslationSettings')
