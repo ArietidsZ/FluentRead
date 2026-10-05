@@ -6,6 +6,36 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it('Ridi 公开试读只选择语义阅读容器的整页 blob，商品推广、嵌套链接和外部图片保持原样', () => {
+        const site=resolveMangaSite('https://ridibooks.com/books/1690002642/preview')!;
+        expect(site).toMatchObject({name:'Ridi',requireContent:true});
+        const {document}=parseHTML('<div id="root"><div class="pre_reading"><div class="contents_comics"><div class="reading_body"><div class="viewer"><div class="viewer_viewport"><div class="simplebar-content"><div><div><div><div><img id="one" src="blob:https://ridibooks.com/page-one"><img id="two" src="blob:https://ridibooks.com/page-two"><img id="remote" src="https://cdn.test/promo"><img id="spoof" src="blob:https://ridibooks.com.attacker.test/page"><a><img id="nested" src="blob:https://ridibooks.com/ad"></a></div></div></div></div><aside><img id="ad" src="blob:https://ridibooks.com/ad"></aside></div></div></div></div><img id="cover" src="blob:https://ridibooks.com/cover"></div></div><div class="book-detail"><img id="product-promo" src="blob:https://ridibooks.com/promo"></div></div>');
+        expect([...document.querySelectorAll(site.selector)].map(image=>image.id)).toEqual(['one','two']);
+        expect(resolveMangaReaderProfile('www.ridibooks.com','/books/505062803/preview/')).toMatchObject({name:'Ridi'});
+        for(const path of ['/','/comics/ebook','/books/1690002642','/books/0/preview','/books/01/preview','/books/text/preview','/books/1/preview/extra'])expect(resolveMangaReaderProfile('ridibooks.com',path)).toBeNull();
+        expect(resolveMangaReaderProfile('ridibooks.com.attacker.test','/books/1690002642/preview')).toBeNull();
+    });
+    it.each(['/title/13810', '/title/1077/'])('Ynjn 公开阅读页 %s 仅接入直系正文画布', path => {
+        const site = resolveMangaSite(`https://ynjn.jp${path}`)!;
+        expect(site).toMatchObject({name:'ヤンジャン＋',requireContent:true,selector:':not(*)'});
+        const {document} = parseHTML('<div id="__nuxt"><div class="swiper swiper-horizontal"><div class="swiper-wrapper"><div class="swiper-slide"><div class="max-h-full max-w-full"><canvas id="body" class="max-h-full max-w-full"></canvas><aside><canvas id="nested" class="max-h-full max-w-full"></canvas></aside></div><canvas id="outside-holder" class="max-h-full max-w-full"></canvas></div><aside><canvas id="ad" class="max-h-full max-w-full"></canvas></aside></div><img id="cover"></div><div class="recommendations"><canvas id="recommendation" class="max-h-full max-w-full"></canvas></div></div><div class="swiper-horizontal"><div class="swiper-wrapper"><div class="swiper-slide"><div class="max-h-full max-w-full"><canvas id="outside-root" class="max-h-full max-w-full"></canvas></div></div></div></div>');
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(canvas=>canvas.id)).toEqual(['body']);
+        expect(site.areaSelector).toBe(site.canvasSelector);
+        for(const path of ['/','/allEpisodeList/13810','/title/0','/title/01','/title/text','/title/1/extra'])expect(resolveMangaReaderProfile('ynjn.jp',path)).toBeNull();
+        expect(resolveMangaReaderProfile('ynjn.jp.attacker.test',path)).toBeNull();
+    });
+    it.each(['?episode=1&cid=10487', '?cid=10502&episode=2&source=home'])('Yomonga 明确章节 %s 圈选完整分片页，排除封面与嵌套推广', search => {
+        const site = resolveMangaSite(`https://www.yomonga.com/titles/2553/${search}`)!;
+        expect(site).toMatchObject({name:'マンガよもんが',requireContent:true,selector:':not(*)'});
+        expect(site.canvasSelector).toBeUndefined();
+        const {document} = parseHTML('<div id="contents" class="cst_info"><div id="content_base"><div id="content" class="pages"><div id="content-p1"><div id="whole-page" class="pt-img"><div><img id="fragment-one"></div><div><img id="fragment-two"></div><div><img id="fragment-three"></div></div><aside><div id="nested" class="pt-img"><img></div></aside></div><aside><div id="content-p2"><div id="ad" class="pt-img"><img></div></div></aside></div></div><main><img id="cover"></main></div><div id="content_base"><div id="content" class="pages"><div id="content-p1"><div id="outside" class="pt-img"><img></div></div></div></div>');
+        expect([...document.querySelectorAll(site.areaSelector!)].map(page=>page.id)).toEqual(['whole-page']);
+        expect(document.querySelectorAll(site.selector)).toHaveLength(0);
+        for(const query of ['', '?episode=1', '?cid=1', '?episode=&cid=1', '?episode=0&cid=1', '?episode=01&cid=1', '?episode=text&cid=1', '?episode=1&episode=2&cid=1', '?episode=1&cid=', '?episode=1&cid=0', '?episode=1&cid=01', '?episode=1&cid=text', '?episode=1&cid=1&cid=2'])expect(resolveMangaReaderProfile('yomonga.com','/titles/2553',query)).toBeNull();
+        for(const path of ['/','/titles','/titles/0','/titles/01','/titles/text','/titles/1/extra'])expect(resolveMangaReaderProfile('yomonga.com',path,search)).toBeNull();
+        expect(resolveMangaReaderProfile('yomonga.com.attacker.test','/titles/2553',search)).toBeNull();
+        expect(resolveMangaReaderProfile('yomonga.com','/titles/2553',search)).not.toBeNull();
+    });
     it.each([
         ['https://mangalib.me/ru/1--title/read/v22/c129?p=2', 'ru'],
         ['https://www.mangahub.ru/read/123?page=2', 'ru'],

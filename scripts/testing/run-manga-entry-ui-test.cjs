@@ -42,10 +42,17 @@ async function patch(config) {await popup.evaluate(async config => {
 async function activateVisible(target) {
     await activateExtensionTabWithoutForeground(launched.context,target);focusGuard();
     const tabId=target.url().startsWith('chrome-extension://')?await target.evaluate(async()=>{const tab=await chrome.tabs.getCurrent();if(!tab?.id)throw new Error('Owned extension tab missing');return tab.id;}):null;
-    const state=await worker.evaluate(async ({url,tabId})=>{const tab=tabId?await chrome.tabs.get(tabId):(await chrome.tabs.query({})).find(tab=>tab.url===url);if(!tab)throw new Error('Owned test tab missing');const window=await chrome.windows.get(tab.windowId);return {active:tab.active,windowState:window.state,windowFocused:window.focused};},{url:target.url(),tabId});
+    let state, matchedUrl;const deadline=Date.now()+10000;
+    do {
+        matchedUrl=target.url();
+        state=await worker.evaluate(async ({url,tabId})=>{const tab=tabId?await chrome.tabs.get(tabId):(await chrome.tabs.query({})).find(tab=>tab.url===url);if(!tab)return null;const window=await chrome.windows.get(tab.windowId);return {active:tab.active,windowState:window.state,windowFocused:window.focused};},{url:matchedUrl,tabId});
+        if(state)break;
+        await target.waitForTimeout(100);
+    } while(Date.now()<deadline);
+    assert.ok(state,'Owned test tab must match the current exact URL within10seconds');
     state.documentVisibility=await target.evaluate(()=>document.visibilityState);
     assert.equal(state.active,true,'Actual owned browser tab must be selected');assert.equal(state.windowState,'normal');assert.equal(state.documentVisibility,'visible');
-    (report.tabVisibility??=[]).push({url:target.url(),...state});
+    (report.tabVisibility??=[]).push({url:matchedUrl,...state});
 }
 async function gotoVisible(target,url,options) {const response=await target.goto(url,options);await activateVisible(target);return response;}
 async function shot(name) {await activateVisible(page);const file = path.join(artifacts, `${name}.png`);await page.screenshot({path: file});report.screenshots.push(file);}
@@ -287,7 +294,11 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                     await page.waitForTimeout(sample.readerSettleMs);
                 }
                 if(sample.readerScrollSelector)await page.locator(sample.readerScrollSelector).scrollIntoViewIfNeeded({timeout:15000});
-                if(sample.readerReadySelector)await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=80&&i.naturalHeight>=40),sample.readerReadySelector,{timeout:20000});
+                if(sample.readerReadySelector){
+                    const minimum=sample.readerMinimumNaturalSize||{width:80,height:40};
+                    assert.ok(['width','height'].every(key=>Number.isInteger(minimum[key])&&minimum[key]>=1&&minimum[key]<=16384),'Reader natural-size threshold must be bounded positive integers');
+                    await page.waitForFunction(({selector,minimum})=>[...document.querySelectorAll(selector)].some(i=>i.tagName==='IMG'&&i.complete&&i.naturalWidth>=minimum.width&&i.naturalHeight>=minimum.height),{selector:sample.readerReadySelector,minimum},{timeout:20000});
+                }
                 const result={url:sample.url,finalUrl:page.url(),status:response?.status(),mode:sample.mode};
                 (report.liveReaders??=[]).push(result);
                 if(response?.status()!==200){
@@ -308,6 +319,16 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
                             visible:rect.width>0&&rect.height>0&&rect.left<innerWidth&&rect.right>0&&rect.top<innerHeight&&rect.bottom>0};
                     }));
                     assert.ok(result.readerPages.length,'Exact body container is present');
+                }
+                if(sample.verifyReadableCanvas){
+                    assert.ok(sample.canvasSelector,'Readable canvas proof requires the exact body selector');
+                    result.canvasPixels=await page.locator(sample.canvasSelector).evaluateAll(elements=>elements.filter(canvas=>canvas.width>0&&canvas.height>0).map(canvas=>{
+                        const context=canvas.getContext('2d');let readable=false,gridNonblank=false,pixelError='';
+                        try{if(context){for(let y=0;y<8;y++)for(let x=0;x<8;x++)if(context.getImageData(Math.floor((x+.5)*canvas.width/8),Math.floor((y+.5)*canvas.height/8),1,1).data.some(value=>value>0))gridNonblank=true;readable=true;}}
+                        catch(error){pixelError=error.name;}
+                        return {width:canvas.width,height:canvas.height,readable,gridNonblank,pixelError};
+                    }));
+                    assert.ok(result.canvasPixels.some(canvas=>canvas.readable&&canvas.gridNonblank),'At least one exact body canvas has public readable nonblank pixels');
                 }
                 if(sample.mode==='area' && sample.verifyAreaEntry){
                     const before=await popup.evaluate(()=>chrome.runtime.sendMessage({type:'fluentReadMangaModelStatus'}));

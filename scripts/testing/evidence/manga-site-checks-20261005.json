@@ -9999,7 +9999,7 @@
           "title": "メンテナンス情報 | マンガよもんが"
         }
       ],
-      "adapter": "detect",
+      "adapter": "area",
       "browserRechecks": [
         {
           "url": "https://www.yomonga.com/",
@@ -10016,6 +10016,136 @@
           "networkFailureCount": 0,
           "requestedUrl": "https://www.yomonga.com/",
           "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://www.yomonga.com/",
+          "finalUrl": "https://www.yomonga.com/",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-roots-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 120,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 126
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 126
+          },
+          "navigationResponses": [
+            {
+              "url": "https://www.yomonga.com/",
+              "status": 200
+            }
+          ],
+          "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance.",
+          "requestedUrl": "https://www.yomonga.com/"
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+          "finalUrl": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-products-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 33,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 9,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 22
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 37
+          },
+          "navigationResponses": [
+            {
+              "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+              "status": 200
+            }
+          ],
+          "sampledBodyFragmentCount": 15,
+          "bodyFragmentShapes": [
+            [
+              1626,
+              770
+            ],
+            [
+              1626,
+              776
+            ]
+          ],
+          "readerFinding": "Free observed episode1/2 displays whole-page containers composed of three horizontal IMG fragments per page. Dedicated whole-page area selector avoids treating fragments as complete continuous pages; no stitching, capture or OCR.",
+          "requestedUrl": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487"
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+          "finalUrl": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-readers-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 33,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 7,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 31
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 37
+          },
+          "navigationResponses": [
+            {
+              "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+              "status": 200
+            }
+          ],
+          "sampledBodyFragmentCount": 15,
+          "bodyFragmentShapes": [
+            [
+              1626,
+              770
+            ],
+            [
+              1626,
+              776
+            ]
+          ],
+          "readerFinding": "Free observed episode1/2 displays whole-page containers composed of three horizontal IMG fragments per page. Dedicated whole-page area selector avoids treating fragments as complete continuous pages; no stitching, capture or OCR.",
+          "requestedUrl": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502"
         }
       ]
     },
@@ -10596,7 +10726,7 @@
           "hostname": "ridibooks.com"
         }
       ],
-      "adapter": "detect",
+      "adapter": "images",
       "browserRechecks": [
         {
           "checkedAt": "2026-10-05T02:14:58.302Z",
@@ -10607,6 +10737,217 @@
           "status": 403,
           "title": "请稍候…",
           "imageCount": 0
+        },
+        {
+          "url": "https://ridibooks.com/comics/ebook",
+          "finalUrl": "https://ridibooks.com/comics/ebook",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-roots-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 44,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 15,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 88
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 91
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ridibooks.com/comics/ebook",
+              "status": 200
+            }
+          ],
+          "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance.",
+          "requestedUrl": "https://ridibooks.com/comics/ebook"
+        },
+        {
+          "url": "https://ridibooks.com/books/1690002642",
+          "finalUrl": "https://ridibooks.com/books/1690002642",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-products-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "pageErrorCount": 1,
+          "networkFailureCount": 1,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ridibooks.com/books/1690002642",
+              "status": 200
+            }
+          ],
+          "readerFinding": "Public product200 contains a1080x13740 promotional detail strip and a preview link. Only preview path accepted by new profile; product artwork is not chapter body.",
+          "requestedUrl": "https://ridibooks.com/books/1690002642"
+        },
+        {
+          "url": "https://ridibooks.com/books/1690002642/preview",
+          "finalUrl": "https://ridibooks.com/books/1690002642/preview",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-readers-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 8,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ridibooks.com/books/1690002642/preview",
+              "status": 200
+            }
+          ],
+          "bodyImageShapes": [
+            [
+              1512,
+              2150
+            ],
+            [
+              1512,
+              2150
+            ]
+          ],
+          "loadedBodyImageCount": 2,
+          "readerFinding": "Public preview shows two loaded1512x2150 complete blob pages; product promotional strip not a reading page. No OCR/Korean-auto-language/quality acceptance.",
+          "requestedUrl": "https://ridibooks.com/books/1690002642/preview"
+        },
+        {
+          "url": "https://ridibooks.com/books/505062803",
+          "finalUrl": "https://ridibooks.com/books/505062803/preview",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "ridi-preview-click-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "pageErrorCount": 1,
+          "networkFailureCount": 26,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-click-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 16
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 16
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ridibooks.com/books/505062803",
+              "status": 200
+            },
+            {
+              "url": "https://ridibooks.com/books/505062803/preview",
+              "status": 200
+            }
+          ],
+          "readerAction": {
+            "selector": "a[href=\"/books/505062803/preview\"]"
+          },
+          "bodyImageShapes": [],
+          "loadedBodyImageCount": 0,
+          "readerFinding": "Public native preview route uses semantic pre_reading/contents_comics/reading_body/viewer/simplebar wrappers and two same-origin blob pages. Initial normal-click sample300x150 is placeholder-only; subsequent15second before/after-active settling loads1500x2168 pages. No current full-book/OCR/language/quality acceptance.",
+          "requestedUrl": "https://ridibooks.com/books/505062803"
+        },
+        {
+          "url": "https://ridibooks.com/books/505062803/preview",
+          "finalUrl": "https://ridibooks.com/books/505062803/preview",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "ridi-preview-settle-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 2,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 8,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-settle-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 2
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ridibooks.com/books/505062803/preview",
+              "status": 200
+            }
+          ],
+          "bodyImageShapes": [
+            [
+              1500,
+              2168
+            ],
+            [
+              1500,
+              2168
+            ]
+          ],
+          "loadedBodyImageCount": 2,
+          "readerFinding": "Public native preview route uses semantic pre_reading/contents_comics/reading_body/viewer/simplebar wrappers and two same-origin blob pages. Initial normal-click sample300x150 is placeholder-only; subsequent15second before/after-active settling loads1500x2168 pages. No current full-book/OCR/language/quality acceptance.",
+          "requestedUrl": "https://ridibooks.com/books/505062803/preview"
         }
       ]
     },
@@ -10650,7 +10991,7 @@
           "hostname": "ynjn.jp"
         }
       ],
-      "adapter": "detect",
+      "adapter": "readable-canvas",
       "browserRechecks": [
         {
           "url": "https://ynjn.jp/",
@@ -10667,6 +11008,174 @@
           "networkFailureCount": 0,
           "requestedUrl": "https://ynjn.jp/",
           "checkedAt": "2026-10-05T07:41:15.170202+00:00"
+        },
+        {
+          "url": "https://ynjn.jp/",
+          "finalUrl": "https://ynjn.jp/",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-roots-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 135,
+          "canvasCount": 0,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 42
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 144
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ynjn.jp/",
+              "status": 200
+            }
+          ],
+          "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance.",
+          "requestedUrl": "https://ynjn.jp/"
+        },
+        {
+          "url": "https://ynjn.jp/title/13810",
+          "finalUrl": "https://ynjn.jp/title/13810",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-products-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 15,
+          "canvasCount": 28,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 8
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 22
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ynjn.jp/title/13810",
+              "status": 200
+            }
+          ],
+          "loadedCanvasCount": 7,
+          "readableNonblankCanvasCount": 6,
+          "bodyCanvasShapes": [
+            [
+              840,
+              1200
+            ]
+          ],
+          "canvasAncestors": [
+            {
+              "tag": "CANVAS",
+              "className": "relative max-h-full max-w-full"
+            },
+            {
+              "tag": "DIV",
+              "className": "relative max-h-full max-w-full md:max-w-[50vw] flex h-full items-center"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper-slide flex items-center justify-center sm:odd:justify-end sm:even:justify-start sm:!w-[50%]"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper-wrapper"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper swiper-initialized swiper-horizontal h-full w-full opacity-100"
+            }
+          ],
+          "readerFinding": "Current public Ynjn title route has seven painted-size canvases, six with readable nonblank sampled pixels, plus zero-size Swiper buffers. Two native body canvases visible; existing canvas workflow reused. No paging/OCR/full-chapter quality acceptance.",
+          "requestedUrl": "https://ynjn.jp/title/13810"
+        },
+        {
+          "url": "https://ynjn.jp/title/1077",
+          "finalUrl": "https://ynjn.jp/title/1077",
+          "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+          "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+          "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+          "attempt": "generic-official-readers-wave35",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 15,
+          "canvasCount": 44,
+          "pageErrorCount": 0,
+          "networkFailureCount": 3,
+          "profileRemoved": true,
+          "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+          "beforeActivation": {
+            "active": false,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 4
+          },
+          "afterActivation": {
+            "active": true,
+            "windowState": "normal",
+            "documentVisibility": "visible",
+            "loadedImages": 22
+          },
+          "navigationResponses": [
+            {
+              "url": "https://ynjn.jp/title/1077",
+              "status": 200
+            }
+          ],
+          "loadedCanvasCount": 7,
+          "readableNonblankCanvasCount": 6,
+          "bodyCanvasShapes": [
+            [
+              844,
+              1200
+            ]
+          ],
+          "canvasAncestors": [
+            {
+              "tag": "CANVAS",
+              "className": "relative max-h-full max-w-full"
+            },
+            {
+              "tag": "DIV",
+              "className": "relative max-h-full max-w-full md:max-w-[50vw] flex h-full items-center"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper-slide flex items-center justify-center sm:odd:justify-end sm:even:justify-start sm:!w-[50%]"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper-wrapper"
+            },
+            {
+              "tag": "DIV",
+              "className": "swiper swiper-initialized swiper-horizontal h-full w-full opacity-100"
+            }
+          ],
+          "readerFinding": "Current public Ynjn title route has seven painted-size canvases, six with readable nonblank sampled pixels, plus zero-size Swiper buffers. Two native body canvases visible; existing canvas workflow reused. No paging/OCR/full-chapter quality acceptance.",
+          "requestedUrl": "https://ynjn.jp/title/1077"
         }
       ]
     },
@@ -17069,6 +17578,504 @@
         "loadedImages": 0
       },
       "readerFinding": "Public original/target request ends in403 verification page with no IMG/canvas body. Normal active-tab control preserves this boundary; no verification bypass or current chapter acceptance."
+    },
+    {
+      "url": "https://ynjn.jp/",
+      "finalUrl": "https://ynjn.jp/",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-roots-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 135,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 42
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 144
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ynjn.jp/",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance."
+    },
+    {
+      "url": "https://www.yomonga.com/",
+      "finalUrl": "https://www.yomonga.com/",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-roots-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 120,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 7,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 126
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 126
+      },
+      "navigationResponses": [
+        {
+          "url": "https://www.yomonga.com/",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance."
+    },
+    {
+      "url": "https://ridibooks.com/comics/ebook",
+      "finalUrl": "https://ridibooks.com/comics/ebook",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-roots-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 44,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 15,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-roots-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 88
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 91
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ridibooks.com/comics/ebook",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Current native-active public root/directory200 supplies actual title/free-episode/product links. Supersedes earlier503/403 availability only; root covers do not establish chapter acceptance."
+    },
+    {
+      "url": "https://ynjn.jp/title/13810",
+      "finalUrl": "https://ynjn.jp/title/13810",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-products-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 15,
+      "canvasCount": 28,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 8
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 22
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ynjn.jp/title/13810",
+          "status": 200
+        }
+      ],
+      "loadedCanvasCount": 7,
+      "readableNonblankCanvasCount": 6,
+      "bodyCanvasShapes": [
+        [
+          840,
+          1200
+        ]
+      ],
+      "canvasAncestors": [
+        {
+          "tag": "CANVAS",
+          "className": "relative max-h-full max-w-full"
+        },
+        {
+          "tag": "DIV",
+          "className": "relative max-h-full max-w-full md:max-w-[50vw] flex h-full items-center"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper-slide flex items-center justify-center sm:odd:justify-end sm:even:justify-start sm:!w-[50%]"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper-wrapper"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper swiper-initialized swiper-horizontal h-full w-full opacity-100"
+        }
+      ],
+      "readerFinding": "Current public Ynjn title route has seven painted-size canvases, six with readable nonblank sampled pixels, plus zero-size Swiper buffers. Two native body canvases visible; existing canvas workflow reused. No paging/OCR/full-chapter quality acceptance."
+    },
+    {
+      "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+      "finalUrl": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-products-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 33,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 9,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 22
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 37
+      },
+      "navigationResponses": [
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+          "status": 200
+        }
+      ],
+      "sampledBodyFragmentCount": 15,
+      "bodyFragmentShapes": [
+        [
+          1626,
+          770
+        ],
+        [
+          1626,
+          776
+        ]
+      ],
+      "readerFinding": "Free observed episode1/2 displays whole-page containers composed of three horizontal IMG fragments per page. Dedicated whole-page area selector avoids treating fragments as complete continuous pages; no stitching, capture or OCR."
+    },
+    {
+      "url": "https://ridibooks.com/books/1690002642",
+      "finalUrl": "https://ridibooks.com/books/1690002642",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-products-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 1,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-products-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ridibooks.com/books/1690002642",
+          "status": 200
+        }
+      ],
+      "readerFinding": "Public product200 contains a1080x13740 promotional detail strip and a preview link. Only preview path accepted by new profile; product artwork is not chapter body."
+    },
+    {
+      "url": "https://ynjn.jp/title/1077",
+      "finalUrl": "https://ynjn.jp/title/1077",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-readers-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 15,
+      "canvasCount": 44,
+      "pageErrorCount": 0,
+      "networkFailureCount": 3,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 4
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 22
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ynjn.jp/title/1077",
+          "status": 200
+        }
+      ],
+      "loadedCanvasCount": 7,
+      "readableNonblankCanvasCount": 6,
+      "bodyCanvasShapes": [
+        [
+          844,
+          1200
+        ]
+      ],
+      "canvasAncestors": [
+        {
+          "tag": "CANVAS",
+          "className": "relative max-h-full max-w-full"
+        },
+        {
+          "tag": "DIV",
+          "className": "relative max-h-full max-w-full md:max-w-[50vw] flex h-full items-center"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper-slide flex items-center justify-center sm:odd:justify-end sm:even:justify-start sm:!w-[50%]"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper-wrapper"
+        },
+        {
+          "tag": "DIV",
+          "className": "swiper swiper-initialized swiper-horizontal h-full w-full opacity-100"
+        }
+      ],
+      "readerFinding": "Current public Ynjn title route has seven painted-size canvases, six with readable nonblank sampled pixels, plus zero-size Swiper buffers. Two native body canvases visible; existing canvas workflow reused. No paging/OCR/full-chapter quality acceptance."
+    },
+    {
+      "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+      "finalUrl": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-readers-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 33,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 7,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 31
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 37
+      },
+      "navigationResponses": [
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+          "status": 200
+        }
+      ],
+      "sampledBodyFragmentCount": 15,
+      "bodyFragmentShapes": [
+        [
+          1626,
+          770
+        ],
+        [
+          1626,
+          776
+        ]
+      ],
+      "readerFinding": "Free observed episode1/2 displays whole-page containers composed of three horizontal IMG fragments per page. Dedicated whole-page area selector avoids treating fragments as complete continuous pages; no stitching, capture or OCR."
+    },
+    {
+      "url": "https://ridibooks.com/books/1690002642/preview",
+      "finalUrl": "https://ridibooks.com/books/1690002642/preview",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "generic-official-readers-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 8,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/generic-official-readers-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ridibooks.com/books/1690002642/preview",
+          "status": 200
+        }
+      ],
+      "bodyImageShapes": [
+        [
+          1512,
+          2150
+        ],
+        [
+          1512,
+          2150
+        ]
+      ],
+      "loadedBodyImageCount": 2,
+      "readerFinding": "Public preview shows two loaded1512x2150 complete blob pages; product promotional strip not a reading page. No OCR/Korean-auto-language/quality acceptance."
+    },
+    {
+      "url": "https://ridibooks.com/books/505062803",
+      "finalUrl": "https://ridibooks.com/books/505062803/preview",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "ridi-preview-click-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "pageErrorCount": 1,
+      "networkFailureCount": 26,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-click-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 16
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 16
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ridibooks.com/books/505062803",
+          "status": 200
+        },
+        {
+          "url": "https://ridibooks.com/books/505062803/preview",
+          "status": 200
+        }
+      ],
+      "readerAction": {
+        "selector": "a[href=\"/books/505062803/preview\"]"
+      },
+      "bodyImageShapes": [],
+      "loadedBodyImageCount": 0,
+      "readerFinding": "Public native preview route uses semantic pre_reading/contents_comics/reading_body/viewer/simplebar wrappers and two same-origin blob pages. Initial normal-click sample300x150 is placeholder-only; subsequent15second before/after-active settling loads1500x2168 pages. No current full-book/OCR/language/quality acceptance."
+    },
+    {
+      "url": "https://ridibooks.com/books/505062803/preview",
+      "finalUrl": "https://ridibooks.com/books/505062803/preview",
+      "checkedAt": "2026-10-05T17:00:01.343728+00:00",
+      "scope": "Read-only normal-window active-tab public DOM research with FluentRead disabled; no screenshots/export/OCR or private API access.",
+      "researchWave": "ynjn-readable-canvas-yomonga-whole-fragment-ridi-preview-wave35",
+      "attempt": "ridi-preview-settle-wave35",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 2,
+      "canvasCount": 0,
+      "pageErrorCount": 0,
+      "networkFailureCount": 8,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-settle-wave35/reader-inspection.json",
+      "beforeActivation": {
+        "active": false,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "afterActivation": {
+        "active": true,
+        "windowState": "normal",
+        "documentVisibility": "visible",
+        "loadedImages": 2
+      },
+      "navigationResponses": [
+        {
+          "url": "https://ridibooks.com/books/505062803/preview",
+          "status": 200
+        }
+      ],
+      "bodyImageShapes": [
+        [
+          1500,
+          2168
+        ],
+        [
+          1500,
+          2168
+        ]
+      ],
+      "loadedBodyImageCount": 2,
+      "readerFinding": "Public native preview route uses semantic pre_reading/contents_comics/reading_body/viewer/simplebar wrappers and two same-origin blob pages. Initial normal-click sample300x150 is placeholder-only; subsequent15second before/after-active settling loads1500x2168 pages. No current full-book/OCR/language/quality acceptance."
     }
   ],
   "verification": {
@@ -29022,7 +30029,778 @@
         "background": 2
       },
       "scope": "Every requested name has at least a domain association; only110 generic detections remain as generic capability. Domain association is not235-site real-chapter/OCR/full-quality acceptance. UI research attempts not double-counted."
+    },
+    "officialReaderProfilesWave35Unit": {
+      "status": "passed",
+      "cases": 566,
+      "files": 7,
+      "fourDimensionCoverage": "100% for eight config/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave35-final.log",
+      "scope": "Ridi preview semantic blob-only selection; Ynjn direct Swiper canvas; Yomonga exact positive chapter/query parameters and whole-page area. Excludes product promotions, recommendation/nested/outside elements, invalid/duplicate parameters and spoof hosts. Existing source authorization/surface lifecycle coverage retained."
+    },
+    "officialReaderProfilesWave35Entries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "auto source consent: MangaLib local reader fixture",
+        "auto source consent: Mangahub local reader fixture",
+        "auto source consent: ComicNaver local reader fixture",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://ynjn.jp/title/13810",
+        "live reader discovery: https://ynjn.jp/title/1077",
+        "live reader discovery: https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+        "live reader discovery: https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+        "live reader discovery: https://ridibooks.com/books/1690002642/preview",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "windowState": "normal",
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "tabVisibility": [
+        {
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangaplus.shueisha.co.jp/viewer/1028732",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-image-translation",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangalib.me/ru/1--fluentread-fixture/read/v1/c1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://mangahub.ru/read/123",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ordinary.example.test/article",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic.example.test/reader/1",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://comic-days.com/episode/10834108156634732370",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ynjn.jp/title/13810",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ynjn.jp/title/1077",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487#content",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502#content",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        },
+        {
+          "url": "https://ridibooks.com/books/1690002642/preview",
+          "active": true,
+          "windowState": "normal",
+          "windowFocused": false,
+          "documentVisibility": "visible"
+        }
+      ],
+      "liveReaderSamples": [
+        {
+          "url": "https://ynjn.jp/title/13810",
+          "mode": "canvas",
+          "canvasSelector": "#__nuxt .swiper-horizontal > .swiper-wrapper > .swiper-slide > div.max-h-full.max-w-full > canvas.max-h-full.max-w-full",
+          "readerSelector": "#__nuxt .swiper-horizontal > .swiper-wrapper > .swiper-slide > div.max-h-full.max-w-full > canvas.max-h-full.max-w-full",
+          "verifyReadableCanvas": true,
+          "readerSettleMs": 4000
+        },
+        {
+          "url": "https://ynjn.jp/title/1077",
+          "mode": "canvas",
+          "canvasSelector": "#__nuxt .swiper-horizontal > .swiper-wrapper > .swiper-slide > div.max-h-full.max-w-full > canvas.max-h-full.max-w-full",
+          "readerSelector": "#__nuxt .swiper-horizontal > .swiper-wrapper > .swiper-slide > div.max-h-full.max-w-full > canvas.max-h-full.max-w-full",
+          "verifyReadableCanvas": true,
+          "readerSettleMs": 4000
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+          "mode": "area",
+          "readerSelector": "#contents.cst_info > #content_base > #content.pages > div[id^=\"content-p\"] > .pt-img",
+          "verifyAreaEntry": true,
+          "readerSettleMs": 4000
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+          "mode": "area",
+          "readerSelector": "#contents.cst_info > #content_base > #content.pages > div[id^=\"content-p\"] > .pt-img",
+          "verifyAreaEntry": true,
+          "readerSettleMs": 4000
+        },
+        {
+          "url": "https://ridibooks.com/books/1690002642/preview",
+          "mode": "images",
+          "readerSelector": "#root .pre_reading .contents_comics > .reading_body > .viewer > .viewer_viewport .simplebar-content > div > div > div > div > img[src^=\"blob:https://ridibooks.com/\"]",
+          "readerReadySelector": "#root .pre_reading .contents_comics > .reading_body > .viewer > .viewer_viewport .simplebar-content > div > div > div > div > img[src^=\"blob:https://ridibooks.com/\"]",
+          "readerMinimumNaturalSize": {
+            "width": 600,
+            "height": 800
+          },
+          "readerSettleMs": 4000
+        }
+      ],
+      "liveReaders": [
+        {
+          "url": "https://ynjn.jp/title/13810",
+          "finalUrl": "https://ynjn.jp/title/13810",
+          "status": 200,
+          "mode": "canvas",
+          "canvasPixels": [
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 840,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": false,
+              "pixelError": ""
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPageElementCount": 28,
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 840,
+              "height": 1200,
+              "visible": true
+            }
+          ],
+          "zeroSizeCanvasBuffersOmitted": 21
+        },
+        {
+          "url": "https://ynjn.jp/title/1077",
+          "finalUrl": "https://ynjn.jp/title/1077",
+          "status": 200,
+          "mode": "canvas",
+          "canvasPixels": [
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": true,
+              "pixelError": ""
+            },
+            {
+              "width": 844,
+              "height": 1200,
+              "readable": true,
+              "gridNonblank": false,
+              "pixelError": ""
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPageElementCount": 44,
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": false
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 844,
+              "height": 1200,
+              "visible": true
+            }
+          ],
+          "zeroSizeCanvasBuffersOmitted": 37
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487",
+          "finalUrl": "https://www.yomonga.com/titles/2553/?episode=1&cid=10487#content",
+          "status": 200,
+          "mode": "area",
+          "areaEntry": {
+            "selectionEntered": true,
+            "cancelledWithEscape": true,
+            "languagePacks": [],
+            "mangaModelsReadyUnchanged": true,
+            "scope": "Selection overlay only; no rectangle capture, image export or OCR"
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPageElementCount": 5,
+          "readerPages": [
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": true
+            }
+          ],
+          "zeroSizeCanvasBuffersOmitted": 0
+        },
+        {
+          "url": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502",
+          "finalUrl": "https://www.yomonga.com/titles/2553/?episode=2&cid=10502#content",
+          "status": 200,
+          "mode": "area",
+          "areaEntry": {
+            "selectionEntered": true,
+            "cancelledWithEscape": true,
+            "languagePacks": [],
+            "mangaModelsReadyUnchanged": true,
+            "scope": "Selection overlay only; no rectangle capture, image export or OCR"
+          },
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPageElementCount": 5,
+          "readerPages": [
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": false
+            },
+            {
+              "tag": "DIV",
+              "visible": true
+            }
+          ],
+          "zeroSizeCanvasBuffersOmitted": 0
+        },
+        {
+          "url": "https://ridibooks.com/books/1690002642/preview",
+          "finalUrl": "https://ridibooks.com/books/1690002642/preview",
+          "status": 200,
+          "mode": "images",
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed",
+          "readerPageElementCount": 2,
+          "readerPages": [
+            {
+              "tag": "IMG",
+              "naturalWidth": 1512,
+              "naturalHeight": 2150,
+              "width": 526,
+              "height": 748,
+              "visible": true
+            },
+            {
+              "tag": "IMG",
+              "naturalWidth": 1512,
+              "naturalHeight": 2150,
+              "width": 526,
+              "height": 748,
+              "visible": true
+            }
+          ],
+          "zeroSizeCanvasBuffersOmitted": 0
+        }
+      ],
+      "errors": 0,
+      "consoleErrors": 0,
+      "hostErrors": 0,
+      "profileRemoved": true,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-official-readers-recheck-wave35/report.json",
+      "scope": "21 base/auto-language fixtures plus5 public real reader entries. Two Ynjn nonblank readable canvas samples, two Yomonga area open/Escape/no model downloads, one Ridi preview with loaded natural-size minimum600x800. No OCR, chapter screenshot/export, complete chapters, paging/quality or general/Korean source-language acceptance."
+    },
+    "officialReaderProfilesWave35Builds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "typecheckReport": "/private/tmp/fluentread-brand-manga-sites-20261005/compile-wave35-final.log",
+      "chromeSeconds": 29.4,
+      "firefoxSeconds": 27.0,
+      "userscriptSeconds": 3.99,
+      "userscriptBytes": 1917340,
+      "extensionManifestVerifier": "passed",
+      "extensionManifestReport": "/private/tmp/fluentread-brand-manga-sites-20261005/manifest-wave35.log",
+      "userscriptVerifier": "passed",
+      "userscriptVerifierReport": "/private/tmp/fluentread-brand-manga-sites-20261005/userscript-verifier-wave35.log",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave35-final.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6130,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave35-final.log"
+      },
+      "browserScriptContracts": {
+        "status": "known-failures-reproduced",
+        "files": 2,
+        "casesPassed": 94,
+        "casesFailed": 3,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-contracts-wave35-final.log",
+        "failedNames": [
+          "全文回归内建 fixture handler 只提供预期页面并禁用缓存",
+          "每个产品、构建和测试基础设施文件都有明确验证归属",
+          "src 中每个可执行非组装模块都进入四维 100% 覆盖率边界"
+        ]
+      },
+      "scope": "Production Chrome entry evidence; Firefox/userscript build only. Existing three same-named browser/ownership contract failures reproduced; not an all-suite pass. No engine implementation/source authorization/permission/dependency/version/reference-repository change.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "details": {
+          "ok": true,
+          "pages": 77,
+          "links": 3955,
+          "anchors": 741,
+          "images": 154
+        },
+        "buildReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-build-wave35-final.log",
+        "checkReport": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave35-final.log"
+      }
+    },
+    "officialReaderProfilesWave35Diagnostics": {
+      "initialTwoProfiles": {
+        "status": "passed-intermediate",
+        "cases": 565,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave35.log",
+        "scope": "Ynjn/Yomonga before Ridi preview added; final566case and three-profile production build supersede."
+      },
+      "initialUi": {
+        "status": "test-native-tab-observation-race",
+        "casesPassed": 22,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-official-readers-wave35/report.json",
+        "finding": "Yomonga normal hash append updates page.url before chrome.tabs.query exact-URL snapshot; initial post-activation assertion lost the match. Keep existing native helper and add bounded10second exact current-URL observation retry. No origin-prefix fallback/OS-focus/property override; final26cases pass."
+      },
+      "initialBrowserContractFilter": {
+        "casesPassed": 7,
+        "casesFailed": 2,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/browser-contracts-initial-filter-wave35.log",
+        "finding": "Wrong architecture/browserFocusSafety path meant only verificationOwnership ran; final correct two-file97case run is authoritative."
+      },
+      "ridiPlaceholder": {
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-click-wave35/reader-inspection.json",
+        "finding": "Normal native preview click initially yields two300x150 blobs. Not complete-body acceptance; subsequent normal selected direct preview waits15seconds each before/after activation and shows1500x2168. Final UI requires minimum600x800."
+      },
+      "lateProfileCleanup": {
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ridi-preview-click-wave35/late-profile-cleanup.json",
+        "ownBrowserExitConfirmed": true,
+        "manualLateResidueCleanup": true,
+        "profileRemoved": true,
+        "scope": "Only exact task-owned residual profile after browser PID absence; no universal cleanup fix."
+      }
+    },
+    "officialReaderProfilesWave35Coverage": {
+      "supplementDate": "2026-10-06",
+      "names": 235,
+      "newResearchAttempts": 11,
+      "retainedResearchAttempts": 367,
+      "adapterCounts": {
+        "images": 90,
+        "area": 23,
+        "canvas": 3,
+        "detect": 107,
+        "readable-canvas": 10,
+        "background": 2
+      },
+      "scope": "Three previously generic names gain public-body profiles. Research attempts include roots/products/placeholder/settled controls; UI cases not double-counted. Full235-site/all-chapters/language/OCR/quality/all-devices acceptance still incomplete."
     }
   },
-  "lastSupplementOn": "2026-10-05T16:25:41.886081+00:00"
+  "lastSupplementOn": "2026-10-05T17:00:01.343728+00:00"
 }

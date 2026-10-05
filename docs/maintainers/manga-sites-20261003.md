@@ -218,7 +218,7 @@
 | 208 | rawotaku.com | rawotaku.com | 专用正文图片 | 公开章节入口与两页 OCR 链路通过；识别翻译质量仍有缺陷 |
 | 209 | pixiv.app | pixiv.app | 通用正文图片检测 | 连接失败 |
 | 210 | speed-manga.com | speed-manga.com / speed-manga.net | 专用正文图片 | 公开章节正文结构已核对 |
-| 211 | yomonga.com | yomonga.com | 通用正文图片检测 | 当前维护页 HTTP 503；未验证 |
+| 211 | yomonga.com | yomonga.com | 明确章节的完整分片页 · 圈选入口 | 当前免费首话及第二话 HTTP 200，整页分为三片；两个实页入口打开和取消通过，未验 OCR；旧维护记录保留 |
 | 212 | global.manga-up.com | global.manga-up.com | 专用正文图片 | 公开章节 HTTP 200；正文与 Cookie 提示已核对 |
 | 213 | mangaball.net | mangaball.net、mangaball.com | 通用正文图片检测 | 跳转现用 .com；正文图片受浏览器响应来源限制 |
 | 214 | yanmaga.jp | yanmaga.jp | 画布/分片：圈选入口 | 首页 HTML 可访问 |
@@ -237,9 +237,9 @@
 | 227 | comic.pixiv.net | comic.pixiv.net | 公开背景正文 · 连续翻译 | 同源背景完整页可读 |
 | 228 | comico.jp | comico.jp | 通用正文图片检测 | 公开销售与租阅已结束；本轮首页与搜索页没有正文，已购书架需账户，未验证 |
 | 229 | manhwas.men | manhwas.men | 通用正文图片检测 | 连接失败 |
-| 230 | ridibooks.com | ridibooks.com | 通用正文图片检测 | 本轮公开漫画目录返回 403，无正文验收 |
+| 230 | ridibooks.com | ridibooks.com | 公开试读 blob 整页检测 | 原站试读显示两张 1512×2150 正文，生产入口通过；另一作品由占位换成 1500×2168，未验 OCR；旧 403 保留 |
 | 231 | sunday-webry.com | sunday-webry.com | 正文画布 · 圈选翻译 | 公开章节画布不可直接读取 |
-| 232 | ynjn.jp | ynjn.jp | 通用正文图片检测 | 本轮首页 HTTP 503；此前阅读器加载样本也未显示正文 |
+| 232 | ynjn.jp | ynjn.jp | 公开可读画布 · 连续翻译入口 | 两个阅读页 HTTP 200，可读非空的 840/844×1200 正文画布，生产入口通过；未验 OCR 或全部章节，旧 503 保留 |
 | 233 | mangayun.com | mangayun.com | 专用正文图片 | 如漫画来源首话完整正文和入口通过；第一来源 403 保留 |
 | 234 | manhwaweb.com | manhwaweb.com | 已核对正文图片 | /leer/ 公开章节限定正文直系图片，完整长图复用分段链路；排除音乐按钮图片和封面 |
 | 235 | a-i-manga.com | a-i-manga.com | 专用正文图片检测 | 公开作品阅读页 HTTP 200；24 张编号正文图片 |
