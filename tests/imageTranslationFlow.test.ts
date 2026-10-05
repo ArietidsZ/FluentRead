@@ -103,6 +103,18 @@ describe('图片失败恢复和控件可见性', () => {
 });
 
 describe('图片翻译流程优化',()=>{
+    it.each(['ru', 'ko-KR'])('漫画 %s 先核对语言包，继续携带漫画模式且不采用单图引擎设置', async sourceLanguage => {
+        const {handler, dependencies} = setup({getImageOcrEngine: () => 'paddle'});
+        const message = {type: IMAGE_TRANSLATE_MESSAGE_TYPE, image: 'data:image/png,x', sourceLanguage, manga: true};
+        await handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle(message);
+        expect(dependencies.assertLanguagesDownloaded).toHaveBeenCalledWith(sourceLanguage);
+        expect(dependencies.translateImage).toHaveBeenCalledWith(message.image, sourceLanguage, '', expect.objectContaining({manga: true}));
+        dependencies.translateImage.mockClear();
+        dependencies.assertLanguagesDownloaded.mockRejectedValueOnce(new Error('missing language'));
+        await expect(handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle(message)).rejects.toThrow('missing language');
+        expect(dependencies.translateImage).not.toHaveBeenCalled();
+        expect(dependencies.downloadLanguages).not.toHaveBeenCalled();
+    });
     it('专用漫画路径跳过 Tesseract 包预检，模型管理沿用后台消息',async()=>{
         const getMangaModelStatus=vi.fn(async()=>({ready:true,bytes:123,inpaintingReady:false})),removeMangaModels=vi.fn(async()=>{});
         const {handler,dependencies}=setup({getMangaModelStatus,removeMangaModels});

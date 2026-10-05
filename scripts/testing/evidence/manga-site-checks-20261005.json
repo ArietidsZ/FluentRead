@@ -1,5 +1,5 @@
 {
-  "checkedOn": "2026-10-05",
+  "checkedOn": "2026-10-05T04:55:40.961680+00:00",
   "scope": "Public HTML availability and selected chapter DOM inspection. Neither proves all chapters or live OCR/translation.",
   "sources": [
     "https://github.com/immersive-translate/immersive-translate/issues/1809",
@@ -1349,7 +1349,22 @@
           "title": "네이버 웹툰"
         }
       ],
-      "adapter": "images"
+      "adapter": "images",
+      "browserRechecks": [
+        {
+          "finalUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "explicit-russian-korean-ocr-wave17",
+          "attempt": "naver-body-wave17",
+          "title": "인생도 도네가 되나요 - 1화 : 네이버 웹툰",
+          "imageCount": 40,
+          "readerFinding": "Public Naver chapter has loaded 690x1600 body images under sectionContWide with content_image IDs; age advisory excluded. Entry/body research does not prove OCR quality.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+          "checkedAt": "2026-10-05T04:53:16.241834+00:00"
+        }
+      ]
     },
     {
       "name": "comic-zenon",
@@ -3950,6 +3965,19 @@
           "title": "Читать онлайн Хори-сан и Миямура-кун. Глава 428",
           "imageCount": 2,
           "finalUrl": "https://mangahub.ru/read/962303"
+        },
+        {
+          "finalUrl": "https://mangahub.ru/read/962303?page=2",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "explicit-russian-korean-ocr-wave17",
+          "attempt": "mangahub-page-route-wave17",
+          "title": "Читать онлайн Хори-сан и Миямура-кун. Глава 428",
+          "imageCount": 3,
+          "readerFinding": "Normal next-button click changes /read/962303 to /read/962303?page=2 with a loaded 900x2595 body image; confirmed paging identity rather than chapter navigation.",
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://mangahub.ru/read/962303",
+          "checkedAt": "2026-10-05T04:53:16.241834+00:00"
         }
       ]
     },
@@ -7338,6 +7366,30 @@
         }
       ],
       "networkFailureCount": 3
+    },
+    {
+      "url": "https://mangahub.ru/read/962303",
+      "finalUrl": "https://mangahub.ru/read/962303?page=2",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "explicit-russian-korean-ocr-wave17",
+      "attempt": "mangahub-page-route-wave17",
+      "title": "Читать онлайн Хори-сан и Миямура-кун. Глава 428",
+      "imageCount": 3,
+      "readerFinding": "Normal next-button click changes /read/962303 to /read/962303?page=2 with a loaded 900x2595 body image; confirmed paging identity rather than chapter navigation.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+      "finalUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "explicit-russian-korean-ocr-wave17",
+      "attempt": "naver-body-wave17",
+      "title": "인생도 도네가 되나요 - 1화 : 네이버 웹툰",
+      "imageCount": 40,
+      "readerFinding": "Public Naver chapter has loaded 690x1600 body images under sectionContWide with content_image IDs; age advisory excluded. Entry/body research does not prove OCR quality.",
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
     }
   ],
   "verification": {
@@ -10620,6 +10672,557 @@
       "launchMode": "macos-background-cdp",
       "focusPolicy": "launchservices-no-foreground",
       "errors": []
+    },
+    "mangaLanguageRoutingUnit": {
+      "files": 15,
+      "passedCases": 752,
+      "filteredBaselineCases": 2,
+      "result": "passed",
+      "fourDimensionalCoverage": "100% for nine manga config/reader, OCR routing, resource entry, grouping and runtime modules",
+      "scope": "Explicit ru/ko use existing Tesseract packages with manga patches. Consent, missing-resource errors, source/config change, cache, cancellation, restored originals, line boxes/fonts, AVIF conversion and exact Mangahub numeric page identity covered. Auto and other languages retain Paddle.",
+      "baselineFailures": [
+        {
+          "file": "tests/backgroundFeatureHandlers.test.ts",
+          "cases": 2,
+          "reason": "Existing freeTranslation default and settings-area redirect expectations reproduce at HEAD 4522c879; precisely filtered from focused coverage."
+        },
+        {
+          "file": "tests/imageGlossaryContext.test.ts",
+          "cases": 2,
+          "reason": "Existing glossary marker expectations reproduce at HEAD 4522c879; this unrelated suite is outside focused coverage."
+        }
+      ],
+      "logs": [
+        "coverage-page-query-retry-wave17.log",
+        "ocr-background-baseline-wave17.log",
+        "ocr-glossary-baseline-retry-wave17.log"
+      ],
+      "initialCommandFailure": "pnpm test --config rejected the pnpm option before running tests; corrected to pnpm run test --config."
+    },
+    "mangaLanguageResourceConsentUi": {
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "master switch removes manga UI"
+      ],
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "result": "passed",
+      "hostErrorCount": 0,
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "inputFormats": [],
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-ocr-consent-wave17",
+      "scope": "18 actual UI cases. English ru/ko prompts show 16/13 MB recognition packages plus 197 MB inpainting, inspection leaves packages empty and consent false. Pure icon, expanded controls, all existing six UI locales, narrow/dark, drag, close, source-language change and master switch checked; not actual resource-download acceptance."
+    },
+    "mangaLanguageRoutingAttempts": [
+      {
+        "cases": [],
+        "sourceLanguage": "ru",
+        "errors": [],
+        "consoleErrors": [],
+        "profileRemoved": true,
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {},
+        "inputFormats": [],
+        "failure": "Error: Command failed: /usr/bin/open -g -n -a /Applications/Microsoft Edge.app --args --user-data-dir=/private/tmp/fluentread-manga-profile-HXSXxo --remote-debugging-address=127.0.0.1 --remote-debugging-port=0 --enable-automation --password-store=basic --use-mock-keychain --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --no-startup-window --window-size=1280,900 --disable-extensions-except=/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/.output/chrome-mv3 --load-extension=/Users/thinkstu/Desktop/copy/FluentRead-brand-dock-manga-sites-20261005/.output/chrome-mv3 --no-first-run --no-default-browser-check",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-wave17",
+        "scope": "Initial sandbox LaunchServices failure before OCR; authorized background retry used."
+      },
+      {
+        "cases": [],
+        "sourceLanguage": "ru",
+        "pageDurationsMs": [],
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 1,
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [],
+        "failure": "Error: Image pipeline failed: 图片翻译失败：Error: Error attempting to read image.",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-retry-wave17",
+        "scope": "Actual AVIF title input unsupported by Tesseract before bitmap-to-PNG conversion."
+      },
+      {
+        "cases": [],
+        "sourceLanguage": "ru",
+        "pageDurationsMs": [],
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 1,
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [
+          "image/avif"
+        ],
+        "failure": "Error: Image pipeline failed: 图片翻译失败：Error: Error attempting to read image.",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-format-wave17",
+        "scope": "Diagnostic input format confirms AVIF; same original failure retained."
+      },
+      {
+        "cases": [],
+        "sourceLanguage": "ru",
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 0,
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [],
+        "failure": "locator.scrollIntoViewIfNeeded: Timeout 29936.903ms exceeded.",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-dialogue-wave17",
+        "scope": "Hidden paged image cannot scroll into view; no OCR operation. Diagnostic subsequently uses the observed normal next-page control."
+      },
+      {
+        "cases": [],
+        "sourceLanguage": "ru",
+        "pageDurationsMs": [],
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 1,
+        "ocrLanguageStatus": {
+          "success": true,
+          "languages": [
+            "rus",
+            "eng"
+          ],
+          "states": {}
+        },
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [
+          "image/jpeg"
+        ],
+        "failure": "Error: Image pipeline failed: 图片翻译失败：dims[2] must be an integer, got: NaN",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-paged-wave17",
+        "scope": "Tesseract recognition reached manga inpainting, but missing fontSize produced NaN dimensions; repaired by normalized manga region grouping."
+      },
+      {
+        "cases": [
+          "one click activates and translates only visible pages",
+          "translated reading has no automatic panel",
+          "original pauses and repeated toggles reuse visible results"
+        ],
+        "sourceLanguage": "ru",
+        "pageDurationsMs": [
+          {
+            "page": 1,
+            "ms": 22038,
+            "includesFirstModelPreparation": true
+          }
+        ],
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 1,
+        "firstOperationCount": 1,
+        "ocrLanguageStatus": {
+          "success": true,
+          "languages": [
+            "rus",
+            "eng"
+          ],
+          "states": {}
+        },
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [
+          "image/jpeg"
+        ],
+        "failure": "Error: Timed out: normal reader page turn translates a new visible page; image controls: ",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-regions-wave17",
+        "scope": "First dialogue translated and restored/reused, but next ?page=3 was treated as a chapter change. Exact Mangahub positive numeric page normalization subsequently added."
+      },
+      {
+        "cases": [],
+        "sourceLanguage": "ko",
+        "pageDurationsMs": [],
+        "modelsPreloaded": true,
+        "errors": [],
+        "consoleErrors": [],
+        "launchMode": "macos-background-cdp",
+        "focusPolicy": "launchservices-no-foreground",
+        "profileRemoved": true,
+        "operations": 1,
+        "ocrLanguageStatus": {
+          "success": true,
+          "languages": [
+            "kor",
+            "eng"
+          ],
+          "states": {}
+        },
+        "result": "failed",
+        "hostErrorCount": 0,
+        "windowPlacement": {
+          "mode": "background-visible-no-focus",
+          "visible": true,
+          "hidden": false,
+          "windowState": "normal",
+          "bounds": {
+            "left": 1121,
+            "top": -990,
+            "width": 1280,
+            "height": 900
+          },
+          "displayTarget": "secondary",
+          "browserFrontmost": false
+        },
+        "inputFormats": [
+          "image/jpeg"
+        ],
+        "failure": "Error: Image pipeline failed: 图片翻译失败：图片第 6 段文字翻译失败：翻译服务连续返回未翻译的原文，请尝试切换服务；使用 AI 时也可调整提示词",
+        "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-naver-dialogue-wave17",
+        "scope": "Same Korean dialogue sample before grouping/noise filtering failed because the provider repeatedly returned an untranslated fragment; retained."
+      }
+    ],
+    "mangahubRussianDialogueTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "normal reader page turn translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "ru",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 22467,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 24531,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "operations": 2,
+      "firstOperationCount": 1,
+      "scrollOperationCounts": {
+        "before": 1,
+        "after": 2,
+        "mode": "new-operation"
+      },
+      "ocrLanguageStatus": {
+        "success": true,
+        "languages": [
+          "rus",
+          "eng"
+        ],
+        "states": {}
+      },
+      "result": "passed",
+      "hostErrorCount": 0,
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "inputFormats": [
+        "image/jpeg",
+        "image/jpeg"
+      ],
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-page-query-wave17",
+      "publicUrl": "https://mangahub.ru/read/962303",
+      "selectedImageIndices": [
+        1,
+        2
+      ],
+      "sourceDimensions": [
+        {
+          "width": 900,
+          "height": 2595
+        },
+        {
+          "width": 900,
+          "height": 2595
+        }
+      ],
+      "scope": "Same two public dialogue pages, explicit ru. Normal observed next-button navigation changes page query without pausing; six reader states, two operations. Restored source/style and resume reuse pass. First-cancel check skipped. Source authorization still retains complete document URL. Not full-chapter, default-auto or quality acceptance.",
+      "qualityFinding": "Screenshots show small Chinese mixed with residual handwritten Cyrillic. Top cucumber and interjection bubbles on second page remain Russian, names/meaning are misrecognized and one lower balloon adds an unrelated Chinese question. Original artwork is preserved; Russian handwriting quality remains unaccepted."
+    },
+    "naverKoreanDialogueTranslation": {
+      "cases": [
+        "one click activates and translates only visible pages",
+        "translated reading has no automatic panel",
+        "original pauses and repeated toggles reuse visible results",
+        "scroll automatically translates a new visible page",
+        "scroll and hover never open a reading panel",
+        "manga control stays compact beneath the resident brand icon"
+      ],
+      "sourceLanguage": "ko",
+      "pageDurationsMs": [
+        {
+          "page": 1,
+          "ms": 24998,
+          "includesFirstModelPreparation": true
+        },
+        {
+          "page": 2,
+          "ms": 17165,
+          "mayIncludeFirstInpaintingPreparation": true
+        }
+      ],
+      "modelsPreloaded": true,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "operations": 2,
+      "firstOperationCount": 1,
+      "scrollOperationCounts": {
+        "before": 1,
+        "after": 2,
+        "mode": "new-operation"
+      },
+      "ocrLanguageStatus": {
+        "success": true,
+        "languages": [
+          "kor",
+          "eng"
+        ],
+        "states": {}
+      },
+      "result": "passed",
+      "hostErrorCount": 0,
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "inputFormats": [
+        "image/jpeg",
+        "image/jpeg"
+      ],
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-naver-regions-wave17",
+      "publicUrl": "https://comic.naver.com/webtoon/detail?titleId=855297&no=1&week=mon",
+      "selectedImageIndices": [
+        2,
+        3
+      ],
+      "sourceDimensions": [
+        {
+          "width": 690,
+          "height": 1600
+        },
+        {
+          "width": 690,
+          "height": 1600
+        }
+      ],
+      "scope": "Same two public dialogue/narration body images, explicit ko. Six real reader states and two operations. Loaded kor/eng packages, original restore, cache reuse and scroll continuation pass. First-cancel check skipped. Not full-chapter, default-auto or quality acceptance.",
+      "qualityFinding": "Chinese speech bubbles and narration visible, but first-page dialogue meaning is wrong and mixes OCR fragments. Korean names/chat remain and tiny Chinese chat labels are hard to read. No quality acceptance."
+    },
+    "mangaLanguageRoutingBuilds": {
+      "chrome": "passed (43.8s)",
+      "firefox": "passed (67s)",
+      "userscript": "passed (13.95s)",
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed (1917294 bytes)",
+      "compile": "passed",
+      "testAudit": "468 files / 6078 declarations",
+      "selectedContracts": "2 files / 809 cases passed",
+      "diagnosticScriptSyntax": "two changed CJS scripts passed node --check",
+      "scope": "No version, dependency, permission or protocol changes. Real browser checks use temporary background visible Edge on the secondary screen; Firefox/userscript runtime and full suite not checked. Baseline failures retained. Auto ru/ko, handwriting, translation/layout quality and all 235 live chapters remain incomplete.",
+      "docsBuild": "passed (14.95s)",
+      "docsVerifier": "passed (77 pages,3955 links,741 anchors,154 images)"
+    },
+    "mangahubAvifRegression": {
+      "cases": [],
+      "sourceLanguage": "ru",
+      "pageDurationsMs": [],
+      "modelsPreloaded": true,
+      "errors": [],
+      "consoleErrors": [],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "profileRemoved": true,
+      "operations": 1,
+      "ocrLanguageStatus": {
+        "success": true,
+        "languages": [
+          "rus",
+          "eng"
+        ],
+        "states": {}
+      },
+      "result": "failed",
+      "hostErrorCount": 0,
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "browserFrontmost": false
+      },
+      "inputFormats": [
+        "image/avif"
+      ],
+      "failure": "Error: Timed out: one click activates and translates only visible pages; image controls: 未检测到文字，已保留原图",
+      "artifactsDirectory": "/private/tmp/fluentread-brand-manga-sites-20261005/ocr-mangahub-avif-regression-wave17",
+      "publicUrl": "https://mangahub.ru/read/962303",
+      "plannedImageIndices": [
+        0,
+        1
+      ],
+      "capturedImageIndices": [
+        0
+      ],
+      "scope": "Additional exact original AVIF title format regression. The image-decoder exception is gone, but OCR produced no accepted text and preserved the original; translated-image smoke timed out before next dialogue. Failed attempt retained separately from hard two-dialogue verification. Not title, translation quality or full-chapter acceptance.",
+      "codecFinding": "Actual AVIF input completes without the prior Error attempting to read image; no-text original preservation observed. No Chinese translation on title."
     }
   }
 }

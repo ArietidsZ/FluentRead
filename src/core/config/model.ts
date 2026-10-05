@@ -356,7 +356,7 @@ export class Config {
     hoverTranslationService: string; // 悬浮翻译服务，空值跟随默认网页服务
     selectionTranslationService: string; // 普通划词翻译服务，空值跟随默认网页服务
     imageTranslationService: string; // 图片 OCR 后的文字翻译服务，空值跟随默认网页服务
-    imageTranslationOcrEngine: 'tesseract' | 'paddle'; // 单张图片的本地识别方式；漫画连续阅读固定使用 PaddleOCR
+    imageTranslationOcrEngine: 'tesseract' | 'paddle'; // 单图识别方式；漫画按源语言选择专用模型，俄语/韩语使用既有语言包
     documentService: string; // 文档服务，空值跟随网页默认
     documentModel: IMapping; // 文档翻译按服务保存的独立模型选择
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型

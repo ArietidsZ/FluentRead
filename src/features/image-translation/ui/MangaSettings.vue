@@ -34,7 +34,7 @@
       <SettingsPreviewLayout :label="t('漫画翻译效果预览')">
         <template #preview><ImageTranslationSettingsPreview manga /></template>
         <div class="manga-preview-preferences">
-          <SettingsItem :label="t('提前翻译后续页面')" :description="t('使用 PaddleOCR，当前页优先，只提前处理已加载的图片。')" stacked>
+          <SettingsItem :label="t('提前翻译后续页面')" :description="t('按原文语言选择识别资源，当前页优先，只提前处理已加载的图片。')" stacked>
             <UiSelect v-model="settings.imageTranslationMangaPrefetchPages" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('提前翻译后续页面')"><el-option :value="0" :label="t('只翻译当前页面')" /><el-option v-for="count in 5" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect>
           </SettingsItem>
           <SettingsItem :label="t('独立漫画按钮')" :description="t('隐藏悬浮球时显示独立漫画按钮，阅读和翻译过程中不会自动弹出面板')" :disabled="!available || !settings.imageTranslationMangaEnabled"><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></SettingsItem>

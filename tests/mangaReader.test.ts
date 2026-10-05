@@ -189,6 +189,28 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('Mangahub 正常页码变化继续同一会话，下一正文入队；章节路径改变才暂停和清缓存', async () => {
+        const resetCache = vi.fn();
+        const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1', undefined, undefined, undefined, undefined, {resetCache});
+        const root = f.document.createElement('reader-viewer'), scan = f.document.createElement('reader-scan');scan.className = 'reader-viewer-scan';
+        f.image.className = 'reader-viewer-img';scan.append(f.image);root.append(scan);f.document.body.append(root);f.reader.schedule();f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);resetCache.mockClear();
+        const next = f.image.cloneNode() as HTMLImageElement;next.src = 'https://cdn.example.com/next.jpg';
+        Object.defineProperties(next, {complete: {value: true}, naturalWidth: {value: 760}, naturalHeight: {value: 1200}});
+        next.getBoundingClientRect = () => ({left: 0, right: 760, top: 0, bottom: 1200, width: 760, height: 1200}) as DOMRect;
+        const nextScan = f.document.createElement('reader-scan');nextScan.className = 'reader-viewer-scan';nextScan.append(next);root.append(nextScan);
+        f.setRect({top: -3000, bottom: -1800});f.window.location.href = 'https://mangahub.ru/read/962303?page=2';
+        f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledWith(next);expect(resetCache).not.toHaveBeenCalled();
+        f.window.location.href = 'https://mangahub.ru/read/962304?page=2';f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();f.reader.dispose();
+    });
+    it.each(['?page=0', '?page=abc', '?page=10000', '?page=2&page=3', '?page=2&chapter=8'])('Mangahub 非法页码或其他章节参数 %s 仍使旧会话失效', async search => {
+        const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1');
+        const root = f.document.createElement('reader-viewer'), scan = f.document.createElement('reader-scan');scan.className = 'reader-viewer-scan';
+        f.image.className = 'reader-viewer-img';scan.append(f.image);root.append(scan);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();
+        f.window.location.href = `https://mangahub.ru/read/962303${search}`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
     it('GlobalComix 受限正文只发布圈选入口，封面、移除和总开关不启动图片请求',()=>{
         const f=readerFixture(false,'https://globalcomix.com/read/be3701bf-70cc-43e8-b16d-3f168abaf799/1/1');
         expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});

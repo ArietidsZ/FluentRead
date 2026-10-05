@@ -1,5 +1,5 @@
 import {describe, expect, it, vi} from 'vitest';
-import {groupMangaText, type MangaOcrItem} from '@/src/features/image-translation/services/mangaRegions';
+import {groupMangaText, groupMangaOcrLines, type MangaOcrItem} from '@/src/features/image-translation/services/mangaRegions';
 import {drawMangaTranslations} from '@/src/features/image-translation/services/mangaRendering';
 import {layoutImageTranslationText} from '@/src/features/image-translation/services/rendering';
 
@@ -7,6 +7,28 @@ const item = (text: string, x = 20, y = 20, width = 80, height = 20, confidence 
     ({text, box: {x, y, width, height}, confidence});
 
 describe('漫画整段识别与噪声边界', () => {
+    it('俄语和韩语通用 OCR 补足修补字号，合并连续对白，原框与原文不被修改', () => {
+        const lines = [
+            {text: '  Что-то\n ', bbox: {x0: 20, y0: 20, x1: 100, y1: 40}},
+            {text: 'забыл', bbox: {x0: 20, y0: 44, x1: 100, y1: 64}},
+            {text: 'Другой', bbox: {x0: 220, y0: 20, x1: 300, y1: 40}},
+        ];
+        const original = structuredClone(lines), regions = groupMangaOcrLines(lines, ' RU_ru ', 400, 300);
+        expect(regions.map(region => region.text)).toEqual(['Другой', 'Что-то забыл']);
+        expect(regions[1]).toMatchObject({fontSize: 20, bbox: {x0: 20, y0: 20, x1: 100, y1: 64}, sourceBoxes: [lines[0].bbox, lines[1].bbox]});
+        expect(lines).toEqual(original);regions[1].sourceBoxes![0].x0 = 0;expect(lines).toEqual(original);
+        expect(groupMangaOcrLines([{text: '시작했다고?', bbox: lines[0].bbox}], 'ko-KR', 400, 300)[0].fontSize).toBe(20);
+    });
+    it('通用漫画识别拒绝无效尺寸、越界框和短异文噪声，保留合法单字、长英文与竖排字号', () => {
+        const box = {x0: 20, y0: 20, x1: 100, y1: 40};
+        for (const [width, height] of [[0, 20], [20, NaN], [10.5, 20]]) expect(groupMangaOcrLines([], 'ru', width, height)).toEqual([]);
+        const noisy = ['', '--', 'a!', 'N', 'ㅁ2', 'ㅋㅋ'].map(text => ({text, bbox: box}));
+        expect(groupMangaOcrLines(noisy, 'ko', 400, 300)).toEqual([]);
+        expect(groupMangaOcrLines([{text: 'Я', bbox: box}], 'ru', 400, 300)[0].text).toBe('Я');
+        expect(groupMangaOcrLines([{text: 'HELLO', bbox: box}], 'ko', 400, 300)[0].text).toBe('HELLO');
+        expect(groupMangaOcrLines([{text: '通用', bbox: {x0: -5, y0: -5, x1: 10, y1: 60}, vertical: true}], 'auto', 400, 300)[0]).toMatchObject({fontSize: 10, vertical: true});
+        for (const bbox of [{...box, x0: NaN}, {...box, x0: 401}, {...box, y0: 301}, {...box, x1: 0}]) expect(groupMangaOcrLines([{text: 'слово', bbox}], 'ru', 400, 300)).toEqual([]);
+    });
     it('日文页排除绘画上误识别的短拉丁片段，保留日文对白和完整拉丁词', () => {
         const fragments=[item('A'),item('HU'),item('B ou'),item('Q')];
         expect(groupMangaText(fragments,'ja',400,400)).toEqual([]);

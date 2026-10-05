@@ -30,6 +30,22 @@ describe('图片 OCR 处理与结果缓存', () => {
         await recognizeImage('progress', 'en', undefined, {onProgress});
         expect(onProgress).toHaveBeenCalledOnce();
     });
+    it.each(['avif', 'webp', 'svg+xml', 'gif'])('浏览器已解码的 %s 以原尺寸 PNG 送入 OCR，不把不支持的编码交给内核', async format => {
+        const decoded = {naturalWidth: 900, naturalHeight: 2595, src: 'owned'} as HTMLImageElement;
+        const lines = await recognizeImage(`data:image/${format};base64,example`, 'ru', undefined, {decodedImage: decoded});
+        expect(context.drawImage).toHaveBeenCalledWith(decoded, 0, 0, 900, 2595);
+        expect(canvas.toDataURL).toHaveBeenCalledWith('image/png');
+        expect(recognize).toHaveBeenCalledWith('scaled-image', 'rus+eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(lines).toEqual([{text: 'hello', bbox: {x0: 10, y0: 10, x1: 50, y1: 30}}]);
+        expect(decoded.src).toBe('owned');expect(sources).toHaveLength(0);
+        expect(canvas.width).toBe(0);expect(canvas.height).toBe(0);
+    });
+    it.each(['png', 'jpeg', 'jpg'])('原尺寸 %s 输入仍直接复用编码，不增加 Canvas', async format => {
+        const input = `data:image/${format};base64,example`;
+        await recognizeImage(input, 'ko');
+        expect(recognize).toHaveBeenCalledWith(input, 'kor+eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(canvas.toDataURL).not.toHaveBeenCalled();
+    });
     it('清除语言包后丢弃 OCR 结果并重新识别', async () => {
         await recognizeImage('same', 'en');
         await recognizeImage('same', 'en');

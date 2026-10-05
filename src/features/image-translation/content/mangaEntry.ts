@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/mangaEntry.ts
  * 文件职责：将安静的独立漫画按钮和按需资源确认挂载到隔离 Shadow UI，并桥接真实会话、资源检查与持久偏好。
- * 主要内容：用地址识别阅读页，按悬浮球和站点显隐显示备用按钮，不自动弹出阅读面板；订阅会话和配置，跨路由同步网站名称；挂载所有权防止关闭后的迟到实例回到页面，卸载清理订阅。
+ * 主要内容：按地址与站点策略显示备用按钮，俄语和韩语检查既有 OCR 语言包与漫画清字资源，其他语言检查漫画模型；订阅会话和配置并同步源语言；挂载所有权防止迟到实例回到页面，卸载清理订阅。
  * 模块边界：仅编排 feature 内部 UI 与公共配置、浏览器消息端口，不下载模型、不实现翻译，宿主脚本不能通过合成 DOM 事件发起动作。
  */
 import {reactive} from 'vue';
@@ -15,6 +15,7 @@ import {resolveMangaSite} from '@/src/core/config/manga';
 import MangaEntry from '../ui/MangaEntry.vue';
 import {subscribeMangaTranslation, toggleMangaTranslation} from './runtime';
 import type {MangaTranslationStatus} from './mangaSession';
+import {getMangaOcrEngine, getRequiredImageOcrLanguages, normalizeImageOcrLanguageCodes, type ImageOcrStatusResponse} from '../ocrLanguages';
 
 let ui: ShadowRootContentScriptUi<VueShadowMount> | null = null;
 let pending: Promise<void> | null = null;
@@ -27,10 +28,10 @@ export function mountMangaEntry(ctx: ContentScriptContext, ports: {startAreaTran
     if (ui || pending) return pending ?? Promise.resolve();
     const request = ++owner;
     const status = reactive<MangaTranslationStatus>({available: false, active: false, pending: false, errors: 0});
-    const settings = reactive({promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
+    const settings = reactive({sourceLanguage: config.from, promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
         service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, toolsDisplay: config.floatingBallToolsDisplay ?? 'always', prefetchPages: config.imageTranslationMangaPrefetchPages});
     const page = reactive({site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});
-    const sync = () => {Object.assign(settings, {promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
+    const sync = () => {Object.assign(settings, {sourceLanguage: config.from, promptEnabled: config.imageTranslationMangaPromptEnabled, floatingBallVisible: !config.disableFloatingBall && !isFloatingBallDisabledOnSite(location.href, config.floatingBallDisabledDomains), to: config.to,
         service: config.imageTranslationService, downloadConfirmed: config.imageTranslationMangaDownloadConfirmed, animations: config.animations, toolsDisplay: config.floatingBallToolsDisplay ?? 'always', prefetchPages: config.imageTranslationMangaPrefetchPages});
         Object.assign(page, {site: resolveMangaSite(location.href, config.imageTranslationMangaSites)?.name ?? '', route: location.href});};
     const stopStatus = subscribeMangaTranslation(value => Object.assign(status, value));
@@ -43,8 +44,15 @@ export function mountMangaEntry(ctx: ContentScriptContext, ports: {startAreaTran
                 && await (ports.startAreaTranslation?.() ?? false),
             toggle: () => {if (config.on && config.imageTranslationMangaEnabled) toggleMangaTranslation();},
             inspectResources: async () => {
+                const sourceLanguage = config.from;
                 const result = await browser.runtime.sendMessage({type: 'fluentReadMangaModelStatus'}) as {success?: boolean; ready?: boolean; inpaintingReady?: boolean; error?: string};
                 if (!result?.success) throw new Error(result?.error || '阅读资源状态读取失败，请重试');
+                if (getMangaOcrEngine(sourceLanguage) === 'tesseract') {
+                    const status = await browser.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}) as ImageOcrStatusResponse;
+                    if (!status?.success) throw new Error(status?.error || '阅读资源状态读取失败，请重试');
+                    const downloaded = new Set(normalizeImageOcrLanguageCodes(status.languages));
+                    return result.inpaintingReady === true && getRequiredImageOcrLanguages(sourceLanguage).every(language => downloaded.has(language));
+                }
                 return result.ready === true && result.inpaintingReady === true;
             },
             persist: (patch: Record<string, unknown>) => requestConfigPatch(patch, message => browser.runtime.sendMessage(message)),

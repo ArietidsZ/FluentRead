@@ -4,7 +4,7 @@ import {parseHTML} from 'linkedom';
 const mocks = vi.hoisted(() => ({
     config: {on: true, disableImageTranslator: true, disableFloatingBall: true, floatingBallDisabledDomains: [] as string[], imageTranslationMangaEnabled: true,
         imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false,
-        imageTranslationMangaSites: [] as unknown[], imageTranslationMangaPrefetchPages:3, animations:false, to: 'zh-Hans', imageTranslationService: ''},
+        imageTranslationMangaSites: [] as unknown[], imageTranslationMangaPrefetchPages:3, animations:false, from: 'auto', to: 'zh-Hans', imageTranslationService: ''},
     create: vi.fn(), status: vi.fn(), toggle: vi.fn(), subscribe: vi.fn(), persist: vi.fn(), send: vi.fn(),
     stopStatus: vi.fn(), stopConfig: vi.fn(),
 }));
@@ -23,7 +23,7 @@ beforeEach(() => {
     const dom = parseHTML('<html><body></body></html>');vi.stubGlobal('document', dom.document);vi.stubGlobal('Event', dom.window.Event);
     vi.stubGlobal('location', {href});
     Object.assign(mocks.config, {on: true, disableImageTranslator: true, disableFloatingBall: true, floatingBallDisabledDomains: [], imageTranslationMangaEnabled: true,
-        imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false, imageTranslationMangaSites: [], to: 'zh-Hans', imageTranslationService: ''});
+        imageTranslationMangaPromptEnabled: true, imageTranslationMangaDownloadConfirmed: false, imageTranslationMangaSites: [], from: 'auto', to: 'zh-Hans', imageTranslationService: ''});
     mocks.subscribe.mockReturnValue(mocks.stopConfig);mocks.status.mockReturnValue(mocks.stopStatus);
     mocks.create.mockResolvedValue({remove: vi.fn(), mounted: {instance: {open: vi.fn()}}});
     mocks.send.mockResolvedValue({success: true, ready: true, inpaintingReady: true});
@@ -31,6 +31,24 @@ beforeEach(() => {
 afterEach(() => {unmountMangaEntry();vi.unstubAllGlobals();});
 
 describe('独立漫画入口所有权和配置端口', () => {
+    it.each([['ru', 'rus'], ['ko-KR', 'kor']])('漫画源语言 %s 检查已有语言包与清字模型，不要求无关的专用字表', async (source, language) => {
+        mocks.config.from = source;await mountMangaEntry({} as never);
+        const inspect = async (languages: unknown, inpaintingReady = true) => {
+            mocks.send.mockResolvedValueOnce({success: true, ready: false, inpaintingReady})
+                .mockResolvedValueOnce({success: true, languages});
+            return props().inspectResources();
+        };
+        expect(await inspect([language, 'eng'])).toBe(true);
+        expect(await inspect([language])).toBe(false);
+        expect(await inspect(['eng'])).toBe(false);
+        expect(await inspect([language, 'eng'], false)).toBe(false);
+        expect(await inspect({language, eng: true})).toBe(false);
+        mocks.send.mockResolvedValueOnce({success: true, inpaintingReady: true}).mockResolvedValueOnce({success: false, error: 'language status failed'});
+        await expect(props().inspectResources()).rejects.toThrow('language status failed');
+        mocks.send.mockResolvedValueOnce({success: true, inpaintingReady: true}).mockResolvedValueOnce(undefined);
+        await expect(props().inspectResources()).rejects.toThrow('阅读资源状态读取失败');
+        expect(mocks.send.mock.calls.every(([message]) => ['fluentReadMangaModelStatus', 'fluentReadImageOcrStatus'].includes(message.type))).toBe(true);
+    });
     it('圈选端口只在启用漫画且确实检测到画布/分片时调用，不触发连续翻译', async () => {
         const startAreaTranslation=vi.fn().mockResolvedValue(true);
         await mountMangaEntry({} as never,{startAreaTranslation});
@@ -41,6 +59,10 @@ describe('独立漫画入口所有权和配置端口', () => {
         expect(await props().startAreaTranslation()).toBe(false);expect(startAreaTranslation).toHaveBeenCalledOnce();
         mocks.config.on=false;expect(await props().startAreaTranslation()).toBe(false);
         expect(mocks.toggle).not.toHaveBeenCalled();
+        unmountMangaEntry();mocks.config.on = true;
+        await mountMangaEntry({} as never);
+        mocks.status.mock.calls.at(-1)![0]({available: true, active: false, pending: false, errors: 0, areaFallback: true});
+        expect(await props().startAreaTranslation()).toBe(false);
     });
     it('备用按钮依据普通悬浮球和站点名单显隐，不重复显示入口', async () => {
         await mountMangaEntry({} as never);
@@ -77,7 +99,8 @@ describe('独立漫画入口所有权和配置端口', () => {
         mocks.config.to = 'en';mocks.config.imageTranslationMangaPromptEnabled = false;
         mocks.config.imageTranslationMangaDownloadConfirmed = true;mocks.config.imageTranslationService = 'google';
         mocks.config.imageTranslationMangaPrefetchPages = 0;
-        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({promptEnabled: false, floatingBallVisible: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false, toolsDisplay:'always', prefetchPages:0});
+        mocks.config.from = 'ru';
+        mocks.subscribe.mock.calls[0][0]();expect(props().settings).toEqual({sourceLanguage: 'ru', promptEnabled: false, floatingBallVisible: false, to: 'en', downloadConfirmed: true, service: 'google', animations:false, toolsDisplay:'always', prefetchPages:0});
         location.href = 'https://example.com/';document.dispatchEvent(new Event('fluentread-route-change'));
         expect(props().page).toEqual({site: '', route: location.href});
         expect(openMangaEntry()).toBe(true);expect(value.mounted.instance.open).toHaveBeenCalledOnce();

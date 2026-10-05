@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、长图分段、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
- * 主要内容：单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
+ * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import {imageTranslationFailureCode, imageLocalFailureMessage, type ImageLocalFailure} from '../failure';
@@ -31,6 +31,7 @@ import {composeMangaPage} from './mangaCompositor';
 import {createMangaCanvas} from './mangaCanvas';
 import {createMangaBackground} from './mangaBackground';
 import {createMangaImageSegments} from './mangaImageSegments';
+import {getMangaOcrEngine} from '../ocrLanguages';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -289,7 +290,7 @@ function configurationIdentity(manga = false): string {
         config.minimaxBillingPlan, config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
         document.title,
         manga,
-        manga ? 'paddle' : config.imageTranslationOcrEngine,
+        manga ? getMangaOcrEngine(config.from) : config.imageTranslationOcrEngine,
     ]);
 }
 
@@ -892,7 +893,7 @@ function requestIsCurrent(state: ImageTranslationState, controller: AbortControl
 
 async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
     // 识别方式改变后，不继续下载旧方式的语言包；新方式在用户的翻译任务内准备自己的资源。
-    if (config.imageTranslationOcrEngine === 'paddle') prepareLanguages = false;
+    if (!state.manga && config.imageTranslationOcrEngine === 'paddle') prepareLanguages = false;
     if (state.phase === 'loading' || !state.image.isConnected || !imageTranslationAllowed(state.manga === true)) return;
     state.hoverEntry = false;
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
@@ -918,6 +919,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         return;
     }
     deleteCachedResult(state.image);
+    if (state.manga && getMangaOcrEngine(config.from) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) prepareLanguages = true;
     state.needsPreparation = false;
     state.localFailure = undefined;
     state.errorDetails = undefined;
@@ -931,6 +933,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             await prepareImageOcrLanguages(sourceLanguage, controller.signal);
             preparingLanguages = false;
             if (!requestIsCurrent(state, controller)) return;
+            if (configurationIdentity(state.manga) !== identity) throw new Error('翻译设置已更改，请重试');
             setButtonState(state, 'loading', '正在读取图片…');
         }
         state.waitingForImage = !state.image.complete;
@@ -1214,9 +1217,17 @@ export function mountImageTranslator(): void {
     if (mounted) return;
     mounted = true;
     stopConfigurationWatch = watchTranslationConfiguration();
-    const translateSnapshot = (image: string, signal: AbortSignal) => {
+    const translateSnapshot = async (image: string, signal: AbortSignal) => {
         const identity = configurationIdentity(true);
-        return translateImageInExtension(image, config.from, document.title, {manga: true, signal, timeoutMs: 300_000,
+        const sourceLanguage = config.from;
+        if (getMangaOcrEngine(sourceLanguage) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) {
+            publishMangaStatus({...mangaStatus, stage: 'preparing'});
+            await prepareImageOcrLanguages(sourceLanguage, signal);
+        }
+        if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) {
+            throw Object.assign(new Error('漫画识别请求已取消'), {name: 'AbortError'});
+        }
+        return translateImageInExtension(image, sourceLanguage, document.title, {manga: true, signal, timeoutMs: 300_000,
             onProgress: (stage, progress) => {
                 if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) return;
                 publishMangaStatus({...mangaStatus, stage, progress});

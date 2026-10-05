@@ -181,6 +181,8 @@ beforeEach(() => {
     settings.imageTranslationMangaEnabled = true; settings.imageTranslationHoverEnabled = true; settings.imageTranslationContextMenuEnabled = true;
     settings.imageTranslationMangaCachePages = 12;
     settings.imageTranslationOcrEngine = 'tesseract';
+    settings.imageTranslationMangaDownloadConfirmed = false;
+    settings.from = 'auto';
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
@@ -1082,6 +1084,45 @@ describe('视频预览不自动显示图片翻译', () => {
         const scroll=()=>{for(const [name,callback] of env.windowObject.addEventListener.mock.calls)if(name==='scroll')(callback as EventListener)(new Event('scroll'));env.runFrames();};
         return {pages, visit:async(index:number,near=-1)=>{current=index;nearby=near;scroll();await flush();env.runFrames();await flush();}, near:(index:number)=>{nearby=index;scroll();}};
     }
+    it.each(['ru', 'ko-KR'])('漫画 %s 已确认后准备语言包，暂停再开复用译图，单图引擎不影响准备', async source => {
+        const env = readerPage();settings.from = source;settings.imageTranslationOcrEngine = 'paddle';settings.imageTranslationMangaDownloadConfirmed = true;
+        toggleMangaTranslation();await flush();
+        expect(client.prepare).toHaveBeenCalledWith(source, expect.any(AbortSignal));
+        expect(client.prepare.mock.invocationCallOrder[0]).toBeLessThan(client.translate.mock.invocationCallOrder[0]);
+        expect(client.translate).toHaveBeenCalledWith(expect.any(String), source, expect.any(String), expect.objectContaining({manga: true}));
+        expect(env.bitmap()).not.toBeNull();toggleMangaTranslation();await flush();expect(env.bitmap()).toBeNull();
+        toggleMangaTranslation();await flush();expect(env.bitmap()).not.toBeNull();
+        expect(client.prepare).toHaveBeenCalledOnce();expect(client.translate).toHaveBeenCalledOnce();
+    });
+    it('漫画未确认下载时不自动准备俄语包，失败保留原图与重试能力', async () => {
+        const env = readerPage();settings.from = 'ru';client.translate.mockRejectedValueOnce(new Error('请先下载语言包'));
+        const listener = vi.fn(), stop = subscribeMangaTranslation(listener);
+        toggleMangaTranslation();await flush();expect(client.prepare).not.toHaveBeenCalled();
+        expect(env.bitmap()).toBeNull();expect(env.image.style.opacity).not.toBe('0');
+        expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors: 1}));
+        settings.imageTranslationMangaDownloadConfirmed = true;
+        toggleMangaTranslation();await flush();toggleMangaTranslation();await flush();
+        expect(client.prepare).toHaveBeenCalledWith('ru', expect.any(AbortSignal));expect(env.bitmap()).not.toBeNull();stop();
+    });
+    it.each(['pause', 'language', 'unmount'])('准备漫画语言包期间 %s 后不发起旧识别、不改原图', async action => {
+        const env = readerPage();settings.from = 'ko';settings.imageTranslationMangaDownloadConfirmed = true;
+        const wait = deferred<void>();client.prepare.mockReturnValueOnce(wait.promise);
+        toggleMangaTranslation();await flush();expect(client.prepare).toHaveBeenCalledOnce();expect(client.translate).not.toHaveBeenCalled();
+        const signal = client.prepare.mock.calls[0][1] as AbortSignal;
+        if (action === 'pause') toggleMangaTranslation();
+        if (action === 'language') settings.from = 'ru';
+        if (action === 'unmount') unmountImageTranslator();
+        await flush();wait.resolve();await flush();
+        expect(client.translate).not.toHaveBeenCalled();expect(env.bitmap()).toBeNull();expect(env.image.style.opacity).not.toBe('0');
+        if (action !== 'language') expect(signal.aborted).toBe(true);
+    });
+    it('漫画语言包准备失败后暂停再开可以重试，已确认状态不丢失', async () => {
+        const env = readerPage();settings.from = 'ru';settings.imageTranslationMangaDownloadConfirmed = true;
+        client.prepare.mockRejectedValueOnce(new Error('download failed'));
+        toggleMangaTranslation();await flush();expect(client.translate).not.toHaveBeenCalled();expect(env.bitmap()).toBeNull();
+        toggleMangaTranslation();await flush();toggleMangaTranslation();await flush();
+        expect(client.prepare).toHaveBeenCalledTimes(2);expect(env.bitmap()).not.toBeNull();
+    });
     it('漫画默认快速缓存可保留十二张正常页，第十三张才淘汰最早结果',async()=>{
         const env=readerPage();settings.imageTranslationMangaPrefetchPages=0;const chapter=cacheChapter(env,13);
         toggleMangaTranslation();await flush();

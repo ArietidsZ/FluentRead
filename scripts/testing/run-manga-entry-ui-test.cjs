@@ -169,6 +169,21 @@ async function clickEntry(selector) {let point = await entry(`const b=this.query
         }
         report.cases.push(report.currentCase);
         report.currentCase = 'ordinary pages keep resident brand and translation controls; explicit hover remains available';
+        for (const [sourceLanguage, label, size] of [['ru', 'Russian and English', '16 MB'], ['ko', 'Korean and English', '13 MB']]) {
+            report.currentCase = `${sourceLanguage} first-use consent follows the source language and does not download on inspection`;
+            await patch({from: sourceLanguage, uiLanguage: 'en-US'});
+            await wait(async () => await entry('return !this.querySelector(".fr-manga-entry")'));
+            const point = await ball('const r=this.querySelector(".floating-ball-manga").getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}');
+            await page.mouse.click(point.x, point.y);
+            await wait(async () => await entry(`return this.querySelector(".fr-manga-entry p")?.textContent.includes(${JSON.stringify(label)})`));
+            assert.equal(await entry(`return this.querySelector(".fr-manga-entry p").textContent.includes(${JSON.stringify(size)})`), true);
+            const status = await popup.evaluate(() => chrome.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}));
+            assert.deepEqual(status.languages, []);
+            assert.equal(await popup.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.imageTranslationMangaDownloadConfirmed), false);
+            await shot(`entry-first-use-${sourceLanguage}`);report.cases.push(report.currentCase);
+        }
+        await patch({from: 'en'});
+        report.currentCase = 'ordinary pages keep resident brand and translation controls; explicit hover remains available';
         await page.setViewportSize({width:1280,height:900});
         await context.route('https://ordinary.example.test/article', route => route.fulfill({contentType:'text/html',body:'<html><body><p>Ordinary reading page</p></body></html>'}));
         await page.mouse.move(30,30);await page.goto('https://ordinary.example.test/article');

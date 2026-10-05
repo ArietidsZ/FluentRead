@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/MangaEntry.vue
  * 文件职责：提供安静的漫画入口，仅在用户主动启动且缺少资源时说明首次下载。
- * 主要内容：普通悬浮球不可见时显示紧凑漫画阅读按钮，默认常驻，显式选择悬停模式才闲置半收回；画布与分片通过圈选入口处理；点击开始或切换原文，下载确认关闭后不开始、不重新弹出，路由变化与卸载清理迟到检查和闲置计时器。
+ * 主要内容：普通悬浮球不可见时显示紧凑漫画按钮，默认常驻；按源语言说明识别资源和首次下载，俄语或韩语复用既有语言包；圈选页使用区域入口，关闭确认不开始，路由和源语言变化、卸载使迟到检查失效。
  * 模块边界：不自动展开阅读面板，不下载资源、不扫描图片；单页进度属于图片运行时，动作通过注入端口执行，界面只属于 closed Shadow UI。
  -->
 <template>
@@ -15,7 +15,7 @@
     <header><strong>{{ t('漫画翻译') }}</strong><button type="button" class="fr-manga-close" :aria-label="t('关闭')" @click="close">×</button></header>
     <template v-if="consent">
       <h3>{{ t('首次使用，先准备阅读资源') }}</h3>
-      <p>{{ t('需要下载约 30 MB 的文字识别资源，复杂画面另需约 197 MB 的文字清除资源。下载一次后可重复使用。') }}</p>
+      <p>{{ resourceDescription }}</p>
       <p class="fr-manga-hint">{{ t('首次等待可能较长。图片在本地处理，识别出的文字交给你选择的翻译服务。') }}</p>
       <button type="button" class="fr-manga-primary" :disabled="busy" @click="confirm">{{ t('准备资源并开始') }}</button>
       <button type="button" class="fr-manga-later" :disabled="busy" @click="close">{{ t('稍后') }}</button>
@@ -32,9 +32,10 @@
 import {computed, onBeforeUnmount, ref, watch} from 'vue';
 import {useUiI18n} from '@/src/ui/i18n';
 import type {MangaTranslationStatus} from '../content/mangaSession';
+import {getMangaOcrEngine, getRequiredImageOcrLanguages} from '../ocrLanguages';
 const props = defineProps<{
   status: MangaTranslationStatus; page: {site: string; route: string};
-  settings: {promptEnabled: boolean; floatingBallVisible: boolean; downloadConfirmed: boolean; animations: boolean; toolsDisplay?: string};
+  settings: {sourceLanguage?: string; promptEnabled: boolean; floatingBallVisible: boolean; downloadConfirmed: boolean; animations: boolean; toolsDisplay?: string};
   toggle: () => void; inspectResources: () => Promise<boolean>; persist: (patch: Record<string, unknown>) => Promise<unknown>; openSettings: () => void;
   startAreaTranslation: () => Promise<boolean>;
 }>();
@@ -43,6 +44,13 @@ const consent = ref(false), busy = ref(false), error = ref('');
 const standalone = computed(() => props.status.available && !props.settings.floatingBallVisible && props.settings.promptEnabled);
 const alwaysExpanded = computed(() => props.settings.toolsDisplay !== 'hover');
 const visible = computed(() => props.status.available && (consent.value || !!error.value));
+const resourceDescription = computed(() => {
+  const sourceLanguage = props.settings.sourceLanguage ?? 'auto';
+  if (getMangaOcrEngine(sourceLanguage) === 'paddle') return t('需要下载约 30 MB 的文字识别资源，复杂画面另需约 197 MB 的文字清除资源。下载一次后可重复使用。');
+  return t(getRequiredImageOcrLanguages(sourceLanguage).includes('rus')
+    ? '需要准备俄语和英语识别资源，约 16 MB。复杂画面另需约 197 MB 的文字清除资源，已下载资源可重复使用。'
+    : '需要准备韩语和英语识别资源，约 13 MB。复杂画面另需约 197 MB 的文字清除资源，已下载资源可重复使用。');
+});
 const actionLabel = computed(() => t(props.status.areaFallback ? '圈选漫画翻译' : props.status.active ? '暂停并显示原图' : '开启连续翻译'));
 const buttonTitle = computed(() => {
   const message = busy.value ? '正在检查阅读资源' : props.status.pending ? props.status.message || '正在处理当前漫画页' : props.status.errors ? '部分页面未完成' : '';
@@ -92,6 +100,7 @@ async function confirm() {
   finally {if (!disposed && owner === request) busy.value = false;}
 }
 watch(() => props.page.route, close);
+watch(() => props.settings.sourceLanguage, close);
 watch(() => props.status.areaFallback, close);
 watch(() => props.status.available, available => {if (!available) close();});
 watch(standalone, () => {clearIdle();expanded.value = false;});

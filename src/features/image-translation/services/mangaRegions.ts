@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaRegions.ts
- * 文件职责：把漫画神经 OCR 的坐标、置信度和文字转换成可整段翻译的气泡或旁白区域。
- * 主要内容：校验并夹紧原图坐标，过滤低置信度、纯符号和源语言不符的碎片；按书写方向、字号、重叠与间距合并相邻行，保持不同气泡分离和正确阅读顺序。
+ * 文件职责：把漫画专用 OCR 和通用 OCR 行转换成可整段翻译与修补的气泡或旁白区域。
+ * 主要内容：校验并夹紧坐标，过滤纯符号和源语言不符的短片段；神经 OCR 保留置信度策略，通用 OCR 从行框补足字号与原始修补框；按方向、字号、重叠与间距合并相邻行，保持不同气泡分离。
  * 模块边界：纯数据算法，不运行模型、不读取 DOM 或配置，也不修补图片；只输出可核对的识别原文和区域，不推测缺失文字。
  */
 import type {OcrLine} from '@/src/shared/image/types';
@@ -58,6 +58,30 @@ export function groupMangaText(items: MangaOcrItem[], sourceLanguage: string, wi
             && (english ? !/^[IA][.!?]?$/u.test(text) : item.confidence < 0.9 || Math.max(box.width, box.height) > width * 0.12)) return [];
         return [{text, bbox, fontSize, ...(vertical ? {vertical: true as const} : {})}];
     });
+    return mergeMangaLines(lines);
+}
+
+/** 已规范化的 Tesseract 行不带漫画字号；从原图行框补足修补契约，再合并跨行对白，保留所有原始框。 */
+export function groupMangaOcrLines(lines: OcrLine[], sourceLanguage: string, width: number, height: number): MangaRegion[] {
+    if (![width, height].every(value => Number.isSafeInteger(value) && value > 0)) return [];
+    const language = sourceLanguage.trim().replace(/_/gu, '-').toLowerCase().split('-')[0];
+    const regions: MangaRegion[] = lines.flatMap(line => {
+        const text = line.text.replace(/\s+/gu, ' ').trim();
+        const {x0, y0, x1, y1} = line.bbox;
+        if (!text || !/\p{L}/u.test(text) || ![x0, y0, x1, y1].every(Number.isFinite)) return [];
+        // 与日文专用模型一致，排除绘画上误识别的短拉丁碎片；合法源语言字和完整英文词仍保留。
+        const native = language === 'ru' ? /\p{Script=Cyrillic}/u.test(text)
+            : language === 'ko' ? /[\uac00-\ud7a3]/u.test(text) : true;
+        if (!native && text.replace(/[^a-z]/giu, '').length < 4) return [];
+        const bbox = {x0: Math.max(0, x0), y0: Math.max(0, y0), x1: Math.min(width, x1), y1: Math.min(height, y1)};
+        if (bbox.x1 <= bbox.x0 || bbox.y1 <= bbox.y0) return [];
+        return [{text, bbox, fontSize: line.vertical ? bbox.x1 - bbox.x0 : bbox.y1 - bbox.y0,
+            ...(line.vertical ? {vertical: true as const} : {})}];
+    });
+    return mergeMangaLines(regions);
+}
+
+function mergeMangaLines(lines: MangaRegion[]): MangaRegion[] {
     const groups: MangaRegion[][] = [];
     const remaining = new Set(lines);
     for (const first of lines) {
