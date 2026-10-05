@@ -1,0 +1,15 @@
+{
+  "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+  "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
+  "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "worktreeCleanBeforeLocaleGeneration": true,
+  "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+  "lockfilePath": "pnpm-lock.yaml",
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "notes": [
+    "git rev-parse c68a53af^{tree} returned 50e12ecc... before the worktree was created; the tree gate passed.",
+    "The product worktree was created detached at the published source commit and reported 0 modified paths immediately before locale generation.",
+    "git ls-files userscript/languages contains 480 files across es-ES, fr-FR, ja-JP, ko-KR and ru-RU only; there is no zh-CN entry in the frozen commit."
+  ]
+}

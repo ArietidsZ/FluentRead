@@ -1,0 +1,48 @@
+{
+  "server": "<HOME>/Library/Application Support/BrowserClaw/.browseros/BrowserClawServer/versions/0.0.66/resources/bin/browseros-claw-server",
+  "config": "<WORKSPACE>/fluentread-acceptance/run-resume/neo-sidecar.json",
+  "stateDir": "<WORKSPACE>/fluentread-acceptance/run-resume/neo-state",
+  "cwd": "<WORKSPACE>/fluentread-acceptance/run-resume",
+  "pid": 99883,
+  "initialized": true,
+  "tools": [
+    "act",
+    "await_human_help",
+    "diff",
+    "download",
+    "evaluate",
+    "grep",
+    "history",
+    "mark_skill_run",
+    "name_session",
+    "navigate",
+    "pdf",
+    "read",
+    "request_human_help",
+    "run",
+    "save_skill",
+    "screenshot",
+    "snapshot",
+    "tab_groups",
+    "tabs",
+    "upload",
+    "wait",
+    "windows"
+  ],
+  "toolsCount": 22,
+  "resources": [],
+  "errors": [],
+  "stderrHead": "2026-10-05T06:46:39.345567Z  INFO sea_orm_migration::migrator: Applying all pending migrations\n2026-10-05T06:46:39.345932Z  INFO sea_orm_migration::migrator: No pending migrations\n2026-10-05T06:46:39.346674Z  INFO claw_server_rust::services::run_failures: no Sentry DSN configured; run failures will be written to run-failures.log directory=<WORKSPACE>/fluentread-acceptance/run-resume/neo-state/logs\n2026-10-05T06:46:39.348139Z  INFO browseros_cdp::client: CDP link established epoch=1\n2026-10-05T06:46:39.348864Z  INFO claw_server_rust::runtime: audit retention sweep finished sessions_deleted=0 recordings_deleted=0 bytes_reclaimed=0\n2026-10-05T06:46:39.348930Z  INFO claw_server_rust::services::browser::connection: connected to BrowserOS CDP epoch=1\n2026-10-05T06:46:39.349390Z  INFO serve_inner: rmcp::service: Service initialized as server peer_info=Some(InitializeRequestParams { meta: None, protocol_version: ProtocolVersion(\"2025-06-18\"), capabilities: ClientCapabilities { experimental: None, extensions: None, roots: None, sampling: None, elicitation: None }, client_info: Implementation { name: \"fluentread-acceptance-local-probe\", title: ",
+  "serverInfo": {
+    "name": "browseros-neo",
+    "title": "BrowserOS neo",
+    "version": "0.0.66"
+  },
+  "protocolVersion": "2025-06-18",
+  "capabilities": {
+    "tools": {
+      "listChanged": true
+    }
+  },
+  "exitCode": null
+}

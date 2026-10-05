@@ -1,0 +1,276 @@
+{
+  "startedAt": "2026-10-05T04:46:48.197Z",
+  "finishedAt": "2026-10-05T04:47:18.301Z",
+  "cdpPort": 9111,
+  "fixtureUrl": "http://127.0.0.1:54296",
+  "version": {
+    "Browser": "Chrome/151.0.8162.137",
+    "Protocol-Version": "1.3",
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
+    "V8-Version": "15.1.206.17",
+    "WebKit-Version": "537.36 (@8f5d36bc16f57115aeeff34baf4ad6aa964d509c)",
+    "webSocketDebuggerUrl": "ws://127.0.0.1:9111/devtools/browser/7c509024-9e80-455b-8196-6432454fdf6e"
+  },
+  "product": "Chrome/151.0.8162.137",
+  "revision": "@8f5d36bc16f57115aeeff34baf4ad6aa964d509c",
+  "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)",
+  "pageGpu": {
+    "context": "normal-page",
+    "legacyIsFallbackAdapter": "ABSENT",
+    "info": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxTextureDimension2D": 16384,
+      "maxBindGroups": 4,
+      "maxComputeInvocationsPerWorkgroup": 1024
+    },
+    "hasShaderF16": true
+  },
+  "offscreenGpu": {
+    "context": "extension-offscreen",
+    "legacyIsFallbackAdapter": "ABSENT",
+    "info": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxTextureDimension2D": 16384,
+      "maxBindGroups": 4,
+      "maxComputeInvocationsPerWorkgroup": 1024
+    },
+    "hasShaderF16": true
+  },
+  "workerGpu": {
+    "error": "Error: worker timeout",
+    "context": "extension-worker"
+  },
+  "incognitoGpu": {
+    "context": "incognito-page",
+    "legacyIsFallbackAdapter": "ABSENT",
+    "info": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "device": "",
+      "description": "",
+      "isFallbackAdapter": false
+    },
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxTextureDimension2D": 16384,
+      "maxBindGroups": 4,
+      "maxComputeInvocationsPerWorkgroup": 1024
+    },
+    "hasShaderF16": true
+  },
+  "incognitoReachable": true,
+  "incognitoError": null,
+  "targetInventory": [
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://adlpneommgkgeanpaekgoaolcpncohkf/background.js"
+    },
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc/background.js"
+    },
+    {
+      "type": "service_worker",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js"
+    },
+    {
+      "type": "page",
+      "url": "http://127.0.0.1:54296/"
+    },
+    {
+      "type": "page",
+      "url": "http://127.0.0.1:54296/"
+    },
+    {
+      "type": "page",
+      "url": "chrome://newtab/"
+    },
+    {
+      "type": "iframe",
+      "url": "chrome-untrusted://new-tab-page/one-google-bar?paramsencoded="
+    },
+    {
+      "type": "browser_ui",
+      "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html"
+    },
+    {
+      "type": "browser_ui",
+      "url": "chrome://omnibox-popup.top-chrome/"
+    },
+    {
+      "type": "page",
+      "url": "http://127.0.0.1:54296/"
+    },
+    {
+      "type": "page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-general"
+    }
+  ],
+  "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "extensionName": "FluentRead-流畅阅读",
+  "extensionVersion": "0.0.35",
+  "fixtureDom": {
+    "fixtureTitle": "FluentRead local acceptance",
+    "headings": [
+      "Routing and privacy",
+      "Single image",
+      "Manga image",
+      "TTS text with ending markers"
+    ],
+    "images": [
+      {
+        "id": "single-image",
+        "w": 900,
+        "h": 280
+      },
+      {
+        "id": "manga-image",
+        "w": 900,
+        "h": 620
+      }
+    ],
+    "ttsChars": 1081
+  },
+  "observations": [
+    {
+      "text": "OS GPU: Apple M2 Max (38 GPU cores, Metal 4)"
+    },
+    {
+      "text": "Browser: Chrome/151.0.8162.137 revision=@8f5d36bc16f57115aeeff34baf4ad6aa964d509c (CDP protocol 1.3)"
+    },
+    {
+      "text": "Extension in profile: BrowserOS Feedback 57.0.0.0 (adlpneommgkgeanpaekgoaolcpncohkf)"
+    },
+    {
+      "text": "Extension in profile: BrowserOS neo 0.2.22.0 (pjimfkbpehlcllblajnpfamdfjhhlgkc)"
+    },
+    {
+      "text": "Extension in profile: FluentRead-流畅阅读 0.0.35 (djnlaiohfaaifbibleebjggkghlmcpcj)"
+    },
+    {
+      "text": "Extension in profile: FluentRead-流畅阅读 0.0.35 (djnlaiohfaaifbibleebjggkghlmcpcj)"
+    },
+    {
+      "text": "Extension self-reported manifest: FluentRead-流畅阅读 0.0.35 (MV3) id=djnlaiohfaaifbibleebjggkghlmcpcj"
+    },
+    {
+      "text": "Captured extension options page screenshot"
+    },
+    {
+      "text": "Context normal-page: FluentRead local acceptance secure=true fallback=false f16=true"
+    },
+    {
+      "text": "Captured fixture home screenshot (159859 bytes)"
+    },
+    {
+      "text": "Fixture DOM: headings=[\"Routing and privacy\",\"Single image\",\"Manga image\",\"TTS text with ending markers\"] images=[\"single-image:900x280\",\"manga-image:900x620\"] ttsChars=1081"
+    },
+    {
+      "text": "Context extension-offscreen: fallback=false f16=true err=none"
+    },
+    {
+      "text": "Context extension-worker: fallback=undefined f16=undefined err=Error: worker timeout"
+    },
+    {
+      "text": "Incognito browser context created: F710F483E7362293FED35EE37CB28CFF"
+    },
+    {
+      "text": "Context incognito-page: fallback=false f16=true"
+    },
+    {
+      "text": "Incognito browser context disposed"
+    }
+  ]
+}

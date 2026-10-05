@@ -1,0 +1,76 @@
+{
+  "events": [
+    {
+      "event": "environment",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "local shell",
+      "node": "v22.23.3",
+      "pnpm": "9.12.1",
+      "note": "Node 22.23.3 installed keg-only via Homebrew; pnpm 9.12.1 installed under that Node. Node 26.10.0 remains the default on PATH."
+    },
+    {
+      "event": "tree-gate",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "git rev-parse c68a53af^{tree}",
+      "expected": "50e12ecc7f4c72448f03e714a585814eb9476622",
+      "observed": "50e12ecc7f4c72448f03e714a585814eb9476622",
+      "passed": true
+    },
+    {
+      "event": "worktree-create",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "git worktree add --detach",
+      "commit": "c68a53af300b33109375665197951331e45ae18a",
+      "dirtyPathsBeforeLocaleGeneration": 0
+    },
+    {
+      "event": "install",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "pnpm install --frozen-lockfile",
+      "exitCode": 0,
+      "durationMs": 22000,
+      "nodeModulesBytes": 1503238553
+    },
+    {
+      "event": "generate-userscript-languages",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "pnpm generate:userscript-languages",
+      "exitCode": 0,
+      "bytes": 405,
+      "sha256": "50acc9eb5252cab0aae7022370aac47de1744657df489d96296c97a90b7b50e0",
+      "tail": "userscript/languages/ko-KR.596a291c0f0246ce.json\nuserscript/languages/fr-FR.0bf5e31608846a42.json\nuserscript/languages/ru-RU.8d9abca09211dc28.json\nuserscript/languages/es-ES.c5582401d9c1c771.json"
+    },
+    {
+      "event": "compile",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "pnpm compile (vue-tsc --noEmit)",
+      "exitCode": 0,
+      "bytes": 237,
+      "sha256": "f7df2c1045188348c29b23e13d3cb37d10745b56187eadf7696cf17afbe662da",
+      "tail": "> FluentRead-流畅阅读@0.0.35 compile <WORKSPACE>/fluentread-acceptance-product\n> node scripts/testing/run-resource-safe.mjs -- vue-tsc --noEmit\n\n[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: vue-tsc --noEmit"
+    },
+    {
+      "event": "build",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "pnpm build (wxt build)",
+      "exitCode": 0,
+      "totalSize": "110.47 MB",
+      "bytes": 49323,
+      "sha256": "3990340410a9700592ba02f36f2f64075c602816e030cf6d1bb6bc2c80124209",
+      "tail": "  ├─ .output/chrome-mv3/third-party-notices/wllama-MIT.txt                                                1.07 kB  \n  └─ .output/chrome-mv3/third-party-notices/xmlchars-MIT.txt                                              1.09 kB  \nΣ Total size: 110.47 MB                                                                                 \n✔ Finished in 22.8 s"
+    },
+    {
+      "event": "verify-emitted-model-workers",
+      "at": "2026-10-05T04:46:48.197Z",
+      "context": "node scripts/testing/verify-emitted-model-workers.mjs --extension-dir .output/chrome-mv3",
+      "exitCode": 0
+    },
+    {
+      "event": "fingerprint",
+      "at": "2026-10-05T05:36:10.822Z",
+      "context": "browser-acceptance.mjs fingerprint",
+      "buildFiles": 401,
+      "localeFiles": 480
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+launchMode=open -g -n -a background, dedicated temporary profile, offscreen window placement
+app=/Applications/BrowserOS neo.app
+args:
+  --args
+  --user-data-dir=/tmp/fluentread-resume-856178bb
+  --remote-debugging-port=9345
+  --remote-allow-origins=http://127.0.0.1:9345
+  --window-position=2700,120
+  --window-size=1200,900
+  --no-first-run
+  --no-default-browser-check
+  --enable-unsafe-extension-debugging
+  --disable-features=DefaultBrowserSetting
+launchedAt=2026-10-05T06:41:25Z

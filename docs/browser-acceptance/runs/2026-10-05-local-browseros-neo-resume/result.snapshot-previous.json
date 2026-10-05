@@ -1,0 +1,497 @@
+{
+  "schemaVersion": 2,
+  "testedLocalHead": "7212af1f9da08324963e38973c7f477aabfffb0b",
+  "expectedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "runId": "fluentread-browseros-neo-local-2026-10-05-01",
+  "startedAt": "2026-10-05T04:46:48.197Z",
+  "finishedAt": "2026-10-05T05:36:10.822Z",
+  "overall": "blocked",
+  "environment": {
+    "os": "macOS 27.2 (build 26B5091g), arm64, Apple M2 Max",
+    "browser": "BrowserOS neo (Chromium)",
+    "browserVersion": "151.0.8162.137",
+    "browserosVersion": "0.50.5.0",
+    "launchMode": "macos-background-open (-g -n; no foreground activation)",
+    "profileMarker": "/tmp/fluentread-neo-acceptance-z3nx1O",
+    "focusPolicy": "never activated, never minimized, Page.bringToFront() never called; no trusted focus-safe helper available to validate against",
+    "windowPlacement": "primary display only (single display present), 1440x960, background window",
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "extensionName": "FluentRead-流畅阅读",
+    "extensionVersion": "0.0.35",
+    "browserExecutableSha256": "b65e8c83ff0568b4f082a8c91c4f8cf13807c415519b32f78ca14cd7080445d5",
+    "profileKind": "dedicated-temporary",
+    "launchArguments": [
+      "--user-data-dir=/tmp/fluentread-neo-acceptance-z3nx1O",
+      "--no-first-run",
+      "--no-default-browser-check",
+      "--enable-unsafe-extension-debugging",
+      "--window-size=1440,960",
+      "--window-position=40,40",
+      "note: --load-extension was passed on a first attempt and ignored by Chromium 151; the extension was loaded via CDP Extensions.loadUnpacked instead"
+    ],
+    "capabilityEvidence": [
+      "artifacts/env01/capabilities.json"
+    ],
+    "nodeVersion": "v22.23.3",
+    "pnpmVersion": "9.12.1"
+  },
+  "provenance": {
+    "publishedSourceCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "checkoutCommit": "c68a53af300b33109375665197951331e45ae18a",
+    "observedSourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+    "worktreeCleanBeforeLocaleGeneration": true,
+    "lockfileSha256": "5b251fb80b9a89991ef226fe19e24e249c48963c520945c9a0ef5851ebddb619",
+    "buildManifest": "artifacts/build/build-files.json",
+    "generatedLocalesManifest": "artifacts/build/generated-locales.json",
+    "commands": [
+      "git rev-parse c68a53af300b33109375665197951331e45ae18a^{tree}",
+      "git worktree add --detach <WORKSPACE>/fluentread-acceptance-product c68a53af300b33109375665197951331e45ae18a",
+      "pnpm install --frozen-lockfile",
+      "pnpm generate:userscript-languages",
+      "pnpm compile",
+      "pnpm build",
+      "node scripts/testing/verify-emitted-model-workers.mjs --extension-dir .output/chrome-mv3",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/.output/chrome-mv3 extension-build",
+      "node scripts/testing/browser-acceptance.mjs fingerprint ../fluentread-acceptance-product/userscript/languages generated-locales",
+      "node scripts/testing/browser-acceptance.mjs serve",
+      "node scripts/testing/browser-acceptance.mjs self-check"
+    ]
+  },
+  "hardware": {
+    "status": "physical",
+    "osGpuDescription": "Apple M2 Max (38 GPU cores, Metal 4)",
+    "adapterDescription": "apple metal-3 via GPUAdapterInfo (vendor=apple, architecture=metal-3; Chromium 151 reports GPUAdapterInfo.device and .description as empty strings)",
+    "isFallbackAdapter": false,
+    "features": [
+      "bgra8unorm-storage",
+      "clip-distances",
+      "core-features-and-limits",
+      "depth-clip-control",
+      "depth32float-stencil8",
+      "dual-source-blending",
+      "float32-blendable",
+      "float32-filterable",
+      "indirect-first-instance",
+      "primitive-index",
+      "rg11b10ufloat-renderable",
+      "shader-f16",
+      "subgroups",
+      "texture-component-swizzle",
+      "texture-compression-astc",
+      "texture-compression-astc-sliced-3d",
+      "texture-compression-bc",
+      "texture-compression-bc-sliced-3d",
+      "texture-compression-etc2",
+      "texture-formats-tier1",
+      "texture-formats-tier2",
+      "timestamp-query"
+    ],
+    "limits": {
+      "maxBufferSize": 4294967292,
+      "maxStorageBufferBindingSize": 4294967292,
+      "maxComputeWorkgroupStorageSize": 32768,
+      "maxTextureDimension2D": 16384,
+      "maxBindGroups": 4,
+      "maxComputeInvocationsPerWorkgroup": 1024
+    },
+    "evidence": [
+      "artifacts/env01/gpu-log.json",
+      "artifacts/env01/worker-context.json"
+    ]
+  },
+  "models": [],
+  "cases": [
+    {
+      "id": "ENV-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Partially executed, then blocked. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. The window/focus-protection prerequisite for ENV-01 therefore cannot be met. Every other ENV-01 sub-requirement that could be observed without that helper was observed and is listed below.",
+      "observations": [
+        "Dedicated temporary profile used: /tmp/fluentread-neo-acceptance-z3nx1O (created with mkdtemp, mode 700, owned by this run).",
+        "BrowserOS neo 0.50.5.0, Chromium 151.0.8162.137 (revision @8f5d36bc16f57115aeeff34baf4ad6aa964d509c); bundle CFBundleShortVersionString 0.50.5.",
+        "Extension identity read from the extension page itself via chrome.runtime.getManifest(): FluentRead-流畅阅读 0.0.35, MV3, id djnlaiohfaaifbibleebjggkghlmcpcj.",
+        "The MV3 build was loaded with CDP Extensions.loadUnpacked; Chromium 151 ignores --load-extension, which is what the repository specials still pass.",
+        "OS GPU: Apple M2 Max (38 GPU cores, Metal 4); WebGPU adapter info vendor=apple architecture=metal-3 isFallbackAdapter=false with 22 features including shader-f16.",
+        "WebGPU adapter obtained in four separate contexts: normal page, extension offscreen document, extension-origin Worker, and incognito page — all isFallbackAdapter=false with shader-f16.",
+        "Incognito reachable: a browser context was created and a page loaded in it (true); the context was disposed afterwards.",
+        "The installed MCP control surface (browseros-neo 0.0.66, 22 tools) is bound to the single configured profile directory and cannot be aimed at a dedicated temporary profile; a second instance with --user-data-dir exposes CDP only.",
+        "Window/focus protection was not certified: the browser was started with `open -g` (no foreground activation) and Page.bringToFront() was never called, but no trusted focus-safe helper exists to validate against.",
+        "Every tab was opened in the background; no window was minimized and no window was activated."
+      ],
+      "evidence": [
+        "artifacts/env01/capabilities.json",
+        "artifacts/env01/browser-log.json",
+        "artifacts/env01/gpu-log.json",
+        "artifacts/env01/fixture-home.png"
+      ],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires scripts/testing/run-popup-actions-service-ui-test.cjs. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. Playwright is not a dependency of the frozen commit (absent from package.json and from pnpm-lock.yaml), so the --playwright-root runtime cannot be resolved from this checkout. That script also carries a hardcoded default pointing at a helper path from a different machine (/Users/thinkstu/...), which is a top-level require and fails at load.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires scripts/run-privacy-boundary-test.cjs, which throws at startup unless --focus-safe-helper resolves to a module exporting launchFocusSafePersistentContext, newPageWithoutForeground and activateExtensionTabWithoutForeground. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. Playwright is not a dependency of the frozen commit (absent from package.json and from pnpm-lock.yaml), so the --playwright-root runtime cannot be resolved from this checkout.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "PRIVATE-02",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Same runner and same missing prerequisites as PRIVATE-01. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. Playwright is not a dependency of the frozen commit (absent from package.json and from pnpm-lock.yaml), so the --playwright-root runtime cannot be resolved from this checkout. The incognito isolation assertions were therefore never observed.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires scripts/run-youtube-subtitle-sync-test.cjs, which hard-requires both --focus-safe-helper and --playwright-root and throws if either is absent. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. Playwright is not a dependency of the frozen commit (absent from package.json and from pnpm-lock.yaml), so the --playwright-root runtime cannot be resolved from this checkout.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-UI-01",
+      "status": "blocked",
+      "kind": "deterministic-browser",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires scripts/testing/run-image-recognition-settings-test.cjs, which requires both --playwright-root and --focus-safe-helper and hardcodes a macOS-only temp profile. The trusted focus-safe helper (focus-safe-browser.cjs) required by --focus-safe-helper does not exist anywhere on this machine and is not shipped in the repository; the handoff forbids fabricating it. Playwright is not a dependency of the frozen commit (absent from package.json and from pnpm-lock.yaml), so the --playwright-root runtime cannot be resolved from this checkout.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-02",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. A real-site model case: it needs a public YouTube video and the fixed qwen3-asr-0.6b revisions executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-03",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. A real-site model case: it needs a public YouTube video and the fixed qwen3-asr-0.6b revisions executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-04",
+      "status": "blocked",
+      "kind": "real-site-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. A real-site model case: it needs a public YouTube video and the fixed qwen3-asr-0.6b revisions executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "YT-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. The independent negative fixture needs a working local capture path first. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires the fixed snowfluke/ppu-paddle-ocr-models and ogkalu/lama-manga-onnx-dynamic revisions executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires the fixed snowfluke/ppu-paddle-ocr-models and ogkalu/lama-manga-onnx-dynamic revisions executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "OCR-03",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Fault injection requires an established working GPU session to inject into. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires the fixed kokoro-v1.1-zh revision executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-02",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires the fixed kokoro-v1.1-zh revision executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires the fixed kokoro-v1.1-zh revision executing on a physical GPU. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Offline cache verification requires a previously fully verified Kokoro cache. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "TTS-05",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Fault injection requires an established working GPU TTS session. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-01",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires all five strict-GPU translation profiles (OPUS zh→en and en→zh FP16, OPUS ja→en FP32, Index zh→en and en→zh) with every direction run. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json. No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches; weights can only be fetched by the product itself through its own settings UI.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-02",
+      "status": "blocked",
+      "kind": "fault-injection",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Fault injection per GPU profile requires the profiles to be present and runnable first. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-03",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Requires at least two real models to switch between. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    },
+    {
+      "id": "MT-04",
+      "status": "blocked",
+      "kind": "real-model",
+      "backend": "unverified",
+      "models": [],
+      "reason": "Not executed. Offline verification requires a fully SHA-verified fixed-revision cache first. No real model assets were downloaded for this run (deferred by the operator), so no fixed revision, file size or SHA-256 could be verified against model-catalog.json.",
+      "observations": [],
+      "evidence": [],
+      "durationMs": null,
+      "runs": [],
+      "faults": []
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "artifacts/build/build-files.json",
+      "sha256": "ed77ce68544664f41b105a13852331bee459a486334a2f0361f99b95d5841671",
+      "mediaType": "application/json",
+      "role": "build-manifest"
+    },
+    {
+      "path": "artifacts/build/generated-locales.json",
+      "sha256": "699947f48468e100366cd82089289984d0ba44b74f11b2252f6a57f417629ccb",
+      "mediaType": "application/json",
+      "role": "locale-manifest"
+    },
+    {
+      "path": "artifacts/build/commands.json",
+      "sha256": "c7a59f02058c479a405e5d9089c3adffba59ef92b601b2a73ae124f7bbe37673",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/source.json",
+      "sha256": "fa5715fe17d098dbc03d91824fcd34095ed2d8b0c7c23e7457a7886ab8b580f0",
+      "mediaType": "application/json",
+      "role": "source"
+    },
+    {
+      "path": "artifacts/env01/capabilities.json",
+      "sha256": "8a16dd0ff512024c3775219950456f56c60bd0b5689170e96272c323e7cf38b1",
+      "mediaType": "application/json",
+      "role": "capabilities"
+    },
+    {
+      "path": "artifacts/env01/gpu-log.json",
+      "sha256": "8a83a63d09d484fc710a57565d2c32e63d5f3e58fc23c3e5919bedcbb8a6f87c",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/worker-context.json",
+      "sha256": "00f3c9395434aafa229cad3405a747e23f89fd788db57d06d3639908fff1dfa7",
+      "mediaType": "application/json",
+      "role": "gpu-log"
+    },
+    {
+      "path": "artifacts/env01/browser-log.json",
+      "sha256": "5eb15b4d43360dd066e69d40208bb8e87a71bcad3f7f147dc256f74a6358f481",
+      "mediaType": "application/json",
+      "role": "browser-log"
+    },
+    {
+      "path": "artifacts/env01/fixture-home.png",
+      "sha256": "f838c7e9980f14050fec83bbfe6c777d0608bc4ea627112f87dfda144aecfd88",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-options-page.png",
+      "sha256": "e15ff0bd3eadcdfd7a70265c95f5545fcb680f879b4aa38e303c4a0da769ab8e",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/extension-offscreen.png",
+      "sha256": "afcc4af71582b75e016b2e119ead7c4b532fb876c220b201d4ce4fd7a2fcc0f1",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    },
+    {
+      "path": "artifacts/env01/incognito-fixture.png",
+      "sha256": "f838c7e9980f14050fec83bbfe6c777d0608bc4ea627112f87dfda144aecfd88",
+      "mediaType": "image/png",
+      "role": "screenshot"
+    }
+  ],
+  "limitations": [
+    "DEFECT-01 RESOLVED upstream in a8728f79: the previous revision required a zh-CN member in the generated-locales manifest, which the frozen source commit can never produce (RegisteredUiLanguage excludes zh-CN), so any pass was rejected with \"Generated locale missing: zh-CN\". The updated validator requires the five languages the userscript generator really emits and validates inlineChineseSources (src/core/i18n/messages/zh-CN.ts, src/core/i18n/index.ts) as the Chinese evidence instead. The locale manifest recorded here was regenerated with the updated tooling at a8728f79 and is accepted by the updated validator. No case is blocked for locale reasons any more.",
+    "DEFECT-02 (blocking for 5 cases): the trusted focus-safe helper focus-safe-browser.cjs required by --focus-safe-helper exists neither in the repository nor anywhere under $HOME, and the handoff forbids fabricating it. UI-01, PRIVATE-01, PRIVATE-02, YT-01 and OCR-UI-01 depend on it.",
+    "DEFECT-03 (blocking for 5 cases): Playwright is absent from package.json and pnpm-lock.yaml, so --playwright-root cannot be satisfied from this checkout.",
+    "DEFECT-04: Chromium 151 ignores --load-extension, which the repository browser specials still pass; the unpacked build had to be loaded through CDP Extensions.loadUnpacked.",
+    "DEFECT-05: the BrowserOS neo MCP control surface is bound to the single configured profile directory; a second instance launched with --user-data-dir exposes CDP only. The handoff requires a dedicated temporary profile, so browser cases cannot be driven through the MCP tools.",
+    "GPU note: the legacy GPUAdapter.isFallbackAdapter property is ABSENT in Chromium 151; fallback state is reported on GPUAdapterInfo.isFallbackAdapter (=false). The same physical adapter with shader-f16 was observed in the extension offscreen document and in an extension-origin Worker, not only in a normal page.",
+    "GPU scope note: this is adapter discovery only. No model was executed, so there is no WebGPU dispatch or graph-partition evidence, and hardware.status must not be read as inference validation.",
+    "No real model was downloaded or executed: the model-catalog profiles (about 5.03 GiB) are unverified, and models[] is empty by design rather than filled with unverified metadata.",
+    "No harness script can pre-populate the fluent-read-local-models-v2 or fluent-read-manga-ocr-v1 caches, so every real-model case would additionally need product-UI-driven downloads.",
+    "The tested product HEAD (7212af1f9da08324963e38973c7f477aabfffb0b) is not present in this clone; the published source commit c68a53af was used, and its tree was verified to equal 50e12ecc... as the handoff requires.",
+    "self-check passes and its positive samples are synthetic validator fixtures, explicitly not browser or model acceptance results.",
+    "Acceptance material revision: the handoff worktree was updated to a8728f79dffde9f0ea2a43d8fca7fa9186c33d88 (\"fix: align browser acceptance with native locale and GPU contracts\"). Only docs/browser-acceptance/README.md and three scripts/testing acceptance scripts changed; the product source commit c68a53af and its tree 50e12ecc... are unchanged, so the extension build was not rebuilt and its fingerprint still applies.",
+    "The updated self-check runs a native locale regression with the real generator: it observed exactly five generated files (es-ES, fr-FR, ja-JP, ko-KR, ru-RU), rejected each one when removed, and rejected both an empty and a corrupted inlineChineseSources set, for 34 negative regressions in total.",
+    "Generated locales were already committed in the frozen source commit (git status stayed clean across locale generation); the fingerprint above describes the committed 480-file set. Its manifestSha256 (abc11522ec049930f8721119422d1808c13549061438fb08b6841fef26f48866) is unchanged by the update because the file set did not change; only the inlineChineseSources block was added to the manifest."
+  ]
+}

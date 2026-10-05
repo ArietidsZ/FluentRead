@@ -1,0 +1,43 @@
+{
+  "browserosVersion": "0.50.5.0",
+  "browserosBundleVersion": "0.50.5",
+  "chromiumVersion": "151.0.8162.137",
+  "chromiumRevision": "@8f5d36bc16f57115aeeff34baf4ad6aa964d509c",
+  "tools": [
+    "tabs",
+    "tab_groups",
+    "history",
+    "navigate",
+    "snapshot",
+    "diff",
+    "act",
+    "download",
+    "upload",
+    "read",
+    "grep",
+    "screenshot",
+    "pdf",
+    "wait",
+    "windows",
+    "evaluate",
+    "run",
+    "name_session",
+    "save_skill",
+    "mark_skill_run",
+    "request_human_help",
+    "await_human_help"
+  ],
+  "operations": [
+    "CDP Extensions.loadUnpacked (loaded the unpacked MV3 build into a dedicated temporary profile)",
+    "CDP Target.createTarget / Target.attachToTarget (flat sessions) for background tabs",
+    "CDP Runtime.evaluate in normal-page, extension-page and extension-worker contexts",
+    "CDP Page.captureScreenshot for PNG evidence",
+    "CDP Target.createBrowserContext / disposeBrowserContext (incognito reachability)",
+    "MCP browseros-neo 0.0.66 tools/list on the installed control surface (read-only, 22 tools)"
+  ],
+  "observations": [
+    "The installed MCP control surface (browseros-neo 0.0.66, 22 tools) is bound to the single configured profile directory ~/Library/Application Support/BrowserClaw.",
+    "Launching a second instance with --user-data-dir yields its own CDP port but no separate BrowserClawServer/MCP proxy: only 127.0.0.1:9111 (CDP) was listening, while the MCP proxy/server ports belonged to the pre-existing instance.",
+    "Chromium 151 no longer honours --load-extension; the unpacked build had to be loaded through CDP Extensions.loadUnpacked."
+  ]
+}
