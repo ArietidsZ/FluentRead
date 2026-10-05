@@ -272,19 +272,21 @@ async function main() {
   // 服务目录中的 AI 分组可能默认折叠。
   await minimax.waitFor({state: 'visible'});
   await minimax.click();
-  const customRequestGroup=optionsPage.locator('details.service-disclosure[data-configuration-group="custom-request"]');
+  const customRequestGroup=optionsPage.locator('[data-configuration-group="custom-request"]');
   const customBody=customRequestGroup.locator('textarea[aria-label="自定义请求体"]');
-  const endpoint=optionsPage.locator('[data-minimax-endpoint]');
+  const regionHelp=optionsPage.locator('.provider-account-fields .connection-field').last().locator('button.field-help');
+  await regionHelp.hover();
+  const endpoint=optionsPage.locator('.fluentread-field-help-popper:visible [data-minimax-endpoint]');
   await endpoint.waitFor();
-  assert.equal(await customRequestGroup.getAttribute('open'),null);
+  assert.equal(await optionsPage.locator('[id$="tab-translation"]').getAttribute('aria-selected'),'true');
   assert.equal(await customBody.count(),1);
   assert.equal(await customBody.isVisible(),false);
   await screenshot(optionsPage,'minimax-collapsed');
-  await customRequestGroup.locator(':scope > summary').click();
+  await optionsPage.locator('[id$="tab-custom-request"]').click();
   assert.equal(await customBody.isVisible(),true);
   await screenshot(optionsPage,'minimax-advanced');
   await optionsPage.setViewportSize({width:820,height:900});
-  await endpoint.scrollIntoViewIfNeeded();
+  await customRequestGroup.scrollIntoViewIfNeeded();
   assert.equal(await optionsPage.evaluate(()=>document.documentElement.scrollWidth>document.documentElement.clientWidth),false);
   await screenshot(optionsPage,'minimax-narrow');
   await optionsPage.setViewportSize({width:1280,height:900});

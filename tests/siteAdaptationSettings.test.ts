@@ -127,7 +127,10 @@ describe('site adaptation settings persistence and editor behavior', () => {
 
     it('localizes adaptation controls and detailed guidance in every interface language', () => {
         for (const language of ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) {
-            for (const label of ['网站适配', '保存规则', 'JSON 编辑草稿', '网址匹配预览', '撤销草稿替换']) {
+            for (const label of ['网站适配', '保存并应用', 'JSON 编辑草稿', '网址匹配预览', '撤销草稿替换',
+                '按主域名生效，包含所有子域', '检查已保存规则，不访问网站', '检查规则',
+                '选择要翻译和保留原文的区域', '匹配网站', '翻译范围', '高级选项', 'JSON 与备份',
+                '只停用这条规则，其他匹配规则仍会生效', '放弃尚未保存的规则修改？', '每行填写一项，保存后应用到网页']) {
                 expect(translateLegacyText(label, language)).not.toBe(label);
             }
         }

@@ -41,6 +41,8 @@ export interface VideoAiModelSetup {
     request(canShowChoice: () => boolean): Promise<void>;
     select(model: VideoLocalTranscriptionModel): void;
     cancel(): void;
+    /** 换视频时隔离旧检查/下载；后台下载可完成，旧状态不占用新视频菜单。 */
+    reset(): void;
     confirm(): Promise<void>;
 }
 
@@ -72,8 +74,10 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
                 if (isCurrent()) dependencies.setError((error as Error).message);
                 return;
             } finally {
-                checking = false;
-                dependencies.onChange();
+                if (epoch === requestEpoch) {
+                    checking = false;
+                    dependencies.onChange();
+                }
             }
             if (!isCurrent() || model !== dependencies.getConfiguredModel()) return;
             if (downloaded.includes(model)) {
@@ -95,7 +99,16 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
         cancel() {
             // 检查中关闭菜单也要作废迟到结果；已明确确认的模型下载可在后台完成。
             if (checking || choice) requestEpoch += 1;
+            checking = false;
             if (!choice) return;
+            choice = null;
+            dependencies.onChange();
+        },
+
+        reset() {
+            requestEpoch += 1;
+            checking = false;
+            downloading = false;
             choice = null;
             dependencies.onChange();
         },
@@ -105,7 +118,9 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
             if (!confirmed) return;
             choice = null;
             const model = confirmed.selected;
-            const isCurrent = dependencies.captureRequest();
+            const captured = dependencies.captureRequest();
+            const epoch = ++requestEpoch;
+            const isCurrent = () => epoch === requestEpoch && captured();
             if (model !== dependencies.getConfiguredModel()) dependencies.persistModel(model);
             if (!confirmed.downloaded.includes(model)) {
                 downloading = true;
@@ -117,8 +132,10 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
                     if (isCurrent()) dependencies.setError(dependencies.formatDownloadError((error as Error).message));
                     return;
                 } finally {
-                    downloading = false;
-                    dependencies.onChange();
+                    if (epoch === requestEpoch) {
+                        downloading = false;
+                        dependencies.onChange();
+                    }
                 }
             } else {
                 dependencies.onChange();

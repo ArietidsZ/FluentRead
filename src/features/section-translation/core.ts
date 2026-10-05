@@ -1,7 +1,7 @@
 /**
  * @file src/features/section-translation/core.ts
  * 文件职责：定义局部翻译选择模式里“鼠标指着哪一块区域”的判定规则，把命中的任意节点收敛为可高亮、可翻译的块级容器，并提供向外扩大范围、元素简称与标签文案的纯计算。
- * 主要内容：导出 SectionGeometry、resolveSectionElement、expandSectionElement、isSectionPickerUi、describeSectionElement 与 resolveSectionLabel；跳过行内元素、零尺寸盒子、SVG/媒体内部节点和 FluentRead 自身界面，把译文工件映射回原文段落，扩大时略过与当前盒子完全重合的包装层。
+ * 主要内容：导出几何判定、范围扩大、界面排除、元素简称、自然语言范围与有界原文预览及动作标签；跳过行内元素、零尺寸盒子、SVG/媒体内部节点和 FluentRead 自身界面，把译文工件映射回原文段落，扩大时略过与当前盒子完全重合的包装层。
  * 模块边界：本模块只读取传入元素与注入的几何/样式端口，不注册监听、不创建界面、不发起翻译，也不读取配置；手势与高亮由 content/picker 负责，区域翻译由全文翻译 feature 的公开接口完成。
  */
 import {getComposedParent} from '@/src/core/translation/public';
@@ -106,6 +106,37 @@ export function expandSectionElement(current: Element, geometry: SectionGeometry
 }
 
 const SIMPLE_CLASS_TOKEN = /^[A-Za-z_-][\w-]*$/u;
+
+/** 用阅读语义介绍范围，用户无需认识 HTML 标签与网页内部类名。 */
+export function describeSectionScope(element: Element): string {
+    const tag = tagNameOf(element);
+    const scope = /^(p|h[1-6]|blockquote|li|figcaption|dt|dd)$/u.test(tag) ? 'paragraph'
+        : /^(ul|ol|dl)$/u.test(tag) ? 'list'
+            : /^(table|thead|tbody|tfoot|tr|td|th)$/u.test(tag) ? 'table'
+                : tag === 'article' || tag === 'main' ? 'article' : 'region';
+    return `sectionTranslation.scope.${scope}`;
+}
+
+/** 只读取前 160 个节点和 88 个原文字，避开译文、脚本与控件，超长区域不会为预览遍历整棵树。 */
+export function sectionSourcePreview(element: Element): string {
+    let text = '';
+    let steps = 0;
+    const walk = (node: Node): void => {
+        steps += 1;
+        if (node.nodeType === 3) {
+            text += `${node.textContent!.slice(0, 512).replace(/\s+/gu, ' ').trim()} `;
+            return;
+        }
+        if (node.nodeType === 1) {
+            const child = node as Element;
+            if (child.matches(`${TRANSLATION_ARTIFACT_SELECTOR},script,style,input,textarea,select,[data-fluent-read-ui]`)) return;
+        }
+        for (let child = node.firstChild; child && steps < 160 && text.length < 88; child = child.nextSibling) walk(child);
+    };
+    walk(element);
+    text = text.trim();
+    return text.length > 88 ? `${text.slice(0, 87)}…` : text;
+}
 
 /** 生成类似开发者工具的元素简称（如 article.markdown-body），帮助熟悉网页结构的用户确认范围。 */
 export function describeSectionElement(element: Element): string {

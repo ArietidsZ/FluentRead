@@ -106,8 +106,9 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
         createOpenOptionsPageHandler({
             openDefaultPage: () => browser.runtime.openOptionsPage(),
-            openSection: async (section, learningTab) => {
-                await browser.tabs.create({url: `${browser.runtime.getURL('/options.html')}${learningTab ? `?learningTab=${learningTab}` : ''}#${section}`});
+            openSection: async (section, destination) => {
+                const query = destination ? `?${section === 'settings-vocabulary' ? 'learningTab' : 'service'}=${encodeURIComponent(destination)}` : '';
+                await browser.tabs.create({url: `${browser.runtime.getURL('/options.html')}${query}#${section}`});
             },
         }),
         ...createFullPageTranslationStateHandlers({

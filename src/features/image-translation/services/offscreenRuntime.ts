@@ -4,6 +4,7 @@
  * 主要内容：单图可选与漫画共用的 PaddleOCR，两种引擎均按普通段落合行翻译、限制字号并保留对齐，擦除只使用原始行框；保留单图完整译图与原文对照，不自动加载漫画修补模型；图片解码时前置尺寸校验和取消/超时清理，普通修补复用独占像素并异步编码完整 PNG，漫画修补与绘字共享原图背景分类并异步编码局部图块；完成或失败后释放临时图像与画布。
  * 模块边界：该运行时只在具备 Canvas/DOM 的 Offscreen 环境执行，不直接接收 browser.runtime 事件；消息入口由 app/offscreen 组装，翻译函数由依赖注入，几何算法来自 area feature。
  */
+import {createImageTranslationFailure} from '../failure';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, type ImageTranslationStage} from '../progress';
 import { selectChangedTranslations, type OcrLine } from '@/src/features/image-translation/core';
 import { areaRectToImageCrop, type AreaTranslationSelection, type AreaRecognitionResult } from '@/src/features/area-translation/protocol';
@@ -156,7 +157,7 @@ export async function translateImageTextsInExtension(
     });
     throwIfImageOperationAborted(signal);
     if (!response?.success || !Array.isArray(response.translations)) {
-        throw new Error(response?.error || '图片文字翻译失败');
+        throw createImageTranslationFailure(response?.error || '图片文字翻译失败', response);
     }
     return response.translations;
 }

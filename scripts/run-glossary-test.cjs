@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// 术语库生产端到端回归：独立临时 Edge、真实配置消息与页面手势、仅 loopback AI fixture。
+// 术语库回归：--suite ui 仅验证管理界面；默认全链路使用 loopback AI fixture。
+// 独立临时 Edge、真实配置消息与页面手势，不抢占前台焦点。
 // 不读取日常浏览器配置、不使用真实密钥、不以模拟译文证明任何外部模型的遵守率。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -63,6 +64,8 @@ async function startFixture() {
 }
 
 async function main() {
+  const suite = argument('suite', 'full');
+  assert(['ui', 'full'].includes(suite), 'suite 仅支持 ui 或 full');
   const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
   const packages = argument('playwright-root');
   const helperPath = argument('focus-safe-helper');
@@ -73,10 +76,10 @@ async function main() {
   const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-glossary-browser'));
   fs.mkdirSync(artifactsDir, {recursive: true});
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-glossary-edge-'));
-  const report = {ok: false, extensionDir, artifactsDir, profileDir, service: 'loopback-openai-fixture',
-    scope: 'production built-in glossary catalog/preview/adoption/removal, real matched-term requests, persistence, lossless language import/export, hover/full-page toggles, document selection, cache invalidation and responsive themes',
+  const report = {ok: false, suite, extensionDir, artifactsDir, profileDir, service: suite === 'ui' ? null : 'loopback-openai-fixture',
+    scope: suite === 'ui' ? 'glossary direct actions, stable settings disclosure, multi-library order/drafts, import/export, persistence and responsive themes' : 'production built-in glossary catalog/preview/adoption/removal, real matched-term requests, persistence, lossless language import/export, hover/full-page toggles, document selection, cache invalidation and responsive themes',
     cases: [], consoleErrors: [], screenshots: [], persistenceCases: [], quickClose: null, crossPageSync: null, latestWriteWins: null};
-  const fixture = await startFixture();
+  const fixture = suite === 'full' ? await startFixture() : null;
   let launched;
   let currentPage;
   try {
@@ -137,26 +140,26 @@ async function main() {
       await page.screenshot({path: file, animations: 'disabled'}); report.screenshots.push(file);
     };
     const service = 'custom:glossary-fixture';
-    await patchConfig({uiLanguage: 'zh-CN', on: true, service, from: 'en', to: 'zh-Hans', display: 1,
-      customOpenAIProviders: [{id: service, name: '术语库测试服务', endpoint: `${fixture.url}/v1/chat/completions`, models: ['glossary-fixture']}],
-      token: {[service]: 'synthetic-local-fixture-not-a-secret'}, model: {[service]: 'glossary-fixture'},
-      user_role: {[service]: 'SOURCE_BEGIN{{origin}}SOURCE_END'}, enableAIContext: false, enableAIMultiSegment: false,
-      hotkey: 'Control', mouseHoverTranslationDelay: 0, disableSelectionTranslator: true});
+    if (suite === 'ui') {
+      await patchConfig({uiLanguage: 'zh-CN', theme: 'light'});
+    } else {
+      await patchConfig({uiLanguage: 'zh-CN', on: true, service, from: 'en', to: 'zh-Hans', display: 1,
+        customOpenAIProviders: [{id: service, name: '术语库测试服务', endpoint: `${fixture.url}/v1/chat/completions`, models: ['glossary-fixture']}],
+        token: {[service]: 'synthetic-local-fixture-not-a-secret'}, model: {[service]: 'glossary-fixture'},
+        user_role: {[service]: 'SOURCE_BEGIN{{origin}}SOURCE_END'}, enableAIContext: false, enableAIMultiSegment: false,
+        hotkey: 'Control', mouseHoverTranslationDelay: 0, disableSelectionTranslator: true});
+    }
     const ui = options.getByTestId('glossary-settings');
     await ui.waitFor({state: 'visible'});
     await shot(options, 'glossary-empty');
     const showPanel = async (root, name) => {
       const checkDialog = root.page().getByRole('dialog', {name: '匹配预览', exact: true});
       if (name !== '匹配预览' && await checkDialog.isVisible()) await checkDialog.locator('.el-dialog__headerbtn').click();
-      const back = root.locator('.glossary-back');
-      if (name !== '内置词库') await back.evaluate(element => {if (element.getClientRects().length) element.click();});
       if (name === '内置词库') {
-        if (!(await back.isVisible())) await root.locator('.glossary-main-toolbar').getByRole('button', {name, exact: true}).click();
+        await root.getByTestId('builtin-glossaries').scrollIntoViewIfNeeded();
       } else if (name === '匹配预览') {
         if (!(await checkDialog.isVisible())) {
-          const more = root.locator('.glossary-more');
-          if (!(await more.evaluate(element => element.open))) await more.locator(':scope > summary').click();
-          await more.getByRole('button', {name: '匹配预览', exact: true}).click();
+          await root.locator('.glossary-main-toolbar').getByRole('button', {name, exact: true}).click();
           await checkDialog.waitFor();
         }
         const conditions = checkDialog.locator('.glossary-preview-options');
@@ -164,11 +167,7 @@ async function main() {
       }
     };
     const showSection = name => showPanel(ui, name);
-    const moreAction = async name => {
-      const more = ui.locator('.glossary-more');
-      if (!(await more.evaluate(element => element.open))) await more.locator(':scope > summary').click();
-      await more.getByRole('button', {name, exact: true}).click();
-    };
+    const toolbarAction = name => ui.locator('.glossary-main-toolbar').getByRole('button', {name, exact: true}).click();
     const selectLibrary = async (root, index) => {
       const select = root.locator('.glossary-library-picker [role="combobox"]');
       await select.click({force: true});
@@ -177,13 +176,140 @@ async function main() {
     };
     const showSettings = async () => {
       await showSection('我的术语库');
-      const details = ui.locator('.glossary-settings-details');
-      if (!(await details.evaluate(element => element.open))) await moreAction('词库设置');
+      const toggle = ui.getByRole('button', {name: '词库设置', exact: true});
+      if (await toggle.getAttribute('aria-expanded') !== 'true') await toggle.click();
     };
-    await ui.locator('.glossary-more > summary').click();
-    assert.equal(await ui.locator('.glossary-more').getByRole('button', {name: '匹配预览', exact: true}).count(), 0, '空词库只展示添加与导入，不引导无效检查');
-    await ui.locator('.glossary-more > summary').click();
+    assert.equal(await ui.locator('.glossary-more').count(), 0, '术语库管理不使用更多菜单');
+    assert.equal(await ui.locator('.glossary-main-toolbar').getByRole('button', {name: '匹配预览', exact: true}).count(), 0, '空词库不引导无效检查');
     await shot(options, 'glossary-empty-guidance');
+    if (suite === 'ui') {
+      const toggle = ui.getByRole('button', {name: '词库设置', exact: true});
+      const name = ui.getByLabel('词库名称', {exact: true});
+      const stableSettings = async expanded => {
+        await options.waitForFunction(expected => document.querySelector('.glossary-settings-toggle')?.getAttribute('aria-expanded') === String(expected), expanded);
+        const frames = await ui.locator('.glossary-editor').evaluate(async element => {
+          const frames = [];
+          for (let index = 0; index < 12; index++) {
+            await new Promise(resolve => requestAnimationFrame(resolve));
+            const rect = element.getBoundingClientRect();
+            frames.push({height: rect.height, width: rect.width, expanded: element.querySelector('.glossary-settings-toggle').getAttribute('aria-expanded')});
+          }
+          return frames;
+        });
+        assert(frames.every(frame => frame.expanded === String(expanded)), '异步事件不得反转设置展开状态');
+        assert(Math.max(...frames.map(frame => frame.height)) - Math.min(...frames.map(frame => frame.height)) <= 1, '展开后卡片高度不抖动');
+        assert(Math.max(...frames.map(frame => frame.width)) - Math.min(...frames.map(frame => frame.width)) <= 1, '卡片宽度不抖动');
+        report.disclosureFrames ||= [];
+        report.disclosureFrames.push({expanded, frames});
+      };
+      await toolbarAction('新建术语库');
+      await name.waitFor();
+      await stableSettings(true);
+      await name.fill('常用术语'); await name.press('Tab');
+      await waitConfig(config => config.glossaryLibraries[0]?.name === '常用术语');
+      for (let round = 0; round < 3; round++) {
+        await toggle.focus(); await toggle.press(round % 2 ? 'Space' : 'Enter');
+        await stableSettings(false); assert.equal(await name.isVisible(), false);
+        await toggle.click(); await stableSettings(true); assert.equal(await name.isVisible(), true);
+      }
+      await toolbarAction('导入术语库');
+      const importDialog = options.getByRole('dialog', {name: '导入术语库', exact: true});
+      await importDialog.waitFor(); await stableSettings(true);
+      await importDialog.getByRole('button', {name: '取消', exact: true}).click();
+      await importDialog.waitFor({state: 'hidden'}); await stableSettings(true);
+      await shot(options, 'glossary-empty-settings');
+      await toggle.click(); await stableSettings(false);
+      await ui.getByRole('button', {name: '添加词条', exact: true}).click();
+      const form = ui.locator('.glossary-entry-form');
+      await form.getByLabel('原词', {exact: true}).fill('large language model');
+      await form.getByLabel('译词', {exact: true}).fill('大语言模型');
+      await form.getByRole('button', {name: '保存', exact: true}).click();
+      await form.waitFor({state: 'hidden'});
+      const first = await waitConfig(config => config.glossaryLibraries[0]?.entries.length === 1);
+      const firstId = first.glossaryLibraries[0].id;
+      assert.equal(first.glossaryEnabled, false, '词库管理不得自动开启翻译总开关');
+      await showSection('匹配预览');
+      const preview = options.getByTestId('glossary-preview');
+      await preview.getByLabel('输入一段原文', {exact: true}).fill('large language model');
+      await preview.getByTestId('glossary-matches').getByRole('cell', {name: '大语言模型', exact: true}).waitFor();
+      await stableSettings(false);
+      await shot(options, 'glossary-direct-match-preview');
+      await showSection('我的术语库');
+      await ui.getByRole('button', {name: '添加词条', exact: true}).click();
+      await form.getByLabel('原词', {exact: true}).fill('draft-example');
+      await toolbarAction('新建术语库'); await stableSettings(true);
+      await name.fill('技术术语'); await name.press('Tab');
+      const second = await waitConfig(config => config.glossaryLibraries[1]?.name === '技术术语');
+      const secondId = second.glossaryLibraries[1].id;
+      await selectLibrary(ui, 0); await stableSettings(false);
+      assert.equal(await form.getByLabel('原词', {exact: true}).inputValue(), 'draft-example');
+      await form.getByRole('button', {name: '取消', exact: true}).click();
+      const priority = ui.locator('.glossary-order-details');
+      await priority.locator(':scope > summary').click();
+      assert(await priority.getByRole('button', {name: '上移 常用术语', exact: true}).isDisabled());
+      await priority.getByRole('button', {name: '上移 技术术语', exact: true}).click();
+      await waitConfig(config => config.glossaryLibraries[0]?.id === secondId);
+      assert.equal(await ui.getByRole('cell', {name: '大语言模型', exact: true}).count(), 1, '排序保留正在编辑的词库');
+      await priority.locator(':scope > summary').click();
+      await toolbarAction('导入术语库');
+      await importDialog.getByLabel('或粘贴文件内容').fill('source,target,tgt_lng\ncomponent,组件,zh-CN');
+      await importDialog.getByRole('button', {name: '确认导入', exact: true}).click();
+      await importDialog.waitFor({state: 'hidden'});
+      await waitConfig(config => config.glossaryLibraries.length === 3);
+      await ui.getByRole('cell', {name: '组件', exact: true}).waitFor();
+      await showSettings();
+      const downloadPromise = options.waitForEvent('download');
+      await ui.getByRole('button', {name: '导出', exact: true}).click();
+      const download = await downloadPromise;
+      const csvPath = path.join(artifactsDir, 'imported-glossary.csv');
+      await download.saveAs(csvPath);
+      assert(fs.readFileSync(csvPath, 'utf8').includes('component'));
+      await ui.getByRole('button', {name: '删除词库', exact: true}).click();
+      await options.locator('.el-message-box').getByRole('button', {name: '取消', exact: true}).click();
+      assert.equal((await readConfig()).glossaryLibraries.length, 3, '取消删除保留词库');
+      await options.reload({waitUntil: 'domcontentloaded'}); await ui.waitFor();
+      const persisted = await readConfig();
+      assert.deepEqual(persisted.glossaryLibraries.map(library => library.id).slice(0, 2), [secondId, firstId]);
+      await selectLibrary(ui, 1);
+      report.persistenceCases.push('new/rename/entry/import/order persist after reload');
+      report.layouts = [];
+      for (const width of [1440, 1024, 820, 390]) {
+        await options.setViewportSize({width, height: 960});
+        const metrics = await ui.evaluate(element => ({width: innerWidth, documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, glossaryOverflow: element.scrollWidth - element.clientWidth}));
+        assert(metrics.documentOverflow <= 1 && metrics.glossaryOverflow <= 1, JSON.stringify(metrics));
+        report.layouts.push(metrics);
+        await shot(options, `glossary-light-${width}`);
+        await showSettings(); await stableSettings(true);
+        assert(await options.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+        if (width === 390) await shot(options, 'glossary-settings-narrow');
+        await toggle.click(); await stableSettings(false);
+      }
+      await options.setViewportSize({width: 1440, height: 960});
+      await showSettings();
+      await name.fill('关闭后仍保存'); await name.press('Tab');
+      await options.close();
+      options = await createPage(`${extensionOrigin}/options.html#settings-glossary`, 'options-reopened');
+      await waitConfig(config => config.glossaryLibraries[1]?.name === '关闭后仍保存');
+      report.quickClose = {immediatelyClosedAfterChange: true, reopenedValueMatches: true};
+      await options.getByTestId('glossary-settings').waitFor();
+      await selectLibrary(options.getByTestId('glossary-settings'), 1);
+      await shot(options, 'glossary-reopened');
+      await patchConfig({theme: 'dark'});
+      await shot(options, 'glossary-dark');
+      await options.setViewportSize({width: 390, height: 960});
+      await patchConfig({uiLanguage: 'en-US'});
+      await options.getByTestId('glossary-settings').getByRole('button', {name: 'Import glossaries', exact: true}).waitFor();
+      assert(await options.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+      await shot(options, 'glossary-english-narrow-dark');
+      report.cases.push('direct create/import/preview controls; empty and populated settings remain discoverable',
+        'keyboard and repeated disclosure cycles stay stable across 12 frames; dialogs retain settings state',
+        'multi-library drafts, priority changes, import/export and cancelled deletion',
+        'reload and immediate-close persistence; 1440/1024/820/390px, dark and English layouts');
+      assert.deepEqual(report.consoleErrors, []);
+      report.ok = true;
+      return;
+    }
+
     await showSection('我的术语库');
     await ui.locator('.glossary-start').getByRole('button', {name: '添加词条', exact: true}).click();
     const firstForm = ui.locator('.glossary-entry-form');
@@ -261,7 +387,7 @@ async function main() {
     await waitConfig(config => config.glossaryLibraries[0]?.entries.length === 60);
     await deleteBuiltin();
     report.cases.push('five offline catalogs, searchable real preview, editable-copy adoption, source version persistence, deletion and re-addition; live pipeline sends only two matched terms and none when disabled');
-    await moreAction('新建术语库');
+    await toolbarAction('新建术语库');
     const editor = ui.getByRole('region', {name: '词库设置'});
     await editor.getByLabel('词库名称', {exact: true}).fill('技术词库');
     await editor.getByLabel('词库名称', {exact: true}).press('Tab');
@@ -297,7 +423,7 @@ async function main() {
     report.cases.push('UI create/edit/keep-original/case-sensitive and actual domain match preview');
 
     await showSection('我的术语库');
-    await moreAction('导入术语库');
+    await toolbarAction('导入术语库');
     const dialog = options.getByRole('dialog', {name: '导入术语库'});
     await dialog.getByLabel('或粘贴文件内容').fill('source,target,tgt_lng\nunused_private_term,未命中隐私词,zh-CN\nagent,通用智能体,zh-CN');
     await dialog.getByRole('button', {name: '确认导入', exact: true}).click();
@@ -315,7 +441,7 @@ async function main() {
     assert(exportedCsv.includes('智能体'));
     assert(exportedCsv.includes('src_lng') && exportedCsv.includes('tgt_lng'), '导出必须携带源语言与目标语言');
     await showSection('我的术语库');
-    await moreAction('导入术语库');
+    await toolbarAction('导入术语库');
     await dialog.locator('input[type="file"]').setInputFiles(exportPath);
     await dialog.getByRole('button', {name: '确认导入', exact: true}).click();
     await dialog.waitFor({state: 'hidden'});
@@ -509,10 +635,7 @@ async function main() {
     await narrowPreview.getByRole('button', {name: '关闭', exact: true}).click();
     await patchConfig({uiLanguage: 'en-US'});
     const englishUi = options.getByTestId('glossary-settings');
-    await englishUi.locator('.glossary-back').click();
-    await englishUi.locator('.glossary-more > summary').click();
-    await englishUi.getByRole('button', {name: 'New glossary', exact: true}).waitFor();
-    await englishUi.locator('.glossary-more > summary').click();
+    await englishUi.locator('.glossary-main-toolbar').getByRole('button', {name: 'New glossary', exact: true}).waitFor();
     assert(await options.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
     await shot(options, 'glossary-english-narrow-dark');
     report.cases.push('latest-write-wins, immediate-close persistence, dark theme and 390px no horizontal overflow');
@@ -540,7 +663,7 @@ async function main() {
   } finally {
     fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
     await launched?.close();
-    await fixture.close();
+    await fixture?.close();
     // Edge 的 profile 子进程可能在 context.close() 返回后短暂补写 Default。
     // 允许 Node 内置的 ENOTEMPTY/EBUSY 重试，避免成功用例被清理竞态误判。
     fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 8, retryDelay: 250});

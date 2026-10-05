@@ -224,7 +224,6 @@ async function main() {
       if (!style || !style.includes('--fluent-read-video-subtitle-background')) fail(`皮肤 ${skinId} 未更新预览 CSS 变量`);
       result.skinCases.push({skinId, style});
     }
-    await optionsPage.locator('details.subtitle-appearance-advanced').evaluate(element => { element.open = true; });
     await setRange(optionsPage, '字幕字号', 130);
     await setRange(optionsPage, '字幕底部偏移', 16);
     if (await optionsPage.getByRole('checkbox', {name: 'X 字幕自动贴底'}).isChecked()) fail('手动偏移应关闭 X 自动贴底');

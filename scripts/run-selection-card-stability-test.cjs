@@ -83,6 +83,18 @@ async function main(){
   await context.route('https://fixture.tts.speech.microsoft.com/cognitiveservices/v1',route=>{report.audio.requests=(report.audio.requests||0)+1;return route.fulfill({status:200,contentType:'audio/wav',body:silentWav()})});
   optionsPage=await newPage();await optionsPage.goto(`chrome-extension://${id}/options.html#settings-selection`);await optionsPage.locator('#settings-selection').waitFor();
   assert.equal(await optionsPage.getByRole('group',{name:'划词默认呈现'}).count(),0);
+  const preview=optionsPage.locator('.selection-setup .settings-preview-example');
+  await preview.locator('.selection-preview-word').waitFor();
+  assert((await preview.innerText()).includes('Eager to know or learn something.'));
+  await preview.getByRole('button',{name:'句子',exact:true}).click();
+  await preview.locator('[data-reading-answer]').waitFor();
+  assert((await preview.innerText()).includes(sentence));
+  await screenshot(optionsPage,'merged-selection-settings');
+  await optionsPage.setViewportSize({width:390,height:800});
+  assert(await optionsPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await screenshot(optionsPage,'merged-selection-settings-390');
+  await optionsPage.setViewportSize({width:1440,height:960});
+  record('merged settings preserve visible word and sentence previews in the shared layout');
   const learningPage=await newPage();await learningPage.goto(`chrome-extension://${id}/options.html?learningTab=saved#settings-vocabulary`);await learningPage.locator('.fr-learning-center').waitFor();
   assert.deepEqual(await learningPage.locator('.fr-learning-center .segmented-control button').allTextContents(),['单词与句子','阅读记录','学习笔记']);
   assert((await learningPage.locator('.fr-learning-center-purpose').innerText()).includes('单词、短语和句子'));

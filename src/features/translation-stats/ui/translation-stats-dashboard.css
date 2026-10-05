@@ -209,15 +209,17 @@
 
 .stats-card-header {
   display: flex;
-  align-items: start;
+  align-items: center;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   margin-bottom: 14px;
 }
 
 .stats-card-header strong {
   display: block;
-  margin-top: 3px;
+  margin: 0;
+  flex: none;
   font-size: 14px;
   font-weight: 800;
 }
@@ -227,6 +229,15 @@
   color: var(--muted);
   font-size: 10.5px;
 }
+
+.stats-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.stats-section-title > .stats-card-label { font-weight: 400; line-height: 1.5; }
+.stats-log-heading { display: grid; gap: 5px; }
 
 .stats-state {
   display: grid;
@@ -628,7 +639,7 @@
 .stats-failures li:last-child { border-bottom: 0; }
 
 /* 请求记录 */
-.stats-log-header { flex-wrap: wrap; }
+.stats-log-header { display: grid; gap: 14px; }
 
 .stats-log-filters {
   display: flex;
@@ -676,6 +687,7 @@
 
 .stats-pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   color: var(--muted);
@@ -683,6 +695,21 @@
 }
 
 .stats-pagination span { white-space: nowrap; }
+
+.stats-page-jump,
+.stats-page-jump label { display: flex; align-items: center; gap: 8px; }
+.stats-page-jump input {
+  width: 54px;
+  min-height: 34px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: center;
+}
+.stats-page-jump input:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 /* 清除确认 */
 .stats-dialog-backdrop {

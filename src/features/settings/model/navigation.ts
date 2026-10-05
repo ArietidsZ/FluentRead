@@ -186,7 +186,7 @@ export const navigationItems = navigationGroups.flatMap<NavigationItem>((group) 
 export const NAVIGATION_SECTION_IDS = navigationGroups.flatMap<NavigationSectionId>((group) => group.items.map(item => item.id))
 
 /** 不同任务模式需要独立视图；其他设置保持同页连续展示。 */
-export const SETTINGS_TABBED_SECTION_IDS: ReadonlySet<string> = new Set(['settings-translation-stats', 'settings-sites'])
+export const SETTINGS_TABBED_SECTION_IDS: ReadonlySet<string> = new Set(['settings-translation-stats'])
 
 /** 旧设置入口与学习中心的新语义别名统一解析，不增加重复导航项目。 */
 export const NAVIGATION_SECTION_ALIASES: ReadonlyMap<string, string> = new Map([
@@ -278,8 +278,8 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'preview', labelKey: 'options.panel.sitePreview', searchTerms: '生效预览 网址匹配 检查规则 优先级', targetIds: []},
   ],
   'settings-video': [
-    {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 显示模式 术语库", "targetIds": []},
-    {"id": "appearance", "labelKey": "options.panel.appearance", "searchTerms": "字幕外观 颜色 字号", "targetIds": []},
+    {"id": "general", "labelKey": "options.panel.video", "searchTerms": "字幕 开关 翻译服务 术语库", "targetIds": []},
+    {"id": "appearance", "labelKey": "options.panel.appearance", "searchTerms": "字幕外观 显示模式 颜色 字号", "targetIds": []},
     {"id": "local", "labelKey": "options.panel.local", "searchTerms": "X 本地 AI Whisper 语音 识别", "targetIds": []},
   ],
   'settings-advanced': [

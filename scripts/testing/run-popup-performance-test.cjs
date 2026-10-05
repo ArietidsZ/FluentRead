@@ -183,23 +183,15 @@ async function verifyProviders(page, context, base) {
   await settings.locator('.harness-provider-row').waitFor();
   await settings.locator('.harness-provider-row').scrollIntoViewIfNeeded();
   await settings.screenshot({path: path.join(artifactsDir, 'selection-preferences.png')});
-  const advanced = settings.locator('.harness-advanced');
-  await settings.locator('.selection-advanced').scrollIntoViewIfNeeded();
-  const summaries = await settings.locator('.harness-advanced > summary, .selection-advanced > summary').evaluateAll(nodes => nodes.map(node => ({
-    height: node.getBoundingClientRect().height,
-    background: getComputedStyle(node).backgroundColor,
-    surface: getComputedStyle(node.closest('.settings-app')).getPropertyValue('--surface').trim(),
-    marker: getComputedStyle(node).listStyleType,
-    chevron: getComputedStyle(node, '::after').content,
-  })));
-  if (summaries.some(summary => summary.height > 46 || summary.marker !== 'none' || summary.chevron !== '""')) throw new Error('Advanced settings still use oversized or ambiguous disclosure rows');
-  await settings.screenshot({path: path.join(artifactsDir, 'selection-disclosures.png')});
-  await advanced.locator(':scope > summary').focus();
-  await advanced.locator(':scope > summary').press('Enter');
-  if (!await advanced.evaluate(node => node.open)) throw new Error('Advanced settings cannot be expanded with keyboard');
-  await advanced.locator('.harness-memory-settings').waitFor();
-  await advanced.locator(':scope > summary').press('Enter');
-  report.disclosures = {commonPreferencesVisible: true, keyboardExpansion: true, summaries};
+  const visibleSections = ['context', 'memory', 'instructions', 'speech'];
+  for (const anchor of visibleSections) {
+    const section = settings.locator(`[data-settings-anchor="${anchor}"]`);
+    await section.scrollIntoViewIfNeeded();
+    if (!await section.isVisible()) throw new Error(`Selection settings section is hidden: ${anchor}`);
+    if (await section.locator('details:not([open]) textarea').count()) throw new Error('Instruction editor is hidden in a disclosure');
+  }
+  await settings.screenshot({path: path.join(artifactsDir, 'selection-preferences-visible.png')});
+  report.disclosures = {commonPreferencesVisible: true, contextMemoryInstructionsAndSpeechVisible: true, visibleSections};
   await settings.close();
   report.providers = {independentAssignments: true, inheritDefault: true, quickClose: true, aiOnly: true, modelSearch: true, noHiddenOptions: true, localDrawer: true, stableServiceWorkspace: true, assignmentLocation: 'general', assignmentSearchAndConnectionLink: true, editingPreservesDefault: true, skins: ['default', 'minimal', 'compact']};
 }

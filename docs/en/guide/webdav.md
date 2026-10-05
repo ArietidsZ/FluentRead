@@ -1,10 +1,10 @@
 # WebDAV cloud configuration backup
 
-Updated: October 4, 2026.
+Updated: October 5, 2026.
 
-Google Drive and WebDAV share **Settings → Backup and restore → Cloud configuration backup**. WebDAV stores your configuration on the cloud drive, NAS, or server you choose. Saving, restoring, and merging are manual operations. Each method keeps its own comparison baseline; selecting WebDAV does not transfer a Google Drive backup.
+Google Drive and WebDAV share **Settings → Backup and restore → Cloud backup**. WebDAV stores your configuration on the cloud drive, NAS, or server you choose. Saving, restoring, and merging are manual operations. Each method keeps its own comparison baseline; selecting WebDAV does not transfer a Google Drive backup.
 
-Backups sync only general settings by default. Sensitive connections can be included only with explicit consent for this operation. Wordbooks, chat history, and usage statistics are excluded. The WebDAV URL, username, and app password used to access the backup server always stay on this device and are excluded from backups. This feature requires the browser extension background; use local backup files in the userscript.
+Backups sync only general settings by default. Sensitive connections can be included only with explicit consent to enable sensitive settings. Wordbooks, chat history, and usage statistics are excluded. The WebDAV URL, username, and app password used to access the backup server always stay on this device and are excluded from backups. This feature requires the browser extension background; use local backup files in the userscript.
 
 <GuideVisual kind="sync" en />
 
@@ -12,7 +12,7 @@ Backups sync only general settings by default. Sensitive connections can be incl
 
 The default scope includes general settings such as language, appearance, shortcuts, and website rules. It excludes the entire sensitive connection configuration: API keys, configured OAuth tokens, authentication information, translation service selections and models, service URLs, custom request bodies, and authentication parameters in URLs. Private prompts and unrecognized fields are also excluded. Restoring or merging general settings keeps this device’s keys, translation services, URLs, and custom connections unchanged.
 
-To migrate sensitive connections, enable **Sensitive settings**, read the risks, check the acknowledgement, then choose **Include this time**. Saving or merging includes this device’s sensitive information. Restoring applies only what the cloud backup actually contains; a general-settings backup still preserves this device’s keys and connections. Completion, failure (including preview preparation failure), cancellation, leaving or reopening settings, or switching providers or accounts turns the option off again and requires new consent.
+To migrate sensitive connections, enable **Sensitive settings**, read the risks, check the acknowledgement, then choose **Agree and enable**. Saving or merging includes this device’s sensitive information. Restoring applies only what the cloud backup actually contains; a general-settings backup still preserves this device’s keys and connections. The choice is saved in this browser until you turn it off. It remains enabled after completion, failure, cancellation, reopening settings, or switching providers or accounts. Other browsers and devices need their own confirmation.
 
 The current extension still reads older complete v1 backups and applies only their general settings by default. Complete sensitive backups saved with consent keep the original v1 format, which older extensions can still read. New general-settings backups use v2; older extensions safely reject them and must be upgraded. Unconfirmed transactions from before the upgrade expire and require a new preview.
 

@@ -39,6 +39,53 @@ function setup(overrides: Partial<VideoAiModelSetupDependencies> & {responses?: 
 }
 
 describe('video AI model setup', () => {
+  it('closing the initial model prompt removes the choice without starting a download', async () => {
+    const {controller, dependencies, sendMessage} = setup({responses: {fluentReadGetLocalVideoModelState: [{success: true, models: []}]}});
+    await controller.request(() => true);
+    expect(controller.choice).not.toBeNull();
+    controller.cancel();
+    expect(controller.choice).toBeNull();
+    await controller.confirm();
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+  });
+
+  it('switching videos resets a pending check without letting its result change the new check', async () => {
+    const first = deferred<unknown>();
+    const second = deferred<unknown>();
+    let calls = 0;
+    const {controller, dependencies} = setup({sendMessage: vi.fn(() => ++calls === 1 ? first.promise : second.promise)});
+    const a = controller.request(() => true);
+    controller.reset();
+    expect(controller.checking).toBe(false);
+    const b = controller.request(() => true);
+    first.resolve({success: true, models: ['tiny']});
+    await a;
+    expect(controller.checking).toBe(true);
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+    second.resolve({success: true, models: ['tiny']});
+    await b;
+    expect(controller.checking).toBe(false);
+    expect(dependencies.startGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('switching videos during the first download leaves the new video usable and ignores the old completion', async () => {
+    const download = deferred<unknown>();
+    const {controller, dependencies} = setup({sendMessage: vi.fn((message: {type: string}) =>
+      message.type === 'fluentReadPrepareLocalVideoModel' ? download.promise : Promise.resolve({success: true, models: []}))});
+    await controller.request(() => true);
+    const a = controller.confirm();
+    expect(controller.downloading).toBe(true);
+    controller.reset();
+    expect(controller.downloading).toBe(false);
+    await controller.request(() => true);
+    expect(controller.choice).not.toBeNull();
+    download.resolve({success: true});
+    await a;
+    expect(controller.choice).not.toBeNull();
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+  });
+
   it('starts immediately when the configured model is already downloaded', async () => {
     const {controller, events, dependencies} = setup({responses: {fluentReadGetLocalVideoModelState: [{success: true, models: ['tiny']}]}});
     const pending = controller.request(() => true);

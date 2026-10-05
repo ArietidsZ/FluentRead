@@ -19,6 +19,8 @@ When a YouTube or X subtitle timeline is available, FluentRead prioritizes the c
 
 The subtitle menu also works in YouTube fullscreen. Prefetched originals and translations appear together in the same update. Previous translations clear when captions change, disappear, or you seek. At startup, after seeking to an untranslated position, or while the service is still responding, the original remains available; the translation is added only while its caption is still current.
 
+On X, bilingual lines always appear together. A caption without a ready translation waits for the matching result while playback continues; expired results are discarded. Original-only mode displays immediately. If translation fails, the current original remains available and the menu offers a retry.
+
 For YouTube rolling captions, FluentRead matches the newly appearing sentence and playback time to prefetched translations without waiting for the previous line to scroll away. When no subtitle timeline is available, it also submits text during continuous updates. Translation speed still depends on the selected service.
 
 To correct captions that are late or early, open **Subtitle timing** in the FluentRead menu on the playback page and click **0.5 s earlier / 0.5 s later**. Negative values advance subtitles; positive values delay them, up to ±10 seconds. **Reset timing** returns to zero. The setting is saved for subsequent videos and moves both subtitle lines together. Playback position and downloaded subtitle timestamps stay unchanged. The menu indicates when timing adjustment is unavailable.
@@ -38,6 +40,8 @@ The desktop Chrome / Edge extension can try local AI transcription:
 
 Audio recognition runs locally; recognized subtitle text still goes to your translation service. Model downloads require a network connection. Processing depends on video length and your computer. Videos up to 20 minutes are supported; some formats or restricted media cannot be read.
 
+You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying; the model does not need another download. Switching videos clears the previous video’s error, progress and model prompt.
+
 </details>
 
 <details class="guide-details">
@@ -47,7 +51,7 @@ Audio recognition runs locally; recognized subtitle text still goes to your tran
 
 Adjust subtitle size, background, position, and width in video appearance settings. X subtitles stay within the video picture, with long lines wrapping inside portrait videos. Their position updates when the player resizes or enters fullscreen, and they try to avoid visible playback controls.
 
-Use the menu to show or hide subtitles and download them. Completed X transcripts are cached locally for a limited time, so reopening the same video usually avoids another transcription. Cached subtitles appear immediately while translations become available, and the cache count refreshes when you return to video settings. Use re-recognition or clear the video cache to start fresh.
+Use the menu to show or hide subtitles and download them. Completed X transcripts are cached locally for a limited time, so reopening the same video usually avoids another transcription. The cached timeline is restored immediately, and bilingual lines appear together as each current translation becomes ready. The cache count refreshes when you return to video settings. Use re-recognition or clear the video cache to start fresh.
 
 </details>
 
@@ -57,6 +61,8 @@ Use the menu to show or hide subtitles and download them. Completed X transcript
 ## Missing or inaccurate subtitles
 
 Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and try specifying the spoken language.
+
+An empty transcription is a speech recognition result, separate from a translation failure. Try Base if you are using Tiny. If Base is already selected, check for clear speech and the correct spoken language before retrying. Videos without speech cannot produce AI subtitles.
 
 Recognition can mishear names or background audio, and translations can be wrong. Check important details against the original subtitles and audio.
 
@@ -90,3 +96,7 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)
+
+## Settings preview
+
+Video appearance settings show a live sample on the left, with visibility, bilingual or single-language display, skins, size and position on the right. Both work areas have equal width and height on desktop. The compact preview card keeps a 16:9 video frame visible while you scroll through the controls. Narrow screens show the preview above the settings. Fine-tuning controls are directly visible. Hiding subtitles preserves your appearance and translation preferences. The example reads no video and sends no translation requests. X local recognition and model downloads remain in their own section.

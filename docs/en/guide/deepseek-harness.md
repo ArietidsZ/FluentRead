@@ -40,7 +40,7 @@ When the target is Chinese or English, the card's language button can change the
 
 ## Optional AI explanations
 
-Enable **AI explanations**, expand **Service & learning preferences**, and select a configured AI service and model. Opening a card does not call AI. Choose an action to request an explanation:
+Enable **AI explanations** and select a configured AI service and model on the right. Switch between learning actions in the preview on the left. Both columns have equal width and height on desktop; narrow screens show the preview above the settings. Opening a card does not call AI. Choose an action to request an explanation:
 
 - **Understand** explains meaning, tone and references.
 - **Parts of speech & syntax** explains the sentence structure and labels source fragments.
@@ -67,7 +67,7 @@ Completed answers are reused when switching learning actions within the current 
 
 ## Context and records
 
-Under **Context, study notes & instructions**, choose the selection alone or allow its paragraph. This does not read the entire page. Using study notes in answers is optional and off by default. Saving notes remains available while this is off. Custom prompts are preserved.
+**Source context**, **Study notes** and **Custom instructions** have their own visible sections. Choose the selection alone or allow its paragraph with a length limit; the whole page is not read. You can save and manage notes at any time. **Use study notes in answers** is off by default and, when enabled, supplies relevant notes to AI explanations and writing. Turning it off preserves your notes. The instruction editor applies only to AI explanations, leaving translation and dictionary lookup unchanged. Custom prompts are preserved.
 
 **Save original** adds expressions to **Words & sentences** in the [Learning center](/en/guide/vocabulary-book). **Save study note** stores the source and explanation in **Study notes**. After saving, **View study notes** opens that tab directly; entries are kept until you edit or delete them. Reading conversations stay on this device for 30 days. Viewing records sends no model request. Private windows do not read or save history. See [Data and privacy](/en/guide/privacy).
 

@@ -321,6 +321,11 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(canvases).toHaveLength(2);expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
         expect(images[0].src).toBe('');expect(mocks.encode).not.toHaveBeenCalled();
     });
+    it('文字翻译失败原因穿过 Offscreen 文本客户端', async () => {
+        sendMessage.mockImplementation((_message,callback)=>callback({success:false,error:'model not ready',errorCode:'notDownloaded'}));
+        await expect(translateImageTextsInExtension(['Hello'],'Page','model-error')).rejects.toMatchObject({errorCode:'notDownloaded'});
+    });
+
     it('OCR 返回时已取消，不再发送翻译请求', async () => {
         const controller = new AbortController();
         mocks.recognize.mockImplementation(async () => {controller.abort(); return lines;});

@@ -15,7 +15,7 @@ A token is a unit of text processed by a model. Input is what you send; output i
 
 ## Look at a period of time
 
-Choose a date range to view trends. When the service reports details, input, output, and cache use can be shown separately. Missing or estimated values are not exact billing data.
+Choose a date range to view trends. When the service reports details, input, output, and cache use can be shown separately. Missing values are not exact billing data.
 
 Model lists show your commonly used services. Request records can help explain failures and retries. Your provider’s bill is the source of truth for charges.
 
@@ -39,7 +39,7 @@ To reduce use, translate only the sentences you need or turn off extra AI contex
 
 Output speed (token/s) divides the total output tokens of eligible successful requests by their summed duration in seconds, including waiting and transfer time. It is not pure generation speed. Missing output or valid duration displays `—`; zero output displays `0`. The overview shows the aggregate speed and eligible request count, and request details show individual speed. Average duration still includes all calls.
 
-Request records are expanded by default and each row shows output speed (token/s). Each service/model breakdown row also shows its aggregate output speed. Request records can still be collapsed manually.
+Request records are expanded by default and each row shows output speed (token/s). Each service/model breakdown row also shows its aggregate output speed. Records remain visible. Filter by scenario, status, and cache, or enter a page number to jump directly. Click a selected service/model row again to clear that selection. Statistics help opens in an overlay; hover over the local badge for retention details. Average composition per request is always visible.
 
 </details>
 

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按常用连接字段、就近的密钥管理和独立折叠的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，管理可空 Key 的连接检查与等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
+ * 文件职责：渲染当前翻译服务的详细连接配置，按对齐的连接字段、输入下方的添加密钥、使用方式与密钥要求和紧凑页签中的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
+ * 主要内容：组件派生字段可见性与连接示例，将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -23,7 +23,7 @@
           type="button"
           class="connection-test-button"
           data-connection-test-button
-          :disabled="connectionTestBusy && !usesApiKeyList"
+          :disabled="connectionTestDisabled"
           @click="connectionTestBusy ? stopApiKeyChecks() : testConnection()"
         >
           <svg v-if="connectionTestBusy && usesApiKeyList" class="connection-action-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="1" /></svg>
@@ -86,7 +86,7 @@
 
     <template v-if="compute.showCustomOpenAI && customProvider">
       <div class="connection-field" data-testid="custom-service-name-row">
-        <div class="connection-field-label"><strong>服务名称</strong><small>仅用于识别此接口</small></div>
+        <div class="connection-field-label"><strong>服务名称</strong><FieldHelp :content="translateLegacy('仅用于识别此接口')" /></div>
         <div class="connection-field-control">
           <el-input
             :model-value="customProvider.name"
@@ -99,7 +99,7 @@
         </div>
       </div>
       <div class="connection-field" data-testid="custom-service-endpoint-row">
-        <div class="connection-field-label"><strong>接口地址</strong><small>OpenAI Chat Completions 兼容地址</small></div>
+        <div class="connection-field-label"><strong>接口地址</strong><FieldHelp :content="t('settings.services.customEndpointHelp')" /></div>
         <div class="connection-field-control">
           <el-input
             :model-value="customProvider.endpoint"
@@ -109,7 +109,6 @@
             :maxlength="MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH"
             @update:model-value="updateCustomProvider('endpoint', String($event))"
           />
-          <p class="provider-field-help">支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions</p>
         </div>
       </div>
     </template>
@@ -136,13 +135,16 @@
     <div v-if="compute.showOllamaEndpoint" class="connection-field" data-ollama-endpoint>
       <div class="connection-field-label">
         <strong>服务地址</strong>
-        <small>本机默认无需修改</small>
+        <FieldHelp :content="translateLegacy('留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址')">
+          <template #content>
+            <p>{{ translateLegacy('留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址') }}</p>
+            <code>{{ DEFAULT_OLLAMA_ENDPOINT }}</code>
+            <p>{{ translateLegacy('浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝') }}</p>
+          </template>
+        </FieldHelp>
       </div>
       <div class="connection-field-control">
         <el-input v-model="config.proxy[service]" aria-label="Ollama 服务地址" :placeholder="DEFAULT_OLLAMA_ENDPOINT" />
-        <p class="provider-field-help">留空时使用本机默认地址；局域网主机请填写完整的 Chat Completions 地址</p>
-        <p class="provider-field-help"><code>{{ DEFAULT_OLLAMA_ENDPOINT }}</code></p>
-        <p class="provider-field-help">浏览器扩展访问 Ollama 前，需要在启动 Ollama 时设置环境变量 OLLAMA_ORIGINS=*，否则会被跨域拒绝</p>
       </div>
     </div>
 
@@ -185,7 +187,13 @@
     <div v-if="compute.showServiceRegion" class="connection-field" data-cloud-region>
       <div class="connection-field-label">
         <strong>服务区域</strong>
-        <small>需与控制台资源所在区域一致</small>
+        <FieldHelp :content="translateLegacy('需与控制台资源所在区域一致')">
+          <template #content>
+            <div>{{ translateLegacy('需与控制台资源所在区域一致') }}</div>
+            <code v-if="service === services.aliyunTranslation" data-cloud-region-endpoint>{{ getAliyunTranslationEndpoint(config.serviceRegion[service]) }}</code>
+            <div v-else-if="service === services.azureTranslator">{{ translateLegacy('选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送') }}</div>
+          </template>
+        </FieldHelp>
       </div>
       <div class="connection-field-control">
         <el-select
@@ -202,12 +210,6 @@
             :value="item.value"
           />
         </el-select>
-        <p v-if="service === services.aliyunTranslation" class="provider-field-help" data-cloud-region-endpoint>
-          <span>当前接口地址</span><br /><code>{{ getAliyunTranslationEndpoint(config.serviceRegion[service]) }}</code>
-        </p>
-        <p v-else-if="service === services.azureTranslator" class="provider-field-help">
-          选择全球区域时不发送区域请求头；其余区域会通过 Ocp-Apim-Subscription-Region 请求头一并发送
-        </p>
       </div>
     </div>
     <p v-if="compute.showMiniMaxRegion && minimaxKeyMismatch" class="minimax-key-note is-warning">
@@ -215,15 +217,14 @@
     </p>
 
     <div v-if="compute.showMiniMaxRegion" class="provider-account-fields">
-    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 计费方式</strong><FieldHelp :content="translateLegacy('按量付费和 Token Plan 使用不同的账户权益；请按控制台中 Key 的来源选择')" /></div><div class="connection-field-control"><el-select v-model="config.minimaxBillingPlan" aria-label="MiniMax 计费方式" placeholder="请选择 MiniMax 计费方式">
           <el-option class="select-left" v-for="item in options.minimaxBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
 
-    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 区域</strong><el-tooltip content="选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
+    <div v-if="compute.showMiniMaxRegion" class="connection-field"><div class="connection-field-label"><strong>MiniMax 区域</strong><FieldHelp :content="translateLegacy('选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换')"><template #content><div>{{ translateLegacy('选择与 MiniMax Key 来源一致的 API 区域，Token Plan Key（sk-cp-）与按量付费 Key 不能互换') }}</div><code data-minimax-endpoint>{{ minimaxEndpoint }}</code></template></FieldHelp></div><div class="connection-field-control"><el-select v-model="config.minimaxRegion" aria-label="MiniMax API 区域" placeholder="请选择 MiniMax API 区域">
           <el-option class="select-left" v-for="item in options.minimaxRegion" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
     </div>
-    <p v-if="compute.showMiniMaxRegion" class="provider-field-help minimax-endpoint" data-minimax-endpoint><code>{{ minimaxEndpoint }}</code></p>
 
 
     <p v-if="compute.showMiMoRegion && mimoKeyMismatch" class="mimo-key-note is-warning">
@@ -231,15 +232,14 @@
     </p>
 
     <div v-if="compute.showMiMoRegion" class="provider-account-fields">
-    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>小米 MiMo 计费方式</strong><el-tooltip content="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>小米 MiMo 计费方式</strong><FieldHelp :content="translateLegacy('按量付费和 Token Plan 使用不同的账户权益；请按小米 MiMo 控制台中 Key 的来源选择')" /></div><div class="connection-field-control"><el-select v-model="config.mimoBillingPlan" aria-label="小米 MiMo 计费方式" placeholder="请选择小米 MiMo 计费方式">
           <el-option class="select-left" v-for="item in options.mimoBillingPlan" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
 
-    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>MiMo API 集群</strong><el-tooltip content="Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com" placement="top" :show-after="300"><button type="button" class="field-help-button" aria-label="Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg></button></el-tooltip></div><div class="connection-field-control"><el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
+    <div v-if="compute.showMiMoRegion" class="connection-field"><div class="connection-field-label"><strong>MiMo API 集群</strong><FieldHelp :content="translateLegacy('Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com')"><template #content><div>{{ translateLegacy('Token Plan 使用购买页面提供的集群地址，中国、新加坡和欧洲集群的 tp- Key 不能混用；按量付费统一使用 api.xiaomimimo.com') }}</div><code data-mimo-endpoint>{{ mimoEndpoint }}</code></template></FieldHelp></div><div class="connection-field-control"><el-select v-model="config.mimoRegion" aria-label="小米 MiMo API 集群" placeholder="请选择小米 MiMo API 集群">
           <el-option class="select-left" v-for="item in options.mimoRegion" :key="item.value" :label="item.label" :value="item.value" />
         </el-select></div></div>
     </div>
-    <p v-if="compute.showMiMoRegion" class="provider-field-help mimo-endpoint" data-mimo-endpoint><code>{{ mimoEndpoint }}</code></p>
 
 
     <div v-if="compute.showAzureOpenaiEndpoint" class="connection-field" data-azure-endpoint>
@@ -285,40 +285,29 @@
 
     <ApiKeyList
       v-if="compute.showToken && !compute.showServiceSecret"
-      :label="service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :label="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
+      :placeholder="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? t('settings.services.keys.optionalPlaceholder') : undefined"
       :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
       :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
       :allow-multiple="apiKeyRotationEnabled"
       :connection-state="standaloneApiKeyCheck" :check-mode="apiKeyCheckMode"
       @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey"
-    />
-    <details v-if="compute.showToken && !compute.showServiceSecret" :key="service + '-keys'" id="service-keys-settings" class="service-disclosure credential-options" data-configuration-group="keys">
-      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.keys') }}</strong><small>{{ t('settings.organization.keysHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="disclosure-content">
-        <div v-if="compute.showToken && !compute.showServiceSecret" class="connection-field api-key-rotation-setting" data-api-key-rotation-setting>
-          <div class="connection-field-label">
-            <strong>{{ t('settings.services.keys.multiKeyTitle') }}</strong>
-            <small>{{ t('settings.services.keys.multiKeyHelp') }}</small>
+    >
+      <template #help><FieldHelp v-if="compute.showAI" :content="t('settings.services.keys.requirementHelp')" /></template>
+      <template #tools>
+        <div v-if="apiKeys.length > 1" class="credential-usage" data-api-key-rotation-setting role="radiogroup" :aria-label="t('settings.services.keys.usage')">
+          <div class="credential-modes">
+            <label :class="{'is-selected': !apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="single" :checked="!apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(false)" /><span>{{ t('settings.services.keys.firstOnly') }}</span></label>
+            <label :class="{'is-selected': apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="rotation" :checked="apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(true)" /><span>{{ t('settings.services.keys.rotate') }}</span></label>
           </div>
-          <div class="connection-field-control">
-            <el-switch
-              :model-value="apiKeyRotationEnabled"
-              :aria-label="t('settings.services.keys.multiKeyTitle')"
-              @update:model-value="setApiKeyRotationEnabled"
-            />
-          </div>
+          <FieldHelp :content="t('settings.services.keys.usageHelp')" />
         </div>
-        <div v-if="compute.showAI && compute.showToken && !compute.showServiceSecret" class="connection-field" data-api-key-auth-policy>
-          <div class="connection-field-label">
-            <strong>{{ t('settings.services.keys.authRequired') }}</strong>
-            <small>{{ t('settings.services.keys.authHelp') }}</small>
-          </div>
-          <div class="connection-field-control">
-            <el-switch v-model="compute.requireApiKey" :aria-label="t('settings.services.keys.authRequired')" />
-          </div>
-        </div>
-      </div>
-    </details>
+        <select v-if="compute.showAI" class="credential-requirement" data-api-key-auth-policy :aria-label="t('settings.services.keys.requirement')" :value="compute.requireApiKey ? 'required' : 'optional'" @change="setApiKeyRequirement">
+          <option value="required">{{ t('settings.services.keys.required') }}</option>
+          <option value="optional">{{ t('settings.services.keys.optional') }}</option>
+        </select>
+      </template>
+    </ApiKeyList>
     <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
 
     <div
@@ -338,16 +327,14 @@
     </div>
     </section>
 
-    <div v-if="service !== services.localTranslation" class="service-options-heading"><h5>{{ t('settings.organization.optional') }}</h5><span>{{ t('settings.organization.optionalHelp') }}</span></div>
-    <details v-if="compute.showAI && compute.showModel" :key="service + '-translation'" id="service-translation-settings" class="service-disclosure" data-configuration-group="translation">
-      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.model') }}</strong><small>{{ t('settings.organization.modelHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="disclosure-content">
-        <p class="configuration-scope">{{ t('settings.organization.modelScope', {model: effectiveModelLabel || t('settings.services.currentModel')}) }}</p>
+    <el-tabs v-if="service !== services.localTranslation" v-model="activeSettingsTab" class="service-settings-tabs" data-service-settings-tabs>
+    <el-tab-pane v-if="compute.showAI && compute.showModel" name="translation" :label="t('settings.organization.model')">
+      <section id="service-translation-settings" class="service-settings-panel" data-configuration-group="translation">
 
           <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
             <div class="connection-field-label">
-              <strong>{{ t('settings.organization.thinking') }}</strong>
-              <small>{{ t('settings.organization.thinkingHelp') }}</small>
+              <strong>{{ t('settings.services.reasoning') }}</strong>
+              <FieldHelp :content="t('settings.organization.thinkingHelp')" />
             </div>
             <div class="connection-field-control model-thinking-setting">
 
@@ -369,16 +356,11 @@
           </div>
 
 
-      </div>
-    </details>
-    <details v-if="compute.showAI" :key="service + '-prompts'" id="service-prompts-settings" class="service-disclosure" data-configuration-group="prompts">
-      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.prompts') }}</strong><small>{{ t('settings.organization.promptsHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="disclosure-content">
+      </section>
+    </el-tab-pane>
+    <el-tab-pane v-if="compute.showAI" name="prompts" :label="t('settings.organization.prompts')">
+      <section id="service-prompts-settings" class="service-settings-panel" data-configuration-group="prompts">
           <div class="custom-template-heading">
-            <div>
-              <strong>请求模板</strong>
-              <small>修改会自动保存到当前 AI 服务；可用变量可以一键插入</small>
-            </div>
             <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
           </div>
 
@@ -387,44 +369,42 @@
             <PromptTemplateEditor v-model="config.user_role[service]" role="user" />
           </div>
 
-      </div>
-    </details>
-    <details v-if="service !== services.localTranslation" :key="service + '-requests'" id="service-requests-settings" class="service-disclosure" data-configuration-group="requests">
-      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.requests') }}</strong><small>{{ t('settings.organization.requestsHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="disclosure-content">
+      </section>
+    </el-tab-pane>
+    <el-tab-pane v-if="service !== services.localTranslation" name="requests" :label="t('settings.organization.requests')">
+      <section id="service-requests-settings" class="service-settings-panel" data-configuration-group="requests">
         <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
         <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
 
-      </div>
-    </details>
-    <details v-if="compute.showDeepseekApiType || compute.showAI || compute.showCustomBody || Boolean(customProvider)" :key="service + '-custom-request'" id="service-custom-request-settings" class="service-disclosure" data-configuration-group="custom-request">
-      <summary><span class="advanced-summary-copy"><strong>{{ t('settings.organization.compatibility') }}</strong><small>{{ t('settings.organization.compatibilityHelp') }}</small></span><svg class="advanced-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg></summary>
-      <div class="disclosure-content">
-        <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select><p class="provider-field-help">选择 DeepSeek 接口使用的 API 格式</p></div></div>
+      </section>
+    </el-tab-pane>
+    <el-tab-pane v-if="compute.showDeepseekApiType || compute.showAI || compute.showCustomBody || Boolean(customProvider)" name="custom-request" :label="t('settings.organization.compatibility')">
+      <section id="service-custom-request-settings" class="service-settings-panel" data-configuration-group="custom-request">
+        <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong><FieldHelp :content="translateLegacy('选择 DeepSeek 接口使用的 API 格式')" /></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></div></div>
 
-          <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /><p class="provider-field-help">可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里</p></div></div>
+          <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong><FieldHelp :content="translateLegacy('可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里')" /></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /></div></div>
 
           <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
-            <div class="connection-field-label"><strong>自定义请求头</strong></div>
+            <div class="connection-field-label"><strong>自定义请求头</strong><FieldHelp :content="translateLegacy('填写值为字符串的 JSON 对象，仅用于当前自定义服务，同名请求头会覆盖默认值；留空则不启用')" /></div>
             <div class="connection-field-control">
               <el-input v-model="config.customHeaders[service]" type="textarea" :rows="3"
                 aria-label="自定义请求头" :spellcheck="false" :class="{ 'input-error': !isValidCustomHeaders(config.customHeaders[service]) }"
                 placeholder='{"x-opencode-session": "your-stable-session-id"}' />
-              <small class="custom-headers-help">填写值为字符串的 JSON 对象，仅用于当前自定义服务，同名请求头会覆盖默认值；留空则不启用</small>
               <div v-if="!isValidCustomHeaders(config.customHeaders[service])" class="error-text">请输入有效的请求头 JSON 对象，名称和值必须符合 HTTP 格式</div>
             </div>
           </div>
 
           <RequestHeaderSettings v-if="compute.showAI" :config="config" />
 
-          <div v-if="compute.showCustomBody" class="connection-field"><div class="connection-field-label"><strong>自定义请求体</strong></div><div class="connection-field-control"><el-input v-model="config.customBody[service]" type="textarea" :rows="3" aria-label="自定义请求体" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
-              <p class="provider-field-help">填写要合并到翻译请求中的 JSON 参数对象</p><div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
+          <div v-if="compute.showCustomBody" class="connection-field"><div class="connection-field-label"><strong>自定义请求体</strong><FieldHelp :content="translateLegacy('填写要合并到翻译请求中的 JSON 参数对象')" /></div><div class="connection-field-control"><el-input v-model="config.customBody[service]" type="textarea" :rows="3" aria-label="自定义请求体" :class="{ 'input-error': !isValidCustomBody(config.customBody[service]) }" placeholder='例如：{"thinking": {"type": "disabled"}}' />
+              <div v-if="!isValidCustomBody(config.customBody[service])" class="error-text">请输入合法的 JSON 对象，否则该配置将被忽略</div></div></div>
 
 
-      </div>
-    </details>
+      </section>
+    </el-tab-pane>
+    </el-tabs>
     <div v-if="compute.showCustomOpenAI" class="service-maintenance-actions">
-      <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider">删除服务</button>
+      <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7" /></svg>删除服务</button>
     </div>
   </section>
 </template>
@@ -449,7 +429,9 @@ import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, DEFAULT_OLLAMA_ENDPOINT, getAliyunTranslationEndpoint, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { chromeTranslationPreparationStore } from '@/src/platform/browser/chromeTranslationPreparationRequest'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox, ElTabs, ElTabPane } from 'element-plus'
+import 'element-plus/es/components/tabs/style/css'
+import FieldHelp from '../components/FieldHelp.vue'
 import {
     ChromeTranslationPreparationError,
     getChromeTranslationPreparationLanguageLabel,
@@ -494,6 +476,10 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t, translateLegacy } = useUiI18n()
+const activeSettingsTab = ref('requests')
+watch(() => [service.value, Boolean(compute.value.showAI), Boolean(compute.value.showModel)], () => {
+  activeSettingsTab.value = compute.value.showAI && compute.value.showModel ? 'translation' : compute.value.showAI ? 'prompts' : 'requests'
+}, {immediate: true})
 const myMemoryEmailDraft = ref(config.value.myMemoryEmail)
 const myMemoryEmailInvalid = computed(() => Boolean(myMemoryEmailDraft.value.trim() && !normalizeMyMemoryEmail(myMemoryEmailDraft.value)))
 watch(() => config.value.myMemoryEmail, value => { myMemoryEmailDraft.value = value })
@@ -541,6 +527,9 @@ const apiKeyRotationEnabled = computed<boolean>({
 function setApiKeyRotationEnabled(value: boolean): void {
   apiKeyRotationEnabled.value = value
 }
+function setApiKeyRequirement(event: Event): void {
+  compute.value.requireApiKey = (event.target as HTMLSelectElement).value === 'required'
+}
 const displayedApiKeys = computed(() => apiKeyRotationEnabled.value ? apiKeys.value : apiKeys.value.slice(0, 1))
 const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(displayedApiKeys.value))
 const usesApiKeyList = computed(() => compute.value.showToken && !compute.value.showServiceSecret)
@@ -559,7 +548,8 @@ function syncApiKeys(next: string[]): void {
 }
 
 function addApiKey(): void {
-  if (!apiKeyRotationEnabled.value || apiKeys.value.some(key => !key.trim())) return
+  apiKeyRotationEnabled.value = true
+  if (apiKeys.value.some(key => !key.trim())) return
   syncApiKeys([...apiKeys.value, ''])
 }
 function updateApiKey(index: number, value: string): void {
@@ -663,6 +653,10 @@ const CHROME_PREPARATION_ERROR_KEYS: Readonly<Record<ChromeTranslationPreparatio
   'model-unavailable': 'settings.services.chromePreparation.error.modelUnavailable',
 }
 const connectionTestBusy = ref(false)
+const connectionTestDisabled = computed(() => connectionTestBusy.value
+  ? !usesApiKeyList.value
+  : usesApiKeyList.value && apiKeyIndexes.value.length === 0
+    && (service.value === services.deeplx ? deepLXRequiresToken.value : compute.value.requireApiKey))
 const freeProviderChecks = ref<FreeTranslationChecks>({})
 const connectionTestState = ref<ConnectionTestState>('idle')
 const connectionTestMessageState = ref<LocalizedConnectionTestMessage | string | null>(null)
@@ -1057,7 +1051,8 @@ onBeforeUnmount(() => {
 .configuration-group-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .connection-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: start; gap: 16px; padding: 14px 0; }
 .connection-field + .connection-field { border-top: 1px solid var(--line, #e4e7ef); }
-.connection-field-label { display: grid; gap: 5px; min-width: 0; padding-top: 8px; }
+.connection-field-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; min-height: 38px; }
+.connection-field-label small { flex-basis: 100%; }
 .connection-field-label strong { color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.5; }
 .connection-field-label small, .provider-field-help, .custom-headers-help, .model-thinking-setting > small, .model-vision-setting > small { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 .connection-field-control { display: flex; flex-direction: column; align-items: stretch; justify-self: start; width: 100%; max-width: 640px; min-width: 0; }
@@ -1071,36 +1066,26 @@ onBeforeUnmount(() => {
 .provider-field-help code { font-size: 11px; }
 .credential-control { display: grid; justify-items: end; gap: 8px; }
 .api-key-requirement { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
-[data-configuration-group="translation"] .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
-[data-configuration-group="translation"] .model-vision-setting { width: min(280px, 100%); }
-.model-vision-setting { display: grid; justify-items: end; gap: 7px; }
-.model-thinking-setting { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 16px; }
+.model-vision-setting { gap: 6px; }
+.model-thinking-setting { justify-content: center; align-items: flex-start; min-height: 38px; }
 .model-thinking-setting :deep(.el-switch) { flex: none; }
-/* 独立用途行让低频设置保持可发现；展开内容不再套多层卡片。 */
-.service-disclosure { min-width: 0; border-bottom: 1px solid var(--line); }
-.service-disclosure > summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 2px; min-height: 58px; cursor: pointer; list-style: none; border-radius: 8px; }
-.service-disclosure > summary::-webkit-details-marker { display: none; }
-.service-disclosure > summary:hover { background: var(--surface-soft); }
-.advanced-summary-copy { display: grid; gap: 4px; min-width: 0; }
-.advanced-summary-copy strong { color: var(--ink); font-size: 13px; font-weight: 600; line-height: 1.5; }
-.advanced-summary-copy small { color: var(--muted); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.advanced-chevron { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform 150ms ease; }
-.service-disclosure[open] > summary .advanced-chevron { transform: rotate(180deg); }
-.disclosure-content { padding: 0 2px 18px; }
-.service-options-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 12px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
-.service-options-heading h5 { margin: 0; font-size: 13px; color: var(--ink); font-weight: 650; }
-.service-options-heading span, .configuration-scope { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.credential-options { border-bottom: 0; }
-.credential-options > summary { min-height: 36px; padding: 6px 2px; }
-.credential-options .advanced-summary-copy { display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.credential-options .advanced-summary-copy strong { color: var(--brand-strong); font-size: 12px; font-weight: 500; }
-.credential-options .connection-field { grid-template-columns: minmax(0, 1fr) auto; }
-.credential-options .connection-field-control { justify-self: end; }
-.custom-template-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin: 4px 0 14px; padding-top: 0; }
-.custom-template-heading > div { display: grid; gap: 6px; }
-.custom-template-heading strong { color: var(--ink); font-size: 13px; font-weight: 600; }
-.custom-template-heading small { color: var(--muted); font-size: 12px; line-height: 1.6; }
-.custom-template-heading :deep(.el-button) { margin-top: 2px; flex: none; }
+.service-settings-tabs { margin-top: 18px; min-width: 0; --el-color-primary: var(--brand-strong); }
+.service-settings-tabs :deep(.el-tabs__header) { margin: 0; }
+.service-settings-tabs :deep(.el-tabs__item) { height: 44px; padding: 0 18px; color: var(--muted); font-size: 13px; font-weight: 550; }
+.service-settings-tabs :deep(.el-tabs__item.is-active) { color: var(--brand-strong); }
+.service-settings-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--line); }
+.service-settings-panel { min-width: 0; padding-top: 12px; }
+.configuration-scope { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.credential-usage { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.credential-modes { display: flex; flex-wrap: wrap; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
+.credential-modes label { position: relative; display: inline-flex; align-items: center; min-height: 26px; padding: 2px 7px; border-radius: 5px; color: var(--muted); font-size: 11px; cursor: pointer; }
+.credential-modes label.is-selected { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px #0000000d; }
+.credential-modes input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.credential-modes label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
+.credential-requirement { min-width: 0; max-width: 100%; min-height: 30px; border: 1px solid var(--line); border-radius: 7px; padding: 4px 7px; color: var(--muted); background: var(--surface); font: inherit; font-size: 11px; cursor: pointer; }
+.credential-requirement:hover { color: var(--ink); border-color: var(--brand); }
+.credential-requirement:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.custom-template-heading { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin: 0 0 10px; }
 .prompt-template-list { display: grid; gap: 14px; }
 .service-connection-section :deep(.request-limit-settings) { border-bottom: 0; width: 100%; }
 .connection-test-inline { display: flex; align-items: center; justify-content: flex-start; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
@@ -1130,17 +1115,17 @@ onBeforeUnmount(() => {
 .official-translation-help a, .chrome-preparation-help a { color: var(--brand-strong); }
 .chrome-preparation-help summary { cursor: pointer; color: var(--ink); }
 .chrome-preparation-help-links, .chrome-preparation-pair { display: flex; flex-wrap: wrap; gap: 8px 12px; }
-.service-maintenance-actions { display: flex; justify-content: flex-start; padding: 0 2px; }
-.delete-service-button { padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); background: var(--surface); font-size: 12px; cursor: pointer; }
-.delete-service-button:hover { color: var(--el-color-danger); border-color: var(--el-color-danger); }
+.service-maintenance-actions { display: flex; justify-content: flex-end; padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--line); }
+.delete-service-button { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 8px; border: 0; border-radius: 6px; color: var(--el-color-danger); background: transparent; font-size: 12px; cursor: pointer; }
+.delete-service-button:hover { background: var(--el-color-danger-light-9); }
 button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 @container (max-width: 600px) {
   .connection-card { padding: 16px; }
   .connection-field { grid-template-columns: 1fr; gap: 8px; }
   [data-configuration-group="translation"] .connection-field { grid-template-columns: minmax(0, 1fr); }
-  [data-configuration-group="translation"] .model-thinking-setting { justify-self: end; }
+  [data-configuration-group="translation"] .model-thinking-setting { justify-self: start; }
   [data-configuration-group="translation"] .model-vision-setting { width: 100%; }
-  .connection-field-label { padding-top: 0; }
+  .connection-field-label { min-height: 24px; }
   .connection-field-control { max-width: none; }
   .custom-template-heading { flex-wrap: wrap; }
 }
@@ -1151,12 +1136,6 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); o
 .connection-card { padding: 0; border: 0; border-radius: 0; }
 .configuration-group-heading { margin: 0 0 10px; }
 .configuration-group-heading h5 { font-size: 13px; font-weight: 650; }
-.provider-account-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 780px; margin-left: auto; gap: 16px; }
-.provider-account-fields .connection-field { display: flex; flex-direction: column; align-items: stretch; gap: 8px; border: 0; padding: 8px 0 4px; }
-.provider-account-fields .connection-field-label { display: flex; align-items: center; gap: 6px; padding: 0; }
-.provider-account-fields .connection-field-control :deep(.el-select) { max-width: none !important; }
-.field-help-button { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: help; }
-.field-help-button:hover { color: var(--brand-strong); background: var(--brand-soft); }
-.minimax-endpoint, .mimo-endpoint { margin: 5px 0 14px; }
-@container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } .credential-options .advanced-summary-copy { display: grid; gap: 4px; } }
+.provider-account-fields { min-width: 0; }
+@container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } }
 </style>

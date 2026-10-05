@@ -72,7 +72,7 @@
 
 该证据覆盖生产扩展页面、后台 Web Crypto 与实际配置存储；Google 登录授权和 Drive HTTP 为受控夹具，不代表真实 Google 账号、两台设备或商店发行版本的联调结果。配置与公开发布步骤见 [Google Drive 同步教程](./maintainers/google-drive-sync-guide.md)。
 
-## 配置云备份范围与单次敏感信息同意
+## 云备份范围与敏感信息选择
 
 更新日期：2026 年 10 月 4 日。生产扩展构建完成后，使用 WebDAV 本机 HTTP 夹具运行本次范围专项：
 
@@ -85,15 +85,15 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
   --sensitive-only
 ```
 
-`--sensitive-only` 限定为云备份范围与单次同意专项。使用临时 Edge profile、第二屏后台可见窗口与 focus-safe helper；不读取日常浏览器配置，不使用真实账号或服务凭据。检查默认普通范围、风险勾选与取消、保存后的解密载荷不含密钥/鉴权地址/自定义请求体/私密提示词、普通备份及旧完整 v1 恢复保留本机密钥与地址、本次同意后仍写兼容的完整 v1，以及普通设置相同时仍可确认保存普通范围、从当前云文件移除敏感信息。
+`--sensitive-only` 限定为云备份范围与敏感信息选择专项。使用临时 Edge profile、第二屏后台可见窗口与 focus-safe helper；不读取日常浏览器配置，不使用真实账号或服务凭据。检查默认普通范围、风险勾选与取消、保存后的解密载荷不含密钥/鉴权地址/自定义请求体/私密提示词、普通备份及旧完整 v1 恢复保留本机密钥与地址、开启敏感配置后仍写兼容的完整 v1，以及普通设置相同时仍可确认保存普通范围、从当前云文件移除敏感信息。
 
-还检查完成、取消预览、切换供应商与重开设置时的同意重置，以及七语言风险文案解析、390px 无横向溢出、Escape 取消、深色风险文字对比度至少 4.5:1 和控制台异常。紧凑风险弹窗保留本机加密与存储位置、公开口令和泄露风险、默认未勾选的本次同意，省去重复建议。保存普通范围只更新当前云文件，不证明服务商历史版本被删除。此专项使用受控 WebDAV 夹具，不代表真实 Google 授权、真实第三方账号、商店版本或跨设备联调结果；Google 账号切换、生成预览失败、旧扩展拒绝 v2 与旧事务失效还需对应领域回归验证。
+还检查完成、预览与提交失败、取消预览、切换供应商、重开设置与确认后立即关闭时仍保持已选范围，手动关闭持久保存、多页同步与存储失败保护，以及七语言风险文案解析、390px 无横向溢出、Escape 取消、深色风险文字对比度至少 4.5:1 和控制台异常。紧凑风险弹窗保留本机加密与存储位置、公开口令和泄露风险、默认未勾选的风险同意，省去重复建议。保存普通范围只更新当前云文件，不证明服务商历史版本被删除。此专项使用受控 WebDAV 夹具，不代表真实 Google 授权、真实第三方账号、商店版本或跨设备联调结果；Google 账号切换与准备失败还可用 Google 专项的 `--sensitive-only` 验证；旧扩展拒绝 v2 与旧事务失效由对应领域回归验证。
 
 ## 云端备份删除专项
 
 更新日期：2026 年 10 月 5 日。`pnpm test:cloud-backup --coverage` 覆盖两阶段删除确认、页面所有权、账号绑定、MV3 重启、旧/未知/损坏密文、空文件、重放、版本冲突、强 ETag、清理失败和本机配置保留；真实 WebDAV HTTP 夹具分别验证 GET、PROPFIND、HEAD 三种 ETag 来源的条件 DELETE、冲突、缺失幂等与重新创建。
 
-生产扩展构建后运行 `run-webdav-backup-ui-test.cjs --delete-only` 和 `run-google-drive-sync-ui-test.cjs --delete-only`，其余参数同上。两者均使用 focus-safe helper 和临时 Edge profile。WebDAV 使用本机服务器验证真实请求、取消/Escape/重开、版本变化、七语言、390px、深色和本机配置保留，还检查输入确认文本前后、输入错误、清空及 Enter 不执行删除，并验证按钮使用已有主色样式。删除说明合并为一句，确认提示放在输入框中并保留无障碍名称；次要说明在页脚按需展开，使用 Enter/Space 检查展开与收起。Google 使用虚构 Chrome Identity 与 Drive 响应验证实际账号展示、更换账号后重新输入确认文本、缺少版本、v2 ETag 条件删除与窄屏。报告与截图写入各自证据目录；夹具不能代替真实 Google 登录、第三方账号或 Firefox 实机验证。
+生产扩展构建后运行 `run-webdav-backup-ui-test.cjs --delete-only` 和 `run-google-drive-sync-ui-test.cjs --delete-only`，其余参数同上。两者均使用 focus-safe helper 和临时 Edge profile。WebDAV 使用本机服务器验证真实请求、取消/Escape/重开、版本变化、七语言、390px、深色和本机配置保留，还检查输入确认文本前后、输入错误、清空及 Enter 不执行删除，并验证按钮使用已有主色样式。删除影响突出目标服务和本机配置保留；删除影响和输入要求合在同一个提示块中，输入框紧接其下方；确认词加粗并与输入框建立无障碍关联。次要说明通过页脚浮层按需显示，使用 Enter/Space 检查打开与关闭，同时断言弹窗和删除按钮位置、尺寸完全不变，浮层不超出窄屏。Google 使用虚构 Chrome Identity 与 Drive 响应验证实际账号展示、更换账号后重新输入确认文本、缺少版本、v2 ETag 条件删除与窄屏。报告与截图写入各自证据目录；夹具不能代替真实 Google 登录、第三方账号或 Firefox 实机验证。
 
 ## 双语逐句高亮
 
@@ -125,11 +125,15 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 
 同一专项覆盖 200 条缓存字幕按播放位置预取、空翻译响应与独立重试、双语和原文切换复用译文、重新识别绕过缓存且确认前保留原文、迟到原生轨道优先、原生静音空档、原文模式加载 sidecar、初始隐藏后恢复字幕和键盘焦点。页面、识别结果与翻译响应为受控夹具，不代表真实 X 登录会话、Whisper 识别质量或外部翻译服务可用性。产品取舍见 [体验复核](./reports/x-video-experience-20260930/README.md)。
 
+`node scripts/run-x-home-audio-recovery-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-x-home-recovery` 在临时 Chrome profile 的第二屏后台窗口中验证 Home：使用真实 MSE 视频和 HLS 音轨解码，复现 arraybuffer 清单未被页面桥捕获，检查当前视频匹配、A 失败后切换 B、无法读音频时的刷新提示、播放状态保持，以及从字幕选项重新识别后 Base 空结果的可见提示。脚本需要 ffmpeg；可用 `--ffmpeg` 指定路径。Base 识别结果与翻译响应使用受控回复，不代表真实模型或 X 登录账号验证。
+
 ## YouTube 全屏与字幕同步
 
 `node scripts/run-video-caption-prefetch-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-caption-prefetch` 在临时 Edge profile 的第二屏后台窗口中，以固定 500ms 翻译响应检查 YouTube/X 的预取和首次显示：重复原生条目不能占满后续句子的名额，轨道加入后立即启动预取，缓存命中的原文与译文在同一次 DOM 更新中显示。报告记录请求启动时间、两行首次显示的间隔和焦点隔离信息；页面与供应商均为受控夹具，不代表真实账号或在线翻译服务的端到端延迟。
 
 同一专项还覆盖滚动字幕的上一句残留、窗口裁切的旧行、连续每 40ms 增词、无时间轴的请求启动延迟与缓存重播。报告中的 `dispatchMs` 只度量原文变化到请求发出的等待，不包含真实供应商耗时；译文仍使用确定性响应，不能据此声称真实视频端到端零延迟。
+
+X 另覆盖未预取句子等待原译文成对显示、seek 后迟到结果丢弃、仅原文模式零翻译请求与同目标语言单行显示。使用新版 Chrome 时添加 `--extension-install cdp --browser-path <Chrome可执行文件>`；其余焦点隔离和夹具边界相同。
 
 播放页菜单校时使用真实按钮点击，验证正负半秒的字幕内容、视频进度不变、仅原文模式、时间轴空档、重新打开页面后持久化、跨页同步、连续点击、重置和播放期间按帧更新。没有时间轴时禁用无效的提前/延后操作，仍允许重置已保存的偏移。
 
@@ -475,10 +479,22 @@ node scripts/testing/run-reddit-translation-test.cjs \
 pnpm exec vitest run tests/glossary.test.ts tests/builtinGlossaries.test.ts tests/glossaryConfig.test.ts tests/glossarySettingsComponent.test.ts tests/translationGlossaryIntegration.test.ts tests/imageGlossaryContext.test.ts
 ```
 
-生产 Chrome 产物另由以下隔离浏览器回归验证真实设置与翻译交互；`--browser` 一键计划也会自动包含此脚本：
+仅修改术语库管理界面时，使用 `--suite ui` 运行专项，不进入网页或文档翻译链路：
 
 ```bash
-node scripts/run-glossary-test.cjs \
+node scripts/run-glossary-test.cjs --suite ui \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-glossary-ui
+```
+
+专项验证直达的新建、导入与匹配预览入口，空词库及已有词条的设置展开、键盘操作、重复切换和逐帧宽高稳定性，多词库草稿、排序、导入导出、取消删除、重载及快速关闭持久化，以及四种屏宽、深色主题和英文布局。使用临时 Edge profile 与第二块屏幕上的后台可见窗口，不抢占用户焦点；报告包含布局、展开状态采样、控制台错误与截图。
+
+需要验证真实设置与翻译链路时运行以下术语库全链路专项；`--browser` 一键计划也会自动包含此脚本：
+
+```bash
+node scripts/run-glossary-test.cjs --suite full \
   --extension-dir .output/chrome-mv3 \
   --playwright-root <path> \
   --browser-path <path> \
@@ -508,7 +524,7 @@ node scripts/testing/run-popup-quick-settings-ui-test.cjs \
 
 ## 设置层级与渐进展开
 
-通用页按日常翻译、网页辅助、基本偏好排序；服务页将密钥管理放在 API Key 旁，模型偏好、提示词、请求限制和接口兼容分别展开。可运行以下专项验证这些入口：
+通用页按日常翻译、网页辅助、基本偏好排序；服务页优先展示密钥输入，下方直接添加密钥，有多个密钥时才显示“仅用首个 / 轮换使用”，密钥要求明确区分必填与允许留空。填写密钥后，即使允许留空也仍使用已填密钥；切换为仅用首个会保留其他密钥。模型偏好、提示词、请求限制和接口兼容通过紧凑页签切换，每次只显示一组。标签旁的信息按钮支持悬停和键盘聚焦，详细说明不挤占表单空间。可运行以下专项验证这些入口：
 
 ```bash
 node scripts/testing/run-settings-hierarchy-ui-test.cjs \
@@ -518,7 +534,21 @@ node scripts/testing/run-settings-hierarchy-ui-test.cjs \
   --artifacts-dir /private/tmp/fluentread-settings-hierarchy
 ```
 
-该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘展开、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+该专项在独立临时 Edge profile 中验证默认服务配置直达、浏览目录不改变默认服务、键盘切换页签、多 Key 保留、模型偏好与提示词保存、请求限制、快速关闭后的持久化、连续写入与两个设置页同步。还检查 18 个设置分区、1024/820/390 像素布局、窄屏目录及图标、深色和英文界面，并导出截图、布局尺寸与控制台错误。
+
+服务配置的详细专项可运行：
+
+```bash
+node scripts/testing/run-service-configuration-ui-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <focus-safe-browser.cjs路径> \
+  --artifacts-dir /private/tmp/fluentread-service-configuration
+```
+
+该专项使用临时 Chrome profile 与第二屏后台窗口，验证四类设置页签、键盘访问、多 Key 保留及逐项结果、实际继承的限制值、模型与服务限制隔离、区域说明、本地模型悬停详情、自定义接口地址说明和删除确认。请求限制继承时仍显示生效数值，切换为自定义后可编辑。自定义接口地址接受完整 Chat Completions URL 或以 `/v1` 结尾的 Base URL，模型必须支持 Chat Completions；说明集中在标签旁提示中。Ollama 与腾讯混元模型使用统一的目录名称。
+
+浏览器配置修改经过真实后台保存，覆盖快速关闭、连续写入、重开和两页同步；连接结果使用测试夹具，不调用外部服务、不下载模型。响应式覆盖 1440/1024/820/390px，另检查深色和英文界面，Firefox 仅有构建证据。
 
 连续设置页的顶部同页导航可单独运行 `scripts/testing/run-settings-section-navigation-test.cjs`，传入 `--extension-dir .output/chrome-mv3`、`--playwright-root <bundled-node-packages>`、`--focus-safe-helper <skill>/scripts/focus-safe-browser.cjs` 和 `--artifacts-dir <evidence-dir>`。该专项覆盖通用、翻译、界面、划词、图片、视频、写作、高级及备份九个长表单的入口点击、滚动高亮、键盘操作、条件模块、折叠展开、搜索与跨页定位交接，并检查统计/网站规则原有视图切换、1024/820/390 像素布局和英文标签。仅使用临时 profile、第二屏可见后台窗口；导航本身不得写配置或更改 URL。Firefox 实机不在该专项范围内。
 
@@ -542,7 +572,7 @@ node scripts/testing/run-service-catalog-ui-test.cjs \
   --artifacts-dir /private/tmp/fluentread-service-catalog
 ```
 
-`run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、默认展开的云服务额度、单个高级设置入口和 DeepLX 检查期间的布局稳定性，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
+`run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、可选邮箱字段、默认收起的云服务额度指引，以及 DeepLX 检查期间的布局稳定性、匿名检查和占位符地址必填密钥，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
 
 ## 菜单栏首帧与快速关闭
 
@@ -705,7 +735,7 @@ node scripts/testing/run-section-translation-flow-test.cjs \
   --artifacts-dir /private/tmp/fluentread-section-flow
 ```
 
-使用临时 Edge profile、防抢焦点 helper 和 CDP 真实指针/按键，在类 GitHub 仓库页夹具上验证：Popup 局部按钮与主按钮同排等高，消息进入选择模式后高亮鼠标下的段落，↑ 扩大到 README 并在范围内保持选择；点击 README 内的链接只翻译该区域且不跳转、网页收不到点击，视口外段落排在最后翻译，导航、文件列表、侧栏、页脚和代码保持原文；再次选择同一区域显示“恢复原文”并只恢复该区域。伪造点击和 Esc 不影响选择，真实 Esc 与右键退出且不发请求；主动选择侧栏时按全部节点范围翻译；已是目标语言与空白区域给出提示且不请求服务；快捷键默认关闭、开启后可进入和退出且在输入框中让行；全文恢复原文同时清除局部译文，关闭插件立即退出选择模式。追加 `--github-url <仓库地址>` 可在真实 GitHub README 上重复点选流程并断言 README 之外没有译文。翻译传输是确定性 Google 夹具，不代表外部服务可用性。
+使用临时 Edge profile、防抢焦点 helper 和 CDP 真实指针/按键，在类 GitHub 仓库页夹具上验证：Popup 局部按钮与主按钮同排等高，消息进入选择模式后稳定预览鼠标下的段落，边缘轻微移动不换选；点击只锁定选区、不请求服务且不跳转，锁定后鼠标移动与滚动不改变范围；可见按钮扩大到 README、缩小及重新选择，确认按钮才翻译该区域，网页收不到选择点击，视口外段落排在最后翻译，导航、文件列表、侧栏、页脚和代码保持原文；再次选择同一区域显示“恢复原文”并只恢复该区域。伪造点击和 Esc 不影响选择，真实 Esc 与右键退出且不发请求；主动选择侧栏时按全部节点范围翻译；已是目标语言与空白区域给出提示且不请求服务；快捷键默认关闭、开启后可进入和退出且在输入框中让行；全文恢复原文同时清除局部译文，关闭插件立即退出选择模式。追加 `--github-url <仓库地址>` 可在真实 GitHub README 上重复点选流程并断言 README 之外没有译文。翻译传输是确定性 Google 夹具，不代表外部服务可用性。
 
 ### 悬浮说明框翻译稳定性
 

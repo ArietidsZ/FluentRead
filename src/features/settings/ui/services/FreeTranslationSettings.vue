@@ -55,9 +55,10 @@
       </section>
     </template>
     <template v-if="advanced">
-      <label class="compact-field"><span>{{ translateLegacy('每个服务最多等待（秒）') }}</span><el-input-number :model-value="config.freeTranslationTimeoutMs / 1000" :min="1" :max="15" :step="1" :aria-label="translateLegacy('每个服务最多等待（秒）')" @update:model-value="setDuration($event)" /></label>
-      <p class="recovery-copy">{{ t('settings.services.freeWeights.budget') }}</p>
-      <p class="recovery-copy">{{ translateLegacy('网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复') }}</p>
+      <div class="timeout-field">
+        <div class="timeout-label"><strong>{{ t('settings.services.waitTimeout') }}</strong><FieldHelp :content="`${t('settings.services.freeWeights.budget')} ${translateLegacy('网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复')}`" /></div>
+        <el-input-number :model-value="config.freeTranslationTimeoutMs / 1000" :min="1" :max="15" :step="1" :controls="false" :aria-label="translateLegacy('每个服务最多等待（秒）')" @update:model-value="setDuration($event)" />
+      </div>
     </template>
   </div>
 </template>
@@ -77,6 +78,7 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import ServiceNatureBadge from './ServiceNatureBadge.vue'
+import FieldHelp from '../components/FieldHelp.vue'
 import type { FreeTranslationChecks } from './freeTranslationChecks'
 
 type FreeTranslationMode = 'balanced' | 'sequential'
@@ -184,6 +186,12 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.timeout-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.timeout-label { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.timeout-label strong { font-size: 13px; font-weight: 550; }
+.timeout-field :deep(.el-input-number) { width: 120px; }
+@container (max-width: 600px) { .timeout-field { grid-template-columns: 1fr; gap: 8px; } }
+
 .free-translation-settings { container-type: inline-size; color: var(--el-text-color-primary); font-size: 12px; }
 .fallback-footnote, .mode-help { margin: 10px 0; color: var(--el-text-color-secondary); line-height: 1.55; }
 .mode-picker { max-width: 320px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 10px 0 3px; }

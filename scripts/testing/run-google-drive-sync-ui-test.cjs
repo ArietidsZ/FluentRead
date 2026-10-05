@@ -95,6 +95,30 @@ async function main() {
         check(!(await card.innerText()).includes('固定应用口令') && !(await card.innerText()).includes('隐藏应用数据区'), 'card omits the two removed technical paragraphs');
         const disconnected = path.join(artifactsDir, 'sync-disconnected-desktop.png');
         await page.screenshot({path: disconnected}); report.screenshots.push(disconnected);
+        if (process.argv.includes('--sensitive-only')) {
+            const sensitive=page.locator('[data-testid="cloud-include-sensitive"]');
+            const input=sensitive.locator('input[role="switch"]');
+            const consent=page.locator('.cloud-consent-dialog');
+            const preview=page.locator('.drive-dialog');
+            async function expectOn(label) {check(await input.isChecked(),label);}
+            await sensitive.click();await consent.waitFor();
+            await page.locator('[data-testid="cloud-risk-acknowledgement"]').check();await page.locator('[data-testid="cloud-consent-confirm"]').click();await consent.waitFor({state:'hidden'});
+            await page.locator('[data-testid="google-drive-sync-now"]').click();await preview.waitFor();
+            check((await preview.locator('[data-testid="cloud-preview-scope"]').innerText()).includes('基础配置 + 敏感配置'),'Google preview uses the persisted sensitive scope');
+            await page.locator('[data-testid="google-drive-confirm"]').click();await preview.waitFor({state:'hidden'});await expectOn('Google completion preserves sensitive preference');
+            await page.locator('[data-testid="google-drive-sync-now"]').click();await preview.waitFor();
+            await worker.evaluate(()=>{globalThis.__driveFixture.accountId='fixture-other';globalThis.__driveFixture.email='other@fixture.invalid';});
+            await page.locator('[data-testid="google-drive-switch-account"]').click();await preview.getByText('other@fixture.invalid',{exact:false}).waitFor();
+            check((await preview.locator('[data-testid="cloud-preview-scope"]').innerText()).includes('基础配置 + 敏感配置'),'Google account switch keeps the chosen scope');
+            await preview.getByRole('button',{name:'取消',exact:true}).click();await preview.waitFor({state:'hidden'});await expectOn('Google cancellation preserves sensitive preference');
+            await worker.evaluate(()=>{globalThis.__driveFixture.networkFailure=true;});
+            await page.locator('[data-testid="google-drive-sync-now"]').click();await card.locator('.drive-error').waitFor();await expectOn('Google preview failure preserves sensitive preference');
+            await worker.evaluate(()=>{globalThis.__driveFixture.networkFailure=false;});
+            await page.reload({waitUntil:'domcontentloaded'});await page.locator('button[data-section="settings-data"]').click();await input.waitFor({state:'attached'});await expectOn('Google settings reload restores sensitive preference');
+            const persisted=path.join(artifactsDir,'google-sensitive-persisted-desktop.png');await page.screenshot({path:persisted});report.screenshots.push(persisted);
+            await sensitive.click();await page.reload({waitUntil:'domcontentloaded'});await page.locator('button[data-section="settings-data"]').click();await input.waitFor({state:'attached'});check(!await input.isChecked(),'Google manual disabling remains off after reload');
+            check(report.consoleErrors.length===0,'Google sensitive preference UI has no console errors');report.ok=true;return;
+        }
         if (process.argv.includes('--delete-only')) {
             const deletion=page.locator('.cloud-delete-dialog');const sync=page.locator('.drive-dialog');
             const verification=deletion.locator('[data-testid="cloud-delete-verification"] input');
@@ -113,9 +137,16 @@ async function main() {
             check(await worker.evaluate(()=>globalThis.__driveFixture.removes===0),'empty Google deletion makes no DELETE request');
             await page.locator('[data-testid="google-drive-sync-now"]').click();await sync.waitFor();await page.locator('[data-testid="google-drive-confirm"]').click();await sync.waitFor({state:'hidden'});
             await openDelete();check((await deletion.innerText()).includes('tester@fixture.invalid'),'Google deletion names the actual authorized account');
-            check(await verification.inputValue()===''&&!(await deleteButton.isEnabled())&&(await deleteButton.innerText())==='确认','Google deletion starts with an empty confirmation field');
+            check(await verification.inputValue()===''&&!(await deleteButton.isEnabled())&&(await deleteButton.innerText())==='删除备份','Google deletion starts with an empty confirmation field');
             check(await verification.getAttribute('placeholder')==='输入「确定删除」'&&await verification.getAttribute('aria-label')==='输入「确定删除」','Google confirmation field provides a concise accessible hint');
             check(await deletion.locator('[data-testid="cloud-delete-verification"]').evaluate(el=>Math.abs(el.querySelector('.el-input').getBoundingClientRect().width-el.getBoundingClientRect().width)<=1),'Google confirmation field fills the dialog content despite global settings width limits');
+            check((await deletion.locator('[data-testid="cloud-delete-impact"]').innerText()).includes('确认后将从 Google Drive 删除当前云端备份'),'Google removal identifies the cloud service');
+            check((await deletion.locator('[data-testid="cloud-delete-impact"]').innerText()).includes('仅删除云端备份，本机配置与密钥仍保留在当前设备。')&&await deletion.locator('.cloud-delete-instruction').innerText()==='请输入「确定删除」以确认删除。','Google deletion states cloud-only scope and a natural confirmation instruction');
+            check(await deletion.locator('[data-testid="cloud-delete-phrase"]').innerText()==='确定删除'&&await deletion.locator('[data-testid="cloud-delete-phrase"]').evaluate(el=>Number(getComputedStyle(el).fontWeight)>=600),'Google confirmation phrase is visibly emphasized');
+            check(await deletion.locator('[data-testid="cloud-delete-impact"] .cloud-delete-instruction').count()===1,'Google removal and confirmation requirement share one notice');
+            await page.evaluate(async()=>{await Promise.all(document.getAnimations().filter(animation=>animation.effect?.getComputedTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>undefined)));});
+            const detailsToggle=deletion.locator('[data-testid="cloud-delete-details-toggle"]');const bounds=await deletion.boundingBox();const buttonBounds=await deleteButton.boundingBox();
+            await detailsToggle.click();await page.locator('.cloud-delete-details').waitFor();check(JSON.stringify(await deletion.boundingBox())===JSON.stringify(bounds)&&JSON.stringify(await deleteButton.boundingBox())===JSON.stringify(buttonBounds),'Google details do not move or resize the dialog or delete button');await shot('cloud-delete-drive-details');await detailsToggle.click();await page.locator('.cloud-delete-details').waitFor({state:'hidden'});
             await shot('cloud-delete-drive-empty-field');
             await verification.fill('确认删除');check(!(await deleteButton.isEnabled()),'Google deletion rejects a different confirmation phrase');
             await verification.fill('确定删除');check(await deleteButton.isEnabled(),'Google deletion enables confirmation for the exact phrase');
