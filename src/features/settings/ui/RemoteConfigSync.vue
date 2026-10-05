@@ -6,7 +6,8 @@
 风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将云端删除范围、本机保留说明与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
-先选择操作再确认影响；缺少安全覆盖版本时明确提示只读恢复；默认展示差异与连接变更类别，小屏保留操作区。
+先选择操作再确认影响；WebDAV 内容核验兼容模式提示避免多设备同时同步，仍保留只读供应商的恢复限制；默认展示差异与连接变更类别，小屏保留操作区。
+Drive 已上传但未完成核验时单独显示警示，不误报未上传，也不更新成功记录。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
 -->
 <template>
@@ -22,7 +23,7 @@
         <el-switch :id="`${kind}-include-sensitive`" :model-value="includeSensitive" :disabled="busy || previewVisible" :aria-label="t('settings.cloud.includeSensitive')" :aria-describedby="`${kind}-sensitive-description`" data-testid="cloud-include-sensitive" @change="toggleSensitive" />
       </div>
     </div>
-    <el-alert v-if="error && !previewVisible" :title="error" type="error" :closable="false" show-icon class="drive-error" />
+    <el-alert v-if="error && !previewVisible" :title="error" :type="uploadUnverified ? 'warning' : 'error'" :closable="false" show-icon class="drive-error" />
     <el-alert v-if="status?.cleanupPending && !previewVisible" :title="t('settings.cloud.cleanupPending')" type="warning" :closable="false" show-icon class="drive-error" />
     <div class="drive-actions">
       <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" :data-testid="`${kind}-sync-now`" @click="prepare">{{ t('settings.cloud.syncNow', {provider}) }}</el-button>
@@ -49,6 +50,7 @@
           <el-input :id="`${kind}-delete-verification`" v-model="deleteConfirmation" :placeholder="t('settings.cloud.deleteVerification', {phrase: t('settings.cloud.deletePhrase')})" :aria-label="t('settings.cloud.deleteVerification', {phrase: t('settings.cloud.deletePhrase')})" :aria-describedby="`${kind}-delete-instruction`" :disabled="busy" :maxlength="64" autocomplete="off" :spellcheck="false" @keydown.enter.prevent />
         </div>
         <el-alert v-if="deletion.hasRemote && !deletion.canDelete" :title="t('settings.cloud.deleteUnsupported')" :description="t(kind === 'google-drive' ? 'settings.cloud.deleteManualDrive' : 'settings.cloud.deleteManualWebDav')" type="warning" :closable="false" show-icon data-testid="cloud-delete-unsupported" />
+        <el-alert v-else-if="deletion.requiresExclusiveAccess" :title="t('settings.webdav.concurrentWarning')" type="warning" :closable="false" show-icon data-testid="webdav-delete-compatibility" />
       </template>
       <template #footer><div class="cloud-delete-footer">
         <el-popover v-if="deletion?.hasRemote" v-model:visible="deleteDetailsVisible" role="dialog" :title="t('settings.cloud.deleteDetails')" trigger="click" placement="top-start" width="min(320px, calc(100vw - 40px))" :persistent="false" :hide-after="0" popper-class="fluentread-cloud-delete-help">
@@ -74,8 +76,9 @@
         <div class="cloud-preview-scope" role="status" data-testid="cloud-preview-scope"><strong>{{ t(preview.includeSensitive ? 'settings.cloud.scopeSensitive' : 'settings.cloud.scopeSettings') }}</strong><p>{{ t(preview.includeSensitive ? 'settings.cloud.previewSensitive' : 'settings.cloud.preserveLocal') }}</p></div>
         <el-alert v-if="preview.remoteIncludesSensitive && !preview.includeSensitive" :title="t('settings.cloud.legacySensitive')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" data-testid="cloud-legacy-sensitive" />
         <el-alert v-else-if="preview.hasRemote && preview.includeSensitive && !preview.remoteIncludesSensitive" :title="t('settings.cloud.remoteSettingsOnly')" type="info" :closable="false" show-icon class="drive-error drive-preview-notice" />
-        <el-alert v-if="error" :title="error" type="error" :closable="false" show-icon class="drive-error drive-preview-notice" />
+        <el-alert v-if="error" :title="error" :type="uploadUnverified ? 'warning' : 'error'" :closable="false" show-icon class="drive-error drive-preview-notice" />
         <el-alert v-if="preview.canUpload === false" :title="t('settings.cloud.restoreOnly')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" :data-testid="`${kind}-restore-only`" />
+        <el-alert v-else-if="preview.requiresExclusiveAccess" :title="t('settings.webdav.concurrentWarning')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" data-testid="webdav-sync-compatibility" />
 
         <ol v-if="preview.hasRemote && !identical && preview.canUpload !== false" class="drive-steps" :aria-label="t('settings.drive.stepsLabel')">
           <li :class="{'is-current': step === 'choose'}" :aria-current="step === 'choose' ? 'step' : undefined"><span>1</span>{{ t('settings.drive.chooseStep') }}</li>
@@ -183,6 +186,7 @@ const consentVisible = ref(false);
 const riskAcknowledged = ref(false);
 const switchingAccount = ref(false);
 const error = ref('');
+const uploadUnverified = ref(false);
 const preview = ref<DriveSyncPreview | null>(null);
 const previewVisible = ref(false);
 const deletion = ref<CloudBackupDeletePreview | null>(null);
@@ -224,8 +228,11 @@ function backToChoose() {step.value = 'choose'; direction.value = '';}
 let alive = true;
 async function perform(operation: () => Promise<void>) {
   if (busy.value) return;
-  busy.value = true; error.value = '';
-  try {await operation();} catch (failure) {if (alive) error.value = failure instanceof CloudBackupRequestError && failure.errorKey ? t(failure.errorKey, failure.params) : failure instanceof Error ? translateLegacy(failure.message) : translateLegacy('同步未完成，请重试');}
+  busy.value = true; error.value = ''; uploadUnverified.value = false;
+  try {await operation();} catch (failure) {if (alive) {
+    uploadUnverified.value = failure instanceof CloudBackupRequestError && failure.errorKey === 'settings.cloud.uploadUnverified';
+    error.value = failure instanceof CloudBackupRequestError && failure.errorKey ? t(failure.errorKey, failure.params) : failure instanceof Error ? translateLegacy(failure.message) : translateLegacy('同步未完成，请重试');
+  }}
   finally {if (alive) busy.value = false;}
 }
 async function requestPreview() {

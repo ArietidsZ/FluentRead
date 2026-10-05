@@ -111,7 +111,9 @@
     "settings.cloud.deleteVerification": "Saisissez « {phrase} »",
     "settings.cloud.sensitiveSaveFailed": "Impossible d’enregistrer le choix des paramètres sensibles. Réessayez.",
     "settings.cloud.deleteCloudEffect": "La confirmation supprime la sauvegarde cloud actuelle de {provider}.",
-    "settings.cloud.deleteVerificationPrompt": "Saisissez « {phrase} » pour confirmer la suppression."
+    "settings.cloud.deleteVerificationPrompt": "Saisissez « {phrase} » pour confirmer la suppression.",
+    "settings.webdav.concurrentWarning": "Ce fournisseur ne peut pas empêcher les écritures simultanées. La sauvegarde est revérifiée avant tout enregistrement, fusion ou suppression. Évitez de synchroniser plusieurs appareils en même temps.",
+    "settings.cloud.uploadUnverified": "La configuration a été envoyée à Google Drive, mais la vérification n’a pas pu aboutir. Relisez la sauvegarde pour confirmer. Les réglages de cet appareil n’ont pas changé."
   },
   "legacy": {
     "普通云备份包含不属于此范围的字段，请重新生成备份。": "La sauvegarde cloud des paramètres généraux contient des champs hors de sa portée. Créez une nouvelle sauvegarde.",
