@@ -20,7 +20,7 @@ Turning the option off or restoring only general settings does not change an old
 
 ## Prepare a connection
 
-The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. Safe updates also require strong ETags and support for `If-Match` and `If-None-Match`. The extension checks the download response header, the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6), then the `HEAD` response header. Property and HEAD lookup are followed by a conditional read and an exact ciphertext check to avoid pairing old content with a new version. Use HTTPS with a valid certificate and a dedicated app password. Property responses are parsed using XML namespaces and the requested resource, including local prefixes, CDATA and character references. Versions from other files or failed properties are never used for replacement.
+The server must support Basic authentication, `PROPFIND`, `GET`, `MKCOL`, and `PUT`. When strong ETags are available, updates use `If-Match` and initial creation uses `If-None-Match` to protect other devices’ changes. The extension checks the download response header, the file's [`DAV:getetag` property](https://datatracker.ietf.org/doc/html/rfc4918#section-15.6), then the `HEAD` response header. Property and HEAD lookup are followed by a conditional read and an exact ciphertext check to avoid pairing old content with a new version. Use HTTPS with a valid certificate and a dedicated app password. Property responses are parsed using XML namespaces and the requested resource, including local prefixes, CDATA and character references. Versions from other files or failed properties are never used for replacement.
 
 Enter the **WebDAV URL of an existing directory**, not the website homepage, a sharing link, or the backup file URL. Do not put credentials or query parameters in the URL.
 
@@ -60,7 +60,7 @@ Before committing, the extension rechecks both configurations. A change on eithe
 
 The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
 
-If none of these methods provides a strong ETag, the preview still shows differences and lets you **Restore cloud configuration**. A notice explains that saving and merging are unavailable. You go directly to review and confirmation, without unavailable save or merge actions or an extra operation-selection step. Restoration still rechecks cloud content and never bypasses authentication, corrupt-file checks, or version conflicts.
+If none of these methods provides a strong ETag, the preview still offers saving, restoring, and merging. Compatibility mode downloads the backup again before saving, merging, or deleting and compares its ciphertext SHA-256 digest. Changes since the preview stop the operation. Uploads are read back and checked; deletion verifies that the file is absent. `If-Match: *` checks existence only, and content checks cannot atomically prevent changes after verification. The confirmation screen asks you to avoid syncing other devices at the same time. Authentication, network, corrupt-file, and conditional-request failures still stop the operation without retrying an unconditional write.
 
 <details class="guide-details">
 <summary>Change accounts or delete data</summary>
@@ -69,9 +69,9 @@ If none of these methods provides a strong ETag, the preview still shows differe
 
 Use **Edit connection** to change the server, account, or password. Changing the URL or username requires entering the password again. Old previews and baselines cannot apply to a new connection. Saved passwords are not returned to the form.
 
-Click **Delete cloud backup**, check the account and server address, then confirm. The extension deletes only the fixed backup file using a strong ETag and `If-Match`; an updated file requires a new preview. Old-format or unreadable backups can also be deleted. Canceling or closing confirmation keeps the file. Successful deletion clears local sync records while keeping local settings, API keys, the connection password and other files in the directory. Manual sync can create a new backup later.
+Click **Delete cloud backup**, check the account and server address, then confirm. The extension deletes only the fixed backup file, using a strong ETag and `If-Match` when available or the content-check compatibility mode above; an updated file requires a new preview. Old-format or unreadable backups can also be deleted. Canceling or closing confirmation keeps the file. Successful deletion clears local sync records while keeping local settings, API keys, the connection password and other files in the directory. Manual sync can create a new backup later.
 
-Deletion requires `DELETE` and conditional request support. When safe version information is unavailable, delete the file through your server interface. Manage provider trash, retained versions and copies on other devices separately.
+Deletion requires `DELETE`; version protection depends on the server honoring `If-Match`. Avoid simultaneous syncs in compatibility mode. If the server does not support deletion, use its management interface. Manage provider trash, retained versions and copies on other devices separately.
 
 **Clear connection settings** removes this device’s WebDAV connection, app password, and sync record, while keeping device configuration and cloud files. Revoke an app password with the service to stop its authorization. Uninstalling the extension does not delete server files.
 
@@ -89,7 +89,7 @@ Backups use AES-GCM encryption before upload with the same fixed public applicat
 | Incorrect username or password | Account, app password, and Basic authentication support |
 | Missing or invalid WebDAV directory | The full directory URL and whether WebDAV is enabled |
 | Cannot connect | Network, certificate, and final URL; credentials are never forwarded through redirects |
-| Backup can be restored but lacks a version for safe replacement | Review differences and restore in the preview; saving and merging are unavailable until the server provides strong ETags and conditional writes |
+| Provider cannot prevent concurrent writes | Saving, restoring, merging, and deleting remain available. Review the preview and avoid simultaneous syncs. Use strong ETags and conditional writes when concurrent version protection is required |
 | Cloud backup changed | Generate a new preview and check other devices’ changes |
 | Storage full or backup too large | Free server space or use a local backup; JSON is limited to 20 MiB and encrypted files to 32 MiB |
 

@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {createDriveApi} from '@/src/platform/google-drive/api';
+import {createDriveApi, DriveUploadVerificationError} from '@/src/platform/google-drive/api';
 import {DriveError} from '@/src/platform/google-drive/auth';
 import {GOOGLE_DRIVE_CONFIG_FILE_NAME, GOOGLE_DRIVE_MAX_BYTES} from '@/src/platform/google-drive/constants';
 import {encryptDriveConfig} from '@/src/platform/google-drive/encryption';
@@ -73,6 +73,43 @@ describe('Google Drive appDataFolder HTTP 边界', () => {
             await expect(createDriveApi(fetcher).write(session,content,{...metadata,etag:'"before"'})).rejects.toThrow('校验');
             expect(fetcher.mock.calls.every(([,init])=>init?.method!=='DELETE')).toBe(true);
         }
+    });
+    it.each(['v3','v2','listing'] as const)('删除后新建的 %s 元数据暂时漂移只重试校验，不重复上传',async mode=>{
+        const content=await encryptDriveConfig({},'fixture secure passphrase');
+        let metadataReads=0;let v2Reads=0;let listReads=0;
+        const fetcher=vi.fn<typeof fetch>(async(input,init)=>{
+            const url=new URL(String(input));
+            if(init?.method==='POST') return json({...metadata,version:'2'});
+            if(url.searchParams.has('spaces')) {listReads++;return json({files:mode==='listing'&&listReads===1?[]:[metadata]});}
+            if(url.searchParams.get('alt')==='media') return new Response(content);
+            if(url.pathname.startsWith('/drive/v2/')) {v2Reads++;return json({...metadata,version:mode==='v2'&&v2Reads===1?'1':'2',modifiedDate:'fixture-time',etag:'"stable"'});}
+            metadataReads++;return json({...metadata,version:mode==='v3'&&metadataReads===1?'1':'2'});
+        });
+        expect(await createDriveApi(fetcher).write(session,content,null)).toMatchObject({id:metadata.id,version:'2',etag:'"stable"'});
+        expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(1);
+        expect(listReads).toBe(2);
+    });
+    it('持续版本变化或读回鉴权失败时明确已上传待核验，不再次创建也不误报同步成功',async()=>{
+        const content=await encryptDriveConfig({},'fixture secure passphrase');
+        for(const forbidden of [false,true]) {
+            let reads=0;
+            const fetcher=vi.fn<typeof fetch>(async(input,init)=>{
+                if(init?.method==='POST') return json(metadata);
+                if(forbidden) return new Response(null,{status:403});
+                if(String(input).includes('spaces=')) return json({files:[metadata]});
+                if(String(input).includes('alt=media')) return new Response(content);
+                return json({...metadata,version:String(++reads)});
+            });
+            const failure=await createDriveApi(fetcher).write(session,content,null).catch(error=>error);
+            expect(failure).toBeInstanceOf(DriveUploadVerificationError);expect(failure.message).toContain('已上传');expect(failure.message).toContain('本机配置未修改');
+            expect(fetcher.mock.calls.filter(([,init])=>init?.method==='POST')).toHaveLength(1);
+            expect(reads).toBe(forbidden?0:6);
+        }
+        let requests=0;
+        const expiredSession={...session,async request<T>(operation:(token:string)=>Promise<T>) {if(++requests>1) throw new Error('fixture-private-auth-failure');return operation('fixture-token');}};
+        const fetcher=vi.fn<typeof fetch>(async()=>json(metadata));
+        const failure=await createDriveApi(fetcher).write(expiredSession,content,null).catch(error=>error);
+        expect(failure).toBeInstanceOf(DriveUploadVerificationError);expect(failure.message).not.toContain('fixture-private');expect(fetcher).toHaveBeenCalledOnce();
     });
     it('首次创建竞态只条件撤回自己的新文件，撤回冲突不掩盖备份竞态',async()=>{
         const content=await encryptDriveConfig({},'fixture secure passphrase');

@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-drive-version-compat-ui-test.cjs
  * 文件职责：在隔离 Edge 中验证生产扩展对 Drive 版本信息缺失的兼容及只读恢复界面。
- * 主要内容：虚构身份、无 v3 ETag 的协议响应、v2 条件更新与冲突拒绝、差异预览、取消及中英文窄屏。
+ * 主要内容：虚构身份、v2 条件更新与只读恢复；删除后重新创建、上传后版本漂移及待核验提示专项、中英文窄屏。
  * 模块边界：仅替换临时 profile 的网络和身份端口，不访问真实 Google 账号或日常浏览器。
  */
 const fs = require('node:fs');
@@ -31,7 +31,7 @@ async function main() {
         check(id==='djnlaiohfaaifbibleebjggkghlmcpcj','production build retains the official extension ID');
         await worker.evaluate(()=>{
             Object.defineProperty(navigator,'userAgent',{get:()=> 'Chrome/142.0.0.0 fixture'});
-            const state=globalThis.__versionFixture={content:null,version:0,uploads:0,authorizations:0,clears:0,etag:true,rejectPut:false,calls:[]};
+            const state=globalThis.__versionFixture={content:null,version:0,uploads:0,authorizations:0,clears:0,etag:true,rejectPut:false,drift:'none',readback:false,calls:[]};
             chrome.identity.getAuthToken=async({interactive,scopes})=>{if(JSON.stringify(scopes)!==JSON.stringify(['https://www.googleapis.com/auth/drive.appdata']))throw new Error('unexpected OAuth scope');if(interactive)state.authorizations++;return{token:'fixture-token',grantedScopes:scopes};};
             chrome.identity.removeCachedAuthToken=async()=>undefined;
             chrome.identity.clearAllCachedAuthTokens=async()=>{state.clears++;};
@@ -51,10 +51,13 @@ async function main() {
                     const body=String(init.body);const marker='Content-Type: application/json\r\n\r\n';const start=body.indexOf(marker)+marker.length;
                     const content=body.slice(start,body.indexOf('\r\n--',start));
                     if(JSON.parse(content).format!=='fluentread-drive-encrypted')throw new Error('plaintext write');
-                    state.content=content;state.version++;state.uploads++;return json(first?metadata():v2());
+                    state.content=content;state.version++;state.uploads++;state.readback=true;return json(first?metadata():v2());
                 }
                 if(url.pathname==='/drive/v3/files')return json({files:state.content?[metadata()]:[]});
-                if(url.pathname==='/drive/v2/files/fixture-file')return json(v2());
+                if(url.pathname==='/drive/v2/files/fixture-file') {
+                    if(init.method==='DELETE') {if(init.headers?.['If-Match']!==`"v${state.version}"`)return new Response(null,{status:412});state.content=null;return new Response(null,{status:204});}
+                    const info=v2();if(state.readback&&state.drift!=='none') {info.version=String(state.version-1);if(state.drift==='once')state.drift='none';}return json(info);
+                }
                 if(url.pathname==='/drive/v3/files/fixture-file')return url.searchParams.get('alt')==='media'?new Response(state.content):json(metadata());
                 throw new Error('unexpected Drive endpoint');
             };
@@ -82,6 +85,28 @@ async function main() {
         check(await worker.evaluate(()=>__versionFixture.authorizations===0),'opening settings makes no authorization request');
         await sync();await dialog.waitFor();check(await worker.evaluate(()=>__versionFixture.uploads===0),'preview never writes');await confirm();
         check(await worker.evaluate(()=>__versionFixture.uploads===1 && __versionFixture.calls.some(c=>c.path==='/drive/v2/files/fixture-file')),'first save and readback work without v3 ETag headers');
+        if(process.argv.includes('--upload-verification-only')) {
+            report.suite='drive-delete-recreate-upload-verification';
+            await page.locator('[data-testid="google-drive-delete-backup"]').click();
+            const deletion=page.locator('.cloud-delete-dialog');await deletion.waitFor();await deletion.locator('[data-testid="cloud-delete-verification"] input').fill('确定删除');await page.locator('[data-testid="cloud-delete-confirm"]').click();await deletion.waitFor({state:'hidden'});
+            check(await worker.evaluate(()=>__versionFixture.content===null),'confirmed deletion removes Drive backup');
+            await worker.evaluate(()=>{__versionFixture.drift='once';__versionFixture.readback=false;});await sync();await dialog.waitFor();await confirm();
+            check(await worker.evaluate(()=>__versionFixture.uploads===2&&__versionFixture.content),'deletion then recreate tolerates transient readback drift with one upload');
+            check(await card.locator('.el-alert--error,.el-alert--warning').count()===0,'successful readback retry shows no false failure');
+            await savePatch({to:'de'});await worker.evaluate(()=>{__versionFixture.content=null;__versionFixture.drift='always';__versionFixture.readback=false;});await sync();await dialog.waitFor();await confirm();
+            await card.locator('.el-alert--warning').waitFor();
+            check((await card.locator('.el-alert--warning').innerText()).includes('配置已上传到 Google Drive，但暂时无法完成校验')&&await card.locator('.el-alert--error').count()===0,'persistent readback drift shows uploaded but unverified as warning');
+            check(await worker.evaluate(()=>__versionFixture.uploads===3&&__versionFixture.content),'failed verification does not repeat upload or delete written data');
+            check((await page.evaluate(()=>chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}))).value.to==='de','verification warning preserves device settings');await shot('drive-upload-unverified-desktop');
+            await worker.evaluate(()=>{__versionFixture.drift='none';});await sync();await dialog.waitFor();check((await dialog.innerText()).includes('配置已一致'),'reading again recognizes uploaded configuration');await confirm();
+            check(await worker.evaluate(()=>__versionFixture.uploads===3),'confirming recovered verification makes no duplicate upload');
+            await savePatch({to:'es',uiLanguage:'en-US'});await page.reload({waitUntil:'domcontentloaded'});await navigate();await page.setViewportSize({width:390,height:900});await activateExtensionTabWithoutForeground(context,page);
+            await sync();await dialog.waitFor();await chooseUpload();await worker.evaluate(()=>{__versionFixture.drift='always';__versionFixture.readback=false;});await confirm();await card.locator('.el-alert--warning').waitFor();
+            check((await card.locator('.el-alert--warning').innerText()).includes('Configuration was uploaded')&&!/[\u3400-\u9fff]/u.test(await card.locator('.el-alert--warning').innerText()),'uploaded but unverified warning is localized in English');
+            check(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),'English warning fits mobile viewport');await shot('drive-upload-unverified-english-mobile');
+            check(await worker.evaluate(()=>__versionFixture.uploads===4),'only one upload is sent for the second warning');
+            check(report.consoleErrors.length===0,'no unhandled production page errors');report.ok=true;return;
+        }
         await savePatch({to:'de'});await sync();await dialog.waitFor();await chooseUpload();
         check((await dialog.innerText()).includes('目标语言'),'second-save review displays the changed setting');await shot('drive-v2-change-review');await confirm();
         check(await worker.evaluate(()=>__versionFixture.uploads===2 && __versionFixture.calls.some(c=>c.path==='/upload/drive/v2/files/fixture-file' && c.method==='PUT' && c.match==='"v1"')),'second save uses matching v2 ETag and conditional PUT');

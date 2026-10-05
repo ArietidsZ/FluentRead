@@ -6,7 +6,7 @@ import {createWebDavSession,parseWebDavConnection} from '@/src/platform/webdav/c
 import {encryptDriveConfig} from '@/src/platform/google-drive/encryption';
 
 describe('WebDAV 真实 HTTP 协议夹具',()=>{
-    it.each(['get','prop','head'] as const)('真实 HTTP 完成首次和再次保存、冲突拒绝（ETag 来源: %s）',async(etagSource)=>{
+    it.each(['get','prop','head','none'] as const)('真实 HTTP 完成首次和再次保存、冲突拒绝（ETag 来源: %s）',async(etagSource)=>{
         let content:string|null=null;let version=0;let folder=false;
         const calls:Array<{method:string;url:string;match?:string;none?:string}>=[];
         const expected='Basic '+Buffer.from('fixture-user:fixture-http-password').toString('base64');
@@ -25,11 +25,11 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}if(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}res.writeHead(200,etagSource==='get'?{ETag:`"v${version}"`}:{}).end(content);return;}
             if(req.method==='DELETE'){
                 if(!content){res.writeHead(404).end();return;}
-                if(req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}
+                if(req.headers['if-match']!=='*'&&req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}
                 content=null;res.writeHead(204).end();return;
             }
             if(req.method==='PUT'){
-                if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`)){res.writeHead(412).end();return;}
+                if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']==='*'&&!content)||(req.headers['if-match']&&req.headers['if-match']!=='*'&&req.headers['if-match']!==`"v${version}"`)){res.writeHead(412).end();return;}
                 const chunks=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));content=Buffer.concat(chunks).toString();version++;res.writeHead(201).end();return;
             }
             res.writeHead(405).end();
@@ -48,7 +48,9 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             expect(calls.find(c=>c.method==='PUT')?.none).toBe('*');expect(content).toBe(encrypted);
             await expect(api.write(session,encrypted,null)).rejects.toMatchObject({code:'conflict'});
             const changed=await encryptDriveConfig({config:{fixture:'second'}},'FluentReadEncryption');
-            const second=await api.write(session,changed,first);expect(second.etag).toBe('"v2"');
+            const second=await api.write(session,changed,first);
+            expect(second.etag).toBe(etagSource==='none'?undefined:'"v2"');
+            if(etagSource==='none') expect(second.contentGuard).toBe(true);
             await expect(api.write(session,encrypted,first)).rejects.toMatchObject({code:'conflict'});expect(content).toBe(changed);
             await expect(api.test({...connection,password:'wrong-fixture'})).rejects.toMatchObject({code:'auth'});
             await expect(api.test({...connection,url:origin+'/redirect/'})).rejects.toMatchObject({code:'network'});

@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {parseWebDavProperties} from '@/src/platform/webdav/properties';
-import {strongCloudEtag} from '@/src/core/config/cloudSync';
+import {canMutateCloudFile, strongCloudEtag} from '@/src/core/config/cloudSync';
 
 const url='https://dav.fixture.invalid/base/';
 const response=(prop='<d:resourcetype><d:collection/></d:resourcetype>',status='HTTP/1.1 200 OK')=>`<d:response><d:href>/base/</d:href><d:propstat><d:prop>${prop}</d:prop><d:status>${status}</d:status></d:propstat></d:response>`;
@@ -31,5 +31,13 @@ describe('WebDAV Depth:0 XML 属性识别',()=>{
     it('强版本规则明确拒绝弱值、未加引号、换行和过长值',()=>{
         for (const value of [null,undefined,'','W/"a"','a','"a\nb"','"'+'x'.repeat(513)+'"']) expect(strongCloudEtag(value)).toBeUndefined();
         expect(strongCloudEtag('"a"')).toBe('"a"');
+    });
+    it('内容核验须由供应商显式声明并携带真实摘要，不能绕过只读能力',()=>{
+        const file={id:url,version:'a'.repeat(64),modifiedTime:''};
+        expect(canMutateCloudFile({...file,etag:'"one"'})).toBe(true);
+        expect(canMutateCloudFile({...file,contentGuard:true})).toBe(true);
+        expect(canMutateCloudFile({...file,contentGuard:true,readOnly:true})).toBe(false);
+        expect(canMutateCloudFile({...file,contentGuard:true,version:'untrusted'})).toBe(false);
+        expect(canMutateCloudFile(file)).toBe(false);
     });
 });

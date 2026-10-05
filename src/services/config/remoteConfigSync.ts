@@ -2,12 +2,12 @@
  * @file src/services/config/remoteConfigSync.ts
  * 文件职责：编排 Google Drive 与 WebDAV 共用的范围化云备份和单次用户确认事务。
  * 主要内容：单次授权、账号绑定、上次成功同步的账号记录、密文基线、三方合并、
- * 掩码预览、只读恢复能力、绑定账号与文件版本的删除确认、过期检查与授权缓存清理；清理失败独立提示。
+ * 掩码预览、只读恢复与内容核验兼容能力、绑定账号与文件版本的删除确认、过期检查与授权缓存清理；清理失败独立提示。
  * 模块边界：通过端口读写配置与云端存储；不持久化口令，不向设置页面传递完整配置。
  */
 import {buildDriveSyncDiff, driveSyncPayload, driveValuesEqual, parseDriveSyncPayload, resolveDriveSyncDiff, toDriveSyncConfig, parseDriveSyncSnapshot, projectDriveSyncConfig, restoreDriveSyncSettings, validateDriveSyncConsent, type DriveSyncConfig, type DriveSyncDiff} from '@/src/core/config/driveSync';
 import {decryptDriveConfig, encryptDriveConfig, decryptDrivePreview, encryptDrivePreview, validateDrivePassphrase} from '@/src/platform/google-drive/encryption';
-import {CloudSyncError, strongCloudEtag, type CloudSyncAccount as DriveAccount, type CloudSyncSession as DriveSession, type CloudSyncFile as DriveFile, type CloudSyncRemote as DriveRemote} from '@/src/core/config/cloudSync';
+import {canMutateCloudFile, CloudSyncError, type CloudSyncAccount as DriveAccount, type CloudSyncSession as DriveSession, type CloudSyncFile as DriveFile, type CloudSyncRemote as DriveRemote} from '@/src/core/config/cloudSync';
 
 export interface DriveSyncState {
     version: 1;
@@ -21,7 +21,7 @@ export interface DriveSyncState {
     prepared?: {id: string; expiresAt: number; content: string; tabId?: number; clientId?: string; format?: 2; scope?: 'settings' | 'complete'; remote?: DriveRemote | null; operation?: 'delete'; deletion?: {account: DriveAccount; remote: DriveRemote | null}};
 }
 export interface DriveSyncStatus {available: boolean; reason: string; account: DriveAccount | null; lastSyncedAt: number | null; cleanupPending?: true}
-export interface CloudBackupDeletePreview {id: string; account: DriveAccount; hasRemote: boolean; canDelete: boolean; expiresAt: number}
+export interface CloudBackupDeletePreview {id: string; account: DriveAccount; hasRemote: boolean; canDelete: boolean; requiresExclusiveAccess?: true; expiresAt: number}
 export interface CloudBackupDeleteResult extends DriveSyncStatus {deleted: boolean}
 export interface DriveSyncPreview {
     id: string;
@@ -31,6 +31,7 @@ export interface DriveSyncPreview {
     remoteIncludesSensitive: boolean;
     hasBaseline: boolean;
     canUpload?: false;
+    requiresExclusiveAccess?: true;
     changes: DriveSyncDiff['changes'];
     expiresAt: number;
 }
@@ -124,7 +125,7 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
         const state = readState(await ports.readState());
         // 只读取不透明密文和版本，不解密或导入；旧版、未知格式和损坏密文均可清理。
         const remote = await ports.api.read(session);
-        const preview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), canDelete: !remote || !remote.file.readOnly && Boolean(strongCloudEtag(remote.file.etag)), expiresAt: ports.now() + 10 * 60_000};
+        const preview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), canDelete: !remote || canMutateCloudFile(remote.file), ...(remote?.file.contentGuard ? {requiresExclusiveAccess: true as const} : {}), expiresAt: ports.now() + 10 * 60_000};
         // 不设置 scope：旧客户端不能把删除事务误认为同步同意。MV3 重启后仍能核对同一账号及版本。
         await ports.writeState({...state, connected: true, prepared: {id: preview.id, expiresAt: preview.expiresAt, content: '', operation: 'delete', tabId, clientId, deletion: {account: session.account, remote}}});
         return preview;
@@ -144,7 +145,7 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
         const current = await ports.api.read(session);
         if (current && (!sameRemote(current, remote) || current.file.etag !== remote?.file.etag)) throw new CloudSyncError('云端备份已变化，请重新检查后再删除。');
         if (current) {
-            if (current.file.readOnly || !strongCloudEtag(current.file.etag)) throw new CloudSyncError('云端备份缺少安全删除所需的版本信息，请到服务商管理页面手动删除。');
+            if (!canMutateCloudFile(current.file)) throw new CloudSyncError('云端备份缺少安全删除所需的版本信息，请到服务商管理页面手动删除。');
             await ports.api.remove(session, current.file);
             if (await ports.api.read(session)) throw new CloudSyncError('删除后仍检测到云端备份，可能已被其他设备重新创建，请重新检查。');
         }
@@ -177,7 +178,7 @@ export function createRemoteConfigSync<Session extends DriveSession>(ports: Driv
             } catch {baseline = null;}
         }
         const diff = remoteConfig ? buildDriveSyncDiff(baseline, projectDriveSyncConfig(local, sensitiveDiff), remoteConfig) : null;
-        const preview: DriveSyncPreview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), includeSensitive, remoteIncludesSensitive, hasBaseline: Boolean(baseline), ...(remote?.file.readOnly ? {canUpload: false as const} : {}), changes: diff?.changes ?? [], expiresAt: ports.now() + 10 * 60_000};
+        const preview: DriveSyncPreview = {id: crypto.randomUUID(), account: session.account, hasRemote: Boolean(remote), includeSensitive, remoteIncludesSensitive, hasBaseline: Boolean(baseline), ...(remote?.file.readOnly ? {canUpload: false as const} : {}), ...(remote?.file.contentGuard ? {requiresExclusiveAccess: true as const} : {}), changes: diff?.changes ?? [], expiresAt: ports.now() + 10 * 60_000};
         pending = {preview, local, originalLocal, remote, remoteConfig, diff, proof: await proof(preview.id, passphrase)};
         // MV3 休眠后的授权范围同时保存在密文与事务元数据中；完整原始本机快照供检测与回滚。
         const content = await encryptDrivePreview({preview: {...preview, changes: []}, local: originalLocal, proof: pending.proof}, passphrase);

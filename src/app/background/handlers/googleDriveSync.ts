@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/handlers/googleDriveSync.ts
  * 文件职责：将加密同步与备份删除协议限制在扩展设置页面的可信消息边界。
- * 主要内容：校验发送者、同步或删除动作、预览 ID 与冲突选择，自动使用固定应用口令，屏蔽外部异常原文。
+ * 主要内容：校验发送者、同步或删除动作、预览 ID 与冲突选择，自动使用固定应用口令；上传完成但未核验时返回可本地化的提示，屏蔽外部异常原文。
  * 模块边界：不读取配置或令牌；依赖服务执行同步，返回值仅含状态与隐藏内容的预览。
  */
 import type {BackgroundMessageHandler} from '../messageRouter';
@@ -9,6 +9,7 @@ import type {ConfigPersistenceContext} from './configPersistence';
 import type {createGoogleDriveSync} from '@/src/services/config/googleDriveSync';
 import {GOOGLE_DRIVE_APPLICATION_PASSPHRASE} from '@/src/platform/google-drive/constants';
 import {DriveError} from '@/src/platform/google-drive/auth';
+import {DriveUploadVerificationError} from '@/src/platform/google-drive/api';
 import {DriveEncryptionError} from '@/src/platform/google-drive/encryption';
 import {CloudSyncError} from '@/src/core/config/cloudSync';
 import {DriveConfigError} from '@/src/core/config/driveSync';
@@ -46,6 +47,7 @@ export function createGoogleDriveSyncHandler(service: Service, trusted: (sender:
                 } else return {success: false, error: '无效的 Google Drive 同步操作。'};
                 return {success: true, data};
             } catch (error) {
+                if (error instanceof DriveUploadVerificationError) return {success: false, error: error.message, errorKey: 'settings.cloud.uploadUnverified'};
                 return {success: false, error: error instanceof DriveEncryptionError ? error.message === '同步配置过大，请减少自定义设置后重试' ? error.message : '同步文件无法解密或已损坏；请检查云端备份，本机配置未被修改。' : error instanceof DriveError || error instanceof CloudSyncError || error instanceof DriveConfigError ? error.message : '同步未完成，请检查网络和配置存储后重新预览。'};
             }
         },

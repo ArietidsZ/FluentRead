@@ -1,7 +1,8 @@
 /**
  * @file src/platform/google-drive/api.ts
  * 文件职责：在 Google Drive 的 appDataFolder 中读取、写入与条件删除唯一的加密配置文件。
- * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、v3 缺少 ETag 时按相同版本补取 v2 元数据及条件更新/删除、保存后回读校验。
+ * 主要内容：固定 Google 请求地址、超时和大小限制、重复文件检测、同版本 v2 ETag 条件更新/删除；保存后回读遇到暂时版本漂移时只重试校验，不重复上传。
+ * 已完成上传却无法核验时返回明确的待核验状态提示，避免把上传后的错误误报为未写入。
  * 模块边界：只接受加密封装，账号会话由 auth 管理，配置合并由同步服务管理。
  */
 import {DriveError, type DriveSession} from './auth';
@@ -15,6 +16,10 @@ const FIELDS = 'id,name,version,modifiedTime';
 const BASE = 'https://www.googleapis.com/drive/v3/files';
 const V2_BASE = 'https://www.googleapis.com/drive/v2/files';
 const V2_FIELDS = 'id,version,modifiedDate,etag';
+class DriveReadChangedError extends DriveError {}
+export class DriveUploadVerificationError extends DriveError {
+    constructor(status?: number) {super('配置已上传到 Google Drive，但暂时无法完成校验。请重新读取云端备份确认；本机配置未修改。', status);}
+}
 
 function file(value: unknown, etag: string | null): DriveFile {
     if (!value || typeof value !== 'object' || !('id' in value) || !('version' in value) || !('modifiedTime' in value) || typeof value.id !== 'string' || !value.id || typeof value.version !== 'string' || typeof value.modifiedTime !== 'string') throw new DriveError('Google Drive 文件信息无效。');
@@ -79,12 +84,12 @@ export function createDriveApi(fetcher: typeof fetch) {
             return new TextDecoder('utf-8', {fatal: true}).decode(bytes);
         });
         const after = await request(session, `${BASE}/${encoded}?fields=${FIELDS}`, {}, async response => file(await response.json(), response.headers.get('etag')));
-        if (before.id !== metadata.id || after.id !== metadata.id || before.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
+        if (before.id !== metadata.id || after.id !== metadata.id || before.version !== after.version) throw new DriveReadChangedError('读取期间云端配置已变化，请重试。');
         if (after.etag) return {file: after, content};
         // v3 File 没有 etag 字段，响应头也可能不提供。v2 的资源 ETag
         // 只在文件 ID 与单调版本均相同的情况下使用，不能把另一个版本配给已下载的密文。
         const compatible = await request(session, `${V2_BASE}/${encoded}?fields=${V2_FIELDS}`, {}, async response => v2File(await response.json()));
-        if (compatible.id !== after.id || compatible.version !== after.version) throw new DriveError('读取期间云端配置已变化，请重试。');
+        if (compatible.id !== after.id || compatible.version !== after.version) throw new DriveReadChangedError('读取期间云端配置已变化，请重试。');
         return {file: {...after, ...compatible}, content};
     }
     async function write(session: DriveSession, content: string, previous: DriveFile | null): Promise<DriveFile> {
@@ -99,16 +104,29 @@ export function createDriveApi(fetcher: typeof fetch) {
         const endpoint = `https://www.googleapis.com/upload/drive/${v2 ? 'v2' : 'v3'}/files${previous ? `/${encodeURIComponent(previous.id)}` : ''}?uploadType=multipart&fields=${v2 ? V2_FIELDS : FIELDS}`;
         const written = await request(session, endpoint, {method: v2 ? 'PUT' : previous ? 'PATCH' : 'POST', headers: {'Content-Type': `multipart/related; boundary=${boundary}`, ...(previous?.etag ? {'If-Match': previous.etag} : {})}, body}, async response => v2 ? v2File(await response.json()) : file(await response.json(), response.headers.get('etag')));
         try {
-            const verified = await read(session);
-            if (!verified || verified.file.id !== written.id || verified.content !== content) throw new DriveError('云端保存后校验未通过，请重新读取备份后重试；本机配置未修改。');
-            return verified.file;
+            for (let attempt = 0; ; attempt++) {
+                try {
+                    const verified = await read(session);
+                    if (!verified && !previous && attempt < 2) {
+                        await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+                        continue;
+                    }
+                    if (!verified || verified.file.id !== written.id || verified.content !== content) throw new DriveUploadVerificationError();
+                    return verified.file;
+                } catch (error) {
+                    // 新建或更新后元数据可能暂时漂移。只重读最多三次；不得再 POST/PATCH。
+                    if (!(error instanceof DriveReadChangedError) || attempt >= 2) throw error;
+                    await new Promise(resolve => setTimeout(resolve, 200 * (attempt + 1)));
+                }
+            }
         } catch (error) {
             // Drive 不提供文件名唯一约束。两台设备同时首次创建时，只撤回本次
             // 创建且版本仍未变化的文件；绝不删除对方或已有备份，也不无条件删除。
             if (!previous && error instanceof DriveError && error.status === 409 && strongCloudEtag(written.etag)) {
                 await request(session, `${BASE}/${encodeURIComponent(written.id)}`, {method: 'DELETE', headers: {'If-Match': written.etag!}}, async () => undefined).catch(() => undefined);
             }
-            throw error;
+            if (error instanceof DriveError && error.status === 409) throw error;
+            throw error instanceof DriveUploadVerificationError ? error : new DriveUploadVerificationError(error instanceof DriveError ? error.status : undefined);
         }
     }
     async function remove(session: DriveSession, previous: DriveFile): Promise<void> {
