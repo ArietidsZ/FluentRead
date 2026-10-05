@@ -4,6 +4,7 @@
  * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词与查询阶段，隔离不匹配目标语言的辅助内容，深拷贝词卡并只翻译缺失的可见释义，按位置回填；补充翻译共用短时预算。
  * 模块边界：该文件不直接请求任何词典站点或翻译 provider；词典 lookup 和 translateTexts 由后台注入，数据解析/缓存归 services/wordDictionary，组件只消费返回词卡。
  */
+import {attachPrivateTranslationContext} from '@/src/services/translation/privateContext';
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import type {WordCardData} from '../services/wordDictionary';
 
@@ -32,6 +33,7 @@ export interface WordCardTranslationRequest {
 }
 
 export interface SelectionWordLookupDependencies {
+    readonly privateContext?: () => boolean;
     readonly lookupWord: (word: string) => Promise<WordCardData | null>;
     readonly getDefaultTargetLanguage: () => string;
     readonly translate: (request: WordCardTranslationRequest) => Promise<string | string[]>;
@@ -40,7 +42,7 @@ export interface SelectionWordLookupDependencies {
 
 export interface SelectionWordLookupHandler {
     readonly type: typeof SELECTION_WORD_LOOKUP_MESSAGE_TYPE;
-    handle(message: SelectionWordLookupMessage): Promise<{success: true; data: WordCardData | null}>;
+    handle(message: SelectionWordLookupMessage, context?: {sender?: {tab?: {incognito?: boolean}}}): Promise<{success: true; data: WordCardData | null}>;
 }
 
 interface WordDefinitionTranslationSlot {
@@ -152,7 +154,7 @@ export function createSelectionWordLookupHandler(
 ): SelectionWordLookupHandler {
     return {
         type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE,
-        async handle(message) {
+        async handle(message, context) {
             const word = parseWord(message.word);
             const targetLanguage = parseTargetLanguage(
                 message.targetLanguage,
@@ -167,7 +169,8 @@ export function createSelectionWordLookupHandler(
                 data: card
                     ? message.translateFields === false
                         ? prepareWordCardForTarget(card, targetLanguage)
-                        : await translateVisibleWordCardFields(card, targetLanguage, dependencies.translate, dependencies.warn)
+                        : await translateVisibleWordCardFields(card, targetLanguage, request => dependencies.translate(attachPrivateTranslationContext(request,
+                            Boolean(context?.sender?.tab?.incognito || dependencies.privateContext?.()))), dependencies.warn)
                     : null,
             };
         },

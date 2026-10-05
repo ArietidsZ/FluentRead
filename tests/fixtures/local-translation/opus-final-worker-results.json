@@ -1,0 +1,606 @@
+{
+  "sourceCommit": "68c6cafefe7c288d8f948a94f1045dd44daadc19",
+  "canonicalTreeEquivalent": "fb6c0092",
+  "platform": "Node24 / Dawn0.6.2 / genuine Mesa Lavapipe25.0.7 / shader-f16 /128MiB storage binding",
+  "scope": "Actual Chrome emitted Worker and static model runtime assets. Node EventTarget and CacheStorage transport adapters. Supplemental runs change software-adapter rejection only; capabilities and kernels are genuine.",
+  "runs": [
+    {
+      "name": "strict-final",
+      "logSha256": "6a6515a237fd0c442e4dadfbe4418eed0331abab1c5cf35ae3cc37e8568e3453",
+      "translations": [
+        {
+          "event": "translation",
+          "model": "fluentread/opus-zh-en",
+          "input": "Save changes",
+          "response": {
+            "requestId": 2,
+            "success": true,
+            "result": "保存更改",
+            "backend": "wasm",
+            "elapsedMs": 2081.256401
+          },
+          "dispatches": 0,
+          "milliseconds": 2081.383764,
+          "cacheCounts": {
+            "receipts": 12,
+            "chunks": 33,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 0,
+          "peakBytes": 0,
+          "maxRssKiB": 1396076
+        },
+        {
+          "event": "translation",
+          "model": "fluentread/opus-zh-en-fp16",
+          "input": "Save changes",
+          "response": {
+            "requestId": 3,
+            "success": false,
+            "error": "LOCAL_TRANSLATION_GPU_UNAVAILABLE"
+          },
+          "dispatches": 0,
+          "milliseconds": 15.751106000000163,
+          "cacheCounts": {
+            "receipts": 12,
+            "chunks": 33,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 0,
+          "peakBytes": 0,
+          "maxRssKiB": 1422188
+        },
+        {
+          "event": "translation",
+          "model": "fluentread/opus-ja-en-fp32",
+          "input": "変更を保存",
+          "response": {
+            "requestId": 4,
+            "success": false,
+            "error": "LOCAL_TRANSLATION_GPU_UNAVAILABLE"
+          },
+          "dispatches": 0,
+          "milliseconds": 0.250046999999995,
+          "cacheCounts": {
+            "receipts": 12,
+            "chunks": 33,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 0,
+          "peakBytes": 0,
+          "maxRssKiB": 1422316
+        },
+        {
+          "event": "translation",
+          "model": "fluentread/opus-ja-en",
+          "input": "The meeting starts at 15:30 on October 4.",
+          "response": {
+            "requestId": 5,
+            "success": true,
+            "result": "黒 Jacob に は ルカテ に,  くれ た 者 に は 口づけ せよ.",
+            "backend": "wasm",
+            "elapsedMs": 1620.5058430000004
+          },
+          "dispatches": 0,
+          "milliseconds": 1620.611712,
+          "cacheCounts": {
+            "receipts": 24,
+            "chunks": 62,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 0,
+          "peakBytes": 0,
+          "maxRssKiB": 1712780
+        }
+      ],
+      "cacheCounts": {
+        "receipts": 24,
+        "chunks": 62,
+        "misses": 0,
+        "writes": 0
+      },
+      "unexpectedAttempts": [],
+      "overrideCount": 0,
+      "dispatches": 0,
+      "liveBytesAfterDispose": 0,
+      "peakBytes": 0,
+      "loaded": [
+        {
+          "path": "localTranslationWorker.js",
+          "sha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99",
+          "effectiveSha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99"
+        },
+        {
+          "path": "chunks/_virtual_wxt-plugins-zocnEiNk.js",
+          "sha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf",
+          "effectiveSha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf"
+        },
+        {
+          "path": "chunks/translation.worker-CC1S5FDV.js",
+          "sha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0",
+          "effectiveSha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0"
+        },
+        {
+          "path": "chunks/modelArtifacts-fap0UI11.js",
+          "sha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b",
+          "effectiveSha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b"
+        },
+        {
+          "path": "chunks/webgpu-CDqSCSaT.js",
+          "sha256": "183ab28af60604b8f9444c7bab35e2e92ef55d4000c8364380a0e419c626bb51",
+          "effectiveSha256": "183ab28af60604b8f9444c7bab35e2e92ef55d4000c8364380a0e419c626bb51"
+        },
+        {
+          "path": "chunks/transformers.web-DFw69hQ8.js",
+          "sha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce",
+          "effectiveSha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce"
+        },
+        {
+          "path": "chunks/ort.webgpu.bundle.min-BTPnRHKr.js",
+          "sha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b",
+          "effectiveSha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b"
+        },
+        {
+          "path": "chunks/tokenizers-CLzNHpaD.js",
+          "sha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec",
+          "effectiveSha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec"
+        },
+        {
+          "path": "fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs",
+          "sha256": "0bae4cc44ad103a6dd8e851c25ae665b3062cceea7d7fc14b235023509661161",
+          "effectiveSha256": "0bae4cc44ad103a6dd8e851c25ae665b3062cceea7d7fc14b235023509661161"
+        }
+      ],
+      "assetFetches": [
+        {
+          "path": "fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm",
+          "size": 21596019,
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        }
+      ]
+    },
+    {
+      "name": "supplemental-zh-final",
+      "logSha256": "c8794f25a420a9efc92dd6f6d874d7fdf33359f6eed125a222486a5e36044bdb",
+      "translations": [
+        {
+          "event": "translation",
+          "model": "fluentread/opus-zh-en-fp16",
+          "input": "The printer uses 12 grams of material and costs 3.50 dollars.",
+          "response": {
+            "requestId": 2,
+            "success": true,
+            "result": "打印机使用12克材料,费用为3.50美元。",
+            "backend": "webgpu",
+            "elapsedMs": 6258.866935999999
+          },
+          "dispatches": 6592,
+          "milliseconds": 6258.978354000001,
+          "cacheCounts": {
+            "receipts": 10,
+            "chunks": 60,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 358648736,
+          "peakBytes": 422261680,
+          "maxRssKiB": 2256060
+        },
+        {
+          "event": "translation",
+          "model": "fluentread/opus-zh-en-fp16",
+          "input": "打印机使用12克材料，成本为3.50美元。",
+          "response": {
+            "requestId": 3,
+            "success": true,
+            "result": "The printer uses 12 grams of material at a cost of $3.50.",
+            "backend": "webgpu",
+            "elapsedMs": 5647.848525999999
+          },
+          "dispatches": 7042,
+          "milliseconds": 5648.486188000001,
+          "cacheCounts": {
+            "receipts": 20,
+            "chunks": 120,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 358648736,
+          "peakBytes": 422262240,
+          "maxRssKiB": 2954536
+        }
+      ],
+      "cacheCounts": {
+        "receipts": 20,
+        "chunks": 120,
+        "misses": 0,
+        "writes": 0
+      },
+      "unexpectedAttempts": [],
+      "overrideCount": 1,
+      "dispatches": 13634,
+      "liveBytesAfterDispose": 0,
+      "peakBytes": 422262240,
+      "loaded": [
+        {
+          "path": "localTranslationWorker.js",
+          "sha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99",
+          "effectiveSha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99"
+        },
+        {
+          "path": "chunks/_virtual_wxt-plugins-zocnEiNk.js",
+          "sha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf",
+          "effectiveSha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf"
+        },
+        {
+          "path": "chunks/translation.worker-CC1S5FDV.js",
+          "sha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0",
+          "effectiveSha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0"
+        },
+        {
+          "path": "chunks/modelArtifacts-fap0UI11.js",
+          "sha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b",
+          "effectiveSha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b"
+        },
+        {
+          "path": "chunks/webgpu-CDqSCSaT.js",
+          "sha256": "183ab28af60604b8f9444c7bab35e2e92ef55d4000c8364380a0e419c626bb51",
+          "effectiveSha256": "9575c834e3e11895fc7a389190771499d9a5ffcda5b74e3fb1cdf43d75d28b5e"
+        },
+        {
+          "path": "chunks/transformers.web-DFw69hQ8.js",
+          "sha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce",
+          "effectiveSha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce"
+        },
+        {
+          "path": "chunks/ort.webgpu.bundle.min-BTPnRHKr.js",
+          "sha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b",
+          "effectiveSha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b"
+        },
+        {
+          "path": "chunks/tokenizers-CLzNHpaD.js",
+          "sha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec",
+          "effectiveSha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec"
+        },
+        {
+          "path": "fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.mjs",
+          "sha256": "d1951c21e5bf9c5b4d75afd1f9f5532121091c99e7bf6c9ccbf54c46cb067f17",
+          "effectiveSha256": "d1951c21e5bf9c5b4d75afd1f9f5532121091c99e7bf6c9ccbf54c46cb067f17"
+        }
+      ],
+      "assetFetches": [
+        {
+          "path": "fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm",
+          "size": 23567050,
+          "sha256": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786"
+        }
+      ]
+    },
+    {
+      "name": "supplemental-ja-final",
+      "logSha256": "383bc077f8df7305370ead0d21927ab4bbad0e2d62aa9ae31a56305581b7f7ab",
+      "translations": [
+        {
+          "event": "translation",
+          "model": "fluentread/opus-ja-en-fp32",
+          "input": "更新が完了するまでプリンターの電源を切らないでください。",
+          "response": {
+            "requestId": 2,
+            "success": true,
+            "result": "Please don't turn off the printer until the update is complete.",
+            "backend": "webgpu",
+            "elapsedMs": 6604.080215
+          },
+          "dispatches": 6468,
+          "milliseconds": 6604.199625,
+          "cacheCounts": {
+            "receipts": 12,
+            "chunks": 108,
+            "misses": 0,
+            "writes": 0
+          },
+          "liveBytes": 718835712,
+          "peakBytes": 840135232,
+          "maxRssKiB": 3259664
+        }
+      ],
+      "cacheCounts": {
+        "receipts": 12,
+        "chunks": 108,
+        "misses": 0,
+        "writes": 0
+      },
+      "unexpectedAttempts": [],
+      "overrideCount": 1,
+      "dispatches": 6468,
+      "liveBytesAfterDispose": 213968448,
+      "peakBytes": 840135232,
+      "loaded": [
+        {
+          "path": "localTranslationWorker.js",
+          "sha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99",
+          "effectiveSha256": "f1cabd6c8875e72620a4eebebad64885d9233b147090b16bfa5be812f9c4de99"
+        },
+        {
+          "path": "chunks/_virtual_wxt-plugins-zocnEiNk.js",
+          "sha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf",
+          "effectiveSha256": "dd69cd4085ae26406b07a3c1d66b182f005b340e15c0b9cdd8ec820adb0707cf"
+        },
+        {
+          "path": "chunks/translation.worker-CC1S5FDV.js",
+          "sha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0",
+          "effectiveSha256": "5bc2397f71feb133dafeed324042f1659ae00cc8f32cd0a1bfeb69a7ff92c9a0"
+        },
+        {
+          "path": "chunks/modelArtifacts-fap0UI11.js",
+          "sha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b",
+          "effectiveSha256": "c5094f9f93a841ceb2488351d1594384debaad3cc30ad28cff3498d8bec9ae8b"
+        },
+        {
+          "path": "chunks/webgpu-CDqSCSaT.js",
+          "sha256": "183ab28af60604b8f9444c7bab35e2e92ef55d4000c8364380a0e419c626bb51",
+          "effectiveSha256": "9575c834e3e11895fc7a389190771499d9a5ffcda5b74e3fb1cdf43d75d28b5e"
+        },
+        {
+          "path": "chunks/transformers.web-DFw69hQ8.js",
+          "sha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce",
+          "effectiveSha256": "d0999746349cbe596bdde958515d3fa4f022807f59718f22c51344250fff13ce"
+        },
+        {
+          "path": "chunks/ort.webgpu.bundle.min-BTPnRHKr.js",
+          "sha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b",
+          "effectiveSha256": "49b0703b468af0a3c6344d2c31030bbf38d53bb9fc30dfb0adc5a14f192f008b"
+        },
+        {
+          "path": "chunks/tokenizers-CLzNHpaD.js",
+          "sha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec",
+          "effectiveSha256": "3661c1e18ba16b86c5a74bd7566c6397773957d46c83699c60ad41f24849ccec"
+        },
+        {
+          "path": "fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs",
+          "sha256": "0bae4cc44ad103a6dd8e851c25ae665b3062cceea7d7fc14b235023509661161",
+          "effectiveSha256": "0bae4cc44ad103a6dd8e851c25ae665b3062cceea7d7fc14b235023509661161"
+        }
+      ],
+      "assetFetches": [
+        {
+          "path": "fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm",
+          "size": 21596019,
+          "sha256": "c46655e8a94afc45338d4cb2b840475f88e5012d524509916e505079c00bfa39"
+        }
+      ]
+    }
+  ],
+  "negativeControl": {
+    "mixedProfileRealmExitCode": 137,
+    "logSha256": "b514b556062b33611bd25b9a75b7430030923719fd9413e0ccd58863626de9f5",
+    "description": "A stress harness loaded both runtime families in one realm and was killed while loading Japanese FP32 after both Chinese translations. Cause not proven. Production owner replaces Worker on profile-ID changes; isolated successful runs match that topology but do not themselves execute the owner."
+  },
+  "limits": [
+    "Software adapter timings are not hardware benchmarks.",
+    "No extension browser/CSP or native Worker transport validation claim.",
+    "Japanese ORT1.22 pool remains after dispose; process exit observed separately, not as measured GPU-buffer destruction."
+  ],
+  "ownerLifecycle": {
+    "scope": "Actual final translation.ts and source dependencies bundled without mocks; Node child-process Worker transport using exact emitted Worker and same approved software admission-only override. Production AbortController, queue, IDs, timeout and model-ID replacement logic unchanged.",
+    "events": [
+      {
+        "event": "worker-created",
+        "child": 1,
+        "builtOutputPath": "localTranslationWorker.js"
+      },
+      {
+        "event": "owner-request",
+        "child": 1,
+        "data": {
+          "type": "translate",
+          "model": "fluentread/opus-zh-en-fp16",
+          "text": "Save changes",
+          "sourceLanguage": "en",
+          "targetLanguage": "zh",
+          "requestId": 1
+        }
+      },
+      {
+        "event": "transport-response",
+        "child": 1,
+        "response": {
+          "requestId": 1,
+          "success": true,
+          "result": "保存更改",
+          "backend": "webgpu",
+          "elapsedMs": 4236.690867
+        },
+        "dispatches": 2092,
+        "liveBytes": 356824736
+      },
+      {
+        "event": "warm-result",
+        "warm": "保存更改"
+      },
+      {
+        "event": "owner-request",
+        "child": 1,
+        "data": {
+          "type": "translate",
+          "model": "fluentread/opus-zh-en-fp16",
+          "text": "The printer uses 12 grams of material and costs 3.50 dollars. The printer uses 12 grams of material and costs 3.50 dollars. The printer uses 12 grams of material and costs 3.50 dollars. The printer uses 12 grams of material and costs 3.50 dollars. The printer uses 12 grams of material and costs 3.50 dollars. The printer uses 12 grams of material and costs 3.50 dollars. ",
+          "sourceLanguage": "en",
+          "targetLanguage": "zh",
+          "requestId": 2
+        }
+      },
+      {
+        "event": "cancel-after-real-dispatch",
+        "child": 1,
+        "cancelDispatches": 8,
+        "liveBytes": 356824864
+      },
+      {
+        "event": "owner-terminate",
+        "child": 1
+      },
+      {
+        "event": "owner-cancelled",
+        "name": "AbortError",
+        "message": "本地翻译请求已取消"
+      },
+      {
+        "event": "child-exit",
+        "child": 1,
+        "code": null,
+        "signal": "SIGTERM",
+        "meaning": "process exit, not measured GPU-buffer destruction"
+      },
+      {
+        "event": "worker-created",
+        "child": 2,
+        "builtOutputPath": "localTranslationWorker.js"
+      },
+      {
+        "event": "owner-request",
+        "child": 2,
+        "data": {
+          "type": "translate",
+          "model": "fluentread/opus-zh-en-fp16",
+          "text": "Save changes",
+          "sourceLanguage": "en",
+          "targetLanguage": "zh",
+          "requestId": 3
+        }
+      },
+      {
+        "event": "transport-response",
+        "child": 2,
+        "response": {
+          "requestId": 3,
+          "success": true,
+          "result": "保存更改",
+          "backend": "webgpu",
+          "elapsedMs": 3602.2259950000002
+        },
+        "dispatches": 2092,
+        "liveBytes": 356824736
+      },
+      {
+        "event": "recovered-result",
+        "recovered": "保存更改"
+      },
+      {
+        "event": "owner-terminate",
+        "child": 2
+      },
+      {
+        "event": "worker-created",
+        "child": 3,
+        "builtOutputPath": "localTranslationWorker.js"
+      },
+      {
+        "event": "owner-request",
+        "child": 3,
+        "data": {
+          "type": "translate",
+          "model": "fluentread/opus-ja-en-fp32",
+          "text": "更新が完了するまでプリンターの電源を切らないでください。",
+          "sourceLanguage": "ja",
+          "targetLanguage": "en",
+          "requestId": 4
+        }
+      },
+      {
+        "event": "child-exit",
+        "child": 2,
+        "code": null,
+        "signal": "SIGTERM",
+        "meaning": "process exit, not measured GPU-buffer destruction"
+      },
+      {
+        "event": "transport-response",
+        "child": 3,
+        "response": {
+          "requestId": 4,
+          "success": true,
+          "result": "Please don't turn off the printer until the update is complete.",
+          "backend": "webgpu",
+          "elapsedMs": 6771.5581329999995
+        },
+        "dispatches": 6468,
+        "liveBytes": 718835712
+      },
+      {
+        "event": "profile-switch-result",
+        "japanese": "Please don't turn off the printer until the update is complete.",
+        "children": 3
+      },
+      {
+        "event": "owner-terminate",
+        "child": 3
+      },
+      {
+        "event": "child-exit",
+        "child": 3,
+        "code": null,
+        "signal": "SIGTERM",
+        "meaning": "process exit, not measured GPU-buffer destruction"
+      },
+      {
+        "event": "complete",
+        "children": 3,
+        "allExited": true,
+        "cancelDispatches": 8,
+        "ownerBundleSha256": "1957e76e8687f2b080c51720c01041f441c90da45d18bad39d20a5ae119e86a4"
+      }
+    ],
+    "files": [
+      {
+        "file": "owner-run.mjs",
+        "sha256": "995b401e1de57cc735a3b2c785d84a19e917c57f572c130dc7e6348fd12cc231"
+      },
+      {
+        "file": "owner-child.mjs",
+        "sha256": "4484473e51ee52bda4a2627ce9e9417ebb9d7db79b038f20c231b027ad63d6d8"
+      },
+      {
+        "file": "owner-cache.mjs",
+        "sha256": "bf1f7b3994cbc1d7b11d5f8e64e66653faaa21119517268154fe261c1edf549d"
+      },
+      {
+        "file": "owner.bundle.mjs",
+        "sha256": "1957e76e8687f2b080c51720c01041f441c90da45d18bad39d20a5ae119e86a4"
+      },
+      {
+        "file": "owner-source-provenance.json",
+        "sha256": "42bc6bac10d55925813f5e25ed9a468aa43f6dee6240cccdad8803584e98778a"
+      },
+      {
+        "file": "owner-final.log",
+        "sha256": "99338843cf12330431d782e002fbf3b0633838f58e65532b8a682885fad1a39d"
+      },
+      {
+        "file": "owner-child-1.log",
+        "sha256": "846ab6c6d5b7cc66b6efd89fc1bd1fd824dc5961ab1d8f7edef32a8fde1f0448"
+      },
+      {
+        "file": "owner-child-2.log",
+        "sha256": "b909e73381ea20ad5d0fceace7e5d5a6762d45d5e3d22b8be710c3a5128c514d"
+      },
+      {
+        "file": "owner-child-3.log",
+        "sha256": "d724859dfed69b0449477139368beb29ebab5b525ac40be4744a86f246595152"
+      }
+    ],
+    "limitations": [
+      "Old addressed response/error injection is a controlled transport fault, not a naturally occurring browser event.",
+      "Child exit is observed; GPU destruction during abrupt termination is not separately measured."
+    ]
+  },
+  "origins": {
+    "builtOutput": "Paths in loaded/assetFetches and builtOutputPath are relative to the Chrome MV3 build output for sourceCommit.",
+    "source": "Actual owner bundle uses sourceCommit source and dependencies; ownerBundleSha256 identifies exact bundle.",
+    "rawEvidence": "Original absolute-path logs and source captures are retained separately; delivered paths are normalized, original byte hashes remain unchanged."
+  }
+}

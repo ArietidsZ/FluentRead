@@ -47,6 +47,41 @@ describe('Writing request leases', () => {
     for (let i = 2; i <= 4; i++) { const p = port({id: 'ext', url: 'https://github.com/a', tab: {id: i}}); handler.connect(p); p.onMessage.fire(request); }
     const limited = port({id: 'ext', url: 'https://github.com/a', tab: {id: 5}}); handler.connect(limited); limited.onMessage.fire(request); expect(limited.postMessage.mock.calls[0][0].response.error).toContain('其他'); handler.cancelAll();
   });
+  it('replaces its own document at capacity without admitting a fifth page or publishing stale results', async () => {
+    const {handler, deps} = setup();
+    const completions: Array<(response: WritingResponse) => void> = [];
+    deps.run.mockImplementation(() => new Promise(resolve => { completions.push(resolve); }));
+    const pages = Array.from({length: 4}, (_, index) => port({
+      id: 'ext', url: 'https://github.com/a', tab: {id: index + 1}, documentId: `doc-${index}`,
+    }));
+    for (const page of pages) { handler.connect(page); page.onMessage.fire(request); }
+    await flush();
+    const replacement = port(pages[0].sender);
+    handler.connect(replacement); replacement.onMessage.fire({...request, requestId: 'replacement'});
+    await flush();
+    try {
+      expect(deps.run).toHaveBeenCalledTimes(5);
+      expect(deps.run.mock.calls[0][1].aborted).toBe(true);
+      expect(deps.run.mock.calls.slice(1).every(([, signal]) => !signal.aborted)).toBe(true);
+      expect(pages[0].postMessage).toHaveBeenCalledWith({type: 'result', requestId: request.requestId,
+        response: expect.objectContaining({cancelled: true})});
+      expect(pages[0].onMessage.listeners.size).toBe(0);
+      expect(replacement.postMessage).not.toHaveBeenCalled();
+      const fifth = port({id: 'ext', url: 'https://github.com/a', tab: {id: 5}});
+      handler.connect(fifth); fifth.onMessage.fire(request);
+      expect(fifth.postMessage.mock.calls[0][0].response.error).toContain('其他');
+      completions[0](success);
+      await flush();
+      expect(pages[0].postMessage).toHaveBeenCalledTimes(1);
+      const stillLimited = port({id: 'ext', url: 'https://github.com/a', tab: {id: 6}});
+      handler.connect(stillLimited); stillLimited.onMessage.fire(request);
+      expect(stillLimited.postMessage.mock.calls[0][0].response.error).toContain('其他');
+      expect(deps.run).toHaveBeenCalledTimes(5);
+      completions[4](success);
+      await flush();
+      expect(replacement.postMessage).toHaveBeenCalledWith({type: 'result', requestId: 'replacement', response: success});
+    } finally { handler.cancelAll(); }
+  });
   it('closes timed-out work and blocks eligibility changes during streaming or completion', async () => {
     vi.useFakeTimers(); const {handler, deps} = setup(); deps.run.mockImplementation(() => new Promise(() => {})); const p = port(); handler.connect(p); p.onMessage.fire(request); await vi.advanceTimersByTimeAsync(60001); expect(p.postMessage.mock.calls.at(-1)![0].response.error).toContain('超时');
     vi.useRealTimers();

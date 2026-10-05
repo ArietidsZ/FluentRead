@@ -17,6 +17,15 @@ const context = (id: number) => ({sender: {tab: {id}}});
 const find = (handlers: readonly {type: string; handle: Function}[], type: string) => handlers.find((item) => item.type === type)!;
 
 describe('video subtitle background ownership', () => {
+
+    it('Qwen explicit download has a bounded large-pack deadline and can be removed through the public handler',async()=>{
+        const {handlers,offscreen,storage}=setup({success:true});
+        const result=await find(handlers,'fluentReadPrepareLocalVideoModel').handle({model:'qwen3-asr-0.6b'},context(1));
+        expect(result.models).toContain('qwen3-asr-0.6b');
+        expect(offscreen.send).toHaveBeenCalledWith({type:'VIDEO_AI_PREPARE',model:'qwen3-asr-0.6b',keepWarm:false},{timeoutMs:900000});
+        await find(handlers,'fluentReadRemoveLocalVideoModel').handle({model:'qwen3-asr-0.6b'},context(1));
+        expect(offscreen.send).toHaveBeenLastCalledWith({type:'VIDEO_AI_REMOVE_MODEL',model:'qwen3-asr-0.6b'},{timeoutMs:30000});expect(storage.set).toHaveBeenCalledTimes(2);
+    });
     it('cache prepare does not require stream/generation', async () => {
         const {handlers, storage} = setup();
         const result = await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny', keepWarm: false}, context(1));
@@ -26,7 +35,7 @@ describe('video subtitle background ownership', () => {
     it('returns normalized downloaded model state through a background-only query', async () => {
         const {handlers} = setup();
         const result = await find(handlers, 'fluentReadGetLocalVideoModelState').handle({type: 'fluentReadGetLocalVideoModelState'}, context(1));
-        expect(result).toEqual({success: true, models: [], available: {tiny: false, base: false}});
+        expect(result).toEqual({success: true, models: [], available: {tiny: false, base: false, 'qwen3-asr-0.6b': false}});
     });
 
     it('serializes concurrent cache writes so Tiny and Base state are merged', async () => {

@@ -227,7 +227,8 @@ describe('browser regression focus safety', () => {
         }
         const selectionSource = readScript('scripts/run-selection-trigger-test.cjs');
         expect(selectionSource).toContain('if (!result.ok) throw new Error');
-        expect(selectionSource).toContain('/options.html#settings-translation');
+        expect(selectionSource).toContain('/options.html#settings-selection');
+        expect(selectionSource).toContain("getByRole('switch', { name: '启用划词翻译' })");
         expect(selectionSource).not.toContain('/options.html#settings-shortcuts');
         const fullPageSource = readScript('scripts/run-full-page-translation-test.cjs');
         expect(fullPageSource).toContain("matches(':hover') === true");

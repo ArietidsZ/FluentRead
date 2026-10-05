@@ -5,6 +5,7 @@ import {compileScript, parse} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import * as vue from 'vue';
 import {Config} from '@/src/core/config/model';
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import * as catalog from '@/src/core/config/catalog';
 import * as documentCore from '@/src/features/document-translation/core/document';
 import * as presentation from '@/src/features/document-translation/ui/presentation';
@@ -45,7 +46,7 @@ beforeEach(async () => {
   download = vi.fn(async (document, translations, mode) => ({data: documentCore.renderDocument(document, translations, mode),
     fileName: documentCore.createDocumentDownloadName(document.fileName, mode), mimeType: 'text/plain'}));
   persist = vi.fn().mockResolvedValue(undefined);
-  const api = {...catalog, ...documentCore, ...presentation, Config, TranslationRequestError, createDocumentFileLoadGuard,
+  const api = {...catalog, ...documentCore, ...presentation, Config, TranslationRequestError, createDocumentFileLoadGuard, resolvePrivateTranslationConfig,
     parseDocumentFile: parseFile, translateDocumentSegments: translate, createDocumentDownload: download,
     buildGlossaryRevision: () => '', runtimeConfig: new Config(), configReady: Promise.resolve(),
     subscribeConfig: () => () => {}, requestConfigPatch: persist,

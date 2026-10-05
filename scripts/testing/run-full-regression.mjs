@@ -277,6 +277,13 @@ function deterministicSteps() {
             args: ['scripts/testing/audit-test-suite.mjs'],
         }),
         step({
+            id: 'brand-copy-verifier',
+            phase: 'local',
+            label: 'brand copy verifier',
+            command: 'pnpm',
+            args: ['verify:brand'],
+        }),
+        step({
             id: 'wxt-prepare',
             phase: 'local',
             label: 'wxt prepare',
@@ -312,11 +319,25 @@ function deterministicSteps() {
             args: ['build'],
         }),
         step({
+            id: 'chrome-worker-bootstrap',
+            phase: 'local',
+            label: 'chrome emitted model worker bootstrap and import failures',
+            command: 'node',
+            args: ['scripts/testing/verify-emitted-model-workers.mjs', '--extension-dir', '.output/chrome-mv3'],
+        }),
+        step({
             id: 'firefox-build',
             phase: 'local',
             label: 'firefox build',
             command: 'pnpm',
             args: ['build:firefox'],
+        }),
+        step({
+            id: 'firefox-worker-bootstrap',
+            phase: 'local',
+            label: 'firefox emitted model worker bootstrap and import failures',
+            command: 'node',
+            args: ['scripts/testing/verify-emitted-model-workers.mjs', '--extension-dir', '.output/firefox-mv2'],
         }),
         step({
             id: 'firefox-zip',
@@ -352,6 +373,20 @@ function deterministicSteps() {
             label: 'docs build',
             command: 'pnpm',
             args: ['docs:build'],
+        }),
+        step({
+            id: 'docs-typecheck',
+            phase: 'local',
+            label: 'documentation typecheck',
+            command: 'pnpm',
+            args: ['docs:typecheck'],
+        }),
+        step({
+            id: 'docs-artifact-verifier',
+            phase: 'local',
+            label: 'documentation links and assets verifier',
+            command: 'pnpm',
+            args: ['docs:check'],
         }),
     ];
 }

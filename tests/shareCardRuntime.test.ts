@@ -14,6 +14,11 @@ beforeEach(() => {
 });
 afterEach(() => {unmountShareCard(); vi.unstubAllGlobals();});
 describe('分享卡片按需挂载所有权', () => {
+    it('缺少内容脚本上下文时不创建工作台', async () => {
+        mountShareCard(undefined as unknown as ContentScriptContext);
+        await openShareCard({original: 'Hello', translation: '你好'});
+        expect(mocks.create).not.toHaveBeenCalled();
+    });
     it('启动不监听宿主页面或创建 UI，两个主动入口复用单个闭合 Shadow UI', async () => {
         const documentListener = vi.spyOn(document, 'addEventListener');
         const windowListener = vi.spyOn(window, 'addEventListener');

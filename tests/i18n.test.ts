@@ -948,6 +948,8 @@ describe('i18n 全量界面扫描', () => {
     const common = new Set(['inputTranslation.intervalUnit', 'common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction',
       // 品牌名与纯排版模板在多数语言下与英文一致，强行改写反而破坏菜单文案。
       'settings.interface.font.options.inter.label',
+      // 模型品牌、版本、量化与标准 API 名称保持官方拼写，不作为待翻译自然语言。
+      'settings.localTranslation.index', 'video.modelQwenName',
       'contextMenu.groupPlain', 'contextMenu.standalone', 'contextMenu.withShortcut', 'contextMenu.withLanguage', 'contextMenuSettings.withReason']);
     // “Original” 在法语与西班牙语中拼写与英文相同，视频字幕菜单的短标签沿用该词。
     const videoOriginalLabels = ['video.modeOriginal', 'video.downloadOriginalShort'];

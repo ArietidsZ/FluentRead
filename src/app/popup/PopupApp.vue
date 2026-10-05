@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；悬停、划词与图片抽屉优先展示开关和操作示意，关闭再启用恢复原有偏好，首次语言引导独占内容。
+ 主要内容：用真实当前标签页的无痕状态展示专用服务提示并执行请求预检；在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；悬停、划词与图片抽屉优先展示开关和操作示意，关闭再启用恢复原有偏好，首次语言引导独占内容。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -104,6 +104,9 @@
           <span class="provider-summary-chevron">›</span>
         </span>
       </button>
+      <p v-if="currentTabPrivate && config.privateTranslation.enabled" class="notice" role="status" data-testid="private-translation-profile">
+        {{ t('privateTranslation.active', {service: providerLabel(config.privateTranslation.service) || t('privateTranslation.unavailable'), model: config.privateTranslation.model}) }}
+      </p>
       <div v-if="credentialWarning" class="credential-warning" role="alert">
         <span><strong>配置提醒</strong>{{ credentialWarning }}</span>
         <button type="button" @click="openOptions('settings-services')">去设置</button>
@@ -343,6 +346,7 @@
 </template>
 
 <script lang="ts" setup>
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import PopupLanguageSelect from './PopupLanguageSelect.vue';
 
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
@@ -424,6 +428,7 @@ const activeDrawer = ref<DrawerName>('hover');
 const translating = ref(false);
 const pageTranslated = ref(false);
 const currentTabId = ref<number | null>(null);
+const currentTabPrivate = ref(false);
 const currentSiteDomain = ref('');
 const clearingCache = ref(false);
 const donationVisible = ref(false);
@@ -510,7 +515,12 @@ const canUseAIContext = computed(() => servicesType.isUseAIContext(
   selectedCustomOpenAIProvider.value ? 'custom' : config.value.service,
   aiContextModel.value,
 ));
-const credentialWarning = computed(() => selectedServiceUnavailableMessage.value || getMissingCredentialMessage(config.value.service, config.value));
+const credentialWarning = computed(() => {
+  try {
+    const current = resolvePrivateTranslationConfig(config.value, currentTabPrivate.value);
+    return getTranslationServiceUnavailableMessage(current.service) || getMissingCredentialMessage(current.service, current);
+  } catch (error) { return error instanceof Error ? error.message : String(error); }
+});
 const isThunderbird = browserCapabilities.browser === 'thunderbird';
 const currentSiteSupported = computed(() => !isThunderbird && currentTabId.value !== null && Boolean(currentSiteDomain.value));
 const currentSiteRuleEnabled = computed(() => currentSiteSupported.value
@@ -817,12 +827,14 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
 
 async function hydrateCurrentSite() {
   currentTabId.value = null;
+  currentTabPrivate.value = false;
   currentSiteDomain.value = '';
   pageTranslated.value = false;
   try {
     const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
     if (typeof tab?.id !== 'number') return;
     currentTabId.value = tab.id;
+    currentTabPrivate.value = tab.incognito === true;
     currentSiteDomain.value = getSiteBaseDomain(tab.pendingUrl || tab.url || '') || '';
     // 首屏入口立即可用；状态查询失败只说明当前页没有内容脚本，不隐藏站点控制。
     try {

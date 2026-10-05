@@ -59,6 +59,17 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
     };
 }
 
+describe('批量术语占位符快照', () => {
+    it('只发送批量原文实际出现的受保护占位符，每个约束保持幂等', () => {
+        const snapshot = createTranslationProviderConfigSnapshot(configSource());
+        const protectedSnapshot = {...snapshot, glossaryProtectedTokens: ['__FRTERM_0__', '__FRTERM_1__', '__FRTERM_2__']};
+        expect(getTranslationGlossaryTerms(protectedSnapshot, ['prefix __FRTERM_1__', '__FRTERM_0__ __FRTERM_1__']))
+            .toEqual([{source: '__FRTERM_0__', target: '__FRTERM_0__'}, {source: '__FRTERM_1__', target: '__FRTERM_1__'}]);
+        expect(getTranslationGlossaryTerms(protectedSnapshot, [])).toEqual([]);
+        expect(protectedSnapshot.glossaryProtectedTokens).toHaveLength(3);
+    });
+});
+
 describe('translation provider request config snapshot', () => {
     it('keeps service and model limit snapshots stable after settings are edited', () => {
         const source = configSource({

@@ -4,6 +4,7 @@
  * 主要内容：按已保存设置选择单图 OCR，PaddleOCR 不要求 Tesseract 语言包；包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的符号与技术标识，去重批量和有界并发翻译同时保留原行映射、后台恢复的可信页面范围、源语言与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
+import {attachPrivateTranslationContext, isPrivateTranslationContext} from '@/src/services/translation/privateContext';
 import {normalizeRemoteImageUrl} from '../services/remoteImage';
 import {hasTranslatableText} from '@/src/core/translation/resultValidation';
 import {resolveGlossaryEntries, type GlossaryLibrary} from '@/src/core/glossary';
@@ -16,6 +17,8 @@ import {
 } from '@/src/features/image-translation/ocrLanguages';
 import {
     attachTranslationRequestControl,
+    attachTranslationProviderConfig,
+    getAttachedTranslationProviderConfig,
     attachTranslationGlossaryContext,
     getTranslationGlossaryContext,
     markTranslationRemainingBudget,
@@ -336,6 +339,9 @@ async function translateImageTexts(
         const controlled = attachTranslationRequestControl(markTranslationRemainingBudget(request), {
             signal: controller.signal, ownershipKey: `image:${options.requestId}`,
         });
+        attachPrivateTranslationContext(controlled, isPrivateTranslationContext(message));
+        const providerConfig = getAttachedTranslationProviderConfig(message);
+        if (providerConfig) attachTranslationProviderConfig(controlled, providerConfig);
         return glossaryContext ? attachTranslationGlossaryContext(controlled, glossaryContext) : controlled;
     };
     try {

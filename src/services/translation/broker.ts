@@ -1,11 +1,13 @@
 /**
  * @file src/services/translation/broker.ts
  *
- * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
+ * 文件职责：按可信无痕来源隔离专用服务、模型、在途请求和持久缓存；编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
  * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
+import {isPrivateTranslationContext} from './privateContext';
+import {privateTranslationCustomBody, privateTranslationError} from '@/src/core/config/privateTranslation';
 import type {
     TranslationBatchRequestMessage,
     TranslationBroker,
@@ -38,7 +40,7 @@ import {
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
-import {supportsTranslationGlossary} from './capabilities';
+import {supportsTranslationBatch, supportsTranslationGlossary} from './capabilities';
 import {getGlossaryProtectionEntries, isGlossaryOnlyResult, prepareGlossaryRequest} from './glossaryProtection';
 import {
     isDefinitePageContextLeak,
@@ -95,6 +97,7 @@ interface TranslationRequestTrace {
 }
 
 interface TranslationRequestExecution {
+    privateContext?: boolean;
     readonly config: TranslationProviderConfigSnapshot;
     readonly service: string;
     readonly sourceLanguage: string;
@@ -562,7 +565,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         generation: number,
     ): Promise<void> {
         if (
-            !deps.recordModelUsage
+            execution.privateContext || !deps.recordModelUsage
             || !deps.serviceTypes.isAI(execution.service)
             || observations.length === 0
         ) return;
@@ -1509,7 +1512,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         result?: string | string[],
         error?: unknown,
     ): void {
-        if (!deps.recordTranslationRequest) return;
+        if (!deps.recordTranslationRequest || isPrivateTranslationContext(message)) return;
         try {
             const input = measureTranslationText(message.origin);
             const imageInput = getTranslationImageInput(message);
@@ -1583,6 +1586,22 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         // 步骤 1：圈选等受信后台事务沿用开始时的 symbol 快照；公开请求在 cache/provider await 前复制配置。
         let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
+        if (isPrivateTranslationContext(message)) {
+            const profile = current.privateTranslation;
+            if (profile?.enabled) {
+                const error = privateTranslationError({privateTranslation: profile,
+                    customOpenAIProviders: current.customOpenAIProviders ?? []});
+                if (error) throw new Error(error);
+                current = Object.freeze({...current, service: profile.service, useCache: false,
+                    customBody: Object.freeze(privateTranslationCustomBody(current.customBody, profile.service)),
+                    model: Object.freeze({...current.model, [profile.service]: profile.model}),
+                    customModel: Object.freeze({...current.customModel, [profile.service]: profile.model})});
+                message = {...message, serviceOverride: profile.service, modelOverride: profile.model, useCache: false};
+            } else {
+                // 无痕来源仍不写普通窗口的持久翻译缓存。
+                message = {...message, useCache: false};
+            }
+        }
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
         trace.serviceId = selectedService;
@@ -1629,6 +1648,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 glossaryIds: selectedGlossaryIds ? Object.freeze([...selectedGlossaryIds]) : null}),
         });
         const execution: TranslationRequestExecution = {
+            privateContext: isPrivateTranslationContext(message),
             config: current,
             service: selectedService,
             sourceLanguage,
@@ -1640,7 +1660,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 getSelectedModel(current, selectedService, message.modelOverride),
             ),
             abortSignal: requestControl?.signal,
-            ownershipKey: requestControl?.ownershipKey,
+            ownershipKey: isPrivateTranslationContext(message) ? `private:${requestControl?.ownershipKey ?? ''}` : requestControl?.ownershipKey,
             trace,
         };
         const credentialConfig = message.modelOverride
@@ -1705,6 +1725,15 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         if (imageInput) attachTranslationImageInput(requestMessage, imageInput);
         // 步骤 5：根据 origin 类型进入单条或批量管线，两者共享缓存身份与 pending 去重。
         if (Array.isArray(requestMessage.origin)) {
+            // 页面按普通配置决定批量能力；专用服务可能只接受单条原文，不能照搬原供应商协议。
+            if (execution.privateContext && current.privateTranslation?.enabled && !supportsTranslationBatch(selectedService)) {
+                const results: string[] = [];
+                for (const origin of requestMessage.origin) {
+                    results.push(await translateSingleWithCache(execution, {...requestMessage, origin}, context,
+                        pageContext, useCache, requestGeneration, providerDeadline, providerBudget));
+                }
+                return results;
+            }
             return translateBatchWithCache(
                 execution,
                 requestMessage as TranslationBatchRequestMessage,

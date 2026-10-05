@@ -23,6 +23,7 @@ const ROOT_FILES = [
 ] as const;
 const PRODUCT_TOOL_SCRIPTS = [
     'scripts/build-product-assets.cjs', 'scripts/capture-product-assets.cjs',
+    'scripts/capture-docs-ui.cjs',
     'scripts/package-product-kit.cjs', 'scripts/verify-product-site.cjs', 'scripts/verify-support-ui.cjs',
 ];
 
@@ -97,7 +98,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     if (path === 'src/services/config/store.ts') owners.add('config-storage-functional');
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
     if (path === 'src/features/full-page-translation/content/state.ts') owners.add('full-page-state-functional');
-    if (path.startsWith('docs/.vitepress/')) owners.add('docs-build');
+    if (path.startsWith('docs/.vitepress/') || path === 'scripts/verify-docs-build.mjs') owners.add('docs-build');
     if (path.startsWith('examples/')) owners.add('isolated-browser-regression');
     if (path.startsWith('scripts/run-') || path.startsWith('scripts/site-translation/')) {
         owners.add('isolated-browser-regression');
@@ -112,6 +113,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
         || path === 'scripts/verify-userscript-build.mjs'
         || path === 'scripts/verify-userscript-greasyfork-build.mjs'
         || path === 'scripts/verify-userscript-standalone-build.mjs'
+        || path === 'scripts/verify-brand-copy.mjs'
         || path === 'scripts/export-site-rule-pack.mjs'
         || path === 'scripts/update-readme-contributors.mjs'
         || path.startsWith('vitest.')) {
@@ -121,8 +123,17 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     return [...owners].sort();
 }
 
+function containsOnlyTypeDeclarations(source: string): boolean {
+    const file = ts.createSourceFile('types.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    return file.statements.length > 0 && file.statements.every(statement =>
+        ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)
+        || ts.isImportDeclaration(statement) && statement.importClause?.isTypeOnly === true
+        || ts.isExportDeclaration(statement) && statement.isTypeOnly);
+}
+
 function isTypeOnlyModule(path: string): boolean {
-    return path.endsWith('/types.ts') || path.endsWith('.d.ts');
+    return path.endsWith('.d.ts')
+        || containsOnlyTypeDeclarations(readFileSync(projectPath(path), 'utf8'));
 }
 
 function isPureBarrel(path: string): boolean {
@@ -295,12 +306,33 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/settings/ui/LocalTranslationModelSettings.vue',
     // 本地 TTS 绑定 Offscreen Worker、Cache Storage 与 Kokoro/ONNX 运行时；策略、协议、后台消息与适配器已严格覆盖。
     'src/features/local-tts/background/runtime.ts',
-    'src/features/local-tts/offscreen/modelCache.ts',
-    'src/features/local-tts/offscreen/tts.ts',
-    'src/features/local-tts/offscreen/tts.worker.ts',
 ]);
 
 describe('repository verification ownership', () => {
+    it.each([
+        ['import type {Value} from "./source"; export interface State {value: Value}', true],
+        ['export type State = string; export type {Value} from "./source";', true],
+        ['', false],
+        ['import "./side-effects"; export interface State {}', false],
+        ['export const value = 1;', false],
+        ['export enum State {Ready}', false],
+        ['export class State {}', false],
+        ['export {value} from "./source";', false],
+    ])('纯类型归属按声明判断，不豁免运行时语句: %s', (source, expected) => {
+        expect(containsOnlyTypeDeclarations(source as string)).toBe(expected);
+    });
+    it('types 文件名不豁免实际常量，纯会话合同不计入运行时覆盖', () => {
+        expect(isTypeOnlyModule('src/services/translation/types.ts')).toBe(false);
+        expect(isTypeOnlyModule('src/services/harness/sessionTypes.ts')).toBe(true);
+    });
+    it('文档截图只使用临时 profile 与保持后台焦点的 helper', () => {
+        const source = readFileSync(projectPath('scripts/capture-docs-ui.cjs'), 'utf8');
+        expect(source).toContain("fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-docs-ui-'))");
+        expect(source).toContain('helper.launchFocusSafePersistentContext({');
+        expect(source).toContain('profileDir: profile');
+        expect(source).toContain('background: true');
+        expect(source).not.toContain('bringToFront(');
+    });
     it.each(PRODUCT_TOOL_SCRIPTS)('产品工具 %s 保持可解析的 CommonJS 入口', path => {
         expect(() => new Script(readFileSync(projectPath(path), 'utf8'), {filename: path})).not.toThrow();
     });

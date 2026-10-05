@@ -12,6 +12,8 @@
 
 ## Popup 操作恢复与翻译服务 UI
 
+`tests/popupServiceModelClarity.test.ts` 编译真实 Popup 服务选择组件，在 DOM 夹具中验证匹配模型与实际选择的区别、默认/继承/功能专用模型、返回重开、空结果、凭据提示和七语言文案。此测试不测量浏览器布局；窄屏与焦点仍由下列隔离浏览器专项负责。
+
 `node scripts/testing/run-popup-actions-service-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-actions-ui` 只运行本次 Popup、服务分配、划词抽屉及界面预览专项，不触发全量回归。
 
 默认使用隔离 Edge。需要改用另一个已安装的 Chromium 浏览器时，显式传 `--browser-path <浏览器可执行文件>`；支持动态扩展加载的浏览器还可传 `--load-via-cdp`，用 `Extensions.loadUnpacked` 返回的准确 ID 打开清单页面，再核对扩展名称、版本和 Popup，不能拿浏览器自带的第一个 worker 猜扩展 ID。动态模式不混用旧的命令行扩展加载参数。测试页的 active-tab 查询夹具同时保留 Promise 和 callback 契约，仍返回真实本地网页标签；不改变产品 API 或关闭焦点保护。
@@ -767,3 +769,38 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ```
 
 使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
+
+## YouTube 原生字幕边界校正
+
+`tests/youtubeSubtitleData.test.ts` 使用项目编写的 JSON3、XML 和逐词 cue 夹具，覆盖相邻重复词不丢失、完整词前缀折叠、Latin 扩展/西里尔文字空格、中日文无空格拼接、带闭引号的句末标点。同起点无空格文字（如中日文）的逐字修订折叠为最长文本。JSON3 先验证所有有效文本段的时间戳完整、非递减且位于事件范围内；异常时保留整条事件。仅在已有句末标点且下一段提供递增、位于事件范围内的数值 `tOffsetMs` 时拆句；没有可靠分段时间时保留整条，不推测逐词时间，也不补写标点。普通 XML cue 保留作者的边界。分句直接进入既有预翻译和导出时间轴，不增加计时器或模型。
+
+此规则是保守的标点/时间启发式，不宣称语言学最优；缩写、复杂引用和没有标点的自动字幕仍可能保持或形成不理想边界。真实 YouTube 多轨切换、滚动字幕和浏览器播放仍需临时 profile、屏幕外正常尺寸窗口及 focus-safe helper 验证，单元夹具不能代替浏览器验收。
+
+## 本地 TTS 模型缓存清除
+
+`tests/localTtsModelCache.test.ts` 验证下载期间拒绝清除，避免清除成功后被迟到的下载重新写入；清除期间拒绝新的下载及重复清除，先等待已有状态检查的缓存别名修复结束；部分删除失败时仍等待其它删除结束后释放所有权。下载完成、网络失败或超时后均可重试清除。同版本下载继续复用同一任务，清除仅影响当前模型及其已登记的旧版本文件。
+
+## Pull Request 确定性检查
+
+`.github/workflows/check-quality.yml` 为面向 `main` 的 Pull Request 调用现有 `pnpm test:regression:all`，覆盖测试审计、准备、类型检查、严格覆盖率、四个测试分组和构建/产物校验；同时检查品牌文案一致性、文档类型以及构建后链接和资源。单任务最多 20 分钟、两个测试 worker，同一 PR 的新提交取消旧运行；仅授予仓库读取权限，不保留 checkout 凭据。依赖按锁文件安装；未开启真实浏览器、网络站点矩阵或模型推理，也不发布产物。
+
+CI 不自动生成语言文件来掩盖缺失资源。文案变更后须先运行 `pnpm generate:userscript-languages`，在独立资源提交中保留生成文件，再按仓库发布流程更新不可变资源提交；本地构建成功不代表远程固定提交已包含这些文件。发布前还须验证该提交中的每个实际语言文件可访问。
+
+## 分享卡片与 WebDAV 属性覆盖率
+
+分享卡片的配置、摘录、排版、主题、导出和挂载模块，以及 WebDAV 属性解析，纳入现有四维 100% 门禁。定向用例覆盖无 `Intl.Segmenter` 的 Unicode 码点回退、换行边界、空摘录、UTC 文件名、数字前缀的 RTL 正文与后续方向恢复、缺失内容脚本上下文及可信模板回退；Canvas 与浏览器 API 使用测试替身，不代替真实图片或浏览器验收。
+
+## 模块 Worker 构建产物门禁
+
+`pnpm test:regression:all` 在 Chrome 和 Firefox 构建后分别执行
+`node scripts/testing/verify-emitted-model-workers.mjs --extension-dir .output/chrome-mv3`
+与对应的 `.output/firefox-mv2` 命令。检查真实入口及动态 chunk，在没有
+`document` / `window` 的独立 Node 进程内验证引导期间的前两条请求和后续请求
+按顺序且仅回复一次；删除隔离副本中的真实动态 chunk 后，原始导入错误必须归还
+全部请求，不能被页面预加载器的 DOM 错误覆盖。测试拒绝模型网络请求和缓存访问。
+
+自有模块 Worker 使用 WXT 数组构建与 Vite 原生 ES library 模式，保留延迟导入，
+避免页面预加载器以及 IIFE 内联破坏首条消息所有权。页面和未知脚本构建配置不变。
+这项 Node 引导检查不代表浏览器 CSP、扩展生命周期、Cache Storage 或模型推理验收；
+真实浏览器和实际模型测试仍须分别记录。原生 ES library 输出保留部分空白，
+本次完整构建由约108.63MB增至110.49MB，9个WASM/MJS运行时资产内容与路径不变。

@@ -31,10 +31,14 @@ describe('compressed ONNX WASM loader', () => {
             source('wxt.config.ts'),
         ];
         for (const content of sources) {
-            expect(content).toContain('ort-wasm-simd-threaded.jsep.mjs');
-            expect(content).toContain('ort-wasm-simd-threaded.jsep.wasm');
             expect(content).not.toContain("ort-wasm-simd-threaded.mjs'");
             expect(content).not.toContain("ort-wasm-simd-threaded.wasm'");
+        }
+        // 翻译 Worker 通过 wasmName 选择两套 runtime；完整 MJS/WASM 配对和
+        // 二进制加载后端由 opusTranslationWorker.test.ts 执行生产 Worker 后精确验证。
+        for (const content of sources.slice(1)) {
+            expect(content).toContain('ort-wasm-simd-threaded.jsep.mjs');
+            expect(content).toContain('ort-wasm-simd-threaded.jsep.wasm');
         }
         const whisper = sources[1]!;
         expect(whisper).toContain("device: 'webgpu'");

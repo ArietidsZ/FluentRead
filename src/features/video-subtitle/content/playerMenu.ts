@@ -241,11 +241,9 @@ export function createVideoPlayerMenu(language: UiLanguage, withLocalGeneration:
     const display = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-display', '');
     display.append(createModeGroup(language), createTimingRow(language));
     const actions = createTextElement('div', 'fluent-read-video-menu-section fluent-read-video-menu-actions', '');
-    if (withLocalGeneration) actions.appendChild(createAiGroup(language));
     actions.append(createDownloadActions(language), createDownloadStatus());
     main.append(display, actions);
     menu.appendChild(main);
-    if (withLocalGeneration) menu.appendChild(createModelPrompt(language));
     return menu;
 }
 
@@ -491,6 +489,7 @@ export interface VideoModelPromptState {
 }
 
 const MODEL_NAME_KEYS: Record<VideoLocalTranscriptionModel, [name: string, hint: string]> = {
+    'qwen3-asr-0.6b': ['video.modelQwenName', 'video.modelQwenHint'],
     tiny: ['video.modelTinyName', 'video.modelTinyHint'],
     base: ['video.modelBaseName', 'video.modelBaseHint'],
 };

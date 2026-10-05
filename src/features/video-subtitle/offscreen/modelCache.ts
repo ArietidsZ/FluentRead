@@ -9,6 +9,10 @@ import {
   normalizeVideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/transcription';
 
+import {cacheQwenAsrFiles,removeQwenAsrFiles} from './qwen/cache';
+import {selectQwenVariant} from './qwen/model';
+import {probeWebGpu} from '@/src/shared/onnx/webgpu';
+
 export const VIDEO_AI_MODEL_REMOTE_HOST = 'https://modelscope.cn/models/';
 export const VIDEO_AI_MODEL_REVISION = 'master';
 export const VIDEO_AI_MODEL_REMOTE_PATH_TEMPLATE = '{model}/resolve/{revision}/';
@@ -48,6 +52,11 @@ export function getVideoAiModelFileUrl(model: unknown, file: string): string {
  * 直接消费 Response，不在 JS 堆中再构造一份几十 MB 的 ONNX ArrayBuffer。
  */
 export async function cacheVideoAiModelFiles(model: unknown, dtype: 'q4' | 'q8' = 'q4'): Promise<void> {
+  if (model === 'qwen3-asr-0.6b') {
+    const gpu = await probeWebGpu();
+    if (!gpu.available) throw new Error('Qwen ASR 需要硬件 WebGPU，不会改用 CPU');
+    await cacheQwenAsrFiles(selectQwenVariant(gpu.features || [])); return;
+  }
   if (typeof caches === 'undefined') throw new Error('当前浏览器不支持本地模型缓存');
   const cache = await caches.open(TRANSFORMERS_CACHE_NAME);
 
@@ -83,6 +92,7 @@ export function cacheVideoAiQ8ModelFiles(model: unknown): Promise<void> {
 
 /** 只清除指定 Whisper 模型的缓存文件，保留其他模型及字幕结果。 */
 export async function removeVideoAiModelFiles(model: unknown): Promise<void> {
+  if (model === 'qwen3-asr-0.6b') {await removeQwenAsrFiles();return;}
   if (model !== 'tiny' && model !== 'base') throw new Error('无效的本地字幕模型');
   const cache = await caches.open(TRANSFORMERS_CACHE_NAME);
   const prefix = getVideoAiModelFileUrl(model, '');

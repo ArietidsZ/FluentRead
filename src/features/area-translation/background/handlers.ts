@@ -22,6 +22,7 @@ export interface AreaTranslationBackgroundContext {
         frameId?: number;
         tab?: {
             id?: number;
+            incognito?: boolean;
             windowId?: number;
         };
     };
@@ -60,8 +61,8 @@ export interface AreaTranslationBackgroundDependencies<TResult extends object> {
     readonly getDefaultSourceLanguage: () => string;
     readonly assertCaptureOwner?: (windowId: number, tabId: unknown) => Promise<void>;
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
-    readonly getVisionRoute?: () => {mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'};
-    readonly prepareVisionRoute?: () => (options: ImageOperationOptions) => Promise<{mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'}>;
+    readonly getVisionRoute?: (context: AreaTranslationBackgroundContext) => {mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'};
+    readonly prepareVisionRoute?: (context: AreaTranslationBackgroundContext) => (options: ImageOperationOptions) => Promise<{mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'}>;
     readonly translateAreaVision?: (
         image: string, sourceLanguage: string, title: string, selection: AreaTranslationSelection, options: ImageOperationOptions,
     ) => Promise<TResult>;
@@ -198,8 +199,8 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
                 // 在任何 OCR await 前冻结完整文本翻译事务，后续设置变更不改变当前任务。
                 const translateText = dependencies.prepareTextTranslation?.(sourceLanguage, title, context);
                 const translateVision = dependencies.prepareVisionTranslation?.(sourceLanguage, title, context);
-                const visionRoute = dependencies.getVisionRoute?.() ?? {mode: 'ocr' as const};
-                const resolveVisionRoute = dependencies.prepareVisionRoute?.();
+                const visionRoute = dependencies.getVisionRoute?.(context) ?? {mode: 'ocr' as const};
+                const resolveVisionRoute = dependencies.prepareVisionRoute?.(context);
                 // 步骤 2：先确认语言包，再复用同一个 offscreen 区域识别事务。
                 const result = await operationRegistry.run(message, async (options) => {
                     if (resolveVisionRoute) await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'recognizing'});

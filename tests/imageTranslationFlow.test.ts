@@ -43,6 +43,14 @@ describe('图片翻译流程优化',()=>{
         expect(await handler('fluentReadMangaModelRemove').handle({type:'fluentReadMangaModelRemove'})).toEqual({success:true});expect(removeMangaModels).toHaveBeenCalledOnce();
         await expect(handler(IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type:IMAGE_TRANSLATE_MESSAGE_TYPE,image:'data:image/png,x',sourceLanguage:'en',manga:'true'} as never)).rejects.toThrow('漫画翻译模式无效');
     });
+    it.each(['fluentReadMangaModelStatus', 'fluentReadMangaModelRemove'] as const)
+    ('旧后台缺少漫画管理能力时 %s 明确失败且不触发 OCR 下载', async type => {
+        const {handler, dependencies} = setup();
+        await expect(handler(type).handle({type})).rejects.toThrow('漫画识别模型管理不可用');
+        expect(dependencies.downloadLanguages).not.toHaveBeenCalled();
+        expect(dependencies.translateImage).not.toHaveBeenCalled();
+    });
+
     it('识别进度接受有效百分比，语言刷新保留数值，完成或失败清除百分比', () => {
         for (const invalid of [undefined, null, '50', NaN, Infinity, -1, 101]) expect(normalizeImageProgress(invalid)).toBeUndefined();
         expect(normalizeImageProgress(0)).toBe(0); expect(normalizeImageProgress(100)).toBe(100);

@@ -1,5 +1,5 @@
-import {describe, expect, it, vi} from 'vitest';
-import {createLearningMemoryRecall} from '@/src/services/harness/memoryRecall';
+import {afterEach, describe, expect, it, vi} from 'vitest';
+import {createLearningMemoryRecall, readMemory} from '@/src/services/harness/memoryRecall';
 import type {LearningMemory} from '@/src/services/harness/learningMemory';
 
 const now = Date.now();
@@ -28,5 +28,62 @@ describe('learning memory browser adapter', () => {
     });
     it('lets runtime report repository failures without treating failed storage as an empty successful recall', async () => {
         await expect(createLearningMemoryRecall({list: async () => {throw new Error('storage');}})('practice')).rejects.toThrow('storage');
+    });
+});
+
+
+describe('learning memory read cancellation', () => {
+    afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+
+    it('rejects an already cancelled read without accessing storage or scheduling a timeout', async () => {
+        vi.useFakeTimers();
+        const controller = new AbortController();
+        controller.abort();
+        const reader = {recall: vi.fn(async () => [])};
+        await expect(readMemory(reader, 'grammar', controller.signal)).rejects.toThrow('学习记忆读取已取消');
+        expect(reader.recall).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('cancels a pending read, removes its listener and timer, and ignores late storage failure', async () => {
+        vi.useFakeTimers();
+        const controller = new AbortController();
+        const remove = vi.spyOn(controller.signal, 'removeEventListener');
+        let reject!: (reason: Error) => void;
+        const reader = {recall: vi.fn(() => new Promise<LearningMemory[]>((_, fail) => { reject = fail; }))};
+        const pending = readMemory(reader, 'grammar', controller.signal);
+        const result = expect(pending).rejects.toThrow('学习记忆读取已取消');
+        controller.abort();
+        await result;
+        expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+        expect(vi.getTimerCount()).toBe(0);
+        reject(new Error('late storage failure'));
+        await Promise.resolve();
+    });
+
+    it('times out stalled storage and allows a fresh read to succeed', async () => {
+        vi.useFakeTimers();
+        const controller = new AbortController();
+        const remove = vi.spyOn(controller.signal, 'removeEventListener');
+        const reader = {recall: vi.fn(() => new Promise<LearningMemory[]>(() => {}))};
+        const result = expect(readMemory(reader, 'grammar', controller.signal)).rejects.toThrow('学习记忆读取超时');
+        await vi.advanceTimersByTimeAsync(1500);
+        await result;
+        expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+        const entries = [entry('a', 'grammar')];
+        reader.recall.mockResolvedValueOnce(entries);
+        expect(await readMemory(reader, 'grammar', controller.signal)).toBe(entries);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('cleans up after synchronous and asynchronous storage failures', async () => {
+        vi.useFakeTimers();
+        for (const recall of [() => { throw new Error('storage'); }, async () => { throw new Error('storage'); }]) {
+            const controller = new AbortController();
+            const remove = vi.spyOn(controller.signal, 'removeEventListener');
+            await expect(readMemory({recall}, 'grammar', controller.signal)).rejects.toThrow('storage');
+            expect(remove).toHaveBeenCalledWith('abort', expect.any(Function));
+            expect(vi.getTimerCount()).toBe(0);
+        }
     });
 });

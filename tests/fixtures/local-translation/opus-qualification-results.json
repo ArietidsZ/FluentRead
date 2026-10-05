@@ -1,0 +1,1196 @@
+{
+  "date": "2026-10-04",
+  "scope": "Node24 + genuine Dawn0.6.2 + Mesa25.0.7 Lavapipe software Vulkan. Compatibility/quality diagnostic, not physical GPU or browser performance. Short hand-written fixtures, not a broad semantic quality study.",
+  "runs": {
+    "en-zh-fp16-ort126": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp16"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-zh",
+        "device": "webgpu",
+        "dtype": "fp16",
+        "milliseconds": 2173.741362,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-ui",
+        "source": "en",
+        "target": "zh",
+        "text": "保存更改",
+        "reference": "保存更改",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 6457.137562999999,
+        "dispatches": 2092,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 1892660,
+        "input": "Save changes"
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-number",
+        "source": "en",
+        "target": "zh",
+        "text": "打印机使用12克材料,费用为3.50美元。",
+        "reference": "打印机使用12克材料，成本为3.50美元。",
+        "numbers": [
+          "12",
+          "3.50"
+        ],
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 5307.170036000001,
+        "dispatches": 6592,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 1916172,
+        "input": "The printer uses 12 grams of material and costs 3.50 dollars."
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-negation",
+        "source": "en",
+        "target": "zh",
+        "text": "更新完成之前不要关闭打印机 。",
+        "reference": "在更新完成之前，不要关闭打印机。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 2519.7343600000004,
+        "dispatches": 4792,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 1917508,
+        "input": "Do not turn off the printer until the update is complete."
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-context",
+        "source": "en",
+        "target": "zh",
+        "text": "爱丽丝把报告给了玛丽 玛丽在会议前检查过了",
+        "reference": "艾丽斯把报告交给了玛丽。玛丽在开会前检查了报告。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4060.740418999998,
+        "dispatches": 7492,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 1931992,
+        "input": "Alice gave Mary the report. Mary checked it before the meeting."
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 422261680,
+        "dispatches": 20968,
+        "kernels": 0
+      }
+    ],
+    "en-zh-q8-baseline": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-zh",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1738.001704,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-ui",
+        "source": "en",
+        "target": "zh",
+        "text": "保存更改",
+        "reference": "保存更改",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 201.79562800000008,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1170364,
+        "input": "Save changes"
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-number",
+        "source": "en",
+        "target": "zh",
+        "text": "打印机使用12克材料,费用为3.50美元。",
+        "reference": "打印机使用12克材料，成本为3.50美元。",
+        "numbers": [
+          "12",
+          "3.50"
+        ],
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 353.6900330000001,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1333692,
+        "input": "The printer uses 12 grams of material and costs 3.50 dollars."
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-negation",
+        "source": "en",
+        "target": "zh",
+        "text": "在更新完成之前不要关闭打印机 。",
+        "reference": "在更新完成之前，不要关闭打印机。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 243.56951100000015,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1333692,
+        "input": "Do not turn off the printer until the update is complete."
+      },
+      {
+        "event": "translation",
+        "id": "en-zh-context",
+        "source": "en",
+        "target": "zh",
+        "text": "爱丽丝把报告给了玛丽 玛丽在会议前检查过了",
+        "reference": "艾丽斯把报告交给了玛丽。玛丽在开会前检查了报告。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 350.47553300000027,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1333692,
+        "input": "Alice gave Mary the report. Mary checked it before the meeting."
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "zh-en-fp16-ort126": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp16"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-zh-en",
+        "device": "webgpu",
+        "dtype": "fp16",
+        "milliseconds": 2285.8334680000003,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-ui",
+        "source": "zh",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "保存更改",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 1082.0640270000004,
+        "dispatches": 1642,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 1988732
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-number",
+        "source": "zh",
+        "target": "en",
+        "text": "The printer uses 12 grams of material at a cost of $3.50.",
+        "reference": "The printer uses 12 grams of material and costs 3.50 dollars.",
+        "numbers": [
+          "12",
+          "3.50"
+        ],
+        "input": "打印机使用12克材料，成本为3.50美元。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4350.179808,
+        "dispatches": 7042,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 2072180
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-negation",
+        "source": "zh",
+        "target": "en",
+        "text": "Do not turn off the printer before updating is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "在更新完成之前，不要关闭打印机。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 3603.7772140000006,
+        "dispatches": 5692,
+        "kernels": 0,
+        "peakBytes": 422261680,
+        "processMaxRssKiB": 2072180
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 422261680,
+        "dispatches": 14376,
+        "kernels": 0
+      }
+    ],
+    "zh-en-q8-baseline": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-zh-en",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1361.831718,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-ui",
+        "source": "zh",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "保存更改",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 158.45188099999996,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1225896
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-number",
+        "source": "zh",
+        "target": "en",
+        "text": "The printer uses 12 grams of material at a cost of $3.50.",
+        "reference": "The printer uses 12 grams of material and costs 3.50 dollars.",
+        "numbers": [
+          "12",
+          "3.50"
+        ],
+        "input": "打印机使用12克材料，成本为3.50美元。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 337.75858000000017,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1449000
+      },
+      {
+        "event": "translation",
+        "id": "zh-en-negation",
+        "source": "zh",
+        "target": "en",
+        "text": "Do not close the printer until the update is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "在更新完成之前，不要关闭打印机。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 261.60750900000016,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1449000
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "ja-en-fp16-rejected": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp16"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "webgpu",
+        "dtype": "fp16",
+        "milliseconds": 2058.9185190000003,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "will you please please please please go",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 2003.1983329999994,
+        "dispatches": 3892,
+        "kernels": 0,
+        "peakBytes": 400313904,
+        "processMaxRssKiB": 1848348
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "is also also also the way of the",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 1624.6974060000002,
+        "dispatches": 4342,
+        "kernels": 0,
+        "peakBytes": 400313904,
+        "processMaxRssKiB": 1848348
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "will not shut down the printer until the update is completed.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 3075.976742,
+        "dispatches": 6142,
+        "kernels": 0,
+        "peakBytes": 400313904,
+        "processMaxRssKiB": 1865536
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 400313904,
+        "dispatches": 14376,
+        "kernels": 0
+      }
+    ],
+    "ja-en-fp32-ort122": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "webgpu",
+        "dtype": "fp32"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "webgpu",
+        "dtype": "fp32",
+        "milliseconds": 2919.728723,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4656.782596,
+        "dispatches": 1536,
+        "kernels": 1536,
+        "peakBytes": 840135488,
+        "processMaxRssKiB": 2700416
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "The meeting begins at 15:30 on October 4.",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4405.742935,
+        "dispatches": 4413,
+        "kernels": 5949,
+        "peakBytes": 840135488,
+        "processMaxRssKiB": 2879848
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "Please don't turn off the printer until the update is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4548.420823,
+        "dispatches": 6468,
+        "kernels": 12417,
+        "peakBytes": 840135488,
+        "processMaxRssKiB": 2914884
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 214536080,
+        "peakBytes": 840135488,
+        "dispatches": 12417,
+        "kernels": 12417
+      }
+    ],
+    "ja-en-fp32-ort126": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp32"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "webgpu",
+        "dtype": "fp32",
+        "milliseconds": 2924.891559,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4596.419836,
+        "dispatches": 1536,
+        "kernels": 0,
+        "peakBytes": 800627488,
+        "processMaxRssKiB": 2733204
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "The meeting begins at 15:30 on October 4.",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4131.019026,
+        "dispatches": 4413,
+        "kernels": 0,
+        "peakBytes": 800627488,
+        "processMaxRssKiB": 2740824
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "Please don't turn off the printer until the update is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 3747.896159,
+        "dispatches": 6468,
+        "kernels": 0,
+        "peakBytes": 800627488,
+        "processMaxRssKiB": 2775192
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 800627488,
+        "dispatches": 12417,
+        "kernels": 0
+      }
+    ],
+    "ja-en-q8-baseline": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1373.142438,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 148.9430530000002,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1245256
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "The meeting begins at 15:30 on October 4.",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 229.623828,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1473864
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "Please don't turn off the printer until the update is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 337.60476700000004,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1473864
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "ja-en-fp16-unoptimized-rejected": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp16"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "webgpu",
+        "dtype": "fp16",
+        "milliseconds": 1688.431311,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "will you please please please please go",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 3531.2728249999996,
+        "dispatches": 3901,
+        "kernels": 0,
+        "peakBytes": 282614944,
+        "processMaxRssKiB": 1560184
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "is also also also the way of the",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 3572.4559179999987,
+        "dispatches": 4352,
+        "kernels": 0,
+        "peakBytes": 283861280,
+        "processMaxRssKiB": 1571896
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "will not shut down the printer until the update is completed.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 4674.034635,
+        "dispatches": 6156,
+        "kernels": 0,
+        "peakBytes": 284254496,
+        "processMaxRssKiB": 1584312
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 284254496,
+        "dispatches": 14409,
+        "kernels": 0
+      }
+    ],
+    "ja-en-q8-ort126-unoptimized": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-ja-en",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1010.958075,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-ui",
+        "source": "ja",
+        "target": "en",
+        "text": "Save Changes",
+        "reference": "Save changes",
+        "input": "変更を保存",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 296.613709,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1083264
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-number",
+        "source": "ja",
+        "target": "en",
+        "text": "The meeting begins at 15:30 on October 4.",
+        "reference": "The meeting starts at 15:30 on October 4.",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "会議は10月4日の15:30に始まります。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 539.1436520000002,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1083264
+      },
+      {
+        "event": "translation",
+        "id": "ja-en-negation",
+        "source": "ja",
+        "target": "en",
+        "text": "Please don't turn off the printer until the update is complete.",
+        "reference": "Do not turn off the printer until the update is complete.",
+        "input": "更新が完了するまでプリンターの電源を切らないでください。",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 778.2880129999999,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1083264
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "en-ja-fp16-rejected": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        },
+        "transformers": "4.2.0",
+        "device": "webgpu",
+        "dtype": "fp16"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-jap",
+        "device": "webgpu",
+        "dtype": "fp16",
+        "milliseconds": 1839.614345,
+        "runtime": {
+          "common": "1.24.0-dev.20251116-b39e144322",
+          "web": "1.26.0-dev.20260416-b7804b056c"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-ui",
+        "source": "en",
+        "target": "ja",
+        "text": "(彼 ら は 堅 く 立 っ て,",
+        "reference": "変更を保存",
+        "input": "Save changes",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 2612.594558,
+        "dispatches": 6142,
+        "kernels": 0,
+        "peakBytes": 326352224,
+        "processMaxRssKiB": 1522272
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-number",
+        "source": "en",
+        "target": "ja",
+        "text": "黒 Jacob に  まだ 嘆 き, メソポン, エゼム に もまた ノン.",
+        "reference": "会議は10月4日の15:30に始まります。",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "The meeting starts at 15:30 on October 4.",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 4593.565196,
+        "dispatches": 11992,
+        "kernels": 0,
+        "peakBytes": 326352224,
+        "processMaxRssKiB": 1598044
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-negation",
+        "source": "en",
+        "target": "ja",
+        "text": "手を脱ごしているまで,退いてはならない.",
+        "reference": "更新が完了するまでプリンターの電源を切らないでください。",
+        "input": "Do not turn off the printer until the update is complete.",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 2142.18944,
+        "dispatches": 5242,
+        "kernels": 0,
+        "peakBytes": 326352224,
+        "processMaxRssKiB": 1603660
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 326352224,
+        "dispatches": 23376,
+        "kernels": 0
+      }
+    ],
+    "en-ja-q8-baseline": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-jap",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1184.4864519999999,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-ui",
+        "source": "en",
+        "target": "ja",
+        "text": "(彼 ら は 堅 く 立 っ て,",
+        "reference": "変更を保存",
+        "input": "Save changes",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 291.7821939999999,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1199568
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-number",
+        "source": "en",
+        "target": "ja",
+        "text": "黒 Jacob に ルマム, クモン, エゼム,",
+        "reference": "会議は10月4日の15:30に始まります。",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "The meeting starts at 15:30 on October 4.",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 358.648279,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1199568
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-negation",
+        "source": "en",
+        "target": "ja",
+        "text": "脱穀 を する 時 まで,  炎 を 脱 が せ て は な ら な い.",
+        "reference": "更新が完了するまでプリンターの電源を切らないでください。",
+        "input": "Do not turn off the printer until the update is complete.",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 434.1394149999999,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1199568
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "en-ja-reference-beams": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-jap",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1296.142738,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-ui",
+        "source": "en",
+        "target": "ja",
+        "text": "(彼 ら は 堅 く 立 っ て,",
+        "reference": "変更を保存",
+        "input": "Save changes",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 300.9755440000001,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1176712
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-number",
+        "source": "en",
+        "target": "ja",
+        "text": "黒 Jacob に ルマム, クモン, エゼム,",
+        "reference": "会議は10月4日の15:30に始まります。",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "The meeting starts at 15:30 on October 4.",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 352.02652299999977,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1176712
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-negation",
+        "source": "en",
+        "target": "ja",
+        "text": "脱穀 を する 時 まで,  炎 を 脱 が せ て は な ら な い.",
+        "reference": "更新が完了するまでプリンターの電源を切らないでください。",
+        "input": "Do not turn off the printer until the update is complete.",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 429.40616100000034,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1176712
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ],
+    "en-ja-unk-correction": [
+      {
+        "event": "runtime",
+        "versions": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        },
+        "transformers": "3.8.1",
+        "device": "wasm",
+        "dtype": "q8"
+      },
+      {
+        "event": "loaded",
+        "repo": "Xenova/opus-mt-en-jap",
+        "device": "wasm",
+        "dtype": "q8",
+        "milliseconds": 1237.062078,
+        "runtime": {
+          "common": "1.22.0-dev.20250409-89f8206ba4",
+          "web": "1.22.0-dev.20250409-89f8206ba4"
+        }
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-ui",
+        "source": "en",
+        "target": "ja",
+        "text": "(彼 ら は 堅 く 立 っ て,",
+        "reference": "変更を保存",
+        "input": "Save changes",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 275.65082899999993,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1197324
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-number",
+        "source": "en",
+        "target": "ja",
+        "text": "黒 Jacob に は ルカテ に,  くれ た 者 に は 口づけ せよ.",
+        "reference": "会議は10月4日の15:30に始まります。",
+        "numbers": [
+          "4",
+          "15",
+          "30"
+        ],
+        "input": "The meeting starts at 15:30 on October 4.",
+        "nonempty": true,
+        "numbersPreserved": false,
+        "milliseconds": 407.45534900000007,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1197324
+      },
+      {
+        "event": "translation",
+        "id": "en-ja-negation",
+        "source": "en",
+        "target": "ja",
+        "text": "脱穀 を する 時 まで,  炎 を 脱 が せ て は な ら な い.",
+        "reference": "更新が完了するまでプリンターの電源を切らないでください。",
+        "input": "Do not turn off the printer until the update is complete.",
+        "nonempty": true,
+        "numbersPreserved": true,
+        "milliseconds": 402.60683300000005,
+        "dispatches": 0,
+        "kernels": 0,
+        "peakBytes": 0,
+        "processMaxRssKiB": 1197324
+      },
+      {
+        "event": "disposed",
+        "liveBytes": 0,
+        "peakBytes": 0,
+        "dispatches": 0,
+        "kernels": 0
+      }
+    ]
+  }
+}

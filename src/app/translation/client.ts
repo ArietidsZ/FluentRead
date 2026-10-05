@@ -1,7 +1,7 @@
 /**
  * @file src/app/translation/client.ts
  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理，统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：冻结服务/模型与语言参数，单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为可取消的视频及 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
+ * 主要内容：按私密专用配置预检并选择客户端能力，后台仍以真实来源校验路由；冻结服务/模型与语言参数，单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为可取消的视频及 Chrome 内置翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
  */
 /**
@@ -10,6 +10,7 @@
  */
 
 import browser from 'webextension-polyfill';
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
@@ -291,10 +292,12 @@ function flushVideoCountSave(): void {
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
   const glossary = captureTranslationGlossaryOptions(options);
-  const selectedService = options.serviceOverride || config.service;
+  const privateOverride = Boolean(browser.extension?.inIncognitoContext && config.privateTranslation?.enabled);
+  const effectiveConfig = resolvePrivateTranslationConfig(config, privateOverride);
+  const selectedService = privateOverride ? effectiveConfig.service : options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
-    options.modelOverride || config.model[selectedService],
-    options.modelOverride || config.customModel[selectedService],
+    privateOverride ? effectiveConfig.model[selectedService] : options.modelOverride || config.model[selectedService],
+    privateOverride ? effectiveConfig.customModel[selectedService] : options.modelOverride || config.customModel[selectedService],
   );
   const selectedLanguages = getTranslationLanguages(options);
   const selectedThinking = options.thinkingOverride
@@ -412,10 +415,12 @@ export async function translateTextBatch(
   if (origins.length === 0) return [];
   const glossary = captureTranslationGlossaryOptions(options);
 
-  const selectedService = options.serviceOverride || config.service;
+  const privateOverride = Boolean(browser.extension?.inIncognitoContext && config.privateTranslation?.enabled);
+  const effectiveConfig = resolvePrivateTranslationConfig(config, privateOverride);
+  const selectedService = privateOverride ? effectiveConfig.service : options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
-    options.modelOverride || config.model[selectedService],
-    options.modelOverride || config.customModel[selectedService],
+    privateOverride ? effectiveConfig.model[selectedService] : options.modelOverride || config.model[selectedService],
+    privateOverride ? effectiveConfig.customModel[selectedService] : options.modelOverride || config.customModel[selectedService],
   );
   const selectedLanguages = getTranslationLanguages(options);
   const selectedThinking = options.thinkingOverride
@@ -623,13 +628,14 @@ function assertTranslationCredentials(service = config.service, modelOverride?: 
   // 后台加载专用持久凭据后执行权威校验。仅扩展页面按设计能够读取凭据，可保留本地快速失败。
   if (!isTrustedCredentialStorageContext()) return;
 
+  const current = resolvePrivateTranslationConfig(config, Boolean(browser.extension?.inIncognitoContext));
   const credentialConfig = modelOverride
     ? {
-      ...config,
-      model: {...config.model, [service]: modelOverride},
-      customModel: {...config.customModel, [service]: modelOverride},
+      ...current,
+      model: {...current.model, [service]: modelOverride},
+      customModel: {...current.customModel, [service]: modelOverride},
     }
-    : config;
+    : current;
   const message = getMissingCredentialMessage(service, credentialConfig);
   if (message) throw new Error(message);
 }

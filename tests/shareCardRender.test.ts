@@ -2,10 +2,10 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {normalizeShareCardPreferences, SHARE_CARD_THEMES} from '@/src/core/config/shareCard';
 import {renderShareCard} from '@/src/features/share-card/render';
 let canvas: {width: number; height: number; getContext: ReturnType<typeof vi.fn>; toBlob: ReturnType<typeof vi.fn>};
-let painted: Array<{text: string; x: number; y: number}>;
+let painted: Array<{text: string; x: number; y: number; direction: string; align: string}>;
 beforeEach(() => {
     painted = [];
-    const ctx = {font: '', measureText(text: string) {return {width: Array.from(text).length * Number(this.font.match(/([\d.]+)px/)?.[1]) * .6};}, scale: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), bezierCurveTo: vi.fn(), closePath: vi.fn(), arc: vi.fn(), roundRect: vi.fn(), rect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(), fillText(text: string, x: number, y: number) {painted.push({text, x, y});}, createRadialGradient: () => ({addColorStop: vi.fn()}), createLinearGradient: () => ({addColorStop: vi.fn()})};
+    const ctx = {font: '', direction: 'ltr', textAlign: 'left', measureText(text: string) {return {width: Array.from(text).length * Number(this.font.match(/([\d.]+)px/)?.[1]) * .6};}, scale: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), bezierCurveTo: vi.fn(), closePath: vi.fn(), arc: vi.fn(), roundRect: vi.fn(), rect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(), fillText(text: string, x: number, y: number) {painted.push({text, x, y, direction: this.direction, align: this.textAlign});}, createRadialGradient: () => ({addColorStop: vi.fn()}), createLinearGradient: () => ({addColorStop: vi.fn()})};
     canvas = {width: 0, height: 0, getContext: vi.fn(() => ctx), toBlob: vi.fn(fn => fn(new Blob(['png'], {type: 'image/png'})))};
     vi.stubGlobal('document', {createElement: () => canvas});
 });
@@ -49,6 +49,19 @@ describe('卡片排版边界', () => {
         const texts = painted.map(item => item.text);
         expect(texts.indexOf('你好')).toBeLessThan(texts.indexOf('Hello'));
         expect(texts).not.toContain('PRIVATE'); expect(texts).not.toContain('FluentRead');
+    });
+    it('无内容与字符超限在绘制前拒绝，不生成伪成功 PNG', async () => {
+        await expect(renderShareCard({original: ' ', translation: '你好', source: ''}, normalizeShareCardPreferences())).rejects.toMatchObject({reason: 'empty'});
+        await expect(renderShareCard({original: 'a'.repeat(3000), translation: '你好', source: ''}, normalizeShareCardPreferences())).rejects.toMatchObject({reason: 'long'});
+        expect(canvas.getContext).not.toHaveBeenCalled();
+        expect(canvas.toBlob).not.toHaveBeenCalled();
+    });
+    it('数字前缀不改变阿拉伯文方向，数字译文和后续绘制恢复从左到右', async () => {
+        await renderShareCard({original: '123 مرحبا', translation: '456', source: 'example.com'}, normalizeShareCardPreferences({theme: 'pearl', showBrand: false}));
+        expect(painted.find(item => item.text === '123 مرحبا')).toMatchObject({direction: 'rtl', align: 'right'});
+        expect(painted.find(item => item.text === '456')).toMatchObject({direction: 'ltr', align: 'left'});
+        expect(painted.find(item => item.text === 'example.com')).toMatchObject({direction: 'ltr', align: 'left'});
+        expect(painted.map(item => item.text)).not.toContain('FluentRead');
     });
     it('Canvas 不可用或 PNG 生成失败时返回错误', async () => {
         const value = {original: 'Hello', translation: '你好', source: ''};

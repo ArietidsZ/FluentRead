@@ -175,3 +175,49 @@ describe('video AI model setup', () => {
     expect(stale.dependencies.startGeneration).not.toHaveBeenCalled();
   });
 });
+
+describe('site-specific GPU model allowlist', () => {
+  it('rejects unavailable models without downloading or starting another model', async () => {
+    const f = setup({getAllowedModels: () => []});
+    await f.controller.request(() => true);
+    expect(f.sendMessage).not.toHaveBeenCalled();
+    expect(f.dependencies.startGeneration).not.toHaveBeenCalled();
+    expect(f.dependencies.setError).toHaveBeenCalledWith('当前页面没有可用的 GPU 识别模型');
+  });
+  it('ignores cached disallowed models and rejects disallowed selections', async () => {
+    const f = setup({getAllowedModels: () => ['tiny'], responses: {
+      fluentReadGetLocalVideoModelState: [{success: true, models: ['base']}],
+      fluentReadPrepareLocalVideoModel: [{success: true, models: ['tiny']}],
+    }});
+    await f.controller.request(() => true);
+    expect(f.controller.choice).toEqual({downloaded: [], selected: 'tiny', recommended: 'tiny'});
+    f.controller.select('base');
+    expect(f.controller.choice?.selected).toBe('tiny');
+    await f.controller.confirm();
+    expect(f.dependencies.startGeneration).toHaveBeenCalledOnce();
+  });
+  it('rechecks the allowlist when confirming a pending choice', async () => {
+    const allowed: VideoLocalTranscriptionModel[] = ['tiny'];
+    const f = setup({getAllowedModels: () => allowed, responses: {
+      fluentReadGetLocalVideoModelState: [{success: true, models: []}],
+    }});
+    await f.controller.request(() => true);
+    allowed.length = 0;
+    await f.controller.confirm();
+    expect(f.sendMessage).toHaveBeenCalledTimes(1);
+    expect(f.dependencies.startGeneration).not.toHaveBeenCalled();
+  });
+});
+
+it('cancels an allowed pending model choice without downloading', async () => {
+  const f = setup({getAllowedModels: () => ['tiny'], responses: {
+    fluentReadGetLocalVideoModelState: [{success: true, models: []}],
+  }});
+  await f.controller.request(() => true);
+  f.controller.select('tiny');
+  f.controller.cancel();
+  expect(f.controller.choice).toBeNull();
+  await f.controller.confirm();
+  expect(f.sendMessage).toHaveBeenCalledTimes(1);
+  expect(f.dependencies.startGeneration).not.toHaveBeenCalled();
+});

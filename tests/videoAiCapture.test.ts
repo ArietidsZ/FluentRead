@@ -13,6 +13,7 @@ import {
 class FakeMediaStreamTrack {
   stopCount = 0;
 
+  private readonly muteListeners = new Set<() => void>();
   private readonly endedListeners = new Set<() => void>();
 
   stop(): void {
@@ -24,6 +25,13 @@ class FakeMediaStreamTrack {
   }
 
   addEventListener(type: string, listener: EventListenerOrEventListenerObject): void {
+    if (type === 'mute') {
+      this.muteListeners.add(() => {
+        if (typeof listener === 'function') listener(new Event('mute'));
+        else listener.handleEvent(new Event('mute'));
+      });
+      return;
+    }
     if (type !== 'ended') return;
     this.endedListeners.add(() => {
       if (typeof listener === 'function') listener(new Event('ended'));
@@ -33,7 +41,10 @@ class FakeMediaStreamTrack {
 
   removeEventListener(type: string): void {
     if (type === 'ended') this.endedListeners.clear();
+    if (type === 'mute') this.muteListeners.clear();
   }
+
+  emitMute(): void { [...this.muteListeners].forEach(listener => listener()); }
 
   emitEnded(): void {
     [...this.endedListeners].forEach((listener) => listener());
@@ -169,6 +180,7 @@ function createHarness(
 ) {
   const sourceTracks: FakeMediaStreamTrack[] = [];
   const videoState: {
+    mediaKeys?: MediaKeys;
     currentTime: number;
     playbackRate: number;
     paused: boolean;
@@ -245,6 +257,59 @@ afterEach(() => {
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+describe('local capture access boundary', () => {
+  it('stops inaccessible fallback clones without stopping the player-owned tracks', () => {
+    const h = createHarness();
+    const original = new FakeMediaStreamTrack();
+    const clone = new FakeMediaStreamTrack();
+    Object.assign(clone, {muted: true});
+    vi.spyOn(original, 'clone').mockReturnValue(clone as unknown as MediaStreamTrack);
+    h.video.captureStream = () => new FakeMediaStream([]) as unknown as MediaStream;
+    h.video.srcObject = new FakeMediaStream([original]) as unknown as MediaStream;
+    expect(h.controller.start()).toBe(false);
+    expect(clone.stopCount).toBe(1);
+    expect(original.stopCount).toBe(0);
+    expect(h.transcribe).not.toHaveBeenCalled();
+  });
+
+  it('fails closed if an active track becomes inaccessible, but ignores pause mute', () => {
+    const h = createHarness();
+    expect(h.controller.start()).toBe(true);
+    const track = h.sourceTracks[0];
+    h.video.paused = true;
+    track.emitMute();
+    expect(h.controller.isRunning()).toBe(true);
+    h.video.paused = false;
+    track.emitMute();
+    expect(h.controller.isRequested()).toBe(false);
+    expect(h.controller.isRunning()).toBe(false);
+    expect(track.stopCount).toBeGreaterThan(0);
+    expect(h.onInvalidate).toHaveBeenCalledWith('error', 1);
+    track.emitMute();
+    expect(h.onInvalidate).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses protected media before creating a capture stream', () => {
+    const h = createHarness();
+    h.video.mediaKeys = {} as MediaKeys;
+    const capture = vi.fn(h.video.captureStream);
+    h.video.captureStream = capture;
+    expect(h.controller.start()).toBe(false);
+    expect(capture).not.toHaveBeenCalled();
+    expect(h.onError).toHaveBeenCalledWith(expect.objectContaining({message: '受保护的视频音频不能用于本地 AI 字幕'}));
+    expect(h.transcribe).not.toHaveBeenCalled();
+  });
+  it('stops inaccessible muted audio without submitting it', () => {
+    const h = createHarness();
+    const track = new FakeMediaStreamTrack();
+    Object.assign(track, {muted: true});
+    h.video.captureStream = () => new FakeMediaStream([track]) as unknown as MediaStream;
+    expect(h.controller.start()).toBe(false);
+    expect(track.stopCount).toBeGreaterThan(0);
+    expect(h.transcribe).not.toHaveBeenCalled();
+  });
 });
 
 describe('VideoAiCaptureController 生命周期', () => {

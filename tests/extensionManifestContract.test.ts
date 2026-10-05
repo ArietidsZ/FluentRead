@@ -5,7 +5,7 @@ import {describe, expect, it} from 'vitest';
 import {createHash} from 'node:crypto';
 import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGLE_DRIVE_SCOPES} from '@/src/platform/google-drive/constants';
 import type {Entrypoint, EntrypointGroup} from 'wxt';
-import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig, groupModuleWorkers} from '@/wxt.config';
+import {remoteConfigStorageBuildPlugin, createExtensionManifest, extendRemoteConfigBuildConfig, extendModuleWorkerBuildConfig, groupModuleWorkers} from '@/wxt.config';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 
@@ -41,12 +41,47 @@ describe('module worker build groups', () => {
         expect(groups).toEqual([workers]);
     });
 
-    it('不足两个可组合入口时保留原有构建方式', () => {
-        for (const groups of [[], [buildEntrypoint('localTtsWorker')], [buildEntrypoint('unknown')]]) {
+    it('没有可组合入口时保留原有构建方式', () => {
+        for (const groups of [[], [buildEntrypoint('unknown')]]) {
             const before = [...groups];
             groupModuleWorkers(groups);
             expect(groups).toEqual(before);
         }
+    });
+
+    it.each(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'qwenAsrWorker'])(
+        '单独构建 %s 仍使用数组组，保留惰性模块加载', name => {
+            const worker = buildEntrypoint(name), groups: EntrypointGroup[] = [worker];
+            groupModuleWorkers(groups);
+            expect(groups).toEqual([[worker]]);
+            expect((groups[0] as Entrypoint[])[0]).toBe(worker);
+        },
+    );
+
+    it('已知模块 Worker 的 ES library 配置沿用真实 WXT 入口及 chunk 命名', () => {
+        const workers = ['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'qwenAsrWorker'].map(name => buildEntrypoint(name));
+        const input = Object.fromEntries(workers.map(worker => [worker.name, `virtual:wxt-unlisted-script-entrypoint?${worker.inputPath}`]));
+        const output = {entryFileNames: '[name].js', chunkFileNames: 'chunks/[name]-[hash].js'};
+        const config = {build: {sourcemap: true, rollupOptions: {input, output}}};
+        extendModuleWorkerBuildConfig(workers, config);
+        expect(config.build).toEqual({sourcemap: true, rollupOptions: {input, output}, lib: {entry: input, formats: ['es']}});
+        expect(config.build.rollupOptions.input).toBe(input);
+        expect(config.build.rollupOptions.output).toBe(output);
+        for (const worker of workers) {
+            const single = {build: {rollupOptions: {input: {[worker.name]: worker.inputPath}}}};
+            extendModuleWorkerBuildConfig([worker], single);
+            expect(single.build).toMatchObject({lib: {formats: ['es']}});
+        }
+    });
+
+    it('页面、未知脚本与混合组不改变构建模式，缺失原生入口则明确失败', () => {
+        for (const entries of [[], [buildEntrypoint('otherWorker')], [buildEntrypoint('localTtsWorker', 'content-script')],
+            [buildEntrypoint('localTtsWorker'), buildEntrypoint('popup', 'popup')]]) {
+            const config = {build: {minify: false as const}};
+            extendModuleWorkerBuildConfig(entries, config);
+            expect(config).toEqual({build: {minify: false}});
+        }
+        expect(() => extendModuleWorkerBuildConfig([buildEntrypoint('localTtsWorker')], {})).toThrow('缺少 WXT 多入口配置');
     });
 
     it('同名的内容脚本、后台或已分组入口不会被改成模块 Worker', () => {

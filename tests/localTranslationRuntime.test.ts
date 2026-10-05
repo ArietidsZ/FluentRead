@@ -88,10 +88,10 @@ describe('local translation paragraph language detection', () => {
     vi.resetModules();
   });
 
-  it('ignores an old Worker error after cancellation and preserves the replacement request', async () => {
+  it.each([LOCAL_TRANSLATION_MODEL_IDS.opusZhEn,LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu])('ignores cancelled %s Worker errors and preserves its replacement', async (model) => {
     vi.resetModules();
     vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
-      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, phase: 'ready'}]})}),
+      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model, phase: 'ready'}]})}),
     }));
     const workers: FakeWorker[] = [];
     class FakeWorker {
@@ -106,7 +106,7 @@ describe('local translation paragraph language detection', () => {
     vi.stubGlobal('Worker', FakeWorker);
     vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
     const {translateLocalText, disposeLocalTranslationWorker} = await import('@/src/features/local-translation/offscreen/translation');
-    const request = {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, text: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh'};
+    const request = {model, text: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh'};
     const controller = new AbortController();
     try {
       const first = translateLocalText(request, controller.signal);
@@ -128,6 +128,98 @@ describe('local translation paragraph language detection', () => {
       await rejected;
       expect(workers[1].terminate).toHaveBeenCalledOnce();
     } finally { disposeLocalTranslationWorker(); }
+  });
+
+  it('forwards Index hints and replaces a failed GPU worker before retry',async()=>{
+    vi.resetModules();
+    vi.doMock('@/src/features/local-translation/offscreen/downloads',()=>({createLocalTranslationDownloadManager:()=>({status:async()=>({tasks:[{model:LOCAL_TRANSLATION_MODEL_IDS.index,phase:'ready'}]})})}));
+    const workers:any[]=[];
+    class FakeWorker {onmessage:any;terminate=vi.fn();constructor(){workers.push(this);}postMessage(message:any){queueMicrotask(()=>this.onmessage({data:{requestId:message.requestId,success:workers.length>1,result:'译文',error:'GPU failed'}}));expect(message.hints).toEqual({context:'reference'});}}
+    vi.stubGlobal('Worker',FakeWorker);vi.stubGlobal('window',{setTimeout,clearTimeout,location:{href:'https://extension.test/offscreen.html'}});
+    const {translateLocalText,disposeLocalTranslationWorker}=await import('@/src/features/local-translation/offscreen/translation');
+    const request={model:LOCAL_TRANSLATION_MODEL_IDS.index,text:'Hello',sourceLanguage:'en',targetLanguage:'zh',hints:{context:'reference'}};
+    try{await expect(translateLocalText(request)).rejects.toThrow('GPU failed');expect(workers[0].terminate).toHaveBeenCalledOnce();await expect(translateLocalText(request)).resolves.toBe('译文');expect(workers).toHaveLength(2);}finally{disposeLocalTranslationWorker();}
+  });
+
+  it('carries Index hints through the real adapter, message route and owner without changing text', async () => {
+    vi.resetModules();
+    vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
+      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model: LOCAL_TRANSLATION_MODEL_IDS.index, phase: 'ready'}]})}),
+    }));
+    const posted: any[] = [];
+    class FakeWorker {
+      onmessage?: (event: any) => void;
+      terminate = vi.fn();
+      postMessage(message: any) {
+        posted.push(message);
+        queueMicrotask(() => this.onmessage?.({data: {requestId: message.requestId, success: true, result: 'translated'}}));
+      }
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+    vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
+    const owner = await import('@/src/features/local-translation/offscreen/translation');
+    const listener = createOffscreenMessageListener({
+      ...baseOffscreenDependencies,
+      translate: vi.fn(),
+      localTranslation: {translate: owner.translateLocalText},
+    } as any);
+    const adapter = createLocalTranslationOffscreenAdapter({
+      send: (message: Record<string, unknown>) => new Promise(resolve => {
+        expect(listener({...message, target: 'offscreen'}, {}, resolve)).toBe(true);
+      }),
+    } as any);
+    const text = '材料 __FRTERM_mat__';
+    const hints = {context: 'reference', terms: [{source: '__FRTERM_mat__', target: '__FRTERM_mat__'}]};
+    const request = {model: LOCAL_TRANSLATION_MODEL_IDS.index, text, sourceLanguage: 'zh', targetLanguage: 'en'};
+    try {
+      await expect(adapter.translate({...request, hints})).resolves.toBe('translated');
+      expect(posted[0]).toMatchObject({...request, hints});
+      await expect(adapter.translate(request)).resolves.toBe('translated');
+      expect(posted[1].text).toBe(text);
+      expect(posted[1]).not.toHaveProperty('hints');
+    } finally { owner.disposeLocalTranslationWorker(); }
+  });
+
+  it.each([
+    {model: LOCAL_TRANSLATION_MODEL_IDS.index, invalidResult: true, replace: true},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, invalidResult: true, replace: false},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, invalidResult: false, replace: false},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu, invalidResult: false, replace: true},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu, invalidResult: true, replace: true},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusJaEnGpu, invalidResult: false, replace: true},
+    {model: LOCAL_TRANSLATION_MODEL_IDS.opusJaEnGpu, invalidResult: true, replace: true},
+  ])('preserves error disposal policy for $model, invalid result $invalidResult', async ({model, invalidResult, replace}) => {
+    vi.resetModules();
+    vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
+      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model, phase: 'ready'}]})}),
+    }));
+    const workers: FakeWorker[] = [];
+    let requests = 0;
+    class FakeWorker {
+      onmessage?: (event: any) => void;
+      terminate = vi.fn();
+      constructor() { workers.push(this); }
+      postMessage(message: any) {
+        const first = ++requests === 1;
+        queueMicrotask(() => this.onmessage?.({data: {
+          requestId: message.requestId, success: !first || invalidResult,
+          result: first ? '  ' : 'recovered', ...(!invalidResult && first ? {error: 'model response failed'} : {}),
+        }}));
+      }
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+    vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
+    const owner = await import('@/src/features/local-translation/offscreen/translation');
+    const request = model === LOCAL_TRANSLATION_MODEL_IDS.opusJaEnGpu
+      ? {model, text: 'こんにちは', sourceLanguage: 'ja', targetLanguage: 'en'}
+      : {model, text: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh'};
+    try {
+      await expect(owner.translateLocalText(request)).rejects.toThrow(invalidResult ? '本地翻译未返回有效译文' : 'model response failed');
+      expect(workers[0].terminate).toHaveBeenCalledTimes(replace ? 1 : 0);
+      await expect(owner.translateLocalText(request)).resolves.toBe('recovered');
+      expect(workers).toHaveLength(replace ? 2 : 1);
+      expect(workers.at(-1)?.terminate).not.toHaveBeenCalled();
+    } finally { owner.disposeLocalTranslationWorker(); }
   });
 
   it('uses real detection with paragraph context, preserves explicit choices and handles blank context', async () => {

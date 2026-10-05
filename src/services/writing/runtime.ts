@@ -4,6 +4,7 @@
  * 主要内容：冻结服务与回复语言，以独立语言约束覆盖草稿、改写要求和自定义偏好的语言；按所选身份组织回应重点并纠正旧稿立场，隔离忠实翻译与写作风格篇幅要求、引用资料、只读工具循环、可选学习记忆、逐步用量及凭据错误。
  * 模块边界：只在后台运行，不复用翻译提示词，工具只访问本次参考快照和主动保存的学习记忆，不读取网页、不写入记忆或发送回复。
  */
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import {streamText, tool, type ModelMessage, type ToolSet} from 'ai';
 import {z} from 'zod';
 import {runHarnessLoop, type HarnessGenerate, type HarnessToolCall} from '@/src/core/harness/loop';
@@ -44,7 +45,7 @@ const MEMORY_INPUT = z.object({query: z.string().trim().min(1).max(500)}).strict
 export function createWritingRuntime(getConfig: () => Config, record?: (event: ModelUsageEvent) => void, memory?: HarnessMemoryReader) {
     return async (request: WritingRequest, signal: AbortSignal, progress: (value: WritingProgress) => void, privateContext = false): Promise<WritingResponse> => {
         if (signal.aborted) return {success: false, error: '已停止生成', cancelled: true};
-        const current = JSON.parse(JSON.stringify(getConfig())) as Config;
+        const current = JSON.parse(JSON.stringify(resolvePrivateTranslationConfig(getConfig(), privateContext))) as Config;
         if (!current.on || !current.writing.enabled) return {success: false, error: '请先启用写作助手'};
         const {service, model: modelId, ready, message} = resolveWritingReadiness(current);
         if (!ready) return {success: false, error: message};
@@ -100,7 +101,7 @@ export function createWritingRuntime(getConfig: () => Config, record?: (event: M
                 return '学习记忆暂时无法读取，请根据本轮草稿与参考内容继续，不要推测记忆内容。';
             }
         };
-        const save = (event: ModelUsageEvent) => { try { record?.({...event, purpose: 'writing'}); } catch { /* 用量故障不影响写作。 */ } };
+        const save = (event: ModelUsageEvent) => { if (privateContext) return; try { record?.({...event, purpose: 'writing'}); } catch { /* 用量故障不影响写作。 */ } };
         const startedAt = Date.now();
         let generationStarted = false;
         try {

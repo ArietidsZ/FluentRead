@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：定义配置快照、剩余预算、内部取消、线路观察与可信术语来源 symbol，冻结术语规则并从完整文本槽协议恢复纯匹配原文，供后台 broker 安全传递进程内状态。
+ * 主要内容：定义配置快照、剩余预算、内部取消、线路观察与可信术语来源 symbol，冻结无痕专用模型配置和术语规则并从完整文本槽协议恢复纯匹配原文，供后台 broker 安全传递进程内状态。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -341,6 +341,7 @@ export function createTranslationProviderConfigSnapshot(
     };
     return Object.freeze({
         ...providerSource,
+        privateTranslation: source.privateTranslation ? Object.freeze({...source.privateTranslation}) : undefined,
         freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
         freeTranslationMode: normalizeFreeTranslationMode(source.freeTranslationMode),
         deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
@@ -387,6 +388,11 @@ export function attachTranslationProviderConfig<T extends object>(
     snapshot: TranslationProviderConfigSnapshot,
 ): T & TranslationProviderRequestContext {
     return Object.assign(message, {[TRANSLATION_PROVIDER_CONFIG]: snapshot});
+}
+
+/** 仅后台进程内的 Symbol 快照可跨内部事务传递。 */
+export function getAttachedTranslationProviderConfig(message: object): TranslationProviderConfigSnapshot | undefined {
+    return (message as TranslationProviderRequestContext)[TRANSLATION_PROVIDER_CONFIG];
 }
 
 /** Provider 直调测试保留 fallback；broker 路径始终命中不可伪造的 request snapshot。 */

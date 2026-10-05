@@ -8,6 +8,7 @@
 export interface WebGpuProbeResult {
     available: boolean;
     info: string;
+    features?: string[];
 }
 
 interface AdapterInfo {
@@ -22,6 +23,7 @@ interface ProbeNavigator {
     gpu?: {requestAdapter(options: {powerPreference: 'high-performance'}): Promise<{
         isFallbackAdapter?: boolean;
         info?: AdapterInfo;
+        features?: Iterable<string>;
     } | null>};
 }
 
@@ -43,7 +45,8 @@ export async function probeWebGpu(): Promise<WebGpuProbeResult> {
             const info = [adapter.info?.vendor, adapter.info?.architecture, adapter.info?.device, adapter.info?.description]
                 .filter(Boolean).join(' / ');
             const software = adapter.isFallbackAdapter === true || /swiftshader|software|llvmpipe|fallback/i.test(info);
-            result = {available: !software, info: software ? '' : info};
+            result = {available: !software, info: software ? '' : info,
+                ...(!software && adapter.features ? {features: Array.from(adapter.features)} : {})};
         }
     } catch {
         // 能力或驱动异常均视为不可用，由调用方继续 CPU 路径。

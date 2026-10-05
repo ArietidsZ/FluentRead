@@ -5,6 +5,7 @@
  * 模块边界：不读取配置、不操作网页；模型与 Worker 生命周期归 Offscreen TTS 运行时，错误语义以 protocol 中的错误码为准。
  */
 
+import {normalizeLocalTtsExecution, type LocalTtsExecution} from '@/src/core/config/localTts';
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
 import {OFFSCREEN_CANCEL_LOCAL_TTS_MESSAGE_TYPE} from '@/src/platform/offscreen/client';
@@ -34,6 +35,7 @@ export function createLocalTtsOffscreenAdapter(client: OffscreenClient = extensi
             language: string,
             voice: string,
             signal?: AbortSignal,
+            execution: LocalTtsExecution = 'gpu',
         ): Promise<LocalTtsAudio> {
             const id = requestId();
             const response = await client.send<{
@@ -50,6 +52,7 @@ export function createLocalTtsOffscreenAdapter(client: OffscreenClient = extensi
                 text,
                 language,
                 voice,
+                execution: normalizeLocalTtsExecution(execution),
             }, {
                 signal,
                 timeoutMs: 120_000,

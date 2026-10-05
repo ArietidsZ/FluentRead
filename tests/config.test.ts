@@ -126,6 +126,18 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
 }
 
 describe('统一配置存储', () => {
+    it('悬浮快捷键禁用时保留此前选择，重新启用后更新恢复值', () => {
+        const disabled = normalizeConfig({hotkey: 'none', hoverShortcutBeforeDisable: 'Alt'});
+        expect(disabled.hotkey).toBe('none');
+        expect(disabled.hoverShortcutBeforeDisable).toBe('Alt');
+        expect(normalizeConfig({...disabled, hotkey: 'Shift'}).hoverShortcutBeforeDisable).toBe('Shift');
+        for (const saved of [undefined, 'none', 'Computer', 'retired-shortcut']) {
+            const fallback = normalizeConfig({hotkey: 'none', hoverShortcutBeforeDisable: saved});
+            expect(fallback.hotkey).toBe('none');
+            expect(fallback.hoverShortcutBeforeDisable).toBe('Control');
+        }
+    });
+
     beforeEach(() => {
         vi.clearAllMocks();
     });

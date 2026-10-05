@@ -6,6 +6,18 @@
  * 模块边界：只导出按稳定键组织的文本，不读取设备、配置或下载状态，不以英文替代缺失译文。
  */
 export const localTranslationEnglishMessages = {
+    "settings.localTranslation.opusJaGpuDescription": "Japanese to English only. FP32 avoids the FP16 quality regression found in qualification. Larger download and memory than Q8; requires WebGPU. Hardware speed is unmeasured.",
+    "settings.localTranslation.languagesJaToEn": "Japanese → English",
+
+    "settings.localTranslation.opusZhEnGpu": "Chinese / English FP16 · GPU",
+    "settings.localTranslation.opusJaEnGpu": "Japanese → English FP32 · GPU",
+    "settings.localTranslation.opusGpuDescription": "Optional FP16 version of the same OPUS models. Requires shader-f16 WebGPU; no CPU fallback. Roughly twice the Q8 download. Quality and speed are still being evaluated.",
+
+    "settings.localTranslation.index": "Index Translate 2B Q6 · GPU",
+    "settings.localTranslation.indexDescription": "Translation model using shader-f16 GPU acceleration with some CPU work. Requires several GiB of working memory. Quality and speed depend on the text and device.",
+    "settings.localTranslation.error.gpu": "The required GPU or graphics memory limit is unavailable, or GPU initialization failed. Choose another model.",
+    "settings.localTranslation.error.placeholder": "The model changed a protected placeholder. The translation was rejected.",
+    "settings.localTranslation.error.inputLimit": "The text or terminology exceeds the model context budget. Try a shorter passage.",
     'settings.localTranslation.title': 'Local translation models',
     'settings.localTranslation.introduction': 'Download once and translate offline. Your text stays on this device. Choose a small language pack for everyday reading, or Hunyuan for more demanding text.',
     'settings.localTranslation.localBadge': 'On device',
@@ -69,10 +81,22 @@ export const localTranslationEnglishMessages = {
     'settings.localTranslation.error.repetition': 'The model produced a repetitive or incomplete translation. Try Hunyuan or a shorter text.',
     'settings.localTranslation.error.timeout': 'Local translation took too long and was stopped. Try a shorter text or a lighter model.',
     'settings.localTranslation.error.removed': 'The model was deleted. Download or select another model before translating.',
-    'settings.localTranslation.error.browser': 'This browser cannot run Hunyuan. Update your browser, or choose a lightweight language pack.',
+    'settings.localTranslation.error.browser': 'This browser cannot run this model. Update your browser, or choose a lightweight language pack.',
 } as const;
 
 export const localTranslationChineseMessages: Record<keyof typeof localTranslationEnglishMessages, string> = {
+    "settings.localTranslation.opusJaGpuDescription": "仅支持日译英。FP32 避免了验证中发现的 FP16 质量回退，下载和内存占用均高于 Q8。需要 WebGPU，真实硬件速度尚未测定。",
+    "settings.localTranslation.languagesJaToEn": "日语→英语，单向翻译",
+
+    "settings.localTranslation.opusZhEnGpu": "中英 FP16 · GPU",
+    "settings.localTranslation.opusJaEnGpu": "日语→英语 FP32 · GPU",
+    "settings.localTranslation.opusGpuDescription": "同一 OPUS 模型的可选 FP16 版本，需要支持 shader-f16 的 WebGPU，不回退 CPU。下载约为 Q8 的两倍，质量与速度仍在评估。",
+
+    "settings.localTranslation.index": "Index Translate 2B Q6 · GPU",
+    "settings.localTranslation.indexDescription": "翻译专用模型，使用 shader-f16 GPU 加速，部分工作由 CPU 完成，运行占用数 GiB 内存。质量和速度取决于文本与设备。",
+    "settings.localTranslation.error.gpu": "所需 GPU 或显存绑定上限不可用，或 GPU 初始化失败。请选择其他模型。",
+    "settings.localTranslation.error.placeholder": "模型改变了受保护的占位符，已拒绝该译文。",
+    "settings.localTranslation.error.inputLimit": "文本或术语超出模型上下文预算，请缩短段落。",
     'settings.localTranslation.title': '本地翻译模型',
     'settings.localTranslation.introduction': "下载后即可离线翻译，文本留在当前设备；日常阅读可选轻量语言包，专业内容可选混元",
     'settings.localTranslation.localBadge': '本地运行',
@@ -136,7 +160,7 @@ export const localTranslationChineseMessages: Record<keyof typeof localTranslati
     'settings.localTranslation.error.repetition': '模型生成了重复或不完整的译文，请尝试混元模型或缩短文本。',
     'settings.localTranslation.error.timeout': '本地翻译耗时过长，已停止。请缩短文本或选择轻量模型。',
     'settings.localTranslation.error.removed': '当前模型已删除，请下载或选择其他模型后再翻译。',
-    'settings.localTranslation.error.browser': '当前浏览器无法运行混元，请升级浏览器或选择轻量语言包。',
+    'settings.localTranslation.error.browser': '当前浏览器无法运行此模型，请升级浏览器或选择轻量语言包。',
 };
 
 type LocalKeys = keyof typeof localTranslationEnglishMessages extends `settings.localTranslation.${infer Key}` ? Key : never;
@@ -145,6 +169,18 @@ function prefixed(messages: Record<LocalKeys, string>): Record<keyof typeof loca
 }
 
 export const localTranslationJapaneseMessages = /* @__PURE__ */ prefixed({
+    "opusJaGpuDescription": "日本語から英語のみ。FP32 は検証で見つかった FP16 の品質低下を避けます。Q8 よりダウンロードとメモリが大きく、WebGPU が必要です。実機速度は未測定です。",
+    "languagesJaToEn": "日本語→英語のみ",
+
+    "opusZhEnGpu": "中国語・英語 FP16 · GPU",
+    "opusJaEnGpu": "日本語→英語 FP32 · GPU",
+    "opusGpuDescription": "同じ OPUS モデルの任意の FP16 版。shader-f16 対応 WebGPU が必要で、CPU に切り替えません。ダウンロードは Q8 の約2倍。品質と速度は評価中です。",
+
+    "index": "Index Translate 2B Q6 · GPU",
+    "indexDescription": "shader-f16 による GPU アクセラレーションを使い、一部の処理は CPU が行う翻訳モデルです。数 GiB のメモリが必要です。品質と速度は文章と端末に依存します。",
+    "error.gpu": "必要な GPU またはメモリ上限が利用できないか、GPU の初期化に失敗しました。別のモデルを選んでください。",
+    "error.placeholder": "モデルが保護されたプレースホルダーを変更したため、訳文を破棄しました。",
+    "error.inputLimit": "文章または用語がコンテキスト上限を超えています。文章を短くしてください。",
     title: 'ローカル翻訳モデル',
     introduction: '一度ダウンロードすればオフラインで翻訳できます。テキストはこの端末に残ります。日常の読書には軽量パック、専門的な文章には混元を選べます。',
     localBadge: '端末内で実行', recommended: '軽量優先', quality: '品質優先', selected: '選択中', choose: 'このモデルを使う', chooseNamed: '{name} を使う',
@@ -176,10 +212,22 @@ export const localTranslationJapaneseMessages = /* @__PURE__ */ prefixed({
     'error.repetition': '繰り返しや不完全な訳文が生成されました。混元または短い文章で試してください。',
     'error.timeout': '時間がかかったため翻訳を停止しました。文章を短くするか軽量モデルを選んでください。',
     'error.removed': 'モデルが削除されました。ダウンロードするか別のモデルを選んでください。',
-    'error.browser': 'このブラウザーでは混元を実行できません。更新するか軽量言語パックを選んでください。',
+    'error.browser': 'このブラウザーではこのモデルを実行できません。更新するか軽量言語パックを選んでください。',
 });
 
 export const localTranslationKoreanMessages = /* @__PURE__ */ prefixed({
+    "opusJaGpuDescription": "일본어에서 영어로만 번역합니다. FP32는 검증 중 발견된 FP16 품질 저하를 피합니다. Q8보다 다운로드와 메모리가 크며 WebGPU가 필요합니다. 실제 하드웨어 속도는 미측정입니다.",
+    "languagesJaToEn": "일본어→영어 전용",
+
+    "opusZhEnGpu": "중국어·영어 FP16 · GPU",
+    "opusJaEnGpu": "일본어→영어 FP32 · GPU",
+    "opusGpuDescription": "같은 OPUS 모델의 선택형 FP16 버전입니다. shader-f16 WebGPU가 필요하며 CPU로 전환하지 않습니다. 다운로드는 Q8의 약 두 배이며 품질과 속도는 평가 중입니다.",
+
+    "index": "Index Translate 2B Q6 · GPU",
+    "indexDescription": "shader-f16 GPU 가속을 사용하며 일부 처리는 CPU가 수행하는 번역 모델입니다. 실행에 수 GiB의 메모리가 필요합니다. 품질과 속도는 텍스트와 기기에 따라 달라집니다.",
+    "error.gpu": "필요한 GPU나 메모리 한도를 사용할 수 없거나 GPU 초기화에 실패했습니다. 다른 모델을 선택하세요.",
+    "error.placeholder": "모델이 보호된 자리표시자를 변경하여 번역을 거부했습니다.",
+    "error.inputLimit": "텍스트나 용어가 문맥 한도를 초과했습니다. 더 짧은 문단을 사용하세요.",
     title: '로컬 번역 모델',
     introduction: '한 번 다운로드하면 오프라인으로 번역할 수 있습니다. 텍스트는 이 기기에만 남습니다. 일상적인 글에는 경량 팩을, 전문적인 내용에는 혼위안을 선택하세요.',
     localBadge: '기기에서 실행', recommended: '경량 우선', quality: '품질 우선', selected: '선택됨', choose: '이 모델 사용', chooseNamed: '{name} 사용',
@@ -210,10 +258,22 @@ export const localTranslationKoreanMessages = /* @__PURE__ */ prefixed({
     'error.repetition': '반복되거나 불완전한 결과가 생성되었습니다. 혼위안이나 짧은 텍스트로 시도하세요.',
     'error.timeout': '번역 시간이 길어 중지했습니다. 텍스트를 줄이거나 경량 모델을 선택하세요.',
     'error.removed': '모델이 삭제되었습니다. 다시 다운로드하거나 다른 모델을 선택하세요.',
-    'error.browser': '이 브라우저에서는 혼위안을 실행할 수 없습니다. 업데이트하거나 경량 언어 팩을 선택하세요.',
+    'error.browser': '이 브라우저에서는 이 모델을 실행할 수 없습니다. 업데이트하거나 경량 언어 팩을 선택하세요.',
 });
 
 export const localTranslationFrenchMessages = /* @__PURE__ */ prefixed({
+    "opusJaGpuDescription": "Uniquement du japonais vers l’anglais. FP32 évite la régression FP16 constatée lors des tests. Plus volumineux et gourmand en mémoire que Q8 ; WebGPU requis. Vitesse matérielle non mesurée.",
+    "languagesJaToEn": "Japonais → anglais uniquement",
+
+    "opusZhEnGpu": "Chinois / anglais FP16 · GPU",
+    "opusJaEnGpu": "Japonais → anglais FP32 · GPU",
+    "opusGpuDescription": "Version FP16 facultative des mêmes modèles OPUS. WebGPU avec shader-f16 requis, sans repli CPU. Téléchargement environ deux fois supérieur à Q8. Qualité et vitesse en cours d’évaluation.",
+
+    "index": "Index Translate 2B Q6 · GPU",
+    "indexDescription": "Modèle de traduction accéléré par GPU avec shader-f16 ; certaines opérations utilisent le CPU. Plusieurs Gio de mémoire sont requis. La qualité et la vitesse dépendent du texte et de l’appareil.",
+    "error.gpu": "Le GPU ou la limite mémoire requis est indisponible, ou son initialisation a échoué. Choisissez un autre modèle.",
+    "error.placeholder": "Le modèle a modifié un espace réservé protégé. La traduction a été rejetée.",
+    "error.inputLimit": "Le texte ou les termes dépassent la fenêtre de contexte. Raccourcissez le passage.",
     title: 'Modèles de traduction locaux',
     introduction: 'Téléchargez une fois pour traduire hors ligne. Le texte reste sur cet appareil. Choisissez un pack léger au quotidien ou Hunyuan pour les textes exigeants.',
     localBadge: 'Sur cet appareil', recommended: 'Priorité à la légèreté', quality: 'Priorité à la qualité', selected: 'Sélectionné', choose: 'Utiliser ce modèle', chooseNamed: 'Utiliser {name}',
@@ -244,10 +304,22 @@ export const localTranslationFrenchMessages = /* @__PURE__ */ prefixed({
     'error.repetition': 'Le modèle a produit une traduction répétitive ou incomplète. Essayez Hunyuan ou un texte plus court.',
     'error.timeout': 'La traduction a été arrêtée car elle prenait trop de temps. Raccourcissez le texte ou choisissez un modèle léger.',
     'error.removed': 'Le modèle a été supprimé. Téléchargez-le ou sélectionnez-en un autre.',
-    'error.browser': 'Ce navigateur ne peut pas exécuter Hunyuan. Mettez-le à jour ou choisissez un pack léger.',
+    'error.browser': 'Ce navigateur ne peut pas exécuter ce modèle. Mettez-le à jour ou choisissez un pack léger.',
 });
 
 export const localTranslationRussianMessages = /* @__PURE__ */ prefixed({
+    "opusJaGpuDescription": "Только с японского на английский. FP32 устраняет обнаруженное в тестах ухудшение FP16. Загрузка и память больше Q8; требуется WebGPU. Скорость на аппаратном GPU не измерена.",
+    "languagesJaToEn": "Только японский → английский",
+
+    "opusZhEnGpu": "Китайский / английский FP16 · GPU",
+    "opusJaEnGpu": "Японский → английский FP32 · GPU",
+    "opusGpuDescription": "Дополнительная FP16-версия тех же моделей OPUS. Требуется WebGPU с shader-f16, без перехода на CPU. Загрузка примерно вдвое больше Q8. Качество и скорость ещё оцениваются.",
+
+    "index": "Index Translate 2B Q6 · GPU",
+    "indexDescription": "Модель перевода использует GPU с shader-f16; часть работы выполняется на CPU. Требуется несколько ГиБ памяти. Качество и скорость зависят от текста и устройства.",
+    "error.gpu": "Нужный GPU или лимит памяти недоступен либо инициализация GPU не удалась. Выберите другую модель.",
+    "error.placeholder": "Модель изменила защищённый заполнитель. Перевод отклонён.",
+    "error.inputLimit": "Текст или термины превышают размер контекста. Сократите текст.",
     title: 'Локальные модели перевода',
     introduction: 'Скачайте модель один раз и переводите без интернета. Текст остаётся на устройстве. Для повседневного чтения подойдёт лёгкий пакет, для сложных текстов — Хуньюань.',
     localBadge: 'На устройстве', recommended: 'Лёгкая модель', quality: 'Приоритет качества', selected: 'Выбрано', choose: 'Использовать модель', chooseNamed: 'Использовать {name}',
@@ -278,10 +350,22 @@ export const localTranslationRussianMessages = /* @__PURE__ */ prefixed({
     'error.repetition': 'Модель создала повторяющийся или неполный перевод. Попробуйте Хуньюань или более короткий текст.',
     'error.timeout': 'Перевод остановлен из-за превышения времени. Сократите текст или выберите лёгкую модель.',
     'error.removed': 'Модель удалена. Скачайте её или выберите другую.',
-    'error.browser': 'Этот браузер не поддерживает Hunyuan. Обновите его или выберите лёгкий языковой пакет.',
+    'error.browser': 'Этот браузер не поддерживает эту модель. Обновите его или выберите лёгкий языковой пакет.',
 });
 
 export const localTranslationSpanishMessages = /* @__PURE__ */ prefixed({
+    "opusJaGpuDescription": "Solo de japonés a inglés. FP32 evita la regresión de calidad FP16 observada en las pruebas. Descarga y memoria mayores que Q8; requiere WebGPU. Velocidad en hardware aún sin medir.",
+    "languagesJaToEn": "Solo japonés → inglés",
+
+    "opusZhEnGpu": "Chino / inglés FP16 · GPU",
+    "opusJaEnGpu": "Japonés → inglés FP32 · GPU",
+    "opusGpuDescription": "Versión FP16 opcional de los mismos modelos OPUS. Requiere WebGPU con shader-f16, sin alternativa CPU. Descarga aproximadamente el doble que Q8. Calidad y velocidad aún en evaluación.",
+
+    "index": "Index Translate 2B Q6 · GPU",
+    "indexDescription": "Modelo de traducción acelerado por GPU con shader-f16; parte del trabajo se realiza en CPU. Necesita varios GiB de memoria. La calidad y velocidad dependen del texto y dispositivo.",
+    "error.gpu": "La GPU o el límite de memoria requerido no está disponible, o falló la inicialización. Elige otro modelo.",
+    "error.placeholder": "El modelo cambió un marcador protegido. Se rechazó la traducción.",
+    "error.inputLimit": "El texto o la terminología exceden el contexto del modelo. Acorta el fragmento.",
     title: 'Modelos de traducción local',
     introduction: 'Descarga una vez y traduce sin conexión. El texto permanece en este dispositivo. Elige un paquete ligero para la lectura diaria o Hunyuan para textos exigentes.',
     localBadge: 'En este dispositivo', recommended: 'Prioridad al tamaño', quality: 'Prioridad a la calidad', selected: 'Seleccionado', choose: 'Usar este modelo', chooseNamed: 'Usar {name}',
@@ -312,5 +396,5 @@ export const localTranslationSpanishMessages = /* @__PURE__ */ prefixed({
     'error.repetition': 'El modelo generó una traducción repetitiva o incompleta. Prueba Hunyuan o un texto más corto.',
     'error.timeout': 'La traducción se detuvo por tardar demasiado. Acorta el texto o elige un modelo ligero.',
     'error.removed': 'El modelo se eliminó. Descárgalo de nuevo o selecciona otro.',
-    'error.browser': 'Este navegador no puede ejecutar Hunyuan. Actualízalo o elige un paquete ligero.',
+    'error.browser': 'Este navegador no puede ejecutar este modelo. Actualízalo o elige un paquete ligero.',
 });

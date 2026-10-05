@@ -605,3 +605,20 @@ describe('video player locator', () => {
     })()).toBe(true);
   });
 });
+
+
+describe('deep X post controls', () => {
+  it('finds a deeply nested control within the owning media scope and rejects unrelated post text', () => {
+    const deep = '<div>'.repeat(10) + '<button id="deep-control"></button>' + '</div>'.repeat(10);
+    const outside = '<div>'.repeat(10) + '<button id="post-text"></button>' + '</div>'.repeat(10);
+    const f = setup(`<article><div class="media"><video></video><a href="/cerebras/status/501/video/1"></a>${deep}</div>${outside}</article>`);
+    const locator = createVideoPlayerLocator({document: f.document, window: f.window});
+    const event = () => new (f.window as unknown as {Event: typeof Event}).Event('pointerover', {bubbles: true});
+    f.document.getElementById('post-text')!.dispatchEvent(event());
+    expect(locator.getTarget()?.interacting).not.toBe(true);
+    f.document.getElementById('deep-control')!.dispatchEvent(event());
+    expect(locator.getTarget()?.video).toBe(f.videos[0]);
+    expect(locator.getTarget()?.interacting).toBe(true);
+    locator.destroy();
+  });
+});

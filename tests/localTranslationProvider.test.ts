@@ -1,4 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {attachTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
 
 const capabilities = vi.hoisted(() => ({extensionDom: true}));
 const translate = vi.hoisted(() => vi.fn());
@@ -58,5 +59,36 @@ describe('local translation provider', () => {
     expect(request.text).toBe('Reduce Waste during Filament Change');
     if (sourceLanguage === 'auto') expect(request.sourceLanguageDetectionText).toContain('When switching');
     else expect(request).not.toHaveProperty('sourceLanguageDetectionText');
+  });
+});
+
+describe('Index request hints',()=>{
+  it.each([true,false])('respects context permission %s and preserves the source',async(enabled)=>{
+    await localTranslation({origin:'材料',modelOverride:LOCAL_TRANSLATION_MODEL_IDS.index,sourceLanguage:'zh',targetLanguage:'en',pageContext:'reference',context:'unused fallback',enableAIContext:enabled} as any);
+    expect(translate.mock.calls[0][0]).toMatchObject({model:LOCAL_TRANSLATION_MODEL_IDS.index,text:'材料',hints:{context:enabled?'reference':undefined,terms:[]}});
+  });
+});
+
+describe('Index snapshot-owned context and glossary hints', () => {
+  it.each([
+    {saved: true, explicit: undefined, expectedContext: 'fallback reference'},
+    {saved: false, explicit: undefined, expectedContext: undefined},
+    {saved: true, explicit: false, expectedContext: undefined},
+    {saved: false, explicit: true, expectedContext: 'fallback reference'},
+  ])('uses saved permission $saved with explicit permission $explicit', async ({saved, explicit, expectedContext}) => {
+    const origin = '材料 __FRTERM_mat__';
+    const message = attachTranslationProviderConfig({
+      origin, modelOverride: LOCAL_TRANSLATION_MODEL_IDS.index,
+      sourceLanguage: 'zh', targetLanguage: 'en', pageContext: '', context: 'fallback reference',
+      enableAIContext: explicit,
+    }, {
+      model: {}, customModel: {}, enableAIContext: saved,
+      glossaryProtectedTokens: ['__FRTERM_mat__', '__FRTERM_unrelated__'],
+    } as any);
+    await localTranslation(message as any);
+    expect(translate.mock.calls[0][0]).toMatchObject({
+      text: origin,
+      hints: {context: expectedContext, terms: [{source: '__FRTERM_mat__', target: '__FRTERM_mat__'}]},
+    });
   });
 });

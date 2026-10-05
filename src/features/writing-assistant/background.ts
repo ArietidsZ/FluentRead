@@ -67,9 +67,9 @@ export function createWritingHandler(deps: {
                 if (raw && typeof raw === 'object' && 'requestId' in raw && typeof raw.requestId === 'string') requestId = raw.requestId.slice(0, 128);
                 const request = parseWritingRequest(raw);
                 if (!trusted || !request) { finish({success: false, error: '无效的写作请求'}); return; }
-                if (active.size >= 4) { finish({success: false, error: '正在处理其他写作请求，请稍后重试'}); return; }
                 // 同一 document 的新面板替换旧请求，其他页面互不影响。
                 for (const other of [...active]) if (JSON.stringify(other.sender) === JSON.stringify(sender)) other.cancel();
+                if (active.size >= 4) { finish({success: false, error: '正在处理其他写作请求，请稍后重试'}); return; }
                 active.add(entry);
                 timer = setTimeout(() => { controller.abort(); finish({success: false, error: '生成超时，请重试'}); }, 60000);
                 void (async () => {

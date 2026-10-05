@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：围绕正文组织紧凑任务栏、按需设置弹窗、折叠文件队列和本地范例；联动全局启停、批量翻译、暂停续译、校订、内容预览与 ZIP 下载，维护设置快照、增量译文、未下载保护及异步提交所有权。
+ 主要内容：私密文档预检应用专用服务但不覆盖普通设置；围绕正文组织紧凑任务栏、按需设置弹窗、折叠文件队列和本地范例；联动全局启停、批量翻译、暂停续译、校订、内容预览与 ZIP 下载，维护设置快照、增量译文、未下载保护及异步提交所有权。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -422,6 +422,7 @@ import {
   parseDocumentFile,
   requestConfigPatch,
   resolveConfiguredModel,
+  resolvePrivateTranslationConfig,
   runtimeConfig,
   servicesType,
   subscribeConfig,
@@ -749,6 +750,12 @@ const selectedDocumentModel = computed({
 });
 const documentModelValue = computed(() => selectedDocumentModel.value);
 const credentialWarning = computed(() => {
+  if (browser.extension?.inIncognitoContext && config.privateTranslation.enabled) {
+    try {
+      const current = resolvePrivateTranslationConfig(config, true);
+      return getTranslationServiceUnavailableMessage(current.service) || getMissingCredentialMessage(current.service, current);
+    } catch (error) { return error instanceof Error ? error.message : String(error); }
+  }
   if (documentServiceUnavailableMessage.value) return documentServiceUnavailableMessage.value;
   if (documentUsesModel.value && !documentModelValue.value.trim()) {
     return documentIsCustomOpenAIProvider.value
@@ -774,6 +781,7 @@ const translationComplete = computed(() => Boolean(parsedDocument.value && compl
 const progress = computed(() => parsedDocument.value ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
 const currentFingerprint = computed(() => JSON.stringify({
+  privateTranslation: browser.extension?.inIncognitoContext ? config.privateTranslation : undefined,
   from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
   glossaryIds: config.documentGlossaryIds, glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
 }));

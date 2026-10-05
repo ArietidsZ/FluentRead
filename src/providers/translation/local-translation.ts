@@ -8,9 +8,9 @@
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {config} from '@/src/services/config/store';
 import {getTranslationLanguages} from '@/src/services/translation/languages';
-import {getTranslationProviderConfig, type TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
+import {getTranslationProviderConfig, getTranslationGlossaryTerms, type TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
 import {resolveConfiguredModel, services} from '@/src/core/config/catalog';
-import {normalizeLocalTranslationModel, localTranslationErrorKey} from '@/src/core/config/localTranslation';
+import {normalizeLocalTranslationModel, getLocalTranslationModel, localTranslationErrorKey} from '@/src/core/config/localTranslation';
 import {normalizeUiLanguage, translate} from '@/src/core/i18n';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {localTranslationOffscreenAdapter} from '@/src/platform/offscreen/localTranslation';
@@ -32,6 +32,10 @@ async function localTranslation(message: TranslationProviderRequest<string>): Pr
     return localTranslationOffscreenAdapter.translate({
         model,
         text: message.origin,
+        ...(getLocalTranslationModel(model).engine==='index' ? {hints:{
+            context:(message.enableAIContext??current.enableAIContext) ? (message.pageContext||message.context) : undefined,
+            terms:getTranslationGlossaryTerms(current,message.origin),
+        }}:{}),
         sourceLanguage,
         targetLanguage,
         ...(sourceLanguage === 'auto' && typeof message.sourceLanguageDetectionText === 'string'

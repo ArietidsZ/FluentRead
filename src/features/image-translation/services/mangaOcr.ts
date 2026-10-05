@@ -1,11 +1,11 @@
 /**
  * @file src/features/image-translation/services/mangaOcr.ts
  * 文件职责：在扩展 Offscreen 文档中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
- * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后整段分组，避免重复推理；取消立即结束调用方等待，底层推理完成后丢弃迟到结果，空闲三分钟释放会话，统一清理 OCR 与修补会话。
+ * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障直接报告且不切换 CPU；气泡外旁白与放大的独立气泡识别后整段分组，避免重复推理；取消立即结束调用方等待，底层推理完成后丢弃迟到结果，空闲三分钟释放会话，统一清理 OCR 与修补会话。
  * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；仅漫画及显式选择 PaddleOCR 的单张图片使用本模型；通用识别与圈选继续由 Tesseract 负责。
  */
 import {probeMangaGpu} from './mangaGpu';
-import {protectMangaSession} from './mangaSessionFallback';
+import {gpuSessionOptions} from '@/src/shared/onnx/gpuSession';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
 import {assertMangaOcrActive, loadMangaOcrAssets, removeMangaOcrAssets} from './mangaOcrAssets';
 import type {MangaRegion} from './mangaRegions';
@@ -71,6 +71,9 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
 }
 
 export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Progress): Promise<MangaOcrPort> {
+    assertMangaOcrActive(signal);
+    if (!(await probeMangaGpu()).available) throw new Error('漫画 GPU 加速不可用：需要兼容的硬件 WebGPU，不会改用 CPU');
+    assertMangaOcrActive(signal);
     const model = await loadMangaOcrAssets(signal, percent => progress?.('preparing', percent));
     assertMangaOcrActive(signal);
     // 两个包共享同一 ONNX 实例；在导入 SDK 前覆盖其 CDN 默认路径，符合扩展 CSP。
@@ -80,37 +83,14 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
         mjs: chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),
         wasm: chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm'),
     });
-    const {PaddleOcrService} = await import('ppu-paddle-ocr/web');
-    const gpu=await probeMangaGpu();
-    let activeSignal=signal;
-    class MangaService extends PaddleOcrService {
-        private checks:Array<()=>void>=[];
-        async recognizeManga(canvas:HTMLCanvasElement,options:{flatten:true;noCache:true;strategy:'per-box'}) {
-            try {return await this.recognize(canvas,options);}
-            finally {this.checks.forEach(check=>check());}
-        }
-        async initialize() {
-            await super.initialize();
-            if(gpu.available)for(const [key,session] of [['detection',this.detectionSession],['recognition',this.recognitionSession]] as const) {
-                if(session)this.checks.push(protectMangaSession(session,async()=>{
-                    assertMangaOcrActive(activeSignal);
-                    const assets=await loadMangaOcrAssets(activeSignal);
-                    assertMangaOcrActive(activeSignal);
-                    const cpu=await ort.InferenceSession.create(assets[key],{executionProviders:['wasm'],graphOptimizationLevel:'all'});
-                    try {assertMangaOcrActive(activeSignal);}catch(error){await cpu.release();throw error;}
-                    return cpu;
-                },()=>activeSignal));
-            }
-        }
-    }
-    const service = new MangaService({model, detection: {maxSideLength:1536,paddingVertical:0.1,paddingHorizontal:0.2},
+    const {GpuPaddleService} = await import('./gpuPaddle');
+    const service = new GpuPaddleService(model as {detection: ArrayBuffer; recognition: ArrayBuffer; charactersDictionary: ArrayBuffer}, {detection: {maxSideLength:1536,paddingVertical:0.1,paddingHorizontal:0.2},
         recognition: {charactersDictionary: [], minimumConfidence:0.65,strategy:'per-box',spaceRecovery:true,mainThreadYieldMs:1},
-        session: {executionProviders: gpu.available?['webgpu','wasm']:['wasm'], graphOptimizationLevel: 'all'}});
+        session: gpuSessionOptions()}, signal);
     try {
         await service.initialize(); assertMangaOcrActive(signal);
         return {
             recognize: async (image, options) => {
-                activeSignal=options.signal;
                 assertMangaOcrActive(options.signal);
                 const bitmap=options.decodedImage ?? await createImageBitmap(new Blob([await (await fetch(image)).arrayBuffer()]));
                 const canvas=document.createElement('canvas');canvas.width='naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;canvas.height='naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;

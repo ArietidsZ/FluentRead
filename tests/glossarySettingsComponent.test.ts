@@ -148,7 +148,7 @@ describe('GlossarySettings compiled component', () => {
       for (const language of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const) expect(translate(key, language)).not.toBe(key);
     }
     expect(translate('glossary.services', 'zh-CN')).toContain('机器翻译和 AI 翻译');
-    expect(translate('glossary.services', 'zh-CN')).toContain('自动填回指定译法');
+    expect(translate('glossary.services', 'zh-CN')).toContain('匹配到的词语会在翻译后填回指定译法');
   });
 
   it('creates libraries and preserves blank translations, case options, search, and order', async () => {

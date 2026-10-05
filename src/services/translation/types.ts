@@ -116,6 +116,7 @@ export interface TranslationCachePort {
 }
 
 export interface TranslationConfigSnapshot {
+    privateTranslation?: import('@/src/core/config/privateTranslation').PrivateTranslationProfile;
     glossaryEnabled?: boolean;
     glossaryLibraries?: readonly GlossaryLibrary[];
     documentGlossaryIds?: readonly string[] | null;

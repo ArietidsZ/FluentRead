@@ -1,6 +1,6 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/capture.ts
- * 文件职责：驱动 X 视频实时 AI 字幕的 PCM 采集、滚动窗口提交与会话失效。
+ * 文件职责：驱动 YouTube/X 视频实时 AI 字幕的 PCM 采集、滚动窗口提交与会话失效。
  * 主要内容：协调 AudioContext、暂停/seek/ratechange 生命周期、播放器时钟连续性和迟到识别结果。
  * 模块边界：只管理实时捕获状态和音频窗口，不负责页面控件、字幕 DOM 或翻译缓存。
  */
@@ -49,7 +49,9 @@ export interface VideoAiTranscriptionResult {
   inferenceMs?: number;
   audioDurationMs?: number;
   threads?: number;
-  dtype?: 'q4' | 'q8';
+  dtype?: 'q4' | 'q8' | 'q4f16';
+  /** window 表示整段音频的范围，不是模型对齐的逐词时间戳。 */
+  timestampSource?: 'window';
 }
 
 export interface VideoAiCaptureDiagnostic extends VideoAiTranscriptionResult {
@@ -184,7 +186,12 @@ export class VideoAiCaptureController {
     const legacyCaptureStream = video?.mozCaptureStream;
     const AudioContextClass = getAudioContextConstructor();
     if (!video || (!captureStream && !legacyCaptureStream) || !AudioContextClass) {
-      this.failBeforeStart(new Error('当前浏览器无法捕获 X 视频音频，请使用桌面版 Edge 或 Chrome'));
+      this.failBeforeStart(new Error('当前浏览器无法捕获视频音频，请使用桌面版 Edge 或 Chrome'));
+      return false;
+    }
+
+    if (video.mediaKeys) {
+      this.failBeforeStart(new Error('受保护的视频音频不能用于本地 AI 字幕'));
       return false;
     }
 
@@ -203,10 +210,11 @@ export class VideoAiCaptureController {
         // stop 页面自己的音轨。
         audioTracks = providedStream.getAudioTracks().map((track) => track.clone());
       }
-      if (audioTracks.length === 0) throw new Error('当前 X 视频没有可捕获的音轨');
+      if (audioTracks.length === 0) throw new Error('当前视频没有可捕获的音轨');
 
       const audioStream = new MediaStream(audioTracks);
       createdStream = audioStream;
+      if (audioTracks.some(track => track.muted)) throw new Error('视频音轨不可访问，请检查播放状态或使用原生字幕');
       const context = new AudioContextClass({
         sampleRate: VIDEO_AI_SAMPLE_RATE,
         latencyHint: 'interactive',
@@ -286,12 +294,18 @@ export class VideoAiCaptureController {
 
       const handleTrackEnded = () => {
         if (this.running && session === this.session && epoch === this.captureEpoch) {
-          this.fail(new Error('X 视频音轨已结束，请重新请求 AI 字幕'));
+          this.fail(new Error('视频音轨已结束，请重新请求 AI 字幕'));
         }
       };
       this.trackEndCleanups = audioTracks.map((track) => {
+        const handleMute = () => {
+          if (this.running && session === this.session && epoch === this.captureEpoch && !video.paused && !video.ended) {
+            this.fail(new Error('视频音轨不可访问，请检查播放状态或使用原生字幕'));
+          }
+        };
         track.addEventListener('ended', handleTrackEnded);
-        return () => track.removeEventListener('ended', handleTrackEnded);
+        track.addEventListener('mute', handleMute);
+        return () => { track.removeEventListener('ended', handleTrackEnded); track.removeEventListener('mute', handleMute); };
       });
 
       void context.resume().catch((resumeError) => {

@@ -4,6 +4,7 @@
  * 主要内容：解析继承模型、限制选区与历史、直接提供已授权段落以兼容不主动调用工具的模型、根据提示词快照构建学习指令和只读段落工具，将原生模型消息转换为内核事件，并统一处理取消及供应商错误。
  * 模块边界：只在后台执行，不读取网页 DOM、不使用翻译缓存，不接受页面指定密钥或服务；显示与长期收藏分别归阅读卡和单词本。
  */
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import {streamText, tool, type LanguageModel, type ModelMessage, type ToolSet} from 'ai';
 import {z} from 'zod';
 import type {Config} from '@/src/core/config/model';
@@ -89,7 +90,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
     return {
         async run(request, signal, onProgress, privateContext = false) {
             if (signal.aborted) return {success: false, error: '阅读助手请求已取消', cancelled: true};
-            const current = cloneConfig(getConfig());
+            const current = cloneConfig(resolvePrivateTranslationConfig(getConfig(), privateContext));
             const prefs = current.harness;
             if (!current.on || !prefs.enabled) return {success: false, error: '阅读助手已停用'};
             if (!prefs.actions.includes(request.intent)) return {success: false, error: '当前动作未启用'};
@@ -133,7 +134,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
                 }
                 onProgress?.({kind: 'model', service, model: modelId});
                 const model = createHarnessLanguageModel(current, service, modelId);
-                const generate = makeGenerate(model, toolSet, service, modelId, createUsageSink?.());
+                const generate = makeGenerate(model, toolSet, service, modelId, privateContext ? undefined : createUsageSink?.());
                 const result = await runHarnessLoop({
                     generate, executeTool, system: actionSystem(current, request.intent, Boolean(question), request.studyMode),
                     user: initialUser, history, tools: toolDefinitions, signal,

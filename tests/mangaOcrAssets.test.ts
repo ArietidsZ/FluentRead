@@ -2,8 +2,8 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {MANGA_INPAINT_ASSET, MANGA_OCR_ASSETS, MANGA_OCR_CACHE, MANGA_OCR_MODEL_BYTES,
     assertMangaOcrActive, loadMangaInpaintAsset, loadMangaOcrAssets, mangaOcrModelStatus, removeMangaOcrAssets, getMangaModelSource, setMangaModelSource, importMangaModel} from '@/src/features/image-translation/services/mangaOcrAssets';
 const allAssets=[...MANGA_OCR_ASSETS,MANGA_INPAINT_ASSET];
-// 用元数据模拟模型容量；生产浏览器专项另验证真实下载文件的完整 SHA-256。
-function buffer(bytes:number) {const value=new ArrayBuffer(1);Object.defineProperty(value,'byteLength',{value:bytes});return value;}
+// 使用真实容量的 ArrayBuffer，保留原生 Response 的 BufferSource 校验；哈希计算由测试替身隔离。
+function buffer(bytes:number) {return new ArrayBuffer(bytes);}
 function response(bytes:number,status=200) {return {ok:status===200,status,arrayBuffer:vi.fn(async()=>buffer(bytes))} as unknown as Response;}
 function digest(bytes:number) {const asset=allAssets.find(asset=>asset.bytes===bytes)!;return Uint8Array.from(asset.sha256.match(/../g)!,part=>parseInt(part,16)).buffer;}
 let preferences:{match:ReturnType<typeof vi.fn>;put:ReturnType<typeof vi.fn>};

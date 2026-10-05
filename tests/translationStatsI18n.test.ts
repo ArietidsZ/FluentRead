@@ -49,6 +49,7 @@ describe('翻译统计界面文案', () => {
 
     it('翻译统计导航与搜索文案覆盖全部非中文界面语言', () => {
         const item = navigationItems.find((value) => value.id === 'settings-translation-stats')!;
+        expect(item.searchDescription.split(' · ')).toHaveLength(2);
         const sources = [item.label, item.description, item.heading, item.summary, item.kicker, item.title, item.detail, item.searchDescription];
         for (const language of Object.keys(catalogs) as Array<keyof typeof catalogs>) {
             for (const source of sources) {

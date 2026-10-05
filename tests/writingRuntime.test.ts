@@ -341,3 +341,13 @@ describe('Writing Harness startup outcomes', () => {
     expect(mocks.stream).not.toHaveBeenCalled();
   });
 });
+
+describe('无痕写作模型', () => {
+  it('使用无痕专用模型且不记录用量，普通写作配置不变', async () => {
+    const current = config(); current.privateTranslation = {enabled: true, service: 'openai', model: 'private-writer'};
+    const before = JSON.stringify(current); const record = vi.fn();
+    await createWritingRuntime(() => current, record)(request, controller().signal, vi.fn(), true);
+    expect(mocks.model.mock.calls[0].slice(1)).toEqual(['openai', 'private-writer']);
+    expect(record).not.toHaveBeenCalled(); expect(JSON.stringify(current)).toBe(before);
+  });
+});

@@ -23,8 +23,10 @@ let state: Record<string, any>, scope: vue.EffectScope, config: Config;
 let requestPatch: ReturnType<typeof vi.fn>, translateText: ReturnType<typeof vi.fn>, copy: ReturnType<typeof vi.fn>;
 let mounted: (() => Promise<void>)[], unmounted: (() => void)[], subscription: (next: Config) => void;
 let emit: ReturnType<typeof vi.fn>;
+let privateBrowser: {runtime: {sendMessage: ReturnType<typeof vi.fn>}; extension: {inIncognitoContext: boolean}};
 const deferred = () => {let resolve!: (text: string) => void; const promise = new Promise<string>(done => {resolve = done;}); return {promise, resolve};};
 beforeEach(async () => {
+  privateBrowser = {runtime: {sendMessage: vi.fn()}, extension: {inIncognitoContext: false}};
   config = new Config(); mounted = []; unmounted = []; emit = vi.fn();
   requestPatch = vi.fn().mockResolvedValue(undefined); translateText = vi.fn().mockResolvedValue('translated'); copy = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal('navigator', {platform: 'MacIntel', clipboard: {writeText: copy}});
@@ -38,7 +40,7 @@ beforeEach(async () => {
   const exports: Record<string, any> = {};
   new Function('require', 'exports', compiled)((id: string) => {
     if (id === 'vue') return {...vue, onMounted: (fn: () => Promise<void>) => mounted.push(fn), onUnmounted: (fn: () => void) => unmounted.push(fn)};
-    if (id === 'webextension-polyfill') return {runtime: {sendMessage: vi.fn()}};
+    if (id === 'webextension-polyfill') return privateBrowser;
     if (id === 'element-plus' || id.endsWith('.vue')) return {};
     if (id.startsWith('@/src/') || id === '../model/comparison') return api;
     return require(id);
@@ -104,6 +106,27 @@ describe('translation center product workflow', () => {
     expect(state.canTranslate).toBe(true); expect(translateText).not.toHaveBeenCalled();
     state.runTranslation(); await vue.nextTick();
     await vi.waitFor(() => expect(state.successfulCards).toHaveLength(2));
+  });
+  it('blocks comparison entrypoints under the private profile without editing saved service choices', async () => {
+    state.sourceText = 'Original'; privateBrowser.extension.inIncognitoContext = true;
+    config.privateTranslation = {enabled: true, service: 'openai', model: 'private-model'};
+    const servicesBefore = [...config.translationCenterServices]; subscription(config);
+    state.runTranslation(); state.retryService('google'); state.retryIncomplete();
+    state.handleEditorKeydown({key: 'Enter', ctrlKey: true, isComposing: false, preventDefault: vi.fn()});
+    expect(state.privateComparisonBlocked).toBe(true); expect(state.canTranslate).toBe(false);
+    expect(translateText).not.toHaveBeenCalled(); expect(config.translationCenterServices).toEqual(servicesBefore);
+    expect(requestPatch).not.toHaveBeenCalled();
+    config.privateTranslation.enabled = false; subscription(config);
+    expect(state.canTranslate).toBe(true); expect(translateText).not.toHaveBeenCalled();
+  });
+  it('enabling the private profile stops an active comparison and ignores late results', async () => {
+    const pending = deferred(); translateText.mockReturnValue(pending.promise);
+    state.sourceText = 'Original'; state.runTranslation(); await vue.nextTick();
+    expect(translateText).toHaveBeenCalled(); privateBrowser.extension.inIncognitoContext = true;
+    config.privateTranslation = {enabled: true, service: 'openai', model: 'private-model'}; subscription(config);
+    expect(translateText.mock.calls.every(call => call[2].signal.aborted)).toBe(true);
+    pending.resolve('late'); await vue.nextTick(); await vue.nextTick();
+    expect(state.cards.every((card: any) => card.result === '')).toBe(true); expect(state.sourceText).toBe('Original');
   });
   it('global pause aborts pending cards while retaining source and completed results', async () => {
     const pending = deferred(); translateText.mockReturnValueOnce(pending.promise);

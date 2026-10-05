@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {describe, expect, it} from 'vitest';
@@ -53,6 +54,7 @@ describe('full regression runner', () => {
         });
         expect(plan.steps.map((step: {id: string}) => step.id)).toEqual([
             'test-suite-audit',
+            'brand-copy-verifier',
             'wxt-prepare',
             'compile',
             'strict-coverage',
@@ -61,18 +63,28 @@ describe('full regression runner', () => {
             'vitest-functional',
             'vitest-regression',
             'chrome-build',
+            'chrome-worker-bootstrap',
             'firefox-build',
+            'firefox-worker-bootstrap',
             'firefox-zip',
             'extension-manifest-verifier',
             'userscript-build',
             'userscript-verifier',
             'docs-build',
+            'docs-typecheck',
+            'docs-artifact-verifier',
         ]);
         const firefoxZip = plan.steps.find((step: {id: string}) => step.id === 'firefox-zip');
         const manifestVerifier = plan.steps.find(
             (step: {id: string}) => step.id === 'extension-manifest-verifier',
         );
         expect(firefoxZip).toMatchObject({command: 'pnpm', args: ['zip:firefox']});
+        for (const [browser, target] of [['chrome', 'chrome-mv3'], ['firefox', 'firefox-mv2']]) {
+            const verifier = plan.steps.find((step: {id: string}) => step.id === `${browser}-worker-bootstrap`);
+            expect(verifier).toMatchObject({phase: 'local', command: 'node',
+                args: ['scripts/testing/verify-emitted-model-workers.mjs', '--extension-dir', `.output/${target}`]});
+        }
+
         expect(manifestVerifier).toMatchObject({
             command: 'node',
             args: ['scripts/testing/verify-extension-manifests.mjs', '--require-firefox-archives'],
@@ -211,5 +223,28 @@ describe('full regression runner', () => {
             'glossary',
         ]);
         expect(backgroundSteps.every((step: {args: string[]}) => step.args.includes('--focus-safe-helper'))).toBe(true);
+    });
+});
+
+
+describe('pull request quality workflow', () => {
+    it('uses one bounded, read-only local aggregate without privileged events or network opt-ins', () => {
+        const workflow = readFileSync(resolve(PROJECT_ROOT, '.github/workflows/check-quality.yml'), 'utf8');
+        expect(workflow).toContain('  pull_request:\n    branches: [main]');
+        expect(workflow).not.toMatch(/pull_request_target|secrets\.|self-hosted|--(?:browser|network|allow-network)/u);
+        expect(workflow).toContain('permissions:\n  contents: read');
+        expect(workflow).not.toMatch(/(?:write-all|:\s*write\b)/u);
+        expect(workflow).toContain('persist-credentials: false');
+        expect(workflow).toContain('cancel-in-progress: true');
+        expect(workflow).toContain('github.event.pull_request.number || github.ref');
+        expect(workflow).toContain('timeout-minutes: 20');
+        expect(workflow).toContain("FLUENTREAD_TEST_MAX_WORKERS: '2'");
+        expect(workflow).toContain("NODE_OPTIONS: '--max-old-space-size=4096'");
+        const commands = [...workflow.matchAll(/^\s+(?:-\s+)?run: (.+)$/gmu)].map(match => match[1]);
+        expect(commands).toEqual(['pnpm install --frozen-lockfile', 'pnpm test:regression:all']);
+        expect(workflow).not.toMatch(/continue-on-error|generate:userscript-languages/u);
+        const plan = dryRun([]);
+        expect(plan.policies).toMatchObject({browser: 'disabled', network: 'disabled'});
+        expect(new Set(plan.steps.map((step: {id: string}) => step.id)).size).toBe(plan.steps.length);
     });
 });

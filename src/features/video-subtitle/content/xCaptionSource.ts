@@ -1,18 +1,62 @@
 /**
  * @file src/features/video-subtitle/content/xCaptionSource.ts
- * 文件职责：把 X 播放器中的原生轨道、sidecar 与本地识别时间轴映射到唯一合成字幕容器。
- * 主要内容：清理原生 cue 的时间标记后按播放时间选择正文，仅在内容变化时写入 DOM，保留原生 TextTrack 模式并在媒体离开时恢复。
+ * 文件职责：把 X 播放器中的原生轨道、sidecar 与 YouTube/X 本地识别时间轴映射到唯一合成字幕容器。
+ * 主要内容：清理原生 cue 的时间标记后按播放时间选择正文，仅在内容变化时写入 DOM，保留原生 TextTrack 模式并在媒体离开时恢复；YouTube 实时结果的有界展示、重复抑制和取消由本模块拥有，与历史 spoken cue 分离。
  * 模块边界：不读取配置存储、不识别或翻译音频，也不发起网络请求；运行时注入当前媒体及字幕状态，负责挂载和卸载时序。
  */
-import {VIDEO_AI_CAPTION_CONTAINER_ID, VIDEO_CAPTION_SEGMENT_SELECTOR, VIDEO_PLAYER_SELECTOR, findVideoPlayer, isXVideoPage} from './ui';
+import {VIDEO_AI_CAPTION_CONTAINER_ID, VIDEO_CAPTION_SEGMENT_SELECTOR, VIDEO_PLAYER_SELECTOR, findVideoPlayer, isXVideoPage, isYouTubeVideoPage} from './ui';
 import {getVisibleVideoAiCue} from './video-ai/cueTimeline';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
+import {VIDEO_AI_MIN_READABLE_CUE_MS, type VideoAiStabilizedCue} from './video-ai/streamingTranscript';
 import {cleanSubtitleText, selectXSubtitleLanguageResources} from './xVideoSubtitleData';
 
 export class XCaptionSource {
   private readonly changedTracks = new Map<TextTrack, TextTrackMode>();
-  constructor(private readonly read: () => {video: HTMLVideoElement | null; player?: HTMLElement; enabled: boolean; aiActive: boolean; aiCues: VideoSubtitleCue[]; sidecarCues: VideoSubtitleCue[]; language: string}) {}
+  private disposed = false;
+  private activeLiveCue: VideoAiStabilizedCue | null = null;
+  private latestLiveCue: VideoAiStabilizedCue | null = null;
+  private liveCueTimer: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(
+    private readonly read: () => {video: HTMLVideoElement | null; player?: HTMLElement; enabled: boolean; aiActive: boolean; aiCues: VideoSubtitleCue[]; sidecarCues: VideoSubtitleCue[]; language: string; livePresentation?: boolean},
+    private readonly onLiveCueExpired?: () => void,
+  ) {}
+
+  get liveCue(): VideoAiStabilizedCue | null {
+    return this.activeLiveCue;
+  }
+
+  clearLiveCue(): void {
+    if (this.liveCueTimer !== undefined) clearTimeout(this.liveCueTimer);
+    this.liveCueTimer = undefined;
+    this.activeLiveCue = this.latestLiveCue = null;
+  }
+
+  destroy(): void {
+    this.disposed = true;
+    this.clearLiveCue();
+    this.restoreTracks();
+    document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)?.remove();
+  }
+
+  /** 实时结果拥有独立可读区间；历史导出仍只使用未改写的 spoken 时间。 */
+  presentLiveCue(cue: VideoAiStabilizedCue): void {
+    if (this.disposed || !isYouTubeVideoPage()) return;
+    if (this.latestLiveCue && ((cue.startMs < this.latestLiveCue.startMs && cue.cueId !== this.latestLiveCue.cueId)
+      || (cue.text === this.latestLiveCue.text && (cue.cueId === this.latestLiveCue.cueId || cue.startMs <= this.latestLiveCue.startMs)))) return;
+    if (this.liveCueTimer !== undefined) clearTimeout(this.liveCueTimer);
+    this.activeLiveCue = this.latestLiveCue = cue;
+    this.liveCueTimer = setTimeout(() => {
+      this.liveCueTimer = undefined;
+      this.activeLiveCue = null;
+      this.onLiveCueExpired?.();
+    }, VIDEO_AI_MIN_READABLE_CUE_MS);
+  }
+
   restoreTracks(): void {
+    document.querySelectorAll('[data-fluent-read-local-ai-active]').forEach(player =>
+      player.removeAttribute('data-fluent-read-local-ai-active'));
+    document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)?.removeAttribute('data-fluent-read-ai-active');
     for (const [track, mode] of this.changedTracks) {
       // 若宿主已主动改变模式，尊重宿主的新选择。
       try { if (track.mode === 'hidden') track.mode = mode; } catch { /* 页面可能已经销毁原生轨道。 */ }
@@ -72,17 +116,34 @@ export class XCaptionSource {
 
   /** 将 X 的 TextTrack / sidecar / AI cue 统一映射到既有字幕翻译观察器。 */
   sync(): HTMLElement | null {
-    const {video, enabled, aiActive, aiCues, sidecarCues} = this.read();
-    if (!isXVideoPage()) return null;
+    if (this.disposed) return null;
+    const {video, enabled, aiActive, aiCues, sidecarCues, livePresentation} = this.read();
+    const youtube = isYouTubeVideoPage();
+    if (!isXVideoPage() && !youtube) {
+      this.clearLiveCue();
+      this.restoreTracks();
+      document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)?.remove();
+      return null;
+    }
+    if (youtube && (!aiActive || !enabled)) {
+      this.clearLiveCue();
+      this.restoreTracks();
+      document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)?.remove();
+      return null;
+    }
     const container = this.getOrCreateContainer();
     if (!container) return null;
+    if (youtube) {
+      container.dataset.fluentReadAiActive = 'true';
+      container.parentElement?.setAttribute('data-fluent-read-local-ai-active', '');
+    }
     if (!enabled) {
       this.restoreTracks();
       container.querySelector<HTMLElement>(VIDEO_CAPTION_SEGMENT_SELECTOR)!.textContent = '';
       container.dataset.fluentReadCaptionSource = 'none';
       return container;
     }
-    const tracks = Array.from(video?.textTracks || []).filter(track => track.kind === 'captions' || track.kind === 'subtitles');
+    const tracks = Array.from(youtube ? [] : video?.textTracks || []).filter(track => track.kind === 'captions' || track.kind === 'subtitles');
     for (const track of tracks) {
       try {
         if (track.mode !== 'hidden') {
@@ -93,7 +154,7 @@ export class XCaptionSource {
     }
 
     const currentMs = video && Number.isFinite(video.currentTime) ? video.currentTime * 1000 : Number.NaN;
-    const hasNativeTimeline = this.selectedNativeTracks().some(track => (track.cues?.length || 0) > 0);
+    const hasNativeTimeline = !youtube && this.selectedNativeTracks().some(track => (track.cues?.length || 0) > 0);
     let text = '';
     let sourceKind = 'none';
     let cueId = '';
@@ -101,7 +162,7 @@ export class XCaptionSource {
     // 用户主动请求 AI 字幕后，整个播放头由 AI 时间轴接管。不要在推理
     // 延迟期间偷偷切回 X 的原生/sidecar 文本，否则原文和译文会来回跳。
     if (aiActive) {
-      const activeAiCue = getVisibleVideoAiCue(aiCues, currentMs);
+      const activeAiCue = youtube && livePresentation ? this.activeLiveCue : getVisibleVideoAiCue(aiCues, currentMs);
       if (activeAiCue) {
         text = activeAiCue.text;
         sourceKind = 'ai';

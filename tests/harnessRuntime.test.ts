@@ -408,3 +408,14 @@ describe('vocabulary study prompts in the Harness runtime', () => {
         }
     });
 });
+
+describe('无痕阅读模型', () => {
+    it('覆盖阅读功能模型且不记录用量，保留普通配置', async () => {
+        const current = config(); current.privateTranslation = {enabled: true, service: 'openai', model: 'private-reader'};
+        generateText.mockResolvedValue({text: 'answer'});
+        const before = JSON.stringify(current); const sink = vi.fn(() => vi.fn());
+        await createHarnessRuntime(() => current, sink).run({type: 'fluentReadHarness', action: 'run', requestId: 'private-read', intent: 'meaning', question: '', selection: {text: 'Evidence', context: '', sentence: ''}}, new AbortController().signal, undefined, true);
+        expect(createModel.mock.calls.at(-1)!.slice(1)).toEqual(['openai', 'private-reader']);
+        expect(sink).not.toHaveBeenCalled(); expect(JSON.stringify(current)).toBe(before);
+    });
+});

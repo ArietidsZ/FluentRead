@@ -14,6 +14,10 @@
       />
     </SettingsItem>
 
+    <SettingsItem :label="t('settings.localTts.execution')" :description="t('settings.localTts.executionDescription')">
+      <SegmentedControl v-model="execution" :options="executionOptions" :label="t('settings.localTts.execution')" />
+    </SettingsItem>
+
     <SettingsItem :label="t('settings.localTts.voice')" :description="t('settings.localTts.modelDescription', {size: LOCAL_TTS_MODEL.downloadSizeMb})">
       <el-select v-model="localVoice" aria-label="本地音色" filterable>
         <el-option
@@ -88,6 +92,8 @@ import {
   LOCAL_TTS_VOICE_OPTIONS,
   LOCAL_TTS_MODEL_STATE_KEY,
   normalizeLocalTtsMode,
+  normalizeLocalTtsExecution,
+  type LocalTtsExecution,
   normalizeLocalTtsVoice,
   type LocalTtsMode,
   type LocalTtsVoiceId,
@@ -106,6 +112,14 @@ const ttsMode = computed<LocalTtsMode>({
   get: () => normalizeLocalTtsMode(config.value.selectionTtsMode),
   set: (value) => { config.value.selectionTtsMode = normalizeLocalTtsMode(value) },
 })
+const execution = computed<LocalTtsExecution>({
+  get: () => normalizeLocalTtsExecution(config.value.selectionTtsExecution),
+  set: (value) => { config.value.selectionTtsExecution = normalizeLocalTtsExecution(value) },
+})
+const executionOptions = computed(() => [
+  {value: 'gpu', label: t('settings.localTts.executionGpu')},
+  {value: 'compatible', label: t('settings.localTts.executionCompatible')},
+])
 const localVoice = computed<LocalTtsVoiceId>({
   get: () => normalizeLocalTtsVoice(config.value.selectionTtsLocalVoice),
   set: (value) => { config.value.selectionTtsLocalVoice = normalizeLocalTtsVoice(value) },

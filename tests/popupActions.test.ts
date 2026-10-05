@@ -74,13 +74,15 @@ describe('Popup actions across configuration and page state', () => {
             {hoverShortcutBeforeDisable: 'Alt', selectionTranslatorModeBeforeDisable: 'translation-only'}).changeCount).toBe(0);
     });
     it('Popup 启动读取真实网页状态，恢复按钮与当前内容状态一致，缺少内容脚本不隐藏站点', async () => {
-        const browser = {tabs: {query: vi.fn(async () => [{id: 3, url: 'https://example.com/article'}]), sendMessage: vi.fn(async () => ({isTranslated: true}))}};
+        const browser = {tabs: {query: vi.fn(async () => [{id: 3, url: 'https://example.com/article', incognito: true}]), sendMessage: vi.fn(async () => ({isTranslated: true}))}};
         const currentTabId = {value: null};
+        const currentTabPrivate = {value: false};
         const currentSiteDomain = {value: ''};
         const pageTranslated = {value: false};
-        const action = loadAction('hydrateCurrentSite', {browser, currentTabId, currentSiteDomain, pageTranslated, getSiteBaseDomain: () => 'example.com'});
+        const action = loadAction('hydrateCurrentSite', {browser, currentTabId, currentTabPrivate, currentSiteDomain, pageTranslated, getSiteBaseDomain: () => 'example.com'});
         await action();
         expect(currentTabId.value).toBe(3);
+        expect(currentTabPrivate.value).toBe(true);
         expect(currentSiteDomain.value).toBe('example.com');
         expect(browser.tabs.sendMessage).toHaveBeenCalledWith(3, {type: 'getFullPageTranslationState'});
         expect(pageTranslated.value).toBe(true);

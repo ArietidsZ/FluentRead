@@ -1,12 +1,14 @@
 /**
  * @file src/features/local-tts/offscreen/tts.ts
  * 文件职责：编排本地 Kokoro TTS 模型缓存、Worker 生命周期、下载状态和合成请求。
- * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker；GPU 生命周期失败按总预算重建一次 CPU Worker，并在取消或空闲时释放资源。
+ * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker；默认要求 GPU 加速，显式兼容模式才允许一次整模型 CPU 重建；预检、排队和清除共享生命周期边界。
  * 模块边界：只负责扩展自有 Offscreen 运行时，不决定在线/本地策略，也不直接操作网页 UI。
  */
 
 import {
     LOCAL_TTS_MODEL,
+    normalizeLocalTtsExecution,
+    type LocalTtsExecution,
     LOCAL_TTS_MODEL_ID,
     LOCAL_TTS_MODEL_DTYPE,
     LOCAL_TTS_MODEL_REVISION,
@@ -31,6 +33,7 @@ interface WorkerRequest {
     requestId: number;
     type: 'prepare' | 'synthesize' | 'dispose';
     device?: 'wasm';
+    execution?: LocalTtsExecution;
     text?: string;
     voice?: string;
     speed?: number;
@@ -60,10 +63,14 @@ const SYNTHESIS_TIMEOUT_MS = 120_000;
 const MODEL_IDLE_DISPOSE_MS = 30_000;
 
 let worker: Worker | null = null;
+let workerExecution: LocalTtsExecution | undefined;
 let workerRequestId = 0;
 let pendingRequests = new Map<number, PendingWorkerRequest>();
 let idleDisposeTimer: number | undefined;
 let workerQueue: Promise<void> = Promise.resolve();
+let admittedSynthesis = 0;
+let removingModel = false;
+let lifecycleGeneration = 0;
 
 function createWorkerLifecycleError(message: string): WorkerLifecycleError {
     const error = new Error(message) as WorkerLifecycleError;
@@ -113,6 +120,7 @@ function terminateWorker(error?: Error): void {
     clearIdleDispose();
     const current = worker;
     worker = null;
+    workerExecution = undefined;
     current?.terminate();
     if (error) rejectPending(error);
 }
@@ -182,11 +190,24 @@ function requestWorker(
     });
 }
 
-async function requestWorkerWithCpuFallback(
+async function requestWorkerWithExecution(
     message: Omit<WorkerRequest, 'requestId'>,
     timeoutMs: number,
     signal?: AbortSignal,
 ): Promise<WorkerResponse> {
+    const execution = normalizeLocalTtsExecution(message.execution);
+    if (workerExecution !== execution) terminateWorker();
+    workerExecution = execution;
+    if (execution === 'gpu') {
+        try {
+            const response = await requestWorker({...message, execution}, timeoutMs, signal);
+            if (response.backend !== 'webgpu') throw new Error('本地 TTS GPU 模式不允许 CPU 回退');
+            return response;
+        } catch (error) {
+            terminateWorker(toError(error, '本地 TTS GPU 会话不可用，请重试'));
+            throw error;
+        }
+    }
     const deadlineAt = Date.now() + timeoutMs;
     const firstAttemptTimeout = Math.max(1, Math.floor(timeoutMs / 2));
     try {
@@ -194,6 +215,7 @@ async function requestWorkerWithCpuFallback(
     } catch (error) {
         const remainingMs = deadlineAt - Date.now();
         if (!isWorkerLifecycleError(error) || message.device === 'wasm' || remainingMs <= 0) throw error;
+        workerExecution = execution;
         return requestWorker({...message, device: 'wasm'}, remainingMs, signal);
     }
 }
@@ -247,36 +269,52 @@ export async function synthesizeLocalTts(
     language: string,
     preferredVoice: unknown,
     signal?: AbortSignal,
+    execution?: unknown,
 ): Promise<LocalTtsAudio> {
     if (!supportsLocalTtsLanguage(language)) throw new LocalTtsLanguageUnsupportedError(language);
-    if (!(await isLocalTtsModelCached())) throw new LocalTtsModelNotDownloadedError();
-    if (signal?.aborted) throw createAbortError();
+    if (removingModel) throw new LocalTtsModelNotDownloadedError();
+    const generation = lifecycleGeneration;
+    const assertActive = () => { if (generation !== lifecycleGeneration || signal?.aborted) throw createAbortError(); };
+    admittedSynthesis += 1;
+    try {
+        if (!(await isLocalTtsModelCached())) throw new LocalTtsModelNotDownloadedError();
+        assertActive();
 
-    const voice = localTtsVoiceForLanguage(language, preferredVoice);
-    const response = await runSerial(() => requestWorkerWithCpuFallback({
-        type: 'synthesize',
-        text,
-        voice,
-        speed: 1,
-    }, SYNTHESIS_TIMEOUT_MS, signal));
-    if (!response.audio) throw new Error('本地 TTS 未返回音频');
-    scheduleIdleDispose();
-    return {
-        audio: response.audio,
-        contentType: 'audio/wav',
-        voice,
-        backend: response.backend,
-    };
+        const voice = localTtsVoiceForLanguage(language, preferredVoice);
+        const response = await runSerial(() => {
+            assertActive();
+            return requestWorkerWithExecution({
+                type: 'synthesize',
+                execution: normalizeLocalTtsExecution(execution),
+                text,
+                voice,
+                speed: 1,
+            }, SYNTHESIS_TIMEOUT_MS, signal);
+        });
+        assertActive();
+        if (!response.audio) throw new Error('本地 TTS 未返回音频');
+        scheduleIdleDispose();
+        return {
+            audio: response.audio,
+            contentType: 'audio/wav',
+            voice,
+            backend: response.backend,
+        };
+    } finally { admittedSynthesis -= 1; }
 }
 
 export async function removeLocalTtsModel(): Promise<void> {
-    if (pendingRequests.size > 0) throw new Error('本地 TTS 正在运行，请完成后再清除模型');
-    terminateWorker();
-    await removeLocalTtsModelFiles();
+    if (admittedSynthesis > 0 || removingModel) throw new Error('本地 TTS 正在运行，请完成后再清除模型');
+    removingModel = true;
+    try {
+        terminateWorker();
+        await removeLocalTtsModelFiles();
+    } finally { removingModel = false; }
 }
 
 export function disposeLocalTtsWorker(): void {
-    terminateWorker();
+    lifecycleGeneration += 1;
+    terminateWorker(createAbortError());
 }
 
 export {LOCAL_TTS_MODEL_STATE_KEY};

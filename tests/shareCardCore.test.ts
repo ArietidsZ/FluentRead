@@ -32,8 +32,17 @@ describe('双语分享卡片内容与外观', () => {
         expect(cleanCardText(' <script>hello</script>\r\n你\x00好 ')).toBe('<script>hello</script>\n你好');
         expect(cardGraphemes('a👨‍👩‍👧‍👦🇨🇳e\u0301')).toEqual(['a', '👨‍👩‍👧‍👦', '🇨🇳', 'e\u0301']);
     });
+    it('缺少 Intl.Segmenter 时保留完整 Unicode 码点', () => {
+        const descriptor = Object.getOwnPropertyDescriptor(Intl, 'Segmenter')!;
+        try {
+            Object.defineProperty(Intl, 'Segmenter', {value: undefined, configurable: true});
+            expect(cardGraphemes('a🙂𠮷')).toEqual(['a', '🙂', '𠮷']);
+            expect(wrapCardText('🙂🙂', 1, value => Array.from(value).length)).toEqual(['🙂', '🙂']);
+        } finally { Object.defineProperty(Intl, 'Segmenter', descriptor); }
+    });
     it('英文尽量整词换行，长 URL 和 CJK 无空格文本仍可完整换行', () => {
         expect(wrapCardText('Hello world', 6, s => s.length)).toEqual(['Hello', 'world']);
+        expect(wrapCardText('word next', 4, s => s.length)).toEqual(['word', 'next']);
         const text = '中文测试🙂'.repeat(5);
         const lines = wrapCardText(text, 4, s => cardGraphemes(s).length);
         expect(lines.join('')).toBe(text);

@@ -90,3 +90,13 @@ The compact X menu puts display modes first. **Subtitle options** contains timin
 
 - [All guides](/en/docs/)
 - [Troubleshooting](/en/guide/faq)
+
+## YouTube local GPU subtitles
+
+Existing YouTube captions remain the default. Explicitly choosing **AI subtitles** in the player menu uses the shared Qwen3-ASR 0.6B GPU model on audio the browser permits capturing from the current video. Builds without that model keep this action unavailable. A missing GPU or inference failure never falls back to CPU, Whisper, or cloud audio transcription.
+
+This is live capture of what you play, not a background download of the entire video. Paused videos wait for playback. Stopping AI subtitles restores native captions; navigation, disabling the feature, and page teardown cancel recognition. Seeking resets the old audio window. Model timestamps describe audio windows, not aligned word timings. YouTube live transcripts stay in the current page session and are not written to the cross-video transcript cache.
+
+Audio stays in the browser. Recognized text can still go to your configured cloud translation provider. DRM, cross-origin rules, and browser restrictions can prevent capture; FluentRead does not bypass them. Model download size, GPU memory, capture compatibility, and latency require validation on the actual device.
+
+YouTube local live captions take over only after an explicit request. Each new recognition result is shown for at most 1.8 seconds from actual completion; newer text replaces it, and duplicate replies do not renew it. Pause, seek/navigation, a source-language change, or cancellation immediately invalidates the old presentation. Historical captions and downloads retain the original spoken timestamps rather than shifting them by inference latency.

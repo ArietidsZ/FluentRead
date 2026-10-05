@@ -102,11 +102,15 @@ describe('划词翻译挂载生命周期', () => {
         expect(mountedUi.remove).toHaveBeenCalledOnce();
     });
 
-    it('Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI', async () => {
+    it('学习功能不能绕过划词总开关，异步挂载期间关闭后丢弃待挂载 UI', async () => {
         mocks.config.harness = {enabled: true};
         mocks.config.disableSelectionTranslator = true;
         mocks.config.selectionTranslatorMode = 'disabled';
         const runtime = await import('@/src/features/selection-translation/content/runtime');
+        expect(runtime.mountSelectionTranslator({} as never)).toBeNull();
+        expect(mocks.createVueShadowUi).not.toHaveBeenCalled();
+        mocks.config.disableSelectionTranslator = false;
+        mocks.config.selectionTranslatorMode = 'bilingual';
         const mounted = ui();
         mocks.createVueShadowUi.mockResolvedValueOnce(mounted);
         await expect(runtime.mountSelectionTranslator({} as never)).resolves.toEqual({feature: 'mounted'});
@@ -115,16 +119,14 @@ describe('划词翻译挂载生命周期', () => {
         const late = ui();
         mocks.createVueShadowUi.mockReturnValueOnce(pending.promise);
         const request = runtime.mountSelectionTranslator({} as never);
-        mocks.config.harness.enabled = false;
+        mocks.config.disableSelectionTranslator = true;
         pending.resolve(late);
         await expect(request).resolves.toBeNull();
         expect(late.remove).toHaveBeenCalledOnce();
     });
 
-    it('Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host', async () => {
+    it('共享实例重挂载后，旧组件 Range 回调不得移动新 modal host', async () => {
         mocks.config.harness = {enabled: true};
-        mocks.config.disableSelectionTranslator = true;
-        mocks.config.selectionTranslatorMode = 'disabled';
         const firstHost = {style: {setProperty: vi.fn()}};
         const secondHost = {style: {setProperty: vi.fn()}};
         const firstController = {placeForRange: vi.fn(), dispose: vi.fn()};

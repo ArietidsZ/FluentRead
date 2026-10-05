@@ -1,12 +1,12 @@
 /**
  * @file src/features/video-subtitle/transcriptionCache.ts
  * 文件职责：定义视频 AI 字幕缓存的纯协议、稳定身份和完整 cue 规范化规则。
- * 主要内容：生成 status/media、poster 或稳定 direct source key，隔离模型/视频源语言/schema，并拒绝临时地址与 partial cue。
+ * 主要内容：生成 status/media、poster 或稳定 direct source key，隔离模型/视频源语言/schema，Qwen 另固定导出版本与窗口时间语义，并拒绝临时地址与 partial cue。
  * 模块边界：只依赖纯视频字幕数据和模型归一化，不导入 Dexie、浏览器 API、后台 runtime 或音频数据。
  */
 import type {VideoSubtitleCue} from '@/src/features/video-subtitle/content/youtubeSubtitleData';
 import {normalizeVideoAiSubtitleTimeline} from '@/src/features/video-subtitle/content/video-ai/cueTimeline';
-import {normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_LOCAL_TRANSCRIPTION_MODELS, normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 
 export const VIDEO_AI_SUBTITLE_CACHE_GET_MESSAGE = 'fluentReadGetVideoAiSubtitleCache' as const;
 export const VIDEO_AI_SUBTITLE_CACHE_SET_MESSAGE = 'fluentReadSetVideoAiSubtitleCache' as const;
@@ -92,7 +92,9 @@ export function buildVideoAiSubtitleCacheIdentity(request: VideoAiSubtitleCacheR
 }
 
 export function buildVideoAiSubtitleCacheKey(identity: VideoAiSubtitleCacheIdentity): string {
-  return [identity.schemaFingerprint, identity.videoKey, identity.model, identity.sourceLanguage].join('|');
+  const model = VIDEO_LOCAL_TRANSCRIPTION_MODELS.find(item => item.value === identity.model);
+  const modelKey = model && 'cacheRevision' in model ? `${identity.model}:${model.cacheRevision}` : identity.model;
+  return [identity.schemaFingerprint, identity.videoKey, modelKey, identity.sourceLanguage].join('|');
 }
 
 export function normalizeCompletedVideoAiSubtitleCues(value: unknown): VideoSubtitleCue[] {

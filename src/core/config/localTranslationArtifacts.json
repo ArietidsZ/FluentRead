@@ -36,6 +36,16 @@
         "path": "tokenizer_config.json",
         "size": 282,
         "sha256": "a914596e6bff113a8428d4793b586da87cd0b95697a0e72aba90cc1d95858481"
+      },
+      {
+        "path": "onnx/encoder_model_fp16.onnx",
+        "size": 105062004,
+        "sha256": "3848296c1980f6ae3ccea955a33da9646c538b45dd47bef001c56252667a4376"
+      },
+      {
+        "path": "onnx/decoder_model_merged_fp16.onnx",
+        "size": 118354621,
+        "sha256": "181e3c09302fcb57d5afcdf9cba96058a2584959e55c0811e9f09088a207ad09"
       }
     ]
   },
@@ -76,6 +86,16 @@
         "path": "tokenizer_config.json",
         "size": 282,
         "sha256": "08849acc0a539c4749d8665e9d6217735503a97871ccebeea8a762d5fba1acf7"
+      },
+      {
+        "path": "onnx/encoder_model_fp16.onnx",
+        "size": 105062004,
+        "sha256": "82feb1ecc135aad5b07e1aa4fae41479c28e7336af4c8972e015cfe79285e279"
+      },
+      {
+        "path": "onnx/decoder_model_merged_fp16.onnx",
+        "size": 118354621,
+        "sha256": "2d0bb108662cbc80d0e34b485045d19e52017a5dfddc190dc7dc752ca6df4a24"
       }
     ]
   },
@@ -116,6 +136,16 @@
         "path": "tokenizer_config.json",
         "size": 280,
         "sha256": "414e9e7e2492b95fa80f24ccb295645d35c4dd0a74d7ef8b89820c0c7e8ec356"
+      },
+      {
+        "path": "onnx/encoder_model.onnx",
+        "size": 201162540,
+        "sha256": "3aa28e0b0be8af4ea7d32af72ee8d54ba2cb8ac3ac46ab665e46c8d997d9f980"
+      },
+      {
+        "path": "onnx/decoder_model_merged.onnx",
+        "size": 227046416,
+        "sha256": "546cd2909c9b4e9b58ca0d5fdab653043f511ed9bd3cb0d50328ea5f682902df"
       }
     ]
   },
@@ -166,6 +196,31 @@
         "path": "Hy-MT2-1.8B-Q4_K_M.gguf",
         "size": 1133080448,
         "sha256": "dc5f44fcf1fa496ee7ad725982c0c8c553a4de00259b53af84c4b89fb0c06699"
+      }
+    ]
+  },
+  "IndexTeam/Index-Translate-2B-GGUF": {
+    "revision": "449c9e6457b3632d328c6cbb78ae8e8e0c8059a5",
+    "files": [
+      {
+        "path": "Index-Translate-2B.Q6_K.gguf",
+        "size": 1606323712,
+        "sha256": "3ec6fa4e5a5efa25620f17ecfce8daec1ec8fb35a53c82b419a6707581a505b9"
+      }
+    ]
+  },
+  "IndexTeam/Index-Translate-2B": {
+    "revision": "a516854233b170140b57d36b48d7148c0edebabb",
+    "files": [
+      {
+        "path": "tokenizer.json",
+        "size": 12807196,
+        "sha256": "fe000e3ed39ed12b8d2481d527d44f93c65d37e87645d2dcc80d1bf9d50d2927"
+      },
+      {
+        "path": "tokenizer_config.json",
+        "size": 16712,
+        "sha256": "e611fbccc7c29ef3b1cafb1cb7ea548d189968632901d678fd62be68c47885de"
       }
     ]
   }

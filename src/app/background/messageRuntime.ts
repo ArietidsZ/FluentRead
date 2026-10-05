@@ -4,6 +4,7 @@
  * 主要内容：向图片处理注入已保存的单图识别方式；创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，注册类型化 router 并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
+import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 import {getFreeTranslationWeightSnapshot, createProviderTestRuntimeHandlers} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
 import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
@@ -48,8 +49,7 @@ import {createSelectionTtsSynthesizer} from '@/src/features/selection-translatio
 import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
 import {createImageGlossaryContext} from './imageGlossaryContext';
-import {createEmbeddedFrameBackgroundHandlers, type EmbeddedFrameBackgroundContext} from
-    '@/src/features/full-page-translation/background/embeddedFrameHandlers';
+import {createEmbeddedFrameBackgroundHandlers, type EmbeddedFrameBackgroundContext} from '@/src/features/full-page-translation/background/embeddedFrameHandlers';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 type BackgroundRuntimeContext = QQMailFrameBackgroundContext & NeteaseMailFrameBackgroundContext
     & EmbeddedFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
@@ -72,10 +72,12 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         getLocalVoice: () => config.selectionTtsLocalVoice,
         getOnlineVoices: () => config.selectionTtsVoices,
         synthesizeOnline: synthesizeEdgeTts,
-        synthesizeLocal: (text, language, voice, signal) => localTtsOffscreenAdapter.synthesize(text, language, voice, signal),
+        synthesizeLocal: (text, language, voice, signal) => localTtsOffscreenAdapter.synthesize(text, language, voice, signal, config.selectionTtsExecution),
     });
     const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
         ready: configReady,
+        privateContext: () => Boolean(browser.extension.inIncognitoContext),
+        getProviderConfig: () => createTranslationProviderConfigSnapshot(config),
         offscreenUrl: browser.runtime.getURL('/offscreen.html'),
         getSourceLanguage: () => config.from,
         getGlossaryRevision: () => buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
@@ -100,6 +102,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         ...createProviderTestRuntimeHandlers(),
         createInputBoxTranslationHandler({
+            privateContext: () => Boolean(browser.extension.inIncognitoContext),
             ready: configReady,
             getConfig: () => config,
             translate: translateWithCache,
@@ -116,6 +119,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             onStateChanged: options.onFullPageStateChanged,
         }),
         createSelectionWordLookupHandler({
+            privateContext: () => Boolean(browser.extension.inIncognitoContext),
             lookupWord,
             getDefaultTargetLanguage: () => config.to,
             translate: (request) => translateWithCache({...request, serviceOverride: config.selectionTranslationService || config.service}),
@@ -160,15 +164,15 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         ...createLocalTranslationBackgroundRuntime(),
         ...createLocalTtsBackgroundRuntime(),
     ];
-    const router = createBackgroundMessageRouter(
+    browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(createBackgroundMessageRouter(
         handlers,
         createTranslationRequestFallback({
             translate: translateWithCache,
             serializeError: serializeTranslationError,
+            privateContext: () => Boolean(browser.extension.inIncognitoContext),
             requestRegistry: translationRequestRegistry,
         }),
-    );
-    browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
+    ), (sender) => ({sender}) as BackgroundRuntimeContext));
     selectionPageZoom.installZoomChangeListener();
     browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
     installBrowserConfigStorageBroadcast();

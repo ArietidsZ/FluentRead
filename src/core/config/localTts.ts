@@ -17,6 +17,12 @@ export const LOCAL_TTS_MODEL_CACHE_NAME = 'transformers-cache' as const;
 export const LOCAL_TTS_VOICE_CACHE_NAME = 'kokoro-voices' as const;
 export const LOCAL_TTS_VOICE_PATH = `https://huggingface.co/${LOCAL_TTS_MODEL_REPOSITORY}/resolve/${LOCAL_TTS_MODEL_REVISION}/voices` as const;
 
+export type LocalTtsExecution = 'gpu' | 'compatible';
+export const DEFAULT_LOCAL_TTS_EXECUTION: LocalTtsExecution = 'gpu';
+export function normalizeLocalTtsExecution(value: unknown): LocalTtsExecution {
+    return value === 'compatible' ? 'compatible' : DEFAULT_LOCAL_TTS_EXECUTION;
+}
+
 export type LocalTtsMode = 'online-first' | 'local-first' | 'online-only' | 'local-only';
 
 export const LOCAL_TTS_MODE_OPTIONS: readonly {value: LocalTtsMode; label: string; description: string}[] = [

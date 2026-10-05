@@ -118,6 +118,15 @@ describe('image translation Offscreen adapter', () => {
         expect(send).toHaveBeenLastCalledWith(expect.objectContaining({manga:true,type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN'}),expect.any(Object));
     });
 
+    it('保留漫画下载来源与中断状态以便显示实际恢复信息', async () => {
+        const download = {phase: 'paused', file: 'model.onnx', loaded: 64, total: 128, source: 'models.example'};
+        send.mockResolvedValueOnce({success: true, ready: false, bytes: 64, inpaintingReady: false,
+            source: 'mirror', download});
+        await expect(adapter.getMangaModelStatus()).resolves.toEqual({ready: false, bytes: 64,
+            inpaintingReady: false, source: 'mirror', download});
+        expect(send).toHaveBeenCalledWith({type: 'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'});
+    });
+
     it('translates images and validates success, image and line fields independently', async () => {
         send.mockResolvedValueOnce({success: true, image: 'translated', lines: []});
         await expect(adapter.translateImage('data:image/png,image', 'en', 'Page')).resolves.toEqual({

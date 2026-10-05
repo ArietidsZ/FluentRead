@@ -5,6 +5,11 @@
  * 模块边界：只提供纯数据，不读取配置、不访问浏览器；非中文资源随语言资源包按需加载，中文资源进入内置默认目录。
  */
 export const localTtsEnglishMessages = {
+    "settings.localTts.execution": "Local execution",
+    "settings.localTts.executionGpu": "GPU required",
+    "settings.localTts.executionCompatible": "Compatibility (may use CPU)",
+    "settings.localTts.executionDescription": "GPU mode requires hardware acceleration and stops on failure; some model operators still use CPU. Compatibility allows the whole model to run on CPU. The online/local speech strategy is unchanged.",
+    "configDiff.selectionTtsExecution": "Local speech execution",
     "settings.localTts.title": "Local speech",
     "settings.localTts.description": "Choose online or local speech synthesis. Online speech is tried first by default; download the model before using local speech.",
     "settings.localTts.onlineFirst": "Online first",
@@ -37,6 +42,11 @@ export const localTtsEnglishMessages = {
 } as const;
 
 export const localTtsChineseMessages = {
+    "settings.localTts.execution": "本地执行方式",
+    "settings.localTts.executionGpu": "必须使用 GPU",
+    "settings.localTts.executionCompatible": "兼容模式（可用 CPU）",
+    "settings.localTts.executionDescription": "GPU 模式要求硬件加速，失败时停止；部分模型算子仍使用 CPU。兼容模式允许整个模型改用 CPU。在线与本地朗读策略保持不变。",
+    "configDiff.selectionTtsExecution": "本地朗读执行方式",
     "settings.localTts.title": "本地朗读",
     "settings.localTts.description": "选择在线或本地合成朗读语音，默认优先使用在线语音；本地朗读需先下载模型",
     "settings.localTts.onlineFirst": "在线优先",
@@ -69,6 +79,11 @@ export const localTtsChineseMessages = {
 } as const;
 
 export const localTtsJapaneseMessages = {
+    "settings.localTts.execution": "ローカル実行方式",
+    "settings.localTts.executionGpu": "GPU 必須",
+    "settings.localTts.executionCompatible": "互換モード（CPU 可）",
+    "settings.localTts.executionDescription": "GPU モードはハードウェアアクセラレーションを必要とし、失敗時に停止します。一部の演算は CPU を使います。互換モードではモデル全体を CPU で実行できます。音声のオンライン・ローカル方針は変わりません。",
+    "configDiff.selectionTtsExecution": "ローカル音声の実行方式",
     "settings.localTts.title": "ローカル音声",
     "settings.localTts.description": "読み上げ音声をオンラインかローカルで合成するか選びます。既定はオンライン優先で、ローカル音声にはモデルのダウンロードが必要です。",
     "settings.localTts.onlineFirst": "オンライン優先",
@@ -101,6 +116,11 @@ export const localTtsJapaneseMessages = {
 } as const;
 
 export const localTtsKoreanMessages = {
+    "settings.localTts.execution": "로컬 실행 방식",
+    "settings.localTts.executionGpu": "GPU 필수",
+    "settings.localTts.executionCompatible": "호환 모드(CPU 허용)",
+    "settings.localTts.executionDescription": "GPU 모드는 하드웨어 가속이 필요하며 실패하면 중지합니다. 일부 모델 연산은 CPU를 사용합니다. 호환 모드에서는 모델 전체를 CPU로 실행할 수 있습니다. 온라인/로컬 음성 정책은 바뀌지 않습니다.",
+    "configDiff.selectionTtsExecution": "로컬 음성 실행 방식",
     "settings.localTts.title": "로컬 음성",
     "settings.localTts.description": "온라인 또는 로컬에서 읽기 음성을 합성할지 선택합니다. 기본값은 온라인 우선이며 로컬 음성을 사용하려면 모델을 다운로드해야 합니다.",
     "settings.localTts.onlineFirst": "온라인 우선",
@@ -133,6 +153,11 @@ export const localTtsKoreanMessages = {
 } as const;
 
 export const localTtsFrenchMessages = {
+    "settings.localTts.execution": "Exécution locale",
+    "settings.localTts.executionGpu": "GPU requis",
+    "settings.localTts.executionCompatible": "Compatibilité (CPU possible)",
+    "settings.localTts.executionDescription": "Le mode GPU exige l’accélération matérielle et s’arrête en cas d’échec ; certains opérateurs utilisent encore le CPU. Le mode compatibilité permet d’exécuter tout le modèle sur CPU. La stratégie locale/en ligne reste inchangée.",
+    "configDiff.selectionTtsExecution": "Exécution de la voix locale",
     "settings.localTts.title": "Voix locale",
     "settings.localTts.description": "Choisissez une synthèse vocale en ligne ou locale. La voix en ligne est prioritaire par défaut ; téléchargez le modèle pour la voix locale.",
     "settings.localTts.onlineFirst": "En ligne d’abord",
@@ -165,6 +190,11 @@ export const localTtsFrenchMessages = {
 } as const;
 
 export const localTtsRussianMessages = {
+    "settings.localTts.execution": "Локальное выполнение",
+    "settings.localTts.executionGpu": "Требуется GPU",
+    "settings.localTts.executionCompatible": "Совместимость (возможен CPU)",
+    "settings.localTts.executionDescription": "Режим GPU требует аппаратного ускорения и останавливается при сбое; часть операций использует CPU. Режим совместимости допускает выполнение всей модели на CPU. Стратегия локальной и онлайн-речи не меняется.",
+    "configDiff.selectionTtsExecution": "Выполнение локальной речи",
     "settings.localTts.title": "Локальная речь",
     "settings.localTts.description": "Выберите синтез речи онлайн или на устройстве. По умолчанию сначала используется онлайн-синтез; для локального скачайте модель.",
     "settings.localTts.onlineFirst": "Сначала онлайн",
@@ -197,6 +227,11 @@ export const localTtsRussianMessages = {
 } as const;
 
 export const localTtsSpanishMessages = {
+    "settings.localTts.execution": "Ejecución local",
+    "settings.localTts.executionGpu": "GPU obligatoria",
+    "settings.localTts.executionCompatible": "Compatibilidad (puede usar CPU)",
+    "settings.localTts.executionDescription": "El modo GPU requiere aceleración por hardware y se detiene si falla; algunos operadores aún usan CPU. Compatibilidad permite ejecutar todo el modelo en CPU. La estrategia de voz local o en línea no cambia.",
+    "configDiff.selectionTtsExecution": "Ejecución de voz local",
     "settings.localTts.title": "Voz local",
     "settings.localTts.description": "Elige síntesis de voz en línea o local. Por defecto se intenta primero en línea; descarga el modelo para usar la voz local.",
     "settings.localTts.onlineFirst": "En línea primero",

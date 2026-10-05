@@ -5,6 +5,7 @@ import {
     localTtsLanguageFamily,
     localTtsVoiceForLanguage,
     normalizeLocalTtsMode,
+    normalizeLocalTtsExecution,
     normalizeLocalTtsVoice,
     supportsLocalTtsLanguage,
 } from '@/src/core/config/localTts';
@@ -66,6 +67,10 @@ describe('local TTS configuration', () => {
             expect(localTtsLanguageFamily(language), String(language)).toBe(family);
             expect(supportsLocalTtsLanguage(language)).toBe(family !== null);
         }
+        expect(new Config().selectionTtsExecution).toBe('gpu');
+        expect(normalizeLocalTtsExecution('compatible')).toBe('compatible');
+        expect(normalizeLocalTtsExecution('wasm')).toBe('gpu');
+        expect(normalizeConfig({selectionTtsExecution:'compatible'}).selectionTtsExecution).toBe('compatible');
         expect(new Config().selectionTtsMode).toBe('online-first');
         expect(new Config().selectionTtsLocalVoice).toBe('auto');
         expect(normalizeConfig({selectionTtsMode: 'local-only', selectionTtsLocalVoice: 'zf_001'})).toMatchObject({
@@ -85,17 +90,21 @@ describe('local TTS configuration', () => {
     it('round-trips the user TTS choice while legacy backups keep the online-first default', () => {
         const source = normalizeConfig({
             ...new Config(),
+            selectionTtsExecution:'compatible',
             selectionTtsMode: 'local-only',
             selectionTtsLocalVoice: 'zf_001',
         });
         const exported = prepareConfigForExport(source);
+        expect(exported.selectionTtsExecution).toBe('compatible');
+        expect(prepareConfigForImport(exported,new Config()).selectionTtsExecution).toBe('compatible');
         expect(exported).toMatchObject({selectionTtsMode: 'local-only', selectionTtsLocalVoice: 'zf_001'});
         expect(prepareConfigForImport(exported, new Config())).toMatchObject({
             selectionTtsMode: 'local-only',
             selectionTtsLocalVoice: 'zf_001',
         });
 
-        const {selectionTtsMode: _mode, selectionTtsLocalVoice: _voice, ...legacyBackup} = exported;
+        const {selectionTtsMode: _mode, selectionTtsLocalVoice: _voice, selectionTtsExecution: _execution, ...legacyBackup} = exported;
+        expect(prepareConfigForImport(legacyBackup,new Config()).selectionTtsExecution).toBe('gpu');
         expect(prepareConfigForImport(legacyBackup, new Config())).toMatchObject({
             selectionTtsMode: 'online-first',
             selectionTtsLocalVoice: 'auto',
@@ -257,7 +266,7 @@ describe('local TTS offscreen worker owner', () => {
 
     it('rebuilds one fresh WASM worker after GPU failure and ignores an old worker error', async () => {
         const owner = await loadLocalTtsOwner();
-        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', undefined, 'compatible');
         await Promise.resolve();
         await Promise.resolve();
         const first = LocalTtsOwnerFakeWorker.instances[0];
@@ -278,7 +287,7 @@ describe('local TTS offscreen worker owner', () => {
     it('does not retry after AbortSignal cancellation', async () => {
         const owner = await loadLocalTtsOwner();
         const controller = new AbortController();
-        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', controller.signal);
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', controller.signal, 'compatible');
         await Promise.resolve();
         await Promise.resolve();
         controller.abort();
@@ -289,7 +298,7 @@ describe('local TTS offscreen worker owner', () => {
 
     it('retries once on a structured GPU failure hint and sends the retry to a fresh CPU worker', async () => {
         const owner = await loadLocalTtsOwner();
-        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', undefined, 'compatible');
         await Promise.resolve();
         await Promise.resolve();
         const first = LocalTtsOwnerFakeWorker.instances[0];
@@ -307,7 +316,7 @@ describe('local TTS offscreen worker owner', () => {
 
     it('does not rebuild a worker for an unhinted business failure', async () => {
         const owner = await loadLocalTtsOwner();
-        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', undefined, 'compatible');
         await Promise.resolve();
         await Promise.resolve();
         const worker = LocalTtsOwnerFakeWorker.instances[0];
@@ -320,7 +329,7 @@ describe('local TTS offscreen worker owner', () => {
     it('uses separate 60 second phases for the first attempt and the single CPU retry', async () => {
         vi.useFakeTimers();
         const owner = await loadLocalTtsOwner();
-        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto');
+        const pending = owner.synthesizeLocalTts('hello', 'en-US', 'auto', undefined, 'compatible');
         await Promise.resolve();
         await Promise.resolve();
         vi.advanceTimersByTime(60_001);

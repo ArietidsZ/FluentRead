@@ -2,10 +2,11 @@
  * @file src/core/config/model.ts
  *
  * 文件职责：定义 FluentRead 完整配置模型、默认值及各项设置的合法范围，是配置读取、保存、迁移和 UI 绑定共同依赖的领域契约。
- * 主要内容：支持单图选择本地识别引擎，包含正文/全部节点识别范围，保留各功能独立服务，并将所有功能服务的空值解释为继承网页默认；统一中文简繁标识及历史配置别名，并保存常用服务顺序，保存默认空的 Origin/Referer 域名移除名单，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
+ * 主要内容：支持单图选择本地识别引擎，保存无痕窗口专用翻译开关、服务与模型，包含正文/全部节点识别范围，保留各功能独立服务，并将所有功能服务的空值解释为继承网页默认；统一中文简繁标识及历史配置别名，并保存常用服务顺序，保存默认空的 Origin/Referer 域名移除名单，包含 Config 接口、defaultConfig、字幕和翻译模式类型、延迟与字号范围、默认 API 地址及多项功能开关，使新增配置项在一个位置获得类型和初始语义；归一化时把仍停留在历史默认值的翻译提示词升级为当前默认提示词。 可核对的公开符号包括 DeepSeekApiType、DeepSeekThinkingMode、VideoSubtitleDisplayMode、FullPageTranslationMode、DEFAULT_VIDEO_SUBTITLE_FONT_SIZE、DEFAULT_NEW_API_URL、DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY。
  * 模块边界：本文件属于 core 领域层，只定义规则、类型与纯转换；不直接读写浏览器存储、不发起网络请求、不挂载 Vue/WXT 入口，持久化、协议调用和界面编排分别由 services、providers 与 features 承担。
  */
 
+import {normalizePrivateTranslationProfile, type PrivateTranslationProfile} from './privateTranslation';
 import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, normalizeSentenceHighlightStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, type SentenceHighlightStyle, type SentenceHighlightAppearance, type SentenceHighlightProfile} from './sentenceHighlight';
 import {normalizeMangaSiteRules, normalizeMangaPrefetchPages, normalizeMangaCachePages, type MangaSiteRule} from './manga';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
@@ -87,6 +88,9 @@ import {
 import { normalizeSelectionTtsVoiceOrder } from "./selectionTts";
 import {
     DEFAULT_LOCAL_TTS_MODE,
+    DEFAULT_LOCAL_TTS_EXECUTION,
+    normalizeLocalTtsExecution,
+    type LocalTtsExecution,
     DEFAULT_LOCAL_TTS_VOICE,
     normalizeLocalTtsMode,
     normalizeLocalTtsVoice,
@@ -198,7 +202,7 @@ export * from './pageTranslation';
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
-export type VideoLocalTranscriptionModel = 'tiny' | 'base';
+export type VideoLocalTranscriptionModel = 'tiny' | 'base' | 'qwen3-asr-0.6b';
 export type FullPageTranslationMode = 'viewport' | 'all';
 export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
@@ -352,6 +356,7 @@ export class Config {
     translationStyleProfiles: TranslationStyleProfile[]; // 用户保存的可命名译文样式快照
     activeTranslationStyleProfileId: string; // 当前选中的样式快照；外观可继续编辑，保存时再更新快照
     display: number = 1;
+    privateTranslation: PrivateTranslationProfile;
     service: string;
     hoverTranslationService: string; // 悬浮翻译服务，空值跟随默认网页服务
     selectionTranslationService: string; // 普通划词翻译服务，空值跟随默认网页服务
@@ -492,6 +497,7 @@ export class Config {
     selectionTranslatorAutoDismiss: boolean; // 继续阅读或复制原文时收起，避免浮层长时间遮挡页面
     selectionTranslatorBidirectional: boolean; // 中英目标下为同语言选区提供反向划词入口
     selectionTtsVoices: string[]; // 划词朗读的 Edge TTS 音色回退顺序
+    selectionTtsExecution: LocalTtsExecution; // 本地 GPU 严格执行或显式兼容模式
     selectionTtsMode: LocalTtsMode; // 朗读在线/本地合成策略
     selectionTtsLocalVoice: LocalTtsVoiceId; // 本地 Kokoro 音色，auto 表示按语言选择
     vocabularyBookEnabled: boolean; // 是否启用本地单词本 Beta
@@ -549,6 +555,7 @@ export class Config {
         this.display = defaultOption.display;
         this.hotkey = defaultOption.hotkey;
         this.hoverShortcutBeforeDisable = defaultOption.hotkey;
+        this.privateTranslation = normalizePrivateTranslationProfile(undefined);
         this.service = defaultOption.service;
         this.hoverTranslationService = '';
         this.selectionTranslationService = '';
@@ -693,6 +700,7 @@ export class Config {
         this.selectionTranslatorAutoDismiss = true;
         this.selectionTranslatorBidirectional = false; // 保留默认的同语言跳过，用户可按需开启双向入口
         this.selectionTtsVoices = []; // 默认按当前语言使用内置音色回退顺序
+        this.selectionTtsExecution = DEFAULT_LOCAL_TTS_EXECUTION;
         this.selectionTtsMode = DEFAULT_LOCAL_TTS_MODE;
         this.selectionTtsLocalVoice = DEFAULT_LOCAL_TTS_VOICE;
         this.vocabularyBookEnabled = false; // Beta 默认关闭，由用户在单词本页面主动开启
@@ -1041,6 +1049,7 @@ export function normalizeConfig(value: unknown): Config {
         ? cloneConfigValue(value) as Partial<Config>
         : {};
     Object.assign(normalized, source);
+    normalized.privateTranslation = normalizePrivateTranslationProfile(source.privateTranslation);
     // 短期版本曾暴露的策略开关在对应功能退役后必须主动丢弃，避免旧配置继续
     // 分叉存储语义，或让已经删除的 X 原生翻译设置进入历史和迁移导出。
     delete (normalized as unknown as Record<string, unknown>).persistCredentials;
@@ -1221,7 +1230,7 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
     normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
-    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base') {
+    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'qwen3-asr-0.6b') {
         normalized.videoLocalModel = 'tiny';
     }
     if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {
@@ -1386,6 +1395,7 @@ export function normalizeConfig(value: unknown): Config {
         normalized.selectionTranslatorHotkey = 'none';
     }
     normalized.selectionTtsVoices = normalizeSelectionTtsVoiceOrder(normalized.selectionTtsVoices);
+    normalized.selectionTtsExecution = normalizeLocalTtsExecution(source.selectionTtsExecution);
     normalized.selectionTtsMode = normalizeLocalTtsMode(source.selectionTtsMode);
     normalized.selectionTtsLocalVoice = normalizeLocalTtsVoice(source.selectionTtsLocalVoice);
     normalized.disableSelectionTranslator = normalized.selectionTranslatorMode === 'disabled';

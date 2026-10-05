@@ -97,6 +97,19 @@ describe('document translation edge contracts', () => {
         expect(renderDocument(markdown, ['译文'], 'bilingual')).toBe('Source\n> 译文');
     });
 
+    it('多行 Markdown 片段的译文较短时保留未配对原文行', () => {
+        const source = 'First line\nSecond line';
+        const document: ParsedDocument = {
+            fileName: 'merged.md', format: 'markdown', label: 'Markdown 文件',
+            segments: [{id: 0, source}],
+            parts: [{kind: 'segment', segmentIndex: 0, source, prefix: '', suffix: ''}],
+        };
+        const preview = createDocumentPreviewHtml(document, ['第一行'], 'translated');
+        expect(preview).toContain('<p class="reader-translation fluentread-translation">第一行</p>');
+        expect(preview).toContain('<p class="reader-translation fluentread-translation">Second line</p>');
+        expect(preview).not.toContain('>First line<');
+    });
+
     it('JSON 渲染跳过失效路径并支持根路径替换', () => {
         const invalidPath: ParsedDocument = {
             fileName: 'data.json',

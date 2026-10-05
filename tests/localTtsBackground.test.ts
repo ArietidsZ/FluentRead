@@ -109,12 +109,15 @@ describe('本地 TTS Offscreen 适配器', () => {
         expect(new TextDecoder().decode(audio.audio)).toBe('RIFF');
         expect(audio).toMatchObject({contentType: 'audio/wav', voice: 'zm_009', backend: 'wasm'});
         const [message, options] = client.send.mock.calls[0]!;
-        expect(message).toMatchObject({type: 'LOCAL_TTS_SYNTHESIZE', text: '你好', language: 'zh-CN', voice: 'auto'});
+        expect(message).toMatchObject({type: 'LOCAL_TTS_SYNTHESIZE', text: '你好', language: 'zh-CN', voice: 'auto', execution: 'gpu'});
         expect(options).toEqual({
             signal: controller.signal,
             timeoutMs: 120_000,
             cancelMessage: {type: expect.any(String), requestId: (message as {requestId: string}).requestId},
         });
+
+        await adapter.synthesize('compatible', 'en-US', 'auto', undefined, 'compatible');
+        expect(client.send.mock.calls.at(-1)?.[0]).toMatchObject({execution: 'compatible'});
 
         const fallbackVoice = createLocalTtsOffscreenAdapter(clientWith(async () => ({success: true, audioBase64: btoa('x'), voice: ''})));
         await expect(fallbackVoice.synthesize('hi', 'en-US', 'af_sol')).resolves.toMatchObject({voice: 'af_sol'});

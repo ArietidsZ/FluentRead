@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.ts
- * 文件职责：在 Offscreen Document 中串行调度视频 Whisper Worker、PCM 解码和模型预热。
- * 主要内容：管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放。
+ * 文件职责：在 Offscreen Document 中串行调度视频 Whisper 与 Qwen Worker、PCM 解码和模型预热。
+ * 主要内容：管理单待处理转写、prepare 去重、模型切换、Whisper 的单次 CPU 重建、Qwen 的失败即终止、超时终止、取消清理与空闲释放。
  * 模块边界：只编排 Offscreen/Worker 资源，不解析字幕时间轴，也不管理后台 tab owner。
  */
 import {
@@ -29,7 +29,8 @@ export interface LocalVideoTranscriptionResult {
   inferenceMs?: number;
   audioDurationMs?: number;
   threads?: number;
-  dtype?: 'q4' | 'q8';
+  dtype?: 'q4' | 'q8' | 'q4f16';
+  timestampSource?: 'window';
 }
 
 export type LocalVideoTranscriptionCancelReason = 'cancel' | 'complete';
@@ -80,7 +81,7 @@ interface PendingPrepareJob {
     backend?: LocalTranscriptionBackend;
     gpuInfo?: string;
     threads?: number;
-    dtype?: 'q4' | 'q8';
+    dtype?: 'q4' | 'q8' | 'q4f16';
   }) => void;
   reject: (error: unknown) => void;
 }
@@ -110,7 +111,7 @@ const pendingPreparePromises = new Map<string, Promise<{
   backend?: LocalTranscriptionBackend;
   gpuInfo?: string;
   threads?: number;
-  dtype?: 'q4' | 'q8';
+  dtype?: 'q4' | 'q8' | 'q4f16';
 }>>();
 let idleDisposeTimer: number | undefined;
 let activeStreamId = '';
@@ -144,13 +145,13 @@ function terminateWorker(error?: Error, releaseStream = false): void {
   });
 }
 
-function getWorker(): Worker {
+function getWorker(model?:unknown): Worker {
   if (transcriptionWorker) return transcriptionWorker;
   const runtimeGetUrl = (globalThis as typeof globalThis & {
     chrome?: { runtime?: { getURL?: (path: string) => string } };
   }).chrome?.runtime?.getURL;
-  const workerUrl = runtimeGetUrl?.('videoTranscriptionWorker.js')
-    || new URL('videoTranscriptionWorker.js', window.location.href).toString();
+  const file = model === 'qwen3-asr-0.6b' ? 'qwenAsrWorker.js' : 'videoTranscriptionWorker.js';
+  const workerUrl = runtimeGetUrl?.(file) || new URL(file, window.location.href).toString();
   const worker = new Worker(workerUrl, { type: 'module' });
   worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
     const response = event.data;
@@ -159,6 +160,10 @@ function getWorker(): Worker {
     pendingWorkerRequests.delete(response.requestId);
     window.clearTimeout(pending.timeout);
     if (response.success) pending.resolve(response);
+    else if (model === 'qwen3-asr-0.6b') {
+      const error = new Error(response.error || 'Qwen ASR GPU 会话已失效，请重试');
+      terminateWorker(error);pending.reject(error);
+    }
     else if (response.retryWithCpu === true) {
       const error = createWorkerLifecycleError(response.error || '本地视频 AI GPU Worker 失败，准备使用 CPU 重试');
       // The current request was removed above; explicitly reject it after the
@@ -189,7 +194,7 @@ function requestWorker(
   if (transcriptionWorker && transcriptionWorkerModel && transcriptionWorkerModel !== requestedModel) {
     terminateWorker(new Error('本地视频 AI 模型已切换'));
   }
-  const worker = getWorker();
+  const worker = getWorker(requestedModel);
   transcriptionWorkerModel = requestedModel;
   return new Promise((resolve, reject) => {
     const timeout = window.setTimeout(() => {
@@ -216,6 +221,14 @@ async function requestWorkerWithCpuFallback(
   timeoutMs: number,
   streamId = '',
 ): Promise<WorkerResponse> {
+  if (message.model === 'qwen3-asr-0.6b') {
+    try { return await requestWorker(message, transfer, timeoutMs); }
+    catch (error) {
+      // 当前请求结束后释放对应流；旧请求不得清除后来已接管的流。
+      if (activeStreamId === streamId) activeStreamId = '';
+      throw error;
+    }
+  }
   const deadlineAt = Date.now() + timeoutMs;
   const firstAttemptTimeout = Math.max(1, Math.floor(timeoutMs / 2));
   try {
@@ -347,9 +360,9 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
   const workerAudio = boundedAudio.byteOffset === 0 && boundedAudio.byteLength === boundedAudio.buffer.byteLength
     ? boundedAudio
     : boundedAudio.slice();
-  // The first request transfers its buffer. Keep an independent copy for the
-  // one allowed retry on a fresh WASM worker.
-  const retryAudio = boundedAudio.slice();
+  // Whisper 的一次重试需要独立副本；Qwen 不重试 CPU，避免额外复制整段 PCM。
+  const retryAudio = normalizeVideoLocalTranscriptionModel(request.model) === 'qwen3-asr-0.6b'
+    ? workerAudio : boundedAudio.slice();
   const response = await requestWorkerWithCpuFallback({
     type: 'transcribe',
     model: normalizeVideoLocalTranscriptionModel(request.model),
@@ -371,11 +384,12 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
       : normalizeVideoLocalTranscriptionModel(request.model),
     backend: response.backend === 'webgpu' || response.backend === 'wasm' ? response.backend : undefined,
     gpuInfo: typeof response.gpuInfo === 'string' ? response.gpuInfo : undefined,
+    timestampSource: response.timestampSource === 'window' ? 'window' : undefined,
     decodeMs,
     inferenceMs: typeof response.inferenceMs === 'number' ? response.inferenceMs : undefined,
     audioDurationMs: typeof response.audioDurationMs === 'number' ? response.audioDurationMs : undefined,
     threads: typeof response.threads === 'number' ? response.threads : undefined,
-    dtype: response.dtype === 'q4' || response.dtype === 'q8' ? response.dtype : undefined,
+    dtype: response.dtype === 'q4' || response.dtype === 'q8' || response.dtype === 'q4f16' ? response.dtype : undefined,
   };
 }
 
@@ -388,11 +402,11 @@ async function prepareLocalVideoTranscriptionModelNow(
   backend?: LocalTranscriptionBackend;
   gpuInfo?: string;
   threads?: number;
-  dtype?: 'q4' | 'q8';
+  dtype?: 'q4' | 'q8' | 'q4f16';
 }> {
   if (!keepWarm) {
     await cacheVideoAiQ4ModelFiles(model);
-    return { model, dtype: 'q4' };
+    return model === 'qwen3-asr-0.6b' ? {model} : {model, dtype:'q4'};
   }
   const response = await requestWorkerWithCpuFallback({ type: 'prepare', model }, { type: 'prepare', model }, [], [], MODEL_PREPARE_TIMEOUT_MS, streamId);
   const result = {
@@ -400,7 +414,7 @@ async function prepareLocalVideoTranscriptionModelNow(
     backend: response.backend === 'webgpu' || response.backend === 'wasm' ? response.backend : undefined,
     gpuInfo: typeof response.gpuInfo === 'string' ? response.gpuInfo : undefined,
     threads: typeof response.threads === 'number' ? response.threads : undefined,
-    dtype: response.dtype === 'q4' || response.dtype === 'q8' ? response.dtype : undefined,
+    dtype: response.dtype === 'q4' || response.dtype === 'q8' || response.dtype === 'q4f16' ? response.dtype : undefined,
   };
   return result;
 }
@@ -458,7 +472,7 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
   backend?: LocalTranscriptionBackend;
   gpuInfo?: string;
   threads?: number;
-  dtype?: 'q4' | 'q8';
+  dtype?: 'q4' | 'q8' | 'q4f16';
 }> {
   if (removingModel) return Promise.reject(new Error('正在清除模型，请稍后重试'));
   const normalizedModel = normalizeVideoLocalTranscriptionModel(model);
@@ -473,7 +487,7 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
     backend?: LocalTranscriptionBackend;
     gpuInfo?: string;
     threads?: number;
-    dtype?: 'q4' | 'q8';
+    dtype?: 'q4' | 'q8' | 'q4f16';
   }>((resolve, reject) => {
     if (streamId && activeStreamId && activeStreamId !== streamId) {
       reject(new Error('另一个标签页正在使用本地 AI 字幕，请先停止后再试'));
@@ -558,7 +572,7 @@ export async function cancelLocalVideoTranscription(
 
 /** 空闲时释放已加载 Worker，再删除指定模型；使用或下载过程中拒绝删除。 */
 export async function removeLocalVideoTranscriptionModel(model: unknown): Promise<void> {
-  if (model !== 'tiny' && model !== 'base') throw new Error('无效的本地字幕模型');
+  if (normalizeVideoLocalTranscriptionModel(model) !== model) throw new Error('无效的本地字幕模型');
   if (removingModel || queueRunning || pendingTranscription || pendingPrepare.length || pendingPreparePromises.size || workerDisposing) throw new Error('模型正在使用或下载，请结束后再清除');
   removingModel = true;
   try {

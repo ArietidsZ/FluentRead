@@ -37,6 +37,11 @@ describe('local audio hardware WebGPU probe', () => {
         await expect(probeWebGpu()).resolves.toEqual({available: true, info: ''});
     });
 
+    it('reports actual hardware features for precision selection', async () => {
+        vi.stubGlobal('navigator', {gpu: {requestAdapter: async () => ({info:{vendor:'hardware'},features:new Set(['shader-f16'])})}});
+        expect(await probeWebGpu()).toEqual({available:true,info:'hardware',features:['shader-f16']});
+    });
+
     it('bounds a stalled driver probe and ignores its late result', async () => {
         vi.useFakeTimers();
         let release!: (adapter: {}) => void;

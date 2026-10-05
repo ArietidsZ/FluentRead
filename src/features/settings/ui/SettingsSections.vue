@@ -67,6 +67,7 @@
       <p>{{ selectedTextServiceUnavailableMessage }}请在上方选择可用服务。</p>
     </div>
     <section id="feature-services" class="service-assignments-section" :aria-label="t('featureServices.assignments')">
+      <PrivateTranslationSettings v-if="['chrome', 'edge', 'firefox'].includes(browserCapabilities.browser)" :config="config" :service-options="availableServiceOptions" />
       <FeatureServiceSettings :config="config" :service-options="availableServiceOptions" @configure-service="openInputServiceSettings" />
     </section>
   </section>
@@ -759,6 +760,7 @@ import {isBrowserTabId} from '@/src/platform/browser/ids';
 const CustomHotkeyInput = defineAsyncComponent(() => import('@/src/ui/components/CustomHotkeyInput.vue'));
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import UiLanguageSelector from '@/src/ui/components/UiLanguageSelector.vue';
+import PrivateTranslationSettings from './PrivateTranslationSettings.vue';
 import FeatureServiceSettings from './FeatureServiceSettings.vue';
 import { hasSavedServiceConfiguration } from '@/src/ui/view-model/serviceLibrary';
 import {getServiceCredentialGuide, getServiceWebsite} from '@/src/ui/view-model/serviceCatalog';

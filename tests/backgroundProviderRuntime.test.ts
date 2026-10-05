@@ -1,13 +1,19 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
     captureGeneration: vi.fn(() => 11),
+    createConnection: vi.fn((_options: any) => ({type: 'connection-fixture'})),
+    createVision: vi.fn((_options: any) => [{type: 'vision-fixture'}]),
+    visionResolve: vi.fn(),
     recordMany: vi.fn(async (_events: unknown, _generation: number) => 1),
     resolveConfiguredModel: vi.fn((_selected?: string, _custom?: string) => 'resolved-model'),
     runConnectionTest: vi.fn(async (_service: string, _options: any) => ({durationMs: 25})),
     getFreeTranslationWeightSnapshot: vi.fn(async () => ({total: 100, observedAt: 1, entries: []})),
 }));
 
+vi.mock('@/src/app/background/handlers/connectionTest', () => ({createConnectionTestHandler: mocks.createConnection}));
+vi.mock('@/src/app/background/handlers/visionProbe', () => ({createVisionProbeHandlers: mocks.createVision}));
+vi.mock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {resolve: mocks.visionResolve}}));
 vi.mock('@/src/providers/translation/connectionTest', () => ({
     formatConnectionTestError: vi.fn(),
     runTranslationServiceConnectionTest: mocks.runConnectionTest,
@@ -42,11 +48,28 @@ vi.mock('@/src/platform/storage/modelUsageRepository', () => ({
     },
 }));
 
-import {getFreeTranslationWeightSnapshot, runTranslationServiceConnectionTestWithUsage} from '@/src/app/background/providerRuntime';
+import {createProviderTestRuntimeHandlers, getFreeTranslationWeightSnapshot, runTranslationServiceConnectionTestWithUsage} from '@/src/app/background/providerRuntime';
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('background provider runtime', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    it('wires settings-only vision handlers and shared connection dependencies through the app facade', () => {
+        vi.stubGlobal('browser', {runtime: {getURL: (path: string) => `chrome-extension://fixture${path}`}});
+        expect(createProviderTestRuntimeHandlers()).toEqual([{type: 'connection-fixture'}, {type: 'vision-fixture'}]);
+        const connection = mocks.createConnection.mock.calls[0][0];
+        expect(connection.runConnectionTest).toBe(runTranslationServiceConnectionTestWithUsage);
+        expect(connection.ready).toBeInstanceOf(Promise);
+        const vision = mocks.createVision.mock.calls[0][0];
+        expect(vision.ready).toBe(connection.ready);
+        expect(vision.getConfig().model.moonshot).toBe('kimi-k2.6');
+        expect(vision.resolve).toBe(mocks.visionResolve);
+        expect(vision.isSettingsUrl('chrome-extension://fixture/options.html?section=services#model')).toBe(true);
+        expect(vision.isSettingsUrl('https://host.test/options.html')).toBe(false);
+        expect(vision.isSettingsUrl('chrome-extension://fixture/popup.html')).toBe(false);
     });
 
     it('captures reset generation before connection test and injects model usage persistence', async () => {

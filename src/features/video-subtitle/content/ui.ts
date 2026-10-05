@@ -226,6 +226,8 @@ export function readVisibleCaptionText(container: Element | null): string {
 }
 
 export function findCaptionContainer(): HTMLElement | null {
+  const ai = document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID);
+  if (isYouTubeVideoPage() && ai?.dataset.fluentReadAiActive === 'true') return ai;
   if (isXVideoPage()) return document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID);
   const candidates = Array.from((findVideoPlayer() || document).querySelectorAll<HTMLElement>(VIDEO_CAPTION_CONTAINER_SELECTOR));
   return candidates.find((candidate) => readVisibleCaptionText(candidate))
@@ -684,6 +686,10 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     }
     #${VIDEO_TRANSLATION_LAYER_ID}.${VIDEO_DISPLAY_TRANSLATION_ONLY_CLASS} #${VIDEO_NORMALIZED_CAPTION_OVERLAY_ID} {
       display: none !important;
+    }
+    [data-fluent-read-local-ai-active] #ytp-caption-window-container,
+    [data-fluent-read-local-ai-active] .ytp-caption-window-container {
+      visibility: hidden !important;
     }
     #ytp-caption-window-container.${VIDEO_NORMALIZED_CAPTION_CLASS} .ytp-caption-segment,
     #ytp-caption-window-container.${VIDEO_NORMALIZED_CAPTION_CLASS} .captions-text,

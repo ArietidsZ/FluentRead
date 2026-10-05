@@ -22,7 +22,7 @@
             <strong>{{ modelName(item) }}</strong>
           </label>
           <span v-if="item.value === defaultModel" class="local-model-tag">{{ t('settings.localTranslation.recommended') }}</span>
-          <span v-else-if="item.engine === 'hunyuan'" class="local-model-tag quality">{{ t('settings.localTranslation.quality') }}</span>
+          <span v-else-if="(item.engine === 'hunyuan' || item.engine === 'index')" class="local-model-tag quality">{{ t('settings.localTranslation.quality') }}</span>
           <button type="button" class="local-model-info" :aria-label="`${modelName(item)}: ${t('settings.localTranslation.license')}`" :title="t('settings.localTranslation.license')" :aria-expanded="expandedModel === item.value" @click="expandedModel = expandedModel === item.value ? '' : item.value"><InfoFilled aria-hidden="true" /></button>
         </div>
         <p class="local-model-languages">{{ t(item.languagesKey) }}</p>
@@ -35,14 +35,14 @@
           <p>{{ t('settings.localTranslation.resourcesNote') }}</p>
           <a :href="`https://huggingface.co/${item.repositories[0]}`" target="_blank" rel="noopener noreferrer">{{ t('settings.localTranslation.license') }}<TopRight aria-hidden="true" /></a>
         </div>
-        <div v-if="showProgress(item.value) || state(item.value).error || item.engine === 'hunyuan' && !hunyuanSupported" class="local-model-progress">
+        <div v-if="showProgress(item.value) || state(item.value).error || (item.engine === 'hunyuan' || item.engine === 'index') && !hunyuanSupported" class="local-model-progress">
           <progress v-if="showProgress(item.value)" :value="state(item.value).downloadedBytes" :max="state(item.value).totalBytes || 1" :aria-label="modelName(item)" />
           <div v-if="showProgress(item.value)" class="local-model-progress-detail">
             <span>{{ percent(item.value) }}% · {{ formatBytes(state(item.value).downloadedBytes) }} / {{ formatBytes(state(item.value).totalBytes) }}</span>
             <span v-if="state(item.value).phase === 'downloading' && state(item.value).bytesPerSecond > 0">{{ formatBytes(state(item.value).bytesPerSecond) }}/s</span>
           </div>
           <p v-if="state(item.value).error" class="local-models-error" role="alert">{{ t(`settings.localTranslation.error.${state(item.value).error}`) }}</p>
-          <p v-if="item.engine === 'hunyuan' && !hunyuanSupported" class="local-models-error" role="status">{{ t('settings.localTranslation.error.browser') }}</p>
+          <p v-if="(item.engine === 'hunyuan' || item.engine === 'index') && !hunyuanSupported" class="local-models-error" role="status">{{ t('settings.localTranslation.error.browser') }}</p>
         </div>
         <footer class="local-model-actions">
           <span class="local-model-status" :class="{'is-ready': state(item.value).phase === 'ready'}" role="status" aria-live="polite"><Check v-if="state(item.value).phase === 'ready'" aria-hidden="true" />{{ loaded ? t(`settings.localTranslation.phase.${state(item.value).phase}`) : t('settings.localTranslation.statusReading') }}</span>
@@ -87,7 +87,7 @@ import {ElMessageBox} from 'element-plus'
 import {Check, Close, Cpu, Delete, Download, InfoFilled, Promotion, Refresh, TopRight, VideoPause} from '@element-plus/icons-vue'
 import type {Config} from '@/src/core/config/model'
 import {
-  DEFAULT_LOCAL_TRANSLATION_MODEL, LOCAL_TRANSLATION_DOWNLOAD_STATE_KEY, LOCAL_TRANSLATION_MODELS,
+  DEFAULT_LOCAL_TRANSLATION_MODEL, LOCAL_TRANSLATION_MODEL_IDS, LOCAL_TRANSLATION_DOWNLOAD_STATE_KEY, LOCAL_TRANSLATION_MODELS,
   getLocalTranslationModel, normalizeLocalTranslationModel, normalizeLocalTranslationDownloadSnapshot, localTranslationErrorKey,
   type LocalTranslationModel, type LocalTranslationModelId, type LocalTranslationDownloadState,
 } from '@/src/core/config/localTranslation'
@@ -99,7 +99,7 @@ const props = defineProps<{config: Config; service: string}>()
 const {t} = useUiI18n()
 const supported = browserCapabilities.extensionDom
 const hunyuanSupported = supportsHunyuanTranslation()
-function modelSupported(model: LocalTranslationModel): boolean { return supported && (model.engine !== 'hunyuan' || hunyuanSupported) }
+function modelSupported(model: LocalTranslationModel): boolean { return supported && (!['hunyuan','index'].includes(model.engine) || hunyuanSupported) }
 const defaultModel = DEFAULT_LOCAL_TRANSLATION_MODEL
 const tasks = ref<LocalTranslationDownloadState[]>([])
 const loaded = ref(false)
@@ -177,8 +177,8 @@ const trialResult = ref('')
 const trialError = ref('')
 const trialSeconds = ref('')
 const languageLabels: Record<string, string> = {zh: 'area.settings.languageChinese', en: 'area.settings.languageEnglish', ja: 'area.settings.languageJapanese'}
-const trialLanguages = computed(() => getLocalTranslationModel(selectedModel.value).engine === 'opus'
-  ? selectedModel.value === defaultModel ? ['zh', 'en'] : ['ja', 'en'] : ['zh', 'en', 'ja'])
+const trialLanguages = computed(() => selectedModel.value === LOCAL_TRANSLATION_MODEL_IDS.opusJaEnGpu ? ['en'] : getLocalTranslationModel(selectedModel.value).engine === 'opus'
+  ? (selectedModel.value === defaultModel || selectedModel.value === LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu) ? ['zh', 'en'] : ['ja', 'en'] : ['zh', 'en', 'ja'])
 let trialId: string | undefined
 function cancelTrial(): void {
   if (trialId) void browser.runtime.sendMessage({type: 'fluentReadCancelLocalTranslationTrial', requestId: trialId}).catch(() => undefined)

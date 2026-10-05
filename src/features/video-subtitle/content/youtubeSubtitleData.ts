@@ -19,6 +19,7 @@ export interface VideoSubtitleCue {
 
 interface YoutubeTimedTextSegment {
   utf8?: unknown;
+  tOffsetMs?: unknown;
 }
 
 interface YoutubeTimedTextEvent {
@@ -192,6 +193,7 @@ function numericValue(value: unknown): number | null {
 const WORD_STREAM_JOIN_GAP_MS = 700;
 const WORD_STREAM_MAX_CUE_SPAN_MS = 8000;
 const WORD_STREAM_MAX_WORDS = 14;
+const COMPACT_WORD_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Thai}\p{Script=Lao}\p{Script=Khmer}\p{Script=Myanmar}]/u;
 
 function normalizeCueComparisonText(value: string): string {
   return value.replace(/[\s\u3000]+/g, ' ').trim();
@@ -203,7 +205,7 @@ function countCueWords(value: string): number {
 }
 
 function hasCueTerminalPunctuation(value: string): boolean {
-  return /[.!?。！？；;：:…]$/.test(normalizeCueComparisonText(value));
+  return /[.!?。！？；;：:…]["'”’»）)\]」』】》〉]*$/.test(normalizeCueComparisonText(value));
 }
 
 /** 自动字幕逐词流通常以短词、短间隔事件连续写入 timedtext。 */
@@ -228,14 +230,23 @@ function canJoinWordStreamCues(previous: VideoSubtitleCue, next: VideoSubtitleCu
 function joinCueText(previous: string, next: string): string {
   const left = previous.trim();
   const right = next.trim();
-  const needsSpace = /[A-Za-z0-9]$/.test(left) && /^[A-Za-z0-9]/.test(right);
+  // 保留无空格的中日文及东南亚词流；其他文字（含韩文、变音符号、希腊文和西里尔文）不能粘连。
+  const wordEdge = /[\p{L}\p{N}\p{M}]/u;
+  const leftEdge = Array.from(left).at(-1)!;
+  const rightEdge = Array.from(right)[0]!;
+  const needsSpace = (wordEdge.test(leftEdge) || leftEdge === ',') && wordEdge.test(rightEdge)
+    && !COMPACT_WORD_SCRIPT.test(leftEdge) && !COMPACT_WORD_SCRIPT.test(rightEdge);
   return `${left}${needsSpace ? ' ' : ''}${right}`;
 }
 
 function isPrefixPair(left: string, right: string): boolean {
   const first = normalizeCueComparisonText(left).toLocaleLowerCase();
   const second = normalizeCueComparisonText(right).toLocaleLowerCase();
-  return first === second || first.startsWith(second) || second.startsWith(first);
+  // 空格文字只折叠完整词前缀；无空格文字的同起点逐字修订仍需折叠。
+  const shorter = first.length <= second.length ? first : second;
+  const longer = first.length <= second.length ? second : first;
+  return shorter === longer || (longer.startsWith(shorter)
+    && (longer[shorter.length] === ' ' || COMPACT_WORD_SCRIPT.test(Array.from(shorter).at(-1)!)));
 }
 
 /** 同一时间点的增量 cue 只保留最长版本，避免短词抢先命中并阻断完整句预翻译。 */
@@ -243,7 +254,7 @@ function collapseIncrementalCues(cues: VideoSubtitleCue[]): VideoSubtitleCue[] {
   const result: VideoSubtitleCue[] = [];
   cues.forEach((cue) => {
     const previous = result[result.length - 1];
-    const sameStart = previous && Math.abs(previous.startMs - cue.startMs) <= 120;
+    const sameStart = previous && previous.startMs === cue.startMs;
     if (!previous || !sameStart || !isPrefixPair(previous.text, cue.text)) {
       result.push(cue);
       return;
@@ -297,7 +308,7 @@ function mergeWordStreamCues(cues: VideoSubtitleCue[]): VideoSubtitleCue[] {
     let endIndex = index;
     let text = first.text;
     let wordCount = countCueWords(text);
-    let endMs = first.startMs + Math.max(first.durationMs, 500);
+    let endMs = first.startMs + first.durationMs;
 
     while (endIndex + 1 < cues.length) {
       const next = cues[endIndex + 1];
@@ -306,7 +317,7 @@ function mergeWordStreamCues(cues: VideoSubtitleCue[]): VideoSubtitleCue[] {
       if (!nextIsWordCue && !hasCueTerminalPunctuation(next.text)) break;
 
       const nextWordCount = countCueWords(next.text);
-      const nextEndMs = next.startMs + Math.max(next.durationMs, 500);
+      const nextEndMs = next.startMs + next.durationMs;
       if (wordCount + nextWordCount > WORD_STREAM_MAX_WORDS || nextEndMs - first.startMs > WORD_STREAM_MAX_CUE_SPAN_MS) break;
 
       text = joinCueText(text, next.text);
@@ -319,7 +330,7 @@ function mergeWordStreamCues(cues: VideoSubtitleCue[]): VideoSubtitleCue[] {
 
     result.push({
       startMs: first.startMs,
-      durationMs: Math.max(500, endMs - first.startMs),
+      durationMs: endMs - first.startMs,
       text: normalizeCueComparisonText(text),
     });
     index = endIndex + 1;
@@ -340,7 +351,40 @@ function parseJson3Events(value: unknown): VideoSubtitleCue[] {
       .join(''));
     if (!text) return [];
     const durationMs = numericValue(event.dDurationMs) || 0;
-    return [{ startMs, durationMs, text }];
+    // 只在原始分段提供可信边界时拆句；没有词时间戳时不按字数猜测时间。
+    const parts = event.segs;
+    let previousSegmentOffset = 0;
+    const validOffsets = parts.every((part, index) => {
+      const offset = part.tOffsetMs;
+      // 首段允许省略零偏移；其他有文字的段缺少时间时保留整个事件。
+      if (offset === undefined) return index === 0 || typeof part.utf8 !== 'string' || !part.utf8.trim();
+      if (typeof offset !== 'number' || !Number.isFinite(offset)
+        || offset < previousSegmentOffset || offset >= durationMs) return false;
+      previousSegmentOffset = offset;
+      return true;
+    });
+    if (!validOffsets) return [{startMs, durationMs, text}];
+    const starts = [0];
+    let prefix = '';
+    for (let index = 1; index < parts.length; index += 1) {
+      prefix += typeof parts[index - 1].utf8 === 'string' ? parts[index - 1].utf8 : '';
+      const offset = parts[index].tOffsetMs;
+      const previousOffset = parts[starts[starts.length - 1]].tOffsetMs ?? 0;
+      if (hasCueTerminalPunctuation(cleanCueText(prefix)) && typeof offset === 'number'
+        && offset > Number(previousOffset)) {
+        starts.push(index);
+        prefix = '';
+      }
+    }
+    if (starts.length === 1) return [{ startMs, durationMs, text }];
+    return starts.map((index, partIndex) => {
+      const offset = partIndex === 0 ? 0 : Number(parts[index].tOffsetMs);
+      const nextIndex = starts[partIndex + 1] ?? parts.length;
+      const end = partIndex + 1 < starts.length ? Number(parts[nextIndex].tOffsetMs) : durationMs;
+      return {startMs: startMs + offset, durationMs: end - offset,
+        text: cleanCueText(parts.slice(index, nextIndex).map(part => typeof part.utf8 === 'string' ? part.utf8 : '').join(''))};
+    }).filter(cue => cue.text);
+
   });
 }
 

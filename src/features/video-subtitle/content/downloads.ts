@@ -40,8 +40,9 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
         const requestController = controller, href = ports.location.href;
         const captured = ports.captured();
         const ai = ports.aiCues();
+        if (ports.isAiActive() && ai.length) return {languageCode: 'ai', cues: ai};
+        if (ports.isAiActive() && !ports.isX()) throw new Error('当前视频还没有可下载的 AI 字幕');
         if (ports.isX()) {
-            if (ports.isAiActive() && ai.length) return {languageCode: 'ai', cues: ai};
             const native = ports.nativeX();
             if (native?.cues.length) return native;
             const track = captured.find(entry => entry.cues.length > 0);
@@ -76,7 +77,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
         try {
             const result = await resolve();
             await ports.human.ready();
-            const manualAt = (cue: VideoSubtitleCue) => ports.config.videoPreferHumanSubtitles
+            const manualAt = (cue: VideoSubtitleCue) => ports.config.videoPreferHumanSubtitles && result.languageCode !== 'ai'
                 ? ports.human.at(cue.startMs + cue.durationMs / 2) : '';
             const fallback = result.cues.filter(cue => !manualAt(cue));
             const translations = await translateVideoSubtitleCues(fallback, ports.translate, {concurrency: 3, signal: current.signal,

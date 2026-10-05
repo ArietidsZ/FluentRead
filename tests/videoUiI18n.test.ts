@@ -231,8 +231,10 @@ describe('video player menu composition', () => {
     expect(prompt.hidden).toBe(false);
     expect(prompt.dataset.selectedModel).toBe('base');
     const options = [...prompt.querySelectorAll<HTMLElement>('[data-model-choice]')];
-    expect(options.map(option => [option.dataset.modelChoice, option.getAttribute('aria-checked')])).toEqual([['tiny', 'false'], ['base', 'true']]);
+    expect(options.map(option => [option.dataset.modelChoice, option.getAttribute('aria-checked')])).toEqual([['tiny', 'false'], ['base', 'true'], ['qwen3-asr-0.6b', 'false']]);
     expect(options[0].textContent).toContain('约 100 MB');
+    expect(options[2].textContent).toContain('WebGPU');
+    expect(options[2].textContent).toContain('词级对齐');
     expect(options[1].textContent).toContain('推荐');
     expect(options[1].textContent).toContain('约 150 MB');
     expect(prompt.querySelector('[data-action="model-prompt-confirm"]')?.textContent).toBe('下载并生成');

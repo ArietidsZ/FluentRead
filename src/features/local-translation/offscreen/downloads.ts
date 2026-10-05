@@ -2,7 +2,7 @@
  * @file src/features/local-translation/offscreen/downloads.ts
  *
  * 文件职责：持有独立于设置页和后台 Service Worker 生命周期的模型下载任务。
- * 主要内容：串行排队、即时任务回执、限频进度、磁盘恢复、暂停和删除互斥；重开页面仅订阅已有状态。
+ * 主要内容：串行排队、即时任务回执、限频进度、磁盘恢复及共享精度文件的暂停/删除互斥；重开页面仅订阅已有状态。
  * 模块边界：模型文件读写交给 artifactStore，旧缓存交给 modelCache，推理释放和状态通知由应用组合根注入。
  */
 import {
@@ -14,6 +14,8 @@ import {
     getTranslationArtifacts, removeTranslationArtifact,
 } from './artifactStore';
 import {isLocalTranslationModelCached, removeLocalTranslationModelFiles} from './modelCache';
+import {requireIndexGpu} from './indexGpu';
+import {requireOpusGpu} from './opusGpu';
 import {supportsHunyuanTranslation} from '@/src/platform/browser/localTranslationSupport';
 
 const STATE_URL = 'https://fluentread.invalid/local-translation-downloads-v2';
@@ -25,7 +27,14 @@ export interface LocalTranslationDownloadDependencies {
 export function createLocalTranslationDownloadManager(dependencies: LocalTranslationDownloadDependencies = {}) {
     const states = new Map<LocalTranslationModelId, LocalTranslationDownloadState>();
     const jobs = new Map<LocalTranslationModelId, {controller: AbortController; done: Promise<void>; started: boolean}>();
-    const removals = new Set<LocalTranslationModelId>();
+    const removals = new Map<LocalTranslationModelId, Promise<void>>();
+    const artifactKey = (file: ReturnType<typeof getTranslationArtifacts>[number]) => `${file.repo}/${file.revision}/${file.path}`;
+    const sharesFiles = (first: LocalTranslationModelId, second: LocalTranslationModelId) => {
+        const keys = new Set(getTranslationArtifacts(first).map(artifactKey));
+        return getTranslationArtifacts(second).some(file => keys.has(artifactKey(file)));
+    };
+    const sharedWith = (model: LocalTranslationModelId, key: string) => LOCAL_TRANSLATION_MODELS
+        .filter(other => other.value !== model && getTranslationArtifacts(other.value).some(file => artifactKey(file) === key));
     let initialized: Promise<void> | undefined;
     let queue = Promise.resolve();
     let writes = Promise.resolve();
@@ -54,10 +63,13 @@ export function createLocalTranslationDownloadManager(dependencies: LocalTransla
             for (const model of LOCAL_TRANSLATION_MODELS) {
                 const artifacts = getTranslationArtifacts(model.value);
                 let downloadedBytes = 0;
+                let ownedBytes = 0;
                 let complete = artifacts.length > 0;
                 for (const file of artifacts) {
                     const verified = await artifactComplete(file);
-                    downloadedBytes += verified ? file.size : await artifactDownloadedBytes(file);
+                    const bytes = verified ? file.size : await artifactDownloadedBytes(file);
+                    downloadedBytes += bytes;
+                    if (!sharedWith(model.value, artifactKey(file)).length) ownedBytes += bytes;
                     complete &&= verified;
                 }
                 if (model.legacy) {
@@ -66,6 +78,8 @@ export function createLocalTranslationDownloadManager(dependencies: LocalTransla
                 }
                 const previous = saved?.version === 2 && Array.isArray(saved.tasks)
                     ? saved.tasks.find((state) => state.model === model.value) : undefined;
+                // 共享 tokenizer 并不表示另一个精度配置已被用户下载。
+                if (!complete && !ownedBytes && (!previous || previous.phase === 'idle')) downloadedBytes = 0;
                 states.set(model.value, {
                     model: model.value,
                     phase: complete ? 'ready' : downloadedBytes || previous && previous.phase !== 'idle' ? 'paused' : 'idle',
@@ -139,10 +153,20 @@ export function createLocalTranslationDownloadManager(dependencies: LocalTransla
             await initialize();
             const model = requireModel(value);
             if (getLocalTranslationModel(model).legacy) throw new Error('LOCAL_TRANSLATION_LEGACY_MODEL');
+            if (getLocalTranslationModel(model).engine === 'index') await requireIndexGpu();
+            const dtype = getLocalTranslationModel(model).onnxDtype;
+            if (dtype) await requireOpusGpu(dtype);
             if (getLocalTranslationModel(model).engine === 'hunyuan' && !supportsHunyuanTranslation()) {
                 throw new Error('LOCAL_TRANSLATION_BROWSER_UNSUPPORTED');
             }
             if (removals.has(model)) throw new Error('LOCAL_TRANSLATION_REMOVING');
+            // 删除先开始时等待共享文件的删除结束，避免新下载被迟到的 delete 清除。
+            for (;;) {
+                const pending = [...removals].filter(([other]) => sharesFiles(model, other)).map(([, done]) => done);
+                if (!pending.length) break;
+                await Promise.all(pending);
+                if (removals.has(model)) throw new Error('LOCAL_TRANSLATION_REMOVING');
+            }
             const existing = jobs.get(model);
             if (existing?.controller.signal.aborted) {
                 await existing.done;
@@ -185,23 +209,31 @@ export function createLocalTranslationDownloadManager(dependencies: LocalTransla
             await initialize();
             const model = requireModel(value);
             if (removals.has(model)) return snapshot();
-            removals.add(model);
+            let finishRemoval!: () => void;
+            removals.set(model, new Promise<void>(resolve => { finishRemoval = resolve; }));
             const job = jobs.get(model);
             job?.controller.abort();
             update(model, {phase: 'removing', bytesPerSecond: 0});
-            await persist();
             try {
+                await persist();
                 if (job?.started) await job.done;
                 else if (job) jobs.delete(model);
                 dependencies.beforeRemove?.(model);
                 if (getLocalTranslationModel(model).legacy) await removeLocalTranslationModelFiles(model);
-                else for (const file of getTranslationArtifacts(model)) await removeTranslationArtifact(file);
+                else for (const file of getTranslationArtifacts(model)) {
+                    const retained = sharedWith(model, artifactKey(file)).some(other => {
+                        const state = states.get(other.value);
+                        return state && state.phase !== 'idle' && !removals.has(other.value);
+                    });
+                    if (!retained) await removeTranslationArtifact(file);
+                }
                 update(model, {phase: 'idle', downloadedBytes: 0, error: undefined});
             } catch (error) {
                 update(model, {phase: 'error', error: 'storage'});
                 throw error;
             } finally {
                 removals.delete(model);
+                finishRemoval();
                 await persist();
             }
             return snapshot();

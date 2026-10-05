@@ -319,7 +319,7 @@ describe('YouTube 字幕轨道数据', () => {
     ])).toEqual([
       {startMs: 0, durationMs: 2250, text: '你好世界再见。'},
       {startMs: 7000, durationMs: 400, text: 'one'},
-      {startMs: 9000, durationMs: 1400, text: 'go too far merge.'},
+      {startMs: 9000, durationMs: 1300, text: 'go too far merge.'},
     ]);
 
     expect(cuesToSrt([{startMs: -100, durationMs: 20, text: 'early'}])).toContain('00:00:00,000 --> 00:00:00,000');
@@ -379,5 +379,99 @@ describe('YouTube 字幕轨道数据', () => {
       {startMs: 0, durationMs: 2000, text: 'complete phrase'},
       {startMs: 0, durationMs: 500, text: 'complete'},
     ])).toEqual([{startMs: 0, durationMs: 2000, text: 'complete phrase'}]);
+  });
+  it('preserves adjacent repeated words and lexical prefixes', () => {
+    expect(finalizeVideoSubtitleCues([
+      {startMs: 0, durationMs: 100, text: 'very'},
+      {startMs: 100, durationMs: 100, text: 'very'},
+      {startMs: 200, durationMs: 100, text: 'good.'},
+    ]).map(cue => cue.text).join(' ')).toBe('very very good.');
+    expect(finalizeVideoSubtitleCues([
+      {startMs: 0, durationMs: 100, text: 'he'},
+      {startMs: 0, durationMs: 100, text: 'hello'},
+    ])).toHaveLength(2);
+  });
+
+  it.each([
+    [['café', 'déjà', 'vu', 'fin.'], 'café déjà vu fin.'],
+    [['это', 'очень', 'хороший', 'день.'], 'это очень хороший день.'],
+    [['今天', '天气', '很好', '。'], '今天天气很好。'],
+    [['私', 'は', '元気', 'です。'], '私は元気です。'],
+    [['오늘', '날씨', '정말', '좋아요.'], '오늘 날씨 정말 좋아요.'],
+    [['ฉัน', 'ชอบ', 'กิน', 'ข้าว'], 'ฉันชอบกินข้าว'],
+  ])('joins word streams without dropping word boundaries: %j', (words, expected) => {
+    expect(finalizeVideoSubtitleCues(words.map((text, index) => ({
+      startMs: index * 500, durationMs: 500, text,
+    })))[0].text).toBe(expected);
+  });
+
+  it('stops at quoted terminal punctuation', () => {
+    expect(finalizeVideoSubtitleCues(['He', 'said', 'hello', 'world!”', 'next'].map((text, index) => ({
+      startMs: index * 500, durationMs: 500, text,
+    }))).map(cue => cue.text)).toEqual(['He said hello world!”', 'next']);
+  });
+
+  it('splits existing sentences only at explicit segment timestamps, preserving text and timing', () => {
+    const parse = (segs: unknown[]) => parseYoutubeTimedTextResponse(JSON.stringify({
+      events: [{tStartMs: 1000, dDurationMs: 4000, segs}],
+    }));
+    expect(parse([{utf8: 'Hello world! ', tOffsetMs: 0}, {utf8: 'Next sentence.', tOffsetMs: 2000}]))
+      .toEqual([{startMs: 1000, durationMs: 2000, text: 'Hello world!'},
+        {startMs: 3000, durationMs: 2000, text: 'Next sentence.'}]);
+    for (const offset of [undefined, -1, 0, 4000, '2000']) {
+      expect(parse([{utf8: 'Hello! '}, {utf8: 'Next.', tOffsetMs: offset}]))
+        .toEqual([{startMs: 1000, durationMs: 4000, text: 'Hello! Next.'}]);
+    }
+    expect(parse([{utf8: 'First! '}, {utf8: 7}, {utf8: 'Last.', tOffsetMs: 2000}]))
+      .toEqual([{startMs: 1000, durationMs: 2000, text: 'First!'},
+        {startMs: 3000, durationMs: 2000, text: 'Last.'}]);
+    expect(parse([{utf8: '你好！'}, {utf8: '再见。', tOffsetMs: 2500}]))
+      .toEqual([{startMs: 1000, durationMs: 2500, text: '你好！'},
+        {startMs: 3500, durationMs: 1500, text: '再见。'}]);
+  });
+
+  it('does not extend explicitly timed short word streams', () => {
+    expect(finalizeVideoSubtitleCues(['one', 'two', 'three'].map((text, i) => ({
+      startMs: i * 150, durationMs: 100, text,
+    })))).toEqual([{startMs: 0, durationMs: 400, text: 'one two three'}]);
+  });
+
+});
+
+describe('native caption review regressions', () => {
+  it.each([
+    ['你', '你好', '你好世界'],
+    ['私', '私は', '私は元気'],
+    ['ฉัน', 'ฉันชอบ', 'ฉันชอบกิน'],
+  ])('collapses same-start no-space revisions without repeating characters: %s', (...texts) => {
+    expect(finalizeVideoSubtitleCues(texts.map(text => ({startMs: 0, durationMs: 300, text}))))
+      .toEqual([{startMs: 0, durationMs: 300, text: texts[2]}]);
+  });
+  it('preserves Latin lexical prefixes but collapses whole-word rolling revisions', () => {
+    expect(finalizeVideoSubtitleCues(['hello', 'hello world', 'hello world again'].map(text =>
+      ({startMs: 0, durationMs: 300, text})))).toEqual([{startMs: 0, durationMs: 300, text: 'hello world again'}]);
+    expect(finalizeVideoSubtitleCues(['he', 'hello'].map(text =>
+      ({startMs: 0, durationMs: 300, text})))).toHaveLength(2);
+  });
+  it.each([
+    [0, 2000, 1000],
+    [0, undefined, 2000],
+    [0, -1, 2000],
+    [0, '1000', 2000],
+    [0, null, 2000],
+    [0, 5000, 2000],
+  ])('keeps events intact when segment offsets are malformed or unordered: %j', (...offsets) => {
+    const texts = ['Hello', ' world.', ' Next.'];
+    expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [{
+      tStartMs: 0, dDurationMs: 4000,
+      segs: texts.map((utf8, i) => ({utf8, tOffsetMs: offsets[i]})),
+    }]}))).toEqual([{startMs: 0, durationMs: 4000, text: texts.join('')}]);
+  });
+  it('keeps spaces after Latin commas and stops at Japanese closing quotes', () => {
+    expect(finalizeVideoSubtitleCues(['Hello,', 'world', 'today'].map((text, i) =>
+      ({startMs: i * 500, durationMs: 500, text}))))
+      .toEqual([{startMs: 0, durationMs: 1500, text: 'Hello, world today'}]);
+    expect(finalizeVideoSubtitleCues(['「終わり。」', '次', 'です'].map((text, i) =>
+      ({startMs: i * 500, durationMs: 500, text})))).toHaveLength(3);
   });
 });

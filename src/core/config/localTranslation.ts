@@ -2,7 +2,7 @@
  * @file src/core/config/localTranslation.ts
  *
  * 文件职责：定义浏览器本地翻译模型目录、下载状态键和产品语言到模型语言码的映射。
- * 主要内容：提供中英/日英轻量语言包、混元翻译和旧模型兼容目录，定义持久下载任务与语言转换契约。
+ * 主要内容：提供中英/日英 Q8 CPU 与 FP16 GPU 语言包、混元翻译和旧模型兼容目录，定义持久下载任务与语言转换契约。
  * 模块边界：只处理纯配置与语言转换，不访问浏览器存储、模型缓存或推理运行时。
  */
 import {detectlang} from '@/src/core/language/detect';
@@ -19,7 +19,10 @@ export const LOCAL_TRANSLATION_MODEL_REVISION = 'main' as const;
 export const LOCAL_TRANSLATION_MODEL_IDS = {
     opusZhEn: 'fluentread/opus-zh-en',
     opusJaEn: 'fluentread/opus-ja-en',
+    opusZhEnGpu: 'fluentread/opus-zh-en-fp16',
+    opusJaEnGpu: 'fluentread/opus-ja-en-fp32',
     hunyuan: 'tencent/Hy-MT2-1.8B-GGUF',
+    index: 'IndexTeam/Index-Translate-2B-GGUF',
     m2m100: 'Xenova/m2m100_418M',
     nllb: 'Xenova/nllb-200-distilled-600M',
 } as const;
@@ -34,9 +37,11 @@ export interface LocalTranslationModel {
     languagesKey: string;
     downloadSizeMb: number;
     memoryMb: readonly [number, number];
-    engine: 'opus' | 'hunyuan' | 'legacy';
+    engine: 'opus' | 'hunyuan' | 'index' | 'legacy';
     repositories: readonly string[];
     legacy?: boolean;
+    /** OPUS FP16/FP32 是显式 GPU 配置；缺省保留原 Q8 CPU 路径。 */
+    onnxDtype?: 'fp16' | 'fp32';
 }
 
 export type LocalTranslationDownloadPhase = 'idle' | 'queued' | 'downloading' | 'verifying' | 'paused' | 'ready' | 'error' | 'removing';
@@ -87,6 +92,39 @@ export const LOCAL_TRANSLATION_MODELS: readonly LocalTranslationModel[] = [
         memoryMb: [500, 2000],
         engine: 'opus',
         repositories: ['Xenova/opus-mt-ja-en', 'Xenova/opus-mt-en-jap'],
+    },
+    {
+        value: LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu,
+        label: 'OPUS-MT Chinese / English FP16 · WebGPU',
+        nameKey: 'settings.localTranslation.opusZhEnGpu',
+        descriptionKey: 'settings.localTranslation.opusGpuDescription',
+        languagesKey: 'settings.localTranslation.languagesZhEn',
+        downloadSizeMb: 460,
+        memoryMb: [750, 2500],
+        engine: 'opus', onnxDtype: 'fp16',
+        repositories: ['Xenova/opus-mt-en-zh', 'Xenova/opus-mt-zh-en'],
+    },
+    {
+        value: LOCAL_TRANSLATION_MODEL_IDS.opusJaEnGpu,
+        label: 'OPUS-MT Japanese → English FP32 · WebGPU',
+        nameKey: 'settings.localTranslation.opusJaEnGpu',
+        descriptionKey: 'settings.localTranslation.opusJaGpuDescription',
+        languagesKey: 'settings.localTranslation.languagesJaToEn',
+        downloadSizeMb: 434,
+        memoryMb: [1500, 3500],
+        engine: 'opus', onnxDtype: 'fp32',
+        repositories: ['Xenova/opus-mt-ja-en'],
+    },
+    {
+        value: LOCAL_TRANSLATION_MODEL_IDS.index,
+        label: 'Index-Translate 2B Q6_K · WebGPU',
+        nameKey: 'settings.localTranslation.index',
+        descriptionKey: 'settings.localTranslation.indexDescription',
+        languagesKey: 'settings.localTranslation.languagesHunyuan',
+        downloadSizeMb: 1620,
+        memoryMb: [3000, 6000],
+        engine: 'index',
+        repositories: ['IndexTeam/Index-Translate-2B-GGUF', 'IndexTeam/Index-Translate-2B'],
     },
     {
         value: LOCAL_TRANSLATION_MODEL_IDS.m2m100,
@@ -199,11 +237,11 @@ export function resolveLocalTranslationLanguageCode(
     const base = languageBase(normalized);
     const engine = getLocalTranslationModel(model).engine;
     if (engine === 'opus') {
-        const allowed = model === LOCAL_TRANSLATION_MODEL_IDS.opusZhEn ? ['zh', 'en'] : ['ja', 'en'];
+        const allowed = (model === LOCAL_TRANSLATION_MODEL_IDS.opusZhEn || model === LOCAL_TRANSLATION_MODEL_IDS.opusZhEnGpu) ? ['zh', 'en'] : ['ja', 'en'];
         if (allowed.includes(base)) return base;
         throw new Error('LOCAL_TRANSLATION_LANGUAGE_UNSUPPORTED');
     }
-    if (engine === 'hunyuan') {
+    if (engine === 'hunyuan' || engine === 'index') {
         if (normalized === 'zh-Hant') return 'zh-Hant';
         if (HUNYUAN_LANGUAGE_NAMES[base]) return base;
         throw new Error('LOCAL_TRANSLATION_LANGUAGE_UNSUPPORTED');
@@ -247,6 +285,9 @@ export function localTranslationErrorKey(error: unknown): string {
     if (/LOCAL_TRANSLATION_(REPETITION|OUTPUT_LIMIT|EMPTY)/u.test(message)) return 'settings.localTranslation.error.repetition';
     if (message.includes('LOCAL_TRANSLATION_TIMEOUT') || /超时|超过|timeout/iu.test(message)) return 'settings.localTranslation.error.timeout';
     if (message.includes('LOCAL_TRANSLATION_MODEL_REMOVED')) return 'settings.localTranslation.error.removed';
+    if (message.includes('LOCAL_TRANSLATION_GPU_')) return 'settings.localTranslation.error.gpu';
+    if (message.includes('LOCAL_TRANSLATION_PLACEHOLDER')) return 'settings.localTranslation.error.placeholder';
+    if (message.includes('LOCAL_TRANSLATION_INPUT_LIMIT')) return 'settings.localTranslation.error.inputLimit';
     if (message.includes('LOCAL_TRANSLATION_BROWSER_UNSUPPORTED')) return 'settings.localTranslation.error.browser';
     return 'settings.localTranslation.trialError';
 }

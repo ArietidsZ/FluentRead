@@ -28,8 +28,8 @@ for (const [locale, language] of [['en', 'en-US'], ['zh-CN', 'zh-CN']]) {
     assert.ok(read(`${folder}/description.txt`).startsWith(`${taglines[language]}\n\n`), `${locale}: full description`);
     assert.ok(read(`marketing/copy/${locale}.md`).includes(taglines[language]), `${locale}: community copy`);
 }
-for (const file of ['README.md', 'misc/README_ZH.md']) {
+for (const [file, language] of [['README.md', 'en-US'], ['misc/README_ZH.md', 'zh-CN']]) {
     const intro = read(file).split('</div>')[0];
-    for (const language of ['en-US', 'zh-CN']) assert.ok(intro.includes(taglines[language]), `${file}: bilingual opening`);
+    assert.ok(intro.includes(taglines[language]), `${file}: ${language} opening`);
 }
-console.log('Brand copy verified: 7 languages, bilingual README, package and store descriptions, community copy.');
+console.log('Brand copy verified: 7 languages, localized READMEs, package and store descriptions, community copy.');

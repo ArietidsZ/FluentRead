@@ -32,6 +32,7 @@ import {
     SELECTION_WORD_LOOKUP_MESSAGE_TYPE,
     translateVisibleWordCardFields,
     type WordCardData,
+    type WordCardTranslationRequest,
 } from '@/src/features/selection-translation/background/wordLookupHandler';
 import {
     createOpenOptionsPageHandler,
@@ -59,6 +60,7 @@ function wordCard(definitions: Array<{definition: string; example?: string; tran
 describe('后台 feature handlers', () => {
     it('输入框翻译严格验证 payload，并保留原文本与 provider 结果', async () => {
         const config = new Config();
+        config.service = 'microsoft';
         const translate = vi.fn(async (_request: unknown) => ' 译文 ');
         const handler = createInputBoxTranslationHandler({
             ready: Promise.resolve(),
@@ -112,7 +114,7 @@ describe('后台 feature handlers', () => {
         expect(openSection).toHaveBeenNthCalledWith(1, 'settings-video');
         expect(openSection).toHaveBeenNthCalledWith(2, 'settings-translation');
         expect(openSection).toHaveBeenNthCalledWith(3, 'settings-translation');
-        expect(openSection).toHaveBeenNthCalledWith(4, 'settings-area-translation');
+        expect(openSection).toHaveBeenNthCalledWith(4, 'settings-image-translation');
 
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-secret'}))
             .rejects.toThrow('无效的设置页面');
@@ -547,6 +549,32 @@ describe('后台 feature handlers', () => {
             .rejects.toThrow('targetLanguage 必须是非空字符串');
         await expect(handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run', targetLanguage: 1}))
             .rejects.toThrow('targetLanguage 必须是非空字符串');
+    });
+
+    it.each([
+        {source: '无痕标签页', context: {sender: {tab: {incognito: true}}}, split: false, expected: true},
+        {source: '普通标签页', context: {sender: {tab: {incognito: false}}}, split: false, expected: false},
+        {source: '无 sender 的普通上下文', context: undefined, split: false, expected: false},
+        {source: '无 sender 的 split 无痕上下文', context: undefined, split: true, expected: true},
+    ])('词典辅助翻译沿用 $source，失败仍保留原词卡', async ({context, split, expected}) => {
+        const {isPrivateTranslationContext} = await import('@/src/services/translation/privateContext');
+        const card = wordCard();
+        const failure = new Error('definition provider unavailable');
+        const translate = vi.fn(async (request: WordCardTranslationRequest) => {
+            expect(isPrivateTranslationContext(request)).toBe(expected);
+            expect(JSON.parse(JSON.stringify(request))).toEqual({origin: ['to move quickly', 'Run home.'], context: '',
+                pageContext: '', useCache: true, targetLanguage: 'zh-Hans', requestTimeoutMs: 2_500});
+            if (!expected) expect(Object.getOwnPropertySymbols(request)).toEqual([]);
+            throw failure;
+        });
+        const warn = vi.fn();
+        const handler = createSelectionWordLookupHandler({lookupWord: async () => card,
+            getDefaultTargetLanguage: () => 'zh-Hans', privateContext: () => split, translate, warn});
+        await expect(handler.handle({type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, word: 'run'}, context))
+            .resolves.toEqual({success: true, data: card});
+        expect(translate).toHaveBeenCalledOnce();
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('keeping dictionary text'), failure);
+        expect(card.meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');
     });
 
     it('词典卡翻译去重、深拷贝并只写入有效译文', async () => {
@@ -1198,6 +1226,27 @@ describe('圈选视觉识别路由', () => {
         await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection}, {}))
             .resolves.toMatchObject({recognitionFallback: fallback, recognitionMethod: 'ocr'});
         expect(languages).toHaveBeenCalledOnce(); expect(ocr).toHaveBeenCalledOnce();
+    });
+
+    it.each([false, true])('异步视觉预检的可选进度订阅=%s，先通知再识别且不重复回退', async withProgress => {
+        const events: string[] = [];
+        const sendProgress = vi.fn(async () => {events.push('recognizing');});
+        const resolveRoute = vi.fn(async () => {events.push('route'); return {mode: 'ocr' as const, fallback: 'unknown' as const};});
+        const ocr = vi.fn(async () => ({image: 'crop', lines: []}));
+        const languages = vi.fn(async () => undefined);
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: languages,
+            translateArea: ocr, prepareVisionRoute: () => resolveRoute,
+            ...(withProgress ? {sendProgress} : {}),
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x',
+            selection, requestId: 'area-without-progress'}, {})).resolves.toEqual({success: true,
+            image: 'crop', lines: [], recognitionMethod: 'ocr', recognitionFallback: 'unknown'});
+        expect(events).toEqual(withProgress ? ['recognizing', 'route'] : ['route']);
+        expect(sendProgress).toHaveBeenCalledTimes(withProgress ? 1 : 0);
+        expect(resolveRoute).toHaveBeenCalledOnce();
+        expect(resolveRoute).toHaveBeenCalledWith(expect.objectContaining({requestId: 'area-without-progress'}));
+        expect(languages).toHaveBeenCalledWith('en'); expect(ocr).toHaveBeenCalledOnce();
     });
 
     it('vision 分支只调用 prepareVision，vision 失败不触发 OCR', async () => {

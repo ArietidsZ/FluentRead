@@ -1,0 +1,188 @@
+{
+  "upstreamRepo": "Helsinki-NLP/opus-mt-en-jap",
+  "upstreamRevision": "a863894cdd2b80f3bc1c5966734aee9ffec207d1",
+  "exportRepo": "Xenova/opus-mt-en-jap",
+  "exportRevision": "9d418190be3aa945eae5bab1bd96bc5e349ad784",
+  "officialAlgorithm": "source.spm.encode(text,out_type=str), map piece through vocab.get(piece,vocab[<unk>]), append EOS0; mirrors Transformers4.49 MarianTokenizer",
+  "upstreamFiles": [
+    {
+      "path": "source.spm",
+      "size": 508602,
+      "sha256": "375cbed8885a6d369e0493acfc69a066010a86f98f9bac02430cbeb1726934a6"
+    },
+    {
+      "path": "vocab.json",
+      "size": 1642424,
+      "sha256": "9d75e73cc4484a38cd8d90960517fef2d119b93975efad6607d835ce08acdcf9"
+    },
+    {
+      "path": "config.json",
+      "size": 1382,
+      "sha256": "12ae90385b9a78eb6be670ea49c8e1379ffb99c0598fccb637ad08b393e79a5c"
+    },
+    {
+      "path": "generation_config.json",
+      "size": 293,
+      "sha256": "9c80a2f4beac1d45f4f7388bc34d9a9602cfc86b443a6e3e0587a48f718ae698"
+    },
+    {
+      "path": "tokenizer_config.json",
+      "size": 43,
+      "sha256": "b9f71a590f833210b914f40b4d5153822e0a2d6e70ca58088e1fd8218b012c81"
+    }
+  ],
+  "exportUnknownId": 2,
+  "actualUnknownTokenId": 1,
+  "vocabTokenAtId2": ",",
+  "languageMarkers": [],
+  "cases": [
+    {
+      "text": "Save changes",
+      "officialPieces": [
+        "▁Save",
+        "▁changes"
+      ],
+      "officialIds": [
+        7228,
+        11654,
+        0
+      ],
+      "transformersJs381Ids": [
+        7228,
+        11654,
+        0
+      ],
+      "exactParity": true
+    },
+    {
+      "text": "The meeting starts at 15:30 on October 4.",
+      "officialPieces": [
+        "▁The",
+        "▁meeting",
+        "▁start",
+        "s",
+        "▁at",
+        "▁",
+        "1",
+        "5",
+        ":",
+        "3",
+        "0",
+        "▁on",
+        "▁O",
+        "ct",
+        "o",
+        "ber",
+        "▁",
+        "4",
+        "."
+      ],
+      "officialIds": [
+        100,
+        44386,
+        36214,
+        76,
+        155,
+        6,
+        46025,
+        44524,
+        32,
+        43935,
+        1,
+        79,
+        302,
+        37309,
+        3407,
+        1,
+        6,
+        37165,
+        4,
+        0
+      ],
+      "transformersJs381Ids": [
+        100,
+        44386,
+        36214,
+        76,
+        155,
+        6,
+        46025,
+        44524,
+        32,
+        43935,
+        2,
+        79,
+        302,
+        37309,
+        37515,
+        1535,
+        6,
+        37165,
+        4,
+        0
+      ],
+      "exactParity": false
+    },
+    {
+      "text": "Do not turn off the printer until the update is complete.",
+      "officialPieces": [
+        "▁Do",
+        "▁not",
+        "▁turn",
+        "▁off",
+        "▁the",
+        "▁print",
+        "er",
+        "▁unti",
+        "l",
+        "▁the",
+        "▁up",
+        "d",
+        "ate",
+        "▁is",
+        "▁complete",
+        "."
+      ],
+      "officialIds": [
+        679,
+        54,
+        643,
+        372,
+        3,
+        24344,
+        1535,
+        411,
+        29,
+        3,
+        111,
+        286,
+        35912,
+        42,
+        12921,
+        4,
+        0
+      ],
+      "transformersJs381Ids": [
+        679,
+        54,
+        643,
+        372,
+        3,
+        24344,
+        1535,
+        411,
+        29,
+        3,
+        111,
+        286,
+        35912,
+        42,
+        12921,
+        4,
+        0
+      ],
+      "exactParity": true
+    }
+  ],
+  "conclusion": "No missing required language prefix or model generation config mismatch identified. Export tokenizer has wrong unknown ID and sourceSP segmentation differences on date fixture. Two catastrophic-output fixtures have exact input token parity, so input tokenization does not explain all reported failures. Greedy versus official beam4 decoding is a separate quality setting, not a demonstrated cause or fix. No inference run."
+}

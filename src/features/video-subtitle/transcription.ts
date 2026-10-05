@@ -22,6 +22,14 @@ export const VIDEO_LOCAL_TRANSCRIPTION_MODELS = [
     downloadSizeMb: 150,
     description: '侧重识别质量，所需内存更多、处理时间更长。',
   },
+  {
+    value: 'qwen3-asr-0.6b',
+    cacheRevision: '4a01b95fafe2c9e3af77e33c18bbb7de349c62f6-window-v1',
+    label: 'Qwen3-ASR 0.6B · WebGPU',
+    modelId: 'jiangzhuo9357/Qwen3-ASR-0.6B-ONNX',
+    downloadSizeMb: 1297,
+    description: 'WebGPU ASR; 889 MB with shader-f16 or 1.30 GB without. Requires several GB of free memory; audio-window timing only.',
+  },
 ] as const;
 
 export type VideoLocalTranscriptionModel = typeof VIDEO_LOCAL_TRANSCRIPTION_MODELS[number]['value'];

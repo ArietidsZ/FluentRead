@@ -166,3 +166,71 @@ describe('输入框翻译后台配置绑定', () => {
             .rejects.toThrow('有效译文');
     });
 });
+
+describe('split 上下文的输入框翻译', () => {
+    it.each([false, true])('无 sender 时采用可信 split 标记=%s，普通功能配置保持不变', async privateContext => {
+        const {isPrivateTranslationContext} = await import('@/src/services/translation/privateContext');
+        const config = new Config();
+        config.inputBoxTranslationService = 'openai'; config.inputBoxTranslationModel = 'ordinary';
+        config.privateTranslation = {enabled: true, service: 'deepseek', model: 'private'};
+        const before = JSON.stringify(config);
+        const translate = vi.fn(async (_request: TranslationSingleRequestMessage) => '译文');
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: () => config,
+            privateContext: () => privateContext, translate});
+        await expect(handler.handle({type: 'inputBoxTranslation', text: 'Hello world', targetLang: 'zh-Hans'}, {}))
+            .resolves.toEqual({success: true, translatedText: '译文'});
+        expect(translate.mock.calls[0][0]).toMatchObject({serviceOverride: privateContext ? 'deepseek' : 'openai',
+            modelOverride: privateContext ? 'private' : 'ordinary'});
+        expect(isPrivateTranslationContext(translate.mock.calls[0][0])).toBe(privateContext);
+        expect(JSON.stringify(config)).toBe(before);
+    });
+});
+
+describe('无痕输入框翻译', () => {
+    it('真实无痕来源覆盖普通功能服务和模型，未配置时不发送', async () => {
+        const {isPrivateTranslationContext} = await import('@/src/services/translation/privateContext');
+        const current = new Config();
+        current.inputBoxTranslationService = 'openai'; current.inputBoxTranslationModel = 'normal';
+        current.privateTranslation = {enabled: true, service: 'deepseek', model: 'private'};
+        const translate = vi.fn(async (_request: TranslationSingleRequestMessage) => '译文');
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: () => current, translate});
+        const message = {type: 'inputBoxTranslation' as const, text: 'Hello world', targetLang: 'zh-Hans'};
+        await handler.handle(message, {sender: {tab: {incognito: true}}});
+        expect(translate.mock.calls[0][0]).toMatchObject({serviceOverride: 'deepseek', modelOverride: 'private', useCache: false});
+        expect(isPrivateTranslationContext(translate.mock.calls[0][0])).toBe(true);
+        await handler.handle(message, {sender: {tab: {incognito: false}}});
+        expect(translate.mock.calls[1][0]).toMatchObject({serviceOverride: 'openai', modelOverride: 'normal'});
+        current.privateTranslation.service = '';
+        await expect(handler.handle(message, {sender: {tab: {incognito: true}}})).rejects.toThrow('无痕');
+        expect(translate).toHaveBeenCalledTimes(2);
+        expect(current.inputBoxTranslationModel).toBe('normal');
+    });
+});
+
+describe('输入框翻译的可信无痕来源', () => {
+    it.each([
+        {source: '普通标签页', context: {sender: {tab: {incognito: false}}}, split: false, expected: false},
+        {source: '无痕标签页', context: {sender: {tab: {incognito: true}}}, split: false, expected: true},
+        {source: '无 sender 的普通上下文', context: undefined, split: false, expected: false},
+        {source: '无 sender 的 split 无痕上下文', context: undefined, split: true, expected: true},
+    ])('$source 只传递隔离标记，保留普通功能的完整请求与配置', async ({context, split, expected}) => {
+        const {isPrivateTranslationContext} = await import('@/src/services/translation/privateContext');
+        const config = new Config();
+        config.inputBoxTranslationService = services.openai;
+        config.inputBoxTranslationModel = 'ordinary-model';
+        const before = JSON.stringify(config);
+        const ordinary = createInputBoxTranslationRequest(config, 'Hello world', 'zh-Hans');
+        const translate = vi.fn(async (_request: TranslationSingleRequestMessage) => '译文');
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: () => config,
+            privateContext: () => split, translate});
+        await expect(handler.handle({type: 'inputBoxTranslation', text: 'Hello world', targetLang: 'zh-Hans',
+            incognito: !expected} as never, context)).resolves.toEqual({success: true, translatedText: '译文'});
+        const request = translate.mock.calls[0][0];
+        expect(isPrivateTranslationContext(request)).toBe(expected);
+        expect(JSON.stringify(request)).toBe(JSON.stringify(ordinary));
+        expect(getTranslationProviderConfig(request, config as never))
+            .toEqual(getTranslationProviderConfig(ordinary, config as never));
+        if (!expected) expect(request).toEqual(ordinary);
+        expect(JSON.stringify(config)).toBe(before);
+    });
+});

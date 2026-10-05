@@ -5,7 +5,7 @@ vi.mock('@/src/services/config/store', () => ({config: {uiLanguage: 'zh-CN'}}));
 import {XCaptionSource} from '@/src/features/video-subtitle/content/xCaptionSource';
 import {getXSubtitleBottomInset, VIDEO_AI_CAPTION_CONTAINER_ID} from '@/src/features/video-subtitle/content/ui';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 function fixture() {
   const {document, window} = parseHTML('<!doctype html><html><body><article><div data-testid="videoPlayer"><video></video></div><div id="fullscreen"><video></video></div></article></body></html>');
   vi.stubGlobal('document', document);
@@ -107,5 +107,176 @@ describe('X 原生字幕来源', () => {
     expect(container.parentElement).toBe(state.player);
     expect(original.querySelector(`#${VIDEO_AI_CAPTION_CONTAINER_ID}`)).toBeNull();
     expect(document.querySelectorAll(`#${VIDEO_AI_CAPTION_CONTAINER_ID}`)).toHaveLength(1);
+  });
+});
+
+describe('X native track readiness', () => {
+  it('keeps an empty native track blank until its real cue list becomes available', () => {
+    const f = fixture();
+    const video = f.state.video;
+    Object.assign(f.state, {video: null});
+    expect(f.source.sync()!.textContent).toBe('');
+    expect(f.source.readNativeTrack()).toBeNull();
+    expect(f.korean.mode).toBe('showing');
+    Object.assign(f.state, {video});
+    Object.assign(f.korean, {cues: [], activeCues: []});
+    Object.assign(f.english, {cues: [], activeCues: []});
+    expect(f.source.sync()!.textContent).toBe('');
+    Object.assign(f.korean, {cues: [{startTime: 0, endTime: 2, text: 'Ready native words'}], activeCues: [{startTime: 0, endTime: 2, text: 'Ready native words'}]});
+    expect(f.source.sync()!.textContent).toBe('Ready native words');
+    expect(f.source.readNativeTrack()?.cues[0].text).toBe('Ready native words');
+  });
+});
+
+describe('YouTube explicit local caption source', () => {
+  it('preserves native captions by default, takes over only on request, restores after cancel', () => {
+    const f = fixture();
+    vi.stubGlobal('window', {location: new URL('https://www.youtube.com/watch?v=fixture')});
+    const native = f.document.createElement('div');
+    native.id = 'ytp-caption-window-container';
+    native.innerHTML = '<span class="ytp-caption-segment">native text</span>';
+    f.state.player.appendChild(native);
+    expect(f.source.sync()).toBeNull();
+    expect(f.korean.mode).toBe('showing');
+    f.state.aiActive = true;
+    f.state.aiCues = [{startMs: 0, durationMs: 2000, text: 'local text'}];
+    const container = f.source.sync()!;
+    expect(container.textContent).toBe('local text');
+    expect(container.dataset.fluentReadAiActive).toBe('true');
+    expect(f.state.player.hasAttribute('data-fluent-read-local-ai-active')).toBe(true);
+    expect(f.korean.mode).toBe('showing');
+    expect(native.textContent).toBe('native text');
+    f.state.video.currentTime = 3;
+    expect(f.source.sync()!.textContent).toBe('');
+    f.state.aiActive = false;
+    expect(f.source.sync()).toBeNull();
+    expect(f.document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)).toBeNull();
+    expect(f.state.player.hasAttribute('data-fluent-read-local-ai-active')).toBe(false);
+    expect(native.textContent).toBe('native text');
+  });
+  it('removes the synthetic source on disabling and restores player visibility', () => {
+    const f = fixture();
+    vi.stubGlobal('window', {location: new URL('https://www.youtube.com/watch?v=fixture')});
+    f.state.aiActive = true;
+    f.source.sync();
+    f.state.enabled = false;
+    expect(f.source.sync()).toBeNull();
+    expect(f.state.player.hasAttribute('data-fluent-read-local-ai-active')).toBe(false);
+  });
+  it('removes only the owned local layer on an unsupported YouTube route and keeps host captions intact', () => {
+    const f = fixture();
+    const location = new URL('https://www.youtube.com/watch?v=fixture');
+    vi.stubGlobal('window', {location});
+    const native = f.document.createElement('div');
+    native.id = 'ytp-caption-window-container';
+    native.textContent = 'Host-owned native words';
+    f.state.player.appendChild(native);
+    f.state.aiActive = true;
+    f.state.aiCues = [{startMs: 0, durationMs: 2000, text: 'Owned local words'}];
+    expect(f.source.sync()!.textContent).toBe('Owned local words');
+    location.pathname = '/feed/subscriptions'; location.search = '';
+    expect(f.source.sync()).toBeNull();
+    expect(f.document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)).toBeNull();
+    expect(f.state.player.hasAttribute('data-fluent-read-local-ai-active')).toBe(false);
+    expect(native.isConnected).toBe(true);
+    expect(native.textContent).toBe('Host-owned native words');
+    expect(f.korean.mode).toBe('showing');
+    expect(f.source.sync()).toBeNull();
+  });
+
+});
+
+
+describe('caption source owns bounded YouTube live presentation', () => {
+  function liveFixture(notify?: () => void) {
+    vi.useFakeTimers();
+    const f = fixture();
+    const location = new URL('https://www.youtube.com/watch?v=fixture');
+    vi.stubGlobal('window', {location});
+    const state = {...f.state, aiActive: true, livePresentation: true};
+    const source = new XCaptionSource(() => state, notify);
+    const cue = Object.freeze({cueId: 'first', startMs: 0, spokenEndMs: 1000, durationMs: 1000, availableAtMs: 4000, text: 'A completed local sentence.'});
+    state.video.currentTime = 4;
+    return {...f, source, state, cue, location};
+  }
+
+  it('owns expiry and duplicate/older guards while preserving source timing and later repeated speech', async () => {
+    const expired = vi.fn();
+    const f = liveFixture(expired);
+    f.source.presentLiveCue(f.cue);
+    expect(f.source.liveCue).toBe(f.cue);
+    expect(f.source.sync()!.textContent).toBe(f.cue.text);
+    await vi.advanceTimersByTimeAsync(1000);
+    f.source.presentLiveCue({...f.cue, availableAtMs: 5000});
+    await vi.advanceTimersByTimeAsync(799);
+    expect(f.source.liveCue).toBe(f.cue);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(f.source.liveCue).toBeNull();
+    expect(f.source.sync()!.textContent).toBe('');
+    expect(expired).toHaveBeenCalledOnce();
+    f.source.presentLiveCue({...f.cue, availableAtMs: 6000});
+    expect(f.source.liveCue).toBeNull();
+    const later = {...f.cue, cueId: 'later', startMs: 7000, spokenEndMs: 8000, availableAtMs: 9000};
+    f.source.presentLiveCue(later);
+    expect(f.source.liveCue).toBe(later);
+    f.source.presentLiveCue({...f.cue, text: 'An older correction.'});
+    expect(f.source.liveCue).toBe(later);
+    await vi.advanceTimersByTimeAsync(1000);
+    const correction = {...later, text: 'A completed local sentence, corrected.'};
+    f.source.presentLiveCue(correction);
+    await vi.advanceTimersByTimeAsync(800);
+    expect(f.source.liveCue).toBe(correction);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(f.source.liveCue).toBeNull();
+    expect(f.cue).toMatchObject({startMs: 0, spokenEndMs: 1000, durationMs: 1000, availableAtMs: 4000});
+  });
+
+  it('clears current/latest ownership on explicit reset and expires safely without a notification port', async () => {
+    const f = liveFixture();
+    f.source.presentLiveCue(f.cue);
+    f.source.clearLiveCue();
+    expect(vi.getTimerCount()).toBe(0);
+    expect(f.source.liveCue).toBeNull();
+    f.source.presentLiveCue(f.cue);
+    expect(f.source.liveCue).toBe(f.cue);
+    await vi.advanceTimersByTimeAsync(1800);
+    expect(f.source.liveCue).toBeNull();
+    f.source.clearLiveCue();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['unsupported route', 'disabled'] as const)('clears its timer and presentation when the owner becomes %s', async reason => {
+    const expired = vi.fn();
+    const f = liveFixture(expired);
+    f.source.presentLiveCue(f.cue);
+    f.source.sync();
+    if (reason === 'unsupported route') f.location.pathname = '/feed/subscriptions'; else f.state.enabled = false;
+    expect(f.source.sync()).toBeNull();
+    expect(f.source.liveCue).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    await vi.advanceTimersByTimeAsync(1800);
+    expect(expired).not.toHaveBeenCalled();
+    f.location.pathname = '/watch'; f.state.enabled = true;
+    expect(f.source.sync()!.textContent).toBe('');
+    f.source.presentLiveCue(f.cue);
+    expect(f.source.liveCue).toBe(f.cue);
+    f.source.clearLiveCue();
+  });
+
+  it('destroy prevents timer notifications and later callbacks from recreating owned DOM', async () => {
+    const expired = vi.fn();
+    const f = liveFixture(expired);
+    const native = f.document.createElement('div'); native.textContent = 'Host-owned words'; f.state.player.appendChild(native);
+    f.source.presentLiveCue(f.cue); f.source.sync();
+    f.source.destroy();
+    expect(f.source.liveCue).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    f.source.presentLiveCue({...f.cue, cueId: 'late', startMs: 10000});
+    expect(f.source.sync()).toBeNull();
+    f.source.destroy();
+    await vi.advanceTimersByTimeAsync(1800);
+    expect(expired).not.toHaveBeenCalled();
+    expect(f.document.getElementById(VIDEO_AI_CAPTION_CONTAINER_ID)).toBeNull();
+    expect(native.isConnected).toBe(true); expect(native.textContent).toBe('Host-owned words');
   });
 });

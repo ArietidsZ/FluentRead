@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {localTranslationErrorKey} from '@/src/core/config/localTranslation';
 import {
   DEFAULT_LOCAL_TRANSLATION_MODEL,
   LOCAL_TRANSLATION_MODEL_IDS,
@@ -22,7 +23,7 @@ describe('local translation model catalog', () => {
   it('normalizes the built-in model catalog', () => {
     expect(DEFAULT_LOCAL_TRANSLATION_MODEL).toBe(LOCAL_TRANSLATION_MODEL_IDS.opusZhEn);
     expect(normalizeLocalTranslationModel('missing')).toBe(DEFAULT_LOCAL_TRANSLATION_MODEL);
-    expect(LOCAL_TRANSLATION_MODELS.filter((item) => !item.legacy)).toHaveLength(3);
+    expect(LOCAL_TRANSLATION_MODELS.filter((item) => !item.legacy)).toHaveLength(6);
   });
 
   it('maps product language codes for M2M100 and NLLB and rejects unsupported pairs', () => {
@@ -72,5 +73,22 @@ describe('local translation model cache', () => {
     await removeLocalTranslationModelFiles(LOCAL_TRANSLATION_MODEL_IDS.m2m100);
     await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.m2m100)).resolves.toBe(false);
     await expect(isLocalTranslationModelCached(LOCAL_TRANSLATION_MODEL_IDS.nllb)).resolves.toBe(true);
+  });
+});
+
+
+describe('Index language and failure configuration', () => {
+  it('preserves traditional Chinese and rejects unsupported Index language codes', () => {
+    expect(resolveLocalTranslationLanguageCode(LOCAL_TRANSLATION_MODEL_IDS.index, 'zh-Hant')).toBe('zh-Hant');
+    expect(resolveLocalTranslationLanguageCode(LOCAL_TRANSLATION_MODEL_IDS.index, 'ja-JP')).toBe('ja');
+    expect(() => resolveLocalTranslationLanguageCode(LOCAL_TRANSLATION_MODEL_IDS.index, 'xx')).toThrow('LANGUAGE_UNSUPPORTED');
+  });
+  it.each([
+    ['LOCAL_TRANSLATION_GPU_UNVERIFIED', 'settings.localTranslation.error.gpu'],
+    ['LOCAL_TRANSLATION_PLACEHOLDER', 'settings.localTranslation.error.placeholder'],
+    ['LOCAL_TRANSLATION_INPUT_LIMIT', 'settings.localTranslation.error.inputLimit'],
+    ['unrelated failure', 'settings.localTranslation.trialError'],
+  ])('maps introduced failure %s to its actionable message', (error, key) => {
+    expect(localTranslationErrorKey(new Error(error))).toBe(key);
   });
 });

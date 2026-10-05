@@ -148,6 +148,20 @@ describe('术语库与真实翻译编排协作', () => {
         expect(h.provider).toHaveBeenCalledTimes(1);
     });
 
+    it('额外空白触发原文复验后接受整句术语的精确保留结果', async () => {
+        const h = harness();
+        const origin = 'large language model';
+        h.config.glossaryLibraries[0].entries = [{id: 'phrase', source: origin, target: '', caseSensitive: false}];
+        h.provider.mockImplementationOnce(async message => ` ${message.origin} `)
+            .mockImplementationOnce(async message => message.origin);
+        await expect(h.request({origin})).resolves.toBe(origin);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+        expect(h.provider.mock.calls[1][0]).toMatchObject({pageContext: ''});
+        expect([...h.cache.values()]).toEqual([origin]);
+        await expect(h.request({origin})).resolves.toBe(origin);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+    });
+
     it('缺失词库或当前片段无实际词条时不能豁免回显检查', () => {
         const snapshot = createTranslationProviderConfigSnapshot(new Config());
         const missing = {...snapshot, glossaryLibraries: undefined, glossaryTerms: [{source: 'agent', target: '智能体'}],

@@ -21,8 +21,7 @@ afterEach(async () => {
 async function mountOptions(hash = '#settings-selection') {
   const location = {hash};
   const windowEvents = new EventTarget();
-  const mediaAdd = vi.fn();
-  const mediaRemove = vi.fn();
+  const mediaQueries = new Map<string, {matches: boolean; addEventListener: ReturnType<typeof vi.fn>; removeEventListener: ReturnType<typeof vi.fn>}>();
   const scrollTo = vi.fn();
   const windowScrollTo = vi.fn();
   const unsubscribeConfig = vi.fn();
@@ -34,7 +33,11 @@ async function mountOptions(hash = '#settings-selection') {
   vi.stubGlobal('window', Object.assign(windowEvents, {
     location,
     scrollTo: windowScrollTo,
-    matchMedia: () => ({matches: false, addEventListener: mediaAdd, removeEventListener: mediaRemove}),
+    matchMedia: (query: string) => {
+      const media = {matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn()};
+      mediaQueries.set(query, media);
+      return media;
+    },
   }));
   vi.stubGlobal('history', {replaceState});
   (globalThis as Record<string, unknown>)[TEST_KEY] = {
@@ -56,7 +59,7 @@ async function mountOptions(hash = '#settings-selection') {
       if (id === '\0options-child-component') return 'export default {render: () => null};';
       if (id === '\0options-i18n') return 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});';
       if (id === '\0options-config') return `export const {config, configReady, subscribeConfig} = globalThis.${TEST_KEY};`;
-      if (id === '\0options-appearance') return 'export const applyInterfaceSkin = () => {}; export const applyInterfaceFont = () => {};';
+      if (id === '\0options-appearance') return 'export const applyInterfaceSkin = () => {}; export const applyInterfaceFont = () => {}; export const applyInterfaceTheme = () => {}; export const setInterfaceAppearanceRoot = () => {};';
       return null;
     },
   };
@@ -92,7 +95,7 @@ async function mountOptions(hash = '#settings-selection') {
     windowEvents.dispatchEvent(new Event('hashchange'));
     await runtime.nextTick();
   };
-  return {state, location, navigateHash, replaceState, scrollTo, windowScrollTo, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig};
+  return {state, location, navigateHash, replaceState, scrollTo, windowScrollTo, addEventListener, removeEventListener, mediaQueries, unsubscribeConfig};
 }
 
 describe('OptionsApp mounted hash navigation', () => {
@@ -146,14 +149,18 @@ describe('OptionsApp mounted hash navigation', () => {
   });
 
   it('removes the hash listener on unmount and no longer changes the former page state', async () => {
-    const {state, navigateHash, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig} = await mountOptions();
+    const {state, navigateHash, addEventListener, removeEventListener, mediaQueries, unsubscribeConfig} = await mountOptions();
     const hashListener = addEventListener.mock.calls.find(([event]) => event === 'hashchange')?.[1];
     expect(hashListener).toBeTypeOf('function');
     unmount?.();
     unmount = undefined;
     expect(removeEventListener).toHaveBeenCalledWith('hashchange', hashListener);
-    expect(mediaAdd).toHaveBeenCalledOnce();
-    expect(mediaRemove).toHaveBeenCalledOnce();
+    expect([...mediaQueries.keys()].sort()).toEqual(['(max-width: 700px)', '(prefers-color-scheme: dark)']);
+    for (const media of mediaQueries.values()) {
+      expect(media.addEventListener).toHaveBeenCalledOnce();
+      expect(media.removeEventListener).toHaveBeenCalledOnce();
+      expect(media.removeEventListener).toHaveBeenCalledWith('change', media.addEventListener.mock.calls[0][1]);
+    }
     expect(unsubscribeConfig).toHaveBeenCalledOnce();
     await navigateHash('#settings-vocabulary');
     expect(state.activeSection).toBe('settings-selection');
@@ -176,7 +183,7 @@ it('reveals collapsed groups and the correct page category for a cross-page cont
   state.selectSection('settings-translation', 'floating-ball-settings');
   expect(state.activePanel).toBe('tools');
   state.selectSection('settings-translation');
-  expect(state.activePanel).toBe('hover');
+  expect(state.activePanel).toBe('reading');
   state.toggleGroup(3);
   expect(state.isGroupOpen(3)).toBe(false);
   state.toggleGroup(3);

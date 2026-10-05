@@ -1,7 +1,7 @@
 <!--
  * @file src/features/writing-assistant/ui/WritingPanel.vue
  * 文件职责：承载网页回复的写作流程，在固定卡片中起草、核对引用、调整风格并插回当前编辑器。
- * 主要内容：让多语言标题、语言选择与操作按可用空间换行；统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；正文优先布局、输入按需展开，支持分层返回、键盘提交、未完成版本提示与当前完整译文的双语插入。
+ * 主要内容：无痕卡片就绪状态沿用专用模型配置；让多语言标题、语言选择与操作按可用空间换行；统一配置就绪提示、草稿和请求状态，保留失败任务的语义以便准确重试；正文优先布局、输入按需展开，支持分层返回、键盘提交、未完成版本提示与当前完整译文的双语插入。
  * 模块边界：不自行读取网页或发送回复，引用由宿主传入；后台负责模型请求，编辑器快照负责写回，Gmail 仅插入可读纯文本。
  -->
 <template>
@@ -98,6 +98,7 @@ import WritingStyleEditor from './WritingStyleEditor.vue';
 import WritingLanguagePicker from './WritingLanguagePicker.vue';
 import {config as initialConfig, subscribeConfig, requestConfigPatch} from '@/src/services/config/store';
 import {options} from '@/src/core/config/catalog';
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
 import {resolveWritingReadiness} from '@/src/core/config/writingReadiness';
 import {WRITING_LANGUAGES, WRITING_LENGTHS, WRITING_TONES, resolveWritingLanguage, resolveWritingReferenceLanguage, type WritingPreferences, type WritingIntent} from '@/src/core/config/writing';
 import type {WritingRequest} from '../types';
@@ -137,7 +138,10 @@ const hasDraft = computed(() => versions.value.length > 0);
 const requestedLanguage = ref(''); const resultLanguage = ref('');
 const actualModel = ref(''); const requestedService = ref(''); const resultService = ref(''); const resultModel = ref('');
 // 网页配置刻意不包含凭据；缺失密钥必须以后台返回为准，不能从公开快照推断。
-const readiness = computed(() => resolveWritingReadiness(config.value, false));
+const readiness = computed(() => {
+  try { return resolveWritingReadiness(resolvePrivateTranslationConfig(config.value, Boolean(browser.extension?.inIncognitoContext)), false); }
+  catch (error) { return {...resolveWritingReadiness(config.value, false), ready: false, message: error instanceof Error ? error.message : String(error)}; }
+});
 const credentialError = computed(() => error.value === '请先在翻译服务中配置这个服务的 API Key');
 const service = computed(() => readiness.value.service);
 const supported = computed(() => readiness.value.supported);

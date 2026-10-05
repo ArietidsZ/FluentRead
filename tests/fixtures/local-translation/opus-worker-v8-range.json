@@ -1,0 +1,51 @@
+{
+  "nativeFile": "native-ranges-and-source-map.json",
+  "nativeSha256": "d2edc14cb0cbdff6595571d5cf30d13dc0dec3ae64159514940cfdd7c0196337",
+  "wrapperLength": 185,
+  "range": {
+    "startOffset": 8756,
+    "endOffset": 8757,
+    "count": 0
+  },
+  "generated": {
+    "start": 8571,
+    "end": 8572,
+    "text": " ",
+    "position": {
+      "line": 183,
+      "column": 5
+    },
+    "line": "    } finally {"
+  },
+  "mappedStart": {
+    "source": "src/features/local-translation/offscreen/translation.worker.ts",
+    "line": 173,
+    "column": 49,
+    "name": null
+  },
+  "mappedEnd": {
+    "source": "src/features/local-translation/offscreen/translation.worker.ts",
+    "line": 173,
+    "column": 49,
+    "name": null
+  },
+  "catchRange": {
+    "startOffset": 8694,
+    "endOffset": 8756,
+    "count": 2
+  },
+  "explanation": "Native zero-count range is exactly one generated whitespace character between catch closing brace and finally keyword. It contains no executable token. v8-to-istanbul remaps it to the original catch closing brace and counts every block range as a branch. This establishes an instrumentation/source-mapping artifact, not 100% reported V8 branch coverage.",
+  "reportedCoverage": {
+    "statements": 100,
+    "branches": 99.33,
+    "functions": 100,
+    "lines": 100,
+    "tests": 43
+  },
+  "policy": "Preserve reported metric. No coverage exclusions, ignored branches, reduced denominator, relaxed thresholds or production changes.",
+  "rawEvidenceLabel": "Retained original native V8 diagnostic capture, identified by nativeSha256",
+  "origins": {
+    "nativeFile": "Original diagnostic capture retained separately; identified by SHA256.",
+    "mappedSource": "Repository-relative production source path; offsets and hashes are unchanged."
+  }
+}

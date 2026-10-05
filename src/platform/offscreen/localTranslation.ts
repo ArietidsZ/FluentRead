@@ -5,12 +5,14 @@
  * 主要内容：转发文本翻译、模型准备、状态查询和清除请求，并把取消信号绑定到对应 requestId。
  * 模块边界：只连接平台 Offscreen client，不读取配置、不初始化模型，也不访问宿主网页 DOM。
  */
+import type {LocalTranslationHints} from '@/src/core/translation/indexInference';
 import {OFFSCREEN_CANCEL_LOCAL_TRANSLATION_MESSAGE_TYPE, type OffscreenClient} from './client';
 import {extensionDomClient} from './extensionClient';
 
 export interface LocalTranslationRequest {
     readonly model?: unknown;
     readonly text: string;
+    readonly hints?: LocalTranslationHints;
     readonly sourceLanguage?: unknown;
     readonly targetLanguage?: unknown;
     readonly sourceLanguageDetectionText?: string;
@@ -38,6 +40,7 @@ export function createLocalTranslationOffscreenAdapter(client: OffscreenClient =
                 requestId: id,
                 model: request.model,
                 text: request.text,
+                ...(request.hints ? {hints:request.hints} : {}),
                 sourceLanguage: request.sourceLanguage,
                 targetLanguage: request.targetLanguage,
                 ...(request.sourceLanguageDetectionText !== undefined

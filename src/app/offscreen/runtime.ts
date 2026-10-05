@@ -100,6 +100,7 @@ export function startOffscreenApp(): void {
                 String(request.language || ''),
                 request.voice,
                 signal,
+                request.execution,
             ),
             prepare: (request) => prepareLocalTtsModel(request.keepWarm === true),
             status: getLocalTtsModelStatus,

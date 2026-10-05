@@ -1,9 +1,10 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
+ * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，从真实发送者或扩展私密进程绑定无痕标记，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
+import {attachPrivateTranslationContext} from '@/src/services/translation/privateContext';
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {BackgroundMessageHandler} from '../messageRouter';
 import {attachTranslationGlossaryContext, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
@@ -22,6 +23,7 @@ interface TranslationRequestCandidate extends Record<string, unknown> {
 export interface TranslationRequestHandlerDependencies {
     translate(message: TranslationRequestMessage): Promise<string | string[]>;
     serializeError(error: unknown): unknown;
+    privateContext?: () => boolean;
 }
 
 export interface TranslationRequestContext {
@@ -30,7 +32,7 @@ export interface TranslationRequestContext {
         url?: string;
         frameId?: number;
         documentId?: string;
-        tab?: {id?: number};
+        tab?: {id?: number; incognito?: boolean};
     };
 }
 
@@ -220,7 +222,8 @@ export function createTranslationRequestFallback<TContext = undefined>(
         canHandle: isTranslationRequestCandidate,
         async handle(candidate, context) {
             try {
-                const message = parseTranslationRequest(candidate);
+                const message = attachPrivateTranslationContext(parseTranslationRequest(candidate),
+                    Boolean((context as TranslationRequestContext | undefined)?.sender?.tab?.incognito || dependencies.privateContext?.()));
                 const senderUrl = (context as TranslationRequestContext | undefined)?.sender?.url;
                 const isDocument = typeof senderUrl === 'string'
                     && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);

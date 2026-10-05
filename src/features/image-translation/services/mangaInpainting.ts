@@ -1,11 +1,11 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；串行推理、取消边界和三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效直接报告且不切换 CPU；串行推理、取消边界和三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {probeMangaGpu} from './mangaGpu';
-import {protectMangaSession} from './mangaSessionFallback';
+import {gpuSessionOptions} from '@/src/shared/onnx/gpuSession';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
 import {assertMangaOcrActive, loadMangaInpaintAsset, MANGA_INPAINT_ASSET} from './mangaOcrAssets';
 import {mangaRegionBackground, type MangaBackground} from './mangaRendering';
@@ -90,6 +90,9 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
 }
 
 export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:(percent:number)=>void):Promise<InpaintPort> {
+    assertMangaOcrActive(signal);
+    if (!(await probeMangaGpu()).available) throw new Error('漫画 GPU 加速不可用：需要兼容的硬件 WebGPU，不会改用 CPU');
+    assertMangaOcrActive(signal);
     let lastPercent = -1;
     const model=await loadMangaInpaintAsset(signal,bytes=>{
         const percent=Math.min(99,Math.floor(bytes*100/MANGA_INPAINT_ASSET.bytes));
@@ -97,29 +100,14 @@ export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:
     });assertMangaOcrActive(signal);
     const ort=await import('onnxruntime-web/webgpu');ort.env.wasm.numThreads=1;
     configureOnnxWasmBackend(ort.env.wasm,{mjs:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm')});
-    const gpu=await probeMangaGpu();
-    let activeSignal=signal;
-    let usingGpu=gpu.available;
-    const session=await ort.InferenceSession.create(model,{executionProviders:usingGpu?['webgpu','wasm']:['wasm'],graphOptimizationLevel:'all'}).catch(error=>{
-        assertMangaOcrActive(signal);
-        if(!usingGpu)throw error;
-        usingGpu=false;
-        return ort.InferenceSession.create(model,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
-    });
-    if(usingGpu)protectMangaSession(session,async()=>{
-        assertMangaOcrActive(activeSignal);
-        const bytes=await loadMangaInpaintAsset(activeSignal);assertMangaOcrActive(activeSignal);
-        const cpu=await ort.InferenceSession.create(bytes,{executionProviders:['wasm'],graphOptimizationLevel:'all'});
-        try {assertMangaOcrActive(activeSignal);}catch(error){await cpu.release();throw error;}
-        return cpu;
-    },()=>activeSignal);
-    try {assertMangaOcrActive(signal);} catch(error) {await session.release();throw error;}
+    const session=await ort.InferenceSession.create(model,gpuSessionOptions('lama-shapes'));
+    try {assertMangaOcrActive(signal);} catch(error) {await session.release().catch(()=>undefined);throw error;}
     return {run:async (patch,runSignal)=>{
-        activeSignal=runSignal;
+        assertMangaOcrActive(runSignal);
         const image=new ort.Tensor('float32',patch.image,[1,3,patch.height,patch.width]);
         const mask=new ort.Tensor('float32',patch.mask,[1,1,patch.height,patch.width]);
         let output:Awaited<ReturnType<typeof session.run>>|undefined;
-        try {output=await session.run({image,mask});return new Float32Array(output.inpainted.data as Float32Array);}
+        try {output=await session.run({image,mask});assertMangaOcrActive(runSignal);return new Float32Array(output.inpainted.data as Float32Array);}
         finally {image.dispose();mask.dispose();Object.values(output||{}).forEach(tensor=>tensor.dispose());}
     },release:()=>session.release()};
 }

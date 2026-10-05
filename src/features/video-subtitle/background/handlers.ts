@@ -1,11 +1,11 @@
 /**
  * @file src/features/video-subtitle/background/handlers.ts
- * 文件职责：承载视频字幕本地 Whisper 的后台所有权、代际取消和 Offscreen 调度。
+ * 文件职责：承载视频字幕本地模型的后台所有权、代际取消和 Offscreen 调度。
  * 主要内容：校验 tab/stream/generation，串行转发识别、预热与取消请求，并同步模型缓存状态。
- * 模块边界：只编排视频字幕与平台 Offscreen client，不实现 Whisper 推理，也不关闭共享 Offscreen 文档。
+ * 模块边界：只编排视频字幕与平台 Offscreen client，不实现模型推理，也不关闭共享 Offscreen 文档。
  */
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
-import {VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, normalizeVideoLocalTranscriptionModels, normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_LOCAL_TRANSCRIPTION_MODELS, VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, normalizeVideoLocalTranscriptionModels, normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 import {VideoAiCanceledGenerationRegistry} from '@/src/features/video-subtitle/content/video-ai/generationRegistry';
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
 
@@ -95,7 +95,7 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
             const keepWarm = message.keepWarm === true;
             if (!keepWarm) {
                 const model = normalizeVideoLocalTranscriptionModel(message.model);
-                const response = await offscreen.send<any>({type: 'VIDEO_AI_PREPARE', model, keepWarm: false}, {timeoutMs: 120_000});
+                const response = await offscreen.send<any>({type: 'VIDEO_AI_PREPARE', model, keepWarm: false}, {timeoutMs: model === 'qwen3-asr-0.6b' ? 900_000 : 120_000});
                 if (response?.success !== true) return response;
                 const models = await rememberDownloadedModel(model);
                 return {...response, model, models};
@@ -147,14 +147,14 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
             return {
                 success: true,
                 models,
-                available: Object.fromEntries(['tiny', 'base'].map((model) => [model, models.includes(model as 'tiny' | 'base')])),
+                available: Object.fromEntries(VIDEO_LOCAL_TRANSCRIPTION_MODELS.map(({value}) => [value, models.includes(value)])),
             };
         },
     };
     const removeModel: BackgroundMessageHandler<Context> = {
         type: 'fluentReadRemoveLocalVideoModel',
         async handle(message: any) {
-            if (message.model !== 'tiny' && message.model !== 'base') throw new Error('无效的本地字幕模型');
+            if (normalizeVideoLocalTranscriptionModel(message.model) !== message.model) throw new Error('无效的本地字幕模型');
             if (owner || activeModelRequests || removingModel) throw new Error('模型正在使用或下载，请结束后再清除');
             removingModel = true;
             const model = message.model;

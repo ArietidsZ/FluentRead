@@ -23,6 +23,16 @@ describe('精确双语摘录所有权', () => {
         state.phase = 'translated'; mocks.getState.mockReturnValue(undefined); expect(readBilingualExcerpt(artifact)).toBeNull();
         mocks.getState.mockReturnValue(state); artifact.remove(); expect(readBilingualExcerpt(artifact)).toBeNull();
     });
+    it('缺少模板时读取真实工件，无文字节点和空原文不能构造快照', () => {
+        const {artifact, state} = fixture();
+        Reflect.deleteProperty(state, 'bilingualContentTemplate');
+        expect(readBilingualExcerpt(artifact)?.translation).toBe('页面被改写的文字');
+        state.sourceText = '  ';
+        expect(readBilingualExcerpt(artifact)).toBeNull();
+        state.sourceText = 'first';
+        Object.defineProperty(artifact, 'textContent', {value: null});
+        expect(readBilingualExcerpt(artifact)).toBeNull();
+    });
     it('普通正文和空译文不产生可分享快照', () => {
         const {document, state, artifact} = fixture();
         expect(readBilingualExcerpt(document.querySelector('p')!)).toBeNull();

@@ -1,0 +1,15 @@
+[
+  {"id":"en-zh-ui","source":"en","target":"zh","text":"Save changes","reference":"保存更改"},
+  {"id":"en-zh-number","source":"en","target":"zh","text":"The printer uses 12 grams of material and costs 3.50 dollars.","reference":"打印机使用12克材料，成本为3.50美元。","numbers":["12","3.50"]},
+  {"id":"en-zh-negation","source":"en","target":"zh","text":"Do not turn off the printer until the update is complete.","reference":"在更新完成之前，不要关闭打印机。"},
+  {"id":"en-zh-context","source":"en","target":"zh","text":"Alice gave Mary the report. Mary checked it before the meeting.","reference":"艾丽斯把报告交给了玛丽。玛丽在开会前检查了报告。"},
+  {"id":"zh-en-ui","source":"zh","target":"en","text":"保存更改","reference":"Save changes"},
+  {"id":"zh-en-number","source":"zh","target":"en","text":"打印机使用12克材料，成本为3.50美元。","reference":"The printer uses 12 grams of material and costs 3.50 dollars.","numbers":["12","3.50"]},
+  {"id":"zh-en-negation","source":"zh","target":"en","text":"在更新完成之前，不要关闭打印机。","reference":"Do not turn off the printer until the update is complete."},
+  {"id":"ja-en-ui","source":"ja","target":"en","text":"変更を保存","reference":"Save changes"},
+  {"id":"ja-en-number","source":"ja","target":"en","text":"会議は10月4日の15:30に始まります。","reference":"The meeting starts at 15:30 on October 4.","numbers":["4","15","30"]},
+  {"id":"ja-en-negation","source":"ja","target":"en","text":"更新が完了するまでプリンターの電源を切らないでください。","reference":"Do not turn off the printer until the update is complete."},
+  {"id":"en-ja-ui","source":"en","target":"ja","text":"Save changes","reference":"変更を保存"},
+  {"id":"en-ja-number","source":"en","target":"ja","text":"The meeting starts at 15:30 on October 4.","reference":"会議は10月4日の15:30に始まります。","numbers":["4","15","30"]},
+  {"id":"en-ja-negation","source":"en","target":"ja","text":"Do not turn off the printer until the update is complete.","reference":"更新が完了するまでプリンターの電源を切らないでください。"}
+]

@@ -20,20 +20,20 @@
           <input v-model="config.videoLocalModel" type="radio" name="video-local-model" :value="item.value" :disabled="!config.videoTranslationEnabled || !browserCapabilities.extensionDom" />
           <span class="video-model-card-heading">
             <span class="video-model-icon" aria-hidden="true"><Cpu /></span>
-            <strong>{{ item.label }}</strong>
+            <strong>{{ item.value === 'qwen3-asr-0.6b' ? t('video.modelQwenName') : item.label }}</strong>
             <span v-if="item.value === recommendedModel" class="video-model-recommended">推荐</span>
             <span v-if="item.value === config.videoLocalModel" class="video-model-selected">当前选择</span>
           </span>
         </label>
-        <p class="video-model-description">{{ item.description }}</p>
+        <p class="video-model-description">{{ item.value === 'qwen3-asr-0.6b' ? t('video.modelQwenHint') : item.description }}</p>
         <p class="video-model-size">{{ t('modelCache.downloadSize', {size: item.downloadSizeMb}) }}</p>
         <div class="video-model-card-footer">
           <span class="video-model-availability" role="status">
             <Check v-if="downloaded.includes(item.value)" aria-hidden="true" />
             {{ !modelStateLoaded ? '读取中…' : downloaded.includes(item.value) ? '可离线使用' : downloading.includes(item.value) ? '正在下载模型' : '尚未下载' }}
           </span>
-          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value) || downloading.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click.stop="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
-          <button v-else type="button" class="video-model-download-button" :aria-label="t(downloaded.includes(item.value) ? 'video.modelDownloadedAria' : 'video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!modelStateLoaded || downloaded.includes(item.value) || downloading.includes(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="config.videoLocalModel = item.value; download(item.value)">
+          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value) || downloading.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: item.value === 'qwen3-asr-0.6b' ? t('video.modelQwenName') : translateLegacy(item.label)})" @click.stop="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
+          <button v-else type="button" class="video-model-download-button" :aria-label="t(downloaded.includes(item.value) ? 'video.modelDownloadedAria' : 'video.modelDownloadAria', {model: item.value === 'qwen3-asr-0.6b' ? t('video.modelQwenName') : translateLegacy(item.label)})" :disabled="!modelStateLoaded || downloaded.includes(item.value) || downloading.includes(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="config.videoLocalModel = item.value; download(item.value)">
             <component :is="downloaded.includes(item.value) ? Check : downloading.includes(item.value) ? Loading : Download" :class="{ 'is-loading': downloading.includes(item.value) }" aria-hidden="true" />
             {{ downloaded.includes(item.value) ? '已下载' : downloading.includes(item.value) ? '下载中…' : '下载模型' }}
           </button>

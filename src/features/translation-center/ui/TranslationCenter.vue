@@ -1,13 +1,14 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：提供以输入和多服务对照为中心的翻译工作台，清晰展示凭据、请求进度和旧结果。
- * 主要内容：复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护，全局暂停取消在途任务并保留输入与已完成结果。
+ * 主要内容：无痕专用配置启用时停用并取消多供应商对比，避免错标结果；复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护，全局暂停取消在途任务并保留输入与已完成结果。
  * 模块边界：不实现 provider 协议、不保存原文和译文、不更改网页默认服务；翻译复用 app client，设置导航交给外层，卸载时释放自有页面监听器和请求。
  -->
 <template>
   <section class="translation-center" :aria-label="translateLegacy('翻译中心')">
     <div class="translation-center-intro"><p>{{ ct('intro') }}</p><span v-if="saveState === 'saved'" class="save-status">{{ ct('saved') }}</span><button v-if="saveState === 'error'" class="text-button" type="button" @click="retrySave">{{ ct('saveError') }}</button></div>
     <p v-if="hiddenUnavailableServices.length" class="translation-capability-warning" role="status">{{ translateLegacy('当前浏览器暂不支持 Chrome 内置翻译；该对比项已暂时隐藏，原配置会保留') }}</p>
+    <p v-if="privateComparisonBlocked" class="translation-capability-warning" role="status">{{ t('privateTranslation.comparisonBlocked') }}</p>
     <div class="translation-center-layout">
       <section class="translation-input-panel" aria-labelledby="translation-input-title">
         <div class="translation-panel-heading"><h3 id="translation-input-title">{{ ct('input') }}</h3><button v-if="sourceText" class="text-button" type="button" @click="clearSource">{{ ct('clear') }}</button></div>
@@ -127,7 +128,8 @@ const sourceLanguageOptions = computed(() => options.from);
 const targetLanguageOptions = computed(() => options.to);
 const selectedServiceValues = computed(() => new Set(cards.value.map(card => card.service)));
 const sameLanguage = computed(() => sourceLanguage.value === targetLanguage.value);
-const canTranslate = computed(() => configHydrated.value && translationEnabled.value && !!sourceText.value.trim() && sourceText.value.length <= MAX_TEXT_LENGTH && !sameLanguage.value);
+const privateComparisonBlocked = ref(false);
+const canTranslate = computed(() => !privateComparisonBlocked.value && configHydrated.value && translationEnabled.value && !!sourceText.value.trim() && sourceText.value.length <= MAX_TEXT_LENGTH && !sameLanguage.value);
 const isRunning = computed(() => cards.value.some(card => card.status === 'loading'));
 const readyCards = computed(() => cards.value.filter(card => !credentialWarning(card.service)));
 const successfulCards = computed(() => cards.value.filter(card => card.status === 'success' && !isStale(card)));
@@ -236,7 +238,8 @@ function persistTranslationCenterConfig(...fields: TranslationCenterConfigField[
 function retrySave() {persistTranslationCenterConfig(...failedSave);}
 function hydrateTranslationCenterConfig(nextConfig = config): void {
   translationEnabled.value = nextConfig.on;
-  if (!translationEnabled.value) session.stop();
+  privateComparisonBlocked.value = Boolean(browser.extension?.inIncognitoContext && nextConfig.privateTranslation?.enabled);
+  if (!translationEnabled.value || privateComparisonBlocked.value) session.stop();
   customOpenAIProviders.value = nextConfig.customOpenAIProviders.map(provider => ({...provider, models: [...provider.models]}));
   configRevision.value++;
   const available = new Set(serviceOptions.value.map(item => item.value));

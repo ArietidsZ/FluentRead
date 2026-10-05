@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
+ 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、有效模型和配置提醒，区分模型搜索结果与实际服务选择；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
@@ -22,7 +22,7 @@
             <ServiceIcon v-if="!field.feature?.inherit || selected(field.feature)" :service="effective(field.feature)" :label="label(effective(field.feature))" size="small" />
             <span>{{ field.feature?.inherit && !selected(field.feature) ? t('featureServices.followDefault') : label(effective(field.feature)) }}</span>
           </span>
-          <small v-if="!warning(field.feature) && field.feature && selected(field.feature) && servicesType.isUseModel(effective(field.feature))" :title="getFeatureModel(config, field.feature)">{{ getFeatureModel(config, field.feature) }}</small>
+          <small v-if="!warning(field.feature) && currentModel(field.feature)" :title="currentModel(field.feature)">{{ t('settings.services.currentModel') }}: {{ currentModel(field.feature) }}</small>
         </span>
         <span class="assignment-chevron" aria-hidden="true">›</span>
       </button>
@@ -39,6 +39,7 @@
         <input ref="searchInput" v-model="query" type="search" :aria-label="t('popup.serviceSearchPlaceholder')" :placeholder="t('popup.serviceSearchPlaceholder')" @keydown.down.prevent="focusFirstOption" />
         <button v-if="query" type="button" :aria-label="t('popup.clearSearch')" @click="query = ''; searchInput?.focus()">×</button>
       </label>
+      <p v-if="filteredChoices.some(option => option.matchingModels.length)" class="service-picker-model-hint" role="status">{{ t('popup.serviceModelSearchHint') }}</p>
       <div ref="results" class="service-picker-list" role="listbox" :aria-label="t(`featureServices.${editing.id}`)" @keydown="navigateOptions">
         <button v-if="editing.feature?.inherit && !query.trim()" type="button" role="option" class="service-choice follow-choice"
           data-service-choice="" :aria-selected="!selected(editing.feature)" @click="choose(editing.feature, '')">
@@ -57,7 +58,7 @@
               :data-service-choice="option.value" :aria-selected="selected(editing.feature) === option.value"
               :disabled="option.disabled" @click="choose(editing.feature, option.value)">
               <ServiceIcon :service="option.value" :label="option.label" size="small" />
-              <span class="service-choice-copy"><strong>{{ option.label }}</strong><small v-if="option.disabled">{{ translateLegacy(getTranslationServiceUnavailableMessage(option.value) || '') }}</small><small v-else-if="option.matchingModels.length">{{ option.matchingModels.join(' · ') }}</small></span>
+              <span class="service-choice-copy"><strong>{{ option.label }}</strong><small v-if="option.disabled">{{ translateLegacy(getTranslationServiceUnavailableMessage(option.value) || '') }}</small><small v-else-if="option.matchingModels.length">{{ t('popup.matchingModels', {models: option.matchingModels.join(' · ')}) }}</small></span>
               <span v-if="selected(editing.feature) === option.value" class="service-choice-check" aria-hidden="true">✓</span>
             </button>
             </div>
@@ -73,7 +74,7 @@
 import {computed, nextTick, ref} from 'vue';
 import type {Config} from '@/src/core/config/model';
 import {featureServiceDefinitions, getFeatureService, setFeatureService, getFeatureModel, type FeatureServiceDefinition} from '@/src/core/config/featureServices';
-import {models, customModelString, servicesType} from '@/src/core/config/catalog';
+import {models, customModelString, resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {isHarnessService} from '@/src/core/config/harness';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {getTranslationServiceUnavailableMessage, isTranslationServiceAvailable} from '@/src/services/translation/capabilities';
@@ -96,8 +97,17 @@ const popularServices = new Set(['freeTranslation', 'microsoft', 'google', 'deep
 const selected = (feature?: FeatureServiceDefinition) => feature ? getFeatureService(props.config, feature) : props.config.service;
 const effective = (feature?: FeatureServiceDefinition) => selected(feature) || props.config.service;
 const label = (service: string) => props.serviceOptions.find(option => option.value === service)?.label || service;
-const selectedLabel = (feature?: FeatureServiceDefinition) => feature?.inherit && !selected(feature)
-  ? t('featureServices.follow', {service: label(props.config.service)}) : label(effective(feature));
+const currentModel = (feature?: FeatureServiceDefinition) => {
+  const service = effective(feature);
+  if (!servicesType.isUseModel(service)) return '';
+  return feature ? getFeatureModel(props.config, feature) : resolveConfiguredModel(props.config.model[service], props.config.customModel[service]);
+};
+const selectedLabel = (feature?: FeatureServiceDefinition) => {
+  const service = feature?.inherit && !selected(feature)
+    ? t('featureServices.follow', {service: label(props.config.service)}) : label(effective(feature));
+  const model = currentModel(feature);
+  return model ? `${service} · ${t('settings.services.currentModel')}: ${model}` : service;
+};
 const searchableModels = computed(() => {
   const merged = new Map<string, readonly string[]>(models);
   Object.entries(props.config.customModels).forEach(([service, saved]) => merged.set(service, [...new Set([...(merged.get(service) || []).filter(model => model !== customModelString), ...saved])]));
@@ -215,5 +225,5 @@ function warning(feature?: FeatureServiceDefinition) {
 .service-picker-more { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 34px; margin-top: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--ink); background: var(--surface-soft); font-size: 11px; cursor: pointer; }
 .service-picker-more small { margin-left: 4px; color: var(--muted); font-size: 9px; }
 .service-picker-empty { padding: 15px 4px; color: var(--muted); font-size: 11px; text-align: center; }
-.service-picker-warning { margin: 10px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
+.service-picker-model-hint, .service-picker-warning { margin: 10px 0 0; color: var(--muted); font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 </style>

@@ -344,6 +344,13 @@ describe('Offscreen 消息静态路由', () => {
             url: 'https://pbs.twimg.com/media/demo.png',
         })).resolves.toEqual({handled: true, response: {success: false, error: '远程图片结果无效'}});
     });
+    it('漫画模型状态依赖缺失时返回明确失败而不是空的成功结果', async () => {
+        await expect(dispatch({type: 'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'})).resolves.toEqual({
+            handled: true,
+            response: {success: false, error: '漫画识别模型管理不可用'},
+        });
+    });
+
     it('漫画模式必须为布尔值，专用模型状态可读，清理与图片任务互斥',async()=>{
         const status=vi.fn(async()=>({ready:true,bytes:123,inpaintingReady:false})),remove=vi.fn(async()=>{});
         const handler=createOffscreenMessageListener({translate:mocks.translate,ttsPlayer:{play:mocks.play,stop:mocks.stop},fetchImage:mocks.fetchImage,

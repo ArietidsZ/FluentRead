@@ -1,6 +1,7 @@
 import {mangaOnnxBuildPlugin} from './scripts/wasm/manga-onnx-build';
 import {defineConfig, type ConfigEnv, type UserManifest, type Entrypoint, type EntrypointGroup} from 'wxt';
 import vue from '@vitejs/plugin-vue';
+import type {InlineConfig} from 'vite';
 import {resolve} from 'path';
 import fs from 'fs';
 import {resolveBrowserCapabilities} from './src/platform/browser/capabilities';
@@ -82,16 +83,29 @@ export function extendRemoteConfigBuildConfig(
     viteConfig.plugins = [...(viteConfig.plugins ?? []), remoteConfigStorageBuildPlugin()];
 }
 
-/** 三个入口都由 new Worker(..., {type: 'module'}) 启动，可共享一次 ESM 构建及依赖 chunk。 */
+const MODULE_WORKER_NAMES = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'qwenAsrWorker']);
+
+/** 自有模块 Worker 使用数组构建，即使只有一个也避免 WXT 的 IIFE 内联与尾部变量。 */
 export function groupModuleWorkers(groups: EntrypointGroup[]): void {
-    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker']);
     const workers = groups.filter((group): group is Entrypoint =>
-        !Array.isArray(group) && group.type === 'unlisted-script' && moduleWorkers.has(group.name));
-    if (workers.length < 2) return;
+        !Array.isArray(group) && group.type === 'unlisted-script' && MODULE_WORKER_NAMES.has(group.name));
+    if (workers.length === 0) return;
     const index = groups.indexOf(workers[0]);
     for (const worker of workers) groups.splice(groups.indexOf(worker), 1);
     // 只组合明确使用模块加载的自有 Worker；内容脚本和 classic background 仍由 WXT 单独打包。
     groups.splice(index, 0, workers);
+}
+
+/** 原生 ES library 模式保留动态 chunk，同时禁止 Vite 注入依赖 document/window 的页面预加载器。 */
+export function extendModuleWorkerBuildConfig(
+    entrypoints: readonly Pick<Entrypoint, 'name' | 'type'>[],
+    viteConfig: InlineConfig,
+): void {
+    if (entrypoints.length === 0 || !entrypoints.every(entrypoint =>
+        entrypoint.type === 'unlisted-script' && MODULE_WORKER_NAMES.has(entrypoint.name))) return;
+    const input = viteConfig.build?.rollupOptions?.input;
+    if (!input) throw new Error('模块 Worker 构建缺少 WXT 多入口配置');
+    viteConfig.build = {...viteConfig.build, lib: {entry: input, formats: ['es']}};
 }
 
 /** 根据编译目标能力生成权限，避免 Firefox/MV2 产物声明不可用的 Offscreen API。 */
@@ -218,7 +232,10 @@ export default defineConfig({
         'entrypoints:grouped': (wxt, groups) => {
             if (wxt.config.command === 'build') groupModuleWorkers(groups);
         },
-        'vite:build:extendConfig': (entrypoints, viteConfig) => extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
+        'vite:build:extendConfig': (entrypoints, viteConfig) => {
+            extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]});
+            extendModuleWorkerBuildConfig(entrypoints, viteConfig);
+        },
         'build:publicAssets': (_wxt, files) => {
             // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
             files.push(...createUiLanguageBundleFiles());

@@ -4,13 +4,16 @@ import {LOCAL_TRANSLATION_MODEL_IDS as ids} from '@/src/core/config/localTransla
 const fake = vi.hoisted(() => ({
   bytes: new Map<string, number>(), complete: new Set<string>(),
   gates: new Map<string, () => void>(), download: vi.fn(), remove: vi.fn(),
-  supported: true,
+  supported: true, shared: false, gpu: vi.fn(),
   legacyCached: false,
 }));
+vi.mock('@/src/features/local-translation/offscreen/opusGpu', () => ({requireOpusGpu:fake.gpu}));
 vi.mock('@/src/platform/browser/localTranslationSupport', () => ({supportsHunyuanTranslation: () => fake.supported}));
 vi.mock('@/src/features/local-translation/offscreen/artifactStore', () => ({
   LOCAL_MODEL_CACHE: 'download-test-cache',
-  getTranslationArtifacts: (model: string) => [ids.opusZhEn, ids.opusJaEn, ids.hunyuan].includes(model as any)
+  getTranslationArtifacts: (model: string) => fake.shared && [ids.opusZhEn, ids.opusZhEnGpu].includes(model as any)
+    ? [{repo:'shared', path:'tokenizer.json', size:12, revision:'fixed', sha256:'hash'}, {repo:model, path:'weights', size:12, revision:'fixed', sha256:'hash'}]
+    : [ids.opusZhEn, ids.opusJaEn, ids.hunyuan, ids.index].includes(model as any)
     ? [{repo: model, path: 'weights', size: 12, revision: 'fixed', sha256: 'hash'}] : [],
   artifactComplete: async (file: {repo: string}) => fake.complete.has(file.repo),
   artifactDownloadedBytes: async (file: {repo: string}) => fake.bytes.get(file.repo) || 0,
@@ -26,7 +29,7 @@ import {createLocalTranslationDownloadManager} from '@/src/features/local-transl
 const entries = new Map<string, Response>();
 beforeEach(() => {
   fake.bytes.clear(); fake.complete.clear(); fake.gates.clear(); entries.clear();
-  fake.supported = true;
+  fake.supported = true; fake.shared = false; fake.gpu.mockReset().mockResolvedValue(undefined);
   fake.legacyCached = false;
   vi.stubGlobal('navigator', {storage: {estimate: async () => ({quota: 10_000_000_000, usage: 0})}});
   vi.stubGlobal('caches', {open: async () => ({
@@ -193,6 +196,46 @@ describe('page-independent local model jobs', () => {
     await expect(createLocalTranslationDownloadManager().start(ids.hunyuan)).rejects.toThrow('BROWSER_UNSUPPORTED');
     expect(fake.download).not.toHaveBeenCalled();
   });
+  it('rejects Index on an unsupported browser without queuing or transferring model files', async () => {
+    fake.supported = false;
+    const manager = createLocalTranslationDownloadManager();
+    await expect(manager.start(ids.index)).rejects.toThrow('LOCAL_TRANSLATION_BROWSER_UNSUPPORTED');
+    expect(await phase(manager, ids.index)).toBe('idle');
+    expect(fake.download).not.toHaveBeenCalled();
+    expect(fake.bytes.has(ids.index)).toBe(false);
+  });
+  it('waits for Index GPU admission before transferring and permits retry after missing shader-f16', async () => {
+    let finishProbe!: (adapter: {features: Set<string>}) => void;
+    const requestAdapter = vi.fn(() => new Promise<{features: Set<string>}>((resolve) => { finishProbe = resolve; }));
+    vi.stubGlobal('WebAssembly', {Suspending: class {}});
+    vi.stubGlobal('navigator', {gpu: {requestAdapter}, storage: navigator.storage});
+    const manager = createLocalTranslationDownloadManager();
+    const rejected = expect(manager.start(ids.index)).rejects.toThrow('LOCAL_TRANSLATION_GPU_UNAVAILABLE');
+    await vi.waitFor(() => expect(requestAdapter).toHaveBeenCalledOnce());
+    expect(requestAdapter).toHaveBeenCalledWith({powerPreference: 'high-performance'});
+    expect(await phase(manager, ids.index)).toBe('idle');
+    expect(fake.download).not.toHaveBeenCalled();
+    finishProbe({features: new Set()});
+    await rejected;
+    expect(await phase(manager, ids.index)).toBe('idle');
+    expect(fake.download).not.toHaveBeenCalled();
+    expect(fake.bytes.has(ids.index)).toBe(false);
+
+    const retry = manager.start(ids.index);
+    await vi.waitFor(() => expect(requestAdapter).toHaveBeenCalledTimes(2));
+    expect(fake.download).not.toHaveBeenCalled();
+    finishProbe({features: new Set(['shader-f16'])});
+    await retry;
+    await vi.waitFor(() => expect(fake.gates.has(ids.index)).toBe(true));
+    expect(fake.download).toHaveBeenCalledOnce();
+    expect(fake.download.mock.calls[0]![0]).toMatchObject({repo: ids.index, path: 'weights'});
+    expect(await phase(manager, ids.index)).toBe('downloading');
+    fake.gates.get(ids.index)!();
+    await vi.waitFor(async () => expect(await phase(manager, ids.index)).toBe('ready'));
+    expect((await manager.status()).tasks.find((task) => task.model === ids.index)).toMatchObject({
+      downloadedBytes: 12, totalBytes: 12, bytesPerSecond: 0, error: undefined,
+    });
+  });
   it('returns immediately and keeps one job while settings pages detach and reattach', async () => {
     const change = vi.fn(async () => undefined);
     const manager = createLocalTranslationDownloadManager({onChange: change});
@@ -275,5 +318,88 @@ describe('page-independent local model jobs', () => {
     await vi.waitFor(async () => expect(await phase(manager)).toBe('error'));
     expect((await manager.status()).tasks.find((task) => task.model === ids.opusZhEn)?.error).toBe('storage');
     expect(fake.download).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('shared Q8 and FP16 cache ownership', () => {
+  it('rechecks own removal after waiting for a shared-file removal',async()=>{
+    fake.shared=true;
+    let finishFirst!:()=>void, finishSecond!:()=>void;
+    fake.remove.mockImplementationOnce(()=>new Promise<void>(resolve=>{finishFirst=resolve;}))
+      .mockImplementationOnce(async()=>undefined)
+      .mockImplementationOnce(()=>new Promise<void>(resolve=>{finishSecond=resolve;}));
+    const manager=createLocalTranslationDownloadManager();
+    const first=manager.remove(ids.opusZhEn);
+    await vi.waitFor(()=>expect(finishFirst).toBeTypeOf('function'));
+    const started=expect(manager.start(ids.opusZhEnGpu)).rejects.toThrow('REMOVING');
+    await new Promise(resolve=>setTimeout(resolve,10));
+    const second=manager.remove(ids.opusZhEnGpu);
+    await vi.waitFor(()=>expect(finishSecond).toBeTypeOf('function'));
+    finishFirst(); await first; await started;
+    expect(fake.download).not.toHaveBeenCalled();
+    finishSecond();await second;
+  });
+
+  const autoDownload = () => fake.download.mockImplementation(async (file, _signal, progress) => {
+    fake.bytes.set(file.repo, 12); fake.complete.add(file.repo); progress(12, true);
+  });
+  it.each([[ids.opusZhEn,ids.opusZhEnGpu],[ids.opusZhEnGpu,ids.opusZhEn]])('preserves shared files for cached/in-use sibling while removing %s first, then permits reinstall', async (first, second) => {
+    fake.shared = true;
+    ['shared',first,second].forEach(key => fake.complete.add(key));
+    const beforeRemove = vi.fn(), manager = createLocalTranslationDownloadManager({beforeRemove});
+    await manager.remove(first);
+    expect(beforeRemove).toHaveBeenCalledWith(first);
+    expect(beforeRemove).not.toHaveBeenCalledWith(second);
+    expect(fake.complete.has('shared')).toBe(true);
+    expect(await phase(manager,second)).toBe('ready');
+    expect(await phase(createLocalTranslationDownloadManager(),first)).toBe('idle');
+    await manager.remove(second);
+    expect(fake.complete.has('shared')).toBe(false);
+    autoDownload(); await manager.start(first);
+    await vi.waitFor(async () => expect(await phase(manager,first)).toBe('ready'));
+  });
+  it('does not turn shared metadata alone into a partial GPU download', async () => {
+    fake.shared = true; fake.complete.add('shared');
+    expect(await phase(createLocalTranslationDownloadManager(),ids.opusZhEnGpu)).toBe('idle');
+  });
+  it('protects files needed by a partial/failed sibling, then cleans them when the last owner is removed', async () => {
+    fake.shared = true; fake.complete.add('shared'); fake.bytes.set(ids.opusZhEnGpu,4);
+    const manager = createLocalTranslationDownloadManager();
+    expect(await phase(manager,ids.opusZhEnGpu)).toBe('paused');
+    await manager.remove(ids.opusZhEn);
+    expect(fake.complete.has('shared')).toBe(true);
+    fake.download.mockRejectedValueOnce(new Error('network'));
+    await manager.start(ids.opusZhEnGpu);
+    await vi.waitFor(async () => expect(await phase(manager,ids.opusZhEnGpu)).toBe('error'));
+    await manager.remove(ids.opusZhEn);
+    expect(fake.complete.has('shared')).toBe(true);
+    await manager.remove(ids.opusZhEnGpu);
+    expect(fake.complete.has('shared')).toBe(false);
+  });
+  it('preserves shared files for a downloading sibling without waiting for its large weights', async () => {
+    fake.shared = true;
+    const manager = createLocalTranslationDownloadManager();
+    await manager.start(ids.opusZhEnGpu);
+    await vi.waitFor(() => expect(fake.gates.has('shared')).toBe(true));
+    await manager.remove(ids.opusZhEn);
+    expect(fake.remove.mock.calls.every(([file]) => file.repo !== 'shared')).toBe(true);
+    fake.gates.get('shared')!();
+    await vi.waitFor(() => expect(fake.gates.has(ids.opusZhEnGpu)).toBe(true));
+    fake.gates.get(ids.opusZhEnGpu)!();
+    await vi.waitFor(async () => expect(await phase(manager,ids.opusZhEnGpu)).toBe('ready'));
+  });
+  it('waits for an earlier shared-file removal before downloading the sibling', async () => {
+    fake.shared = true;
+    let finish!: () => void;
+    fake.remove.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    const manager = createLocalTranslationDownloadManager();
+    const removal = manager.remove(ids.opusZhEn);
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+    autoDownload(); const start = manager.start(ids.opusZhEnGpu);
+    await new Promise(resolve => setTimeout(resolve,10));
+    expect(fake.download).not.toHaveBeenCalled();
+    finish(); await removal; await start;
+    await vi.waitFor(async () => expect(await phase(manager,ids.opusZhEnGpu)).toBe('ready'));
   });
 });

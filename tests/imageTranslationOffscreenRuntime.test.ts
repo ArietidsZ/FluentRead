@@ -115,6 +115,27 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(result.lines[0].sourceText).toBe('Hello');expect(mocks.repair).not.toHaveBeenCalled();
     });
 
+    it.each(['漫画 GPU 加速不可用：需要兼容的硬件 WebGPU，不会改用 CPU', 'GPU device lost'])(
+        '单图显式 PaddleOCR 失败保持 GPU 错误与资源清理：%s', async message => {
+            const failure = new Error(message);
+            mocks.mangaRecognize.mockRejectedValueOnce(failure);
+            await expect(translateImageInOffscreen('image', 'en', 'Page', undefined,
+                'single-paddle-error', false, 'paddle')).rejects.toBe(failure);
+            expect(mocks.mangaRecognize).toHaveBeenCalledOnce();
+            expect(mocks.recognize).not.toHaveBeenCalled();
+            expect(mocks.repair).not.toHaveBeenCalled();
+            expect(mocks.draw).not.toHaveBeenCalled();
+            expect(sendMessage.mock.calls.filter(([m]) => m.type === 'fluentReadImageTranslateTexts')).toEqual([]);
+            expect(images[0].src).toBe('');
+            expect(canvases).toHaveLength(0);
+            const next = await translateImageInOffscreen('next', 'en', 'Page', undefined,
+                'explicit-tesseract', false, 'tesseract');
+            expect(next.lines[0].sourceText).toBe('Hello');
+            expect(mocks.recognize).toHaveBeenCalledOnce();
+            expect(mocks.mangaRecognize).toHaveBeenCalledOnce();
+        },
+    );
+
     it('漫画整段识别走专用模型与局部修补，保留对照并报告准备阶段',async()=>{
         const regions=[{...lines[0],fontSize:10,sourceBoxes:[lines[0].bbox]}];
         mocks.mangaRecognize.mockImplementationOnce(async(_image,_language,_w,_h,_signal,progress)=>{progress('preparing',23);progress('recognizing');return regions;});
@@ -278,6 +299,32 @@ describe('Offscreen 图片完整操作生命周期', () => {
         await expect(translateImageInOffscreen('unchanged', 'en', '')).resolves.toEqual({image: 'unchanged', lines: [{...lines[0], sourceText: 'Hello', backgroundColor: 'transparent'}]});
         expect(canvases).toHaveLength(0);
         expect(images.every(image => image.src === '')).toBe(true);
+    });
+
+    it.each([false, true])('漫画识别文字无需更改时返回空图块和可读文本，自然尺寸缺失=%s', async missingNaturalSize => {
+        if (missingNaturalSize) imageOptions.push({naturalWidth: 0, naturalHeight: 0});
+        mocks.mangaRecognize.mockResolvedValueOnce([{...lines[0], fontSize: 10}]);
+        sendMessage.mockImplementation((_, callback) => callback({success: true, translations: ['Hello']}));
+        await expect(translateImageInOffscreen('unchanged-manga', 'en', '', undefined, undefined, true))
+            .resolves.toEqual({image: '', mangaPatches: {width: 32, height: 16, patches: []},
+                lines: [{...lines[0], fontSize: 10, sourceText: 'Hello', backgroundColor: 'transparent'}]});
+        expect(canvases).toHaveLength(0); expect(mocks.repair).not.toHaveBeenCalled();
+        expect(mocks.encode).not.toHaveBeenCalled(); expect(images[0].src).toBe('');
+    });
+
+    it('漫画图块画布不可用时拒绝部分结果并释放主画布和图块', async () => {
+        mocks.mangaRecognize.mockResolvedValueOnce([{...lines[0], fontSize: 10}]);
+        mocks.repair.mockImplementationOnce(async pixels => pixels);
+        vi.mocked(document.createElement).mockImplementationOnce(() => makeCanvas() as never)
+            .mockImplementationOnce(() => {
+                const canvas = makeCanvas(); canvas.getContext.mockReturnValueOnce(null as never);
+                return canvas as never;
+            });
+        await expect(translateImageInOffscreen('manga', 'en', '', undefined, undefined, true))
+            .rejects.toThrow('浏览器不支持图片处理');
+        expect(canvases).toHaveLength(2);
+        expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+        expect(mocks.encode).not.toHaveBeenCalled(); expect(images[0].src).toBe('');
     });
 
     it('漫画没有检测到文字时保留原图，不发送翻译请求，也不创建译图或修补', async () => {

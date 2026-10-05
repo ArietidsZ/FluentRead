@@ -5,8 +5,10 @@
  * 主要内容：串行复用模型 Worker，按模型切换时终止旧实例，隔离旧实例的迟到错误，并向后台提供下载、状态、清除和文本翻译能力。
  * 模块边界：不读取配置、不访问宿主网页 DOM；语言码解析由 core 配置模块负责。
  */
+import type {LocalTranslationHints} from '@/src/core/translation/indexInference';
 import {
-    LOCAL_TRANSLATION_MODELS,
+    LOCAL_TRANSLATION_MODELS, getLocalTranslationModel,
+    LOCAL_TRANSLATION_MODEL_IDS,
     normalizeLocalTranslationModel,
     resolveLocalTranslationLanguageCode,
     type LocalTranslationModelId,
@@ -19,6 +21,7 @@ interface WorkerRequest {
     readonly type: 'prepare' | 'translate' | 'dispose';
     readonly model?: LocalTranslationModelId;
     readonly text?: string;
+    readonly hints?: LocalTranslationHints;
     readonly sourceLanguage?: string;
     readonly targetLanguage?: string;
 }
@@ -43,6 +46,7 @@ interface PendingWorkerRequest {
 export interface LocalTranslationRequest {
     readonly model?: unknown;
     readonly text: string;
+    readonly hints?: LocalTranslationHints;
     readonly sourceLanguage?: unknown;
     readonly targetLanguage?: unknown;
     readonly sourceLanguageDetectionText?: unknown;
@@ -211,8 +215,12 @@ export async function translateLocalText(
         try {
             const response = await requestWorker({
                 type: 'translate', model, text: request.text, sourceLanguage, targetLanguage,
+                ...(request.hints ? {hints:request.hints} : {}),
             }, TRANSLATION_TIMEOUT_MS, signal);
             return modelResult(response, '本地翻译未返回有效译文');
+        } catch(error) {
+            if(model===LOCAL_TRANSLATION_MODEL_IDS.index || getLocalTranslationModel(model).onnxDtype)terminateWorker(toError(error,'LOCAL_TRANSLATION_FAILED'));
+            throw error;
         } finally {
             scheduleIdleDispose();
         }

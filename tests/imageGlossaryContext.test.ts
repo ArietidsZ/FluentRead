@@ -10,6 +10,7 @@ import {buildGlossaryRevision} from '@/src/core/glossary';
 import {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {createTranslationBroker} from '@/src/services/translation/broker';
+import {isPrivateTranslationContext} from '@/src/services/translation/privateContext';
 import {
     attachTranslationGlossaryContext, createTranslationProviderConfigSnapshot,
     getTranslationGlossaryContext, getTranslationGlossaryTerms, getTranslationProviderConfig, getTranslationRequestControl,
@@ -195,6 +196,7 @@ function integration(batch: boolean, texts = ['API', 'other']) {
     };
     wrapped = createImageGlossaryContext<ImageGlossarySenderContext>({
         ready: Promise.resolve(), offscreenUrl: OFFSCREEN_URL, getSourceLanguage: () => config.from,
+        getProviderConfig: () => createTranslationProviderConfigSnapshot(config),
         getGlossaryRevision: () => buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
     }).wrap([
         ...createImageTranslationBackgroundHandlers(dependencies),
@@ -204,20 +206,29 @@ function integration(batch: boolean, texts = ['API', 'other']) {
             translateArea: async (_image, _source, _title, _selection, options) => translatedImage(options),
         }),
     ] as BackgroundMessageHandler<ImageGlossarySenderContext>[]);
-    return {config, provider, requests, call, pause: (operation: () => Promise<void>) => {beforeText = operation;}};
+    const gateKey = (message: Record<string, unknown>) => {
+        const origin = String(message.origin);
+        const snapshot = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config));
+        return snapshot.glossaryProtectedTokens?.includes(origin) ? 'API' : origin;
+    };
+    return {config, provider, requests, call, gateKey, pause: (operation: () => Promise<void>) => {beforeText = operation;}};
 }
 const imageRequest = {image: 'data:image/png;base64,source', sourceLanguage: 'en', requestId: 'image-transaction'};
 
 describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
-    it.each([true, false])('批量=%s时每次broker调用都携带同一可信页面、源语言和revision', async (batch) => {
+    it.each([
+        {batch: true, privateContext: false}, {batch: false, privateContext: false},
+        {batch: true, privateContext: true}, {batch: false, privateContext: true},
+    ])('批量=$batch、无痕=$privateContext 时每次broker调用都携带同一可信来源、源语言和revision', async ({batch, privateContext}) => {
         const h = integration(batch);
         const revision = buildGlossaryRevision(h.config.glossaryLibraries, true);
-        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({
+        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest, {sender: {...page().sender, tab: {id: 7, incognito: privateContext}}})).resolves.toMatchObject({
             success: true, lines: ['专用接口', '译文:other'],
         });
         expect(h.requests).toHaveLength(batch ? 1 : 2);
         for (const request of h.requests) {
-            expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
+            expect(isPrivateTranslationContext(request)).toBe(privateContext);
+            expect(request).toMatchObject({useCache: true, serviceOverride: 'openai', sourceLanguage: 'en', glossaryRevision: revision});
             expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
         }
         const serialized = JSON.stringify(h.provider.mock.calls);
@@ -232,7 +243,7 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         const fourthStarted = deferred<void>();
         const started: string[] = [];
         h.provider.mockImplementation(async message => {
-            const origin = String(message.origin);
+            const origin = h.gateKey(message);
             started.push(origin);
             if (started.length === 3) firstWindow.resolve();
             if (origin === 'fourth') fourthStarted.resolve();
@@ -243,6 +254,7 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest);
         await firstWindow.promise;
         expect(started).toEqual(['API', 'other', 'third']);
+        expect(h.provider.mock.calls[0][0].origin).toMatch(/^__FRTERM_[a-f0-9]{12}_0__$/);
         expect(h.requests).toHaveLength(3);
         h.config.from = 'ja';
         gates.get('third')!.resolve();
@@ -274,13 +286,14 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         let started = 0;
         h.provider.mockImplementation(async message => {
             if (++started === 3) firstWindow.resolve();
-            await gates.get(String(message.origin))!.promise;
+            await gates.get(h.gateKey(message))!.promise;
             return translate(message);
         });
         const oldRevision = buildGlossaryRevision(h.config.glossaryLibraries, true);
         const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest);
         const failed = expect(pending).rejects.toThrow('provider down');
         await firstWindow.promise;
+        expect(h.provider.mock.calls[0][0].origin).toMatch(/^__FRTERM_[a-f0-9]{12}_0__$/);
         const oldRequests = [...h.requests];
         const oldProviderResults = h.provider.mock.results.map(result => result.value);
         h.config.glossaryLibraries[0].entries[0].target = '更新接口';
@@ -312,6 +325,52 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         for (const request of retryRequests) {
             expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
             expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
+            expect(getTranslationRequestControl(request)?.signal).not.toBe(oldSignal);
+            expect(getTranslationRequestControl(request)?.signal.aborted).toBe(false);
+        }
+    });
+
+    it('无痕图片一段失败取消同批，同ID普通重试不沿用旧来源或迟到结果', async () => {
+        const h = integration(false, ['first', 'other', 'third', 'fourth']);
+        h.config.translationMaxRetries = 0;
+        const translate = h.provider.getMockImplementation()!;
+        const gates = new Map(['first', 'other', 'third'].map(text => [text, deferred<void>()]));
+        const firstWindow = deferred<void>();
+        let started = 0;
+        h.provider.mockImplementation(async message => {
+            if (++started === 3) firstWindow.resolve();
+            await gates.get(String(message.origin))!.promise;
+            return translate(message);
+        });
+        const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest,
+            {sender: {...page().sender, tab: {id: 7, incognito: true}}});
+        const failed = expect(pending).rejects.toThrow('provider down');
+        await firstWindow.promise;
+        const oldRequests = [...h.requests];
+        const oldProviderResults = h.provider.mock.results.map(result => result.value);
+        gates.get('other')!.reject(new Error('provider down'));
+        await failed;
+        expect(h.provider).toHaveBeenCalledTimes(3);
+        expect(h.requests).toHaveLength(3);
+        for (const request of oldRequests) {
+            expect(isPrivateTranslationContext(request)).toBe(true);
+            expect(getTranslationRequestControl(request)?.signal.aborted).toBe(true);
+        }
+        await expect(h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {
+            requestId: imageRequest.requestId, texts: ['first'],
+        }, offscreen)).rejects.toThrow('上下文已失效');
+        h.provider.mockImplementation(translate);
+        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({
+            success: true, lines: ['译文:first', '译文:other', '译文:third', '译文:fourth'],
+        });
+        gates.get('first')!.resolve();
+        gates.get('third')!.resolve();
+        await Promise.allSettled(oldProviderResults);
+        expect(h.provider).toHaveBeenCalledTimes(7);
+        expect(h.requests).toHaveLength(7);
+        const oldSignal = getTranslationRequestControl(oldRequests[0])!.signal;
+        for (const request of h.requests.slice(3)) {
+            expect(isPrivateTranslationContext(request)).toBe(false);
             expect(getTranslationRequestControl(request)?.signal).not.toBe(oldSignal);
             expect(getTranslationRequestControl(request)?.signal.aborted).toBe(false);
         }
@@ -352,5 +411,109 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
             .rejects.toThrow('glossaryRevision');
         await expect(handler.handle(attachTranslationGlossaryContext({...message, sourceLanguage: undefined}, {context: 'page'})))
             .rejects.toThrow('sourceLanguage');
+    });
+});
+
+describe('split 无痕图片上下文', () => {
+    it.each([false, true])('无 tab 的 split 上下文=%s 冻结模型并在失败后清理事务', async privateContext => {
+        const {isPrivateTranslationContext} = await import('@/src/services/translation/privateContext');
+        const config = new Config();
+        config.privateTranslation = {enabled: true, service: 'deepseek', model: 'at-start'};
+        const getProviderConfig = vi.fn(() => createTranslationProviderConfigSnapshot(config));
+        const adapter = createImageGlossaryContext<ImageGlossarySenderContext>({
+            ready: Promise.resolve(), offscreenUrl: OFFSCREEN_URL,
+            privateContext: () => privateContext, getProviderConfig,
+            getSourceLanguage: () => 'en', getGlossaryRevision: () => 'revision',
+        });
+        let callback!: BackgroundMessageHandler<ImageGlossarySenderContext>;
+        const start = vi.fn(async () => {
+            config.privateTranslation.model = 'later';
+            const request = await callback.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'split-image'} as never, offscreen) as object;
+            expect(isPrivateTranslationContext(request)).toBe(privateContext);
+            const snapshot = getTranslationProviderConfig(request, createTranslationProviderConfigSnapshot(config));
+            expect(snapshot.privateTranslation?.model).toBe(privateContext ? 'at-start' : 'later');
+            throw new Error('OCR cancelled');
+        });
+        const [handler, texts] = adapter.wrap([
+            {type: IMAGE_TRANSLATE_MESSAGE_TYPE, handle: start},
+            {type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, handle: async message => message},
+        ]);
+        callback = texts;
+        await expect(handler.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, requestId: 'split-image'} as never, {}))
+            .rejects.toThrow('OCR cancelled');
+        expect(getProviderConfig).toHaveBeenCalledTimes(privateContext ? 1 : 0);
+        await expect(callback.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'split-image'} as never, offscreen))
+            .rejects.toThrow('上下文已失效');
+    });
+});
+
+describe('无 sender 的 split 图片来源', () => {
+    it.each([false, true])('split 标记=%s 在事务开始时冻结，失败清理后同ID采用新来源', async privateContext => {
+        let split = privateContext;
+        const adapter = createImageGlossaryContext<ImageGlossarySenderContext>({
+            ready: Promise.resolve(), offscreenUrl: OFFSCREEN_URL, privateContext: () => split,
+            getSourceLanguage: () => 'en', getGlossaryRevision: () => 'revision',
+        });
+        let callback!: BackgroundMessageHandler<ImageGlossarySenderContext>;
+        const payload = {type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'split-image', texts: ['Hello']};
+        const start = vi.fn(async (): Promise<string> => {
+            split = !privateContext;
+            const request = await callback.handle(payload, offscreen) as object;
+            expect(isPrivateTranslationContext(request)).toBe(privateContext);
+            expect(JSON.parse(JSON.stringify(request))).toEqual({...payload, sourceLanguage: 'en', glossaryRevision: 'revision'});
+            expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: undefined, context: 'page'});
+            throw new Error('OCR cancelled');
+        });
+        const [handler, texts] = adapter.wrap([
+            {type: IMAGE_TRANSLATE_MESSAGE_TYPE, handle: start},
+            {type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, handle: async message => message},
+        ]);
+        callback = texts;
+        const message = {type: IMAGE_TRANSLATE_MESSAGE_TYPE, requestId: 'split-image'};
+        await expect(handler.handle(message, {})).rejects.toThrow('OCR cancelled');
+        await expect(callback.handle(payload, offscreen)).rejects.toThrow('上下文已失效');
+        start.mockImplementationOnce(async () => {
+            const request = await callback.handle(payload, offscreen) as object;
+            expect(isPrivateTranslationContext(request)).toBe(!privateContext);
+            return 'done';
+        });
+        await expect(handler.handle(message, {})).resolves.toBe('done');
+        await expect(callback.handle(payload, offscreen)).rejects.toThrow('上下文已失效');
+        expect(start).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('无痕来源跨 Offscreen 事务', () => {
+    it('冻结真实标签页无痕标记，不采纳消息伪造的值，普通/无痕事务互不覆盖', async () => {
+        const h = simple();
+        const privateWork = deferred<string>();
+        const entered = deferred<void>();
+        h.start.mockImplementationOnce(async () => {entered.resolve(); return privateWork.promise;});
+        const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, {requestId: 'private-image'}, {sender: {url: 'https://private.example', tab: {id: 8, incognito: true}}});
+        await entered.promise;
+        const forwarded = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'private-image', incognito: false}, offscreen) as object;
+        expect(isPrivateTranslationContext(forwarded)).toBe(true);
+        const regular = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'regular-image', incognito: true}, page()) as object;
+        expect(isPrivateTranslationContext(regular)).toBe(false);
+        privateWork.resolve('done'); await pending;
+        await expect(h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'private-image'}, offscreen)).rejects.toThrow('上下文已失效');
+    });
+});
+
+
+describe('无痕图片专用模型快照', () => {
+    it('OCR 等待期间修改专用服务和模型不改变已启动事务', async () => {
+        const h = integration(true, ['other']);
+        h.config.privateTranslation = {enabled: true, service: 'openai', model: 'private-at-start'};
+        h.pause(async () => {
+            h.config.privateTranslation.service = 'deepseek';
+            h.config.privateTranslation.model = 'later-model';
+        });
+        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest,
+            {sender: {url: 'https://docs.example.com/article', tab: {id: 9, incognito: true}}})).resolves.toMatchObject({success: true});
+        expect(h.provider).toHaveBeenCalled();
+        expect(h.provider.mock.calls[0][0].modelOverride).toBe('private-at-start');
+        const snapshot = getTranslationProviderConfig(h.requests[0], createTranslationProviderConfigSnapshot(h.config));
+        expect(snapshot.privateTranslation).toEqual({enabled: true, service: 'openai', model: 'private-at-start'});
     });
 });

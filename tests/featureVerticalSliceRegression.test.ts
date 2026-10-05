@@ -47,7 +47,7 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
         expect(messageRuntime).toContain("@/src/features/image-translation/background/offscreenAdapter");
         expect(messageRuntime).toContain("from './areaRuntime'");
         expect(source('src/app/background/areaRuntime.ts')).toContain("@/src/features/area-translation/background/offscreenAdapter");
-        expect(source('src/app/background/areaRuntime.ts')).toContain('prepareAreaVisionRecognition(config, language, title,');
+        expect(source('src/app/background/areaRuntime.ts')).toContain('prepareAreaVisionRecognition(current(context), language, title,');
         expect(background).not.toContain("@/src/features/image-translation/background");
         expect(source('entrypoints/offscreen/main.ts')).toContain("@/src/app/offscreen/runtime");
         expect(source('src/app/offscreen/runtime.ts')).toContain("from './imageTranslation'");
@@ -83,10 +83,10 @@ describe('划词、圈选和图片翻译纵向切片回归', () => {
             .toBeLessThan(messageRuntime.indexOf('createTranslationCancelHandler(translationRequestRegistry)'));
     });
 
-    it('OCR 下载把接收端初始化故障与真实资源下载失败分开提示', () => {
+    it('OCR 状态读取失败与单语言下载失败保留独立反馈', () => {
         const settings = source('src/features/image-translation/ui/ImageOcrSettings.vue');
-        expect(settings).toContain('OCR 服务初始化失败，请重新打开设置页后重试。');
-        expect(settings).toContain("message.includes('Receiving end does not exist')");
-        expect(settings).toContain('请检查网络后重试');
+        expect(settings).toContain("t('ocr.packs.statusError')");
+        expect(settings).toContain('catch { if (!disposed) statusError.value = true; }');
+        expect(settings).toContain("actionErrors.value[code] = translateLegacy(error instanceof Error ? error.message : '语言包下载失败')");
     });
 });

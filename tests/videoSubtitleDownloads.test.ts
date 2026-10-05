@@ -123,3 +123,26 @@ describe('字幕下载与人工轨优先', () => {
         ready(new Response('{}')); await expect(stale).rejects.toMatchObject({name: 'AbortError'});
     });
 });
+
+it('exports the explicitly selected YouTube local timeline, returns to native after cancel', async () => {
+    let active = true;
+    const local = {...cue, text: 'Local transcript.'};
+    const f = fixture({isAiActive: () => active, aiCues: () => [local]});
+    expect(await f.downloads.resolve()).toEqual({languageCode: 'ai', cues: [local]});
+    active = false;
+    expect(await f.downloads.resolve()).toEqual({languageCode: 'en', cues: [cue]});
+});
+
+it('does not export native captions while the selected local source is still empty', async () => {
+    const f = fixture({isAiActive: () => true});
+    await expect(f.downloads.resolve()).rejects.toThrow('还没有可下载的 AI 字幕');
+});
+it('translates local transcript text instead of substituting unrelated native human captions', async () => {
+    const local = {...cue, text: 'Local transcript.'};
+    const f = fixture({isAiActive: () => true, aiCues: () => [local],
+        human: {ready: async () => undefined, at: () => 'Native translation.'}});
+    f.config.videoPreferHumanSubtitles = true;
+    await f.downloads.translated(f.menu, f.button, false);
+    expect(f.translate).toHaveBeenCalledWith(local.text);
+    expect(f.save).toHaveBeenCalledWith([{...local, text: '译文：Local transcript.'}], expect.any(String));
+});

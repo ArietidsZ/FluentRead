@@ -1,13 +1,16 @@
 /**
  * @file src/app/background/areaRuntime.ts
  * 文件职责：为圈选翻译装配浏览器截图、图片裁剪、识别配置与共享翻译服务。
- * 主要内容：连接真实标签归属校验、OCR 语言包检查、能力路由、冻结的识图和文字翻译事务及进度通知。
+ * 主要内容：按真实无痕来源解析请求级配置，连接真实标签归属校验、OCR 语言包检查、能力路由、冻结的识图和文字翻译事务及进度通知。
  * 模块边界：本文件仅注入依赖，不实现模型能力、截图裁剪、OCR 或翻译算法；消息安装由 messageRuntime 统一负责。
  */
+import {resolvePrivateTranslationConfig} from '@/src/core/config/privateTranslation';
+import type {AreaTranslationBackgroundContext} from './handlers/areaTranslation';
+import {attachPrivateTranslationContext} from '@/src/services/translation/privateContext';
 import {config} from '@/src/services/config/store';
 import {translateWithCache} from '@/src/app/translation/runtime';
 import {resolveAreaRecognitionRoute} from '@/src/core/config/vision';
-import {modelVisionProbe} from '@/src/app/translation/visionProbeRuntime';
+import {modelVisionProbe, privateModelVisionProbe} from '@/src/app/translation/visionProbeRuntime';
 import {prepareModelVisionRoute} from '@/src/services/translation/visionProbe';
 import {createAreaTranslationBackgroundHandlers, createAreaCaptureOwnershipVerifier} from './handlers/areaTranslation';
 import {prepareAreaTextTranslation, prepareAreaVisionRecognition} from '@/src/features/area-translation/services/textTranslation';
@@ -15,18 +18,24 @@ import {areaTranslationOffscreenAdapter} from '@/src/features/area-translation/b
 import {imageTranslationProgressTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 
 export function createAreaTranslationRuntime(assertLanguagesDownloaded: (language: string) => Promise<void>) {
+    const current = (context: AreaTranslationBackgroundContext) => resolvePrivateTranslationConfig(config,
+        Boolean(context.sender?.tab?.incognito || browser.extension.inIncognitoContext));
     return createAreaTranslationBackgroundHandlers({
         captureVisibleTab: (windowId) => browser.tabs.captureVisibleTab(windowId, {format: 'png'}),
         assertCaptureOwner: createAreaCaptureOwnershipVerifier(tabId => browser.tabs.get(tabId)),
         getDefaultSourceLanguage: () => config.from,
         assertLanguagesDownloaded,
         translateArea: areaTranslationOffscreenAdapter.translateArea,
-        getVisionRoute: () => resolveAreaRecognitionRoute(config),
-        prepareVisionRoute: () => prepareModelVisionRoute(config, modelVisionProbe.resolve),
-        prepareVisionTranslation: (language, title) => prepareAreaVisionRecognition(config, language, title,
-            areaTranslationOffscreenAdapter.cropArea, translateWithCache),
-        prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(config, language, title,
-            {pageUrl: context.sender?.url, context: 'page'}, translateWithCache),
+        getVisionRoute: context => resolveAreaRecognitionRoute(current(context)),
+        prepareVisionRoute: context => prepareModelVisionRoute(current(context),
+            context.sender?.tab?.incognito || browser.extension.inIncognitoContext
+                ? privateModelVisionProbe.resolve : modelVisionProbe.resolve),
+        prepareVisionTranslation: (language, title, context) => prepareAreaVisionRecognition(current(context), language, title,
+            areaTranslationOffscreenAdapter.cropArea, request => translateWithCache(attachPrivateTranslationContext(request,
+                Boolean(context.sender?.tab?.incognito || browser.extension.inIncognitoContext)))),
+        prepareTextTranslation: (language, title, context) => prepareAreaTextTranslation(current(context), language, title,
+            {pageUrl: context.sender?.url, context: 'page'}, request => translateWithCache(attachPrivateTranslationContext(request,
+                Boolean(context.sender?.tab?.incognito || browser.extension.inIncognitoContext)))),
         sendProgress: imageTranslationProgressTransport.sendProgress,
     });
 }
