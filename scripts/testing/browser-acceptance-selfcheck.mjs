@@ -4,9 +4,35 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
-import {loadAcceptanceCatalog} from './browser-acceptance-evidence.mjs';
+import {execFileSync} from 'node:child_process';
+import {loadAcceptanceCatalog, validateFileManifest, collectInlineChineseSources} from './browser-acceptance-evidence.mjs';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const at='2026-10-05T00:00:00.000Z';
+
+async function nativeLocaleManifest(root,scratch) {
+  const generatedRoot=path.join(scratch,'native-generator');await fs.mkdir(generatedRoot);
+  await fs.symlink(path.join(root,'src'),path.join(generatedRoot,'src'),'dir');
+  // Run the real generator against the real bundles, with fresh output so retained historic files cannot mask omissions.
+  execFileSync(process.execPath,[path.join(root,'scripts/generate-userscript-language-data.mjs')],{cwd:generatedRoot,stdio:'pipe'});
+  const output=path.join(generatedRoot,'userscript/languages'),files=[];
+  for(const name of (await fs.readdir(output)).sort()) {
+    const bytes=await fs.readFile(path.join(output,name));
+    assert(bytes.toString().endsWith('\n'),'Native locale output keeps its final newline');
+    assert(name.includes(hash(bytes.subarray(0,-1)).slice(0,16)),'Native filename hashes JSON before the final newline');
+    files.push({path:name,size:bytes.length,sha256:hash(bytes)});
+  }
+  assert.equal(files.length,5);assert(files.every(file=>!/^(?:zh-CN|en-US)\./u.test(file.path)));
+  const manifest={kind:'generated-locales',algorithm:'sha256',files,manifestSha256:hash(JSON.stringify(files)),inlineChineseSources:await collectInlineChineseSources(generatedRoot)};
+  validateFileManifest(manifest,'generated-locales');
+  for(const missing of files) {
+    const partial={...manifest,files:files.filter(file=>file!==missing)};partial.manifestSha256=hash(JSON.stringify(partial.files));
+    assert.throws(()=>validateFileManifest(partial,'generated-locales'),/Generated locale missing/u);
+  }
+  assert.throws(()=>validateFileManifest({...manifest,inlineChineseSources:[]},'generated-locales'),/inline Chinese source evidence/u);
+  const corrupt=structuredClone(manifest);corrupt.inlineChineseSources[0].sha256='0'.repeat(64);
+  assert.throws(()=>validateFileManifest(corrupt,'generated-locales'),/inline Chinese source evidence/u);
+  return {manifest,negativeRegressions:files.length+2};
+}
 
 export async function runEvidenceRegressions(validateReport,root) {
   const scratch=await fs.mkdtemp(path.join(os.tmpdir(),'fluentread-evidence-contract-'));
@@ -28,8 +54,8 @@ export async function runEvidenceRegressions(validateReport,root) {
     const manifestText=JSON.stringify({manifest_version:3,name:report.environment.extensionName,version:report.environment.extensionVersion});
     const files=[{path:'manifest.json',size:Buffer.byteLength(manifestText),sha256:hash(manifestText)},...runtimeNames.map(name=>({path:name,size:20,sha256:hash(`synthetic ${name}`)}))];
     await add('build.json','build-manifest',{kind:'extension-build',algorithm:'sha256',files,manifestSha256:hash(JSON.stringify(files)),extensionManifestText:manifestText});
-    const localeFiles=['zh-CN','es-ES','fr-FR','ja-JP','ko-KR','ru-RU'].map(locale=>({path:`${locale}.0123456789abcdef.json`,size:20,sha256:hash(locale)}));
-    await add('locales.json','locale-manifest',{kind:'generated-locales',algorithm:'sha256',files:localeFiles,manifestSha256:hash(JSON.stringify(localeFiles))});
+    const nativeLocales=await nativeLocaleManifest(root,scratch);
+    await add('locales.json','locale-manifest',nativeLocales.manifest);
     Object.assign(report.provenance,{publishedSourceCommit:'c68a53af300b33109375665197951331e45ae18a',checkoutCommit:'c68a53af300b33109375665197951331e45ae18a',observedSourceTree:report.expectedSourceTree,worktreeCleanBeforeLocaleGeneration:true,lockfileSha256:hash('synthetic lock'),buildManifest:'build.json',generatedLocalesManifest:'locales.json',commands:['pnpm generate:userscript-languages','pnpm build']});
     await add('source.json','source',report.provenance);
     const h={status:'physical',osGpuDescription:'SYNTHETIC validator GPU',adapterDescription:'SYNTHETIC validator adapter',isFallbackAdapter:false,features:['shader-f16'],limits:{maxBufferSize:1073741824,maxStorageBufferBindingSize:1073741824},evidence:['gpu.json']};report.hardware=h;
@@ -38,7 +64,7 @@ export async function runEvidenceRegressions(validateReport,root) {
     await saveGpu();
     const prepare=id=>{const item=report.cases.find(c=>c.id===id);Object.assign(item,{status:'pass',reason:'Synthetic validator positive example only',observations:['Synthetic contract validation; not a browser result'],evidence:['screen.png','browser.json'],backend:'none'});return item;};
     prepare('ENV-01');await validateReport(report,scratch);
-    let negativeRegressions=0;
+    let negativeRegressions=nativeLocales.negativeRegressions;
     const rejects=async(label,mutate)=>{const copy=structuredClone(report);mutate(copy);await assert.rejects(()=>validateReport(copy,scratch),undefined,label);negativeRegressions++;};
     for(const field of ['os','extensionName','extensionVersion'])await rejects(`ENV missing ${field}`,r=>{r.environment[field]=null;});
     for(const field of ['launchArguments','capabilityEvidence'])await rejects(`ENV missing ${field}`,r=>{r.environment[field]=[];});
@@ -89,6 +115,19 @@ export async function runEvidenceRegressions(validateReport,root) {
     await rejects('TTS05 no injection',r=>{r.cases.find(c=>c.id==='TTS-05').faults=[];});
     await rejects('TTS05 no device-loss observation',r=>{r.cases.find(c=>c.id==='TTS-05').faults[2].deviceLossObserved=false;});
     await rejects('TTS05 implicit CPU fallback',r=>{r.cases.find(c=>c.id==='TTS-05').faults[2].cpuRebuilds=1;});
-    console.log(JSON.stringify({evidenceContracts:true,positiveSyntheticCases:['ENV-01','MT-01','TTS-05'],negativeRegressions,browserRun:false,modelRun:false}));
+    const q4=catalog.profiles.find(p=>p.id==='qwen3-asr-0.6b'&&p.variant==='q4');addModel(q4);
+    const q4Input=hash('Synthetic q4 input');
+    const q4Output=await add('q4-output.json','inference-output',{model:q4.id,variant:q4.variant,direction:'audio>text',inputSha256:q4Input,completed:true,text:'Synthetic transcription.'});
+    await add('gpu-empty-features.json','gpu-log',{osGpuDescription:h.osGpuDescription,adapter:{description:h.adapterDescription,isFallbackAdapter:false,features:[],limits:h.limits},events:[event('dispatch',{model:q4.id,variant:q4.variant,count:1})]});
+    const emptyFeatures=structuredClone(report);emptyFeatures.hardware.features=[];emptyFeatures.hardware.evidence=['gpu-empty-features.json'];
+    for(const c of emptyFeatures.cases)if(c.id!=='ENV-01')c.status='blocked';
+    const q4Case=emptyFeatures.cases.find(c=>c.id==='YT-02');
+    Object.assign(q4Case,{status:'pass',reason:'Synthetic native q4 empty optional-feature contract',observations:['An observed empty optional-feature set is permitted'],backend:'hardware-webgpu',models:[q4.id],evidence:['screen.png','browser.json',q4Output,'gpu-empty-features.json'],runs:[{model:q4.id,variant:q4.variant,direction:'audio>text',inputSha256:q4Input,outputArtifact:q4Output,outputBytes:(await fs.readFile(path.join(scratch,q4Output))).length,gpuEvidence:'gpu-empty-features.json',outputSummary:'Synthetic completed q4 output',completed:true,backend:'hardware-webgpu'}]});
+    await validateReport(emptyFeatures,scratch);
+    const missingFeatures=structuredClone(emptyFeatures);delete missingFeatures.hardware.features;
+    await assert.rejects(()=>validateReport(missingFeatures,scratch),/missing features/u);negativeRegressions++;
+    const missingF16=structuredClone(report);missingF16.hardware.features=[];missingF16.hardware.evidence=['gpu-empty-features.json'];
+    await assert.rejects(()=>validateReport(missingF16,scratch),/Missing actual GPU feature shader-f16/u);negativeRegressions++;
+    console.log(JSON.stringify({evidenceContracts:true,positiveSyntheticCases:['ENV-01','MT-01','TTS-05','Qwen-q4-observed-empty-features'],nativeLocaleFiles:nativeLocales.manifest.files.map(file=>file.path),negativeRegressions,browserRun:false,modelRun:false}));
   } finally {await fs.rm(scratch,{recursive:true,force:true});}
 }

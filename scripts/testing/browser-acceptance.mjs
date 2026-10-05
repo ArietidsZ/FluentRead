@@ -7,7 +7,7 @@ import os from 'node:os';
 import {createHash} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
-import {validatePassEvidence} from './browser-acceptance-evidence.mjs';
+import {validatePassEvidence, collectInlineChineseSources} from './browser-acceptance-evidence.mjs';
 import {runEvidenceRegressions} from './browser-acceptance-selfcheck.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -111,7 +111,9 @@ async function fingerprint(directory, kind = 'files') {
     }
   }
   await walk('');
-  return {kind,algorithm:'sha256',files:entries,manifestSha256:sha256(JSON.stringify(entries)),...(kind==='extension-build'?{extensionManifestText:await fs.readFile(path.join(directory,'manifest.json'),'utf8')}:{})};
+  return {kind,algorithm:'sha256',files:entries,manifestSha256:sha256(JSON.stringify(entries)),
+    ...(kind==='extension-build'?{extensionManifestText:await fs.readFile(path.join(directory,'manifest.json'),'utf8')}:{}),
+    ...(kind==='generated-locales'?{inlineChineseSources:await collectInlineChineseSources(path.resolve(directory,'../..'))}:{})};
 }
 
 // This deliberately implements only the keywords used by the checked-in schema.

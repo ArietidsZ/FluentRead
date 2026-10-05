@@ -14,6 +14,17 @@ const paddle = 'snowfluke/ppu-paddle-ocr-models';
 const lama = 'ogkalu/lama-manga-onnx-dynamic';
 const kokoro = 'kokoro-v1.1-zh';
 const qwen = 'qwen3-asr-0.6b';
+const inlineChineseSources = [
+  {path:'src/core/i18n/messages/zh-CN.ts',sha256:'7ae35602395e4432c6678b5d319d6caa55ade65737dcdaf0dbb8b3c08b78edcc'},
+  {path:'src/core/i18n/index.ts',sha256:'264fc1cb3c28766731e8ceb7700988bd83674e2cd332f126d77e64dc725e718c'},
+];
+
+export async function collectInlineChineseSources(sourceRoot) {
+  const observed=[];
+  for(const file of inlineChineseSources)observed.push({path:file.path,sha256:hash(await fs.readFile(path.join(sourceRoot,file.path)))});
+  assert.deepEqual(observed,inlineChineseSources,'Inline Chinese source differs from the fixed acceptance source');
+  return observed;
+}
 const rolesByCase = {
   'PRIVATE-01':['network','storage'],'PRIVATE-02':['network','storage'],
   'YT-01':['timing'],'YT-03':['timing'],'YT-04':['timing'],
@@ -45,7 +56,9 @@ export function validateFileManifest(value, kind) {
     assert.equal(hash(value.extensionManifestText),files.get('manifest.json').sha256,'Extension manifest hash mismatch');
     assert.equal(Buffer.byteLength(value.extensionManifestText),files.get('manifest.json').size,'Extension manifest size mismatch');
   } else {
-    for(const locale of ['zh-CN','es-ES','fr-FR','ja-JP','ko-KR','ru-RU']) assert([...files.keys()].some(file=>new RegExp(`^${locale}\\.[a-f0-9]{16}\\.json$`,'u').test(file)),`Generated locale missing: ${locale}`);
+    // Native UI_LANGUAGE_BUNDLES excludes inline Chinese; the userscript generator also excludes inline English.
+    for(const locale of ['es-ES','fr-FR','ja-JP','ko-KR','ru-RU']) assert([...files.keys()].some(file=>new RegExp(`^${locale}\\.[a-f0-9]{16}\\.json$`,'u').test(file)),`Generated locale missing: ${locale}`);
+    assert.deepEqual(value.inlineChineseSources,inlineChineseSources,'Missing or mismatched inline Chinese source evidence');
   }
   return files;
 }
@@ -100,7 +113,9 @@ export async function validatePassEvidence(report, artifacts, root) {
   const requireGpu=()=>{
     const h=report.hardware;
     assert(h.status==='physical' && h.isFallbackAdapter===false && nonempty(h.osGpuDescription) && nonempty(h.adapterDescription),'Physical GPU observation required');
-    assert(h.features.length>0 && Object.keys(h.limits).length>0,'Missing raw GPU features/limits');
+    // An observed empty optional-feature set is valid for Qwen q4 and OPUS FP32.
+    // Profile-specific requirements below still reject missing shader-f16 for FP16/Index.
+    assert(Array.isArray(h.features) && Object.keys(h.limits).length>0,'Missing raw GPU features/limits');
     for(const limit of ['maxBufferSize','maxStorageBufferBindingSize'])assert(h.limits[limit]>0,`Missing GPU limit ${limit}`);
     assert(h.evidence.some(name=>{try {const d=json(name,'gpu-log');return d.osGpuDescription===h.osGpuDescription && d.adapter?.description===h.adapterDescription && d.adapter?.isFallbackAdapter===false && JSON.stringify(d.adapter.features)===JSON.stringify(h.features) && JSON.stringify(d.adapter.limits)===JSON.stringify(h.limits);}catch{return false;}}),'GPU evidence must retain matching OS and raw adapter observations');
   };

@@ -97,7 +97,7 @@ node scripts/testing/browser-acceptance.mjs self-check
 
 `result.schema.json` v2 是严格结构；验证器另检查用例完整、总体状态、通过证据、文件哈希与真实模型来源。填好的证据使用相对路径并放在结果旁边。用例 `pass` 表示该项的全部断言确已观察到，`fail` 表示实际行为违反断言，`blocked` 表示未执行、未选择真实模型、能力不足或证据不足；未执行不能写成通过。可以在 `observations` 保留已完成子步骤，但不能覆盖剩余阻断。
 
-证据必须在 `artifacts` 登记真实 SHA-256、媒体类型和 `role`。每个通过项至少引用实际 PNG `screenshot` 与结构化 `browser-log`；能力、源码、构建和语言清单不能用 README 代替。`capabilities` JSON 记录 `browserosVersion`、实际工具名 `tools` 和已观察能力 `operations`。`source` JSON 与 `provenance` 中的两个提交、tree、锁文件哈希和生成前清洁状态一致。构建/语言清单使用上面的带 kind 的 fingerprint 命令，构建清单保留实际 manifest 文本并校验名称、版本和摘要，语言清单覆盖六种按需语言。
+证据必须在 `artifacts` 登记真实 SHA-256、媒体类型和 `role`。每个通过项至少引用实际 PNG `screenshot` 与结构化 `browser-log`；能力、源码、构建和语言清单不能用 README 代替。`capabilities` JSON 记录 `browserosVersion`、实际工具名 `tools` 和已观察能力 `operations`。`source` JSON 与 `provenance` 中的两个提交、tree、锁文件哈希和生成前清洁状态一致。构建/语言清单使用上面的带 kind 的 fingerprint 命令，构建清单保留实际 manifest 文本并校验名称、版本和摘要，userscript 生成清单覆盖实际生成的五种语言 es-ES、fr-FR、ja-JP、ko-KR、ru-RU。中文通过内联模块使用，英文保留在离线 userscript 中，因此不会生成 zh-CN/en-US JSON。generated-locales fingerprint 会同时记录固定源码中的 zh-CN.ts 与 i18n/index.ts 路径和 SHA-256，作为中文内联证据；旧清单只需重新 fingerprint，无需重建扩展。
 
 所有日志角色使用 `{ "events": [{ "event": "实际事件", "at": "ISO 时间", "context": "实际执行上下文" }] }`，在事件中保留相关测量字段。GPU 日志还包含 `osGpuDescription` 和原始 `adapter`（`description`、`isFallbackAdapter`、`features`、`limits`），与报告一致；执行事件使用实际 `dispatch` + `count`，或 Index 的 `offload` + `loadedLayers`、`totalLayers`、`gpuModelBufferBytes`，并标明 `model`、`variant`。隐私和离线项目另需 network/storage，时序项目另需 timing 角色，要求以验证器错误和矩阵为准。
 
@@ -107,6 +107,6 @@ node scripts/testing/browser-acceptance.mjs self-check
 
 负向项在 `faults` 分别记录每个模型的不可用、初始化失败和 device-loss；视频用其三种媒体拒绝条件，Paddle 另含识别错误。保留 injectionPoint、target、起止时间、changeArtifact/changeSha256、日志、恢复证据、错误、cpuRebuilds、资源释放和恢复结果。`injection` JSON 中 `change` 写出实际注入差异，同时保留 events；对应 browser-log 事件明确 mode、model、target、injectionPoint，恢复事件为 recovery。device-loss 必须同时具备物理 GPU 诊断和实际 deviceLossObserved，不能靠命名一个测试取得通过。
 
-验证器拒绝缺失和自相矛盾的证据，但不能证明人为编造记录的真实性；最终仍须复核截图、日志、输出以及矩阵中的全部行为。`self-check` 的正向样本只是临时生成的验证器测试数据，明确不属于浏览器或模型验收结果。
+验证器拒绝缺失和自相矛盾的证据，但不能证明人为编造记录的真实性；最终仍须复核截图、日志、输出以及矩阵中的全部行为。`self-check` 的浏览器/模型正向样本只是临时生成的验证器测试数据，明确不属于浏览器或模型验收结果。语言回归则用已安装的锁定构建依赖，在临时输出目录运行实际语言生成器和原生 bundles，检查五种真实产物、每种缺失时的拒绝以及中文内联来源哈希；保留历史资源文件不会掩盖缺失。
 
 模板默认全部 `blocked`，不预填任何测试成功。报告中不得包含真实密钥、Cookie、token、个人网页/音频、完整 profile、账号导出、模型权重或本机用户名路径。保留模型/产物哈希、合成夹具和脱敏日志即可。公开前人工检查截图与日志；清理仅限自己创建的临时资源，不清除日常浏览器数据。不要把本次本地测试自动升级为商店发布或线上资源发布。
