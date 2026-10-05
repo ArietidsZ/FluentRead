@@ -1,12 +1,12 @@
 <!--
  * @file src/features/settings/ui/VideoSubtitleAppearanceSettings.vue
  * 文件职责：提供视频字幕外观设置，并用同一套 CSS 变量展示隔离的实时预览。
- * 主要内容：左侧以与设置区等高的画面呈现实际字幕样式，右侧选择显示内容、皮肤并按字号与位置、颜色与布局分组调整字幕，支持恢复默认并保留所有外观配置。
+ * 主要内容：左侧在等高预览区内用正常视频比例呈现字幕样式，滚动调整时保持预览可见；右侧选择显示内容、皮肤并按字号与位置、颜色与布局分组调整字幕，支持恢复默认并保留所有外观配置。
  * 模块边界：只编辑传入 Config 草稿；保存由 SettingsSections 统一处理，播放器实际应用由 content 层负责。
  -->
 <template>
-  <SettingsGroup title="视频字幕外观" description="外观只影响 FluentRead 字幕，不改变 YouTube/X 原生字幕">
-    <SettingsPreviewLayout class="video-subtitle-appearance-panel" label="视频字幕效果预览" data-video-subtitle-appearance>
+  <SettingsGroup class="video-subtitle-appearance-group" title="视频字幕外观" description="外观只影响 FluentRead 字幕，不改变 YouTube/X 原生字幕">
+    <SettingsPreviewLayout class="video-subtitle-appearance-panel" label="视频字幕效果预览" sticky-preview data-video-subtitle-appearance>
       <template #preview>
         <div class="subtitle-preview-scene" :data-position="config.videoSubtitleAppearance.position" :data-auto-bottom="config.videoSubtitleAppearance.autoBottom" data-video-subtitle-preview-scene>
         <div v-if="config.videoSubtitleVisible" class="subtitle-live-preview" :style="previewStyle" data-video-subtitle-preview>
@@ -129,6 +129,8 @@ function skinSwatchStyle(skin: typeof VIDEO_SUBTITLE_SKINS[number]): Record<stri
 
 <style scoped>
 
+/* 保留圆角裁切，同时让固定预览跟随外层设置工作区滚动。 */
+.video-subtitle-appearance-group :deep(.settings-group-body) { overflow:clip; }
 .appearance-panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .appearance-panel-heading strong { color: var(--ink); font-size: 13px; }
 .appearance-panel-heading p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
@@ -143,7 +145,7 @@ function skinSwatchStyle(skin: typeof VIDEO_SUBTITLE_SKINS[number]): Record<stri
 .subtitle-skin-swatch em { color: var(--skin-translation-color); font-size: 10px; font-style: normal; }
 .subtitle-skin-swatch[data-skin="clean"] { color: #1f2937; background: rgba(255, 255, 255, .85); }
 .subtitle-skin-swatch[data-skin="terminal"] { font-family: ui-monospace, monospace; background: rgba(4, 20, 16, .9); }
-.subtitle-preview-scene { position: relative; flex: 1; min-height: 280px; margin-top: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(135deg, #263449, #111827 58%, #4b3149); }
+.subtitle-preview-scene { position: relative; aspect-ratio: 16 / 9; margin-top: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: linear-gradient(135deg, #263449, #111827 58%, #4b3149); }
 .subtitle-preview-scene::before { position: absolute; inset: 16% 12% auto; height: 34%; border-radius: 999px; background: rgba(255,255,255,.1); content: ''; filter: blur(18px); }
 .subtitle-live-preview { position: absolute; left: 50%; display: grid; justify-items: center; gap: 3px; width: min(96%, var(--fluent-read-video-subtitle-max-width)); max-width: var(--fluent-read-video-subtitle-max-width); padding: 8px 12px; border: 1px solid var(--fluent-read-video-subtitle-border); border-radius: 6px; color: var(--fluent-read-video-subtitle-text-color); background: var(--fluent-read-video-subtitle-background); box-shadow: var(--fluent-read-video-subtitle-shadow); backdrop-filter: var(--fluent-read-video-subtitle-backdrop-filter); font-family: var(--fluent-read-video-subtitle-font-family); font-size: var(--fluent-read-video-subtitle-preview-font-size); line-height: var(--fluent-read-video-subtitle-line-spacing); -webkit-text-stroke: var(--fluent-read-video-subtitle-text-stroke); text-shadow: var(--fluent-read-video-subtitle-text-shadow); paint-order: stroke fill; transform: translateX(-50%); }
 .subtitle-preview-scene[data-position="bottom"] .subtitle-live-preview { bottom: var(--fluent-read-video-subtitle-bottom-offset); }
@@ -174,5 +176,4 @@ function skinSwatchStyle(skin: typeof VIDEO_SUBTITLE_SKINS[number]): Record<stri
 .subtitle-display-preferences :deep(.settings-item-control) { width:100%; }
 .subtitle-preview-hidden { position:absolute; inset:0; display:grid; place-items:center; color:#d1d5db; font-size:13px; }
 .appearance-reset-button:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
-@media(max-width:480px) { .subtitle-preview-scene { min-height:220px; } }
 </style>
