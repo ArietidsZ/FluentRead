@@ -134,13 +134,12 @@ async function clickEntry(selector) {await activateVisible(page);let point = awa
         await patch({from: 'auto'});await page.waitForTimeout(300);assert.equal(await entry('return !!this.querySelector(".fr-manga-launcher")'), false);report.cases.push(report.currentCase);
         report.currentCase = 'settings restore prompt through the actual switch';
         await gotoVisible(popup,`chrome-extension://${id}/options.html#settings-image-translation`);
-        await popup.locator('.manga-advanced > summary').click();
         const switchPrompt=popup.getByRole('switch',{name:'独立漫画按钮',exact:true});await switchPrompt.waitFor({state:'attached'});
         await popup.locator('.el-switch').filter({has:switchPrompt}).waitFor();
         assert.equal(await switchPrompt.getAttribute('aria-checked'),'false');
         await popup.locator('.el-switch').filter({has:switchPrompt}).click();
         await wait(async () => await entry('return !!this.querySelector(".fr-manga-launcher")'));assert.equal(await entry('return !!this.querySelector(".fr-manga-entry")'),false);report.cases.push(report.currentCase);
-        report.currentCase = 'unified settings show main switches without tabs and expand resources on demand';
+        report.currentCase = 'unified settings show switches, resources and searchable reader list directly';
         assert.ok(await popup.getByRole('heading',{name:'图片/漫画翻译',exact:true}).count());
         assert.ok(await popup.locator('[data-testid=manga-settings]').isVisible());
         assert.equal(await popup.locator('#settings-image-translation .settings-page-panel').count(),0);

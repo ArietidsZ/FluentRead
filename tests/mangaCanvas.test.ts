@@ -90,6 +90,12 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
         expect(f.ports.translate).toHaveBeenCalledOnce();expect(compose.mock.calls[0][0]).not.toBe(f.canvas);
         expect((compose.mock.calls[0][0] as HTMLCanvasElement).width).toBe(0);
         const output = f.outputs[0];expect(output.style.display).toBe('block');expect(output.style.pointerEvents).toBe('none');expect(output.style.left).toBe('100px');
+        const host = f.document.getElementById('fluent-read-manga-canvas-container')!;
+        expect(host.shadowRoot).toBeNull();
+        // 外层也是插件所有的 UI，必须抵抗宿主全局强制隐藏和点击规则；真实计算样式由浏览器夹具验证。
+        expect(host.style.cssText).toMatch(/all:\s*initial\s*!important/);
+        expect(host.style.cssText).toMatch(/display:\s*block\s*!important/);
+        expect(host.style.cssText).toMatch(/pointer-events:\s*none\s*!important/);
         expect(f.canvas.outerHTML).toBe(original);expect(f.runtime.failed(f.canvas)).toBe(false);
         f.runtime.restore(f.canvas);expect(output.isConnected).toBe(false);
         expect(f.runtime.reuse(f.canvas)).toBe(true);expect(output.isConnected).toBe(true);

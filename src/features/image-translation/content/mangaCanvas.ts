@@ -113,7 +113,8 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
             if (!host) {
                 host = document.createElement('div');host.id = ports.hostId ?? (ports.source ? 'fluent-read-manga-background-container' : 'fluent-read-manga-canvas-container');
                 host.setAttribute('data-fluent-read-ui', 'manga-canvas');
-                host.style.cssText = 'all:initial;position:fixed;left:0;top:0;width:0;height:0;pointer-events:none;z-index:2147483644;';
+                // Shadow DOM 隔离内部译图，外层宿主也需抵抗页面的全局 !important 规则。
+                host.style.cssText = 'all:initial!important;display:block!important;position:fixed!important;left:0!important;top:0!important;width:0!important;height:0!important;overflow:visible!important;pointer-events:none!important;z-index:2147483644!important;';
                 root = host.attachShadow({mode: 'closed'});document.documentElement.append(host);
             }
             root!.append(state.surface);
