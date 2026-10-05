@@ -592,6 +592,8 @@ export const enUSMessages = {
     "writing.previewReference": "After generating, a {language} reference version appears under the draft. Copying and inserting use the draft only.",
     "writing.referenceSearch": "Search reading languages",
 
+    "common.pagination.jump": "Go to page",
+    "common.pagination.go": "Go",
     "usage.pageSize": "{size} entries",
     "featureEnable.imageDescription": "Show the translation control when hovering over a webpage image.",
 

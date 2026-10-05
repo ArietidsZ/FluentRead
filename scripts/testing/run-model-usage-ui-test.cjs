@@ -215,13 +215,11 @@ async function main() {
     assert.deepEqual(composition, {'uncached-input': 100, 'cached-input': 20, 'unknown-cache-input': 700, output: 430});
     assert.equal(Object.values(composition).reduce((sum, value) => sum + value, 0), 1250, '缓存创建与推理不得重复加到总量');
     assert.match(await dashboard.locator('.usage-coverage-note').textContent(), /66\.7%/, '覆盖率必须包含失败的调用');
-    const averages = dashboard.locator('details.usage-average-card');
-    assert.equal(await averages.getAttribute('open'), null, '平均值应默认收起');
-    await averages.locator('summary').click();
+    const averages = dashboard.locator('section.usage-average-card');
+    assert.equal(await averages.isVisible(), true, '平均构成常驻展示');
     assert.deepEqual((await averages.locator('.usage-average-value strong').allTextContents()).map(text => text.trim()), ['100', '20', '80']);
-    await averages.locator('summary').click();
-    const requests = dashboard.locator('details.usage-request-log-card');
-    assert.notEqual(await requests.getAttribute('open'), null, '请求记录应默认展开');
+    const requests = dashboard.locator('section.usage-request-log-card');
+    assert.equal(await requests.isVisible(), true, '模型调用记录常驻展示且只保留一个标题');
     assert.equal(await dashboard.locator('.usage-breakdown-speed').count(), 4);
     assert.match(await dashboard.locator('.usage-breakdown-speed').first().textContent(), /token\/s/);
     await requests.locator('.usage-request-table tbody tr').first().waitFor({state: 'visible', timeout});
@@ -240,10 +238,27 @@ async function main() {
     await requests.locator('.usage-request-table tbody tr').first().scrollIntoViewIfNeeded();
     await capture(page, report, 'usage-request-cache-details');
     await selectFilter(page, '按模型缓存状态筛选请求记录', '全部缓存状态');
-    await requests.locator('summary').click();
+    await dashboard.locator('.usage-help-button').scrollIntoViewIfNeeded();
+    const beforeHelp = await dashboard.locator('.usage-summary-grid').boundingBox();
+    await dashboard.locator('.usage-help-button').click();
+    await page.locator('.usage-statistics-popover:visible').waitFor({state: 'visible', timeout});
+    const afterHelp = await dashboard.locator('.usage-summary-grid').boundingBox();
+    assert.equal(afterHelp.y, beforeHelp.y, '统计说明开关不得移动概览');
+    assert.equal(afterHelp.height, beforeHelp.height);
+    await capture(page, report, 'usage-statistics-help');
+    await dashboard.locator('.usage-help-button').click();
+    await dashboard.locator('.usage-local-badge').hover();
+    await page.getByRole('tooltip').filter({hasText: '仅统计当前浏览器保留的最近 1,000 次模型调用'}).waitFor({state: 'visible', timeout});
+    report.assertions.helpOverlayKeepsLayoutAndLocalTooltip = true;
+    const modelRow = dashboard.locator('.usage-breakdown-list > button').filter({hasText: 'kimi-k3'});
+    await modelRow.click();
+    await waitTotals(page, 600, 1);
+    await modelRow.click();
+    await waitTotals(page, 1250, 6);
+    report.assertions.repeatModelClickClearsFilter = true;
     report.assertions.overview = {tokens: 1250, requests: 6, averageDurationMs: 420, cacheInputRate: '16.7%', composition};
     report.assertions.cacheAndReasoningNotDoubleCounted = true;
-    report.assertions.progressiveDisclosureAndRequestFilters = true;
+    report.assertions.alwaysVisibleAveragesAndRequestFilters = true;
 
     // Delay the delivery of one real background response to exercise request-list
     // invalidation. The extension still queries its actual IndexedDB repository.
@@ -266,12 +281,10 @@ async function main() {
       window.__modelUsageResponseGate = gate;
     });
     try {
-      await requests.locator('summary').click();
+      await dashboard.locator('.usage-refresh-button').click();
       await page.waitForFunction(() => window.__modelUsageResponseGate.held, undefined, {timeout});
-      await requests.locator('summary').click();
       await selectFilter(page, '模型用量服务', 'DeepSeek');
       await waitTotals(page, 0, 1);
-      await requests.locator('summary').click();
       await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 1, undefined, {timeout});
       assert.match(await requests.locator('.usage-request-table tbody').textContent(), /DeepSeek/);
       await page.evaluate(() => window.__modelUsageResponseGate.release());
@@ -279,13 +292,12 @@ async function main() {
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.equal(await requests.locator('.usage-request-table tbody tr').count(), 1, '较旧请求记录覆盖了新筛选');
       assert.match(await requests.locator('.usage-request-table tbody').textContent(), /DeepSeek/);
-      await requests.locator('summary').click();
     } finally {
       await page.evaluate(() => {window.__modelUsageResponseGate.release(); window.__modelUsageResponseGate.restore(); delete window.__modelUsageResponseGate;});
     }
     await dashboard.getByRole('button', {name: '重置筛选', exact: true}).click();
     await waitTotals(page, 1250, 6);
-    report.assertions.delayedListCannotOverwriteReopenedFilter = true;
+    report.assertions.delayedListCannotOverwriteNewFilter = true;
 
     const metric = dashboard.getByLabel('趋势指标', {exact: true});
     const tokenButton = metric.getByRole('button', {name: 'Token', exact: true});
@@ -356,15 +368,13 @@ async function main() {
             await dashboard.locator(selector).scrollIntoViewIfNeeded();
             await capture(page, report, `usage-${name}-${theme}-${width}`);
           }
-          await requests.locator('summary').click();
-          await requests.locator('.usage-request-log-header').scrollIntoViewIfNeeded();
+                await requests.locator('.usage-request-log-header').scrollIntoViewIfNeeded();
           await capture(page, report, `usage-request-records-${theme}-${width}`);
           await requests.locator('.usage-request-table tbody tr').first().scrollIntoViewIfNeeded();
           const requestOverflow = await requests.evaluate(element => element.scrollWidth > element.clientWidth + 1);
           assert.equal(requestOverflow, false, `${theme} ${width}px 展开的请求记录横向溢出`);
           await capture(page, report, `usage-request-row-${theme}-${width}`);
-          await requests.locator('summary').click();
-        }
+              }
       }
     }
     await page.setViewportSize({width: 1440, height: 1000});
@@ -396,27 +406,44 @@ async function main() {
     assert.match(await points.last().getAttribute('aria-label'), /共 129,999 Token/);
     await points.last().focus();
     assert.match(await inspector.textContent(), /129,999/);
-    assert.match(await inspector.textContent(), /123,456/);
+    assert.match(await inspector.textContent(), /122,222/);
+    assert.match(await inspector.textContent(), /1,234/);
     report.assertions.reportedZeroAndExactLargeNumbers = true;
 
-    const paging = Array.from({length: 23}, (_, index) => event(`usage-ui-page-${index}`, 0, 'openai', `paging-model-${String(index).padStart(2, '0')}`, {
+    await seed(page, [
+      event('usage-writing', 0, 'openai', 'purpose-model', {purpose: 'writing', inputTokens: 1, outputTokens: 1, totalTokens: 2}),
+      event('usage-reading', 0, 'openai', 'purpose-model', {purpose: 'reading', inputTokens: 1, outputTokens: 1, totalTokens: 2}),
+    ]);
+    await waitTotals(page, 4, 2);
+    for (const purpose of ['写作助手', '阅读理解']) {
+      await selectFilter(page, '按调用场景筛选请求记录', purpose);
+      await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 1, undefined, {timeout});
+      assert.match(await requests.locator('tbody').textContent(), new RegExp(purpose));
+      assert.equal(await requests.locator('.usage-request-log-error').count(), 0);
+    }
+    await requests.getByRole('button', {name: '重置筛选', exact: true}).click();
+    await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 2, undefined, {timeout});
+    assert.deepEqual((await requests.locator('.usage-request-filters .el-select__placeholder').allTextContents()).map(text => text.trim()), ['全部场景', '全部状态', '全部缓存状态']);
+    report.assertions.writingReadingAndResetFilters = true;
+    const paging = Array.from({length: 63}, (_, index) => event(`usage-ui-page-${index}`, 0, 'openai', `paging-model-${String(index).padStart(2, '0')}`, {
       startedAt: Date.now() - index * 1000, inputTokens: 1, outputTokens: 1, totalTokens: 2, cachedInputTokens: 0,
     }));
     await seed(page, paging);
-    await waitTotals(page, 46, 23);
-    await requests.locator('summary').click();
+    await waitTotals(page, 126, 63);
     await selectFilter(page, '每页请求记录数量', '20 条');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 20, undefined, {timeout});
-    await requests.getByRole('button', {name: '下一页', exact: true}).click();
+    await requests.getByRole('spinbutton', {name: '跳转到页码', exact: true}).fill('4');
+    await requests.getByRole('spinbutton', {name: '跳转到页码', exact: true}).press('Enter');
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 3, undefined, {timeout});
-    assert.match(await requests.locator('.usage-request-pagination').textContent(), /第 2 \/ 2 页/);
+    assert.match(await requests.locator('.usage-request-pagination').textContent(), /第 4 \/ 4 页/);
     assert.equal(await requests.getByRole('button', {name: '下一页', exact: true}).isDisabled(), true);
+    await requests.locator('.usage-request-log-footer').scrollIntoViewIfNeeded();
+    await capture(page, report, 'usage-request-page-jump');
     const lastPageModels = await requests.locator('.usage-request-service small').allTextContents();
-    assert.deepEqual(lastPageModels, ['paging-model-20', 'paging-model-21', 'paging-model-22']);
+    assert.deepEqual(lastPageModels, ['paging-model-60', 'paging-model-61', 'paging-model-62']);
     await requests.getByRole('button', {name: '上一页', exact: true}).click();
     await page.waitForFunction(() => document.querySelectorAll('.usage-request-table tbody tr').length === 20, undefined, {timeout});
-    await requests.locator('summary').click();
-    report.assertions.requestPagination = {events: 23, pageSize: 20, finalPageModels: lastPageModels};
+    report.assertions.requestPagination = {events: 63, pageSize: 20, finalPageModels: lastPageModels};
 
     await seed(page, []);
     await waitTotals(page, 0, 0);

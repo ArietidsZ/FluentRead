@@ -589,6 +589,8 @@ export const zhCNMessages = {
     "writing.previewReference": "生成后会在草稿下方附上 {language} 对照，复制和插入只包含草稿本身。",
     "writing.referenceSearch": "搜索对照语言",
 
+    "common.pagination.jump": "跳转到页码",
+    "common.pagination.go": "跳转",
     "usage.pageSize": "{size} 条",
     "featureEnable.imageDescription": "悬停网页图片时显示翻译入口",
 

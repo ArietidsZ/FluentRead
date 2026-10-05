@@ -1,7 +1,7 @@
 /**
  * @file src/platform/storage/modelUsageRepository.ts
  * 文件职责：在扩展后台专属 IndexedDB 中永久保存脱敏的大模型上游调用事件，并提供统计、请求日志、迁移与独立重置能力。
- * 主要内容：定义 FluentReadModelUsage Dexie 数据库、严格事件白名单、稳定游标分页、幂等批量写入、最近 1000 条记录保留、版本化导入导出，以及最近三十日聚合和全历史维度查询。
+ * 主要内容：定义 FluentReadModelUsage Dexie 数据库、严格事件白名单、稳定游标与指定页分页、幂等批量写入、最近 1000 条记录保留、版本化导入导出，以及最近三十日聚合和全历史维度查询。
  * 模块边界：本文件只拥有模型用量的本地持久化适配，不采集网页文本、不读取 API Key，也不注册 runtime 消息或渲染设置页面。
  */
 
@@ -436,6 +436,12 @@ export class ModelUsageRepository {
         const filter = normalizeRequestFilter(query.filter);
         const cursor = normalizeRequestCursor(query.cursor);
         const limit = normalizeRequestLimit(query.limit);
+        const requestedOffset = query.offset === undefined ? 0 : query.offset;
+        if (!Number.isInteger(requestedOffset) || requestedOffset < 0 || requestedOffset >= MODEL_USAGE_MAX_STORED_EVENTS) {
+            throw new TypeError(`模型用量请求 offset 必须是 0-${MODEL_USAGE_MAX_STORED_EVENTS - 1} 的整数`);
+        }
+        if (query.offset !== undefined && cursor) throw new TypeError('模型用量请求 offset 与 cursor 不能同时使用');
+        if (query.asOf !== undefined) now = Math.min(now, finiteNonNegative(query.asOf, 'asOf', MAX_TIMESTAMP));
         const rangeStart = getModelUsageRangeStart(filter.range, now);
         const baseCollection = () => this.database.events
             .where('[startedAt+id]')
@@ -443,16 +449,19 @@ export class ModelUsageRepository {
             .reverse()
             .filter((event) => matchesRequestFilter(event, filter));
 
-        const [pageCandidates, totalCount] = await this.database.transaction(
+        const {pageCandidates, totalCount, offset} = await this.database.transaction(
             'r',
             this.database.events,
-            async () => Promise.all([
-                baseCollection()
+            async () => {
+                const totalCount = await baseCollection().count();
+                const offset = Math.min(requestedOffset, Math.max(0, Math.ceil(totalCount / limit) - 1) * limit);
+                const pageCandidates = await baseCollection()
                     .filter((event) => isBeforeCursor(event, cursor))
+                    .offset(offset)
                     .limit(limit + 1)
-                    .toArray(),
-                baseCollection().count(),
-            ]),
+                    .toArray();
+                return {pageCandidates, totalCount, offset};
+            },
         );
         const hasMore = pageCandidates.length > limit;
         const items = pageCandidates.slice(0, limit);
@@ -462,6 +471,7 @@ export class ModelUsageRepository {
             filter,
             items,
             totalCount,
+            offset,
             nextCursor: last ? {startedAt: last.startedAt, id: last.id} : null,
         };
     }

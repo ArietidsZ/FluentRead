@@ -590,6 +590,8 @@ export const koKRMessages = {
     "writing.previewReference": "생성 후 초안 아래에 {language} 대조본이 표시됩니다. 복사와 삽입에는 초안만 포함됩니다.",
     "writing.referenceSearch": "대조 번역 언어 검색",
 
+    "common.pagination.jump": "페이지 이동",
+    "common.pagination.go": "이동",
     "usage.pageSize": "{size}개",
     "featureEnable.imageDescription": "웹페이지 이미지 위에 마우스를 올리면 번역 버튼을 표시합니다.",
 

@@ -18,7 +18,7 @@ Filter by service, model, and time range (today, 7 days, 30 days). The trend cha
 
 ## Compare services
 
-**Service performance** lists requests, success rate, average duration, P95, longest duration, and average size for each service and model. Select a column header to sort, or a row to focus on that service.
+**Service performance** lists requests, success rate, average duration, P95, longest duration, and average size for each service and model. Select a column header to sort, or a row to focus on that service. Select the same row again to clear the selection.
 
 Durations include only successful requests that reached a service. Results returned directly from cache take almost no time and would pull the average down, so they are excluded. P95 means about 95% of requests finish within that time; it is estimated from the duration distribution.
 
@@ -31,7 +31,7 @@ Batch requests contain several segments and naturally take longer. The “≈ X 
 
 ## Free translation routes
 
-With free translation, one request may try several routes in turn (Microsoft, Google, Youdao, and so on), switching automatically after a failure. The **Free translation routes** table lists attempts, success rate, average duration, P95, longest duration, and average size per route, so you can tell which routes are fast and which fail often, then adjust the enabled routes or their order under **Translation services → Free translation**.
+With free translation, one request may try several routes in turn (Microsoft, Google, Youdao, and so on), switching automatically after a failure. After selecting the free translation service, the **Free translation routes** table appears below the three distribution cards. It lists attempts, success rate, average duration, P95, longest duration, and average size per route, so you can tell which routes are fast and which fail often, then adjust the enabled routes or their order under **Translation services → Free translation**.
 
 Because failures are retried on other routes, route attempts usually outnumber requests, and route durations count successful attempts only. The request history also shows which routes served each request.
 
@@ -51,7 +51,7 @@ The duration and request size distributions show whether slow requests are rare 
 
 ## Request history
 
-Request history lists recent translation requests with time, service and model, size, source, status, and duration. Filter by source or status, or sort by **Slowest** to find the longest requests.
+Request history lists recent translation requests with time, service and model, size, source, status, and duration. Filter by source or status, or sort by **Slowest** to find the longest requests. Use previous/next pages or enter a page number to jump directly. Changing filters or page size returns to page one.
 
 | Source | Meaning |
 | --- | --- |

@@ -221,7 +221,12 @@ async function measureLayout(page, width, height) {
       const bounds = card.getBoundingClientRect();
       return {className: card.className, left: bounds.left, right: bounds.right, overflow: card.scrollWidth > card.clientWidth + 1};
     });
-    return {width: innerWidth, documentOverflow: root.scrollWidth > root.clientWidth + 1, left: rect.left, right: rect.right, cards};
+    const headings = [...dashboard.querySelectorAll('.stats-section-title')].map(element => {
+      const title = element.querySelector('strong').getBoundingClientRect();
+      const subtitle = element.querySelector('.stats-card-label').getBoundingClientRect();
+      return {title: element.textContent.trim(), right: subtitle.left >= title.right, overlap: subtitle.top < title.bottom && subtitle.bottom > title.top};
+    });
+    return {headings, width: innerWidth, documentOverflow: root.scrollWidth > root.clientWidth + 1, left: rect.left, right: rect.right, cards};
   }, panel);
   assert.equal(metrics.documentOverflow, false, `${width}px 页面横向溢出`);
   assert.ok(metrics.left >= -1 && metrics.right <= width + 1, `${width}px 统计面板超出视口`);
@@ -229,30 +234,36 @@ async function measureLayout(page, width, height) {
     assert.equal(card.overflow, false, `${width}px ${card.className} 内部横向溢出`);
     assert.ok(card.left >= metrics.left - 1 && card.right <= metrics.right + 1, `${width}px ${card.className} 超出面板`);
   }
+  for (const heading of metrics.headings) {
+    assert.equal(heading.right && heading.overlap, true, `说明必须位于标题右侧: ${heading.title}`);
+  }
   return {width, height, cards: metrics.cards.length};
 }
 
 // 免费链会请求公共接口，浏览器专项不联网；线路汇总按仓库结构直接写入本次临时 profile。
 async function seedRouteRollups(page, routes) {
-    await page.evaluate(async items => {
-        const database = await new Promise((resolve, reject) => {
-          const request = indexedDB.open('FluentReadTranslationStats');
-          request.onsuccess = () => resolve(request.result);
-          request.onerror = () => reject(request.error);
+    const stored = await readStoredStats(page);
+    const freeRequests = stored.requests.filter(item => item.serviceId === 'deeplx').map(item => ({...item,
+      id: `free-${item.id}`, serviceId: 'freeTranslation', routes: ['microsoft', 'google']}));
+    const freeRollups = stored.rollups.filter(item => item.serviceId === 'deeplx').map(item => ({...item, serviceId: 'freeTranslation'}));
+    await page.evaluate(async ({routes, freeRequests, freeRollups}) => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('FluentReadTranslationStats');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise((resolve, reject) => {
+          const transaction = database.transaction(['routes', 'requests', 'rollups'], 'readwrite');
+          for (const item of routes) transaction.objectStore('routes').put(item);
+          for (const item of freeRequests) transaction.objectStore('requests').put(item);
+          for (const item of freeRollups) transaction.objectStore('rollups').put(item);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
         });
-        try {
-          await new Promise((resolve, reject) => {
-            const transaction = database.transaction('routes', 'readwrite');
-            const store = transaction.objectStore('routes');
-            for (const item of items) store.put(item);
-            transaction.oncomplete = () => resolve();
-            transaction.onerror = () => reject(transaction.error);
-            transaction.onabort = () => reject(transaction.error);
-          });
-        } finally {
-          database.close();
-        }
-    }, routes);
+      } finally { database.close(); }
+    }, {routes, freeRequests, freeRollups});
+    return freeRequests.length;
 }
 
 function routeRollupFixtures() {
@@ -419,8 +430,16 @@ async function main() {
     await refreshPanel(page, 10);
     report.assertions.serviceFilterRangeAndTrendMetrics = true;
 
-    await seedRouteRollups(page, routeRollupFixtures());
+    await services.filter({hasText: 'DeepLX'}).click();
+    await refreshPanel(page, 7);
+    await services.filter({hasText: 'DeepLX'}).click();
     await refreshPanel(page, 10);
+    report.assertions.repeatServiceClickClearsFilter = true;
+    const freeCount = await seedRouteRollups(page, routeRollupFixtures());
+    await refreshPanel(page, 10 + freeCount);
+    assert.equal(await page.locator(`${panel} .stats-routes`).count(), 0, '全部服务默认不展示免费线路');
+    await services.filter({hasText: '免费翻译'}).click();
+    await refreshPanel(page, freeCount);
     const routeRows = page.locator(`${panel} .stats-route-table tbody tr`);
     await routeRows.first().waitFor({state: 'visible', timeout});
     assert.equal(await routeRows.count(), 3, '免费线路表按线路列出尝试');
@@ -433,13 +452,59 @@ async function main() {
     assert.equal(await page.locator(`${panel} .stats-route-table thead th`).nth(3).getAttribute('aria-sort'), 'ascending');
     await page.locator(`${panel} .stats-routes`).scrollIntoViewIfNeeded();
     await capture(page, report, 'translation-stats-free-routes');
-    report.assertions.freeRoutePerformance = true;
+    const routePosition = await page.locator(`${panel} .stats-routes`).evaluate(element => Boolean(element.previousElementSibling?.classList.contains('stats-distribution-grid')));
+    assert.equal(routePosition, true, '线路卡片必须在三个分布卡片之后');
+    await services.filter({hasText: '免费翻译'}).click();
+    await refreshPanel(page, 10 + freeCount);
+    assert.equal(await page.locator(`${panel} .stats-routes`).count(), 0);
+    report.assertions.freeRoutePerformanceAndSelectedVisibility = true;
 
     const stored = await readStoredStats(page);
-    assert.equal(stored.requests.length, 10);
+    assert.equal(stored.requests.length, 10 + freeCount);
     const serialized = JSON.stringify(stored);
     for (const word of FIXTURE_WORDS) assert.ok(!serialized.includes(word), `统计库不应包含翻译文本：${word}`);
     report.assertions.storedStatsContainOnlyNumbersAndIdentifiers = true;
+
+    await page.evaluate(async () => {
+      const database = await new Promise((resolve, reject) => {
+        const request = indexedDB.open('FluentReadTranslationStats');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        const original = await new Promise((resolve, reject) => {
+          const request = database.transaction('requests').objectStore('requests').getAll();
+          request.onsuccess = () => resolve(request.result[0]);
+          request.onerror = () => reject(request.error);
+        });
+        await new Promise((resolve, reject) => {
+          const transaction = database.transaction('requests', 'readwrite');
+          for (let index = 0; index < 53; index++) transaction.objectStore('requests').put({...original,
+            id: `paging-${index}`, serviceId: 'deeplx', model: '', startedAt: Date.now() - index * 1000});
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error);
+        });
+      } finally { database.close(); }
+    });
+    await selectOption(page, '每页条数', '20');
+    await page.locator(`${panel} .stats-log .stats-toggle button`).first().click();
+    await logRows(page, 20);
+    const pageInput = page.getByRole('spinbutton', {name: '跳转到页码', exact: true});
+    await pageInput.fill('4');
+    await pageInput.press('Enter');
+    await logRows(page, 3 + freeCount);
+    assert.match(await page.locator(`${panel} .stats-pagination`).textContent(), /4.*4/);
+    await page.locator(`${panel} .stats-log-footer`).scrollIntoViewIfNeeded();
+    await capture(page, report, 'translation-stats-page-jump');
+    await pageInput.fill('1');
+    await pageInput.press('Enter');
+    await logRows(page, 20);
+    await selectOption(page, '来源', '部分缓存');
+    await logRows(page, 1);
+    assert.equal(await pageInput.inputValue(), '1', '筛选后页码回到第一页');
+    await selectOption(page, '来源', '全部来源');
+    await logRows(page, 20);
+    report.assertions.directPageJumpAndFilterReset = true;
 
     for (const [width, height] of [[1440, 1000], [1024, 900], [820, 900], [390, 844]]) {
       report.responsive.push(await measureLayout(page, width, height));

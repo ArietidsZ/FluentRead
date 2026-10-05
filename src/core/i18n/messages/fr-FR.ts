@@ -590,6 +590,8 @@ export const frFRMessages = {
     "writing.previewReference": "Après la génération, une version de référence en {language} apparaît sous le brouillon. La copie et l’insertion ne reprennent que le brouillon.",
     "writing.referenceSearch": "Rechercher une langue de lecture",
 
+    "common.pagination.jump": "Aller à la page",
+    "common.pagination.go": "Aller",
     "usage.pageSize": "{size} entrées",
     "featureEnable.imageDescription": "Afficher la traduction au survol des images de la page.",
 
