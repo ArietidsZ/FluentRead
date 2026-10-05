@@ -1,5 +1,9 @@
 # 测试与回归
 
+## BrowserOS Neo 本地验收交接
+
+已测试产品源码与 GitHub 发布 tree 的对应、临时 profile / 焦点前提、真实物理 GPU 与故障注入边界、22 项人工与现有脚本验收，以及严格结果格式见 [BrowserOS Neo 本地验收](./browser-acceptance/README.md)。该交接的回环夹具与结果校验可用 `node scripts/testing/browser-acceptance.mjs self-check` 检查，不启动浏览器、不下载模型；通过此检查不代表真实浏览器或模型验收。
+
 ## Popup 首次打开与语言引导
 
 生产构建后运行 `node scripts/testing/run-popup-first-run-height-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <捆绑Node包目录> --browser-path <Edge可执行文件> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-popup-first-run`。只检查首启相关范围：配置读取延迟 1.2 秒时，等待状态与欢迎页高度一致，首个欢迎帧已有双语文字且不请求完整英文目录，卡片没有缩放入场。短视口还检查高度由内容撑开，避免重现 130px 高度锁定。

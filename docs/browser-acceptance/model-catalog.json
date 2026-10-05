@@ -1,0 +1,524 @@
+{
+  "sourceTree": "50e12ecc7f4c72448f03e714a585814eb9476622",
+  "sourceFiles": [
+    {
+      "path": "src/core/config/localTranslationArtifacts.json",
+      "sha256": "02dbd7e3eadf09082ba8f9a394d3882d462543edb83ee6ff2bd5d2bad8e6bf1e"
+    },
+    {
+      "path": "src/core/config/localTranslation.ts",
+      "sha256": "6051425f1df93c43ebfa390c10e487e19d900a52accacc7599e32d6632a03da0"
+    },
+    {
+      "path": "src/features/local-translation/offscreen/artifactStore.ts",
+      "sha256": "32d542d708c6ffb8887cfe55f852672adfbbb9e21823a8ea27fd8ca85a6a9bb4"
+    },
+    {
+      "path": "src/features/local-translation/offscreen/indexGpu.ts",
+      "sha256": "7977f7098429cc987a8d3ded5ac1dbd5ce78e3629753d5a57badaacccee1b57a"
+    },
+    {
+      "path": "src/core/config/localTts.ts",
+      "sha256": "69d400fd71e60d8d8e78b6d9b13c898465996842de0d64611355d331744b06b0"
+    },
+    {
+      "path": "src/features/local-tts/offscreen/modelCache.ts",
+      "sha256": "5b3372725f083f25194aafb1fe00824e471aee5164bf15dd013eba67e3e31456"
+    },
+    {
+      "path": "src/features/image-translation/services/mangaOcrAssets.ts",
+      "sha256": "9f78713fb52b84f0824f1cf78926684099cb8827635b26314192e9a09f5833fa"
+    },
+    {
+      "path": "src/features/video-subtitle/offscreen/qwen/artifacts.json",
+      "sha256": "11d45046ba2ec51ff64caddad130d494adbbbb83bbeddf2db4fd714fe3547838"
+    },
+    {
+      "path": "src/features/video-subtitle/offscreen/qwen/prompt.json",
+      "sha256": "282e0cba43d48f0799c665e2687bea950cbb090bc1def85578d6cdf369c08970"
+    },
+    {
+      "path": "src/features/video-subtitle/offscreen/qwen/model.ts",
+      "sha256": "1807fcd42af49a3f890926ae154691722f97deaa8422f98053058aef583d48a8"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "fluentread/opus-zh-en-fp16",
+      "variant": "fp16",
+      "directions": [
+        "en>zh",
+        "zh>en"
+      ],
+      "requiredFeatures": [
+        "shader-f16"
+      ],
+      "requiredRuntimeEntries": [
+        "localTranslationWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "config.json",
+          "size": 1503,
+          "sha256": "4727d1229a04f95bf6f39abf949d8080615433d99d6ebd85f81c09edd247d5fa"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "generation_config.json",
+          "size": 293,
+          "sha256": "b743baabb7da4c1a2f19fe558bd6b4c0c7c3b0762fcb5ca7a48fe5a2c2219803"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "special_tokens_map.json",
+          "size": 74,
+          "sha256": "5e4d1f5e759d74cb1c2fe1d165cfc62b5237aa904de759380cd6f43042eec723"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "tokenizer.json",
+          "size": 6380952,
+          "sha256": "d0c7da27056e8f42adce9e76d8e792e5daa64e15f5acd2e7aabf0121877dd4c1"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "tokenizer_config.json",
+          "size": 282,
+          "sha256": "a914596e6bff113a8428d4793b586da87cd0b95697a0e72aba90cc1d95858481"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "onnx/encoder_model_fp16.onnx",
+          "size": 105062004,
+          "sha256": "3848296c1980f6ae3ccea955a33da9646c538b45dd47bef001c56252667a4376"
+        },
+        {
+          "repo": "Xenova/opus-mt-en-zh",
+          "revision": "046f55aec303cdee3e0318604406d4df20f1e8ea",
+          "path": "onnx/decoder_model_merged_fp16.onnx",
+          "size": 118354621,
+          "sha256": "181e3c09302fcb57d5afcdf9cba96058a2584959e55c0811e9f09088a207ad09"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "config.json",
+          "size": 1389,
+          "sha256": "293d318fce41dbf04114eac45037bb88a32d7c4ee21011a75e24a8b98ca45ad1"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "generation_config.json",
+          "size": 293,
+          "sha256": "8dc29fef0fe82109f94ef3c2e6ea6bded3215d357b226c34cf7b4630726766c9"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "special_tokens_map.json",
+          "size": 74,
+          "sha256": "5e4d1f5e759d74cb1c2fe1d165cfc62b5237aa904de759380cd6f43042eec723"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "tokenizer.json",
+          "size": 6381339,
+          "sha256": "b306d0301cf280bfd647d7067b5ade2a97b987e6d678df110703c002433643ff"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "tokenizer_config.json",
+          "size": 282,
+          "sha256": "08849acc0a539c4749d8665e9d6217735503a97871ccebeea8a762d5fba1acf7"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "onnx/encoder_model_fp16.onnx",
+          "size": 105062004,
+          "sha256": "82feb1ecc135aad5b07e1aa4fae41479c28e7336af4c8972e015cfe79285e279"
+        },
+        {
+          "repo": "Xenova/opus-mt-zh-en",
+          "revision": "39d480d52a9ea3065a1f117adfe4dbc55de10e6f",
+          "path": "onnx/decoder_model_merged_fp16.onnx",
+          "size": 118354621,
+          "sha256": "2d0bb108662cbc80d0e34b485045d19e52017a5dfddc190dc7dc752ca6df4a24"
+        }
+      ]
+    },
+    {
+      "id": "fluentread/opus-ja-en-fp32",
+      "variant": "fp32",
+      "directions": [
+        "ja>en"
+      ],
+      "requiredFeatures": [],
+      "requiredRuntimeEntries": [
+        "localTranslationWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "config.json",
+          "size": 1376,
+          "sha256": "d35476f1d3858883feec67e5a63ddc387452a70fda9c8e26db99c71aa2ad6a34"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "generation_config.json",
+          "size": 293,
+          "sha256": "ed1bc2193210ca2a6dc9c144ea789936fed8a27113e01010d8e591f45f238912"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "special_tokens_map.json",
+          "size": 74,
+          "sha256": "5e4d1f5e759d74cb1c2fe1d165cfc62b5237aa904de759380cd6f43042eec723"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "tokenizer.json",
+          "size": 5991485,
+          "sha256": "770ff2855437cf44f1f110550c5a9dca773253a167aeac36076b2073d259aa3b"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "tokenizer_config.json",
+          "size": 280,
+          "sha256": "414e9e7e2492b95fa80f24ccb295645d35c4dd0a74d7ef8b89820c0c7e8ec356"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "onnx/encoder_model.onnx",
+          "size": 201162540,
+          "sha256": "3aa28e0b0be8af4ea7d32af72ee8d54ba2cb8ac3ac46ab665e46c8d997d9f980"
+        },
+        {
+          "repo": "Xenova/opus-mt-ja-en",
+          "revision": "1a906cfaaf7c8f4193f67f5885c082aa6dbd9d16",
+          "path": "onnx/decoder_model_merged.onnx",
+          "size": 227046416,
+          "sha256": "546cd2909c9b4e9b58ca0d5fdab653043f511ed9bd3cb0d50328ea5f682902df"
+        }
+      ]
+    },
+    {
+      "id": "IndexTeam/Index-Translate-2B-GGUF",
+      "variant": "q6_k",
+      "directions": [
+        "en>zh",
+        "zh>en"
+      ],
+      "requiredFeatures": [
+        "shader-f16"
+      ],
+      "requiredRuntimeEntries": [
+        "localTranslationWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "IndexTeam/Index-Translate-2B-GGUF",
+          "revision": "449c9e6457b3632d328c6cbb78ae8e8e0c8059a5",
+          "path": "Index-Translate-2B.Q6_K.gguf",
+          "size": 1606323712,
+          "sha256": "3ec6fa4e5a5efa25620f17ecfce8daec1ec8fb35a53c82b419a6707581a505b9"
+        },
+        {
+          "repo": "IndexTeam/Index-Translate-2B",
+          "revision": "a516854233b170140b57d36b48d7148c0edebabb",
+          "path": "tokenizer.json",
+          "size": 12807196,
+          "sha256": "fe000e3ed39ed12b8d2481d527d44f93c65d37e87645d2dcc80d1bf9d50d2927"
+        },
+        {
+          "repo": "IndexTeam/Index-Translate-2B",
+          "revision": "a516854233b170140b57d36b48d7148c0edebabb",
+          "path": "tokenizer_config.json",
+          "size": 16712,
+          "sha256": "e611fbccc7c29ef3b1cafb1cb7ea548d189968632901d678fd62be68c47885de"
+        }
+      ]
+    },
+    {
+      "id": "kokoro-v1.1-zh",
+      "variant": "fp32",
+      "directions": [
+        "zh",
+        "en"
+      ],
+      "requiredFeatures": [],
+      "requiredRuntimeEntries": [
+        "localTtsWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "onnx-community/Kokoro-82M-v1.1-zh-ONNX",
+          "revision": "6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3",
+          "path": "config.json",
+          "size": 44,
+          "sha256": "df34b4f930b23447cd4dc410fabfb42eb3f24e803e6c3f97d618fb359380a36f"
+        },
+        {
+          "repo": "onnx-community/Kokoro-82M-v1.1-zh-ONNX",
+          "revision": "6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3",
+          "path": "tokenizer.json",
+          "size": 4944,
+          "sha256": "5715a60b09d5e4b9074435d68c6ccd5675b9d48b220e109fdea3cda681e23d15"
+        },
+        {
+          "repo": "onnx-community/Kokoro-82M-v1.1-zh-ONNX",
+          "revision": "6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3",
+          "path": "tokenizer_config.json",
+          "size": 113,
+          "sha256": "be1cb066d6ef6b074b3f15e6a6dd21ac88ff3cdaedf325f0aaed686c70f75d20"
+        },
+        {
+          "repo": "onnx-community/Kokoro-82M-v1.1-zh-ONNX",
+          "revision": "6cc0f0d2ebe369a68b0df87c2b65c1af8c0ac3e3",
+          "path": "onnx/model.onnx",
+          "size": 339369442,
+          "sha256": "94b973941b1852754f979be5d5e20be666d5c81d9bb886b88ae1dc85c9b895ca"
+        }
+      ]
+    },
+    {
+      "id": "snowfluke/ppu-paddle-ocr-models",
+      "variant": "ppocrv6-small",
+      "directions": [
+        "image>text"
+      ],
+      "requiredFeatures": [],
+      "requiredRuntimeEntries": [
+        "offscreen.html"
+      ],
+      "artifacts": [
+        {
+          "repo": "snowfluke/ppu-paddle-ocr-models",
+          "revision": "bf1d5edb0335d3262be7caf13f766ba274b4cadd",
+          "path": "detection/PP-OCRv6_small_det.onnx",
+          "size": 9880512,
+          "sha256": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e"
+        },
+        {
+          "repo": "snowfluke/ppu-paddle-ocr-models",
+          "revision": "bf1d5edb0335d3262be7caf13f766ba274b4cadd",
+          "path": "recognition/PP-OCRv6_small_rec.onnx",
+          "size": 21159378,
+          "sha256": "5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634"
+        },
+        {
+          "repo": "snowfluke/ppu-paddle-ocr-models",
+          "revision": "bf1d5edb0335d3262be7caf13f766ba274b4cadd",
+          "path": "recognition/ppocrv6_dict.txt",
+          "size": 74948,
+          "sha256": "41557512862dfe31970cf22407742b629725461dd84c0d8771bde9c87c2202c8"
+        }
+      ]
+    },
+    {
+      "id": "ogkalu/lama-manga-onnx-dynamic",
+      "variant": "fp32",
+      "directions": [
+        "image+mask>image"
+      ],
+      "requiredFeatures": [],
+      "requiredRuntimeEntries": [
+        "offscreen.html"
+      ],
+      "artifacts": [
+        {
+          "repo": "ogkalu/lama-manga-onnx-dynamic",
+          "revision": "ee4ed4a8447b6730fc41d34f90876b6c48af925a",
+          "path": "lama-manga-dynamic.onnx",
+          "size": 206291843,
+          "sha256": "de31ffa5ba26916b8ea35319f6c12151ff9654d4261bccf0583a69bb095315f9"
+        }
+      ]
+    },
+    {
+      "id": "qwen3-asr-0.6b",
+      "variant": "q4",
+      "directions": [
+        "audio>text"
+      ],
+      "requiredFeatures": [],
+      "requiredRuntimeEntries": [
+        "qwenAsrWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_init.int4.onnx",
+          "size": 353078,
+          "sha256": "6da098fb828cacaeb09d5f72098079dc84c40f84030be0559025565c0b3479b5"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_step.int4.onnx",
+          "size": 354803,
+          "sha256": "750fae89728bde18c22b3210d4704b2298ddb37c2c9a5b97bad03d76c4243624"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_weights.int4.data",
+          "size": 382035968,
+          "sha256": "848e805e53fcba626c2f78d4cb8b43c380674b3c8874435ca27de1d10d138e0f"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "embed_scales.f32.bin",
+          "size": 607744,
+          "sha256": "acce138a5f06f1233faa4a8a359903b3c303efc0ce37818ad8cf0f9be11fc9b3"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "embed_tokens.int8.bin",
+          "size": 155582464,
+          "sha256": "9ec07c97a15cb9defb675656edeed0370bc3e7b2c478d1eefe6f948fc6516513"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "encoder.onnx",
+          "size": 745766355,
+          "sha256": "333be56046eec5b60324f2a4ef4f0cfe7c24f5843481ad24b2c26738e1d055bb"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "mel_filters.json",
+          "size": 132427,
+          "sha256": "dcdaf139353616855b4f85e304c075f5f3442573d40637ae0f031db705626181"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "prompt_config.json",
+          "size": 2578,
+          "sha256": "282e0cba43d48f0799c665e2687bea950cbb090bc1def85578d6cdf369c08970"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "tokenizer.json",
+          "size": 11429377,
+          "sha256": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "tokenizer_config.json",
+          "size": 12488,
+          "sha256": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1"
+        }
+      ]
+    },
+    {
+      "id": "qwen3-asr-0.6b",
+      "variant": "q4f16",
+      "directions": [
+        "audio>text"
+      ],
+      "requiredFeatures": [
+        "shader-f16"
+      ],
+      "requiredRuntimeEntries": [
+        "qwenAsrWorker.js"
+      ],
+      "artifacts": [
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_init.q4f16.onnx",
+          "size": 348427,
+          "sha256": "328a14a46d7284bb6dc5242bc9f6029b013a6f2c42579f9e72dadbaa96ba511d"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_step.q4f16.onnx",
+          "size": 350380,
+          "sha256": "27f4588874d1e50a539aed8de424107a8b934a1a5b13368c3a36b467ffcf2024"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "decoder_weights.q4f16.data",
+          "size": 344670208,
+          "sha256": "898d0c82aad4cae494a4241639c73f9c8e79486fea3b4bac918883397b8f0bcc"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "embed_scales.f32.bin",
+          "size": 607744,
+          "sha256": "acce138a5f06f1233faa4a8a359903b3c303efc0ce37818ad8cf0f9be11fc9b3"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "embed_tokens.int8.bin",
+          "size": 155582464,
+          "sha256": "9ec07c97a15cb9defb675656edeed0370bc3e7b2c478d1eefe6f948fc6516513"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "encoder.fp16.onnx",
+          "size": 376261247,
+          "sha256": "af2a517a3d873a401ec9f64a81711e3d780fc8b085fd36f9366f9ac17a54411b"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "mel_filters.json",
+          "size": 132427,
+          "sha256": "dcdaf139353616855b4f85e304c075f5f3442573d40637ae0f031db705626181"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "prompt_config.json",
+          "size": 2578,
+          "sha256": "282e0cba43d48f0799c665e2687bea950cbb090bc1def85578d6cdf369c08970"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "tokenizer.json",
+          "size": 11429377,
+          "sha256": "bd2a97b55c8f7f9c328c73ee9b9178771037e9f566dfca8e238a063d41cbac92"
+        },
+        {
+          "repo": "jiangzhuo9357/Qwen3-ASR-0.6B-ONNX",
+          "revision": "4a01b95fafe2c9e3af77e33c18bbb7de349c62f6",
+          "path": "tokenizer_config.json",
+          "size": 12488,
+          "sha256": "784c92a0a81fbbc440afb89842f8c16c8da28dfb9ff381fcea585b84f4eed7d1"
+        }
+      ]
+    }
+  ]
+}

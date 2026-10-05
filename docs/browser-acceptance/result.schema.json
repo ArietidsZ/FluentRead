@@ -1,0 +1,867 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FluentRead BrowserOS Neo acceptance result",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "testedLocalHead": {
+      "const": "7212af1f9da08324963e38973c7f477aabfffb0b"
+    },
+    "expectedSourceTree": {
+      "const": "50e12ecc7f4c72448f03e714a585814eb9476622"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "startedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "finishedAt": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "overall": {
+      "enum": [
+        "pass",
+        "fail",
+        "blocked"
+      ]
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "os": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "browser": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "browserVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "browserosVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "launchMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profileMarker": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "focusPolicy": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "windowPlacement": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extensionId": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extensionName": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "extensionVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "browserExecutableSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profileKind": {
+          "enum": [
+            "unverified",
+            "dedicated-temporary"
+          ]
+        },
+        "launchArguments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "capabilityEvidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "nodeVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pnpmVersion": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "os",
+        "browser",
+        "browserVersion",
+        "browserosVersion",
+        "launchMode",
+        "profileMarker",
+        "focusPolicy",
+        "windowPlacement",
+        "extensionId",
+        "extensionName",
+        "extensionVersion",
+        "browserExecutableSha256",
+        "profileKind",
+        "launchArguments",
+        "capabilityEvidence",
+        "nodeVersion",
+        "pnpmVersion"
+      ],
+      "additionalProperties": false
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "publishedSourceCommit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkoutCommit": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observedSourceTree": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "worktreeCleanBeforeLocaleGeneration": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lockfileSha256": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "buildManifest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generatedLocalesManifest": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "commands": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "publishedSourceCommit",
+        "checkoutCommit",
+        "observedSourceTree",
+        "worktreeCleanBeforeLocaleGeneration",
+        "lockfileSha256",
+        "buildManifest",
+        "generatedLocalesManifest",
+        "commands"
+      ],
+      "additionalProperties": false
+    },
+    "hardware": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "enum": [
+            "unverified",
+            "physical",
+            "software",
+            "none"
+          ]
+        },
+        "osGpuDescription": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adapterDescription": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "isFallbackAdapter": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "features": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "status",
+        "osGpuDescription",
+        "adapterDescription",
+        "isFallbackAdapter",
+        "features",
+        "limits",
+        "evidence"
+      ],
+      "additionalProperties": false
+    },
+    "models": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "variant": {
+            "type": "string",
+            "minLength": 1
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "repo": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "revision": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{40}$"
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "expectedSize": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "observedSize": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "expectedSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "observedSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "repo",
+                "revision",
+                "path",
+                "expectedSize",
+                "observedSize",
+                "expectedSha256",
+                "observedSha256"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "runtimeFiles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "path",
+                "sha256"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "required": [
+          "id",
+          "variant",
+          "files",
+          "runtimeFiles",
+          "notes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 22,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "enum": [
+              "ENV-01",
+              "UI-01",
+              "PRIVATE-01",
+              "PRIVATE-02",
+              "YT-01",
+              "OCR-UI-01",
+              "YT-02",
+              "YT-03",
+              "YT-04",
+              "YT-05",
+              "OCR-01",
+              "OCR-02",
+              "OCR-03",
+              "TTS-01",
+              "TTS-02",
+              "TTS-03",
+              "TTS-04",
+              "TTS-05",
+              "MT-01",
+              "MT-02",
+              "MT-03",
+              "MT-04"
+            ]
+          },
+          "status": {
+            "enum": [
+              "pass",
+              "fail",
+              "blocked"
+            ]
+          },
+          "kind": {
+            "enum": [
+              "deterministic-browser",
+              "real-model",
+              "real-site-model",
+              "fault-injection"
+            ]
+          },
+          "backend": {
+            "enum": [
+              "unverified",
+              "none",
+              "hardware-webgpu",
+              "hardware-webgpu-with-host-ops",
+              "software-webgpu",
+              "wasm"
+            ]
+          },
+          "models": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          },
+          "observations": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "durationMs": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "runs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "variant": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "direction": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "inputSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "outputArtifact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "gpuEvidence": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "outputBytes": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "outputSummary": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "completed": {
+                  "type": "boolean"
+                },
+                "backend": {
+                  "enum": [
+                    "hardware-webgpu",
+                    "hardware-webgpu-with-host-ops",
+                    "software-webgpu",
+                    "wasm",
+                    "none",
+                    "unverified"
+                  ]
+                }
+              },
+              "required": [
+                "model",
+                "variant",
+                "direction",
+                "inputSha256",
+                "outputArtifact",
+                "gpuEvidence",
+                "outputBytes",
+                "outputSummary",
+                "completed",
+                "backend"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "faults": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "model": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "variant": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mode": {
+                  "enum": [
+                    "unavailable",
+                    "init-failure",
+                    "device-loss",
+                    "protected-media",
+                    "initial-track-muted",
+                    "live-track-muted",
+                    "recognition-error"
+                  ]
+                },
+                "injectionPoint": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "target": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "startedAt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "endedAt": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "changeSha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "changeArtifact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "logArtifact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "recoveryArtifact": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observedError": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "cpuRebuilds": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "resourcesReleased": {
+                  "type": "boolean"
+                },
+                "recovered": {
+                  "type": "boolean"
+                },
+                "deviceLossObserved": {
+                  "type": "boolean"
+                },
+                "execution": {
+                  "enum": [
+                    "gpu",
+                    "capture-refusal"
+                  ]
+                }
+              },
+              "required": [
+                "model",
+                "variant",
+                "mode",
+                "injectionPoint",
+                "target",
+                "startedAt",
+                "endedAt",
+                "changeSha256",
+                "changeArtifact",
+                "logArtifact",
+                "recoveryArtifact",
+                "observedError",
+                "cpuRebuilds",
+                "resourcesReleased",
+                "recovered",
+                "deviceLossObserved",
+                "execution"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "kind",
+          "backend",
+          "models",
+          "reason",
+          "observations",
+          "evidence",
+          "durationMs",
+          "runs",
+          "faults"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "mediaType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "enum": [
+              "screenshot",
+              "browser-log",
+              "gpu-log",
+              "capabilities",
+              "source",
+              "build-manifest",
+              "locale-manifest",
+              "inference-output",
+              "injection",
+              "timing",
+              "network",
+              "storage",
+              "inference-payload"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "sha256",
+          "mediaType",
+          "role"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "testedLocalHead",
+    "expectedSourceTree",
+    "runId",
+    "startedAt",
+    "finishedAt",
+    "overall",
+    "environment",
+    "provenance",
+    "hardware",
+    "models",
+    "cases",
+    "artifacts",
+    "limitations"
+  ],
+  "additionalProperties": false
+}

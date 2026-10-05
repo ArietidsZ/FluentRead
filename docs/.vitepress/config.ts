@@ -164,6 +164,7 @@ export default defineConfig({
   srcExclude: [
     'architecture.md',
     'testing.md',
+    'browser-acceptance/**',
     'reports/**',
     'maintainers/**',
     'contributing/**',
