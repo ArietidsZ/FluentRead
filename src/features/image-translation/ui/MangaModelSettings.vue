@@ -1,6 +1,6 @@
 <!--
  * @file src/features/image-translation/ui/MangaModelSettings.vue
- * 文件职责：提供漫画本地模型的下载说明、来源选择、真实进度、离线导入和缓存清理。
+ * 文件职责：提供图片与漫画共用本地模型的下载说明、来源选择、真实进度、离线导入和缓存清理。
  * 主要内容：供漫画与单图共用；关闭漫画时只展示识别资源与配套离线文件；从后台读取模型缓存和下载快照，设置首选来源并说明失败后的自动切换；定时刷新可见设置页，离线文件经过本功能资源服务校验才入库，保留部分成功并显示错误反馈。
  * 模块边界：不运行 OCR/修补、不下载远程代码、不上传选中文件；页面关闭只清理状态订阅，正在处理漫画的任务仍由 Offscreen 和页面取消入口管理。
  -->
@@ -9,7 +9,7 @@
     <header class="settings-card-heading"><h2>{{ translateLegacy('PaddleOCR 文字识别') }}</h2><span>{{ translateLegacy('首次使用时自动准备') }}</span></header>
     <p>{{ translateLegacy('资源下载后可重复使用，图片在当前浏览器中处理') }}</p>
     <div class="manga-resource-list">
-      <div class="manga-resource"><div><strong>{{ translateLegacy('漫画文字识别') }}</strong><small>{{ translateLegacy('识别对白与旁白') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
+      <div class="manga-resource"><div><strong>{{ translateLegacy('图片文字识别') }}</strong><small>{{ translateLegacy('识别普通图片与漫画中的文字') }} · {{ translateLegacy('约 30 MB') }}</small></div><span :class="{ready: status?.ready}">{{ translateLegacy(!status ? '正在检查' : status.ready ? '已就绪' : '首次使用时下载') }}</span></div>
       <div v-if="showInpainting" class="manga-resource"><div><strong>{{ translateLegacy('背景文字清除') }}</strong><small>{{ translateLegacy('清除复杂画面中的原文字') }} · {{ translateLegacy('约 197 MB') }}</small></div><span :class="{ready: status?.inpaintingReady}">{{ translateLegacy(!status ? '正在检查' : status.inpaintingReady ? '已就绪' : '需要时下载') }}</span></div>
     </div>
     <div v-if="status?.download" class="manga-model-progress" role="status" data-i18n-ignore>

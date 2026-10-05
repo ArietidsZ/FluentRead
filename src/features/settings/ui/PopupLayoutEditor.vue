@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/PopupLayoutEditor.vue
  * 文件职责：提供可复用的 Popup 布局排序与显隐编辑器，供顶层模块和快捷功能两级布局共同使用。
- * 主要内容：将可见项目呈现为可拖动卡片，将隐藏项目收纳为可重新添加的芯片，并提供键盘排序、恢复默认顺序和无障碍状态播报。
+ * 主要内容：将可见项目呈现为可拖动卡片，通过右上角叉号移除非必选项目，将移除项目收纳为可重新添加的芯片，并提供键盘排序、恢复默认顺序和无障碍状态播报。
  * 模块边界：组件只编辑传入的纯布局数据，不认识具体业务功能、不读写浏览器存储，也不渲染真实 Popup。
 -->
 <template>
@@ -63,37 +63,33 @@
             <small>{{ item.description }}</small>
           </span>
 
-          <div class="popup-layout-actions">
-            <span v-if="item.required" class="popup-layout-required">
-              {{ copy('required') }}
-            </span>
+          <button
+            v-if="!item.required"
+            class="popup-layout-hide"
+            type="button"
+            :aria-label="copy('hideAria', {label: item.label})"
+            :title="copy('hideAria', {label: item.label})"
+            @dragstart.stop.prevent
+            @click="setItemVisibility(item, false, $event)"
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="m4 4 8 8M12 4l-8 8" /></svg>
+          </button>
+          <span class="popup-layout-move-buttons">
             <button
-              v-else
-              class="popup-layout-hide"
               type="button"
-              :aria-label="copy('hideAria', {label: item.label})"
+              :disabled="index === 0"
+              :aria-label="copy('moveUp', {label: item.label})"
               @dragstart.stop.prevent
-              @click="setItemVisibility(item, false, $event)"
-            >
-              {{ copy('hide') }}
-            </button>
-            <span class="popup-layout-move-buttons">
-              <button
-                type="button"
-                :disabled="index === 0"
-                :aria-label="copy('moveUp', {label: item.label})"
-                @dragstart.stop.prevent
-                @click="moveItem(item.id, -1)"
-              >↑</button>
-              <button
-                type="button"
-                :disabled="index === visibleItems.length - 1"
-                :aria-label="copy('moveDown', {label: item.label})"
-                @dragstart.stop.prevent
-                @click="moveItem(item.id, 1)"
-              >↓</button>
-            </span>
-          </div>
+              @click="moveItem(item.id, -1)"
+            >↑</button>
+            <button
+              type="button"
+              :disabled="index === visibleItems.length - 1"
+              :aria-label="copy('moveDown', {label: item.label})"
+              @dragstart.stop.prevent
+              @click="moveItem(item.id, 1)"
+            >↓</button>
+          </span>
         </li>
       </ol>
       <p v-if="visibleItems.length === 0" class="popup-layout-empty">
@@ -323,7 +319,6 @@ function finishDrag(): void {
 
 .popup-layout-toolbar,
 .popup-layout-section-heading,
-.popup-layout-actions,
 .popup-layout-hidden-chip,
 .popup-layout-move-buttons,
 .popup-layout-add {
@@ -339,7 +334,6 @@ function finishDrag(): void {
 }
 
 .popup-layout-toolbar button,
-.popup-layout-hide,
 .popup-layout-add {
   flex: none;
   border: 0;
@@ -400,12 +394,12 @@ function finishDrag(): void {
 .popup-layout-item {
   position: relative;
   display: grid;
-  grid-template-columns: 24px minmax(0, 1fr);
+  grid-template-columns: 24px minmax(0, 1fr) 49px;
   align-items: center;
   gap: 7px;
   min-width: 0;
-  min-height: 52px;
-  padding: 6px;
+  min-height: 66px;
+  padding: 9px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
@@ -513,36 +507,38 @@ function finishDrag(): void {
   overflow-wrap: anywhere;
 }
 
-.popup-layout-actions {
-  grid-column: 2;
-  justify-content: space-between;
-  gap: 6px;
-  min-width: 0;
-}
-
-.popup-layout-required {
-  padding: 3px 6px;
-  border-radius: 999px;
+.popup-layout-hide {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
   color: var(--muted);
-  background: var(--surface-soft);
-  font-size: 8px;
-  font-weight: 700;
-  white-space: nowrap;
+  background: transparent;
+  cursor: pointer;
 }
 
-.popup-layout-hide,
+.popup-layout-hide svg { width: 14px; height: 14px; }
+.popup-layout-hide:hover { color: var(--brand-strong); background: var(--brand-soft); }
+
 .popup-layout-add {
   padding: 4px 7px;
   font-size: 10px;
   white-space: nowrap;
 }
 
-.popup-layout-hide:hover,
 .popup-layout-add:hover {
   background: color-mix(in srgb, var(--brand-soft) 75%, var(--brand));
 }
 
 .popup-layout-move-buttons {
+  align-self: end;
+  justify-self: end;
   gap: 3px;
 }
 

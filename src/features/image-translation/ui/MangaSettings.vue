@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/MangaSettings.vue
  * 文件职责：组织漫画连续阅读的设置，优先展示公共语言与翻译服务、单图识别方式和漫画提前翻译；入口、缓存、资源和网站规则按需展开。
- * 主要内容：图片可选择通用 Tesseract 或与漫画共用的 PaddleOCR；漫画开关独立于单张图片和悬浮球，资源按用途分组，自定义网站规则按精确地址与图片选择器添加和删除，非法输入给出就地反馈；主要模块标记页内导航目标，保留折叠区的渐进展开。
+ * 主要内容：图片默认选择与漫画共用的 PaddleOCR 标准模型，也可切换 Tesseract 轻量模型；漫画开关独立于单张图片和悬浮球，资源按用途分组，自定义网站规则按精确地址与图片选择器添加和删除，非法输入给出就地反馈；主要模块标记页内导航目标，保留折叠区的渐进展开。
  * 模块边界：编辑父级配置副本，由既有设置持久化负责保存；不调用漫画翻译、不扫描其他网站、不访问会员或章节接口。
  -->
 <template>
@@ -15,8 +15,8 @@
     </section>
     <section class="manga-settings-card image-recognition-settings" data-testid="image-recognition-settings" data-settings-anchor="image" :data-settings-anchor-label="t('网页图片翻译')">
       <header class="settings-card-heading"><div class="settings-card-heading-copy"><h2>{{ t('网页图片翻译') }}</h2><p>{{ t('悬停图片或右键翻译，随时对照原图。') }}</p></div><el-switch :model-value="imageEnabled" :disabled="!available" :aria-label="t('网页图片翻译')" @update:model-value="emit('update:imageEnabled', Boolean($event))" /></header>
-      <label class="manga-setting-inline">{{ t('图片识别方式') }}<UiSelect v-model="settings.imageTranslationOcrEngine" :disabled="!available" :aria-label="t('图片识别方式')"><el-option value="tesseract" :label="t('通用文字 · Tesseract')" /><el-option value="paddle" :label="t('漫画文字 · PaddleOCR')" /></UiSelect></label>
-      <p class="image-engine-hint">{{ t(settings.imageTranslationOcrEngine === 'paddle' ? '适合漫画与气泡文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。' : '适合截图、图表与清晰排版文字。按原文语言准备语言包。') }}</p>
+      <label class="manga-setting-inline">{{ t('图片识别方式') }}<UiSelect v-model="settings.imageTranslationOcrEngine" :disabled="!available" :aria-label="t('图片识别方式')"><el-option value="paddle" :label="t('PaddleOCR（标准模型）')" /><el-option value="tesseract" :label="t('Tesseract（轻量模型）')" /></UiSelect></label>
+      <p class="image-engine-hint">{{ t(settings.imageTranslationOcrEngine === 'paddle' ? '适合普通图片、截图和漫画文字。首次翻译下载约 30 MB，与漫画共用，已下载无需重复下载。' : '适合截图、图表与清晰排版文字。按原文语言准备语言包。') }}</p>
     </section>
     <section class="manga-settings-card" data-settings-anchor="manga" :data-settings-anchor-label="t('漫画连续翻译')">
       <header class="settings-card-heading"><div class="settings-card-heading-copy"><h2>{{ t('漫画连续翻译') }}</h2><p>{{ t('开启后随滚动自动翻译新页面，可随时切回原图') }}</p></div><el-switch v-model="settings.imageTranslationMangaEnabled" :disabled="!available" :aria-label="t('启用漫画连续翻译')" /></header>

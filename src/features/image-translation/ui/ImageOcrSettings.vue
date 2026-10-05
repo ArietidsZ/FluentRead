@@ -13,7 +13,7 @@
     <template v-else>
       <MangaModelSettings v-if="props.showManga" />
       <header class="image-ocr-heading settings-card-heading">
-        <div class="settings-card-heading-copy"><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ props.compact ? translateLegacy('通用文字 · Tesseract') : t('ocr.packs.title') }}</h2><p v-if="!props.compact">{{ t('ocr.packs.description') }}</p></div>
+        <div class="settings-card-heading-copy"><h2 :id="`${props.idPrefix}-ocr-pack-title`">{{ props.compact ? translateLegacy('Tesseract（轻量模型）') : t('ocr.packs.title') }}</h2><p v-if="!props.compact">{{ t('ocr.packs.description') }}</p></div>
         <div v-if="!props.compact" class="image-ocr-source">
           <label :for="`${props.idPrefix}-ocr-source`">{{ t('area.settings.sourceLanguage') }}</label>
           <select :id="`${props.idPrefix}-ocr-source`" :title="t('area.settings.sourceLanguageDescription')" :value="props.sourceLanguage" @change="emit('update:sourceLanguage', ($event.target as HTMLSelectElement).value)">
