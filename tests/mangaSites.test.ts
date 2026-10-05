@@ -6,6 +6,17 @@ import {resolveMangaReaderProfile} from '@/src/core/config/mangaReaderProfiles';
 import {normalizeConfig} from '@/src/core/config/model';
 
 describe('漫画阅读规则与持久偏好', () => {
+    it.each(['p0', 'p1'])('Bomtoon 正文画布 %s 排除版权图片、封面、推广和目录', episode => {
+        const site = resolveMangaSite(`https://www.bomtoon.com/viewer/PAYBACK/${episode}`)!;
+        expect(site).toMatchObject({name: 'Bomtoon', requireContent: true});
+        const {document} = parseHTML('<div class="printView"><div class="sc-gHLcSH"><div class="sc-jvLaUc"><div class="sc-edUIhV"><div class="sc-hjQCSK"><canvas id="body" class="sc-bSakgD" width="1440" height="1440"></canvas><canvas id="other"></canvas><aside><canvas id="nested" class="sc-bSakgD"></canvas></aside></div></div></div><img id="copyright" class="sc-jSMfEi"><canvas id="ad" class="sc-bSakgD"></canvas></div></div><div class="sc-gHLcSH"><div class="sc-jvLaUc"><div class="sc-edUIhV"><div class="sc-hjQCSK"><canvas id="outside" class="sc-bSakgD"></canvas></div></div></div></div>');
+        expect([...document.querySelectorAll(site.canvasSelector!)].map(canvas => canvas.id)).toEqual(['body']);
+        expect(site.areaSelector).toBe(site.canvasSelector);
+        expect(document.querySelectorAll(site.selector)).toHaveLength(0);
+        expect(site.canvasInteractionSelector).toBeUndefined();
+        for (const path of ['/', '/bom/comic/main', '/detail/PAYBACK', '/user/login', '/viewer/PAYBACK/p01', '/viewer/PAYBACK/pword', '/viewer/PAYBACK/p1/extra']) expect(resolveMangaReaderProfile('bomtoon.com', path)).toBeNull();
+        expect(resolveMangaReaderProfile('bomtoon.com.attacker.test', '/viewer/PAYBACK/p0')).toBeNull();
+    });
     it('公开图书库仅为单个合法档案编号选择当前页，隐藏概览与其他图片排除', () => {
         const id = 'a'.repeat(40), site = resolveMangaSite(`https://lrr.tvc-16.science/reader?id=${id}`)!;
         expect(site).toMatchObject({name: 'LANraragi public demo', requireContent: true});

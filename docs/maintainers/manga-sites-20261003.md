@@ -84,7 +84,7 @@
 | 74 | TopReadManga | topreadmanga.com | 通用正文图片检测 | 连接失败 |
 | 75 | Revenge of the Iron Blooded Swordhound | revengeoftheiron-bloodedswordhound.one | 通用正文图片检测 | 连接失败 |
 | 76 | Poipiku | poipiku.com | 公开单帖主图片 | 官方公开帖 800×579 主图与实页入口通过；推荐、头像排除，未验证私密帖或漫画质量 |
-| 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 访问受限 |
+| 77 | Manhuaus | manhuaus.com / manhuaus.org | 通用正文图片检测 | 本轮 .com 公开首页 HTTP 403 验证页，无正文；其他登记域名不作成功推断 |
 | 78 | HMTTMH | hmttmh.com | 通用正文图片检测 | 连接失败 |
 | 79 | Smoking Behind the Supermarket | smokingbehindthesupermarket.com | 专用正文图片 | 公开章节正文结构已核对 |
 | 80 | Comic Growl | comic-growl.com | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -93,7 +93,7 @@
 | 83 | MangaFreak | mangafreak.net / mangafreak.me | 专用正文图片 | 公开章节正文结构已核对 |
 | 84 | ComicGardo | comic-gardo.com | 画布/分片：圈选入口 | 首页 HTML 可访问 |
 | 85 | Booklive | booklive.jp | 分片正文：圈选入口 | 正常免费试读、关闭说明及翻页已显示分片正文；圈选入口通过 |
-| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 公开免费作品与章节列表可访问；正常点击尚未显示正文 |
+| 86 | MrBlue | mrblue.com | 通用正文图片检测 | 正常免费首话按钮打开 viewer.mrblue.com 阅读窗口，窗口明确要求登录；没有正文，未提交登录 |
 | 87 | MangaLove | mangalove.me | 正文画布圈选入口 | 免费 viewer 正文画布受跨域限制；不读取像素或启动连续图片翻译 |
 | 88 | rawdevart.art | rawdevart.art | 通用正文图片检测 | 首页可找到章节；有界面与无界面均只见空正文容器，未确认正文 |
 | 89 | manga-shinchan.com | manga-shinchan.com | 专用正文图片 | 最新免费章四张原稿及入口确认；推广遮挡下部，本轮未执行 OCR |
@@ -117,7 +117,7 @@
 | 107 | rawlazy.io | rawlazy.io | 通用正文图片检测 | 公开实章仍显示图片加载提示；正文未确认 |
 | 108 | toptoon.com | toptoon.com | 首图/不可读画布：圈选入口 | 正常点击免费首话显示 720 像素宽正文；画布原生像素读取返回 SecurityError，首图和下一画布入口通过 |
 | 109 | acgmhh.com | acgmhh.com | 通用正文图片检测 | 正常转至 acgmhn.com 目录；正文未确认，未登记别名 |
-| 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 访问受限 |
+| 110 | readcomicsonline.ru | readcomicsonline.ru | 通用正文图片检测 | 本轮公开首页 HTTP 403 验证页，无正文 |
 | 111 | vortexscans.org | vortexscans.org | 专用正文图片 | 公开章节正文结构已核对 |
 | 112 | freeonlinehd.site | freeonlinehd.site | 通用正文图片检测 | 当前为域名出售及联系页面，无漫画正文 |
 | 113 | weebrook.com | weebrook.com | 通用正文图片检测 | 当前返回 522 原站连接超时，无正文 |
@@ -195,7 +195,7 @@
 | 185 | zipcomic.com | zipcomic.com | 通用正文图片检测 | 当前 HTTP 403 验证页 |
 | 186 | zerobywzz.com | zerobywzz.com | 通用正文图片检测 | 连接失败 |
 | 187 | dokusho-ojikan.jp | dokusho-ojikan.jp | 专用画布圈选 | 公开试读九张正文画布不可读；圈选入口确认，实际圈选翻译待验证 |
-| 188 | bomtoon.com | bomtoon.com | 通用正文图片检测 | 正常免费首话入口打开 viewer/PAYBACK/p0；可读非空 1440×1440 canvas，正在核对专用入口；不把版权图片算正文 |
+| 188 | bomtoon.com | bomtoon.com | 专用可读正文画布 | 免费首话 p0 显示两块 1440×1440 可读非空正文画布；真实入口通过，版权图片排除；未验实页 OCR |
 | 189 | copymanga.site | copymanga.site | 通用正文图片检测 | 当前为 ParkLogic 停放/广告跳转页，没有确认漫画目录或章节 |
 | 190 | readcomiconline.li | readcomiconline.li | 通用正文图片检测 | 连接失败 |
 | 191 | championcross.jp | championcross.jp | 可读画布连续翻译 | 公开章节画布已核对 |
@@ -208,7 +208,7 @@
 | 198 | manhwato.com | manhwato.com | 专用正文图片 | 公开章节正文及扩展入口已核对；无 OCR 验收 |
 | 199 | kuaikanmanhua.com | kuaikanmanhua.com | 通用正文图片检测 | 公开章节样本转向登录；正文未显示 |
 | 200 | mangapark.net | mangapark.net | 通用正文图片检测 | 连接失败 |
-| 201 | mangasuika.com | mangasuika.com | 通用正文图片检测 | 连接失败 |
+| 201 | mangasuika.com | mangasuika.com | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 202 | firemanga.com | firemanga.com | 通用正文图片检测 | 连接失败 |
 | 203 | lmanga.com | lmanga.com | 通用正文图片检测 | 当前跳转 /lander；正文未确认 |
 | 204 | manhwahub.net | manhwahub.net | 通用正文图片检测 | 连接失败 |
@@ -230,7 +230,7 @@
 | 220 | manwadd.cc | manwadd.cc | 通用正文图片检测 | 连接失败 |
 | 221 | saucemanhwa.com | saucemanhwa.com | 通用正文图片检测 | 当前返回 429；此前停放跳转保留，不视为永久关闭 |
 | 222 | mangakoinu.com | mangakoinu.com | 通用正文图片检测 | 连接失败 |
-| 223 | comicmanga.cc | comicmanga.cc | 通用正文图片检测 | 连接失败 |
+| 223 | comicmanga.cc | comicmanga.cc | 通用正文图片检测 | 本轮公开首页连接被关闭，未取得正文；不推断永久停服 |
 | 224 | mangajikan.com | mangajikan.com | 通用正文图片检测 | 连接失败 |
 | 225 | manhwaden.com | manhwaden.com | 专用长图正文 | 完整长图及扩展入口已核对；共用分段，无本轮 OCR 验收 |
 | 226 | dvamh-vzwp7.top | dvamh-vzwp7.top | 通用正文图片检测 | 当前首页 HTTP 429，无正文；不据此推断永久关闭 |

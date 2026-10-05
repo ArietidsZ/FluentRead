@@ -2806,7 +2806,26 @@
           "hostname": "manhuaus.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://manhuaus.com/",
+          "finalUrl": "https://manhuaus.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "homes-wave28",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root currently returns HTTP403 please-wait verification page with zero body; no verification bypass or domain migration inferred.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "requestedUrl": "https://manhuaus.com/",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
+        }
+      ]
     },
     {
       "name": "HMTTMH",
@@ -3117,6 +3136,23 @@
           "researchWave": "public-body-and-fragment-readers-wave16",
           "attempt": "mrblue-view-wave16",
           "error": "locator.click: Timeout 10000ms exceeded."
+        },
+        {
+          "url": "https://www.mrblue.com/comic/C000070833",
+          "finalUrl": "https://viewer.mrblue.com/comics/C000070833/1",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "mrblue-free-wave28",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Correct native #btnOpenViewer free-first-episode button opens viewer.mrblue.com/comics/.../1 popup, HTTP200, but public DOM explicitly requires login before reading. Zero body IMG/canvas/background; no login submitted. Supersedes earlier hidden class btnOpenViewer diagnostic target without body acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 2,
+          "requestedUrl": "https://www.mrblue.com/comic/C000070833",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
         }
       ]
     },
@@ -4967,7 +5003,26 @@
           "hostname": "readcomicsonline.ru"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://readcomicsonline.ru/",
+          "finalUrl": "https://readcomicsonline.ru/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "homes-wave28",
+          "status": 403,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root currently returns HTTP403 please-wait verification page with zero body; no verification bypass or domain migration inferred.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 0,
+          "requestedUrl": "https://readcomicsonline.ru/",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
+        }
+      ]
     },
     {
       "name": "vortexscans.org",
@@ -7779,7 +7834,7 @@
           "hostname": "bomtoon.com"
         }
       ],
-      "adapter": "detect",
+      "adapter": "readable-canvas",
       "browserRechecks": [
         {
           "url": "https://bomtoon.com/",
@@ -7865,6 +7920,23 @@
           "networkFailureCount": 72,
           "requestedUrl": "https://www.bomtoon.com/detail/PAYBACK",
           "checkedAt": "2026-10-05T12:08:54.249003+00:00"
+        },
+        {
+          "url": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "finalUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "scope": "read-only visible DOM research without extension",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "bomtoon-reader-wave28",
+          "status": 200,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 1,
+          "canvasCount": 2,
+          "readerFinding": "Normal visible background isolated browser loads two publicly readable nonblank1440x1440 body canvas strips under printView exact direct reader chain; one offscreen copyright IMG excluded. First canvas center hit contains body; second sample intersects original reader chrome. No forged headers, private API, login, purchase, age declaration, chapter screenshot/OCR/export. Dedicated runtime entry separately verified; not full canvas translation/quality acceptance.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 44,
+          "requestedUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
         }
       ]
     },
@@ -8185,7 +8257,27 @@
           "hostname": "mangasuika.com"
         }
       ],
-      "adapter": "detect"
+      "adapter": "detect",
+      "browserRechecks": [
+        {
+          "url": "https://mangasuika.com/",
+          "finalUrl": "https://mangasuika.com/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "homes-wave28",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root connection closed before DOMContentLoaded; no body or permanent shutdown inference.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://mangasuika.com/",
+          "requestedUrl": "https://mangasuika.com/",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
+        }
+      ]
     },
     {
       "name": "firemanga.com",
@@ -8818,6 +8910,24 @@
           "scope": "read-only DOM research without extension; not extension runtime validation",
           "readerFinding": "Normal page request ERR_CONNECTION_CLOSED.",
           "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://comicmanga.cc/"
+        },
+        {
+          "url": "https://comicmanga.cc/",
+          "finalUrl": "https://comicmanga.cc/",
+          "scope": "read-only DOM research without extension; not extension runtime validation",
+          "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+          "attempt": "homes-wave28",
+          "status": null,
+          "title": "[public page title omitted; technical DOM scope]",
+          "imageCount": 0,
+          "canvasCount": 0,
+          "readerFinding": "Public root connection closed before DOMContentLoaded; no body or permanent shutdown inference.",
+          "profileRemoved": true,
+          "pageErrorCount": 0,
+          "networkFailureCount": 1,
+          "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://comicmanga.cc/",
+          "requestedUrl": "https://comicmanga.cc/",
+          "checkedAt": "2026-10-05T12:21:49.370875+00:00"
         }
       ]
     },
@@ -14044,6 +14154,98 @@
       "profileRemoved": true,
       "pageErrorCount": 0,
       "networkFailureCount": 72
+    },
+    {
+      "url": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+      "finalUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+      "scope": "read-only visible DOM research without extension",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "bomtoon-reader-wave28",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 1,
+      "canvasCount": 2,
+      "readerFinding": "Normal visible background isolated browser loads two publicly readable nonblank1440x1440 body canvas strips under printView exact direct reader chain; one offscreen copyright IMG excluded. First canvas center hit contains body; second sample intersects original reader chrome. No forged headers, private API, login, purchase, age declaration, chapter screenshot/OCR/export. Dedicated runtime entry separately verified; not full canvas translation/quality acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 44
+    },
+    {
+      "url": "https://www.mrblue.com/comic/C000070833",
+      "finalUrl": "https://viewer.mrblue.com/comics/C000070833/1",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "mrblue-free-wave28",
+      "status": 200,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Correct native #btnOpenViewer free-first-episode button opens viewer.mrblue.com/comics/.../1 popup, HTTP200, but public DOM explicitly requires login before reading. Zero body IMG/canvas/background; no login submitted. Supersedes earlier hidden class btnOpenViewer diagnostic target without body acceptance.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 2
+    },
+    {
+      "url": "https://readcomicsonline.ru/",
+      "finalUrl": "https://readcomicsonline.ru/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "homes-wave28",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root currently returns HTTP403 please-wait verification page with zero body; no verification bypass or domain migration inferred.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 0
+    },
+    {
+      "url": "https://manhuaus.com/",
+      "finalUrl": "https://manhuaus.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "homes-wave28",
+      "status": 403,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root currently returns HTTP403 please-wait verification page with zero body; no verification bypass or domain migration inferred.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1
+    },
+    {
+      "url": "https://comicmanga.cc/",
+      "finalUrl": "https://comicmanga.cc/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "homes-wave28",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root connection closed before DOMContentLoaded; no body or permanent shutdown inference.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://comicmanga.cc/"
+    },
+    {
+      "url": "https://mangasuika.com/",
+      "finalUrl": "https://mangasuika.com/",
+      "scope": "read-only DOM research without extension; not extension runtime validation",
+      "researchWave": "bomtoon-readable-free-canvas-and-native-mrblue-login-wave28",
+      "attempt": "homes-wave28",
+      "status": null,
+      "title": "[public page title omitted; technical DOM scope]",
+      "imageCount": 0,
+      "canvasCount": 0,
+      "readerFinding": "Public root connection closed before DOMContentLoaded; no body or permanent shutdown inference.",
+      "profileRemoved": true,
+      "pageErrorCount": 0,
+      "networkFailureCount": 1,
+      "error": "page.goto: net::ERR_CONNECTION_CLOSED at https://mangasuika.com/"
     }
   ],
   "verification": {
@@ -23416,6 +23618,131 @@
         "images": 154,
         "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave27.log"
       }
+    },
+    "bomtoonReaderUnit": {
+      "status": "passed",
+      "cases": 533,
+      "files": 7,
+      "fourDimensionCoverage": "100% for all eight manga configuration/reader/source-authorization/surface modules",
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/coverage-wave28.log",
+      "scope": "Exact public Bomtoon chapter/prologue p0 and positive numbered episode path, direct printView body canvas. Copyright image, other canvas, nested ads, outside tree, catalogue, login, invalid episode and spoofed host excluded; original host pixels/styles/interaction untouched."
+    },
+    "bomtoonReaderEntries": {
+      "status": "passed",
+      "cases": [
+        "manga discovered with ordinary image translation disabled",
+        "manga entry remains after closing floating ball",
+        "first use explains downloads before any model download",
+        "dismiss first-use confirmation never opens it again automatically",
+        "disable standalone button persists across visit and ordinary config changes",
+        "settings restore prompt through the actual switch",
+        "unified settings show main switches without tabs and expand resources on demand",
+        "custom site rule validates selector and persists on reopen",
+        "custom reader is discovered with both ordinary image and floating button off",
+        "first download prompt fits narrow viewport and dark theme",
+        "icon and first-use actions work in English and all UI locales",
+        "ru first-use consent follows the source language and does not download on inspection",
+        "ko first-use consent follows the source language and does not download on inspection",
+        "ordinary pages keep resident brand and translation controls; explicit hover remains available",
+        "resident brand can be dragged to either edge and stays inside narrow screens",
+        "confirm closes immediately and continuous mode can pause without a dialog",
+        "canvas reader offers area translation without downloading continuous manga models",
+        "live reader discovery: https://www.bomtoon.com/viewer/PAYBACK/p0",
+        "master switch removes manga UI"
+      ],
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement": {
+        "mode": "background-visible-no-focus",
+        "visible": true,
+        "hidden": false,
+        "centered": true,
+        "windowState": "normal",
+        "bounds": {
+          "left": 1121,
+          "top": -990,
+          "width": 1280,
+          "height": 900
+        },
+        "displayTarget": "secondary",
+        "source": "macos-nsscreen",
+        "screenIndex": 1,
+        "browserFrontmost": false,
+        "frontmostBefore": {
+          "pid": 44386,
+          "name": "Google Chrome"
+        },
+        "frontmostAfter": {
+          "pid": 76304,
+          "name": "微信"
+        }
+      },
+      "errors": [],
+      "consoleErrors": [],
+      "hostErrors": [],
+      "profileRemoved": true,
+      "liveReaders": [
+        {
+          "url": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "finalUrl": "https://www.bomtoon.com/viewer/PAYBACK/p0",
+          "status": 200,
+          "mode": "canvas",
+          "readerPages": [
+            {
+              "tag": "CANVAS",
+              "width": 1440,
+              "height": 1440,
+              "visible": true
+            },
+            {
+              "tag": "CANVAS",
+              "width": 1440,
+              "height": 1440,
+              "visible": true
+            }
+          ],
+          "visualCapture": "omitted: public DOM and entry metadata only; no OCR or chapter image export",
+          "result": "reader-entry-confirmed"
+        }
+      ],
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/ui-bomtoon-wave28/report.json",
+      "scope": "19 actual Chrome entry cases,18 fixture/base cases plus live Bomtoon canvas entry. Two1440x1440 body canvases discovered; pure-icon, resource consent and master cleanup passed. Public live DOM and entry metadata only, no chapter screenshot/OCR/export; not actual canvas translation or quality acceptance."
+    },
+    "bomtoonReaderBuilds": {
+      "status": "passed",
+      "typecheck": "passed",
+      "chromeSeconds": 30.2,
+      "firefoxSeconds": 45.0,
+      "userscriptSeconds": 3.87,
+      "userscriptBytes": 1917250,
+      "extensionManifestVerifier": "passed",
+      "userscriptVerifier": "passed",
+      "architectureTargeted": {
+        "files": 2,
+        "cases": 809,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-targeted-wave28.log"
+      },
+      "audit": {
+        "files": 468,
+        "declarations": 6113,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/audit-wave28.log"
+      },
+      "scope": "Chrome entry runtime only; Firefox/userscript builds/verifiers only. Prior all-suite/group failures preserved, no full-suite rerun. No OCR engine, source authorization, permissions, dependencies, version or reference repository changes.",
+      "docs": {
+        "build": "passed",
+        "check": "passed",
+        "pages": 77,
+        "links": 3955,
+        "anchors": 741,
+        "images": 154,
+        "report": "/private/tmp/fluentread-brand-manga-sites-20261005/docs-check-wave28.log"
+      }
+    },
+    "bomtoonArchitectureInitialWrongFilter": {
+      "status": "diagnostic-failed",
+      "cases": 0,
+      "report": "/private/tmp/fluentread-brand-manga-sites-20261005/architecture-wave28.log",
+      "finding": "Initial filter omitted architecture/ directory and matched no files, exit1; corrected exact paths and both target files809 cases passed. No code failure or full-suite claim."
     }
   }
 }

@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/mangaReaderProfiles.ts
  * 文件职责：保存经公开阅读页结构核对的正文规则，避免通用图片过滤漏掉正文或误选推荐封面。
- * 主要内容：公开图书库当前页与合法档案编号边界、BeLTOON 免费正文、comipo 公开免费 blob 正文与 JComic 单帖直系正文，Hentaizap 路径翻页主图及 Yaoi Manga Online、NHentaiYaoi 单帖正文列表，Raven 正文长图、Novelpia 受限首话圈选、蜡笔小新正文、Lezhin 英语 blob 正文和 Ameba 受限试读画布圈选、已核对章节站与 GANMA 编号原稿及路径页码、TOPTOON 不可读画布和首图的圈选规则、Ranfren 静态正文、漫画站懒加载正文、POIPIKU 单帖主图、Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，哔哩哔哩在内容脚本中可读的正文画布及透明弹幕交互层、PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
+ * 主要内容：Bomtoon 公开可读的正文画布与版权图片排除、公开图书库当前页与合法档案编号边界、BeLTOON 免费正文、comipo 公开免费 blob 正文与 JComic 单帖直系正文，Hentaizap 路径翻页主图及 Yaoi Manga Online、NHentaiYaoi 单帖正文列表，Raven 正文长图、Novelpia 受限首话圈选、蜡笔小新正文、Lezhin 英语 blob 正文和 Ameba 受限试读画布圈选、已核对章节站与 GANMA 编号原稿及路径页码、TOPTOON 不可读画布和首图的圈选规则、Ranfren 静态正文、漫画站懒加载正文、POIPIKU 单帖主图、Countdown 的主页正文、MANGA Million 编号图片、Orchisasia、Qi Manga、Nyx、Omega、MangaYun、Mangahub、Rinko、RawDEX、Raw1001 等正文规则，GlobalComix 跨域正文提供圈选入口，MechaComic 完整图与 Palcy、Comic Pixiv 背景正文规则，查询参数章节边界与 Mangahub 正整数翻页参数，哔哩哔哩在内容脚本中可读的正文画布及透明弹幕交互层、PASH UP 当前屏与 GigaViewer、Comici、ComicWalker、Animate 正文画布规则，MangaLove 不可读画布和 Booklive、CMOA 分片的圈选入口；路径与域名均保留边界。
  * 模块边界：纯匹配，不执行站点脚本、不读取私有接口、不截图；可访问的图片由 content 阅读器检测。
  */
 const gigaHosts = new Set(['comic-action.com', 'comic-days.com', 'comic-gardo.com', 'comic-trail.com',
@@ -10,9 +10,14 @@ export const MANGA_AREA_READER_HOSTS = [...gigaHosts, 'yanmaga.jp', 'televikun-s
 export const MANGA_BACKGROUND_READER_HOSTS = ['palcy.jp', 'comic.pixiv.net'];
 const comiciHosts = ['championcross.jp', 'comic-ryu.jp', 'comic-growl.com',
     'rimacomiplus.jp', 'heros-web.com', 'younganimal.com', 'youngchampion.jp'];
-export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com', 'pash-up.jp', 'manga.bilibili.com'];
+export const MANGA_CANVAS_READER_HOSTS = [...comiciHosts, 'comic-walker.com', 'animatebookstore.com', 'pash-up.jp', 'manga.bilibili.com', 'bomtoon.com'];
 export function resolveMangaReaderProfile(hostname: string, pathname: string, search = ''): {name: string; selector: string; chapterPath?: string; pageQueryParameter?: 'page'; canvasSelector?: string; canvasInteractionSelector?: string; loadingSelector?: string; backgroundSelector?: string; areaSelector?: string} | null {
     const host = hostname.replace(/^www\./, '');
+    if (host === 'bomtoon.com' && /^\/viewer\/[A-Za-z\d]+(?:[-_][A-Za-z\d]+)*\/p(?:0|[1-9]\d*)\/?$/.test(pathname)) return {
+        name: 'Bomtoon', selector: ':not(*)',
+        canvasSelector: '.printView .sc-gHLcSH > .sc-jvLaUc > .sc-edUIhV > .sc-hjQCSK > canvas.sc-bSakgD',
+        areaSelector: '.printView .sc-gHLcSH > .sc-jvLaUc > .sc-edUIhV > .sc-hjQCSK > canvas.sc-bSakgD',
+    };
     if (host === 'lrr.tvc-16.science' && /^\/reader\/?$/.test(pathname)
         && new URLSearchParams(search).getAll('id').length === 1
         && /^[a-f\d]{40}$/.test(new URLSearchParams(search).get('id')!)) return {
