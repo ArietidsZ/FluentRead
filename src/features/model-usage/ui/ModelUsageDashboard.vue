@@ -1,7 +1,7 @@
 <!--
  @file src/features/model-usage/ui/ModelUsageDashboard.vue
  文件职责：在 Options 设置页展示当前浏览器保存的模型调用可观测数据，并提供筛选、请求明细和清除统计入口。
- 主要内容：按界面语言格式化 Token、输出速度、日期和耗时，呈现请求概览，支持双指标趋势及键盘选取、互斥 Token 构成、模型排行筛选和按需展开的稳定游标请求记录。
+ 主要内容：按界面语言格式化 Token、输出速度、日期和耗时，呈现请求概览，支持双指标趋势及键盘选取、互斥 Token 构成、常驻平均构成、模型排行双向筛选，以及固定时间边界的指定页请求记录。
  模块边界：组件只消费后台白名单数据，不读取 API Key、不记录原文、译文、提示词或网址，也不直接访问 IndexedDB；事件采集、Token 解释、持久化及备份恢复由 services、providers、background 与统一“备份与恢复”页面拥有。
 -->
 <template>
@@ -56,23 +56,24 @@
       </div>
 
       <div class="usage-toolbar-actions">
+        <ElTooltip :content="translateLegacy('仅统计当前浏览器保留的最近 1,000 次模型调用')" placement="bottom" :show-after="250">
+          <button type="button" class="usage-local-badge" :aria-label="translateLegacy('仅统计当前浏览器保留的最近 1,000 次模型调用')">本机 <UiIcon name="info" :size="13" /></button>
+        </ElTooltip>
+        <ElPopover trigger="click" placement="bottom-end" :width="360" popper-class="usage-statistics-popover">
+          <template #reference><button type="button" class="usage-help-button"><UiIcon name="info" :size="15" />统计说明</button></template>
+          <div class="usage-help-content">
+            <strong>统计说明</strong>
+            <p>统计保存在当前浏览器，最多保留最近 1,000 条调用记录，超出后删除更早记录；不等同于服务商账号的全部历史用量或剩余额度。完整备份与恢复统一在“备份与恢复”中管理。</p>
+            <p>输出速度 = 可计算成功请求的输出 Token 总和 ÷ 请求耗时总和（秒），包含等待与传输时间；缺失输出或有效耗时显示 —。平均耗时包含全部调用。</p>
+            <p>Token 来自服务商实际返回；未上报的用量不作估算。缓存读取已包含在输入内，推理明细不另加到总量。</p>
+            <small>{{ recordingStartLabel }} · {{ generatedAtLabel }}</small>
+          </div>
+        </ElPopover>
         <button type="button" class="usage-refresh-button" :disabled="loading" @click="loadSnapshot">{{ loading ? '更新中…' : '刷新' }}</button>
         <button ref="resetButton" type="button" class="usage-reset-button" @click="openResetDialog">
           清除统计
         </button>
       </div>
-    </div>
-
-    <div class="usage-local-notice">
-      <span aria-hidden="true">本机</span>
-      <p>仅统计当前浏览器保留的最近 1,000 次模型调用</p>
-      <small v-if="snapshot">{{ generatedAtLabel }}</small>
-      <details class="usage-data-help">
-        <summary>统计说明</summary>
-        <p>输出速度 = 可计算成功请求的输出 Token 总和 ÷ 请求耗时总和（秒），包含等待与传输时间；缺失输出或有效耗时显示 —。平均耗时包含全部调用。</p>
-        <p>统计保存在当前浏览器，最多保留最近 1,000 条调用记录，超出后删除更早记录；不等同于服务商账号的全部历史用量或剩余额度。完整备份与恢复统一在“备份与恢复”中管理。</p>
-        <p><span>{{ recordingStartLabel }}</span>。<span>Token 来自服务商实际返回；未上报的用量不作估算。缓存读取已包含在输入内，推理明细不另加到总量。</span></p>
-      </details>
     </div>
 
     <div v-if="hasActiveFilter && snapshot" class="usage-active-filter"><span>{{ appliedScopeLabel }} · {{ appliedRangeLabel }}</span><button type="button" @click="clearFilters">重置筛选</button></div>
@@ -168,7 +169,7 @@
       <div v-else class="usage-detail-grid">
         <figure class="usage-card usage-trend-card" :aria-label="trendAriaLabel">
           <figcaption>
-            <div><span>{{ appliedRangeLabel }} · {{ appliedScopeLabel }}</span><strong>用量趋势</strong></div>
+            <div class="usage-section-title"><strong>用量趋势</strong><span>{{ appliedRangeLabel }} · {{ appliedScopeLabel }}</span></div>
             <div class="usage-metric-toggle" role="group" aria-label="趋势指标">
               <button type="button" :aria-pressed="trendMetric === 'tokens'" @click="trendMetric = 'tokens'">Token</button>
               <button type="button" :aria-pressed="trendMetric === 'requests'" @click="trendMetric = 'requests'">请求次数</button>
@@ -191,23 +192,27 @@
             </li>
           </ol>
           <div v-else class="usage-chart-empty">当前范围没有可绘制的数据</div>
-          <div class="usage-chart-baseline">0</div>
           <div v-if="inspectedPoint" class="usage-trend-inspector" aria-live="polite" aria-atomic="true">
-            <strong>{{ inspectedPoint.label }}</strong>
-            <span><b>{{ exactTokenValue(inspectedPoint.totals, 'totalTokens') }}</b> Token</span>
-            <span><b>{{ formatNumber(inspectedPoint.totals.requestCount) }}</b> <span>次请求</span></span>
-            <span v-if="inspectedPoint.unreportedRequests" class="usage-missing-label">{{ inspectedPoint.unreportedRequests }} <span>次未上报</span></span>
+            <div class="usage-inspector-heading">
+              <strong>{{ inspectedPoint.label }}</strong>
+              <span><b>{{ exactTokenValue(inspectedPoint.totals, 'totalTokens') }}</b> Token · <b>{{ formatNumber(inspectedPoint.totals.requestCount) }}</b> <span>次请求</span></span>
+              <ElTooltip :content="translateLegacy('点击柱形查看明细 · 方向键切换时间')" placement="top" :show-after="250">
+                <button type="button" class="usage-chart-help" :aria-label="translateLegacy('点击柱形查看明细 · 方向键切换时间')"><UiIcon name="info" :size="14" /></button>
+              </ElTooltip>
+            </div>
+            <dl class="usage-inspector-metrics">
+              <div v-for="segment in inspectorSegments" :key="segment.key">
+                <dt><i :class="`usage-segment-${segment.key}`"></i>{{ translateLegacy(segment.label) }}</dt>
+                <dd>{{ trendMetric === 'tokens' && !inspectedPoint.hasReportedTokens && inspectedPoint.totals.requestCount ? translateLegacy('未上报') : formatNumber(segment.value) }}</dd>
+              </div>
+            </dl>
+            <small v-if="inspectedPoint.unreportedRequests" class="usage-missing-label">{{ inspectedPoint.unreportedRequests }} <span>次未上报</span></small>
             <small v-if="trendMetric === 'tokens' && inspectedPoint.differenceTokens !== 0"><span>组成合计</span> {{ formatNumber(inspectedPoint.value) }} Token · <span>上报总计与组成不一致</span></small>
-            <small v-if="trendMetric === 'tokens'"><span>输入</span> {{ exactTokenValue(inspectedPoint.totals, 'inputTokens') }} · <span>输出</span> {{ exactTokenValue(inspectedPoint.totals, 'outputTokens') }}</small>
-            <small v-else><span v-for="(item, index) in inspectedPoint.segments" :key="item.key">{{ index ? ' · ' : '' }}<span>{{ item.label }}</span> {{ item.value }}</span></small>
           </div>
-          <div v-if="trendMetric === 'tokens'" class="usage-legend usage-token-legend"><span v-for="segment in timelineLegend" :key="segment.key"><i :class="`usage-segment-${segment.key}`"></i>{{ segment.label }}</span></div>
-          <div v-if="trendMetric === 'requests'" class="usage-legend usage-request-legend"><span v-for="item in outcomeLegend" :key="item.key"><i :class="`usage-segment-${item.key}`"></i>{{ item.label }}</span></div>
-          <p class="usage-chart-hint">点击柱形查看明细 · 方向键切换时间<span v-if="timelineHasDifference"> · 上报总计与组成不一致，柱高按组成绘制</span></p>
         </figure>
 
         <section class="usage-card usage-composition-card" aria-labelledby="usage-composition-title">
-          <header><span>这些 Token 用在哪里</span><strong id="usage-composition-title">用量构成</strong></header>
+          <header class="usage-section-title"><strong id="usage-composition-title">用量构成</strong><span>这些 Token 用在哪里</span></header>
           <div v-if="composition.compositionTokens" class="usage-composition-strip" aria-hidden="true">
             <span v-for="segment in visibleComposition" :key="segment.key" :class="`usage-segment-${segment.key}`" :style="{ width: `${segment.share * 100}%` }"></span>
           </div>
@@ -219,8 +224,7 @@
             </div>
           </dl>
           <p class="usage-composition-note">缓存读取属于输入，已单独拆出<span v-if="composition.differenceTokens < 0">上报总计小于组成合计，占比按组成计算</span></p>
-        <details class="usage-average-card">
-          <summary>查看每次请求的平均构成</summary>
+        <section class="usage-average-card" aria-label="平均每次请求">
           <div class="usage-metric-heading">
             <span>平均每次请求</span>
             <small>Token 构成</small>
@@ -256,14 +260,14 @@
             <strong>缓存读取未上报</strong>
             <span>暂时无法拆分输入与缓存构成</span>
           </div>
-        </details>
+        </section>
         </section>
 
         <section class="usage-card usage-breakdown-card" aria-labelledby="usage-breakdown-title">
           <header>
-            <div>
-              <span>服务与模型分布</span>
+            <div class="usage-section-title">
               <strong id="usage-breakdown-title">谁产生了这些 Token</strong>
+              <span>服务与模型分布</span>
             </div>
             <small>点击一行筛选</small>
           </header>
@@ -318,51 +322,52 @@
         </section>
       </div>
 
-      <details v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :open="requestLogOpen" :aria-busy="loading || requestLogLoading" @toggle="handleRequestLogToggle">
-        <summary class="usage-request-summary"><span><strong>请求记录</strong><small>查看每一次调用的用量与状态</small></span><span>{{ formatNumber(selectedTotals.requestCount) }} <span>次调用</span> <i aria-hidden="true">⌄</i></span></summary>
+      <section v-if="hasSelectedUsage" class="usage-card usage-request-log-card" :aria-busy="loading || requestLogLoading" aria-labelledby="usage-request-log-title">
         <header class="usage-request-log-header">
-          <div>
-            <span>请求明细</span>
+          <div class="usage-section-title">
             <strong id="usage-request-log-title">模型调用记录</strong>
-            <small>第 {{ requestPageStart }}–{{ requestPageEnd }} 条，共 {{ formatNumber(requestLogTotalCount) }} 条</small>
+            <span>查看每一次调用的用量与状态</span>
           </div>
-          <div class="usage-request-filters" aria-label="请求记录筛选">
-            <label>
-              <span>场景</span>
-              <UiSelect :disabled="loading || requestLogLoading" v-model="requestPurpose" aria-label="按调用场景筛选请求记录">
-                <ElOption value="" :label="translateLegacy('全部场景')" />
-                <ElOption value="translation" :label="translateLegacy('翻译')" />
-                <ElOption value="page-summary" :label="translateLegacy('页面摘要')" />
-                <ElOption value="connection-test" :label="translateLegacy('连接测试')" />
-                <ElOption value="writing" label="写作助手" />
-                <ElOption value="reading" :label="translateLegacy('阅读理解')" />
-              </UiSelect>
-            </label>
-            <label>
-              <span>状态</span>
-              <UiSelect :disabled="loading || requestLogLoading" v-model="requestOutcome" aria-label="按调用状态筛选请求记录">
-                <ElOption value="" :label="translateLegacy('全部状态')" />
-                <ElOption value="success" :label="translateLegacy('成功')" />
-                <ElOption value="error" :label="translateLegacy('错误')" />
-                <ElOption value="timeout" :label="translateLegacy('超时')" />
-                <ElOption value="cancelled" :label="translateLegacy('已取消')" />
-              </UiSelect>
-            </label>
-            <label>
-              <span>缓存</span>
-              <UiSelect :disabled="loading || requestLogLoading" v-model="requestCacheStatus" aria-label="按模型缓存状态筛选请求记录">
-                <ElOption value="" :label="translateLegacy('全部缓存状态')" />
-                <ElOption value="hit" :label="translateLegacy('已命中')" />
-                <ElOption value="miss" :label="translateLegacy('未命中')" />
-                <ElOption value="unreported" :label="translateLegacy('未上报')" />
-              </UiSelect>
-            </label>
+          <div class="usage-record-meta">
+            <small>第 {{ requestPageStart }}–{{ requestPageEnd }} 条，共 {{ formatNumber(requestLogTotalCount) }} 条</small>
+            <ElTooltip :content="translateLegacy('仅记录时间、服务与模型、调用场景、状态、耗时及服务商返回的 Token；不保存原文、译文、提示词、网页地址、API Key、请求体或响应正文')" placement="top" :show-after="250">
+              <button type="button" class="usage-chart-help" :aria-label="translateLegacy('请求明细')"><UiIcon name="info" :size="14" /></button>
+            </ElTooltip>
           </div>
         </header>
-
-        <p class="usage-request-privacy">
-          仅记录时间、服务与模型、调用场景、状态、耗时及服务商返回的 Token；不保存原文、译文、提示词、网页地址、API Key、请求体或响应正文
-        </p>
+        <div class="usage-request-filters" aria-label="请求记录筛选">
+          <label>
+            <span>场景</span>
+            <UiSelect :disabled="loading || requestLogLoading" v-model="requestPurpose" :filterable="false" :wrap-label="false" :placeholder="translateLegacy('全部场景')" aria-label="按调用场景筛选请求记录">
+              <ElOption value="" :label="translateLegacy('全部场景')" />
+              <ElOption value="translation" :label="translateLegacy('翻译')" />
+              <ElOption value="page-summary" :label="translateLegacy('页面摘要')" />
+              <ElOption value="connection-test" :label="translateLegacy('连接测试')" />
+              <ElOption value="writing" :label="translateLegacy('写作助手')" />
+              <ElOption value="reading" :label="translateLegacy('阅读理解')" />
+            </UiSelect>
+          </label>
+          <label>
+            <span>状态</span>
+            <UiSelect :disabled="loading || requestLogLoading" v-model="requestOutcome" :filterable="false" :wrap-label="false" :placeholder="translateLegacy('全部状态')" aria-label="按调用状态筛选请求记录">
+              <ElOption value="" :label="translateLegacy('全部状态')" />
+              <ElOption value="success" :label="translateLegacy('成功')" />
+              <ElOption value="error" :label="translateLegacy('错误')" />
+              <ElOption value="timeout" :label="translateLegacy('超时')" />
+              <ElOption value="cancelled" :label="translateLegacy('已取消')" />
+            </UiSelect>
+          </label>
+          <label>
+            <span>缓存</span>
+            <UiSelect :disabled="loading || requestLogLoading" v-model="requestCacheStatus" :filterable="false" :wrap-label="false" :placeholder="translateLegacy('全部缓存状态')" aria-label="按模型缓存状态筛选请求记录">
+              <ElOption value="" :label="translateLegacy('全部缓存状态')" />
+              <ElOption value="hit" :label="translateLegacy('已命中')" />
+              <ElOption value="miss" :label="translateLegacy('未命中')" />
+              <ElOption value="unreported" :label="translateLegacy('未上报')" />
+            </UiSelect>
+          </label>
+          <button v-if="requestPurpose || requestOutcome || requestCacheStatus" type="button" class="usage-log-reset" :disabled="loading || requestLogLoading" @click="clearRequestFilters">重置筛选</button>
+        </div>
 
         <div v-if="requestLogError" class="usage-request-log-error" role="alert">
           <span>{{ requestLogError }}</span>
@@ -445,10 +450,14 @@
           <nav class="usage-request-pagination" aria-label="请求记录分页">
             <button type="button" :disabled="loading || requestLogLoading || requestPageIndex === 0" @click="loadRequestPage(requestPageIndex - 1)">上一页</button>
             <span>第 {{ requestPageIndex + 1 }} / {{ requestPageCount }} 页</span>
-            <button type="button" :disabled="loading || requestLogLoading || !requestLogNextCursor" @click="loadNextRequestPage">下一页</button>
+            <button type="button" :disabled="loading || requestLogLoading || requestPageIndex + 1 >= requestPageCount" @click="loadRequestPage(requestPageIndex + 1)">下一页</button>
+            <form class="usage-page-jump" @submit.prevent="jumpToRequestPage">
+              <label><span>{{ t('common.pagination.jump') }}</span><input v-model="requestJumpPage" type="number" min="1" :max="requestPageCount" step="1" :disabled="loading || requestLogLoading" :aria-label="t('common.pagination.jump')" /></label>
+              <button type="submit" :disabled="loading || requestLogLoading">{{ t('common.pagination.go') }}</button>
+            </form>
           </nav>
         </footer>
-      </details>
+      </section>
     </template>
 
     <Teleport to="body">
@@ -482,7 +491,7 @@
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import UiSelect from '@/src/ui/components/UiSelect.vue';
-import {ElOption} from 'element-plus';
+import {ElOption, ElPopover, ElTooltip} from 'element-plus';
 
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
@@ -505,7 +514,6 @@ import {
   type ModelUsageCacheStatus,
   type ModelUsageOutcome,
   type ModelUsagePurpose,
-  type ModelUsageRequestCursor,
   type ModelUsageRequestPage,
   type Range,
   type StoredModelUsageEvent,
@@ -558,18 +566,16 @@ const errorMessage = ref('')
 const showAllBreakdown = ref(false)
 const trendMetric = ref<UsageTimelineMetric>('tokens')
 const selectedPointKey = ref('')
-const requestLogOpen = ref(true)
 const outcomeLegend = [{key: 'success', label: '成功'}, {key: 'error', label: '错误'}, {key: 'timeout', label: '超时'}, {key: 'cancelled', label: '取消'}]
 const breakdownSort = ref<BreakdownSortKey>('total')
 const requestPurpose = ref<RequestPurposeFilter>('')
 const requestOutcome = ref<RequestOutcomeFilter>('')
 const requestCacheStatus = ref<RequestCacheFilter>('')
 const requestLogItems = ref<StoredModelUsageEvent[]>([])
-const requestLogNextCursor = ref<ModelUsageRequestCursor | null>(null)
 const requestLogTotalCount = ref(0)
 const requestPageSize = ref<number>(MODEL_USAGE_REQUEST_PAGE_SIZE)
 const requestPageIndex = ref(0)
-const requestPageCursors = ref<Array<ModelUsageRequestCursor | null>>([null])
+const requestJumpPage = ref<number | string>(1)
 const requestLogRetryPageIndex = ref(0)
 const requestLogLoading = ref(false)
 const requestLogError = ref('')
@@ -658,11 +664,20 @@ const largestBreakdownTotal = computed(() => Math.max(
 ))
 const timeline = computed(() => buildUsageTimeline((snapshot.value?.timeline || []).filter(point => point.startedAt <= (snapshot.value?.generatedAt || 0)), trendMetric.value))
 const timelineRows = computed(() => timeline.value.points)
-const timelineLegend = computed(() => [...new Map(timelineRows.value.flatMap(point => point.segments).filter(segment => segment.value > 0).map(segment => [segment.key, segment])).values()])
-const timelineHasDifference = computed(() => timelineRows.value.some(point => point.differenceTokens !== 0))
+const timelineLegend = computed(() => {
+  const segments = [...new Map(timelineRows.value.flatMap(point => point.segments)
+    .filter(segment => segment.value > 0).map(segment => [segment.key, segment])).values()]
+  return segments.sort((left, right) => composition.value.segments.findIndex(item => item.key === left.key)
+    - composition.value.segments.findIndex(item => item.key === right.key))
+})
 const inspectedPoint = computed(() => timelineRows.value.find(point => point.key === selectedPointKey.value)
   || [...timelineRows.value].reverse().find(point => point.totals.requestCount > 0)
   || timelineRows.value.at(-1))
+const inspectorSegments = computed(() => {
+  const point = inspectedPoint.value
+  const legend = trendMetric.value === 'tokens' ? timelineLegend.value : outcomeLegend
+  return legend.map(segment => ({...segment, value: point?.segments.find(item => item.key === segment.key)?.value ?? 0}))
+})
 const trendAriaLabel = computed(() => `${translateLegacy(appliedRangeLabel.value)}${translateLegacy(appliedScopeLabel.value)}用量趋势，${trendMetric.value === 'tokens' ? 'Token' : translateLegacy('请求次数')}`)
 function tokenValue(totals: Totals, key: 'totalTokens' | 'inputTokens' | 'outputTokens'): string {
   return totals.requestCount > 0 && totals.reportedTokenRequests === 0 ? '—' : formatToken(totals[key])
@@ -682,10 +697,6 @@ function handleTrendKeydown(event: KeyboardEvent, index: number): void {
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? points.length - 1
     : (index + (event.key === 'ArrowRight' ? 1 : -1) + points.length) % points.length
   points[next].focus()
-}
-function handleRequestLogToggle(event: Event): void {
-  requestLogOpen.value = (event.target as HTMLDetailsElement).open
-  if (!loading.value && requestLogOpen.value && !requestLogItems.value.length && !requestLogLoading.value) resetRequestPagination()
 }
 const recordingStartLabel = computed(() => snapshot.value?.recordingStartedAt
   ? `最早保留记录 ${formatDate(snapshot.value.recordingStartedAt)}`
@@ -834,8 +845,9 @@ function handleServiceChange(): void {
 }
 
 function selectBreakdown(serviceId: string, model: string): void {
-  selectedService.value = serviceId
-  selectedModel.value = model
+  const cancel = selectedService.value === serviceId && selectedModel.value === model
+  selectedService.value = cancel ? '' : serviceId
+  selectedModel.value = cancel ? '' : model
   showAllBreakdown.value = false
 }
 
@@ -880,10 +892,8 @@ async function loadSnapshot(): Promise<void> {
       requestLogRevision += 1
       requestLogLoading.value = false
       requestLogItems.value = []
-      requestLogNextCursor.value = null
       requestLogTotalCount.value = 0
       requestPageIndex.value = 0
-      requestPageCursors.value = [null]
       requestLogRetryPageIndex.value = 0
     }
   } catch (error) {
@@ -894,23 +904,26 @@ async function loadSnapshot(): Promise<void> {
   }
 }
 
-function resetRequestPagination(): void {
-  requestLogRevision += 1
-  requestLogLoading.value = false
-  requestLogError.value = ''
-  requestLogItems.value = []
-  requestLogNextCursor.value = null
-  requestLogTotalCount.value = 0
-  requestPageIndex.value = 0
-  requestPageCursors.value = [null]
-  requestLogRetryPageIndex.value = 0
-  if (requestLogOpen.value) void loadRequestPage(0)
+function clearRequestFilters(): void {
+  requestPurpose.value = ''
+  requestOutcome.value = ''
+  requestCacheStatus.value = ''
 }
 
+function resetRequestPagination(): void {
+  void loadRequestPage(0)
+}
+
+function jumpToRequestPage(): void {
+  const page = Number(requestJumpPage.value)
+  if (!Number.isInteger(page) || page < 1 || page > requestPageCount.value) return
+  void loadRequestPage(page - 1)
+}
+
+watch(requestPageIndex, (index) => { requestJumpPage.value = index + 1 })
+
 async function loadRequestPage(pageIndex: number): Promise<void> {
-  if (!props.active || pageIndex < 0) return
-  const cursor = requestPageCursors.value[pageIndex]
-  if (pageIndex > 0 && !cursor) return
+  if (!props.active || !snapshot.value || pageIndex < 0) return
   const revision = ++requestLogRevision
   requestLogRetryPageIndex.value = pageIndex
   requestLogLoading.value = true
@@ -926,7 +939,8 @@ async function loadRequestPage(pageIndex: number): Promise<void> {
           ...(requestOutcome.value ? {outcome: requestOutcome.value} : {}),
           ...(requestCacheStatus.value ? {cacheStatus: requestCacheStatus.value} : {}),
         },
-        ...(cursor ? {cursor} : {}),
+        offset: pageIndex * requestPageSize.value,
+        asOf: snapshot.value.generatedAt,
         limit: requestPageSize.value,
       },
     }) as ModelUsageResponse<ModelUsageRequestPage>
@@ -935,13 +949,9 @@ async function loadRequestPage(pageIndex: number): Promise<void> {
       throw new Error(response?.error || '后台没有返回请求记录')
     }
     requestLogItems.value = response.data.items
-    requestPageIndex.value = pageIndex
-    requestLogNextCursor.value = response.data.nextCursor
-    // 固定第一页返回的总数，避免持续产生的新请求让当前游标链路的页数发生漂移。
-    if (pageIndex === 0) requestLogTotalCount.value = response.data.totalCount
-    const cursors = requestPageCursors.value.slice(0, pageIndex + 1)
-    if (response.data.nextCursor) cursors[pageIndex + 1] = response.data.nextCursor
-    requestPageCursors.value = cursors
+    requestPageIndex.value = Math.floor(response.data.offset / requestPageSize.value)
+    requestLogTotalCount.value = response.data.totalCount
+    requestJumpPage.value = requestPageIndex.value + 1
   } catch (error) {
     if (revision !== requestLogRevision) return
     requestLogError.value = error instanceof Error ? error.message : '读取请求记录失败'
@@ -950,11 +960,6 @@ async function loadRequestPage(pageIndex: number): Promise<void> {
   }
 }
 
-function loadNextRequestPage(): void {
-  if (!requestLogNextCursor.value) return
-  requestPageCursors.value[requestPageIndex.value + 1] = requestLogNextCursor.value
-  void loadRequestPage(requestPageIndex.value + 1)
-}
 async function openResetDialog(): Promise<void> {
   resetError.value = ''
   resetMessage.value = ''

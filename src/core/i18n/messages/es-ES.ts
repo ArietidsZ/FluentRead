@@ -590,6 +590,8 @@ export const esESMessages = {
     "writing.previewReference": "Tras generar, aparece una versión de referencia en {language} bajo el borrador. Copiar e insertar solo incluyen el borrador.",
     "writing.referenceSearch": "Buscar idioma de lectura",
 
+    "common.pagination.jump": "Ir a la página",
+    "common.pagination.go": "Ir",
     "usage.pageSize": "{size} entradas",
     "featureEnable.imageDescription": "Mostrar el control de traducción al pasar sobre una imagen.",
 

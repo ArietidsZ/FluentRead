@@ -590,6 +590,8 @@ export const jaJPMessages = {
     "writing.previewReference": "生成後、下書きの下に {language} の対訳が表示されます。コピーと挿入に含まれるのは下書きだけです。",
     "writing.referenceSearch": "対訳の言語を検索",
 
+    "common.pagination.jump": "ページ指定",
+    "common.pagination.go": "移動",
     "usage.pageSize": "{size} 件",
     "featureEnable.imageDescription": "ウェブページの画像にカーソルを合わせると翻訳ボタンを表示します。",
 

@@ -1,7 +1,7 @@
 <!--
  @file src/features/translation-stats/ui/TranslationStatsDashboard.vue
  文件职责：在 Options 设置页展示翻译请求统计，帮助用户了解请求规模、耗时分布和各翻译服务的表现。
- 主要内容：提供服务、模型与时间范围筛选，呈现请求量、文本量、耗时和缓存复用概览，可切换指标的趋势柱图，可排序的服务表现与免费线路表，耗时与规模分布、失败原因，以及可按来源、状态与耗时排序的请求记录和清除统计确认。
+ 主要内容：提供服务、模型与时间范围筛选，呈现请求量、文本量、耗时和缓存复用概览，可切换指标的趋势柱图，可排序且能取消筛选的服务表现与按选中服务显示的免费线路表，耗时与规模分布、失败原因，以及可按来源、状态与耗时排序的支持指定页跳转的请求记录和清除统计确认。
  模块边界：组件只通过后台 translationStats 消息读取数值快照与记录，不直接访问 IndexedDB、不发起翻译，也不修改翻译设置；聚合、持久化与采集分别由 services、platform/storage 和翻译 broker 负责。
 -->
 <template>
@@ -129,9 +129,9 @@
       <template v-else>
         <figure class="stats-card stats-trend">
           <figcaption class="stats-card-header">
-            <div>
-              <span class="stats-card-label">{{ trendScaleLabel }}</span>
+            <div class="stats-section-title">
               <strong>{{ t('translationStats.trend.title') }}</strong>
+              <span class="stats-card-label">{{ trendScaleLabel }}</span>
             </div>
             <div class="stats-toggle" role="group" :aria-label="t('translationStats.aria.trendMetric')">
               <button
@@ -179,9 +179,9 @@
 
         <section class="stats-card stats-services" aria-labelledby="stats-services-title">
           <header class="stats-card-header">
-            <div>
-              <span class="stats-card-label">{{ t('translationStats.services.subtitle') }}</span>
+            <div class="stats-section-title">
               <strong id="stats-services-title">{{ t('translationStats.services.title') }}</strong>
+              <span class="stats-card-label">{{ t('translationStats.services.subtitle') }}</span>
             </div>
             <small>{{ t('translationStats.services.hint') }}</small>
           </header>
@@ -202,6 +202,7 @@
                   v-for="row in visibleBreakdown"
                   :key="`${row.serviceId}:${row.model}`"
                   :class="{active: isBreakdownActive(row)}"
+                  :aria-selected="isBreakdownActive(row)"
                   tabindex="0"
                   @click="selectBreakdown(row)"
                   @keydown.enter.prevent="selectBreakdown(row)"
@@ -237,11 +238,67 @@
           <p class="stats-footnote">{{ t('translationStats.services.latencyNote') }}</p>
         </section>
 
-        <section v-if="snapshot.routes.length" class="stats-card stats-services stats-routes" aria-labelledby="stats-routes-title">
+        <div class="stats-distribution-grid">
+          <section class="stats-card" aria-labelledby="stats-duration-title">
+            <header class="stats-card-header">
+              <div class="stats-section-title">
+                <strong id="stats-duration-title">{{ t('translationStats.distribution.duration') }}</strong>
+                <span class="stats-card-label">{{ t('translationStats.distribution.durationSubtitle') }}</span>
+              </div>
+              <small>{{ t('translationStats.distribution.median', {value: formatDuration(totals.medianDurationMs)}) }}</small>
+            </header>
+            <ul v-if="durationRows.total" class="stats-histogram">
+              <li v-for="row in trimHistogramRows(durationRows.rows)" :key="row.index">
+                <span>{{ bucketLabel(row, 'duration') }}</span>
+                <i aria-hidden="true"><b :style="{width: `${row.ratio * 100}%`}"></b></i>
+                <strong>{{ formatNumber(row.count) }}</strong>
+                <small>{{ formatPercent(row.share) }}</small>
+              </li>
+            </ul>
+            <p v-else class="stats-footnote">{{ t('translationStats.card.latencyEmpty') }}</p>
+          </section>
+
+          <section class="stats-card" aria-labelledby="stats-size-title">
+            <header class="stats-card-header">
+              <div class="stats-section-title">
+                <strong id="stats-size-title">{{ t('translationStats.distribution.size') }}</strong>
+                <span class="stats-card-label">{{ t('translationStats.distribution.sizeSubtitle') }}</span>
+              </div>
+              <small>{{ t('translationStats.distribution.largest', {value: t('translationStats.charsValue', {value: formatNumber(totals.maxSourceChars)})}) }}</small>
+            </header>
+            <ul class="stats-histogram is-size">
+              <li v-for="row in trimHistogramRows(sizeRows.rows)" :key="row.index">
+                <span>{{ bucketLabel(row, 'size') }}</span>
+                <i aria-hidden="true"><b :style="{width: `${row.ratio * 100}%`}"></b></i>
+                <strong>{{ formatNumber(row.count) }}</strong>
+                <small>{{ formatPercent(row.share) }}</small>
+              </li>
+            </ul>
+          </section>
+
+          <section class="stats-card" aria-labelledby="stats-failure-title">
+            <header class="stats-card-header">
+              <div class="stats-section-title">
+                <strong id="stats-failure-title">{{ t('translationStats.failures.title') }}</strong>
+                <span class="stats-card-label">{{ t('translationStats.failures.subtitle') }}</span>
+              </div>
+            </header>
+            <ul v-if="errorRows.length" class="stats-failures">
+              <li v-for="row in errorRows" :key="row.kind">
+                <span>{{ t(`translationStats.errorKind.${row.kind}`) }}</span>
+                <strong>{{ formatNumber(row.count) }}</strong>
+                <small>{{ formatPercent(row.share) }}</small>
+              </li>
+            </ul>
+            <p v-else class="stats-footnote">{{ t('translationStats.failures.empty') }}</p>
+          </section>
+        </div>
+
+        <section v-if="appliedFilter.serviceId === 'freeTranslation' && snapshot.routes.length" class="stats-card stats-services stats-routes" aria-labelledby="stats-routes-title">
           <header class="stats-card-header">
-            <div>
-              <span class="stats-card-label">{{ t('translationStats.routes.subtitle') }}</span>
+            <div class="stats-section-title">
               <strong id="stats-routes-title">{{ t('translationStats.routes.title') }}</strong>
+              <span class="stats-card-label">{{ t('translationStats.routes.subtitle') }}</span>
             </div>
           </header>
           <div class="stats-table-wrap">
@@ -277,94 +334,40 @@
           <p class="stats-footnote">{{ t('translationStats.routes.note') }}</p>
         </section>
 
-        <div class="stats-distribution-grid">
-          <section class="stats-card" aria-labelledby="stats-duration-title">
-            <header class="stats-card-header">
-              <div>
-                <span class="stats-card-label">{{ t('translationStats.distribution.durationSubtitle') }}</span>
-                <strong id="stats-duration-title">{{ t('translationStats.distribution.duration') }}</strong>
-              </div>
-              <small>{{ t('translationStats.distribution.median', {value: formatDuration(totals.medianDurationMs)}) }}</small>
-            </header>
-            <ul v-if="durationRows.total" class="stats-histogram">
-              <li v-for="row in trimHistogramRows(durationRows.rows)" :key="row.index">
-                <span>{{ bucketLabel(row, 'duration') }}</span>
-                <i aria-hidden="true"><b :style="{width: `${row.ratio * 100}%`}"></b></i>
-                <strong>{{ formatNumber(row.count) }}</strong>
-                <small>{{ formatPercent(row.share) }}</small>
-              </li>
-            </ul>
-            <p v-else class="stats-footnote">{{ t('translationStats.card.latencyEmpty') }}</p>
-          </section>
-
-          <section class="stats-card" aria-labelledby="stats-size-title">
-            <header class="stats-card-header">
-              <div>
-                <span class="stats-card-label">{{ t('translationStats.distribution.sizeSubtitle') }}</span>
-                <strong id="stats-size-title">{{ t('translationStats.distribution.size') }}</strong>
-              </div>
-              <small>{{ t('translationStats.distribution.largest', {value: t('translationStats.charsValue', {value: formatNumber(totals.maxSourceChars)})}) }}</small>
-            </header>
-            <ul class="stats-histogram is-size">
-              <li v-for="row in trimHistogramRows(sizeRows.rows)" :key="row.index">
-                <span>{{ bucketLabel(row, 'size') }}</span>
-                <i aria-hidden="true"><b :style="{width: `${row.ratio * 100}%`}"></b></i>
-                <strong>{{ formatNumber(row.count) }}</strong>
-                <small>{{ formatPercent(row.share) }}</small>
-              </li>
-            </ul>
-          </section>
-
-          <section class="stats-card" aria-labelledby="stats-failure-title">
-            <header class="stats-card-header">
-              <div>
-                <span class="stats-card-label">{{ t('translationStats.failures.subtitle') }}</span>
-                <strong id="stats-failure-title">{{ t('translationStats.failures.title') }}</strong>
-              </div>
-            </header>
-            <ul v-if="errorRows.length" class="stats-failures">
-              <li v-for="row in errorRows" :key="row.kind">
-                <span>{{ t(`translationStats.errorKind.${row.kind}`) }}</span>
-                <strong>{{ formatNumber(row.count) }}</strong>
-                <small>{{ formatPercent(row.share) }}</small>
-              </li>
-            </ul>
-            <p v-else class="stats-footnote">{{ t('translationStats.failures.empty') }}</p>
-          </section>
-        </div>
-
         <section class="stats-card stats-log" aria-labelledby="stats-log-title" :aria-busy="logLoading">
           <header class="stats-card-header stats-log-header">
-            <div>
-              <span class="stats-card-label">{{ t('translationStats.log.subtitle', {count: formatNumber(TRANSLATION_STATS_MAX_STORED_REQUESTS)}) }}</span>
-              <strong id="stats-log-title">{{ t('translationStats.log.title') }}</strong>
+            <div class="stats-log-heading">
+              <div class="stats-section-title">
+                <strong id="stats-log-title">{{ t('translationStats.log.title') }}</strong>
+                <span class="stats-card-label">{{ t('translationStats.log.subtitle', {count: formatNumber(TRANSLATION_STATS_MAX_STORED_REQUESTS)}) }}</span>
+              </div>
               <small v-if="logTotal">{{ t('translationStats.log.range', {start: formatNumber(logRange.start), end: formatNumber(logRange.end), total: formatNumber(logTotal)}) }}</small>
             </div>
             <div class="stats-log-filters">
               <label>
                 <span>{{ t('translationStats.log.source') }}</span>
-                <UiSelect v-model="logSource" :disabled="logLoading" :aria-label="t('translationStats.log.source')" :placeholder="t('translationStats.log.allSources')">
+                <UiSelect v-model="logSource" :disabled="loading || logLoading" :aria-label="t('translationStats.log.source')" :placeholder="t('translationStats.log.allSources')">
                   <ElOption value="" :label="t('translationStats.log.allSources')" />
                   <ElOption v-for="source in TRANSLATION_REQUEST_SOURCES" :key="source" :value="source" :label="t(`translationStats.source.${source}`)" />
                 </UiSelect>
               </label>
               <label>
                 <span>{{ t('translationStats.log.outcome') }}</span>
-                <UiSelect v-model="logOutcome" :disabled="logLoading" :aria-label="t('translationStats.log.outcome')" :placeholder="t('translationStats.log.allOutcomes')">
+                <UiSelect v-model="logOutcome" :disabled="loading || logLoading" :aria-label="t('translationStats.log.outcome')" :placeholder="t('translationStats.log.allOutcomes')">
                   <ElOption value="" :label="t('translationStats.log.allOutcomes')" />
                   <ElOption v-for="outcome in TRANSLATION_REQUEST_OUTCOMES" :key="outcome" :value="outcome" :label="t(`translationStats.outcome.${outcome}`)" />
                 </UiSelect>
               </label>
               <div class="stats-toggle" role="group" :aria-label="t('translationStats.log.sort')">
-                <button type="button" :aria-pressed="logSort === 'recent'" :disabled="logLoading" @click="logSort = 'recent'">{{ t('translationStats.log.sortRecent') }}</button>
-                <button type="button" :aria-pressed="logSort === 'slowest'" :disabled="logLoading" @click="logSort = 'slowest'">{{ t('translationStats.log.sortSlowest') }}</button>
+                <button type="button" :aria-pressed="logSort === 'recent'" :disabled="loading || logLoading" @click="logSort = 'recent'">{{ t('translationStats.log.sortRecent') }}</button>
+                <button type="button" :aria-pressed="logSort === 'slowest'" :disabled="loading || logLoading" @click="logSort = 'slowest'">{{ t('translationStats.log.sortSlowest') }}</button>
               </div>
             </div>
           </header>
 
           <p v-if="logError" class="stats-inline-error" role="alert">
             <span>{{ logError }}</span>
-            <button type="button" class="stats-link" :disabled="logLoading" @click="loadRequestPage(logOffset)">{{ t('translationStats.retry') }}</button>
+            <button type="button" class="stats-link" :disabled="loading || logLoading" @click="loadRequestPage(logOffset)">{{ t('translationStats.retry') }}</button>
           </p>
           <p v-if="logLoading && !logItems.length" class="stats-footnote" role="status">{{ t('translationStats.log.loading') }}</p>
           <p v-else-if="!logItems.length && !logError" class="stats-footnote">{{ t('translationStats.log.empty') }}</p>
@@ -423,14 +426,18 @@
           <footer v-if="logTotal" class="stats-log-footer">
             <label class="stats-page-size">
               <span>{{ t('translationStats.log.pageSize') }}</span>
-              <UiSelect v-model="logPageSize" :disabled="logLoading" :aria-label="t('translationStats.log.pageSize')">
+              <UiSelect v-model="logPageSize" :disabled="loading || logLoading" :aria-label="t('translationStats.log.pageSize')">
                 <ElOption v-for="size in pageSizeOptions" :key="size" :value="size" :label="formatNumber(size)" />
               </UiSelect>
             </label>
             <nav class="stats-pagination" :aria-label="t('translationStats.log.pagination')">
-              <button type="button" class="stats-button" :disabled="logLoading || logRange.pageIndex === 0" @click="loadRequestPage(logOffset - logPageSize)">{{ t('translationStats.log.previous') }}</button>
+              <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.pageIndex === 0" @click="loadRequestPage(logOffset - logPageSize)">{{ t('translationStats.log.previous') }}</button>
               <span>{{ t('translationStats.log.page', {page: logRange.pageIndex + 1, pages: logRange.pageCount}) }}</span>
-              <button type="button" class="stats-button" :disabled="logLoading || logRange.end >= logTotal" @click="loadRequestPage(logOffset + logPageSize)">{{ t('translationStats.log.next') }}</button>
+              <form class="stats-page-jump" @submit.prevent="jumpToRequestPage">
+                <label><span>{{ t('common.pagination.jump') }}</span><input v-model="logJumpPage" type="number" min="1" :max="logRange.pageCount" step="1" :disabled="loading || logLoading" :aria-label="t('common.pagination.jump')" /></label>
+                <button type="submit" class="stats-button" :disabled="loading || logLoading">{{ t('common.pagination.go') }}</button>
+              </form>
+              <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.end >= logTotal" @click="loadRequestPage(logOffset + logPageSize)">{{ t('translationStats.log.next') }}</button>
             </nav>
           </footer>
         </section>
@@ -546,6 +553,7 @@ const showAllBreakdown = ref(false)
 const logItems = ref<StoredTranslationRequestEvent[]>([])
 const logTotal = ref(0)
 const logOffset = ref(0)
+const logJumpPage = ref<number | string>(1)
 const logPageSize = ref<number>(TRANSLATION_STATS_REQUEST_PAGE_SIZE)
 const logSource = ref<'' | TranslationRequestSource>('')
 const logOutcome = ref<'' | TranslationRequestOutcome>('')
@@ -729,12 +737,14 @@ function routeAriaSort(column: TranslationRouteSortKey): 'ascending' | 'descendi
 
 function isBreakdownActive(row: TranslationStatsBreakdownItem): boolean {
   return appliedFilter.value.serviceId === row.serviceId
-    && (appliedFilter.value.model === undefined || appliedFilter.value.model === row.model)
+    && (row.model ? appliedFilter.value.model === row.model : appliedFilter.value.model === undefined)
 }
 
 function selectBreakdown(row: TranslationStatsBreakdownItem): void {
-  selectedService.value = row.serviceId
-  selectedModel.value = row.model ? row.model : ALL_MODELS
+  const cancel = selectedService.value === row.serviceId
+    && selectedModel.value === (row.model || ALL_MODELS)
+  selectedService.value = cancel ? '' : row.serviceId
+  selectedModel.value = cancel || !row.model ? ALL_MODELS : row.model
   showAllBreakdown.value = false
 }
 
@@ -768,6 +778,9 @@ async function sendStatsMessage<T>(message: Record<string, unknown>, missingMess
 
 async function loadSnapshot(): Promise<void> {
   const revision = ++snapshotRevision
+  // 新筛选开始时立即作废旧列表请求，防止旧响应盖过新范围。
+  logRevision += 1
+  logLoading.value = false
   loading.value = true
   errorMessage.value = ''
   try {
@@ -889,6 +902,14 @@ async function resetStats(): Promise<void> {
     resetting.value = false
   }
 }
+
+function jumpToRequestPage(): void {
+  const page = Number(logJumpPage.value)
+  if (!Number.isInteger(page) || page < 1 || page > logRange.value.pageCount) return
+  void loadRequestPage((page - 1) * logPageSize.value)
+}
+
+watch(logRange, (value) => { logJumpPage.value = value.pageIndex + 1 })
 
 watch([selectedService, selectedModel, range], () => {
   if (mounted && props.active) void loadSnapshot()

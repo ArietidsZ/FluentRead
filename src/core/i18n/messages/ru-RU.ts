@@ -590,6 +590,8 @@ export const ruRUMessages = {
     "writing.previewReference": "После генерации под черновиком появится версия на языке {language}. Копирование и вставка используют только черновик.",
     "writing.referenceSearch": "Поиск языка перевода",
 
+    "common.pagination.jump": "Перейти на страницу",
+    "common.pagination.go": "Перейти",
     "usage.pageSize": "{size} записей",
     "featureEnable.imageDescription": "Показывать кнопку перевода при наведении на изображение.",
 
