@@ -13,9 +13,11 @@
 | 范围 | 结果 |
 | --- | --- |
 | 设置架构、朗读、识图探测、请求限额 | 4 个文件，71 项通过 |
+| 整合后的云备份相关补测 | 加上 WebDAV、Drive API、备份与后台消息测试，共 8 个文件、118 项通过 |
 | 国际化 | 55 项通过；2 项旧词典原文存在性检查失败，与基线 `510683f2` 的失败列表相同 |
 | 生产扩展 UI | 8 组交互通过；中文/英文 × 浅色/深色 × 1440/1024/820/390px × 5 个设置页，共 80 组布局通过，无控制台错误 |
 | 删除备份 UI | 27 项断言通过；本机 WebDAV HTTP 夹具、延迟核验、失败恢复、深色重试与确认删除、单次 DELETE、本机配置及凭据保留 |
+| 云备份兼容模式补验 | 44 项断言通过；无 ETag 同步、取消、远程变化保护及确认删除，中英文窄屏 |
 | 类型与构建 | `pnpm compile`、Chrome MV3、Firefox MV2 构建通过 |
 | 测试清单与文档 | `pnpm test:audit`、`pnpm docs:build` 通过 |
 
@@ -23,7 +25,9 @@
 
 浏览器使用独立临时 Edge profile，`launchMode=macos-background-cdp`、`focusPolicy=launchservices-no-foreground`，第二屏正常可见窗口，`browserFrontmost=false`。识图检测连接本机图片响应夹具；语言包的任务、失败、重试和移除由本次临时文档的消息夹具验证，未下载真实模型。没有验证 Firefox 实机 UI、实际朗读/识别推理或真实云端供应商。实现未借鉴参考仓库代码。
 
-详细证据：[布局与交互报告](./layout-report.json)、[删除加载报告](./delete-loading-report.json)。复现命令见[测试与回归](../../testing.md#设置布局与控件交互)。
+已整合主分支 `2d5bcd00` 的云备份修复，保留上传待核验警示与无 ETag 兼容模式，并重新验证删除加载、相关单元测试和双浏览器构建。布局专项覆盖本次设置更改；云备份补测在整合后的产物上执行。
+
+详细证据：[布局与交互报告](./layout-report.json)、[删除加载报告](./delete-loading-report.json)、[兼容模式补验](./cloud-compatibility-report.json)。复现命令见[测试与回归](../../testing.md#设置布局与控件交互)。
 
 ## 界面截图
 
