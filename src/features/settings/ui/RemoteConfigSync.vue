@@ -6,7 +6,7 @@
 风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将云端删除范围、本机保留说明与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 删除入口在核验和删除请求期间显示加载动画，完成或失败后恢复；同步操作不触发删除动画。
-通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；预览顶部一行显示本次账号、同步范围标签（说明收在悬停提示里）和更换账号入口；按两步流程说明影响范围，
+通过左侧操作插槽集中显示同步与连接设置，右侧记录插槽统一显示账号和时间，窄屏改为上下排列；预览顶部一行显示本次账号、同步范围标签（说明收在悬停提示里）和更换账号入口；按两步流程说明影响范围，
 先选择操作再确认影响，确认页把方向、差异数量与一句影响说明合并在标题下，没有差异时不显示展开按钮和空列表，只有存在被隐藏内容的条目才提示“已隐藏”；WebDAV 内容核验兼容模式提示避免多设备同时同步，仍保留只读供应商的恢复限制；默认展示差异与连接变更类别，小屏保留操作区。
 Drive 已上传但未完成核验时单独显示警示，不误报未上传，也不更新成功记录。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
@@ -27,7 +27,11 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
     <el-alert v-if="error && !previewVisible" :title="error" :type="uploadUnverified ? 'warning' : 'error'" :closable="false" show-icon class="drive-error" />
     <el-alert v-if="status?.cleanupPending && !previewVisible" :title="t('settings.cloud.cleanupPending')" type="warning" :closable="false" show-icon class="drive-error" />
     <div class="drive-actions">
-      <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" :data-testid="`${kind}-sync-now`" @click="prepare">{{ t('settings.cloud.syncNow', {provider}) }}</el-button>
+      <div class="drive-action-buttons">
+        <slot name="actions" :available="status?.available === true" :busy="busy" :sync="prepare">
+          <el-button v-if="status?.available" type="primary" :loading="busy" :disabled="busy" :data-testid="`${kind}-sync-now`" @click="prepare">{{ t('settings.cloud.syncNow', {provider}) }}</el-button>
+        </slot>
+      </div>
       <slot name="record" :status="status" :status-text="statusText">
       <div v-if="status?.account?.email || statusText" class="drive-record" role="status">
         <p v-if="status?.account?.email" :data-testid="`${kind}-last-account`">{{ t('settings.drive.lastAccount', {email: status.account.email}) }}</p>
@@ -412,7 +416,9 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .drive-preview-notice :deep(.el-alert__title) {display:block; line-height:1.7; overflow-wrap:anywhere;}
 .drive-preview-notice :deep(.el-alert__icon) {margin-top:2px; flex-shrink:0;}
 .drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
-.drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
+.drive-action-buttons {display:flex; flex-wrap:wrap; gap:12px; max-width:100%;}
+.drive-action-buttons:empty {display:none;}
+.drive-action-buttons>:deep(.el-button) {flex-shrink:0; max-width:100%; margin:0; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
 .drive-account-bar {display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; border-radius:8px; background:var(--el-fill-color-light); padding:10px 12px; margin-bottom:20px;}
 .drive-account-icon {font-size:18px; color:var(--el-text-color-secondary); flex-shrink:0;}
 .drive-account-bar p {margin:0; flex:1 1 180px; min-width:0; font-size:12px; color:var(--el-text-color-regular); overflow-wrap:anywhere;}

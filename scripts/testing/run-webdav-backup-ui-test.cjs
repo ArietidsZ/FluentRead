@@ -2,13 +2,14 @@
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
- * 主要内容：真实本机 HTTP 夹具、同步范围、密文保存、版本保护、删除加载反馈、无 ETag 同步与删除兼容专项、七语言与窄屏。
+ * 主要内容：真实本机 HTTP 夹具、左下连接入口与旧备份恢复专项、同步范围、密文保存、版本保护、删除加载反馈、无 ETag 同步与删除兼容专项、七语言与窄屏。
  * 模块边界：不操作日常 profile 或真实账号；服务器与凭据均为本次测试创建，报告不包含配置正文。
  */
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {createServer} = require('node:http');
+const {randomBytes, pbkdf2Sync, createCipheriv} = require('node:crypto');
 function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1];}
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-webdav-ui'));
@@ -87,6 +88,20 @@ async function main() {
         const card=page.locator('[data-testid="cloud-config-backup"]');
         check(await card.getByRole('heading',{name:'云备份',exact:true}).isVisible(),'Google Drive and WebDAV share one cloud backup heading');
         await page.locator('[data-testid="cloud-method-webdav"]').check();
+        if (process.argv.includes('--restore-setup-only')) {
+            report.suite='legacy-settings-restore-and-webdav-actions';
+            for (const width of [1440,390]) {
+                await page.setViewportSize({width,height:1000});
+                const layout=await page.locator('[data-testid="webdav-setup"]').evaluate(el=>{
+                    const button=el.getBoundingClientRect(),scope=document.querySelector('[data-testid="cloud-sync-scope"]').getBoundingClientRect();
+                    return {inActions:Boolean(el.closest('.drive-actions')),primary:el.classList.contains('el-button--primary'),left:button.left,scopeLeft:scope.left,top:button.top,scopeBottom:scope.bottom,overflow:document.documentElement.scrollWidth>innerWidth};
+                });
+                check(layout.inActions&&layout.primary&&Math.abs(layout.left-layout.scopeLeft)<2&&layout.top>=layout.scopeBottom&&!layout.overflow,`unconfigured WebDAV has one primary setup button below scope at left: ${width}px`);
+                check(await page.locator('[data-testid="webdav-setup"]').count()===1&&await page.locator('[data-testid="webdav-sync-now"]').count()===0,'unconfigured state offers setup directly');
+                await shot(`webdav-setup-left-${width}`);
+            }
+            await page.setViewportSize({width:1440,height:1000});
+        }
         await page.locator('[data-testid="webdav-setup"]').click();
         const setup=page.locator('.webdav-settings-dialog');await setup.waitFor();
         await page.locator('#webdav-url').fill(url);await page.locator('#webdav-username').fill('fixture-user');await page.locator('#webdav-password').fill('wrong-fixture');
@@ -108,6 +123,49 @@ async function main() {
         }
         const dialog=page.locator('.drive-dialog');
         async function chooseIntent(direction) {if (await page.locator('[data-testid="webdav-back"]').count()) await page.locator('[data-testid="webdav-back"]').click(); if (direction==='merge') await page.locator('[data-testid="webdav-direction-merge"]').click(); else {await page.locator(`[data-testid="webdav-direction-${direction}"]`).check();await page.locator('[data-testid="webdav-continue"]').click();}}
+        if (process.argv.includes('--restore-setup-only')) {
+            const ordinary={format:'fluentread-complete-config',version:2,scope:'settings',config:{on:true,display:1,from:'en',to:'de',freeTranslationOrder:['microsoft','deeplx','google','lingvaFree']}};
+            const salt=randomBytes(16),iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',pbkdf2Sync('FluentReadEncryption',salt,600000,32,'sha256'),iv);
+            cipher.setAAD(Buffer.from('fluentread-drive-encrypted:1:PBKDF2:SHA-256:600000:AES-256-GCM'));
+            const ciphertext=Buffer.concat([cipher.update(JSON.stringify(ordinary),'utf8'),cipher.final(),cipher.getAuthTag()]);
+            state.content=JSON.stringify({format:'fluentread-drive-encrypted',version:1,kdf:'PBKDF2-SHA256',iterations:600000,cipher:'AES-256-GCM',salt:salt.toString('base64'),iv:iv.toString('base64'),ciphertext:ciphertext.toString('base64')});
+            state.folder=true;state.version=1;
+            const original=state.content;
+            const readLocal=()=>page.evaluate(async()=>({config:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'})).value,credentials:(await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:credentials'})).value}));
+            const before=await readLocal();
+            for (const sensitive of [false,true]) {
+                if(sensitive) {
+                    await page.locator('[data-testid="cloud-include-sensitive"]').click();
+                    await page.locator('[data-testid="cloud-risk-acknowledgement"]').check();await page.locator('[data-testid="cloud-consent-confirm"]').click();
+                    await page.locator('.cloud-consent-dialog').waitFor({state:'hidden'});
+                    await savePatch({to:'fr'});
+                }
+                await page.locator('[data-testid="webdav-sync-now"]').click();await dialog.waitFor();
+                check((await dialog.innerText()).includes(sensitive?'这份备份只有普通设置':'恢复'),'old scalar-list backup opens a real restore preview');
+                await chooseIntent('download');await shot(`webdav-legacy-restore-sensitive-${sensitive}`);
+                await page.locator('[data-testid="webdav-confirm"]').click();await dialog.waitFor({state:'hidden'});
+                await page.reload({waitUntil:'domcontentloaded'});await navigate();
+                const after=await readLocal();
+                check(after.config.to==='de'&&JSON.stringify(after.config.freeTranslationOrder)===JSON.stringify(['microsoft','google']),`legacy settings restore and migrate retired services after reopening: sensitive=${sensitive}`);
+                check(JSON.stringify(before.credentials)===JSON.stringify(after.credentials),'ordinary backup preserves every device credential');
+                check(state.content===original&&writes()===0,'restore never overwrites cloud backup');
+            }
+            for (const language of ['zh-CN','en-US']) {
+                await savePatch({uiLanguage:language});await page.reload({waitUntil:'domcontentloaded'});await navigate();
+                for (const width of [1440,390]) {
+                    await page.setViewportSize({width,height:1000});
+                    check(await page.locator('[data-testid="webdav-setup"]').evaluate(el=>Boolean(el.closest('.drive-actions'))&&!el.closest('.webdav-record')&&el.getBoundingClientRect().right<=innerWidth),'configured connection settings stay in left action area');
+                    check(await page.locator('[data-testid="webdav-sync-now"]').isVisible()&&await page.locator('[data-testid="webdav-setup"]').isVisible(),'sync and edit connection are both visible');
+                    await shot(`webdav-actions-${language}-${width}`);
+                }
+            }
+            await page.setViewportSize({width:1440,height:1000});await page.locator('[data-testid="cloud-method-google-drive"]').check();
+            await card.getByText('Google Drive sync currently supports the Chrome extension',{exact:false}).waitFor();
+            check(await page.locator('[data-testid="google-drive-sync-now"]').count()===0,'Edge keeps Google Drive unavailable with its existing Chrome-only explanation');
+            report.googleDrive={browser:'Edge',scope:'unavailable-state UI only',liveOAuthVerified:false};
+            await shot('google-drive-unavailable-desktop');
+            check(report.consoleErrors.length===0,'restore and connection layout have no unhandled console errors');report.ok=true;return;
+        }
         if (process.argv.includes('--delete-loading-only')) {
             const entry=page.locator('[data-testid="webdav-delete-backup"]');
             const deletion=page.locator('.cloud-delete-dialog');

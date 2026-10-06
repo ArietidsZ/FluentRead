@@ -1,6 +1,6 @@
 # Backup & sync
 
-Updated: October 5, 2026.
+Updated: October 6, 2026.
 
 Save the settings and learning data you need before changing browsers, moving devices, or uninstalling. Full backups, settings history, and cloud configuration sync serve different purposes.
 
@@ -13,6 +13,8 @@ Save the settings and learning data you need before changing browsers, moving de
 | Move settings, vocabulary, and model usage to another browser | Local full backup |
 | Undo recent configuration changes | Settings history |
 | Sync settings between your own devices | Configuration sync offered by your installed version |
+
+Older basic backups remain restorable when their free translation service list contains retired services; those entries are removed during restoration. Reinstalling resets this device’s sensitive-settings choice to off. To restore keys, enable the option and confirm that the cloud file contains sensitive settings. A basic-only backup cannot restore keys that were never saved.
 
 ## Cloud backup scope and sensitive settings
 
