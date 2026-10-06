@@ -1,10 +1,12 @@
 import {describe, expect, it, vi} from 'vitest';
 import {
   isXMediaUrl,
+  hasMp4AudioTrack,
   parseHlsAudioManifest,
   readBoundedMediaResponse,
   readXHlsAudio,
 } from '@/src/features/video-subtitle/content/hlsAudio';
+import {audioInit, videoInit, joinBytes, mp4Box} from './fixtures/hlsAudio';
 
 const base = 'https://video.twimg.com/ext/audio/master.m3u8';
 function response(bytes: Uint8Array, init: ResponseInit = {}): Response {
@@ -16,6 +18,33 @@ const textBytes = (value: string) => new TextEncoder().encode(value);
 const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
 
 describe('HLS audio', () => {
+  it('checks actual MP4 track metadata, including multiple tracks and extended box sizes', () => {
+    expect(hasMp4AudioTrack(audioInit)).toBe(true);
+    expect(hasMp4AudioTrack(videoInit)).toBe(false);
+    expect(hasMp4AudioTrack(joinBytes(mp4Box('ftyp'), videoInit, audioInit))).toBe(true);
+    expect(hasMp4AudioTrack(mp4Box('moov', audioInit.slice(8), 'large'))).toBe(true);
+    expect(hasMp4AudioTrack(mp4Box('moov', audioInit.slice(8), 'rest'))).toBe(true);
+    expect(hasMp4AudioTrack(mp4Box('free', audioInit))).toBe(false);
+    expect(hasMp4AudioTrack(new Uint8Array())).toBe(false);
+    expect(hasMp4AudioTrack(audioInit.slice(0, -1))).toBe(false);
+    expect(hasMp4AudioTrack(mp4Box('moov', mp4Box('trak', mp4Box('mdia', mp4Box('hdlr')))))).toBe(false);
+    const short = mp4Box('moov');
+    new DataView(short.buffer).setUint32(0, 4);
+    expect(hasMp4AudioTrack(short)).toBe(false);
+    new DataView(short.buffer).setUint32(0, 1);
+    expect(hasMp4AudioTrack(short)).toBe(false);
+    const unsafe = mp4Box('moov', new Uint8Array(), 'large');
+    new DataView(unsafe.buffer).setBigUint64(8, 2n ** 63n);
+    expect(hasMp4AudioTrack(unsafe)).toBe(false);
+  });
+
+  it('rejects a video-only playlist after its initialization segment without downloading picture fragments', async () => {
+    const playlist = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\npicture.m4s\n#EXT-X-ENDLIST';
+    const fetchResource = vi.fn(async (_url: string) => response(videoInit));
+    expect(await readXHlsAudio(base, playlist, new AbortController().signal, fetchResource)).toBeNull();
+    expect(fetchResource).toHaveBeenCalledTimes(1);
+    expect(fetchResource.mock.calls[0][0]).toContain('init.mp4');
+  });
   it('validates X media URLs and selects default AUDIO rendition', () => {
     expect(isXMediaUrl(base)).toBe(true);
     expect(isXMediaUrl('http://video.twimg.com/x')).toBe(false);
@@ -74,24 +103,24 @@ describe('HLS audio', () => {
     const calls: string[] = [];
     const fetchResource = vi.fn(async (url: string, options: {signal: AbortSignal; credentials: 'omit'}) => {
       calls.push(url); expect(options.credentials).toBe('omit');
-      return response(textBytes(url.endsWith('a.m4s') ? 'A' : url.endsWith('b.m4s') ? 'B' : 'I'));
+      return response(url.endsWith('init.mp4') ? audioInit : textBytes(url.endsWith('a.m4s') ? 'A' : 'B'));
     });
-    await expect(readXHlsAudio(base, manifest, new AbortController().signal, fetchResource)).resolves.toMatchObject({bytes: textBytes('IAB'), durationMs: 2000});
+    await expect(readXHlsAudio(base, manifest, new AbortController().signal, fetchResource)).resolves.toMatchObject({bytes: joinBytes(audioInit, textBytes('AB')), durationMs: 2000});
     expect(calls).toEqual(expect.arrayContaining(['https://video.twimg.com/ext/audio/init.mp4', 'https://video.twimg.com/ext/audio/a.m4s', 'https://video.twimg.com/ext/audio/b.m4s']));
   });
 
   it('并发读取时共享 64 MiB 音频预算，避免三个响应各自通过单段上限', async () => {
-    const manifest = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\na.m4s\n#EXTINF:1,\nb.m4s\n#EXT-X-ENDLIST';
+    const manifest = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\na.m4s\n#EXTINF:1,\nb.m4s\n#EXTINF:1,\nc.m4s\n#EXT-X-ENDLIST';
     const chunk = new Uint8Array(22 * 1024 * 1024);
-    const fetchResource = vi.fn(async () => response(chunk));
+    const fetchResource = vi.fn(async (url: string) => response(url.endsWith('init.mp4') ? audioInit : chunk));
 
     await expect(readXHlsAudio(base, manifest, new AbortController().signal, fetchResource)).rejects.toThrow('读取上限');
-    expect(fetchResource).toHaveBeenCalledTimes(3);
+    expect(fetchResource).toHaveBeenCalledTimes(4);
   });
 
   it('跟随最多三层 manifest，拒绝循环、失败和外站 redirect 资源', async () => {
     const child = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\na.m4s\n#EXTINF:1,\nb.m4s\n#EXT-X-ENDLIST';
-    const fetchResource = vi.fn(async (url: string) => url.endsWith('child.m3u8') ? response(textBytes(child)) : response(textBytes('x')));
+    const fetchResource = vi.fn(async (url: string) => response(url.endsWith('child.m3u8') ? textBytes(child) : url.endsWith('init.mp4') ? audioInit : textBytes('x')));
     await expect(readXHlsAudio(base, '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nchild.m3u8', new AbortController().signal, fetchResource)).resolves.toMatchObject({durationMs: 2000});
     const failing = vi.fn(async () => { throw new Error('network'); });
     await expect(readXHlsAudio(base, child, new AbortController().signal, failing)).rejects.toThrow('network');
@@ -101,7 +130,7 @@ describe('HLS audio', () => {
     await expect(readXHlsAudio(base, cycle, new AbortController().signal, fetchResource)).resolves.toBeNull();
     const segmentFailure = vi.fn(async (url: string) => {
       if (url.endsWith('a.m4s')) throw new Error('segment failed');
-      return response(textBytes('I'));
+      return response(url.endsWith('init.mp4') ? audioInit : textBytes('I'));
     });
     await expect(readXHlsAudio(base, child, new AbortController().signal, segmentFailure)).rejects.toThrow('segment failed');
   });
@@ -149,6 +178,7 @@ describe('HLS audio', () => {
       if (url.endsWith('child.m3u8')) {
         return response(textBytes(child));
       }
+      if (url.endsWith('init.mp4')) return response(audioInit);
       if (url.endsWith('b.m4s')) return abortingResponse;
       return completedResponse;
     });

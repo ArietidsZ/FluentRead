@@ -11,6 +11,8 @@ const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-x-home-recovery'));
 const runtime = arg('playwright-root');
 const helperPath = arg('focus-safe-helper');
+const expiredMaster = process.argv.includes('--expired-master');
+const videoOnlyInit = arg('video-only-init');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'x-home-proof.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
@@ -21,8 +23,11 @@ runFfmpeg(['-f', 'lavfi', '-i', 'color=c=0x123044:s=320x180:r=20', '-f', 'lavfi'
   '-movflags', 'frag_keyframe+empty_moov+default_base_moof', path.join(artifacts, 'mse.mp4')]);
 runFfmpeg(['-f', 'lavfi', '-i', 'sine=frequency=300:sample_rate=48000', '-t', '2', '-c:a', 'aac', '-f', 'hls',
   '-hls_segment_type', 'fmp4', '-hls_time', '1', '-hls_list_size', '0', path.join(artifacts, 'audio.m3u8')]);
+runFfmpeg(['-i', path.join(artifacts, 'mse.mp4'), '-an', '-c:v', 'copy', '-f', 'hls',
+  '-hls_segment_type', 'fmp4', '-hls_fmp4_init_filename', 'picture-init.mp4', '-hls_time', '1', '-hls_list_size', '0', path.join(artifacts, 'picture.m3u8')]);
+fs.writeFileSync(path.join(artifacts, 'master.m3u8'), '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="audio",DEFAULT=YES,URI="preferred-audio.m3u8"\n#EXT-X-STREAM-INF:BANDWIDTH=900000,AUDIO="audio"\npicture.m3u8\n');
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-home-profile-'));
-const report = {success: false, url: 'https://x.com/home', evidence: 'Production extension; two real MSE videos; real HLS recovery and PCM decode; simulated Base ASR and Microsoft translation', checks: [], errors: [], mediaRequests: []};
+const report = {success: false, url: 'https://x.com/home', expiredMaster, videoOnlyInit: videoOnlyInit || 'generated H.264', evidence: 'Production extension; two real MSE videos; late video-only playlist; real HLS recovery and PCM decode; simulated Base ASR and Microsoft translation', checks: [], errors: [], mediaRequests: []};
 const check = (name, pass, details) => { report.checks.push({name, pass: Boolean(pass), details}); assert.ok(pass, name); };
 let session, page, probe;
 const state = () => page.evaluate(() => ({
@@ -70,7 +75,8 @@ const state = () => page.evaluate(() => ({
     const url = new URL(route.request().url());
     report.mediaRequests.push(url.href);
     const filename = path.basename(url.pathname);
-    const file = path.join(artifacts, filename);
+    if (filename === 'preferred-audio.m3u8' && expiredMaster) return route.fulfill({status: 403, body: ''});
+    const file = filename === 'picture-init.mp4' && videoOnlyInit ? path.resolve(videoOnlyInit) : path.join(artifacts, filename === 'preferred-audio.m3u8' ? 'audio.m3u8' : filename);
     if (!fs.existsSync(file)) return route.fulfill({status: 404, body: ''});
     return route.fulfill({contentType: filename.endsWith('.m3u8') ? 'application/vnd.apple.mpegurl' : 'video/mp4',
       headers: {'access-control-allow-origin': '*', 'timing-allow-origin': '*'}, body: fs.readFileSync(file)});
@@ -80,7 +86,7 @@ const state = () => page.evaluate(() => ({
     </body></html>`}));
   page = await helper.newPageWithoutForeground(context);
   await page.goto(report.url);
-  await page.evaluate(async () => {
+  await page.evaluate(async expiredMaster => {
     const bytes = await (await fetch('https://video.twimg.com/ext_tw_video/999/pu/mse.mp4')).arrayBuffer();
     for (const video of document.querySelectorAll('video')) {
       await new Promise((resolve, reject) => {
@@ -97,11 +103,15 @@ const state = () => page.evaluate(() => ({
     await Promise.all(['111', '222'].map(id => new Promise(resolve => {
       const request = new XMLHttpRequest();
       request.open('GET', 'https://video.twimg.com/ext_tw_video/' + id + '/pu/pl/audio.m3u8');
-      request.responseType = 'arraybuffer';
+      request.responseType = id === '111' && expiredMaster ? 'text' : 'arraybuffer';
       request.onload = resolve;
       request.send();
     })));
-  });
+    // The latest captured response is the video-only child, as on the reported X post.
+    for (const filename of ['master.m3u8', 'picture.m3u8']) {
+      await (await fetch('https://video.twimg.com/ext_tw_video/111/pu/pl/' + filename)).text();
+    }
+  }, expiredMaster);
   await page.waitForFunction(() => [...document.querySelectorAll('video')].every(video => video.readyState >= 2));
   probe = await context.newCDPSession(page);
   const contexts = [];
@@ -134,7 +144,7 @@ const state = () => page.evaluate(() => ({
   await page.locator('[data-action="toggle-ai-subtitle"]').click();
   await page.waitForFunction(() => document.querySelector('[data-action="toggle-ai-subtitle"] [data-state]')?.textContent.includes('刷新页面'), null, {timeout: 15000});
   report.videoA = await state();
-  check('Unreadable MSE audio gives an actionable refresh hint and preserves the model', /刷新页面/.test(report.videoA.detail) && /无需重新下载模型/.test(report.videoA.detail), report.videoA);
+  check('Unreadable MSE audio gives a concise optional retry hint', /暂时无法生成 AI 字幕.*可尝试.*刷新页面/.test(report.videoA.detail) && !/请|下载模型/.test(report.videoA.detail), report.videoA);
   await page.locator('#post-0 video').evaluate(video => {video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/333/pu/img/proof.jpg';});
   await page.waitForTimeout(500);
   report.videoAEnriched = await state();
@@ -155,6 +165,9 @@ const state = () => page.evaluate(() => ({
   report.recoveryRequests = report.mediaRequests.slice(startRequests);
   check('Home identifies and reloads B HLS among two resource groups', report.recoveryRequests.some(url => /\/111\/.*m3u8/.test(url))
     && report.recoveryRequests.every(url => url.includes('/111/')), report.recoveryRequests);
+  check('Late video-only playlists do not trigger downloads of picture fragments', !report.recoveryRequests.some(url => /picture\d+\.m4s/.test(url)), report.recoveryRequests);
+  if (expiredMaster) check('A failed master falls through the video-only initialization to valid audio', report.recoveryRequests.some(url => url.endsWith('picture-init.mp4'))
+    && report.recoveryRequests.some(url => /audio\d+\.m4s/.test(url)), report.recoveryRequests);
   check('Home generates matching bilingual captions without opening a post', page.url() === report.url && report.videoB.original === 'Home audio recovered for video B.', report.videoB);
   const after = await page.locator('#post-1 video').evaluate(video => ({time: video.currentTime, paused: video.paused, rate: video.playbackRate, volume: video.volume, muted: video.muted}));
   assert.deepEqual(after, before, 'recognition preserves visible playback state');

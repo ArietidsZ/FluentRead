@@ -46,7 +46,7 @@ Model downloads try ModelScope first, then Hugging Face and two mirrors after co
 
 Moving the pointer away and back, rebuilding playback controls, temporarily hiding the video, or attaching its thumbnail does not discard the current AI timeline. A different media identity clears the previous video’s subtitles.
 
-You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying; the model does not need another download. Switching videos clears the previous video’s error, progress and model prompt.
+You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. It prefers the master playlist’s audio rendition and checks the initialization segment for an audio track before downloading media segments. Reading or decoding failures continue with other known playlists for the same video. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying. Switching videos clears the previous video’s error, progress and model prompt.
 
 </details>
 

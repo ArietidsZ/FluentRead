@@ -1,11 +1,37 @@
 /**
  * @file src/features/video-subtitle/content/hlsAudio.ts
  * 文件职责：从 X 播放器已请求的 HLS 清单读取完整音轨，避免按视频时长实时扫描。
- * 主要内容：选择音频 rendition 或低码率变体，按原顺序并发读取 fMP4 初始化段和媒体段，并严格限制大小与取消范围。
+ * 主要内容：选择音频 rendition 或低码率变体，先校验 fMP4 初始化段中的音频轨，再按原顺序并发读取媒体段，并严格限制大小与取消范围。
  * 模块边界：不解密媒体、不访问页面凭据、不操作播放器；fetch 由调用方注入，解码由独立浏览器音频适配器执行。
  */
 export interface HlsAudioManifest {next?: string; segments?: string[]; durationMs: number}
 const MAX_AUDIO_BYTES = 64 * 1024 * 1024;
+
+/** 沿 moov/trak/mdia/hdlr 检查真实音频轨，避免下载只有画面的高清分片。 */
+export function hasMp4AudioTrack(bytes: Uint8Array): boolean {
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const path = [0x6d6f6f76, 0x7472616b, 0x6d646961, 0x68646c72];
+    const find = (start: number, end: number, depth: number): boolean => {
+        for (let offset = start; offset + 8 <= end;) {
+            let size = view.getUint32(offset);
+            const type = view.getUint32(offset + 4);
+            let header = 8;
+            if (size === 1) {
+                if (offset + 16 > end) return false;
+                size = Number(view.getBigUint64(offset + 8));
+                header = 16;
+            } else if (size === 0) size = end - offset;
+            if (!Number.isSafeInteger(size) || size < header || size > end - offset) return false;
+            if (type === path[depth]) {
+                if (depth < 3 && find(offset + header, offset + size, depth + 1)) return true;
+                if (depth === 3 && size >= header + 12 && view.getUint32(offset + header + 8) === 0x736f756e) return true;
+            }
+            offset += size;
+        }
+        return false;
+    };
+    return find(0, bytes.length, 0);
+}
 
 export interface ReadBoundedMediaResponseOptions {
     /** Reserve bytes in a caller-owned budget before retaining each stream chunk. */
@@ -124,13 +150,21 @@ export async function readXHlsAudio(
         }
         const segments = manifest.segments;
         const results: Uint8Array[] = [];
-        let index = 0;
+        let index = 1;
         let total = 0;
         const consumeBytes = (count: number): boolean => {
             if (!Number.isSafeInteger(count) || count < 0 || total > MAX_AUDIO_BYTES - count) return false;
             total += count;
             return true;
         };
+        // 清单时长匹配只能证明属于同一视频，不能证明包含音轨。
+        // 先读取小型初始化段；纯视频清单直接交回上层尝试其他候选。
+        const initResponse = await fetchResource(segments[0], {signal: scope.signal, credentials: 'omit'});
+        results[0] = await readBoundedMediaResponse(initResponse, 1_000_000, scope.signal, {consumeBytes});
+        if (!hasMp4AudioTrack(results[0]) || scope.signal.aborted) {
+            cleanup();
+            return null;
+        }
         const worker = async () => {
             while (index < segments.length && !scope.signal.aborted) {
                 const next = index++;
