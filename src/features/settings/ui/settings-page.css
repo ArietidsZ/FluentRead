@@ -318,7 +318,7 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-card .el-divider__text { color: var(--muted); font-size: 11px; }
 .sidebar-tagline { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; overflow-wrap: anywhere; }
 /* 关于页保持宽幅内容布局；使用真实项目信息与静态体验介绍建立层次，不依赖固定视口高度。 */
-.about-page { --settings-content-width: 1320px; display: grid; gap: 24px; width: 100%; min-width: 0; }
+.about-page { display: grid; gap: 24px; width: 100%; min-width: 0; }
 .about-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(280px, .85fr); align-items: center; gap: 48px; padding: clamp(28px, 3vw, 48px); border: 1px solid var(--line); border-radius: 24px; background: radial-gradient(ellipse at top left, var(--brand-soft), transparent 70%), var(--surface); }
 .about-intro { min-width: 0; }
 .about-identity { display: flex; align-items: center; gap: 16px; margin-bottom: 28px; }
@@ -547,7 +547,8 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-app .search-box { width: 260px; height: 38px; padding: 0 12px; border-radius: 8px; box-shadow: none; }
 .settings-app .search-box:focus-within { border-color: var(--brand); outline: 2px solid var(--brand-soft); }
 .settings-app .search-box input:focus-visible { outline: 0; }
-.settings-app .search-results, .settings-app .search-empty { flex: 0 1 auto; max-height: 260px; margin: -8px 0 16px; overflow-y: auto; box-shadow: none; border-radius: 10px; }
+/* 搜索结果与页内分类、设置内容同列对齐；高度由结果数量决定且不参与压缩，超出上限后在面板内滚动。 */
+.settings-app .search-results, .settings-app .search-empty { flex: none; width: 100%; max-width: var(--settings-content-width); max-height: min(260px, 40vh); margin: 0 auto 18px; overflow-y: auto; box-shadow: none; border-radius: 10px; }
 .settings-app .search-results button { gap: 16px; color: var(--ink); }
 .settings-app .search-results small { margin-top: 4px; font-size: 11px; line-height: 1.4; }
 .settings-app .search-results b { flex: none; }
@@ -557,6 +558,7 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-page-tabs button[aria-current] { border-bottom-color: var(--brand); color: var(--brand-strong); font-weight: 650; }
 .settings-app .topbar, .settings-app .settings-page-tabs { width: 100%; max-width: var(--settings-content-width); margin-right: auto; margin-left: auto; }
 .settings-app .workspace:has(.services-view), .settings-app .workspace:has(.translation-center-view), .settings-app .workspace:has(.vocabulary-view) { --settings-content-width: 100%; }
+.settings-app .workspace:has(.about-page) { --settings-content-width: 1320px; }
 .settings-app .settings-card:not(.services-view):not(.translation-center-view):not(.vocabulary-view) > * { width: 100%; max-width: var(--settings-content-width); margin-right: auto; margin-left: auto; }
 .settings-app .settings-card { padding: 0 2px 24px; scrollbar-gutter: stable; overscroll-behavior-y: contain; }
 .settings-app .settings-card.services-view, .settings-app .settings-card.translation-center-view { width: calc(100% + 64px); margin-right: -32px; margin-left: -32px; padding: 0; scrollbar-gutter: auto; }
@@ -604,7 +606,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-app .topbar .settings-page-tabs { flex: 1; margin: 0; padding: 0; }
 .settings-app .topbar .settings-page-tabs button { padding: 10px 2px 12px; font-weight: 600; }
 .settings-app .userscript-settings-close { margin-left: auto; width: 36px; height: 36px; flex-basis: 36px; border-radius: 8px; }
-.settings-app .search-results, .settings-app .search-empty { margin: 0 0 18px; }
 /* 折叠标题保持清晰命中区域，用右侧箭头表达层级；常规设置不使用大面积强调色。 */
 .settings-app .workspace .settings-card details > summary {
   display: flex; align-items: center; gap: 12px; list-style: none;
