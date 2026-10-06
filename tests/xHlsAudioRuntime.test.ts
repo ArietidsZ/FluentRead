@@ -36,6 +36,29 @@ describe('X 首页音轨恢复', () => {
     expect(await reader.read(video, signal)).toHaveLength(16_000);
     expect(fetcher.mock.calls.some(([url]) => url.endsWith('.m3u8'))).toBe(false);
   });
+  it('uses a confirmed local media identity when the Home video poster is missing', async () => {
+    const {reader, video, signal, fetcher} = fixture([media('222'), media('111')]);
+    video.poster = '';
+    expect(await reader.read(video, signal, {poster: 'https://pbs.twimg.com/ext_tw_video_thumb/111/pu/img/test.jpg'})).toHaveLength(16_000);
+    expect(fetcher.mock.calls.every(([url]) => url.includes('/111/'))).toBe(true);
+  });
+  it('fetches a newer manifest even if an old cached manifest already exists', async () => {
+    const newer = media('111').replace('audio.m3u8', 'new.m3u8');
+    const {reader, video, signal, fetcher} = fixture([newer]);
+    reader.remember(media('111'), '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10\nexpired.m3u8');
+    expect(await reader.read(video, signal)).toHaveLength(16_000);
+    expect(fetcher).toHaveBeenCalledWith(newer, expect.anything());
+    expect(fetcher.mock.calls.some(([url]) => url.includes('expired'))).toBe(false);
+  });
+  it('tries another captured rendition when a preferred master points to an expired URL', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    reader.remember(media('111'), manifest);
+    reader.remember(media('111').replace('audio.m3u8', 'master.m3u8'), '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10\nexpired.m3u8');
+    fetcher.mockImplementation(async url => new Response(url.includes('expired') ? '' : new Uint8Array([1, 2]), {status: url.includes('expired') ? 403 : 200}));
+    expect(await reader.read(video, signal)).toHaveLength(16_000);
+    expect(fetcher.mock.calls.some(([url]) => url.includes('expired'))).toBe(true);
+    expect(FakeContext.closed).toBe(1);
+  });
   it('does not guess which video to recognize when multiple groups have no matching identity', async () => {
     const {reader, video, signal, fetcher} = fixture([media('111'), media('222')]);
     video.poster = '';

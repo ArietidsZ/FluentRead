@@ -680,6 +680,23 @@ pnpm test:video:x-fixture -- \
 
 使用 `--prepare-after-load true --trusted-storage true --browser-path <新版 Chrome 可执行文件> --extension-install cdp` 验证播放器页面已打开后才下载模型，无需刷新即可生成字幕。该用例强制将本地存储设为 `TRUSTED_CONTEXTS`，通过 CDP 在扩展内容脚本上下文确认直接读取被拒绝，再验证后台模型查询与真实生成成功、没有误开设置页。旧浏览器没有此 API，不能作为这条权限回归的验证环境。`--extension-install cdp` 在独立临时 profile 中通过官方 DevTools `Extensions.loadUnpacked` 加载扩展，兼容不再接受命令行加载扩展的新 Chrome；不会使用日常 profile。追加 `--model-query-failure true` 可注入一次后台状态查询失败，检查提示重试、没有误开下载页，随后仍使用真实模型生成。生成前、生成中和就绪后的截图及 DOM 断言同时检查菜单分组、下载按钮并排和内容溢出。
 
+### AI 字幕中文质量与性能基准
+
+`scripts/run-video-ai-recognition-benchmark.cjs` 在同一个临时 profile 中对照两份生产扩展，实际调用 Whisper Tiny/Base 转写三段确定性的普通话音频（含较快长句），分别测显式中文和自动检测。模型在本机执行，测量不使用用户日常浏览器配置。
+
+```bash
+node scripts/run-video-ai-recognition-benchmark.cjs \
+  --extension-dir <baseline-production-build> \
+  --next-extension-dir .output/chrome-mv3 \
+  --playwright-root <path> \
+  --focus-safe-helper <path> \
+  --artifacts-dir /private/tmp/fluentread-ai-recognition-benchmark
+```
+
+报告包含原始识别文字、字符错误率 CER、首次模型准备耗时、各音频窗口转写耗时、后端与量化类型、隔离浏览器累计 CPU 时间和累计 RSS 峰值。CER 忽略标点但保留简繁字形差异；RSS 累加可能重复计入共享页，不等于独占物理内存或 GPU 显存。应在没有并行构建等负载时测量。首次推理包含冷启动，第二版本复用模型下载缓存，不能把下载/首次推理差异算作代码提速。合成语音只是可重复基准，不能代表影视对白、方言、背景音乐或用户帖子里的实际准确率。
+
+`scripts/run-video-ai-media-persistence-test.cjs` 使用已保存的时间轴和确定性翻译验证元数据补全、鼠标移出/移回、控制栏重建、同媒体 video 替换、暂时隐藏及真正换媒体时的字幕状态；它不调用真实 ASR，不能用来声称识别准确率提高。
+
 ### 完整流水线
 
 本地确定性回归负责测试审计、WXT prepare、类型检查、严格覆盖率、四组 Vitest、Chrome/Firefox/userscript 构建及文档构建：

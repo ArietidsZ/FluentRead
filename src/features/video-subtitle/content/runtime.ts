@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：相同译文保留原文且不重复展示；协调当前视频与全屏宿主、原生轨道、字幕校时和预翻译；X 原文与译文成对显示，音频读取失败提供恢复提示，切换视频时隔离错误、模型准备和旧识别会话；失效时的取消消息统一进入异步失败处理。
+ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 媒体元数据补全、悬浮控件重挂载及暂时隐藏保留识别时间轴，真正换视频才隔离旧会话。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -109,8 +109,8 @@ import {createVideoAiModelSetup} from './video-ai/modelSetup';
 import {isVideoSubtitleInTargetLanguage} from './subtitleLanguage';
 import {createVideoPlayerLocator} from './videoPlayerLocator';
 import {createVideoPlayerBinding, type VideoPlayerBinding} from './videoPlayerBinding';
-import {getVideoTranscriptionCacheRequest, VideoTranscriptionCacheClient} from './transcriptionCacheClient';
-import {buildVideoAiSubtitleVideoKey, type VideoAiSubtitleCacheRequest} from '../transcriptionCache';
+import {getVideoTranscriptionCacheRequest, getVideoTranscriptionMediaKey, getVideoTranscriptionMediaTransition, VideoTranscriptionCacheClient} from './transcriptionCacheClient';
+import type {VideoAiSubtitleCacheRequest, VideoAiSubtitleCacheSource} from '../transcriptionCache';
 import {getCaptionPlatform} from './platforms';
 import {mountPlatformCaptions} from './platformRuntime';
 import {YoutubeHumanCaptions} from './youtubeHumanCaptions';
@@ -230,6 +230,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     : `video-ai-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   let observedMediaSource = '';
   let observedStableMediaKey = '';
+  let observedMediaIdentity: VideoAiSubtitleCacheSource | null = null;
   let mediaMissingTimer: ReturnType<typeof setTimeout> | undefined;
   let activeVideoLanguage = config.videoSourceLanguage;
   const playerLocator = createVideoPlayerLocator();
@@ -239,12 +240,8 @@ export function mountVideoSubtitleTranslation(): () => void {
   let cacheLookup: Promise<boolean> | undefined;
   let activeAiCacheRequest: VideoAiSubtitleCacheRequest | null = null;
   const transcriptCache = new VideoTranscriptionCacheClient(sendRuntimeMessage);
-  const currentCacheRequest = () => getVideoTranscriptionCacheRequest(observedVideo, activeAiModel, activeVideoLanguage, window.location.href);
-  const stableMediaKey = (video: HTMLVideoElement | null) => {
-    const request = getVideoTranscriptionCacheRequest(video, activeAiModel, activeVideoLanguage, window.location.href);
-    const source = request?.source;
-    return source ? buildVideoAiSubtitleVideoKey(source) || String(source.directSource || '') : '';
-  };
+  const currentCacheRequest = () => getVideoTranscriptionCacheRequest(observedVideo, activeAiModel, activeVideoLanguage, window.location.href, observedMediaIdentity);
+  const stableMediaKey = (video: HTMLVideoElement | null) => getVideoTranscriptionMediaKey(video === observedVideo ? currentCacheRequest()?.source : getVideoTranscriptionCacheRequest(video, activeAiModel, activeVideoLanguage, window.location.href)?.source);
   const hlsAudio = new XHlsAudioReader();
   const xSubtitleLoader = new XSubtitleLoader({
     fetch: (url, options) => fetch(url, {...options, credentials: 'omit'}),
@@ -647,28 +644,33 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const syncVideoElement = (confirmMissing = false) => {
     const nextVideo = playerLocator.sync()?.video || null;
-    // 展开播放器时 React 可能先卸载旧 video，再挂载同一媒体副本；短暂空窗保留识别会话。
-    if (!nextVideo && observedVideo && isXVideoPage() && !confirmMissing) {
+    if (!nextVideo && observedVideo && isXVideoPage() && (observedVideo.isConnected || !confirmMissing)) {
+      // 悬浮/页面布局可能暂时隐藏仍连接的播放器；候选不可见不等于媒体离开。
+      if (observedVideo.isConnected) { if (mediaMissingTimer) clearTimeout(mediaMissingTimer); mediaMissingTimer = undefined; return; }
       mediaMissingTimer ??= setTimeout(() => { mediaMissingTimer = undefined; syncVideoElement(true); }, 1500);
       return;
     }
     if (mediaMissingTimer) clearTimeout(mediaMissingTimer);
     mediaMissingTimer = undefined;
     const nextSource = nextVideo?.currentSrc || nextVideo?.src || '';
-    const nextStableMediaKey = stableMediaKey(nextVideo);
-    if (nextVideo === observedVideo && nextSource === observedMediaSource && nextStableMediaKey === observedStableMediaKey) return;
+    const nextIdentity = getVideoTranscriptionCacheRequest(nextVideo, activeAiModel, activeVideoLanguage, window.location.href)?.source || null;
     const previousVideo = observedVideo;
-    const identityEnriched = previousVideo === nextVideo && nextSource === observedMediaSource
-      && (!observedStableMediaKey || observedStableMediaKey.startsWith('blob:'));
-    const sameMedia = previousVideo && nextVideo && (identityEnriched
-      || Boolean(observedStableMediaKey && observedStableMediaKey === nextStableMediaKey));
+    const {sameMedia, identity: nextObservedIdentity, key: nextObservedKey} = getVideoTranscriptionMediaTransition(
+      observedMediaIdentity, nextIdentity, Boolean(previousVideo && previousVideo === nextVideo), observedMediaSource, nextSource);
+    if (nextVideo === observedVideo && nextSource === observedMediaSource && nextObservedKey === observedStableMediaKey) return;
+    const identityChanged = nextObservedKey !== observedStableMediaKey;
+    if (sameMedia && identityChanged && !isAiCaptureActive()) { cacheEpoch += 1; cacheLookup = undefined; }
     xCaptionSource.restoreTracks();
     stopCaptionClock();
     pretranslationController.observe(null);
     observedVideo = nextVideo || null;
     observedMediaSource = nextSource;
-    observedStableMediaKey = nextStableMediaKey;
-    if (identityEnriched && activeAiCacheRequest) activeAiCacheRequest = currentCacheRequest();
+    observedMediaIdentity = nextObservedIdentity;
+    observedStableMediaKey = nextObservedKey;
+    if (sameMedia && identityChanged && activeAiCacheRequest) {
+      activeAiCacheRequest = currentCacheRequest();
+      if (activeAiCacheRequest && aiFullPhase === 'ready' && aiCues.length > 0) void transcriptCache.set(activeAiCacheRequest, aiCues);
+    }
     if (previousVideo && isXVideoPage() && !sameMedia) {
       aiModelSetup.reset();
       regenerateAiRequested = false;
@@ -687,7 +689,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     if (isXVideoPage()) document.dispatchEvent(new CustomEvent(YOUTUBE_BRIDGE_REPLAY_EVENT));
     startCaptionClock();
     schedulePretranslation();
-    if (isXVideoPage() && (!sameMedia || identityEnriched)) void restoreCachedAiSubtitles();
+    if (isXVideoPage() && (!sameMedia || identityChanged)) void restoreCachedAiSubtitles();
   };
 
   const appendAiSubtitleCue = (cue: VideoAiStabilizedCue) => {
@@ -793,7 +795,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     getAudio: (video, signal) => {
       // 重放旧清单，并补查 Resource Timing 中未经过页面 Fetch/XHR 的清单。
       document.dispatchEvent(new CustomEvent(YOUTUBE_BRIDGE_REPLAY_EVENT));
-      return hlsAudio.read(video, signal);
+      return hlsAudio.read(video, signal, currentCacheRequest()?.source);
     },
     getVideo: () => observedVideo,
     getModel: () => activeAiModel,
@@ -1344,7 +1346,6 @@ export function mountVideoSubtitleTranslation(): () => void {
     playerBinding?.sync();
     updatePlayerUiState();
   };
-
 
   const handleDocumentClick = (event: MouseEvent) => {
     if (!event.isTrusted) return;

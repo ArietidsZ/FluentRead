@@ -1,13 +1,14 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.worker.ts
  * 文件职责：运行独立的 Whisper ONNX Worker，复用模型 session 并执行受限时长的本地音频推理。
- * 主要内容：配置 WASM/WebGPU 后端、串行处理 prepare/transcribe/dispose、解析 chunk 时间戳并回传诊断信息。
+ * 主要内容：配置 WASM/WebGPU 后端、串行处理请求，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
  * 模块边界：只运行模型与 Worker 消息循环，不访问页面 DOM、后台消息或共享 Offscreen 业务状态。
  */
 import { env, InterruptableStoppingCriteria, pipeline, Tensor } from '@huggingface/transformers';
 import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
+  isDegenerateVideoTranscript,
 } from '@/src/features/video-subtitle/transcription';
 import {
   VIDEO_AI_MODEL_REMOTE_HOST,
@@ -15,7 +16,7 @@ import {
   cacheVideoAiQ8ModelFiles,
 } from './modelCache';
 import {parseWhisperChunkTimestamps} from './timestampParser';
-import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage} from './transcriptionOptions';
+import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage, type WhisperDetectedLanguage} from './transcriptionOptions';
 import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
 import {probeWebGpu} from '@/src/shared/onnx/webgpu';
 
@@ -82,8 +83,10 @@ let webGpuProbePromise: Promise<{available: boolean; info: string}> | null = nul
 let webGpuProbeInfo = '';
 let webGpuDisabled = false;
 let workerTaskQueue: Promise<void> = Promise.resolve();
-const detectedLanguages = new Map<string, string>();
+const detectedLanguages = new Map<string, {language: string; confirmed: boolean}>();
 const MAX_DETECTED_LANGUAGE_SESSIONS = 16;
+const MIN_LANGUAGE_CONFIDENCE = 0.8;
+const MIN_LANGUAGE_CONFIRMATION_SAMPLES = 3 * 16_000;
 
 const MAX_WHISPER_AUDIO_SECONDS = 30;
 const MAX_REALTIME_INFERENCE_MS = 15_000;
@@ -277,7 +280,7 @@ async function runModelInference<T>(operation: () => Promise<T>): Promise<T> {
 async function detectWhisperSourceLanguage(
   transcriber: LocalTranscriber,
   audio: Float32Array,
-): Promise<string | null> {
+): Promise<WhisperDetectedLanguage | null> {
   const processor = transcriber.processor;
   const model = transcriber.model;
   const generationConfig = model?.generation_config;
@@ -308,7 +311,7 @@ async function detectWhisperSourceLanguage(
     output = await runModelInference(() => model({...processed, decoder_input_ids: decoderInputIds}));
     const detected = chooseWhisperSourceLanguage(output.logits, {isMultilingual, langToId});
     if (!detected) throw new Error('Whisper 首步没有可用的语言 token logits');
-    return detected.language;
+    return detected;
   } finally {
     // A direct model forward bypasses pipeline's normal generation cleanup;
     // release logits, KV tensors and processed features immediately after the
@@ -326,17 +329,21 @@ async function resolveWhisperSourceLanguage(
 ): Promise<string> {
   const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
   const cacheKey = sessionKey ? `${transcriberModelId}:${sessionKey}` : '';
-  if (cacheKey && detectedLanguages.has(cacheKey)) return detectedLanguages.get(cacheKey)!;
-  const language = await detectWhisperSourceLanguage(transcriber, audio);
-  if (!language) throw new Error('无法自动检测本地视频音频语言，请在视频字幕设置中选择源语言后重试');
-  if (cacheKey) {
+  const previous = cacheKey ? detectedLanguages.get(cacheKey) : undefined;
+  if (previous?.confirmed) return previous.language;
+  const detected = await detectWhisperSourceLanguage(transcriber, audio);
+  if (!detected) throw new Error('无法自动检测本地视频音频语言，请在视频字幕设置中选择源语言后重试');
+  if (cacheKey && detected.confidence >= MIN_LANGUAGE_CONFIDENCE && audio.length >= MIN_LANGUAGE_CONFIRMATION_SAMPLES) {
     if (detectedLanguages.size >= MAX_DETECTED_LANGUAGE_SESSIONS) {
       const oldest = detectedLanguages.keys().next().value;
       if (typeof oldest === 'string') detectedLanguages.delete(oldest);
     }
-    detectedLanguages.set(cacheKey, language);
+    // 首窗可能是音乐、片头或模糊人声；至少两个足够长的窗一致后才固定全片语言。
+    detectedLanguages.set(cacheKey, {language: detected.language, confirmed: previous?.language === detected.language});
+  } else if (cacheKey) {
+    detectedLanguages.delete(cacheKey);
   }
-  return language;
+  return detected.language;
 }
 
 function cleanTranscriptText(value: unknown): string {
@@ -348,6 +355,7 @@ async function transcribeAudioOnce(
   request: WorkerRequest,
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
   boundedAudio: Float32Array,
+  retryDegenerate = false,
 ): Promise<WorkerTranscriptionResult> {
   const transcriber = await getLocalTranscriber(model);
   const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
@@ -362,16 +370,26 @@ async function transcribeAudioOnce(
   const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), MAX_REALTIME_INFERENCE_MS);
   let output: { text?: unknown; chunks?: unknown };
   try {
-    output = await runModelInference(() => transcriber(
-      boundedAudio,
-      buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, boundedAudio.length / 16_000, stoppingCriteria),
-    )) as { text?: unknown; chunks?: unknown };
+    const options = buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, boundedAudio.length / 16_000, stoppingCriteria);
+    if (retryDegenerate) {
+      options.no_repeat_ngram_size = 4;
+      options.repetition_penalty = 1.15;
+    }
+    output = await runModelInference(() => transcriber(boundedAudio, options)) as { text?: unknown; chunks?: unknown };
   } finally {
     self.clearTimeout(timeout);
   }
   if (stoppingCriteria.interrupted) {
     const error = new Error(`本地视频 AI 推理超过 ${MAX_REALTIME_INFERENCE_MS / 1000} 秒`);
     throw transcriberBackend === 'webgpu' ? new WebGpuFallbackError(error) : error;
+  }
+
+  if (isDegenerateVideoTranscript(output?.text) || (Array.isArray(output?.chunks)
+    && output.chunks.some(chunk => isDegenerateVideoTranscript(chunk?.text)))) {
+    const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
+    if (sessionKey) detectedLanguages.delete(`${transcriberModelId}:${sessionKey}`);
+    if (!retryDegenerate) return transcribeAudioOnce(request, model, boundedAudio, true);
+    throw new Error('AI 字幕识别出现异常重复，请在视频设置中指定原语言或改用 Base 模型后重新识别');
   }
 
   const audioDurationMs = boundedAudio.length / 16;
