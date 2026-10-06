@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/presentation.ts
  * 文件职责：解析网页图片的实际视觉承载面，兼容宿主把 img 设为透明、再由同级背景图绘制原图的实现。
- * 主要内容：在原图被宿主隐藏时，仅接受 URL、同级关系和几何尺寸都明确一致的唯一背景面，提供背景尺寸到译图 object-fit 的映射，并通过可见区域命中测试识别宿主遮挡。
+ * 主要内容：在原图被宿主隐藏时，仅接受 URL、同级关系和几何尺寸都明确一致的唯一背景面，提供背景尺寸到译图 object-fit 的映射；可见区域命中测试保留与原图链接及尺寸一致的透明媒体入口，识别真正的宿主遮挡。
  * 模块边界：本模块只读取当前 DOM、计算样式和几何，不写入页面、不管理翻译请求；runtime 负责保存返回的 element，避免租约隐藏原图后再次依赖 opacity 重新发现。
  */
 export type ImagePresentationKind = 'image' | 'background';
@@ -16,18 +16,42 @@ export interface BitmapSurfaceStyle {
     objectPosition: string;
 }
 
+/** X 把图片放在 inert 容器内，由同一媒体链接的透明兄弟节点接收鼠标；它仍属于原图。 */
+function isMediaLinkOverlay(surface: HTMLElement, foreground: Element): boolean {
+    if (!foreground.matches('a[href]') || foreground.childElementCount || foreground.textContent?.trim()) return false;
+    const sourceLink = surface.closest('a[href]');
+    const container = foreground.parentElement;
+    if (!sourceLink || !container) return false;
+    // 只接受图片近邻内的链接，不能把外部查看器或整页浮层认领给缩略图。
+    let local = false;
+    for (let parent = surface.parentElement, depth = 0; parent && depth < 3; parent = parent.parentElement, depth++) {
+        if (parent === container) {local = true; break;}
+    }
+    if (!local || !rectMatches(surface.getBoundingClientRect(), foreground.getBoundingClientRect())) return false;
+    try {
+        const base = surface.ownerDocument.baseURI || undefined;
+        if (new URL(sourceLink.getAttribute('href')!, base).href !== new URL(foreground.getAttribute('href')!, base).href) return false;
+    } catch {return false;}
+    const style = getComputedStyle(foreground);
+    return style.position === 'absolute' && style.backgroundImage === 'none'
+        && (style.backgroundColor === 'transparent' || style.backgroundColor === 'rgba(0, 0, 0, 0)');
+}
+
 /** 译层脱离宿主堆叠上下文，因此只在原图仍位于前景时交接显示权。 */
 export function isImagePresentationOccluded(surface: HTMLElement, visible: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>, overlayHost: HTMLElement | null): boolean {
     const document = surface.ownerDocument;
     if (typeof document.elementsFromPoint !== 'function') return false;
     // 使用裁切后的区域；中心与四角任一被其他内容盖住，就撤下整个译层，避免压住弹窗或菜单。
     const samples = [[0.5, 0.5], [0.1, 0.1], [0.9, 0.1], [0.1, 0.9], [0.9, 0.9]];
+    const mediaLinks = new Map<Element, boolean>();
     return samples.some(([x, y]) => {
         const hits = document.elementsFromPoint(visible.left + (visible.right - visible.left) * x,
             visible.top + (visible.bottom - visible.top) * y);
         const foreground = hits.find(hit => hit !== overlayHost && !overlayHost?.contains(hit));
         // 透明图片、pointer-events:none 图片和背景承载面可能命中其容器；自有控件不参与遮挡判定。
-        return Boolean(foreground && foreground !== surface && !surface.contains(foreground) && !foreground.contains(surface));
+        if (!foreground || foreground === surface || surface.contains(foreground) || foreground.contains(surface)) return false;
+        if (!mediaLinks.has(foreground)) mediaLinks.set(foreground, isMediaLinkOverlay(surface, foreground));
+        return !mediaLinks.get(foreground);
     });
 }
 

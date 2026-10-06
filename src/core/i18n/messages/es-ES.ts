@@ -3000,4 +3000,12 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "选中文字后查看翻译卡片，查词或按需学习句子": "Selecciona texto para abrir su tarjeta, consultar palabras o estudiar una frase",
     "先看译文，再按需读懂、分析句法、学用法或练习": "Lee la traducción y después explora el significado, la gramática, el uso o la práctica",
     "划词卡片内容": "Contenido de la tarjeta de traducción",
+    // 本地语音、跟读与模型初始化反馈。
+    "正在生成语音…": "Generando voz…",
+    "停止生成语音": "Detener la generación de voz",
+    "本地语音生成失败，请重试": "No se pudo generar la voz local. Inténtalo de nuevo.",
+    "语音播放失败，请重试": "No se pudo reproducir la voz. Inténtalo de nuevo.",
+    "跟读进度按句段时长估算": "El progreso de lectura se estima a partir de la duración del audio de cada frase",
+    "跟随语音词边界": "Seguir los límites de las palabras de la voz",
+    "正在初始化本地模型…": "Inicializando los modelos locales…",
 };

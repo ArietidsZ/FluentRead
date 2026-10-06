@@ -2998,4 +2998,12 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     "选中文字后查看翻译卡片，查词或按需学习句子": "Sélectionnez du texte pour ouvrir sa carte, consulter un mot ou étudier une phrase",
     "先看译文，再按需读懂、分析句法、学用法或练习": "Lisez la traduction, puis explorez le sens, la grammaire, l’usage ou les exercices",
     "划词卡片内容": "Contenu de la carte de traduction",
+    // 本地语音、跟读与模型初始化反馈。
+    "正在生成语音…": "Génération de la voix…",
+    "停止生成语音": "Arrêter la génération de la voix",
+    "本地语音生成失败，请重试": "Échec de la génération vocale locale. Réessayez.",
+    "语音播放失败，请重试": "Échec de la lecture vocale. Réessayez.",
+    "跟读进度按句段时长估算": "La progression de lecture est estimée à partir de la durée audio de chaque phrase",
+    "跟随语音词边界": "Suivre les limites des mots de la voix",
+    "正在初始化本地模型…": "Initialisation des modèles locaux…",
 };

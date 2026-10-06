@@ -4,7 +4,7 @@ import {basename, dirname, resolve} from 'node:path';
 import {gzipSync} from 'node:zlib';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
-import {defineConfig, normalizePath, type Plugin} from 'vite';
+import {defineConfig, normalizePath, transformWithEsbuild, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
 import {UI_LANGUAGE_BUNDLES} from '../src/core/i18n/bundles';
 import {zhCNMessages} from '../src/core/i18n/messages/zh-CN';
@@ -46,7 +46,7 @@ function installedVersion(name: string): string {
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
 const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 // 语言文件的内容哈希来自合并后的消息目录，固定到首次包含这些文件的提交。
-const userscriptLanguageResourceCommit = '53822f63018a4228b7a86bd32dcf4c2ba80ef71e';
+const userscriptLanguageResourceCommit = '360d6074df04be6a7c5929e0c31279a020070b2c';
 const iconMetaUrl = greasyForkSource
     ? `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/public/icon/64.png`
     : iconDataUrl;
@@ -199,8 +199,7 @@ function bundledLibraryNotices(moduleIds: readonly string[]): string {
 }
 
 // Via 等旧内核可能缺少共享核心使用的基础方法；在单文件入口最前方注入小型兼容层。
-const compatibilityPrelude = `${compatibilityPreludeStart}
-(function () {
+const compatibilityPrelude = `(function () {
     if (typeof Object.fromEntries !== 'function') {
         Object.defineProperty(Object, 'fromEntries', {
             configurable: true,
@@ -260,8 +259,7 @@ const compatibilityPrelude = `${compatibilityPreludeStart}
             }
         });
     }
-}());
-${compatibilityPreludeEnd}`;
+}());`;
 
 type BrowserGlobal = 'browser' | 'chrome';
 
@@ -349,7 +347,7 @@ function bundleUserscriptCss(): Plugin {
         enforce: 'post',
         generateBundle: {
           order: 'post',
-          handler(_options, bundle) {
+          async handler(_options, bundle) {
             const cssEntries = Object.entries(bundle).filter(([, item]) => item.type === 'asset' && item.fileName.endsWith('.css'));
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
             const compressedCss = greasyForkSource ? '' : gzipSync(Buffer.from(css, 'utf8'), {level: 9}).toString('base64');
@@ -376,8 +374,13 @@ function bundleUserscriptCss(): Plugin {
             const entry = Object.values(bundle).find((item) => item.type === 'chunk' && item.isEntry);
             if (!entry || entry.type !== 'chunk') throw new Error('Userscript entry chunk was not generated');
 
+            // 兼容层在 Vite 主产物之外拼接，也需压缩空白和局部变量；不改语法或许可声明。
+            const preludeCode = greasyForkSource ? compatibilityPrelude : (await transformWithEsbuild(
+                compatibilityPrelude, 'userscript-compatibility-prelude.js',
+                {target: 'es2018', minifyWhitespace: true, minifyIdentifiers: true, minifySyntax: false},
+            )).code;
             const bootstrap = [
-                compatibilityPrelude,
+                `${compatibilityPreludeStart}\n${preludeCode}\n${compatibilityPreludeEnd}`,
                 `globalThis.__FLUENTREAD_ICON_DATA__=${JSON.stringify(iconMetaUrl)};`,
                 ...(bundleLibraries ? [`globalThis.__FLUENTREAD_APPROVE_DATA__=${JSON.stringify(approveDataUrl)};`] : []),
                 ...(greasyForkSource

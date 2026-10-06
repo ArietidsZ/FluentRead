@@ -1074,7 +1074,7 @@ describe('运行期反馈文案资源', () => {
       .replaceAll('(\\d+(?:\\.\\d+)?)', '12')
       .replaceAll('(\\d+)', '12')
       .replaceAll('(PDF|ePub|DOCX)', 'PDF')
-      .replaceAll('(主网页 RPC|备用网页 RPC|旧版 gtx 接口)', '主网页 RPC')
+      .replaceAll('(主网页 RPC|备用网页 RPC)', '主网页 RPC')
       .replaceAll('[：:]\\s*', '：')
       .replaceAll('([^：]+)', 'https://example.test/model.onnx')
       .replaceAll('([A-Za-z]{2,3}-[A-Za-z]{2,4}-[A-Za-z]+Neural)', 'en-US-AvaNeural')
@@ -1098,8 +1098,8 @@ describe('运行期反馈文案资源', () => {
     expect(translateLegacyText('在线 TTS 和本地 TTS 均失败：网络请求失败；本地 TTS 模型缓存不完整', 'fr-FR'))
       .toBe('Les voix en ligne et locale ont toutes deux échoué : La requête réseau a échoué ; Le cache du modèle vocal local est incomplet');
     expect(translateLegacyText('图片翻译失败：Offscreen 文档准备超时', 'en-US')).toBe('Image translation failed: Preparing the offscreen document timed out');
-    expect(translateLegacyText('谷歌翻译所有匿名接口均失败：主网页 RPC: 请求超时（10 秒）；旧版 gtx 接口: 返回格式异常', 'es-ES'))
-      .toBe('Fallaron todos los endpoints anónimos de Google Translate: RPC web principal: La solicitud agotó el tiempo de espera (10 s); Endpoint gtx antiguo: Formato de respuesta inesperado');
+    expect(translateLegacyText('谷歌翻译所有匿名接口均失败：主网页 RPC: 请求超时（10 秒）；备用网页 RPC: 返回格式异常', 'es-ES'))
+      .toBe('Fallaron todos los endpoints anónimos de Google Translate: RPC web principal: La solicitud agotó el tiempo de espera (10 s); RPC web de respaldo: Formato de respuesta inesperado');
   });
 });
 

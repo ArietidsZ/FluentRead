@@ -75,6 +75,25 @@ describe('packaged WASM diagnostic severity', () => {
         expect(output.error).toHaveBeenCalledTimes(2);
     });
 
+    it('混合后端保留首次完整警告，重复提示与 verbose 建议进入 debug，未知回退仍警告', () => {
+        const {output,write}=createLog();
+        const prefix='2026-10-06 19:44:07.577299 [W:onnxruntime:, session_state.cc:1367 VerifyEachNodeIsAssignedToAnEp] ';
+        const message='Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance. e.g. ORT explicitly assigns shape related ops to CPU to improve perf.';
+        const first=prefix+message;
+        write(first);expect(output.warn).toHaveBeenCalledWith(first);
+        const repeat=first.replace('19:44:07.577299','19:45:08.000000').replace(':1367',':1280');
+        write(repeat);expect(output.debug).toHaveBeenCalledWith(repeat);expect(output.warn).toHaveBeenCalledTimes(1);
+        const hint=prefix+'Rerunning with verbose output on a non-minimal build will show node assignments.';
+        write(hint);expect(output.debug).toHaveBeenCalledWith(hint);
+        for(const unknown of [first+' Extra warning',first.replace('VerifyEachNodeIsAssignedToAnEp','AnotherWarning'),prefix+'Some nodes were not assigned to the preferred execution providers']) {
+            write(unknown);expect(output.warn).toHaveBeenCalledWith(unknown);
+        }
+        for(const failure of [first.replace('[W:','[E:'),first+'\nFailed loading model']) {
+            write(failure);expect(output.error).toHaveBeenCalledWith(failure);
+        }
+        const second=createLog();second.write(first);expect(second.output.warn).toHaveBeenCalledWith(first);
+    });
+
     it('浏览器 CPU 厂商未知的已知提示仅进入 debug，错误、其他 vendor 和多行失败保持可见', () => {
         const {output,write}=createLog();
         const prefix='2026-10-03 23:48:59.693198 [W:onnxruntime:Default, cpuid_info.cc:91 LogEarlyWarning] ';

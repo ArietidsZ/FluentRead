@@ -38,6 +38,8 @@
 * { box-sizing: border-box; }
 /* 工具栏 popup 的 viewport 由文档内容决定；根宽度不能再依赖 100vw，否则首次打开时会自我收缩。 */
 html { width: var(--interface-popup-width, 320px); }
+/* 完整样式到达后解除 HTML 关键样式的临时高度，菜单仍按实际内容伸缩。 */
+html { min-height: 0; }
 body, #app { width: 100%; }
 html, body, #app { min-width: 0; margin: 0; overflow-x: hidden; background: #fff; }
 :root.dark body, :root.dark #app { background: #14161b; }

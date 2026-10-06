@@ -78,7 +78,7 @@ export const runtimeFeedbackPatterns: readonly LocalizedLegacyPattern[] = [
         'Backup site {1}: {2}', '予備サイト {1}：{2}', '예비 사이트 {1}: {2}', 'Site de secours {1} : {2}', 'Резервный сайт {1}: {2}', 'Sitio de respaldo {1}: {2}'),
     pattern("^DeepLX 所有备用站点均失败：(.+)$", [1],
         'All DeepLX backup sites failed: {1}', 'DeepLX の予備サイトがすべて失敗しました：{1}', 'DeepLX 예비 사이트가 모두 실패했습니다: {1}', 'Tous les sites de secours DeepLX ont échoué : {1}', 'Все резервные сайты DeepLX не сработали: {1}', 'Fallaron todos los sitios de respaldo de DeepLX: {1}'),
-    pattern("^(主网页 RPC|备用网页 RPC|旧版 gtx 接口): (.+)$", [1, 2],
+    pattern("^(主网页 RPC|备用网页 RPC): (.+)$", [1, 2],
         '{1}: {2}', '{1}：{2}', '{1}: {2}', '{1} : {2}', '{1}: {2}', '{1}: {2}'),
     pattern("^谷歌翻译所有匿名接口均失败：(.+)$", [1],
         'All anonymous Google Translate endpoints failed: {1}', 'Google Translate の匿名エンドポイントがすべて失敗しました：{1}', 'Google Translate 익명 엔드포인트가 모두 실패했습니다: {1}', 'Tous les points de terminaison anonymes de Google Translate ont échoué : {1}', 'Все анонимные endpoint Google Translate не сработали: {1}', 'Fallaron todos los endpoints anónimos de Google Translate: {1}'),

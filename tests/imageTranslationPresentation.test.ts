@@ -75,6 +75,48 @@ describe('image presentation foreground ownership', () => {
         Object.assign(document, {elementsFromPoint: () => [image, dialog, document.body]});
         expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
     });
+
+    function mediaLinkFixture() {
+        const env = fixture();
+        Object.defineProperty(env.document, 'baseURI', {value: 'https://x.com/a16z/status/2107176509928878490'});
+        const container = env.image.parentElement!;
+        const inert = env.document.createElement('div'); inert.setAttribute('inert', '');
+        const link = env.document.createElement('a');
+        link.setAttribute('href', '/a16z/status/2107176509928878490/photo/1');
+        container.append(inert); inert.append(link); link.append(env.image);
+        const overlay = env.document.createElement('a');
+        overlay.setAttribute('href', 'https://x.com/a16z/status/2107176509928878490/photo/1');
+        overlay.setAttribute('aria-label', '查看媒体');
+        overlay.getBoundingClientRect = env.image.getBoundingClientRect;
+        container.append(overlay);
+        env.styles.set(overlay, {position: 'absolute', backgroundImage: 'none', backgroundColor: 'rgba(0, 0, 0, 0)'});
+        Object.assign(env.document, {elementsFromPoint: () => [overlay, container, env.document.body]});
+        return {...env, container, inert, link, overlay};
+    }
+
+    it('accepts the matching empty media link above X inert photos and rechecks changed overlays', () => {
+        const {image, overlay} = mediaLinkFixture();
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
+        overlay.setAttribute('href', '/a16z/status/2107176509928878490/photo/2');
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(true);
+    });
+
+    it.each(['different-link', 'no-source-link', 'invalid-link', 'far-parent', 'detached', 'geometry', 'text', 'child', 'background', 'color', 'static'])
+    ('does not treat a %s overlay as the image media link', mode => {
+        const env = mediaLinkFixture();
+        if (mode === 'different-link') env.overlay.setAttribute('href', '/a16z/status/other/photo/1');
+        if (mode === 'no-source-link') env.link.removeAttribute('href');
+        if (mode === 'invalid-link') env.overlay.setAttribute('href', 'http://[invalid');
+        if (mode === 'far-parent') {env.overlay.remove(); env.document.body.append(env.overlay);}
+        if (mode === 'detached') env.overlay.remove();
+        if (mode === 'geometry') env.overlay.getBoundingClientRect = () => ({...env.image.getBoundingClientRect(), width: 500}) as DOMRect;
+        if (mode === 'text') env.overlay.textContent = 'Open a different panel';
+        if (mode === 'child') env.overlay.append(env.document.createElement('span'));
+        if (mode === 'background') env.styles.get(env.overlay)!.backgroundImage = 'url(other.png)';
+        if (mode === 'color') env.styles.get(env.overlay)!.backgroundColor = 'rgb(255, 255, 255)';
+        if (mode === 'static') env.styles.get(env.overlay)!.position = 'static';
+        expect(isImagePresentationOccluded(env.image, visible, null)).toBe(true);
+    });
 });
 
 describe('image presentation surface resolution', () => {

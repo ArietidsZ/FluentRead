@@ -18,6 +18,12 @@ function source(path: string): string {
 describe('popup feature visibility', () => {
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
+        const html = source('entrypoints/popup/index.html');
+        const criticalStyles = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+        expect(criticalStyles).toContain('html { width: var(--interface-popup-width, 320px);');
+        expect(criticalStyles).toContain('min-height: 460px;');
+        expect(criticalStyles).toContain('display: flex;');
+        expect(html.indexOf('</style>')).toBeLessThan(html.indexOf('src="/popup-startup.js"'));
         expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
         expect(styles).toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
@@ -246,17 +252,20 @@ describe('popup feature visibility', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const settings = source('src/features/settings/ui/SettingsSections.vue');
         const modelSettings = source('src/features/settings/ui/VideoLocalModelSettings.vue');
+        const ttsSettings = source('src/features/settings/ui/LocalTtsSettings.vue');
         const appearance = source('src/features/settings/ui/VideoSubtitleAppearanceSettings.vue');
         const translationStyle = source('src/features/settings/ui/TranslationStyleSettings.vue');
 
         expect(settings).toContain('id="settings-video"');
-        expect(settings).toContain('config.videoSubtitleDisplayMode');
+        expect(settings).toContain('<VideoSubtitleAppearanceSettings');
+        expect(appearance).toContain('v-model="config.videoSubtitleDisplayMode"');
         expect(popup).not.toContain('v-model="config.videoService"');
         expect(popup).not.toContain('v-model="config.videoLocalModel"');
         expect(popup).not.toContain('v-model="config.selectionTtsVoices"');
         expect(settings).toContain('v-model="config.videoService"');
         expect(settings).toContain('v-model="config.videoSourceLanguage"');
-        expect(settings).toContain('v-model="config.selectionTtsVoices"');
+        expect(settings).toContain('<LocalTtsSettings :config="config"');
+        expect(ttsSettings).toContain('v-model="config.selectionTtsVoices"');
         // 译文样式迁到界面风格页的样式卡片；弹窗“译文显示”只保留翻译模式并跳转到那里。
         expect(settings).not.toContain('v-model="config.style"');
         expect(translationStyle).toContain('@click="selectPreset(preset.value)"');

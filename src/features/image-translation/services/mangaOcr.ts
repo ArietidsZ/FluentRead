@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaOcr.ts
  * 文件职责：在扩展独立 Worker 中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
- * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；取消由外部 owner 终止 Worker，GPU 挂起重建一次 CPU 后端，空闲三分钟释放会话，统一清理 OCR 与修补会话。
+ * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，用频繁读取的画布完成 OCR 预处理，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；取消由外部 owner 终止 Worker，GPU 挂起重建一次 CPU 后端，空闲三分钟释放会话，统一清理 OCR 与修补会话。
  * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；仅漫画及显式选择 PaddleOCR 的单张图片使用本模型；通用识别与圈选继续由 Tesseract 负责。
  */
 import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
@@ -119,7 +119,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                 const canvas=createOcrCanvas();canvas.width='naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;canvas.height='naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;
                 try {
                     assertMangaOcrActive(options.signal);
-                    const context=canvas.getContext('2d');if(!context)throw new Error('浏览器不支持图片处理');
+                    const context=canvas.getContext('2d', {willReadFrequently: true});if(!context)throw new Error('浏览器不支持图片处理');
                     context.drawImage(bitmap,0,0);
                     const boxes=findMangaBubbles(context.getImageData(0,0,canvas.width,canvas.height).data,canvas.width,canvas.height);
                     const sdkOptions={flatten:true as const,noCache:true as const,strategy:'per-box' as const};
@@ -127,7 +127,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                     let pageCanvas = canvas;
                     if (boxes.length) {
                         pageCanvas = createOcrCanvas();pageCanvas.width = canvas.width;pageCanvas.height = canvas.height;
-                        const pageContext = pageCanvas.getContext('2d');
+                        const pageContext = pageCanvas.getContext('2d', {willReadFrequently: true});
                         if (!pageContext) {pageCanvas.width = 0;pageCanvas.height = 0;throw new Error('浏览器不支持图片处理');}
                         pageContext.drawImage(canvas, 0, 0);pageContext.fillStyle = '#fff';
                         for (const box of boxes) pageContext.fillRect(box.x0,box.y0,box.x1-box.x0,box.y1-box.y0);
@@ -142,7 +142,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                         const scale=Math.min(3,1536/Math.max(width,height));
                         const crop=createOcrCanvas();crop.width=Math.round(width*scale);crop.height=Math.round(height*scale);
                         try {
-                            const ctx=crop.getContext('2d');if(!ctx)throw new Error('浏览器不支持图片处理');
+                            const ctx=crop.getContext('2d', {willReadFrequently: true});if(!ctx)throw new Error('浏览器不支持图片处理');
                             ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
                             ctx.drawImage(canvas,bbox.x0,bbox.y0,width,height,0,0,crop.width,crop.height);
                             const result=await service.recognizeManga(crop,sdkOptions);

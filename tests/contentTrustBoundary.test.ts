@@ -70,7 +70,8 @@ describe('host-page trust boundary', () => {
   it('keeps selection UI wheel handling out of the host document', () => {
     const selection = source('src/features/selection-translation/ui/SelectionTranslator.vue');
 
-    expect(selection).toContain('@wheel.stop.passive="handleUiWheel"');
+    expect(selection).toContain('@wheel.stop="handleUiWheel"');
+    expect(selection).not.toContain('@wheel.stop.passive="handleUiWheel"');
     expect(selection).not.toContain("document.addEventListener('wheel'");
     expect(selection).not.toContain("document.removeEventListener('wheel'");
   });

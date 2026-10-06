@@ -3,6 +3,8 @@
  * 不覆盖全局 console，不更改模型、执行后端、参数或 Promise 错误传播。
  * 本文件保留为普通 JS，让发布资产中的诊断不被业务构建的 drop:console 删除。
  */
+// 每个 WASM 实例仅保留一次完整的混合执行后端提示；不跨实例共享状态。
+let fluentReadOnnxPlacementWarningSeen = false;
 function fluentReadWasmStderr(message) {
     const text = String(message).replace(/\u001b\[[0-9;]*m/g, '');
     // ORT 将所有严重级别写入 stderr，Emscripten 默认全部转为 console.error。
@@ -15,6 +17,15 @@ function fluentReadWasmStderr(message) {
             console.debug(text);
             return;
         }
+        // ORT Web 的 WASM/CPU 是隐式后端，动态 shape 运算会保留在 CPU；首条警告仍供诊断。
+        // 仅匹配上游完整单行文案；不把未知回退、截断消息或附带失败的日志当作重复提示。
+        const placement = /\[W:onnxruntime:[^\]\r\n]*, session_state\.cc:\d+ VerifyEachNodeIsAssignedToAnEp\] Some nodes were not assigned to the preferred execution providers which may or may not have an negative impact on performance\. e\.g\. ORT explicitly assigns shape related ops to CPU to improve perf\.\s*$/.test(text);
+        const hint = /\[W:onnxruntime:[^\]\r\n]*, session_state\.cc:\d+ VerifyEachNodeIsAssignedToAnEp\] Rerunning with verbose output on a non-minimal build will show node assignments\.\s*$/.test(text);
+        if (hint || (placement && fluentReadOnnxPlacementWarningSeen)) {
+            console.debug(text);
+            return;
+        }
+        if (placement) fluentReadOnnxPlacementWarningSeen = true;
         const level = {V: 'debug', I: 'info', W: 'warn', E: 'error', F: 'error'}[onnx[1]];
         console[level](text);
         return;
