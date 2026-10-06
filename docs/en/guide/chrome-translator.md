@@ -8,7 +8,7 @@ Chrome’s built-in translation uses an on-device model. Check that your browser
 
 1. Open **Settings → General → Basic settings** and set **Default webpage translation provider** to **Chrome built-in AI translation**. Confirm your source and target languages.
 2. Click **Configure provider**, then click **Check connection** in the connection settings.
-3. Keep settings open while the model downloads.
+3. Keep settings open while the model downloads; the status shows a progress bar and percentage.
 4. Return to the webpage and retry translation.
 
 Preparation applies to the current language pair. Another pair may need its own preparation. If automatic source detection fails, specify the source language and retry.
