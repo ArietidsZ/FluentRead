@@ -103,7 +103,7 @@ async function selectionUi(fn){const tree=await support.getSelectionUiTree(page)
  assert.equal(await page.locator('.translation-result-content p').count(),0);assert.equal(await page.locator('.copy-all-button').isDisabled(),true);await shot('03-center-same');report.cases.push('comparison keeps success state without duplicate result or copy action');
  page=await newPageWithoutForeground(context);page.on('pageerror',error=>report.errors.push(error.message));await page.goto(origin+'/document.html');
  await page.locator('input[type="file"]').setInputFiles({name:'same.txt',mimeType:'text/plain',buffer:Buffer.from('Amber Meadow')});
- await page.getByRole('button',{name:'开始翻译',exact:true}).click();await page.getByRole('button',{name:'重新翻译',exact:true}).waitFor();
+ await page.getByRole('button',{name:'开始翻译',exact:true}).click();await page.locator('.task-progress.complete').waitFor({state:'attached'});
  await page.getByRole('group',{name:'阅读方式'}).getByRole('button',{name:'双语',exact:true}).click();
  const frame=page.frameLocator('.rich-preview-frame');await frame.locator('.reader-source').waitFor();assert.equal(await frame.locator('.reader-translation').count(),0);assert.equal((await frame.locator('body').innerText()).trim(),'Amber Meadow');
  await page.getByRole('group',{name:'文档工作区'}).getByRole('button',{name:'校订译文',exact:true}).click();
