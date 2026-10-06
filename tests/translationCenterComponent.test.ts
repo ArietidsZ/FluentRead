@@ -203,4 +203,15 @@ describe('translation center product workflow', () => {
     expect(css).toContain(':root.dark .translation-center .translate-primary-button');
     expect(css).not.toMatch(/:root\.dark\s*\{/);
   });
+
+  it('保留与原文相同的服务结果，单项及全部复制均可用', async () => {
+    state.sourceText = 'Original'; translateText.mockResolvedValue('  Original  ');
+    state.runTranslation(); await vi.waitFor(() => expect(state.cards.every((card: any) => card.status === 'success')).toBe(true));
+    expect(state.successfulCards).toHaveLength(state.cards.length);
+    expect(state.cards.every((card: any) => card.result === 'Original')).toBe(true);
+    state.copyResult(state.cards[0]); expect(copy).toHaveBeenLastCalledWith('Original');
+    state.copyAllResults(); expect(copy.mock.lastCall?.[0].match(/Original/g)).toHaveLength(state.cards.length);
+    state.sourceText = 'A newer source';
+    expect(state.successfulCards).toEqual([]);
+  });
 });

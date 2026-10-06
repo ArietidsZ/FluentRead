@@ -1,9 +1,10 @@
 /**
  * @file src/features/image-translation/content/textReader.ts
  * 文件职责：提供图片翻译的可访问文字阅读面板，让小图与长译文也能完整阅读、核对原文和复制。
- * 主要内容：以安全 textContent 渲染对照段落，提供仅译文/原文对照、复制反馈、关闭和局部 Escape；面板固定在视口内并继承扩展自己的深浅色变量。
+ * 主要内容：相同译文保留原文且不重复展示；以安全 textContent 渲染对照段落，提供仅译文/原文对照、复制反馈、关闭和局部 Escape；面板固定在视口内并继承扩展自己的深浅色变量。
  * 模块边界：仅操作所属 Shadow DOM，不发送识别或翻译请求、不访问配置；宿主定位与生命周期由图片 runtime 管理，调用者提供本次结果和本地化函数。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 export interface ImageReaderLine {text: string; sourceText?: string}
 export const IMAGE_READER_CSS = `
 .fr-image-reader {--fr-image-brand:#dc315f;--fr-image-brand-soft:#fff0f4;--fr-image-ink:#172033;--fr-image-muted:#737c8f;--fr-image-line:#e5e8ef;--fr-image-surface:#fff;position:fixed;right:16px;top:16px;width:min(400px,calc(100vw - 24px));max-height:calc(100dvh - 32px);display:flex;flex-direction:column;box-sizing:border-box;border:1px solid var(--fr-image-line);border-radius:12px;background:var(--fr-image-surface);box-shadow:0 12px 40px #17203326;pointer-events:auto;z-index:3;color:var(--fr-image-ink);font:13px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;}
@@ -66,20 +67,21 @@ export function createImageTextReader(localize: (source: string) => string, onCl
         body.replaceChildren();
         for (const line of lines) {
             const article = document.createElement('article');
-            if (comparing && line.sourceText !== undefined) {
+            const changed = line.sourceText !== undefined && hasDistinctTranslation(line.sourceText, line.text);
+            if (comparing && changed) {
                 const source = document.createElement('pre');
                 source.className = 'fr-image-reader-source';
                 source.dir = 'auto';
-                source.textContent = line.sourceText;
+                source.textContent = line.sourceText!;
                 article.append(source);
             }
             const translated = document.createElement('pre');
             translated.dir = 'auto';
-            translated.textContent = line.text;
+            translated.textContent = !changed && line.sourceText !== undefined ? line.sourceText : line.text;
             article.append(translated);
             body.append(article);
         }
-        compare.hidden = !lines.some(line => line.sourceText !== undefined);
+        compare.hidden = !lines.some(line => line.sourceText !== undefined && hasDistinctTranslation(line.sourceText, line.text));
         compare.setAttribute('aria-pressed', String(comparing));
         refreshLanguage();
     };
@@ -96,7 +98,7 @@ export function createImageTextReader(localize: (source: string) => string, onCl
         if (event.target === compare) { comparing = !comparing; render(); }
         if (event.target !== copy) return;
         const owner = revision;
-        const text = lines.map(line => comparing && line.sourceText !== undefined ? `${line.sourceText}\n${line.text}` : line.text).join('\n\n');
+        const text = lines.map(line => comparing && line.sourceText !== undefined && hasDistinctTranslation(line.sourceText, line.text) ? `${line.sourceText}\n${line.text}` : line.sourceText !== undefined && !hasDistinctTranslation(line.sourceText, line.text) ? line.sourceText : line.text).join('\n\n');
         let message = '已复制';
         try { await navigator.clipboard.writeText(text); }
         catch { message = '复制失败，请选中文字后手动复制'; }

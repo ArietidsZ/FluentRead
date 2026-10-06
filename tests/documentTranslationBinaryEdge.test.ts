@@ -202,7 +202,7 @@ describe('binary document low-level contracts', () => {
 
         expect(renderDocxPart(document, part, [], 'translated')).toContain('One');
         expect(renderDocxPart(document, part, ['译文'], 'bilingual')).toContain('E83B6B');
-        expect(renderDocxPart({...document, segments: []}, part, [], 'translated')).toContain('<w:t></w:t>');
+        expect(renderDocxPart({...document, segments: []}, part, [], 'translated')).toBe(part.source);
         expect(renderDocxPart(document, part, ['译文'], 'translated')).toContain('Keep');
     });
 
@@ -317,7 +317,7 @@ describe('binary document low-level contracts', () => {
         await expect(createDocumentDownload(document, [], 'translated'))
             .rejects.toThrow('未提供 PDF 页面渲染器');
         const raster = vi.fn(async (input) => {
-            expect(input.translations).toEqual(['Source']);
+            expect(input.translations).toEqual(['']);
             return Uint8Array.from(Buffer.from(
                 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlY4AAAAASUVORK5CYII=',
                 'base64',

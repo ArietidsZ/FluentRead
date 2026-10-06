@@ -64,7 +64,7 @@ describe('binary document translation formats', () => {
         const parsed = await parseBinaryDocument('long.pdf', await source.save());
         const progress: Array<{phase: string; completedPages: number; totalPages: number}> = [];
         const rasterizer = vi.fn(testRasterizer);
-        const download = await createDocumentDownload(parsed, [], mode, {
+        const download = await createDocumentDownload(parsed, parsed.segments.map(segment => `Translated ${segment.source}`), mode, {
             pdfPageRasterizer: rasterizer, onPdfProgress: value => progress.push(value),
         });
         const result = await PDFDocument.load(download.data as Uint8Array);
@@ -165,7 +165,8 @@ describe('binary document translation formats', () => {
                 return onePixelPng;
             },
         });
-        expect(captured[0][0]).toBe(parsed.segments[0].source);
+        // 空结果保留原图文字，不覆盖成重新绘制的原文。
+        expect(captured[0][0]).toBe('');
         expect(captured[0][1]).toBe('译文 1');
     });
 
@@ -321,4 +322,25 @@ describe('binary document translation formats', () => {
         await expect(parseBinaryDocument('oversized.epub', bytes)).rejects.toThrow('单个内容项过大');
         await expect(parseBinaryDocument('oversized.docx', bytes)).rejects.toThrow('单个内容项过大');
     });
+});
+
+it('全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘', async () => {
+    const source = await PDFDocument.create(); source.addPage([400, 600]).drawText('Same original page');
+    const parsed = await parseBinaryDocument('same.pdf', await source.save());
+    const rasterizer = vi.fn(testRasterizer);
+    const output = await createDocumentDownload(parsed, parsed.segments.map(segment => ` ${segment.source} `), 'bilingual', {pdfPageRasterizer: rasterizer});
+    expect(rasterizer).not.toHaveBeenCalled();
+    const result = await PDFDocument.load(output.data as Uint8Array);
+    expect(result.getPageCount()).toBe(1); expect(result.getPage(0).getSize()).toEqual({width: 400, height: 600});
+});
+
+it('相同 DOCX 译文在双语和仅译文导出均保留原有结构', async () => {
+    const parsed = await parseBinaryDocument('sample.docx', loadBytes('sample.docx'));
+    for (const mode of ['bilingual', 'translated'] as const) {
+        const output = await createDocumentDownload(parsed, parsed.segments.map(segment => ` ${segment.source} `), mode);
+        const source = await JSZip.loadAsync(parsed.binary!.bytes), result = await JSZip.loadAsync(output.data as Uint8Array);
+        for (const path of ['word/document.xml', 'word/header1.xml', 'word/footer1.xml']) {
+            expect(await result.file(path)!.async('string')).toBe(await source.file(path)!.async('string'));
+        }
+    }
 });

@@ -188,6 +188,7 @@
       "tests/translationConfigCheck.test.ts",
       "tests/translationFont.test.ts",
       "tests/translationCore.test.ts",
+      "tests/identicalTranslation.test.ts",
       "tests/translationError.test.ts",
       "tests/translationLanguage.test.ts",
       "tests/readingAssistantPresentation.test.ts",

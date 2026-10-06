@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按配置的快捷键（默认 Shift+Z）进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
- * 主要内容：由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；截图后保留阅读卡片，页面滚动或缩放不丢失结果；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
+ * 主要内容：相同译文保留原文且不重复展示；由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；截图后保留阅读卡片，页面滚动或缩放不丢失结果；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -41,11 +41,11 @@
       </div>
       <template v-else-if="result">
         <div class="fr-area-content">
-          <section class="fr-area-text-block">
+          <section v-if="hasDistinctTranslation(result.correctedText || result.sourceText, result.translatedText)" class="fr-area-text-block">
             <div class="fr-area-text-heading"><span>译文</span><button type="button" @click="copyText(result.translatedText)">复制译文</button></div>
             <p data-i18n-ignore class="fr-area-translation" dir="auto">{{ result.translatedText }}</p>
           </section>
-          <details class="fr-area-source">
+          <details class="fr-area-source" :open="!hasDistinctTranslation(result.correctedText || result.sourceText, result.translatedText)">
             <summary>识别原文</summary>
             <button type="button" @click="copyText(result.sourceText)">复制原文</button>
             <p data-i18n-ignore dir="auto">{{ result.sourceText }}</p>
@@ -72,6 +72,7 @@
 </template>
 
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import browser from 'webextension-polyfill';
 import { config, subscribeConfig } from '@/src/services/config/store';

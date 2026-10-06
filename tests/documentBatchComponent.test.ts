@@ -1,3 +1,4 @@
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -46,7 +47,7 @@ beforeEach(async () => {
   download = vi.fn(async (document, translations, mode) => ({data: documentCore.renderDocument(document, translations, mode),
     fileName: documentCore.createDocumentDownloadName(document.fileName, mode), mimeType: 'text/plain'}));
   persist = vi.fn().mockResolvedValue(undefined);
-  const api = {...catalog, ...documentCore, ...presentation, Config, TranslationRequestError, createDocumentFileLoadGuard,
+  const api = {...catalog, ...documentCore, ...presentation, hasDistinctTranslation, Config, TranslationRequestError, createDocumentFileLoadGuard,
     parseDocumentFile: parseFile, translateDocumentSegments: translate, createDocumentDownload: download, generateDocumentArchive,
     buildGlossaryRevision: () => '', runtimeConfig: new Config(), configReady: Promise.resolve(),
     subscribeConfig: () => () => {}, requestConfigPatch: persist,
@@ -58,7 +59,7 @@ beforeEach(async () => {
   const exports: Record<string, any> = {};
   new Function('require', 'exports', compiled)((id: string) => {
     if (id === 'vue') return {...vue, onMounted: () => {}, onUnmounted: (fn: () => void) => unload.push(fn)};
-    if (id === '@/src/app/document-translation') return api;
+    if (id === '@/src/app/document-translation' || id === '@/src/core/translation/result') return api;
     if (id === 'webextension-polyfill') return {runtime: {sendMessage: vi.fn()}};
     if (id.startsWith('element-plus') || id.endsWith('.css') || id.endsWith('.vue')) return {};
     return require(id);

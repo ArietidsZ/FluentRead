@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：组织文档阅读与翻译任务，增量统计完成段落，维护校订和未下载保护；PDF 逐页导出与 ePub/DOCX/ZIP 打包显示进度，支持取消、重试和离开时中止，保留异步提交所有权。
+ 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译任务，增量统计完成段落，维护校订和未下载保护；PDF 逐页导出与 ePub/DOCX/ZIP 打包显示进度，支持取消、重试和离开时中止，保留异步提交所有权。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -145,17 +145,17 @@
               </div>
               <div
                 class="pdf-page-stage"
-                :class="{ single: effectivePreviewMode !== 'bilingual' }"
+                :class="{ single: effectivePreviewMode !== 'bilingual' || (!pdfPage.loading && !pdfPage.translatedUrl) }"
                 :style="{ '--pdf-zoom': pdfZoom, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
               >
-                <figure v-if="effectivePreviewMode !== 'translated'" class="pdf-page-column">
+                <figure v-if="effectivePreviewMode !== 'translated' || (!pdfPage.loading && !pdfPage.translatedUrl)" class="pdf-page-column">
                   <figcaption><span>原文</span><strong>{{ t('document.pageNumber', {page: pdfPage.pageNumber}) }}</strong></figcaption>
                   <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
                     <img v-if="pdfPage.originalUrl" :src="pdfPage.originalUrl" :alt="t('document.pdfOriginalPage', {page: pdfPage.pageNumber})" />
                     <span v-else class="pdf-page-loading">正在渲染原页…</span>
                   </div>
                 </figure>
-                <figure v-if="effectivePreviewMode !== 'source'" class="pdf-page-column translated">
+                <figure v-if="effectivePreviewMode !== 'source' && (pdfPage.loading || pdfPage.translatedUrl)" class="pdf-page-column translated">
                   <figcaption><span>译文</span><strong>保留原版式</strong></figcaption>
                   <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
                     <img v-if="pdfPage.translatedUrl" :src="pdfPage.translatedUrl" :alt="t('document.pdfTranslatedPage', {page: pdfPage.pageNumber})" />
@@ -230,8 +230,8 @@
                 class="docx-paragraph"
                 :class="`docx-role-${row.role || 'paragraph'}`"
               >
-                <p v-if="effectivePreviewMode !== 'translated'" class="docx-source document-source" data-i18n-ignore>{{ row.source }}</p>
-                <p v-if="effectivePreviewMode !== 'source'" class="docx-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
+                <p v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(row.source, row.translation))" class="docx-source document-source" data-i18n-ignore>{{ row.source }}</p>
+                <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="docx-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
               </section>
             </article>
           </div>
@@ -252,8 +252,8 @@
                 <tr v-for="row in subtitleRows" :key="row.index">
                   <td class="subtitle-index">{{ row.index + 1 }}</td>
                   <td class="subtitle-timing"><time>{{ row.timeStart || '—' }}</time><span aria-hidden="true"> → </span><time>{{ row.timeEnd || '—' }}</time></td>
-                  <td v-if="effectivePreviewMode !== 'translated'"><p class="subtitle-source document-source" data-i18n-ignore>{{ readerText(row.source) }}</p></td>
-                  <td v-if="effectivePreviewMode !== 'source'">
+                  <td v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(readerText(row.source), readerText(row.translation)))" :colspan="effectivePreviewMode === 'bilingual' && row.translation && !hasDistinctTranslation(readerText(row.source), readerText(row.translation)) ? 2 : 1"><p class="subtitle-source document-source" data-i18n-ignore>{{ readerText(row.source) }}</p></td>
+                  <td v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(readerText(row.source), readerText(row.translation)))">
                     <p class="subtitle-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
                   </td>
                 </tr>
@@ -270,20 +270,20 @@
           aria-label="JSON 字符串路径翻译表格"
         >
           <div class="json-table-header" :class="{ single: effectivePreviewMode !== 'bilingual' }"><span>JSONPath</span><span v-if="effectivePreviewMode !== 'translated'">原字符串</span><span v-if="effectivePreviewMode !== 'source'">译文</span></div>
-          <article v-for="row in jsonRows" :key="row.index" class="json-table-row" :class="{ single: effectivePreviewMode !== 'bilingual' }">
+          <article v-for="row in jsonRows" :key="row.index" class="json-table-row" :class="{ single: effectivePreviewMode !== 'bilingual' || (row.translation && !hasDistinctTranslation(row.source, row.translation)) }">
             <code>{{ row.pathLabel || '$' }}</code>
-            <p v-if="effectivePreviewMode !== 'translated'" class="json-source document-source" data-i18n-ignore>{{ row.source }}</p>
-            <p v-if="effectivePreviewMode !== 'source'" class="json-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
+            <p v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(row.source, row.translation))" class="json-source document-source" data-i18n-ignore>{{ row.source }}</p>
+            <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="json-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
           </article>
         </section>
 
         <div v-else class="document-reader" data-document-reader="generic" :data-segment-count="parsedDocument.segments.length" :class="`reader-${parsedDocument.format}`" aria-label="文档双语阅读预览">
           <article v-for="row in previewRows" :key="row.index" class="reader-block">
             <span v-if="row.contextLabel" class="reader-context">{{ row.contextLabel }}</span>
-            <div v-if="effectivePreviewMode !== 'translated'" class="reader-source document-source" data-i18n-ignore :class="readerSourceClass(row.source)">
+            <div v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(row.source, row.translation))" class="reader-source document-source" data-i18n-ignore :class="readerSourceClass(row.source)">
               {{ readerText(row.source) }}
             </div>
-            <p v-if="effectivePreviewMode !== 'source'" class="reader-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
+            <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="reader-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
           </article>
         </div>
         <p v-if="!hasTranslation" class="reader-empty">
@@ -393,6 +393,7 @@ import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
 import browser from 'webextension-polyfill';
 import {
   Config,
+  hasDistinctTranslation,
   TranslationRequestError,
   buildGlossaryRevision,
   DOCUMENT_MAX_BYTES,

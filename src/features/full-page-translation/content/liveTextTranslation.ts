@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/liveTextTranslation.ts
  * 文件职责：按候选类型、展示模式和识别范围选择文本槽请求，保留异步提交所需的来源与译文快照。
- * 主要内容：为正文双语构造文本快照，对可无损拍平的多槽候选重建整段原文并整块请求、整段译文回填首个槽位，为交互控件和仅译文模式构造带前后缀的实时 Text 槽结果，为按钮型 input 构造属性替换结果，统一传递取消、重试、范围与会话参数。
+ * 主要内容：相同译文保留原文且不重复展示；为正文双语构造文本快照，对可无损拍平的多槽候选重建整段原文并整块请求、整段译文回填首个槽位，为交互控件和仅译文模式构造带前后缀的实时 Text 槽结果，为按钮型 input 构造属性替换结果，统一传递取消、重试、范围与会话参数。
  * 模块边界：本文件不管理 DOM 状态、不决定候选、不监听 mutation；runtime 负责 generation 校验和最终渲染。
  */
 import {
@@ -13,6 +13,7 @@ import {
     normalizeTranslationText,
 } from '@/src/core/translation/public';
 import type {TranslationScope, TranslationTextProtectionOptions} from '@/src/core/translation/public';
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import type {TranslationQueueSession} from '@/src/services/translation/queue';
 import {
     translateTextSlots,
@@ -83,7 +84,7 @@ async function translateSnapshotAsWholeBlock(
         [source], snapshot, signal, queueSession, fullPageSession, forceFailedRequest,
     );
     if (!normalizeTranslationText(translation)) return null;
-    if (normalizeTranslationText(translation) === normalizeTranslationText(source)) return [...origins];
+    if (!hasDistinctTranslation(source, translation)) return [...origins];
     return origins.map((_, index) => index === 0 ? translation : '');
 }
 
@@ -109,7 +110,7 @@ export async function translateControlValue(
         kind: 'control-value',
         attribute,
         complete: translations.length === 1,
-        changed: normalizeTranslationText(text) !== normalizeTranslationText(source),
+        changed: hasDistinctTranslation(source, text),
         sources: [source],
         translations,
         text,
@@ -152,7 +153,7 @@ export async function translateLiveText(
         forceFailedRequest,
     );
     const changed = translations.some((translation, index) =>
-        translation.replace(/[\s\u3000]+/gu, ' ').trim() !== (origins[index] || '').replace(/[\s\u3000]+/gu, ' ').trim(),
+        hasDistinctTranslation(origins[index] ?? '', translation),
     );
 
     return {

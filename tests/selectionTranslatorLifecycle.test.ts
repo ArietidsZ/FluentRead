@@ -4,6 +4,7 @@
  * 主要内容：显式启用划词，覆盖正常注销、runtime 撤销和事件注销抛错后的 DOM、订阅、计时器与请求清理。
  * 模块边界：编译真实 Vue setup 并替换浏览器和渲染依赖，不模拟完整 UI 或声称真实浏览器验证。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {readFileSync} from 'node:fs';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {compileScript, parse} from 'vue/compiler-sfc';
@@ -62,6 +63,7 @@ function mountSelection() {
     };
     const unsubscribeConfig = vi.fn(), releaseContextMenu = vi.fn(), stopTts = vi.fn();
     const modules: Record<string, unknown> = {
+        '@/src/core/translation/result': {hasDistinctTranslation},
         vue: {...Vue, useTemplateRef: () => Vue.ref(null)},
         'webextension-polyfill': browser,
         '@/src/platform/browser/runtimeMessages': runtimeMessages,
@@ -254,4 +256,15 @@ describe('selection card geometry across content changes', () => {
         state.applyManualPopupGeometry();
         expect(state.tooltipStyle).toMatchObject({left: '12px', top: '248px', width: '366px', height: '140px'});
     });
+});
+
+it('相同译文隐藏后，切换选区与不同结果仍恢复显示', async () => {
+    const {state, lifecycleErrors} = mountSelection();
+    state.selectedText = 'Café'; state.translationResult = 'Cafe\u0301'; await Vue.nextTick();
+    expect(state.hasDistinctTranslationResult).toBe(false);
+    state.translationResult = '咖啡馆'; await Vue.nextTick();
+    expect(state.hasDistinctTranslationResult).toBe(true);
+    state.selectedText = '咖啡馆'; await Vue.nextTick();
+    expect(state.hasDistinctTranslationResult).toBe(false);
+    expect(lifecycleErrors).not.toHaveBeenCalled();
 });

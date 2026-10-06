@@ -1,10 +1,11 @@
 /**
  * @file src/features/input-translation/content/index.ts
  * 文件职责：实现网页输入框翻译 feature 的可注入生命周期，根据配置识别三连触发符、冻结请求所有权、调用后台并把译文安全提交回原控件或富文本编辑器。
- * 主要内容：定义配置、依赖和 feature 契约，提供启用判断、配置键与替换/双语输出顺序写回，原生控件用原生 setter 与 input/change 事件写回，编辑宿主按光标文本度量推进三连序列并经 editableHost.ts 的原生编辑路径保留原文、清理触发符并写回；
+ * 主要内容：相同译文保留原文且不重复展示；定义配置、依赖和 feature 契约，提供启用判断、配置键与替换/双语输出顺序写回，原生控件用原生 setter 与 input/change 事件写回，编辑宿主按光标文本度量推进三连序列并经 editableHost.ts 的原生编辑路径保留原文、清理触发符并写回；
  * 创建 closed Shadow tooltip 展示翻译中/成功/失败与恢复原文，并防止元素或配置变化后的迟到提交。
  * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts，编辑宿主度量与写回来自 editableHost.ts。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import {services as translationServices} from '@/src/core/config/catalog';
@@ -526,7 +527,7 @@ export function createInputTranslationContentFeature(
                     return;
                 }
 
-                if (translatedText && translatedText !== originalText) {
+                if (hasDistinctTranslation(originalText, translatedText)) {
                     // 步骤 4：编辑宿主写回需要等待编辑器同步选区，期间继续由当前请求持有提示和动画。
                     // 原生控件一次写入原文和译文；富文本只在首尾插入，保留原文 DOM 与格式。
                     const output = isFormControl(element) && bilingual

@@ -1,9 +1,10 @@
 /**
  * @file src/features/document-translation/ui/pdfPreview.ts
  * 文件职责：在浏览器 Canvas 环境中为 PDF 文档生成页面预览，并把译文按原页面文本块位置绘制成可嵌入导出 PDF 的 PNG 光栅页。
- * 主要内容：按需加载 PDF.js，限制页面像素与边长、复用单页 Canvas 绘制译文，并在成功、失败或取消时释放画布；生成预览及注入式 PDF 导出光栅页。
+ * 主要内容：相同译文保留原文且不重复展示；按需加载 PDF.js，限制页面像素与边长、复用单页 Canvas 绘制译文，并在成功、失败或取消时释放画布；生成预览及注入式 PDF 导出光栅页。
  * 模块边界：这里负责视觉光栅化而不决定片段翻译或文件结构；PDF 文本块来自 binary 服务，领域类型来自 core，Canvas/PDF.js 仅应在文档 UI 环境调用，不能进入通用纯算法层。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 
 import type {
@@ -311,11 +312,13 @@ export async function createPdfPagePreview(
     const sourceCanvas = await renderPdfSourceCanvas(document.binary.bytes, pageNumber, page.width);
     try {
         const original = await canvasToPng(sourceCanvas);
-        if (!translations) return {original};
+        const visibleTranslations = translations?.map((translation, segmentIndex) =>
+            hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
+        if (!visibleTranslations || !page.segmentIndexes.some(index => visibleTranslations[index])) return {original};
         const translatedCanvas = paintPdfTranslation(sourceCanvas, {
             ...page,
             sourceBytes: document.binary.bytes,
-            translations,
+            translations: visibleTranslations,
         });
         return {original, translated: await canvasToPng(translatedCanvas)};
     } finally {

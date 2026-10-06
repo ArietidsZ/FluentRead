@@ -1,9 +1,10 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
+ * 主要内容：相同译文保留原文且不重复展示；合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
@@ -247,7 +248,7 @@ export function mergeBilingualVideoSubtitleCues(
   return cues.map((cue, index) => {
     const original = cue.text.trim();
     const translation = (translated[index]?.text || '').trim();
-    const unchanged = !translation || normalizeVideoCaptionText(translation) === normalizeVideoCaptionText(original);
+    const unchanged = !hasDistinctTranslation(normalizeVideoCaptionText(original), normalizeVideoCaptionText(translation));
     return {...cue, text: unchanged ? original : `${original}\n${translation}`};
   });
 }

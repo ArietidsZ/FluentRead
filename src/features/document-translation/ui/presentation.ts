@@ -1,9 +1,10 @@
 /**
  * @file src/features/document-translation/ui/presentation.ts
  * 文件职责：提供文档翻译界面使用的纯展示派生规则，把 ParsedDocument 转换成预览统计、空状态提示、色调和格式特定的文本/样式标签。
- * 主要内容：包含小型本地范例、基于有界编码与大型 JSON 摘录的导出预览、字幕与富文本格式判断、预览说明、DOCX 部件名称映射、阅读器文本清理及 source 节点 class 的选择。
+ * 主要内容：相同译文保留原文且不重复展示；包含小型本地范例、基于有界编码与大型 JSON 摘录的导出预览、字幕与富文本格式判断、预览说明、DOCX 部件名称映射、阅读器文本清理及 source 节点 class 的选择。
  * 模块边界：本文件不创建 DOM、不解析文件也不调用翻译；它只消费 core 模型并返回 UI 可直接使用的值，实际预览 HTML 归 core/preview，PDF 位图和导出分别归 pdfPreview 与 binary。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {renderDocument, resolveDocumentTranslation, type DocumentFormat, type DocumentRenderMode, type ParsedDocument} from '@/src/features/document-translation/core/document';
 
 /** 小型本地范例只走正常导入流程，不预填译文或自动发起翻译。 */
@@ -23,7 +24,8 @@ export function getDocumentExportPreview(document: ParsedDocument, translations:
     const text = isDocumentExportExcerpt(document)
         ? document.segments.slice(0, 3).map(segment => {
             const translation = resolveDocumentTranslation(segment.source, translations[segment.id]).slice(0, 1601);
-            return mode === 'bilingual' ? `${segment.source.slice(0, 1601)}\n${translation}` : translation;
+            return mode === 'bilingual' && hasDistinctTranslation(segment.source, translations[segment.id])
+                ? `${segment.source.slice(0, 1601)}\n${translation}` : translation;
         }).join('\n\n')
         : renderDocument(document, translations, mode, 1601);
     return text.length > 1600 ? `${text.slice(0, 1600)}\n…` : text;

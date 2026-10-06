@@ -1,9 +1,10 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：协调当前视频与全屏宿主、原生轨道、字幕校时和预翻译；X 原文与译文成对显示，音频读取失败提供恢复提示，切换视频时隔离错误、模型准备和旧识别会话；失效时的取消消息统一进入异步失败处理。
+ * 主要内容：相同译文保留原文且不重复展示；协调当前视频与全屏宿主、原生轨道、字幕校时和预翻译；X 原文与译文成对显示，音频读取失败提供恢复提示，切换视频时隔离错误、模型准备和旧识别会话；失效时的取消消息统一进入异步失败处理。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import browser from 'webextension-polyfill';
 import {sendRuntimeMessage} from '@/src/platform/browser/runtimeMessages';
 import {
@@ -314,10 +315,10 @@ export function mountVideoSubtitleTranslation(): () => void {
   };
 
   // 译文与原文相同（包括已是目标语言而跳过翻译）时，双语只保留原文一行；仅译文模式隐藏了
-  // 原文行，仍需把这句放进译文行。结果按原样缓存，每次渲染时按当前显示模式决定，切换模式后立即生效。
+  // 原文行，仍需用原文回退显示。结果按原样缓存，每次渲染时按当前显示模式决定，切换模式后立即生效。
   const visibleTranslation = (translation: string, source: string): string =>
-    normalizeVideoCaptionText(translation) === normalizeVideoCaptionText(source)
-      && normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) !== 'translation-only' ? '' : translation;
+    hasDistinctTranslation(normalizeVideoCaptionText(source), normalizeVideoCaptionText(translation)) ? translation
+      : normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) === 'translation-only' ? source : '';
 
   // X 的双语面板以一整对字幕为更新单位。未预取到译文时先收起两行，
   // 返回后一起显示；明确失败时保留原文，让菜单中的重试仍然可用。
