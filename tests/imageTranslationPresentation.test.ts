@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
-import {presentationMatchesSource, resolveImagePresentation, surfaceStyleToBitmap} from '@/src/features/image-translation/content/presentation';
+import {isImagePresentationOccluded, presentationMatchesSource, resolveImagePresentation, surfaceStyleToBitmap} from '@/src/features/image-translation/content/presentation';
 
 type Style = Partial<CSSStyleDeclaration> & {backgroundImage?: string};
 
@@ -29,6 +29,53 @@ function fixture(options: {opacity?: string; visibility?: string; background?: s
 }
 
 afterEach(() => vi.unstubAllGlobals());
+
+describe('image presentation foreground ownership', () => {
+    const visible = {left: 20, top: 40, right: 420, bottom: 240};
+
+    it('keeps surfaces visible without a hit-test API or with an empty hit stack', () => {
+        const {image, document} = fixture();
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
+        Object.assign(document, {elementsFromPoint: () => []});
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
+    });
+
+    it('accepts the surface, its painted descendants, and pointer-transparent ancestors', () => {
+        const {image, paint, document} = fixture();
+        const child = document.createElement('span'); paint.append(child);
+        for (const foreground of [image, image.parentElement!, paint, child]) {
+            Object.assign(document, {elementsFromPoint: () => [foreground]});
+            expect(isImagePresentationOccluded(foreground === child ? paint : foreground, visible, null)).toBe(false);
+        }
+        Object.assign(document, {elementsFromPoint: () => [image.parentElement!]});
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
+    });
+
+    it('ignores its own Shadow DOM host and controls, then checks the host page foreground', () => {
+        const {image, document} = fixture();
+        const host = document.createElement('div'); const control = document.createElement('button'); host.append(control);
+        Object.assign(document, {elementsFromPoint: () => [control, host, image]});
+        expect(isImagePresentationOccluded(image, visible, host)).toBe(false);
+        const modal = document.createElement('div'); modal.setAttribute('role', 'dialog');
+        Object.assign(document, {elementsFromPoint: () => [host, modal, image]});
+        expect(isImagePresentationOccluded(image, visible, host)).toBe(true);
+    });
+
+    it('samples the clipped region and hides even a corner covered by a floating panel', () => {
+        const {image, document} = fixture(); const panel = document.createElement('div');
+        const hitTest = vi.fn((x: number, y: number) => x > 300 && y > 200 ? [panel, image] : [image]);
+        Object.assign(document, {elementsFromPoint: hitTest});
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(true);
+        expect(hitTest.mock.calls).toEqual([[220, 140], [60, 60], [380, 60], [60, 220], [380, 220]]);
+    });
+
+    it('allows an image inside the foreground viewer rather than hiding every dialog image', () => {
+        const {image, document} = fixture(); const dialog = document.createElement('div');
+        dialog.setAttribute('role', 'dialog'); document.body.append(dialog); dialog.append(image);
+        Object.assign(document, {elementsFromPoint: () => [image, dialog, document.body]});
+        expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
+    });
+});
 
 describe('image presentation surface resolution', () => {
     it('uses a visible img by default', () => {

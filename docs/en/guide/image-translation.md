@@ -57,6 +57,8 @@ The backup mirror is an independent third party. Every source uses the same fixe
 3. Wait for recognition and translation. Choose cancel if you want to stop.
 4. Switch between original and translated image, or open **Text** in a separate reading panel. Compare the recognized original and translation, and copy either the translation or both. Long text remains readable even for small images.
 
+When you open the site's image viewer, covered thumbnail translations and their text panels hide so they do not float over the enlarged image. You can translate the viewer image separately. Closing the viewer restores the thumbnail translation without another translation request.
+
 <details class="guide-details">
 <summary>Language packs, cancellation and retry</summary>
 
