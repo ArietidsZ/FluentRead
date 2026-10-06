@@ -341,7 +341,6 @@ export const koKRMessages = {
     "settings.organization.modelScope": "현재 모델: {model}",
     "settings.organization.optional": "필요에 따라 조정",
     "settings.organization.optionalHelp": "기본 설정으로 바로 사용할 수 있으며 변경 사항은 자동으로 저장됩니다.",
-    "settings.organization.connection": "연결 및 키",
     "settings.organization.model": "모델 환경설정",
     "settings.organization.modelHelp": "심층 추론 및 이미지 인식",
     "settings.organization.prompts": "프롬프트 템플릿",

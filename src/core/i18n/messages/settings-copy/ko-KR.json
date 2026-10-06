@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "빈 값 허용",
     "settings.services.keys.requirementHelp": "인증이 필요한 API는 키 필수를, 익명 요청을 허용하는 API는 빈 값 허용을 선택하세요. 입력한 키는 계속 사용됩니다.",
     "settings.services.keys.optionalPlaceholder": "선택 사항: 입력한 키가 사용됩니다",
-    "settings.services.keys.addKey": "키 추가"
+    "settings.services.keys.addKey": "키 추가",
+    "settings.services.keys.listHelp": "키를 여러 개 추가할 수 있습니다. 키가 필요 없는 엔드포인트는 “API 호환성”에서 키 요구 사항을 “빈 값 허용”으로 바꾸세요.",
+    "settings.services.keys.standby": "대기",
+    "settings.services.prompts.syncAll": "모든 AI 서비스에 동기화",
+    "settings.services.prompts.syncConfirmTitle": "프롬프트 템플릿 동기화",
+    "settings.services.prompts.syncConfirmMessage": "이 서비스의 system 및 user 프롬프트를 다른 AI 서비스 {count}개에 동기화할까요? 해당 서비스의 기존 프롬프트는 덮어씁니다.",
+    "settings.services.prompts.syncConfirmAction": "동기화",
+    "settings.services.prompts.syncCancel": "취소",
+    "settings.services.prompts.syncDone": "AI 서비스 {count}개에 동기화했습니다",
+    "settings.services.visionProbeShort": "확인"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "동기화 연결이 변경되었습니다. 미리보기를 다시 생성하세요.",

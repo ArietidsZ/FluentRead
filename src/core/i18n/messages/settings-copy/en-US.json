@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "Allow empty",
     "settings.services.keys.requirementHelp": "Choose Key required for authenticated endpoints, or Allow empty for endpoints that accept anonymous requests. A filled key is still used.",
     "settings.services.keys.optionalPlaceholder": "Optional; a filled key will be used",
-    "settings.services.keys.addKey": "Add key"
+    "settings.services.keys.addKey": "Add key",
+    "settings.services.keys.listHelp": "You can add several keys. If the endpoint needs no key, set Key requirement to “Allow empty” under API compatibility.",
+    "settings.services.keys.standby": "Standby",
+    "settings.services.prompts.syncAll": "Sync to all AI services",
+    "settings.services.prompts.syncConfirmTitle": "Sync prompt templates",
+    "settings.services.prompts.syncConfirmMessage": "Copy this service’s system and user prompts to the other {count} AI services? Their current prompts will be overwritten.",
+    "settings.services.prompts.syncConfirmAction": "Sync",
+    "settings.services.prompts.syncCancel": "Cancel",
+    "settings.services.prompts.syncDone": "Synced to {count} AI services",
+    "settings.services.visionProbeShort": "Test"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "The sync connection changed. Generate a new preview.",

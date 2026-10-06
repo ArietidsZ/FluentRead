@@ -1,14 +1,17 @@
 <!--
  * @file src/features/settings/ui/services/RequestLimitFields.vue
- * 文件职责：在全局与服务设置中复用请求限制的并排表单，沿用 SettingsItem 和 Element Plus 的现有外观，紧凑展示一组相关参数。
- * 主要内容：显示并发、每秒和每分钟限制，只提交合法整数，保留输入过程中的空值而不覆盖已保存配置；继承状态切换时重建数字控件，避免当前组件版本保留过期的 aria-disabled。
+ * 文件职责：在全局与服务设置中复用请求限制的三项数值，每项各占一行，沿用所在页面的行式表单与 Element Plus 外观。
+ * 主要内容：显示并发、每秒和每分钟限制，只提交合法整数，保留输入过程中的空值而不覆盖已保存配置；全局页用“标题 + 说明、控件靠右”的设置行，服务页（service 布局）用“左标签带提示、右侧紧凑输入框”的连接字段行；继承状态切换时重建数字控件，避免当前组件版本保留过期的 aria-disabled。
  * 模块边界：本组件只校验并发与频率的表单值并发出更新，不选择配置作用域、不持久化，也不执行请求。
  -->
 <template>
-  <div class="request-limit-fields">
-    <SettingsItem v-for="field in fields" :key="field.key" :label="translateLegacy(field.label)">
-      <template #copy>
-        <div class="request-limit-label"><strong>{{ translateLegacy(field.label) }}</strong><FieldHelp :content="field.key === 'maxConcurrentTranslations' ? translateLegacy(field.help) : t('settings.requestLimits.rateHelp')" /></div>
+  <div class="request-limit-fields" :class="{ 'is-service': layout === 'service' }">
+    <SettingsItem
+      v-for="field in fields" :key="field.key" :label="translateLegacy(field.label)"
+      :description="layout === 'service' ? '' : helpOf(field)"
+    >
+      <template v-if="layout === 'service'" #copy>
+        <div class="request-limit-label"><strong>{{ translateLegacy(field.label) }}</strong><FieldHelp :content="helpOf(field)" /></div>
       </template>
       <div class="request-limit-number">
         <el-input-number
@@ -27,7 +30,7 @@ import type {TranslationRequestLimits} from '@/src/core/config/requestLimits';
 import {useUiI18n} from '@/src/ui/i18n';
 import SettingsItem from '../components/SettingsItem.vue';
 
-const props = defineProps<{modelValue: TranslationRequestLimits; disabled?: boolean}>();
+const props = withDefaults(defineProps<{modelValue: TranslationRequestLimits; disabled?: boolean; layout?: 'settings' | 'service'}>(), {disabled: false, layout: 'settings'});
 const emit = defineEmits<{'update:model-value': [value: TranslationRequestLimits]}>();
 const {translateLegacy, t} = useUiI18n();
 const fields = [
@@ -35,6 +38,10 @@ const fields = [
   {key: 'translationRequestsPerSecond', label: '每秒最多请求数', min: 0, max: 1000, help: '设为 0 表示不限速'},
   {key: 'translationRequestsPerMinute', label: '每分钟最多请求数', min: 0, max: 10000, help: '设为 0 表示不限速'},
 ] as const;
+
+function helpOf(field: typeof fields[number]): string {
+  return field.key === 'maxConcurrentTranslations' ? translateLegacy(field.help) : t('settings.requestLimits.rateHelp');
+}
 
 function update(key: keyof TranslationRequestLimits, value: number | undefined): void {
   const field = fields.find(field => field.key === key)!;
@@ -44,32 +51,26 @@ function update(key: keyof TranslationRequestLimits, value: number | undefined):
 </script>
 
 <style scoped>
-.request-limit-label { display: flex; align-items: center; gap: 3px; min-width: 0; }
-.request-limit-fields {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding: 14px 16px;
-}
-.request-limit-fields :deep(.settings-item) {
-  grid-template-columns: minmax(0, 1fr);
-  align-items: start;
-  gap: 8px;
-  min-height: 0;
-  padding: 0;
-  border-top: 0 !important;
-}
-.request-limit-fields :deep(.settings-item:hover) { background: transparent; }
-.request-limit-number { width: 100%; min-width: 0; }
+.request-limit-fields { display: grid; min-width: 0; }
+.request-limit-fields :deep(.settings-item + .settings-item) { border-top: 1px solid var(--line); }
+.request-limit-number { width: 132px; max-width: 100%; min-width: 0; }
 .request-limit-number :deep(.el-input-number) { width: 100%; }
-.request-limit-info { margin-left: 5px; color: var(--muted); font-size: 12px; vertical-align: middle; }
-@media (max-width: 520px) {
-  .request-limit-fields { gap: 10px; padding: 12px 0; }
-  .request-limit-fields :deep(.settings-item-copy) { min-height: 32px; justify-content: flex-end; }
-  .request-limit-fields :deep(.settings-item-copy strong) { font-size: 11px; }
-  .request-limit-info { margin-left: 3px; font-size: 10px; }
+.request-limit-label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+
+/* 服务配置页：与“连接与密钥”等连接字段行使用同一套列宽、行高和分隔线。 */
+.request-limit-fields.is-service :deep(.settings-item) {
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  min-height: 0;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
 }
-@media (max-width: 340px) {
-  .request-limit-fields { grid-template-columns: minmax(0, 1fr); }
+.request-limit-fields.is-service :deep(.settings-item-copy) { justify-content: center; min-height: 38px; }
+.request-limit-fields.is-service :deep(.settings-item-control) { justify-content: flex-start; }
+.request-limit-fields.is-service :deep(.el-input__wrapper) { min-height: 38px; border-radius: 10px; }
+@container (max-width: 600px) {
+  .request-limit-fields.is-service :deep(.settings-item) { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .request-limit-fields.is-service :deep(.settings-item-copy) { min-height: 24px; }
 }
 </style>

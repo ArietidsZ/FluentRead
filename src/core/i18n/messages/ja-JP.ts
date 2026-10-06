@@ -341,7 +341,6 @@ export const jaJPMessages = {
     "settings.organization.modelScope": "現在のモデル：{model}",
     "settings.organization.optional": "必要に応じて調整",
     "settings.organization.optionalHelp": "デフォルト設定のまま利用できます。変更は自動保存されます。",
-    "settings.organization.connection": "接続とキー",
     "settings.organization.model": "モデルの設定",
     "settings.organization.modelHelp": "深い思考と画像認識",
     "settings.organization.prompts": "プロンプトテンプレート",

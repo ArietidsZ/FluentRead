@@ -181,12 +181,12 @@ async function sourceText() {return ui("return this.querySelector('.fr-area-sour
     await translationGroup.getByTestId('model-vision-capability').waitFor();
   }
   await openModelSettings();
-  await settings.getByTestId('model-vision-capability').click();await settings.getByRole('option').filter({hasText:'支持识图'}).click();
+  await settings.getByTestId('model-vision-capability').getByRole('radio',{name:'支持识图',exact:true}).click();
   await settings.close();await openSettings();await openModelSettings();
-  assert.match(await settings.getByTestId('model-vision-capability').innerText(),/支持识图/);
+  assert.equal(await settings.getByTestId('model-vision-capability').getByRole('radio',{name:'支持识图',exact:true}).getAttribute('aria-checked'),'true');
   await settings.getByTestId('model-vision-capability').scrollIntoViewIfNeeded();
   await settings.screenshot({animations:'disabled',path:path.join(artifacts,'03-model-capability.png')});report.screenshots.push(path.join(artifacts,'03-model-capability.png'));
-  await settings.getByTestId('model-vision-capability').click();await settings.getByRole('option').filter({hasText:'自动'}).click();
+  await settings.getByTestId('model-vision-capability').getByRole('radio',{name:'自动判断',exact:true}).click();
   await settings.close();report.cases.push(currentCase);
   page=await newPageWithoutForeground(context,30000);page.on('pageerror',e=>report.errors.push(e.message));await page.goto(`http://127.0.0.1:${server.address().port}/`);cdp=await context.newCDPSession(page);
   await activateExtensionTabWithoutForeground(context,page,30000);await wait(()=>ui('return true'));

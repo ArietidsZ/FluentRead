@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "空欄を許可",
     "settings.services.keys.requirementHelp": "認証が必要なAPIでは「キー必須」を、匿名リクエストを受け付けるAPIでは「空欄を許可」を選択してください。入力したキーは引き続き使用されます。",
     "settings.services.keys.optionalPlaceholder": "省略可。入力したキーを使用します",
-    "settings.services.keys.addKey": "キーを追加"
+    "settings.services.keys.addKey": "キーを追加",
+    "settings.services.keys.listHelp": "複数のキーを追加できます。キーが不要な接続先では、「API 互換性」でキーの要件を「空欄を許可」に変更してください。",
+    "settings.services.keys.standby": "予備",
+    "settings.services.prompts.syncAll": "すべての AI サービスに同期",
+    "settings.services.prompts.syncConfirmTitle": "プロンプトテンプレートを同期",
+    "settings.services.prompts.syncConfirmMessage": "このサービスの system と user プロンプトを、ほかの {count} 個の AI サービスに同期しますか？各サービスの現在のプロンプトは上書きされます。",
+    "settings.services.prompts.syncConfirmAction": "同期",
+    "settings.services.prompts.syncCancel": "キャンセル",
+    "settings.services.prompts.syncDone": "{count} 個の AI サービスに同期しました",
+    "settings.services.visionProbeShort": "検出"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "同期接続が変更されました。プレビューを再作成してください。",

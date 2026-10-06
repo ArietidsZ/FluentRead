@@ -343,7 +343,6 @@ export const enUSMessages = {
     "settings.organization.modelScope": "Current model: {model}",
     "settings.organization.optional": "Adjust as needed",
     "settings.organization.optionalHelp": "Ready to use with defaults. Changes are saved automatically.",
-    "settings.organization.connection": "Connection and keys",
     "settings.organization.model": "Model preferences",
     "settings.organization.modelHelp": "Deep reasoning and image recognition",
     "settings.organization.prompts": "Prompt templates",

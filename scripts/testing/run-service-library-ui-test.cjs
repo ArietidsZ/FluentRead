@@ -107,12 +107,14 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     await selected('deepseek').click();
     assert.equal(await page.locator('[data-api-key-index]').count(), 2);
     await page.locator('[data-api-key-rotation-setting] input[value="single"]').check();
-    assert.equal(await page.locator('[data-api-key-index]').count(), 1);
+    assert.equal(await page.locator('[data-api-key-index]').count(), 2);
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 1);
     await page.locator('[data-api-key-index="0"] input').fill('fixture-updated-first-key');
     await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').check();
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 0);
     assert.equal(await page.locator('[data-api-key-index="1"] input').inputValue(), 'fixture-second-key');
     await page.locator('[data-api-key-rotation-setting] input[value="single"]').check();
-    report.quickClose = true; report.latestWriteWins = true; report.persistenceCases.push('single-key-multi-key-mode-and-hidden-key-values-preserved');
+    report.quickClose = true; report.latestWriteWins = true; report.persistenceCases.push('first-key-only-and-rotation-keep-every-saved-key-visible');
     await selected('claude').click();
     assert.equal(await visible('.catalog-set-default').count(), 0);
     assert.equal(await page.locator('.service-catalog').getAttribute('data-default-service'), initialDefault);

@@ -136,24 +136,32 @@ const record = id => { report.caseCoverage.push({id, status: 'passed'}); console
     await page.locator('[data-service-configuration-service="openai"]').waitFor();
     await page.getByTestId('model-picker-trigger').click();
     await page.locator('[data-model-id="gpt-4.1-mini"] .model-picker-option').click();
-    const policy = page.locator('[data-api-key-auth-policy]');
-    assert(await policy.evaluate(el => el.classList.contains('fluentread-select')));
-    await choose('密钥要求', '允许留空');
+    // 密钥要求是接口兼容层面的二选一，使用与其他页签一致的分段按钮。
+    assert.equal(await page.locator('[data-api-key-list] [data-api-key-auth-policy]').count(), 0);
+    await page.getByRole('tab', {name: '接口兼容', exact: true}).click();
+    const policy = page.locator('[data-api-key-requirement-row] [data-api-key-auth-policy]');
+    assert.equal(await policy.getAttribute('role'), 'radiogroup');
+    await policy.getByRole('radio', {name: '允许留空', exact: true}).click();
     await page.waitForFunction(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.requireApiKey['v2:["openai","gpt-4.1-mini"]'] === false);
-    await policy.getByRole('combobox').press('Enter'); await shot(page.locator('.el-popper.fluentread-select-popper:visible'), 'key-policy-menu'); await policy.getByRole('combobox').press('Escape');
-    await shot(page.locator('.api-key-list'), 'key-policy');
+    assert.equal(await policy.getByRole('radio', {name: '允许留空', exact: true}).getAttribute('aria-checked'), 'true');
+    await shot(page.locator('[data-api-key-requirement-row]'), 'key-policy');
+    await shot(page.locator('.api-key-list'), 'key-list');
     await page.getByRole('tab', {name: '请求限制', exact: true}).click();
     const limits = page.getByTestId('request-limit-settings');
-    await choose('限制方式', '自定义');
+    const mode = limits.locator('[data-request-limit-mode]');
+    await mode.getByRole('radio', {name: '自定义', exact: true}).click();
     await limits.getByRole('spinbutton', {name: '每秒最多请求数', exact: true}).fill('4');
     await limits.getByRole('spinbutton', {name: '每秒最多请求数', exact: true}).press('Tab');
+    // 三项数值逐行排列：同一列、等宽，并与限制方式的控件左对齐。
     const boxes = await limits.locator('.request-limit-number').evaluateAll(nodes => nodes.map(el => {const r = el.getBoundingClientRect(); return {x: r.x, y: r.y, width: r.width};}));
-    assert.equal(boxes.length, 3); assert(boxes.every(box => Math.abs(box.y - boxes[0].y) < 2 && Math.abs(box.width - boxes[0].width) < 2));
-    await choose('限制方式', '跟随全局设置');
+    const modeBox = await mode.boundingBox();
+    assert.equal(boxes.length, 3); assert(boxes.every(box => Math.abs(box.x - boxes[0].x) < 2 && Math.abs(box.width - boxes[0].width) < 2));
+    assert(boxes[1].y > boxes[0].y && boxes[2].y > boxes[1].y && Math.abs(boxes[0].x - modeBox.x) < 2);
+    await mode.getByRole('radio', {name: '跟随全局设置', exact: true}).click();
     assert.equal(await limits.locator('.el-input-number.is-disabled').count(), 3);
-    await choose('限制方式', '自定义'); assert.equal(await limits.getByRole('spinbutton', {name: '每秒最多请求数', exact: true}).inputValue(), '4');
-    await choose('限制方式', '跟随全局设置');
-    await shot(limits, 'request-limits'); record('uniform key menu and limits alignment, custom values and inherited disable state');
+    await mode.getByRole('radio', {name: '自定义', exact: true}).click(); assert.equal(await limits.getByRole('spinbutton', {name: '每秒最多请求数', exact: true}).inputValue(), '4');
+    await mode.getByRole('radio', {name: '跟随全局设置', exact: true}).click();
+    await shot(limits, 'request-limits'); record('key requirement in compatibility, row-aligned limits, custom values and inherited disable state');
 
     const cfg = await read();
     await patch({proxy: {...cfg.proxy, openai: `http://127.0.0.1:${server.address().port}/v1`}, modelVision: {}});
@@ -163,6 +171,12 @@ const record = id => { report.caseCoverage.push({id, status: 'passed'}); console
     assert((await page.getByTestId('model-picker-trigger').innerText()).includes('gpt-4.1-mini'));
     await page.getByRole('tab', {name: '模型偏好', exact: true}).click();
     const vision = page.getByTestId('model-vision-control');
+    // “尚未确认”的说明收在标签旁的提示里，不再常驻一行；能力用三选一分段按钮指定。
+    assert.equal(await vision.locator('.model-vision-setting').getByText('首次圈选时会自动检测').count(), 0);
+    assert.equal(await vision.getByTestId('model-vision-capability').getByRole('radio').count(), 3);
+    await vision.locator('button.field-help').hover();
+    await page.locator('.fluentread-field-help-popper:visible').filter({hasText: '首次圈选时会自动检测'}).waitFor();
+    await page.locator('.detail-hero').hover();
     await vision.getByTestId('model-vision-probe').click();
     await page.waitForFunction(() => document.querySelector('[data-testid="model-vision-status"]')?.textContent.includes('已通过图片读取测试'));
     assert.equal(await vision.getByText('已通过图片读取测试', {exact: true}).count(), 1);

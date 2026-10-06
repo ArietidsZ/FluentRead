@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "Clave opcional",
     "settings.services.keys.requirementHelp": "Elige Clave obligatoria para las API autenticadas, o Clave opcional para las API que aceptan solicitudes anónimas. Una clave rellenada se sigue usando.",
     "settings.services.keys.optionalPlaceholder": "Opcional; se usará la clave rellenada",
-    "settings.services.keys.addKey": "Añadir clave"
+    "settings.services.keys.addKey": "Añadir clave",
+    "settings.services.keys.listHelp": "Puedes añadir varias claves. Si la interfaz no necesita clave, cambia el requisito de clave a «Clave opcional» en Compatibilidad de la API.",
+    "settings.services.keys.standby": "En reserva",
+    "settings.services.prompts.syncAll": "Sincronizar con todos los servicios de IA",
+    "settings.services.prompts.syncConfirmTitle": "Sincronizar plantillas de instrucciones",
+    "settings.services.prompts.syncConfirmMessage": "¿Copiar las instrucciones system y user de este servicio a los otros {count} servicios de IA? Sus instrucciones actuales se sobrescribirán.",
+    "settings.services.prompts.syncConfirmAction": "Sincronizar",
+    "settings.services.prompts.syncCancel": "Cancelar",
+    "settings.services.prompts.syncDone": "Sincronizado con {count} servicios de IA",
+    "settings.services.visionProbeShort": "Probar"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "La conexión ha cambiado. Genera una nueva vista previa.",

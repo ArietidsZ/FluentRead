@@ -1,33 +1,32 @@
 <!--
  * @file src/features/settings/ui/services/RequestLimitSettings.vue
- * 文件职责：在翻译服务高级设置中编辑当前模型或整个服务的请求限制，并通过作用范围和限制方式选择器展示实际生效的一组数值。
- * 主要内容：上方并排展示作用范围与限制方式，下方在同一宽度内展示三项数值；用限制方式切换全局或服务默认与整组自定义，保留停用的自定义值，按实际模型隔离设置，窄容器按字段自然换行。
+ * 文件职责：在翻译服务设置中编辑当前模型或整个服务的请求限制，并展示实际生效的一组数值。
+ * 主要内容：与服务页其他页签一致，按“左标签、右控件”逐行排列：作用范围与限制方式用分段按钮直接切换，下方三项数值各占一行；作用范围下注明当前模型名或“所有模型合计”，用限制方式切换沿用上一级与整组自定义，保留停用的自定义值，按实际模型隔离设置，窄容器改为上下排列。
  * 模块边界：只更新传入 Config 的请求限制映射，持久化由设置页现有订阅与保存队列处理；调度计数及真实网络请求由 services 层负责。
  -->
 <template>
   <div class="request-limit-settings" data-testid="request-limit-settings" :data-scope="scope" :data-model="model || ''">
-    <div class="request-limit-options">
-      <div v-if="model" class="connection-field request-limit-scope">
-        <div class="connection-field-label"><strong>{{ t('settings.requestLimits.scope') }}</strong><FieldHelp :content="t('settings.requestLimits.serviceScope')" /></div>
-        <div class="connection-field-control">
-          <el-select v-model="scope" :aria-label="t('settings.requestLimits.scope')" data-request-limit-scope>
-            <el-option value="model" :label="t('settings.requestLimits.currentModel')" />
-            <el-option value="service" :label="t('settings.requestLimits.entireService')" />
-          </el-select>
-        </div>
-      </div>
-      <div class="connection-field request-limit-inheritance">
-        <div class="connection-field-label"><strong>{{ t('settings.requestLimits.mode') }}</strong></div>
-        <div class="connection-field-control">
-          <el-select :model-value="preference?.enabled ? 'custom' : 'inherit'" :aria-label="t('settings.requestLimits.mode')" @update:model-value="setFollowing($event === 'inherit')">
-            <el-option value="inherit" :label="followLabel" />
-            <el-option value="custom" :label="t('settings.requestLimits.custom')" />
-          </el-select>
-        </div>
+    <div v-if="model" class="connection-field request-limit-scope">
+      <div class="connection-field-label"><strong>{{ t('settings.requestLimits.scope') }}</strong></div>
+      <div class="connection-field-control">
+        <SegmentedControl
+          compact :label="t('settings.requestLimits.scope')" :options="scopeOptions" data-request-limit-scope
+          :model-value="scope" @update:model-value="scope = $event === 'service' ? 'service' : 'model'"
+        />
+        <small class="request-limit-hint" data-request-limit-scope-hint>{{ scope === 'model' ? t('settings.organization.modelScope', {model}) : t('settings.requestLimits.serviceScope') }}</small>
       </div>
     </div>
-    <RequestLimitFields :model-value="preference?.enabled ? preference.limits : inherited" :disabled="!preference?.enabled" @update:model-value="setLimits" />
-    <small v-if="scope === 'model' && servicePreference?.enabled" class="request-limit-cap">{{ t('settings.requestLimits.serviceCap') }}</small>
+    <div class="connection-field request-limit-inheritance">
+      <div class="connection-field-label"><strong>{{ t('settings.requestLimits.mode') }}</strong></div>
+      <div class="connection-field-control">
+        <SegmentedControl
+          compact :label="t('settings.requestLimits.mode')" :options="modeOptions" data-request-limit-mode
+          :model-value="preference?.enabled ? 'custom' : 'inherit'" @update:model-value="setFollowing($event === 'inherit')"
+        />
+        <small v-if="scope === 'model' && servicePreference?.enabled" class="request-limit-hint request-limit-cap">{{ t('settings.requestLimits.serviceCap') }}</small>
+      </div>
+    </div>
+    <RequestLimitFields layout="service" :model-value="preference?.enabled ? preference.limits : inherited" :disabled="!preference?.enabled" @update:model-value="setLimits" />
   </div>
 </template>
 
@@ -39,7 +38,7 @@ import {
   withModelRequestLimit, withServiceRequestLimit, type RequestLimitPreference, type TranslationRequestLimits,
 } from '@/src/core/config/requestLimits';
 import {useUiI18n} from '@/src/ui/i18n';
-import FieldHelp from '../components/FieldHelp.vue';
+import SegmentedControl from '../components/SegmentedControl.vue';
 import RequestLimitFields from './RequestLimitFields.vue';
 
 const props = defineProps<{config: Config; service: string; model?: string}>();
@@ -54,6 +53,14 @@ const inherited = computed(() => scope.value === 'model' && servicePreference.va
   ? servicePreference.value.limits : normalizeTranslationRequestLimits(props.config));
 const followLabel = computed(() => t(scope.value === 'model' && servicePreference.value?.enabled
   ? 'settings.requestLimits.followService' : 'settings.requestLimits.followGlobal'));
+const scopeOptions = computed(() => [
+  {value: 'model', label: t('settings.requestLimits.currentModel')},
+  {value: 'service', label: t('settings.requestLimits.entireService')},
+]);
+const modeOptions = computed(() => [
+  {value: 'inherit', label: followLabel.value},
+  {value: 'custom', label: t('settings.requestLimits.custom')},
+]);
 
 function save(next: RequestLimitPreference): void {
   if (scope.value === 'model' && props.model) {
@@ -71,19 +78,16 @@ function setLimits(limits: TranslationRequestLimits): void {
 </script>
 
 <style scoped>
-.request-limit-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.connection-field { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 8px; min-width: 0; }
-.connection-field-label { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-height: 24px; min-width: 0; }
-.connection-field-label strong { color: var(--ink); font-size: 13px; font-weight: 550; }
-.connection-field-control { width: 100%; min-width: 0; }
-.connection-field-control :deep(.el-select) { width: 100%; }
-.request-limit-settings { display: grid; gap: 20px; min-width: 0; padding: 12px 0; }
-.request-limit-settings :deep(.request-limit-fields) { padding: 0; }
-.request-limit-settings :deep(.settings-item-copy) { min-height: 24px; justify-content: flex-end; }
-.request-limit-cap { display: block; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+.request-limit-settings { display: grid; min-width: 0; }
+.connection-field { display: grid; grid-template-columns: 140px minmax(0, 1fr); align-items: start; gap: 16px; min-width: 0; padding: 14px 0; }
+.connection-field + .connection-field { border-top: 1px solid var(--line); }
+.connection-field-label { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; min-height: 38px; min-width: 0; }
+.connection-field-label strong { color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.5; }
+.connection-field-control { display: grid; gap: 6px; width: 100%; max-width: 360px; min-width: 0; }
+.request-limit-hint { display: block; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
 @container (max-width: 600px) {
-  .request-limit-options { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .request-limit-settings { gap: 16px; }
+  .connection-field { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .connection-field-label { min-height: 24px; }
+  .connection-field-control { max-width: none; }
 }
-@container (max-width: 380px) { .request-limit-settings :deep(.request-limit-fields) { grid-template-columns: minmax(0, 1fr); } }
 </style>
