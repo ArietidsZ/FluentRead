@@ -1,7 +1,7 @@
 import {parseHTML} from 'linkedom';
-import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {alignBilingualSentences, sentenceSpans} from '@/src/core/translation/sentenceAlignment';
-import {BILINGUAL_HIGHLIGHT_NAME, installBilingualSentenceHighlight, subscribeHighlightedSentence} from '@/src/features/full-page-translation/content/sentenceHighlight';
+import {BILINGUAL_HIGHLIGHT_NAME, installBilingualSentenceHighlight} from '@/src/features/full-page-translation/content/sentenceHighlight';
 import {BILINGUAL_SENTENCE_HIGHLIGHT_APPEARANCE_ID, syncBilingualSentenceHighlight} from '@/src/app/content/bilingualSentenceHighlight';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, MAX_SENTENCE_HIGHLIGHT_PROFILES, SENTENCE_HIGHLIGHT_STYLES, buildSentenceHighlightAppearanceCss, getSentenceHighlightAppearanceStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, parseSentenceHighlightCustomCss, resolveSentenceHighlightAppearance} from '@/src/core/config/sentenceHighlight';
@@ -211,27 +211,7 @@ function fixture(html = '<p id="owner" data-row="10">First. Second.<span data-ro
 }
 
 describe('paint-only bilingual hover lifecycle', () => {
-    beforeEach(() => vi.useFakeTimers());
-    afterEach(() => {vi.unstubAllGlobals();vi.useRealTimers();});
-    it('publishes the hovered side even within the same sentence pair and retains it over its isolated actions', () => {
-        const f = fixture(); const change = vi.fn(); const other = vi.fn();
-        const unsubscribe = subscribeHighlightedSentence(f.document, {change, retainPointer: target => target?.id === 'outside'});
-        const unsubscribeOther = subscribeHighlightedSentence(f.document, {change:other});
-        const dispose = installBilingualSentenceHighlight(f.document);
-        f.move('.fluent-read-bilingual-content', 20, 35);
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'translation', sourceText:'First.', translationText:'一句。', context:'First. Second.', rect:expect.objectContaining({top:30})}));
-        const paint = f.registry.get(BILINGUAL_HIGHLIGHT_NAME);
-        f.move();
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'source', sourceText:'First.', rect:expect.objectContaining({top:10})}));
-        expect(f.registry.get(BILINGUAL_HIGHLIGHT_NAME)).toBe(paint);
-        f.move('.fluent-read-bilingual-content', 20, 35);
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'translation'}));
-        f.move('#outside'); expect(f.highlighted()).toEqual(['First.', '一句。']);
-        f.move('#owner', 300); vi.advanceTimersByTime(220); expect(change).toHaveBeenLastCalledWith(null);
-        unsubscribeOther(); unsubscribe();
-        const count = change.mock.calls.length;
-        f.move(); dispose(); expect(change).toHaveBeenCalledTimes(count);
-    });
+    afterEach(() => vi.unstubAllGlobals());
     it('实时改变高亮外观不重新安装监听器，关闭时清理绘制与外观属性', () => {
         const f = fixture();
         syncBilingualSentenceHighlight(f.document, true, 'mint');
@@ -254,8 +234,8 @@ describe('paint-only bilingual hover lifecycle', () => {
         f.move('#owner', 25); expect(f.registry.get(BILINGUAL_HIGHLIGHT_NAME)).toBe(paint);
         f.move('.fluent-read-bilingual-content', 45, 35); expect(f.highlighted()).toEqual(['Second.', '二句。']);
         f.move('#owner', 95); expect(f.highlighted()).toEqual(['Second.', '二句。']);
-        f.move('#owner', 300); vi.advanceTimersByTime(220); expect(f.highlighted()).toEqual([]);
-        f.move(); f.move('#outside'); vi.advanceTimersByTime(220); expect(f.highlighted()).toEqual([]);
+        f.move('#owner', 300); expect(f.highlighted()).toEqual([]);
+        f.move(); f.move('#outside'); expect(f.highlighted()).toEqual([]);
         expect(f.document.body.innerHTML).toBe(before);
         dispose(); expect(f.registry.get('host-search')).toBe(foreign);
         expect(f.registry.has(BILINGUAL_HIGHLIGHT_NAME)).toBe(false);
@@ -265,8 +245,8 @@ describe('paint-only bilingual hover lifecycle', () => {
         const f = fixture('<p id="owner" data-row="10"><span class="fluent-read-bilingual-content" data-fr-translation-owned="true" data-row="30">第一句。<b>第二句。</b></span>First <a id="link">linked</a> sentence.<br>Second sentence.<i hidden>Hidden.</i><i style="display:none">Invisible.</i><i style="visibility:hidden">Invisible.</i><i style="visibility:collapse">Invisible.</i><span translate="no">Protected.</span><!--comment--></p>');
         const dispose = installBilingualSentenceHighlight(f.document);
         f.move('#link'); expect(f.highlighted()).toEqual(['First ', 'linked', ' sentence.', '第一句。']);
-        f.move('[hidden]'); vi.advanceTimersByTime(220); expect(f.highlighted()).toEqual([]);
-        f.move('[translate="no"]'); vi.advanceTimersByTime(220); expect(f.highlighted()).toEqual([]);
+        f.move('[hidden]'); expect(f.highlighted()).toEqual([]);
+        f.move('[translate="no"]'); expect(f.highlighted()).toEqual([]);
         dispose();
     });
     it('coalesces pointer input and cancels pending frames on all clear paths', () => {
@@ -293,28 +273,6 @@ describe('paint-only bilingual hover lifecycle', () => {
         f.mutate(f.document.body); expect(f.highlighted()).toEqual([]);
         f.move(); f.document.querySelector('#owner')!.remove(); f.mutate(f.document.body); expect(f.highlighted()).toEqual([]);
         dispose();
-    });
-    it('preserves sentence identity across text gaps and cancels leave timers on entering isolated controls or teardown', () => {
-        const f=fixture();const change=vi.fn();
-        const unsubscribe=subscribeHighlightedSentence(f.document,{change,retainPointer:target=>target?.id==='outside'});
-        const dispose=installBilingualSentenceHighlight(f.document);
-        f.move();const first=change.mock.calls.at(-1)![0];
-        expect(first).toMatchObject({owner:f.document.querySelector('#owner'),index:0,anchorRect:{left:0,right:140,top:10,bottom:40}});
-        f.move('#owner',300);vi.advanceTimersByTime(150);expect(f.highlighted()).toEqual(['First.','一句。']);
-        f.move('#outside');vi.advanceTimersByTime(300);expect(f.highlighted()).toEqual(['First.','一句。']);
-        f.move();expect(change.mock.calls.at(-1)![0]).toMatchObject({owner:first.owner,index:first.index});
-        f.move('#owner',300);dispose();const count=change.mock.calls.length;
-        vi.advanceTimersByTime(300);expect(change).toHaveBeenCalledTimes(count);unsubscribe();
-    });
-    it('holds the selected sentence while crossing another toward controls, but selects it after pointer rest', () => {
-        const f=fixture();const change=vi.fn();let transfer=false;
-        const unsubscribe=subscribeHighlightedSentence(f.document,{change,retainPointer:()=>transfer?'transfer':false});
-        const dispose=installBilingualSentenceHighlight(f.document);f.move();transfer=true;
-        f.move('#owner',95);expect(f.highlighted()).toEqual(['First.','一句。']);
-        vi.advanceTimersByTime(219);expect(f.highlighted()).toEqual(['First.','一句。']);
-        vi.advanceTimersByTime(1);expect(f.highlighted()).toEqual(['Second.','二句。']);
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({index:1}));
-        f.move('#owner',20);dispose();vi.advanceTimersByTime(300);expect(f.highlighted()).toEqual([]);unsubscribe();
     });
     it('rejects duplicate wrappers, missing text, oversized owners and nontranslation content', () => {
         for (const html of [

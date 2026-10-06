@@ -16,6 +16,7 @@ import * as harness from '@/src/core/config/harness';
 import * as runtimeMessages from '@/src/platform/browser/runtimeMessages';
 import * as detect from '@/src/core/language/detect';
 import * as wordNormalization from '@/src/features/selection-translation/services/wordNormalization';
+import * as vocabularyProtocol from '@/src/features/vocabulary/protocol';
 
 vi.mock('webextension-polyfill', () => ({default: {}}));
 
@@ -27,7 +28,7 @@ const compiled = ts.transpileModule(compileScript(descriptor, {id: 'selection-li
 let app: Vue.App | undefined;
 afterEach(() => { app?.unmount(); app = undefined; vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-function mountSelection() {
+function mountSelection(privateContext = false) {
     vi.useFakeTimers();
     const config = Object.assign(new Config(), {
         disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual', theme: 'light',
@@ -59,7 +60,7 @@ function mountSelection() {
     const browser = {
         runtime: {onMessage: event, getURL: (path: string) => path,
             sendMessage: vi.fn().mockResolvedValue({success: true, zoom: 1})},
-        extension: {inIncognitoContext: false},
+        extension: {inIncognitoContext: privateContext},
     };
     const unsubscribeConfig = vi.fn(), releaseContextMenu = vi.fn(), stopTts = vi.fn();
     const modules: Record<string, unknown> = {
@@ -72,6 +73,7 @@ function mountSelection() {
         '@/src/features/selection-translation/services/wordNormalization': wordNormalization,
         '@/src/core/config/harness': harness,
         '@/src/core/language/detect': detect,
+        '@/src/features/vocabulary/protocol': vocabularyProtocol,
         '@/src/features/share-card/public': {isShareCardMounted: () => false},
         '@/src/features/selection-translation/content/selectionTtsContentController': {
             createSelectionTtsContentController: () => ({stop: stopTts}),
@@ -102,6 +104,77 @@ function mountSelection() {
     return {state, event, browser, config, listeners, window, document, unsubscribeConfig, releaseContextMenu, stopTts,
         lifecycleErrors, unmount: () => { currentApp.unmount(); app = undefined; }};
 }
+
+describe('explicit selection sentence collection', () => {
+    function prepare(text: string, sourceLanguage = 'en', privateContext = false) {
+        const fixture = mountSelection(privateContext);
+        fixture.config.vocabularyBookEnabled = true;
+        const request = {text, generation: 1, sourceLanguage, targetLanguage: 'zh-Hans'};
+        fixture.state.snapshot = {text};
+        fixture.state.selectedText = text;
+        fixture.state.activeContentRequest = request;
+        fixture.state.translationAnswer = {...request, answer: '这是一句译文。'};
+        fixture.browser.runtime.sendMessage.mockResolvedValue({success: true, data: {id: 'saved-sentence'}});
+        return {...fixture, request};
+    }
+
+    it('saves a complete selected sentence through the existing card without requiring an English word selection', async () => {
+        const fixture = prepare('Good ideas deserve attention.');
+        expect(fixture.state.isWordSelection).toBe(false);
+        await fixture.state.saveVocabularyEntry({isTrusted: true});
+        expect(fixture.browser.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            action: 'upsert', input: expect.objectContaining({
+                term: fixture.request.text, sourceLanguage: 'en', translation: '这是一句译文。',
+            }),
+        }));
+        expect(fixture.state.isVocabularySaved).toBe(true);
+    });
+
+    it('uses the captured language for other-language sentences and retrieves saved state after explicit card requests', async () => {
+        const fixture = prepare('Les idées méritent notre attention.', 'fr');
+        await fixture.state.refreshVocabularySaved(fixture.request);
+        expect(fixture.browser.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            action: 'getByTerm', sourceLanguage: 'fr', term: fixture.request.text,
+        }));
+        await fixture.state.saveVocabularyEntry({isTrusted: true});
+        expect(fixture.browser.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            action: 'upsert', input: expect.objectContaining({sourceLanguage: 'fr'}),
+        }));
+    });
+
+    it('does not query or save a selected sentence in a private context', async () => {
+        const fixture = prepare('Good ideas deserve attention.', 'en', true);
+        fixture.browser.runtime.sendMessage.mockClear();
+        await fixture.state.refreshVocabularySaved(fixture.request);
+        await fixture.state.saveVocabularyEntry({isTrusted: true});
+        expect(fixture.browser.runtime.sendMessage.mock.calls.some(([message]) => message.type === vocabularyProtocol.VOCABULARY_BOOK_MESSAGE)).toBe(false);
+    });
+
+    it('does not mark a new selection saved when the previous sentence save finishes late', async () => {
+        const fixture = prepare('Good ideas deserve attention.');
+        let finish!: (response: unknown) => void;
+        fixture.browser.runtime.sendMessage.mockImplementation(message => message.action === 'upsert'
+            ? new Promise(resolve => { finish = resolve; }) : Promise.resolve({success: true}));
+        const pending = fixture.state.saveVocabularyEntry({isTrusted: true});
+        const text = 'Practice makes progress.';
+        fixture.state.snapshot = {text};
+        fixture.state.selectedText = text;
+        fixture.state.beginSelectionContentRequest(text);
+        finish({success: true, data: {id: 'old-sentence'}});
+        await pending;
+        expect(fixture.state.isVocabularySaved).toBe(false);
+        expect(fixture.state.noticeMessage).toBe('');
+    });
+
+    it.each(['untrusted', 'disabled', 'missing-answer'] as const)('does not save when %s', async condition => {
+        const fixture = prepare('Good ideas deserve attention.');
+        if (condition === 'disabled') fixture.config.vocabularyBookEnabled = false;
+        if (condition === 'missing-answer') fixture.state.translationAnswer = null;
+        fixture.browser.runtime.sendMessage.mockClear();
+        await fixture.state.saveVocabularyEntry({isTrusted: condition !== 'untrusted'});
+        expect(fixture.browser.runtime.sendMessage.mock.calls.some(([message]) => message.action === 'upsert')).toBe(false);
+    });
+});
 
 describe('SelectionTranslator lifecycle after extension reload', () => {
     it.each(['normal', 'runtime removed', 'event removed', 'removeListener throws'] as const)(
