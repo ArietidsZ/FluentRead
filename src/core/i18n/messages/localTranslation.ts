@@ -2,7 +2,7 @@
  * @file src/core/i18n/messages/localTranslation.ts
  *
  * 文件职责：集中维护本地翻译模型管理和运行错误的界面文案。
- * 主要内容：七种界面语言的文案涵盖语言包介绍、下载生命周期、删除确认、资源估算与离线翻译限制。
+ * 主要内容：七种界面语言的文案涵盖语言包介绍、下载生命周期、本地存储与卸载清理提示、删除确认、资源估算与离线翻译限制。
  * 模块边界：只导出按稳定键组织的文本，不读取设备、配置或下载状态，不以英文替代缺失译文。
  */
 export const localTranslationEnglishMessages = {
@@ -30,6 +30,8 @@ export const localTranslationEnglishMessages = {
     'settings.localTranslation.memory': 'Estimated working memory {size}',
     'settings.localTranslation.resourcesNote': 'Memory figures are estimates, not download sizes. Actual use depends on the browser, graphics hardware and text. Models are released after 30 seconds of inactivity.',
     'settings.localTranslation.backgroundNote': 'Downloads continue when you leave this page. After restarting the browser, resume from the saved progress.',
+    'settings.localTranslation.storageHelp': 'Model storage and removal',
+    'settings.localTranslation.storageNote': 'Models are stored locally in this browser. When you uninstall the extension normally, the browser automatically clears its storage, including downloaded models and related caches. Disabling the extension keeps this data.',
     'settings.localTranslation.license': 'Model details and license',
     'settings.localTranslation.statusReading': 'Reading model status...',
     'settings.localTranslation.statusReadFailed': 'Could not read model status. Try again.',
@@ -97,6 +99,8 @@ export const localTranslationChineseMessages: Record<keyof typeof localTranslati
     'settings.localTranslation.memory': '预计运行内存 {size}',
     'settings.localTranslation.resourcesNote': "运行内存仅供参考，实际占用取决于浏览器、显卡和文本，与下载大小不同；连续空闲 30 秒后释放模型",
     'settings.localTranslation.backgroundNote': "离开此页后下载仍会继续；重启浏览器后，可从已保存的进度继续下载",
+    'settings.localTranslation.storageHelp': '模型存储与卸载清理说明',
+    'settings.localTranslation.storageNote': '模型保存在当前浏览器的本地存储中。正常卸载插件时，浏览器会自动清除插件所属的存储，包括下载的模型和相关缓存；仅停用插件会保留这些数据。',
     'settings.localTranslation.license': '模型详情与许可',
     'settings.localTranslation.statusReading': '正在读取模型状态…',
     'settings.localTranslation.statusReadFailed': "无法读取模型状态，请重试",
@@ -158,6 +162,8 @@ export const localTranslationJapaneseMessages = /* @__PURE__ */ prefixed({
     downloadSize: 'ダウンロード {size}', memory: '推定使用メモリ {size}',
     resourcesNote: 'メモリは推定値で、ダウンロード容量とは異なります。実際の使用量はブラウザー、GPU、文章により変わります。30秒間使わないとモデルを解放します。',
     backgroundNote: 'このページを離れてもダウンロードは続きます。ブラウザーを再起動した場合は保存済みの位置から再開できます。',
+    storageHelp: 'モデルの保存とアンインストール時の削除',
+    storageNote: 'モデルはこのブラウザーにローカル保存されます。拡張機能を通常の手順でアンインストールすると、ダウンロードしたモデルや関連キャッシュを含む保存データはブラウザーが自動的に削除します。無効化だけではデータは残ります。',
     license: 'モデル詳細とライセンス', statusReading: 'モデルの状態を確認中…', statusReadFailed: '状態を取得できません。再試行してください。',
     download: 'ダウンロード', resume: '再開', pause: '一時停止', retry: '再試行', refresh: '状態を更新', remove: '削除', cancel: 'キャンセル',
     confirmTitle: '{name} を削除しますか？',
@@ -193,6 +199,8 @@ export const localTranslationKoreanMessages = /* @__PURE__ */ prefixed({
     downloadSize: '다운로드 {size}', memory: '예상 실행 메모리 {size}',
     resourcesNote: '메모리는 추정치이며 다운로드 크기와 다릅니다. 실제 사용량은 브라우저, 그래픽 장치, 텍스트에 따라 달라집니다. 30초간 사용하지 않으면 모델을 해제합니다.',
     backgroundNote: '이 페이지를 떠나도 다운로드는 계속됩니다. 브라우저를 다시 시작한 뒤 저장된 지점부터 재개할 수 있습니다.',
+    storageHelp: '모델 저장 및 확장 프로그램 삭제 시 정리 안내',
+    storageNote: '모델은 현재 브라우저에 로컬로 저장됩니다. 확장 프로그램을 정상적으로 제거하면 브라우저가 다운로드한 모델과 관련 캐시를 포함한 저장 데이터를 자동으로 삭제합니다. 비활성화만 하면 데이터는 유지됩니다.',
     license: '모델 정보 및 라이선스', statusReading: '모델 상태 확인 중…', statusReadFailed: '상태를 읽지 못했습니다. 다시 시도하세요.',
     download: '다운로드', resume: '계속 다운로드', pause: '일시 중지', retry: '재시도', refresh: '상태 새로 고침', remove: '삭제', cancel: '취소',
     confirmTitle: '{name}을 삭제할까요?',
@@ -227,6 +235,8 @@ export const localTranslationFrenchMessages = /* @__PURE__ */ prefixed({
     downloadSize: 'Téléchargement : {size}', memory: 'Mémoire estimée : {size}',
     resourcesNote: 'La mémoire est une estimation, distincte de la taille du téléchargement. Elle dépend du navigateur, du GPU et du texte. Le modèle est libéré après 30 secondes d’inactivité.',
     backgroundNote: 'Le téléchargement continue lorsque vous quittez cette page. Après un redémarrage du navigateur, reprenez depuis la progression enregistrée.',
+    storageHelp: 'Stockage des modèles et désinstallation',
+    storageNote: 'Les modèles sont stockés localement dans ce navigateur. Lors de la désinstallation normale de l’extension, le navigateur efface automatiquement ses données, y compris les modèles téléchargés et les caches associés. La désactivation conserve ces données.',
     license: 'Détails et licence du modèle', statusReading: 'Lecture de l’état…', statusReadFailed: 'Impossible de lire l’état. Réessayez.',
     download: 'Télécharger', resume: 'Reprendre', pause: 'Suspendre', retry: 'Réessayer', refresh: 'Actualiser l’état', remove: 'Supprimer', cancel: 'Annuler',
     confirmTitle: 'Supprimer {name} ?',
@@ -261,6 +271,8 @@ export const localTranslationRussianMessages = /* @__PURE__ */ prefixed({
     downloadSize: 'Загрузка: {size}', memory: 'Оценка памяти: {size}',
     resourcesNote: 'Расход памяти оценочный и отличается от размера загрузки. Он зависит от браузера, графического процессора и текста. Модель освобождается через 30 секунд бездействия.',
     backgroundNote: 'Загрузка продолжается после ухода со страницы. После перезапуска браузера её можно возобновить с сохранённого места.',
+    storageHelp: 'Хранение моделей и очистка при удалении расширения',
+    storageNote: 'Модели хранятся локально в этом браузере. При обычном удалении расширения браузер автоматически очищает его данные, включая загруженные модели и связанные кэши. При отключении расширения эти данные сохраняются.',
     license: 'Описание и лицензия модели', statusReading: 'Чтение состояния…', statusReadFailed: 'Не удалось прочитать состояние. Повторите попытку.',
     download: 'Скачать', resume: 'Продолжить', pause: 'Пауза', retry: 'Повторить', refresh: 'Обновить состояние', remove: 'Удалить', cancel: 'Отмена',
     confirmTitle: 'Удалить {name}?',
@@ -295,6 +307,8 @@ export const localTranslationSpanishMessages = /* @__PURE__ */ prefixed({
     downloadSize: 'Descarga: {size}', memory: 'Memoria estimada: {size}',
     resourcesNote: 'La memoria es una estimación y no equivale al tamaño de descarga. Depende del navegador, la tarjeta gráfica y el texto. El modelo se libera tras 30 segundos de inactividad.',
     backgroundNote: 'La descarga continúa al salir de esta página. Tras reiniciar el navegador, puedes retomarla desde el progreso guardado.',
+    storageHelp: 'Almacenamiento de modelos y desinstalación',
+    storageNote: 'Los modelos se guardan localmente en este navegador. Al desinstalar la extensión de la forma habitual, el navegador borra automáticamente sus datos, incluidos los modelos descargados y las cachés relacionadas. Desactivar la extensión conserva estos datos.',
     license: 'Detalles y licencia del modelo', statusReading: 'Consultando el estado…', statusReadFailed: 'No se pudo consultar el estado. Inténtalo de nuevo.',
     download: 'Descargar', resume: 'Continuar', pause: 'Pausar', retry: 'Reintentar', refresh: 'Actualizar estado', remove: 'Eliminar', cancel: 'Cancelar',
     confirmTitle: '¿Eliminar {name}?',
