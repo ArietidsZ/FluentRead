@@ -161,6 +161,8 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
       // 中间张量。浏览器实时字幕更看重可回收峰值，关闭后由有界窗口和暖
       // session 复用承担性能，避免 renderer 长时间停留在 GB 级 RSS。
       session_options: {
+        // q8 合并权重同样避开锁定 ORT 的 QDQ 转置缺陷；q4 保留默认完整优化。
+        ...(dtype === 'q8' ? {extra: {optimization: {disable_specified_optimizers: 'QDQSelectorActionTransformer'}}} : {}),
         enableCpuMemArena: false,
         enableMemPattern: false,
         executionMode: 'sequential',

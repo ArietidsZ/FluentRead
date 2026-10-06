@@ -79,7 +79,12 @@ async function getTranslator(request: WorkerRequest): Promise<Translator> {
     const revision = getTranslationArtifacts(request.model).find((file) => file.repo === repository)?.revision || 'main';
     const create = () => pipeline('translation', repository, {
         device: 'wasm', dtype: LOCAL_TRANSLATION_DTYPE, revision, local_files_only: true,
-        session_options: {enableCpuMemArena: false, enableMemPattern: false, executionMode: 'sequential'},
+        // OPUS q8 的合并权重不兼容此 ORT 版本的 QDQ 转置优化；只排除此优化器，保留其余完整图优化。
+        session_options: {
+            graphOptimizationLevel: 'all',
+            extra: {optimization: {disable_specified_optimizers: 'QDQSelectorActionTransformer'}},
+            enableCpuMemArena: false, enableMemPattern: false, executionMode: 'sequential',
+        },
     }) as unknown as Promise<Translator>;
     const wasm = env.backends.onnx.wasm;
     translator = await (wasm

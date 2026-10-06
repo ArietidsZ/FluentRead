@@ -167,6 +167,8 @@ Choose a model under **Settings → Translation services → Local model transla
 
 Downloads continue when you leave the settings page. You can pause them and resume saved progress after restarting the browser. Files must finish verification before translation is available, even if the progress is nearly 100%.
 
+Model files are downloaded on demand. Simplified Chinese browser environments try two Hugging Face mirrors first; other environments try the official source first. Failures advance to another source. All sources use the same pinned versions and file checks; connectivity depends on your network.
+
 Deleting a model requires confirmation and keeps other models and settings. Model files belong to the current browser and are not included in settings backups.
 
 Download size is not runtime memory. Even a lightweight pack can briefly add around 1–2 GB of memory use, with CPU spikes while loading. Models are released after 30 seconds of inactivity. Text length, browser and graphics hardware affect actual usage. Unsupported browsers show a warning for Hunyuan. The userscript edition does not download or run these models.

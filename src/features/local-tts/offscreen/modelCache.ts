@@ -114,7 +114,11 @@ export async function isLocalTtsModelCached(): Promise<boolean> {
         const loaderUrl = getLocalTtsModelLoaderUrl(file);
         const pinned = await modelCache.match(pinnedUrl);
         const loader = await modelCache.match(loaderUrl);
-        return loader || pinned;
+        // 旧版本曾把同一固定文件写入两次；仅清理能证明属于当前固定版本的 main 副本。
+        if (pinned && loader && loader.headers.get('X-FluentRead-Model-Source') === pinnedUrl) {
+            await modelCache.delete(loaderUrl);
+        }
+        return pinned || loader;
     }));
     const voiceFiles = await Promise.all(LOCAL_TTS_VOICES.map((voice) => voiceCache.match(getLocalTtsVoiceCacheUrl(voice))));
     return modelFiles.every(Boolean) && voiceFiles.every(Boolean);

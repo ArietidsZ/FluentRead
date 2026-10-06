@@ -78,7 +78,7 @@ function requestUrl(input: RequestInfo | URL): string {
 function modelCacheUrls(url: string): string[] {
     const mainPrefix = `/${LOCAL_TTS_MODEL_REPOSITORY}/resolve/main/`;
     const pinnedPrefix = `/${LOCAL_TTS_MODEL_REPOSITORY}/resolve/${LOCAL_TTS_MODEL_REVISION}/`;
-    if (url.includes(mainPrefix)) return [url, url.replace(mainPrefix, pinnedPrefix)];
+    if (url.includes(mainPrefix)) return [url.replace(mainPrefix, pinnedPrefix), url];
     if (url.includes(pinnedPrefix)) return [url, url.replace(pinnedPrefix, mainPrefix)];
     return [url];
 }

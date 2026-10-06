@@ -1,7 +1,7 @@
 /**
  * @file tests/localTtsModelCache.test.ts
  * 文件职责：验证本地 TTS 模型升级后的 preferred/legacy 缓存边界。
- * 主要内容：旧 q4f16 缓存不会被误判为新模型，也只在显式清除时与新模型一起删除。
+ * 主要内容：流式下载只保存一份固定版本，兼容旧 main 缓存且仅清理来源可证明的重复文件；旧 q4f16 不误判为新模型，显式清除保留其他模型。
  * 模块边界：使用内存 Cache Storage，不下载真实模型、不启动 Worker、不修改用户配置。
  */
 
@@ -9,6 +9,7 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {
     LOCAL_TTS_LEGACY_MODEL_FILES,
     LOCAL_TTS_MODEL_FILES,
+    cacheLocalTtsModelFiles,
     LOCAL_TTS_VOICES,
     getLocalTtsModelFileUrl,
     getLocalTtsModelLoaderUrl,
@@ -75,6 +76,32 @@ describe('local TTS model cache upgrade compatibility', () => {
 
         await expect(isLocalTtsModelCached()).resolves.toBe(false);
         expect(await modelCache.match(getLocalTtsModelFileUrl('onnx/model_q4f16.onnx'))).toBeDefined();
+    });
+
+    it('streams one pinned copy per resource, keeps old loader-only caches and prunes only a proven duplicate', async () => {
+        const {modelCache, voiceCache} = installCaches();
+        const fetcher=vi.fn(async()=>new Response(new Uint8Array([1,2,3])));
+        vi.stubGlobal('fetch',fetcher);
+        await cacheLocalTtsModelFiles();
+        expect(await isLocalTtsModelCached()).toBe(true);
+        expect(fetcher).toHaveBeenCalledTimes(LOCAL_TTS_MODEL_FILES.length+LOCAL_TTS_VOICES.length);
+        for (const file of LOCAL_TTS_MODEL_FILES) {
+            const pinned=getLocalTtsModelFileUrl(file),loader=getLocalTtsModelLoaderUrl(file);
+            expect(await modelCache.match(pinned)).toBeDefined();
+            expect(await modelCache.match(loader)).toBeUndefined();
+            await modelCache.put(loader,new Response('old',{headers:{'X-FluentRead-Model-Source':pinned}}));
+        }
+        expect(await isLocalTtsModelCached()).toBe(true);
+        for (const file of LOCAL_TTS_MODEL_FILES) expect(await modelCache.match(getLocalTtsModelLoaderUrl(file))).toBeUndefined();
+        const file=LOCAL_TTS_MODEL_FILES[0];
+        await modelCache.put(getLocalTtsModelLoaderUrl(file),new Response('legacy'));
+        await isLocalTtsModelCached();
+        expect(await modelCache.match(getLocalTtsModelLoaderUrl(file))).toBeDefined();
+        await modelCache.delete(getLocalTtsModelFileUrl(file));
+        expect(await isLocalTtsModelCached()).toBe(true);
+        await cacheLocalTtsModelFiles();
+        expect(fetcher).toHaveBeenCalledTimes(LOCAL_TTS_MODEL_FILES.length+LOCAL_TTS_VOICES.length);
+        expect(await voiceCache.match(getLocalTtsVoiceCacheUrl(LOCAL_TTS_VOICES[0]!))).toBeDefined();
     });
 
     it('clears preferred and legacy model keys without deleting another model', async () => {

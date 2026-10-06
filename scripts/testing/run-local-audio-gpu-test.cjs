@@ -1,6 +1,6 @@
 'use strict';
 
-// 在独立扩展副本与临时 profile 中运行真实 Kokoro/Whisper；故障注入只改变测试 Worker 的 GPU API。
+// 在独立扩展副本与临时 profile 中运行真实 Kokoro/Whisper；故障注入仅限测试 GPU API 或 q4 初始化调用。
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -24,10 +24,17 @@ fs.cpSync(source, fixture, {recursive: true});
 execFileSync('/usr/bin/say', ['-v', 'Samantha', '-o', path.join(fixture, 'speech.aiff'), 'Hello world. This is a local speech test.']);
 execFileSync('/usr/bin/afconvert', ['-f', 'WAVE', '-d', 'LEI16', path.join(fixture, 'speech.aiff'), path.join(fixture, 'speech.wav')]);
 fs.writeFileSync(path.join(fixture, 'audio-probe.html'), '<!doctype html><meta charset="utf-8"><title>本地音频 GPU 验证</title><h1>本地音频 GPU 验证</h1><pre id="result">正在下载并验证模型…</pre>');
-const report = {source, cases: [], errors: [], injectedFaultErrors: [], workerSha256: {}, evidence: 'Real production Kokoro FP32 and Whisper Tiny q4 workers; controlled synthesized speech, plus explicitly injected GPU initialization/device-loss faults. Does not cover live website audio capture.'};
+const report = {source, cases: [], errors: [], injectedFaultErrors: [], workerSha256: {}, evidence: 'Real production Kokoro FP32 and Whisper Tiny q4/q8 workers; controlled synthesized speech, plus explicitly injected GPU initialization/device-loss or q4 initialization faults. Does not cover live website audio capture.'};
 for (const worker of ['localTtsWorker', 'videoTranscriptionWorker']) {
   report.workerSha256[worker] = createHash('sha256').update(fs.readFileSync(path.join(source, `${worker}.js`))).digest('hex');
-  for (const fault of ['unavailable', 'init-failure', 'device-loss']) {
+  for (const fault of ['unavailable', 'init-failure', 'device-loss', 'q4-failure']) {
+    if (fault === 'q4-failure') {
+      if (worker !== 'videoTranscriptionWorker') continue;
+      const code = fs.readFileSync(path.join(source, `${worker}.js`), 'utf8');
+      const q4Call = /return await [A-Za-z_$][\w$]*\(["']q4["']\)/g;
+      assert.equal([...code.matchAll(q4Call)].length, 1, 'Only the CPU q4 initialization call may be fault injected');
+      fs.writeFileSync(path.join(fixture, `${worker}-q4-failure.js`), code.replace(q4Call, 'throw new Error("Injected q4 initialization failure")'));
+    }
     fs.writeFileSync(path.join(fixture, `${worker}-${fault}.mjs`), `
 const queuedMessages = [];
 const queueEarlyMessage = event => queuedMessages.push(event);
@@ -36,7 +43,8 @@ const fault = ${JSON.stringify(fault)};
 const gpu = navigator.gpu;
 let probes = 0;
 const devices = [];
-if (fault === 'unavailable') Object.defineProperty(navigator, 'gpu', {value: undefined});
+if (fault === 'q4-failure') Object.defineProperty(navigator, 'gpu', {value: undefined});
+else if (fault === 'unavailable') Object.defineProperty(navigator, 'gpu', {value: undefined});
 else if (gpu) {
   const requestAdapter = gpu.requestAdapter.bind(gpu);
   Object.defineProperty(gpu, 'requestAdapter', {value: async options => {
@@ -59,7 +67,7 @@ self.postMessage = (message, ...args) => {
   }
   post(message, ...args);
 };
-await import('./${worker}.js');
+await import('./${worker}${fault === 'q4-failure' ? '-q4-failure' : ''}.js');
 self.removeEventListener('message', queueEarlyMessage);
 for (const event of queuedMessages) self.onmessage?.(event);
 self.postMessage({probeReady: true});`);
@@ -105,6 +113,7 @@ self.postMessage({probeReady: true});`);
     console.log(JSON.stringify({phase:'models-ready'}));
     for (const mode of arg('modes', 'gpu,cpu,unavailable,init-failure,device-loss').split(',')) {
       for (const kind of kinds) {
+        if (mode === 'q4-failure' && kind !== 'whisper') continue;
         const name = `${kind}-${mode}`;
         activeCase = name;
         console.log(JSON.stringify({phase:'inference', name}));
@@ -189,6 +198,7 @@ self.postMessage({probeReady: true});`);
         }, {kind,mode}));
         report.cases.push(measured);
         if(measured.error) {report.errors.push(`${name}: ${measured.error}`); continue;}
+        if (mode === 'q4-failure' && kind === 'whisper') assert.equal(measured.result.prepared.dtype, 'q8');
         const expected = mode==='gpu'?'webgpu':'wasm';
         assert.equal(measured.result.outputs[0].backend, expected, name);
         for(const output of measured.result.outputs) {
@@ -200,7 +210,8 @@ self.postMessage({probeReady: true});`);
     activeCase = '';
     report.ok = report.errors.length === 0;
     await page.evaluate(r => {document.getElementById('result').textContent=JSON.stringify(r,null,2);}, {adapter:report.adapter, cases:report.cases.map(c=>({name:c.name, result:c.result, error:c.error})), ok:report.ok});
-    await page.screenshot({path:path.join(artifacts,'result.png'), fullPage:true});
+    if (!process.argv.includes('--no-screenshots')) await page.screenshot({path:path.join(artifacts,'result.png'), fullPage:true});
+    if (!process.argv.includes('--skip-settings')) {
     const options = await newPageWithoutForeground(context);
     await options.goto(`${origin}/options.html#settings-translation`, {waitUntil:'domcontentloaded'});
     const modelRow = options.locator('[data-testid="local-tts-model-row"]');
@@ -209,7 +220,9 @@ self.postMessage({probeReady: true});`);
     report.settingsModelText = await modelRow.innerText();
     assert.match(report.settingsModelText, /343/);
     await modelRow.scrollIntoViewIfNeeded();
-    await options.screenshot({path:path.join(artifacts,'settings-model.png')});
+    if (!process.argv.includes('--no-screenshots')) await options.screenshot({path:path.join(artifacts,'settings-model.png')});
+    }
+    const focusCheck = await newPageWithoutForeground(context); await focusCheck.close();
     if(!report.ok)process.exitCode=1;
     console.log(JSON.stringify({ok:report.ok, cases:report.cases.map(c=>({name:c.name, elapsedMs:c.elapsedMs, error:c.error, result:c.result}))}));
   } catch(error) {report.ok=false; report.failure=error.stack; console.error(error); process.exitCode=1;}

@@ -84,6 +84,12 @@ Learning conversations continue to use the browser adaptation of DeepSeek Harnes
 
 </details>
 
+## Read-aloud settings
+
+Online voices and local speech settings are available in selection translation settings. The source policy controls which is tried first. Choosing local-only keeps reading text local.
+
+Local speech models are downloaded on demand and stored in the current browser. Simplified Chinese browser environments try two Hugging Face mirrors first; other environments try the official source first. Connection or transfer failures advance to another source. Downloaded files are reused, with one cached copy per pinned version.
+
 ## Related guides
 
 - [All guides](/en/docs/)
