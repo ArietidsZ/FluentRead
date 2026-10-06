@@ -1,0 +1,431 @@
+{
+  "base": "2e05d9e1e8a296cf4fd34e7bf2d3649be8e112da",
+  "passed": true,
+  "launchMode": "macos-background-cdp",
+  "focusPolicy": "launchservices-no-foreground",
+  "windowPlacement": {
+    "mode": "background-visible-no-focus",
+    "visible": true,
+    "windowState": "normal",
+    "displayTarget": "secondary",
+    "browserFrontmost": false
+  },
+  "cases": [
+    {
+      "mode": "ordinary",
+      "entry": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterLeave": {
+        "visible": false
+      },
+      "modal": {
+        "visible": false,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": false,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterModal": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "highlighted": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 1,
+        "iconLoaded": true,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterClick": {
+        "visible": true,
+        "text": "关闭",
+        "phase": "error",
+        "rect": {
+          "x": 377,
+          "y": 315.1640625,
+          "width": 46,
+          "height": 32,
+          "top": 315.1640625,
+          "right": 423,
+          "bottom": 347.1640625,
+          "left": 377
+        },
+        "fontSize": 11,
+        "opacity": 1,
+        "iconLoaded": false,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译首次使用需准备识别语言包，下载后自动继续查看错误详情关闭下载语言包并翻译文字关闭调整本地模型切换图片翻译服务"
+      }
+    },
+    {
+      "mode": "x-source-img",
+      "entry": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterLeave": {
+        "visible": false
+      },
+      "modal": {
+        "visible": false,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": false,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterModal": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "highlighted": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 1,
+        "iconLoaded": true,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterClick": {
+        "visible": true,
+        "text": "关闭",
+        "phase": "error",
+        "rect": {
+          "x": 377,
+          "y": 315.1640625,
+          "width": 46,
+          "height": 32,
+          "top": 315.1640625,
+          "right": 423,
+          "bottom": 347.1640625,
+          "left": 377
+        },
+        "fontSize": 11,
+        "opacity": 1,
+        "iconLoaded": false,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译首次使用需准备识别语言包，下载后自动继续查看错误详情关闭下载语言包并翻译文字关闭调整本地模型切换图片翻译服务"
+      }
+    },
+    {
+      "mode": "x-inert-link",
+      "entry": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterLeave": {
+        "visible": false
+      },
+      "modal": {
+        "visible": false,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": false,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterModal": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "highlighted": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 71,
+          "y": 441.6171875,
+          "width": 24,
+          "height": 24,
+          "top": 441.6171875,
+          "right": 95,
+          "bottom": 465.6171875,
+          "left": 71
+        },
+        "fontSize": 0,
+        "opacity": 1,
+        "iconLoaded": true,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      },
+      "afterClick": {
+        "visible": true,
+        "text": "关闭",
+        "phase": "error",
+        "rect": {
+          "x": 377,
+          "y": 315.1640625,
+          "width": 46,
+          "height": 32,
+          "top": 315.1640625,
+          "right": 423,
+          "bottom": 347.1640625,
+          "left": 377
+        },
+        "fontSize": 11,
+        "opacity": 1,
+        "iconLoaded": false,
+        "iconFilter": "none",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译首次使用需准备识别语言包，下载后自动继续查看错误详情关闭下载语言包并翻译文字关闭调整本地模型切换图片翻译服务"
+      }
+    },
+    {
+      "mode": "native-button",
+      "entry": {
+        "visible": false
+      }
+    }
+  ],
+  "live": [
+    {
+      "index": 0,
+      "entry": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 304,
+          "y": 572.609375,
+          "width": 24,
+          "height": 24,
+          "top": 572.609375,
+          "right": 328,
+          "bottom": 596.609375,
+          "left": 304
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      }
+    },
+    {
+      "index": 1,
+      "entry": {
+        "visible": true,
+        "text": "翻译",
+        "phase": "idle",
+        "rect": {
+          "x": 304,
+          "y": 486.109375,
+          "width": 24,
+          "height": 24,
+          "top": 486.109375,
+          "right": 328,
+          "bottom": 510.109375,
+          "left": 304
+        },
+        "fontSize": 0,
+        "opacity": 0.28,
+        "iconLoaded": true,
+        "iconFilter": "grayscale(1)",
+        "hitButton": true,
+        "feedback": "FluentRead · 图片翻译翻译图片查看错误详情"
+      }
+    }
+  ],
+  "liveScope": "Anonymous X original post and quoted post, first two media images only",
+  "limitations": [
+    "Logged-in DOM inspected read-only; interaction verified in isolated fixture",
+    "Trusted clicks stopped at missing Tesseract language-pack preparation; no model downloads or online translation"
+  ],
+  "tests": {
+    "files": 3,
+    "cases": 250,
+    "coverage": {
+      "presentation": 100,
+      "controls": 100,
+      "dimensions": [
+        "statements",
+        "branches",
+        "functions",
+        "lines"
+      ]
+    }
+  },
+  "checks": [
+    "compile",
+    "chrome-build",
+    "firefox-build",
+    "extension-manifests",
+    "test-audit",
+    "docs-build"
+  ]
+}
