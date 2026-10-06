@@ -1,13 +1,19 @@
 /**
  * @file src/features/local-tts/offscreen/modelCache.ts
  * 文件职责：下载、检查和清除 Kokoro 本地 TTS 模型及少量默认音色文件。
- * 主要内容：固定模型版本与文件清单，流式写入一份版本缓存，自动回退国内镜像和官方来源，兼容旧 main 缓存，并把模型下载和音色下载分开管理。
+ * 主要内容：固定模型版本与文件清单，流式写入一份版本缓存，自动回退国内镜像和官方来源，兼容旧 main 缓存，并把模型下载和音色下载分开管理；下载时把全部文件合并为一条真实字节进度。
  * 模块边界：只负责缓存文件，不初始化推理 Worker，不决定朗读策略，也不访问网页。
  */
 
 import {withModelDownload} from '@/src/platform/http/modelDownloads';
+import {
+    createDownloadProgressTracker,
+    type DownloadFileProgress,
+    type DownloadProgress,
+} from '@/src/core/download/progress';
 
 import {
+    LOCAL_TTS_MODEL,
     LOCAL_TTS_MODEL_CACHE_NAME,
     LOCAL_TTS_MODEL_ID,
     LOCAL_TTS_MODEL_REPOSITORY,
@@ -64,6 +70,7 @@ async function fetchIntoCache(
     cache: Cache,
     sourceUrl: string,
     cacheUrls: readonly string[],
+    progress: DownloadFileProgress,
 ): Promise<void> {
     const existing = await (async (): Promise<Response | undefined> => {
         for (const cacheUrl of cacheUrls) {
@@ -72,33 +79,43 @@ async function fetchIntoCache(
         }
         return undefined;
     })();
-    if (existing) return;
+    if (existing) {
+        progress.cached(Number(existing.headers.get('Content-Length')));
+        return;
+    }
     await withModelDownload(sourceUrl, async (response, source) => {
         const headers = new Headers(response.headers);
         headers.set('X-FluentRead-Model-Source', source);
         await cache.put(sourceUrl, new Response(response.body, {headers}));
-    }, {timeoutMs: MODEL_FILE_DOWNLOAD_TIMEOUT_MS});
+    }, {timeoutMs: MODEL_FILE_DOWNLOAD_TIMEOUT_MS, onProgress: progress.advance});
+    progress.complete();
 }
 
-async function cacheLocalTtsModelNow(): Promise<void> {
+async function cacheLocalTtsModelNow(onProgress?: (progress: DownloadProgress) => void): Promise<void> {
     if (typeof caches === 'undefined') throw new Error('当前浏览器不支持本地 TTS 模型缓存');
+    // 模型权重占绝大部分体积；各文件的真实大小在开始接收后才知道，此前按声明的下载体积计算。
+    const tracker = createDownloadProgressTracker(
+        LOCAL_TTS_MODEL_FILES.length + LOCAL_TTS_VOICES.length,
+        LOCAL_TTS_MODEL.downloadSizeMb * 1_000_000,
+        progress => onProgress?.(progress),
+    );
     const cache = await caches.open(LOCAL_TTS_MODEL_CACHE_NAME);
     for (const file of LOCAL_TTS_MODEL_FILES) {
         const pinnedUrl = getLocalTtsModelFileUrl(file);
-        await fetchIntoCache(cache, pinnedUrl, [pinnedUrl, getLocalTtsModelLoaderUrl(file)]);
+        await fetchIntoCache(cache, pinnedUrl, [pinnedUrl, getLocalTtsModelLoaderUrl(file)], tracker.file());
     }
 
     const voiceCache = await caches.open(LOCAL_TTS_VOICE_CACHE_NAME);
     for (const voice of LOCAL_TTS_VOICES) {
-        await fetchIntoCache(voiceCache, getLocalTtsVoiceRemoteUrl(voice), [getLocalTtsVoiceCacheUrl(voice)]);
+        await fetchIntoCache(voiceCache, getLocalTtsVoiceRemoteUrl(voice), [getLocalTtsVoiceCacheUrl(voice)], tracker.file());
     }
 }
 
-/** 对同一版本的并发下载只保留一个网络任务。 */
-export function cacheLocalTtsModelFiles(): Promise<void> {
+/** 对同一版本的并发下载只保留一个网络任务；进度由首个发起者的回调统一发布。 */
+export function cacheLocalTtsModelFiles(onProgress?: (progress: DownloadProgress) => void): Promise<void> {
     const existing = pendingDownloads.get(LOCAL_TTS_MODEL_ID);
     if (existing) return existing;
-    const pending = cacheLocalTtsModelNow().finally(() => {
+    const pending = cacheLocalTtsModelNow(onProgress).finally(() => {
         if (pendingDownloads.get(LOCAL_TTS_MODEL_ID) === pending) pendingDownloads.delete(LOCAL_TTS_MODEL_ID);
     });
     pendingDownloads.set(LOCAL_TTS_MODEL_ID, pending);

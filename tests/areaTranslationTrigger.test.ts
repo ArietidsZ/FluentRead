@@ -5,6 +5,7 @@ import {parse, compileScript} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import * as areaCore from '@/src/features/area-translation/core';
 import * as areaHotkey from '@/src/core/config/areaTranslation';
 import {shouldStartAreaTranslationFromHotkey} from '@/src/features/area-translation/content/areaHotkey';
@@ -33,6 +34,8 @@ function mountTranslator() {
     service: 'microsoft', serviceName: '微软翻译', model: '', mode: 'standard', lines: [], warnings: [],
   });
   const modules: Record<string, any> = {
+    // AreaTranslator 自 fe2946df 起依赖译文比较；测试的模块表此前没有同步登记。
+    '@/src/core/translation/result': {hasDistinctTranslation},
     vue: Vue, 'webextension-polyfill': {default: {runtime: {sendMessage: vi.fn()}}},
     '@/src/services/config/store': {config, subscribeConfig: () => () => undefined},
     '@/src/core/config/customOpenAI': {isCustomOpenAIProviderId: () => false},
@@ -41,6 +44,7 @@ function mountTranslator() {
     '@/src/features/area-translation/core': areaCore,
     '@/src/core/config/areaTranslation': areaHotkey,
     '@/src/features/image-translation/public': {prepareImageOcrLanguages: vi.fn()},
+    '@/src/ui/components/DownloadProgress.vue': {default: {}},
     '@/src/features/area-translation/content/contextMenuBridge': {setAreaContextMenuHandler: () => () => undefined},
   };
   const filename = resolve('src/features/area-translation/ui/AreaTranslator.vue');

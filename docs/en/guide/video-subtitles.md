@@ -34,7 +34,7 @@ To correct captions that are late or early, open **Subtitle timing** in the Flue
 
 The desktop Chrome / Edge extension can try local AI transcription:
 
-1. Download the Tiny or Base speech model in video settings. Initial downloads are about 100 MB and 150 MB respectively; extra runtime files may be needed later.
+1. Download the Tiny or Base speech model in video settings. Initial downloads are about 100 MB and 150 MB respectively; extra runtime files may be needed later. The model card shows a progress bar, percentage and downloaded size while downloading.
 2. Return to the X player and choose to generate AI subtitles.
 3. Wait for recognition. You can stop the job. Once recognition finishes, the timeline is available immediately; translations are fetched near the playback position. Original-only mode does not request translations.
 

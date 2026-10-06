@@ -27,6 +27,7 @@ function setup(overrides: Partial<VideoAiModelSetupDependencies> & {responses?: 
     startGeneration: vi.fn(() => events.push('start')),
     setError: vi.fn((message) => events.push(`error:${message}`)),
     formatDownloadError: (message) => `下载失败：${message}`,
+    watchDownload: vi.fn(() => () => undefined),
     onChange: vi.fn(),
     ...overrides,
   };
@@ -199,6 +200,55 @@ describe('video AI model setup', () => {
     download.resolve({success: true});
     await confirming;
     expect(busy.dependencies.startGeneration).toHaveBeenCalledTimes(1);
+  });
+
+  it('tracks real download progress for the confirmed model and stops watching when the download ends', async () => {
+    const download = deferred<unknown>();
+    let listener: ((progress: {loaded: number; total: number} | undefined) => void) | undefined;
+    const stopWatching = vi.fn();
+    const watchDownload = vi.fn((_model: VideoLocalTranscriptionModel, next: typeof listener) => { listener = next; return stopWatching; });
+    const {controller, dependencies} = setup({watchDownload, sendMessage: vi.fn((message: {type: string}) =>
+      message.type === 'fluentReadPrepareLocalVideoModel' ? download.promise : Promise.resolve({success: true, models: []}))});
+    await controller.request(() => true);
+    controller.select('base');
+    const confirming = controller.confirm();
+    expect(watchDownload).toHaveBeenCalledWith('base', expect.any(Function));
+    expect(controller.downloadProgress).toBeUndefined();
+
+    const changes = vi.mocked(dependencies.onChange).mock.calls.length;
+    listener!({loaded: 30, total: 150});
+    expect(controller.downloadProgress).toEqual({loaded: 30, total: 150});
+    expect(dependencies.onChange).toHaveBeenCalledTimes(changes + 1);
+    // 结束事件先于下载响应到达：保留最后一次进度，不退回不确定状态。
+    listener!(undefined);
+    expect(controller.downloadProgress).toEqual({loaded: 30, total: 150});
+    expect(dependencies.onChange).toHaveBeenCalledTimes(changes + 1);
+
+    download.resolve({success: true, models: ['base']});
+    await confirming;
+    expect(stopWatching).toHaveBeenCalledOnce();
+    expect(controller.downloading).toBe(false);
+    expect(controller.downloadProgress).toBeUndefined();
+  });
+
+  it('drops progress from a download that belongs to a previous video', async () => {
+    const download = deferred<unknown>();
+    let listener: ((progress: {loaded: number; total: number} | undefined) => void) | undefined;
+    const {controller} = setup({
+      watchDownload: (_model, next) => { listener = next; return () => undefined; },
+      sendMessage: vi.fn((message: {type: string}) =>
+        message.type === 'fluentReadPrepareLocalVideoModel' ? download.promise : Promise.resolve({success: true, models: []})),
+    });
+    await controller.request(() => true);
+    const confirming = controller.confirm();
+    listener!({loaded: 1, total: 100});
+    controller.reset();
+    expect(controller.downloadProgress).toBeUndefined();
+    listener!({loaded: 50, total: 100});
+    expect(controller.downloadProgress).toBeUndefined();
+    download.resolve({success: true});
+    await confirming;
+    expect(controller.downloadProgress).toBeUndefined();
   });
 
   it('shows download failures and does not start after the request becomes stale', async () => {

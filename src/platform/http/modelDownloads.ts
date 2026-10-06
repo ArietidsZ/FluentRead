@@ -1,7 +1,7 @@
 /**
  * @file src/platform/http/modelDownloads.ts
  * 文件职责：为按需模型数据下载提供地域提示、多来源回退与流式接收超时。
- * 主要内容：保留固定文件路径和版本，中文简体环境优先国内镜像，其他环境优先官方；网络、HTTP、断流和文件校验失败切换来源，取消与磁盘不足立即结束；流式响应不构造整份模型缓冲区。
+ * 主要内容：保留固定文件路径和版本，中文简体环境优先国内镜像，其他环境优先官方；网络、HTTP、断流和文件校验失败切换来源，取消与磁盘不足立即结束；流式响应不构造整份模型缓冲区，并按实际流过的字节回报下载进度。
  * 模块边界：只下载模型数据，不执行远程 JS/WASM、不处理用户文本或凭据；语言仅影响尝试顺序，不推断实际所在地。
  */
 export type ModelSourcePreference = 'auto' | 'official' | 'mirror';
@@ -31,7 +31,11 @@ export function modelDownloadSources(url: string, preference: ModelSourcePrefere
 export async function withModelDownload<T>(
     url: string,
     consume: (response: Response, source: string) => Promise<T>,
-    options: {signal?: AbortSignal; timeoutMs?: number; idleTimeoutMs?: number; preference?: ModelSourcePreference} = {},
+    options: {
+        signal?: AbortSignal; timeoutMs?: number; idleTimeoutMs?: number; preference?: ModelSourcePreference;
+        /** 每个来源从 0 开始回报已接收字节；total 仅在响应给出未经压缩编码的 Content-Length 时提供。 */
+        onProgress?: (loaded: number, total?: number) => void;
+    } = {},
 ): Promise<T> {
     const active = () => {if (options.signal?.aborted) throw new DOMException('模型下载已取消', 'AbortError');};
     let failure: unknown;
@@ -52,6 +56,12 @@ export async function withModelDownload<T>(
             if (/text\/html/iu.test(response.headers.get('Content-Type') ?? '')) throw new Error('模型下载来源返回了网页');
             if (!response.body) throw new Error('模型文件下载缺少响应体');
             reader = response.body.getReader();
+            // 压缩传输时 Content-Length 是编码后的大小，与流出的字节数不可比，此时不提供总量。
+            const length = response.headers.get('Content-Encoding') ? NaN : Number(response.headers.get('Content-Length'));
+            const total = Number.isFinite(length) && length > 0 ? length : undefined;
+            let loaded = 0;
+            const progress = () => {try {options.onProgress?.(loaded, total);} catch { /* 进度展示不能中断下载。 */ }};
+            progress();
             const stream = new ReadableStream<Uint8Array>({
                 async pull(target) {
                     try {
@@ -59,7 +69,7 @@ export async function withModelDownload<T>(
                         const chunk = await reader!.read();
                         if (controller.signal.aborted) throw new DOMException('模型下载超时', 'TimeoutError');
                         if (chunk.done) {clearTimeout(idle); target.close();}
-                        else {arm(); target.enqueue(chunk.value);}
+                        else {arm(); loaded += chunk.value.byteLength; progress(); target.enqueue(chunk.value);}
                     } catch (error) {target.error(error);}
                 },
                 cancel: reason => reader!.cancel(reason),

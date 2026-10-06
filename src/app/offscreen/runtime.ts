@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/runtime.ts
  * 文件职责：作为 Chrome Offscreen 与 Firefox 后台 iframe 共用 DOM 页面的组合根，创建独占 TTS 播放器并安装一次 runtime 消息监听，把浏览器资源适配给各离屏用例。
- * 主要内容：将 base64 音频解码为 Uint8Array，注入 Audio、Blob URL 创建/释放和状态回传，组合 Chrome Translation、OCR、图片/区域翻译与语言包下载依赖，注册 message listener。
+ * 主要内容：将 base64 音频解码为 Uint8Array，注入 Audio、Blob URL 创建/释放和状态回传，组合 Chrome Translation、OCR、图片/区域翻译与语言包下载依赖，把朗读模型、字幕模型和语言包的下载进度发布给后台，注册 message listener。
  * 模块边界：本文件只负责 Web API 资源与用例装配，不解析业务消息、不实现 OCR/翻译，也不创建 Offscreen document；两种浏览器容器的文档生命周期均由 platform/offscreen client 和 WXT 入口管理。
  */
 import {
@@ -16,6 +16,8 @@ import {
     disposeMangaModels,
 } from './imageTranslation';
 import {createOffscreenMessageListener} from './messageRouter';
+import {createDownloadProgressPublisher, LOCAL_TTS_DOWNLOAD_ID, ocrLanguageDownloadId, videoModelDownloadId} from '@/src/core/download/progress';
+import {normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 import {createSelectionTtsPlayer} from './ttsPlayback';
 import {translateWithChromeApi, type ChromeTranslationEnvironment} from './translation';
 import {removeLocalVideoTranscriptionModel, cancelLocalVideoTranscription, prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio} from '@/src/features/video-subtitle/offscreen/transcription';
@@ -51,6 +53,10 @@ export function startOffscreenApp(): void {
             resolve();
         });
     }));
+    // 离屏页面不能直接写扩展存储；进度交给后台转存，设置页与网页内界面再从存储变化事件读取。
+    const downloads = createDownloadProgressPublisher((message) => {
+        chrome.runtime.sendMessage(message, () => void chrome.runtime.lastError);
+    });
     const ttsPlayer = createSelectionTtsPlayer({
         createAudio: () => new Audio(),
         decodeBase64: decodeAudioBase64,
@@ -79,13 +85,23 @@ export function startOffscreenApp(): void {
         translateArea: translateAreaInOffscreen,
         cropArea: cropAreaInOffscreen,
         fetchImage: fetchImageInOffscreen,
-        downloadOcrLanguages: downloadImageOcrLanguages,
+        // 后台按语言逐个请求；标识与界面按语言订阅的键一致。
+        downloadOcrLanguages: (languages) => downloads.track(
+            ocrLanguageDownloadId(languages.join('-')),
+            onProgress => downloadImageOcrLanguages(languages, undefined, onProgress),
+        ),
         removeOcrLanguages: removeImageOcrLanguages,
         mangaModelStatus:mangaOcrModelStatus,
         removeMangaModels,
         videoAi: {
             transcribe: (request) => transcribeLocalVideoAudio(request as any),
-            prepare: (request) => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: request.keepWarm === true, streamId: request.streamId}),
+            // 预热只加载已缓存的模型；只有预下载才有网络进度可发布。
+            prepare: (request) => request.keepWarm === true
+                ? prepareLocalVideoTranscriptionModel(request.model, {keepWarm: true, streamId: request.streamId})
+                : downloads.track(
+                    videoModelDownloadId(normalizeVideoLocalTranscriptionModel(request.model)),
+                    onProgress => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: false, onProgress}),
+                ),
             cancel: cancelLocalVideoTranscription,
             removeModel: request => removeLocalVideoTranscriptionModel(request.model),
         },
@@ -104,7 +120,7 @@ export function startOffscreenApp(): void {
                 request.voice,
                 signal,
             ),
-            prepare: (request) => prepareLocalTtsModel(request.keepWarm === true),
+            prepare: (request) => downloads.track(LOCAL_TTS_DOWNLOAD_ID, report => prepareLocalTtsModel(request.keepWarm === true, report)),
             status: getLocalTtsModelStatus,
             removeModel: async () => { await removeLocalTtsModel(); },
             dispose: disposeLocalTtsWorker,

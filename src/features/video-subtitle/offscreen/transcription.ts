@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.ts
  * 文件职责：在 Offscreen Document 中串行调度视频 Whisper Worker、PCM 解码和模型预热。
- * 主要内容：复用共享并行预算及排队任务代次保护，管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放。
+ * 主要内容：复用共享并行预算及排队任务代次保护，管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放；预下载时把模型文件的字节进度交给调用方。
  * 模块边界：只编排 Offscreen/Worker 资源，不解析字幕时间轴，也不管理后台 tab owner。
  */
 import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
@@ -10,6 +10,7 @@ import {
   resampleToWhisperAudio,
 } from '@/src/features/video-subtitle/transcription';
 import { cacheVideoAiQ4ModelFiles, removeVideoAiModelFiles } from './modelCache';
+import type {DownloadProgress} from '@/src/core/download/progress';
 
 type LocalTranscriptionBackend = 'webgpu' | 'wasm';
 
@@ -76,6 +77,7 @@ interface PendingPrepareJob {
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
   keepWarm: boolean;
   streamId: string;
+  onProgress?: (progress: DownloadProgress) => void;
   resolve: (result: {
     model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
     backend?: LocalTranscriptionBackend;
@@ -394,6 +396,7 @@ async function prepareLocalVideoTranscriptionModelNow(
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
   keepWarm: boolean,
   streamId = '',
+  onProgress?: (progress: DownloadProgress) => void,
 ): Promise<{
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
   backend?: LocalTranscriptionBackend;
@@ -402,7 +405,7 @@ async function prepareLocalVideoTranscriptionModelNow(
   dtype?: 'q4' | 'q8';
 }> {
   if (!keepWarm) {
-    await cacheVideoAiQ4ModelFiles(model);
+    await cacheVideoAiQ4ModelFiles(model, onProgress);
     return { model, dtype: 'q4' };
   }
   const response = await requestWorkerWithCpuFallback({ type: 'prepare', model }, { type: 'prepare', model }, [], [], MODEL_PREPARE_TIMEOUT_MS, streamId);
@@ -444,7 +447,7 @@ function drainQueue(): void {
           activeStreamId = prepareJob.streamId;
           currentTranscriptionStreamId = prepareJob.streamId;
         }
-        prepareJob.resolve(await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm, prepareJob.streamId));
+        prepareJob.resolve(await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm, prepareJob.streamId, prepareJob.onProgress));
       } else if (transcriptionJob) {
         transcriptionJob.resolve(await transcribeLocalVideoAudioNow(transcriptionJob.request));
       }
@@ -464,6 +467,8 @@ function drainQueue(): void {
 export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
   keepWarm?: boolean;
   streamId?: unknown;
+  /** 仅预下载（keepWarm 为 false）时回报模型文件的真实字节进度；并发的相同请求共用首个调用者的回调。 */
+  onProgress?: (progress: DownloadProgress) => void;
 }): Promise<{
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
   backend?: LocalTranscriptionBackend;
@@ -491,7 +496,7 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
       return;
     }
     clearIdleDisposal();
-    pendingPrepare.push({ model: normalizedModel, keepWarm, streamId, resolve, reject });
+    pendingPrepare.push({ model: normalizedModel, keepWarm, streamId, onProgress: options?.onProgress, resolve, reject });
     drainQueue();
   });
   pendingPreparePromises.set(requestKey, request);

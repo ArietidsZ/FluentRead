@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/LocalTtsSettings.vue
  * 文件职责：统一管理在线与本地朗读的来源策略、音色偏好及 Kokoro 模型。
- * 主要内容：先选择在线优先、本地优先、仅在线或仅本地，再显示对应来源的音色与模型管理；切换来源保留隐藏偏好，自动音色不标成固定语言，模型说明只显示一次。
- * 模块边界：只修改传入的配置副本并调用后台模型管理消息，不执行 TTS 推理，也不直接访问 Offscreen 或缓存存储。
+ * 主要内容：先选择在线优先、本地优先、仅在线或仅本地，再显示对应来源的音色与模型管理；切换来源保留隐藏偏好，自动音色不标成固定语言，模型说明只显示一次；下载模型时在说明下方显示真实进度条、百分比和已下载体积，重开设置页也会接上仍在进行的下载。
+ * 模块边界：只修改传入的配置副本并调用后台模型管理消息，不执行 TTS 推理，也不直接访问 Offscreen 或缓存存储；下载进度只读取后台转存的变化事件。
  -->
 <template>
   <SettingsGroup class="speech-settings" :title="t('settings.experience.speechTitle')" data-testid="speech-settings">
@@ -40,14 +40,19 @@
             <small>{{ t('settings.localTts.modelDescription', {size: LOCAL_TTS_MODEL.downloadSizeMb}) }}</small>
           </div>
         </div>
-        <p class="local-tts-model-status" role="status" aria-live="polite">
+        <DownloadProgress
+          v-if="downloading"
+          class="local-tts-model-progress"
+          :progress="progress"
+          :label="t('settings.localTts.statusDownloading')"
+          data-testid="local-tts-progress"
+        />
+        <p v-else class="local-tts-model-status" role="status" aria-live="polite">
           {{ !statusLoaded
             ? t('settings.localTts.statusReading')
-            : downloading
-              ? t('settings.localTts.statusDownloading')
-              : downloaded
-                ? t('settings.localTts.statusReady')
-                : t('settings.localTts.statusNotDownloaded') }}
+            : downloaded
+              ? t('settings.localTts.statusReady')
+              : t('settings.localTts.statusNotDownloaded') }}
         </p>
       </div>
       <button
@@ -97,7 +102,10 @@ import {
   type LocalTtsMode,
   type LocalTtsVoiceId,
 } from '@/src/core/config/localTts'
+import {LOCAL_TTS_DOWNLOAD_ID, type DownloadProgress as DownloadProgressValue} from '@/src/core/download/progress'
 import {browserCapabilities} from '@/src/platform/browser/capabilities'
+import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress'
+import DownloadProgress from '@/src/ui/components/DownloadProgress.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
@@ -123,9 +131,14 @@ const modeDescription = computed(() => t(`settings.localTts.mode.${ttsMode.value
 const voiceOptions = computed(() => LOCAL_TTS_VOICE_OPTIONS.filter((option) => option.value === 'auto' || LOCAL_TTS_MODEL.voices.includes(option.value as never)))
 const downloaded = ref(false)
 const statusLoaded = ref(false)
-const downloading = ref(false)
+// 本页发起的请求与其他页面发起、仍在进行的下载都算“下载中”；后者只能从实时进度事件得知。
+const requesting = ref(false)
+const observedDownload = ref(false)
+const downloading = computed(() => !downloaded.value && (requesting.value || observedDownload.value))
+const progress = ref<DownloadProgressValue>()
 const removing = ref(false)
 const errorMessage = ref('')
+let stopWatchingProgress: (() => void) | undefined
 
 function readDownloaded(response: unknown): boolean {
   if (!response || typeof response !== 'object' || Array.isArray(response)) return false
@@ -151,7 +164,8 @@ async function refresh(): Promise<void> {
 async function downloadModel(): Promise<void> {
   if (!statusLoaded.value || downloading.value || removing.value || !browserCapabilities.extensionDom) return
   errorMessage.value = ''
-  downloading.value = true
+  progress.value = undefined
+  requesting.value = true
   try {
     const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalTtsModel'}) as unknown
     if (!response || typeof response !== 'object' || (response as {success?: unknown}).success !== true) {
@@ -163,8 +177,21 @@ async function downloadModel(): Promise<void> {
   } catch (error) {
     errorMessage.value = error instanceof Error ? error.message : t('settings.localTts.downloadFailed')
   } finally {
-    downloading.value = false
+    requesting.value = false
+    observedDownload.value = false
   }
+}
+
+function handleDownloadProgress(_id: string, next: DownloadProgressValue | undefined): void {
+  progress.value = next
+  if (next) {
+    observedDownload.value = true
+    return
+  }
+  // 结束事件不说明成败；不是本页发起的下载需要重新读取模型状态。
+  const external = observedDownload.value && !requesting.value
+  observedDownload.value = false
+  if (external) void refresh().catch(() => { errorMessage.value = t('settings.localTts.statusReadFailed') })
 }
 
 async function removeModel(): Promise<void> {
@@ -198,10 +225,12 @@ onMounted(() => {
     errorMessage.value = t('settings.localTts.statusReadFailed')
   })
   browser.storage.onChanged.addListener(handleStorageChange)
+  stopWatchingProgress = watchDownloadProgress([LOCAL_TTS_DOWNLOAD_ID], handleDownloadProgress)
 })
 
 onUnmounted(() => {
   browser.storage.onChanged.removeListener(handleStorageChange)
+  stopWatchingProgress?.()
 })
 </script>
 
@@ -219,6 +248,8 @@ onUnmounted(() => {
 .local-tts-model-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; color: var(--brand-strong); background: var(--brand-soft); }
 .local-tts-model-icon svg, .local-tts-model-action svg { width: 15px; height: 15px; flex: none; }
 .local-tts-model-status { margin: 8px 0 0 42px; }
+.local-tts-model-copy:has(.local-tts-model-progress) { flex: 1 1 auto; }
+.local-tts-model-progress { max-width: 360px; margin: 10px 0 0 42px; }
 .local-tts-model-action { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 112px; min-height: 34px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .local-tts-model-action:hover:not(:disabled) { border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft); }
 .local-tts-model-action:disabled { color: var(--muted); background: var(--surface-soft); opacity: .65; cursor: default; }
@@ -227,5 +258,5 @@ onUnmounted(() => {
 .is-loading { animation: local-tts-spin 1s linear infinite; }
 @keyframes local-tts-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .is-loading { animation: none; } }
-@media (max-width: 700px) { .local-tts-model-row { align-items: flex-start; flex-direction: column; padding: 14px 12px; } .local-tts-model-action { width: 100%; } .local-tts-warning, .local-tts-error { padding-right: 12px; padding-left: 12px; } }
+@media (max-width: 700px) { .local-tts-model-row { align-items: flex-start; flex-direction: column; padding: 14px 12px; } .local-tts-model-copy:has(.local-tts-model-progress) { align-self: stretch; } .local-tts-model-action { width: 100%; } .local-tts-warning, .local-tts-error { padding-right: 12px; padding-left: 12px; } }
 </style>

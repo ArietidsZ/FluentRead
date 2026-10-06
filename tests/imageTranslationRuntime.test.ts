@@ -640,7 +640,7 @@ describe('图片翻译前台交互与生命周期', () => {
         const prepare = Array.from(env.roots[0].querySelectorAll('button')).find(button => button.textContent === '下载语言包并翻译')!;
         expect(prepare.hidden).toBe(false);
         expect(env.roots[0].querySelector('[role="status"]')!.textContent).toBe('首次使用需准备识别语言包，下载后自动继续');
-        env.dispatch(prepare, 'click'); await flush(); expect(client.prepare).toHaveBeenCalledWith('auto', expect.any(AbortSignal));
+        env.dispatch(prepare, 'click'); await flush(); expect(client.prepare).toHaveBeenCalledWith('auto', expect.any(AbortSignal), expect.any(Function));
         expect(env.button().dataset.phase).toBe('translated');
         env.click(); settings.useCache = false; const pending = deferred<typeof result>(); client.translate.mockReturnValueOnce(pending.promise);
         env.click(); await flush();
@@ -649,6 +649,25 @@ describe('图片翻译前台交互与生命周期', () => {
         client.translate.mock.calls.at(-1)![3].onProgress('translating');
         expect(env.roots[0].querySelector('[role="status"]')!.textContent).toBe('正在翻译文字…');
         pending.resolve(result); await flush();
+    });
+
+    it('准备语言包期间操作条显示真实下载百分比，完成后迟到的进度不再改写图片状态', async () => {
+        client.translate.mockRejectedValueOnce(new Error('请先下载语言包'));
+        const env = setup(); env.hover(); env.click(); await flush();
+        const prepare = env.roots[0].querySelector('.fr-image-prepare') as HTMLButtonElement;
+        const wait = deferred<void>(); client.prepare.mockReturnValueOnce(wait.promise);
+        env.dispatch(prepare, 'click'); await flush();
+        const status = () => env.roots[0].querySelector('[role="status"]')!.textContent;
+        expect(status()).toBe('正在准备识别语言包…');
+        const report = client.prepare.mock.calls.at(-1)![2] as (percent: number) => void;
+        report(43);
+        expect(status()).toBe('正在准备识别语言包… 43%');
+        report(80);
+        expect(status()).toBe('正在准备识别语言包… 80%');
+        wait.resolve(); await flush();
+        expect(env.button().dataset.phase).toBe('translated');
+        report(99);
+        expect(env.button().dataset.phase).toBe('translated');
     });
 
     it('下载失败可再次准备，下载成功后的翻译失败直接重试而不重复下载', async () => {
@@ -1146,7 +1165,7 @@ describe('视频预览不自动显示图片翻译', () => {
         env.parent.querySelector('[data-target]')!.appendChild(env.image);env.image.className='reader-viewer-img';env.image.id='content_image_0';
         settings.from='auto';settings.imageTranslationMangaDownloadConfirmed=true;settings.imageTranslationOcrEngine='paddle';
         toggleMangaTranslation();await flush();
-        expect(client.prepare).toHaveBeenCalledWith(source,expect.any(AbortSignal));
+        expect(client.prepare).toHaveBeenCalledWith(source,expect.any(AbortSignal),expect.any(Function));
         expect(client.translate).toHaveBeenCalledWith(expect.any(String),source,expect.any(String),expect.objectContaining({manga:true}));
         expect(settings.from).toBe('auto');expect(env.bitmap()).not.toBeNull();
         toggleMangaTranslation();await flush();expect(env.bitmap()).toBeNull();toggleMangaTranslation();await flush();
@@ -1177,7 +1196,7 @@ describe('视频预览不自动显示图片翻译', () => {
         env.setRect({left:20,top:40,width:400,height:6000,right:420,bottom:6040});
         settings.from='auto';settings.imageTranslationMangaDownloadConfirmed=true;settings.imageTranslationMangaPrefetchPages=0;
         client.translate.mockResolvedValue({...result,lines:[]});toggleMangaTranslation();await flush();
-        expect(client.prepare).toHaveBeenCalledWith('ko',expect.any(AbortSignal));
+        expect(client.prepare).toHaveBeenCalledWith('ko',expect.any(AbortSignal),expect.any(Function));
         expect(client.translate).toHaveBeenCalledWith(expect.any(String),'ko',expect.any(String),expect.objectContaining({manga:true}));
         expect(settings.from).toBe('auto');expect(env.image.naturalHeight).toBe(6000);
         unmountImageTranslator();expect(env.image.style.opacity).not.toBe('0');
@@ -1185,7 +1204,7 @@ describe('视频预览不自动显示图片翻译', () => {
     it.each(['ru', 'ko-KR'])('漫画 %s 已确认后准备语言包，暂停再开复用译图，单图引擎不影响准备', async source => {
         const env = readerPage();settings.from = source;settings.imageTranslationOcrEngine = 'paddle';settings.imageTranslationMangaDownloadConfirmed = true;
         toggleMangaTranslation();await flush();
-        expect(client.prepare).toHaveBeenCalledWith(source, expect.any(AbortSignal));
+        expect(client.prepare).toHaveBeenCalledWith(source, expect.any(AbortSignal), expect.any(Function));
         expect(client.prepare.mock.invocationCallOrder[0]).toBeLessThan(client.translate.mock.invocationCallOrder[0]);
         expect(client.translate).toHaveBeenCalledWith(expect.any(String), source, expect.any(String), expect.objectContaining({manga: true}));
         expect(env.bitmap()).not.toBeNull();toggleMangaTranslation();await flush();expect(env.bitmap()).toBeNull();
@@ -1200,7 +1219,7 @@ describe('视频预览不自动显示图片翻译', () => {
         expect(listener).toHaveBeenLastCalledWith(expect.objectContaining({errors: 1}));
         settings.imageTranslationMangaDownloadConfirmed = true;
         toggleMangaTranslation();await flush();toggleMangaTranslation();await flush();
-        expect(client.prepare).toHaveBeenCalledWith('ru', expect.any(AbortSignal));expect(env.bitmap()).not.toBeNull();stop();
+        expect(client.prepare).toHaveBeenCalledWith('ru', expect.any(AbortSignal), expect.any(Function));expect(env.bitmap()).not.toBeNull();stop();
     });
     it.each(['pause', 'language', 'unmount'])('准备漫画语言包期间 %s 后不发起旧识别、不改原图', async action => {
         const env = readerPage();settings.from = 'ko';settings.imageTranslationMangaDownloadConfirmed = true;

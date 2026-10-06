@@ -269,7 +269,11 @@ describe('video transcription offscreen transport branches', () => {
   it('caches cold models, rejects stream conflicts, and cancels queued prepare jobs', async () => {
     installWorker();
     await expect(prepareLocalVideoTranscriptionModel('base')).resolves.toMatchObject({model: 'base', dtype: 'q4'});
-    expect(cacheVideoAiQ4ModelFiles).toHaveBeenCalledWith('base');
+    expect(cacheVideoAiQ4ModelFiles).toHaveBeenCalledWith('base', undefined);
+    // 预下载把调用方的进度回调原样交给模型缓存。
+    const onProgress = vi.fn();
+    await prepareLocalVideoTranscriptionModel('tiny', {onProgress});
+    expect(cacheVideoAiQ4ModelFiles).toHaveBeenLastCalledWith('tiny', onProgress);
 
     const warm = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'warm-stream'});
     await tick();

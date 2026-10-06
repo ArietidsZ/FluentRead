@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
  * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
- * 主要内容：使用模型卡片作为唯一选择入口，标注默认推荐模型，展示 Tiny/Base 下载状态与视频缓存操作栏，呈现缓存读取、下载状态与错误反馈，并在组件卸载时移除存储监听。
- * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载模型权重或操作网页播放器。
+ * 主要内容：使用模型卡片作为唯一选择入口，标注默认推荐模型，展示 Tiny/Base 下载状态与视频缓存操作栏；下载时卡片底部显示真实进度条、百分比和已下载体积，播放器里发起的下载也会同步显示；呈现缓存读取与错误反馈，并在组件卸载时移除存储监听。
+ * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载模型权重或操作网页播放器；下载进度只读取后台转存的变化事件。
  -->
 <template>
   <section class="video-model-management" aria-labelledby="video-model-management-title">
@@ -28,14 +28,15 @@
         <p class="video-model-description">{{ item.description }}</p>
         <p class="video-model-size">{{ t('modelCache.downloadSize', {size: item.downloadSizeMb}) }}</p>
         <div class="video-model-card-footer">
-          <span class="video-model-availability" role="status">
+          <DownloadProgress v-if="isDownloading(item.value)" class="video-model-progress" :progress="progress[item.value]" :label="t('video.aiDownloadingModel')" :data-video-model-progress="item.value" />
+          <span v-else class="video-model-availability" role="status">
             <Check v-if="downloaded.includes(item.value)" aria-hidden="true" />
-            {{ !modelStateLoaded ? '读取中…' : downloaded.includes(item.value) ? '可离线使用' : downloading.includes(item.value) ? '正在下载模型' : '尚未下载' }}
+            {{ !modelStateLoaded ? '读取中…' : downloaded.includes(item.value) ? '可离线使用' : '尚未下载' }}
           </span>
-          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value) || downloading.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click.stop="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
-          <button v-else type="button" class="video-model-download-button" :aria-label="t(downloaded.includes(item.value) ? 'video.modelDownloadedAria' : 'video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!modelStateLoaded || downloaded.includes(item.value) || downloading.includes(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="config.videoLocalModel = item.value; download(item.value)">
-            <component :is="downloaded.includes(item.value) ? Check : downloading.includes(item.value) ? Loading : Download" :class="{ 'is-loading': downloading.includes(item.value) }" aria-hidden="true" />
-            {{ downloaded.includes(item.value) ? '已下载' : downloading.includes(item.value) ? '下载中…' : '下载模型' }}
+          <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="removing.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click.stop="removeModel(item.value)"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
+          <button v-else type="button" class="video-model-download-button" :aria-label="t('video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!modelStateLoaded || isDownloading(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="config.videoLocalModel = item.value; download(item.value)">
+            <component :is="isDownloading(item.value) ? Loading : Download" :class="{ 'is-loading': isDownloading(item.value) }" aria-hidden="true" />
+            {{ isDownloading(item.value) ? '下载中…' : '下载模型' }}
           </button>
         </div>
       </article>
@@ -74,7 +75,10 @@ import {
   type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/public';
 import type {Config} from '@/src/core/config/model';
+import {videoModelDownloadId, type DownloadProgress as DownloadProgressValue} from '@/src/core/download/progress';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
+import DownloadProgress from '@/src/ui/components/DownloadProgress.vue';
 
 const {t, translateLegacy} = useUiI18n();
 const props = defineProps<{config: Config}>();
@@ -85,8 +89,12 @@ const modelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
 const recommendedModel = VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL;
 const downloaded = ref<VideoLocalTranscriptionModel[]>([]);
 const modelStateLoaded = ref(false);
+// 本页发起的请求与播放器里发起、仍在进行的下载都算“下载中”；后者只能从实时进度事件得知。
 const downloading = ref<VideoLocalTranscriptionModel[]>([]);
+const observedDownloads = ref<VideoLocalTranscriptionModel[]>([]);
+const progress = ref<Partial<Record<VideoLocalTranscriptionModel, DownloadProgressValue>>>({});
 const downloadError = ref('');
+let stopWatchingProgress: (() => void) | undefined;
 const removing = ref<VideoLocalTranscriptionModel[]>([]);
 const cacheStats = ref<{entries: number; bytes: number; maxEntries: number; ttlMs: number} | null>(null);
 const cacheError = ref('');
@@ -95,6 +103,23 @@ const clearingCache = ref(false);
 function selectModel(model: VideoLocalTranscriptionModel): void {
   if (!config.value.videoTranslationEnabled || !browserCapabilities.extensionDom) return;
   config.value.videoLocalModel = model;
+}
+
+function isDownloading(model: VideoLocalTranscriptionModel): boolean {
+  return !downloaded.value.includes(model) && (downloading.value.includes(model) || observedDownloads.value.includes(model));
+}
+
+function handleDownloadProgress(id: string, next: DownloadProgressValue | undefined): void {
+  const model = modelOptions.find(item => videoModelDownloadId(item.value) === id)!.value;
+  progress.value = {...progress.value, [model]: next};
+  if (next) {
+    if (!observedDownloads.value.includes(model)) observedDownloads.value = [...observedDownloads.value, model];
+    return;
+  }
+  // 结束事件不说明成败；不是本页发起的下载需要重新读取已下载列表。
+  const external = observedDownloads.value.includes(model) && !downloading.value.includes(model);
+  observedDownloads.value = observedDownloads.value.filter(item => item !== model);
+  if (external) void refresh().catch(() => { downloadError.value = '无法读取模型缓存，请重试'; });
 }
 
 async function refresh(): Promise<void> {
@@ -108,8 +133,9 @@ async function download(model: VideoLocalTranscriptionModel): Promise<void> {
     downloadError.value = '当前浏览器不支持本地 AI 字幕';
     return;
   }
-  if (downloaded.value.includes(model) || downloading.value.includes(model)) return;
+  if (downloaded.value.includes(model) || isDownloading(model)) return;
   downloadError.value = '';
+  progress.value = {...progress.value, [model]: undefined};
   downloading.value = [...downloading.value, model];
   try {
     const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalVideoModel', model}) as {success?: boolean; models?: unknown; error?: string} | undefined;
@@ -119,6 +145,7 @@ async function download(model: VideoLocalTranscriptionModel): Promise<void> {
     downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试';
   } finally {
     downloading.value = downloading.value.filter(item => item !== model);
+    observedDownloads.value = observedDownloads.value.filter(item => item !== model);
   }
 }
 
@@ -170,11 +197,13 @@ onMounted(() => {
   void refresh().catch(() => { modelStateLoaded.value = true; downloadError.value = '无法读取模型缓存，请重试'; });
   void refreshCacheStats().catch((error) => { cacheError.value = error instanceof Error ? error.message : '无法读取已识别字幕缓存，请重试'; });
   browser.storage.onChanged.addListener(handleStorageChange);
+  stopWatchingProgress = watchDownloadProgress(modelOptions.map(item => videoModelDownloadId(item.value)), handleDownloadProgress);
   document.addEventListener('visibilitychange', refreshVisibleCacheStats);
   window.addEventListener('focus', refreshVisibleCacheStats);
 });
 onUnmounted(() => {
   browser.storage.onChanged.removeListener(handleStorageChange);
+  stopWatchingProgress?.();
   document.removeEventListener('visibilitychange', refreshVisibleCacheStats);
   window.removeEventListener('focus', refreshVisibleCacheStats);
 });
@@ -238,6 +267,7 @@ svg { width: 15px; height: 15px; flex: none; }
 .video-model-selected { padding: 3px 6px; border-radius: 5px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; line-height: 1.4; white-space: nowrap; }
 .video-model-description { flex: 1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
 .video-model-availability { justify-content: flex-start; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.video-model-progress { flex: 1 1 auto; }
 .video-model-download-button {
   flex: none;
   min-height: 32px;

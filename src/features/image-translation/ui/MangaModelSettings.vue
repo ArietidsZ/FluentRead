@@ -1,7 +1,7 @@
 <!--
  * @file src/features/image-translation/ui/MangaModelSettings.vue
  * 文件职责：提供图片与漫画共用本地模型的下载说明、来源选择、真实进度、离线导入和缓存清理。
- * 主要内容：供漫画与单图共用，突出当前资源用途和准备状态，下载来源、离线导入及清理收进次要入口；关闭漫画时只展示识别资源与配套离线文件；定时读取后台模型缓存和下载快照，错误会展开管理入口，离线文件经过资源服务校验才入库，保留部分成功并显示错误反馈。
+ * 主要内容：供漫画与单图共用，突出当前资源用途和准备状态，下载来源、离线导入及清理收进次要入口；关闭漫画时只展示识别资源与配套离线文件；定时读取后台模型缓存和下载快照，下载期间加快读取并显示进度条、百分比和已下载体积，错误会展开管理入口，离线文件经过资源服务校验才入库，保留部分成功并显示错误反馈。
  * 模块边界：不运行 OCR/修补、不下载远程代码、不上传选中文件；页面关闭只清理状态订阅，正在处理漫画的任务仍由 Offscreen 和页面取消入口管理。
  -->
 <template>
@@ -16,7 +16,7 @@
     </div>
     <p class="manga-resource-hint">{{ translateLegacy('首次翻译时自动准备资源') }}</p>
     <div v-if="status?.download" class="manga-model-progress" role="status" data-i18n-ignore>
-      <strong>{{ translateLegacy(phaseLabel) }}</strong><span>{{ status.download.source }} · {{ Math.round(status.download.loaded / 1048576) }} / {{ Math.round(status.download.total / 1048576) }} MB</span>
+      <strong>{{ translateLegacy(phaseLabel) }}</strong><span>{{ status.download.source }} · {{ Math.min(100, Math.floor(status.download.loaded * 100 / status.download.total)) }}% · {{ Math.round(status.download.loaded / 1048576) }} / {{ Math.round(status.download.total / 1048576) }} MB</span>
       <progress v-if="downloading" :value="status.download.loaded" :max="status.download.total" />
     </div>
     <small v-if="error || statusError" class="manga-model-error" role="alert" data-i18n-ignore>{{ error || statusError }}</small>
@@ -53,7 +53,8 @@ async function load(){
 async function refresh(){
   if(document.visibilityState==='hidden'){timer=setTimeout(()=>void refresh(),1500);return;}
   try {await load();}catch{if(!disposed)statusError.value=translateLegacy('漫画识别模型状态读取失败');}
-  finally {if(!disposed)timer=setTimeout(()=>void refresh(),1500);}
+  // 下载期间读得更勤，让进度条跟上真实字节数；空闲时保持原来的低频读取。
+  finally {if(!disposed)timer=setTimeout(()=>void refresh(),downloading.value?500:1500);}
 }
 async function changeSource(value:string){
   busy.value=true;error.value='';

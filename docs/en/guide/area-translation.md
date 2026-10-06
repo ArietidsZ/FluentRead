@@ -11,7 +11,7 @@ Select a screenshot, chart or paused video frame on a webpage to recognize and t
 3. Release the pointer and wait for recognition and translation.
 4. Copy the translation, expand the recognized original, or view the captured area.
 
-If recognition packs are missing, choose **Download language pack and retry**. The required packs download and translation continues using the same capture. You can retry a failed download or press Esc to cancel.
+If recognition packs are missing, choose **Download language pack and retry**. The required packs download with a progress bar and percentage on the card, and translation continues using the same capture. You can retry a failed download or press Esc to cancel.
 
 Press **Esc** to exit. Choose a new selection to capture elsewhere, or retranslate to reuse the current capture with a changed service. After capture, scrolling or resizing keeps the result card available for comparison. Scrolling before capture finishes cancels the old selection to avoid recognizing the wrong area. Switching tabs still closes the result and releases the capture; selection mode itself is not cancelled by a page's own scrolling.
 

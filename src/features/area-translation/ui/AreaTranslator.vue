@@ -1,7 +1,7 @@
 <!--
  * @file src/features/area-translation/ui/AreaTranslator.vue
  * 文件职责：提供独立圈选阅读工具，按配置的快捷键（默认 Shift+Z）进入选区模式，松开鼠标后展示可拖动、可核对、可复制的原文与译文卡片。
- * 主要内容：相同译文保留原文且不重复展示；由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；截图后保留阅读卡片，页面滚动或缩放不丢失结果；缺少语言包时一键下载后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
+ * 主要内容：相同译文保留原文且不重复展示；由可信快捷键或右键命令按需挂载，管理选择、截图、识别、翻译、结果和失败状态；截图后保留阅读卡片，页面滚动或缩放不丢失结果；缺少语言包时一键下载并显示进度条和百分比，随后续接原截图，重试复用同一截图，取消或新选区使旧请求失效。
  * 模块边界：组件只调用圈选客户端，不执行 OCR 或网络请求；截图权限归后台，像素只在封闭 Shadow UI 展示，所有页面监听、异步状态与临时截图在关闭或卸载时清理。
  -->
 <template>
@@ -28,6 +28,7 @@
         <span class="fr-area-spinner" :class="{'fr-area-static': !animationsEnabled}" aria-hidden="true" />
         <span>{{ preparingLanguages ? '下载中…' : progressStage === 'translating' ? '正在翻译选区文字…' : '正在识别选区文字…' }}</span>
         <button type="button" @click="clearResult">取消</button>
+        <DownloadProgress v-if="preparingLanguages" class="fr-area-download" detail="percent" :progress="languagePercent === undefined ? undefined : {loaded: languagePercent, total: 100}" :label="translateLegacy('下载中…')" />
       </div>
       <div v-else-if="phase === 'error'" class="fr-area-error-body" role="alert">
         <strong>圈选翻译失败</strong>
@@ -81,6 +82,7 @@ import { useUiI18n } from '@/src/ui/i18n';
 import { captureVisibleAreaInExtension, translateCapturedAreaInExtension, type AreaTranslationResult } from '@/src/features/area-translation/services/client';
 import { isUsableAreaRect, normalizeAreaRect, type AreaPoint, type AreaRect, type AreaTranslationSelection } from '@/src/features/area-translation/core';
 import {prepareImageOcrLanguages} from '@/src/features/image-translation/public';
+import DownloadProgress from '@/src/ui/components/DownloadProgress.vue';
 import type { ImageTranslationStage } from '@/src/features/image-translation/protocol';
 
 const {t, translateLegacy} = useUiI18n();
@@ -113,6 +115,8 @@ const result = ref<AreaTranslationResult | null>(null);
 const errorMessage = ref('');
 const needsLanguages = ref(false);
 const preparingLanguages = ref(false);
+// 缺失语言包合并后的下载百分比；收到首个进度前为空，卡片显示不确定进度条。
+const languagePercent = ref<number>();
 let requestedSourceLanguage = config.from;
 const feedback = ref('');
 const isDarkTheme = ref(false);
@@ -253,7 +257,8 @@ async function requestTranslation(rect: AreaRect, prepareLanguages = false): Pro
   const stale = () => controller.signal.aborted || requestId !== translationRequestId || document.visibilityState === 'hidden';
   try {
     if (prepareLanguages) {
-      await prepareImageOcrLanguages(sourceLanguage, controller.signal);
+      languagePercent.value = undefined;
+      await prepareImageOcrLanguages(sourceLanguage, controller.signal, (percent) => { if (!stale()) languagePercent.value = percent; });
       if (stale()) return;
       preparingLanguages.value = false;
       needsLanguages.value = false;
@@ -410,6 +415,8 @@ onBeforeUnmount(() => {
 .fr-area-toolbar button { margin-left: auto; flex-shrink: 0; align-self: flex-start; border: 0; font-size: 22px; line-height: 22px; padding: 2px 6px; }
 .fr-area-loading { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 22px 16px; }
 .fr-area-loading button { margin-left: auto; }
+.fr-area-download { flex: 1 0 100%; --download-progress-track: #efe8ee; --download-progress-fill: #ef4b86; --download-progress-text: #6f6675; }
+.fr-area-dark .fr-area-download { --download-progress-track: #453c49; --download-progress-text: #b9afbd; }
 .fr-area-spinner { width: 16px; height: 16px; flex-shrink: 0; border: 2px solid #e4dbe3; border-top-color: #ef4b86; border-radius: 50%; animation: fr-area-spin .7s linear infinite; }
 @keyframes fr-area-spin { to { transform: rotate(360deg); } }
 .fr-area-static { animation: none; }
