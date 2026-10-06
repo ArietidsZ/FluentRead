@@ -431,13 +431,15 @@
               </UiSelect>
             </label>
             <nav class="stats-pagination" :aria-label="t('translationStats.log.pagination')">
-              <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.pageIndex === 0" @click="loadRequestPage(logOffset - logPageSize)">{{ t('translationStats.log.previous') }}</button>
+              <div class="stats-page-controls">
+                <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.pageIndex === 0" @click="loadRequestPage(logOffset - logPageSize)">{{ t('translationStats.log.previous') }}</button>
+                <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.end >= logTotal" @click="loadRequestPage(logOffset + logPageSize)">{{ t('translationStats.log.next') }}</button>
+              </div>
               <span>{{ t('translationStats.log.page', {page: logRange.pageIndex + 1, pages: logRange.pageCount}) }}</span>
               <form class="stats-page-jump" @submit.prevent="jumpToRequestPage">
                 <label><span>{{ t('common.pagination.jump') }}</span><input v-model="logJumpPage" type="number" min="1" :max="logRange.pageCount" step="1" :disabled="loading || logLoading" :aria-label="t('common.pagination.jump')" /></label>
                 <button type="submit" class="stats-button" :disabled="loading || logLoading">{{ t('common.pagination.go') }}</button>
               </form>
-              <button type="button" class="stats-button" :disabled="loading || logLoading || logRange.end >= logTotal" @click="loadRequestPage(logOffset + logPageSize)">{{ t('translationStats.log.next') }}</button>
             </nav>
           </footer>
         </section>
