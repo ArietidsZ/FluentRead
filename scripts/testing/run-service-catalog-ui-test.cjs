@@ -169,7 +169,7 @@ async function main() {
     if (defaultService !== 'freeTranslation') throw new Error('初始默认服务异常');
     const sections = await directory.locator('[data-service-section]').evaluateAll(nodes => nodes.map(node => ({
       id: node.dataset.serviceSection,
-      heading: node.querySelector('h4')?.childNodes[0]?.textContent?.trim() || '',
+      heading: node.querySelector('h4 span')?.textContent?.trim() || '',
       services: [...node.querySelectorAll('[data-service-value]')].map(item => item.dataset.serviceValue),
     })));
     assertSameOrder(sections.map(section => section.id), expectedSections, '顶层目录');

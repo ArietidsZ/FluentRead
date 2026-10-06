@@ -638,6 +638,8 @@ node scripts/testing/run-service-catalog-ui-test.cjs \
 
 `run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、可选邮箱字段、默认收起的云服务额度指引，以及 DeepLX 检查期间的布局稳定性、匿名检查和占位符地址必填密钥，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
 
+目录的分组标题可以收起或展开，目录上方的分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索时展开全部匹配分组，搜索中点击导航回到完整目录。收起状态只在本次打开的设置页内有效。`node scripts/testing/run-service-group-navigation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-service-group-navigation` 验证导航与分组一一对应、滚动同步高亮、收起只影响自身、导航展开并定位已收起的分组、搜索期间的展开与导航稳定、从通用设置直达服务时展开所在分组，以及 820px 无横向溢出、390px 隐藏导航并保留目录内的收起。
+
 ## 菜单栏首帧与快速关闭
 
 Popup 必须等待配置服务完成读取或安全降级后再挂载。首个可见界面就应使用保存的皮肤、深浅主题和栏目布局；只有最终截图正确不足以证明没有闪烁。

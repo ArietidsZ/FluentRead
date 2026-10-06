@@ -13,7 +13,7 @@ FluentRead displays translations produced by your selected service. Use the defa
 
 ## Configure a service
 
-The service directory is organized by category and can be searched. Selecting an entry opens its settings; choose the default service later from General settings or the extension menu.
+The service directory is organized by category: click a category heading to collapse or expand it, use the category names at the top of the page to jump to a category, or search the list. Selecting an entry opens its settings; choose the default service later from General settings or the extension menu.
 
 The model and connection fields stay visible. **Key management** sits beside the API Key fields. **Model preferences**, **Prompt templates**, **Request limits**, and **API compatibility** expand independently as needed. Collapsing a section keeps its settings active and saved. Cloud services show a quota summary; expand the setup guide for instructions. Eligibility and overage behavior depend on the provider and plan.
 
