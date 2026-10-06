@@ -185,6 +185,8 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 
 同一专项覆盖 200 条缓存字幕按播放位置预取、空翻译响应与独立重试、双语和原文切换复用译文、重新识别绕过缓存且确认前保留原文、迟到原生轨道优先、原生静音空档、原文模式加载 sidecar、初始隐藏后恢复字幕和键盘焦点。页面、识别结果与翻译响应为受控夹具，不代表真实 X 登录会话、Whisper 识别质量或外部翻译服务可用性。产品取舍见 [体验复核](./reports/x-video-experience-20260930/README.md)。
 
+`node scripts/run-x-native-subtitle-flicker-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-x-native-flicker` 在临时 Chrome profile 的第二屏后台窗口中验证视频 5 秒处的原生字幕：陆续注入五个字幕分片，每 20ms 采样原文与译文，断言已显示的双语不会被清空、翻译请求数不增加；同时检查正常字幕空档与跳转换句。使用真实视频和浏览器 TextTrack，分片与固定 250ms 翻译响应为受控夹具；不代表外部供应商、登录账号或 Firefox 实机验证。
+
 `node scripts/run-x-home-audio-recovery-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-x-home-recovery` 在临时 Chrome profile 的第二屏后台窗口中验证 Home：使用真实 MSE 视频和 HLS 音轨解码，复现 arraybuffer 清单未被页面桥捕获，检查当前视频匹配、A 失败后切换 B、无法读音频时的刷新提示、播放状态保持，以及从字幕选项重新识别后 Base 空结果的可见提示。脚本需要 ffmpeg；可用 `--ffmpeg` 指定路径。Base 识别结果与翻译响应使用受控回复，不代表真实模型或 X 登录账号验证。
 
 ## YouTube 全屏与字幕同步
