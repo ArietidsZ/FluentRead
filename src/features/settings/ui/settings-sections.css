@@ -219,6 +219,8 @@
   width: 100%;
 }
 
+/* 请求限制的三项数值由独立组件渲染，补上它与后续设置行之间的分隔线。 */
+.request-limit-fields + .settings-item { border-top: 1px solid var(--line); }
 .request-default-number { display: flex; align-items: center; gap: 8px; width: 132px; max-width: 100%; }
 .request-default-number :deep(.el-input-number) { min-width: 0; width: 100%; }
 .request-default-number > span { color: var(--muted); font-size: 11px; }

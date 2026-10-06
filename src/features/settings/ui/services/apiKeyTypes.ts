@@ -1,7 +1,7 @@
 /**
  * @file src/features/settings/ui/services/apiKeyTypes.ts
  * 文件职责：声明多 API Key 设置组件共享的纯展示状态类型。
- * 主要内容：描述逐 Key 检查状态和全量检查摘要，不包含凭据内容或网络协议。
+ * 主要内容：描述逐 Key 检查状态和全量检查摘要，并按“轮换使用 / 仅用首个”划分实际参与请求的行与备用行，不包含凭据内容或网络协议。
  * 模块边界：仅供设置 UI 使用，轮询、降权、暂停和恢复由翻译运行时负责。
  */
 export type ApiKeyCheckState = {status: 'idle' | 'queued' | 'checking' | 'success' | 'error'; error?: string; durationMs?: number}
@@ -35,6 +35,16 @@ export function eligibleApiKeyIndexes(keys: readonly string[]): number[] {
     seen.add(key)
     return [index]
   })
+}
+
+/** 实际参与请求和全量检查的行：传入 eligibleApiKeyIndexes 的结果，轮换时为全部可用行，否则只有首个可用行，与运行时取 Key 的规则一致。 */
+export function activeApiKeyIndexes(usable: readonly number[], rotationEnabled: boolean): number[] {
+  return rotationEnabled ? [...usable] : usable.slice(0, 1)
+}
+
+/** 仅用首个时仍然保留、但不会参与请求的可用行。 */
+export function standbyApiKeyIndexes(usable: readonly number[], rotationEnabled: boolean): number[] {
+  return rotationEnabled ? [] : usable.slice(1)
 }
 
 export function duplicateApiKeyIndex(keys: readonly string[], index: number): number | null {

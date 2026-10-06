@@ -341,7 +341,6 @@ export const ruRUMessages = {
     "settings.organization.modelScope": "Текущая модель: {model}",
     "settings.organization.optional": "Настройте при необходимости",
     "settings.organization.optionalHelp": "Можно использовать настройки по умолчанию. Изменения сохраняются автоматически.",
-    "settings.organization.connection": "Подключение и ключи",
     "settings.organization.model": "Настройки модели",
     "settings.organization.modelHelp": "Углублённое рассуждение и распознавание изображений",
     "settings.organization.prompts": "Шаблоны промптов",

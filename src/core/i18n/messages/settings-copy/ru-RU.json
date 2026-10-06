@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "Можно без ключа",
     "settings.services.keys.requirementHelp": "Для API с авторизацией выберите «Ключ обязателен», а для API с анонимными запросами — «Можно без ключа». Введённый ключ всё равно используется.",
     "settings.services.keys.optionalPlaceholder": "Необязательно; введённый ключ будет использован",
-    "settings.services.keys.addKey": "Добавить ключ"
+    "settings.services.keys.addKey": "Добавить ключ",
+    "settings.services.keys.listHelp": "Можно добавить несколько ключей. Если интерфейсу ключ не нужен, в разделе «Совместимость API» выберите для требования ключа «Можно без ключа».",
+    "settings.services.keys.standby": "В резерве",
+    "settings.services.prompts.syncAll": "Синхронизировать со всеми ИИ-сервисами",
+    "settings.services.prompts.syncConfirmTitle": "Синхронизация шаблонов промптов",
+    "settings.services.prompts.syncConfirmMessage": "Скопировать промпты system и user этого сервиса в остальные ИИ-сервисы ({count})? Их текущие промпты будут перезаписаны.",
+    "settings.services.prompts.syncConfirmAction": "Синхронизировать",
+    "settings.services.prompts.syncCancel": "Отмена",
+    "settings.services.prompts.syncDone": "Синхронизировано с ИИ-сервисами: {count}",
+    "settings.services.visionProbeShort": "Проверить"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "Подключение изменилось. Создайте новый предварительный просмотр.",

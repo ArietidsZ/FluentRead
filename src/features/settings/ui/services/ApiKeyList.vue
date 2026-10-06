@@ -1,19 +1,19 @@
 <!--
  * @file src/features/settings/ui/services/ApiKeyList.vue
  * 文件职责：集中管理同一服务的 API Key 输入、逐项连接结果及检查操作。
- * 主要内容：以密钥输入为主展示对齐列表与逐项结果，由服务标题栏检查或停止；输入下方直接添加密钥并容纳条件出现的使用方式与密钥要求，保留单项重测、失败详情、窄屏与键盘操作。
+ * 主要内容：以密钥输入为主展示对齐列表与逐项结果，由服务标题栏检查或停止；“添加密钥”每次都新增一行并聚焦，存在多行时每行都可单独重测和删除，“仅用首个”下保留的其余密钥标为备用；输入下方容纳条件出现的密钥使用方式，保留失败详情、窄屏与键盘操作。
  * 模块边界：仅管理局部展示状态，通过事件交给父组件保存配置和执行检查；不发起网络请求，不把一次检查结果解释为实时健康权重。
  -->
 <template>
-  <section ref="root" class="api-key-list" :class="{ 'is-single': !props.allowMultiple }" data-api-key-list :data-api-key-busy="busy">
+  <section ref="root" class="api-key-list" :class="{ 'is-single': !multiple }" data-api-key-list :data-api-key-busy="busy">
     <header class="api-key-heading">
       <strong>{{ props.label || 'API Key' }}</strong><slot name="help" />
     </header>
-    <div v-if="props.allowMultiple && (busy || summary)" class="api-key-overview" aria-live="polite">
+    <div v-if="multiple && (busy || summary)" class="api-key-overview" aria-live="polite">
       <span v-if="busy" class="api-key-progress" role="status">
         <span class="api-key-spinner" />
         {{ checkingIndex >= 0 ? t('settings.services.keys.checkingRow', {number: checkingIndex + 1}) : t('settings.services.keys.checking') }}
-        <span v-if="checkMode === 'all' && eligible.length" class="api-key-progress-count">{{ checked }} / {{ eligible.length }}</span>
+        <span v-if="checkMode === 'all' && checkable.length" class="api-key-progress-count">{{ checked }} / {{ checkable.length }}</span>
       </span>
       <span v-else-if="summary" class="api-key-summary" :class="`is-${summary.kind}`" role="status" data-api-key-summary>
         <svg viewBox="0 0 20 20" aria-hidden="true"><path v-if="summary.failed === 0" d="m4 10 4 4 8-8" /><template v-else><circle cx="10" cy="10" r="7" /><path d="M10 6v5m0 3h.01" /></template></svg>
@@ -21,7 +21,7 @@
       </span>
     </div>
     <div class="api-key-rows">
-      <div v-for="(key, index) in keys" :key="index" class="api-key-row" :data-api-key-index="index" :class="{'is-checking-row': rowStates[index]?.status === 'checking', 'is-single-row': !props.allowMultiple}">
+      <div v-for="(key, index) in keys" :key="index" class="api-key-row" :data-api-key-index="index" :data-api-key-standby="isStandby(index) || undefined" :class="{'is-checking-row': rowStates[index]?.status === 'checking', 'is-single-row': !multiple, 'is-standby': isStandby(index)}">
         <label class="api-key-number" :for="`${id}-input-${index}`">Key {{ index + 1 }}</label>
         <div class="api-key-entry">
           <el-input
@@ -30,7 +30,7 @@
             :placeholder="props.placeholder || t('settings.services.keys.placeholder')"
             :aria-invalid="duplicateApiKeyIndex(keys, index) !== null"
             @update:model-value="emit('update', index, String($event))"
-          ><template v-if="props.allowMultiple" #prefix><span class="api-key-prefix">{{ index + 1 }}</span></template></el-input>
+          ><template v-if="multiple" #prefix><span class="api-key-prefix">{{ index + 1 }}</span></template></el-input>
         </div>
         <div class="api-key-row-status">
           <span v-if="duplicateApiKeyIndex(keys, index) !== null" class="api-key-state is-duplicate" role="status">
@@ -52,17 +52,17 @@
             <svg class="api-key-chevron" :class="{'is-expanded': expandedErrors.has(index)}" viewBox="0 0 20 20" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
           <span v-else-if="key.trim()" class="api-key-state is-idle">
-            <span class="api-key-idle-dot" />{{ t(rowStates[index]?.status === 'queued' ? 'settings.services.keys.queued' : 'settings.services.keys.unchecked') }}
+            <span class="api-key-idle-dot" />{{ t(rowStates[index]?.status === 'queued' ? 'settings.services.keys.queued' : isStandby(index) ? 'settings.services.keys.standby' : 'settings.services.keys.unchecked') }}
           </span>
         </div>
-        <div v-if="props.allowMultiple" class="api-key-row-actions">
+        <div v-if="multiple" class="api-key-row-actions">
           <button v-if="key.trim() && duplicateApiKeyIndex(keys, index) === null" type="button" class="api-key-icon-button api-key-retest" :class="{'is-retry': rowStates[index]?.status === 'error'}" :disabled="busy"
             data-api-key-retry
             :aria-label="t('settings.services.keys.checkRow', {number: index + 1})"
             :title="t('settings.services.keys.checkRow', {number: index + 1})" @click="emit('test', index)">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M16 7a6.5 6.5 0 1 0 .2 5M16 3v4h-4" /></svg>
           </button>
-          <button type="button" class="api-key-icon-button api-key-remove" :disabled="keys.length <= 1 && !key"
+          <button type="button" class="api-key-icon-button api-key-remove" data-api-key-remove
             :aria-label="t('settings.services.keys.remove', {number: index + 1})"
             :title="t('settings.services.keys.remove', {number: index + 1})" @click="emit('remove', index)">
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 5h12M8 5V3h4v2M6 5l.7 12h6.6L14 5M8.5 8v6m3-6v6" /></svg>
@@ -84,14 +84,20 @@
 import {computed, nextTick, ref, useId, watch} from 'vue'
 import {useUiI18n} from '@/src/ui/i18n'
 import {duplicateApiKeyIndex, eligibleApiKeyIndexes, type ApiKeyCheckState, type ApiKeySummary} from './apiKeyTypes'
-const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; placeholder?: string; connectionState?: ApiKeyCheckState; allowMultiple?: boolean; checkMode?: 'single' | 'all'}>()
+const props = defineProps<{keys: string[]; states: Record<number, ApiKeyCheckState>; summary: ApiKeySummary | null; busy: boolean; label?: string; placeholder?: string; connectionState?: ApiKeyCheckState; standbyIndexes?: readonly number[]; checkMode?: 'single' | 'all'}>()
 const emit = defineEmits<{add: []; update: [index: number, value: string]; remove: [index: number]; test: [index: number]; }>()
 const {t} = useUiI18n()
 const rowStates = computed(() => Object.keys(props.states).length ? props.states : props.connectionState ? {0: props.connectionState} : {})
 const id = useId()
 const root = ref<HTMLElement>()
 const expandedErrors = ref(new Set<number>())
-const eligible = computed(() => eligibleApiKeyIndexes(props.keys))
+// 只有一行时保持简洁的单输入框；出现第二行后才展示序号、逐项状态与删除。
+const multiple = computed(() => props.keys.length > 1)
+function isStandby(index: number): boolean {
+  return props.standbyIndexes?.includes(index) === true
+}
+// 全量检查只覆盖实际参与请求的行，备用密钥不计入进度。
+const checkable = computed(() => eligibleApiKeyIndexes(props.keys).filter(index => !isStandby(index)))
 const checked = computed(() => Object.values(props.states).filter(state => state.status === 'success' || state.status === 'error').length)
 const checkingIndex = computed(() => props.keys.findIndex((_, index) => props.states[index]?.status === 'checking'))
 watch(() => props.keys, () => { expandedErrors.value = new Set() })
@@ -102,11 +108,11 @@ function toggleError(index: number): void {
   expandedErrors.value = next
 }
 async function addKey(): Promise<void> {
-  const empty = props.keys.findIndex(key => !key.trim())
-  if (empty < 0) emit('add')
+  // 已有空行时也照常新增：用户可以先排好几行再逐个粘贴，多余的行随时删除。
+  emit('add')
   await nextTick()
-  const nextEmpty = props.keys.findIndex(key => !key.trim())
-  const input = root.value?.querySelectorAll<HTMLInputElement>('.api-key-entry input')[nextEmpty < 0 ? props.keys.length - 1 : nextEmpty]
+  const inputs = root.value?.querySelectorAll<HTMLInputElement>('.api-key-entry input')
+  const input = inputs?.[inputs.length - 1]
   input?.focus({preventScroll: true})
   input?.scrollIntoView({block: 'nearest', inline: 'nearest'})
 }
@@ -125,10 +131,11 @@ async function addKey(): Promise<void> {
 .api-key-progress-count { margin-left: 4px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .api-key-rows { grid-column: 2; grid-row: 1; min-width: 0; }
 .api-key-row { display: grid; grid-template-columns: minmax(0, 1fr) 112px 68px; align-items: center; gap: 6px 10px; min-width: 0; padding: 0; }
-.api-key-row + .api-key-row { padding-top: 10px; margin-top: 10px; }
+.api-key-row + .api-key-row { margin-top: 8px; }
 .api-key-number { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .api-key-prefix { color: var(--muted); font-size: 11px; padding-right: 6px; border-right: 1px solid var(--line); font-variant-numeric: tabular-nums; }
 .api-key-row.is-checking-row { background: transparent; }
+.api-key-row.is-standby .api-key-entry { opacity: .62; }
 .api-key-entry { width: 100%; max-width: 640px; min-width: 0; }
 .api-key-entry :deep(.el-input) { width: 100% !important; max-width: none !important; min-width: 0; }
 .api-key-entry :deep(.el-input__wrapper) { min-height: 38px; padding-inline: 11px; border-radius: 10px; background: var(--surface, #fff); box-shadow: inset 0 0 0 1px var(--line); }

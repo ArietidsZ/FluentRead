@@ -341,7 +341,6 @@ export const esESMessages = {
     "settings.organization.modelScope": "Modelo actual: {model}",
     "settings.organization.optional": "Ajusta según tus necesidades",
     "settings.organization.optionalHelp": "Los valores predeterminados permiten empezar a usar el servicio. Los cambios se guardan automáticamente.",
-    "settings.organization.connection": "Conexión y claves",
     "settings.organization.model": "Preferencias del modelo",
     "settings.organization.modelHelp": "Razonamiento profundo y reconocimiento de imágenes",
     "settings.organization.prompts": "Plantillas de instrucciones",

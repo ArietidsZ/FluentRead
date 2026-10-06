@@ -101,18 +101,19 @@ async function main() {
     await page.locator('.api-key-add').click();
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).fill('fixture-key-two');
     await check('multiple-keys'); await shot('multiple-keys');
-    // Temporarily disabling rotation retains every existing key.
+    // Using only the first key keeps every saved key visible and marks the rest as standby.
     await page.locator('[data-api-key-rotation-setting] input[value="single"]').check();
-    assert(await page.locator('[data-api-key-list] .api-key-entry input').count() === 1, 'Single-key mode did not collapse');
+    assert(await page.locator('[data-api-key-list] .api-key-entry input').count() === 2, 'First-key-only mode must not hide saved keys');
+    assert(await page.locator('[data-api-key-standby]').count() === 1, 'Unused key is not marked as standby');
     await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').check();
+    assert(await page.locator('[data-api-key-standby]').count() === 0, 'Rotation must use every key');
     assert(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue() === 'fixture-key-two', 'Rotation switch discarded the second key');
     await expand('prompts');
     const prompt = page.locator('[data-testid="prompt-template-list"] textarea').last();
     await prompt.fill('First {{origin}}');
     await prompt.fill('Translate {{origin}} into {{to}}. UI persistence fixture.');
     await expand('requests');
-    await page.locator('[data-testid="request-limit-settings"] .request-limit-inheritance .el-select').click();
-    await page.locator('.el-select-dropdown:visible .el-select-dropdown__item').filter({hasText: '自定义'}).click();
+    await page.locator('[data-testid="request-limit-settings"] .request-limit-inheritance').getByRole('radio', {name: '自定义', exact: true}).click();
     const concurrency = page.locator('[data-testid="request-limit-settings"] input[role="spinbutton"]').first();
     await concurrency.fill('3'); await concurrency.press('Tab');
     await expand('custom-request');

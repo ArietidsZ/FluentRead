@@ -85,9 +85,9 @@ If a provider reports too many requests, or your API has a quota, adjust concurr
 
 Set a per-second or per-minute limit to **0** to remove that limit. Requests wait in a queue when a limit is reached. Existing custom values are preserved.
 
-- **Per model**: in **Translation services**, expand **Advanced settings** and turn off **Follow global settings** for the selected model.
-- **Per service**: use **Service request limits** when models share one provider quota. A model's own limit also remains subject to the service-wide limit; unconfigured models inherit the service limit.
-- **Restore inheritance**: turn following back on. Previously entered values stay available for later use.
+- **Per model**: in **Translation services**, open **Request limits**, set **Apply to** to **Current model**, switch **Limits** to **Custom**, then fill in the three values below.
+- **Per service**: when models share one provider quota, switch **Apply to** to **Entire service** and set the service-wide limit. A model's own limit also remains subject to the service-wide limit; unconfigured models inherit the service limit.
+- **Restore inheritance**: switch **Limits** back to **Use global settings** or **Use service settings**. Previously entered values stay available for later use.
 
 Retry count and intervals are configured globally in advanced settings.
 

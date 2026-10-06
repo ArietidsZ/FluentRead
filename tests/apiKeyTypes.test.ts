@@ -1,11 +1,11 @@
 /**
  * @file tests/apiKeyTypes.test.ts
  * 文件职责：验证多 API Key 设置 UI 使用的纯列表归一化和检查汇总模型。
- * 主要内容：覆盖旧 token 兼容、空行、成功/失败/检查中状态和全失败边界。
+ * 主要内容：覆盖旧 token 兼容、空行、成功/失败/检查中状态和全失败边界，以及轮换与仅用首个两种方式下参与请求的行和备用行。
  * 模块边界：不挂载 Vue、不访问浏览器 API、不测试真实连接；连接协议由后台测试覆盖。
  */
 import { describe, expect, it } from 'vitest'
-import { normalizeApiKeyList, summarizeApiKeyChecks, eligibleApiKeyIndexes, duplicateApiKeyIndex } from '@/src/features/settings/ui/services/apiKeyTypes'
+import { normalizeApiKeyList, summarizeApiKeyChecks, eligibleApiKeyIndexes, duplicateApiKeyIndex, activeApiKeyIndexes, standbyApiKeyIndexes } from '@/src/features/settings/ui/services/apiKeyTypes'
 
 describe('api key UI model', () => {
   it('keeps an explicit list including empty rows and falls back to legacy token', () => {
@@ -38,5 +38,18 @@ describe('api key UI model', () => {
     expect(duplicateApiKeyIndex(keys, 3)).toBe(0)
     expect(duplicateApiKeyIndex(keys, 4)).toBe(2)
     expect(duplicateApiKeyIndex(keys, 99)).toBeNull()
+  })
+
+  it('splits usable rows into active and standby rows by usage mode', () => {
+    const usable = eligibleApiKeyIndexes(['', 'first', ' ', 'second', 'first', 'third'])
+    expect(usable).toEqual([1, 3, 5])
+    expect(activeApiKeyIndexes(usable, true)).toEqual([1, 3, 5])
+    expect(activeApiKeyIndexes(usable, true)).not.toBe(usable)
+    expect(standbyApiKeyIndexes(usable, true)).toEqual([])
+    // 仅用首个时跳过开头的空行，与运行时取首个非空 Key 保持一致。
+    expect(activeApiKeyIndexes(usable, false)).toEqual([1])
+    expect(standbyApiKeyIndexes(usable, false)).toEqual([3, 5])
+    expect(activeApiKeyIndexes(eligibleApiKeyIndexes(['', ' ']), false)).toEqual([])
+    expect(standbyApiKeyIndexes(eligibleApiKeyIndexes(['only']), false)).toEqual([])
   })
 })

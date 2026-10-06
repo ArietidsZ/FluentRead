@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
- * 文件职责：渲染当前翻译服务的详细连接配置，按对齐的连接字段、输入下方的添加密钥、使用方式与密钥要求和紧凑页签中的模型偏好、提示词、请求限制、接口兼容显示端点、区域、计费方式、密钥（含云服务厂商的成对密钥与服务区域）、Ollama 本地地址、代理、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制。
- * 主要内容：组件派生字段可见性与连接示例，密钥要求复用公共下拉菜单，将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
+ * 文件职责：渲染当前翻译服务的详细连接配置：连接字段（密钥、区域、端点等）直接排在服务标题下方、不再单设“连接与密钥”标题，输入下方是添加密钥与密钥使用方式；其后用模型偏好、提示词、请求限制、接口兼容几个页签显示代理、密钥要求、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制；只有一个页签的服务改用小节标题。
+ * 主要内容：组件派生字段可见性与连接示例，密钥列表始终展示全部已保存的密钥并区分参与请求与备用的行，密钥要求放在接口兼容页签，提示词可在确认后一键同步到所有 AI 服务；将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -47,8 +47,7 @@
     </section>
     </Teleport>
     <section v-if="service !== services.freeTranslation && service !== services.localTranslation" class="connection-card" data-configuration-group="connection">
-      <p v-if="service === services.microsoft || service === services.google" class="configuration-scope">{{ t('settings.organization.noSetup') }}</p>
-      <header v-else class="configuration-group-heading"><h5>{{ t('settings.organization.connection') }}</h5></header>
+      <p v-if="service === services.microsoft || service === services.google" class="configuration-scope" data-service-no-setup>{{ t('settings.organization.noSetup') }}</p>
     <template v-if="service === services.myMemory">
       <div class="connection-field" data-mymemory-email>
         <div class="connection-field-label"><strong>联系邮箱（可选）</strong><small>不填写也可以使用</small></div>
@@ -288,24 +287,21 @@
       :label="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? translateLegacy('API Key（可选）') : compute.showCloudVendor ? compute.cloudCredentialLabels.token : 'API Key'"
       :placeholder="compute.showAI && !compute.requireApiKey || service === services.deeplx && !deepLXRequiresToken ? t('settings.services.keys.optionalPlaceholder') : undefined"
       :data-cloud-credential="compute.showCloudVendor ? 'token' : undefined"
-      :keys="displayedApiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
-      :allow-multiple="apiKeyRotationEnabled"
+      :keys="apiKeys" :states="apiKeyChecks" :summary="apiKeySummary" :busy="connectionTestBusy"
+      :standby-indexes="standbyApiKeys"
       :connection-state="standaloneApiKeyCheck" :check-mode="apiKeyCheckMode"
       @add="addApiKey" @update="updateApiKey" @remove="removeApiKey" @test="testSingleApiKey"
     >
-      <template #help><FieldHelp v-if="compute.showAI" :content="t('settings.services.keys.requirementHelp')" /></template>
-      <template #tools>
-        <div v-if="apiKeys.length > 1" class="credential-usage" data-api-key-rotation-setting role="radiogroup" :aria-label="t('settings.services.keys.usage')">
+      <template #help><FieldHelp v-if="compute.showAI" :content="t('settings.services.keys.listHelp')" /></template>
+      <template v-if="usableApiKeyCount > 1" #tools>
+        <div class="credential-usage" data-api-key-rotation-setting role="radiogroup" :aria-label="t('settings.services.keys.usage')">
+          <span class="credential-usage-label" aria-hidden="true">{{ t('settings.services.keys.usage') }}</span>
           <div class="credential-modes">
-            <label :class="{'is-selected': !apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="single" :checked="!apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(false)" /><span>{{ t('settings.services.keys.firstOnly') }}</span></label>
             <label :class="{'is-selected': apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="rotation" :checked="apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(true)" /><span>{{ t('settings.services.keys.rotate') }}</span></label>
+            <label :class="{'is-selected': !apiKeyRotationEnabled}"><input type="radio" :name="`api-key-mode-${service}`" value="single" :checked="!apiKeyRotationEnabled" @change="setApiKeyRotationEnabled(false)" /><span>{{ t('settings.services.keys.firstOnly') }}</span></label>
           </div>
           <FieldHelp :content="t('settings.services.keys.usageHelp')" />
         </div>
-        <el-select v-if="compute.showAI" class="credential-requirement" data-api-key-auth-policy :aria-label="t('settings.services.keys.requirement')" :model-value="compute.requireApiKey ? 'required' : 'optional'" @update:model-value="setApiKeyRequirement">
-          <el-option value="required" :label="t('settings.services.keys.required')" />
-          <el-option value="optional" :label="t('settings.services.keys.optional')" />
-        </el-select>
       </template>
     </ApiKeyList>
     <p v-if="service === services.deeplx && deepLXRequiresToken && !apiKeyIndexes.length" class="field-warning" data-deeplx-key-required role="status">{{ deepLXTokenHelp }}</p>
@@ -327,8 +323,9 @@
     </div>
     </section>
 
-    <el-tabs v-if="service !== services.localTranslation" v-model="activeSettingsTab" class="service-settings-tabs" data-service-settings-tabs>
-    <el-tab-pane v-if="compute.showAI && compute.showModel" name="translation" :label="t('settings.organization.model')">
+    <header v-if="singleSettingsTab" class="configuration-group-heading settings-tabs-heading" data-service-settings-heading><h5>{{ singleSettingsTab }}</h5></header>
+    <el-tabs v-if="settingsTabs.requests" v-model="activeSettingsTab" class="service-settings-tabs" :class="{ 'is-single-tab': singleSettingsTab }" data-service-settings-tabs>
+    <el-tab-pane v-if="settingsTabs.translation" name="translation" :label="t(SETTINGS_TAB_LABELS.translation)">
       <section id="service-translation-settings" class="service-settings-panel" data-configuration-group="translation">
 
           <div v-if="compute.showModel" class="connection-field" data-testid="model-thinking-control">
@@ -337,7 +334,6 @@
               <FieldHelp :content="t('settings.organization.thinkingHelp')" />
             </div>
             <div class="connection-field-control model-thinking-setting">
-
               <el-switch
                 :model-value="selectedModelThinking"
                 :disabled="!effectiveModelLabel"
@@ -350,18 +346,29 @@
           <div v-if="compute.showModel" class="connection-field" data-testid="model-vision-control">
             <div class="connection-field-label">
               <strong>{{ t('settings.services.visionCapability') }}</strong>
-
+              <FieldHelp :content="`${t('settings.services.visionUnknown')} ${t('settings.services.visionProbeHelp')}`">
+                <template #content>
+                  <p class="field-help-line">{{ t('settings.services.visionUnknown') }}</p>
+                  <p class="field-help-line">{{ t('settings.services.visionProbeHelp') }}</p>
+                </template>
+              </FieldHelp>
             </div>
             <ModelVisionSettings :config="config" :service="service" :model="effectiveModelLabel" />
           </div>
 
-
       </section>
     </el-tab-pane>
-    <el-tab-pane v-if="compute.showAI" name="prompts" :label="t('settings.organization.prompts')">
+    <el-tab-pane v-if="settingsTabs.prompts" name="prompts" :label="t(SETTINGS_TAB_LABELS.prompts)">
       <section id="service-prompts-settings" class="service-settings-panel" data-configuration-group="prompts">
           <div class="custom-template-heading">
-            <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
+            <p class="configuration-scope">{{ t('settings.organization.promptsHelp') }}</p>
+            <div class="custom-template-actions">
+              <button type="button" class="prompt-sync-button" data-testid="prompt-sync-all" :disabled="promptSyncTargets.length === 0" @click="syncPromptTemplates">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h13a5 5 0 0 1 5 5M17 20l4-4-4-4M21 16H8a5 5 0 0 1-5-5" /></svg>
+                {{ t('settings.services.prompts.syncAll') }}
+              </button>
+              <el-button type="primary" link size="small" @click="resetCustomTemplate">恢复默认模板</el-button>
+            </div>
           </div>
 
           <div class="prompt-template-list" data-testid="prompt-template-list">
@@ -371,18 +378,30 @@
 
       </section>
     </el-tab-pane>
-    <el-tab-pane v-if="service !== services.localTranslation" name="requests" :label="t('settings.organization.requests')">
+    <el-tab-pane v-if="settingsTabs.requests" name="requests" :label="t(SETTINGS_TAB_LABELS.requests)">
       <section id="service-requests-settings" class="service-settings-panel" data-configuration-group="requests">
         <FreeTranslationSettings v-if="service === services.freeTranslation" :config="config" :advanced="true" />
         <RequestLimitSettings :config="config" :service="service" :model="compute.showModel ? effectiveModelLabel : undefined" />
 
       </section>
     </el-tab-pane>
-    <el-tab-pane v-if="compute.showDeepseekApiType || compute.showAI || compute.showCustomBody || Boolean(customProvider)" name="custom-request" :label="t('settings.organization.compatibility')">
+    <el-tab-pane v-if="settingsTabs['custom-request']" name="custom-request" :label="t(SETTINGS_TAB_LABELS['custom-request'])">
       <section id="service-custom-request-settings" class="service-settings-panel" data-configuration-group="custom-request">
         <div v-if="compute.showDeepseekApiType" class="connection-field"><div class="connection-field-label"><strong>API 格式</strong><FieldHelp :content="translateLegacy('选择 DeepSeek 接口使用的 API 格式')" /></div><div class="connection-field-control"><el-select v-model="config.deepseekApiType" aria-label="API 格式" placeholder="请选择 API 格式"><el-option class="select-left" v-for="item in options.deepseekApiType" :key="item.value" :label="item.label" :value="item.value" /></el-select></div></div>
 
           <div v-if="compute.showAI && compute.showProxy" class="connection-field"><div class="connection-field-label"><strong>代理地址</strong><FieldHelp :content="translateLegacy('可选的代理地址；填写后，当前 AI 服务请求会优先发送到这里')" /></div><div class="connection-field-control"><el-input v-model="config.proxy[service]" aria-label="代理地址" placeholder="默认直连自定义接口" /></div></div>
+
+        <div v-if="compute.showAI && usesApiKeyList" class="connection-field" data-api-key-requirement-row>
+          <div class="connection-field-label"><strong>{{ t('settings.services.keys.requirement') }}</strong><FieldHelp :content="t('settings.services.keys.requirementHelp')" /></div>
+          <div class="connection-field-control">
+            <SegmentedControl
+              compact class="credential-requirement" data-api-key-auth-policy
+              :label="t('settings.services.keys.requirement')" :options="apiKeyRequirementOptions"
+              :model-value="compute.requireApiKey ? 'required' : 'optional'"
+              @update:model-value="setApiKeyRequirement"
+            />
+          </div>
+        </div>
 
           <div v-if="customProvider" class="connection-field custom-headers-field" data-testid="custom-service-headers">
             <div class="connection-field-label"><strong>自定义请求头</strong><FieldHelp :content="translateLegacy('填写值为字符串的 JSON 对象，仅用于当前自定义服务，同名请求头会覆盖默认值；留空则不启用')" /></div>
@@ -432,6 +451,7 @@ import { chromeTranslationPreparationStore } from '@/src/platform/browser/chrome
 import { ElMessage, ElMessageBox, ElTabs, ElTabPane } from 'element-plus'
 import 'element-plus/es/components/tabs/style/css'
 import FieldHelp from '../components/FieldHelp.vue'
+import SegmentedControl from '../components/SegmentedControl.vue'
 import {
     ChromeTranslationPreparationError,
     getChromeTranslationPreparationLanguageLabel,
@@ -445,12 +465,13 @@ import { useUiI18n } from '@/src/ui/i18n'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
 import ApiKeyList from './ApiKeyList.vue'
-import { normalizeApiKeyList, eligibleApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
+import { normalizeApiKeyList, eligibleApiKeyIndexes, activeApiKeyIndexes, standbyApiKeyIndexes, summarizeApiKeyChecks, type ApiKeyCheckState, type ApiKeySummary } from './apiKeyTypes'
 import LocalTranslationModelSettings from '../LocalTranslationModelSettings.vue'
 import ModelVisionSettings from './ModelVisionSettings.vue'
 import RequestLimitSettings from './RequestLimitSettings.vue'
 import RequestHeaderSettings from './RequestHeaderSettings.vue'
 import { checkAllFreeTranslationProviders, type FreeTranslationChecks } from './freeTranslationChecks'
+import { listPromptTemplateSyncTargets, syncPromptTemplates as applyPromptTemplateSync } from './promptTemplateSync'
 
 const props = defineProps<{
   config: Config
@@ -480,6 +501,24 @@ const activeSettingsTab = ref('requests')
 watch(() => [service.value, Boolean(compute.value.showAI), Boolean(compute.value.showModel)], () => {
   activeSettingsTab.value = compute.value.showAI && compute.value.showModel ? 'translation' : compute.value.showAI ? 'prompts' : 'requests'
 }, {immediate: true})
+// 页签的可见条件与标题只在这里定义一次，模板和“单页签改用小节标题”的判断共用。
+const SETTINGS_TAB_LABELS = {
+  translation: 'settings.organization.model',
+  prompts: 'settings.organization.prompts',
+  requests: 'settings.organization.requests',
+  'custom-request': 'settings.organization.compatibility',
+} as const
+const settingsTabs = computed<Record<keyof typeof SETTINGS_TAB_LABELS, boolean>>(() => ({
+  translation: Boolean(compute.value.showAI && compute.value.showModel),
+  prompts: Boolean(compute.value.showAI),
+  requests: service.value !== services.localTranslation,
+  'custom-request': Boolean(compute.value.showDeepseekApiType || compute.value.showAI || compute.value.showCustomBody || customProvider.value),
+}))
+// 只有一个页签时（机器翻译服务只有“请求限制”）不显示孤立的页签条，改用小节标题。
+const singleSettingsTab = computed(() => {
+  const visible = (Object.keys(SETTINGS_TAB_LABELS) as Array<keyof typeof SETTINGS_TAB_LABELS>).filter(name => settingsTabs.value[name])
+  return visible.length === 1 ? t(SETTINGS_TAB_LABELS[visible[0]]) : ''
+})
 const myMemoryEmailDraft = ref(config.value.myMemoryEmail)
 const myMemoryEmailInvalid = computed(() => Boolean(myMemoryEmailDraft.value.trim() && !normalizeMyMemoryEmail(myMemoryEmailDraft.value)))
 watch(() => config.value.myMemoryEmail, value => { myMemoryEmailDraft.value = value })
@@ -527,20 +566,25 @@ const apiKeyRotationEnabled = computed<boolean>({
 function setApiKeyRotationEnabled(value: boolean): void {
   apiKeyRotationEnabled.value = value
 }
-function setApiKeyRequirement(value: string): void {
+function setApiKeyRequirement(value: string | number): void {
   compute.value.requireApiKey = value === 'required'
 }
-const displayedApiKeys = computed(() => apiKeyRotationEnabled.value ? apiKeys.value : apiKeys.value.slice(0, 1))
-const apiKeyIndexes = computed(() => eligibleApiKeyIndexes(displayedApiKeys.value))
+const apiKeyRequirementOptions = computed(() => [
+  {value: 'required', label: t('settings.services.keys.required')},
+  {value: 'optional', label: t('settings.services.keys.optional')},
+])
+// 列表始终展示全部已保存的密钥；“仅用首个”只改变参与请求的范围，其余行标为备用而不是隐藏。
+const usableApiKeys = computed(() => eligibleApiKeyIndexes(apiKeys.value))
+const usableApiKeyCount = computed(() => usableApiKeys.value.length)
+const apiKeyIndexes = computed(() => activeApiKeyIndexes(usableApiKeys.value, apiKeyRotationEnabled.value))
+const standbyApiKeys = computed(() => standbyApiKeyIndexes(usableApiKeys.value, apiKeyRotationEnabled.value))
 const usesApiKeyList = computed(() => compute.value.showToken && !compute.value.showServiceSecret)
 const apiKeyChecks = ref<Record<number, ApiKeyCheckState>>({})
 const apiKeySummary = ref<ApiKeySummary | null>(null)
 const apiKeyCheckMode = ref<'single' | 'all'>('all')
 
 function syncApiKeys(next: string[]): void {
-  const value = next.length > 0 ? next : ['']
-  // 单 Key 模式只改变当前使用范围，编辑首个 Key 时保留高级配置里已有的其他 Key。
-  const storedValue = value
+  const storedValue = next.length > 0 ? next : ['']
   if (!config.value.apiKeys) config.value.apiKeys = {}
   config.value.apiKeys[service.value] = storedValue
   config.value.token[service.value] = storedValue.find(key => key.trim()) || ''
@@ -548,8 +592,13 @@ function syncApiKeys(next: string[]): void {
 }
 
 function addApiKey(): void {
-  apiKeyRotationEnabled.value = true
-  if (apiKeys.value.some(key => !key.trim())) return
+  // 可用密钥不足两个时看不到使用方式，此前留下的“仅用首个”已无意义：清除它，新添加的密钥按默认轮换使用。
+  // 已有多个密钥并明确选了“仅用首个”时保留该选择，新密钥作为备用。
+  if (usableApiKeyCount.value < 2 && config.value.apiKeyRotationEnabled?.[service.value] === false) {
+    const {[service.value]: _stale, ...rest} = config.value.apiKeyRotationEnabled
+    config.value.apiKeyRotationEnabled = rest
+  }
+  // 空行是合法草稿：已有空行时也继续新增。
   syncApiKeys([...apiKeys.value, ''])
 }
 function updateApiKey(index: number, value: string): void {
@@ -837,7 +886,8 @@ function stopApiKeyChecks(): void {
 }
 
 async function testSingleApiKey(index: number): Promise<void> {
-  if (connectionTestBusy.value || !apiKeyIndexes.value.includes(index)) return
+  // 备用密钥不参与全量检查，但仍可逐个验证。
+  if (connectionTestBusy.value || !usableApiKeys.value.includes(index)) return
   apiKeyCheckMode.value = 'single'
   const generation = ++connectionTestGeneration
   connectionTestBusy.value = true
@@ -1005,6 +1055,30 @@ function resetCustomTemplate(): void {
   })
 }
 
+const promptSyncTargets = computed(() => listPromptTemplateSyncTargets(config.value, service.value))
+
+function syncPromptTemplates(): void {
+  const count = promptSyncTargets.value.length
+  if (count === 0) return
+  void ElMessageBox.confirm(
+    t('settings.services.prompts.syncConfirmMessage', {count}),
+    t('settings.services.prompts.syncConfirmTitle'),
+    {
+      confirmButtonText: t('settings.services.prompts.syncConfirmAction'),
+      cancelButtonText: t('settings.services.prompts.syncCancel'),
+      type: 'warning',
+    },
+  ).then(() => {
+    // 确认期间目标可能变化（例如另一页面删除了自定义服务），按确认时刻的配置重新计算。
+    const next = applyPromptTemplateSync(config.value, service.value)
+    config.value.system_role = next.system_role
+    config.value.user_role = next.user_role
+    ElMessage.success(t('settings.services.prompts.syncDone', {count: listPromptTemplateSyncTargets(config.value, service.value).length}))
+  }).catch(() => {
+    // 用户取消同步，不修改任何服务的提示词。
+  })
+}
+
 function confirmDeleteProvider(): void {
   const providerName = customProvider.value?.name || '此自定义服务'
   void ElMessageBox.confirm(
@@ -1067,27 +1141,40 @@ onBeforeUnmount(() => {
 .credential-control { display: grid; justify-items: end; gap: 8px; }
 .api-key-requirement { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
 .model-vision-setting { gap: 6px; }
+.field-help-line { margin: 0; }
+.field-help-line + .field-help-line { margin-top: 6px; }
 .model-thinking-setting { justify-content: center; align-items: flex-start; min-height: 38px; }
-.model-thinking-setting :deep(.el-switch) { flex: none; }
+/* 开关自带 4px 的点击留白：向外抵消，让可见轨道与其他控件左对齐，并保持与输入框相同的行高。 */
+.model-thinking-setting :deep(.el-switch) { flex: none; margin: -3px 0 -3px -4px; }
 .service-settings-tabs { margin-top: 18px; min-width: 0; --el-color-primary: var(--brand-strong); }
+.service-settings-tabs.is-single-tab { margin-top: 0; }
+.service-settings-tabs.is-single-tab :deep(.el-tabs__header) { display: none; }
+.service-settings-tabs.is-single-tab .service-settings-panel { padding-top: 0; }
 .service-settings-tabs :deep(.el-tabs__header) { margin: 0; }
 .service-settings-tabs :deep(.el-tabs__item) { height: 44px; padding: 0 18px; color: var(--muted); font-size: 13px; font-weight: 550; }
 .service-settings-tabs :deep(.el-tabs__item.is-active) { color: var(--brand-strong); }
 .service-settings-tabs :deep(.el-tabs__nav-wrap::after) { height: 1px; background: var(--line); }
 .service-settings-panel { min-width: 0; padding-top: 12px; }
 .configuration-scope { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
-.credential-usage { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
-.credential-modes { display: flex; flex-wrap: wrap; padding: 2px; gap: 2px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-soft); }
-.credential-modes label { position: relative; display: inline-flex; align-items: center; min-height: 26px; padding: 2px 7px; border-radius: 5px; color: var(--muted); font-size: 11px; cursor: pointer; }
-.credential-modes label.is-selected { color: var(--ink); background: var(--surface); box-shadow: 0 1px 3px #0000000d; }
+.credential-usage { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.credential-usage-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.credential-modes { display: flex; flex-wrap: wrap; padding: 3px; gap: 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-soft); }
+.credential-modes label { position: relative; display: inline-flex; align-items: center; min-height: 24px; padding: 2px 10px; border-radius: 7px; color: var(--muted); font-size: 11px; font-weight: 600; white-space: nowrap; cursor: pointer; transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease; }
+.credential-modes label:not(.is-selected):hover { color: var(--ink); }
+.credential-modes label.is-selected { color: var(--brand-strong); background: var(--surface); box-shadow: 0 2px 7px rgba(31, 40, 61, .09); }
 .credential-modes input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .credential-modes label:has(input:focus-visible) { outline: 2px solid var(--brand); outline-offset: 2px; }
-.credential-requirement { width: 130px; min-width: 0; max-width: 100%; }
-.credential-requirement :deep(.el-select__wrapper) { min-height: 30px; padding: 0 9px; border-radius: 7px; }
-.credential-requirement :deep(.el-select__selected-item), .credential-requirement :deep(.el-select__input) { font-size: 11px; }
-.custom-template-heading { display: flex; align-items: center; justify-content: flex-end; gap: 16px; margin: 0 0 10px; }
+.credential-requirement { max-width: 360px; }
+.custom-template-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; margin: 2px 0 12px; }
+.custom-template-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-left: auto; }
+.prompt-sync-button { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font-size: 12px; font-weight: 550; cursor: pointer; transition: border-color .15s, color .15s, background .15s; }
+.prompt-sync-button:hover:not(:disabled) { border-color: var(--brand-border, #f3c0ce); color: var(--brand-strong); background: var(--brand-soft); }
+.prompt-sync-button:disabled { opacity: .5; cursor: not-allowed; }
 .prompt-template-list { display: grid; gap: 14px; }
-.service-connection-section :deep(.request-limit-settings) { border-bottom: 0; width: 100%; }
+.service-connection-section :deep(.request-limit-settings) { width: 100%; }
+/* 连接字段紧接服务标题或模型行，上方已有分隔线：首行不再重复画线。 */
+.connection-card > :deep(.api-key-list:first-child) { border-top: 0; }
+.connection-card > .configuration-scope { padding: 14px 0 6px; }
 .connection-test-inline { display: flex; align-items: center; justify-content: flex-start; gap: 12px; flex-wrap: wrap; margin: 14px 0; }
 .connection-test-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 12px; border: 1px solid var(--brand-border, #f3c0ce); border-radius: 9px; color: var(--brand-strong, #bd2853); background: var(--brand-soft, #fff0f4); font-size: 12px; font-weight: 600; cursor: pointer; }
 .connection-test-button:hover:not(:disabled) { border-color: var(--brand); }
@@ -1136,6 +1223,8 @@ button:focus-visible, summary:focus-visible { outline: 2px solid var(--brand); o
 .connection-card { padding: 0; border: 0; border-radius: 0; }
 .configuration-group-heading { margin: 0 0 10px; }
 .configuration-group-heading h5 { font-size: 13px; font-weight: 650; }
+/* 单页签标题：用分隔线和留白与上方连接区分成两个并列小节，下方直接接第一行字段。 */
+.configuration-group-heading.settings-tabs-heading { margin: 20px 0 0; padding-top: 20px; border-top: 1px solid var(--line); }
 .provider-account-fields { min-width: 0; }
 @container (max-width: 520px) { .provider-account-fields { grid-template-columns: 1fr; gap: 8px; } }
 </style>

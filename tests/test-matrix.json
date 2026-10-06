@@ -280,6 +280,7 @@
       "tests/apiKeyRotation.test.ts",
       "tests/apiKeyPool.test.ts",
       "tests/apiKeyTypes.test.ts",
+      "tests/promptTemplateSync.test.ts",
       "tests/freeRoutingPolicy.test.ts",
       "tests/freeWeights.test.ts",
       "tests/freeBalancedRouting.test.ts",

@@ -93,23 +93,32 @@ async function main() {
   assert.equal(await list.count(), 1);
   assert.equal(await page.locator('[data-api-key-rotation-setting]').count(), 0, 'One key needs no usage selector');
   assert.equal(await page.locator('[data-api-key-list] .el-switch').count(), 0, 'Credential input must not depend on ambiguous switches');
-  await enableKeyRotation();
+  assert.equal(await page.locator('[data-api-key-remove]').count(), 0, 'A single row keeps the plain input');
+  // 空密钥不阻止继续添加：新增的行获得焦点，多余的行可以逐个删除。
   await page.locator('[data-api-key-list] .api-key-row input').first().fill('');
   await page.locator('[data-api-key-add]').click();
+  await (await keys()).nth(1).waitFor({state: 'visible'});
+  await page.waitForFunction(() => document.activeElement === document.querySelectorAll('.api-key-entry input')[1]);
+  await page.locator('[data-api-key-add]').click();
+  assert.equal(await (await keys()).count(), 3, 'Empty keys must not block adding rows');
+  assert.equal(await page.locator('[data-api-key-rotation-setting]').count(), 0, 'Usage only matters once two keys are filled');
+  await page.screenshot({path: path.join(artifactsDir, 'api-keys-empty-initial.png')}); report.screenshots.push('api-keys-empty-initial.png');
+  await (await keys()).nth(2).locator('[data-api-key-remove]').click();
+  await (await keys()).nth(1).locator('[data-api-key-remove]').click();
   assert.equal(await (await keys()).count(), 1);
   assert.equal(await page.locator('[data-api-key-list] .api-key-row input').first().isVisible(), true);
-  await page.screenshot({path: path.join(artifactsDir, 'api-keys-empty-initial.png')}); report.screenshots.push('api-keys-empty-initial.png');
-  report.cases.push('empty-row-add-focuses-existing-row-without-adding');
+  report.cases.push('empty-rows-can-be-added-and-removed');
   await page.locator('[data-api-key-list] .api-key-row input').first().fill('  fixture-A  ');
   await page.locator('[data-api-key-add]').click();
   const rows = await keys();
   await rows.nth(1).waitFor({state: 'visible'});
-  assert.equal(await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').isChecked(), true, 'Adding another key enables rotation directly');
   const firstInputBox = await page.locator('.api-key-entry input').first().boundingBox();
   const addBox = await page.locator('[data-api-key-add]').boundingBox();
   assert(firstInputBox && addBox && addBox.y >= firstInputBox.y + firstInputBox.height, 'Adding keys belongs below the input');
-  report.cases.push('direct-add-enables-rotation-and-reveals-contextual-usage');
   await rows.nth(1).locator('input').fill('fixture-B');
+  await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').waitFor();
+  assert.equal(await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').isChecked(), true, 'Two usable keys rotate by default');
+  report.cases.push('second-usable-key-reveals-usage-and-rotates-by-default');
   await page.locator('[data-api-key-add]').click();
   await rows.nth(2).waitFor({state: 'visible'});
   assert.equal(await rows.count(), 3);
@@ -261,6 +270,7 @@ async function main() {
   assert.equal(await (await keys()).count(), 11);
   report.cases.push('reopen-persistence');
   assert.equal(await page.locator('[data-api-key-auth-policy]').count(), 1);
+  assert.equal(await page.locator('[data-api-key-list] [data-api-key-auth-policy]').count(), 0, 'Key requirement belongs to the compatibility tab');
   assert.equal(await page.getByTestId('custom-service-delete').count(), 1);
   assert.equal(await page.locator('.detail-hero [data-testid="custom-service-delete"]').count(), 0);
   const allKeyInputs = page.locator('[data-api-key-list] .api-key-row input');
@@ -272,8 +282,9 @@ async function main() {
     }, index);
   }
   await page.waitForFunction(() => [...document.querySelectorAll('[data-api-key-list] .api-key-row input')].every(input => input.value === ''));
-  const authControl = page.locator('select[data-api-key-auth-policy]');
-  await authControl.selectOption('optional');
+  await page.locator('[data-service-settings-tabs] [id$="tab-custom-request"]').click();
+  const authControl = page.locator('[data-api-key-requirement-row] [data-api-key-auth-policy]');
+  await authControl.getByRole('radio', {name: '允许留空', exact: true}).click();
   assert(await allKeyInputs.evaluateAll(inputs => inputs.every(input => input.value === '')), 'cleared keys must stay empty after changing authentication policy');
   const anonymousButton = page.locator('.detail-hero [data-connection-test-button]');
   assert.equal(await anonymousButton.isDisabled(), false);
@@ -282,7 +293,7 @@ async function main() {
   await page.locator('[data-api-key-list][data-api-key-busy="false"]').waitFor();
   assert.equal(report.requests.length, anonymousBefore + 1);
   assert.equal(report.requests.at(-1).key, '');
-  await authControl.selectOption('required');
+  await authControl.getByRole('radio', {name: '密钥必填', exact: true}).click();
   await page.waitForFunction(() => document.querySelector('[data-connection-test-button]')?.disabled === true);
   assert.equal(await anonymousButton.isDisabled(), true);
   report.cases.push('advanced-anonymous-key-policy-remains-editable');

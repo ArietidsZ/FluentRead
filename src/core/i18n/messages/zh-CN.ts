@@ -340,7 +340,6 @@ export const zhCNMessages = {
     "settings.organization.modelScope": "当前模型：{model}",
     "settings.organization.optional": "按需调整",
     "settings.organization.optionalHelp": "默认即可使用，修改自动保存",
-    "settings.organization.connection": "连接与密钥",
     "settings.organization.model": "模型偏好",
     "settings.organization.modelHelp": "深度思考与图片识别",
     "settings.organization.prompts": "提示词模板",

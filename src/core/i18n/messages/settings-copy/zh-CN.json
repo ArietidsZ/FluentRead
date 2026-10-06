@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "允许留空",
     "settings.services.keys.requirementHelp": "需要密钥验证的接口请选择“密钥必填”；允许匿名请求的接口可选择“允许留空”。填写密钥后仍会使用该密钥。",
     "settings.services.keys.optionalPlaceholder": "可留空；填写后使用该密钥",
-    "settings.services.keys.addKey": "添加密钥"
+    "settings.services.keys.addKey": "添加密钥",
+    "settings.services.keys.listHelp": "可添加多个密钥。接口无需密钥时，可在“接口兼容”里把密钥要求改为“允许留空”。",
+    "settings.services.keys.standby": "备用",
+    "settings.services.prompts.syncAll": "同步到所有 AI 服务",
+    "settings.services.prompts.syncConfirmTitle": "同步提示词模板",
+    "settings.services.prompts.syncConfirmMessage": "将当前服务的 system 和 user 提示词同步到其他 {count} 个 AI 服务，这些服务现有的提示词会被覆盖。",
+    "settings.services.prompts.syncConfirmAction": "同步",
+    "settings.services.prompts.syncCancel": "取消",
+    "settings.services.prompts.syncDone": "已同步到 {count} 个 AI 服务",
+    "settings.services.visionProbeShort": "检测"
   },
   "legacy": {}
 }

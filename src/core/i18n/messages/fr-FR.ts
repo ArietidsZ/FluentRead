@@ -341,7 +341,6 @@ export const frFRMessages = {
     "settings.organization.modelScope": "Modèle actuel : {model}",
     "settings.organization.optional": "Ajuster selon vos besoins",
     "settings.organization.optionalHelp": "Les valeurs par défaut permettent une utilisation immédiate. Les modifications sont enregistrées automatiquement.",
-    "settings.organization.connection": "Connexion et clés",
     "settings.organization.model": "Préférences du modèle",
     "settings.organization.modelHelp": "Raisonnement approfondi et reconnaissance d’images",
     "settings.organization.prompts": "Modèles d’instructions",

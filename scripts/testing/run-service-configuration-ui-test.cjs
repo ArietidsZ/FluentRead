@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 'use strict';
-// 服务配置专项：紧凑页签、标签旁提示、多 Key、实际请求限制、区域、本地模型与自定义服务；不下载模型或调用外部服务。
+// 服务配置专项：紧凑页签（单页签改用小节标题）、标签旁提示、多 Key 增删与备用、提示词一键同步、行式请求限制、区域、本地模型与自定义服务；不下载模型或调用外部服务。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -45,7 +45,9 @@ fs.mkdirSync(artifactsDir, {recursive: true});
       await page.locator(`[data-service-value="${id}"]:visible`).first().click();
       await page.locator(`[data-service-configuration-service="${id}"]`).waitFor({state: 'visible'});
     };
-    const tab = async group => {await page.locator(`[data-service-settings-tabs] [id$="tab-${group}"]`).click(); await page.locator(`[data-configuration-group="${group}"]`).waitFor({state: 'visible'});};
+    // 只有一个页签的服务不显示页签条，内容直接可见。
+    const tab = async group => {const trigger = page.locator(`[data-service-settings-tabs] [id$="tab-${group}"]`); if (await trigger.isVisible()) await trigger.click(); await page.locator(`[data-configuration-group="${group}"]`).waitFor({state: 'visible'});};
+    const pick = (group, name) => group.getByRole('radio', {name, exact: true}).click();
     const screenshot = async name => {await page.waitForTimeout(220); const file = path.join(artifactsDir, `${name}.png`); await page.screenshot({path: file, animations: 'disabled'}); report.screenshots.push(file);};
     const layout = async name => {
       await page.waitForTimeout(150);
@@ -86,23 +88,69 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     await page.locator('[data-testid="prompt-editor-user"] textarea').press('Tab');
     await saved(c => c.user_role.openai.includes('Saved UI fixture.'));
     await screenshot('openai-prompts'); report.cases.push('one visible settings pane; keyboard activation; prompt saves');
+    // 一键同步必须先确认：取消不改任何服务，确认后所有 AI 服务与自定义服务都使用当前模板。
+    const beforeSync = await readConfig();
+    await page.getByTestId('prompt-sync-all').click();
+    await page.locator('.el-message-box').waitFor(); await screenshot('openai-prompt-sync-confirm');
+    assert.match(await page.locator('.el-message-box').innerText(), /同步提示词模板[\s\S]*覆盖/);
+    await page.locator('.el-message-box .el-button').first().click(); await page.locator('.el-message-box').waitFor({state: 'hidden'});
+    await popup.waitForTimeout(400);
+    assert.equal((await readConfig()).user_role.deepseek, beforeSync.user_role.deepseek, 'Cancelled sync must not change other services');
+    await page.getByTestId('prompt-sync-all').click();
+    await page.locator('.el-message-box').waitFor(); await page.locator('.el-message-box .el-button').last().click();
+    await saved(c => ['deepseek', 'claude', fixtureId].every(id => c.user_role[id] === c.user_role.openai && c.system_role[id] === c.system_role.openai));
+    assert.equal((await readConfig()).user_role.microsoft, beforeSync.user_role.microsoft, 'Machine translation entries stay untouched');
+    report.cases.push('prompt sync asks for confirmation; cancel is a no-op; confirm overwrites every AI and custom service');
     await tab('translation');
     const thinking = page.locator('[data-testid="model-thinking-control"] .el-switch');
     await thinking.click();
     const model = (await readConfig()).model.openai;
     await saved(c => Object.values(c.modelThinking.openai || {}).some(Boolean));
     report.persistenceCases.push('model thinking saved through the existing store');
+    // 空密钥时也能继续添加，多出来的行可以删除。
+    assert.equal(await page.locator('[data-api-key-remove]').count(), 0, 'A single row keeps the plain input');
+    await page.locator('[data-api-key-add]').click(); await page.locator('[data-api-key-add]').click();
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 3, 'Empty keys must not block adding rows');
+    await page.waitForFunction(() => document.activeElement === document.querySelectorAll('.api-key-entry input')[2]);
+    await screenshot('openai-empty-key-rows'); await layout('openai-empty-key-rows');
+    await page.locator('[data-api-key-remove]').nth(2).click(); await page.locator('[data-api-key-remove]').nth(1).click();
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 1);
+    assert.equal(await page.locator('[data-api-key-list] [data-api-key-auth-policy]').count(), 0, 'Key requirement no longer crowds the key list');
+    report.cases.push('empty key rows can be added and removed; a single row stays a plain input');
     await page.locator('[data-api-key-list] .api-key-entry input').first().fill('fixture-key-one');
     await page.locator('[data-api-key-list] .api-key-entry input').first().press('Tab');
+    assert.equal(await page.locator('[data-api-key-rotation-setting]').count(), 0, 'Usage only matters once two keys are filled');
     await page.locator('[data-api-key-add]').click();
     await page.waitForFunction(() => document.activeElement === document.querySelectorAll('.api-key-entry input')[1]);
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).fill('fixture-key-two');
     await page.locator('[data-api-key-list] .api-key-entry input').nth(1).press('Tab');
     await saved(c => c.apiKeys.openai.length === 2 && c.apiKeys.openai[1] === 'fixture-key-two');
-    await page.locator('[data-api-key-rotation-setting] input[value="single"]').check(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 1);
-    await page.locator('[data-api-key-rotation-setting] input[value="rotation"]').check(); assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue(), 'fixture-key-two');
+    // 夹具里留有此前“仅用首个”的选择；可用密钥不足两个时它已无意义，新添加的密钥默认轮换使用。
+    const usage = page.locator('[data-api-key-rotation-setting]');
+    await usage.locator('input[value="rotation"]').waitFor();
+    assert.equal(await usage.locator('input[value="rotation"]').isChecked(), true, 'A stale first-only choice must not bench a newly added key');
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 2);
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 0);
+    // 明确选择“仅用首个”后，其余密钥保持可见并标为备用；此时再添加密钥不改写这个选择。
+    await usage.locator('input[value="single"]').check();
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 2);
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 1);
+    assert.match(await page.locator('[data-api-key-index="1"] .api-key-row-status').innerText(), /备用/);
+    await saved(c => c.apiKeyRotationEnabled.openai === false);
+    await page.locator('[data-api-key-add]').click();
+    await page.locator('[data-api-key-list] .api-key-entry input').nth(2).fill('fixture-key-three');
+    await page.locator('[data-api-key-list] .api-key-entry input').nth(2).press('Tab');
+    assert.equal(await usage.locator('input[value="single"]').isChecked(), true, 'An explicit first-only choice survives adding a key');
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 2);
+    await screenshot('openai-first-key-only'); await layout('openai-first-key-only');
+    await page.locator('[data-api-key-remove]').nth(2).click();
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').count(), 2);
+    await usage.locator('input[value="rotation"]').check();
+    assert.equal(await page.locator('[data-api-key-standby]').count(), 0);
+    assert.equal(await page.locator('[data-api-key-list] .api-key-entry input').nth(1).inputValue(), 'fixture-key-two');
+    await saved(c => c.apiKeyRotationEnabled.openai === true && c.apiKeys.openai.length === 2);
     await screenshot('openai-multiple-keys'); await layout('openai-multiple-keys');
-    report.cases.push('adding a key enables rotation; contextual usage preserves hidden keys; no duplicate column headings');
+    report.cases.push('added keys stay visible; first-only marks the rest as standby; rotation uses every key; no duplicate column headings');
     await page.evaluate(() => {
       const original = chrome.runtime.sendMessage.bind(chrome.runtime);
       chrome.runtime.sendMessage = function(message, ...args) {
@@ -118,25 +166,48 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     await tab('requests');
     const limits = page.locator('[data-testid="request-limit-settings"]');
     assert.equal(await limits.locator('input[role="spinbutton"]:disabled').count(), 3);
-    await choose(limits.locator('.request-limit-inheritance .el-select'), '自定义');
+    assert.equal(await limits.locator('.el-select').count(), 0, 'Binary limit choices are segmented, not dropdowns');
+    assert.match(await limits.locator('[data-request-limit-scope-hint]').innerText(), new RegExp(model.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    await pick(limits.locator('.request-limit-inheritance'), '自定义');
     const concurrency = limits.locator('input[role="spinbutton"]').first();
+    // 三项数值各占一行：左标签、右侧等宽紧凑输入框，与其他页签的字段行同列对齐。
+    const limitBoxes = await limits.locator('.request-limit-number').evaluateAll(nodes => nodes.map(el => {const r = el.getBoundingClientRect(); return {x: Math.round(r.x), y: Math.round(r.y), width: Math.round(r.width)};}));
+    const modeBox = await limits.locator('.request-limit-inheritance .segmented-control').boundingBox();
+    assert.equal(limitBoxes.length, 3);
+    assert(limitBoxes.every(box => box.x === limitBoxes[0].x && box.width === limitBoxes[0].width) && limitBoxes[1].y > limitBoxes[0].y && limitBoxes[2].y > limitBoxes[1].y, `limit rows: ${JSON.stringify(limitBoxes)}`);
+    assert(Math.abs(limitBoxes[0].x - modeBox.x) <= 1, 'Limit inputs share the control column');
     await concurrency.fill('3'); await concurrency.press('Tab');
     await saved(c => Object.values(c.modelRequestLimits.openai || {}).some(p => p.enabled && p.limits.maxConcurrentTranslations === 3));
     await screenshot('openai-request-limits'); await layout('openai-request-limits');
-    await choose(limits.locator('.request-limit-inheritance .el-select'), '跟随全局设置');
+    await pick(limits.locator('.request-limit-inheritance'), '跟随全局设置');
     assert.equal(await concurrency.isDisabled(), true);
-    await choose(limits.locator('.request-limit-inheritance .el-select'), '自定义'); assert.equal(await concurrency.inputValue(), '3');
-    await choose(limits.locator('.request-limit-scope .el-select'), '整个服务');
-    await choose(limits.locator('.request-limit-inheritance .el-select'), '自定义');
+    await pick(limits.locator('.request-limit-inheritance'), '自定义'); assert.equal(await concurrency.inputValue(), '3');
+    await pick(limits.locator('.request-limit-scope'), '整个服务');
+    assert.equal(await limits.locator('[data-request-limit-scope-hint]').innerText(), '所有模型合计');
+    await pick(limits.locator('.request-limit-inheritance'), '自定义');
     await concurrency.fill('5'); await concurrency.press('Tab');
     await saved(c => c.serviceRequestLimits.openai?.limits.maxConcurrentTranslations === 5);
     assert.equal((await readConfig()).modelRequestLimits.openai[model].limits.maxConcurrentTranslations, 3);
     report.cases.push('actual inherited limits remain visible; custom model/service limits isolated; disabled custom values retained');
     await tab('custom-request');
     assert.equal(await page.locator('#service-custom-request-settings > .connection-field').first().locator('.provider-field-help').count(), 0);
+    // 密钥要求属于接口兼容：改为允许留空后，无密钥也能检查连接，标签随之标注可选。
+    const requirement = page.locator('[data-api-key-requirement-row] [data-api-key-auth-policy]');
+    await pick(requirement, '允许留空');
+    await saved(c => Object.entries(c.requireApiKey).some(([key, value]) => key.includes('"openai"') && value === false));
+    assert.match(await page.locator('.api-key-heading strong').innerText(), /可选/);
+    await pick(requirement, '密钥必填');
+    await saved(c => Object.entries(c.requireApiKey).every(([key, value]) => !key.includes('"openai"') || value === true));
+    report.cases.push('key requirement lives in the compatibility tab and still drives the key label');
     await screenshot('openai-compatibility'); await layout('openai-compatibility');
+    // 切换服务后光标可能恰好停在别的提示图标上：先移开并等旧提示消失，再验证目标提示。
+    const settleTooltips = async () => {
+      await page.locator('.detail-hero').hover();
+      await page.waitForFunction(() => ![...document.querySelectorAll('.fluentread-field-help-popper')].some(node => node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden'));
+    };
     for (const id of ['azureTranslator', 'aliyunTranslation']) {
-      await selectService(id);
+      await selectService(id); await settleTooltips();
+      assert.equal(await page.locator('.connection-card .configuration-group-heading').count(), 0, 'Connection fields need no separate section title');
       const field = page.locator('[data-cloud-region]');
       assert.equal(await field.locator('.connection-field-control > *').count(), 1);
       const before = await field.boundingBox(); await field.locator('button.field-help').hover();
@@ -151,7 +222,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     assert.equal(await page.locator('[data-ollama-endpoint] .connection-field-control > *').count(), 1);
     await selectService('huanYuan'); assert.equal(await page.locator('[data-service-value="huanYuan"] strong').textContent(), '腾讯混元模型');
     for (const [id, attribute] of [['minimax', 'data-minimax-endpoint'], ['mimo', 'data-mimo-endpoint']]) {
-      await selectService(id);
+      await selectService(id); await settleTooltips();
       assert.equal(await page.locator('.provider-account-fields .connection-field-control > p').count(), 0);
       const region = page.locator('.provider-account-fields .connection-field').last();
       await region.locator('button.field-help').hover();
@@ -160,6 +231,8 @@ fs.mkdirSync(artifactsDir, {recursive: true});
       report.cases.push(`${id}: aligned account fields, endpoint in region help`);
     }
     await selectService('freeTranslation'); await tab('requests');
+    assert.equal(await page.locator('[data-service-settings-heading]').innerText(), '请求限制');
+    assert.equal(await page.locator('[data-service-settings-tabs] .el-tabs__header').isVisible(), false, 'A lone tab is replaced by a section heading');
     assert.equal(await page.locator('.is-advanced .recovery-copy').count(), 0);
     const wait = page.locator('.is-advanced input[role="spinbutton"]');
     await wait.fill('7'); await wait.press('Tab'); await saved(c => c.freeTranslationTimeoutMs === 7000);

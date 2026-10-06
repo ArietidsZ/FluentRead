@@ -84,7 +84,16 @@
     "settings.services.keys.optional": "Clé facultative",
     "settings.services.keys.requirementHelp": "Choisissez Clé requise pour les API authentifiées, ou Clé facultative pour les API qui acceptent les requêtes anonymes. Toute clé renseignée reste utilisée.",
     "settings.services.keys.optionalPlaceholder": "Facultatif : une clé renseignée sera utilisée",
-    "settings.services.keys.addKey": "Ajouter une clé"
+    "settings.services.keys.addKey": "Ajouter une clé",
+    "settings.services.keys.listHelp": "Vous pouvez ajouter plusieurs clés. Si l’interface ne demande pas de clé, réglez l’exigence de clé sur « Clé facultative » dans Compatibilité de l’API.",
+    "settings.services.keys.standby": "En réserve",
+    "settings.services.prompts.syncAll": "Synchroniser avec tous les services d’IA",
+    "settings.services.prompts.syncConfirmTitle": "Synchroniser les modèles d’instructions",
+    "settings.services.prompts.syncConfirmMessage": "Copier les instructions system et user de ce service vers les {count} autres services d’IA ? Leurs instructions actuelles seront remplacées.",
+    "settings.services.prompts.syncConfirmAction": "Synchroniser",
+    "settings.services.prompts.syncCancel": "Annuler",
+    "settings.services.prompts.syncDone": "Synchronisé avec {count} services d’IA",
+    "settings.services.visionProbeShort": "Tester"
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "La connexion a changé. Générez un nouvel aperçu.",

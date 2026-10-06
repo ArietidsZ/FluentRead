@@ -1,11 +1,11 @@
 <!--
 @file src/features/settings/ui/components/SegmentedControl.vue
 文件职责：为少量互斥设置提供紧凑且可访问的分段选择控件，替代难以快速比较的普通下拉框。
-主要内容：以 radiogroup 语义渲染选项，支持完整多语言标签自然换行、禁用状态、双向绑定以及方向键、Home、End 的循环键盘导航和焦点同步。
+主要内容：以 radiogroup 语义渲染选项，支持完整多语言标签自然换行、禁用状态、双向绑定以及方向键、Home、End 的循环键盘导航和焦点同步；compact 模式把整体高度收到与输入框一致，供表单行内使用。
 模块边界：本组件只接收通用标签和值并发出选择事件，不包含任何 FluentRead 配置字段含义，也不负责保存配置或展示页面说明。
 -->
 <template>
-  <div ref="groupElement" class="segmented-control" role="radiogroup" :aria-label="label" :aria-disabled="disabled">
+  <div ref="groupElement" class="segmented-control" :class="{ compact }" role="radiogroup" :aria-label="label" :aria-disabled="disabled">
     <button
       v-for="(option, index) in options"
       :key="String(option.value)"
@@ -38,8 +38,10 @@ const props = withDefaults(defineProps<{
   options: SegmentedOption[]
   label: string
   disabled?: boolean
+  compact?: boolean
 }>(), {
   disabled: false,
+  compact: false,
 })
 
 const emit = defineEmits<{
@@ -100,6 +102,9 @@ function handleKeydown(event: KeyboardEvent, currentIndex: number) {
   line-height: 1.4;
   transition: color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
+
+.segmented-control.compact { padding: 3px; border-radius: 10px; }
+.segmented-control.compact button { min-height: 30px; padding: 4px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; }
 
 .segmented-control button:hover:not(:disabled) { color: var(--ink); }
 .segmented-control button.active {
