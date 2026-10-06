@@ -1,4 +1,3 @@
-import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -30,7 +29,7 @@ beforeEach(async () => {
   requestPatch = vi.fn().mockResolvedValue(undefined); translateText = vi.fn().mockResolvedValue('translated'); copy = vi.fn().mockResolvedValue(undefined);
   vi.stubGlobal('navigator', {platform: 'MacIntel', clipboard: {writeText: copy}});
   vi.stubGlobal('document', {body: {style: {userSelect: 'text'}}, addEventListener: vi.fn(), removeEventListener: vi.fn(), elementFromPoint: vi.fn()});
-  const api = {hasDistinctTranslation, ...catalog, ...profiles, ...validation, ...comparison, config, configReady: Promise.resolve(),
+  const api = {...catalog, ...profiles, ...validation, ...comparison, config, configReady: Promise.resolve(),
     subscribeConfig: (fn: typeof subscription) => {subscription = fn; return vi.fn();}, requestConfigPatch: requestPatch, translateText, TranslationRequestError,
     filterAvailableTranslationServices: (items: any[]) => items.filter(item => item.value !== 'chromeTranslator'),
     isTranslationServiceAvailable: (service: string) => service !== 'chromeTranslator',
@@ -196,7 +195,7 @@ describe('translation center product workflow', () => {
     expect(state.saveState).not.toBe('error'); expect(state.targetLanguage).toBe('fr');
   });
   it('protects user content from legacy localization and provides persistent layout controls', () => {
-    expect(source).toContain('<p v-if="hasVisibleResult(card)" data-i18n-ignore>{{ card.result }}</p>');
+    expect(source).toContain('<p data-i18n-ignore>{{ card.result }}</p>');
     expect(source).toContain('v-model="sourceText" data-i18n-ignore');
     expect(source).toContain('!event.isComposing'); expect(source).toContain('prefers-reduced-motion');
     expect(source).toContain('aria-pressed="resultLayout');
@@ -204,14 +203,15 @@ describe('translation center product workflow', () => {
     expect(css).toContain(':root.dark .translation-center .translate-primary-button');
     expect(css).not.toMatch(/:root\.dark\s*\{/);
   });
-});
 
-it('相同结果保持成功状态，隐藏译文并从双语复制中排除', async () => {
+  it('保留与原文相同的服务结果，单项及全部复制均可用', async () => {
     state.sourceText = 'Original'; translateText.mockResolvedValue('  Original  ');
     state.runTranslation(); await vi.waitFor(() => expect(state.cards.every((card: any) => card.status === 'success')).toBe(true));
-    expect(state.hasVisibleResult(state.cards[0])).toBe(false);
-    expect(state.successfulCards).toEqual([]);
-    state.copyResult(state.cards[0]); expect(copy).not.toHaveBeenCalled();
+    expect(state.successfulCards).toHaveLength(state.cards.length);
+    expect(state.cards.every((card: any) => card.result === 'Original')).toBe(true);
+    state.copyResult(state.cards[0]); expect(copy).toHaveBeenLastCalledWith('Original');
+    state.copyAllResults(); expect(copy.mock.lastCall?.[0].match(/Original/g)).toHaveLength(state.cards.length);
     state.sourceText = 'A newer source';
-    expect(state.hasVisibleResult(state.cards[0])).toBe(false);
+    expect(state.successfulCards).toEqual([]);
+  });
 });

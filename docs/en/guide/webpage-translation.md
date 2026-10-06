@@ -2,7 +2,7 @@
 
 Translate an article or a selected section, compare both languages, and return to the original.
 
-When a translation matches the source, FluentRead keeps the source without displaying a duplicate translation. The comparison ignores surrounding whitespace, line breaks, repeated spaces, and equivalent Unicode composition, while preserving differences in words, case, punctuation, and Chinese variants. This also applies to selection, input, area, image, subtitle, document, and translation-center results, including bilingual copying and exports.
+When a translation matches the source, FluentRead keeps the source without displaying a duplicate translation. The comparison ignores surrounding whitespace, line breaks, repeated spaces, and equivalent Unicode composition, while preserving differences in words, case, punctuation, and Chinese variants. This also applies to selection, input, area, image, subtitle, and document results, including bilingual copying and exports. Translation Center retains and displays each service's output for comparison, even when it matches the source, and keeps its copy actions available.
 
 <GuideVisual kind="webpage" en />
 
