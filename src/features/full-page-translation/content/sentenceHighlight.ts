@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/sentenceHighlight.ts
  * 文件职责：在双语段落中定位鼠标下的句子，并同步绘制原文和译文的文字范围。
- * 主要内容：只读收集文字、按句对齐、逐帧合并指针事件，使用原生 Highlight 绘制，并向隔离的句子操作界面发布鼠标所在原文或译文及当前行的位置；离开、选择、滚动、节点变化和卸载时释放范围与监听器。
+ * 主要内容：只读收集文字、按句对齐、逐帧合并指针事件，使用原生 Highlight 绘制；普通悬停仅改变文字高亮，离开、选择、滚动、节点变化和卸载时释放范围与监听器。
  * 模块边界：仅消费 renderer 已有的双语容器，不拆分宿主文本、不更改排版、不调用 provider；旧浏览器缺少绘制能力时安全停用。
  */
 import {alignBilingualSentences, type SentenceSpan} from '@/src/core/translation/sentenceAlignment';
@@ -11,27 +11,7 @@ const wrapperSelector = '.fluent-read-bilingual-content[data-fr-translation-owne
 const excludedSelector = 'script, style, textarea, input, select, button, svg, math, mjx-container, .katex, [hidden], [aria-hidden="true"], [translate="no"], [contenteditable]:not([contenteditable="false"]), [data-fr-translation-owned="true"]';
 interface TextRun {node: Text; start: number; end: number}
 interface TextMap {text: string; runs: TextRun[]}
-interface Pair {source: Range[]; translation: Range[]; sourceText: string; translationText: string; context: string}
-export interface HighlightedSentence {
-    side: 'source' | 'translation';
-    sourceText: string;
-    translationText: string;
-    context: string;
-    rect: DOMRect;
-}
-interface SentenceSubscriber {
-    change: (sentence: HighlightedSentence | null) => void;
-    retainPointer?: (target: Element | null, event: PointerEvent) => boolean;
-}
-const subscribers = new WeakMap<Document, Set<SentenceSubscriber>>();
-
-/** 通过进程内只读订阅连接句子操作，不向宿主页面发布可伪造的收藏事件。 */
-export function subscribeHighlightedSentence(document: Document, subscriber: SentenceSubscriber): () => void {
-    const listeners = subscribers.get(document) ?? new Set<SentenceSubscriber>();
-    subscribers.set(document, listeners);
-    listeners.add(subscriber);
-    return () => { listeners.delete(subscriber); if (!listeners.size) subscribers.delete(document); };
-}
+interface Pair {source: Range[]; translation: Range[]}
 type HighlightView = Window & typeof globalThis & {
     Highlight?: new (...ranges: Range[]) => Set<Range>;
     CSS?: {highlights?: Map<string, Set<Range>>};
@@ -95,12 +75,7 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
         if (owner && (!owner.isConnected || records.some(record => owner!.contains(record.target)
             || record.target.contains(owner)))) clear();
     });
-    const publish = (sentence: HighlightedSentence | null): void => {
-        subscribers.get(document)?.forEach(subscriber => subscriber.change(sentence));
-    };
-
     function clear(): void {
-        if (active) publish(null);
         paint.clear();
         active = undefined;
         owner = null;
@@ -116,7 +91,6 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
         pending = null;
         if (!point || point.event.buttons || document.getSelection()?.isCollapsed === false) return clear();
         const {event, target: hit} = point;
-        if (active && [...(subscribers.get(document) ?? [])].some(subscriber => subscriber.retainPointer?.(hit, event))) return;
         const nextOwner = hit && ownerFor(hit);
         if (!nextOwner?.isConnected) return clear();
         if (nextOwner !== owner) {
@@ -129,34 +103,22 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
             if (source.text.length + translation.text.length > 100_000) return clear();
             pairs = alignBilingualSentences(source.text, translation.text).map(pair => ({
                 source: rangesFor(source, pair.source), translation: rangesFor(translation, pair.translation),
-                sourceText: source.text.slice(pair.source.start, pair.source.end),
-                translationText: translation.text.slice(pair.translation.start, pair.translation.end), context: source.text,
             }));
             // 只在鼠标所在段落有缓存时观察，包含祖先移除整个段落的情况。
             observer.observe(document, {subtree: true, childList: true, characterData: true, attributes: true});
         }
-        let hitSentence: {pair: Pair; side: HighlightedSentence['side']; rect: DOMRect} | undefined;
-        for (const pair of pairs) {
-            for (const side of ['source', 'translation'] as const) {
-                const rect = pair[side].flatMap(range => Array.from(range.getClientRects())).find(rect =>
-                    rect.width > 0 && rect.height > 0 && event.clientX >= rect.left && event.clientX <= rect.right
-                    && event.clientY >= rect.top && event.clientY <= rect.bottom);
-                if (rect) {hitSentence = {pair, side, rect}; break;}
-            }
-            if (hitSentence) break;
-        }
-        const pair = hitSentence?.pair;
+        const pair = pairs.find(pair => [...pair.source, ...pair.translation].some(range =>
+            Array.from(range.getClientRects()).some(rect => rect.width > 0 && rect.height > 0
+                && event.clientX >= rect.left && event.clientX <= rect.right
+                && event.clientY >= rect.top && event.clientY <= rect.bottom)));
         if (pair !== active) {
             paint.clear();
             active = pair;
             if (pair) {
                 for (const range of [...pair.source, ...pair.translation]) paint.add(range);
                 registry.set(BILINGUAL_HIGHLIGHT_NAME, paint);
-            } else publish(null);
+            }
         }
-        // 同一组双语句子内的移动仍更新所在一侧和行位置，供工具入口等待真正停留。
-        if (hitSentence) publish({side: hitSentence.side, sourceText: pair!.sourceText,
-            translationText: pair!.translationText, context: pair!.context, rect: hitSentence.rect});
     };
     const move = (event: PointerEvent): void => {
         // composedPath 在事件派发后会清空，必须在当前事件内保留真实目标。

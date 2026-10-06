@@ -1,7 +1,7 @@
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {alignBilingualSentences, sentenceSpans} from '@/src/core/translation/sentenceAlignment';
-import {BILINGUAL_HIGHLIGHT_NAME, installBilingualSentenceHighlight, subscribeHighlightedSentence} from '@/src/features/full-page-translation/content/sentenceHighlight';
+import {BILINGUAL_HIGHLIGHT_NAME, installBilingualSentenceHighlight} from '@/src/features/full-page-translation/content/sentenceHighlight';
 import {BILINGUAL_SENTENCE_HIGHLIGHT_APPEARANCE_ID, syncBilingualSentenceHighlight} from '@/src/app/content/bilingualSentenceHighlight';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, MAX_SENTENCE_HIGHLIGHT_PROFILES, SENTENCE_HIGHLIGHT_STYLES, buildSentenceHighlightAppearanceCss, getSentenceHighlightAppearanceStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, parseSentenceHighlightCustomCss, resolveSentenceHighlightAppearance} from '@/src/core/config/sentenceHighlight';
@@ -212,25 +212,6 @@ function fixture(html = '<p id="owner" data-row="10">First. Second.<span data-ro
 
 describe('paint-only bilingual hover lifecycle', () => {
     afterEach(() => vi.unstubAllGlobals());
-    it('publishes the hovered side even within the same sentence pair and retains it over its isolated actions', () => {
-        const f = fixture(); const change = vi.fn(); const other = vi.fn();
-        const unsubscribe = subscribeHighlightedSentence(f.document, {change, retainPointer: target => target?.id === 'outside'});
-        const unsubscribeOther = subscribeHighlightedSentence(f.document, {change:other});
-        const dispose = installBilingualSentenceHighlight(f.document);
-        f.move('.fluent-read-bilingual-content', 20, 35);
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'translation', sourceText:'First.', translationText:'一句。', context:'First. Second.', rect:expect.objectContaining({top:30})}));
-        const paint = f.registry.get(BILINGUAL_HIGHLIGHT_NAME);
-        f.move();
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'source', sourceText:'First.', rect:expect.objectContaining({top:10})}));
-        expect(f.registry.get(BILINGUAL_HIGHLIGHT_NAME)).toBe(paint);
-        f.move('.fluent-read-bilingual-content', 20, 35);
-        expect(change).toHaveBeenLastCalledWith(expect.objectContaining({side:'translation'}));
-        f.move('#outside'); expect(f.highlighted()).toEqual(['First.', '一句。']);
-        f.move('#owner', 300); expect(change).toHaveBeenLastCalledWith(null);
-        unsubscribeOther(); unsubscribe();
-        const count = change.mock.calls.length;
-        f.move(); dispose(); expect(change).toHaveBeenCalledTimes(count);
-    });
     it('实时改变高亮外观不重新安装监听器，关闭时清理绘制与外观属性', () => {
         const f = fixture();
         syncBilingualSentenceHighlight(f.document, true, 'mint');

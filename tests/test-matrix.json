@@ -336,7 +336,6 @@
       "tests/freeOfficialWebProviders.test.ts"
     ],
     "functional": [
-      "tests/sentenceActionsInteraction.test.ts",
       "tests/translationCenterComponent.test.ts",
       "tests/resourceSafeRunner.test.ts",
       "tests/settingsCompositionAutosave.test.ts",

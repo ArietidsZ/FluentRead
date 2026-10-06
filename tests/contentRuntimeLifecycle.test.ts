@@ -23,17 +23,11 @@ const mocks = vi.hoisted(() => ({
     setBridges: vi.fn(),
     mountWriting: vi.fn(), unmountWriting: vi.fn(), writingMounted: false,
     floatingBallAllowed: true, shareCardMounted: false, mountShareCard: vi.fn(), mountReencounter: vi.fn(), unmountReencounter: vi.fn(),
-    sentenceActionsMounted: false,
 }));
 vi.mock('@/src/features/writing-assistant/public', () => ({
     mountWritingAssistant: () => {mocks.writingMounted = true; mocks.mountWriting();},
     unmountWritingAssistant: () => {mocks.writingMounted = false; mocks.unmountWriting();},
     isWritingAssistantMounted: () => mocks.writingMounted,
-}));
-vi.mock('@/src/features/vocabulary/content/public', () => ({
-    mountSentenceActions: () => {mocks.sentenceActionsMounted = true;},
-    unmountSentenceActions: () => {mocks.sentenceActionsMounted = false;},
-    isSentenceActionsMounted: () => mocks.sentenceActionsMounted,
 }));
 
 vi.mock('@/src/services/config/store', () => ({

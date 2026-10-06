@@ -1,6 +1,6 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
- * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
+ * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
  * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
@@ -23,7 +23,7 @@
         <div class="fr-tooltip-actions">
           <button v-if="!readingMode && shareCardAvailable && translationResult && !isLoading" class="fr-action-btn fr-share-card-entry" type="button" :title="t('shareCard.create')" :aria-label="t('shareCard.create')" @click="openShareCard({original: selectedText, translation: translationResult})"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3h7v7M21 3l-9 9M10 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5" /></svg></button>
           <button
-            v-if="!readingMode && config.vocabularyBookEnabled && isWordSelection && !isPrivateContext"
+            v-if="!readingMode && config.vocabularyBookEnabled && selectedText && !isPrivateContext"
             class="fr-action-btn fr-vocabulary-btn"
             :class="{ 'fr-saved': isVocabularySaved }"
             type="button"
@@ -887,19 +887,22 @@ function requestSelectionContent(text: string): void {
     isVocabularySaved.value = false;
     vocabularyBusy.value = false;
   }
-  if (isWordSelection.value) void refreshVocabularySaved(request);
+  void refreshVocabularySaved(request);
+}
+
+function vocabularySourceLanguage(request: SelectionContentRequest): string {
+  return request.sourceLanguage && request.sourceLanguage !== 'auto' ? request.sourceLanguage : detectlang(request.text);
 }
 
 async function refreshVocabularySaved(request: SelectionContentRequest): Promise<void> {
-  const word = normalizeEnglishWord(request.text);
-  if (!word || !config.vocabularyBookEnabled || isPrivateContext) {
+  if (!request.text.trim() || !config.vocabularyBookEnabled || isPrivateContext) {
     vocabularyLookupGate.invalidate();
     isVocabularySaved.value = false;
     return;
   }
   const requestToken = vocabularyLookupGate.begin();
   try {
-    const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'getByTerm', term: word, sourceLanguage: 'en'}) as VocabularyBookResponse<unknown | null>;
+    const response = await browser.runtime.sendMessage({type: VOCABULARY_BOOK_MESSAGE, action: 'getByTerm', term: request.text, sourceLanguage: vocabularySourceLanguage(request)}) as VocabularyBookResponse<unknown | null>;
     if (!vocabularyLookupGate.isCurrent(requestToken) || !isContentRequestCurrent(request)) return;
     isVocabularySaved.value = response?.success === true && Boolean(response.data);
   } catch {
@@ -937,7 +940,7 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
   if (!event.isTrusted) return;
   const contentRequest = currentContentRequest.value;
   const answer = vocabularyAnswer.value;
-  if (!contentRequest || !selectedWord.value || !answer || vocabularyBusy.value || isPrivateContext) return;
+  if (!config.vocabularyBookEnabled || !contentRequest || !answer || vocabularyBusy.value || isPrivateContext) return;
   const wasSaved = isVocabularySaved.value;
   vocabularyBusy.value = true;
   const requestToken = vocabularySaveGate.begin();
@@ -947,7 +950,7 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
       action: 'upsert',
       input: {
         term: contentRequest.text,
-        sourceLanguage: 'en',
+        sourceLanguage: vocabularySourceLanguage(contentRequest),
         targetLanguage: contentRequest.targetLanguage,
         translation: answer,
         phonetic: wordCard.value?.phonetics.find(item => item.text)?.text || '',

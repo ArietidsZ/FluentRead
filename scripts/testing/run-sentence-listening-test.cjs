@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 'use strict';
-// 句子听读生产专项：后台临时 Edge、真实收藏与存储、确定性模型和浏览器语音回退。
+// 句子操作生产专项：后台临时 Edge；普通悬停仅高亮，主动选中复用已有划词入口。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
+const {readStoredConfig, patchStoredConfig, getSelectionUiTree, findCdpNode, cdpAttribute, hasCdpClass, cdpText, clickSelectionIndicator} = require('../run-selection-trigger-test.cjs');
 const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1];};
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const source = 'Good ideas deserve attention.';
@@ -20,7 +21,8 @@ async function fixture() {
       const chunks = []; for await (const part of request) chunks.push(part);
       const body = JSON.parse(Buffer.concat(chunks).toString());
       const prompt = JSON.stringify(body.messages); const teaching = prompt.includes('最多三句');
-      const content = teaching ? explanation : translated + '练习带来进步。';
+      const selectedSentence = prompt.includes(`SOURCE_BEGIN${source}SOURCE_END`);
+      const content = teaching ? explanation : selectedSentence ? translated : translated + '练习带来进步。';
       requests.push({kind:teaching ? 'explanation' : 'translation'});
       if (body.stream) {
         response.setHeader('Content-Type', 'text/event-stream');
@@ -30,7 +32,7 @@ async function fixture() {
       return;
     }
     response.setHeader('Content-Type','text/html');
-    response.end(`<html lang="en"><head><title>Sentence listening fixture</title><style>body{margin:70px;font:21px/1.8 system-ui}p{max-width:720px}button{letter-spacing:7px!important}aside{height:1200px}</style></head><body><h1>Read and listen</h1><p id="primary">${source} Practice makes progress.</p><aside></aside></body></html>`);
+    response.end(`<html lang="en"><head><title>Sentence listening fixture</title><style>body{margin:40px;font:21px/1.8 system-ui}p{max-width:720px}button{letter-spacing:7px!important}aside{height:1200px}</style></head><body><h1>Read and listen</h1><p id="primary">${source} Practice makes progress.</p><aside></aside></body></html>`);
   });
   await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
   return {url:`http://127.0.0.1:${server.address().port}`,requests,close:()=>new Promise(resolve=>server.close(resolve))};
@@ -45,7 +47,7 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-sentence-listening-edge-'));
   fs.mkdirSync(artifactsDir,{recursive:true});
   const local = await fixture();
-  const report = {ok:false,extensionDir,artifactsDir,checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; synthetic browser voice validates text and stop lifecycle, not audible voice quality or Firefox runtime.'};
+  const report = {ok:false,extensionDir,artifactsDir,checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; collection voice mock validates text and stop lifecycle when the full suite is used; this does not establish audible voice quality or Firefox runtime.'};
   let launched; let page; let options;
   try {
     launched = await launchFocusSafePersistentContext({chromium,profileDir,background:true,headless:false,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',viewport:{width:1440,height:960},timeout:30000,
@@ -57,19 +59,21 @@ async function main() {
     const origin = /^chrome-extension:\/\/[^/]+/u.exec(worker.url())[0];
     const createPage = async url => {const p = await newPageWithoutForeground(context,30000);p.on('pageerror',e=>report.consoleErrors.push(e.message));await p.goto(url,{waitUntil:'domcontentloaded'});return p;};
     options = await createPage(`${origin}/options.html#settings-vocabulary`);
-    const readConfig = () => options.evaluate(async()=>{const result=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});return typeof result.value==='string'?JSON.parse(result.value):result.value;});
+    const readConfig = () => readStoredConfig(options);
     let config; for(let i=0;i<150;i++){config=await readConfig();if(config?.to)break;await wait(100);} assert(config?.to);
     const service = 'custom:sentence-listening-fixture';
+    const selectionPatch = {selectionTranslatorMode:'bilingual',disableSelectionTranslator:false,selectionTranslatorTrigger:'icon',selectionTranslatorDelay:0,selectionTranslatorAutoDismiss:true};
     const patch = {on:true,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,from:'en',to:'zh-Hans',service,display:1,style:1,autoTranslate:false,
-      bilingualSentenceHighlightEnabled:true,vocabularyBookEnabled:false,selectionTranslatorMode:'disabled',disableSelectionTranslator:true,animations:false,
+      bilingualSentenceHighlightEnabled:true,vocabularyBookEnabled:true,...selectionPatch,animations:false,
       customOpenAIProviders:[{id:service,name:'句子听读夹具',endpoint:`${local.url}/v1/chat/completions`,models:['fixture']}],
       token:{[service]:'synthetic-fixture'},model:{[service]:'fixture'},user_role:{[service]:'SOURCE_BEGIN{{origin}}SOURCE_END'},glossaryEnabled:false,enableAIContext:false,enableAIMultiSegment:false,
       hotkey:'Control',mouseHoverTranslationDelay:0,selectionTtsMode:'local-only',harness:{...config.harness,enabled:true,service,model:'fixture'}};
-    const saved = await options.evaluate(({config,patch})=>chrome.runtime.sendMessage({type:'persistConfig',mode:'replace',config:{...config,...patch},baseRevision:config.__fluentConfigRevision,clientId:`listening-${crypto.randomUUID()}`,sequence:1}),{config,patch});
-    assert.equal(saved.success,true,saved.error); await wait(350);
+    const saved = await options.evaluate(({config,patch})=>chrome.runtime.sendMessage({type:'persistConfig',mode:'replace',config:{...config,...patch},baseRevision:config.__fluentConfigRevision,clientId:`sentence-${crypto.randomUUID()}`,sequence:1}),{config,patch});
+    assert.equal(saved.success,true,saved.error);
+    await wait(350);
+    const persisted=await readConfig();assert.equal(persisted.service,service);assert.equal(persisted.selectionTranslatorMode,'bilingual');assert.equal(persisted.vocabularyBookEnabled,true);
     page = await createPage(local.url);
     await page.locator('#fluent-read-page-styles').waitFor({state:'attached'});
-    await page.locator('#fluent-read-sentence-actions').waitFor({state:'attached'});
     await activateExtensionTabWithoutForeground(context,page,30000);
     await page.locator('#primary').hover(); await page.keyboard.press('Control');
     await page.locator('#primary > .fluent-read-bilingual-content').waitFor();
@@ -80,68 +84,104 @@ async function main() {
         while(walker.nextNode()){const node=walker.currentNode;const index=node.textContent.indexOf(translatedSide?translated:source);if(index<0)continue;const range=document.createRange();range.setStart(node,index);range.setEnd(node,index+2);const rect=range.getClientRects()[0];return{x:rect.left+rect.width/2,y:rect.top+rect.height/2};}throw new Error('sentence missing');
       },{source,translated,translatedSide});await page.mouse.move(point.x+offset,point.y);await wait(100);
     };
-    const shot = async (p,name)=>{const file=path.join(artifactsDir,`${name}.png`);await p.screenshot({path:file});report.screenshots.push(file);};
-    const entry = page.locator('#fluent-read-sentence-actions').getByRole('button',{name:'句子操作',exact:true});
-    await hover(true);
-    const toolbar = page.locator('#fluent-read-sentence-actions').getByRole('toolbar');
-    assert.equal(await entry.count(),0);assert.equal(await toolbar.count(),0);
-    await page.mouse.move(1300,500);await wait(900);assert.equal(await entry.count(),0);
-    report.checks.push('brief passes and pointer exit cancel the delayed entry without displaying the toolbar');
-    await hover(true);
-    // 重新定位真实文字，连续移动必须重置停留计时。
-    for(let i=0;i<4;i++){await hover(true,i%2?1:-1);await wait(200);assert.equal(await entry.count(),0);}
-    await entry.waitFor();assert.equal(await toolbar.count(),0);await shot(page,'sentence-entry');
-    await entry.click();
-    await toolbar.waitFor(); await toolbar.getByRole('button',{name:'收藏句子',exact:true}).click();
-    await toolbar.getByRole('button',{name:'已收藏',exact:true}).waitFor();
-    await shot(page,'highlight-save');
-    const session = await context.newCDPSession(page); const worlds=[];
-    session.on('Runtime.executionContextCreated',event=>worlds.push(event.context));await session.send('Runtime.enable');
-    const contentWorld=worlds.find(world=>world.origin===origin && world.auxData?.isDefault===false);assert(contentWorld,'extension isolated world exists');
-    await session.send('Runtime.evaluate',{contextId:contentWorld.id,expression:`globalThis.__sentenceSpeech=[];globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text}};Object.defineProperty(window,'speechSynthesis',{configurable:true,value:{speak:u=>globalThis.__sentenceSpeech.push({text:u.text,language:u.lang}),cancel:()=>globalThis.__sentenceSpeech.push({stopped:true})}});`});
-    const contentSpeech=async()=>JSON.parse((await session.send('Runtime.evaluate',{contextId:contentWorld.id,expression:'JSON.stringify(globalThis.__sentenceSpeech)',returnByValue:true})).result.value);
-    await toolbar.getByRole('button',{name:'播放译文',exact:true}).click();
-    for(let i=0;i<200;i++){if((await contentSpeech()).some(item=>item.text))break;await wait(50);}
-    assert.deepEqual((await contentSpeech()).find(item=>item.text),{text:translated,language:'zh-CN'});
-    await toolbar.getByRole('button',{name:'停止',exact:true}).click();assert((await contentSpeech()).some(item=>item.stopped));
-    await context.grantPermissions(['clipboard-read','clipboard-write']);
-    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),translated);
-    await hover(false);assert.equal(await toolbar.count(),0);await entry.waitFor();await entry.click();await toolbar.waitFor();
-    await toolbar.getByRole('button',{name:'播放原文',exact:true}).click();
-    for(let i=0;i<200;i++){if((await contentSpeech()).some(item=>item.text===source))break;await wait(50);}
-    assert.deepEqual((await contentSpeech()).find(item=>item.text===source),{text:source,language:'en-US'});
-    await toolbar.getByRole('button',{name:'停止',exact:true}).click();
-    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),source);
-    report.checks.push('same-pair side switching waits again; each side plays and copies its own text with the correct speech language');
+    const shot = async (p,name,options={})=>{const file=path.join(artifactsDir,`${name}.png`);await p.screenshot({path:file,...options});report.screenshots.push(file);};
+    const byClass = name => node => hasCdpClass(node,name);
+    const uiNode = async predicate => findCdpNode((await getSelectionUiTree(page)).root,predicate);
+    const waitNode = async predicate => {
+      for(let i=0;i<200;i++){const node=await uiNode(predicate);if(node)return node;await wait(50);}
+      throw new Error('Selection UI did not appear');
+    };
+    const clickNode = async predicate => {
+      const {session,root}=await getSelectionUiTree(page);const node=findCdpNode(root,predicate);assert(node,'selection control exists');
+      const {model}=await session.send('DOM.getBoxModel',{nodeId:node.nodeId});const q=model.border;
+      const x=(q[0]+q[4])/2,y=(q[1]+q[5])/2;
+      await session.send('Input.dispatchMouseEvent',{type:'mouseMoved',x,y});
+      await session.send('Input.dispatchMouseEvent',{type:'mousePressed',x,y,button:'left',clickCount:1});
+      await session.send('Input.dispatchMouseEvent',{type:'mouseReleased',x,y,button:'left',clickCount:1});
+    };
+    const box = async predicate => {
+      const {session,root}=await getSelectionUiTree(page);const node=findCdpNode(root,predicate);assert(node);
+      const {model}=await session.send('DOM.getBoxModel',{nodeId:node.nodeId});const q=model.border;
+      return {x:Math.min(q[0],q[2],q[4],q[6]),y:Math.min(q[1],q[3],q[5],q[7]),width:model.width,height:model.height};
+    };
+    const noControls = async () => {
+      assert.equal(await page.locator('#fluent-read-sentence-actions').count(),0);
+      assert.equal(await uiNode(byClass('fr-selection-indicator')),null);
+      assert.equal(await uiNode(byClass('fr-translation-tooltip')),null);
+    };
+    const dismiss = async () => {await page.keyboard.press('Escape');await page.mouse.click(1250,500);await wait(180);await noControls();};
+    const selectSource = async () => {
+      await page.keyboard.press('Escape');
+      const points=await page.evaluate(source=>{
+        const walker=document.createTreeWalker(document.querySelector('#primary'),NodeFilter.SHOW_TEXT);
+        while(walker.nextNode()){
+          const node=walker.currentNode;const start=node.textContent.indexOf(source);if(start<0)continue;
+          const first=document.createRange();first.setStart(node,start);first.setEnd(node,start+1);
+          const last=document.createRange();last.setStart(node,start+source.length-1);last.setEnd(node,start+source.length);
+          const a=first.getClientRects()[0],b=last.getClientRects()[0];return {start:{x:a.left+.1,y:a.top+a.height/2},end:{x:b.right-.1,y:b.top+b.height/2}};
+        }throw new Error('source sentence missing');
+      },source);
+      await page.mouse.move(points.start.x,points.start.y);await page.mouse.down();await page.mouse.move(points.end.x,points.end.y,{steps:20});await page.mouse.up();
+      assert.equal(await page.evaluate(()=>window.getSelection().toString().trim()),source);
+    };
+    const requestsBeforeHover=local.requests.length;
+    for(const side of [false,true]) {
+      await hover(side);await wait(1200);await noControls();
+      assert(await page.evaluate(()=>[...CSS.highlights.values()].some(highlight=>highlight.size>0)),'paired sentence highlights still paint');
+    }
+    assert.equal(local.requests.length,requestsBeforeHover);
+    assert.deepEqual(await page.locator('#primary').evaluate(el=>({html:el.innerHTML,rect:JSON.stringify(el.getBoundingClientRect())})),before);
+    await shot(page,'reading-without-controls');
+    report.checks.push('source and translation hover paint highlights only; no sentence host, button, dialog, extra model request or host layout change');
+    await selectSource();await waitNode(byClass('fr-selection-indicator'));
+    assert.equal(await uiNode(byClass('fr-translation-tooltip')),null);assert.equal(local.requests.length,requestsBeforeHover);
+    const indicator=await box(byClass('fr-selection-indicator'));assert(indicator.width<=28 && indicator.height<=28);
+    const selectionRects=await page.evaluate(()=>Array.from(window.getSelection().getRangeAt(0).getClientRects()).map(rect=>({left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom})));
+    assert(!selectionRects.some(rect=>indicator.x<rect.right && indicator.x+indicator.width>rect.left && indicator.y<rect.bottom && indicator.y+indicator.height>rect.top),'entry does not overlap selected text');
+    await shot(page,'selected-text-entry');
+    const prose=await page.locator('#primary').boundingBox();await shot(page,'selected-text-entry-detail',{clip:{x:prose.x-8,y:prose.y-8,width:prose.width+16,height:prose.height+16}});
+    await clickSelectionIndicator(page);await waitNode(byClass('fr-translation-tooltip'));
+    for(let i=0;i<200;i++){const n=await uiNode(byClass('fr-translation-result'));if(cdpText(findCdpNode(n,node=>node.nodeName==='PRE'))===translated)break;await wait(50);}
+    assert.equal(cdpText(findCdpNode(await uiNode(byClass('fr-translation-result')),node=>node.nodeName==='PRE')),translated);
+    await clickNode(byClass('fr-vocabulary-btn'));
+    for(let i=0;i<100;i++){if(cdpAttribute(await uiNode(byClass('fr-vocabulary-btn')),'aria-pressed')==='true')break;await wait(50);}
+    assert.equal(cdpAttribute(await uiNode(byClass('fr-vocabulary-btn')),'aria-pressed'),'true');
     const request = async message => options.evaluate(message=>chrome.runtime.sendMessage(message),message);
     const list = async()=>{const result=await request({type:'fluentReadVocabularyBook',action:'list'});assert(result.success);return result.data;};
-    let entries=await list();assert.equal(entries.length,1);assert.equal(entries[0].term,source);assert.equal(entries[0].translations['zh-hans'].text,translated);assert.equal(entries[0].kind,'sentence');
-    assert.equal((await readConfig()).vocabularyBookEnabled,true);
-    assert.deepEqual(await page.locator('#primary').evaluate(el=>({html:el.innerHTML,rect:JSON.stringify(el.getBoundingClientRect())})),before);
-    report.checks.push('translation-side hover saves the exact original and translation, enables saving, preserves host DOM and geometry');
-    if(process.argv.includes('--toolbar-only')) {
-      await toolbar.getByRole('button',{name:'播放原文',exact:true}).focus();await page.keyboard.press('Escape');await toolbar.waitFor({state:'hidden'});
-      await hover(true);await page.mouse.wheel(0,120);await wait(900);assert.equal(await entry.count(),0);
-      await page.evaluate(()=>window.scrollTo(0,0));await wait(100);
-      await hover(true);await entry.waitFor();await entry.click();await toolbar.waitFor();await page.mouse.wheel(0,120);await toolbar.waitFor({state:'hidden'});
-      await page.evaluate(()=>window.scrollTo(0,0));await wait(100);
-      report.checks.push('Escape dismisses controls and scrolling cancels both pending and expanded controls');
-      await page.setViewportSize({width:390,height:844});await wait(100);await hover(true);await entry.waitFor();
-      const compact=await entry.boundingBox();assert(compact.width<=32);assert(compact.x>=8 && compact.x+compact.width<=382);
-      await shot(page,'sentence-entry-mobile');await entry.click();await toolbar.waitFor();
-      const expanded=await toolbar.boundingBox();assert(expanded.x>=8 && expanded.x+expanded.width<=382);
-      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await shot(page,'sentence-actions-mobile');
-      await page.setViewportSize({width:1440,height:960});await wait(100);
-      await hover(false);await entry.waitFor();await entry.click();await toolbar.waitFor();
-      await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:'detached'});await toolbar.waitFor({state:'hidden'});assert.equal(await entry.count(),0);
-      report.checks.push('390px entry and expanded controls stay in viewport; restoring removes highlight actions');
+    let entries=await list();assert.equal(entries.length,1);assert.equal(entries[0].term,source);assert.equal(entries[0].translations['zh-hans'].text,translated);assert(entries[0].kind===undefined || entries[0].kind==='sentence');
+    await context.grantPermissions(['clipboard-read','clipboard-write']);
+    for(const [kind,text] of [['source',source],['translation',translated]]) {
+      await clickNode(node=>cdpAttribute(node,'data-copy-kind')===kind);assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),text);
+    }
+    await shot(page,'selection-card');
+    report.checks.push('one existing small icon appears only after a trusted drag selection; click opens the card, copy preserves source/translation and explicit star saves the selected sentence');
+    await dismiss();await hover(true);await wait(1200);await noControls();
+    await page.setViewportSize({width:390,height:844});await wait(100);await selectSource();await waitNode(byClass('fr-selection-indicator'));
+    const mobile=await box(byClass('fr-selection-indicator'));assert(mobile.width<=28 && mobile.x>=0 && mobile.x+mobile.width<=390);
+    await shot(page,'selected-text-entry-mobile');await clickSelectionIndicator(page);await waitNode(byClass('fr-translation-tooltip'));
+    const mobileCard=await box(byClass('fr-translation-tooltip'));assert(mobileCard.x>=0 && mobileCard.x+mobileCard.width<=390);
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await shot(page,'selection-card-mobile');
+    await page.setViewportSize({width:1440,height:960});await dismiss();
+    const toggles=[1];
+    for(const target of [0,1]) {
+      await page.locator('#primary').hover();await page.keyboard.press('Control');
+      await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:target?'attached':'detached'});
+      toggles.push(await page.locator('#primary > .fluent-read-bilingual-content').count());
+    }
+    assert.deepEqual(toggles,[1,0,1]);await hover(true);await wait(1200);await noControls();
+    report.checks.push('Escape/continued reading remove controls; 390px selection icon and card fit viewport; translate/restore/translate remains 1/0/1 without hover UI');
+    await patchStoredConfig(options,{selectionTranslatorMode:'disabled',disableSelectionTranslator:true});
+    await page.reload();await page.locator('#fluent-read-page-styles').waitFor({state:'attached'});await activateExtensionTabWithoutForeground(context,page,30000);
+    const disabledRequests=local.requests.length;await selectSource();await wait(1200);await noControls();assert.equal(local.requests.length,disabledRequests);
+    report.checks.push('disabled selection preference is respected; selecting and hovering never resurrect sentence actions or request translation');
+    await options.reload();await options.locator('.word-row').waitFor();await options.locator('.collection-type .el-select__wrapper').click();await options.getByRole('option',{name:'句子',exact:true}).click();assert.equal(await options.locator('.word-row').count(),1);
+    report.checks.push('saved selection is classified and displayed by the existing sentence collection filter');
+    if(process.argv.includes('--selection-entry-only') || process.argv.includes('--toolbar-only')) {
       assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
-      process.stdout.write(JSON.stringify(report,null,2)+'\n');
       return;
     }
-    await toolbar.getByRole('button',{name:'收藏列表 ↗',exact:true}).click();
     await options.reload();await options.locator('.word-row').waitFor();
-    await options.getByRole('button',{name:'句子',exact:true}).click();assert.equal(await options.locator('.word-row').count(),1);
+    await options.locator('.collection-type .el-select__wrapper').click();await options.getByRole('option',{name:'句子',exact:true}).click();assert.equal(await options.locator('.word-row').count(),1);
     await options.getByLabel('更多收藏操作',{exact:true}).click();
     await options.getByRole('button',{name:'添加简短解释',exact:true}).click();
     await options.getByRole('textbox',{name:'收藏的简短解释',exact:true}).fill('deserve attention：值得关注。');
@@ -180,19 +220,17 @@ async function main() {
     assert.equal(data.entries[0].note,explanation);assert.equal(data.entries[0].translations['zh-hans'].text,translated);assert.equal(data.includesPrivateContext,false);assert(!data.entries[0].contexts.some(item=>item.sourceUrl));
     await request({type:'fluentReadVocabularyBook',action:'clear'});await options.reload();await options.getByRole('heading',{name:'还没有学习收藏',exact:true}).waitFor();
     await options.locator('input[type=file][aria-label="导入收藏文件"]').setInputFiles(file);await options.locator('.word-row').waitFor();
-    entries=await list();assert.equal(entries.length,1);assert.equal(entries[0].note,explanation);assert.equal(entries[0].kind,'sentence');
+    entries=await list();assert.equal(entries.length,1);assert.equal(entries[0].note,explanation);assert(entries[0].kind===undefined || entries[0].kind==='sentence');
     report.checks.push('actual downloaded JSON round trips original, translation, explanation, sentence identity and review records');
     await options.locator('input[type=file][aria-label="导入收藏文件"]').setInputFiles({name:'invalid.json',mimeType:'application/json',buffer:Buffer.from('{oops')});
     await options.getByRole('status').filter({hasText:'无法读取文件'}).waitFor();assert.equal((await list()).length,1);
     report.checks.push('malformed import preserves existing collection and gives retryable feedback');
     await options.locator('.book-toast').waitFor({state:'hidden'});
-    await options.getByRole('button',{name:'句子',exact:true}).click();
+    await options.locator('.collection-type .el-select__wrapper').click();await options.getByRole('option',{name:'句子',exact:true}).click();
     await shot(options,'saved-sentences');
     await options.setViewportSize({width:390,height:844});await options.locator('.word-row').scrollIntoViewIfNeeded();await wait(120);assert(await options.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await shot(options,'saved-sentences-mobile');
     await options.setViewportSize({width:1440,height:960});
-    await page.mouse.move(1300,500);await toolbar.waitFor({state:'hidden'});
-    await hover(false);await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:'detached'});await toolbar.waitFor({state:'hidden'});
-    report.checks.push('pointer exit and restore remove sentence actions; narrow layout stays within viewport');
+    report.checks.push('narrow collection layout stays within viewport');
     if (process.argv.includes('--collection-layout')) {
       for (const input of [
         {term:'Instead of trying to remember every word you encounter, make room for the ideas that stay with you after reading, listen to the original sentence, connect its meaning with your own experience, notice how one expression works in context, and return another day to explain the whole idea in your own words without relying on a word-for-word translation.',translation:'与其试图记住阅读时遇到的每一个单词，不如把空间留给那些在读完之后依然留在心中的想法：听一遍原句，把句意与你自己的经历联系起来，留意一个有用表达在上下文中的实际用法，然后隔一天再回来，试试看能否用自己的话讲清这个想法，同时把重点放在整个句子真正表达的意思上，而不是机械地逐词对应。',kind:'sentence',note:'make room for：为……留出空间。这里强调把注意力留给值得记住的内容。'},
@@ -243,7 +281,7 @@ async function main() {
     }
     assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
   } catch(error){report.error=error.stack||String(error);if(options||page)try{await (options||page).screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
-  finally{fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});await local.close();}
-  process.stdout.write(JSON.stringify(report,null,2)+'\n');
+  finally{if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});report.profileRemoved=!fs.existsSync(profileDir);await local.close();fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));if(report.ok)process.stdout.write(JSON.stringify(report,null,2)+'\n');}
 }
+
 main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});

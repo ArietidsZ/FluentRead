@@ -9,7 +9,7 @@
     <VocabularyStudy v-if="studyEntry" :key="studyEntry.id" :entry="studyEntry" :reference="entryTranslation(studyEntry)" :playing="playingEntryId === studyEntry.id" @updated="replaceEntry" @close="selectedEntryId = ''" @speak="toggleEntrySpeech(studyEntry)" @navigate="emit('navigate', $event)" />
     <template v-else>
     <div v-if="!reviewActive && !entries.length && betaEnabled && !selectionTranslatorEnabled" class="selection-reminder" role="note">
-      <span>可从高亮句子旁直接收藏，或开启划词翻译在学习卡中收藏</span>
+      <span>{{ t('learning.collection.emptyHint') }}</span>
       <button type="button" @click="emit('navigate', 'settings-selection')">前往开启</button>
     </div>
 
