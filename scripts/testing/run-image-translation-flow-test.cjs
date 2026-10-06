@@ -21,7 +21,8 @@ const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-image-flow'));
 const playwrightRoot = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
 const focusHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER);
-const xSurface = process.argv.includes('--x-surface');
+const xLightbox = process.argv.includes('--x-lightbox');
+const xSurface = process.argv.includes('--x-surface') || xLightbox;
 const recoveryOnly = process.argv.includes('--recovery-only');
 const liveTranslation = process.argv.includes('--live-translation');
 const multilingual = process.argv.includes('--multilingual');
@@ -33,7 +34,7 @@ const { chromium } = require(path.join(playwrightRoot, 'playwright'));
 const { launchFocusSafePersistentContext, newPageWithoutForeground } = require(focusHelper);
 fs.mkdirSync(artifacts, { recursive: true });
 const report = {
-    scope: `real Tesseract OCR + ${liveTranslation ? 'live Google transport' : 'deterministic Google transport'} + production extension`,
+    scope: `real ${xLightbox ? 'PaddleOCR' : 'Tesseract'} OCR + ${liveTranslation ? 'live Google transport' : 'deterministic Google transport'} + production extension`,
     cases: [], errors: [], screenshots: [], geometry: [], cleanupErrors: [],
     profileMode: 'automatically-created-temporary-profile',
 };
@@ -392,18 +393,19 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     worker = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', { timeout: 30000 });
     const popup = await newPageWithoutForeground(context, 30000);
     await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
-    await popup.evaluate(async xSurface => {
+    await popup.evaluate(async ({xSurface, xLightbox}) => {
         const read = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
         const config = read.value;
-        const patch = {on: true, disableImageTranslator: false, from: xSurface ? 'auto' : 'en', to: 'zh-Hans', service: 'google'};
+        const patch = {on: true, disableImageTranslator: false, from: xSurface ? 'auto' : 'en', to: 'zh-Hans', service: 'google', imageTranslationService:'google',
+            ...(!xLightbox ? {imageTranslationOcrEngine:'tesseract'} : {})};
         const response = await chrome.runtime.sendMessage({
             type: 'persistConfig', mode: 'patch', config: patch,
             expected: Object.fromEntries(Object.keys(patch).map(key => [key, config[key]])),
             clientId: 'image-flow-fixture', sequence: 1, baseRevision: config.__fluentConfigRevision || 0,
         });
         if (!response.success) throw new Error(response.error);
-    }, xSurface);
-    await worker.evaluate(({liveTranslation, paragraphFixture}) => {
+    }, {xSurface, xLightbox});
+    await worker.evaluate(({liveTranslation, paragraphFixture, xLightbox}) => {
         const originalFetch = globalThis.fetch.bind(globalThis);
         // Keep the real OCR path intact while giving the loading controls enough time to sample.
         const fixture = globalThis.__imageFixture = {requests: [], endpointHosts: [], rejectPrimaryXsrf: false, operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
@@ -446,6 +448,15 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         };
         globalThis.fetch = async (input, options) => {
             const url = String(typeof input === 'string' ? input : input.url || input);
+            if (xLightbox && url.includes('translate-pa.googleapis.com/v1/translateHtml')) {
+                const originals = JSON.parse(options.body)[0][0].map(html => html.replace(/^<pre>([\s\S]*)<\/pre>$/, '$1'));
+                fixture.requests.push(...originals);
+                fixture.endpointHosts.push(new URL(url).hostname);
+                if (liveTranslation) return originalFetch(input, options);
+                const translated = originals.map(origin => origin.toLowerCase().includes('welcome') ? '欢迎使用流畅阅读'
+                    : origin.toLowerCase().includes('click') ? '单击即可翻译图片' : '用自己的语言读懂每一个字');
+                return new Response(JSON.stringify([translated]), {status:200});
+            }
             if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
                 const body = new URLSearchParams(options.body);
                 const rpc = JSON.parse(body.get('f.req'))[0][0];
@@ -499,7 +510,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
             // OCR worker、wasm 和语言包仍沿真实生产路径加载，不 mock Tesseract。
             return originalFetch(input, options);
         };
-    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage)});
+    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage), xLightbox});
     if (harFixture) {
         if (liveTranslation) throw new Error('--har-fixture 只用于确定性响应验证');
         currentCase = 'HAR identifier filtering and Google XSRF cooldown';
@@ -733,8 +744,8 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         currentCase = 'X snapshot surface and first-use automatic OCR languages';
         const {verifyXSurface} = require('./image-translation-x-surface.cjs');
         await verifyXSurface({page, context, popup, worker, ui, wait, click, shot, report,
-            originalImage: arg('original-image', null)});
-        assert.ok(report.ocrTargets.some(target => target.type === 'worker' && target.url.includes('/fluent-read-ocr/')),
+            originalImage: arg('original-image', null), lightboxOnly:xLightbox});
+        if (!xLightbox) assert.ok(report.ocrTargets.some(target => target.type === 'worker' && target.url.includes('/fluent-read-ocr/')),
             '必须实际监听 dedicated OCR Worker，才能断言不存在语言加载错误');
         assert.equal(report.ocrConsole.some(entry => entry.diagnosticError), false, 'OCR 控制台监听不得静默失效');
         assert.equal(report.ocrConsole.some(entry => /Error opening data file|Failed loading language|Tesseract couldn't load/.test(entry.text || '')),

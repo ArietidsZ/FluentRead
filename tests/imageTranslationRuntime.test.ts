@@ -195,6 +195,58 @@ beforeEach(() => {
 afterEach(() => {unmountImageTranslator(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();});
 
 describe('图片翻译前台交互与生命周期', () => {
+    it('打开宿主大图后撤下被遮挡的缩略译图与文字面板，关闭后复用同一译图', async () => {
+        const env = setup(); env.hover(); env.click(); await flush();
+        const bitmap = env.bitmap()!;
+        const overlay = bitmap.parentElement!;
+        const reader = env.roots[0].querySelector<HTMLElement>('.fr-image-reader')!;
+        env.dispatch(env.roots[0].querySelector('[aria-label="查看完整译文"]')!, 'click');
+        expect(reader.hidden).toBe(false);
+        const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog');
+        document.body.append(dialog);
+        Object.assign(document, {elementsFromPoint: vi.fn(() => [dialog, env.image, env.parent, document.body])});
+        env.notify('', 'childList'); env.runFrames();
+        expect(overlay.style.display).toBe('none');
+        expect(env.image.style.opacity).not.toBe('0');
+        expect(reader.hidden).toBe(true);
+        expect(env.bitmap()).toBe(bitmap);
+        dialog.remove();
+        Object.assign(document, {elementsFromPoint: vi.fn(() => [env.image, env.parent, document.body])});
+        env.notify('', 'childList'); env.runFrames();
+        expect(overlay.style.display).toBe('block');
+        expect(env.image.style.opacity).toBe('0');
+        expect(env.bitmap()).toBe(bitmap);
+        expect(client.translate).toHaveBeenCalledOnce();
+    });
+
+    it('宿主遮挡期间完成的请求保留结果，遮挡解除前不覆盖页面', async () => {
+        const env = setup(); const pending = deferred<typeof result>();
+        client.translate.mockReturnValueOnce(pending.promise);
+        env.hover(); env.click(); await flush();
+        const cover = document.createElement('div'); document.body.append(cover);
+        Object.assign(document, {elementsFromPoint: () => [cover, env.image]});
+        env.notify('', 'childList'); env.runFrames();
+        pending.resolve(result); await flush();
+        expect(env.bitmap()!.parentElement!.style.display).toBe('none');
+        expect(env.image.style.opacity).not.toBe('0');
+        cover.remove(); Object.assign(document, {elementsFromPoint: () => [env.image]});
+        env.notify('', 'childList'); env.runFrames();
+        expect(env.bitmap()!.parentElement!.style.display).toBe('block');
+        expect(env.image.style.opacity).toBe('0');
+        expect(client.translate).toHaveBeenCalledOnce();
+    });
+
+    it('图片滚出视口时仍可阅读独立文字面板', async () => {
+        const env = setup(); env.hover(); env.click(); await flush();
+        env.dispatch(env.roots[0].querySelector('[aria-label="查看完整译文"]')!, 'click');
+        const reader = env.roots[0].querySelector<HTMLElement>('.fr-image-reader')!;
+        expect(reader.hidden).toBe(false);
+        env.setRect({left:20, top:-300, width:400, height:200, right:420, bottom:-100});
+        env.scroll(); env.runFrames();
+        expect(env.bitmap()!.parentElement!.style.display).toBe('none');
+        expect(reader.hidden).toBe(false);
+    });
+
     it('翻译后离开图片隐藏操作条，回到译图恢复入口且不重复翻译', async () => {
         const env = setup();env.hover();env.click();await flush();
         const controls = env.button().closest<HTMLElement>('.fr-image-controls')!;
