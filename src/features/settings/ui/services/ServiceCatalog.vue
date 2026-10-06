@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：以服务目录和清晰分层的配置工作区呈现翻译服务，窄屏按需展开目录，保持配置与默认使用分离。
- * 主要内容：侧栏展示全部内置及自定义服务；搜索过滤目录，自定义按钮直接打开创建表单；右侧集中展示服务名称及接口性质徽章、模型、官网帮助和连接配置。
- * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏承载当前服务的检查连接操作，不编辑凭据、不测试连接也不保存配置；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
+ * 主要内容：侧栏展示全部内置及自定义服务，分组可单独收起，选中服务或回到本页时展开正在配置的服务所在分组；顶部分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索过滤目录时展开全部匹配分组，此时点击分组导航会清空搜索并回到完整目录；自定义按钮直接打开创建表单；右侧集中展示服务名称及接口性质徽章、模型、官网帮助和连接配置。
+ * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏承载当前服务的检查连接操作，不编辑凭据、不测试连接也不保存配置；分组收起状态只保存在本次页面会话，不写入配置，卸载时断开目录尺寸观察；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
   <section
@@ -11,6 +11,16 @@
     :data-default-service="defaultService"
     :data-editing-service="service"
   >
+    <nav v-if="directoryGroups.length > 1" class="service-group-navigation" :aria-label="t('options.categories')">
+      <button
+        v-for="group in directoryGroups"
+        :key="group.id"
+        type="button"
+        :data-service-group-link="group.id"
+        :aria-current="activeGroup === group.id ? 'location' : undefined"
+        @click="revealGroup(group.id)"
+      >{{ group.label }}</button>
+    </nav>
     <div class="catalog-layout">
       <aside class="service-rail" :class="{ 'is-expanded': directoryOpen }" :aria-label="t('settings.services.library.shortlist')">
         <button ref="directoryToggle" type="button" class="mobile-directory-toggle" :aria-expanded="directoryOpen" :aria-controls="directoryId" @click="directoryOpen = !directoryOpen">
@@ -35,10 +45,15 @@
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
           <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" />
         </label>
-        <div class="service-groups">
-          <section v-for="group in visibleDirectoryGroups" :key="group.id" :data-service-section="group.id" class="directory-section">
-            <h4><span>{{ group.label }}</span><small>{{ group.items.length }}</small></h4>
-            <div class="directory-items">
+        <div ref="groupsElement" class="service-groups" @scroll.passive="syncActiveGroup" @wheel.passive="releasePinnedGroup" @touchstart.passive="releasePinnedGroup" @pointerdown="releasePinnedGroup" @keydown="releasePinnedGroup" @focusin="releasePinnedGroup">
+          <section v-for="group in visibleDirectoryGroups" :key="group.id" :data-service-section="group.id" class="directory-section" :class="{ 'is-collapsed': !isGroupOpen(group.id) }">
+            <h4>
+              <button type="button" class="directory-section-toggle" :aria-expanded="isGroupOpen(group.id)" :aria-controls="`${directoryId}-${group.id}`" :disabled="searching" @click="toggleGroup(group.id)">
+                <span>{{ group.label }}</span><small>{{ group.items.length }}</small>
+                <svg v-if="!searching" class="directory-section-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+              </button>
+            </h4>
+            <div v-show="isGroupOpen(group.id)" :id="`${directoryId}-${group.id}`" class="directory-items">
               <ServiceCatalogItem v-for="item in group.items" :key="item.value" :item="item" compact
                 :selected="service === item.value" :is-default="defaultService === item.value"
                 :is-configured="configuredSet.has(item.value)" :is-favorite="favoriteSet.has(item.value)"
@@ -153,7 +168,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useId, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import ServiceNatureBadge from './ServiceNatureBadge.vue'
 import { useUiI18n } from '@/src/ui/i18n'
@@ -224,8 +239,96 @@ const visibleDirectoryGroups = computed(() => {
     ) })).filter(group => group.items.length)
 })
 const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
+const searching = computed(() => Boolean(serviceQuery.value.trim()))
+const groupsElement = ref<HTMLElement | null>(null)
+const collapsedGroups = ref<ReadonlySet<string>>(new Set())
+const activeGroup = ref('')
+// 末尾的短分组无法滚到目录顶部；点击导航后保持指向目标，直到用户自己操作目录。
+let pinnedGroup = ''
+
+// 搜索时展开全部匹配分组，避免结果藏在已收起的分组里。
+function isGroupOpen(id: string): boolean {
+  return searching.value || !collapsedGroups.value.has(id)
+}
+function setGroupOpen(id: string, open: boolean): void {
+  if (collapsedGroups.value.has(id) === !open) return
+  const next = new Set(collapsedGroups.value)
+  if (open) next.delete(id)
+  else next.add(id)
+  collapsedGroups.value = next
+}
+function toggleGroup(id: string): void {
+  setGroupOpen(id, !isGroupOpen(id))
+}
+function expandGroupOf(service: string): void {
+  const group = directoryGroups.value.find(candidate => candidate.items.some(item => item.value === service))
+  if (group) setGroupOpen(group.id, true)
+}
+function groupElement(id: string): HTMLElement | undefined {
+  return [...groupsElement.value?.querySelectorAll<HTMLElement>('[data-service-section]') ?? []]
+    .find(element => element.dataset.serviceSection === id)
+}
+function releasePinnedGroup(): void {
+  pinnedGroup = ''
+}
+function syncActiveGroup(): void {
+  const scroller = groupsElement.value
+  // 目录隐藏时没有可比较的位置，保留上一次的结果。
+  if (!scroller?.getClientRects().length) return
+  const sections = [...scroller.querySelectorAll<HTMLElement>('[data-service-section]')]
+  const ids = sections.map(section => section.dataset.serviceSection || '')
+  if (ids.includes(pinnedGroup)) {
+    activeGroup.value = pinnedGroup
+    return
+  }
+  let current = ids[0] || ''
+  if (scroller.scrollTop > 0 && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2) {
+    current = ids[ids.length - 1]
+  } else {
+    const top = scroller.getBoundingClientRect().top + 8
+    sections.forEach((section, index) => {
+      if (section.getBoundingClientRect().top <= top) current = ids[index]
+    })
+  }
+  activeGroup.value = current
+}
+async function revealGroup(id: string) {
+  // 导航始终列出全部分组；搜索中点击即回到完整目录。
+  serviceQuery.value = ''
+  setGroupOpen(id, true)
+  pinnedGroup = id
+  activeGroup.value = id
+  await nextTick()
+  const scroller = groupsElement.value
+  const target = groupElement(id)
+  if (!scroller || !target) return
+  scroller.scrollTo({
+    top: scroller.scrollTop + target.getBoundingClientRect().top - scroller.getBoundingClientRect().top,
+    behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth',
+  })
+}
+// 同步执行，保证 revealGroup 清空搜索后设置的目标不会被随后的回调清掉。
+watch(serviceQuery, releasePinnedGroup, {flush: 'sync'})
+// 分组增减、收起或展开都会改变目录高度，但不会触发滚动事件；等 v-show 生效后再比较位置。
+watch([visibleDirectoryGroups, collapsedGroups], () => nextTick(syncActiveGroup), {flush: 'post'})
+// 切回本页、窄屏展开目录或跨越断点时目录从隐藏变为可见，同样没有滚动事件：此时让正在配置的服务保持可见并重新定位高亮。
+let directoryVisible = false
+let directoryObserver: ResizeObserver | undefined
+onMounted(() => {
+  const scroller = groupsElement.value
+  if (!scroller) return
+  directoryObserver = new ResizeObserver(() => {
+    const visible = scroller.getClientRects().length > 0
+    if (visible && !directoryVisible) expandGroupOf(props.service)
+    directoryVisible = visible
+    void nextTick(syncActiveGroup)
+  })
+  directoryObserver.observe(scroller)
+})
+onBeforeUnmount(() => directoryObserver?.disconnect())
 
 async function selectService(service: string) {
+  expandGroupOf(service)
   emit('update:service', service)
   if (directoryOpen.value) {
     directoryOpen.value = false
@@ -234,7 +337,8 @@ async function selectService(service: string) {
   }
 }
 // 外部跳转和新建服务沿用同一编辑工作区，并从表单顶部开始。
-watch(() => props.service, async () => {
+watch(() => props.service, async (service) => {
+  expandGroupOf(service)
   const restoreDirectoryFocus = directoryOpen.value
   directoryOpen.value = false
   await nextTick()
@@ -245,7 +349,12 @@ watch(() => props.service, async () => {
 </script>
 
 <style scoped>
-.service-catalog { display: flex; height: min(650px, 70dvh); min-height: 0; color: var(--ink, #172033); background: var(--surface, #fff); }
+.service-catalog { display: flex; flex-direction: column; height: min(650px, 70dvh); min-height: 0; color: var(--ink, #172033); background: var(--surface, #fff); }
+.service-group-navigation { display: flex; flex: none; gap: 24px; min-width: 0; padding: 0 18px; border-bottom: 1px solid var(--line); overflow-x: auto; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.service-group-navigation button { flex: none; padding: 10px 2px 12px; border: 0; border-bottom: 2px solid transparent; color: var(--muted); background: transparent; font: inherit; font-size: 13px; font-weight: 600; line-height: 1.4; white-space: nowrap; cursor: pointer; }
+.service-group-navigation button:hover { color: var(--ink); }
+.service-group-navigation button[aria-current] { border-bottom-color: var(--brand); color: var(--brand-strong); font-weight: 650; }
+.service-group-navigation button:focus-visible { outline-offset: -3px; border-radius: 4px; }
 .catalog-layout { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: 0; flex: 1; overflow: hidden; }
 .service-rail { display: flex; flex-direction: column; min-height: 0; padding: 16px 12px; border-right: 1px solid var(--line, #e4e7ef); background: var(--surface-soft, #fafbfc); }
 .rail-heading { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 6px 10px; }
@@ -278,8 +387,19 @@ watch(() => props.service, async () => {
 .catalog-search:focus-within { border-color: var(--brand-strong, #bd2853); }
 .catalog-search input { width: 100%; min-width: 0; padding: 9px 0; border: 0; outline: none; color: var(--ink, #172033); background: transparent; font-size: 13px; }
 .directory-section + .directory-section { margin-top: 16px; }
-.directory-section h4 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 6px; padding: 9px 10px; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; background: color-mix(in srgb, var(--line) 22%, transparent); color: var(--ink); font-size: 12px; font-weight: 600; }
-.directory-section h4 small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.directory-section.is-collapsed + .directory-section { margin-top: 8px; }
+.directory-section h4 { margin: 0 0 6px; }
+.directory-section.is-collapsed h4 { margin-bottom: 0; }
+.directory-section-toggle { display: flex; align-items: center; gap: 8px; width: 100%; padding: 9px 10px; border: 0; border-bottom: 1px solid var(--line); border-radius: 8px 8px 0 0; background: color-mix(in srgb, var(--line) 22%, transparent); color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; text-align: left; cursor: pointer; }
+.directory-section-toggle:disabled { cursor: default; }
+.directory-section-toggle:focus-visible { outline-offset: -2px; }
+.directory-section-toggle:not(:disabled):hover { background: color-mix(in srgb, var(--line) 40%, transparent); }
+.directory-section-toggle > span { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.directory-section-toggle small { color: var(--muted); font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums; }
+.directory-section-chevron { flex: none; width: 14px; height: 14px; color: var(--muted); transition: transform 150ms ease; }
+.directory-section-toggle[aria-expanded="true"] .directory-section-chevron { transform: rotate(90deg); }
+.directory-section.is-collapsed .directory-section-toggle { border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) { .directory-section-chevron { transition: none; } }
 .catalog-empty { padding: 32px 0; color: var(--muted, #737c8f); text-align: center; font-size: 13px; }
 button:focus-visible, a:focus-visible { outline: 2px solid var(--brand-strong, #bd2853); outline-offset: 2px; }
 .credential-guide { margin: 0 0 20px; border: 0; border-radius: 10px; background: var(--surface-soft, #fff8fa); }
@@ -314,6 +434,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand-strong, #
 }
 @media (max-width: 700px) {
   .service-catalog { height: auto; min-height: 0; }
+  .service-group-navigation { display: none; }
   .catalog-layout { display: block; }
   .service-rail { border-right: 0; border-bottom: 1px solid var(--line, #e4e7ef); padding: 10px 12px; }
   .rail-heading { margin-bottom: 6px; }
