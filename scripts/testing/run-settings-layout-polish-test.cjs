@@ -105,13 +105,13 @@ const record = id => { report.caseCoverage.push({id, status: 'passed'}); console
     record('reading preview left, toggle, keyboard, webpage theme and style navigation');
 
     await go('settings-selection');
-    const learning = page.getByRole('combobox', {name: '学习程度', exact: true});
+    const learning = page.getByRole('radiogroup', {name: '学习程度', exact: true});
     await learning.scrollIntoViewIfNeeded();
     const row = learning.locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," settings-item ")][1]');
-    const copy = await row.locator('.settings-item-copy').boundingBox(), select = await row.locator('.el-select').boundingBox();
-    assert(Math.abs(copy.x - select.x) < 2 && Math.abs(select.width - copy.width) < 2);
-    await choose('学习程度', '高级');
-    await page.reload(); await page.getByRole('combobox', {name: '学习程度', exact: true}).waitFor();
+    const copy = await row.locator('.settings-item-copy').boundingBox(), control = await learning.boundingBox();
+    assert(Math.abs(copy.x - control.x) < 2 && Math.abs(control.width - copy.width) < 2);
+    await learning.getByRole('radio', {name: '高级', exact: true}).click();
+    await page.reload(); await page.getByRole('radiogroup', {name: '学习程度', exact: true}).waitFor();
     assert.equal((await read()).harness.learningLevel, 'advanced');
     await shot(page.locator('.harness-preferences'), 'learning-level'); record('learning level aligned and saved');
     const speech = page.getByTestId('speech-settings');

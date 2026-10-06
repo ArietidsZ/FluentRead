@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/WritingSettings.vue
  * 文件职责：提供写作助手总开关、默认回复偏好和 AI 服务连接设置。
- * 主要内容：用单层开关、紧凑的服务语言网格与左侧预览、右侧风格设置组织内容，窄屏按预览、设置依次展示；提前提示缺失配置，清楚区分默认偏好与真实生成，服务与风格模块提供同页导航目标。
+ * 主要内容：用单层开关、与其他分区一致的“左标签、右控件”服务与语言设置行，以及左侧预览、右侧风格设置组织内容，窄屏按预览、设置依次展示；缺失配置直接提示在 AI 服务一行，清楚区分默认偏好与真实生成，服务与风格模块提供同页导航目标。
  * 模块边界：只编辑设置中心持久化的同一份写作配置并恢复被禁用的网站；不提供快捷键或重复入口开关，不请求模型也不生成真实正文。
  -->
 <template>
@@ -14,36 +14,35 @@
       <div v-for="domain in config.writing.disabledDomains" :key="domain" class="writing-disabled-site" :data-writing-disabled-site="domain"><span>{{ domain }}</span><button type="button" :aria-label="t('writing.entry.restoreSite', {domain})" @click="config.writing.disabledDomains = config.writing.disabledDomains.filter(item => item !== domain)">{{ t('writing.entry.restore') }}</button></div>
     </SettingsGroup>
     <SettingsGroup title="写作服务" data-settings-anchor="service" data-settings-anchor-label="写作服务">
-      <div class="writing-service-grid">
-        <SettingsItem label="AI 服务" stacked>
-          <el-select v-model="config.writing.service" :empty-values="[null, undefined]" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
-            <el-option value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
-            <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </SettingsItem>
-        <SettingsItem label="模型" stacked>
-          <template #copy><div class="writing-model-label"><strong>模型</strong><button v-if="supported" type="button" @click="emit('configure-service')">配置服务连接 →</button></div></template>
-          <el-select v-model="config.writing.model" :empty-values="[null, undefined]" filterable allow-create default-first-option aria-label="写作模型" placeholder="选择或输入模型" :disabled="!supported">
-            <el-option value="" :label="resolvedModel ? t('writing.experience.inheritModel', {model: resolvedModel}) : t('writing.experience.inheritModelEmpty')" />
-            <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
-          </el-select>
-        </SettingsItem>
-      <SettingsItem label="输出语言" stacked>
+      <SettingsItem label="AI 服务">
+        <template v-if="readiness.issue && readiness.issue !== 'model'" #description><small class="writing-setup-message" role="status">{{ readiness.message }}</small></template>
+        <el-select v-model="config.writing.service" :empty-values="[null, undefined]" aria-label="写作服务" placeholder="选择 AI 服务" @change="config.writing.model = ''" filterable>
+          <el-option value="" :label="`跟随默认服务 · ${defaultServiceLabel}`" />
+          <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
+        </el-select>
+      </SettingsItem>
+      <SettingsItem label="模型">
+        <template v-if="supported || readiness.issue === 'model'" #description>
+          <small v-if="readiness.issue === 'model'" class="writing-setup-message" role="status">{{ readiness.message }}</small>
+          <small v-if="supported" class="writing-model-label"><button type="button" @click="emit('configure-service')">配置服务连接 →</button></small>
+        </template>
+        <el-select v-model="config.writing.model" :empty-values="[null, undefined]" filterable allow-create default-first-option aria-label="写作模型" placeholder="选择或输入模型" :disabled="!supported">
+          <el-option value="" :label="resolvedModel ? t('writing.experience.inheritModel', {model: resolvedModel}) : t('writing.experience.inheritModelEmpty')" />
+          <el-option v-for="item in modelOptions" :key="item" :label="item" :value="item" />
+        </el-select>
+      </SettingsItem>
+      <SettingsItem label="输出语言">
         <el-select v-model="config.writing.language" class="writing-default-language" aria-label="输出语言" filterable>
           <el-option v-for="item in WRITING_LANGUAGES" :key="item.value" :value="item.value" :label="item.value === 'target' ? `跟随目标语言 · ${targetLanguageLabel}` : item.label" />
         </el-select>
       </SettingsItem>
-      <SettingsItem :label="t('writing.referenceLanguage')" stacked>
+      <SettingsItem :label="t('writing.referenceLanguage')">
         <el-select v-model="config.writing.referenceLanguage" class="writing-default-language" :aria-label="t('writing.referenceLanguage')" filterable>
           <el-option value="ui" :label="t('writing.interfaceLanguage')" />
           <el-option value="off" :label="t('writing.referenceDisabled')" />
           <el-option v-for="item in WRITING_LANGUAGES.filter(item => item.value !== 'target')" :key="item.value" :value="item.value" :label="item.label" />
         </el-select>
       </SettingsItem>
-      </div>
-      <div v-if="readiness.issue" class="writing-connection">
-        <p class="writing-setup-message" role="status">{{ readiness.message }}</p>
-      </div>
     </SettingsGroup>
     <SettingsGroup title="回答风格" data-settings-anchor="style" data-settings-anchor-label="回答风格">
       <div class="writing-default-style">
@@ -124,19 +123,13 @@ const referencePreviewLabel = computed(() => {
 });
 </script>
 <style scoped>
-.writing-settings{max-width:1040px;margin:0 auto}
-.writing-settings>.feature-enable-card{margin:0 0 18px;padding:16px 18px;box-shadow:none;background:var(--surface)}
-.writing-description{margin:-6px 0 18px;color:var(--muted);font-size:12px;line-height:1.7}
+.writing-settings{max-width:1080px;margin:0 auto}
+.writing-settings>.feature-enable-card{margin:0 0 24px}
+.writing-description{margin:-12px 0 24px;color:var(--muted);font-size:12px;line-height:1.7}
 .writing-site-help{margin:0;padding:12px 18px 0;color:var(--muted);font-size:12px}.writing-disabled-site{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;font-size:13px}.writing-disabled-site button{border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--brand);padding:6px 10px;font:inherit;cursor:pointer}.writing-disabled-site button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
-.writing-service-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 24px;padding:16px 18px}
-.writing-service-grid :deep(.settings-item){min-width:0;min-height:0;padding:0;gap:8px;border:0!important;background:transparent}
-.writing-service-grid :deep(.settings-item-control){align-self:end}
-.writing-default-language{max-width:none!important}
-.writing-model-label{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
-.writing-connection{padding:12px 18px;border-top:1px solid var(--line);background:var(--surface-soft)}
-.writing-setup-message{margin:0;color:var(--muted);font-size:11px;line-height:1.65}
-.writing-setup-message{color:var(--ink)}
-.writing-model-label button{flex-shrink:0;border:0;padding:4px 0;background:none;color:var(--brand);font:inherit;font-size:12px;cursor:pointer}
+.writing-settings small.writing-setup-message{color:var(--warning,#b26a00)}
+.writing-model-label button{border:0;padding:0;background:none;color:var(--brand-strong);font:inherit;font-weight:600;cursor:pointer}
+.writing-model-label button:hover{text-decoration:underline;text-underline-offset:3px}
 .writing-model-label button:focus-visible{outline:2px solid var(--brand);outline-offset:4px}
 .writing-default-style{--w-brand:var(--brand);--w-brand-soft:var(--brand-soft);--w-ink:var(--ink);--w-soft:var(--surface-soft);--w-line:var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;padding:16px 18px;align-items:start}
 .writing-style-controls{display:flex;flex-direction:column;gap:16px;min-width:0}
@@ -147,5 +140,5 @@ const referencePreviewLabel = computed(() => {
 .writing-custom-preference{display:flex;flex-direction:column;gap:6px;width:100%;min-width:0;margin-top:9px}
 .writing-custom-preference small{font-size:10.5px;line-height:1.55;color:var(--muted)}
 @media(max-width:1100px){.writing-default-style{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:600px){.writing-service-grid{grid-template-columns:minmax(0,1fr);padding:14px 12px;gap:16px}.writing-service-grid :deep(.settings-item-copy){min-height:0}.writing-default-style{padding:16px 12px}.writing-connection{align-items:flex-start;flex-direction:column;padding:12px}.writing-settings>.feature-enable-card{padding:14px 12px}}
+@media(max-width:600px){.writing-default-style{padding:16px 12px}}
 </style>

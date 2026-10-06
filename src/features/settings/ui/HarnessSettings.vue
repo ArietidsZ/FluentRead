@@ -15,7 +15,6 @@
           <button v-for="action in visibleActions" :key="action.id" type="button" :aria-pressed="previewAction === action.id" @click="previewAction = action.id">{{ action.label }}</button>
         </div>
         <ReadingAnswer :text="previewAnswer" :source-text="sentenceSource" />
-        <p class="harness-preview-note">固定示例用于说明呈现方式，实际回答取决于原文、模型和自定义指令</p>
       </template>
       <div class="harness-provider-row">
         <div class="harness-provider-field">
@@ -23,7 +22,6 @@
           <el-select v-model="config.harness.service" class="harness-select" @change="config.harness.model = ''" clearable aria-label="学习讲解服务" :aria-describedby="!effectiveServiceSupportsHarness ? 'harness-service-hint' : undefined" placeholder="跟随当前默认服务" filterable>
             <el-option v-for="item in serviceOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <small class="harness-provider-help">使用“翻译服务”中已配置的 AI 服务和密钥</small>
           <small v-if="!effectiveServiceSupportsHarness" id="harness-service-hint" class="service-hint" role="status">当前默认服务不能回答学习问题，请在这里选择一个 AI 服务</small>
         </div>
         <div class="harness-provider-field">
@@ -31,7 +29,6 @@
           <el-select v-model="config.harness.model" class="harness-select" clearable filterable allow-create default-first-option aria-label="学习讲解模型" placeholder="跟随服务模型">
             <el-option v-for="model in modelOptions" :key="model" :label="model" :value="model" />
           </el-select>
-          <small class="harness-provider-help">留空沿用服务模型，也可以选择或输入模型名称</small>
         </div>
       </div>
       <div class="harness-preferences">
@@ -50,10 +47,9 @@
           <SegmentedControl v-model="config.harness.explanationDepth" :options="explanationDepthOptions" label="解释深度" />
         </SettingsItem>
         <SettingsItem label="学习程度" description="让解释和练习贴近你的水平" stacked>
-          <el-select v-model="config.harness.learningLevel" class="harness-select" aria-label="学习程度"><el-option label="初级" value="beginner" /><el-option label="中级" value="intermediate" /><el-option label="高级" value="advanced" /></el-select>
+          <SegmentedControl v-model="config.harness.learningLevel" :options="learningLevelOptions" label="学习程度" />
         </SettingsItem>
       </div>
-      <p v-if="!config.harness.enabled" class="harness-preview-note" role="status">AI 讲解已关闭；可预先调整偏好，开启后应用于学习回答</p>
     </SettingsPreviewLayout>
   </SettingsGroup>
   <SettingsGroup title="参考原文" :description="t('settings.sourceContextDescription')" data-settings-anchor="context" data-settings-anchor-label="参考原文">
@@ -61,7 +57,7 @@
       <SegmentedControl v-model="config.harness.contextMode" :options="contextModeOptions" label="上下文范围" />
     </SettingsItem>
     <SettingsItem v-if="config.harness.contextMode === 'paragraph'" label="段落长度上限" description="限制补充段落的长度；不会修改你的选区">
-      <div class="harness-context-limit"><el-input-number v-model="config.harness.maxContextChars" :min="500" :max="4000" :step="100" aria-label="上下文上限" /><span>字符</span></div>
+      <SettingsNumberInput v-model="config.harness.maxContextChars" unit="字符" :min="500" :max="4000" :step="100" aria-label="上下文上限" />
     </SettingsItem>
   </SettingsGroup>
   <SettingsGroup class="harness-memory-settings" :title="t('learning.memory')" :description="t('learning.memoryDescription')" data-settings-anchor="memory" :data-settings-anchor-label="t('learning.memory')">
@@ -85,6 +81,7 @@ import {HARNESS_ACTIONS, isHarnessService, type HarnessActionId} from '@/src/cor
 import type {Config} from '@/src/core/config/model'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
+import SettingsNumberInput from './components/SettingsNumberInput.vue'
 import SegmentedControl from './components/SegmentedControl.vue'
 import {useUiI18n} from '@/src/ui/i18n'
 
@@ -108,6 +105,7 @@ watch(() => config.value.harness.defaultAction, (action) => { previewAction.valu
 watch(visibleActions, (actions) => { if (!actions.some(action => action.id === previewAction.value)) previewAction.value = config.value.harness.defaultAction })
 const contextModeOptions = [{value: 'paragraph', label: '可参考本段'}, {value: 'selection', label: '仅选中文字'}]
 const explanationDepthOptions = [{value: 'concise', label: '简洁'}, {value: 'detailed', label: '详细'}]
+const learningLevelOptions = [{value: 'beginner', label: '初级'}, {value: 'intermediate', label: '中级'}, {value: 'advanced', label: '高级'}]
 
 function toggleAction(id: HarnessActionId) {
   if (id === 'meaning') return
@@ -123,12 +121,10 @@ function toggleAction(id: HarnessActionId) {
 .harness-preview-tabs { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 16px; padding-top:16px; border-top:1px solid var(--line); }
 .harness-preview-tabs button { padding:6px 10px; border:1px solid var(--line); border-radius:7px; color:var(--muted); background:var(--surface); font:inherit; font-size:11px; cursor:pointer; }
 .harness-preview-tabs button[aria-pressed=true] { color:var(--brand); border-color:var(--brand); }
-.harness-preview-note { margin:16px 0 0; color:var(--muted); font-size:11px; line-height:1.7; }
 .harness-provider-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding-bottom:18px; }
 .harness-provider-field { display:flex; flex-direction:column; gap:8px; min-width:0; }
 .harness-provider-field > label { color:var(--ink); font-size:13px; font-weight:600; }
-.harness-provider-help, .service-hint { font-size:11px; line-height:1.6; color:var(--muted); }
-.service-hint { color:var(--warning,#b26a00); }
+.service-hint { font-size:12px; line-height:1.6; color:var(--warning,#b26a00); }
 .harness-select { width:100%; }
 .harness-preferences :deep(.settings-item) { gap:10px; padding:16px 0; border-top:1px solid var(--line); }
 .harness-preferences :deep(.settings-item-control) { width:100%; }
@@ -141,9 +137,6 @@ function toggleAction(id: HarnessActionId) {
 .harness-action strong { display:flex; flex-wrap:wrap; gap:4px 8px; }
 .harness-action em { color:var(--muted); font-size:10px; font-style:normal; font-weight:400; }
 .harness-action small { color:var(--muted); font-size:11px; line-height:1.6; }
-.harness-context-limit { display:flex; align-items:center; gap:9px; width:100%; color:var(--muted); font-size:11px; }
-.harness-context-limit .el-input-number { flex:1; min-width:0; }
-.harness-context-limit span { flex-shrink:0; }
 .harness-memory-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:16px 20px; border-top:1px solid var(--line); }
 .harness-memory-footer p { flex:1; min-width:180px; margin:0; color:var(--muted); font-size:12px; line-height:1.6; }
 .harness-memory-footer button { padding:8px 12px; border:1px solid var(--line); border-radius:8px; color:var(--brand); background:var(--surface); font:inherit; font-size:12px; cursor:pointer; }

@@ -83,7 +83,7 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.onboarding-load-error { padding: 0 14px 14px; color: var(--muted); font-size: 11px; }
+.onboarding-load-error { padding: 0 20px 16px; color: var(--muted); font-size: 12px; }
 .onboarding-load-error p { margin: 0 0 8px; }
 .onboarding-load-error button { padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); cursor: pointer; }
 </style>

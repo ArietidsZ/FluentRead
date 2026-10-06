@@ -696,7 +696,7 @@ function profileSwitchLabel(profile: QuickTranslationProfile): string {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 13px 16px 15px;
+  padding: 16px 20px;
   border-top: 1px solid var(--line, #e5e8ef);
   color: var(--ink, #172033);
 }
@@ -726,15 +726,16 @@ function profileSwitchLabel(profile: QuickTranslationProfile): string {
 }
 
 .profiles-copy h3 {
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.45;
 }
 
 .profiles-copy p {
   margin-top: 3px;
   color: var(--muted, #737c8f);
-  font-size: 10px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.55;
 }
 
 .toolbar-actions {
@@ -745,7 +746,7 @@ function profileSwitchLabel(profile: QuickTranslationProfile): string {
 .capacity-label {
   flex: none;
   color: var(--muted, #737c8f);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -971,15 +972,15 @@ kbd {
 .add-button {
   justify-content: center;
   gap: 4px;
-  min-height: 31px;
-  padding: 5px 10px;
+  min-height: 32px;
+  padding: 5px 12px;
   border: 1px solid rgba(239, 71, 118, .28);
-  border-radius: 9px;
+  border-radius: 8px;
   color: var(--brand-strong, #dc315f);
   background: var(--brand-soft, #fff0f4);
   cursor: pointer;
-  font-size: 10px;
-  font-weight: 750;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .add-button:hover:not(:disabled) {
@@ -988,7 +989,7 @@ kbd {
 }
 
 .add-button > span {
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .add-button:disabled {

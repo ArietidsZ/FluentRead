@@ -1,15 +1,15 @@
 <!--
 @file src/features/settings/ui/components/SettingsItem.vue
 文件职责：统一单条设置的标签、辅助说明和操作控件布局，使长配置页面保持清晰的阅读节奏与对齐关系。
-主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可替换的说明区与控制区插槽、长文案与多控件自然换行，以及窄屏下从横向到纵向的响应式排列。
+主要内容：支持常规双列和 stacked 单列模式、禁用视觉状态、可整体替换的文案区、可单独替换的说明行与控制区插槽、长文案与多控件自然换行，以及窄屏下从横向到纵向的响应式排列；补充说明可通过 help 收进标签旁的提示图标，不占用常驻版面。
 模块边界：本组件只处理展示和插槽排版，不拥有字段值、不触发持久化；只有独立开关行将文案区点击转发给原控件，其禁用与键盘行为仍由原控件处理。
 -->
 <template>
   <div class="settings-item" :class="{ stacked, disabled }" @click="toggleSimpleSwitch">
     <div class="settings-item-copy">
       <slot name="copy">
-        <strong>{{ label }}</strong>
-        <small v-if="description">{{ description }}</small>
+        <strong class="settings-item-label"><span>{{ label }}</span><FieldHelp v-if="help" :content="help" /></strong>
+        <slot name="description"><small v-if="description">{{ description }}</small></slot>
       </slot>
     </div>
     <div class="settings-item-control">
@@ -19,6 +19,8 @@
 </template>
 
 <script setup lang="ts">
+import FieldHelp from './FieldHelp.vue'
+
 function toggleSimpleSwitch(event: MouseEvent): void {
   const target = event.target as HTMLElement
   if (target.closest('button, a, input, select, textarea, .el-switch, [role="button"]') || window.getSelection()?.toString()) return
@@ -30,10 +32,12 @@ function toggleSimpleSwitch(event: MouseEvent): void {
 withDefaults(defineProps<{
   label: string
   description?: string
+  help?: string
   stacked?: boolean
   disabled?: boolean
 }>(), {
   description: '',
+  help: '',
   stacked: false,
   disabled: false,
 })
@@ -67,6 +71,16 @@ withDefaults(defineProps<{
   font-weight: 550;
   line-height: 1.45;
 }
+
+/* 自定义文案插槽也可复用标签行样式，因此从文案区向下穿透匹配。 */
+.settings-item-copy :deep(.settings-item-label) {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 提示图标的点击区大于文字行高，用负外边距避免把带提示的行撑高。 */
+.settings-item-copy :deep(.settings-item-label .field-help) { margin: -3px 0; }
 
 .settings-item-copy :deep(small) {
   color: var(--muted);

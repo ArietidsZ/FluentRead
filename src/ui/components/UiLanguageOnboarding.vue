@@ -1,7 +1,7 @@
 <!--
  * @file src/ui/components/UiLanguageOnboarding.vue
  * 文件职责：承载 FluentRead Popup 首次打开时的欢迎与界面语言选择引导。
- * 主要内容：直接使用轻量中英文资源展示稳定尺寸的欢迎画面和完整语言名称；确认保存后通知上层准备主菜单，成功动效结束后交回控制权。
+ * 主要内容：直接使用轻量中英文资源展示欢迎画面和完整语言名称，问候语在方形画板内错落散布；首启内容直接铺满弹窗，不再在弹窗里套一层带边框的卡片；欢迎、语言选择与成功三步内容都收在同一高度内，切换步骤时弹窗尺寸不变；确认保存后通知上层准备主菜单，成功动效结束后交回控制权。
  * 模块边界：组件只负责首次引导的呈现与确认，不读取配置、不决定浏览器 locale 映射；配置保存由 src/ui/i18n.ts 负责，语言规则由 src/core/i18n 提供。
 -->
 <template>
@@ -43,10 +43,6 @@
               {{ messageZh('language.onboardingWelcomeEyebrow') }}
               <small class="onboarding-title-secondary">{{ messageEn('language.onboardingWelcomeEyebrow') }}</small>
             </h1>
-            <p class="welcome-tagline" data-testid="welcome-brand-tagline">
-              <span lang="zh-CN">{{ brandTaglines['zh-CN'] }}</span>
-              <span lang="en">{{ brandTaglines['en-US'] }}</span>
-            </p>
           </div>
 
           <button
@@ -138,7 +134,6 @@
 </template>
 
 <script setup lang="ts">
-import brandTaglines from '@/src/core/i18n/messages/brand-taglines.json';
 import {nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';
 import {
   getUiLanguageBilingualLabel,
@@ -160,7 +155,7 @@ const emit = defineEmits<{
 const {language, setLanguage} = useUiI18n();
 const WELCOME_GREETING_WORDS = [
   '你好',
-  'Welcome',
+  'Hello',
   'こんにちは',
   '안녕하세요',
   'Bonjour',
@@ -253,9 +248,7 @@ onMounted(() => {
   position: relative;
   z-index: 20;
   display: grid;
-  min-height: 446px;
-  padding: 14px;
-  place-items: center;
+  min-height: 460px;
   overflow: hidden;
   isolation: isolate;
 }
@@ -264,8 +257,7 @@ onMounted(() => {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: var(--surface-soft);
-  backdrop-filter: blur(7px);
+  background: var(--surface);
   animation: onboarding-backdrop-in 260ms ease-out both;
 }
 
@@ -273,27 +265,24 @@ onMounted(() => {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 418px;
+  min-height: 460px;
   display: grid;
   align-content: center;
-  padding: 20px 18px 18px;
-  border: 1px solid var(--line);
-  border-radius: 24px;
+  padding: 22px 20px 20px;
   background: var(--surface);
-  box-shadow: 0 16px 36px rgba(27, 36, 57, .1);
 }
 
 .onboarding-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .onboarding-brand img {
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
   box-shadow: 0 8px 18px rgba(239, 71, 118, .2);
 }
 
@@ -303,16 +292,12 @@ onMounted(() => {
   font-weight: 760;
 }
 
+/* 问候语在方形画板内错落散布；画板高度与下方文案、按钮一起控制在卡片的固定高度内，
+   让欢迎、语言选择和成功三步保持同一尺寸，切换时弹窗不再伸缩。 */
 .welcome-art {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: center;
-  justify-items: center;
-  gap: 6px 10px;
-  height: 194px;
-  padding: 12px;
-  margin: 0 -4px 18px;
+  height: 244px;
+  margin: 0 -4px 12px;
   border: 1px solid rgba(239, 71, 118, .12);
   border-radius: 22px;
   background:
@@ -347,7 +332,9 @@ onMounted(() => {
 }
 
 .welcome-word {
-  position: relative;
+  position: absolute;
+  top: var(--word-y);
+  left: var(--word-x);
   display: inline-flex;
   align-items: center;
   min-height: 28px;
@@ -360,19 +347,20 @@ onMounted(() => {
   font-size: 11px;
   font-weight: 760;
   white-space: nowrap;
+  transform: translate(-50%, -50%) rotate(var(--word-tilt));
   animation: onboarding-word-float 3.8s ease-in-out infinite;
 }
 
-.welcome-word:nth-child(1) { color: #db3865; transform: rotate(-3deg); }
-.welcome-word:nth-child(2) { animation-delay: -.7s; transform: rotate(2deg); }
-.welcome-word:nth-child(3) { animation-delay: -1.4s; transform: rotate(2deg); }
-.welcome-word:nth-child(4) { color: #567ed2; animation-delay: -2.1s; transform: rotate(-2deg); }
-.welcome-word:nth-child(5) { color: #a37b0e; animation-delay: -.3s; transform: rotate(2deg); }
-.welcome-word:nth-child(6) { color: #657080; animation-delay: -1.8s; transform: rotate(-2deg); }
-.welcome-word:nth-child(7) { color: #d63868; animation-delay: -2.7s; transform: rotate(-2deg); }
-.welcome-word:nth-child(8) { color: #4a9d91; animation-delay: -1.1s; transform: rotate(2deg); }
-.welcome-word:nth-child(9) { color: #597fcc; animation-delay: -2.4s; transform: rotate(-2deg); }
-.welcome-word:nth-child(10) { color: #bb6f45; animation-delay: -.9s; transform: rotate(2deg); }
+.welcome-word:nth-child(1) { --word-x: 16%; --word-y: 13%; --word-tilt: -6deg; color: #db3865; font-size: 12.5px; }
+.welcome-word:nth-child(2) { --word-x: 50%; --word-y: 20%; --word-tilt: 3deg; animation-delay: -.7s; }
+.welcome-word:nth-child(3) { --word-x: 30%; --word-y: 37%; --word-tilt: 2deg; animation-delay: -1.4s; }
+.welcome-word:nth-child(4) { --word-x: 50%; --word-y: 61%; --word-tilt: -3deg; color: #567ed2; animation-delay: -2.1s; }
+.welcome-word:nth-child(5) { --word-x: 28%; --word-y: 86%; --word-tilt: -5deg; color: #a37b0e; animation-delay: -.3s; }
+.welcome-word:nth-child(6) { --word-x: 75%; --word-y: 44%; --word-tilt: -4deg; color: #657080; animation-delay: -1.8s; }
+.welcome-word:nth-child(7) { --word-x: 14%; --word-y: 63%; --word-tilt: 7deg; color: #d63868; animation-delay: -2.7s; }
+.welcome-word:nth-child(8) { --word-x: 67%; --word-y: 83%; --word-tilt: 4deg; color: #4a9d91; animation-delay: -1.1s; }
+.welcome-word:nth-child(9) { --word-x: 86%; --word-y: 15%; --word-tilt: 8deg; color: #597fcc; animation-delay: -2.4s; }
+.welcome-word:nth-child(10) { --word-x: 87%; --word-y: 66%; --word-tilt: 5deg; color: #bb6f45; animation-delay: -.9s; }
 
 .onboarding-copy h1 {
   margin: 0;
@@ -381,8 +369,6 @@ onMounted(() => {
   line-height: 1.2;
   letter-spacing: -.025em;
 }
-
-.welcome-tagline { display: grid; gap: 3px; margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 
 .welcome-copy h1 {
   font-size: 25px;
@@ -458,7 +444,7 @@ onMounted(() => {
 
 .onboarding-next {
   justify-content: space-between;
-  margin-top: 16px;
+  margin-top: 12px;
   padding: 0 15px 0 17px;
   text-align: left;
 }
@@ -732,9 +718,6 @@ onMounted(() => {
 }
 
 @media (max-width: 360px) {
-  .language-onboarding { padding: 10px; }
-  .language-onboarding-card { padding-right: 14px; padding-left: 14px; }
-  .welcome-art { height: 194px; }
   .onboarding-language-options { gap: 5px; }
   .onboarding-language-option { padding-right: 24px; padding-left: 8px; }
   .onboarding-language-name { font-size: 10.5px; }

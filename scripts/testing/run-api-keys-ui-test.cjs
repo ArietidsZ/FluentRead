@@ -303,7 +303,7 @@ async function main() {
   await recoverySetting.waitFor();
   const recoveryInput = recoverySetting.locator('input');
   const recoveryInputBox = await recoverySetting.locator('.el-input__wrapper').boundingBox();
-  const recoveryUnitBox = await recoverySetting.locator('.api-key-recovery-unit').boundingBox();
+  const recoveryUnitBox = await recoverySetting.locator('.settings-number-unit').boundingBox();
   assert(recoveryInputBox && recoveryUnitBox, 'recovery duration control must render its input and unit');
   assert(recoveryUnitBox.x >= recoveryInputBox.x && recoveryUnitBox.x + recoveryUnitBox.width <= recoveryInputBox.x + recoveryInputBox.width, 'recovery unit must stay inside the input frame');
   assert.equal(await recoveryInput.inputValue(), '1');

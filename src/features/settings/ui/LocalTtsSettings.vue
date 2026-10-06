@@ -6,7 +6,7 @@
  -->
 <template>
   <SettingsGroup class="speech-settings" :title="t('settings.experience.speechTitle')" data-testid="speech-settings">
-    <SettingsItem :label="t('settings.localTts.source')" :description="modeDescription" stacked>
+    <SettingsItem class="speech-source-row" :label="t('settings.localTts.source')" :description="modeDescription">
       <SegmentedControl
         v-model="ttsMode"
         :options="modeOptions"
@@ -14,13 +14,13 @@
       />
     </SettingsItem>
 
-    <SettingsItem v-if="ttsMode !== 'local-only'" :label="t('settings.experience.onlineSpeechTitle')" :description="translateLegacy('留空时根据语言自动尝试免费 Edge 音色；选择多个音色后，朗读失败时按此顺序尝试，无需 API Key')" stacked data-testid="speech-online-voices">
+    <SettingsItem v-if="ttsMode !== 'local-only'" :label="t('settings.experience.onlineSpeechTitle')" :help="translateLegacy('留空时根据语言自动尝试免费 Edge 音色；选择多个音色后，朗读失败时按此顺序尝试，无需 API Key')" data-testid="speech-online-voices">
       <el-select v-model="config.selectionTtsVoices" multiple filterable collapse-tags collapse-tags-tooltip :aria-label="translateLegacy('划词翻译备用音色顺序')" :placeholder="translateLegacy('自动按语言选择')">
         <el-option v-for="item in SELECTION_TTS_VOICE_OPTIONS" :key="item.value" :label="`${item.label} · ${item.locale}`" :value="item.value" />
       </el-select>
     </SettingsItem>
 
-    <SettingsItem v-if="ttsMode !== 'online-only'" :label="t('settings.localTts.voice')" stacked data-testid="speech-local-voice">
+    <SettingsItem v-if="ttsMode !== 'online-only'" :label="t('settings.localTts.voice')" data-testid="speech-local-voice">
       <el-select v-model="localVoice" :aria-label="t('settings.localTts.voice')" filterable>
         <el-option
           v-for="option in voiceOptions"
@@ -206,11 +206,14 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 朗读来源有四个选项，给控件列更宽的上限，避免多语言标签换行。 */
+.speech-settings :deep(.speech-source-row) { grid-template-columns: minmax(0, 1fr) minmax(280px, 440px); }
+@media (max-width: 480px) { .speech-settings :deep(.speech-source-row) { grid-template-columns: minmax(0, 1fr); } }
 .local-tts-model-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-width: 0; padding: 16px 20px; border-top: 1px solid var(--line); }
 .local-tts-model-copy { min-width: 0; }
 .local-tts-model-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .local-tts-model-heading > div { display: grid; gap: 3px; min-width: 0; }
-.local-tts-model-heading strong { color: var(--ink); font-size: 12.5px; line-height: 1.45; }
+.local-tts-model-heading strong { color: var(--ink); font-size: 13px; font-weight: 550; line-height: 1.45; }
 .local-tts-model-heading small, .local-tts-model-status, .local-tts-warning, .local-tts-error { color: var(--muted); font-size: 12px; line-height: 1.6; }
 .local-tts-model-heading small { overflow-wrap: anywhere; }
 .local-tts-model-icon { display: grid; place-items: center; width: 32px; height: 32px; flex: none; border-radius: 8px; color: var(--brand-strong); background: var(--brand-soft); }

@@ -1,13 +1,14 @@
 <!--
  * @file src/features/settings/ui/FloatingBallSettings.vue
  * 文件职责：提供悬浮球的进阶外观与交互设置，把按钮显示方式、展开延迟、点击行为、紧凑尺寸、设置入口、收起不透明度和禁用网站集中在一处编辑。
- * 主要内容：组件以分段控件和数字输入呈现各字段，写入前统一调用 core/config 的归一化函数，悬浮球关闭时禁用全部控件，并复用站点名单编辑器维护不显示悬浮球的域名。
+ * 主要内容：组件以分段控件和设置页统一的紧凑数值框呈现各字段，写入前统一调用 core/config 的归一化函数，悬浮球关闭时禁用全部控件，并复用站点名单编辑器维护不显示悬浮球的域名。
  * 模块边界：它只修改传入的配置对象，不发送标签页消息、不挂载悬浮球也不实现站点匹配；持久化由设置页统一触发，页面侧生效由悬浮球 content runtime 订阅配置完成。
  -->
 <template>
   <SettingsGroup
+    class="floating-ball-settings"
     title="悬浮球进阶设置"
-    description="设置悬浮球的按钮、点击动作、尺寸和适用网站；关闭悬浮球后保留这些偏好，重新开启时生效"
+    :description="enabled ? undefined : t('settings.floatingBall.disabledNote')"
   >
     <SettingsItem
       label="按钮显示方式"
@@ -26,21 +27,19 @@
     <SettingsItem
       v-if="props.config.floatingBallToolsDisplay === 'hover'"
       label="展开延迟"
-      description="鼠标停留达到设定时间后展开按钮，0 毫秒表示立即展开；增加延迟可减少误触，键盘聚焦时始终立即展开"
+      help="鼠标停留达到设定时间后展开按钮，0 毫秒表示立即展开；增加延迟可减少误触，键盘聚焦时始终立即展开"
       :disabled="!enabled"
     >
-      <div class="floating-ball-number-field">
-        <el-input-number
-          :model-value="props.config.floatingBallHoverDelay"
-          aria-label="悬浮球展开延迟"
-          :min="FLOATING_BALL_HOVER_DELAY_MIN"
-          :max="FLOATING_BALL_HOVER_DELAY_MAX"
-          :step="FLOATING_BALL_HOVER_DELAY_STEP"
-          :disabled="!enabled"
-          @change="handleHoverDelayChange"
-        />
-        <span class="input-suffix">ms</span>
-      </div>
+      <SettingsNumberInput
+        :model-value="props.config.floatingBallHoverDelay"
+        unit="ms"
+        aria-label="悬浮球展开延迟"
+        :min="FLOATING_BALL_HOVER_DELAY_MIN"
+        :max="FLOATING_BALL_HOVER_DELAY_MAX"
+        :step="FLOATING_BALL_HOVER_DELAY_STEP"
+        :disabled="!enabled"
+        @change="handleHoverDelayChange"
+      />
     </SettingsItem>
 
     <SettingsItem
@@ -89,18 +88,16 @@
       description="数值越小越透明、越不遮挡网页；鼠标悬停、展开和拖动时始终完全清晰"
       :disabled="!enabled"
     >
-      <div class="floating-ball-number-field">
-        <el-input-number
-          :model-value="props.config.floatingBallCollapsedOpacity"
-          aria-label="悬浮球收起时不透明度"
-          :min="FLOATING_BALL_COLLAPSED_OPACITY_MIN"
-          :max="FLOATING_BALL_COLLAPSED_OPACITY_MAX"
-          :step="FLOATING_BALL_COLLAPSED_OPACITY_STEP"
-          :disabled="!enabled"
-          @change="handleCollapsedOpacityChange"
-        />
-        <span class="input-suffix">%</span>
-      </div>
+      <SettingsNumberInput
+        :model-value="props.config.floatingBallCollapsedOpacity"
+        unit="%"
+        aria-label="悬浮球收起时不透明度"
+        :min="FLOATING_BALL_COLLAPSED_OPACITY_MIN"
+        :max="FLOATING_BALL_COLLAPSED_OPACITY_MAX"
+        :step="FLOATING_BALL_COLLAPSED_OPACITY_STEP"
+        :disabled="!enabled"
+        @change="handleCollapsedOpacityChange"
+      />
     </SettingsItem>
 
     <AlwaysTranslateSites
@@ -130,9 +127,12 @@ import AlwaysTranslateSites from './AlwaysTranslateSites.vue';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
 import SegmentedControl from './components/SegmentedControl.vue';
+import SettingsNumberInput from './components/SettingsNumberInput.vue';
+import {useUiI18n} from '@/src/ui/i18n';
 
 const props = defineProps<{config: Config}>();
 
+const {t} = useUiI18n();
 const enabled = computed(() => props.config.disableFloatingBall !== true);
 
 const toolsDisplayOptions: {label: string; value: FloatingBallToolsDisplay}[] = [
@@ -169,19 +169,13 @@ function handleDisabledDomainsChange(domains: string[]) {
 </script>
 
 <style scoped>
-.floating-ball-number-field {
-  width: min(100%, 212px);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.floating-ball-number-field :deep(.el-input-number) {
-  width: min(100%, 184px);
-}
-
-.input-suffix {
-  color: var(--muted);
-  font-size: 11px;
+/* 网站名单嵌在分组内时去掉自身的卡片外框，只保留与上方设置行之间的分隔线，避免卡片套卡片。 */
+.floating-ball-settings :deep(.site-rules-editor) {
+  width: 100%;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
 }
 </style>

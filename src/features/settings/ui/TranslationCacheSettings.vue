@@ -40,8 +40,8 @@
         :title="t(capacity.basedOnUsage ? 'settings.cache.capacityMeasured' : 'settings.cache.capacityAssumed')">
         {{ t('settings.cache.capacity', {entries: formatCount(capacity.entries), pages: formatEstimate(capacity.pages)}) }}
         <span>{{ t('settings.cache.capacityApproximate') }}</span>
+        <FieldHelp :content="t('settings.cache.estimate')" />
       </p>
-      <p class="translation-cache-note">{{ t('settings.cache.estimate') }}</p>
 
       <details class="translation-cache-limits" data-cache-limits>
         <summary>{{ t('settings.cache.adjustLimits') }}</summary>
@@ -98,6 +98,7 @@ import {
 import {useUiI18n} from '@/src/ui/i18n';
 import SettingsGroup from './components/SettingsGroup.vue';
 import SettingsItem from './components/SettingsItem.vue';
+import FieldHelp from './components/FieldHelp.vue';
 
 const props = defineProps<{config: Config}>();
 const {language, t} = useUiI18n();
@@ -226,26 +227,26 @@ onUnmounted(() => { disposed = true; });
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding: 16px 16px 8px;
+  padding: 16px 20px 8px;
   border-top: 1px solid var(--line);
 }
 .translation-cache-metrics { display: flex; flex-wrap: wrap; gap: 12px 32px; min-width: 0; }
 .translation-cache-metrics > div { display: grid; gap: 5px; }
-.translation-cache-metrics span { color: var(--muted); font-size: 11px; }
+.translation-cache-metrics span { color: var(--muted); font-size: 12px; }
 .translation-cache-metrics strong { color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums; }
-.translation-cache-metrics small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.translation-cache-metrics small { color: var(--muted); font-size: 12px; font-weight: 400; }
 .translation-cache-actions { display: flex; align-items: center; }
-.translation-cache-estimate { margin: 0; padding: 0 16px 5px; color: var(--ink); font-size: 11px; line-height: 1.6; }
-.translation-cache-estimate span { margin-left: 6px; color: var(--muted); font-size: 10px; }
-.translation-cache-note { margin: 0; padding: 0 16px 14px; color: var(--muted); font-size: 10.5px; line-height: 1.6; }
+.translation-cache-estimate { display: flex; align-items: center; flex-wrap: wrap; margin: 0; padding: 0 20px 12px; color: var(--ink); font-size: 12px; line-height: 1.6; }
+.translation-cache-estimate span { margin-left: 6px; color: var(--muted); font-size: 11px; }
+.translation-cache-note { margin: 0; padding: 0 20px 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .translation-cache-limits { border-top: 1px solid var(--line); }
-.translation-cache-limits summary { padding: 13px 16px; color: var(--ink); font-size: 12px; cursor: pointer; }
+.translation-cache-limits summary { padding: 14px 20px; color: var(--ink); font-size: 13px; cursor: pointer; }
 .translation-cache-limits summary:focus-visible { outline: 2px solid var(--brand); outline-offset: -3px; }
-.translation-cache-limit-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; padding: 2px 16px 12px; }
+.translation-cache-limit-form { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; padding: 14px 20px 12px; }
 .translation-cache-limit-form label { display: grid; gap: 7px; min-width: 0; }
-.translation-cache-limit-form label > span { color: var(--muted); font-size: 11px; }
+.translation-cache-limit-form label > span { color: var(--muted); font-size: 12px; }
 .translation-cache-limit-form :deep(.el-input-number) { width: 170px; max-width: 100%; }
-.translation-cache-feedback { margin: 0; padding: 0 16px 14px; color: var(--brand-strong); font-size: 11px; line-height: 1.6; }
+.translation-cache-feedback { margin: 0; padding: 0 20px 14px; color: var(--brand-strong); font-size: 12px; line-height: 1.6; }
 .translation-cache-feedback.is-error { color: var(--el-color-danger); }
 @media (max-width: 480px) {
   .translation-cache-usage { gap: 12px; padding: 14px 12px 8px; }

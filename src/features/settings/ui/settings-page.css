@@ -622,6 +622,9 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .settings-app .workspace .settings-card details > summary:hover { background: var(--surface-soft); }
 .settings-app .workspace .settings-card details > summary:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 .settings-app .workspace .settings-card details[open] > summary { margin-bottom: 12px; }
+/* 设置分组内的折叠行与普通设置行齐平：不再画成嵌在分组里的独立圆角框。 */
+.settings-app .workspace .settings-card :is(.translation-cache-limits, .request-retry-settings) > summary { padding: 14px 20px; border: 0; border-radius: 0; font-weight: 550; }
+.settings-app .workspace .settings-card :is(.translation-cache-limits, .request-retry-settings)[open] > summary { margin-bottom: 0; border-bottom: 1px solid var(--line); }
 .settings-app .settings-card summary :is(.advanced-chevron, .details-chevron) { width: 18px; height: 18px; color: var(--muted); opacity: 1; }
 .settings-app .settings-card .translation-appearance-disclosure { border-bottom: 1px solid var(--line); background: var(--surface); }
 .settings-app .settings-card .translation-appearance-chevron { color: var(--muted); }

@@ -141,52 +141,47 @@ async function main() {
     }
     report.checks.push('all sidebar groups expanded; every settings page opens without ordinary page tabs, horizontal overflow or duplicate switch-state labels');
 
-    // 数字操作区不得覆盖文本；鼠标加减、键盘、手动编辑和持久化都使用生产组件。
+    // 设置行的数值框统一为不带加减按钮的紧凑输入；键盘步进、手动编辑、范围限制和持久化都使用生产组件。
     await page.goto(`${origin}/options.html#settings-advanced`);
     const minLength = page.getByRole('spinbutton', {name: '翻译段落最少字符数', exact: true});
     const eager = page.getByRole('spinbutton', {name: '免滚动预翻译字符数', exact: true});
     await minLength.waitFor();
-    const minNumber = minLength.locator('xpath=ancestor::*[contains(@class, "el-input-number")][1]');
-    const eagerNumber = eager.locator('xpath=ancestor::*[contains(@class, "el-input-number")][1]');
-    const numberMetrics = async control => control.evaluate(e => {
-      const input = e.querySelector('input').getBoundingClientRect();
-      const minus = e.querySelector('.el-input-number__decrease').getBoundingClientRect();
-      const plus = e.querySelector('.el-input-number__increase').getBoundingClientRect();
-      return {leftGap: input.left - minus.right, rightGap: plus.left - input.right, textWidth: input.width,
-        minusWidth: minus.width, minusHeight: minus.height, plusWidth: plus.width, plusHeight: plus.height};
+    const numberMetrics = async input => input.evaluate(e => {
+      const field = e.closest('.settings-number-input').getBoundingClientRect();
+      const style = getComputedStyle(e); const canvas = document.createElement('canvas').getContext('2d');
+      canvas.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      return {fieldWidth: field.width, hasSteppers: Boolean(e.closest('.el-input-number').querySelector('.el-input-number__increase')),
+        textWidth: e.getBoundingClientRect().width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        requiredWidth: canvas.measureText(e.getAttribute('aria-valuemax') || e.value).width};
     });
-    report.metrics.numbers = await Promise.all([numberMetrics(minNumber), numberMetrics(eagerNumber)]);
+    report.metrics.numbers = await Promise.all([numberMetrics(minLength), numberMetrics(eager)]);
     for (const metric of report.metrics.numbers) {
-      assert(metric.leftGap >= 6 && metric.rightGap >= 6 && metric.textWidth >= 60, JSON.stringify(metric));
-      assert(metric.minusWidth >= 40 && metric.minusHeight >= 40 && metric.plusHeight >= 40);
+      assert(!metric.hasSteppers && metric.fieldWidth >= 120 && metric.fieldWidth <= 140, JSON.stringify(metric));
+      assert(metric.textWidth >= metric.requiredWidth + 2, `value clipped: ${JSON.stringify(metric)}`);
     }
-    await minNumber.locator('.el-input-number__increase').click();
-    await untilConfig(config => config.minTranslationTextLength === 3);
-    await minNumber.locator('.el-input-number__decrease').click();
-    await untilConfig(config => config.minTranslationTextLength === 2);
     await minLength.focus(); await page.keyboard.press('ArrowUp');
     await untilConfig(config => config.minTranslationTextLength === 3);
+    await page.keyboard.press('ArrowDown');
+    await untilConfig(config => config.minTranslationTextLength === 2);
     await minLength.fill('1'); await minLength.press('Tab');
     await untilConfig(config => config.minTranslationTextLength === 1);
-    assert(await minNumber.locator('.el-input-number__decrease').evaluate(e => e.classList.contains('is-disabled')));
-    await minNumber.locator('.el-input-number__decrease').click();
+    await minLength.focus(); await page.keyboard.press('ArrowDown');
     assert.equal(await minLength.inputValue(), '1');
-    await eagerNumber.locator('.el-input-number__increase').click();
+    await eager.focus(); await page.keyboard.press('ArrowUp');
     await untilConfig(config => config.eagerTranslationCharacters === 100);
     await eager.fill('100000'); await eager.press('Tab');
     await untilConfig(config => config.eagerTranslationCharacters === 100000);
-    assert(await eagerNumber.locator('.el-input-number__increase').evaluate(e => e.classList.contains('is-disabled')));
-    await eagerNumber.locator('.el-input-number__increase').click();
+    await eager.focus(); await page.keyboard.press('ArrowUp');
     assert.equal(await eager.inputValue(), '100000');
     await page.reload(); await eager.waitFor(); assert.equal(await eager.inputValue(), '100000');
     await shot(page, 'number-controls-desktop');
     await shot(eager.locator('xpath=ancestor::section[1]'), 'number-controls-detail');
     await page.setViewportSize({width: 390, height: 900});
-    report.metrics.numbersMobile = await numberMetrics(eagerNumber);
-    assert(report.metrics.numbersMobile.leftGap >= 6 && report.metrics.numbersMobile.rightGap >= 6);
+    report.metrics.numbersMobile = await numberMetrics(eager);
+    assert(report.metrics.numbersMobile.textWidth >= report.metrics.numbersMobile.requiredWidth + 2);
     await shot(page, 'number-controls-mobile');
     await page.setViewportSize({width: 1440, height: 960});
-    report.checks.push('numeric values have separate space from full-height minus/plus controls; click, ArrowUp, min/max, six-digit edit and reload persistence pass');
+    report.checks.push('compact numeric fields have no steppers and never clip their maximum value; ArrowUp/ArrowDown, min/max, six-digit edit and reload persistence pass');
 
     await patchConfig({vocabularyBookEnabled: false, selectionTranslatorMode: 'disabled', harness: {...(await readConfig()).harness, enabled: false}});
     await page.goto(`${origin}/options.html#settings-vocabulary`);

@@ -12,6 +12,7 @@
     <div>
       <div class="glossary-toolbar glossary-main-toolbar">
         <h3>{{ t('glossary.libraries') }} <small v-if="libraries.length">{{ libraries.length }}</small></h3>
+        <span class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft && !entryDraft ? t('glossary.saved') : '' }}</span>
         <div class="glossary-actions glossary-management-actions">
           <button v-if="totalEntries" type="button" @click="previewOpen = true"><UiIcon name="search" :size="16" />{{ t('glossary.preview') }}</button>
           <button type="button" :disabled="busy || !ready || atLibraryLimit" @click="openImport()"><UiIcon name="glossary" :size="16" />{{ t('glossary.import') }}</button>
@@ -34,7 +35,7 @@
         </div>
         <div v-if="selected.entries.length || !entryDraft" class="glossary-entry-toolbar">
           <div v-if="selected.entries.length" class="glossary-search"><UiIcon name="search" :size="17" /><input v-model="query" type="search" :aria-label="t('glossary.search')" :placeholder="t('glossary.search')" /></div>
-          <div v-else class="glossary-empty-copy"><h3>{{ t('glossary.addFirst') }}</h3><p class="glossary-help">{{ t('glossary.emptyLibraryHelp') }}</p></div>
+          <p v-else class="glossary-help glossary-empty-copy">{{ t('glossary.emptyLibraryHelp') }}</p>
           <button v-if="!entryDraft" type="button" class="primary" :disabled="!ready || busy || atEntryLimit" @click="editEntry()"><UiIcon name="plus" :size="15" />{{ t('glossary.addEntry') }}</button>
         </div>
         <p v-if="atEntryLimit" class="glossary-warning">{{ t('glossary.capacity') }}</p>
@@ -79,7 +80,6 @@
           </div>
 
       </section>
-      <span class="glossary-save-state" role="status" aria-live="polite">{{ busy ? t('glossary.saving') : saved && !hasMetadataDraft && !entryDraft ? t('glossary.saved') : '' }}</span>
       <details v-if="libraries.length > 1" class="glossary-order-details">
         <summary>{{ t('glossary.manageOrder') }}</summary>
         <p class="glossary-help">{{ t('glossary.priority') }}</p>
@@ -90,7 +90,7 @@
       </details>
     </div>
     <div ref="builtinsElement" class="glossary-builtins-page">
-      <BuiltinGlossaries :libraries="libraries" :disabled="busy || !ready" @add="addBuiltin" />
+      <BuiltinGlossaries :libraries="libraries" :enabled="enabled" :disabled="busy || !ready" @add="addBuiltin" />
     </div>
     <el-dialog v-model="previewOpen" :title="t('glossary.preview')" width="min(760px, calc(100vw - 28px))" class="glossary-check-dialog">
       <div class="fluentread-glossary glossary-preview" data-testid="glossary-preview" data-i18n-ignore>

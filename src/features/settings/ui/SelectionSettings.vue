@@ -23,7 +23,6 @@
           <div class="selection-preview-translation" data-i18n-ignore>{{ sentence ? sentenceTranslation : '好奇的；求知欲强的' }}</div>
             <div v-if="!sentence" class="selection-preview-word" data-i18n-ignore><span class="selection-pos">形容词 · adj.</span><span data-i18n-ignore>/ˈkjʊəriəs/</span><p data-i18n-ignore>Eager to know or learn something.</p><small>想了解或学习某事；在这里描述读者的求知欲。</small></div>
             <ReadingAnswer v-else :text="sentenceAnalysis" :source-text="sentenceSource" />
-          <small class="selection-preview-footnote">卡片可继续读懂、拆句、学用法和练习</small>
         </div></template>
       </SettingsPreviewLayout>
     </SettingsGroup>
@@ -69,7 +68,5 @@ const enabled = computed({get: () => props.config.selectionTranslatorMode !== 'd
 .selection-preview-word { border-top:1px solid var(--line); padding-top:14px; font-size:12px; }
 .selection-pos { display:inline-block; background:color-mix(in srgb, var(--brand) 10%, transparent); color:var(--brand); padding:3px 7px; border-radius:5px; margin-right:10px; }
 .selection-preview-word p { line-height:1.7; }
-.selection-preview-word small, .selection-preview-footnote { color:var(--muted); font-size:11px; line-height:1.7; }
-.selection-preview-footnote { display:block; margin-top:18px; }
-button:focus-visible, summary:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+.selection-preview-word small, button:focus-visible, summary:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
 </style>

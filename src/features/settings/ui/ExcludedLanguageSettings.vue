@@ -52,7 +52,7 @@ function toggle(value: string): void {
 </script>
 
 <style scoped>
-.excluded-language-body { padding: 18px; }
+.excluded-language-body { padding: 16px 20px 18px; }
 .excluded-language-options { display: flex; flex-wrap: wrap; gap: 10px; }
 .excluded-language-option { display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 44px; max-width: 100%; padding: 10px 16px; border: 1px solid var(--el-border-color-light); border-radius: 12px; background: var(--el-fill-color-light); color: var(--el-text-color-primary); font: inherit; font-weight: 500; text-align: start; cursor: pointer; }
 .excluded-language-option.is-selected { border-color: var(--el-color-primary); color: var(--el-color-primary); background: color-mix(in srgb, var(--el-color-primary) 9%, var(--surface)); }

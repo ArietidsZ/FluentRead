@@ -61,6 +61,8 @@ button:focus-visible, select:focus-visible { outline: 3px solid rgba(239, 71, 11
 .popup-shell { max-height: 560px; overflow-y: auto; scrollbar-width: thin; }
 .popup-content { position: relative; z-index: 1; }
 .popup-shell.language-onboarding-shell { overflow-x: hidden; }
+/* 首启引导直接铺满弹窗；各界面风格都会给 .popup-shell 设置留白，这里统一清除，避免弹窗里再套一层边框。 */
+.popup-shell.language-onboarding-shell { padding: 0 !important; }
 :root.dark .popup-shell {
   background:
     radial-gradient(circle at 92% 0, rgba(239, 71, 118, .16), transparent 32%),

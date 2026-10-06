@@ -65,12 +65,12 @@ function warning(feature: FeatureServiceDefinition): string {
 .feature-service-control :deep(.el-select) { width: 100%; }
 .feature-service-meta { display: contents; }
 .feature-service-meta small { color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
-.feature-service-connection { justify-self: end; margin-left: auto; border: 0; padding: 3px 0; color: var(--brand-strong); background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
+.feature-service-connection { justify-self: end; margin-left: auto; border: 0; padding: 3px 0; color: var(--brand-strong); background: transparent; font: inherit; font-size: 12px; cursor: pointer; }
 .feature-service-option { display: flex; align-items: center; gap: 9px; }
-.feature-service-warning { grid-column: 1 / -1; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.feature-service-warning { grid-column: 1 / -1; color: var(--warning, #b26a00); font-size: 12px; line-height: 1.5; }
 button:hover { color: var(--brand); }
 button:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
-.feature-services :deep(.settings-item) { grid-template-columns: minmax(160px, 1fr) minmax(280px, 440px); min-height: 72px; padding: 14px 18px; }
+.feature-services :deep(.settings-item) { grid-template-columns: minmax(160px, 1fr) minmax(280px, 440px); min-height: 72px; padding: 14px 20px; }
 .feature-service-heading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; }
 .feature-service-ai-only { white-space: nowrap; }
 .feature-service-model { overflow-wrap: anywhere; }
