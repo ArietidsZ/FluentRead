@@ -58,3 +58,8 @@ describe('卡片排版边界', () => {
         await expect(renderShareCard(value, normalizeShareCardPreferences())).rejects.toMatchObject({reason: 'canvas'});
     });
 });
+
+it.each(SHARE_CARD_THEMES)('相同译文在 %s 分享预览与导出只绘制一次', async theme => {
+    await renderShareCard({original: 'Café', translation: 'Cafe\u0301', source: ''}, normalizeShareCardPreferences({theme, translationFirst: true, showBrand: false}));
+    expect(painted.map(line => line.text)).toEqual(['Café']);
+});

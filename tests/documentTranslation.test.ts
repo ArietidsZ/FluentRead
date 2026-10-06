@@ -200,7 +200,7 @@ describe('document translation parser', () => {
 
         expect(document.segments.map((segment) => segment.source)).toEqual(['Hello\u00a0world & friends']);
         const sourcePreview = createDocumentPreviewHtml(document, [], 'source');
-        expect(sourcePreview).toContain('Hello\u00a0world &amp; friends');
+        expect(sourcePreview).toContain('Hello&nbsp;world &amp; friends');
         expect(sourcePreview).not.toContain('&amp;nbsp;');
         expect(sourcePreview).not.toContain('&amp;amp; friends');
 

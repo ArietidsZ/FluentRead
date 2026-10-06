@@ -1,7 +1,7 @@
 <!--
  * @file src/features/vocabulary/ui/VocabularyBook.vue
  * 文件职责：组织内容优先的学习收藏列表与主动复习，协调句子听读、解释保存、筛选与文件操作。
- * 主要内容：把复习作为列表主操作，收藏开关与文件动作收进管理菜单；搜索与类型筛选合为一行，每条收藏直接提供学习入口，配置、数据和朗读沿用已有消息协议。
+ * 主要内容：相同译文保留原文且不重复展示；把复习作为列表主操作，收藏开关与文件动作收进管理菜单；搜索与类型筛选合为一行，每条收藏直接提供学习入口，配置、数据和朗读沿用已有消息协议。
  * 模块边界：UI 不直接访问 Dexie 或上传学习数据；完整备份进入备份与恢复页，收藏文件只包含本领域数据，数据库操作集中在后台 repository/handler，上下文和来源只有用户明确选择时才导出。
  -->
 <template>
@@ -39,9 +39,9 @@
           <div v-else class="review-answer">
             <div class="answer-heading"><h3 data-i18n-ignore>{{ currentReview.term }}</h3><button class="vocabulary-speak" type="button" :aria-label="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" :title="playingEntryId === currentReview.id ? '停止朗读' : '朗读原文'" @click="toggleEntrySpeech(currentReview)"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h4l4-3v12l-4-3H3z" /><path :d="playingEntryId === currentReview.id ? 'M14 7v6m3-6v6' : 'M14 7a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12'" /></svg></button><span v-if="currentReview.phonetic">{{ currentReview.phonetic }}</span></div>
             <p v-if="recallDraft" class="recall-attempt">你的回忆：<span data-i18n-ignore>{{ recallDraft }}</span></p>
-            <span class="answer-reference-label">收藏时的参考内容</span>
-            <ReadingAnswer v-if="entryTranslation(currentReview)" :text="entryTranslation(currentReview)" />
-            <p v-else class="answer-translation">尚未保存参考内容。可以先进入学习页理解这个表达，再回来复习。</p>
+            <span v-if="!entryTranslation(currentReview) || hasDistinctTranslation(currentReview.term, entryTranslation(currentReview))" class="answer-reference-label">收藏时的参考内容</span>
+            <ReadingAnswer v-if="hasDistinctTranslation(currentReview.term, entryTranslation(currentReview))" :text="entryTranslation(currentReview)" />
+            <p v-else-if="!entryTranslation(currentReview)" class="answer-translation">尚未保存参考内容。可以先进入学习页理解这个表达，再回来复习。</p>
             <button type="button" class="study-entry-button" @click="openStudy(currentReview)">{{ t(isVocabularySentence(currentReview) ? 'learning.collection.listenLearn' : 'learning.collection.learnUsage') }}</button>
             <p v-if="latestContext(currentReview)?.text && latestContext(currentReview)?.text !== currentReview.term" class="answer-context" data-i18n-ignore>{{ latestContext(currentReview)?.text }}</p>
             <a v-if="latestContext(currentReview)?.sourceUrl" :href="latestContext(currentReview)?.sourceUrl" target="_blank" rel="noreferrer">查看收藏来源 ↗</a>
@@ -147,6 +147,7 @@
 </template>
 
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import UiSelect from '@/src/ui/components/UiSelect.vue';
@@ -669,8 +670,9 @@ async function exportAnki(): Promise<void> {
 }
 
 async function copyEntry(entry: VocabularyEntry, bilingual: boolean): Promise<void> {
-  const text = bilingual ? `${entry.term}\n${entryTranslation(entry)}` : entry.term;
-  try {await navigator.clipboard.writeText(text); if (lifecycle.isActive()) showToast(bilingual ? '已复制原文与译文' : '已复制原文');}
+  const paired = bilingual && hasDistinctTranslation(entry.term, entryTranslation(entry));
+  const text = paired ? `${entry.term}\n${entryTranslation(entry)}` : entry.term;
+  try {await navigator.clipboard.writeText(text); if (lifecycle.isActive()) showToast(paired ? '已复制原文与译文' : '已复制原文');}
   catch {if (lifecycle.isActive()) showToast('复制失败，可以选中原文后复制');}
 }
 

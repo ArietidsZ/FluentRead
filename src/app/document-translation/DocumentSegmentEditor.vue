@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentSegmentEditor.vue
  文件职责：提供覆盖整份文档的译文校订视图，使长文档、章节、字幕与结构化文件都可以查找和修改任意片段。
- 主要内容：按原文、译文和路径搜索，筛选未翻译片段，默认直接分页引用原始片段而不扫描译文，以每页 40 段限制 DOM 数量；页码与筛选联动，并通过事件向页面提交人工校订。
+ 主要内容：相同译文默认折叠为校订入口，用户主动编辑后保留人工校订能力；按原文、译文和路径搜索，筛选未翻译片段，默认直接分页引用原始片段而不扫描译文，以每页 40 段限制 DOM 数量；页码与筛选联动，并通过事件向页面提交人工校订。
  模块边界：只消费文档模型与译文，不调用翻译服务、不保存配置、不直接修改父级数据；任务所有权和导出由 DocumentApp 管理。
 -->
 <template>
@@ -18,7 +18,8 @@
       <div class="segment-position"><strong>#{{ segment.id + 1 }}</strong><span data-i18n-ignore>{{ segment.pathLabel || segment.contextLabel || (segment.timeStart ? `${segment.timeStart} → ${segment.timeEnd}` : translateLegacy('正文')) }}</span><small :class="{ pending: !translations[segment.id]?.trim() }">{{ translations[segment.id]?.trim() ? '已有译文' : '未翻译' }}</small></div>
       <div class="segment-edit-columns">
         <div><span class="segment-column-label">原文</span><p class="document-source" data-i18n-ignore>{{ formatDocumentReaderText(document.format, segment.source) }}</p></div>
-        <label><span class="segment-column-label">译文</span><textarea class="document-translation" :value="translations[segment.id] || ''" :aria-label="t('document.segmentTranslation', {number: segment.id + 1})" :disabled="disabled" @focus="editingId = segment.id" @blur="editingId = null" :rows="Math.min(12, Math.max(3, Math.ceil((translations[segment.id]?.length || segment.source.length) / 55)))" placeholder="译文会出现在这里，也可以手动填写" @input="emit('update', segment.id, ($event.target as HTMLTextAreaElement).value)" /></label>
+        <label v-if="!translations[segment.id]?.trim() || hasDistinctTranslation(formatDocumentReaderText(document.format, segment.source), formatDocumentReaderText(document.format, translations[segment.id] || '')) || editingSameId === segment.id"><span class="segment-column-label">译文</span><textarea class="document-translation" :value="translations[segment.id] || ''" :aria-label="t('document.segmentTranslation', {number: segment.id + 1})" :disabled="disabled" @focus="editingId = segment.id" @blur="editingId = null" :rows="Math.min(12, Math.max(3, Math.ceil((translations[segment.id]?.length || segment.source.length) / 55)))" placeholder="译文会出现在这里，也可以手动填写" @input="emit('update', segment.id, ($event.target as HTMLTextAreaElement).value)" /></label>
+        <button v-else type="button" :disabled="disabled" @click="editingSameId = segment.id">{{ translateLegacy('校订译文') }}</button>
       </div>
     </article>
     <nav v-if="pageCount > 1" class="reader-pagination" aria-label="校订分页">
@@ -29,6 +30,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import ElSelect from '@/src/ui/components/UiSelect.vue';
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
@@ -42,6 +44,7 @@ const query = ref('');
 const onlyPending = ref(false);
 const page = ref(1);
 const editingId = ref<number | null>(null);
+const editingSameId = ref<number | null>(null);
 const filteredSegments = computed(() => {
   const search = query.value.trim().toLocaleLowerCase();
   if (!search && !onlyPending.value) return props.document.segments;
@@ -54,6 +57,6 @@ const filteredSegments = computed(() => {
 });
 const pageCount = computed(() => Math.max(1, Math.ceil(filteredSegments.value.length / 40)));
 const visibleSegments = computed(() => filteredSegments.value.slice((page.value - 1) * 40, page.value * 40));
-watch([query, onlyPending, () => props.document], () => { page.value = 1; });
+watch([query, onlyPending, () => props.document], () => { page.value = 1; editingSameId.value = null; });
 watch(pageCount, (count) => { page.value = Math.min(page.value, count); });
 </script>

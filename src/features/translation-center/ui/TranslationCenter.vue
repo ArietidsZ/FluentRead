@@ -1,7 +1,7 @@
 <!--
  * @file src/features/translation-center/ui/TranslationCenter.vue
  * 文件职责：提供以输入和多服务对照为中心的翻译工作台，清晰展示凭据、请求进度和旧结果。
- * 主要内容：复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护，全局暂停取消在途任务并保留输入与已完成结果。
+ * 主要内容：相同译文保留原文且不重复展示；复用配置补丁保存语言、顺序和结果布局；服务目录按凭据状态分组并支持模型搜索；卡片提供配置入口、独立重试和复制，设置同步保留原文及结果，请求身份和停止由 comparison 模型维护，全局暂停取消在途任务并保留输入与已完成结果。
  * 模块边界：不实现 provider 协议、不保存原文和译文、不更改网页默认服务；翻译复用 app client，设置导航交给外层，卸载时释放自有页面监听器和请求。
  -->
 <template>
@@ -46,7 +46,7 @@
           <article v-for="card in cards" :key="card.service" class="translation-result-card" :data-service="card.service" :data-status="card.status" :data-stale="isStale(card)" :class="{'is-dragging': draggingService === card.service, 'is-drag-over': dragOverService === card.service}">
             <header class="translation-result-card-header"><div class="translation-result-service-name"><button class="drag-handle icon-button" type="button" :aria-label="ct('reorder', {service: serviceLabel(card.service)})" :title="ct('reorderHint')" @pointerdown.prevent.stop="startPointerDrag(card.service, $event)" @keydown.alt.arrow-up.prevent="moveCard(card.service, -1)" @keydown.alt.arrow-down.prevent="moveCard(card.service, 1)"><UiIcon name="grip" :size="15" /></button><ServiceIcon :service="card.service" :label="serviceLabel(card.service)" size="medium" /><div><strong data-i18n-ignore>{{ serviceLabel(card.service) }}</strong><small data-i18n-ignore>{{ serviceModel(card.service) || serviceCategory(card.service) }}</small></div></div><div class="translation-result-card-actions"><span class="result-state" :class="cardStatus(card)">{{ ct(cardStatus(card)) }}</span><button class="remove-service-button icon-button" type="button" :aria-label="ct('remove', {service: serviceLabel(card.service)})" :disabled="cards.length <= 1" @click="removeService(card.service)"><UiIcon name="close" :size="15" /></button></div></header>
             <div v-if="card.status === 'loading'" class="translation-result-placeholder loading-placeholder" role="status"><span class="loading-bars" aria-hidden="true"><i /><i /><i /></span>{{ ct('loading') }}<button class="text-button" type="button" @click="session.stopService(card.service)">{{ ct('stop') }}</button></div>
-            <div v-else-if="card.status === 'success'" class="translation-result-content"><p data-i18n-ignore>{{ card.result }}</p><footer><span>{{ card.input ? languageLabel(card.input.sourceLanguage) + ' → ' + languageLabel(card.input.targetLanguage) : '' }} {{ card.input?.model ? ' · ' + card.input.model : '' }} · {{ card.duration.toLocaleString() }} ms</span><div><button v-if="isStale(card)" class="text-button" type="button" :disabled="!canTranslate || !!credentialWarning(card.service)" @click="retryService(card.service)">{{ ct('refresh') }}</button><button class="text-button" type="button" @click="copyResult(card)">{{ ct(copiedService === card.service ? 'copied' : 'copy') }}</button></div></footer></div>
+            <div v-else-if="card.status === 'success'" class="translation-result-content"><p v-if="hasVisibleResult(card)" data-i18n-ignore>{{ card.result }}</p><footer><span>{{ card.input ? languageLabel(card.input.sourceLanguage) + ' → ' + languageLabel(card.input.targetLanguage) : '' }} {{ card.input?.model ? ' · ' + card.input.model : '' }} · {{ card.duration.toLocaleString() }} ms</span><div><button v-if="isStale(card)" class="text-button" type="button" :disabled="!canTranslate || !!credentialWarning(card.service)" @click="retryService(card.service)">{{ ct('refresh') }}</button><button v-if="hasVisibleResult(card)" class="text-button" type="button" @click="copyResult(card)">{{ ct(copiedService === card.service ? 'copied' : 'copy') }}</button></div></footer></div>
             <div v-else-if="credentialWarning(card.service)" class="translation-result-placeholder needs-configuration"><p>{{ translateLegacy(credentialWarning(card.service) || ct('configHint')) }}</p><button class="text-button" type="button" @click="configureService(card.service)">{{ ct('configure') }}<UiIcon name="external" :size="13" /></button></div>
             <div v-else-if="card.status === 'error'" class="translation-result-error"><p data-i18n-ignore>{{ card.error === 'empty-result' ? ct('emptyResult') : card.error || ct('requestError') }}</p><button class="text-button" type="button" :disabled="!canTranslate" @click="retryService(card.service)">{{ ct('retry') }}</button></div>
             <div v-else class="translation-result-placeholder"><p>{{ ct(card.status === 'cancelled' ? 'cancelledHint' : 'wait') }}</p><button class="text-button" type="button" :disabled="!canTranslate" @click="retryService(card.service)">{{ ct('translateOne') }}</button></div>
@@ -58,6 +58,7 @@
   </section>
 </template>
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {computed, nextTick, onMounted, onUnmounted, reactive, ref} from 'vue';
 import browser from 'webextension-polyfill';
 import {ElOption} from 'element-plus';
@@ -130,7 +131,8 @@ const sameLanguage = computed(() => sourceLanguage.value === targetLanguage.valu
 const canTranslate = computed(() => configHydrated.value && translationEnabled.value && !!sourceText.value.trim() && sourceText.value.length <= MAX_TEXT_LENGTH && !sameLanguage.value);
 const isRunning = computed(() => cards.value.some(card => card.status === 'loading'));
 const readyCards = computed(() => cards.value.filter(card => !credentialWarning(card.service)));
-const successfulCards = computed(() => cards.value.filter(card => card.status === 'success' && !isStale(card)));
+const hasVisibleResult = (card: ComparisonCard) => hasDistinctTranslation(card.input?.text ?? '', card.result);
+const successfulCards = computed(() => cards.value.filter(card => card.status === 'success' && !isStale(card) && hasVisibleResult(card)));
 const staleCount = computed(() => cards.value.filter(card => card.input && isStale(card)).length);
 const incompleteCards = computed(() => readyCards.value.filter(card => card.status === 'error' || card.status === 'cancelled'));
 const currentTaskCards = computed(() => cards.value.filter(card => card.status === 'loading' || (card.input && !isStale(card))));
@@ -287,7 +289,7 @@ async function copyText(text: string, key: string) {
   try {await navigator.clipboard.writeText(text); if (disposed) return; copiedService.value = key; feedback.value = ct('copied'); if (copiedTimer) clearTimeout(copiedTimer); copiedTimer = setTimeout(() => {copiedService.value = ''; feedback.value = '';}, 1800);}
   catch {if (!disposed) feedback.value = ct('copyError');}
 }
-function copyResult(card: ComparisonCard) {void copyText(card.result, card.service);}
+function copyResult(card: ComparisonCard) {if (hasVisibleResult(card)) void copyText(card.result, card.service);}
 function copyAllResults() {void copyText(successfulCards.value.map(card => serviceLabel(card.service) + '\n' + card.result).join('\n\n'), 'all');}
 onMounted(async () => {
   await configReady; if (disposed) return; hydrateTranslationCenterConfig(); configHydrated.value = true;

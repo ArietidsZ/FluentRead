@@ -1,9 +1,10 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、Markdown 元数据及链接保护、字幕标签保留、JSON 路径替换、空译文回退、MIME 信息和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文。
+ * 主要内容：相同译文保留原文且不重复展示；覆盖文本格式识别、片段切分、Markdown 元数据及链接保护、字幕标签保留、JSON 路径替换、空译文回退、MIME 信息和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 
 export const SUPPORTED_DOCUMENT_EXTENSIONS = [
@@ -667,13 +668,23 @@ function originalPartSource(part: SegmentPart): string {
     return part.rawSource ?? part.source;
 }
 
-/** 空白校订与尚未翻译使用同一回退规则，避免部分导出吞掉原文。 */
+/** 字幕样式标记不属于可见正文，服务省略标记时仍按相同文字处理。 */
+function hasDistinctPartTranslation(document: ParsedDocument, source: string, translation: string): boolean {
+    if (['srt', 'vtt', 'ass'].includes(document.format)) {
+        const text = (value: string) => value.replace(/<[^>]+>/gu, '').replace(/\{\\[^}]+\}/gu, '');
+        return hasDistinctTranslation(text(source), text(translation));
+    }
+    return hasDistinctTranslation(source, translation);
+}
+
+/** 空白、相同结果与尚未翻译均保留原文，避免部分导出吞字或重复显示。 */
 export function resolveDocumentTranslation(source: string, translation: string | undefined): string {
-    return translation?.trim() ? translation : source;
+    return hasDistinctTranslation(source, translation) ? translation! : source;
 }
 
 function formatBilingualTranslation(document: ParsedDocument, part: SegmentPart, translation: string): string {
     const source = originalPartSource(part);
+    if (!hasDistinctPartTranslation(document, part.source, translation)) return `${part.prefix}${source}${part.suffix}`;
     const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
         ? preserveSubtitleMarkup(part.source, translation)
         : translation;
@@ -722,7 +733,9 @@ function renderParts(document: ParsedDocument, translations: readonly string[], 
                 if (entry.kind === 'literal') return entry.value;
                 return `${entry.prefix}${resolveDocumentTranslation(entry.source, translations[entry.segmentIndex])}${entry.suffix}`;
             }).join('').replace(/\r\n?|\n/gu, '\n> ');
-            append(`${source}\n> ${translated}`);
+            const changed = groupParts.some(entry => entry.kind === 'segment' &&
+                hasDistinctTranslation(entry.source, translations[entry.segmentIndex]));
+            append(changed ? `${source}\n> ${translated}` : source);
             continue;
         }
         if (part.kind === 'literal') {
@@ -730,6 +743,10 @@ function renderParts(document: ParsedDocument, translations: readonly string[], 
             continue;
         }
         const translation = resolveDocumentTranslation(part.source, translations[part.segmentIndex]);
+        if (!hasDistinctPartTranslation(document, part.source, translation)) {
+            append(`${part.prefix}${originalPartSource(part)}${part.suffix}`);
+            continue;
+        }
         if (mode === 'bilingual') {
             append(formatBilingualTranslation(document, part, translation));
             continue;
@@ -778,6 +795,7 @@ export function renderDocument(
         const original = getAtPath(output, entry.path);
         if (typeof original !== 'string') return;
         const translation = resolveDocumentTranslation(original.trim(), translations[entry.segmentIndex]);
+        if (!hasDistinctTranslation(original, translation)) return;
         const value = mode === 'bilingual'
             ? `${entry.prefix}${original.trim()}\n${translation}${entry.suffix}`
             : `${entry.prefix}${translation}${entry.suffix}`;

@@ -144,13 +144,14 @@ describe('document translation edge contracts', () => {
         expect(preview).toContain('horizontal-rule');
         expect(preview).toContain('reader-unit list-item');
         expect(preview).toContain('reader-unit quote');
-        expect(renderDocument(markdown, [], 'bilingual')).toContain('> - Item');
+        expect(renderDocument(markdown, [], 'bilingual')).toBe(renderDocument(markdown, [], 'translated'));
         expect(createDocumentPreviewHtml(markdown, [], 'source')).toContain('Item');
 
         const text = parseDocument('notes.txt', 'First\n\nSecond');
         expect(createDocumentPreviewHtml(text, ['第一'], 'translated')).toContain('Second');
         const emptyFirstTranslation = createDocumentPreviewHtml(text, ['', '第二'], 'translated');
-        expect(emptyFirstTranslation).toContain('<p class="reader-translation fluentread-translation"></p>');
+        expect(emptyFirstTranslation).toContain('<p class="reader-source">First</p>');
+        expect(emptyFirstTranslation).not.toContain('<p class="reader-translation fluentread-translation"></p>');
         expect(emptyFirstTranslation).toContain('<p class="reader-translation fluentread-translation">第二</p>');
 
         expect(() => createDocumentPreviewHtml(parseDocument('episode.srt', 'WEBVTT\n'), [], 'source'))

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/vocabulary/ui/CollectionEntry.vue
  * 文件职责：以内容优先的单列布局展示收藏的原文、译文和独立解释。
- * 主要内容：每条收藏直接提供听读理解或学习用法入口；朗读紧邻原文，复制与管理集中在可键盘使用的菜单，编辑解释时才挂载编辑器。
+ * 主要内容：相同译文保留原文且不重复展示；每条收藏直接提供听读理解或学习用法入口；朗读紧邻原文，复制与管理集中在可键盘使用的菜单，编辑解释时才挂载编辑器。
  * 模块边界：不访问存储、不发起朗读或模型请求，数据操作交由父级处理；解释编辑沿用已有保存组件。
  -->
 <template>
@@ -13,8 +13,8 @@
         <details ref="menu" class="entry-more" name="fluentread-collection-popover" @keydown.esc.stop.prevent="closeMenu">
           <summary aria-label="更多收藏操作" title="更多收藏操作"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h.01 M10 10h.01 M16 10h.01"/></svg></summary>
           <div class="entry-menu">
-            <button type="button" @click="closeMenu(); emit('copy', Boolean(translation))">{{ translation ? '复制双语' : '复制原文' }}</button>
-            <button v-if="translation" type="button" @click="closeMenu(); emit('copy', false)">复制原文</button>
+            <button type="button" @click="closeMenu(); emit('copy', visibleTranslation)">{{ visibleTranslation ? '复制双语' : '复制原文' }}</button>
+            <button v-if="visibleTranslation" type="button" @click="closeMenu(); emit('copy', false)">复制原文</button>
             <button type="button" @click="editNote">{{ entry.note ? '编辑解释' : '添加简短解释' }}</button>
             <button type="button" :disabled="busy" @click="act('mastery')">{{ entry.status === 'mastered' ? '重新学习' : '标记掌握' }}</button>
             <details class="entry-info">
@@ -28,7 +28,7 @@
         </details>
       </div>
     </header>
-    <p v-if="translation" class="entry-translation" data-i18n-ignore>{{ sentence ? translation : vocabularyReferencePreview(translation) }}</p>
+    <p v-if="visibleTranslation" class="entry-translation" data-i18n-ignore>{{ sentence ? translation : vocabularyReferencePreview(translation) }}</p>
     <p v-if="entry.note && !editing" class="entry-note" data-i18n-ignore>{{ entry.note }}</p>
     <SavedExplanation v-if="editing" :entry="entry" initial-editing @updated="updated" @cancel="editing = false" />
     <footer class="entry-footer">
@@ -38,6 +38,7 @@
   </article>
 </template>
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {computed, nextTick, ref} from 'vue';
 import {isVocabularySentence, vocabularyReferencePreview, vocabularyStudyContext, type VocabularyEntry} from '../learningModel';
 import SavedExplanation from './SavedExplanation.vue';
@@ -46,6 +47,7 @@ import {useUiI18n} from '@/src/ui/i18n';
 const {t} = useUiI18n();
 const props = defineProps<{entry: VocabularyEntry; translation: string; playing: boolean; busy: boolean; status: string; review: string}>();
 const emit = defineEmits<{study: []; speak: []; copy: [bilingual: boolean]; mastery: []; remove: []; updated: [entry: VocabularyEntry]}>();
+const visibleTranslation = computed(() => hasDistinctTranslation(props.entry.term, props.translation));
 const sentence = computed(() => isVocabularySentence(props.entry));
 const context = computed(() => vocabularyStudyContext(props.entry));
 const root = ref<HTMLElement>();

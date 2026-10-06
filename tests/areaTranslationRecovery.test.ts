@@ -1,3 +1,4 @@
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
@@ -27,6 +28,7 @@ function mountRecovery() {
   const translate = vi.fn().mockRejectedValueOnce(new Error('图片文字识别需要先下载中文、English语言包，请前往设置下载')).mockResolvedValue(result);
   const prepare = vi.fn().mockResolvedValue(undefined);
   const modules: Record<string, any> = {
+    '@/src/core/translation/result': {hasDistinctTranslation},
     vue: Vue, 'webextension-polyfill': {default: {runtime: {sendMessage: vi.fn()}}},
     '@/src/services/config/store': {config, subscribeConfig: () => () => undefined},
     '@/src/core/config/customOpenAI': {isCustomOpenAIProviderId: () => false},

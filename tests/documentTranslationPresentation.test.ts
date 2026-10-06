@@ -59,7 +59,7 @@ describe('document translation presentation', () => {
         const pdf = parsed('pdf', {kind: 'pdf', bytes: new Uint8Array(), pages: []});
         pdf.segments = [{id: 0, source: 'Original'}, {id: 1, source: 'Pending'}];
         expect(getDocumentExportPreview(pdf, ['译文', ' '], 'translated')).toBe('译文\n\nPending');
-        expect(getDocumentExportPreview(pdf, ['译文'], 'bilingual')).toBe('Original\n译文\n\nPending\nPending');
+        expect(getDocumentExportPreview(pdf, ['译文'], 'bilingual')).toBe('Original\n译文\n\nPending');
     });
 
     it('按文档类型返回稳定的阅读器说明', () => {

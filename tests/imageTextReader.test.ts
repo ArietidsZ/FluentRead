@@ -86,3 +86,16 @@ describe('图片文字独立阅读面板', () => {
         expect(target.getAttribute('aria-pressed')).toBe('false');expect(onClose).not.toHaveBeenCalled();
     });
 });
+
+it('对照与复制不重复相同结果，混合结果仍展示正常译文', async () => {
+    reader.setLines([{sourceText: 'Café', text: 'Cafe\u0301'}, {sourceText: 'Read every day', text: '每天阅读'}]);
+    reader.open(); event(compare());
+    expect(body().querySelectorAll('pre')).toHaveLength(3);
+    expect(body().textContent).toBe('CaféRead every day每天阅读');
+    event(copy()); await Promise.resolve();
+    expect(writeText).toHaveBeenLastCalledWith('Café\n\nRead every day\n每天阅读');
+    reader.setLines([{sourceText: 'Hello world', text: ' Hello  world '}]);
+    expect((compare() as HTMLElement).hidden).toBe(true);
+    expect(body().querySelectorAll('pre')).toHaveLength(1);
+    expect(body().textContent).toBe('Hello world');
+});

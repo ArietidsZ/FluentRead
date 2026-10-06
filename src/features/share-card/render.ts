@@ -1,9 +1,10 @@
 /**
  * @file src/features/share-card/render.ts
  * 文件职责：用本地 Canvas 排版双语摘录，生成预览与导出共用的高清 PNG。
- * 主要内容：按八套主题字体真实度量换行，珊瑚上下分区，月白与蓝图双栏，晴空与落日居中，流光彩字，抹茶与书页衬线摘录；容量不足时拒绝裁切。
+ * 主要内容：相同译文保留原文且不重复展示；按八套主题字体真实度量换行，珊瑚上下分区，月白与蓝图双栏，晴空与落日居中，流光彩字，抹茶与书页衬线摘录；容量不足时拒绝裁切。
  * 模块边界：不截图宿主页面、不加载远程字体或图片、不上传文字；消费摘录与外观，装饰委托 themes，剪贴板及下载由导出适配器负责。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import type {ShareCardPreferences} from '@/src/core/config/shareCard';
 import {cleanCardText, SHARE_CARD_MAX_HEIGHT, validateCardExcerpt, wrapCardText, type ShareCardExcerpt} from './core';
 import {CARD_SECONDARY_FONT, CARD_THEMES, cardPrismInk, paintCardBackground} from './themes';
@@ -24,13 +25,14 @@ export async function renderShareCard(excerpt: ShareCardExcerpt, preferences: Sh
     const theme = CARD_THEMES[preferences.theme];
     const {inset} = theme;
     const fullWidth = WIDTH - inset * 2;
-    const columns = preferences.theme === 'pearl' || preferences.theme === 'blueprint';
+    const distinct = hasDistinctTranslation(excerpt.original, excerpt.translation);
+    const columns = distinct && (preferences.theme === 'pearl' || preferences.theme === 'blueprint');
     const centered = preferences.theme === 'sky' || preferences.theme === 'sunset';
     const textWidth = columns ? (fullWidth - 40) / 2 : fullWidth;
     const firstFont = (size: number) => theme.font.replace('{size}', String(size));
     const secondFont = (size: number) => `400 ${size}px ${CARD_SECONDARY_FONT}`;
-    const firstText = cleanCardText(preferences.translationFirst ? excerpt.translation : excerpt.original);
-    const secondText = cleanCardText(preferences.translationFirst ? excerpt.original : excerpt.translation);
+    const firstText = cleanCardText(distinct && preferences.translationFirst ? excerpt.translation : excerpt.original);
+    const secondText = distinct ? cleanCardText(preferences.translationFirst ? excerpt.original : excerpt.translation) : '';
     let fontSize = {small: 23, medium: 28, large: 32}[preferences.fontSize];
     const wrap = (text: string, font: string) => {
         context.font = font;
@@ -41,11 +43,11 @@ export async function renderShareCard(excerpt: ShareCardExcerpt, preferences: Sh
     context.font = secondFont(11);
     const footerLines = footer ? wrapCardText(footer, fullWidth - (preferences.showBrand ? 110 : 0), value => context.measureText(value).width) : [];
     const footerHeight = Math.max(footerLines.length * 17, preferences.showBrand ? 17 : 0);
-    const gap = preferences.theme === 'coral' ? 45 : 32;
+    const gap = distinct ? (preferences.theme === 'coral' ? 45 : 32) : 0;
     const padding = (columns ? 105 : 105 + gap) + footerHeight;
     while (true) {
         first = wrap(firstText, firstFont(fontSize));
-        second = wrap(secondText, secondFont(fontSize - 7));
+        second = distinct ? wrap(secondText, secondFont(fontSize - 7)) : [];
         const firstHeight = first.length * fontSize * 1.4, secondHeight = second.length * (fontSize - 7) * 1.6;
         contentHeight = columns ? Math.max(firstHeight, secondHeight) : firstHeight + secondHeight;
         if (preferences.format !== 'square' || contentHeight + padding <= WIDTH) break;
@@ -76,7 +78,7 @@ export async function renderShareCard(excerpt: ShareCardExcerpt, preferences: Sh
     if (columns) {
         context.fillStyle = preferences.theme === 'blueprint' ? '#90bcd166' : '#e4e5ec'; context.fillRect(WIDTH / 2, top, 1, contentHeight);
         y = top;
-    } else {
+    } else if (distinct) {
         if (preferences.theme !== 'coral') {
             context.fillStyle = theme.accent;
             context.fillRect(centered ? WIDTH / 2 - 12 : inset, y + 10, 24, 1);

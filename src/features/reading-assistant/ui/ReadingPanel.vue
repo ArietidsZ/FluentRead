@@ -1,7 +1,7 @@
 <!--
  * @file src/features/reading-assistant/ui/ReadingPanel.vue
  * 文件职责：在划词卡内以内容为主呈现学习回答，复用父卡片导航、提供紧凑操作栏、向上滚动可对照的原文译文与连续追问。
- * 主要内容：按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读和 30 天问答记录收进次级操作，在回答下方区分原文收藏与学习笔记；原文收藏仅保存对应译文，笔记保存不依赖 AI 参考开关，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
+ * 主要内容：相同译文保留原文且不重复展示；按原文与配置复用各学习动作的已完成回答，显式重新生成；历史问答按轮次与问题摘要逐条展开，区分当前问答与旧回答，切换回答时收起历史；四类动作的原文与匹配译文统一保留在滚动区顶部，进入回答时滚过对照内容，译文晚到时保持回答位置，关闭局部浏览器滚动锚定以避免流式格式变化移动阅读位置；提供查看原文快捷入口，重复点击当前动作保留位置和待发送追问；把原文朗读和 30 天问答记录收进次级操作，在回答下方区分原文收藏与学习笔记；原文收藏仅保存对应译文，笔记保存不依赖 AI 参考开关，让多语言动作标签按空间换行，统一呈现 Markdown，以局部主题变量保持正文、状态和操作文字的对比度，并以代次隔离过期请求。
  * 模块边界：不持有模型密钥、不扫描页面、不直接请求供应商；记录由后台会话仓库保存，父划词组件负责选区、位置和 Shadow UI 生命周期。
  -->
 <template>
@@ -46,9 +46,9 @@
       <section class="fr-reading-source" :aria-label="translateLegacy('原文')">
         <span>原文</span>
         <p data-i18n-ignore>{{ activeText }}</p>
-        <div v-if="activeTranslation" class="fr-reading-translation" :aria-label="translateLegacy('译文')">
+        <div v-if="activeTranslation && (activeTranslation.pending || activeTranslation.error || hasDistinctTranslation(activeText, activeTranslation.text))" class="fr-reading-translation" :aria-label="translateLegacy('译文')">
           <span>{{ translateLegacy('译文') }}</span>
-          <p v-if="activeTranslation.text" data-i18n-ignore>{{ activeTranslation.text }}</p>
+          <p v-if="hasDistinctTranslation(activeText, activeTranslation.text)" data-i18n-ignore>{{ activeTranslation.text }}</p>
           <p v-else role="status">{{ translateLegacy(activeTranslation.pending ? '正在翻译…' : activeTranslation.error || '翻译失败，请重试') }}</p>
         </div>
       </section>
@@ -108,6 +108,7 @@
 </template>
 
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import {useUiI18n} from "@/src/ui/i18n";
 const {t, translateLegacy} = useUiI18n();
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue';

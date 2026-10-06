@@ -1,9 +1,10 @@
 /**
  * @file src/features/image-translation/core.ts
  * 文件职责：提供图片翻译可复用的纯数据算法，用于选择真正发生变化的译文、确定 OCR 语言组合并清理 OCR 行数据。
- * 主要内容：从 shared/image 复用 OcrLine 类型，筛选有效译文、规划图片与圈选各自的有界 OCR 尺寸及边框，映回原图坐标，规范化词组、标点和置信度，按基线方向区分横竖排并合并同一气泡的竖列，避免噪声进入翻译与绘制。
+ * 主要内容：相同译文保留原文且不重复展示；从 shared/image 复用 OcrLine 类型，筛选有效译文、规划图片与圈选各自的有界 OCR 尺寸及边框，映回原图坐标，规范化词组、标点和置信度，按基线方向区分横竖排并合并同一气泡的竖列，避免噪声进入翻译与绘制。
  * 模块边界：该模块不接触 Canvas、Tesseract、网络或浏览器消息；OCR 执行归 ocrRuntime，像素修补与文本绘制归 services，页面展示归 content/runtime。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import { getRequiredImageOcrLanguages, type ImageOcrLanguageCode } from './ocrLanguages';
 import type { OcrLine } from '@/src/shared/image/types';
 
@@ -23,7 +24,7 @@ function normalizeTranslationComparison(text: string): string {
 export function selectChangedTranslations<T extends OcrLine>(lines: T[], translations: string[]): T[] {
     return lines.flatMap((line, index) => {
         const text = translations[index]?.trim() || line.text;
-        return normalizeTranslationComparison(text) === normalizeTranslationComparison(line.text)
+        return !hasDistinctTranslation(line.text, text) || normalizeTranslationComparison(text) === normalizeTranslationComparison(line.text)
             ? []
             : [{ ...line, text }];
     });

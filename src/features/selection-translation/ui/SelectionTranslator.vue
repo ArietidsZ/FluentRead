@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏词书、双语分享卡片、重试和关闭。
- * 主要内容：组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -53,7 +53,7 @@
         <div v-else-if="error && !translationResult && !wordCard" class="fr-error-state"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
         <div v-else class="fr-translation-container">
           <section v-if="isWordSelection && (wordCard || isWordCardLoading)" class="fr-word-learning-card" aria-label="单词学习卡">
-            <div v-if="isWordCardLoading && !wordCard" class="fr-word-card-loading" role="status"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>{{ translationResult ? '译文已显示，正在补充词典…' : '正在查询词典，译文会先显示…' }}</span></div>
+            <div v-if="isWordCardLoading && !wordCard" class="fr-word-card-loading" role="status"><span :class="['fr-loading-spinner', { 'fr-static': !config.animations }]" aria-hidden="true" /><span>{{ hasDistinctTranslationResult ? '译文已显示，正在补充词典…' : '正在查询词典，译文会先显示…' }}</span></div>
             <template v-else-if="wordCard">
               <div class="fr-word-heading">
                 <div>
@@ -81,7 +81,7 @@
                   </button>
                 </div>
               </div>
-              <div v-if="translationResult" class="fr-word-translation">
+              <div v-if="hasDistinctTranslationResult" class="fr-word-translation">
                 <div class="fr-word-translation-header">
                   <span class="fr-text-label">译文</span>
                   <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('translation') }" data-copy-kind="translation" type="button" :title="copyButtonTitle('translation')" :aria-label="copyButtonTitle('translation')" @click="copyText(translationResult, 'translation')">
@@ -121,7 +121,7 @@
             </template>
           </section>
           <div v-if="isWordSelection && wordCardError" class="fr-word-fallback-note" role="status"><span>{{ wordCardError }}</span><button type="button" @click="retryWordCard">重查词典</button></div>
-          <div v-if="selectionSettings.mode === 'bilingual' && !isWordCardVisible" class="fr-text-block fr-original-text">
+          <div v-if="(selectionSettings.mode === 'bilingual' || (translationResult && !hasDistinctTranslationResult)) && !isWordCardVisible" class="fr-text-block fr-original-text">
             <div class="fr-text-block-header">
               <span class="fr-text-label">原文</span>
               <div class="fr-text-actions">
@@ -138,7 +138,7 @@
             </div>
             <pre><template v-for="(part, index) in snapshot?.parts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
           </div>
-          <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && !isWordCardVisible" class="fr-text-block fr-translation-result">
+          <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && hasDistinctTranslationResult && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-block-header">
               <span class="fr-text-label">译文</span>
               <div class="fr-text-actions">
@@ -170,6 +170,7 @@
 </template>
 
 <script setup lang="ts">
+import {hasDistinctTranslation} from '@/src/core/translation/result';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
 import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
@@ -351,6 +352,7 @@ const SELECTION_LOSS_GRACE_MS = 160;
 const PENDING_SELECTION_SHORTCUT_MS = 250;
 
 const selectedWord = computed(() => normalizeEnglishWord(selectedText.value));
+const hasDistinctTranslationResult = computed(() => hasDistinctTranslation(selectedText.value, translationResult.value));
 const canChooseChineseEnglishTarget = computed(() => isChineseEnglishTarget(selectionSettings.value.to));
 const chineseTargetLanguage = computed(() => selectionSettings.value.to === 'zh-Hant'
   ? 'zh-Hant' : selectionSettings.value.to === 'zh-Hans' ? 'zh-Hans'
