@@ -391,7 +391,7 @@ export const zhCNMessages = {
     "settings.services.library.favorite": "将 {service} 设为常用",
     "settings.services.library.unfavorite": "取消常用：{service}",
     "settings.services.freeWeights.mode": "智能加速",
-    "settings.services.freeWeights.strategy": "优先使用快且稳定的服务，遇到问题自动切换",
+    "settings.services.freeWeights.strategy": "优先使用快且稳定的官方节点，最多六条任务并行，遇到问题自动切换",
     "settings.services.freeWeights.budget": "每个服务最多尝试一次，整轮最多 20 秒；免费翻译不重复执行全局重试",
     "settings.services.freeWeights.services": "参与翻译的服务",
     "settings.services.freeWeights.enabledCount": "已开启 {count} 个",

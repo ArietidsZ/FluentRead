@@ -13,7 +13,7 @@ import {buildConfigDiff} from '@/src/core/config/diff';
 describe('keyless free translation configuration', () => {
     it('migrates old settings while keeping explicit opt-outs and never automatically adding paid-capable accounts', () => {
         expect(new Config().freeTranslationOrder).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
-        expect(new Config().freeTranslationOrder).toEqual(FREE_TRANSLATION_PROVIDERS.filter(provider => provider.id !== 'deeplx').map(provider => provider.id));
+        expect(new Config().freeTranslationOrder).toEqual(FREE_TRANSLATION_PROVIDERS.map(provider => provider.id));
         for (const value of [undefined, null, 'myMemory', [], ['untrusted', 42]]) {
             expect(normalizeFreeTranslationOrder(value)).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
         }
@@ -21,16 +21,20 @@ describe('keyless free translation configuration', () => {
             .toEqual(['myMemory', 'google']);
         expect(normalizeConfig({freeTranslationOrder: ['myMemory']}).freeTranslationOrder).toEqual(['myMemory']);
         expect(FREE_TRANSLATION_PROVIDERS.find(item => item.id === 'myMemory')?.official).toBe(true);
-        expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'deeplx', 'myMemory', 'sogouFree', 'reversoFree', 'lingvaFree', 'apertiumFree']);
+        expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree']);
         expect(normalizeFreeTranslationOrder(['azureTranslator', 'myMemory', 'deepL', 'openai'])).toEqual(['myMemory']);
         expect(normalizeFreeTranslationOrder(['azureTranslator', 'deepL'])).toEqual(DEFAULT_FREE_TRANSLATION_ORDER);
     });
 
-    it('keeps DeepLX opt-in across normalization and configuration round-trips', () => {
-        expect(new Config().freeTranslationOrder).not.toContain('deeplx');
-        const enabled = normalizeConfig({freeTranslationOrder: ['deeplx', 'google']});
-        expect(enabled.freeTranslationOrder).toEqual(['deeplx', 'google']);
-        expect(prepareConfigForImport(prepareConfigForExport(enabled), new Config()).freeTranslationOrder).toEqual(['deeplx', 'google']);
+    it('移除第三方旧节点并保留用户已选择的官方节点和独立 DeepLX 配置', () => {
+        expect(FREE_TRANSLATION_PROVIDERS.every(provider => provider.official)).toBe(true);
+        expect(normalizeFreeTranslationOrder(['deeplx', 'lingvaFree', 'google'])).toEqual(['google']);
+        const enabled = normalizeConfig({freeTranslationOrder: ['deeplx', 'google'], deeplx: 'https://user.example/translate'});
+        expect(enabled.freeTranslationOrder).toEqual(['google']);
+        const imported = prepareConfigForImport(prepareConfigForExport(enabled), new Config());
+        expect(imported.freeTranslationOrder).toEqual(['google']);
+        expect(imported.deeplx).toBe('https://user.example/translate');
+        expect(normalizeFreeTranslationOrder(['alibabaFree'])).toEqual(['alibabaFree']);
     });
 
     it('bounds timing and validates optional contact fields', () => {
@@ -76,6 +80,8 @@ describe('keyless free translation configuration', () => {
         expect(changes).toHaveLength(4);
         expect(changes.find(item => item.key === 'freeTranslationOrder')?.after).toContain('MyMemory');
         expect(changes.find(item => item.key === 'freeTranslationTimeoutMs')?.after).toContain('3000');
+        const officialChanges = buildConfigDiff({freeTranslationOrder: ['modernMtFree']}, {freeTranslationOrder: ['alibabaFree']});
+        expect(officialChanges.groups[0]!.changes[0]!.after).toContain('阿里翻译');
         expect(buildConfigDiff({freeTranslationOrder: null}, {freeTranslationOrder: 'invalid'}).changeCount).toBe(1);
     });
 });

@@ -394,7 +394,7 @@ export const enUSMessages = {
     "settings.services.library.favorite": "Favorite {service}",
     "settings.services.library.unfavorite": "Unfavorite {service}",
     "settings.services.freeWeights.mode": "Smart acceleration",
-    "settings.services.freeWeights.strategy": "Uses fast, reliable services and switches automatically when needed.",
+    "settings.services.freeWeights.strategy": "Uses fast, reliable official endpoints with up to six parallel tasks and automatic failover",
     "settings.services.freeWeights.budget": "Each service is tried once, within a 20-second total budget. Free translation does not repeat global retries.",
     "settings.services.freeWeights.services": "Translation services",
     "settings.services.freeWeights.enabledCount": "{count} enabled",

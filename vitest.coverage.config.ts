@@ -156,6 +156,7 @@ export default defineConfig({
             'tests/freeTranslationHealthStorage.test.ts',
             'tests/freeChineseWebProviders.test.ts',
             'tests/freeExtraWebProviders.test.ts',
+            'tests/freeOfficialWebProviders.test.ts',
             'tests/myMemoryProvider.test.ts',
             'tests/myMemoryConnectionTest.test.ts',
             'tests/freeWebProviders.test.ts',

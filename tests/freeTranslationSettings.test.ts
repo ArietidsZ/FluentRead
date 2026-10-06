@@ -184,12 +184,15 @@ describe('free translation settings compiled component', () => {
     const details = elements.find(element => element.props['data-testid'] === 'free-routing-details');
     expect(details).toBeUndefined();
     expect(elements.some(element => element.tag === 'details')).toBe(false);
-    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('17.9%');
-    expect(control('启用 DeepLX').props['model-value']).toBe(false);
-    state.toggle('deeplx', true);
+    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('13.9%');
+    expect(control('启用 阿里翻译').props['model-value']).toBe(true);
+    state.toggle('alibabaFree', false);
     await runtime.nextTick();
-    expect(control('启用 DeepLX').props['model-value']).toBe(true);
-    expect(config.freeTranslationOrder).toContain('deeplx');
+    expect(control('启用 阿里翻译').props['model-value']).toBe(false);
+    state.toggle('alibabaFree', true);
+    await runtime.nextTick();
+    expect(control('启用 阿里翻译').props['model-value']).toBe(true);
+    expect(config.freeTranslationOrder).toContain('alibabaFree');
     expect(readFileSync(resolve(process.cwd(), componentPath), 'utf8')).not.toContain('setWeight');
   });
 

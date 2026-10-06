@@ -392,7 +392,7 @@ export const ruRUMessages = {
     "settings.services.library.favorite": "Добавить {service} в избранное",
     "settings.services.library.unfavorite": "Убрать {service} из избранного",
     "settings.services.freeWeights.mode": "Умное ускорение",
-    "settings.services.freeWeights.strategy": "Предпочитает быстрые и стабильные сервисы, автоматически переключаясь при проблемах.",
+    "settings.services.freeWeights.strategy": "Использует быстрые официальные узлы: до шести параллельных задач с автоматическим переключением при сбоях",
     "settings.services.freeWeights.budget": "Одна попытка на сервис, всего до 20 секунд. Бесплатный перевод не повторяет глобальные попытки.",
     "settings.services.freeWeights.services": "Сервисы перевода",
     "settings.services.freeWeights.enabledCount": "Включено: {count}",
