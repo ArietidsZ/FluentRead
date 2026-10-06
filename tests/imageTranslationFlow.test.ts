@@ -96,6 +96,11 @@ describe('图片失败恢复和控件可见性', () => {
         expect(ui.element.hidden).toBe(true);ui.setHovered(true);expect(ui.element.hidden).toBe(false);
         vi.spyOn(ui.button,'matches').mockImplementation(selector => selector === ':focus-visible');
         ui.button.dispatchEvent(new window.Event('focusin',{bubbles:true}));ui.setHovered(false);expect(ui.element.hidden).toBe(false);
+        for (const target of [ui.button,ui.reader,document.body]) {
+            if (target !== document.body) vi.spyOn(target,'matches').mockImplementation(selector => selector === ':focus-visible');
+            const event = new window.Event('focusout',{bubbles:true});Object.defineProperty(event,'relatedTarget',{value:target});
+            ui.button.dispatchEvent(event);expect(ui.element.hidden).toBe(target === document.body);
+        }
         ui.button.dispatchEvent(new window.Event('focusout',{bubbles:true}));expect(ui.element.hidden).toBe(true);
         ui.setHovered(true);click(ui.element.querySelector<HTMLButtonElement>('[aria-expanded]')!);ui.setHovered(false);expect(ui.element.hidden).toBe(false);
         ui.hideReader();expect(ui.element.hidden).toBe(true);ui.dispose();click(model);expect(onSettings).toHaveBeenCalledTimes(2);
@@ -289,7 +294,7 @@ describe('图片翻译流程优化',()=>{
         expect(ui.element.className).toBe('fr-image-controls');
         expect(ui.feedback.hidden).toBe(false);
         expect(ui.spinner.getAttribute('aria-hidden')).toBe('true');
-        ui.update('loading','正在识别文字',{animations:false});expect(ui.spinner.dataset.animated).toBe('false');
+        ui.update('loading','正在识别文字',{animations:false});expect(ui.spinner.dataset.animated).toBe('true');
         click(ui.button,false);expect(onAction).not.toHaveBeenCalled();click(ui.button,true);expect(onAction).toHaveBeenCalledOnce();
         ui.update('error','首次使用需准备识别语言包，下载后自动继续',{prepare:true});const buttons=ui.feedback.querySelectorAll('button');expect(buttons).toHaveLength(6);expect(buttons[1].hidden).toBe(false);expect(buttons[1].textContent).toBe('下载语言包并翻译');expect(buttons[1].className).toBe('fr-image-prepare');expect(buttons[0].textContent).toBe('关闭');expect(ui.element.dataset.preparation).toBe('true');expect(ui.feedback.querySelector('.fr-image-actions')).not.toBeNull();click(buttons[1],true);expect(onPrepare).toHaveBeenCalledOnce();click(buttons[0],true);expect(onDismiss).toHaveBeenCalledOnce();
         expect(ui.feedback.hidden).toBe(false);

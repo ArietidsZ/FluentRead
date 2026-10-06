@@ -130,6 +130,37 @@ describe('local translation paragraph language detection', () => {
     } finally { disposeLocalTranslationWorker(); }
   });
 
+  it('rebuilds a failed pthread runtime once with singleThread and returns the fresh result', async () => {
+    vi.resetModules();
+    vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
+      createLocalTranslationDownloadManager: () => ({status: async () => ({tasks: [{model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, phase: 'ready'}]})}),
+    }));
+    const workers: FakeWorker[] = [];
+    class FakeWorker {
+      onmessage?: (event: any) => void;
+      terminate = vi.fn();
+      messages: any[] = [];
+      constructor() {workers.push(this);}
+      postMessage(message: any) {
+        this.messages.push(message);
+        queueMicrotask(() => this.onmessage?.({data: {
+          requestId: message.requestId, success: message.singleThread === true,
+          ...(message.singleThread ? {result: 'Fresh result'} : {retrySingleThread: true, error: 'pthread unavailable'}),
+        }}));
+      }
+    }
+    vi.stubGlobal('Worker', FakeWorker);
+    vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
+    const owner = await import('@/src/features/local-translation/offscreen/translation');
+    try {
+      await expect(owner.translateLocalText({model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn,text:'Hello world',sourceLanguage:'en',targetLanguage:'zh'})).resolves.toBe('Fresh result');
+      expect(workers).toHaveLength(2);
+      expect(workers[0].terminate).toHaveBeenCalledOnce();
+      expect(workers[1].messages).toHaveLength(1);
+      expect(workers[1].messages[0].singleThread).toBe(true);
+    } finally {owner.disposeLocalTranslationWorker();}
+  });
+
   it('uses real detection with paragraph context, preserves explicit choices and handles blank context', async () => {
     vi.resetModules();
     vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
@@ -161,6 +192,108 @@ describe('local translation paragraph language detection', () => {
       }
     } finally {
       disposeLocalTranslationWorker();
+    }
+  });
+});
+
+describe('local translation idle disposal while waiting for shared capacity', () => {
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.doUnmock('@/src/features/local-translation/offscreen/downloads');
+    vi.doUnmock('@/src/shared/onnx/resources');
+    vi.resetModules();
+  });
+
+  it.each(['reuse', 'switch-model'] as const)('keeps the warm worker alive past its old idle deadline while a %s request waits for capacity', async mode => {
+    vi.useFakeTimers();
+    vi.resetModules();
+    const readyModels = [LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, LOCAL_TRANSLATION_MODEL_IDS.m2m100];
+    vi.doMock('@/src/features/local-translation/offscreen/downloads', () => ({
+      createLocalTranslationDownloadManager: () => ({
+        status: async () => ({tasks: readyModels.map(model => ({model, phase: 'ready'}))}),
+      }),
+    }));
+    const resources = await vi.importActual<typeof import('@/src/shared/onnx/resources')>('@/src/shared/onnx/resources');
+    const budget = vi.fn(resources.createLocalInferenceBudget(1));
+    vi.doMock('@/src/shared/onnx/resources', () => ({...resources, withLocalInferenceBudget: budget}));
+
+    const workers: IdleWorker[] = [];
+    class IdleWorker {
+      onmessage?: (event: any) => void;
+      onerror?: (event: any) => void;
+      messages: any[] = [];
+      terminate = vi.fn();
+      constructor() {workers.push(this);}
+      postMessage(message: any) {this.messages.push(message);}
+      complete(result: string) {
+        this.onmessage?.({data: {requestId: this.messages.at(-1).requestId, success: true, result}});
+      }
+    }
+    const flush = async () => {for (let index = 0; index < 10; index++) await Promise.resolve();};
+    vi.stubGlobal('Worker', IdleWorker);
+    vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'https://extension.test/offscreen.html'}});
+    const owner = await import('@/src/features/local-translation/offscreen/translation');
+    const request = {model: LOCAL_TRANSLATION_MODEL_IDS.opusZhEn, text: 'Warm request', sourceLanguage: 'en', targetLanguage: 'zh'};
+    const controller = new AbortController();
+    let releaseBudget!: () => void;
+    const busy = new Promise<void>(resolve => {releaseBudget = resolve;});
+    let occupying: Promise<unknown> | undefined;
+    let outcome: Promise<{result: string} | {error: unknown}> | undefined;
+    try {
+      const warm = owner.translateLocalText(request);
+      await flush();
+      expect(workers).toHaveLength(1);
+      const original = workers[0];
+      original.complete('Warm result');
+      await expect(warm).resolves.toBe('Warm result');
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(29_000);
+
+      // 另一类本地推理占满预算；新翻译尚未 postMessage，也没有 Worker 超时。
+      occupying = budget(() => busy);
+      const model = mode === 'reuse' ? LOCAL_TRANSLATION_MODEL_IDS.opusZhEn : LOCAL_TRANSLATION_MODEL_IDS.m2m100;
+      const queued = owner.translateLocalText({...request, model, text: 'Queued request'}, controller.signal);
+      let settled = false;
+      outcome = queued.then(
+        result => {settled = true;return {result};},
+        error => {settled = true;return {error};},
+      );
+      await flush();
+      expect(budget).toHaveBeenCalledTimes(3);
+      expect(budget).toHaveBeenLastCalledWith(expect.any(Function), controller.signal);
+      expect(original.messages).toHaveLength(1);
+      await vi.advanceTimersByTimeAsync(45_000);
+      expect(settled).toBe(false);
+      expect(workers).toHaveLength(1);
+      expect(original.terminate).not.toHaveBeenCalled();
+      expect(vi.getTimerCount()).toBe(0);
+
+      releaseBudget();await occupying;await flush();
+      expect(workers).toHaveLength(mode === 'reuse' ? 1 : 2);
+      const current = workers.at(-1)!;
+      expect(current.messages.at(-1)).toMatchObject({type: 'translate', model, text: 'Queued request'});
+      expect(current.terminate).not.toHaveBeenCalled();
+      if (mode === 'reuse') {
+        expect(current).toBe(original);expect(current.messages).toHaveLength(2);
+      } else {
+        expect(original.terminate).toHaveBeenCalledOnce();expect(original.messages).toHaveLength(1);
+      }
+      current.complete('Queued result');
+      expect(await outcome).toEqual({result: 'Queued result'});
+
+      // 只有新请求真正完成后才重新开始空闲计时，保留随后 30 秒的热会话。
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(29_999);
+      expect(current.terminate).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(current.terminate).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      controller.abort();releaseBudget();await occupying;
+      owner.disposeLocalTranslationWorker();
+      await outcome;
     }
   });
 });

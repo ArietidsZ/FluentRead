@@ -1,16 +1,97 @@
+vi.mock('@/src/shared/onnx/resources', async original => ({...await original<any>(), paceLocalInference: mocks.pace}));
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
-const mocks=vi.hoisted(()=>({gpu:vi.fn(),load:vi.fn(),background:vi.fn(),create:vi.fn(),run:vi.fn(),release:vi.fn(),tensor:vi.fn(),tensorDispose:vi.fn(),outputDispose:vi.fn(),wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
+const mocks=vi.hoisted(()=>({gpu:vi.fn(),load:vi.fn(),background:vi.fn(),create:vi.fn(),run:vi.fn(),release:vi.fn(),tensor:vi.fn(),tensorDispose:vi.fn(),outputDispose:vi.fn(),workerPrepare:vi.fn(),workerRequest:vi.fn(),workerRelease:vi.fn(),pace:vi.fn((operation:()=>Promise<unknown>)=>operation()),wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
 vi.mock('@/src/features/image-translation/services/mangaOcrAssets',async original=>({...await original<any>(),loadMangaInpaintAsset:mocks.load}));
 vi.mock('@/src/features/image-translation/services/mangaGpu',()=>({probeMangaGpu:mocks.gpu}));
 vi.mock('@/src/features/image-translation/services/mangaRendering',()=>({mangaRegionBackground:mocks.background}));
 vi.mock('onnxruntime-web/webgpu',()=>({env:{wasm:mocks.wasm},InferenceSession:{create:mocks.create},Tensor:class{constructor(...args:unknown[]){mocks.tensor(...args)}dispose=mocks.tensorDispose;}}));
-import {applyMangaPatch,createBrowserMangaInpainter,createMangaInpaintingRuntime,createMangaPatch} from '@/src/features/image-translation/services/mangaInpainting';
+vi.mock('@/src/features/image-translation/services/mangaInferenceClient',async original=>({...await original<any>(),mangaInferenceClient:{prepare:mocks.workerPrepare,request:mocks.workerRequest,release:mocks.workerRelease}}));
+import {applyMangaPatch,createBrowserMangaInpainter,createMangaInpaintingRuntime,createMangaPatch,mangaInpaintingRuntime} from '@/src/features/image-translation/services/mangaInpainting';
 const region={text:'Hello world',fontSize:20,bbox:{x0:30,y0:30,x1:90,y1:70}};
 const pixels=()=>new Uint8ClampedArray(128*128*4).fill(255);
 const zero=(patch:{width:number;height:number})=>new Float32Array(patch.width*patch.height*3);
-beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.gpu.mockResolvedValue({available:false,info:''});mocks.load.mockResolvedValue(new ArrayBuffer(1));mocks.background.mockReturnValue({uniform:false,color:'rgb(255,255,255)'});mocks.release.mockResolvedValue(undefined);mocks.create.mockResolvedValue({run:mocks.run,release:mocks.release});mocks.run.mockResolvedValue({inpainted:{data:new Float32Array([0.25]),dispose:mocks.outputDispose}});vi.stubGlobal('chrome',{runtime:{getURL:(p:string)=>'chrome-extension://test'+p}});});
-afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals()});
+const deferred=<T,>()=>{let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};};
+const tick=async()=>{for(let i=0;i<6;i++)await Promise.resolve();};
+beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.gpu.mockResolvedValue({available:false,info:''});mocks.load.mockResolvedValue(new ArrayBuffer(1));mocks.background.mockReturnValue({uniform:false,color:'rgb(255,255,255)'});mocks.release.mockResolvedValue(undefined);mocks.create.mockResolvedValue({run:mocks.run,release:mocks.release});mocks.run.mockResolvedValue({inpainted:{data:new Float32Array([0.25]),dispose:mocks.outputDispose}});vi.stubGlobal('chrome',{runtime:{getURL:(p:string)=>'chrome-extension://test'+p}});
+    mocks.workerPrepare.mockReset().mockResolvedValue(undefined);mocks.workerRequest.mockReset().mockImplementation(async({patch})=>zero(patch));mocks.workerRelease.mockReset().mockResolvedValue(undefined);
+});
+afterEach(async()=>{await mangaInpaintingRuntime.dispose().catch(()=>undefined);vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('漫画局部神经修补',()=>{
+    it('默认 Worker 只修补复杂背景，转发补丁和进度，复用端口并空闲释放',async()=>{
+        const input=pixels(),controller=new AbortController(),progress=vi.fn(),repairing=vi.fn();
+        mocks.workerPrepare.mockImplementation(async(kind,_signal,notify)=>{
+            expect(kind).toBe('inpaint');notify('preparing',25);notify('initializing');
+        });
+        mocks.workerRequest.mockImplementation(async({patch},_signal,notify)=>{
+            notify('recognizing',75);notify('initializing');return zero(patch);
+        });
+        expect(await mangaInpaintingRuntime.repair(input,128,128,[region],controller.signal,progress,repairing,[{uniform:true,color:'#fff'}])).toEqual(input);
+        expect(mocks.workerPrepare).not.toHaveBeenCalled();expect(mocks.workerRequest).not.toHaveBeenCalled();
+        const result=await mangaInpaintingRuntime.repair(input,128,128,[region],controller.signal,progress,repairing,[{uniform:false,color:'#fff'}]);
+        const patch=createMangaPatch(input,128,128,region).patch;
+        expect(mocks.workerPrepare).toHaveBeenCalledWith('inpaint',controller.signal,expect.any(Function));
+        expect(mocks.workerRequest).toHaveBeenCalledWith({type:'inpaint',patch},controller.signal,expect.any(Function));
+        expect(progress.mock.calls).toEqual([[],[25,false],[undefined,true],[75,false],[undefined,true]]);
+        expect(repairing.mock.calls).toEqual([[0,1],[1,1]]);
+        expect(Array.from(result.slice((35*128+35)*4,(35*128+35)*4+4))).toEqual([0,0,0,255]);
+        expect(result.slice(0,128*4)).toEqual(input.slice(0,128*4));expect(input.every(value=>value===255)).toBe(true);
+        await mangaInpaintingRuntime.repair(input,128,128,[region]);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();expect(mocks.workerRequest).toHaveBeenLastCalledWith({type:'inpaint',patch},undefined,expect.any(Function));
+        expect(mocks.load).not.toHaveBeenCalled();expect(mocks.create).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(179999);expect(mocks.workerRelease).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);expect(mocks.workerRelease).toHaveBeenCalledWith('inpaint');
+        // 没有用户进度回调时，prepare / request 的阶段通知也应安全吸收。
+        await mangaInpaintingRuntime.repair(input,128,128,[region]);expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+        await mangaInpaintingRuntime.dispose();expect(mocks.workerRelease.mock.calls).toEqual([['inpaint'],['inpaint']]);
+    });
+
+    it('默认 Worker 准备与推理失败后重新创建，释放错误不覆盖原错误',async()=>{
+        mocks.workerPrepare.mockRejectedValueOnce(new Error('worker prepare failed'));
+        await expect(mangaInpaintingRuntime.repair(pixels(),128,128,[region])).rejects.toThrow('worker prepare failed');
+        expect(mocks.workerRequest).not.toHaveBeenCalled();expect(mocks.workerRelease).not.toHaveBeenCalled();
+        mocks.workerRequest.mockRejectedValueOnce(new Error('worker inference failed'));
+        mocks.workerRelease.mockRejectedValueOnce(new Error('worker release failed'));
+        await expect(mangaInpaintingRuntime.repair(pixels(),128,128,[region])).rejects.toThrow('worker inference failed');
+        expect(mocks.workerRelease).toHaveBeenCalledWith('inpaint');
+        expect(await mangaInpaintingRuntime.repair(pixels(),128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
+        expect(mocks.workerPrepare).toHaveBeenCalledTimes(3);
+        mocks.workerRelease.mockRejectedValueOnce(new Error('idle release failed'));
+        await vi.advanceTimersByTimeAsync(180000);
+        expect(await mangaInpaintingRuntime.repair(pixels(),128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
+        expect(mocks.workerPrepare).toHaveBeenCalledTimes(4);
+    });
+
+    it('默认 Worker 保留运行请求的 signal，取消后丢弃迟到补丁，排队取消不发送新请求',async()=>{
+        const input=pixels(),controller=new AbortController(),queuedController=new AbortController();
+        const patch=createMangaPatch(input,128,128,region).patch,pending=deferred<Float32Array>();
+        mocks.workerRequest.mockReturnValueOnce(pending.promise);
+        const first=mangaInpaintingRuntime.repair(input,128,128,[region],controller.signal);
+        const cancelled=expect(first).rejects.toMatchObject({name:'AbortError'});
+        await tick();expect(mocks.workerRequest).toHaveBeenCalledWith({type:'inpaint',patch},controller.signal,expect.any(Function));
+        const queued=mangaInpaintingRuntime.repair(input,128,128,[region],queuedController.signal);
+        const queuedCancelled=expect(queued).rejects.toMatchObject({name:'AbortError'});
+        controller.abort();queuedController.abort();
+        expect(mocks.workerRelease).not.toHaveBeenCalled();expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        pending.resolve(zero(patch));await cancelled;await queuedCancelled;
+        expect(mocks.workerRelease).toHaveBeenCalledWith('inpaint');expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        expect(input.every(value=>value===255)).toBe(true);
+        expect(await mangaInpaintingRuntime.repair(input,128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
+        expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+    });
+
+    it('浏览器修补按 COI 与共享内存选择两条 WASM 线程，每次 run 都经过 pacer',async()=>{
+        vi.stubGlobal('navigator',{hardwareConcurrency:8,deviceMemory:8});
+        vi.stubGlobal('crossOriginIsolated',true);vi.stubGlobal('SharedArrayBuffer',class {});
+        const port=await createBrowserMangaInpainter(),patch={image:new Float32Array(3),mask:new Float32Array(1),width:1,height:1};
+        expect(mocks.wasm.numThreads).toBe(2);
+        expect(mocks.wasm.wasmPaths).toEqual({mjs:'chrome-extension://test/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs',wasm:'chrome-extension://test/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'});
+        expect(await port.run(patch)).toEqual(new Float32Array([.25]));
+        const failure=new Error('paced inference failed');mocks.run.mockRejectedValueOnce(failure);
+        await expect(port.run(patch)).rejects.toBe(failure);
+        expect(mocks.pace).toHaveBeenCalledTimes(2);expect(mocks.tensorDispose).toHaveBeenCalledTimes(4);
+        await port.release();expect(mocks.release).toHaveBeenCalledOnce();
+    });
+
     it('GPU 初始化失败改用 CPU，CPU 初始化失败和取消不继续重试',async()=>{
         mocks.gpu.mockResolvedValue({available:true,info:'hardware'});
         mocks.create.mockRejectedValueOnce(new Error('GPU init'));
@@ -80,7 +161,7 @@ describe('漫画局部神经修补',()=>{
     });
     it('浏览器模型使用本地 WASM，推理完成或失败都释放所有张量',async()=>{
         const progress=vi.fn();mocks.load.mockImplementationOnce(async(_signal,notify)=>{notify(1);notify(1);notify(100000000);return new ArrayBuffer(1);});
-        await createBrowserMangaInpainter(undefined,progress);expect(progress.mock.calls.map(c=>c[0])).toEqual([0,48]);
+        await createBrowserMangaInpainter(undefined,progress);expect(progress.mock.calls).toEqual([[0],[48],[undefined,true]]);
         const port=await createBrowserMangaInpainter(),patch={image:new Float32Array(3),mask:new Float32Array(1),width:1,height:1};
         expect(await port.run(patch)).toEqual(new Float32Array([0.25]));expect(mocks.tensor.mock.calls.map(c=>c[2])).toEqual([[1,3,1,1],[1,1,1,1]]);
         expect(mocks.outputDispose).toHaveBeenCalledOnce();expect(mocks.tensorDispose).toHaveBeenCalledTimes(2);

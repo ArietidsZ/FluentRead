@@ -37,6 +37,19 @@ node scripts/testing/run-local-audio-gpu-test.cjs \
 
 `MANGA_MODELS_DIR` 必须包含与源码版本、字节数及 SHA-256 匹配的 `PP-OCRv6_small_det.onnx`、`PP-OCRv6_small_rec.onnx`、`ppocrv6_dict.txt`、`lama-manga-dynamic.onnx`；文件只导入本次临时扩展。`--kinds opus` 无需这些文件。OPUS 和音频专项会联网下载公开模型。q4 故障仅注入自有扩展副本的 CPU q4 初始化调用，必须实际返回 `dtype=q8` 才通过；不修改生产产物或用户扩展。
 
+## 本地推理响应、转圈与跟读
+
+本轮诊断、资源策略、CPU/GPU 对照与验收边界见[本地推理可靠性报告](./maintainers/local-inference-reliability-20261006.md)。漫画性能模式用同一原图、提前导入已校验模型和固定文字传输；`--worker-diagnostics` 只修改临时扩展副本，记录真实 GPU 提交与 pthread 创建。`--pipeline-cpu` 强制禁用 GPU，不将能力探测当作实际后端证明。
+
+```sh
+pnpm test tests/localInferenceResources.test.ts tests/mangaInferenceClient.test.ts tests/mangaInferenceWorker.test.ts tests/selectionTranslatorLifecycle.test.ts tests/offscreenTtsPlayback.test.ts tests/speechProgress.test.ts tests/localTranslationRuntime.test.ts tests/videoAiOffscreen.test.ts
+node scripts/testing/run-local-audio-gpu-test.cjs \
+  --kinds tts --modes gpu,cpu --skip-settings --no-screenshots \
+  --artifacts-dir /tmp/fluentread-audio-playback
+```
+
+音频专项验证实际 WAV 解码、媒体时钟推进、进度和结束清理；默认静音测试播放。需要双线程能力对照时仅在临时副本增加 `--cross-origin-isolated --modes unavailable,thread-failure`，不更改生产 manifest。线程创建故障注入和实际 GPU 不可用情况分别记录；真实设置页、扬声器和 Firefox 实机音频不在这个限定命令的验收范围内。
+
 ## 设置分组、阅读辅助与右键菜单
 
 生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。

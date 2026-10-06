@@ -1,4 +1,10 @@
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+const budgetMocks = vi.hoisted(() => ({run: vi.fn()}));
+vi.mock('@/src/shared/onnx/resources', async original => ({
+    ...await original<typeof import('@/src/shared/onnx/resources')>(),
+    withLocalInferenceBudget: budgetMocks.run,
+}));
+import {createLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {removeLocalVideoTranscriptionModel, cancelLocalVideoTranscription, prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio} from '@/src/features/video-subtitle/offscreen/transcription';
 
 class FakeWorker {
@@ -6,16 +12,23 @@ class FakeWorker {
     onmessage: ((event: MessageEvent) => void) | null = null;
     onerror: ((event: ErrorEvent) => void) | null = null;
     terminated = false;
+    messages: any[] = [];
     constructor() { FakeWorker.instances.push(this); }
     postMessage(message: any, transfer: Transferable[] = []): void {
         (this as any).lastMessage = transfer.length
             ? structuredClone(message, {transfer})
             : structuredClone(message);
+        this.messages.push((this as any).lastMessage);
     }
     terminate(): void { this.terminated = true; }
     reply(response: Record<string, unknown>): void { this.onmessage?.({data: response} as MessageEvent); }
     fail(message = 'worker failed'): void { this.onerror?.({message} as ErrorEvent); }
 }
+
+beforeEach(() => {
+    // 保留真实预算的排队和释放语义，用单槽位模拟其他本地推理占满共享预算。
+    budgetMocks.run.mockReset().mockImplementation(createLocalInferenceBudget(1));
+});
 
 afterEach(() => {
     vi.unstubAllGlobals();
@@ -30,6 +43,22 @@ function installWorker(): void {
 }
 const audio = 'AAAAAA==';
 const tick = async (): Promise<void> => { await Promise.resolve(); await Promise.resolve(); };
+const drain = async (): Promise<void> => { for (let index = 0; index < 10; index++) await Promise.resolve(); };
+const deferred = () => {
+    let resolve!: () => void;
+    const promise = new Promise<void>(done => {resolve = done;});
+    return {promise, resolve};
+};
+
+function requestVideoWorker(kind: 'transcribe' | 'prepare', streamId: string, model: 'tiny' | 'base' = 'tiny') {
+    return kind === 'transcribe'
+        ? transcribeLocalVideoAudio({streamId, audioPcm16Base64: audio, model})
+        : prepareLocalVideoTranscriptionModel(model, {keepWarm: true, streamId});
+}
+
+function completeWorker(worker: FakeWorker, model: 'tiny' | 'base' = 'tiny'): void {
+    worker.reply({requestId: worker.messages.at(-1).requestId, success: true, text: 'budget result', segments: [], model, backend: 'wasm'});
+}
 
 describe('video AI offscreen queue', () => {
     it('reuses one worker and resolves a successful transcription', async () => {
@@ -170,6 +199,158 @@ describe('video AI offscreen queue', () => {
         await cancelLocalVideoTranscription('cancel-between');
         await expect(pending).rejects.toThrow('取消');
         expect(FakeWorker.instances).toHaveLength(1);
+    });
+});
+
+describe('video AI shared inference budget and worker generation', () => {
+    it.each(['transcribe', 'prepare'] as const)('%s waits for shared capacity before creating a worker or starting its timeout', async kind => {
+        vi.useFakeTimers();
+        installWorker();
+        const busy = deferred(), occupying = budgetMocks.run(() => busy.promise);
+        const streamId = `budget-${kind}`, pending = requestVideoWorker(kind, streamId);
+        await drain();
+        expect(budgetMocks.run).toHaveBeenCalledTimes(2);
+        expect(FakeWorker.instances).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+        await vi.advanceTimersByTimeAsync(5000);
+        expect(FakeWorker.instances).toHaveLength(0);
+        expect(vi.getTimerCount()).toBe(0);
+
+        busy.resolve();await occupying;await drain();
+        expect(FakeWorker.instances).toHaveLength(1);
+        const worker = FakeWorker.instances[0], message = worker.messages[0];
+        expect(message).toMatchObject({type: kind, model: 'tiny'});
+        expect(worker.messages).toHaveLength(1);
+        expect(vi.getTimerCount()).toBe(1);
+        if (kind === 'transcribe') {
+            expect(message.languageSessionKey).toBe(streamId);
+            expect(message.audio).toBeInstanceOf(Float32Array);
+            expect(message.audio.byteLength).toBeGreaterThan(0);
+        }
+        completeWorker(worker);await expect(pending).resolves.toMatchObject({model: 'tiny', backend: 'wasm'});
+        const probe = vi.fn(async () => 'capacity released');
+        await expect(budgetMocks.run(probe)).resolves.toBe('capacity released');
+        expect(probe).toHaveBeenCalledOnce();
+        await cancelLocalVideoTranscription(streamId);
+        expect(worker.terminated).toBe(true);expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it.each(['transcribe', 'prepare'] as const)('cancelled %s waiting on capacity never creates a worker, and the next model can start', async kind => {
+        installWorker();
+        const busy = deferred(), occupying = budgetMocks.run(() => busy.promise);
+        const oldStream = `old-${kind}`, freshStream = `new-${kind}`;
+        const stale = requestVideoWorker(kind, oldStream);
+        const cancelled = expect(stale).rejects.toThrow('本地视频 AI 字幕已取消');
+        await drain();
+        expect(budgetMocks.run).toHaveBeenCalledTimes(2);
+        expect(FakeWorker.instances).toHaveLength(0);
+        // 此时还没有 Worker：取消也必须增加世代，拦截已经进入预算队列的闭包。
+        await cancelLocalVideoTranscription(oldStream);
+        const fresh = requestVideoWorker(kind, freshStream, 'base');
+        await drain();expect(FakeWorker.instances).toHaveLength(0);
+
+        busy.resolve();await occupying;await cancelled;await drain();
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(budgetMocks.run).toHaveBeenCalledTimes(3);
+        const worker = FakeWorker.instances[0];
+        expect(worker.messages).toHaveLength(1);
+        expect(worker.messages[0]).toMatchObject({type: kind, model: 'base'});
+        expect(worker.messages[0].device).toBeUndefined();
+        if (kind === 'transcribe') expect(worker.messages[0].languageSessionKey).toBe(freshStream);
+        completeWorker(worker, 'base');await expect(fresh).resolves.toMatchObject({model: 'base'});
+        expect(worker.messages).toHaveLength(1);
+        await cancelLocalVideoTranscription(freshStream);
+    });
+
+    it('cancel and model change invalidate a queued request against an already warm worker', async () => {
+        installWorker();
+        const streamId = 'model-change-budget';
+        const warm = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId});
+        await drain();
+        const original = FakeWorker.instances[0];
+        completeWorker(original);await warm;
+        const firstRequestId = original.messages[0].requestId;
+
+        const busy = deferred(), occupying = budgetMocks.run(() => busy.promise);
+        const stale = transcribeLocalVideoAudio({streamId, audioPcm16Base64: audio, model: 'tiny'});
+        const cancelled = expect(stale).rejects.toThrow('本地视频 AI 字幕已取消');
+        await drain();
+        expect(original.messages).toHaveLength(1);
+        expect(budgetMocks.run).toHaveBeenCalledTimes(3);
+        await cancelLocalVideoTranscription(streamId);
+        expect(original.terminated).toBe(true);
+        const changed = prepareLocalVideoTranscriptionModel('base', {keepWarm: true, streamId});
+        await drain();expect(FakeWorker.instances).toHaveLength(1);
+
+        busy.resolve();await occupying;await cancelled;await drain();
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        expect(original.messages).toHaveLength(1);
+        expect(replacement.messages).toHaveLength(1);
+        expect(replacement.messages[0]).toMatchObject({type: 'prepare', model: 'base', requestId: firstRequestId + 1});
+        expect(budgetMocks.run).toHaveBeenCalledTimes(4);
+        completeWorker(replacement, 'base');await expect(changed).resolves.toMatchObject({model: 'base'});
+        expect(replacement.terminated).toBe(false);
+        await cancelLocalVideoTranscription(streamId);
+    });
+
+    it('model switching waits for capacity, then advances generation without rejecting subsequent requests', async () => {
+        installWorker();
+        const streamId = 'switch-generation';
+        const warm = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId});
+        await drain();
+        const original = FakeWorker.instances[0];
+        completeWorker(original);await warm;
+
+        const busy = deferred(), occupying = budgetMocks.run(() => busy.promise);
+        const changed = prepareLocalVideoTranscriptionModel('base', {keepWarm: true, streamId});
+        await drain();
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(original.terminated).toBe(false);expect(original.messages).toHaveLength(1);
+        busy.resolve();await occupying;await drain();
+        expect(original.terminated).toBe(true);
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        expect(replacement.messages[0]).toMatchObject({type: 'prepare', model: 'base'});
+
+        const followup = transcribeLocalVideoAudio({streamId, audioPcm16Base64: audio, model: 'base'});
+        expect(replacement.messages).toHaveLength(1);
+        completeWorker(replacement, 'base');await changed;await drain();
+        expect(FakeWorker.instances).toHaveLength(2);
+        expect(replacement.messages).toHaveLength(2);
+        expect(replacement.messages[1]).toMatchObject({type: 'transcribe', model: 'base', languageSessionKey: streamId});
+        expect(budgetMocks.run).toHaveBeenCalledTimes(4);
+        completeWorker(replacement, 'base');await expect(followup).resolves.toMatchObject({model: 'base'});
+        expect(replacement.terminated).toBe(false);
+        await cancelLocalVideoTranscription(streamId);
+    });
+
+    it('cancel invalidates a CPU retry waiting on shared capacity and releases it for a new model', async () => {
+        installWorker();
+        const streamId = 'retry-budget';
+        const stale = transcribeLocalVideoAudio({streamId, audioPcm16Base64: audio, model: 'tiny'});
+        const cancelled = expect(stale).rejects.toThrow('本地视频 AI 字幕已取消');
+        await drain();
+        const original = FakeWorker.instances[0];
+        // 活跃请求尚占预算；失败释放后由另一类推理先取得槽位，CPU 重试必须排队。
+        const busy = deferred(), occupying = budgetMocks.run(() => busy.promise);
+        original.fail('GPU failure before budget wait');
+        await drain();
+        expect(original.terminated).toBe(true);
+        expect(budgetMocks.run).toHaveBeenCalledTimes(3);
+        expect(FakeWorker.instances).toHaveLength(1);
+        await cancelLocalVideoTranscription(streamId);
+        const fresh = transcribeLocalVideoAudio({streamId: 'new-after-retry', audioPcm16Base64: audio, model: 'base'});
+        busy.resolve();await occupying;await cancelled;await drain();
+
+        expect(FakeWorker.instances).toHaveLength(2);
+        const replacement = FakeWorker.instances[1];
+        expect(replacement.messages).toHaveLength(1);
+        expect(replacement.messages[0]).toMatchObject({type: 'transcribe', model: 'base', languageSessionKey: 'new-after-retry'});
+        expect(replacement.messages[0].device).toBeUndefined();
+        expect(budgetMocks.run).toHaveBeenCalledTimes(4);
+        completeWorker(replacement, 'base');await expect(fresh).resolves.toMatchObject({model: 'base'});
+        await cancelLocalVideoTranscription('new-after-retry');
     });
 });
 

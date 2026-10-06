@@ -40,7 +40,7 @@ describe('userscript browser shim injection', () => {
         } finally {
             vi.unstubAllGlobals();
         }
-        expect(moduleSource).toContain(createHash('sha256').update(JSON.stringify(zhCNMessages)).digest('hex'));
+        expect(moduleSource).toContain(createHash('sha256').update(gunzipSync(Buffer.from(base64!, 'base64'))).digest('hex'));
     });
 
     it('keeps all site rule JSON data intact when embedding compressed offline catalogs', () => {

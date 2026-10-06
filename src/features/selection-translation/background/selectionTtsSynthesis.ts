@@ -46,6 +46,7 @@ function isLocalTtsUnavailable(error: unknown): boolean {
 function localAudio(audio: LocalTtsAudio): SelectionTtsAudio {
     return {
         audio: audio.audio,
+        ...(audio.timings === undefined ? {} : {timings: audio.timings}),
         contentType: audio.contentType,
         voice: audio.voice,
     };

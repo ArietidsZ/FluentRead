@@ -70,9 +70,9 @@ export function extendRemoteConfigBuildConfig(
     viteConfig.plugins = [...(viteConfig.plugins ?? []), remoteConfigStorageBuildPlugin()];
 }
 
-/** 三个入口都由 new Worker(..., {type: 'module'}) 启动，可共享一次 ESM 构建及依赖 chunk。 */
+/** 这些入口都由 new Worker(..., {type: 'module'}) 启动，可共享一次 ESM 构建及依赖 chunk。 */
 export function groupModuleWorkers(groups: EntrypointGroup[]): void {
-    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker']);
+    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'mangaInferenceWorker']);
     const workers = groups.filter((group): group is Entrypoint =>
         !Array.isArray(group) && group.type === 'unlisted-script' && moduleWorkers.has(group.name));
     if (workers.length < 2) return;
@@ -214,7 +214,13 @@ export default defineConfig({
         'entrypoints:grouped': (_wxt, groups) => {
             groupModuleWorkers(groups);
         },
-        'vite:build:extendConfig': (entrypoints, viteConfig) => extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]}),
+        'vite:build:extendConfig': (entrypoints, viteConfig) => {
+            extendRemoteConfigBuildConfig(entrypoints, viteConfig as {plugins?: unknown[]});
+            // Vite 的动态导入预加载帮助器访问 document；模块 Worker 只能使用原生 import。
+            if (entrypoints.every(entrypoint => entrypoint.type === 'unlisted-script')) {
+                viteConfig.build = {...viteConfig.build, modulePreload: false};
+            }
+        },
         'build:publicAssets': (_wxt, files) => {
             // 非中文界面文案只生成一份 JSON，由各运行上下文按当前语言加载，不再内联进每个 bundle。
             files.push(...createUiLanguageBundleFiles());

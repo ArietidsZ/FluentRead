@@ -2951,6 +2951,13 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "正在播放原文": "Playing original",
     "正在播放单词": "Playing word",
     "正在播放译文": "Playing translation",
+    "正在生成语音…": "Generating speech…",
+    "停止生成语音": "Stop generating speech",
+    "本地语音生成失败，请重试": "Local speech generation failed. Please try again.",
+    "语音播放失败，请重试": "Speech playback failed. Please try again.",
+    "跟读进度按句段时长估算": "Reading progress is estimated from sentence audio duration",
+    "跟随语音词边界": "Following speech word boundaries",
+    "正在初始化本地模型…": "Initializing local models…",
     // 悬浮球进阶设置与禁用网站名单的界面文案。
     '悬浮球进阶设置': 'Floating ball advanced settings',
     "设置悬浮球的按钮、点击动作、尺寸和适用网站；关闭悬浮球后保留这些偏好，重新开启时生效": 'Controls how the ball shows its buttons, what a click does, its size, and where it appears. These settings are kept but inactive while the ball is off.',

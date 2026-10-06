@@ -5,6 +5,8 @@
  * 模块边界：只负责扩展自有 Offscreen 运行时，不决定在线/本地策略，也不直接操作网页 UI。
  */
 
+import {parseSpeechCues, type SpeechCue} from '@/src/core/tts/speechProgress';
+import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {
     LOCAL_TTS_MODEL,
     LOCAL_TTS_MODEL_ID,
@@ -40,6 +42,7 @@ interface WorkerResponse {
     requestId: number;
     success: boolean;
     audio?: ArrayBuffer;
+    timings?: SpeechCue[];
     samplingRate?: number;
     backend?: LocalTtsWorkerBackend;
     retryWithCpu?: boolean;
@@ -60,6 +63,7 @@ const SYNTHESIS_TIMEOUT_MS = 120_000;
 const MODEL_IDLE_DISPOSE_MS = 30_000;
 
 let worker: Worker | null = null;
+let workerGeneration = 0;
 let workerRequestId = 0;
 let pendingRequests = new Map<number, PendingWorkerRequest>();
 let idleDisposeTimer: number | undefined;
@@ -110,6 +114,7 @@ function rejectPending(error: Error): void {
 }
 
 function terminateWorker(error?: Error): void {
+    workerGeneration++;
     clearIdleDispose();
     const current = worker;
     worker = null;
@@ -150,7 +155,16 @@ function getWorker(): Worker {
     return next;
 }
 
-function requestWorker(
+function requestWorker(message: Omit<WorkerRequest, 'requestId'>, timeoutMs: number, signal?: AbortSignal): Promise<WorkerResponse> {
+    clearIdleDispose();
+    const generation = workerGeneration;
+    return withLocalInferenceBudget(() => {
+        if (generation !== workerGeneration) throw createAbortError();
+        return requestWorkerNow(message, timeoutMs, signal);
+    }, signal);
+}
+
+function requestWorkerNow(
     message: Omit<WorkerRequest, 'requestId'>,
     timeoutMs: number,
     signal?: AbortSignal,
@@ -263,6 +277,7 @@ export async function synthesizeLocalTts(
     scheduleIdleDispose();
     return {
         audio: response.audio,
+        ...(response.timings === undefined ? {} : {timings: parseSpeechCues(response.timings)}),
         contentType: 'audio/wav',
         voice,
         backend: response.backend,

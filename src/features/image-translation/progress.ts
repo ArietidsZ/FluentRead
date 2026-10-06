@@ -5,9 +5,9 @@
  * 模块边界：纯协议模块不监听浏览器消息；Offscreen 发布进度，后台按请求所有者转发，客户端负责订阅与清理。
  */
 export const IMAGE_PROGRESS_MESSAGE_TYPE = 'fluentReadImageProgress' as const;
-export type ImageTranslationStage = 'preparing' | 'recognizing' | 'translating' | 'cleaning' | 'rendering';
+export type ImageTranslationStage = 'preparing' | 'initializing' | 'recognizing' | 'translating' | 'cleaning' | 'rendering';
 export function isImageTranslationStage(value: unknown): value is ImageTranslationStage {
-    return value === 'preparing' || value === 'recognizing' || value === 'translating' || value === 'cleaning' || value === 'rendering';
+    return value === 'preparing' || value === 'initializing' || value === 'recognizing' || value === 'translating' || value === 'cleaning' || value === 'rendering';
 }
 
 /** 仅接受引擎提供的有效百分比，兼容仅有阶段的旧消息。 */

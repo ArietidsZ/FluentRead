@@ -1,9 +1,11 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；串行推理、取消边界和三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、取消边界和三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
+import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
+import {mangaInferenceClient, mangaExtensionUrl, type MangaPatch} from './mangaInferenceClient';
 import {probeMangaGpu} from './mangaGpu';
 import {protectMangaSession} from './mangaSessionFallback';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
@@ -12,9 +14,9 @@ import {mangaRegionBackground, type MangaBackground} from './mangaRendering';
 import type {MangaRegion} from './mangaRegions';
 import {mangaMaskBoxes as maskBoxes} from '../mangaPatchResult';
 
-export interface MangaPatch {image: Float32Array; mask: Float32Array; width: number; height: number}
+export type {MangaPatch} from './mangaInferenceClient';
 interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number}
-interface InpaintPort {run(patch: MangaPatch, signal?:AbortSignal): Promise<Float32Array>; release(): Promise<void>}
+interface InpaintPort {run(patch: MangaPatch, signal?:AbortSignal, progress?:(percent?:number,initializing?:boolean)=>void): Promise<Float32Array>; release(): Promise<void>}
 
 /** 识别框已有字形留白，蒙版按原始行分别构造，避免把整个段落之间的画面也擦除。 */
 export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion): PatchMapping {
@@ -52,13 +54,13 @@ export function applyMangaPatch(pixels: Uint8ClampedArray, width: number, region
     }
 }
 
-export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progress?:(percent:number)=>void) => Promise<InpaintPort>) {
+export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progress?:(percent?:number,initializing?:boolean)=>void) => Promise<InpaintPort>) {
     let service: InpaintPort | undefined, idle: ReturnType<typeof setTimeout> | undefined;
     let tail: Promise<void> = Promise.resolve();
     function queue<T>(operation:()=>Promise<T>) {const result=tail.then(operation);tail=result.then(()=>undefined,()=>undefined);return result;}
     async function release() {clearTimeout(idle);idle=undefined;const current=service;service=undefined;await current?.release();}
     return {
-        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number)=>void,onRepair?:(done:number,total:number)=>void,backgrounds?:MangaBackground[]) {
+        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number,initializing?:boolean)=>void,onRepair?:(done:number,total:number)=>void,backgrounds?:MangaBackground[]) {
             return queue(async()=>{
                 assertMangaOcrActive(signal); clearTimeout(idle);
                 try {
@@ -72,7 +74,7 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
                             assertMangaOcrActive(signal);
                             onRepair?.(completed,pending.length);
                             const mapping=createMangaPatch(pixels,width,height,region);
-                            const output=await service.run(mapping.patch,signal);
+                            const output=await service.run(mapping.patch,signal,onPreparing);
                             assertMangaOcrActive(signal);applyMangaPatch(result,width,region,mapping,output);
                             completed++;onRepair?.(completed,pending.length);
                         }
@@ -89,14 +91,14 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
     };
 }
 
-export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:(percent:number)=>void):Promise<InpaintPort> {
+export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:(percent?:number,initializing?:boolean)=>void):Promise<InpaintPort> {
     let lastPercent = -1;
     const model=await loadMangaInpaintAsset(signal,bytes=>{
         const percent=Math.min(99,Math.floor(bytes*100/MANGA_INPAINT_ASSET.bytes));
         if(percent!==lastPercent){lastPercent=percent;progress?.(percent);}
-    });assertMangaOcrActive(signal);
-    const ort=await import('onnxruntime-web/webgpu');ort.env.wasm.numThreads=1;
-    configureOnnxWasmBackend(ort.env.wasm,{mjs:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm')});
+    });assertMangaOcrActive(signal);progress?.(undefined,true);
+    const ort=await import('onnxruntime-web/webgpu');ort.env.wasm.numThreads=localWasmThreads();
+    configureOnnxWasmBackend(ort.env.wasm,{mjs:mangaExtensionUrl('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),wasm:mangaExtensionUrl('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm')});
     const gpu=await probeMangaGpu();
     let activeSignal=signal;
     let usingGpu=gpu.available;
@@ -119,9 +121,15 @@ export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:
         const image=new ort.Tensor('float32',patch.image,[1,3,patch.height,patch.width]);
         const mask=new ort.Tensor('float32',patch.mask,[1,1,patch.height,patch.width]);
         let output:Awaited<ReturnType<typeof session.run>>|undefined;
-        try {output=await session.run({image,mask});return new Float32Array(output.inpainted.data as Float32Array);}
+        try {output=await paceLocalInference(()=>session.run({image,mask}));return new Float32Array(output.inpainted.data as Float32Array);}
         finally {image.dispose();mask.dispose();Object.values(output||{}).forEach(tensor=>tensor.dispose());}
     },release:()=>session.release()};
 }
 
-export const mangaInpaintingRuntime=createMangaInpaintingRuntime(createBrowserMangaInpainter);
+async function createWorkerMangaInpainter(signal?:AbortSignal, progress?:(percent?:number,initializing?:boolean)=>void):Promise<InpaintPort> {
+    const notify = (stage: 'preparing' | 'initializing' | 'recognizing', percent?:number) => progress?.(percent,stage==='initializing');
+    await mangaInferenceClient.prepare('inpaint',signal,notify);
+    return {run:(patch,runSignal,onPreparing)=>mangaInferenceClient.request({type:'inpaint',patch},runSignal,(stage,percent)=>onPreparing?.(percent,stage==='initializing')),release:()=>mangaInferenceClient.release('inpaint')};
+}
+
+export const mangaInpaintingRuntime=createMangaInpaintingRuntime(createWorkerMangaInpainter);

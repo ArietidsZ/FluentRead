@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示安全的跟读扫色。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -57,7 +57,7 @@
             <template v-else-if="wordCard">
               <div class="fr-word-heading">
                 <div>
-                  <h3>{{ selectedText }}</h3>
+                  <h3><SpeechFollowText :text="selectedText" :offset="0" :progress="audioProgressFor('word')" /></h3>
                   <span class="fr-word-normalized" v-if="selectedText.toLowerCase() !== wordCard.normalizedWord">词典词形：{{ wordCard.word }}</span>
                 </div>
                 <div class="fr-word-heading-actions">
@@ -90,7 +90,7 @@
                     <span>{{ isCopied('translation') ? '已复制' : '复制' }}</span>
                   </button>
                 </div>
-                <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
+                <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(translationParts,index)" :progress="audioProgressFor('translation')" /></template></pre>
               </div>
               <div v-else-if="isLoading" class="fr-word-translation-loading">正在翻译释义…</div>
               <div v-if="wordCard.meanings.length > 0" class="fr-word-meaning-toolbar">
@@ -136,7 +136,7 @@
                 </button>
               </div>
             </div>
-            <pre><template v-for="(part, index) in snapshot?.parts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
+            <pre><template v-for="(part, index) in snapshot?.parts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(snapshot?.parts,index)" :progress="audioProgressFor('source')" /></template></pre>
           </div>
           <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && hasDistinctTranslationResult && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-block-header">
@@ -153,13 +153,13 @@
                 </button>
               </div>
             </div>
-            <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><template v-else>{{ part.text }}</template></template></pre>
+            <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(translationParts,index)" :progress="audioProgressFor('translation')" /></template></pre>
           </div>
           <div v-if="error && (translationResult || wordCard)" class="fr-inline-error"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
         </div>
       </div>
-      <div class="fr-playing-status" :class="{'is-idle': !isPlaying}" :aria-hidden="!isPlaying" role="status">
-        <template v-if="isPlaying"><span>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" aria-label="停止播放" title="停止播放" @click="stopAudioFromUi">停止</button></template>
+      <div class="fr-playing-status" :class="{'is-idle': !isPlaying && !isPreparingAudio}" :aria-hidden="!isPlaying && !isPreparingAudio" :aria-busy="isPreparingAudio" role="status">
+        <template v-if="isPlaying || isPreparingAudio"><span v-if="isPreparingAudio">正在生成语音…</span><span v-else>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" :aria-label="isPreparingAudio ? '停止生成语音' : '停止播放'" :title="isPreparingAudio ? '停止生成语音' : '停止播放'" @click="stopAudioFromUi">停止</button></template>
       </div>
       <div v-for="edge in popupResizeEdges" :key="edge" class="fr-popup-resize-handle" :class="`fr-popup-resize-${edge}`" :data-resize-edge="edge" aria-hidden="true" />
     </section>
@@ -170,6 +170,8 @@
 </template>
 
 <script setup lang="ts">
+import {audioSpeechProgress, boundarySpeechProgress, parseSpeechProgress, type SpeechProgress} from '@/src/core/tts/speechProgress';
+import SpeechFollowText from './SpeechFollowText.vue';
 import {hasDistinctTranslation} from '@/src/core/translation/result';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import browser from 'webextension-polyfill';
@@ -241,6 +243,14 @@ const tooltipScaleStyle = computed(() => ({
 }));
 const snapshot = ref<SelectionSnapshot | null>(null);
 const isPlaying = ref(false);
+const isPreparingAudio = ref(false);
+const audioProgress = ref<SpeechProgress | null>(null);
+const audioTextOffset = ref(0);
+function partOffset(parts: readonly {text:string}[] | undefined, index:number) {return parts?.slice(0,index).reduce((sum,part)=>sum+part.text.length,0) ?? 0;}
+function audioProgressFor(kind: AudioKind) {
+  const progress = isPlaying.value && currentAudioKind.value === kind ? audioProgress.value : null;
+  return progress ? {...progress,start:progress.start+audioTextOffset.value,end:progress.end+audioTextOffset.value} : null;
+}
 const currentAudioKind = ref<AudioKind | null>(null);
 const currentAudioText = ref('');
 const currentAudioKey = ref('');
@@ -1159,13 +1169,14 @@ function isCurrentAudio(kind: AudioKind, key = currentAudioText.value): boolean 
 }
 function audioLabel(kind: AudioKind): string {
   const label = kind === 'source' ? '原文' : kind === 'translation' ? '译文' : '单词';
-  return isCurrentAudio(kind) ? `停止播放${label}` : `播放${label}`;
+  return isPreparingAudio.value && currentAudioKind.value === kind ? '停止生成语音' : isCurrentAudio(kind) ? `停止播放${label}` : `播放${label}`;
 }
 function wordAudioKey(pronunciation: WordPronunciation): string {
   return pronunciation.audio || pronunciation.text || wordCard.value?.word || selectedText.value;
 }
 function wordAudioLabel(pronunciation: WordPronunciation): string {
   const label = pronunciation.label || '单词发音';
+  if (isPreparingAudio.value && currentAudioKind.value === 'word' && currentAudioKey.value === wordAudioKey(pronunciation)) return '停止生成语音';
   return isCurrentWordAudio(pronunciation) ? `停止播放${label}` : `播放${label}`;
 }
 function isCurrentWordAudio(pronunciation: WordPronunciation): boolean {
@@ -1184,6 +1195,9 @@ function stopAudio(notifyRemote = true): void {
   if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   utterance = null;
   isPlaying.value = false;
+  isPreparingAudio.value = false;
+  audioProgress.value = null;
+  audioTextOffset.value = 0;
   currentAudioKind.value = null;
   currentAudioText.value = '';
   currentAudioKey.value = '';
@@ -1200,6 +1214,7 @@ function base64ToBlobUrl(audioBase64: string, contentType: string): string {
 
 interface EdgeSpeechResult {
   handled: boolean;
+  error?: string;
   errorCode?: string;
 }
 
@@ -1219,11 +1234,13 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
       contentType?: string;
       transport?: 'offscreen' | 'page';
       errorCode?: unknown;
+      error?: string;
     };
     const remoteResult = ttsContentController.completeRemoteRequest(remoteRequest, response);
     if (remoteResult === 'stale') return {handled: true};
     if (remoteResult === 'failed') return {
       handled: false,
+      error: response.error,
       errorCode: typeof response.errorCode === 'string' ? response.errorCode : undefined,
     };
     if (remoteResult === 'offscreen') {
@@ -1239,6 +1256,7 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
     const nextAudioUrl = base64ToBlobUrl(response.audioBase64, response.contentType || 'audio/mpeg');
     const nextAudio = new Audio(nextAudioUrl);
     nextAudio.preload = 'auto';
+    nextAudio.ontimeupdate = () => {if(audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
     nextAudio.onended = () => { if (audio === nextAudio) { releasePageAudio(); stopAudio(); } };
     nextAudio.onerror = () => {
       if (audio !== nextAudio) return;
@@ -1279,6 +1297,7 @@ function playBrowserSpeech(text: string, language: string, kind: AudioKind): boo
     const nextUtterance = new SpeechSynthesisUtterance(text);
     nextUtterance.lang = language;
     nextUtterance.voice = selectVoice(language) ?? null;
+    nextUtterance.onboundary = event => {if (utterance === nextUtterance) audioProgress.value = boundarySpeechProgress(text,event.charIndex,event.charLength);};
     nextUtterance.onend = () => { if (utterance === nextUtterance) stopAudio(); };
     nextUtterance.onerror = event => { if (utterance === nextUtterance && event.error !== 'canceled' && event.error !== 'interrupted') stopAudio(); };
     utterance = nextUtterance;
@@ -1324,6 +1343,7 @@ async function playGoogleFallback(text: string, language: string, kind: AudioKin
   const speechUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(language)}&client=tw-ob&q=${encodeURIComponent(text)}`;
   const nextAudio = new Audio(speechUrl);
   nextAudio.preload = 'auto';
+  nextAudio.ontimeupdate = () => {if (audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
   nextAudio.onended = () => { if (audio === nextAudio) { releasePageAudio(); stopAudio(); } };
   nextAudio.onerror = () => {
     if (audio !== nextAudio) return;
@@ -1352,6 +1372,7 @@ async function playExternalAudio(url: string, text: string, kind: AudioKind, key
   currentAudioText.value = text;
   currentAudioKey.value = key;
   isPlaying.value = true;
+  nextAudio.ontimeupdate = () => {if (audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
   nextAudio.onended = () => { if (audio === nextAudio) stopAudio(); };
   nextAudio.onerror = () => {
     if (audio !== nextAudio) return;
@@ -1376,23 +1397,34 @@ async function playExternalAudio(url: string, text: string, kind: AudioKind, key
 async function toggleAudio(text: string, kind: AudioKind): Promise<void> {
   const cleanText = text.trim();
   if (!cleanText) return;
-  if (isCurrentAudio(kind) && currentAudioText.value === cleanText) { stopAudio(); return; }
+  if ((isCurrentAudio(kind) || isPreparingAudio.value && currentAudioKind.value === kind) && currentAudioText.value === cleanText) { stopAudio(); return; }
   stopAudio();
   const language = speechLanguage(cleanText, kind);
   const requestId = ttsContentController.currentGeneration();
-  isPlaying.value = true;
+  isPreparingAudio.value = true;
+  audioTextOffset.value = text.length - text.trimStart().length;
   currentAudioKind.value = kind;
   currentAudioText.value = cleanText;
   currentAudioKey.value = cleanText;
-  const edgeResult = await playEdgeSpeech(cleanText, language, kind, requestId);
-  if (edgeResult.handled || !ttsContentController.isCurrentGeneration(requestId)) return;
+  try {
+    const edgeResult = await playEdgeSpeech(cleanText, language, kind, requestId);
+    if (edgeResult.handled || !ttsContentController.isCurrentGeneration(requestId)) return;
+    await fallbackSpeech(edgeResult, cleanText, language, kind);
+  } finally {if (ttsContentController.isCurrentGeneration(requestId)) isPreparingAudio.value = false;}
+}
+
+async function fallbackSpeech(edgeResult: EdgeSpeechResult, text: string, language: string, kind: AudioKind): Promise<void> {
   if (edgeResult.errorCode === 'local-tts-model-not-downloaded') {
     showNotice(t('selectionTts.localModelNotDownloaded'), 'open-local-tts');
   } else if (edgeResult.errorCode === 'local-tts-language-unsupported') {
     showNotice(t('selectionTts.languageUnsupported'));
   }
-  if (config.selectionTtsMode === 'local-only') return;
-  if (!playBrowserSpeech(cleanText, language, kind)) await playGoogleFallback(cleanText, language, kind);
+  if (config.selectionTtsMode === 'local-only') {
+    stopAudio(false);
+    if (!edgeResult.errorCode) showNotice(edgeResult.error || '本地语音生成失败，请重试');
+    return;
+  }
+  if (!playBrowserSpeech(text, language, kind)) await playGoogleFallback(text, language, kind);
 }
 
 function handleSelectionTtsState(message: unknown): true | undefined {
@@ -1402,12 +1434,20 @@ function handleSelectionTtsState(message: unknown): true | undefined {
   const text = currentAudioText.value;
   const kind = currentAudioKind.value;
   const language = kind && text ? speechLanguage(text, kind) : '';
+  if (state === 'progress') {audioProgress.value = parseSpeechProgress((message as {progress?:unknown}).progress); return true;}
   if (state === 'ended' || state === 'stopped') {
     stopAudio(false);
     return true;
   }
   if (state === 'error') {
+    const textOffset = audioTextOffset.value;
     stopAudio(false);
+    if (config.selectionTtsMode === 'local-only') {
+      const error = (message as {error?: string}).error;
+      showNotice(error || '语音播放失败，请重试');
+      return true;
+    }
+    audioTextOffset.value = textOffset;
     if (text && kind && !playBrowserSpeech(text, language, kind)) void playGoogleFallback(text, language, kind);
     return true;
   }
@@ -1419,21 +1459,27 @@ async function toggleWordAudio(pronunciation: WordPronunciation): Promise<void> 
   const cleanText = word.trim();
   if (!cleanText) return;
   const key = wordAudioKey(pronunciation);
-  if (isCurrentAudio('word', key)) { stopAudio(); return; }
+  if (isCurrentAudio('word', key) || isPreparingAudio.value && currentAudioKind.value === 'word' && currentAudioKey.value === key) { stopAudio(); return; }
   stopAudio();
   const requestId = ttsContentController.currentGeneration();
-  isPlaying.value = true;
+  isPreparingAudio.value = true;
   currentAudioKind.value = 'word';
   currentAudioText.value = cleanText;
   currentAudioKey.value = key;
-  const externalAudio = pronunciation.audio;
-  if (externalAudio) {
-    const externalStarted = await playExternalAudio(externalAudio, cleanText, 'word', key, requestId);
-    if (externalStarted || !ttsContentController.isCurrentGeneration(requestId)) return;
-  }
-  const edgeStarted = await playEdgeSpeech(cleanText, 'en-US', 'word', requestId);
-  if (edgeStarted || !ttsContentController.isCurrentGeneration(requestId)) return;
-  if (!playBrowserSpeech(cleanText, 'en-US', 'word')) playGoogleFallback(cleanText, 'en-US', 'word');
+  try {
+    const externalAudio = pronunciation.audio;
+    if (externalAudio) {
+      const externalStarted = await playExternalAudio(externalAudio, cleanText, 'word', key, requestId);
+      if (!ttsContentController.isCurrentGeneration(requestId)) return;
+      if (externalStarted) return;
+    }
+    const edgeResult = await playEdgeSpeech(cleanText, 'en-US', 'word', requestId);
+    if (!ttsContentController.isCurrentGeneration(requestId)) return;
+    currentAudioKey.value = key;
+    if (edgeResult.handled) return;
+    await fallbackSpeech(edgeResult, cleanText, 'en-US', 'word');
+    if (ttsContentController.isCurrentGeneration(requestId)) currentAudioKey.value = key;
+  } finally {if (ttsContentController.isCurrentGeneration(requestId)) isPreparingAudio.value = false;}
 }
 
 /** 右键“翻译选中文本”：直接按当前选区出卡片，跳过触发方式与延迟设置。 */

@@ -14,6 +14,8 @@ import {
 } from '@/src/features/selection-translation/background/ttsHandler';
 import {createCapabilityGatedSelectionTtsTransport} from '@/src/app/background/capabilityRegistry';
 import {resolveBrowserCapabilities} from '@/src/platform/browser/capabilities';
+import {createSelectionTtsContentController} from '@/src/features/selection-translation/content/selectionTtsContentController';
+import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
 
 function deferred<T>() {
     let resolve!: (value: T) => void;
@@ -228,6 +230,7 @@ describe('selection TTS background handlers', () => {
         });
         expect(dependencies.playWithOffscreen).toHaveBeenCalledWith({
             audioBase64: 'AQID',
+            text: 'hello',
             contentType: 'audio/mpeg',
             tabId: 3,
             clientRequestId: clientId(77),
@@ -565,6 +568,7 @@ describe('selection TTS background handlers', () => {
 
         expect(dependencies.playWithOffscreen).toHaveBeenCalledWith({
             sourceUrl: googleSelectionTtsUrl('hello world', 'zh-Hans'),
+            text: 'hello world',
             tabId: 8,
             clientRequestId: clientId(9),
         });
@@ -654,5 +658,137 @@ describe('selection TTS background handlers', () => {
             response: {success: false, error: '语音播放已取消'},
         });
         expect(dependencies.stopWithOffscreen).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('selection TTS metadata and progress routing', () => {
+    const timings = [{startChar: 0, endChar: 5, startTime: 0, endTime: 2}];
+    const progress = {start: 0, end: 5, fraction: 0.5, estimated: true};
+    const originalRoute = {tabId: 0, clientRequestId: 'metadata-original'};
+    const context = {sender: {tab: {id: originalRoute.tabId}}};
+    const playMessage = {type: SELECTION_TTS_MESSAGE_TYPE, text: ' hello ', clientRequestId: originalRoute.clientRequestId};
+
+    it.each([
+        ['missing', undefined], ['empty', []], ['timed', timings],
+    ] as const)('forwards trimmed text and %s local timings through the synthesis policy into playback', async (_kind, cues) => {
+        const local = vi.fn(async () => ({
+            audio: new Uint8Array([1, 2, 3]).buffer,
+            contentType: 'audio/wav' as const,
+            voice: 'zf_001',
+            ...(cues === undefined ? {} : {timings: [...cues]}),
+        }));
+        const online = vi.fn(async () => audio());
+        const synthesize = createSelectionTtsSynthesizer({
+            getMode: () => 'local-only', getLocalVoice: () => 'zf_001', getOnlineVoices: () => [],
+            synthesizeLocal: local, synthesizeOnline: online,
+        });
+        const {dependencies, router} = createSubject({synthesize});
+        await expect(router.dispatch(playMessage, context)).resolves.toEqual({
+            handled: true, response: {success: true, transport: 'offscreen', voice: 'zf_001'},
+        });
+        expect(local).toHaveBeenCalledWith('hello', 'en-US', 'zf_001', expect.any(AbortSignal));
+        expect(online).not.toHaveBeenCalled();
+        expect(dependencies.playWithOffscreen).toHaveBeenCalledWith({
+            audioBase64: 'AQID', text: 'hello', contentType: 'audio/wav', ...originalRoute,
+            ...(cues === undefined ? {} : {timings: [...cues]}),
+        });
+        if (cues === undefined) expect(vi.mocked(dependencies.playWithOffscreen).mock.calls[0][0]).not.toHaveProperty('timings');
+    });
+
+    it('preserves active playback after progress so replacement still aborts and stops the original route', async () => {
+        const {dependencies, router} = createSubject();
+        await router.dispatch(playMessage, context);
+        const signal = vi.mocked(dependencies.synthesize).mock.calls[0][3]!;
+        for (const fraction of [0, 0.5, 1]) {
+            await router.dispatch({
+                type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...originalRoute,
+                state: 'progress', progress: {...progress, fraction, privateField: 'discard'},
+            }, {});
+            expect(dependencies.sendTabMessage).toHaveBeenLastCalledWith(0, {
+                type: 'selectionTtsState', clientRequestId: originalRoute.clientRequestId,
+                state: 'progress', progress: {...progress, fraction}, error: undefined,
+            });
+        }
+        expect(signal.aborted).toBe(false);
+        expect(dependencies.stopWithOffscreen).not.toHaveBeenCalled();
+        await router.dispatch({...playMessage, text: 'replacement', clientRequestId: 'metadata-replacement'}, context);
+        expect(signal.aborted).toBe(true);
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledOnce();
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledWith(expect.objectContaining(originalRoute));
+    });
+
+    it.each([
+        ['missing', undefined], ['empty object', {}],
+        ['invalid range', {...progress, end: 0}], ['nonfinite fraction', {...progress, fraction: Number.NaN}],
+        ['fraction over one', {...progress, fraction: 2}], ['invalid precision', {...progress, estimated: 'yes'}],
+    ])('forwards null for %s progress without releasing active playback', async (_kind, metadata) => {
+        const {dependencies, router} = createSubject();
+        await router.dispatch(playMessage, context);
+        await expect(router.dispatch({
+            type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...originalRoute,
+            state: 'progress', progress: metadata,
+        }, {})).resolves.toEqual({handled: true, response: {success: true}});
+        expect(dependencies.sendTabMessage).toHaveBeenCalledWith(0, {
+            type: 'selectionTtsState', clientRequestId: originalRoute.clientRequestId,
+            state: 'progress', progress: null, error: undefined,
+        });
+        await router.dispatch({...playMessage, clientRequestId: 'metadata-replacement'}, context);
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledOnce();
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledWith(expect.objectContaining(originalRoute));
+    });
+
+    it.each(['ended', 'stopped', 'error'] as const)('matching terminal %s releases active routing and omits stray progress metadata', async state => {
+        const {dependencies, router} = createSubject();
+        await router.dispatch(playMessage, context);
+        await router.dispatch({type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...originalRoute, state, progress}, {});
+        expect(dependencies.sendTabMessage).toHaveBeenCalledWith(0, {
+            type: 'selectionTtsState', clientRequestId: originalRoute.clientRequestId, state, error: undefined,
+        });
+        await router.dispatch({...playMessage, clientRequestId: 'metadata-replacement'}, context);
+        expect(dependencies.stopWithOffscreen).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['different tab', {tabId: 1, clientRequestId: originalRoute.clientRequestId}],
+        ['different client', {tabId: 0, clientRequestId: 'another-client'}],
+    ] as const)('routes %s messages only to their declared recipient and preserves current ownership', async (_kind, route) => {
+        const controller = createSelectionTtsContentController({
+            createClientRequestId: () => originalRoute.clientRequestId, stopRemote: vi.fn(async () => undefined),
+        });
+        const request = controller.beginRemoteRequest();
+        controller.completeRemoteRequest(request, {success: true, transport: 'offscreen'});
+        const received = vi.fn((tabId: number, message: unknown) => {
+            if (tabId === originalRoute.tabId) expect(controller.matchRemoteState(message)).toBeNull();
+            return Promise.resolve();
+        });
+        const {dependencies, router} = createSubject({sendTabMessage: received});
+        await router.dispatch(playMessage, context);
+        for (const state of ['progress', 'ended', 'stopped', 'error']) {
+            await router.dispatch({type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...route, state, progress}, {});
+            expect(received).toHaveBeenLastCalledWith(route.tabId, expect.objectContaining({clientRequestId: route.clientRequestId, state}));
+        }
+        expect(received).toHaveBeenCalledTimes(4);
+        expect(controller.getState().activeClientRequestId).toBe(originalRoute.clientRequestId);
+        await router.dispatch({...playMessage, clientRequestId: 'metadata-replacement'}, context);
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledWith(expect.objectContaining(originalRoute));
+    });
+
+    it('ignores invalid progress routes and forwards self-described progress after a worker restart', async () => {
+        const {dependencies, router} = createSubject();
+        await router.dispatch(playMessage, context);
+        for (const route of [
+            {...originalRoute, tabId: '0'}, {...originalRoute, tabId: -1},
+            {...originalRoute, clientRequestId: ''}, {...originalRoute, clientRequestId: 1},
+        ]) {
+            await router.dispatch({type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...route, state: 'progress', progress}, {});
+        }
+        expect(dependencies.sendTabMessage).not.toHaveBeenCalled();
+        const restarted = createRouter(dependencies);
+        await restarted.dispatch({type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE, ...originalRoute, state: 'progress', progress}, {});
+        expect(dependencies.sendTabMessage).toHaveBeenCalledWith(0, {
+            type: 'selectionTtsState', clientRequestId: originalRoute.clientRequestId, state: 'progress', progress, error: undefined,
+        });
+        await router.dispatch({...playMessage, clientRequestId: 'metadata-replacement'}, context);
+        expect(dependencies.stopWithOffscreen).toHaveBeenCalledWith(expect.objectContaining(originalRoute));
     });
 });

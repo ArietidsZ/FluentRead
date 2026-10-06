@@ -1,9 +1,11 @@
 /**
  * @file src/features/image-translation/services/mangaOcr.ts
- * 文件职责：在扩展 Offscreen 文档中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
- * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；取消立即结束调用方等待，底层推理完成后丢弃迟到结果，空闲三分钟释放会话，统一清理 OCR 与修补会话。
+ * 文件职责：在扩展独立 Worker 中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
+ * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；取消由外部 owner 终止 Worker，GPU 挂起重建一次 CPU 后端，空闲三分钟释放会话，统一清理 OCR 与修补会话。
  * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；仅漫画及显式选择 PaddleOCR 的单张图片使用本模型；通用识别与圈选继续由 Tesseract 负责。
  */
+import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
+import {mangaInferenceClient, mangaExtensionUrl, type MangaInferenceProgress} from './mangaInferenceClient';
 import {probeMangaGpu} from './mangaGpu';
 import {protectMangaSession} from './mangaSessionFallback';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
@@ -13,10 +15,10 @@ import {findMangaBubbles,collectMangaRegions,type MangaOcrPage} from './mangaBub
 import {mangaInpaintingRuntime} from './mangaInpainting';
 
 interface MangaOcrPort {
-    recognize(image: string, options: {flatten: true; noCache: true; strategy: 'per-box';signal?:AbortSignal; decodedImage?: HTMLImageElement}): Promise<MangaOcrPage>;
+    recognize(image: string, options: {flatten: true; noCache: true; strategy: 'per-box';signal?:AbortSignal; decodedImage?: HTMLImageElement; progress?: MangaInferenceProgress}): Promise<MangaOcrPage>;
     destroy(): Promise<void>;
 }
-type Progress = (stage: 'preparing' | 'recognizing', percent?: number) => void;
+type Progress = MangaInferenceProgress;
 
 /** 单队列持有模型会话，取消排队请求不能终止其他页正在使用的模型。 */
 export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: Progress) => Promise<MangaOcrPort>) {
@@ -44,7 +46,7 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
                             service = await create(signal, progress);
                         }
                         assertMangaOcrActive(signal); progress?.('recognizing');
-                        const response = await service.recognize(image, {flatten: true, noCache: true, strategy: 'per-box',signal, decodedImage});
+                        const response = await service.recognize(image, {flatten: true, noCache: true, strategy: 'per-box',signal, decodedImage, progress});
                         assertMangaOcrActive(signal);
                         return collectMangaRegions(response, language, width, height, profile);
                     })().catch(async error => {
@@ -72,27 +74,27 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
 
 export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Progress): Promise<MangaOcrPort> {
     const model = await loadMangaOcrAssets(signal, percent => progress?.('preparing', percent));
-    assertMangaOcrActive(signal);
+    assertMangaOcrActive(signal); progress?.('initializing');
     // 两个包共享同一 ONNX 实例；在导入 SDK 前覆盖其 CDN 默认路径，符合扩展 CSP。
     const ort = await import('onnxruntime-web/webgpu');
-    ort.env.wasm.numThreads = 1;
+    ort.env.wasm.numThreads = localWasmThreads();
     configureOnnxWasmBackend(ort.env.wasm, {
-        mjs: chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
-        wasm: chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
+        mjs: mangaExtensionUrl('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
+        wasm: mangaExtensionUrl('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
     });
     const {PaddleOcrService} = await import('ppu-paddle-ocr/web');
     const gpu=await probeMangaGpu();
     let activeSignal=signal;
     class MangaService extends PaddleOcrService {
         private checks:Array<()=>void>=[];
-        async recognizeManga(canvas:HTMLCanvasElement,options:{flatten:true;noCache:true;strategy:'per-box'}) {
+        async recognizeManga(canvas:HTMLCanvasElement | OffscreenCanvas,options:{flatten:true;noCache:true;strategy:'per-box'}) {
             try {return await this.recognize(canvas,options);}
             finally {this.checks.forEach(check=>check());}
         }
         async initialize() {
             await super.initialize();
-            if(gpu.available)for(const [key,session] of [['detection',this.detectionSession],['recognition',this.recognitionSession]] as const) {
-                if(session)this.checks.push(protectMangaSession(session,async()=>{
+            for(const [key,session] of [['detection',this.detectionSession],['recognition',this.recognitionSession]] as const) {
+                if(session && gpu.available)this.checks.push(protectMangaSession(session,async()=>{
                     assertMangaOcrActive(activeSignal);
                     const assets=await loadMangaOcrAssets(activeSignal);
                     assertMangaOcrActive(activeSignal);
@@ -100,6 +102,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                     try {assertMangaOcrActive(activeSignal);}catch(error){await cpu.release();throw error;}
                     return cpu;
                 },()=>activeSignal));
+                if(session){const run=session.run.bind(session);const invoke=run as (...args:Parameters<typeof run>)=>ReturnType<typeof run>;session.run=((...args:Parameters<typeof run>)=>paceLocalInference(()=>invoke(...args))) as typeof session.run;}
             }
         }
     }
@@ -113,7 +116,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                 activeSignal=options.signal;
                 assertMangaOcrActive(options.signal);
                 const bitmap=options.decodedImage ?? await createImageBitmap(new Blob([await (await fetch(image)).arrayBuffer()]));
-                const canvas=document.createElement('canvas');canvas.width='naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;canvas.height='naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;
+                const canvas=createOcrCanvas();canvas.width='naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;canvas.height='naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;
                 try {
                     assertMangaOcrActive(options.signal);
                     const context=canvas.getContext('2d');if(!context)throw new Error('浏览器不支持图片处理');
@@ -123,7 +126,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                     // 气泡会以原分辨率单独识别。整页只识别气泡外文字，避免每行对白推理两次。
                     let pageCanvas = canvas;
                     if (boxes.length) {
-                        pageCanvas = document.createElement('canvas');pageCanvas.width = canvas.width;pageCanvas.height = canvas.height;
+                        pageCanvas = createOcrCanvas();pageCanvas.width = canvas.width;pageCanvas.height = canvas.height;
                         const pageContext = pageCanvas.getContext('2d');
                         if (!pageContext) {pageCanvas.width = 0;pageCanvas.height = 0;throw new Error('浏览器不支持图片处理');}
                         pageContext.drawImage(canvas, 0, 0);pageContext.fillStyle = '#fff';
@@ -137,7 +140,7 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
                         assertMangaOcrActive(options.signal);
                         const width=bbox.x1-bbox.x0,height=bbox.y1-bbox.y0;
                         const scale=Math.min(3,1536/Math.max(width,height));
-                        const crop=document.createElement('canvas');crop.width=Math.round(width*scale);crop.height=Math.round(height*scale);
+                        const crop=createOcrCanvas();crop.width=Math.round(width*scale);crop.height=Math.round(height*scale);
                         try {
                             const ctx=crop.getContext('2d');if(!ctx)throw new Error('浏览器不支持图片处理');
                             ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
@@ -155,7 +158,16 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
     } catch (error) { await service.destroy(); throw error; }
 }
 
-export const mangaOcrRuntime = createMangaOcrRuntime(createBrowserMangaOcr);
+function createOcrCanvas(): HTMLCanvasElement | OffscreenCanvas {
+    return typeof document === 'undefined' ? new OffscreenCanvas(0, 0) : document.createElement('canvas');
+}
+
+async function createWorkerMangaOcr(signal?: AbortSignal, progress?: Progress): Promise<MangaOcrPort> {
+    await mangaInferenceClient.prepare('ocr', signal, progress);
+    return {recognize: (image, options) => mangaInferenceClient.request({type:'recognize', image}, options.signal, options.progress), destroy: () => mangaInferenceClient.release('ocr')};
+}
+
+export const mangaOcrRuntime = createMangaOcrRuntime(createWorkerMangaOcr);
 
 /** 设置清理和页面销毁共用模型会话生命周期。 */
 export async function removeMangaModels():Promise<void>{await mangaInpaintingRuntime.dispose();await mangaOcrRuntime.removeModels();}

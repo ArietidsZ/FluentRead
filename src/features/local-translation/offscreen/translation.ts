@@ -5,6 +5,7 @@
  * 主要内容：串行复用模型 Worker，按模型切换时终止旧实例，隔离旧实例的迟到错误，并向后台提供下载、状态、清除和文本翻译能力。
  * 模块边界：不读取配置、不访问宿主网页 DOM；语言码解析由 core 配置模块负责。
  */
+import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {
     LOCAL_TRANSLATION_MODELS,
     normalizeLocalTranslationModel,
@@ -16,6 +17,7 @@ import type {LocalTranslationDownloadSnapshot} from '@/src/core/config/localTran
 
 interface WorkerRequest {
     readonly requestId: number;
+    readonly singleThread?: boolean;
     readonly type: 'prepare' | 'translate' | 'dispose';
     readonly model?: LocalTranslationModelId;
     readonly text?: string;
@@ -25,6 +27,7 @@ interface WorkerRequest {
 
 interface WorkerResponse {
     readonly requestId: number;
+    readonly retrySingleThread?: boolean;
     readonly success: boolean;
     readonly model?: string;
     readonly result?: string;
@@ -52,6 +55,7 @@ const TRANSLATION_TIMEOUT_MS = 120_000;
 const MODEL_IDLE_DISPOSE_MS = 30_000;
 
 let translationWorker: Worker | null = null;
+let workerGeneration = 0;
 let translationWorkerModel: LocalTranslationModelId | '' = '';
 let workerRequestId = 0;
 const pendingWorkerRequests = new Map<number, PendingWorkerRequest>();
@@ -99,6 +103,7 @@ function rejectPending(error: Error): void {
 }
 
 function terminateWorker(error?: Error): void {
+    workerGeneration++;
     const current = translationWorker;
     translationWorker = null;
     translationWorkerModel = '';
@@ -129,7 +134,7 @@ function getWorker(): Worker {
         pendingWorkerRequests.delete(response.requestId);
         window.clearTimeout(pending.timeout);
         if (pending.signal && pending.onAbort) pending.signal.removeEventListener('abort', pending.onAbort);
-        if (response.success) pending.resolve(response);
+        if (response.success || response.retrySingleThread) pending.resolve(response);
         else pending.reject(new Error(response.error || '本地翻译 Worker 失败'));
     };
     worker.onerror = (event) => {
@@ -140,7 +145,20 @@ function getWorker(): Worker {
     return worker;
 }
 
-function requestWorker(
+function requestWorker(message: Omit<WorkerRequest, 'requestId'>, timeoutMs: number, signal?: AbortSignal): Promise<WorkerResponse> {
+    clearIdleDispose();
+    const generation = workerGeneration;
+    return withLocalInferenceBudget(async () => {
+        if (generation !== workerGeneration) throw createAbortError();
+        const deadline=Date.now()+timeoutMs;
+        const response=await requestWorkerNow(message,timeoutMs,signal);
+        if (!response.retrySingleThread || message.singleThread || signal?.aborted) return response;
+        terminateWorker();
+        return requestWorkerNow({...message,singleThread:true},Math.max(1,deadline-Date.now()),signal);
+    }, signal);
+}
+
+function requestWorkerNow(
     message: Omit<WorkerRequest, 'requestId'>,
     timeoutMs: number,
     signal?: AbortSignal,

@@ -131,7 +131,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
     it('漫画整段识别走专用模型与局部修补，保留对照并报告准备阶段',async()=>{
         const regions=[{...lines[0],fontSize:10,sourceBoxes:[lines[0].bbox]}];
         mocks.mangaRecognize.mockImplementationOnce(async(_image,_language,_w,_h,_signal,progress)=>{progress('preparing',23);progress('recognizing');return regions;});
-        mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_lines,_signal,onPreparing,onRepair)=>{onPreparing();onRepair(1,2);return pixels;});
+        mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_lines,_signal,onPreparing,onRepair)=>{onPreparing();onPreparing(undefined,true);onRepair(1,2);return pixels;});
         const result=await translateImageInOffscreen('manga','en','Page',undefined,'manga-page',true);
         expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
         expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true,[{color:'rgb(255,255,255)',uniform:false}]);
@@ -141,7 +141,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(mocks.encode).toHaveBeenCalledWith(canvases[1],undefined);
         expect(result.image).toBe(''); expect(result.mangaPatches).toMatchObject({width:32,height:16,patches:[{x:1,y:1,width:30,height:14}]});
         expect(canvases[1].context.drawImage).toHaveBeenCalledWith(canvases[0],1,1,30,14,0,0,30,14);expect(canvases[0].toDataURL).not.toHaveBeenCalled();
-        expect(sendMessage.mock.calls.filter(([m])=>m.type==='fluentReadImageProgress').map(([m])=>m.stage)).toEqual(['preparing','recognizing','translating','cleaning','preparing','cleaning','rendering']);
+        expect(sendMessage.mock.calls.filter(([m])=>m.type==='fluentReadImageProgress').map(([m])=>m.stage)).toEqual(['preparing','recognizing','translating','cleaning','preparing','initializing','cleaning','rendering']);
         expect(sendMessage).toHaveBeenCalledWith({type:'fluentReadImageProgress',requestId:'manga-page',stage:'cleaning',progress:50},expect.any(Function));
         expect(images[0].src).toBe('');expect(canvases[0].width).toBe(0);
     });

@@ -227,7 +227,7 @@ async function prepareTranslatedImage(
         if (manga) {
             const backgrounds = sampleMangaBackgrounds(sourcePixels.data,canvas.width,canvas.height,translatedLines as MangaRegion[]);
             const pixels = await mangaInpaintingRuntime.repair(sourcePixels.data,canvas.width,canvas.height,translatedLines as MangaRegion[],signal,
-                percent=>reportProgress(requestId,'preparing',percent),
+                (percent,initializing)=>reportProgress(requestId,initializing?'initializing':'preparing',percent),
                 (done,total)=>reportProgress(requestId,'cleaning',Math.floor(done*100/total)),backgrounds);
             sourcePixels.data.set(pixels);context.putImageData(sourcePixels,0,0);
             reportProgress(requestId,'rendering');
