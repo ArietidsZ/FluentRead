@@ -37,6 +37,7 @@ function mountRecovery() {
     '@/src/features/area-translation/core': areaCore,
     '@/src/core/config/areaTranslation': areaHotkey,
     '@/src/features/image-translation/public': {prepareImageOcrLanguages: prepare},
+    '@/src/ui/components/DownloadProgress.vue': {default: {}},
     '@/src/features/area-translation/content/contextMenuBridge': {setAreaContextMenuHandler: () => () => undefined},
   };
   const filename = resolve('src/features/area-translation/ui/AreaTranslator.vue');
@@ -67,7 +68,10 @@ describe('圈选缺少语言包的一键恢复', () => {
     f.state.downloadLanguagesAndRetry(); f.state.downloadLanguagesAndRetry();
     await vi.waitFor(() => expect(f.state.phase).toBe('translated'));
     expect(f.prepare).toHaveBeenCalledOnce();
-    expect(f.prepare).toHaveBeenCalledWith('auto', expect.any(AbortSignal));
+    expect(f.prepare).toHaveBeenCalledWith('auto', expect.any(AbortSignal), expect.any(Function));
+    // 准备语言包期间，卡片显示后台回报的真实下载百分比。
+    f.prepare.mock.calls[0][2](75);
+    expect(f.state.languagePercent).toBe(75);
     expect(f.capture).toHaveBeenCalledOnce();
     expect(f.translate.mock.calls[1][0]).toBe(f.captured);
     expect(f.translate.mock.calls[1][2]).toBe('auto');

@@ -1258,6 +1258,41 @@ describe('options UI composition architecture', () => {
     }
   })
 
+  it('shows real download progress wherever a model or language pack is downloading', () => {
+    const progress = source('src/ui/components/DownloadProgress.vue')
+    const speech = source('src/features/settings/ui/LocalTtsSettings.vue')
+    const video = source('src/features/settings/ui/VideoLocalModelSettings.vue')
+    const ocr = source('src/features/image-translation/ui/ImageOcrSettings.vue')
+    const area = source('src/features/area-translation/ui/AreaTranslator.vue')
+    const serviceConfiguration = source('src/features/settings/ui/services/ServiceConfiguration.vue')
+
+    // 共用组件：有总量时是确定进度条，否则是不带 value 的不确定进度条；数字来自统一的格式化函数。
+    expect(progress).toContain('<progress v-if="progress && percent !== undefined" :value="progress.loaded" :max="progress.total" :aria-label="label" />')
+    expect(progress).toContain('<progress v-else :aria-label="label" />')
+    expect(progress).toContain('formatDownloadProgress(progress)')
+    expect(progress).not.toMatch(/setInterval|setTimeout|requestAnimationFrame/)
+
+    // 朗读模型：下载时进度取代状态行，“下载中”只留在按钮上。
+    expect(speech).toContain('data-testid="local-tts-progress"')
+    expect(speech).toContain('<p v-else class="local-tts-model-status"')
+    expect(speech.match(/settings\.localTts\.statusDownloading/g)).toHaveLength(2)
+    expect(speech).toContain('watchDownloadProgress([LOCAL_TTS_DOWNLOAD_ID], handleDownloadProgress)')
+
+    // 字幕模型：卡片底部的状态文字在下载时换成进度。
+    expect(video).toContain(':data-video-model-progress="item.value"')
+    expect(video).not.toContain('正在下载模型')
+    expect(video).toContain('videoModelDownloadId(item.value)')
+
+    // 语言包与圈选卡片是几 MB 的小资源，只写百分比。
+    expect(ocr).toContain('class="image-ocr-pack-progress" detail="percent"')
+    expect(area).toContain('<DownloadProgress v-if="preparingLanguages" class="fr-area-download" detail="percent"')
+
+    // Chrome 只回报比例，文字里已有百分比，进度条不再重复数字。
+    expect(serviceConfiguration).toContain('data-chrome-preparation-progress')
+    expect(serviceConfiguration).toContain('class="chrome-preparation-progress" detail="none"')
+    expect(serviceConfiguration).toContain("chromeDownloadFraction.value = status.phase === 'downloading' ? status.loaded : undefined")
+  })
+
   it('keeps feature pages on the shared label-left rows instead of bespoke grids', () => {
     const manga = source('src/features/image-translation/ui/MangaSettings.vue')
     const writing = source('src/features/settings/ui/WritingSettings.vue')

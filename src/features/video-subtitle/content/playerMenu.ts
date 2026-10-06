@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/playerMenu.ts
  * 文件职责：组装播放器字幕菜单，以紧凑行呈现显示方式、字幕时间、本地 AI 字幕与下载操作，并在同一弹层内提供模型下载确认。
- * 主要内容：X 首层聚焦显示方式和当前需要的操作，校时、导出和重新识别放在可返回的选项页；复用稳定节点呈现字幕来源、故障恢复、AI 进度和模型确认。
+ * 主要内容：X 首层聚焦显示方式和当前需要的操作，校时、导出和重新识别放在可返回的选项页；复用稳定节点呈现字幕来源、故障恢复、AI 进度、模型下载进度和模型确认。
  * 模块边界：只操作 FluentRead 自己的菜单节点，不读取存储、不发起识别或绑定全局事件；运行时负责配置、请求与清理。
  */
 import type {VideoSubtitleDisplayMode} from '@/src/core/config/model';
@@ -11,6 +11,7 @@ import {
 } from './ui';
 import type {VideoAiFullCapturePhase, VideoAiFullCaptureProgress} from './video-ai/fullCapture';
 import type {VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+import {downloadProgressPercent, formatDownloadBytes, formatDownloadProgress, type DownloadProgress} from '@/src/core/download/progress';
 
 /** 菜单里的“关闭”与三种显示方式同属一个选择：用户只需回答“现在看哪种字幕”。 */
 export type VideoMenuMode = VideoSubtitleDisplayMode | 'off';
@@ -412,6 +413,8 @@ export interface VideoAiMenuState {
     available: boolean;
     checking: boolean;
     downloading?: boolean;
+    /** 模型下载的真实字节进度；尚未收到或总量未知时菜单保持循环动画。 */
+    downloadProgress?: DownloadProgress;
     active: boolean;
     running: boolean;
     requested: boolean;
@@ -446,19 +449,26 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     } else if (state.running) detail = translateVideoUi('video.aiGenerating', language);
     else if (state.requested) detail = translateVideoUi('video.aiWaitingForPlayback', language);
     if (state.error && !downloading && !state.checking) detail = localizeVideoUiText(state.error, language);
+    let title = state.error && !downloading ? localizeVideoUiText(state.error, language) : detail;
+    if (downloading && state.downloadProgress) {
+        // 菜单宽度有限：按钮上只写百分比（总量未知时写已下载体积），完整字节数放在悬停提示里。
+        percent = downloadProgressPercent(state.downloadProgress);
+        detail = percent === undefined ? formatDownloadBytes(state.downloadProgress.loaded) : `${percent}%`;
+        title = formatDownloadProgress(state.downloadProgress);
+    }
     button.disabled = !state.available || state.checking || downloading;
     button.setAttribute('aria-checked', String(state.active));
     button.dataset.processing = String(processing || state.checking || downloading);
     button.dataset.error = String(Boolean(state.error) && !downloading);
     button.dataset.ready = String(ready);
-    // 确定进度显示为进度条；读取音频、下载模型等无法估算的阶段使用循环动画。
+    // 确定进度显示为进度条；读取音频、尚未收到下载进度等无法给出比例的阶段使用循环动画。
     button.dataset.progress = percent === undefined ? (processing || downloading ? 'indeterminate' : 'none') : 'determinate';
     button.style.setProperty('--fluent-read-video-ai-progress', `${percent ?? 0}%`);
     const labelElement = button.querySelector<HTMLElement>('.fluent-read-video-menu-label')!;
     labelElement.dataset.i18nKey = labelKey;
     labelElement.textContent = translateVideoUi(labelKey, language);
     button.querySelector<HTMLElement>('[data-state]')!.textContent = detail;
-    button.title = state.error && !downloading ? localizeVideoUiText(state.error, language) : detail;
+    button.title = title;
 }
 
 const downloadStatusVersions = new WeakMap<HTMLElement, number>();

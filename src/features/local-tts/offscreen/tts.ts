@@ -1,7 +1,7 @@
 /**
  * @file src/features/local-tts/offscreen/tts.ts
  * 文件职责：编排本地 Kokoro TTS 模型缓存、Worker 生命周期、下载状态和合成请求。
- * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker；GPU 生命周期失败按总预算重建一次 CPU Worker，并在取消或空闲时释放资源。
+ * 主要内容：保证本地 TTS 不会因一次朗读自动下载，串行复用一个模型 Worker；GPU 生命周期失败按总预算重建一次 CPU Worker，并在取消或空闲时释放资源；模型下载的字节进度原样交给调用方发布。
  * 模块边界：只负责扩展自有 Offscreen 运行时，不决定在线/本地策略，也不直接操作网页 UI。
  */
 
@@ -21,6 +21,7 @@ import {
     isLocalTtsModelCached,
     removeLocalTtsModelFiles,
 } from './modelCache';
+import type {DownloadProgress} from '@/src/core/download/progress';
 import {
     LocalTtsLanguageUnsupportedError,
     LocalTtsModelNotDownloadedError,
@@ -218,14 +219,17 @@ function runSerial<T>(operation: () => Promise<T>): Promise<T> {
     return run;
 }
 
-export async function prepareLocalTtsModel(_keepWarm = false): Promise<{
+export async function prepareLocalTtsModel(
+    _keepWarm = false,
+    onProgress?: (progress: DownloadProgress) => void,
+): Promise<{
     model: typeof LOCAL_TTS_MODEL_ID;
     dtype: typeof LOCAL_TTS_MODEL_DTYPE;
     revision: typeof LOCAL_TTS_MODEL_REVISION;
     warm: boolean;
     backend?: LocalTtsWorkerBackend;
 }> {
-    await cacheLocalTtsModelFiles();
+    await cacheLocalTtsModelFiles(onProgress);
     if (!(await isLocalTtsModelCached())) throw new Error('本地 TTS 模型缓存不完整');
     return {
         model: LOCAL_TTS_MODEL_ID,

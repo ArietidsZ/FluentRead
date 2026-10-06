@@ -38,6 +38,30 @@ describe('model download source and stream boundaries', () => {
         expect(value).toEqual([1,2,3]);expect(buffer).not.toHaveBeenCalled();expect(fetcher).toHaveBeenCalledOnce();
         expect(fetcher).toHaveBeenCalledWith(url, {signal:expect.any(AbortSignal),credentials:'omit',referrerPolicy:'no-referrer'});
     });
+    it('reports real received bytes per source and gives a total only for an uncompressed Content-Length', async () => {
+        const chunks = (parts: number[][]) => new ReadableStream<Uint8Array>({start(stream) {for (const part of parts) stream.enqueue(new Uint8Array(part)); stream.close();}});
+        const run = async (response: Response) => {
+            const calls: Array<[number, number | undefined]> = [];
+            vi.stubGlobal('fetch', vi.fn(async () => response));
+            await withModelDownload('https://example.com/model', item => item.arrayBuffer(), {onProgress: (loaded, total) => calls.push([loaded, total])});
+            return calls;
+        };
+        expect(await run(new Response(chunks([[1, 2], [3, 4, 5]]), {headers: {'Content-Length': '5'}}))).toEqual([[0, 5], [2, 5], [5, 5]]);
+        expect(await run(new Response(chunks([[1, 2, 3]])))).toEqual([[0, undefined], [3, undefined]]);
+        // 压缩传输的 Content-Length 是编码后的大小；非法或为零的长度同样不能当作总量。
+        expect(await run(new Response(chunks([[1]]), {headers: {'Content-Length': '1', 'Content-Encoding': 'gzip'}}))).toEqual([[0, undefined], [1, undefined]]);
+        expect(await run(new Response(chunks([[1]]), {headers: {'Content-Length': 'many'}}))).toEqual([[0, undefined], [1, undefined]]);
+        expect(await run(new Response(chunks([[1]]), {headers: {'Content-Length': '0'}}))).toEqual([[0, undefined], [1, undefined]]);
+
+        // 换来源重试时从 0 重新回报；进度回调抛错不影响下载结果。
+        vi.stubGlobal('navigator', {language: 'en-US'});
+        const restarted: number[] = [];
+        let pulls = 0;
+        const broken = new ReadableStream<Uint8Array>({pull(stream) {if (pulls++ === 0) stream.enqueue(new Uint8Array([9])); else stream.error(new Error('cut'));}});
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(broken)).mockResolvedValueOnce(new Response(chunks([[1, 2]]))));
+        expect(await withModelDownload(url, response => response.text(), {onProgress: (loaded) => { restarted.push(loaded); throw new Error('ui failed'); }})).toBe('\u0001\u0002');
+        expect(restarted).toEqual([0, 1, 0, 2]);
+    });
     it('falls back for HTTP, HTML challenge pages, missing bodies and validation failures', async () => {
         vi.stubGlobal('navigator', {language: 'en-US'});
         for (const bad of [new Response('', {status:503}), new Response('<html>', {headers:{'Content-Type':'text/html'}}), new Response(null)]) {

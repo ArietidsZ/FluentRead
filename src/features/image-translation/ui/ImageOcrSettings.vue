@@ -1,8 +1,8 @@
 <!--
  * @file src/features/image-translation/ui/ImageOcrSettings.vue
  * 文件职责：提供图片与圈选共用的紧凑语言包管理界面，突出当前源语言需要的资源和可继续使用的状态。
- * 主要内容：嵌入资源框时突出当前识别方式，备用模型与语言包管理按需展开，任务和错误会自动展开；独立使用时保留完整语言摘要与列表，用统一选择器设置原文语言，按当前识别语言准备缺失包；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除。
- * 模块边界：组件只通过既有后台消息管理语言包，不创建 Worker、不写缓存、不持有下载任务；关闭页面只停止状态订阅，后台仍负责去重、串行下载和部分成功持久化。
+ * 主要内容：嵌入资源框时突出当前识别方式，备用模型与语言包管理按需展开，任务和错误会自动展开；独立使用时保留完整语言摘要与列表，用统一选择器设置原文语言，按当前识别语言准备缺失包；下载中的语言包在名称下方显示真实进度条和百分比；重开页面读取后台任务快照，完成时更新共享状态，保留单包重试和移除。
+ * 模块边界：组件只通过既有后台消息管理语言包，不创建 Worker、不写缓存、不持有下载任务；下载进度只读取后台转存的变化事件；关闭页面只停止状态订阅，后台仍负责去重、串行下载和部分成功持久化。
  -->
 <template>
   <section class="image-ocr-section" :class="{'is-embedded': props.embedded}" :aria-labelledby="`${props.idPrefix}-ocr-pack-title`" data-testid="ocr-language-manager">
@@ -52,6 +52,7 @@
               <div class="image-ocr-pack-copy">
                 <div class="image-ocr-pack-title"><strong data-i18n-ignore>{{ pack.label }}</strong><span v-if="requiredCodes.includes(pack.code)" class="image-ocr-required">{{ t('ocr.packs.inUse') }}</span></div>
                 <small data-i18n-ignore>{{ pack.size }}<template v-if="pack.code === 'jpn'"> · {{ t('ocr.packs.vertical') }}</template></small>
+                <DownloadProgress v-if="stateOf(pack.code) === 'downloading' || progress[pack.code]" class="image-ocr-pack-progress" detail="percent" :progress="progress[pack.code]" :label="t('ocr.packs.downloadNamed', {name: pack.label})" />
                 <p v-if="states[pack.code]?.phase === 'error'" class="image-ocr-error" role="alert" data-i18n-ignore>{{ translateLegacy(states[pack.code]?.error || '语言包下载失败') }}</p>
                 <p v-if="actionErrors[pack.code]" class="image-ocr-error" role="alert" data-i18n-ignore>{{ actionErrors[pack.code] }}</p>
               </div>
@@ -83,6 +84,9 @@ import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {configStorage} from '@/src/platform/storage/configStorageRuntime';
 import {useUiI18n} from '@/src/ui/i18n';
 import UiSelect from '@/src/ui/components/UiSelect.vue';
+import DownloadProgress from '@/src/ui/components/DownloadProgress.vue';
+import {ocrLanguageDownloadId, type DownloadProgress as DownloadProgressValue} from '@/src/core/download/progress';
+import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
 import {
   IMAGE_OCR_LANGUAGE_PACKS, IMAGE_OCR_SOURCE_LANGUAGES, IMAGE_OCR_LANGUAGE_STATE_KEY, getRequiredImageOcrLanguages,
   normalizeImageOcrLanguageCodes, type ImageOcrLanguageCode, type ImageOcrDownloadState, type ImageOcrStatusResponse,
@@ -97,6 +101,8 @@ const requiredLabels = computed(() => requiredCodes.value.map(code => languagePa
 const downloadedCodes = ref<ImageOcrLanguageCode[]>([]);
 const states = ref<Partial<Record<ImageOcrLanguageCode, ImageOcrDownloadState>>>({});
 const actionErrors = ref<Partial<Record<ImageOcrLanguageCode, string>>>({});
+// 后台任务快照每 1.5 秒读取一次；字节进度来自实时事件，下载结束时立即补读一次状态。
+const progress = ref<Partial<Record<ImageOcrLanguageCode, DownloadProgressValue>>>({});
 const showAll = ref(false);
 const primaryCodes = computed(() => new Set([...requiredCodes.value, ...downloadedCodes.value,
   ...IMAGE_OCR_LANGUAGE_PACKS.filter(pack => states.value[pack.code] || actionErrors.value[pack.code]).map(pack => pack.code)]));
@@ -119,6 +125,7 @@ let disposed = false;
 let pollTimer: ReturnType<typeof setTimeout> | undefined;
 let refreshing: Promise<void> | undefined;
 let stopWatch: (() => void) | undefined;
+let stopWatchingProgress: (() => void) | undefined;
 
 function isBusy(code: ImageOcrLanguageCode): boolean {
   return ['queued', 'downloading', 'removing'].includes(states.value[code]?.phase ?? '');
@@ -184,6 +191,11 @@ async function removeLanguage(code: ImageOcrLanguageCode): Promise<void> {
 onMounted(() => {
   if (!browserCapabilities.imageOcr) return;
   stopWatch = configStorage.watch(`local:${IMAGE_OCR_LANGUAGE_STATE_KEY}`, () => { void refreshStatus(); });
+  stopWatchingProgress = watchDownloadProgress(IMAGE_OCR_LANGUAGE_PACKS.map(pack => ocrLanguageDownloadId(pack.code)), (id, next) => {
+    const code = IMAGE_OCR_LANGUAGE_PACKS.find(pack => ocrLanguageDownloadId(pack.code) === id)!.code;
+    progress.value = {...progress.value, [code]: next};
+    if (!next) void refreshStatus();
+  });
   document.addEventListener('visibilitychange', handleVisibility);
   void refreshStatus();
 });
@@ -191,6 +203,7 @@ onBeforeUnmount(() => {
   disposed = true;
   clearTimeout(pollTimer);
   stopWatch?.();
+  stopWatchingProgress?.();
   document.removeEventListener('visibilitychange', handleVisibility);
 });
 </script>

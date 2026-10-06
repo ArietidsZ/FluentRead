@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，拦截识别退化的长串重复文本，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，给出下载进度使用的预计体积，拦截识别退化的长串重复文本，并把多声道 PCM 按目标采样率混音和重采样。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -56,6 +56,12 @@ export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptio
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);
   return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.modelId;
+}
+
+/** 下载进度在各文件报出真实大小之前，以界面标注的模型体积作为预计总量。 */
+export function getVideoLocalTranscriptionDownloadBytes(value: unknown): number {
+  const model = normalizeVideoLocalTranscriptionModel(value);
+  return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.downloadSizeMb * 1_000_000;
 }
 
 /** 拒绝解码循环产生的长串重复字/短语；正常叠词、强调和短句重复仍可保留。 */

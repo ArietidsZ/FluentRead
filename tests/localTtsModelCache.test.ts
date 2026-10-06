@@ -1,7 +1,7 @@
 /**
  * @file tests/localTtsModelCache.test.ts
  * 文件职责：验证本地 TTS 模型升级后的 preferred/legacy 缓存边界。
- * 主要内容：流式下载只保存一份固定版本，兼容旧 main 缓存且仅清理来源可证明的重复文件；旧 q4f16 不误判为新模型，显式清除保留其他模型。
+ * 主要内容：流式下载只保存一份固定版本并回报合并后的真实字节进度，兼容旧 main 缓存且仅清理来源可证明的重复文件；旧 q4f16 不误判为新模型，显式清除保留其他模型。
  * 模块边界：使用内存 Cache Storage，不下载真实模型、不启动 Worker、不修改用户配置。
  */
 
@@ -102,6 +102,26 @@ describe('local TTS model cache upgrade compatibility', () => {
         await cacheLocalTtsModelFiles();
         expect(fetcher).toHaveBeenCalledTimes(LOCAL_TTS_MODEL_FILES.length+LOCAL_TTS_VOICES.length);
         expect(await voiceCache.match(getLocalTtsVoiceCacheUrl(LOCAL_TTS_VOICES[0]!))).toBeDefined();
+    });
+
+    it('reports one combined byte progress for model and voice files and counts files already cached', async () => {
+        const {modelCache} = installCaches();
+        const fileCount = LOCAL_TTS_MODEL_FILES.length + LOCAL_TTS_VOICES.length;
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(10), {headers: {'Content-Length': '10'}})));
+        const reports: Array<{loaded: number; total: number}> = [];
+        await cacheLocalTtsModelFiles(progress => reports.push(progress));
+        // 最后一个文件开始前按声明的 343 MB 计算，全部大小已知后改用精确合计。
+        expect(reports[0]).toEqual({loaded: 0, total: 343_000_000});
+        expect(reports.at(-1)).toEqual({loaded: fileCount * 10, total: fileCount * 10});
+        expect(reports.every((item, index) => index === 0 || item.loaded >= reports[index - 1].loaded)).toBe(true);
+        expect(reports.every(item => item.loaded <= item.total)).toBe(true);
+
+        // 只缺一个文件时，其余文件按缓存里的大小计入已完成部分。
+        await modelCache.delete(getLocalTtsModelFileUrl('config.json'));
+        const resumed: Array<{loaded: number; total: number}> = [];
+        await cacheLocalTtsModelFiles(progress => resumed.push(progress));
+        expect(fetch).toHaveBeenCalledTimes(fileCount + 1);
+        expect(resumed.at(-1)).toEqual({loaded: fileCount * 10, total: fileCount * 10});
     });
 
     it('clears preferred and legacy model keys without deleting another model', async () => {

@@ -106,6 +106,8 @@ import {
   renderVideoSubtitleTiming, renderVideoSourceStatus, handleVideoMenuNavigation, setVideoMenuToolsOpen, setVideoMenuDownloadStatus, syncVideoPlayerMenuLayout, type VideoMenuMode,
 } from './playerMenu';
 import {createVideoAiModelSetup} from './video-ai/modelSetup';
+import {videoModelDownloadId} from '@/src/core/download/progress';
+import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
 import {isVideoSubtitleInTargetLanguage} from './subtitleLanguage';
 import {createVideoPlayerLocator} from './videoPlayerLocator';
 import {createVideoPlayerBinding, type VideoPlayerBinding} from './videoPlayerBinding';
@@ -1048,7 +1050,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     renderVideoSubtitleTiming(menu, subtitleOffsetMs, enabled && pretranslationCues.length > 0, language);
     renderVideoAiMenu(menu, {
       available: isXVideoPage() && browserCapabilities.extensionDom,
-      checking: aiModelSetup.checking, downloading: aiModelSetup.downloading,
+      checking: aiModelSetup.checking, downloading: aiModelSetup.downloading, downloadProgress: aiModelSetup.downloadProgress,
       active: isAiCaptureActive(), running: isAiCaptureRunning(), requested: isAiCaptureRequested(),
       fullActive: isAiFullActive(), phase: aiFullPhase, progress: aiFullProgress, error: aiCaptureError,
     }, language);
@@ -1133,6 +1135,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     },
     setError: (message) => { aiCaptureError = message; },
     formatDownloadError: message => videoUi('video.aiModelDownloadFailed', {error: localizeVideoUiText(message, getVideoUiLanguage(config.uiLanguage))}),
+    watchDownload: (model, listener) => watchDownloadProgress([videoModelDownloadId(model)], (_id, progress) => listener(progress)),
     onChange: () => { if (!destroyed) updatePlayerUiState(); },
   });
 

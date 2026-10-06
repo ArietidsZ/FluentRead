@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   getVideoLocalTranscriptionModelId,
+  getVideoLocalTranscriptionDownloadBytes,
   normalizeVideoLocalTranscriptionModel,
   normalizeVideoLocalTranscriptionModels,
   VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL,
@@ -16,6 +17,8 @@ describe('视频 AI 字幕转写配置', () => {
     expect(normalizeVideoLocalTranscriptionModel('base')).toBe('base');
     expect(normalizeVideoLocalTranscriptionModel('unknown')).toBe('tiny');
     expect(getVideoLocalTranscriptionModelId('base')).toBe('onnx-community/whisper-base');
+    expect(getVideoLocalTranscriptionDownloadBytes('base')).toBe(150_000_000);
+    expect(getVideoLocalTranscriptionDownloadBytes('unknown')).toBe(100_000_000);
     expect(normalizeVideoLocalTranscriptionModels(['tiny', 'base', 'unknown', 'tiny'])).toEqual(['tiny', 'base']);
   });
 

@@ -1,14 +1,16 @@
 /**
  * @file src/features/image-translation/services/client.ts
  * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取与整图翻译两种可取消客户端操作。
- * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消、超时信号与本地模型失败原因，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次。
+ * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消、超时信号与本地模型失败原因，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次；准备语言包时可回报缺失语言包合并后的下载百分比。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
 import {createImageTranslationFailure} from '../failure';
 import {parseMangaPatchPacket, type MangaPatchPacket} from '../mangaPatchResult';
-import {getRequiredImageOcrLanguages} from '../ocrLanguages';
+import {getRequiredImageOcrLanguages, normalizeImageOcrLanguageCodes, type ImageOcrStatusResponse} from '../ocrLanguages';
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
 import type { OcrLine } from '@/src/features/image-translation/core';
+import {createDownloadCompletionSummary, ocrLanguageDownloadId} from '@/src/core/download/progress';
+import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
 
 interface ImageTranslationLine extends OcrLine {
     sourceText?: string;
@@ -218,10 +220,32 @@ export async function translateImageInExtension(
     }
 }
 
-/** 用户主动准备语言后继续原图片任务，复用设置页的下载与持久化路径。 */
-export async function prepareImageOcrLanguages(sourceLanguage: string, signal?: AbortSignal): Promise<void> {
-    const response = await sendCancellableImageOperation<{success?: boolean; error?: string}>({
-        type: 'fluentReadImageOcrDownload', languages: getRequiredImageOcrLanguages(sourceLanguage),
-    }, {signal, timeoutMs: 300_000}, '语言包准备超时，请检查网络后重试');
-    if (!response?.success) throw new Error(response?.error || '语言包准备失败');
+/**
+ * 用户主动准备语言后继续原图片任务，复用设置页的下载与持久化路径。
+ * onProgress 收到缺失语言包合并后的下载百分比：语言包依次下载，每个包等权计入；
+ * 已下载的语言包不会产生进度，所以先读取一次状态，只统计确实需要下载的包。
+ */
+export async function prepareImageOcrLanguages(
+    sourceLanguage: string,
+    signal?: AbortSignal,
+    onProgress?: (percent: number) => void,
+): Promise<void> {
+    const languages = getRequiredImageOcrLanguages(sourceLanguage);
+    let stopWatching: (() => void) | undefined;
+    if (onProgress) {
+        // 状态读取只影响进度的分母；扩展上下文失效等同步异常也在这里吞掉，由随后的下载请求给出规范错误。
+        const status = await (async () => browser.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}))()
+            .catch(() => undefined) as ImageOcrStatusResponse | undefined;
+        const downloaded = normalizeImageOcrLanguageCodes(status?.languages);
+        const missing = languages.filter(language => !downloaded.includes(language)).map(ocrLanguageDownloadId);
+        stopWatching = watchDownloadProgress(missing, createDownloadCompletionSummary(missing, onProgress));
+    }
+    try {
+        const response = await sendCancellableImageOperation<{success?: boolean; error?: string}>({
+            type: 'fluentReadImageOcrDownload', languages,
+        }, {signal, timeoutMs: 300_000}, '语言包准备超时，请检查网络后重试');
+        if (!response?.success) throw new Error(response?.error || '语言包准备失败');
+    } finally {
+        stopWatching?.();
+    }
 }

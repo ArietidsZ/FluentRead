@@ -1,9 +1,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createSharedOcrTasks} from '@/src/features/image-translation/services/sharedOcrTasks';
 
-const {recognize, ensureLanguages, clearModels, removeFiles, createRuntime, tesseractCreateWorker} = vi.hoisted(() => ({
+const {recognize, ensureLanguages, clearModels, removeFiles, createRuntime, tesseractCreateWorker, prefetchModels} = vi.hoisted(() => ({
     clearModels: vi.fn(async (remove: () => Promise<void>) => remove()), removeFiles: vi.fn(async () => {}), recognize: vi.fn(), ensureLanguages: vi.fn(), createRuntime: vi.fn(), tesseractCreateWorker: vi.fn(),
+    prefetchModels: vi.fn(async () => {}),
 }));
+vi.mock('@/src/features/image-translation/services/ocrModelDownload', () => ({prefetchOcrModelFiles: prefetchModels}));
 vi.mock('@/src/features/image-translation/services/ocrWorkerRuntime', () => ({
     createOcrWorkerRuntime: createRuntime,
 }));
@@ -154,9 +156,13 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(onProgress).toHaveBeenCalledOnce(); expect(onProgress).toHaveBeenCalledWith(0.4, 'recognize');
         const {downloadImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
         const controller = new AbortController();
-        await downloadImageOcrLanguages(['jpn', 'eng'], controller.signal);
+        const onDownloadProgress = vi.fn();
+        await downloadImageOcrLanguages(['jpn', 'eng'], controller.signal, onDownloadProgress);
         // 日文包附带竖排模型，一次下载写入同一缓存，避免首次识别竖排漫画时再联网。
         expect(ensureLanguages).toHaveBeenCalledWith(['jpn', 'jpn_vert', 'eng'], controller.signal);
+        // 先带进度地预取同一组模型，再交给 Tesseract 加载；顺序不能反过来。
+        expect(prefetchModels).toHaveBeenCalledWith(['jpn', 'jpn_vert', 'eng'], {signal: controller.signal, onProgress: onDownloadProgress});
+        expect(prefetchModels.mock.invocationCallOrder[0]).toBeLessThan(ensureLanguages.mock.invocationCallOrder[0]);
         ensureLanguages.mockRejectedValueOnce(new Error('download failed'));
         await expect(downloadImageOcrLanguages(['eng'])).rejects.toThrow('download failed');
     });

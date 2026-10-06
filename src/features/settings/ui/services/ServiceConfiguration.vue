@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置：连接字段（密钥、区域、端点等）直接排在服务标题下方、不再单设“连接与密钥”标题，输入下方是添加密钥与密钥使用方式；其后用模型偏好、提示词、请求限制、接口兼容几个页签显示代理、密钥要求、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制；只有一个页签的服务改用小节标题。
- * 主要内容：组件派生字段可见性与连接示例，密钥列表始终展示全部已保存的密钥并区分参与请求与备用的行，密钥要求放在接口兼容页签，提示词可在确认后一键同步到所有 AI 服务；将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对，通过配置 store 提交修改。
+ * 主要内容：组件派生字段可见性与连接示例，密钥列表始终展示全部已保存的密钥并区分参与请求与备用的行，密钥要求放在接口兼容页签，提示词可在确认后一键同步到所有 AI 服务；将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对并用进度条显示模型下载比例，通过配置 store 提交修改。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -316,6 +316,7 @@
     >
       <strong>{{ connectionTestTitle }}</strong>
       <span>{{ connectionTestMessage }}</span>
+      <DownloadProgress v-if="chromeDownloadProgress" class="chrome-preparation-progress" detail="none" :progress="chromeDownloadProgress" :label="connectionTestMessage" data-chrome-preparation-progress />
       <details v-if="connectionTestDetails" class="connection-test-details">
         <summary>{{ t('settings.services.chromePreparation.errorDetailsSummary') }}</summary>
         <code>{{ connectionTestDetails }}</code>
@@ -462,6 +463,7 @@ import {
     type ChromeTranslationPreparationStatus,
 } from '@/src/features/settings/model/chromeTranslationPreparation'
 import { useUiI18n } from '@/src/ui/i18n'
+import DownloadProgress from '@/src/ui/components/DownloadProgress.vue'
 import PromptTemplateEditor from './PromptTemplateEditor.vue'
 import FreeTranslationSettings from './FreeTranslationSettings.vue'
 import ApiKeyList from './ApiKeyList.vue'
@@ -709,6 +711,11 @@ const connectionTestDisabled = computed(() => connectionTestBusy.value
 const freeProviderChecks = ref<FreeTranslationChecks>({})
 const connectionTestState = ref<ConnectionTestState>('idle')
 const connectionTestMessageState = ref<LocalizedConnectionTestMessage | string | null>(null)
+// Chrome 只回报 0 到 1 的下载比例，不提供字节数；进度条用它的真实比例，文字里已有百分比。
+const chromeDownloadFraction = ref<number>()
+const chromeDownloadProgress = computed(() => isChromeConnectionTest.value && connectionTestState.value === 'testing' && chromeDownloadFraction.value !== undefined
+  ? {loaded: Math.round(chromeDownloadFraction.value * 100), total: 100}
+  : undefined)
 const connectionTestMessage = computed(() => {
   const message = connectionTestMessageState.value
   if (!message) return ''
@@ -794,6 +801,7 @@ const connectionTestTitle = computed(() => {
 function resetConnectionTest(): void {
   freeProviderChecks.value = {}
   displayedChromePreparationPair.value = null
+  chromeDownloadFraction.value = undefined
   connectionTestState.value = 'idle'
   connectionTestMessageState.value = null
   resetApiKeyChecks()
@@ -934,6 +942,7 @@ async function testConnection(): Promise<void> {
   let acceptChromePreparationStatus = true
   connectionTestBusy.value = true
   connectionTestState.value = 'testing'
+  chromeDownloadFraction.value = undefined
   if (compute.value.showToken) resetApiKeyChecks()
   connectionTestMessageState.value = testedService === services.chromeTranslator
     ? localizedConnectionTestMessage('settings.services.chromePreparation.statusStarting')
@@ -953,6 +962,7 @@ async function testConnection(): Promise<void> {
         onStatus(status) {
           if (acceptChromePreparationStatus && isCurrent()) {
             connectionTestMessageState.value = formatChromePreparationStatus(status)
+            chromeDownloadFraction.value = status.phase === 'downloading' ? status.loaded : undefined
           }
         },
       }).then(
@@ -1189,6 +1199,7 @@ onBeforeUnmount(() => {
 .header-connection-status.is-error { color: var(--el-color-danger); }
 .service-connection-action .connection-test-inline { margin: 0; justify-content: space-between; }
 .connection-test-result { display: grid; gap: 4px; margin-top: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface-soft); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.chrome-preparation-progress { margin-top: 4px; }
 .connection-test-result.is-success { border-color: var(--el-color-success-light-5); color: var(--el-color-success); background: var(--el-color-success-light-9); }
 .connection-test-result.is-error { border-color: var(--el-color-danger-light-5); color: var(--el-color-danger); background: var(--el-color-danger-light-9); }
 .connection-test-details { margin-top: 5px; }

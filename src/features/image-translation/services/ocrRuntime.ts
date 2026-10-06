@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：配置语言资源并转发任务进度；复用已解码位图把 AVIF/WebP 等格式转为内核可读的 PNG，保持坐标和有界尺寸；保留竖排检测、空结果布局重试与有界缓存，同图任务合并并独立取消，解码后释放自有像素。
+ * 主要内容：配置语言资源并转发任务进度，语言包预下载先带真实字节进度写入引擎缓存；复用已解码位图把 AVIF/WebP 等格式转为内核可读的 PNG，保持坐标和有界尺寸；保留竖排检测、空结果布局重试与有界缓存，同图任务合并并独立取消，解码后释放自有像素。
  * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译文本或绘制译文；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
@@ -14,7 +14,9 @@ import {
     type OcrLine,
 } from '@/src/features/image-translation/core';
 import { getImageOcrModelLanguages, type ImageOcrLanguageCode } from '@/src/features/image-translation/ocrLanguages';
+import type {DownloadProgress} from '@/src/core/download/progress';
 import {removeOcrModelFiles} from './ocrModelCache';
+import {prefetchOcrModelFiles} from './ocrModelDownload';
 import { createOcrWorkerRuntime, type OcrWorkerPort } from './ocrWorkerRuntime';
 import {createSharedOcrTasks} from './sharedOcrTasks';
 
@@ -194,8 +196,12 @@ export async function recognizeImage(
 export async function downloadImageOcrLanguages(
     languages: ImageOcrLanguageCode[],
     signal?: AbortSignal,
+    onProgress?: (progress: DownloadProgress) => void,
 ): Promise<void> {
-    await ocrWorkerRuntime.ensureLanguages(getImageOcrModelLanguages(languages), signal);
+    const models = getImageOcrModelLanguages(languages);
+    // Tesseract.js 自己下载时不回报字节数；先带进度地写好缓存，随后的加载直接命中缓存并验证模型可用。
+    await prefetchOcrModelFiles(models, {signal, onProgress});
+    await ocrWorkerRuntime.ensureLanguages(models, signal);
 }
 
 export async function removeImageOcrLanguages(languages: ImageOcrLanguageCode[]): Promise<void> {

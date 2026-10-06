@@ -478,6 +478,31 @@ describe('video player menu composition', () => {
     expect(button.querySelector('[data-state]')?.textContent).toBe('');
   });
 
+  it('shows real model download progress as a determinate bar with the percentage and full sizes in the tooltip', () => {
+    const {document} = parseHTML('<!doctype html><body></body>');
+    vi.stubGlobal('document', document);
+    const menu = createVideoPlayerMenu('zh-CN', true);
+    const button = menu.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!;
+
+    renderVideoAiMenu(menu, state({downloading: true, downloadProgress: {loaded: 41_000_000, total: 100_000_000}, error: '旧错误'}), 'zh-CN');
+    expect(button.dataset.progress).toBe('determinate');
+    expect(button.style.getPropertyValue('--fluent-read-video-ai-progress')).toBe('41%');
+    expect(button.querySelector('[data-state]')?.textContent).toBe('41%');
+    expect(button.title).toBe('41% · 41 MB / 100 MB');
+    expect(button.disabled).toBe(true);
+
+    // 来源没有给出总量：保持循环动画，只写真实已下载体积。
+    renderVideoAiMenu(menu, state({downloading: true, downloadProgress: {loaded: 2_500_000, total: 0}}), 'zh-CN');
+    expect(button.dataset.progress).toBe('indeterminate');
+    expect(button.querySelector('[data-state]')?.textContent).toBe('2.5 MB');
+    expect(button.title).toBe('2.5 MB');
+
+    // 下载结束后残留的进度不再显示。
+    renderVideoAiMenu(menu, state({downloadProgress: {loaded: 1, total: 2}, error: '下载失败'}), 'zh-CN');
+    expect(button.dataset.progress).toBe('none');
+    expect(button.title).toBe('下载失败');
+  });
+
   it('returns safely when the optional AI action is absent', () => {
     const {document} = parseHTML('<!doctype html><body></body>');
     vi.stubGlobal('document', document);

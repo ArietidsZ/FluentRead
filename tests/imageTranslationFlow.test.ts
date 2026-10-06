@@ -286,6 +286,35 @@ describe('图片翻译流程优化',()=>{
         sendMessage.mockResolvedValueOnce({success:false,error:'network'});await expect(prepareImageOcrLanguages('en')).rejects.toThrow('network');
         sendMessage.mockResolvedValueOnce(undefined);await expect(prepareImageOcrLanguages('en')).rejects.toThrow('语言包准备失败');
     });
+    it('准备语言包时只统计缺失的语言包，把依次下载合并成不倒退的百分比，结束或失败后取消订阅',async()=>{
+        const wait=deferred<any>(); const storageListeners=new Set<(changes:Record<string,{newValue?:unknown}>,area:string)=>void>();
+        const sendMessage=vi.fn((message:{type:string})=>message.type==='fluentReadImageOcrStatus'?Promise.resolve({success:true,languages:['chi_tra','unknown']}):wait.promise);
+        vi.stubGlobal('browser',{runtime:{sendMessage,onMessage:{addListener:vi.fn(),removeListener:vi.fn()}},
+            storage:{onChanged:{addListener:(l:any)=>storageListeners.add(l),removeListener:(l:any)=>storageListeners.delete(l)}}});
+        const emit=(changes:Record<string,{newValue?:unknown}>)=>{for(const listener of storageListeners)listener(changes,'local');};
+        const key=(language:string)=>`fluentReadDownloadProgress:ocr-language:${language}`;
+        const onProgress=vi.fn();const pending=prepareImageOcrLanguages('auto',undefined,onProgress);
+        await vi.waitFor(()=>expect(storageListeners.size).toBe(1));
+        // 自动检测需要简繁英日四个包；繁体已下载，其余三个各占三分之一。
+        emit({[key('chi_tra')]:{newValue:{loaded:1,total:2}}});expect(onProgress).not.toHaveBeenCalled();
+        emit({[key('chi_sim')]:{newValue:{loaded:1,total:2}}});expect(onProgress).toHaveBeenLastCalledWith(16);
+        emit({[key('chi_sim')]:{}});expect(onProgress).toHaveBeenLastCalledWith(33);
+        emit({[key('eng')]:{newValue:{loaded:0,total:6}}});expect(onProgress).toHaveBeenLastCalledWith(33);
+        emit({[key('eng')]:{newValue:{loaded:6,total:6}},[key('jpn')]:{newValue:{loaded:2,total:4}}});expect(onProgress).toHaveBeenLastCalledWith(83);
+        expect(sendMessage).toHaveBeenLastCalledWith(expect.objectContaining({type:'fluentReadImageOcrDownload',languages:['chi_sim','chi_tra','eng','jpn']}));
+        wait.resolve({success:true});await pending;expect(storageListeners.size).toBe(0);
+        // 状态读取失败时按全部所需语言包统计，下载失败后同样取消订阅。
+        const second=deferred<any>();
+        sendMessage.mockRejectedValueOnce(new Error('status unavailable')).mockReturnValueOnce(second.promise);
+        const failed=prepareImageOcrLanguages('en',undefined,onProgress);
+        const rejection=expect(failed).rejects.toThrow('network');
+        await vi.waitFor(()=>expect(storageListeners.size).toBe(1));
+        emit({[key('eng')]:{newValue:{loaded:1,total:4}}});expect(onProgress).toHaveBeenLastCalledWith(25);
+        second.resolve({success:false,error:'network'});await rejection;expect(storageListeners.size).toBe(0);
+        // 状态读取同步抛错（例如扩展上下文失效）也不阻断下载请求。
+        sendMessage.mockImplementationOnce(()=>{throw new Error('Extension context invalidated.');}).mockResolvedValueOnce({success:true});
+        await expect(prepareImageOcrLanguages('en',undefined,onProgress)).resolves.toBeUndefined();expect(storageListeners.size).toBe(0);
+    });
     it('操作条有可见阶段、取消、准备和完整文字，拒绝宿主页合成点击',()=>{
         const {document,window}=parseHTML('<html></html>');vi.stubGlobal('document',document);
         const onAction=vi.fn(),onPrepare=vi.fn(),onDismiss=vi.fn(),onInspect=vi.fn();const ui=createImageControls({onAction,onPrepare,onDismiss,onInspect});document.body.append(ui.feedback, ui.element);
