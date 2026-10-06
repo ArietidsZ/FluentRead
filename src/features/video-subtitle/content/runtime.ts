@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 媒体元数据补全、悬浮控件重挂载及暂时隐藏保留识别时间轴，真正换视频才隔离旧会话。
+ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -548,7 +548,10 @@ export function mountVideoSubtitleTranslation(): () => void {
     const entry = { url, cues: xSubtitleCues };
     capturedSubtitleTracks.set(xSubtitleTrackKey, entry);
     if (canReadVideo() && !isAiCaptureActive()) {
-      setPretranslationTrack(xSubtitleTrackKey, entry);
+      // 分片到达只补全捕获轨道；与播放器同步共用原生优先的选择入口。
+      // 否则每个分片会把 x:native 切成 x:captions，随后 cuechange/定时
+      // 同步又切回原生轨道，两次清空译文导致视频开头反复闪烁。
+      ensurePretranslationTrack();
       scheduleUpdate();
     }
   };
