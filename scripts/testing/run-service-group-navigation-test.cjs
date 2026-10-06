@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-service-group-navigation-test.cjs
  * 文件职责：在真实生产扩展中验证翻译服务目录的分组收起与顶部分组导航。
- * 主要内容：检查导航与目录分组一一对应并随滚动同步高亮；分组收起后隐藏服务且不影响其他分组；点击导航会展开并定位已收起的分组；搜索时展开匹配分组并保持导航稳定，搜索中点击导航回到完整目录；从其他页面直达某项服务时展开其所在分组；平板宽度无横向溢出，窄屏隐藏导航并保留目录内的分组收起。
+ * 主要内容：检查导航与目录分组一一对应并随滚动同步高亮；分组收起后隐藏服务且不影响其他分组；点击导航会展开并定位已收起的分组；搜索时展开匹配分组并保持导航稳定，搜索中点击导航回到完整目录；从其他页面直达某项服务、回到本页或在搜索结果里点击已选中的服务时展开其所在分组；窄屏加载后放宽窗口时导航仍指向当前分组；平板宽度无横向溢出，窄屏隐藏导航并保留目录内的分组收起。
  * 模块边界：只使用临时 Edge profile 和不抢焦点 helper，不修改默认服务、不请求任何翻译服务，也不代表 Firefox 实机表现；目录顺序与免费翻译候选归 run-service-catalog-ui-test.cjs。
  */
 const fs = require('node:fs');
@@ -50,6 +50,7 @@ async function main() {
         navigationVisible: navigation.getClientRects().length > 0,
         current: navigation.querySelector('[aria-current]')?.dataset.serviceGroupLink || '',
         query: document.querySelector('.catalog-search input').value,
+        scrolled: scroller.scrollTop > 0,
         atEnd: scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2,
         horizontalOverflow: document.documentElement.scrollWidth > innerWidth + 1,
         groups: Object.fromEntries([...scroller.querySelectorAll('[data-service-section]')].map(section => [section.dataset.serviceSection, {
@@ -80,6 +81,12 @@ async function main() {
       return state;
     }
     const atTop = (state, id) => Math.abs(state.groups[id].offset) <= 2;
+    // 用户自己操作过目录后，高亮只由滚动位置决定。
+    const followsScroll = state => {
+      const ids = Object.keys(state.groups);
+      const expected = state.scrolled && state.atEnd ? ids[ids.length - 1] : ids.filter(id => state.groups[id].offset <= 8).pop() || ids[0];
+      return state.current === expected;
+    };
 
     await page.goto(`${origin}/options.html#settings-services`, {waitUntil: 'domcontentloaded'});
     await catalog.waitFor({state: 'visible', timeout});
@@ -126,7 +133,25 @@ async function main() {
     await catalog.waitFor({state: 'visible', timeout});
     await page.waitForFunction(() => document.querySelector('.service-catalog')?.getAttribute('data-editing-service') === 'freeTranslation', null, {timeout});
     await expect('直达某项服务时展开其所在分组', state => state.groups['machine-services'].expanded
-      && state.groups['machine-services'].services === serviceCount('machine-services'));
+      && state.groups['machine-services'].services === serviceCount('machine-services') && followsScroll(state));
+
+    // 再次直达同一项服务时编辑目标没有变化，回到本页仍要看得到它。
+    await toggle('machine-services').scrollIntoViewIfNeeded();
+    await toggle('machine-services').click();
+    await expect('收起正在配置的服务所在分组', state => !state.groups['machine-services'].expanded);
+    await page.locator('nav button[data-section="settings-general"]').click();
+    await page.getByRole('button', {name: '配置服务', exact: true}).first().click();
+    await catalog.waitFor({state: 'visible', timeout});
+    await expect('回到本页时展开正在配置的服务所在分组', state => state.groups['machine-services'].expanded
+      && state.groups['machine-services'].services === serviceCount('machine-services') && followsScroll(state));
+
+    // 在搜索结果里点击已选中的服务，清空搜索后它所在的分组保持展开。
+    await toggle('machine-services').click();
+    await search.fill('免费翻译服务');
+    await catalog.locator('[data-service-value="freeTranslation"]').click();
+    await search.fill('');
+    await expect('点击已选中的服务会展开其所在分组', state => Object.keys(state.groups).length === sections.length
+      && state.groups['machine-services'].expanded && state.groups['machine-services'].services === serviceCount('machine-services'));
 
     await page.setViewportSize({width: 820, height: 900});
     await expect('平板宽度保留导航且无横向溢出', state => state.navigationVisible && !state.horizontalOverflow, 'tablet');
@@ -136,6 +161,12 @@ async function main() {
     await toggle('machine-services').click();
     await expect('窄屏目录内仍可收起分组', state => !state.groups['machine-services'].expanded
       && state.groups['machine-services'].services === 0 && !state.horizontalOverflow, 'mobile-directory');
+
+    // 窄屏加载时目录处于隐藏状态；放宽到桌面宽度后导航要立即指向当前分组。
+    await page.reload({waitUntil: 'domcontentloaded'});
+    await catalog.waitFor({state: 'visible', timeout});
+    await page.setViewportSize({width: 1440, height: 1000});
+    await expect('窄屏加载后放宽窗口时导航仍有当前分组', state => state.navigationVisible && state.current === sections[0] && followsScroll(state));
 
     assert(report.consoleErrors.length === 0, '浏览器控制台存在异常');
     report.ok = true;
