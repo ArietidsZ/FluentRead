@@ -76,6 +76,31 @@ describe('image presentation foreground ownership', () => {
         expect(isImagePresentationOccluded(image, visible, null)).toBe(false);
     });
 
+    it('keeps a background surface visible under its own transparent source img, including during translation', () => {
+        const env = fixture({opacity: '0', background: 'url("https://pbs.twimg.com/media/source.png")'});
+        Object.assign(env.document, {elementsFromPoint: () => [env.image, env.paint]});
+        expect(isImagePresentationOccluded(env.paint, visible, null, env.image)).toBe(false);
+        env.styles.get(env.paint)!.opacity = '0';
+        expect(isImagePresentationOccluded(env.paint, visible, null, env.image)).toBe(false);
+        const dialog = env.document.createElement('div');
+        Object.assign(env.document, {elementsFromPoint: () => [dialog, env.image, env.paint]});
+        expect(isImagePresentationOccluded(env.paint, visible, null, env.image)).toBe(true);
+    });
+
+    it.each(['foreign-image', 'visible-source', 'unset-opacity', 'moved-source', 'changed-source', 'detached-source'])
+    ('does not exempt a %s from foreground ownership checks', mode => {
+        const env = fixture({opacity: '0', background: 'url("https://pbs.twimg.com/media/source.png")'});
+        let foreground: Element = env.image;
+        if (mode === 'foreign-image') foreground = env.document.createElement('img');
+        if (mode === 'visible-source') env.styles.get(env.image)!.opacity = '1';
+        if (mode === 'unset-opacity') env.styles.get(env.image)!.opacity = '';
+        if (mode === 'moved-source') env.image.getBoundingClientRect = () => ({...env.paint.getBoundingClientRect(), left: 30}) as DOMRect;
+        if (mode === 'changed-source') env.image.setAttribute('src', 'https://pbs.twimg.com/media/other.png');
+        if (mode === 'detached-source') env.image.remove();
+        Object.assign(env.document, {elementsFromPoint: () => [foreground, env.paint]});
+        expect(isImagePresentationOccluded(env.paint, visible, null, env.image)).toBe(true);
+    });
+
     function mediaLinkFixture() {
         const env = fixture();
         Object.defineProperty(env.document, 'baseURI', {value: 'https://x.com/a16z/status/2107176509928878490'});

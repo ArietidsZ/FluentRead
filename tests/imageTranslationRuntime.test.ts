@@ -855,6 +855,28 @@ it('悬浮不穿透按钮或弹窗，不在同一区域多图时猜测目标；�
 });
 
 describe('X 透明 img 与可见背景层的图片翻译', () => {
+    it('登录后的 X 由透明原 img 命中鼠标时，悬浮、翻译、遮挡恢复和再次翻译都保留背景显示权', async () => {
+        const env = setup(); const background = env.addBackground();
+        const original = env.parent.innerHTML;
+        Object.assign(document, {elementsFromPoint: () => [env.image, background, env.parent]});
+        env.hover();
+        const overlay = env.button().closest<HTMLElement>('.fluent-read-image-translation-overlay')!;
+        expect(overlay.style.display).toBe('block');
+        env.click(); await flush(); const bitmap = env.bitmap();
+        expect(bitmap).toBeTruthy(); expect(overlay.style.display).toBe('block');
+        env.scroll(); env.runFrames(); expect(overlay.style.display).toBe('block');
+        const dialog = document.createElement('div'); document.body.append(dialog);
+        Object.assign(document, {elementsFromPoint: () => [dialog, env.image, background]});
+        env.scroll(); env.runFrames(); expect(overlay.style.display).toBe('none');
+        expect(background.style.opacity).not.toBe('0');
+        dialog.remove(); Object.assign(document, {elementsFromPoint: () => [env.image, background]});
+        env.scroll(); env.runFrames(); expect(overlay.style.display).toBe('block');
+        expect(env.bitmap()).toBe(bitmap); expect(background.style.opacity).toBe('0');
+        env.click(); expect(env.bitmap()).toBeNull(); expect(env.parent.innerHTML).toBe(original);
+        env.dispatch(env.image, 'pointerout'); vi.advanceTimersByTime(600);
+        env.hover(); expect(env.button().closest<HTMLElement>('.fluent-read-image-translation-overlay')!.style.display).toBe('block');
+        env.click(); await flush(); expect(env.bitmap()).toBeTruthy(); expect(client.translate).toHaveBeenCalledOnce();
+    });
     it('实际背景层承载入口、译图与还原，透明原 img 保持不变', async () => {
         const env = setup(); const background = env.addBackground(); const original = background.getAttribute('style');
         env.dispatch(background, 'pointerover', true, {clientX: 100, clientY: 100});

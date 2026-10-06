@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/controls.ts
  * 文件职责：创建图片翻译的轻量操作条，支持单图反馈和不遮挡阅读的漫画模式，支持取消、重试和首次语言准备与模型/服务设置导航。
- * 主要内容：单图提供隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片可见边缘延迟显示无交互的轻量单行状态提示，展示实际阶段和可用百分比；任务旋转独立于装饰动画开关并保留系统减少动态效果偏好，完成或切回原图后撤下。
+ * 主要内容：单图提供无额外外框的淡色图标入口、隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片可见边缘延迟显示无交互的轻量单行状态提示，展示实际阶段和可用百分比；任务旋转独立于装饰动画开关并保留系统减少动态效果偏好，完成或切回原图后撤下。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
 import {createImageTextReader, IMAGE_READER_CSS, type ImageReaderLine} from './textReader';
@@ -25,7 +25,7 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-controls button:focus-visible,.fr-image-feedback button:focus-visible {outline:2px solid var(--fr-image-brand);outline-offset:2px;}
 
 .fr-image-controls .fr-image-actions {opacity:.48;transition:opacity 120ms ease,background-color 120ms ease;}
-.fr-image-controls[data-phase=idle] .fr-image-actions {opacity:.28;background:rgba(250,251,253,.4);box-shadow:none;backdrop-filter:none;}
+.fr-image-controls[data-phase=idle] .fr-image-actions {opacity:.28;padding:0;border:0;background:transparent;box-shadow:none;backdrop-filter:none;}
 .fr-image-controls[data-phase=idle] .fluent-read-image-translation-button::before {filter:grayscale(1);}
 .fr-image-controls[data-phase=idle]:hover .fluent-read-image-translation-button::before,.fr-image-controls[data-phase=idle]:focus-within .fluent-read-image-translation-button::before {filter:none;}
 .fr-image-controls[data-phase=idle] .fr-image-actions:hover,.fr-image-controls[data-phase=idle]:focus-within .fr-image-actions,.fr-image-controls .fr-image-actions:hover,.fr-image-controls:focus-within .fr-image-actions {opacity:1;background:rgba(250,251,253,.92);}

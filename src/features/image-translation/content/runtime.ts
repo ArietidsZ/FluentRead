@@ -578,7 +578,7 @@ function updateOverlayPosition(state: ImageTranslationState): void {
         && rect.width >= MIN_IMAGE_WIDTH && rect.height >= MIN_IMAGE_HEIGHT
         && right > left && bottom > top && style.visibility !== 'hidden'
         && style.visibility !== 'collapse' && style.display !== 'none' && opacity > 0;
-    const occluded = visible && isImagePresentationOccluded(surface, {left, top, right, bottom}, imageOverlayHost);
+    const occluded = visible && isImagePresentationOccluded(surface, {left, top, right, bottom}, imageOverlayHost, state.image);
     state.overlay.style.display = visible && !occluded ? 'block' : 'none';
     if (!visible || occluded) {
         // 译层不可见时释放原图，避免移出视口、宿主裁切或布局变化留下空白。
