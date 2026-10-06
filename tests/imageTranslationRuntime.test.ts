@@ -723,6 +723,31 @@ describe('图片翻译前台交互与生命周期', () => {
 });
 
 describe('图片入口独立开关与右键身份', () => {
+    it('X inert 图片上对应的透明链接显示悬浮入口，翻译、弹窗遮挡和恢复后仍保留宿主链接', async () => {
+        const env = setup();
+        const inert = document.createElement('div'); inert.setAttribute('inert', '');
+        const link = document.createElement('a'); link.setAttribute('href', 'https://x.com/a16z/status/2107176509928878490/photo/1');
+        env.parent.append(inert); inert.append(link); link.append(env.image);
+        const cover = document.createElement('a'); cover.setAttribute('href', link.getAttribute('href')!);
+        cover.setAttribute('aria-label', '查看媒体'); cover.getBoundingClientRect = env.image.getBoundingClientRect;
+        env.parent.append(cover);
+        env.extraStyles.set(cover, {position: 'absolute', opacity: '1', backgroundImage: 'none', backgroundColor: 'rgba(0, 0, 0, 0)'});
+        const hostMarkup = env.parent.innerHTML;
+        Object.assign(document, {elementsFromPoint: () => [cover, env.parent]});
+        env.dispatch(cover, 'pointermove', true, {clientX: 100, clientY: 100}); env.runFrames(); vi.advanceTimersByTime(600);
+        const overlay = env.button().closest<HTMLElement>('.fluent-read-image-translation-overlay')!;
+        expect(overlay.style.display).toBe('block');
+        env.click(); await flush(); const bitmap = env.bitmap();
+        expect(bitmap).toBeTruthy(); expect(overlay.style.display).toBe('block');
+        const dialog = document.createElement('div'); dialog.setAttribute('role', 'dialog'); document.body.append(dialog);
+        Object.assign(document, {elementsFromPoint: () => [dialog, cover, env.parent]}); env.scroll(); env.runFrames();
+        expect(overlay.style.display).toBe('none'); expect(env.image.style.opacity).not.toBe('0');
+        dialog.remove(); Object.assign(document, {elementsFromPoint: () => [cover, env.parent]}); env.scroll(); env.runFrames();
+        expect(overlay.style.display).toBe('block'); expect(env.bitmap()).toBe(bitmap);
+        env.click(); expect(env.bitmap()).toBeNull(); expect(env.parent.innerHTML).toBe(hostMarkup);
+        env.click(); await flush(); expect(env.bitmap()).toBeTruthy(); expect(client.translate).toHaveBeenCalledOnce();
+    });
+
     it('同一目标且仍在当前图片内时不重复扫描，跨相邻图片、pointerout 和卸载后仍重新定位', () => {
         const env = setup();
         env.dispatch(env.parent, 'pointermove', true, {clientX: 100, clientY: 100});
