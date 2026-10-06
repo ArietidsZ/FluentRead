@@ -1135,10 +1135,10 @@ describe('鼠标悬浮翻译延迟配置', () => {
 });
 
 describe('悬浮球进阶外观配置', () => {
-    it('默认显示品牌工具并常驻展开；点击翻译、标准尺寸与设置入口保持可用', () => {
+    it('默认关闭悬浮球，开启后悬停展开；点击翻译、标准尺寸与设置入口保持可用', () => {
         const defaults = new Config();
-        expect(defaults.disableFloatingBall).toBe(false);
-        expect(defaults.floatingBallToolsDisplay).toBe('always');
+        expect(defaults.disableFloatingBall).toBe(true);
+        expect(defaults.floatingBallToolsDisplay).toBe('hover');
         expect(defaults.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
         expect(defaults.floatingBallClickAction).toBe('translate');
         expect(defaults.floatingBallCompact).toBe(false);
@@ -1147,8 +1147,8 @@ describe('悬浮球进阶外观配置', () => {
         expect(defaults.floatingBallDisabledDomains).toEqual([]);
 
         const normalized = normalizeConfig({});
-        expect(normalized.disableFloatingBall).toBe(false);
-        expect(normalized.floatingBallToolsDisplay).toBe('always');
+        expect(normalized.disableFloatingBall).toBe(true);
+        expect(normalized.floatingBallToolsDisplay).toBe('hover');
         expect(normalized.floatingBallHoverDelay).toBe(DEFAULT_FLOATING_BALL_HOVER_DELAY);
         expect(normalized.floatingBallClickAction).toBe('translate');
         expect(normalized.floatingBallCompact).toBe(false);
@@ -1160,15 +1160,24 @@ describe('悬浮球进阶外观配置', () => {
     it('接受合法的显示方式与点击行为，并把其他值收敛为默认值', () => {
         expect(normalizeFloatingBallToolsDisplay('always')).toBe('always');
         expect(normalizeFloatingBallToolsDisplay('hidden')).toBe('hidden');
-        expect(normalizeFloatingBallToolsDisplay('sidebar')).toBe('always');
-        expect(normalizeFloatingBallToolsDisplay(undefined)).toBe('always');
+        expect(normalizeFloatingBallToolsDisplay('sidebar')).toBe('hover');
+        expect(normalizeFloatingBallToolsDisplay(undefined)).toBe('hover');
         expect(normalizeFloatingBallClickAction('settings')).toBe('settings');
         expect(normalizeFloatingBallClickAction('none')).toBe('none');
         expect(normalizeFloatingBallClickAction(12)).toBe('translate');
         expect(normalizeConfig({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'}))
             .toMatchObject({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'none'});
         expect(normalizeConfig({floatingBallToolsDisplay: 'panel', floatingBallClickAction: 'panel'}))
-            .toMatchObject({floatingBallToolsDisplay: 'always', floatingBallClickAction: 'translate'});
+            .toMatchObject({floatingBallToolsDisplay: 'hover', floatingBallClickAction: 'translate'});
+    });
+
+    it('兼容旧配置并保留已经保存的开关与显示方式', () => {
+        expect(normalizeConfig({disableFloatingBall: false}))
+            .toMatchObject({disableFloatingBall: false, floatingBallToolsDisplay: 'hover'});
+        expect(normalizeConfig({disableFloatingBall: false, floatingBallToolsDisplay: 'always'}))
+            .toMatchObject({disableFloatingBall: false, floatingBallToolsDisplay: 'always'});
+        expect(normalizeConfig({disableFloatingBall: true, floatingBallToolsDisplay: 'hidden'}))
+            .toMatchObject({disableFloatingBall: true, floatingBallToolsDisplay: 'hidden'});
     });
 
     it('按步长归一化展开延迟与收起不透明度，并限制越界值', () => {

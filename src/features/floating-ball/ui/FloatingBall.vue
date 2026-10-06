@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
- * 文件职责：呈现默认常驻、可辨认流畅阅读品牌的页面悬浮工具，将全文翻译、品牌手柄和漫画入口按顺序组织，并保留拖动停靠与自选悬停模式。
- * 主要内容：品牌主体只显示圆形本地图标，全文按钮在上、漫画按钮在下；默认不因闲置、移出或 Escape 缩回边缘，显式悬停模式仍按展示契约处理延迟、触屏与不透明度。
+ * 文件职责：呈现用户开启后的页面悬浮工具，将全文翻译、品牌手柄和漫画入口按顺序组织，并保留拖动停靠与可选常驻模式。
+ * 主要内容：品牌主体只显示圆形本地图标，全文状态只标记在上方翻译按钮；默认悬停展开、移出和 Escape 收回边缘，键盘聚焦与触屏轻点保持入口可操作。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -12,7 +12,6 @@
     :class="{
       'floating-ball-expanded': isMenuExpanded,
       dragging: isDragging,
-      'is-translating': isTranslating,
       'is-compact': presentation.compact,
       'manga-reader': !!manga?.available,
     }"
@@ -60,7 +59,6 @@
         <image v-if="logoUrl" :href="logoUrl" x="0" y="0" width="32" height="32" preserveAspectRatio="none" image-rendering="auto" />
         <path v-else d="M16 8c-4-3-8-3-12-1v19c4-2 8-2 12 1m0-19c4-3 8-3 12-1v19c-4-2-8-2-12 1V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
       </svg>
-      <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
     </div>
 
     <button
@@ -116,9 +114,9 @@ const DRAG_THRESHOLD = 6;
 const BALL_SIZE = 40;
 const COMPACT_BALL_SIZE = 32;
 
-/** 与配置默认值一致；独立挂载时品牌和工具同样常驻。 */
+/** 与配置默认值一致；独立挂载时同样按悬停展开。 */
 const DEFAULT_PRESENTATION: FloatingBallPresentation = {
-  toolsDisplay: 'always',
+  toolsDisplay: 'hover',
   hoverDelay: 0,
   clickAction: 'translate',
   compact: false,
@@ -299,7 +297,8 @@ function collapseBall() {
     scheduleMangaCollapse();
     return;
   }
-  if (!isDragging.value && !floatingBall.value?.matches(':focus-within')) isExpanded.value = false;
+  // 鼠标点击留下的焦点不能阻止移出收起；键盘可见焦点继续保留工具。
+  if (!isDragging.value && !floatingBall.value?.querySelector(':focus-visible')) isExpanded.value = false;
   scheduleMangaCollapse();
 }
 
@@ -476,10 +475,17 @@ defineExpose({ toggleTranslation, setTranslationState, setPosition });
 
 function handleSettingsClick(event: MouseEvent) {
   props.onSettingsClick(event);
+  if (event.detail > 0) {
+    (event.currentTarget as HTMLElement | null)?.blur();
+    isExpanded.value = false;
+  }
 }
 
 function handleDocumentKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Escape' || !isMenuExpanded.value) return;
+  if (event.key !== 'Escape') return;
+  clearExpandTimer();
+  clearMangaIdleTimer();
+  if (!isMenuExpanded.value) return;
   floatingBall.value?.querySelector<HTMLElement>(':focus')?.blur();
   isExpanded.value = false;
   touchExpanded.value = false;
@@ -531,11 +537,11 @@ watch(() => [presentation.value.compact, props.manga?.available], () => {
   nextTick(updatePositionStyle);
 });
 
-watch(() => presentation.value.toolsDisplay, (display) => {
+watch(() => presentation.value.toolsDisplay, () => {
   clearMangaIdleTimer();
-  if (display !== 'hover') clearExpandTimer();
-  if (display === 'hidden') isExpanded.value = false;
-  if (display !== 'hover') touchExpanded.value = false;
+  clearExpandTimer();
+  isExpanded.value = false;
+  touchExpanded.value = false;
   nextTick(updatePositionStyle);
 });
 
@@ -758,12 +764,6 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   box-shadow: 0 8px 22px rgba(240, 106, 146, 0.2);
 }
 
-.floating-ball-expanded.is-translating .floating-ball-main {
-  border-color: transparent;
-  box-shadow: none;
-  filter: drop-shadow(0 8px 12px rgba(240, 106, 146, 0.3));
-}
-
 .check-mark {
   position: absolute;
   right: -1px;
@@ -785,16 +785,6 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   border-bottom: 1px solid #fff;
   content: '';
   transform: rotate(45deg);
-}
-
-.fr-floating-ball[data-position="right"] .floating-ball-main .check-mark {
-  right: auto;
-  left: -1px;
-}
-
-.fr-floating-ball[data-position="left"] .floating-ball-main .check-mark {
-  right: -1px;
-  left: auto;
 }
 
 .floating-ball-settings svg {

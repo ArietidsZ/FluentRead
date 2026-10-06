@@ -302,7 +302,7 @@ export function normalizeFloatingBallVerticalPosition(value: unknown): number | 
 export function normalizeFloatingBallToolsDisplay(value: unknown): FloatingBallToolsDisplay {
     return FLOATING_BALL_TOOLS_DISPLAY_VALUES.includes(value as FloatingBallToolsDisplay)
         ? value as FloatingBallToolsDisplay
-        : 'always';
+        : 'hover';
 }
 
 export function normalizeFloatingBallClickAction(value: unknown): FloatingBallClickAction {
@@ -636,18 +636,18 @@ export class Config {
         this.longParagraphLineBreakEnabled = false; // 默认保持原段落排版
         this.translationBeforeOriginal = false; // 默认译文排在每段原文之后
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
-        this.disableFloatingBall = false; // 默认显示流畅阅读品牌与翻译入口；保留用户显式关闭的偏好
+        this.disableFloatingBall = true; // 默认关闭全文翻译悬浮球，由用户按需开启
         this.floatingBallPosition = 'right'; // 默认在右侧
         this.floatingBallVerticalPosition = null; // 未拖动时保持视口纵向居中
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
         this.customFloatingBallHotkey = ''; // 自定义快捷键为空
-        this.floatingBallToolsDisplay = 'always'; // 默认常驻展开，不缩回页面边缘
+        this.floatingBallToolsDisplay = 'hover'; // 开启后默认悬停展开，移开后缩回页面边缘
         this.floatingBallHoverDelay = DEFAULT_FLOATING_BALL_HOVER_DELAY; // 默认立即展开，保持既有手感
         this.floatingBallClickAction = 'translate'; // 默认点击悬浮球即切换全文翻译
         this.floatingBallCompact = false; // 默认使用标准尺寸
         this.floatingBallSettingsEntryVisible = true; // 默认保留设置入口
         this.floatingBallCollapsedOpacity = DEFAULT_FLOATING_BALL_COLLAPSED_OPACITY; // 默认保持既有半透明收起效果
-        this.floatingBallDisabledDomains = []; // 默认所有网站都显示悬浮球
+        this.floatingBallDisabledDomains = []; // 开启后默认不额外排除网站
         this.customHotkey = ''; // 自定义鼠标悬浮快捷键为空
         this.quickTranslationProfiles = []; // 默认仅保留旧快捷键，新方案由用户按需添加
         this.mouseHoverTranslationDelay = DEFAULT_MOUSE_HOVER_TRANSLATION_DELAY;
