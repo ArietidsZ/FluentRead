@@ -405,7 +405,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         });
         if (!response.success) throw new Error(response.error);
     }, {xSurface, xLightbox});
-    await worker.evaluate(({liveTranslation, paragraphFixture}) => {
+    await worker.evaluate(({liveTranslation, paragraphFixture, xLightbox}) => {
         const originalFetch = globalThis.fetch.bind(globalThis);
         // Keep the real OCR path intact while giving the loading controls enough time to sample.
         const fixture = globalThis.__imageFixture = {requests: [], endpointHosts: [], rejectPrimaryXsrf: false, operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
@@ -448,6 +448,15 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         };
         globalThis.fetch = async (input, options) => {
             const url = String(typeof input === 'string' ? input : input.url || input);
+            if (xLightbox && url.includes('translate-pa.googleapis.com/v1/translateHtml')) {
+                const originals = JSON.parse(options.body)[0][0].map(html => html.replace(/^<pre>([\s\S]*)<\/pre>$/, '$1'));
+                fixture.requests.push(...originals);
+                fixture.endpointHosts.push(new URL(url).hostname);
+                if (liveTranslation) return originalFetch(input, options);
+                const translated = originals.map(origin => origin.toLowerCase().includes('welcome') ? '欢迎使用流畅阅读'
+                    : origin.toLowerCase().includes('click') ? '单击即可翻译图片' : '用自己的语言读懂每一个字');
+                return new Response(JSON.stringify([translated]), {status:200});
+            }
             if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
                 const body = new URLSearchParams(options.body);
                 const rpc = JSON.parse(body.get('f.req'))[0][0];
@@ -501,7 +510,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
             // OCR worker、wasm 和语言包仍沿真实生产路径加载，不 mock Tesseract。
             return originalFetch(input, options);
         };
-    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage)});
+    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage), xLightbox});
     if (harFixture) {
         if (liveTranslation) throw new Error('--har-fixture 只用于确定性响应验证');
         currentCase = 'HAR identifier filtering and Google XSRF cooldown';

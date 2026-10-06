@@ -152,6 +152,7 @@ async function verifyXSurface({page, popup, worker, ui, wait, click, shot, repor
     await shot('x-05-translated-text');
     await click('文字');
     const requests=await worker.evaluate(()=>globalThis.__imageFixture.requests.length);
+    if (lightboxOnly) assert.ok(requests > 0, '必须实际命中 Google 翻译 transport');
     const operations=await worker.evaluate(()=>globalThis.__imageFixture.operationIds.length);
     assert.ok(operations > 0, '必须观察真实图片翻译请求');
     report.requests=await worker.evaluate(()=>globalThis.__imageFixture.requests);
