@@ -101,7 +101,11 @@ async function newOptions() {
     assert((await recent.first().textContent()).includes('默认目标语言'));
     assert((await recent.first().textContent()).includes('English'));
     assert((await recent.first().textContent()).includes('日本語'));
-    assert.match(await recent.first().locator('time').textContent(), /\d{2}:\d{2}:\d{2}/);
+    // 列表只显示到分钟；完整时间保留在悬停提示里。
+    assert.match(await recent.first().locator('time').textContent(), /\d{2}:\d{2}$/);
+    assert.match(await recent.first().locator('time').getAttribute('title'), /\d{2}:\d{2}:\d{2}/);
+    assert.equal(await recent.first().locator('.change-values').count(), 1, 'a single change shows before → after inline');
+    assert.equal(await page.locator('.version-panel-heading > span').count(), 0, 'no redundant n/10 counters');
     assert.equal(await recent.first().locator('.current-mark').textContent(), '当前');
     assert((await recent.nth(1).textContent()).includes('翻译模式'));
     record('real UI saves produce distinct field and before/after summaries after reopening');
@@ -171,8 +175,13 @@ async function newOptions() {
     assert(changedFields >= 3);
     assert(!(await dialog.textContent()).includes('history-fixture-secret'));
     await closeDialog();
-    assert((await recent.first().textContent()).includes('另有'));
-    assert.equal(await recent.first().locator('.change-values').count(), 2);
+    // 多项修改只给出前两项名称和总数，不再逐项罗列改前改后。
+    assert.equal(await recent.first().locator('.change-values').count(), 0);
+    assert.match(await recent.first().locator('.version-copy small').textContent(), new RegExp(`${changedFields} 项修改`));
+    assert(!(await recent.first().textContent()).includes('另有'));
+    const snapshotRow = page.locator('.backup-panel .version-entry').first();
+    assert.equal(await snapshotRow.locator('.version-copy > *').count(), 2, 'snapshot rows keep only time and difference count');
+    assert(!(await snapshotRow.textContent()).includes('网站规则'));
     record('multi-setting summaries stay compact while details include every non-credential change');
     report.layouts = [];
     for (const width of [1024, 820, 390]) {

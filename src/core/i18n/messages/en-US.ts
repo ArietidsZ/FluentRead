@@ -201,7 +201,6 @@ export const enUSMessages = {
     "settings.history.recentHint": "See what changed with each save. Keeps up to 10 versions.",
     "settings.history.backupHint": "Settings are saved every 6 hours for later recovery.",
     "settings.history.changeCount": "{count} changes",
-    "settings.history.moreChanges": "{count} more changes in details",
     "settings.history.retainedSnapshot": "Earliest retained settings snapshot",
     "settings.history.noPrevious": "The previous version is no longer available. Compare with current settings instead.",
     "settings.history.noVisibleChanges": "No visible settings changes",

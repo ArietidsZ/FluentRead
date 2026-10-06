@@ -199,7 +199,6 @@ export const frFRMessages = {
     "settings.history.recentHint": "Consultez les changements à chaque sauvegarde. Jusqu’à 10 versions conservées.",
     "settings.history.backupHint": "Les réglages sont sauvegardés toutes les 6 heures pour être restaurés.",
     "settings.history.changeCount": "{count} modifications",
-    "settings.history.moreChanges": "{count} autres modifications dans les détails",
     "settings.history.retainedSnapshot": "Plus ancien instantané conservé",
     "settings.history.noPrevious": "La version précédente n’est plus disponible. Comparez avec les réglages actuels.",
     "settings.history.noVisibleChanges": "Aucune modification visible",

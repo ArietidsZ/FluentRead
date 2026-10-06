@@ -199,7 +199,6 @@ export const koKRMessages = {
     "settings.history.recentHint": "저장할 때마다 바뀐 내용을 표시하며 최대 10개 버전을 보관합니다.",
     "settings.history.backupHint": "복원을 위해 6시간마다 설정을 저장합니다.",
     "settings.history.changeCount": "{count}개 변경",
-    "settings.history.moreChanges": "상세에서 {count}개 변경 더 보기",
     "settings.history.retainedSnapshot": "가장 오래된 보관 설정",
     "settings.history.noPrevious": "이전 기록이 없어 당시 변경 내용을 확인할 수 없습니다. 현재 설정과 비교할 수 있습니다.",
     "settings.history.noVisibleChanges": "표시할 설정 변경이 없습니다",

@@ -26,7 +26,7 @@
     "settings.cloud.consentAcknowledgement": "我已了解风险，同意在云备份中包含敏感信息",
     "settings.cloud.consentConfirm": "同意并开启",
     "settings.cloud.previewSensitive": "保存或合并会包含本机敏感信息；恢复仅应用云端备份实际包含的内容",
-    "settings.cloud.legacySensitive": "这份云端备份包含敏感信息。本次恢复只应用普通设置，保留本机连接；确认保存或合并普通设置后，才会从当前云端文件中移除敏感信息。关闭开关不会删除旧文件或服务商保留的历史版本。",
+    "settings.cloud.legacySensitive": "云端备份里还留有敏感信息。本次只同步普通设置，本机连接保持不变；保存或合并后才会从当前云端文件中移除，旧文件和服务商保留的历史版本不受影响。",
     "settings.cloud.remoteSettingsOnly": "这份备份只有普通设置，恢复时会保留本机密钥与连接；开启敏感配置后，保存或合并可加入敏感信息。",
     "settings.webdav.setup": "设置 WebDAV",
     "settings.webdav.editConnection": "修改连接",

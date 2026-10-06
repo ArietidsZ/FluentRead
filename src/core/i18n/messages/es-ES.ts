@@ -199,7 +199,6 @@ export const esESMessages = {
     "settings.history.recentHint": "Muestra los cambios de cada guardado. Conserva hasta 10 versiones.",
     "settings.history.backupHint": "Se guardan los ajustes cada 6 horas para poder recuperarlos.",
     "settings.history.changeCount": "{count} cambios",
-    "settings.history.moreChanges": "{count} cambios más en los detalles",
     "settings.history.retainedSnapshot": "Instantánea más antigua conservada",
     "settings.history.noPrevious": "La versión anterior ya no está disponible. Puedes comparar con los ajustes actuales.",
     "settings.history.noVisibleChanges": "No hay cambios visibles",

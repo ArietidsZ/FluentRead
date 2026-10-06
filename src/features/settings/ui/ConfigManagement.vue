@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供备份与恢复页面的配置云备份、完整数据备份和设置历史。
-主要内容：按页内分类切换完整备份入口与设置历史，展示相邻版本的具体修改与自动设置快照，区分当时的修改和恢复时的差异，并保留动态服务名称、多语言与安全恢复。
+主要内容：按页内分类切换完整备份入口与设置历史；列表每行只保留版本、一句概要和时间——单项修改给出“改前 → 改后”，多项修改只给数量，自动快照只给时间和与当前的差异数——具体修改在详情里区分当时的修改和恢复时的差异，并保留动态服务名称、多语言与安全恢复。
 模块边界：本组件拥有设置历史的预览与恢复；本机备份与导入由 LocalDataManagement 编排，配置云备份由独立 CloudConfigBackup 组件及后台服务负责。
 -->
 <template>
@@ -23,7 +23,6 @@
             <h2 id="recent-config-title">最近修改</h2>
             <p>{{ t('settings.history.recentHint') }}</p>
           </div>
-          <span>{{ historyEntries.length }}/10</span>
         </header>
         <div v-if="historyEntries.length" class="version-list">
           <button
@@ -37,22 +36,20 @@
           >
             <span class="version-badge">v{{ entry.version }}</span>
             <span class="version-copy">
-              <span class="version-meta">
-                <time :datetime="entry.savedAt">{{ formatTime(entry.savedAt) }}</time>
-                <span v-if="entry.diff?.changeCount">{{ t('settings.history.changeCount', {count: entry.diff.changeCount}) }}</span>
-              </span>
               <strong>{{ historyTitle(entry) }}</strong>
-              <span v-for="change in entry.diff?.groups.flatMap(group => group.changes).slice(0, 2)" :key="change.key" class="change-values">
-                <span v-if="entry.diff && entry.diff.changeCount > 1" class="change-label">{{ translateLegacy(change.label) }}</span>
-                <span class="change-before">{{ translateLegacy(change.before) }}</span>
+              <span v-if="soleChange(entry)" class="change-values">
+                <span class="change-before">{{ translateLegacy(soleChange(entry)!.before) }}</span>
                 <span class="change-arrow" aria-hidden="true">→</span>
-                <span class="change-after">{{ translateLegacy(change.after) }}</span>
+                <span class="change-after">{{ translateLegacy(soleChange(entry)!.after) }}</span>
               </span>
-              <small v-if="!entry.diff">{{ t('settings.history.noPrevious') }}</small>
-              <small v-if="entry.diff && entry.diff.changeCount > 2">{{ t('settings.history.moreChanges', {count: entry.diff.changeCount - 2}) }}</small>
+              <small v-else-if="!entry.diff">{{ t('settings.history.noPrevious') }}</small>
+              <small v-else-if="entry.diff.changeCount > 1">{{ t('settings.history.changeCount', {count: entry.diff.changeCount}) }}</small>
             </span>
-            <span v-if="entry.version === currentHistoryVersion" class="current-mark">当前</span>
-            <span v-else class="view-link">查看</span>
+            <span class="version-side">
+              <time :datetime="entry.savedAt" :title="formatTime(entry.savedAt)">{{ formatShortTime(entry.savedAt) }}</time>
+              <span v-if="entry.version === currentHistoryVersion" class="current-mark">当前</span>
+              <span v-else class="view-link">查看</span>
+            </span>
           </button>
         </div>
         <div v-else class="version-empty">修改设置后会在这里生成版本</div>
@@ -64,7 +61,6 @@
             <h2 id="automatic-backup-title">自动设置快照</h2>
             <p>{{ t('settings.history.backupHint') }}</p>
           </div>
-          <span>{{ backupEntries.length }}/10</span>
         </header>
         <div v-if="backupEntries.length" class="version-list">
           <button
@@ -77,8 +73,7 @@
           >
             <span class="version-badge backup">b{{ entry.version }}</span>
             <span class="version-copy">
-              <strong>{{ snapshotSummary(entry.config) }}</strong>
-              <time :datetime="entry.savedAt">{{ formatTime(entry.savedAt) }}</time>
+              <strong><time :datetime="entry.savedAt" :title="formatTime(entry.savedAt)">{{ formatShortTime(entry.savedAt) }}</time></strong>
               <small>{{ backupComparison(entry) }}</small>
             </span>
             <span class="view-link">查看</span>
@@ -207,6 +202,15 @@ function formatTime(savedAt: string): string {
   }).format(date);
 }
 
+/** 列表里只显示到分钟，完整时间保留在悬停提示和无障碍名称里。 */
+function formatShortTime(savedAt: string): string {
+  const date = new Date(savedAt);
+  if (Number.isNaN(date.getTime())) return translateLegacy('时间未知');
+  return new Intl.DateTimeFormat(language.value, {
+    month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(date);
+}
+
 function snapshotSummary(value: ConfigHistoryEntry['config'] | ConfigAutoBackupEntry['config']): string {
   const targetOption = options.to.find((item: any) => item.value === value.to);
   const target = getMultilingualTargetLanguageLabel(
@@ -225,6 +229,11 @@ function historyTitle(entry: ConfigHistoryTimelineEntry): string {
   const changes = entry.diff.groups.flatMap(group => group.changes);
   return changes.length ? changes.slice(0, 2).map(change => translateLegacy(change.label)).join(' · ')
     : t('settings.history.noVisibleChanges');
+}
+
+/** 只改了一项时，列表直接给出“改前 → 改后”；多项修改只显示数量，细节在详情里看。 */
+function soleChange(entry: ConfigHistoryTimelineEntry) {
+  return entry.diff?.changeCount === 1 ? entry.diff.groups.flatMap(group => group.changes)[0] : undefined;
 }
 
 function backupComparison(entry: ConfigAutoBackupEntry): string {
@@ -332,9 +341,8 @@ async function applyPreviewTarget() {
 .version-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
 .version-panel-heading h2 { margin: 0; color: var(--ink); font-size: 16px; }
 .version-panel-heading p { margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
-.version-panel-heading > span { flex: none; padding: 4px 8px; border-radius: 999px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 750; }
 .version-list { max-height: 520px; overflow-y: auto; }
-.version-entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; min-height: 78px; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; cursor: pointer; }
+.version-entry { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 62px; padding: 11px 16px; border: 0; border-bottom: 1px solid var(--line); color: inherit; background: transparent; text-align: left; cursor: pointer; }
 .version-entry:last-child { border-bottom: 0; }
 .version-entry:hover { background: var(--surface-soft); }
 .version-entry.current { background: var(--brand-soft); }
@@ -342,17 +350,17 @@ async function applyPreviewTarget() {
 .version-badge { display: grid; place-items: center; min-height: 28px; border-radius: 9px; color: var(--brand-strong); background: var(--brand-soft); font-size: 10px; font-weight: 800; }
 .version-badge.backup { color: #267260; background: #eaf8f4; }
 .version-copy { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.version-copy strong { color: var(--ink); font-size: 11px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.version-copy strong { color: var(--ink); font-size: 12px; font-weight: 600; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+.version-copy strong time { color: inherit; font-size: inherit; }
+.version-side { display: flex; align-items: center; gap: 12px; flex: none; }
+.version-side time { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .version-copy small, .version-copy time { color: var(--muted); font-size: 10px; line-height: 1.5; }
-.version-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; color: var(--muted); font-size: 10px; }
 .change-values { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; min-width: 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .change-values > span { min-width: 0; }
-.change-label { color: var(--muted); }
 .change-before { color: var(--muted); max-width: 100%; }
 .change-after { color: var(--ink); max-width: 100%; }
 .change-arrow { color: var(--muted); }
 .backup-panel .version-list { max-height: 360px; }
-.backup-panel .version-entry { min-height: 90px; }
 .preview-comparison { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; }
 .preview-comparison button { padding: 8px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface); color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
 .preview-comparison button[aria-pressed="true"] { border-color: var(--brand-strong); color: var(--brand-strong); background: var(--brand-soft); }

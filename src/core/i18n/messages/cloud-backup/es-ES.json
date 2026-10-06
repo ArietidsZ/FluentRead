@@ -26,7 +26,7 @@
     "settings.cloud.consentAcknowledgement": "Entiendo los riesgos y acepto incluir información sensible en las copias en la nube.",
     "settings.cloud.consentConfirm": "Aceptar y activar",
     "settings.cloud.previewSensitive": "Guardar o combinar incluirá la información sensible de este dispositivo. Restaurar aplica únicamente lo que contiene realmente la copia en la nube.",
-    "settings.cloud.legacySensitive": "Esta copia en la nube contiene información sensible. Esta restauración solo aplica ajustes generales y conserva las conexiones de este dispositivo. La información sensible se eliminará del archivo actual en la nube únicamente tras confirmar que se guardan o combinan los ajustes generales. Desactivar la opción no elimina archivos antiguos ni versiones conservadas por el proveedor.",
+    "settings.cloud.legacySensitive": "Esta copia en la nube aún contiene información sensible. Ahora solo se sincronizan los ajustes generales y las conexiones de este dispositivo no cambian; se eliminará del archivo actual en la nube únicamente al guardar o combinar, y los archivos antiguos o las versiones que conserve el proveedor no se ven afectados.",
     "settings.cloud.remoteSettingsOnly": "Esta copia solo contiene ajustes generales. Restaurar conserva las claves y conexiones de este dispositivo. Activa los ajustes sensibles para incluirlos al guardar o combinar.",
     "settings.webdav.setup": "Configurar WebDAV",
     "settings.webdav.editConnection": "Editar conexión",

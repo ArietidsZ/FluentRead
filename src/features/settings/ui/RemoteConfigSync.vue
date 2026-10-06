@@ -6,8 +6,8 @@
 风险确认集中展示存储方式、泄露风险与持续生效的选择；删除确认将云端删除范围、本机保留说明与加粗的确认词合入同一个提示块，输入框紧接其后；次要说明在独立浮层展示，避免展开时改变弹窗与按钮位置。
 删除前须输入本次界面语言的确认文本，再点击确认；只删除已核验版本的备份文件，并保留本机配置。
 删除入口在核验和删除请求期间显示加载动画，完成或失败后恢复；同步操作不触发删除动画。
-通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；显示本次账号并提供更换账号入口；按两步流程说明影响范围，
-先选择操作再确认影响；WebDAV 内容核验兼容模式提示避免多设备同时同步，仍保留只读供应商的恢复限制；默认展示差异与连接变更类别，小屏保留操作区。
+通过右侧记录插槽统一显示账号和时间，窄屏改为上下排列；预览顶部一行显示本次账号、同步范围标签（说明收在悬停提示里）和更换账号入口；按两步流程说明影响范围，
+先选择操作再确认影响，确认页把方向、差异数量与一句影响说明合并在标题下，没有差异时不显示展开按钮和空列表，只有存在被隐藏内容的条目才提示“已隐藏”；WebDAV 内容核验兼容模式提示避免多设备同时同步，仍保留只读供应商的恢复限制；默认展示差异与连接变更类别，小屏保留操作区。
 Drive 已上传但未完成核验时单独显示警示，不误报未上传，也不更新成功记录。
 模块边界：只消费后台脱敏预览和同步记录；不获取完整配置、令牌或用户口令，由父级提供存储方式和客户端。
 -->
@@ -72,9 +72,9 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
         <div class="drive-account-bar">
           <el-icon class="drive-account-icon"><User /></el-icon>
           <p>{{ preview.account.email ? t('settings.drive.account', {email: preview.account.email}) : t('settings.drive.selectedAccount') }}</p>
+          <span class="cloud-preview-scope" role="status" data-testid="cloud-preview-scope" :title="t(preview.includeSensitive ? 'settings.cloud.previewSensitive' : 'settings.cloud.preserveLocal')" :aria-label="`${t(preview.includeSensitive ? 'settings.cloud.scopeSensitive' : 'settings.cloud.scopeSettings')}：${t(preview.includeSensitive ? 'settings.cloud.previewSensitive' : 'settings.cloud.preserveLocal')}`"><strong>{{ t(preview.includeSensitive ? 'settings.cloud.scopeSensitive' : 'settings.cloud.scopeSettings') }}</strong></span>
           <el-button v-if="kind === 'google-drive'" link :loading="switchingAccount" :disabled="busy" :data-testid="`${kind}-switch-account`" @click="switchAccount">{{ t('settings.drive.switchAccount') }}</el-button>
         </div>
-        <div class="cloud-preview-scope" role="status" data-testid="cloud-preview-scope"><strong>{{ t(preview.includeSensitive ? 'settings.cloud.scopeSensitive' : 'settings.cloud.scopeSettings') }}</strong><p>{{ t(preview.includeSensitive ? 'settings.cloud.previewSensitive' : 'settings.cloud.preserveLocal') }}</p></div>
         <el-alert v-if="preview.remoteIncludesSensitive && !preview.includeSensitive" :title="t('settings.cloud.legacySensitive')" type="warning" :closable="false" show-icon class="drive-error drive-preview-notice" data-testid="cloud-legacy-sensitive" />
         <el-alert v-else-if="preview.hasRemote && preview.includeSensitive && !preview.remoteIncludesSensitive" :title="t('settings.cloud.remoteSettingsOnly')" type="info" :closable="false" show-icon class="drive-error drive-preview-notice" />
         <el-alert v-if="error" :title="error" :type="uploadUnverified ? 'warning' : 'error'" :closable="false" show-icon class="drive-error drive-preview-notice" />
@@ -106,14 +106,15 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
         <template v-else>
             <div class="drive-review-title">
               <span class="drive-review-icon"><el-icon><component :is="direction === 'merge' ? Switch : direction === 'download' ? Download : Upload" /></el-icon></span>
-              <div><h3>{{ t(direction === 'merge' ? 'settings.drive.mergeReviewTitle' : `settings.drive.${direction}Title`) }}</h3><p>{{ t('settings.drive.differenceCount', {count: preview.changes.length}) }}</p></div>
+              <div>
+                <h3>{{ t(direction === 'merge' ? 'settings.drive.mergeReviewTitle' : `settings.drive.${direction}Title`) }}</h3>
+                <p class="drive-review-meta">
+                  <span v-if="direction !== 'merge'" class="drive-review-route">{{ t(direction === 'download' ? 'settings.drive.cloudLabel' : 'settings.drive.deviceLabel') }}<el-icon aria-hidden="true"><ArrowRight /></el-icon>{{ t(direction === 'download' ? 'settings.drive.deviceLabel' : 'settings.drive.cloudLabel') }}</span>
+                  <span>{{ t('settings.drive.differenceCount', {count: preview.changes.length}) }}</span>
+                </p>
+              </div>
             </div>
-            <div v-if="direction !== 'merge'" class="drive-transfer" :aria-label="t(`settings.drive.${direction}Title`)">
-              <span><el-icon><component :is="direction === 'download' ? Cloudy : Monitor" /></el-icon><strong>{{ t(direction === 'download' ? 'settings.drive.cloudLabel' : 'settings.drive.deviceLabel') }}</strong></span>
-              <el-icon class="drive-transfer-arrow"><ArrowRight /></el-icon>
-              <span><el-icon><component :is="direction === 'download' ? Monitor : Cloudy" /></el-icon><strong>{{ t(direction === 'download' ? 'settings.drive.deviceLabel' : 'settings.drive.cloudLabel') }}</strong></span>
-            </div>
-            <p class="drive-impact" :class="{'drive-impact-warning': direction !== 'merge'}"><el-icon v-if="direction !== 'merge'"><Warning /></el-icon>{{ directionHint }}</p>
+            <p class="drive-impact">{{ directionHint }}</p>
             <div v-if="direction === 'merge' && conflictRows.length" class="drive-review-heading">
               <div><h3>{{ t('settings.drive.reviewConflicts') }}</h3><p>{{ t('settings.drive.remaining', {count: unresolved}) }}</p></div>
               <div class="drive-bulk-actions">
@@ -122,22 +123,31 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
               </div>
             </div>
             <p v-else-if="direction === 'merge'" class="drive-merge-ready"><el-icon><CircleCheck /></el-icon>{{ summaryTitle }}</p>
-            <button v-if="direction !== 'merge'" type="button" class="drive-details-toggle" :aria-expanded="detailsVisible" @click="toggleDetails"><span>{{ t(detailsVisible ? 'settings.drive.hideDetails' : 'settings.drive.showDetails', {count: preview.changes.length}) }}</span><el-icon><component :is="detailsVisible ? ArrowUp : ArrowDown" /></el-icon></button>
+            <button v-if="direction !== 'merge' && activeRows.length" type="button" class="drive-details-toggle" :aria-expanded="detailsVisible" @click="toggleDetails"><span>{{ t(detailsVisible ? 'settings.drive.hideDetails' : 'settings.drive.showDetails', {count: preview.changes.length}) }}</span><el-icon><component :is="detailsVisible ? ArrowUp : ArrowDown" /></el-icon></button>
             <button v-else-if="automaticRows.length" type="button" class="drive-details-toggle" :aria-expanded="automaticVisible" @click="toggleAutomatic"><span>{{ t(automaticVisible ? 'settings.drive.hideAutomatic' : 'settings.drive.showAutomatic', {count: automaticCount}) }}</span><el-icon><component :is="automaticVisible ? ArrowUp : ArrowDown" /></el-icon></button>
-            <template v-if="direction === 'merge' ? activeRows.length > 0 : detailsVisible">
-              <p class="drive-private-hint">{{ t('settings.drive.privateHint') }}</p>
+            <template v-if="activeRows.length > 0 && (direction === 'merge' || detailsVisible)">
+              <p v-if="hasMaskedRows" class="drive-private-hint">{{ t('settings.drive.privateHint') }}</p>
               <div class="drive-differences" :data-testid="`${kind}-differences`">
-                <article v-for="row in visibleRows" :key="row.id" class="drive-change" :data-change-id="row.id">
+                <article v-for="row in visibleRows" :key="row.id" class="drive-change" :class="{'is-compact': direction !== 'merge'}" :data-change-id="row.id">
                   <div class="drive-change-heading"><strong>{{ row.label === '私密或自定义设置' ? t('settings.drive.otherSettings') : translateLegacy(row.label) }}</strong>
                     <span v-if="direction === 'merge'" :class="{'is-pending': !rowChoice(row)}">{{ t(rowChoice(row) ? (rowChoice(row) === 'local' ? 'settings.drive.localSelected' : 'settings.drive.remoteSelected') : 'settings.drive.needsChoice') }}</span>
                   </div>
                   <p v-if="row.changes.some(change => change.details?.length)" class="drive-change-details">{{ [...new Set(row.changes.flatMap(change => change.details ?? []))].map(key => t(key)).join(' · ') }}</p>
-                  <div class="drive-values" :role="direction === 'merge' ? 'radiogroup' : undefined" :aria-label="direction === 'merge' ? t('settings.drive.choice', {label: row.label === '私密或自定义设置' ? t('settings.drive.otherSettings') : translateLegacy(row.label)}) : undefined">
-                    <component :is="direction === 'merge' ? 'label' : 'div'" v-for="source in ['local', 'remote'] as const" :key="source" class="drive-value" :class="{'is-selected': direction === 'merge' ? rowChoice(row) === source : direction === (source === 'local' ? 'upload' : 'download')}">
-                      <input v-if="direction === 'merge'" type="radio" :name="`drive-choice-${row.id}`" :checked="rowChoice(row) === source" :disabled="busy" :value="source" @change="chooseRow(row, source)" />
-                      <span><strong>{{ t(source === 'local' ? 'settings.drive.deviceLabel' : 'settings.drive.cloudLabel') }}</strong><span>{{ row.changes.length === 1 ? previewValueLabel(row.changes[0][source]) : t('settings.drive.groupedContent', {count: row.changes.length}) }}</span></span>
-                    </component>
+                  <div v-if="direction === 'merge'" class="drive-values" role="radiogroup" :aria-label="t('settings.drive.choice', {label: row.label === '私密或自定义设置' ? t('settings.drive.otherSettings') : translateLegacy(row.label)})">
+                    <label v-for="source in ['local', 'remote'] as const" :key="source" class="drive-value" :class="{'is-selected': rowChoice(row) === source}">
+                      <input type="radio" :name="`drive-choice-${row.id}`" :checked="rowChoice(row) === source" :disabled="busy" :value="source" @change="chooseRow(row, source)" />
+                      <span><strong>{{ t(source === 'local' ? 'settings.drive.deviceLabel' : 'settings.drive.cloudLabel') }}</strong><span>{{ rowValue(row, source) }}</span></span>
+                    </label>
                   </div>
+                  <!-- 保存或恢复是整体替换：一行给出“被替换一侧的值 → 替换后的值”，两侧各带来源标签，不再并排两个方框。 -->
+                  <p v-else class="drive-change-flow">
+                    <template v-if="row.changes.length === 1">
+                      <span class="drive-change-from"><small>{{ t(direction === 'upload' ? 'settings.drive.cloudLabel' : 'settings.drive.deviceLabel') }}</small>{{ rowValue(row, direction === 'upload' ? 'remote' : 'local') }}</span>
+                      <el-icon aria-hidden="true"><ArrowRight /></el-icon>
+                      <span class="drive-change-to"><small>{{ t(direction === 'upload' ? 'settings.drive.deviceLabel' : 'settings.drive.cloudLabel') }}</small>{{ rowValue(row, direction === 'upload' ? 'local' : 'remote') }}</span>
+                    </template>
+                    <span v-else class="drive-change-to">{{ rowValue(row, 'local') }}</span>
+                  </p>
                 </article>
               </div>
               <el-pagination v-if="activeRows.length > 20" v-model:current-page="page" :page-size="20" :total="activeRows.length" layout="prev, pager, next" />
@@ -158,7 +168,7 @@ Drive 已上传但未完成核验时单独显示警示，不误报未上传，�
 <script setup lang="ts">
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue';
 import {ElAlert, ElIcon, ElInput, ElMessage, ElPagination, ElPopover, ElSwitch} from 'element-plus';
-import {ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleCheck, Cloudy, Delete, Download, Monitor, Switch, Upload, User, Warning} from '@element-plus/icons-vue';
+import {ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CircleCheck, Delete, Download, Switch, Upload, User, Warning} from '@element-plus/icons-vue';
 import 'element-plus/es/components/alert/style/css';
 import 'element-plus/es/components/input/style/css';
 import 'element-plus/es/components/pagination/style/css';
@@ -212,6 +222,8 @@ const automaticRows = computed(() => rows.value.filter(row => row.recommended));
 const automaticCount = computed(() => automaticRows.value.reduce((count, row) => count + row.changes.length, 0));
 const activeRows = computed(() => direction.value === 'merge' ? [...conflictRows.value, ...(automaticVisible.value ? automaticRows.value : [])] : rows.value);
 const visibleRows = computed(() => activeRows.value.slice((page.value - 1) * 20, page.value * 20));
+// 只有列表里确实有被隐藏内容的条目时，才提示“已隐藏”。
+const hasMaskedRows = computed(() => activeRows.value.some(row => row.changes.some(change => change.sensitive)));
 const unresolved = computed(() => preview.value ? unresolvedDriveChanges(preview.value, choices.value) : 0);
 const statusText = computed(() => !status.value ? translateLegacy('正在检查同步状态…') : !status.value.available ? translateLegacy(status.value.reason) : status.value.lastSyncedAt ? t('settings.drive.lastSync', {time: new Date(status.value.lastSyncedAt).toLocaleString(language.value)}) : '');
 const directionHint = computed(() => direction.value === 'merge' && !preview.value?.hasBaseline ? t('settings.drive.firstMergeDescription') : direction.value ? t(`settings.drive.${direction.value}Description`) : '');
@@ -220,6 +232,7 @@ const commitLabel = computed(() => t(identical.value ? 'settings.drive.finishSyn
 const canCommit = computed(() => Boolean(preview.value && direction.value && (preview.value.canUpload !== false || direction.value === 'download') && (direction.value !== 'merge' || unresolved.value === 0)));
 watch(direction, () => {page.value = 1; detailsVisible.value = true; automaticVisible.value = true;});
 function previewValueLabel(value: string) {return value === '开启' ? t('settings.drive.enabled') : value === '关闭' ? t('settings.drive.disabled') : translateLegacy(localizeDrivePreviewLanguage(value, language.value));}
+function rowValue(row: DrivePreviewRow, source: DriveChoice) {return row.changes.length === 1 ? previewValueLabel(row.changes[0][source]) : t('settings.drive.groupedContent', {count: row.changes.length});}
 function rowChoice(row: DrivePreviewRow) {return driveRowChoice(row, choices.value);}
 function chooseRow(row: DrivePreviewRow, choice: DriveChoice) {choices.value = chooseDriveRow(row, choice, choices.value);}
 function chooseAll(choice: DriveChoice) {for (const row of conflictRows.value) chooseRow(row, choice);}
@@ -345,8 +358,8 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .cloud-scope-option strong {font-size:13px; font-weight:500;}
 .cloud-scope-option label>span {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary); overflow-wrap:anywhere;}
 .cloud-scope-option>.el-switch {flex-shrink:0;}
-.cloud-preview-scope p {font-size:12px; line-height:1.7; color:var(--el-text-color-secondary); margin:8px 0 0;}
-.cloud-preview-scope {padding:12px 14px; margin-bottom:16px; border:1px solid var(--el-border-color-lighter); border-radius:8px; font-size:13px;}
+.cloud-preview-scope {flex-shrink:0; padding:3px 9px; border:1px solid var(--el-border-color-lighter); border-radius:999px; background:var(--el-bg-color); font-size:11px; line-height:1.6; color:var(--el-text-color-regular); cursor:help;}
+.cloud-preview-scope strong {font-weight:600;}
 .cloud-consent-intro {margin:0 0 14px; font-size:13px; line-height:1.7; color:var(--el-text-color-regular);}
 .cloud-consent-risk {display:flex; align-items:flex-start; gap:8px; padding:12px; margin-bottom:16px; background:var(--el-fill-color-light); border-radius:8px;}
 .cloud-consent-risk>.el-icon {color:var(--el-color-warning); font-size:16px; flex-shrink:0; margin-top:3px;}
@@ -400,9 +413,9 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .drive-preview-notice :deep(.el-alert__icon) {margin-top:2px; flex-shrink:0;}
 .drive-actions {display:flex; flex-wrap:wrap; align-items:center; gap:12px 20px;}
 .drive-actions>.el-button {flex-shrink:0; max-width:100%; min-height:32px; height:auto; white-space:normal; line-height:1.5; padding:8px 15px;}
-.drive-account-bar {display:flex; align-items:center; gap:10px; border-radius:8px; background:var(--el-fill-color-light); padding:12px; margin-bottom:24px;}
+.drive-account-bar {display:flex; align-items:center; flex-wrap:wrap; gap:8px 10px; border-radius:8px; background:var(--el-fill-color-light); padding:10px 12px; margin-bottom:20px;}
 .drive-account-icon {font-size:18px; color:var(--el-text-color-secondary); flex-shrink:0;}
-.drive-account-bar p {margin:0; flex:1; font-size:12px; color:var(--el-text-color-regular); overflow-wrap:anywhere;}
+.drive-account-bar p {margin:0; flex:1 1 180px; min-width:0; font-size:12px; color:var(--el-text-color-regular); overflow-wrap:anywhere;}
 .drive-account-bar .el-button {flex-shrink:0; font-size:12px; color:var(--el-text-color-secondary);}
 .drive-steps {display:flex; gap:24px; list-style:none; padding:0 0 16px; margin:0 0 24px; border-bottom:1px solid var(--el-border-color-lighter);}
 .drive-steps li {display:flex; align-items:center; gap:8px; font-size:12px; color:var(--el-text-color-secondary);}
@@ -424,16 +437,11 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .drive-advanced p {margin:0; color:var(--el-text-color-secondary); font-size:12px;}
 .drive-advanced .el-button {color:var(--el-text-color-regular); font-size:13px;}
 .drive-advanced .el-icon {margin:0 5px;}
-.drive-review-title {display:flex; align-items:center; gap:14px; margin-bottom:20px;}
+.drive-review-title {display:flex; align-items:center; gap:14px; margin-bottom:12px;}
+.drive-review-meta {display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px;}
+.drive-review-route {display:inline-flex; align-items:center; gap:6px; color:var(--el-text-color-regular);}
 .drive-review-icon {display:grid; place-items:center; width:44px; height:44px; border-radius:12px; background:var(--el-color-primary-light-9); color:var(--el-color-primary); font-size:24px; flex-shrink:0;}
-.drive-transfer {display:flex; align-items:center; gap:16px; padding:20px; background:var(--el-fill-color-light); border:1px solid var(--el-border-color-lighter); border-radius:10px;}
-.drive-transfer>span {display:flex; align-items:center; justify-content:center; gap:10px; flex:1; min-width:0;}
-.drive-transfer>span>.el-icon {font-size:24px; color:var(--el-text-color-secondary); flex-shrink:0;}
-.drive-transfer strong {font-size:13px; font-weight:500; color:var(--el-text-color-primary);}
-.drive-transfer-arrow {font-size:22px; color:var(--el-text-color-secondary); flex-shrink:0;}
-.drive-impact {display:flex; align-items:flex-start; gap:8px; margin:16px 0 24px; font-size:13px; line-height:1.7; color:var(--el-text-color-regular);}
-.drive-impact-warning {padding:12px 14px; border:1px solid var(--el-color-warning-light-7); border-radius:8px; background:var(--el-color-warning-light-9);}
-.drive-impact-warning>.el-icon {font-size:18px; color:var(--el-color-warning); margin-top:2px; flex-shrink:0;}
+.drive-impact {margin:0 0 20px; font-size:12px; line-height:1.7; color:var(--el-text-color-secondary);}
 .drive-summary {display:flex; gap:12px; padding:20px; border-radius:10px; background:var(--el-fill-color-light); margin:20px 0 12px;}
 .drive-summary h3 {margin:0; font-size:18px; color:var(--el-text-color-primary);}
 .drive-summary p {margin:8px 0 0; font-size:13px; line-height:1.6; color:var(--el-text-color-secondary);}
@@ -455,6 +463,15 @@ onUnmounted(() => {window.removeEventListener('storage', handleSensitivePreferen
 .drive-change-heading {display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:10px; font-size:13px;}
 .drive-change-heading>span {font-size:12px; color:var(--el-color-success);}
 .drive-change-heading>span.is-pending {color:var(--el-color-warning);}
+.drive-change.is-compact {display:grid; grid-template-columns:minmax(120px, 220px) minmax(0, 1fr); align-items:baseline; gap:4px 16px; padding:12px 16px;}
+.drive-change.is-compact .drive-change-heading {margin:0;}
+.drive-change.is-compact .drive-change-details {grid-column:1 / -1; grid-row:2; margin:0;}
+.drive-change-flow {display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 8px; margin:0; font-size:13px; line-height:1.6; overflow-wrap:anywhere;}
+.drive-change-flow .el-icon {align-self:center; font-size:12px; color:var(--el-text-color-secondary);}
+.drive-change-from,.drive-change-to {display:inline-flex; align-items:baseline; flex-wrap:wrap; gap:2px 6px; min-width:0;}
+.drive-change-flow small {flex:none; font-size:11px; font-weight:400; color:var(--el-text-color-placeholder);}
+.drive-change-from {color:var(--el-text-color-secondary);}
+.drive-change-to {color:var(--el-text-color-primary); font-weight:500;}
 .drive-values {display:grid; grid-template-columns:1fr 1fr; gap:10px; overflow-wrap:anywhere;}
 .drive-value {display:flex; align-items:flex-start; gap:8px; border:1px solid var(--el-border-color-lighter); border-radius:8px; padding:12px; font-size:13px;}
 .drive-value.is-selected {border-color:var(--el-color-primary); background:var(--el-color-primary-light-9);}
@@ -472,11 +489,10 @@ label.drive-value {cursor:pointer;}
 .drive-footer-actions .el-button {margin:0; min-height:38px;}
 .is-disabled {cursor:wait; opacity:.65;}
 @media (max-width:600px) {
-  .drive-heading {flex-wrap:wrap;}.drive-values {grid-template-columns:1fr;}
+  .drive-heading {flex-wrap:wrap;}.drive-values {grid-template-columns:1fr;}.drive-change.is-compact {grid-template-columns:minmax(0, 1fr);}
   .drive-actions {flex-direction:column; align-items:flex-start;}.drive-record {flex:none; width:100%; margin-inline-start:0; text-align:left;}
   .drive-operation {padding:16px;}.drive-review-heading {align-items:flex-start; flex-direction:column;}
   .drive-account-bar {align-items:flex-start;}.drive-account-icon {display:none;}.drive-review-title h3 {font-size:18px;}
-  .drive-transfer {padding:16px 12px; gap:10px;}.drive-transfer>span {flex-direction:column; text-align:center; gap:6px;}
   .drive-footer-row {flex-wrap:wrap; gap:12px;}.drive-footer-row>.el-button {width:100%; justify-content:flex-start;}
   .drive-footer-actions {display:grid; grid-template-columns:1fr 1fr; width:100%;}
   .drive-footer-actions .el-button {height:auto; white-space:normal; line-height:1.5; padding:8px;}
