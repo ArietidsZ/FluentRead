@@ -49,7 +49,7 @@ describe('video AI model cache', () => {
         })));
         const pending = cacheVideoAiModelFiles('tiny');
         const assertion = expect(pending).rejects.toThrow('超过');
-        await vi.advanceTimersByTimeAsync(120_000);
+        await vi.advanceTimersByTimeAsync(120_000 * 4);
         await assertion;
         vi.useRealTimers();
     });

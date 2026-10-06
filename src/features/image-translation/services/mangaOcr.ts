@@ -77,8 +77,8 @@ export async function createBrowserMangaOcr(signal?: AbortSignal, progress?: Pro
     const ort = await import('onnxruntime-web/webgpu');
     ort.env.wasm.numThreads = 1;
     configureOnnxWasmBackend(ort.env.wasm, {
-        mjs: chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),
-        wasm: chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm'),
+        mjs: chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
+        wasm: chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
     });
     const {PaddleOcrService} = await import('ppu-paddle-ocr/web');
     const gpu=await probeMangaGpu();

@@ -1,9 +1,10 @@
 /**
  * @file src/features/video-subtitle/offscreen/modelCache.ts
  * 文件职责：维护 Transformers.js Whisper 模型文件的远程地址、q4/q8 清单与 Cache Storage 下载。
- * 主要内容：按模型和量化类型复用缓存条目，限制单文件下载时长，并提供预下载状态所需的稳定 API。
+ * 主要内容：按模型和量化类型复用缓存条目，流式接收并在国内源、官方与镜像间有界回退，限制下载与断流等待，并提供预下载状态所需的稳定 API。
  * 模块边界：只处理模型文件缓存，不创建 Worker、不初始化 ONNX session，也不参与后台 owner 生命周期。
  */
+import {withModelDownload} from '@/src/platform/http/modelDownloads';
 import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
@@ -56,20 +57,7 @@ export async function cacheVideoAiModelFiles(model: unknown, dtype: 'q4' | 'q8' 
     const url = getVideoAiModelFileUrl(model, file);
     if (await cache.match(url)) continue;
 
-    const controller = new AbortController();
-    const timeout = globalThis.setTimeout(() => controller.abort(), MODEL_FILE_DOWNLOAD_TIMEOUT_MS);
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw new Error(`模型文件下载失败（${response.status}）：${file}`);
-      await cache.put(url, response);
-    } catch (error) {
-      if (controller.signal.aborted) {
-        throw new Error(`模型文件下载超过 ${MODEL_FILE_DOWNLOAD_TIMEOUT_MS / 1000} 秒：${file}`);
-      }
-      throw error;
-    } finally {
-      globalThis.clearTimeout(timeout);
-    }
+    await withModelDownload(url, response => cache.put(url, response), {timeoutMs: MODEL_FILE_DOWNLOAD_TIMEOUT_MS});
   }
 }
 

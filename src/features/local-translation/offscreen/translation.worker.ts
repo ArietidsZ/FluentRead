@@ -56,8 +56,8 @@ function configureEnvironment(): void {
     if (env.backends.onnx.wasm) {
         env.backends.onnx.wasm.numThreads = 1;
         configureOnnxWasmBackend(env.backends.onnx.wasm, {
-            mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'),
-            wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'),
+            mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
+            wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
         });
     }
 }
@@ -83,7 +83,7 @@ async function getTranslator(request: WorkerRequest): Promise<Translator> {
     }) as unknown as Promise<Translator>;
     const wasm = env.backends.onnx.wasm;
     translator = await (wasm
-        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'), create)
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), create)
         : create());
     translatorRepository = repository;
     backend = 'wasm';

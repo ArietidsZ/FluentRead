@@ -37,7 +37,15 @@ const duplicates = [...groups.values()].filter(group => group.length > 1).map(gr
   paths: group.map(file => file.path), bytesEach: group[0].bytes,
   duplicateBytes: group[0].bytes * (group.length - 1),
 }));
-const result = {directory, files: files.length, totalBytes: total,
+const bytesByExtension = {};
+const bytesByDirectory = {};
+for (const file of files) {
+  const extension = path.extname(file.path) || '(none)';
+  const folder = file.path.includes(path.sep) ? file.path.split(path.sep)[0] : '(root)';
+  bytesByExtension[extension] = (bytesByExtension[extension] || 0) + file.bytes;
+  bytesByDirectory[folder] = (bytesByDirectory[folder] || 0) + file.bytes;
+}
+const result = {directory, files: files.length, totalBytes: total, bytesByExtension, bytesByDirectory,
   largestFiles: files.slice(0, 15).map(({path, bytes}) => ({path, bytes})), duplicates};
 if (process.argv[3]) {
   const baseline = await measure(path.resolve(process.argv[3]));

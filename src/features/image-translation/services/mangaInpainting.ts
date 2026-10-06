@@ -96,7 +96,7 @@ export async function createBrowserMangaInpainter(signal?:AbortSignal,progress?:
         if(percent!==lastPercent){lastPercent=percent;progress?.(percent);}
     });assertMangaOcrActive(signal);
     const ort=await import('onnxruntime-web/webgpu');ort.env.wasm.numThreads=1;
-    configureOnnxWasmBackend(ort.env.wasm,{mjs:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm')});
+    configureOnnxWasmBackend(ort.env.wasm,{mjs:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm')});
     const gpu=await probeMangaGpu();
     let activeSignal=signal;
     let usingGpu=gpu.available;

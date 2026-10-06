@@ -24,15 +24,15 @@ afterEach(() => {
 });
 
 describe('compressed ONNX WASM loader', () => {
-    it('三个 ONNX Worker 和公共资源 hook 使用各自匹配的 runtime MJS 与 原始 WASM', () => {
+    it('三个 ONNX Worker 和公共资源 hook 共享同一匹配版本的 runtime MJS 与原始 WASM', () => {
         const sources = [
             source('src/features/local-translation/offscreen/translation.worker.ts'),
             source('src/features/video-subtitle/offscreen/transcription.worker.ts'),
             source('wxt.config.ts'),
         ];
         for (const content of sources) {
-            expect(content).toContain('ort-wasm-simd-threaded.jsep.mjs');
-            expect(content).toContain('ort-wasm-simd-threaded.jsep.wasm');
+            expect(content).toContain('ort-wasm-simd-threaded.asyncify.mjs');
+            expect(content).toContain('ort-wasm-simd-threaded.asyncify.wasm');
             expect(content).not.toContain("ort-wasm-simd-threaded.mjs'");
             expect(content).not.toContain("ort-wasm-simd-threaded.wasm'");
         }
@@ -41,10 +41,10 @@ describe('compressed ONNX WASM loader', () => {
         expect(whisper).toContain('withCompressedWasmBinary(wasm');
         const tts = source('src/features/local-tts/offscreen/tts.worker.ts');
         const wxt = sources[2]!;
-        expect(wxt).toContain('tts-ort-wasm-simd-threaded.asyncify.mjs');
-        expect(wxt).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm');
-        expect(tts).toContain('tts-ort-wasm-simd-threaded.asyncify.mjs');
-        expect(tts).toContain('tts-ort-wasm-simd-threaded.asyncify.wasm');
+        expect(wxt).toContain('ort-wasm-simd-threaded.asyncify.mjs');
+        expect(wxt).toContain('ort-wasm-simd-threaded.asyncify.wasm');
+        expect(tts).toContain('ort-wasm-simd-threaded.asyncify.mjs');
+        expect(tts).toContain('ort-wasm-simd-threaded.asyncify.wasm');
         expect(tts).toContain('return wasm');
         expect(tts).not.toContain("device === 'wasm' && wasm");
     });

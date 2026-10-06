@@ -32,7 +32,8 @@
       "tests/writingBackground.test.ts",
       "tests/requestLimitSettings.test.ts",
       "tests/backgroundVisionProbe.test.ts",
-      "tests/requestHeaderRuntime.test.ts"
+      "tests/requestHeaderRuntime.test.ts",
+      "tests/extensionSizeBudget.test.ts"
     ],
     "unit": [
       "tests/translationCenterSession.test.ts",
@@ -444,7 +445,8 @@
       "tests/webDavBackup.test.ts",
       "tests/webDavHttpIntegration.test.ts",
       "tests/mangaPatchResult.test.ts",
-      "tests/mangaCompositor.test.ts"
+      "tests/mangaCompositor.test.ts",
+      "tests/modelDownloads.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",
