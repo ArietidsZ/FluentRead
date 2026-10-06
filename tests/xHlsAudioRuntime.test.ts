@@ -1,12 +1,13 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {XHlsAudioReader} from '@/src/features/video-subtitle/content/hlsAudioRuntime';
+import {audioInit, videoInit} from './fixtures/hlsAudio';
 
 const media = (id: string) => `https://video.twimg.com/ext_tw_video/${id}/pu/pl/audio.m3u8`;
 const manifest = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\naudio.m4s\n#EXT-X-ENDLIST';
 class FakeContext {
   static closed = 0;
   state = 'running';
-  async decodeAudioData() {
+  async decodeAudioData(_bytes?: ArrayBuffer) {
     return {duration: 1, numberOfChannels: 1, sampleRate: 16_000, getChannelData: () => new Float32Array(16_000).fill(.04)};
   }
   async close() { this.state = 'closed'; FakeContext.closed++; }
@@ -14,7 +15,7 @@ class FakeContext {
 function fixture(urls: string[]) {
   vi.stubGlobal('performance', {getEntriesByType: () => urls.map(name => ({name}))});
   vi.stubGlobal('AudioContext', FakeContext);
-  const fetcher = vi.fn(async (url: string) => new Response(url.endsWith('.m3u8') ? manifest : new Uint8Array([1, 2, 3])));
+  const fetcher = vi.fn(async (url: string) => new Response(url.endsWith('.m3u8') ? manifest : url.endsWith('init.mp4') ? audioInit : new Uint8Array([1, 2, 3])));
   vi.stubGlobal('fetch', fetcher);
   const video = {currentSrc: 'blob:home-video', src: '', poster: 'https://pbs.twimg.com/ext_tw_video_thumb/111/pu/img/test.jpg', duration: 1} as HTMLVideoElement;
   return {reader: new XHlsAudioReader(), video, fetcher, signal: new AbortController().signal};
@@ -22,6 +23,51 @@ function fixture(urls: string[]) {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); FakeContext.closed = 0; });
 
 describe('X 首页音轨恢复', () => {
+  it('prefers the audio master over the most recently captured video-only playlist', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    const master = media('111').replace('audio.m3u8', 'master.m3u8');
+    const picture = media('111').replace('audio.m3u8', 'picture.m3u8');
+    reader.remember(master, '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,DEFAULT=YES,URI="audio.m3u8"');
+    reader.remember(picture, manifest.replaceAll('init.mp4', 'picture-init.mp4').replaceAll('audio.m4s', 'picture.m4s'));
+    const decode = vi.spyOn(FakeContext.prototype, 'decodeAudioData').mockImplementation(async function (bytes?: ArrayBuffer) {
+      if (bytes && new TextDecoder().decode(bytes).includes('vide')) throw new DOMException('No audio track', 'EncodingError');
+      return {duration: 1, numberOfChannels: 1, sampleRate: 16_000, getChannelData: () => new Float32Array(16_000).fill(.04)};
+    });
+    fetcher.mockImplementation(async url => new Response(url.endsWith('.m3u8') ? manifest : url.endsWith('init.mp4') ? url.includes('picture') ? videoInit : audioInit : new Uint8Array([1])));
+    try {
+      expect(await reader.read(video, signal)).toHaveLength(16_000);
+      expect(fetcher.mock.calls.some(([url]) => url.includes('picture'))).toBe(false);
+    } finally { decode.mockRestore(); }
+  });
+  it('continues with another candidate after audio decoding fails', async () => {
+    const {reader, video, signal} = fixture([]);
+    reader.remember(media('111'), manifest);
+    reader.remember(media('111').replace('audio.m3u8', 'bad.m3u8'), manifest);
+    const decode = vi.spyOn(FakeContext.prototype, 'decodeAudioData')
+      .mockRejectedValueOnce(new DOMException('Unsupported codec', 'EncodingError'));
+    try {
+      expect(await reader.read(video, signal)).toHaveLength(16_000);
+      expect(decode).toHaveBeenCalledTimes(2);
+      expect(FakeContext.closed).toBe(2);
+    } finally { decode.mockRestore(); }
+  });
+  it('skips a video-only child and continues to a captured audio playlist without a master', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    reader.remember(media('111'), manifest);
+    reader.remember(media('111').replace('audio.m3u8', 'picture.m3u8'), manifest.replaceAll('init.mp4', 'picture-init.mp4').replaceAll('audio.m4s', 'picture.m4s'));
+    fetcher.mockImplementation(async url => new Response(url.endsWith('init.mp4') ? url.includes('picture') ? videoInit : audioInit : new Uint8Array([1])));
+    expect(await reader.read(video, signal)).toHaveLength(16_000);
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith('picture-init.mp4'))).toBe(true);
+    expect(fetcher.mock.calls.some(([url]) => url.endsWith('picture.m4s'))).toBe(false);
+    expect(FakeContext.closed).toBe(1);
+  });
+  it('recovers other unknown manifests after finding a video-only resource', async () => {
+    const picture = media('111').replace('audio.m3u8', 'picture.m3u8');
+    const {reader, video, signal, fetcher} = fixture([media('111'), picture]);
+    fetcher.mockImplementation(async url => new Response(url.endsWith('.m3u8') ? url === picture ? manifest.replaceAll('init.mp4', 'picture-init.mp4') : manifest : url.endsWith('init.mp4') ? url.includes('picture') ? videoInit : audioInit : new Uint8Array([1])));
+    expect(await reader.read(video, signal)).toHaveLength(16_000);
+    expect(fetcher.mock.calls.some(([url]) => url === media('111'))).toBe(true);
+  });
   it('uses the current poster media ID among multiple preloaded Home videos', async () => {
     const {reader, video, signal, fetcher} = fixture([media('222'), media('111'), 'https://example.com/unsafe.m3u8']);
     const pcm = await reader.read(video, signal);
@@ -45,7 +91,7 @@ describe('X 首页音轨恢复', () => {
   it('fetches a newer manifest even if an old cached manifest already exists', async () => {
     const newer = media('111').replace('audio.m3u8', 'new.m3u8');
     const {reader, video, signal, fetcher} = fixture([newer]);
-    reader.remember(media('111'), '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10\nexpired.m3u8');
+    reader.remember(media('111'), manifest.replace('init.mp4', 'expired-init.mp4'));
     expect(await reader.read(video, signal)).toHaveLength(16_000);
     expect(fetcher).toHaveBeenCalledWith(newer, expect.anything());
     expect(fetcher.mock.calls.some(([url]) => url.includes('expired'))).toBe(false);
@@ -54,7 +100,7 @@ describe('X 首页音轨恢复', () => {
     const {reader, video, signal, fetcher} = fixture([]);
     reader.remember(media('111'), manifest);
     reader.remember(media('111').replace('audio.m3u8', 'master.m3u8'), '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=10\nexpired.m3u8');
-    fetcher.mockImplementation(async url => new Response(url.includes('expired') ? '' : new Uint8Array([1, 2]), {status: url.includes('expired') ? 403 : 200}));
+    fetcher.mockImplementation(async url => new Response(url.includes('expired') ? '' : url.endsWith('init.mp4') ? audioInit : new Uint8Array([1, 2]), {status: url.includes('expired') ? 403 : 200}));
     expect(await reader.read(video, signal)).toHaveLength(16_000);
     expect(fetcher.mock.calls.some(([url]) => url.includes('expired'))).toBe(true);
     expect(FakeContext.closed).toBe(1);
@@ -77,7 +123,7 @@ describe('X 首页音轨恢复', () => {
     const valid = media('111');
     const expired = valid.replace('audio.m3u8', 'expired.m3u8');
     const {reader, video, signal, fetcher} = fixture([valid, expired]);
-    fetcher.mockImplementation(async url => new Response(url === expired ? '' : url === valid ? manifest : new Uint8Array([1]), {status: url === expired ? 403 : 200}));
+    fetcher.mockImplementation(async url => new Response(url === expired ? '' : url === valid ? manifest : url.endsWith('init.mp4') ? audioInit : new Uint8Array([1]), {status: url === expired ? 403 : 200}));
     expect(await reader.read(video, signal)).toHaveLength(16_000);
     expect(fetcher.mock.calls[0][0]).toBe(expired);
   });

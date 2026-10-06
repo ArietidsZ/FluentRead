@@ -806,7 +806,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       aiFullPhase = 'error';
       aiFullProgress = { ...aiFullProgress, phase: 'error', progress: 0 };
       aiCaptureError = /扫描副本.*X 视频音频|没有可复制的音频源/.test(error.message)
-        ? '无法读取此视频音频，请打开帖子或刷新页面后重试 AI 字幕（无需重新下载模型）'
+        ? '暂时无法生成 AI 字幕，可尝试打开帖子或刷新页面后重试'
         : /decode|解码|audio data/i.test(error.message)
         ? '当前视频音频格式暂不支持，请重试或使用桌面版 Chrome/Edge'
         : error.message;

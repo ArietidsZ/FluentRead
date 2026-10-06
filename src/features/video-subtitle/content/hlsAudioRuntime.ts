@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/hlsAudioRuntime.ts
  * 文件职责：将当前 X 视频的 HLS 音轨接入浏览器音频解码，为完整字幕提供 16 kHz PCM。
- * 主要内容：按已确认的媒体身份选择清单，补读首页直接加载资源，过期/失效清单按新旧顺序有界重试，校验音轨时长并解码为单声道 PCM。
+ * 主要内容：按已确认的媒体身份选择清单，优先主清单并补读已加载资源，对读取和解码失败进行有界重试，校验音轨时长并解码为单声道 PCM。
  * 模块边界：不修改用户 video 的播放状态；解码资源仅属于本次读取，页面切换或取消后必须释放。
  */
 import {isXMediaUrl, readBoundedMediaResponse, readXHlsAudio} from './hlsAudio';
@@ -27,7 +27,7 @@ export class XHlsAudioReader {
         signal.addEventListener('abort', abort, {once: true});
         const timer = setTimeout(abort, 5000);
         try {
-            for (const url of urls.slice(-3).reverse()) {
+            for (const url of urls.slice(-6).reverse()) {
                 if (signal.aborted || scope.signal.aborted) return;
                 if (this.manifests.has(url)) continue;
                 try {
@@ -35,7 +35,6 @@ export class XHlsAudioReader {
                     const bytes = await readBoundedMediaResponse(response, 1_000_000, scope.signal);
                     if (scope.signal.aborted) return;
                     this.remember(url, new TextDecoder().decode(bytes));
-                    if (this.manifests.has(url)) return;
                 } catch {
                     // 旧清单可能过期，继续尝试当前媒体组内的其他已知清单。
                 }
@@ -64,10 +63,13 @@ export class XHlsAudioReader {
         if (groups.size !== 1 || signal.aborted) return null;
         await this.recoverManifest(urls, signal);
         // MSE 只暴露 blob 地址；在唯一媒体组明确时使用已捕获清单，拒绝猜测多个推荐视频。
-        const candidates = [...this.manifests].reverse().filter(([url]) => !sourceId || mediaId(url) === sourceId);
+        const priority = (text: string) => /#EXT-X-MEDIA:.*TYPE=AUDIO/.test(text) ? 0 : /#EXT-X-STREAM-INF:/.test(text) ? 1 : 2;
+        const candidates = [...this.manifests].reverse().filter(([url]) => !sourceId || mediaId(url) === sourceId)
+            .sort((a, b) => priority(a[1]) - priority(b[1]));
         const ids = new Set(candidates.map(([url]) => mediaId(url) || new URL(url).pathname.split('/').slice(0, -1).join('/')));
         if (ids.size !== 1 || signal.aborted) return null;
-        // 新清单优先；缓存里有一个旧清单并不代表它的子资源仍可读取。
+        // 主清单提供音频 rendition；不能因为高清纯视频子清单更新更晚就优先选择它。
+        // 同类清单保留新版本优先，读取或解码失败后继续尝试同媒体的其他清单。
         const scope = new AbortController();
         const abort = () => scope.abort();
         signal.addEventListener('abort', abort, {once: true});
@@ -78,29 +80,31 @@ export class XHlsAudioReader {
         signal.addEventListener('abort', close, {once: true});
         scope.signal.addEventListener('abort', close, {once: true});
         try {
-            let result: Awaited<ReturnType<typeof readXHlsAudio>> = null;
-            for (const [url, text] of candidates.slice(0, 3)) {
+            for (const [url, text] of candidates) {
                 if (signal.aborted || scope.signal.aborted) return null;
                 try {
-                    result = await readXHlsAudio(url, text, scope.signal, fetch);
-                    if (result && (!Number.isFinite(video.duration) || Math.abs(result.durationMs - video.duration * 1000) <= 1000)) break;
-                    result = null;
+                    const result = await readXHlsAudio(url, text, scope.signal, fetch);
+                    if (!result || signal.aborted || scope.signal.aborted) continue;
+                    if (Number.isFinite(video.duration) && Math.abs(result.durationMs - video.duration * 1000) > 1000) continue;
+                    context = new AudioContext({sampleRate: 16_000});
+                    const decoded = await Promise.race([
+                        context.decodeAudioData(result.bytes.buffer as ArrayBuffer),
+                        new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('音轨解码超时')), 10_000); }),
+                    ]);
+                    if (signal.aborted || scope.signal.aborted) return null;
+                    if (decoded.numberOfChannels === 0 || Math.abs(decoded.duration * 1000 - result.durationMs) > 1000) continue;
+                    const channels = Array.from({length: decoded.numberOfChannels}, (_, index) => decoded.getChannelData(index));
+                    const pcm = resampleToWhisperAudio(channels, decoded.sampleRate, 16_000);
+                    if (pcm.length > 0) return pcm;
                 } catch {
-                    // 同一媒体的过期 rendition、缺失片段或不兼容清单不阻止下一候选。
+                    // 下载成功不等于音频可解码；过期、纯视频或不兼容音轨都继续重试。
+                } finally {
+                    if (timer) clearTimeout(timer);
+                    timer = undefined;
+                    close();
+                    context = null;
                 }
             }
-            if (!result || signal.aborted || scope.signal.aborted) return null;
-            if (Number.isFinite(video.duration) && Math.abs(result.durationMs - video.duration * 1000) > 1000) return null;
-            context = new AudioContext({sampleRate: 16_000});
-            const decoded = await Promise.race([
-                context.decodeAudioData(result.bytes.buffer as ArrayBuffer),
-                new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('音轨解码超时')), 10_000); }),
-            ]);
-            if (signal.aborted || scope.signal.aborted || Math.abs(decoded.duration * 1000 - result.durationMs) > 1000) return null;
-            const channels = Array.from({length: decoded.numberOfChannels}, (_, index) => decoded.getChannelData(index));
-            return resampleToWhisperAudio(channels, decoded.sampleRate, 16_000);
-        } catch (error) {
-            if (!signal.aborted) console.debug('[FluentRead] X audio fast decode unavailable', error);
             return null;
         }
         finally {
