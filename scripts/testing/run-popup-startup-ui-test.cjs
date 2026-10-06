@@ -36,7 +36,7 @@ const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/C
 const timeout = Number(argument('timeout', '30000'));
 const configDelayMs = Math.max(250, Number(argument('config-delay-ms', '1400')) || 1400);
 const openCount = Math.max(2, Number(argument('opens', '3')) || 3);
-const requestedSkin = argument('skin', 'emoji');
+const requestedSkin = argument('skin', 'shuimo');
 const expectFlash = hasFlag('expect-flash');
 
 if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) {

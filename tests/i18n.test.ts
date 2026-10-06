@@ -893,7 +893,7 @@ describe('界面 i18n 契约', () => {
 
     const interfaceAppearanceCopy = [
       '界面与弹窗',
-      '从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。',
+      '从效率布局到传统色配色，选择适合自己的界面；也可以只留下常用栏目。',
       '弹窗风格',
       '风格只改变扩展界面的呈现，不影响网页翻译效果。',
       '快捷功能栏',
@@ -910,8 +910,9 @@ describe('界面 i18n 契约', () => {
     }
     expect(translateLegacyText('界面与弹窗', 'en-US')).toBe('Interface and popup');
     expect(translateLegacyText('默认风格', 'es-ES')).toBe('Estilo predeterminado');
-    expect(translateLegacyText('奶酪 🧀', 'en-US')).toBe('Cheese 🧀');
-    expect(translateLegacyText('夜幕 🌙', 'ja-JP')).toBe('ミッドナイト 🌙');
+    expect(translateLegacyText('青花', 'en-US')).toBe('Blue and white (Qinghua)');
+    expect(translateLegacyText('水墨', 'ja-JP')).toBe('水墨（すいぼく）');
+    expect(translateLegacyText('传统色风格', 'fr-FR')).toBe('Couleurs traditionnelles chinoises');
   });
 
   it('把界面语言作为普通可迁移配置保留，并不触碰凭据边界', () => {

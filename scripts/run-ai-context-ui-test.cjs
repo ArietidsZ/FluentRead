@@ -26,7 +26,7 @@ const helperPath = path.resolve(argument('focus-safe-helper', path.join(os.homed
 const timeout = Number(argument('timeout', '30000'));
 const {chromium} = require(path.join(playwrightRoot, 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
-const skins = ['default', 'minimal', 'compact', 'contrast', 'cheese', 'ocean', 'matcha', 'sakura', 'emoji', 'midnight', 'paper'];
+const skins = ['default', 'minimal', 'compact', 'contrast', 'qinghua', 'zhusha', 'shuimo', 'zhuqing', 'ouhe', 'xiangse', 'xuanqing'];
 
 async function assertBackground(context, report, label) {
   const session = await context.browser().newBrowserCDPSession();

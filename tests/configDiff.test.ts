@@ -395,14 +395,14 @@ describe('配置差异预览', () => {
         });
 
         const paletteResult = buildConfigDiff(
-            {interfaceSkin: 'ocean'},
-            {interfaceSkin: 'cheese'},
+            {interfaceSkin: 'yuebai'},
+            {interfaceSkin: 'xiangse'},
         );
         expect(group(paletteResult, 'general')?.changes).toContainEqual({
             key: 'interfaceSkin',
             label: '界面皮肤',
-            before: '海盐 🌊',
-            after: '奶酪 🧀',
+            before: '月白',
+            after: '缃色',
         });
 
         const malformed = buildConfigDiff(

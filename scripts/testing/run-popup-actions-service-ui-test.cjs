@@ -277,7 +277,7 @@ async function main() {
       const variants = baseline ? [['light', 'light', 'default', 'zh-CN', 340]] : [
         ['light', 'light', 'default', 'zh-CN', 320], ['dark', 'dark', 'default', 'zh-CN', 320],
         ['minimal', 'light', 'minimal', 'zh-CN', 310], ['compact', 'light', 'compact', 'zh-CN', 300],
-        ['ocean', 'light', 'ocean', 'zh-CN', 320], ['english', 'light', 'default', 'en-US', 380],
+        ['yuebai', 'light', 'yuebai', 'zh-CN', 320], ['english', 'light', 'default', 'en-US', 380],
       ];
       for (const [name, theme, interfaceSkin, uiLanguage, width] of variants) {
         currentCase = `density-${name}`;
@@ -384,7 +384,7 @@ async function main() {
       report.evidenceBoundary = 'Production popup/footer and settings preview in isolated Edge; no translation or persistence matrix in this footer-only run.';
       for (const [name, theme, interfaceSkin] of [
         ['light', 'light', 'default'], ['dark', 'dark', 'default'],
-        ['minimal', 'light', 'minimal'], ['compact', 'light', 'compact'], ['ocean', 'light', 'ocean'],
+        ['minimal', 'light', 'minimal'], ['compact', 'light', 'compact'], ['yuebai', 'light', 'yuebai'],
       ]) {
         await patch({theme, interfaceSkin}); await geometry(popup, name); await wait(250);
         const styles = await popup.locator('.opensource-link').evaluate(node => {
@@ -399,7 +399,7 @@ async function main() {
       await shot(popup, 'footer-popup-hover');
       const options = await open(`${origin}/options.html#settings-interface`, {width: 1440, height: 960});
       const preview = options.locator('.popup-layout-live-preview'); await preview.scrollIntoViewIfNeeded();
-      assert.equal(await preview.locator('.layout-preview-footer b').evaluate(node => getComputedStyle(node).borderColor), 'rgba(0, 0, 0, 0)');
+      assert.equal(await preview.locator('.preview-open-source').evaluate(node => getComputedStyle(node).borderColor), 'rgba(0, 0, 0, 0)');
       await shot(preview, 'footer-layout-preview');
       assert.deepEqual(report.consoleErrors, []); report.ok = true; return;
     }
@@ -550,7 +550,7 @@ async function main() {
     await patch({theme: 'light', interfaceSkin: 'minimal'}); await geometry(popup, 'minimal'); await shot(popup, 'popup-minimal');
     await drawer(); await popup.locator('[data-feature-service="default"]').click(); await shot(popup, 'service-picker-minimal'); await popup.locator('.service-picker-search input').press('Escape'); await closeDrawer();
     await patch({interfaceSkin: 'compact'}); await geometry(popup, 'compact'); await shot(popup, 'popup-compact');
-    await patch({interfaceSkin: 'ocean'}); await geometry(popup, 'ocean'); await shot(popup, 'popup-ocean');
+    await patch({interfaceSkin: 'yuebai'}); await geometry(popup, 'yuebai'); await shot(popup, 'popup-yuebai');
     await patch({interfaceSkin: 'default', uiLanguage: 'en-US'}); await geometry(popup, 'english'); await shot(popup, 'popup-english'); await drawer(); await shot(popup, 'services-english'); await closeDrawer();
     await patch({uiLanguage: 'zh-CN', on: false}); assert(await popup.locator('[data-testid="page-translation"]').isDisabled()); assert(await popup.locator('[data-testid="section-translation"]').isDisabled()); await geometry(popup, 'paused'); await shot(popup, 'popup-paused');
     await patch({on: true, theme: 'light'}); await popup.close(); popup = await openPopup();

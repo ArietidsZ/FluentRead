@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/InterfaceSettings.vue
  * 文件职责：组织译文样式、界面风格、动画加载效果、菜单栏布局与界面字体及逐句高亮外观分组，其中网页译文样式排在第一位。
- * 主要内容：连续展示译文样式、完整弹窗皮肤预览、菜单栏布局、动画及紧凑字体卡片，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成，清除按钮展示排除共享文件后的可释放容量。
+ * 主要内容：连续展示译文样式、与真实菜单栏同宽的皮肤预览、菜单栏布局、动画及紧凑字体卡片，风格卡片的缩略图用各皮肤登记的配色画出一个极简菜单栏，通过预览和显隐列表编排区域与快捷入口；字体下载、重试和逐项清除都在对应字体卡片内完成，清除按钮展示排除共享文件后的可释放容量。
  * 模块边界：本组件只负责界面配置的展示与双向绑定，不直接读写浏览器存储、不负责主题模式，也不关闭翻译功能本身；界面皮肤由 Options composition root 统一应用，译文样式的细节由 TranslationStyleSettings 负责。
 -->
 <template>
@@ -13,7 +13,7 @@
   <SettingsPanel name="skin" :active="props.activePanel">
 <SettingsGroup
     :title="translateLegacy('界面与弹窗')"
-    :description="translateLegacy('从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目')"
+    :description="translateLegacy('从效率布局到传统色配色，选择适合自己的界面；也可以只留下常用栏目')"
   >
     <SettingsItem
       class="interface-appearance-settings"
@@ -59,11 +59,16 @@
                   '--skin-preview-surface': skin.preview.surface,
                   '--skin-preview-accent': skin.preview.accent,
                   '--skin-preview-ink': skin.preview.ink,
+                  '--skin-preview-title': skin.preview.title,
+                  '--skin-preview-action': skin.preview.action,
+                  '--skin-preview-backdrop': skin.preview.backdrop,
+                  '--skin-preview-border': skin.preview.border,
+                  '--skin-preview-radius': `${skin.preview.radius}px`,
                 }"
                 aria-hidden="true"
               >
-                <InterfaceBackdrop :motif="skin.motif" />
-                <i /><i /><i />
+                <i class="interface-skin-preview-title" />
+                <span class="interface-skin-preview-card"><i /><i /></span>
               </span>
               <span class="interface-skin-copy">
                 <strong>{{ translateLegacy(skin.label) }}</strong>
@@ -268,7 +273,6 @@
 
 <script lang="ts" setup>
 import SettingsPanel from './components/SettingsPanel.vue'
-import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
 import {computed, onMounted, ref} from 'vue'
 import {ElMessage, ElMessageBox} from 'element-plus'
 import type {Config} from '@/src/core/config/model'
@@ -429,8 +433,9 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   padding: 12px 16px;
 }
 
+/* 左列由预览自身的真实菜单栏宽度决定，右侧的风格列表占用其余空间。 */
 .interface-appearance-settings {
-  grid-template-columns: minmax(190px, .65fr) minmax(0, 1.5fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 24px;
 }
@@ -697,52 +702,50 @@ function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--brand) 10%, transparent);
 }
 
+/* 缩略图是一个极简菜单栏：画布背景、品牌行、一张卡片和主按钮；卡片的描边与圆角体现各风格的造型，取值来自注册表而不是当前皮肤。 */
 .interface-skin-preview {
-  position: relative;
-  isolation: isolate;
   display: flex;
   width: 56px;
   height: 60px;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   justify-content: center;
-  padding: 10px;
+  padding: 8px 7px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--skin-preview-ink) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--skin-preview-ink) 16%, transparent);
   border-radius: 9px;
-  background: radial-gradient(ellipse at 100% 0, color-mix(in srgb, var(--skin-preview-accent) 20%, transparent), transparent 80%), var(--skin-preview-canvas);
+  background: var(--skin-preview-backdrop);
 }
 
-.interface-skin-preview :deep(.interface-backdrop) {
-  width: 100%;
-  height: 42px;
-  color: var(--skin-preview-accent);
-  opacity: .8;
-}
-.interface-skin-preview :deep(.emoji-stickers) { width: 100%; height: 100%; }
-.interface-skin-preview :deep(.emoji-stickers span:nth-child(1)) { top: 2px; right: 6px; font-size: 17px; }
-.interface-skin-preview :deep(.emoji-stickers span:nth-child(2)) { top: 24px; right: 3px; font-size: 11px; }
-.interface-skin-preview :deep(.emoji-stickers span:nth-child(3)) { top: 4px; right: 35px; font-size: 11px; }
-
-.interface-skin-preview > i {
+.interface-skin-preview-title {
   display: block;
-  width: 100%;
-  height: 5px;
-  border-radius: 3px;
+  width: 46%;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--skin-preview-title);
+}
+
+.interface-skin-preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px 5px;
+  border: 1px solid var(--skin-preview-border);
+  border-radius: var(--skin-preview-radius);
   background: var(--skin-preview-surface);
 }
 
-.interface-skin-preview > i:first-of-type {
-  width: 48%;
-  height: 3px;
-  background: var(--skin-preview-ink);
+.interface-skin-preview-card > i {
+  display: block;
+  height: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--skin-preview-ink) 16%, var(--skin-preview-surface));
 }
 
-.interface-skin-preview > i:last-child {
-  width: 72%;
-  height: 4px;
-  align-self: flex-end;
-  background: var(--skin-preview-accent);
+.interface-skin-preview-card > i:last-child {
+  height: 8px;
+  border-radius: min(3px, var(--skin-preview-radius));
+  background: var(--skin-preview-action);
 }
 
 .interface-skin-copy {

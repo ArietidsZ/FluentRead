@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/components/PopupLayoutPreviewItem.vue
-文件职责：给布局预览中的实际区域和快捷入口提供一致的直接排序交互。
-主要内容：整块拖动、可聚焦手柄、方向键排序和插入位置反馈，兼容嵌套的站点栏目并隔离内外拖放事件。
-模块边界：只调用父级传入的排序控制器，不持有配置、不读写存储，也不执行预览所代表的业务动作。
+文件职责：给菜单栏预览中的实际区域和快捷入口提供一致的直接排序交互；不可编辑时只是一个不带任何行为的容器。
+主要内容：整块拖动、可聚焦手柄、方向键排序和插入位置反馈，兼容嵌套的站点栏目并隔离内外拖放事件；手柄与提示色读取当前皮肤变量。
+模块边界：只调用父级传入的排序控制器，不持有配置、不读写存储，也不执行预览所代表的业务动作；未传控制器时不响应任何拖放。
 -->
 <template>
   <component
@@ -10,9 +10,9 @@
     class="layout-preview-editable-item"
     :class="{
       editable,
-      'is-dragging': controller.draggedItem.value === item.id,
-      'insert-before': controller.dropTarget.value === item.id && controller.dropPosition.value === 'before',
-      'insert-after': controller.dropTarget.value === item.id && controller.dropPosition.value === 'after',
+      'is-dragging': editable && controller?.draggedItem.value === item.id,
+      'insert-before': editable && controller?.dropTarget.value === item.id && controller.dropPosition.value === 'before',
+      'insert-after': editable && controller?.dropTarget.value === item.id && controller.dropPosition.value === 'after',
       'horizontal-insertion': axis === 'x',
     }"
     :draggable="editable || undefined"
@@ -21,10 +21,10 @@
     @drop="drop"
     @dragend="finish"
     @dragleave.self="clearTarget"
-    @keydown.esc.stop="controller.finish()"
+    @keydown.esc="cancel"
   >
     <button
-      v-if="editable"
+      v-if="editable && controller"
       class="layout-preview-drag-handle"
       type="button"
       draggable="true"
@@ -47,13 +47,13 @@ const props = defineProps<{
   as?: string
   item: {id: string; label: string}
   editable: boolean
-  controller: ReturnType<typeof usePopupLayoutReorder>
+  controller?: ReturnType<typeof usePopupLayoutReorder>
   axis?: 'x' | 'y'
 }>()
 const {t} = useUiI18n()
 
 function start(event: DragEvent) {
-  if (!props.editable) return
+  if (!props.editable || !props.controller) return
   event.stopPropagation()
   if ((event.target as HTMLElement).closest('[data-preview-action]')) {
     event.preventDefault()
@@ -63,25 +63,31 @@ function start(event: DragEvent) {
 }
 
 function over(event: DragEvent) {
-  if (!props.editable) return
+  if (!props.editable || !props.controller) return
   event.stopPropagation()
   props.controller.over(event, props.item.id, props.axis)
 }
 
 function drop(event: DragEvent) {
-  if (!props.editable) return
+  if (!props.editable || !props.controller) return
   event.stopPropagation()
   props.controller.drop(event, props.item.id, props.axis)
 }
 
 function finish(event: DragEvent) {
-  if (!props.editable) return
+  if (!props.editable || !props.controller) return
   event.stopPropagation()
   props.controller.finish()
 }
 
 function clearTarget() {
-  props.controller.dropTarget.value = null
+  if (props.editable && props.controller) props.controller.dropTarget.value = null
+}
+
+function cancel(event: KeyboardEvent) {
+  if (!props.editable || !props.controller) return
+  event.stopPropagation()
+  props.controller.finish()
 }
 </script>
 

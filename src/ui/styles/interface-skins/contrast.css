@@ -1,7 +1,7 @@
 /**
  * @file src/ui/styles/interface-skins/contrast.css
  * 文件职责：实现 FluentRead 高对比风格，为弱视、强光环境或需要明确焦点边界的用户增强辨识度。
- * 主要内容：采用黑白主体、黄色状态强调、双像素边框和明显蓝色键盘焦点，并为亮色与暗色主题分别提供高对比语义色。
+ * 主要内容：采用黑白主体、黄色状态强调、双像素边框和明显蓝色键盘焦点，并为亮色与暗色主题分别提供高对比语义色；粗边框只用于可操作控件与当前选中项，侧栏导航的未选中项不加框，避免满屏方框干扰查找。
  * 模块边界：本文件只服务 data-interface-skin="contrast"，不放大页面内容、不改变浏览器辅助技术设置，也不影响其他皮肤。
  */
 
@@ -50,7 +50,10 @@
 :root[data-interface-skin="contrast"] .settings-button,
 :root[data-interface-skin="contrast"] .donation-button,
 :root[data-interface-skin="contrast"] .language-pair select,
+:root[data-interface-skin="contrast"] .language-pair .fluentread-select .el-select__wrapper,
 :root[data-interface-skin="contrast"] .service-field,
+:root[data-interface-skin="contrast"] .provider-summary,
+:root[data-interface-skin="contrast"] .section-translate-button,
 :root[data-interface-skin="contrast"] .site-rule-row,
 :root[data-interface-skin="contrast"] .feature-card,
 :root[data-interface-skin="contrast"] .popup-drawer,
@@ -63,7 +66,10 @@
 }
 
 :root[data-interface-skin="contrast"] .language-pair select,
+:root[data-interface-skin="contrast"] .language-pair .fluentread-select .el-select__wrapper,
 :root[data-interface-skin="contrast"] .service-field,
+:root[data-interface-skin="contrast"] .provider-summary,
+:root[data-interface-skin="contrast"] .section-translate-button,
 :root[data-interface-skin="contrast"] .site-rule-row {
   background: var(--surface-soft);
 }
@@ -128,8 +134,6 @@
   backdrop-filter: none;
 }
 
-:root[data-interface-skin="contrast"] nav button,
-:root[data-interface-skin="contrast"] .nav-icon,
 :root[data-interface-skin="contrast"] .search-box,
 :root[data-interface-skin="contrast"] .settings-group-body,
 :root[data-interface-skin="contrast"] .settings-card .settings-control-row,
@@ -143,7 +147,23 @@
   box-shadow: none;
 }
 
-:root[data-interface-skin="contrast"] nav button.active,
+/* 侧栏只给当前页加框；其余入口保持纯文字，悬停时用浅底提示。 */
+:root[data-interface-skin="contrast"] nav button[data-section] {
+  border: 2px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+}
+
+:root[data-interface-skin="contrast"] nav button[data-section]:hover {
+  background: var(--surface-soft);
+}
+
+:root[data-interface-skin="contrast"] nav button[data-section].active {
+  border-color: var(--line);
+  color: var(--ink);
+  background: var(--brand-soft);
+}
+
 :root[data-interface-skin="contrast"] .interface-skin-option.selected {
   border-width: 2px;
   color: var(--ink);

@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/interfaceAppearance.ts
  * 文件职责：定义 FluentRead 扩展的可插拔皮肤、字体、Popup 模块布局与栏目可见性配置契约，作为 Options、Popup 和配置持久化共同依赖的单一来源。
- * 主要内容：维护界面皮肤的分组、背景图案、预览与尺寸策略，提供本地字体栈预设，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数；旧圈选入口迁入图片，视频入口移出 Popup，但保留功能配置。
+ * 主要内容：维护界面皮肤的分组、缩略图的配色与造型（画布、卡片描边与圆角、主按钮）以及尺寸策略，并把已下线的风格 ID 换成接替它的现有风格，提供本地字体栈预设，以及 Popup 区域和快捷功能卡片的两级注册表、默认顺序、可见性和安全归一化函数；旧圈选入口迁入图片，视频入口移出 Popup，但保留功能配置。
  * 模块边界：本文件只描述纯配置规则和用户可见元数据，不读取浏览器存储、不操作 DOM，也不决定具体页面布局；DOM 皮肤应用由 src/ui/interfaceAppearance.ts 负责。
  */
 
@@ -13,165 +13,151 @@ export const interfaceSkinGroups = [
   },
   {
     value: 'palette',
-    label: '氛围风格',
-    description: '让色彩、背景与小小的图案，陪你自在阅读。',
+    label: '传统色风格',
+    description: '配色取自中国传统色，每套一种造型；全部平涂，不用渐变与光效。',
   },
 ] as const
 
 export const interfaceSkinOptions = [
   {
     value: 'default',
-    motif: 'none',
     label: '默认风格',
     description: '保留当前 FluentRead 的界面布局与视觉效果。',
     group: 'utility',
     kind: 'default',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#ffffff', surface: '#f7f8fb', accent: '#ef4776', ink: '#172033'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#ffffff', border: '#e7e9f0', radius: 5, ink: '#172033', title: '#172033', accent: '#ef4776', action: 'linear-gradient(135deg, #f35482, #e93267)'},
   },
   {
     value: 'minimal',
-    motif: 'none',
     label: '简约风格',
     description: '平面留白与轻边界，让主要操作更突出。',
     group: 'utility',
     kind: 'minimal',
     popupHeight: 'content',
     popupWidth: 310,
-    preview: {canvas: '#ffffff', surface: '#f3f4f6', accent: '#ef4776', ink: '#313743'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#f7f8fb', border: '#f7f8fb', radius: 5, ink: '#313743', title: '#313743', accent: '#ef4776', action: '#e3e7ee'},
   },
   {
     value: 'compact',
-    motif: 'none',
     label: '紧凑风格',
     description: '压缩间距与控件高度，适合高频快速操作。',
     group: 'utility',
     kind: 'compact',
     popupHeight: 'content',
     popupWidth: 300,
-    preview: {canvas: '#f5f6f8', surface: '#ffffff', accent: '#dc315f', ink: '#283042'},
+    preview: {canvas: '#f5f6f8', backdrop: '#f5f6f8', surface: '#ffffff', border: '#e7e9f0', radius: 4, ink: '#283042', title: '#283042', accent: '#dc315f', action: 'linear-gradient(135deg, #f35482, #e93267)'},
   },
   {
     value: 'contrast',
-    motif: 'none',
     label: '高对比 ⚡',
     description: '强化文字、边框与焦点状态，提升辨识度。',
     group: 'utility',
     kind: 'contrast',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#ffffff', surface: '#f6dd00', accent: '#111111', ink: '#000000'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#fff9c4', border: '#000000', radius: 2, ink: '#000000', title: '#000000', accent: '#111111', action: '#000000'},
   },
   {
-    value: 'cheese',
-    motif: 'cheese',
-    label: '奶酪 🧀',
-    description: '奶油白与柔和焦糖色，温暖而清爽。',
+    value: 'qinghua',
+    label: '青花',
+    description: '白瓷底配琉璃蓝：主卡片一粗一细两道蓝线，图标是蓝色圆片。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#fff9e9', surface: '#fffefa', accent: '#946d2f', ink: '#35322b'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#ffffff', border: '#183a65', radius: 6, ink: '#161823', title: '#161823', accent: '#183a65', action: '#183a65'},
   },
   {
-    value: 'ocean',
-    motif: 'ocean',
-    label: '海盐 🌊',
-    description: '晴空蓝与轻盈水波，像海风一样清爽。',
+    value: 'zhusha',
+    label: '朱砂',
+    description: '方正的朱红印面配白字，主卡片顶上一道朱红、一线库金。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#f1fbff', surface: '#ffffff', accent: '#0676b7', ink: '#123c52'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#ffffff', border: '#e6ddd0', radius: 2, ink: '#312520', title: '#312520', accent: '#c3272b', action: '#c3272b'},
   },
   {
-    value: 'matcha',
-    motif: 'matcha',
-    label: '抹茶 🍵',
-    description: '鲜绿叶片与奶油白，收下一点春日生机。',
+    value: 'shuimo',
+    label: '水墨',
+    description: '只用墨的浓淡，主按钮上留一点朱红的印。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#f7fbed', surface: '#fffffc', accent: '#327b28', ink: '#274025'},
+    preview: {canvas: '#f0f0f4', backdrop: '#f0f0f4', surface: '#ffffff', border: '#ffffff', radius: 7, ink: '#161823', title: '#161823', accent: '#3d3b4f', action: '#161823'},
   },
   {
-    value: 'sakura',
-    motif: 'sakura',
-    label: '樱花 🌸',
-    description: '明亮花粉与轻柔花瓣，温柔也有好气色。',
+    value: 'zhuqing',
+    label: '竹青',
+    description: '荼白底配松花绿，快捷入口像一片片竹简。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#fff5f7', surface: '#fffefe', accent: '#c83474', ink: '#52263c'},
+    preview: {canvas: '#f3f9f1', backdrop: '#f3f9f1', surface: '#ffffff', border: '#d3e2d5', radius: 4, ink: '#1f2a24', title: '#1f2a24', accent: '#057748', action: '#057748'},
   },
   {
-    value: 'emoji',
-    motif: 'emoji',
-    label: 'Emoji 乐园 ✨',
-    description: '奶油纸、彩色贴纸和小表情，让日常多一点快乐。',
+    value: 'ouhe',
+    label: '藕荷',
+    description: '淡藕色的底，圆润的胶囊控件与黛紫主按钮。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#fffaf0', surface: '#fffefd', accent: '#7143ca', ink: '#352447'},
+    preview: {canvas: '#f6ecf1', backdrop: '#f6ecf1', surface: '#ffffff', border: '#ffffff', radius: 10, ink: '#2a2230', title: '#2a2230', accent: '#574266', action: '#574266'},
   },
   {
-    value: 'midnight',
-    motif: 'midnight',
-    label: '夜幕 🌙',
-    description: '墨蓝底色与柔和雾蓝，适合夜间使用。',
+    value: 'xiangse',
+    label: '缃色',
+    description: '象牙白的卡片配缃色主按钮与煤黑的字。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#151c26', surface: '#1d2632', accent: '#9eb5d0', ink: '#e5ebf2'},
+    preview: {canvas: '#ffffff', backdrop: '#ffffff', surface: '#fffbf0', border: '#eadfbe', radius: 5, ink: '#312520', title: '#312520', accent: '#8a6200', action: '#f0c239'},
   },
   {
-    value: 'paper',
-    motif: 'paper',
-    label: '纸张护眼 📖',
-    description: '暖纸白与灰褐墨色，朴素耐看。',
+    value: 'qinglv',
+    label: '青绿',
+    description: '青绿山水的三种矿物色：沙青、铜绿与赭。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#f3f0e9', surface: '#fbf9f3', accent: '#806b51', ink: '#37352f'},
+    preview: {canvas: '#f1f6f6', backdrop: '#f1f6f6', surface: '#ffffff', border: '#d5e0e7', radius: 6, ink: '#172530', title: '#172530', accent: '#205580', action: '#205580'},
   },
   {
-    value: 'aurora',
-    motif: 'aurora',
-    label: '极光舷窗 🛰️',
-    description: '青绿极光与深色舷窗，给长文阅读一点远方感。',
+    value: 'yuebai',
+    label: '月白',
+    description: '整块月白的版面，白卡片与花青主按钮。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#f4f1ff', surface: '#fcfbff', accent: '#5147a8', ink: '#28264a'},
+    preview: {canvas: '#d6ecf0', backdrop: '#d6ecf0', surface: '#ffffff', border: '#ffffff', radius: 9, ink: '#1c2733', title: '#1c2733', accent: '#576d93', action: '#576d93'},
   },
   {
-    value: 'arcade',
-    motif: 'arcade',
-    label: '像素街机 🎮',
-    description: '像素网格与霓虹点亮操作，阅读节奏清晰利落。',
+    value: 'xuanqing',
+    label: '玄青',
+    description: '漆黑的夜色配月白主按钮；始终为深色。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#f1f7f5', surface: '#fbfffd', accent: '#087f65', ink: '#172c32'},
+    preview: {canvas: '#161823', backdrop: '#161823', surface: '#1e2030', border: '#33364a', radius: 8, ink: '#e6eef2', title: '#e6eef2', accent: '#8db4dc', action: '#d6ecf0'},
   },
   {
-    value: 'sunset',
-    motif: 'sunset',
-    label: '落日公路 🛣️',
-    description: '夕阳橘、莓果红与暮蓝交汇，适合慢慢读完一页。',
+    value: 'wujin',
+    label: '乌金',
+    description: '黑底、乌金细线与赤金主按钮；始终为深色。',
     group: 'palette',
     kind: 'palette',
     popupHeight: 'content',
     popupWidth: 320,
-    preview: {canvas: '#fff4ee', surface: '#fffdfa', accent: '#b64f3b', ink: '#422b35'},
+    preview: {canvas: '#131210', backdrop: '#131210', surface: '#1b1a16', border: '#a78e44', radius: 1, ink: '#f2ecdd', title: '#f2be45', accent: '#f2be45', action: '#f2be45'},
   },
 ] as const
 
@@ -253,11 +239,27 @@ const interfaceFontByValue = new Map<string, InterfaceFontOption>(
 
 export type InterfaceSkin = typeof interfaceSkinOptions[number]['value']
 export type InterfaceSkinOption = typeof interfaceSkinOptions[number]
-export type InterfaceMotif = InterfaceSkinOption['motif']
 
 const interfaceSkinByValue = new Map<string, InterfaceSkinOption>(
   interfaceSkinOptions.map((item) => [item.value, item]),
 )
+
+/**
+ * 已下线的风格与接替它的现有风格。旧配置里保存的是这些 ID，升级后换成气质最接近的一套，
+ * 让原本选了配色风格的用户仍停留在一套配色风格里，而不是意外退回默认界面。
+ */
+const retiredInterfaceSkinSuccessors = new Map<string, InterfaceSkin>([
+  ['cheese', 'xiangse'],
+  ['ocean', 'yuebai'],
+  ['matcha', 'zhuqing'],
+  ['sakura', 'ouhe'],
+  ['emoji', 'ouhe'],
+  ['midnight', 'xuanqing'],
+  ['paper', 'shuimo'],
+  ['aurora', 'xuanqing'],
+  ['arcade', 'qinglv'],
+  ['sunset', 'zhusha'],
+])
 
 export const POPUP_MODULE_IDS = [
   'translation',
@@ -401,7 +403,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
 
-/** 只接受注册表中的皮肤，未知值稳定回到当前默认界面。 */
+/** 只接受注册表中的皮肤：已下线的风格换成接替者，其余未知值稳定回到当前默认界面。 */
 export function normalizeInterfaceSkin(value: unknown): InterfaceSkin {
   return getInterfaceSkinOption(value).value
 }
@@ -418,11 +420,10 @@ export function getInterfaceFontOption(value: unknown): InterfaceFontOption {
     : interfaceFontByValue.get(DEFAULT_INTERFACE_FONT)!
 }
 
-/** 返回完整皮肤元数据，让应用层无需识别任何具体皮肤 ID。 */
+/** 返回完整皮肤元数据，让应用层无需识别任何具体皮肤 ID；已下线的风格先换成接替它的现有风格。 */
 export function getInterfaceSkinOption(value: unknown): InterfaceSkinOption {
-  return typeof value === 'string'
-    ? interfaceSkinByValue.get(value) ?? interfaceSkinOptions[0]
-    : interfaceSkinOptions[0]
+  if (typeof value !== 'string') return interfaceSkinOptions[0]
+  return interfaceSkinByValue.get(retiredInterfaceSkinSuccessors.get(value) ?? value) ?? interfaceSkinOptions[0]
 }
 
 /** Popup 根据注册元数据决定是否使用内容高度，新增皮肤不需要修改 Popup 组件。 */

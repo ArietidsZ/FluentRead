@@ -1,7 +1,7 @@
 /**
  * @file src/ui/styles/interface-skins/minimal.css
  * 文件职责：实现 FluentRead 真正的简约风格，用独立、可移除的样式模块重排 Popup 与 Options 的视觉密度。
- * 主要内容：使用大块留白、浅灰控件、低饱和主操作和无装饰标签的圆角功能入口，同时为长标题、长按钮文案与窄屏布局保留自然换行空间。
+ * 主要内容：使用大块留白、浅灰控件和无装饰标签的圆角功能入口；主操作与其他控件一样是中性浅灰底配深色文字，不带品牌色的底色，只有左侧的字形保留品牌色；同时为长标题、长按钮文案与窄屏布局保留自然换行空间。
  * 模块边界：本文件只服务 data-interface-skin="minimal"，不隐藏用户选择保留的栏目、不修改配置和翻译行为，也不影响默认风格。
  */
 
@@ -31,7 +31,6 @@
 :root[data-interface-skin="minimal"] .popup-shell .brand img {
   width: 38px;
   height: 38px;
-  opacity: .78;
   box-shadow: none;
 }
 
@@ -205,26 +204,27 @@
   min-height: 46px;
   height: auto;
   padding: 10px 12px;
-  border: 1px solid color-mix(in srgb, var(--brand) 12%, var(--line));
+  border: 1px solid transparent;
   border-radius: 14px;
   color: var(--ink);
-  background: color-mix(in srgb, var(--brand) 5%, var(--surface-soft));
+  background: var(--surface-soft);
   box-shadow: none;
 }
 
 :root[data-interface-skin="minimal"] .translate-button:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--brand) 22%, var(--line));
+  border-color: var(--line);
   color: var(--ink);
-  background: color-mix(in srgb, var(--brand) 9%, var(--surface-soft));
+  background: color-mix(in srgb, var(--ink) 6%, var(--surface-soft));
   box-shadow: none;
   transform: none;
 }
 
+/* 已翻译时改为白底细边的"恢复"状态，同样不使用品牌色底。 */
 :root[data-interface-skin="minimal"] .translate-button.translated,
 :root[data-interface-skin="minimal"] .translate-button.translated:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
+  border-color: var(--line);
   color: var(--ink);
-  background: color-mix(in srgb, var(--brand) 12%, var(--surface-soft));
+  background: var(--surface);
   box-shadow: none;
   transform: none;
 }

@@ -20,7 +20,6 @@
     :data-popup-footer-visible="String(config.interfaceVisibility.popupFooter)"
     :inert="!hydrated"
   >
-    <InterfaceBackdrop :motif="getInterfaceSkinOption(config.interfaceSkin).motif" />
     <UiLanguageOnboarding
       v-if="showLanguageOnboarding"
       :initial-language="onboardingLanguage"
@@ -164,9 +163,8 @@
           @click="feature.open()"
         >
           <span class="feature-icon" :class="feature.iconTone" aria-hidden="true">
-            <template v-if="config.interfaceSkin === 'emoji'">{{ emojiFeatureIcons[feature.id] }}</template>
-            <svg v-else class="feature-line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-              <path :d="featureIconPaths[feature.id]" />
+            <svg class="feature-line-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+              <path :d="popupQuickFeatureIconPaths[feature.id]" />
             </svg>
           </span>
           <span class="feature-copy">
@@ -370,7 +368,6 @@ import {
 } from '@/src/core/config/customOpenAI';
 import { getMissingCredentialMessage } from '@/src/core/config/validation';
 import {
-  getInterfaceSkinOption,
   interfaceSkinUsesContentHeight,
   type PopupQuickFeatureId,
 } from '@/src/core/config/interfaceAppearance';
@@ -379,8 +376,8 @@ import { getSiteBaseDomain } from '@/src/core/site-rules/domain';
 import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
 import {isBrowserTabId} from '@/src/platform/browser/ids';
-import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
+import {popupQuickFeatureIconPaths, popupQuickFeatureIconTones, type PopupQuickFeatureIconTone} from '@/src/ui/popupQuickFeatureIcons';
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
@@ -396,7 +393,7 @@ interface PopupQuickFeatureViewModel {
   label: string;
   summary: string;
   icon: string;
-  iconTone: 'rose' | 'violet' | 'amber' | 'teal' | 'blue';
+  iconTone: PopupQuickFeatureIconTone;
   showStatus: boolean;
   active?: boolean;
   className?: string;
@@ -546,15 +543,6 @@ const siteModuleNestedInTranslation = computed(() => {
   return translationIndex >= 0 && visiblePopupModuleOrder.value[translationIndex + 1] === 'siteRule';
 });
 const lastVisiblePopupModule = computed(() => visiblePopupModuleOrder.value.at(-1));
-const emojiFeatureIcons: Record<PopupQuickFeatureId, string> = {hover: '🖱️', selection: '✍️', appearance: '🎨', image: '🖼️', document: '📖'};
-// 快捷入口采用一致的线宽与画布；主题配色和 Emoji 风格仍由既有皮肤控制。
-const featureIconPaths: Record<PopupQuickFeatureId, string> = {
-  hover: 'M5 3l14 10-7 1-3 7-4-18z M12 14l5 6',
-  selection: 'M8 4h8 M12 4v16 M8 20h8 M5 8H3v8h2 M19 8h2v8h-2',
-  appearance: 'M3 19L9 5l6 14 M5 15h8 M16 12c5-3 6 1 5 7 M21 15c-7-2-6 6 0 3',
-  image: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 16l5-5 4 4 3-3 4 4 M16 8h.01',
-  document: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z M14 3v5h5 M9 12h6 M9 16h6',
-};
 const popupUsesContentHeight = computed(() => interfaceSkinUsesContentHeight(config.value.interfaceSkin)
   || !config.value.interfaceVisibility.popupQuickFeatures
   || !config.value.interfaceVisibility.popupSiteRule
@@ -616,7 +604,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     label: '鼠标悬停翻译',
     summary: hoverSummary.value,
     icon: '↖',
-    iconTone: 'rose',
+    iconTone: popupQuickFeatureIconTones.hover,
     showStatus: true,
     active: hoverProfileCount.value > 0,
     open: () => openDrawer('hover'),
@@ -626,7 +614,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     label: '划词翻译',
     summary: selectionSummary.value,
     icon: 'I',
-    iconTone: 'violet',
+    iconTone: popupQuickFeatureIconTones.selection,
     showStatus: true,
     active: config.value.selectionTranslatorMode !== 'disabled',
     open: () => openDrawer('selection'),
@@ -636,7 +624,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     label: '译文显示',
     summary: displaySummary.value,
     icon: 'Aa',
-    iconTone: 'amber',
+    iconTone: popupQuickFeatureIconTones.appearance,
     showStatus: false,
     open: () => openDrawer('appearance'),
   },
@@ -645,7 +633,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     label: '图片翻译',
     summary: imageTranslationSummary.value,
     icon: '▧',
-    iconTone: 'teal',
+    iconTone: popupQuickFeatureIconTones.image,
     showStatus: true,
     active: (browserCapabilities.imageTranslation && !config.value.disableImageTranslator) || (browserCapabilities.areaTranslation && config.value.selectionAreaEnabled),
     open: () => openDrawer('image'),
@@ -655,7 +643,7 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     label: '文档翻译',
     summary: 'PDF / Word / …',
     icon: '文',
-    iconTone: 'blue',
+    iconTone: popupQuickFeatureIconTones.document,
     showStatus: false,
     className: 'document-feature-card',
     dataFeature: 'document-translation',

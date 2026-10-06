@@ -120,6 +120,7 @@
       "tests/inputTranslationConfig.test.ts",
       "tests/inputTranslationBackground.test.ts",
       "tests/interfaceAppearance.test.ts",
+      "tests/interfaceSkinReadability.test.ts",
       "tests/translationAppearance.test.ts",
       "tests/translationAppearanceStyles.test.ts",
       "tests/pageStyles.test.ts",

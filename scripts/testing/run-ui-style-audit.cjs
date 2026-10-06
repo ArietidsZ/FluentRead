@@ -132,10 +132,10 @@ const report = {
     const entry = await page.evaluate(async () => chrome.runtime.sendMessage({type:'fluentReadVocabularyBook',action:'upsert',input:{sourceLanguage:'en',targetLanguage:'zh-Hans',term:'thoughtful',translation:'体贴的；考虑周到的',context:{text:'A thoughtful design makes reading feel effortless.',capturedAt:Date.now()}}}))
     assert.equal(entry.success,true)
     await page.locator('.word-row').first().waitFor()
-    for(const mode of ['light','dark','ocean','narrow']) {
+    for(const mode of ['light','dark','yuebai','narrow']) {
       await page.setViewportSize(mode==='narrow'?{width:390,height:844}:{width:1366,height:768})
       await page.emulateMedia({colorScheme:mode==='dark'?'dark':'light'})
-      await patch({interfaceSkin:mode==='ocean'?'ocean':'default'})
+      await patch({interfaceSkin:mode==='yuebai'?'yuebai':'default'})
       await page.waitForTimeout(200)
       await page.locator('.settings-card').evaluate(el=>el.scrollTo(0,0))
       const firstWord = await page.locator('.word-heading').first().boundingBox()
