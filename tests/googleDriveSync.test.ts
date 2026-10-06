@@ -556,6 +556,20 @@ describe('云备份删除确认事务', () => {
 
 
 describe('单次敏感范围事务', () => {
+    it.each([false, true])('重装后可在 worker 重启后恢复旧免费服务列表，敏感范围 %s 不补造云端密钥', async includeSensitive => {
+        const f = fixture();
+        const local = structuredClone(f.local);
+        const ordinary = completePayload(config({to: 'de'})) as {config: Record<string, unknown>};
+        ordinary.config.freeTranslationOrder = ['microsoft', 'deeplx', 'google', 'lingvaFree'];
+        f.remote = {file: {id: 'fixture-file', version: '1', modifiedTime: ''}, content: await encryptDriveConfig(ordinary, password)};
+        const oldCloud = f.remote.content;
+        const preview = await f.service.prepare(password, undefined, undefined, includeSensitive);
+        expect(preview).toMatchObject({hasRemote: true, includeSensitive, remoteIncludesSensitive: false});
+        await createGoogleDriveSync(f.ports).commit(preview.id, password, 'download', {});
+        expect(f.local).toMatchObject({to: 'de', freeTranslationOrder: ['microsoft', 'google'], token: local.token, apiKeys: local.apiKeys, proxy: local.proxy});
+        expect(f.ports.api.write).not.toHaveBeenCalled();
+        expect(f.remote!.content).toBe(oldCloud);
+    });
     it('默认普通上传在 worker 重启后也只写 v2，原始本机秘密完整保留', async () => {
         const f = fixture();
         const original = structuredClone(f.local);

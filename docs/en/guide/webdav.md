@@ -36,7 +36,7 @@ For Nutstore, use `https://dav.jianguoyun.com/dav/`, your account email, and a [
 
 ## Save your first backup
 
-1. Select **WebDAV → Set up WebDAV** in cloud configuration backup.
+1. Select **WebDAV** in cloud configuration backup, then click the primary **Set up WebDAV** button at the left below the basic and sensitive settings options.
 2. Enter the directory URL, username, and app password. HTTP requires acknowledging unencrypted transport; prefer HTTPS.
 3. Choose **Test connection**. This only checks directory access, changes no cloud files, and does not prove write permission.
 4. Choose **Test and save** to store the connection on this device. This still creates no cloud backup.
@@ -58,7 +58,7 @@ General-settings mode restores or merges only general settings, preserving this 
 
 Before committing, the extension rechecks both configurations. A change on either side requires a fresh preview. Updates use ETag conditions to reject stale writes. A successful operation records the account and time locally.
 
-The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
+The current account, server URL, and last backup time for that connection appear beside the sync button. Use **Edit connection** beside the sync button in the left action area to change accounts or servers. The confirmation screen lists changed settings and their device and cloud values. Connection changes show categories while keys, addresses, and custom content stay hidden. Merge conflicts appear before automatically retained changes. Identical configuration only updates the local sync record without uploading again.
 
 If none of these methods provides a strong ETag, the preview still offers saving, restoring, and merging. Compatibility mode downloads the backup again before saving, merging, or deleting and compares its ciphertext SHA-256 digest. Changes since the preview stop the operation. Uploads are read back and checked; deletion verifies that the file is absent. `If-Match: *` checks existence only, and content checks cannot atomically prevent changes after verification. The confirmation screen asks you to avoid syncing other devices at the same time. Authentication, network, corrupt-file, and conditional-request failures still stop the operation without retrying an unconditional write.
 

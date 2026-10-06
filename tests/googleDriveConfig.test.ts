@@ -133,6 +133,17 @@ describe('Google Drive 完整快照和安全合并', () => {
 
 
 describe('普通云备份范围与 v1 兼容', () => {
+    it('普通旧备份的标量列表去重或移除退役服务时仍可读取，嵌入对象仍拒绝', () => {
+        const payload = completePayload(complete()) as {config: Record<string, unknown>};
+        const order = ['microsoft', 'deeplx', 'google', 'lingvaFree', 'google'];
+        const old = {...payload, config: {...payload.config, freeTranslationOrder: order}};
+        expect(parseDriveSyncSnapshot(old)).toEqual({config: old.config, includesSensitive: false});
+        expect(toDriveSyncConfig(parseDriveSyncPayload(old)).freeTranslationOrder).toEqual(['microsoft', 'google']);
+        for (const injected of [{opaque: 'fixture-hidden-field'}, {token: 'fixture-secret'}, ['nested']]) {
+            expect(() => parseDriveSyncPayload({...old, config: {...old.config, freeTranslationOrder: [...order, injected]}})).toThrow('不属于此范围');
+        }
+        expect(() => parseDriveSyncPayload({...old, config: {...old.config, shareCard: {...payload.config.shareCard as object, fontSize: []}}})).toThrow('不属于此范围');
+    });
     it('默认 v2 明确排除整个连接组、私密字段及未知根字段，任意请求体内容也不会泄露', () => {
         const local = complete({token: {openai: 'fixture-key'}, apiKeys: {openai: ['fixture-key']},
             customBody: {openai: '{"opaque":"fixture-arbitrary-secret"}'}, customHeaders: {openai: '{}'},

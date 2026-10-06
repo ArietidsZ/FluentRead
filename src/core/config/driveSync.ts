@@ -1,7 +1,7 @@
 /**
  * @file src/core/config/driveSync.ts
  * 文件职责：定义默认排除敏感信息的云同步范围、兼容完整快照和不泄露凭据的差异预览。
- * 主要内容：投影普通设置、读取 v1 完整与 v2 普通快照、保留凭据明确删除语义、执行三方字段合并，并将请求体、
+ * 主要内容：投影普通设置、读取 v1 完整与 v2 普通快照，兼容枚举列表去重与退役条目迁移，保留凭据明确删除语义、执行三方字段合并，并将请求体、
  * 地址、请求头、密钥和未知字段统一隐藏，普通设置展示稳定名称和值；数组整体合并。
  * 模块边界：只处理纯数据；不拥有口令、加密、存储、浏览器消息或 Google API。
  */
@@ -223,8 +223,14 @@ function containsExcludedSettings(value: unknown): boolean {
 }
 /** 归一化器是已知嵌套设置的结构边界；额外字段或伪装成标量的对象整组排除。 */
 function hasUnknownStructure(value: unknown, normalized: unknown): boolean {
-    if (Array.isArray(value)) return !Array.isArray(normalized) || value.length !== normalized.length
-        || value.some((child, index) => hasUnknownStructure(child, normalized[index]));
+    if (Array.isArray(value)) {
+        if (!Array.isArray(normalized)) return true;
+        // 普通标量列表可能因枚举退役、去重而缩短；长度变化不代表带入了未知结构。
+        // 对象列表仍逐项核对，不能借归一化器丢弃对象来隐藏额外字段或凭据。
+        const scalar = (child: unknown) => child === null || typeof child !== 'object';
+        if (value.every(scalar) && normalized.every(scalar)) return false;
+        return value.length !== normalized.length || value.some((child, index) => hasUnknownStructure(child, normalized[index]));
+    }
     if (!record(value)) return false;
     return !record(normalized) || Object.keys(value).some(key => !Object.hasOwn(normalized, key) || hasUnknownStructure(value[key], normalized[key]));
 }
