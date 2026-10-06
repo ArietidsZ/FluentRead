@@ -10,6 +10,8 @@ const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); re
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const source = 'Good ideas deserve attention.';
 const translated = '好想法值得关注。';
+const headingSource = 'Different Parts with the Same Colors';
+const wrappedSource = 'This deliberately wrapped sentence provides enough words to compare the same original sentence across several lines without changing the selected sentence or closing its controls.';
 const explanation = '这句话强调好想法值得关注。deserve attention 表示“值得关注”。';
 async function fixture() {
   const requests = [];
@@ -20,7 +22,7 @@ async function fixture() {
       const chunks = []; for await (const part of request) chunks.push(part);
       const body = JSON.parse(Buffer.concat(chunks).toString());
       const prompt = JSON.stringify(body.messages); const teaching = prompt.includes('最多三句');
-      const content = teaching ? explanation : translated + '练习带来进步。';
+      const content = teaching ? explanation : prompt.includes(headingSource) ? '不同部位颜色相同' : prompt.includes(wrappedSource) ? '这个刻意换行的句子提供足够的文字，用来跨多行比较同一句原文，并且不改变选中的句子或关闭操作入口。' : translated + '练习带来进步。';
       requests.push({kind:teaching ? 'explanation' : 'translation'});
       if (body.stream) {
         response.setHeader('Content-Type', 'text/event-stream');
@@ -30,7 +32,7 @@ async function fixture() {
       return;
     }
     response.setHeader('Content-Type','text/html');
-    response.end(`<html lang="en"><head><title>Sentence listening fixture</title><style>body{margin:70px;font:21px/1.8 system-ui}p{max-width:720px}button{letter-spacing:7px!important}aside{height:1200px}</style></head><body><h1>Read and listen</h1><p id="primary">${source} Practice makes progress.</p><aside></aside></body></html>`);
+    response.end(`<html lang="en"><head><title>Sentence listening fixture</title><style>body{margin:70px;font:21px/1.8 system-ui}p{max-width:720px}h2{font-size:36px;line-height:1.6}#wrapped{max-width:360px}button{letter-spacing:7px!important}aside{height:1200px}</style></head><body><h1 translate="no">Read and listen</h1><p id="primary">${source} Practice makes progress.</p><h2 id="heading">${headingSource}</h2><p id="wrapped">${wrappedSource}</p><aside></aside></body></html>`);
   });
   await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
   return {url:`http://127.0.0.1:${server.address().port}`,requests,close:()=>new Promise(resolve=>server.close(resolve))};
@@ -45,7 +47,7 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-sentence-listening-edge-'));
   fs.mkdirSync(artifactsDir,{recursive:true});
   const local = await fixture();
-  const report = {ok:false,extensionDir,artifactsDir,checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; synthetic browser voice validates text and stop lifecycle, not audible voice quality or Firefox runtime.'};
+  const report = {ok:false,extensionDir,artifactsDir,profileDir,profileMode:'temporary',checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; synthetic browser voice validates text and stop lifecycle, not audible voice quality or Firefox runtime.'};
   let launched; let page; let options;
   try {
     launched = await launchFocusSafePersistentContext({chromium,profileDir,background:true,headless:false,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',viewport:{width:1440,height:960},timeout:30000,
@@ -68,11 +70,22 @@ async function main() {
     const saved = await options.evaluate(({config,patch})=>chrome.runtime.sendMessage({type:'persistConfig',mode:'replace',config:{...config,...patch},baseRevision:config.__fluentConfigRevision,clientId:`listening-${crypto.randomUUID()}`,sequence:1}),{config,patch});
     assert.equal(saved.success,true,saved.error); await wait(350);
     page = await createPage(local.url);
+    await page.evaluate(()=>{
+      globalThis.__sentencePointerEvents=[];
+      for(const type of ['pointermove','pointerout','selectionchange','scroll','blur']) {
+        (type==='blur'?window:document).addEventListener(type,event=>{
+          const target=event.composedPath()[0];
+          globalThis.__sentencePointerEvents.push({type,x:event.clientX,y:event.clientY,buttons:event.buttons,target:target?.className||target?.nodeName,related:event.relatedTarget?.nodeName});
+          if(globalThis.__sentencePointerEvents.length>80)globalThis.__sentencePointerEvents.shift();
+        },true);
+      }
+    });
     await page.locator('#fluent-read-page-styles').waitFor({state:'attached'});
     await page.locator('#fluent-read-sentence-actions').waitFor({state:'attached'});
     await activateExtensionTabWithoutForeground(context,page,30000);
     await page.locator('#primary').hover(); await page.keyboard.press('Control');
     await page.locator('#primary > .fluent-read-bilingual-content').waitFor();
+    const toggleCounts=[await page.locator('#primary > .fluent-read-bilingual-content').count()];
     const before = await page.locator('#primary').evaluate(el=>({html:el.innerHTML,rect:JSON.stringify(el.getBoundingClientRect())}));
     const hover = async (translatedSide, offset=0) => {
       const point = await page.evaluate(({source,translated,translatedSide})=>{
@@ -80,7 +93,7 @@ async function main() {
         while(walker.nextNode()){const node=walker.currentNode;const index=node.textContent.indexOf(translatedSide?translated:source);if(index<0)continue;const range=document.createRange();range.setStart(node,index);range.setEnd(node,index+2);const rect=range.getClientRects()[0];return{x:rect.left+rect.width/2,y:rect.top+rect.height/2};}throw new Error('sentence missing');
       },{source,translated,translatedSide});await page.mouse.move(point.x+offset,point.y);await wait(100);
     };
-    const shot = async (p,name)=>{const file=path.join(artifactsDir,`${name}.png`);await p.screenshot({path:file});report.screenshots.push(file);};
+    const shot = async (p,name,options={})=>{const file=path.join(artifactsDir,`${name}.png`);await p.screenshot({path:file,...options});report.screenshots.push(file);};
     const entry = page.locator('#fluent-read-sentence-actions').getByRole('button',{name:'句子操作',exact:true});
     await hover(true);
     const toolbar = page.locator('#fluent-read-sentence-actions').getByRole('toolbar');
@@ -90,7 +103,19 @@ async function main() {
     await hover(true);
     // 重新定位真实文字，连续移动必须重置停留计时。
     for(let i=0;i<4;i++){await hover(true,i%2?1:-1);await wait(200);assert.equal(await entry.count(),0);}
-    await entry.waitFor();assert.equal(await toolbar.count(),0);await shot(page,'sentence-entry');
+    await entry.waitFor();assert.equal(await toolbar.count(),0);
+    assert.equal((await entry.innerText()).includes('句子操作'),true);
+    const entryPosition=await entry.boundingBox();
+    await hover(true,5);assert.deepEqual(await entry.boundingBox(),entryPosition);
+    const bounds=await page.locator('#primary').evaluate(el=>{
+      const ranges=[];const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+      while(walker.nextNode()){const range=document.createRange();range.selectNodeContents(walker.currentNode);ranges.push(...range.getClientRects());}
+      return {left:Math.min(...ranges.map(rect=>rect.left)),right:Math.max(...ranges.map(rect=>rect.right)),top:Math.min(...ranges.map(rect=>rect.top)),bottom:Math.max(...ranges.map(rect=>rect.bottom))};
+    });
+    assert(entryPosition.x>=bounds.right+7 || entryPosition.x+entryPosition.width<=bounds.left-7);
+    await page.mouse.move(entryPosition.x+entryPosition.width/2,entryPosition.y+entryPosition.height/2,{steps:20});
+    await wait(300);assert.equal(await entry.isVisible(),true);await shot(page,'sentence-entry');
+    report.checks.push('labelled entry stays beside both source and translation and survives same-sentence movement and pointer transfer');
     await entry.click();
     await toolbar.waitFor(); await toolbar.getByRole('button',{name:'收藏句子',exact:true}).click();
     await toolbar.getByRole('button',{name:'已收藏',exact:true}).waitFor();
@@ -105,13 +130,13 @@ async function main() {
     assert.deepEqual((await contentSpeech()).find(item=>item.text),{text:translated,language:'zh-CN'});
     await toolbar.getByRole('button',{name:'停止',exact:true}).click();assert((await contentSpeech()).some(item=>item.stopped));
     await context.grantPermissions(['clipboard-read','clipboard-write']);
-    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),translated);
+    await toolbar.getByRole('button',{name:'复制译文',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),translated);
     await hover(false);assert.equal(await toolbar.count(),0);await entry.waitFor();await entry.click();await toolbar.waitFor();
     await toolbar.getByRole('button',{name:'播放原文',exact:true}).click();
     for(let i=0;i<200;i++){if((await contentSpeech()).some(item=>item.text===source))break;await wait(50);}
     assert.deepEqual((await contentSpeech()).find(item=>item.text===source),{text:source,language:'en-US'});
     await toolbar.getByRole('button',{name:'停止',exact:true}).click();
-    await toolbar.getByRole('button',{name:'复制',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),source);
+    await toolbar.getByRole('button',{name:'复制原文',exact:true}).click();assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),source);
     report.checks.push('same-pair side switching waits again; each side plays and copies its own text with the correct speech language');
     const request = async message => options.evaluate(message=>chrome.runtime.sendMessage(message),message);
     const list = async()=>{const result=await request({type:'fluentReadVocabularyBook',action:'list'});assert(result.success);return result.data;};
@@ -126,14 +151,50 @@ async function main() {
       await hover(true);await entry.waitFor();await entry.click();await toolbar.waitFor();await page.mouse.wheel(0,120);await toolbar.waitFor({state:'hidden'});
       await page.evaluate(()=>window.scrollTo(0,0));await wait(100);
       report.checks.push('Escape dismisses controls and scrolling cancels both pending and expanded controls');
+      const pointOnText=async(selector,last=false)=>page.locator(selector).evaluate((el,last)=>{
+        const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);walker.nextNode();const node=walker.currentNode;
+        const range=document.createRange();range.setStart(node,last?node.textContent.length-3:0);range.setEnd(node,last?node.textContent.length:3);
+        const rect=range.getClientRects()[0];return{x:rect.left+rect.width/2,y:rect.top+rect.height/2};
+      },last);
+      await page.locator('#heading').hover();await page.keyboard.press('Control');await page.locator('#heading > .fluent-read-bilingual-content').waitFor();
+      const headingPoint=await pointOnText('#heading');await page.mouse.move(headingPoint.x,headingPoint.y);await entry.waitFor();
+      const headingRects=await page.locator('#heading').evaluate(el=>{
+        const rects=[];const walker=document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+        while(walker.nextNode()){const range=document.createRange();range.selectNodeContents(walker.currentNode);rects.push(...Array.from(range.getClientRects(),rect=>({left:rect.left,right:rect.right,top:rect.top,bottom:rect.bottom})));}
+        return rects;
+      });
+      const avoidsHeading=box=>headingRects.every(rect=>box.x+box.width<=rect.left || box.x>=rect.right || box.y+box.height<=rect.top || box.y>=rect.bottom);
+      const headingClip=box=>{
+        const left=Math.min(box.x,...headingRects.map(rect=>rect.left))-12;const top=Math.min(box.y,...headingRects.map(rect=>rect.top))-12;
+        return {x:left,y:top,width:Math.max(box.x+box.width,...headingRects.map(rect=>rect.right))-left+12,height:Math.max(box.y+box.height,...headingRects.map(rect=>rect.bottom))-top+12};
+      };
+      assert(avoidsHeading(await entry.boundingBox()));
+      await shot(page,'sentence-heading-entry',{clip:headingClip(await entry.boundingBox())});await entry.click();await toolbar.waitFor();
+      assert.equal(await toolbar.getByText('当前原句',{exact:true}).isVisible(),true);
+      assert(avoidsHeading(await toolbar.boundingBox()));
+      await shot(page,'sentence-heading-actions',{clip:headingClip(await toolbar.boundingBox())});
+      await toolbar.getByRole('button',{name:'关闭句子操作',exact:true}).click();
+      await page.locator('#wrapped').hover();await page.keyboard.press('Control');await page.locator('#wrapped > .fluent-read-bilingual-content').waitFor();
+      const firstLine=await pointOnText('#wrapped');const lastLine=await pointOnText('#wrapped',true);assert(lastLine.y>firstLine.y);
+      await page.mouse.move(firstLine.x,firstLine.y);await entry.waitFor();const wrappedPosition=await entry.boundingBox();
+      await page.mouse.move(lastLine.x,lastLine.y);await wait(100);assert.equal(await entry.isVisible(),true);assert.deepEqual(await entry.boundingBox(),wrappedPosition);
+      await entry.click();await toolbar.waitFor();await page.mouse.move(firstLine.x,firstLine.y);await wait(100);assert.equal(await toolbar.isVisible(),true);
+      await shot(page,'sentence-wrapped-actions');await toolbar.getByRole('button',{name:'关闭句子操作',exact:true}).click();
+      report.checks.push('screenshot heading keeps both lines unobscured; same sentence across wrapped lines retains entry position and expanded controls');
       await page.setViewportSize({width:390,height:844});await wait(100);await hover(true);await entry.waitFor();
-      const compact=await entry.boundingBox();assert(compact.width<=32);assert(compact.x>=8 && compact.x+compact.width<=382);
+      const compact=await entry.boundingBox();assert(compact.width>=70);assert(compact.x>=8 && compact.x+compact.width<=382);
       await shot(page,'sentence-entry-mobile');await entry.click();await toolbar.waitFor();
       const expanded=await toolbar.boundingBox();assert(expanded.x>=8 && expanded.x+expanded.width<=382);
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));await shot(page,'sentence-actions-mobile');
+      await toolbar.getByRole('button',{name:'关闭句子操作',exact:true}).click();await toolbar.waitFor({state:'hidden'});
       await page.setViewportSize({width:1440,height:960});await wait(100);
       await hover(false);await entry.waitFor();await entry.click();await toolbar.waitFor();
       await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor({state:'detached'});await toolbar.waitFor({state:'hidden'});assert.equal(await entry.count(),0);
+      toggleCounts.push(await page.locator('#primary > .fluent-read-bilingual-content').count());
+      await page.locator('#primary').hover();await page.keyboard.press('Control');await page.locator('#primary > .fluent-read-bilingual-content').waitFor();
+      toggleCounts.push(await page.locator('#primary > .fluent-read-bilingual-content').count());assert.deepEqual(toggleCounts,[1,0,1]);
+      await hover(true);await entry.waitFor();await entry.click();await toolbar.waitFor();assert.equal(await toolbar.getByRole('button',{name:'复制译文',exact:true}).isVisible(),true);
+      report.translationToggleCounts=toggleCounts;
       report.checks.push('390px entry and expanded controls stay in viewport; restoring removes highlight actions');
       assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
       process.stdout.write(JSON.stringify(report,null,2)+'\n');
@@ -242,8 +303,8 @@ async function main() {
       report.checks.push('1440, 820 and 390px layouts retain full sentence translation, allocate full width to content and avoid overflow; dark layout captured');
     }
     assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
-  } catch(error){report.error=error.stack||String(error);if(options||page)try{await (options||page).screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
-  finally{fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});await local.close();}
+  } catch(error){report.error=error.stack||String(error);if(page)try{report.pointerEvents=await page.evaluate(()=>globalThis.__sentencePointerEvents);report.failureUi=await page.locator('#fluent-read-sentence-actions').evaluate(el=>el.shadowRoot?.innerHTML);await page.screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
+  finally{if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});report.profileRemoved=!fs.existsSync(profileDir);await local.close();fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));}
   process.stdout.write(JSON.stringify(report,null,2)+'\n');
 }
 main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});

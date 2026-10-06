@@ -1,29 +1,31 @@
 <!--
  * @file src/features/vocabulary/ui/SentenceActions.vue
  * 文件职责：为停留高亮的双语句子提供按需展开的播放、收藏、复制和收藏列表入口。
- * 主要内容：等待稳定停留后只显示小入口，点击才展开和查询收藏；按鼠标所在一侧朗读与复制，保持进入工具条时的句子身份，沿用朗读后台并隔离迟到响应。
+ * 主要内容：等待稳定停留后显示带文字的入口，以实测尺寸避开双语正文；保持同一句内移动与跨间隙进入工具条的身份，点击才展开和查询收藏，按所在一侧朗读与复制并隔离迟到响应。
  * 模块边界：不改动原句或网页布局，不自动生成解释或发送模型请求；存储与语言清洗由现有后台负责。
  -->
 <template>
   <div v-if="sentence" ref="panel" class="sentence-actions" :class="{dark, compact: !expanded}" :style="position" :role="expanded ? 'toolbar' : undefined" :aria-label="expanded ? '句子听读与收藏' : undefined" @keydown.esc.stop="close">
-    <button v-if="!expanded" type="button" class="sentence-entry" aria-label="句子操作" title="句子操作" :aria-expanded="false" @click="expand">⋯</button>
-    <div v-else class="sentence-buttons">
+    <button v-if="!expanded" type="button" class="sentence-entry" aria-label="句子操作" title="朗读、收藏或复制当前句子" :aria-expanded="false" @click="expand">句子操作 <span aria-hidden="true">⌄</span></button>
+    <div v-if="expanded" class="sentence-heading"><span>{{ sentence.side === 'translation' ? '当前译文' : '当前原句' }}</span><button type="button" aria-label="关闭句子操作" title="关闭" @click="close">×</button></div>
+    <div v-if="expanded" class="sentence-buttons">
       <button type="button" @click="play">{{ playing ? '停止' : sentence.side === 'translation' ? '播放译文' : '播放原文' }}</button>
       <button type="button" :disabled="saving || privateContext || Boolean(savedId)" @click="save">{{ saving ? '收藏中…' : savedId ? '已收藏' : '收藏句子' }}</button>
-      <button type="button" @click="copy">复制</button>
+      <button type="button" @click="copy">{{ sentence.side === 'translation' ? '复制译文' : '复制原文' }}</button>
       <button type="button" title="查看收藏的句子" @click="openBook">收藏列表 ↗</button>
     </div>
     <span v-if="expanded && (notice || privateContext)" class="sentence-notice" role="status">{{ privateContext ? '无痕窗口不保存收藏' : notice }}</span>
   </div>
 </template>
 <script setup lang="ts">
-import {computed, onBeforeUnmount, ref, shallowRef} from 'vue';
+import {computed, nextTick, onBeforeUnmount, ref, shallowRef, watch} from 'vue';
 import browser from 'webextension-polyfill';
 import {config, requestConfigPatch, subscribeConfig} from '@/src/services/config/store';
 import {detectlang} from '@/src/core/language/detect';
 import {subscribeHighlightedSentence, type HighlightedSentence} from '@/src/features/full-page-translation/highlight/public';
 import {createSelectionTtsClientRequestId, createSelectionTtsContentController, normalizeSpeechLanguage} from '@/src/features/selection-translation/speech/public';
 import {VOCABULARY_BOOK_MESSAGE, normalizeLearningSourceText, type VocabularyEntry, type VocabularyBookResponse} from '../learningModel';
+import {isSentenceActionsPointer, isSentenceActionsTransfer, placeSentenceActions} from '../sentenceActionsPlacement';
 
 const sentence = shallowRef<HighlightedSentence | null>(null);
 const expanded = ref(false);
@@ -34,7 +36,24 @@ const saving = ref(false);
 const playing = ref(false);
 const privateContext = browser.extension?.inIncognitoContext === true;
 const dark = ref(config.theme === 'dark' || (config.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches));
-const position = computed(() => ({left: `${Math.max(8, Math.min(sentence.value?.rect.left ?? 8, window.innerWidth - (expanded.value ? 330 : 40)))}px`, top: `${Math.max(8, Math.min((sentence.value?.rect.bottom ?? 0) + 6, window.innerHeight - (expanded.value ? 90 : 40)))}px`}));
+const panelSize = ref({width: 100, height: 34});
+const position = computed(() => {
+  const current = sentence.value;
+  if (!current) return {};
+  const placed = placeSentenceActions(current.anchorRect, current.rect, panelSize.value, {width: window.innerWidth, height: window.innerHeight});
+  return {left: `${placed.left}px`, top: `${placed.top}px`};
+});
+let panelObserver: ResizeObserver | undefined;
+function measurePanel(): void {
+  const rect = panel.value?.getBoundingClientRect();
+  if (rect?.width && rect.height) panelSize.value = {width: rect.width, height: rect.height};
+}
+watch(panel, root => {
+  panelObserver?.disconnect();
+  measurePanel();
+  if (root && typeof ResizeObserver !== 'undefined') {panelObserver = new ResizeObserver(measurePanel); panelObserver.observe(root);}
+});
+watch(expanded, () => {void nextTick(measurePanel);});
 const sendMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const messagePort = browser.runtime.onMessage;
 const speech = createSelectionTtsContentController({createClientRequestId: createSelectionTtsClientRequestId, stopRemote: clientRequestId => sendMessage({type:'selectionTtsStop', clientRequestId})});
@@ -133,9 +152,9 @@ function expand(): void {
 const unsubscribe = subscribeHighlightedSentence(document, {
   change(current) {
     const previous = hovered;
-    const same = current && previous && current.side === previous.side && current.sourceText === previous.sourceText
-      && current.translationText === previous.translationText && current.context === previous.context
-      && current.rect.left === previous.rect.left && current.rect.top === previous.rect.top;
+    const same = current && previous && current.owner === previous.owner && current.index === previous.index
+      && current.side === previous.side && current.sourceText === previous.sourceText
+      && current.translationText === previous.translationText && current.context === previous.context;
     if (!same) close();
     hovered = current;
     if (!current || sentence.value) return;
@@ -146,19 +165,24 @@ const unsubscribe = subscribeHighlightedSentence(document, {
     const root = panel.value;
     if (!root) return false;
     if (target && root.contains(target)) return true;
+    const current = sentence.value;
+    if (!current) return false;
     const rect = root.getBoundingClientRect();
-    return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top - 8 && event.clientY <= rect.bottom;
+    if (isSentenceActionsPointer(current.anchorRect, rect, event)) return true;
+    return isSentenceActionsTransfer(current.pointer, rect, event) ? 'transfer' : false;
   },
 });
 const unsubscribeConfig = subscribeConfig(next => {dark.value = next.theme === 'dark' || (next.theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches); if (!next.on || !next.bilingualSentenceHighlightEnabled) close();});
 messagePort.addListener(playbackState);
-onBeforeUnmount(() => {active = false; close(); unsubscribe(); unsubscribeConfig(); try {messagePort.removeListener(playbackState);} catch { /* 失效端口不妨碍其余清理。 */ }});
+onBeforeUnmount(() => {active = false; panelObserver?.disconnect(); close(); unsubscribe(); unsubscribeConfig(); try {messagePort.removeListener(playbackState);} catch { /* 失效端口不妨碍其余清理。 */ }});
 </script>
 <style scoped>
-.sentence-actions {position:fixed; z-index:2147483647; max-width:calc(100vw - 16px); padding:5px; border:1px solid #e6dce0; border-radius:11px; background:#fffafb; color:#3d2732; box-shadow:0 6px 24px #30212b25; font:13px/1.5 system-ui,sans-serif; pointer-events:auto;}
+.sentence-actions {position:fixed; z-index:2147483647; width:max-content; box-sizing:border-box; max-width:calc(100vw - 16px); padding:5px; border:1px solid #e6dce0; border-radius:11px; background:#fffafb; color:#3d2732; box-shadow:0 6px 24px #30212b25; font:13px/1.5 system-ui,sans-serif; pointer-events:auto;}
 .sentence-actions.dark {background:#261e27; color:#f5e6ec; border-color:#54424d;}
 .sentence-actions.compact {padding:0; border-radius:8px; box-shadow:0 2px 8px #30212b14;}
-.sentence-actions .sentence-entry {width:30px; height:28px; padding:0; font-size:20px; line-height:1;}
+.sentence-actions .sentence-entry {height:32px; padding:5px 10px; font-size:12px; line-height:1.5;}
+.sentence-heading {display:flex; align-items:center; justify-content:space-between; padding-left:8px; font-size:11px; color:inherit;}
+.sentence-heading button {padding:0 7px; font-size:18px; line-height:1.3;}
 .sentence-buttons {display:flex; gap:2px; flex-wrap:wrap;}
 .sentence-actions button {border:0; border-radius:7px; padding:6px 8px; background:transparent; color:inherit; font:inherit; cursor:pointer; white-space:nowrap;}
 .sentence-actions button:hover {background:#d8316420;}

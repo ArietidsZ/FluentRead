@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/sentenceHighlight.ts
  * 文件职责：在双语段落中定位鼠标下的句子，并同步绘制原文和译文的文字范围。
- * 主要内容：只读收集文字、按句对齐、逐帧合并指针事件，使用原生 Highlight 绘制，并向隔离的句子操作界面发布鼠标所在原文或译文及当前行的位置；离开、选择、滚动、节点变化和卸载时释放范围与监听器。
+ * 主要内容：只读收集文字、按句对齐、逐帧合并指针事件，使用原生 Highlight 绘制；发布稳定的段落与句子身份、所在一侧及双语正文边界，短暂经过文字间隙时保留入口，滚动、节点变化和卸载时立即清理。
  * 模块边界：仅消费 renderer 已有的双语容器，不拆分宿主文本、不更改排版、不调用 provider；旧浏览器缺少绘制能力时安全停用。
  */
 import {alignBilingualSentences, type SentenceSpan} from '@/src/core/translation/sentenceAlignment';
@@ -13,15 +13,19 @@ interface TextRun {node: Text; start: number; end: number}
 interface TextMap {text: string; runs: TextRun[]}
 interface Pair {source: Range[]; translation: Range[]; sourceText: string; translationText: string; context: string}
 export interface HighlightedSentence {
+    owner: Element;
+    index: number;
     side: 'source' | 'translation';
     sourceText: string;
     translationText: string;
     context: string;
     rect: DOMRect;
+    anchorRect: Pick<DOMRect, 'left' | 'right' | 'top' | 'bottom'>;
+    pointer: Pick<PointerEvent, 'clientX' | 'clientY'>;
 }
 interface SentenceSubscriber {
     change: (sentence: HighlightedSentence | null) => void;
-    retainPointer?: (target: Element | null, event: PointerEvent) => boolean;
+    retainPointer?: (target: Element | null, event: PointerEvent) => boolean | 'transfer';
 }
 const subscribers = new WeakMap<Document, Set<SentenceSubscriber>>();
 
@@ -91,6 +95,8 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
     let active: Pair | undefined;
     let pending: {event: PointerEvent; target: Element | null} | null = null;
     let frame: number | null = null;
+    let clearTimer: ReturnType<typeof setTimeout> | undefined;
+    let transferTimer: ReturnType<typeof setTimeout> | undefined;
     const observer = new view.MutationObserver(records => {
         if (owner && (!owner.isConnected || records.some(record => owner!.contains(record.target)
             || record.target.contains(owner)))) clear();
@@ -100,6 +106,8 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
     };
 
     function clear(): void {
+        cancelClear();
+        cancelTransfer();
         if (active) publish(null);
         paint.clear();
         active = undefined;
@@ -110,15 +118,36 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
         frame = null;
         observer.disconnect();
     }
-    const flush = (): void => {
+    function cancelClear(): void {
+        if (clearTimer !== undefined) clearTimeout(clearTimer);
+        clearTimer = undefined;
+    }
+    function cancelTransfer(): void {
+        if (transferTimer !== undefined) clearTimeout(transferTimer);
+        transferTimer = undefined;
+    }
+    function leaveText(): void {
+        if (clearTimer === undefined) clearTimer = setTimeout(clear, 220);
+    }
+    const flush = (settled = false): void => {
         frame = null;
         const point = pending;
         pending = null;
         if (!point || point.event.buttons || document.getSelection()?.isCollapsed === false) return clear();
         const {event, target: hit} = point;
-        if (active && [...(subscribers.get(document) ?? [])].some(subscriber => subscriber.retainPointer?.(hit, event))) return;
+        cancelTransfer();
+        if (active && !settled) {
+            const retained = [...(subscribers.get(document) ?? [])].map(subscriber => subscriber.retainPointer?.(hit, event));
+            if (retained.some(value => value === true)) {cancelClear(); return;}
+            if (retained.includes('transfer')) {
+                cancelClear();
+                // 向按钮移动时穿过其它句子也不切换；停在文字上则重新命中，避免粘住旧句。
+                transferTimer = setTimeout(() => {transferTimer = undefined; pending = point; flush(true);}, 220);
+                return;
+            }
+        }
         const nextOwner = hit && ownerFor(hit);
-        if (!nextOwner?.isConnected) return clear();
+        if (!nextOwner?.isConnected) return leaveText();
         if (nextOwner !== owner) {
             clear();
             owner = nextOwner;
@@ -146,6 +175,8 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
             if (hitSentence) break;
         }
         const pair = hitSentence?.pair;
+        if (!hitSentence) return leaveText();
+        cancelClear();
         if (pair !== active) {
             paint.clear();
             active = pair;
@@ -154,15 +185,20 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
                 registry.set(BILINGUAL_HIGHLIGHT_NAME, paint);
             } else publish(null);
         }
-        // 同一组双语句子内的移动仍更新所在一侧和行位置，供工具入口等待真正停留。
-        if (hitSentence) publish({side: hitSentence.side, sourceText: pair!.sourceText,
-            translationText: pair!.translationText, context: pair!.context, rect: hitSentence.rect});
+        // 以整段实际文字边界避开另一侧与相邻句子，不使用占满视口的块元素宽度。
+        const rects = pairs.flatMap(item => [...item.source, ...item.translation].flatMap(range =>
+            Array.from(range.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0)));
+        publish({owner: owner!, index: pairs.indexOf(pair!), side: hitSentence.side, sourceText: pair!.sourceText,
+            translationText: pair!.translationText, context: pair!.context, rect: hitSentence.rect,
+            anchorRect: {left: Math.min(...rects.map(rect => rect.left)), right: Math.max(...rects.map(rect => rect.right)),
+                top: Math.min(...rects.map(rect => rect.top)), bottom: Math.max(...rects.map(rect => rect.bottom))},
+            pointer: {clientX: event.clientX, clientY: event.clientY}});
     };
     const move = (event: PointerEvent): void => {
         // composedPath 在事件派发后会清空，必须在当前事件内保留真实目标。
         const target = event.composedPath().find(node => node instanceof view.Element) as Element | undefined;
         pending = {event, target: target ?? null};
-        if (frame === null) frame = view.requestAnimationFrame(flush);
+        if (frame === null) frame = view.requestAnimationFrame(() => flush());
     };
     const leave = (event: PointerEvent): void => {if (!event.relatedTarget) clear();};
     document.addEventListener('pointermove', move, {passive: true, capture: true});
