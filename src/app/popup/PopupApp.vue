@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；悬停、划词与图片抽屉优先展示开关和操作示意，关闭再启用恢复原有偏好，首次语言引导独占内容。
+ 主要内容：在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；赞赏码在当前弹窗内切换放大与还原，关闭后重置；悬停、划词与图片抽屉优先展示开关和操作示意，首次语言引导独占内容。
  模块边界：组件编排用户交互与运行时消息，不实现翻译 provider、缓存存储或 content 挂载细节；公共配置由 services/store 管理，页面行为由 content feature 接收消息完成。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -63,11 +63,18 @@
           <p class="donation-description">{{ t('popup.donationDescription') }}</p>
           <section class="donation-method donation-wechat">
             <div class="donation-method-heading"><h3>{{ t('popup.donationWechat') }}</h3><span>WeChat Support</span></div>
-            <a class="donation-qr-frame" href="/misc/approve.jpg" target="_blank" rel="noopener noreferrer" :aria-label="t('popup.donationOpenCode')">
+            <button
+              class="donation-qr-frame"
+              :class="{ 'is-enlarged': donationQrEnlarged }"
+              type="button"
+              :aria-pressed="donationQrEnlarged"
+              :aria-label="t(donationQrEnlarged ? 'popup.donationRestoreCode' : 'popup.donationEnlargeCode')"
+              @click="donationQrEnlarged = !donationQrEnlarged"
+            >
               <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
               <img :src="'/misc/approve.jpg'" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
-            </a>
-            <p class="donation-method-note">{{ t('popup.donationScan') }}</p>
+            </button>
+            <p class="donation-method-note">{{ t(donationQrEnlarged ? 'popup.donationScanEnlarged' : 'popup.donationScan') }}</p>
           </section>
           <a class="donation-method donation-kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
             <span class="donation-kofi-mark" aria-hidden="true"><Coffee /></span>
@@ -419,6 +426,7 @@ const currentTabId = ref<number | null>(null);
 const currentSiteDomain = ref('');
 const clearingCache = ref(false);
 const donationVisible = ref(false);
+const donationQrEnlarged = ref(false);
 const donationCard = ref<HTMLElement | null>(null);
 const donationTrigger = ref<HTMLButtonElement | null>(null);
 const notice = ref('');
@@ -732,12 +740,14 @@ watch(popupUsesContentHeight, applyPopupHeightMode, {immediate: true});
 darkMode.onchange = () => { if (config.value.theme === 'auto') applyTheme('auto'); };
 
 async function openDonation() {
+  donationQrEnlarged.value = false;
   donationVisible.value = true;
   await nextTick();
   donationCard.value?.querySelector<HTMLButtonElement>('.donation-close')?.focus();
 }
 function closeDonation() {
   donationVisible.value = false;
+  donationQrEnlarged.value = false;
   donationTrigger.value?.focus();
 }
 function handleDonationKeydown(event: KeyboardEvent) {

@@ -1,7 +1,7 @@
 /**
  * @file src/app/popup/popup.css
  * 文件职责：定义宽度随皮肤和界面语言、高度由内容撑开且最高 560px 的浏览器 Popup 视觉系统与交互状态，包括亮暗主题、服务选择、功能卡、设置抽屉、通知和响应式细节。
- * 主要内容：以白色窄版画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏、翻译服务汇总、两列入口、完整开源胶囊与开关优先的快捷抽屉，保留操作示意、舒展间距和必要的内部滚动。
+ * 主要内容：以白色窄版画布、浅灰控件和品牌色强调网页翻译、局部选择及站点控制；定义版本与赞赏码的原位放大、翻译服务汇总、两列入口、完整开源胶囊与开关优先的快捷抽屉，保留操作示意、舒展间距和必要的内部滚动。
  * 模块边界：样式只对应 PopupApp 的 DOM 和受控第三方组件，不决定配置值、能力可用性或消息行为；跨页面 token 在 src/ui/styles，Options/文档页各自维护页面样式。
  */
 @import "../../ui/styles/feedback.css";
@@ -390,8 +390,9 @@ footer > button { justify-self: end; }
 .donation-method-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .donation-method-heading h3 { margin: 0; font-size: 13px; font-weight: 650; }
 .donation-method-heading > span { color: var(--muted); font-size: 11px; }
-/* 放大原图中的完整赞赏码，保留四周空白；链接始终打开未经改动的原图。 */
-.donation-qr-frame { position: relative; display: block; overflow: hidden; width: 164px; height: 164px; margin: 12px auto 8px; border-radius: 10px; background: white; }
+/* 保留完整赞赏码与四周空白，点击只在当前卡片内适度放大，再次点击还原。 */
+.donation-qr-frame { position: relative; display: block; overflow: hidden; width: 164px; max-width: 100%; aspect-ratio: 1; margin: 12px auto 8px; padding: 0; border: 0; border-radius: 10px; background: white; cursor: zoom-in; transition: width 180ms ease; }
+.donation-qr-frame.is-enlarged { width: 200px; cursor: zoom-out; }
 .donation-qr-frame img { position: absolute; width: 198.62%; max-width: none; height: auto; left: -49.14%; top: -25%; }
 .donation-method-note { margin: 0; text-align: center; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .donation-kofi { display: flex; align-items: center; gap: 12px; margin-top: 10px; color: var(--ink); text-decoration: none; transition: border-color .16s, background-color .16s; }
@@ -402,12 +403,13 @@ footer > button { justify-self: end; }
 .donation-kofi-copy strong { display: flex; justify-content: space-between; font-size: 15px; }
 .donation-kofi-copy > span { font-size: 12px; line-height: 1.5; }
 .donation-kofi-copy small { color: var(--muted); font-size: 11px; }
-.donation-card a:focus-visible, .donation-close:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
+.donation-card a:focus-visible, .donation-card button:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
 .donation-fade-enter-active, .donation-fade-leave-active { transition: opacity 160ms ease; }
 .donation-fade-enter-active .donation-card, .donation-fade-leave-active .donation-card { transition: transform 180ms ease, opacity 160ms ease; }
 .donation-fade-enter-from, .donation-fade-leave-to { opacity: 0; }
 .donation-fade-enter-from .donation-card, .donation-fade-leave-to .donation-card { opacity: 0; transform: translateY(8px) scale(.98); }
 @media (prefers-reduced-motion: reduce) {
+  .donation-qr-frame { transition: none; }
   .donation-fade-enter-active, .donation-fade-leave-active, .donation-fade-enter-active .donation-card, .donation-fade-leave-active .donation-card { transition: none; }
 }
 
