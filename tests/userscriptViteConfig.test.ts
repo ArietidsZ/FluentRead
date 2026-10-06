@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {gunzipSync} from 'node:zlib';
 import {describe, expect, it, vi} from 'vitest';
@@ -7,6 +8,7 @@ import {ungzip} from 'pako';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {inflateWithPako} from '@/userscript/pakoRuntime';
 import {
+    default as userscriptConfig,
     executionGuardEnd,
     executionGuardStart,
     createUserscriptCatalogCompressionPlugin,
@@ -22,6 +24,18 @@ const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
 
 describe('userscript browser shim injection', () => {
+    it('pins each remote language file to a commit containing exactly its built contents', () => {
+        const defines = (userscriptConfig as {define: Record<string, string>}).define;
+        const commit = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__);
+        const bundles = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_REMOTE_LANGUAGES__) as Record<string, string>;
+        expect(commit).toMatch(/^[a-f0-9]{40}$/u);
+        expect(Object.keys(bundles)).toHaveLength(5);
+        for (const file of Object.values(bundles)) {
+            const path = `userscript/languages/${file}`;
+            const committed = execFileSync('git', ['show', `${commit}:${path}`], {cwd: process.cwd(), encoding: 'utf8'});
+            expect(committed).toBe(readFileSync(resolve(process.cwd(), path), 'utf8'));
+        }
+    });
     it('embeds the complete Chinese fallback catalog as lossless static data', () => {
         const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {
             resolveId: (source: string, importer: string) => string | null;

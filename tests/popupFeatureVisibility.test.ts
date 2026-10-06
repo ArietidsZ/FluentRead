@@ -18,6 +18,12 @@ function source(path: string): string {
 describe('popup feature visibility', () => {
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
+        const html = source('entrypoints/popup/index.html');
+        const criticalStyles = html.slice(html.indexOf('<style>'), html.indexOf('</style>'));
+        expect(criticalStyles).toContain('html { width: var(--interface-popup-width, 320px);');
+        expect(criticalStyles).toContain('min-height: 460px;');
+        expect(criticalStyles).toContain('display: flex;');
+        expect(html.indexOf('</style>')).toBeLessThan(html.indexOf('src="/popup-startup.js"'));
         expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
         expect(styles).toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');

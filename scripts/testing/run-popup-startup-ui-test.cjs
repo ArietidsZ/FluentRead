@@ -7,6 +7,7 @@
  * document_start 阶段延迟 configStorageRead，并在每个 requestAnimationFrame
  * 和 MutationObserver 回调中采样第一块可见 .popup-shell。这样可以区分
  * “配置已经生效后的最终截图”和“配置读取期间已经被用户看到的旧 UI”。
+ * 另在真实浏览器中移除外部样式和模块，验证生产 HTML 自身的首屏尺寸。
  */
 
 const fs = require('node:fs');
@@ -33,6 +34,7 @@ const focusHelper = path.resolve(argument(
 ));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-popup-startup-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
+const useChromeDebugLoading = /Google Chrome(?:\.app)?/u.test(browserPath);
 const timeout = Number(argument('timeout', '30000'));
 const configDelayMs = Math.max(250, Number(argument('config-delay-ms', '1400')) || 1400);
 const openCount = Math.max(2, Number(argument('opens', '3')) || 3);
@@ -90,12 +92,14 @@ function attachDiagnostics(page, errors) {
   });
 }
 
-async function extensionWorker(context, timeoutMs) {
-  const existing = context.serviceWorkers().find(worker => worker.url().startsWith('chrome-extension://'));
+async function extensionWorker(context, timeoutMs, scriptPath, extensionId) {
+  const matches = worker => worker.url().startsWith('chrome-extension://')
+    && (extensionId ? worker.url() === `chrome-extension://${extensionId}/${scriptPath}` : worker.url().endsWith(`/${scriptPath}`));
+  const existing = context.serviceWorkers().find(matches);
   if (existing) return existing;
   return context.waitForEvent('serviceworker', {
     timeout: timeoutMs,
-    predicate: worker => worker.url().startsWith('chrome-extension://'),
+    predicate: matches,
   });
 }
 
@@ -766,6 +770,37 @@ async function runContentLifecycleRegression(context, extensionOrigin, popupPath
   }
 }
 
+/** 隔离外部资源，让正常大小的浏览器窗口验证 HTML 自身能否先撑开工具栏弹窗。 */
+async function runPopupCriticalLayout(context, extensionOrigin, popupPath) {
+  const html = fs.readFileSync(path.join(extensionDir, popupPath), 'utf8');
+  const bootstrapHtml = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, '')
+    .replace(/<link\b[^>]*>/giu, '');
+  const page = await newPageWithoutForeground(context, timeout);
+  try {
+    await page.setContent(bootstrapHtml, {waitUntil: 'domcontentloaded'});
+    const measure = () => page.evaluate(() => {
+      const root = document.documentElement;
+      const startup = document.querySelector('.popup-startup');
+      return {width: root.getBoundingClientRect().width, minHeight: getComputedStyle(root).minHeight,
+        startupWidth: startup?.getBoundingClientRect().width, startupHeight: startup?.getBoundingClientRect().height,
+        centered: getComputedStyle(startup).justifyContent === 'center'};
+    });
+    const first = await measure();
+    if (first.width !== 320 || first.minHeight !== '460px' || first.startupHeight !== 460 || !first.centered) {
+      throw new Error(`外部资源到达前 Popup 没有固定首屏尺寸：${JSON.stringify(first)}`);
+    }
+    const screenshotFile = await screenshot(page, 'popup-html-before-external-resources.png');
+    await page.evaluate(() => document.documentElement.style.setProperty('--interface-popup-width', '360px'));
+    const skinOverride = await measure();
+    if (skinOverride.width !== 360 || skinOverride.startupWidth !== 360) throw new Error('首屏宽度阻止了皮肤覆盖');
+    await page.goto(new URL(popupPath, `${extensionOrigin}/`).href, {waitUntil: 'domcontentloaded', timeout});
+    await page.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout});
+    const finalMinHeight = await page.evaluate(() => getComputedStyle(document.documentElement).minHeight);
+    if (finalMinHeight !== '0px') throw new Error(`完整样式没有解除临时高度：${finalMinHeight}`);
+    return {scope: 'production-html-with-external-resources-removed', first, skinOverride, finalMinHeight, screenshot: screenshotFile};
+  } finally { await page.close(); }
+}
+
 async function main() {
   const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
   const manifestEntrypoints = assertManifest(manifest);
@@ -774,7 +809,7 @@ async function main() {
     ok: false,
     extensionDir,
     extensionEntrypoints: manifestEntrypoints,
-    browser: 'Microsoft Edge',
+    browser: useChromeDebugLoading ? 'Google Chrome' : path.basename(browserPath),
     launchMode: null,
     focusPolicy: null,
     windowPlacement: null,
@@ -799,8 +834,10 @@ async function main() {
       headless: false,
       background: true,
       browserArgs: [
-        `--disable-extensions-except=${extensionDir}`,
-        `--load-extension=${extensionDir}`,
+        ...(useChromeDebugLoading ? ['--enable-unsafe-extension-debugging'] : [
+          `--disable-extensions-except=${extensionDir}`,
+          `--load-extension=${extensionDir}`,
+        ]),
         '--no-first-run',
         '--no-default-browser-check',
       ],
@@ -811,8 +848,15 @@ async function main() {
     report.focusPolicy = launched.focusPolicy;
     report.windowPlacement = launched.windowPlacement;
     const {context} = launched;
-    const worker = await extensionWorker(context, timeout);
+    let extensionId;
+    if (useChromeDebugLoading) {
+      const browserCdp = await context.browser().newBrowserCDPSession();
+      try { extensionId = (await browserCdp.send('Extensions.loadUnpacked', {path: extensionDir})).id; }
+      finally { await browserCdp.detach(); }
+    }
+    const worker = await extensionWorker(context, timeout, manifest.background.service_worker, extensionId);
     const extensionOrigin = `chrome-extension://${new URL(worker.url()).host}`;
+    report.criticalLayout = await runPopupCriticalLayout(context, extensionOrigin, manifestEntrypoints.popup);
     pageForConfig = await newPageWithoutForeground(context, timeout);
     attachDiagnostics(pageForConfig, report.consoleErrors);
     await installStartupProbe(pageForConfig, {delayMs: 0});

@@ -5,6 +5,10 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 vi.mock('@/src/services/config/store', () => ({
     config: {on: true, from: 'auto'},
 }));
+// 保留真实 runtime 消息封装，浏览器 API 由每个用例提供；Node 无扩展上下文。
+vi.mock('webextension-polyfill', () => ({
+    default: new Proxy({}, {get: (_target, key) => Reflect.get((globalThis as any).browser ?? {}, key)}),
+}));
 
 import {getImageData} from '@/src/features/image-translation/content/runtime';
 import {fetchRemoteImageForOcr} from '@/src/features/image-translation/services/remoteImage';
