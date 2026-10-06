@@ -64,6 +64,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
             const b = this.querySelector('.fluent-read-image-translation-button');
             if (!b) return {visible: false};
             const r = b.getBoundingClientRect(), style = getComputedStyle(b), pseudo = getComputedStyle(b, '::before');
+            const row = b.closest('.fr-image-actions'), rowStyle = getComputedStyle(row);
             let opacity = 1;
             for (let e = b; e; e = e.parentElement) opacity *= Number(getComputedStyle(e).opacity);
             const root = this;
@@ -74,6 +75,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
             try {await icon.decode(); iconLoaded = icon.naturalWidth > 0;} catch {}
             return {visible: r.width > 0 && r.height > 0 && style.visibility === 'visible', text: b.textContent,
               phase: b.dataset.phase, rect: r.toJSON(), fontSize: parseFloat(style.fontSize), opacity,
+              frame: {rect: row.getBoundingClientRect().toJSON(), padding: rowStyle.padding, borderWidth: rowStyle.borderWidth, background: rowStyle.backgroundColor},
               iconLoaded, iconFilter: pseudo.filter, hitButton: hit === b || b.contains(hit),
               feedback: this.querySelector('.fr-image-feedback')?.textContent};
           }`});
@@ -88,6 +90,11 @@ fs.mkdirSync(artifactsDir, {recursive: true});
       assert.equal(result.rect.height, 24);
       assert.equal(result.fontSize, 0, '原有图标入口意外变成文字按钮');
       assert.equal(result.opacity, 0.28, '原有淡色入口透明度发生变化');
+      assert.equal(result.frame.rect.width, 24, '图标外围仍有额外留白');
+      assert.equal(result.frame.rect.height, 24);
+      assert.equal(result.frame.padding, '0px');
+      assert.equal(result.frame.borderWidth, '0px');
+      assert.equal(result.frame.background, 'rgba(0, 0, 0, 0)', '图标外围仍有透明底色框');
       assert.equal(result.iconLoaded, true, '图标未能解码');
       assert.equal(result.iconFilter, 'grayscale(1)', '原有灰色图标样式发生变化');
       assert.equal(result.hitButton, true, '鼠标未命中按钮');
