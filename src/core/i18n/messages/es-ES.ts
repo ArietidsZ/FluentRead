@@ -392,7 +392,7 @@ export const esESMessages = {
     "settings.services.library.favorite": "Añadir {service} a favoritos",
     "settings.services.library.unfavorite": "Quitar {service} de favoritos",
     "settings.services.freeWeights.mode": "Aceleración inteligente",
-    "settings.services.freeWeights.strategy": "Prioriza servicios rápidos y fiables y cambia automáticamente si hay problemas.",
+    "settings.services.freeWeights.strategy": "Usa nodos oficiales rápidos y fiables, hasta seis tareas paralelas y cambio automático si fallan",
     "settings.services.freeWeights.budget": "Un intento por servicio, con un límite total de 20 segundos. La traducción gratuita no repite los reintentos globales.",
     "settings.services.freeWeights.services": "Servicios de traducción",
     "settings.services.freeWeights.enabledCount": "{count} activados",

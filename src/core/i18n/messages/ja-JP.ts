@@ -392,7 +392,7 @@ export const jaJPMessages = {
     "settings.services.library.favorite": "{service} をお気に入りに追加",
     "settings.services.library.unfavorite": "{service} をお気に入りから削除",
     "settings.services.freeWeights.mode": "スマート高速化",
-    "settings.services.freeWeights.strategy": "速く安定したサービスを優先し、問題があれば自動で切り替えます。",
+    "settings.services.freeWeights.strategy": "高速で安定した公式ノードを優先し、最大6件を並列処理。問題発生時は自動で切り替えます",
     "settings.services.freeWeights.budget": "各サービスは1回、全体で最大20秒。無料翻訳では全体の再試行を繰り返しません。",
     "settings.services.freeWeights.services": "翻訳に使うサービス",
     "settings.services.freeWeights.enabledCount": "{count}個が有効",

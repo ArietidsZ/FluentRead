@@ -1,10 +1,10 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {mockConfig, storedHealth, microsoftMock, deeplxMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock} = vi.hoisted(() => ({
+const {mockConfig, storedHealth, microsoftMock, officialMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock} = vi.hoisted(() => ({
     mockConfig: {} as Record<string, any>,
     storedHealth: {records: null as unknown},
     microsoftMock: vi.fn(),
-    deeplxMock: vi.fn(),
+    officialMock: vi.fn(),
     googleMock: vi.fn(),
     myMemoryMock: vi.fn(),
     webMock: vi.fn(),
@@ -14,7 +14,7 @@ const {mockConfig, storedHealth, microsoftMock, deeplxMock, googleMock, myMemory
 vi.mock('@/src/platform/storage/freeTranslationHealthStorage', () => ({freeTranslationHealthStorage: {load: async () => storedHealth.records, save: async () => undefined}}));
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 vi.mock('@/src/providers/translation/microsoft', () => ({translateMicrosoftTexts: microsoftMock}));
-vi.mock('@/src/providers/translation/deeplx', () => ({translateDeepLXText: deeplxMock}));
+vi.mock('@/src/providers/translation/free-official-web', () => ({translateOfficialFreeWebProvider: officialMock}));
 vi.mock('@/src/providers/translation/google', () => ({translateGoogleText: googleMock}));
 vi.mock('@/src/providers/translation/mymemory', () => ({default: myMemoryMock}));
 vi.mock('@/src/providers/translation/free-web', () => ({translateFreeWebText: webMock}));
@@ -59,10 +59,10 @@ beforeEach(async () => {
         token: {}, proxy: {}, model: {}, customModel: {},
         freeTranslationTimeoutMs: 1_000, freeTranslationCooldownMs: 1_000,
         freeTranslationMode: 'sequential',
-        freeTranslationOrder: ['microsoft', 'deeplx', 'google', 'myMemory'],
+        freeTranslationOrder: ['microsoft', 'alibabaFree', 'google', 'myMemory'],
         myMemoryEmail: '', deeplx: 'https://deeplx.example/translate',
     });
-    for (const mock of [microsoftMock, deeplxMock, googleMock, myMemoryMock, chineseMock, extraMock]) {
+    for (const mock of [microsoftMock, officialMock, googleMock, myMemoryMock, chineseMock, extraMock]) {
         mock.mockRejectedValue(httpFailure());
     }
     ({default: freeTranslation, FREE_TRANSLATION_BATCH_CONCURRENCY, getFreeTranslationWeightSnapshot, translateFreeTranslationProvider}
@@ -76,13 +76,14 @@ describe('免费翻译服务', () => {
     it.each(FREE_TRANSLATION_PROVIDERS)('单服务检查直接使用 $id 匿名适配器，即使没有开启', async ({id}) => {
         mockConfig.freeTranslationOrder = ['microsoft'];
         microsoftMock.mockResolvedValue(['有效译文']);
-        for (const mock of [deeplxMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock]) mock.mockResolvedValue('有效译文');
+        for (const mock of [officialMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock]) mock.mockResolvedValue('有效译文');
         await expect(translateFreeTranslationProvider(id, {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'})).resolves.toBe('有效译文');
-        const calls = [microsoftMock, deeplxMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock].reduce((total, mock) => total + mock.mock.calls.length, 0);
+        const calls = [microsoftMock, officialMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock].reduce((total, mock) => total + mock.mock.calls.length, 0);
         expect(calls).toBe(1);
         const families = {transmart: webMock, yandexFree: webMock, volcengineFree: webMock, youdaoFree: chineseMock, icibaFree: chineseMock,
-            sogouFree: extraMock, reversoFree: extraMock, lingvaFree: extraMock, apertiumFree: extraMock};
+            sogouFree: extraMock, reversoFree: extraMock, apertiumFree: extraMock};
         if (id in families) expect(families[id as keyof typeof families]).toHaveBeenCalledWith(id, 'Hello from FluentRead.', 'en', 'zh-Hans', undefined);
+        if (['alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree'].includes(id)) expect(officialMock).toHaveBeenCalledWith(id, expect.objectContaining({origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'}));
         expect(mockConfig.freeTranslationOrder).toEqual(['microsoft']);
     });
 
@@ -90,32 +91,32 @@ describe('免费翻译服务', () => {
         mockConfig.token = {deeplx: 'saved-private-key'};
         mockConfig.proxy = {deeplx: 'https://private.example'};
         mockConfig.deeplx = 'https://private.example/translate';
-        deeplxMock.mockResolvedValueOnce('有效译文');
-        await translateFreeTranslationProvider('deeplx', {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'});
-        const snapshot = getTranslationProviderConfig(deeplxMock.mock.calls[0][2], mockConfig as any);
+        officialMock.mockResolvedValueOnce('有效译文');
+        await translateFreeTranslationProvider('alibabaFree', {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'});
+        const snapshot = getTranslationProviderConfig(officialMock.mock.calls[0][1], mockConfig as any);
         expect(snapshot.token).toEqual({});
         expect(snapshot.proxy).toEqual({});
         expect(snapshot.deeplx).toBe(DEFAULT_DEEPLX_ENDPOINT);
         microsoftMock.mockResolvedValue(['备用译文']);
-        deeplxMock.mockRejectedValueOnce(new Error('服务不可用'));
-        await expect(translateFreeTranslationProvider('deeplx', {origin: 'Hello', targetLanguage: 'zh-Hans'})).rejects.toThrow('服务不可用');
+        officialMock.mockRejectedValueOnce(new Error('服务不可用'));
+        await expect(translateFreeTranslationProvider('alibabaFree', {origin: 'Hello', targetLanguage: 'zh-Hans'})).rejects.toThrow('服务不可用');
         const echoed = 'The software translates this paragraph with a fast backup when the first service is slow.';
-        deeplxMock.mockResolvedValueOnce(echoed);
-        await expect(translateFreeTranslationProvider('deeplx', {origin: echoed, targetLanguage: 'zh-Hans'})).rejects.toThrow();
+        officialMock.mockResolvedValueOnce(echoed);
+        await expect(translateFreeTranslationProvider('alibabaFree', {origin: echoed, targetLanguage: 'zh-Hans'})).rejects.toThrow();
         await expect(translateFreeTranslationProvider('unknown', {origin: 'Hello'})).rejects.toThrow('无效的免费翻译服务');
         expect(microsoftMock).not.toHaveBeenCalled();
     });
-    it('保留微软、DeepLX、谷歌优先顺序并新增 MyMemory 官方后备', async () => {
-        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx', 'google', 'myMemory'];
+    it('保留微软、阿里翻译、谷歌优先顺序并新增 MyMemory 官方后备', async () => {
+        mockConfig.freeTranslationOrder = ['microsoft', 'alibabaFree', 'google', 'myMemory'];
         const calls: string[] = [];
         microsoftMock.mockImplementation(async () => { calls.push('microsoft'); throw httpFailure(); });
-        deeplxMock.mockImplementation(async () => { calls.push('deeplx'); throw httpFailure(); });
+        officialMock.mockImplementation(async () => { calls.push('alibabaFree'); throw httpFailure(); });
         googleMock.mockImplementation(async () => { calls.push('google'); throw httpFailure(); });
         myMemoryMock.mockImplementation(async () => { calls.push('myMemory'); return '官方译文'; });
         await expect(settle(translateFreeText('Hello'))).resolves.toBe('官方译文');
-        expect(calls).toEqual(['microsoft', 'deeplx', 'google', 'myMemory']);
+        expect(calls).toEqual(['microsoft', 'alibabaFree', 'google', 'myMemory']);
         expect(microsoftMock).toHaveBeenCalledWith(['Hello'], 'auto', 'zh-Hans', expect.any(AbortSignal));
-        expect(deeplxMock).toHaveBeenCalledWith('Hello', 'deeplx', expect.objectContaining({sourceLanguage: 'auto', targetLanguage: 'zh-Hans'}));
+        expect(officialMock).toHaveBeenCalledWith('alibabaFree', expect.objectContaining({origin: 'Hello', sourceLanguage: 'auto', targetLanguage: 'zh-Hans'}));
         expect(myMemoryMock).toHaveBeenCalledWith(expect.objectContaining({origin: 'Hello', serviceOverride: 'myMemory', abortSignal: expect.any(AbortSignal)}));
     });
 
@@ -123,14 +124,14 @@ describe('免费翻译服务', () => {
         const {attachTranslationRouteObserver} = await import('@/src/services/translation/requestSnapshot');
         const observations: Array<Record<string, unknown>> = [];
         microsoftMock.mockRejectedValue(httpFailure());
-        deeplxMock.mockResolvedValue('DeepLX 译文');
+        officialMock.mockResolvedValue('阿里翻译 译文');
         const message = attachTranslationRouteObserver({origin: 'Hello route'}, observation => observations.push({...observation}));
 
-        await expect(settle(freeTranslation(message) as Promise<string>)).resolves.toBe('DeepLX 译文');
+        await expect(settle(freeTranslation(message) as Promise<string>)).resolves.toBe('阿里翻译 译文');
 
         expect(observations).toEqual([
             {route: 'microsoft', outcome: 'error', durationMs: expect.any(Number), chars: 11},
-            {route: 'deeplx', outcome: 'success', durationMs: expect.any(Number), chars: 11},
+            {route: 'alibabaFree', outcome: 'success', durationMs: expect.any(Number), chars: 11},
         ]);
     });
 
@@ -138,7 +139,7 @@ describe('免费翻译服务', () => {
         microsoftMock.mockResolvedValue(['微软译文']);
         await expect(settle(freeTranslation({origin: 'Hello'}))).resolves.toBe('微软译文');
         expect(microsoftMock).toHaveBeenCalledOnce();
-        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(officialMock).not.toHaveBeenCalled();
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
@@ -147,35 +148,35 @@ describe('免费翻译服务', () => {
         microsoftMock.mockResolvedValue([url]);
         await expect(settle(freeTranslation({origin: [url]}))).resolves.toEqual([url]);
         expect(microsoftMock).toHaveBeenCalledOnce();
-        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(officialMock).not.toHaveBeenCalled();
         expect(googleMock).not.toHaveBeenCalled();
         expect(myMemoryMock).not.toHaveBeenCalled();
     });
 
     it('中文目标遇到整段日文时换线，后续段落仍可使用原线路', async () => {
-        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
+        mockConfig.freeTranslationOrder = ['microsoft', 'alibabaFree'];
         const japanese = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
         microsoftMock.mockResolvedValueOnce([japanese]).mockResolvedValueOnce(['下一段的中文译文']);
-        deeplxMock.mockResolvedValue('这个文件的首字母也有限制。');
+        officialMock.mockResolvedValue('这个文件的首字母也有限制。');
         const origin = 'There are also restrictions on the first character of this file.';
 
         await expect(settle(translateFreeText(origin))).resolves.toBe('这个文件的首字母也有限制。');
         await expect(settle(translateFreeText('The next paragraph has different text.'))).resolves.toBe('下一段的中文译文');
         expect(microsoftMock).toHaveBeenCalledTimes(2);
-        expect(deeplxMock).toHaveBeenCalledOnce();
+        expect(officialMock).toHaveBeenCalledOnce();
     });
 
     it('英文标签列表被线路原样返回时换用后备服务，且不把该线路全局冷却', async () => {
-        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
+        mockConfig.freeTranslationOrder = ['microsoft', 'alibabaFree'];
         const tags = 'solo, blush, smile, bangs, looking_at_viewer, long_hair, blue_eyes';
         microsoftMock.mockImplementation(async ([text]) => [text]);
-        deeplxMock.mockResolvedValue('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
+        officialMock.mockResolvedValue('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
 
         await expect(settle(translateFreeText(tags))).resolves.toBe('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
         await expect(settle(translateFreeText('solo, blush, smile, bangs, long_hair, blue_eyes, white_dress')))
             .resolves.toBe('单人，脸红，微笑，刘海，看向观众，长发，蓝眼睛');
         expect(microsoftMock).toHaveBeenCalledTimes(2);
-        expect(deeplxMock).toHaveBeenCalledTimes(2);
+        expect(officialMock).toHaveBeenCalledTimes(2);
     });
 
     it('短英文标题被线路原样返回时换用后备服务', async () => {
@@ -194,7 +195,7 @@ describe('免费翻译服务', () => {
         myMemoryMock.mockResolvedValue('MyMemory');
         await expect(settle(translateFreeText('Hello'))).resolves.toBe('MyMemory');
         expect(microsoftMock).not.toHaveBeenCalled();
-        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(officialMock).not.toHaveBeenCalled();
         expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['myMemory', 'microsoft']);
         expect(readSnapshot(myMemoryMock.mock.calls[0][0]).token).toEqual({});
     });
@@ -204,12 +205,12 @@ describe('免费翻译服务', () => {
         mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx'};
         myMemoryMock.mockResolvedValue('备用');
         await expect(settle(translateFreeText('Hello'))).resolves.toBe('备用');
-        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'lingvaFree', 'apertiumFree']);
+        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree']);
     });
 
     it('上游挂起时局部超时继续降级，下一段跳过正在冷却的上游', async () => {
         microsoftMock.mockImplementation(() => new Promise(() => {}));
-        deeplxMock.mockResolvedValue('备用');
+        officialMock.mockResolvedValue('备用');
         const first = translateFreeText('Hello');
         await vi.advanceTimersByTimeAsync(1_000);
         await expect(first).resolves.toBe('备用');
@@ -226,16 +227,16 @@ describe('免费翻译服务', () => {
         microsoftMock.mockResolvedValue(['']);
         googleMock.mockRejectedValue(httpFailure(429));
         const request = translateFreeText('private source text');
-        await expect(request).rejects.toThrow('微软翻译: 未返回有效译文；DeepLX: HTTP 503；谷歌翻译: HTTP 429；MyMemory: HTTP 503');
+        await expect(request).rejects.toThrow('微软翻译: 未返回有效译文；阿里翻译: HTTP 503；谷歌翻译: HTTP 429；MyMemory: HTTP 503');
         await expect(request).rejects.not.toThrow('private');
     });
 
     it('请求启动后修改全局顺序、语言、凭据和端点不影响在途降级', async () => {
         let rejectFirst!: (error: Error) => void;
         microsoftMock.mockImplementation(() => new Promise((_resolve, reject) => { rejectFirst = reject; }));
-        deeplxMock.mockResolvedValue('原配置译文');
+        officialMock.mockResolvedValue('原配置译文');
         mockConfig.token.deeplx = 'original-key';
-        mockConfig.freeTranslationOrder = ['microsoft', 'deeplx'];
+        mockConfig.freeTranslationOrder = ['microsoft', 'alibabaFree'];
         const request = translateFreeText('Hello');
         await flush();
         mockConfig.token.deeplx = 'new-key';
@@ -245,11 +246,11 @@ describe('免费翻译服务', () => {
         mockConfig.freeTranslationOrder.splice(0, 2, 'google');
         rejectFirst(httpFailure());
         await expect(request).resolves.toBe('原配置译文');
-        const fallbackRequest = deeplxMock.mock.calls[0][2];
+        const fallbackRequest = officialMock.mock.calls[0][1];
         expect(fallbackRequest).toMatchObject({sourceLanguage: 'auto', targetLanguage: 'zh-Hans'});
         expect(readSnapshot(fallbackRequest)).toMatchObject({
             token: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT,
-            freeTranslationOrder: ['microsoft', 'deeplx'],
+            freeTranslationOrder: ['microsoft', 'alibabaFree'],
         });
         expect(Object.isFrozen(readSnapshot(fallbackRequest).freeTranslationOrder)).toBe(true);
         expect(googleMock).not.toHaveBeenCalled();
@@ -289,10 +290,10 @@ describe('免费翻译服务', () => {
         expect(myMemoryMock).toHaveBeenCalledTimes(2);
     });
 
-    it.each(['token', 'endpoint', 'proxy'])('更换独立 DeepLX 的%s 不改变免费链的匿名连接或冷却状态', async changed => {
-        mockConfig.freeTranslationOrder = ['deeplx', 'google'];
+    it.each(['token', 'endpoint', 'proxy'])('更换独立 阿里翻译 的%s 不改变免费链的匿名连接或冷却状态', async changed => {
+        mockConfig.freeTranslationOrder = ['alibabaFree', 'google'];
         mockConfig.token.deeplx = 'old-key';
-        deeplxMock.mockRejectedValue(httpFailure(429));
+        officialMock.mockRejectedValue(httpFailure(429));
         googleMock.mockResolvedValue('备用');
         await expect(settle(translateFreeText('one'))).resolves.toBe('备用');
         await expect(settle(translateFreeText('two'))).resolves.toBe('备用');
@@ -300,72 +301,26 @@ describe('免费翻译服务', () => {
         else if (changed === 'endpoint') mockConfig.deeplx = 'https://new.example/translate';
         else mockConfig.proxy.deeplx = 'https://proxy.example/translate';
         await expect(settle(translateFreeText('three'))).resolves.toBe('备用');
-        expect(deeplxMock).toHaveBeenCalledOnce();
+        expect(officialMock).toHaveBeenCalledOnce();
     });
 
-    it('已保存的 DeepLX 代理及默认地址都不会绕过匿名公共接口的冷却', async () => {
-        mockConfig.freeTranslationOrder = ['deeplx', 'google'];
+    it('已保存的 阿里翻译 代理及默认地址都不会绕过匿名公共接口的冷却', async () => {
+        mockConfig.freeTranslationOrder = ['alibabaFree', 'google'];
         mockConfig.proxy.deeplx = 'https://active.example/translate';
-        deeplxMock.mockRejectedValue(httpFailure(429));
+        officialMock.mockRejectedValue(httpFailure(429));
         googleMock.mockResolvedValue('备用');
         await expect(settle(translateFreeText('one'))).resolves.toBe('备用');
         mockConfig.deeplx = 'https://unused.example/translate';
         await expect(settle(translateFreeText('two'))).resolves.toBe('备用');
-        expect(deeplxMock).toHaveBeenCalledOnce();
+        expect(officialMock).toHaveBeenCalledOnce();
     });
 
-    it.each([
-        ['direct', 'single'], ['direct', 'batch'], ['broker', 'single'], ['broker', 'batch'],
-    ])('%s入口的%s翻译真实请求只访问匿名 DeepLX，历史凭据与代理完全隔离', async (entrypoint, mode) => {
-        const actual = await vi.importActual<typeof import('@/src/providers/translation/deeplx')>('@/src/providers/translation/deeplx');
-        deeplxMock.mockImplementation(actual.translateDeepLXText);
-        mockConfig.freeTranslationOrder = ['deeplx'];
-        mockConfig.deeplx = 'https://private.example/{{apiKey}}/translate';
-        mockConfig.proxy = {deeplx: 'https://proxy.example/translate?token=proxy-secret'};
-        mockConfig.token = {deeplx: 'deeplx-secret', deepL: 'deepl-secret:fx', azureTranslator: 'azure-secret'};
-        mockConfig.youdaoAppSecret = 'youdao-secret';
-        mockConfig.secret = {aliyunTranslation: 'cloud-secret'};
-        mockConfig.customHeaders = {deeplx: '{"Authorization":"private-header"}'};
-        mockConfig.tencentSecretKey = 'tencent-secret';
-        const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => ({
-            ok: true,
-            status: 200,
-            text: async () => JSON.stringify({code: 200, data: `译:${JSON.parse(String(init?.body)).text}`}),
-        } as Response));
-        vi.stubGlobal('fetch', fetchMock);
-        const origin = mode === 'batch' ? ['Hello', 'World'] : 'Hello';
-        const message = {origin, sourceLanguage: 'en', targetLanguage: 'zh-Hans'};
-        const request = entrypoint === 'broker'
-            ? attachTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mockConfig as TranslationConfigSource))
-            : message;
-        await expect(settle(freeTranslation(request))).resolves.toEqual(mode === 'batch' ? ['译:Hello', '译:World'] : '译:Hello');
-        expect(fetchMock).toHaveBeenCalledTimes(mode === 'batch' ? 2 : 1);
-        for (const [url, init] of fetchMock.mock.calls) {
-            expect(url).toBe(DEFAULT_DEEPLX_ENDPOINT);
-            expect(init?.headers).toEqual({'Content-Type': 'application/json'});
-            expect(JSON.stringify([url, init?.headers, init?.body])).not.toMatch(/secret|private\.example|proxy\.example/u);
-            expect(init?.signal).toBeInstanceOf(AbortSignal);
-        }
-        const local = readSnapshot(deeplxMock.mock.calls[0][2]);
-        expect(local).toMatchObject({token: {}, secret: {}, customHeaders: {}, proxy: {}, deeplx: DEFAULT_DEEPLX_ENDPOINT, youdaoAppSecret: '', tencentSecretKey: ''});
-        expect(Object.isFrozen(local.token)).toBe(true);
-        expect(mockConfig.token.deeplx).toBe('deeplx-secret');
-        expect(mockConfig.proxy.deeplx).toBe('https://proxy.example/translate?token=proxy-secret');
-        expect(mockConfig.deeplx).toBe('https://private.example/{{apiKey}}/translate');
-    });
-
-    it('匿名网络失败的错误仍不泄漏历史凭据、代理地址或原文', async () => {
-        const actual = await vi.importActual<typeof import('@/src/providers/translation/deeplx')>('@/src/providers/translation/deeplx');
-        deeplxMock.mockImplementation(actual.translateDeepLXText);
-        mockConfig.freeTranslationOrder = ['deeplx'];
-        mockConfig.token.deeplx = 'stored-secret';
-        mockConfig.proxy.deeplx = 'https://private.example/stored-secret';
-        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private original https://private.example/stored-secret')));
-        const request = translateFreeText('private original');
-        await expect(request).rejects.toThrow('DeepLX: 请求失败');
-        await expect(request).rejects.not.toThrow('stored-secret');
-        await expect(request).rejects.not.toThrow('private.example');
-        await expect(request).rejects.not.toThrow('private original');
+    it.each(['deeplx', 'lingvaFree'])('第三方旧节点 %s 不会参与检查或已保存的免费顺序', async id => {
+        mockConfig.freeTranslationOrder = [id, 'google'];
+        googleMock.mockResolvedValue('官方译文');
+        await expect(settle(translateFreeText('Hello'))).resolves.toBe('官方译文');
+        await expect(translateFreeTranslationProvider(id, {origin: 'Hello'})).rejects.toThrow('无效的免费翻译服务');
+        expect(officialMock).not.toHaveBeenCalled();
     });
 
     it('single-provider batches respect Microsoft concurrency and spacing while preserving output order', async () => {
@@ -396,7 +351,7 @@ describe('免费翻译服务', () => {
         pending[4].resolve(['译:E']);
         await expect(request).resolves.toEqual(['译:A', '译:B', '译:C', '译:D', '译:E', '译:F']);
         expect(maximum).toBe(2);
-        expect(FREE_TRANSLATION_BATCH_CONCURRENCY).toBe(3);
+        expect(FREE_TRANSLATION_BATCH_CONCURRENCY).toBe(6);
     });
 
     it('a shared batch deadline includes pacing and prevents later segments starting', async () => {
@@ -413,16 +368,16 @@ describe('免费翻译服务', () => {
         await vi.advanceTimersByTimeAsync(200);
         await assertion;
         expect(microsoftMock).toHaveBeenCalledTimes(3);
-        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(officialMock).not.toHaveBeenCalled();
         expect(vi.getTimerCount()).toBe(0);
     });
 
     it('批量遇限流后后续段跳过失败服务，保序翻译', async () => {
         microsoftMock.mockRejectedValue(httpFailure(429));
-        deeplxMock.mockImplementation(async (text: string) => `译:${text}`);
+        officialMock.mockImplementation(async (_id: string, request: {origin: string}) => `译:${request.origin}`);
         await expect(settle(freeTranslation({origin: ['A', 'B', 'C', 'D', 'E']}))).resolves.toEqual(['译:A', '译:B', '译:C', '译:D', '译:E']);
         expect(microsoftMock).toHaveBeenCalledTimes(1);
-        expect(deeplxMock).toHaveBeenCalledTimes(5);
+        expect(officialMock).toHaveBeenCalledTimes(5);
     });
 
     it('调用方取消中止所有在途 worker，不启动未领取段落、不继续降级', async () => {
@@ -436,7 +391,7 @@ describe('免费翻译服务', () => {
         await assertion;
         expect(microsoftMock).toHaveBeenCalledTimes(2);
         expect(microsoftMock.mock.calls.every(call => call[3].aborted)).toBe(true);
-        expect(deeplxMock).not.toHaveBeenCalled();
+        expect(officialMock).not.toHaveBeenCalled();
         microsoftMock.mockResolvedValue(['恢复']);
         await expect(settle(translateFreeText('next'))).resolves.toBe('恢复');
     });
@@ -446,7 +401,7 @@ describe('免费翻译服务', () => {
         await expect(settle(freeTranslation({origin: ['bad', 'slow-1', 'slow-2', 'not-started']}))).rejects.toThrow('免费翻译服务均不可用');
         expect(microsoftMock).toHaveBeenCalledTimes(1);
         expect(microsoftMock.mock.calls.slice(1).every(call => call[3].aborted)).toBe(true);
-        expect(deeplxMock).toHaveBeenCalledOnce();
+        expect(officialMock).toHaveBeenCalledOnce();
         expect(googleMock).toHaveBeenCalledOnce();
         expect(myMemoryMock).toHaveBeenCalledOnce();
     });
@@ -460,9 +415,9 @@ describe('免费翻译服务', () => {
     });
 
     it.each([{sourceLanguage: 'en'}, {targetLanguage: 'ja'}])('显式语言覆盖传入每个备用 provider %#', async languages => {
-        deeplxMock.mockResolvedValue('译文');
+        officialMock.mockResolvedValue('译文');
         await expect(settle(translateFreeText('Hello', languages))).resolves.toBe('译文');
-        expect(deeplxMock.mock.calls[0][2]).toMatchObject(languages);
+        expect(officialMock.mock.calls[0][1]).toMatchObject(languages);
     });
 
     it('空批量直接返回并拒绝非文本输入', async () => {
@@ -497,7 +452,7 @@ it('maps background health to the enabled services of the current settings for t
     expect(byId.get('google')).toMatchObject({status: 'ready'});
     expect(byId.get('google')!.weight).toBeGreaterThan(0);
     expect(byId.get('myMemory')).toMatchObject({status: 'ready'});
-    expect(byId.get('deeplx')).toMatchObject({weight: 0, status: 'disabled'});
+    expect(byId.get('alibabaFree')).toMatchObject({weight: 0, status: 'disabled'});
     expect(JSON.stringify(snapshot)).not.toMatch(/[a-f0-9]{64}|old@example\.com/u);
 
     // MyMemory 邮箱属于连接身份；换邮箱后不能把旧身份的健康记录展示给新配置。
@@ -529,7 +484,7 @@ it('falls back and cools down a failed new route while keeping language errors r
 
 it.each([
     ['youdaoFree', 'chinese'], ['icibaFree', 'chinese'],
-    ['sogouFree', 'extra'], ['reversoFree', 'extra'], ['lingvaFree', 'extra'], ['apertiumFree', 'extra'],
+    ['sogouFree', 'extra'], ['reversoFree', 'extra'], ['apertiumFree', 'extra'],
 ] as const)('routes %s through the dedicated adapter with frozen language and cancellation', async (id, kind) => {
     mockConfig.freeTranslationOrder = [id];
     const mock = kind === 'chinese' ? chineseMock : extraMock;
@@ -554,4 +509,84 @@ it('passes balanced mode while excluding supplied manual weights from the frozen
     expect(mockConfig.freeTranslationWeights).toEqual({microsoft: 7, sogouFree: 2});
     expect(Object.isFrozen(snapshot.freeTranslationOrder)).toBe(true);
     expect(snapshot).not.toHaveProperty('freeTranslationWeights');
+});
+
+
+it('六家官方节点同时分担不同段落，任务上限和输出顺序保持有界', async () => {
+    mockConfig.freeTranslationMode = 'balanced';
+    mockConfig.freeTranslationOrder = ['microsoft', 'transmart', 'google', 'alibabaFree', 'modernMtFree', 'laraFree'];
+    const running: Array<{id: string; text: string; resolve: () => void}> = [];
+    let active = 0;
+    let maximum = 0;
+    const pending = (id: string, text: string, array = false) => new Promise(resolve => {
+        active++; maximum = Math.max(maximum, active);
+        running.push({id, text, resolve: () => {active--; resolve(array ? [`译:${text}`] : `译:${text}`);}});
+    });
+    microsoftMock.mockImplementation(([text]: string[]) => pending('microsoft', text, true));
+    googleMock.mockImplementation(text => pending('google', text));
+    webMock.mockImplementation((id, text) => pending(id, text));
+    officialMock.mockImplementation((id, request) => pending(id, request.origin));
+    const texts = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    const request = freeTranslation({origin: texts});
+    await flush();
+    expect(running).toHaveLength(6);
+    expect(new Set(running.map(item => item.id)).size).toBe(6);
+    expect(running.map(item => item.text)).toEqual(texts.slice(0, 6));
+    running.splice(0).reverse().forEach(item => item.resolve());
+    await vi.advanceTimersByTimeAsync(1000);
+    running.splice(0).reverse().forEach(item => item.resolve());
+    await expect(settle(request)).resolves.toEqual(texts.map(text => `译:${text}`));
+    expect(maximum).toBe(6);
+    expect(vi.getTimerCount()).toBe(0);
+});
+
+it('取消同时停止六家节点，不继续领取队列中的段落', async () => {
+    mockConfig.freeTranslationMode = 'balanced';
+    mockConfig.freeTranslationOrder = ['microsoft', 'transmart', 'google', 'alibabaFree', 'modernMtFree', 'laraFree'];
+    const signals: AbortSignal[] = [];
+    const pending = (signal: AbortSignal) => {signals.push(signal); return new Promise(() => {});};
+    microsoftMock.mockImplementation((_texts, _from, _to, signal) => pending(signal));
+    googleMock.mockImplementation((_text, _from, _to, signal) => pending(signal));
+    webMock.mockImplementation((_id, _text, _from, _to, signal) => pending(signal));
+    officialMock.mockImplementation((_id, request) => pending(request.abortSignal));
+    const caller = new AbortController();
+    const request = freeTranslation({origin: ['A', 'B', 'C', 'D', 'E', 'F', 'queued'], abortSignal: caller.signal});
+    const assertion = expect(request).rejects.toMatchObject({name: 'AbortError'});
+    await flush();
+    expect(signals).toHaveLength(6);
+    caller.abort();
+    await assertion;
+    expect(signals).toHaveLength(6);
+    expect(signals.every(signal => signal.aborted)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+});
+
+it.each([
+    ['direct', 'single'], ['direct', 'batch'], ['broker', 'single'], ['broker', 'batch'],
+])('%s 的 %s 免费翻译实际只请求官方阿里节点，隔离历史凭据和私有代理', async (entrypoint, mode) => {
+    const actual = await vi.importActual<typeof import('@/src/providers/translation/free-official-web')>('@/src/providers/translation/free-official-web');
+    officialMock.mockImplementation(actual.translateOfficialFreeWebProvider);
+    mockConfig.freeTranslationOrder = ['alibabaFree'];
+    mockConfig.token = {deeplx: 'stored-secret', aliyunTranslation: 'cloud-secret'};
+    mockConfig.proxy = {deeplx: 'https://private.example/secret', aliyunTranslation: 'https://proxy.example/secret'};
+    mockConfig.customHeaders = {aliyunTranslation: '{"Authorization":"private-header"}'};
+    mockConfig.secret = {aliyunTranslation: 'private-cloud-secret'};
+    const fetchMock = vi.fn(async (url, init) => String(url).endsWith('/csrftoken')
+        ? Response.json({token: 'anonymous-csrf', headerName: 'X-XSRF-TOKEN_PROPERTY_ITEM'})
+        : Response.json({success: true, data: {translateText: `译:${(init.body as FormData).get('query')}`}}));
+    vi.stubGlobal('fetch', fetchMock);
+    const origin = mode === 'batch' ? ['Hello', 'World'] : 'Hello';
+    const message = {origin, sourceLanguage: 'en', targetLanguage: 'zh-Hans'};
+    const request = entrypoint === 'broker'
+        ? attachTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(mockConfig as TranslationConfigSource)) : message;
+    await expect(settle(freeTranslation(request))).resolves.toEqual(mode === 'batch' ? ['译:Hello', '译:World'] : '译:Hello');
+    expect(fetchMock).toHaveBeenCalledTimes(mode === 'batch' ? 4 : 2);
+    for (const [url, init] of fetchMock.mock.calls) {
+        expect(new URL(String(url)).hostname).toBe('translate.alibaba.com');
+        expect(init.credentials).toBe('omit');
+        const body = init.body instanceof FormData ? Object.fromEntries(init.body.entries()) : init.body;
+        expect(JSON.stringify([url, init.headers, body])).not.toMatch(/stored-secret|private|proxy\.example|cloud-secret/u);
+    }
+    expect(readSnapshot(officialMock.mock.calls[0][1])).toMatchObject({token: {}, secret: {}, proxy: {}, customHeaders: {}});
+    expect(mockConfig.token.deeplx).toBe('stored-secret');
 });

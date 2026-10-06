@@ -49,7 +49,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     });
     for (let i = 0; i < 100 && !(await readConfig())?.service; i++) await wait(100);
     const patch = {uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, on: true, service: 'freeTranslation', from: 'en', to: 'zh-Hans',
-      freeTranslationMode: 'balanced', freeTranslationOrder: live ? ['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'deeplx', 'myMemory'] : ['microsoft', 'transmart'], freeTranslationTimeoutMs: 5000,
+      freeTranslationMode: 'balanced', freeTranslationOrder: live ? ['alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree'] : ['microsoft', 'transmart'], freeTranslationTimeoutMs: 5000,
       translationMaxRetries: 3, display: 1, useCache: true, autoTranslate: false, hotkey: 'Control', mouseHoverTranslationDelay: 0,
       selectionTranslatorMode: 'disabled', disableSelectionTranslator: true, floatingBall: false, enableAIContext: false, glossaryEnabled: false};
     const existing = await readConfig();
@@ -58,6 +58,12 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     assert.equal(saved.success, true);
     for (let i = 0; i < 100 && (await readConfig()).freeTranslationOrder.length !== patch.freeTranslationOrder.length; i++) await wait(100);
     if (live) {
+      report.liveProviders = [];
+      for (const id of ['alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree']) {
+        const result = await popup.evaluate(freeProviderId => chrome.runtime.sendMessage({type: 'testTranslationService', service: 'freeTranslation', freeProviderId}), id);
+        report.liveProviders.push({id, ...result});
+        assert.equal(result.success, true, `${id}: ${result.error || 'connection failed'}`);
+      }
       const article = await createPage(`http://127.0.0.1:${server.address().port}/live`);
       await article.locator('#fluent-read-page-styles').waitFor({state: 'attached'});
       const primary = article.locator('#primary');
@@ -137,7 +143,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     await settings.locator('button[data-section="settings-services"]').click();
     await settings.getByRole('radio', {name: '智能加速', exact: true}).waitFor();
     assert.equal(await settings.locator('[data-free-translation-settings] details').count(), 0);
-    assert.equal(await settings.locator('[data-fallback-provider]').count(), 13);
+    assert.equal(await settings.locator('[data-fallback-provider]').count(), 15);
     assert.equal(await settings.locator('[data-provider-weight]').first().isVisible(), true);
     await settings.locator('[data-weight-total="100"]').waitFor();
     report.allServicesAndAllocationVisible = true;

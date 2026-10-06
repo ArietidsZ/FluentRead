@@ -6,11 +6,11 @@
  */
 import {sha256Hex} from '@/src/shared/function/sha256';
 import {translateMicrosoftTexts} from './microsoft';
-import {translateDeepLXText} from './deeplx';
 import {translateGoogleText} from './google';
 import {translateFreeWebText} from './free-web';
 import {translateFreeChineseWebText} from './free-chinese-web';
 import {translateExtraFreeWebText} from './free-extra-web';
+import {translateOfficialFreeWebProvider} from './free-official-web';
 import myMemory from './mymemory';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
@@ -44,14 +44,13 @@ const FREE_TRANSLATION_DEADLINE = Symbol('free-translation-deadline');
 type PreparedRequest = FreeTranslationRequest & {readonly [FREE_TRANSLATION_DEADLINE]?: number};
 type FreeProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
 
-export const FREE_TRANSLATION_BATCH_CONCURRENCY = 3;
+export const FREE_TRANSLATION_BATCH_CONCURRENCY = 6;
 const runFallback = createFreeFallbackRunner(FREE_TRANSLATION_BATCH_CONCURRENCY, {persistence: freeTranslationHealthStorage});
 const providerTranslators: Record<FreeProviderId, (request: TranslationProviderRequest<string>) => Promise<unknown>> = {
     microsoft: async request => {
         const results = await translateMicrosoftTexts([request.origin], request.sourceLanguage!, request.targetLanguage!, request.abortSignal);
         return results[0];
     },
-    deeplx: request => translateDeepLXText(request.origin, services.deeplx, request),
     google: request => translateGoogleText(request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     myMemory,
     transmart: request => translateFreeWebText('transmart', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
@@ -61,8 +60,11 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     icibaFree: request => translateFreeChineseWebText('icibaFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     sogouFree: request => translateExtraFreeWebText('sogouFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     reversoFree: request => translateExtraFreeWebText('reversoFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
-    lingvaFree: request => translateExtraFreeWebText('lingvaFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     apertiumFree: request => translateExtraFreeWebText('apertiumFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
+    alibabaFree: request => translateOfficialFreeWebProvider('alibabaFree', request),
+    modernMtFree: request => translateOfficialFreeWebProvider('modernMtFree', request),
+    laraFree: request => translateOfficialFreeWebProvider('laraFree', request),
+    lingvanexFree: request => translateOfficialFreeWebProvider('lingvanexFree', request),
 };
 
 async function translateProviderText(id: FreeProviderId, message: TranslationProviderRequest<string>): Promise<unknown> {
@@ -87,7 +89,7 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
     const current = createTranslationProviderConfigSnapshot({
         ...getTranslationProviderConfig(message, config),
         // 免费链仅使用匿名公共服务，不能沿用独立 provider 已保存的 Key 或代理。
-        // 局部脱敏快照继续传给 DeepLX；用户的独立 DeepLX 配置保持原样。
+        // 独立服务的凭据和代理不进入免费池，DeepLX 只保留独立服务用途。
         token: {},
         secret: {},
         customHeaders: {},
@@ -113,9 +115,7 @@ function prepareRequest(message: FreeTranslationRequest): PreparedRequest {
 function providerIdentity(id: string, current: TranslationProviderConfigSnapshot): string {
     // 微软/谷歌 ID 唯一对应固定匿名接口；只哈希公共端点及 MyMemory 可选邮箱。
     // 已保存的 Key、代理和独立 DeepLX 地址均不能改变免费链的连接或冷却身份。
-    const connection = id === services.deeplx
-        ? [DEFAULT_DEEPLX_ENDPOINT]
-        : id === services.myMemory ? [urls[id], current.myMemoryEmail] : [id];
+    const connection = id === services.myMemory ? [urls[id], current.myMemoryEmail] : [id];
     return `${id}:${sha256Hex(JSON.stringify(connection))}`;
 }
 
@@ -152,7 +152,7 @@ function candidatesFor(text: string, message: PreparedRequest): {
             label: provider.label,
             weight: provider.defaultWeight,
             maxConcurrency: id === 'microsoft' ? 2 : 1,
-            minIntervalMs: id === 'microsoft' ? 100 : id === 'myMemory' || id === 'deeplx' ? 1000 : 300,
+            minIntervalMs: id === 'microsoft' ? 100 : id === 'myMemory' || id === 'laraFree' || id === 'lingvanexFree' ? 1000 : 300,
             translate: (signal: AbortSignal) => translateProviderText(provider.id, {...message, origin: text, abortSignal: signal}),
         };
     });

@@ -57,17 +57,17 @@ describe('翻译服务连接测试', () => {
         const source = Object.assign(new Config(), {freeTranslationTimeoutMs: 1000});
         freeAdapter.mockImplementationOnce(() => new Promise(() => undefined));
         const pending = runTranslationServiceConnectionTest('freeTranslation', {
-            freeProviderId: 'deeplx', config: createTranslationProviderConfigSnapshot(source),
+            freeProviderId: 'alibabaFree', config: createTranslationProviderConfigSnapshot(source),
         });
         const outcome = expect(pending).rejects.toThrow('翻译请求超时');
         await vi.advanceTimersByTimeAsync(1000);
         await outcome;
         expect(freeAdapter.mock.calls.at(-1)![1].abortSignal.aborted).toBe(true);
         freeAdapter.mockRejectedValueOnce(new Error('服务限流'));
-        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'deeplx'})).rejects.toThrow('服务限流');
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'alibabaFree'})).rejects.toThrow('服务限流');
         freeAdapter.mockResolvedValueOnce(CONNECTION_TEST_ORIGIN);
-        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'deeplx'})).rejects.toThrow('未翻译测试文本');
-        await expect(runTranslationServiceConnectionTest('google', {freeProviderId: 'deeplx'})).rejects.toThrow('无效的免费翻译服务');
+        await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'alibabaFree'})).rejects.toThrow('未翻译测试文本');
+        await expect(runTranslationServiceConnectionTest('google', {freeProviderId: 'alibabaFree'})).rejects.toThrow('无效的免费翻译服务');
         await expect(runTranslationServiceConnectionTest('freeTranslation', {freeProviderId: 'unknown'})).rejects.toThrow('无效的免费翻译服务');
     });
     it('指定 Key 的逐项检查仍共享请求调度，不会绕过频率限制', async () => {

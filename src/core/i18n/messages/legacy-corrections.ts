@@ -12,6 +12,9 @@ type LegacyCorrectionRow = readonly [source: string, enUS: string, jaJP: string,
 
 /** 设置页、弹窗、文档页和各功能面板中的标签、按钮与说明。 */
 const correctionRows: readonly LegacyCorrectionRow[] = [
+    ["官方网页接口，无需密钥", "Official web endpoint, no API key required", "公式ウェブ用インターフェース、API キー不要", "공식 웹 인터페이스, API 키 불필요", "Interface web officielle, sans clé API", "Официальный веб-интерфейс, ключ API не нужен", "Interfaz web oficial, sin clave API"],
+    ["阿里翻译", "Alibaba Translate", "Alibaba 翻訳", "Alibaba 번역", "Traduction Alibaba", "Перевод Alibaba", "Traductor Alibaba"],
+
     ["默认跟随网页翻译服务，也可单独选择；AI 服务会提前预取字幕", "Uses the webpage translation service by default, or choose separately. AI services prefetch subtitles.", "既定ではウェブページ翻訳サービスに従いますが、個別にも選択できます。AI サービスは字幕を先読みします。", "기본적으로 웹페이지 번역 서비스를 따르며 별도로 선택할 수도 있습니다. AI 서비스는 자막을 미리 가져옵니다.", "Utilise par défaut le service de la page, ou un choix séparé. Les services IA préchargent les sous-titres.", "По умолчанию используется сервис страницы; можно выбрать другой. Сервисы ИИ предварительно загружают субтитры.", "Usa el servicio de la página por defecto, o elige otro. Los servicios de IA precargan subtítulos."],
     ["图片翻译、圈选翻译、区域翻译、截图、识图、视觉、Shift+Z、OCR、语言包、中文、英文、日文、下载", "Image translation, selection, region translation, screenshots, recognition, vision, Shift+Z, OCR, language packs, Chinese, English, Japanese, download", "画像翻訳、範囲翻訳、領域翻訳、スクリーンショット、画像認識、視覚、Shift+Z、OCR、言語パック、中国語、英語、日本語、ダウンロード", "이미지 번역, 선택 번역, 영역 번역, 스크린샷, 이미지 인식, 비전, Shift+Z, OCR, 언어 팩, 중국어, 영어, 일본어, 다운로드", "Traduction d’images, sélection, régions, captures, reconnaissance, vision, Shift+Z, OCR, langues, chinois, anglais, japonais, téléchargement", "Перевод изображений, выделений, областей, снимки экрана, распознавание, зрение, Shift+Z, OCR, языковые пакеты, китайский, английский, японский, загрузка", "Traducción de imágenes, selección, regiones, capturas, reconocimiento, visión, Shift+Z, OCR, idiomas, chino, inglés, japonés, descarga"],
 

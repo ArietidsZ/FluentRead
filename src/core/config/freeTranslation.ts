@@ -1,24 +1,27 @@
 /**
  * @file src/core/config/freeTranslation.ts
  * 文件职责：定义免费翻译服务池、默认智能加速策略及请求预算的合法范围。
- * 主要内容：维护免密钥目录及默认启用列表（DeepLX 默认停用）、冷启动先验权重、均衡与顺序模式，规范启用列表、超时及可选邮箱；保留已有明确选择，权重由后台根据请求表现动态计算。
+ * 主要内容：维护仅直连供应商的免密钥目录、冷启动权重、均衡与顺序模式，规范启用列表、超时及可选邮箱；迁移时移除第三方代理，保留其余明确选择。
  * 模块边界：本文件只包含纯配置规则，不读取存储、调用供应商或持有请求健康状态；运行时降级由翻译服务编排。
  */
 
+/** official 表示由供应商运营，网页端点不等于有文档或服务保证的公开 API。 */
 export const FREE_TRANSLATION_PROVIDERS = [
-    {id: 'microsoft', label: '微软翻译', description: 'Edge 网页接口，非官方公开 API', official: false, defaultWeight: 5},
-    {id: 'transmart', label: '腾讯交互翻译', description: '免密钥网页接口，与腾讯云翻译不同', official: false, defaultWeight: 3},
-    {id: 'volcengineFree', label: '火山翻译', description: '免密钥网页接口，无需配置火山云账号', official: false, defaultWeight: 3},
-    {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: false, defaultWeight: 3},
-    {id: 'youdaoFree', label: '有道网页翻译', description: '免密钥普通文本翻译，与有道智云不同', official: false, defaultWeight: 3},
-    {id: 'icibaFree', label: '金山词霸', description: '免密钥网页翻译，自动处理网页签名', official: false, defaultWeight: 3},
-    {id: 'yandexFree', label: 'Yandex', description: '免密钥网页接口，暂不支持繁体目标语言', official: false, defaultWeight: 2},
-    {id: 'deeplx', label: 'DeepLX', description: '非官方公共接口，无需密钥', official: false, defaultWeight: 1},
+    {id: 'microsoft', label: '微软翻译', description: 'Edge 网页接口，非官方公开 API', official: true, defaultWeight: 5},
+    {id: 'transmart', label: '腾讯交互翻译', description: '免密钥网页接口，与腾讯云翻译不同', official: true, defaultWeight: 3},
+    {id: 'volcengineFree', label: '火山翻译', description: '免密钥网页接口，无需配置火山云账号', official: true, defaultWeight: 3},
+    {id: 'google', label: '谷歌翻译', description: '网页接口，非官方公开 API', official: true, defaultWeight: 3},
+    {id: 'youdaoFree', label: '有道网页翻译', description: '免密钥普通文本翻译，与有道智云不同', official: true, defaultWeight: 3},
+    {id: 'icibaFree', label: '金山词霸', description: '免密钥网页翻译，自动处理网页签名', official: true, defaultWeight: 3},
+    {id: 'yandexFree', label: 'Yandex', description: '免密钥网页接口，暂不支持繁体目标语言', official: true, defaultWeight: 2},
     {id: 'myMemory', label: 'MyMemory', description: '官方 API，匿名每天 5,000 字符', official: true, defaultWeight: 1},
-    {id: 'sogouFree', label: '搜狗翻译', description: '实验性网页接口，自动处理临时签名', official: false, defaultWeight: 2},
-    {id: 'reversoFree', label: 'Reverso', description: '实验性网页接口，可能触发访问验证', official: false, defaultWeight: 1},
-    {id: 'lingvaFree', label: 'Lingva', description: '实验性公共实例，使用谷歌翻译上游', official: false, defaultWeight: 1},
+    {id: 'sogouFree', label: '搜狗翻译', description: '实验性网页接口，自动处理临时签名', official: true, defaultWeight: 2},
+    {id: 'reversoFree', label: 'Reverso', description: '实验性网页接口，可能触发访问验证', official: true, defaultWeight: 1},
     {id: 'apertiumFree', label: 'Apertium', description: '开放翻译服务，仅支持已提供的语言对，暂无中译', official: true, defaultWeight: 1},
+    {id: 'alibabaFree', label: '阿里翻译', description: '官方网页接口，无需密钥', official: true, defaultWeight: 3},
+    {id: 'modernMtFree', label: 'ModernMT', description: '官方网页接口，无需密钥', official: true, defaultWeight: 2},
+    {id: 'laraFree', label: 'Lara', description: '官方网页接口，无需密钥', official: true, defaultWeight: 2},
+    {id: 'lingvanexFree', label: 'Lingvanex', description: '官方网页接口，无需密钥', official: true, defaultWeight: 2},
 ] as const;
 
 export type FreeTranslationProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
@@ -29,7 +32,7 @@ export function isFreeTranslationProviderId(value: unknown): value is FreeTransl
 
 export type FreeTranslationMode = 'balanced' | 'sequential';
 export const DEFAULT_FREE_TRANSLATION_MODE: FreeTranslationMode = 'balanced';
-export const DEFAULT_FREE_TRANSLATION_ORDER = FREE_TRANSLATION_PROVIDERS.filter(provider => provider.id !== 'deeplx').map(provider => provider.id);
+export const DEFAULT_FREE_TRANSLATION_ORDER = FREE_TRANSLATION_PROVIDERS.map(provider => provider.id);
 export const DEFAULT_FREE_TRANSLATION_TIMEOUT_MS = 5_000;
 export const DEFAULT_FREE_TRANSLATION_COOLDOWN_MS = 60_000;
 export const FREE_TRANSLATION_TOTAL_TIMEOUT_MS = 20_000;

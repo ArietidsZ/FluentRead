@@ -3,7 +3,7 @@ import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
 import {calculateFreeTranslationWeightSnapshot} from '@/src/services/translation/freeWeights';
 
 type FreeProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
-const enabledProviderIds: FreeProviderId[] = FREE_TRANSLATION_PROVIDERS.slice(0, 9).map(provider => provider.id);
+const enabledProviderIds: FreeProviderId[] = FREE_TRANSLATION_PROVIDERS.slice(0, 8).map(provider => provider.id);
 const enabledProviderSet = new Set<string>(enabledProviderIds);
 const entry = (providerId: string, snapshot: ReturnType<typeof calculateFreeTranslationWeightSnapshot>) => {
     const result = snapshot.entries.find(item => item.providerId === providerId);
@@ -17,8 +17,8 @@ describe('free translation weight snapshots', () => {
         const enabled = snapshot.entries.filter(item => enabledProviderSet.has(item.providerId));
 
         expect(snapshot.total).toBe(100);
-        expect(enabled.reduce((sum, item) => sum + item.weight, 0)).toBe(100);
-        expect(entry('microsoft', snapshot)).toMatchObject({weight: 20.8, status: 'ready'});
+        expect(enabled.reduce((sum, item) => sum + item.weight, 0)).toBeCloseTo(100, 10);
+        expect(entry('microsoft', snapshot)).toMatchObject({weight: 21.7, status: 'ready'});
         expect(entry('sogouFree', snapshot)).toMatchObject({weight: 0, status: 'disabled'});
         expect(entry('microsoft', snapshot).weight.toString()).toMatch(/^\d+\.\d$/u);
     });
@@ -32,7 +32,7 @@ describe('free translation weight snapshots', () => {
 
         expect(snapshot.total).toBe(100);
         expect(entry('microsoft', snapshot)).toMatchObject({weight: 0, status: 'cooling', retryAt: now + 1_000});
-        expect(enabled.reduce((sum, item) => sum + item.weight, 0)).toBe(100);
+        expect(enabled.reduce((sum, item) => sum + item.weight, 0)).toBeCloseTo(100, 10);
         expect(entry('transmart', snapshot).weight).toBeGreaterThan(0);
     });
 
@@ -46,7 +46,7 @@ describe('free translation weight snapshots', () => {
         expect(entry('microsoft', snapshot)).toMatchObject({status: 'recovering'});
         expect(entry('microsoft', snapshot).weight).toBeLessThan(20.8);
         expect(entry('transmart', snapshot).weight).toBeGreaterThan(entry('microsoft', snapshot).weight);
-        expect(snapshot.entries.filter(item => enabledProviderSet.has(item.providerId)).reduce((sum, item) => sum + item.weight, 0)).toBe(100);
+        expect(snapshot.entries.filter(item => enabledProviderSet.has(item.providerId)).reduce((sum, item) => sum + item.weight, 0)).toBeCloseTo(100, 10);
     });
 
     it('reports no allocation when every enabled service is cooling', () => {

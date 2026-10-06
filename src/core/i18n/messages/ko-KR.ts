@@ -392,7 +392,7 @@ export const koKRMessages = {
     "settings.services.library.favorite": "{service} 즐겨찾기 추가",
     "settings.services.library.unfavorite": "{service} 즐겨찾기 해제",
     "settings.services.freeWeights.mode": "스마트 가속",
-    "settings.services.freeWeights.strategy": "빠르고 안정적인 서비스를 우선 사용하며 문제가 생기면 자동으로 전환합니다.",
+    "settings.services.freeWeights.strategy": "빠르고 안정적인 공식 노드를 우선 사용하며 최대 6개 작업을 병렬 처리하고 실패 시 자동 전환합니다",
     "settings.services.freeWeights.budget": "서비스별 한 번, 전체 최대 20초입니다. 무료 번역은 전체 재시도를 반복하지 않습니다.",
     "settings.services.freeWeights.services": "번역 서비스",
     "settings.services.freeWeights.enabledCount": "{count}개 활성화",

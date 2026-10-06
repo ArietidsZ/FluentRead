@@ -392,7 +392,7 @@ export const frFRMessages = {
     "settings.services.library.favorite": "Ajouter {service} aux favoris",
     "settings.services.library.unfavorite": "Retirer {service} des favoris",
     "settings.services.freeWeights.mode": "Accélération intelligente",
-    "settings.services.freeWeights.strategy": "Privilégie les services rapides et fiables, avec changement automatique si nécessaire.",
+    "settings.services.freeWeights.strategy": "Utilise des points de terminaison officiels rapides et fiables, avec six tâches parallèles au maximum et basculement automatique",
     "settings.services.freeWeights.budget": "Un essai par service, dans un délai total de 20 secondes. La traduction gratuite ne répète pas les tentatives globales.",
     "settings.services.freeWeights.services": "Services de traduction",
     "settings.services.freeWeights.enabledCount": "{count} activés",

@@ -330,7 +330,8 @@
       "tests/webDavBackupClient.test.ts",
       "tests/requestHeaderRules.test.ts",
       "tests/vocabularyReencounter.test.ts",
-      "tests/sentenceActionsMount.test.ts"
+      "tests/sentenceActionsMount.test.ts",
+      "tests/freeOfficialWebProviders.test.ts"
     ],
     "functional": [
       "tests/sentenceActionsInteraction.test.ts",

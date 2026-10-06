@@ -6,6 +6,7 @@
  */
 import {CONFIG_CREDENTIAL_FIELDS, isSensitiveConfigKey} from './credentials';
 import {options} from './catalog';
+import {FREE_TRANSLATION_PROVIDERS} from './freeTranslation';
 import {isCustomOpenAIProviderId} from './customOpenAI';
 import {
     interfaceSkinOptions,
@@ -162,7 +163,7 @@ function labelsFor(...optionLists: ReadonlyArray<ReadonlyArray<Option>>): Map<un
 }
 
 const LANGUAGE_LABELS = labelsFor(options.to, options.inputBoxTranslationTarget, options.from);
-const SERVICE_LABELS = labelsFor(options.services);
+const SERVICE_LABELS = labelsFor(options.services, FREE_TRANSLATION_PROVIDERS.map(provider => ({value: provider.id, label: provider.label})));
 const STYLE_LABELS = labelsFor(options.styles);
 const THEME_LABELS = labelsFor(options.theme);
 const UI_LANGUAGE_LABELS = new Map<unknown, string>([
