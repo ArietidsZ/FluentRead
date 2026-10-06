@@ -146,7 +146,7 @@ async function observeModelDownloads(extensionId) {
         }
         if(message.method==='Network.requestWillBeSent'){
             const url=new URL(message.params.request.url);
-            if(['huggingface.co','hf-mirror.net'].includes(url.host) || (url.host==='cdn.jsdelivr.net' && url.pathname.endsWith('.traineddata.gz')))report.modelRequests.push({source:url.host,file:url.pathname.split('/').pop(),target:'offscreen'});
+            if(['huggingface.co','hf-mirror.com','hf-mirror.net'].includes(url.host) || (url.host==='cdn.jsdelivr.net' && url.pathname.endsWith('.traineddata.gz')))report.modelRequests.push({source:url.host,file:url.pathname.split('/').pop(),target:'offscreen'});
         }
     });
     const {targetInfos}=await command('Target.getTargets');
@@ -155,7 +155,7 @@ async function observeModelDownloads(extensionId) {
     const {sessionId}=await command('Target.attachToTarget',{targetId:target.targetId,flatten:true});
     await command('Network.enable',{},sessionId);
     await command('Runtime.enable',{},sessionId);
-    if(blockedOfficial || blockedAll)await command('Network.setBlockedURLs',{urls:blockedAll?['https://huggingface.co/*','https://hf-mirror.net/*']:['https://huggingface.co/*']},sessionId);
+    if(blockedOfficial || blockedAll)await command('Network.setBlockedURLs',{urls:blockedAll?['https://huggingface.co/*','https://hf-mirror.com/*','https://hf-mirror.net/*']:['https://huggingface.co/*']},sessionId);
     socket.command=(method,params)=>command(method,params,sessionId);return socket;
 }
 
@@ -642,7 +642,7 @@ function auditPageErrors() {
 async function verifyPipelinePerformance(extensionId) {
     assert.ok(pipelineRounds>=2 && pipelineRounds<=5,'Measure first use separately from bounded warm runs');
     const chunks=fs.readdirSync(path.join(extensionDir,'chunks'));
-    const ortFiles=chunks.filter(name=>/^ort\.(?:webgpu\.)?bundle\.min-/.test(name));
+    const ortFiles=chunks.filter(name=>/^ort\.(?:webgpu\.)?(?:bundle\.)?min-/.test(name));
     assert.ok(ortFiles.length,'Production ORT namespace is exported');
     // 只在自有临时扩展 Offscreen 中测量；不改变宿主页或普通生产代码。
     await modelObserver.command('Runtime.evaluate',{expression:`(async()=>{
@@ -666,7 +666,7 @@ async function verifyPipelinePerformance(extensionId) {
             const create=ort.InferenceSession.create.bind(ort.InferenceSession);
             if(${gpuDiagnosis} && file.includes('webgpu')) {
                 try {
-                    ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;ort.env.wasm.wasmPaths={mjs:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-manga/ort-wasm-simd-threaded.asyncify.wasm')};
+                    ort.env.wasm.numThreads=1;ort.env.wasm.proxy=false;ort.env.wasm.wasmPaths={mjs:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),wasm:chrome.runtime.getURL('/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm')};
                     const cache=await caches.open('fluent-read-manga-ocr-v1'),keys=await cache.keys();
                     const key=keys.find(key=>key.url.includes('small_det'));
                     const model=await(await cache.match(key)).arrayBuffer();
@@ -1373,7 +1373,7 @@ async function verifyReadAhead() {
         report.cases.push('key complete dialogue recognized on three later pages');
     }
     if(blockedAll)report.cases.push('real OCR and inpainting execute with both remote model sources blocked');
-    if(blockedOfficial){assert.ok(report.modelRequests.some(r=>r.source==='huggingface.co'));assert.ok(report.modelRequests.some(r=>r.source==='hf-mirror.net'));report.cases.push('actual Offscreen official-source block falls back to verified mirror files');}
+    if(blockedOfficial){assert.ok(report.modelRequests.some(r=>r.source==='huggingface.co'));assert.ok(report.modelRequests.some(r=>['hf-mirror.com','hf-mirror.net'].includes(r.source)));report.cases.push('actual Offscreen official-source block falls back to verified mirror files');}
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.status='passed';
     focusGuard();
 })().catch(async error=>{report.status='failed';report.failure=error.stack;process.exitCode=1;console.error(error);if(cdp){report.lastImageUi=await imageUi('return [...this.querySelectorAll(".fr-image-feedback .fr-image-status")].map(s=>s.textContent)').catch(()=>null);report.lastCanvasUi=await canvasUi('return [...this.querySelectorAll("canvas")].map(c=>({width:c.width,height:c.height,style:c.style.cssText}))').catch(()=>null);report.lastProgress=await worker.evaluate(()=>globalThis.__mangaTest.progress).catch(()=>null);}if(page)await page.screenshot({path:path.join(artifacts,'failed-reader.png')}).catch(()=>{});})

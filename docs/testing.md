@@ -1,5 +1,42 @@
 # 测试与回归
 
+## 扩展体积与共享推理引擎
+
+`pnpm analyze:bundle [构建目录] [基线目录]` 统计真实字节、文件类型、目录、最大文件和相同内容，详见 [2026-10-06 体积记录](./maintainers/extension-size-20261006.md)。普通开发构建不内联源码映射；需要时使用 `FLUENTREAD_DEV_SOURCEMAPS=1 pnpm dev`。手动加载可设置 `FLUENTREAD_DISABLE_BROWSER_RUNNER=1`。
+
+以下专项使用自有临时 Edge profile、第二屏后台正常窗口与 focus-safe helper。Node 包目录包含 Playwright。`run-bundle-model-smoke.cjs` 通过源码实际端口和固定摘要校验运行 Paddle/LaMa，OPUS 使用实际构建 Worker；音频专项使用实际生产 Worker。受控图片/合成语音不代表真实网站音轨或模型整体质量。
+
+```sh
+node scripts/testing/run-ort-runtime-smoke.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root "$PLAYWRIGHT_ROOT" \
+  --focus-safe-helper "$FOCUS_SAFE_HELPER" \
+  --artifacts-dir /private/tmp/fluentread-ort-smoke
+
+node scripts/testing/run-bundle-model-smoke.cjs \
+  --kinds paddle,opus --extension-dir .output/chrome-mv3 \
+  --manga-models-dir "$MANGA_MODELS_DIR" \
+  --playwright-root "$PLAYWRIGHT_ROOT" \
+  --focus-safe-helper "$FOCUS_SAFE_HELPER" \
+  --artifacts-dir /private/tmp/fluentread-model-smoke
+
+node scripts/testing/run-local-audio-gpu-test.cjs \
+  --kinds tts,whisper --modes gpu,cpu,init-failure,device-loss \
+  --skip-settings --no-screenshots --extension-dir .output/chrome-mv3 \
+  --playwright-root "$PLAYWRIGHT_ROOT" \
+  --focus-safe-helper "$FOCUS_SAFE_HELPER" \
+  --artifacts-dir /private/tmp/fluentread-audio-smoke
+
+node scripts/testing/run-local-audio-gpu-test.cjs \
+  --kinds whisper --modes q4-failure --skip-settings --no-screenshots \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root "$PLAYWRIGHT_ROOT" \
+  --focus-safe-helper "$FOCUS_SAFE_HELPER" \
+  --artifacts-dir /private/tmp/fluentread-whisper-q8-smoke
+```
+
+`MANGA_MODELS_DIR` 必须包含与源码版本、字节数及 SHA-256 匹配的 `PP-OCRv6_small_det.onnx`、`PP-OCRv6_small_rec.onnx`、`ppocrv6_dict.txt`、`lama-manga-dynamic.onnx`；文件只导入本次临时扩展。`--kinds opus` 无需这些文件。OPUS 和音频专项会联网下载公开模型。q4 故障仅注入自有扩展副本的 CPU q4 初始化调用，必须实际返回 `dtype=q8` 才通过；不修改生产产物或用户扩展。
+
 ## 设置分组、阅读辅助与右键菜单
 
 生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。

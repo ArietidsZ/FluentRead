@@ -5,6 +5,7 @@
  * 主要内容：固定版本与 SHA-256 校验、流式写入、Range 续传、来源回退和离线读取，下载内存有明确上限。
  * 模块边界：只操作专属 Cache Storage，不保存页面状态、不初始化推理引擎，也不向下载源发送翻译文本。
  */
+import {huggingFaceDownloadOrigins} from '@/src/platform/http/modelDownloads';
 import {sha256} from '@noble/hashes/sha256';
 import frozenArtifacts from '@/src/core/config/localTranslationArtifacts.json';
 import {getLocalTranslationModel} from '@/src/core/config/localTranslation';
@@ -18,7 +19,7 @@ export interface TranslationArtifact {
 }
 export const LOCAL_MODEL_CACHE = 'fluent-read-local-models-v2';
 export const MODEL_CHUNK_SIZE = 4 * 1024 * 1024;
-const origins = ['https://huggingface.co', 'https://hf-mirror.com'];
+const OFFICIAL_ORIGIN = 'https://huggingface.co';
 const metadata = frozenArtifacts as Record<string, {revision: string; files: Omit<TranslationArtifact, 'repo' | 'revision'>[]}>;
 
 export function getTranslationArtifacts(model: unknown): TranslationArtifact[] {
@@ -29,7 +30,7 @@ export function getTranslationArtifacts(model: unknown): TranslationArtifact[] {
 }
 
 export function artifactUrl(file: TranslationArtifact): string {
-    return `${origins[0]}/${file.repo}/resolve/${file.revision}/${file.path}`;
+    return `${OFFICIAL_ORIGIN}/${file.repo}/resolve/${file.revision}/${file.path}`;
 }
 function chunkKey(file: TranslationArtifact, index: number): string {
     return `${artifactUrl(file)}?fluent-read-part=${index}`;
@@ -138,7 +139,7 @@ async function receiveArtifact(
     try {
         abortIfNeeded(signal);
         armTimeout(15_000);
-        const response = await fetch(artifactUrl(file).replace(origins[0]!, origin), {
+        const response = await fetch(artifactUrl(file).replace(OFFICIAL_ORIGIN, origin), {
             signal: controller.signal,
             credentials: 'omit',
             referrerPolicy: 'no-referrer',
@@ -203,8 +204,7 @@ export async function downloadTranslationArtifact(
     progress: (bytes: number, verifying: boolean) => void,
 ): Promise<void> {
     if (await artifactComplete(file)) { progress(file.size, false); return; }
-    const prefersChina = typeof navigator !== 'undefined' && navigator.language?.toLowerCase().startsWith('zh');
-    const sources = prefersChina ? [...origins].reverse() : origins;
+    const sources = huggingFaceDownloadOrigins();
     let lastError: unknown;
     for (const origin of sources) {
         abortIfNeeded(signal);

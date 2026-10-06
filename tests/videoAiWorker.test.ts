@@ -100,8 +100,8 @@ describe('视频 AI Worker timestamp parser', () => {
         expect(wasmMocks.configureOnnxWasmBackend).toHaveBeenCalledWith(
             workerMocks.env.backends.onnx.wasm,
             expect.objectContaining({
-                mjs: expect.stringContaining('ort-wasm-simd-threaded.jsep.mjs'),
-                wasm: expect.stringContaining('ort-wasm-simd-threaded.jsep.wasm'),
+                mjs: expect.stringContaining('ort-wasm-simd-threaded.asyncify.mjs'),
+                wasm: expect.stringContaining('ort-wasm-simd-threaded.asyncify.wasm'),
             }),
         );
         const send = (requestId: number, languageSessionKey: string) => scope.onmessage?.({data: {

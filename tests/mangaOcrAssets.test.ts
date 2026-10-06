@@ -24,13 +24,13 @@ describe('漫画模型固定版本和完整性',()=>{
         await expect(setMangaModelSource('bad' as never)).rejects.toThrow('无效');
         await setMangaModelSource('mirror');expect(preferences.put).toHaveBeenCalled();preferences.match.mockImplementation(async()=>new Response('mirror'));
         vi.mocked(fetch).mockResolvedValueOnce(response(1));await loadMangaOcrAssets();
-        expect(vi.mocked(fetch).mock.calls[0][0]).toContain('hf-mirror.net');expect(vi.mocked(fetch).mock.calls[1][0]).toContain('huggingface.co');
+        expect(vi.mocked(fetch).mock.calls[0][0]).toContain('hf-mirror.com');expect(vi.mocked(fetch).mock.calls[1][0]).toContain('hf-mirror.net');
         preferences.match.mockImplementation(async()=>new Response('official'));expect(await getMangaModelSource()).toBe('official');
     });
     it('20 秒无数据会切换备用来源，用户取消则立即结束且不切换',async()=>{
         vi.useFakeTimers();vi.mocked(fetch).mockImplementationOnce((_url,options)=>new Promise((_resolve,reject)=>options!.signal!.addEventListener('abort',()=>reject(new Error('timeout')))));
         const pending=loadMangaInpaintAsset();await vi.advanceTimersByTimeAsync(20_001);await pending;
-        expect(fetch).toHaveBeenCalledTimes(2);expect(vi.mocked(fetch).mock.calls[1][0]).toContain('hf-mirror.net');
+        expect(fetch).toHaveBeenCalledTimes(2);expect(vi.mocked(fetch).mock.calls[1][0]).toContain('hf-mirror.com');
         cache.match.mockResolvedValue(undefined);const abort=new AbortController();
         vi.mocked(fetch).mockImplementationOnce((_url,options)=>new Promise((_resolve,reject)=>options!.signal!.addEventListener('abort',()=>reject('cancel'))));
         const cancelled=loadMangaInpaintAsset(abort.signal);const check=expect(cancelled).rejects.toMatchObject({name:'AbortError'});

@@ -4,6 +4,8 @@
  * 主要内容：固定模型版本、尺寸和 SHA-256，流式显示下载进度，断流或损坏时切换已登记的备用来源；缓存已完成文件，保留来源偏好，支持校验后导入离线模型、读取状态与清除。
  * 模块边界：只处理模型数据文件，不加载远程代码、不执行 OCR、不读取用户配置；仅下载 Apache-2.0 模型数据；镜像与离线文件必须通过相同完整性校验，来源偏好不包含用户凭据。
  */
+import {modelDownloadSources} from '@/src/platform/http/modelDownloads';
+
 const ROOT = 'https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/bf1d5edb0335d3262be7caf13f766ba274b4cadd/';
 export const MANGA_OCR_CACHE = 'fluent-read-manga-ocr-v1';
 export const MANGA_OCR_ASSETS = [
@@ -40,8 +42,7 @@ export async function setMangaModelSource(source:MangaModelSource):Promise<void>
 
 async function downloadAsset(url:string,asset:{bytes:number;sha256:string},signal?:AbortSignal,onProgress?:(bytes:number)=>void):Promise<ArrayBuffer> {
     const preference=await getMangaModelSource();
-    const mirror=url.replace('https://huggingface.co/','https://hf-mirror.net/');
-    const sources=preference==='mirror'?[mirror,url]:[url,mirror];
+    const sources=modelDownloadSources(url,preference);
     let failure:unknown;
     for(const source of sources){
         assertMangaOcrActive(signal);

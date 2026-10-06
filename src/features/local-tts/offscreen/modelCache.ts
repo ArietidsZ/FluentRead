@@ -1,9 +1,11 @@
 /**
  * @file src/features/local-tts/offscreen/modelCache.ts
  * 文件职责：下载、检查和清除 Kokoro 本地 TTS 模型及少量默认音色文件。
- * 主要内容：固定模型版本与文件清单，复用 Transformers.js Cache Storage，并把模型下载和音色下载分开管理。
+ * 主要内容：固定模型版本与文件清单，流式写入一份版本缓存，自动回退国内镜像和官方来源，兼容旧 main 缓存，并把模型下载和音色下载分开管理。
  * 模块边界：只负责缓存文件，不初始化推理 Worker，不决定朗读策略，也不访问网页。
  */
+
+import {withModelDownload} from '@/src/platform/http/modelDownloads';
 
 import {
     LOCAL_TTS_MODEL_CACHE_NAME,
@@ -70,37 +72,12 @@ async function fetchIntoCache(
         }
         return undefined;
     })();
-    if (existing) {
-        for (const cacheUrl of cacheUrls) {
-            if (!(await cache.match(cacheUrl))) await cache.put(cacheUrl, existing.clone());
-        }
-        return;
-    }
-
-    const controller = new AbortController();
-    const timeout = self.setTimeout(() => controller.abort(), MODEL_FILE_DOWNLOAD_TIMEOUT_MS);
-    try {
-        const response = await fetch(sourceUrl, {signal: controller.signal});
-        if (!response.ok) throw new Error(`本地 TTS 模型文件下载失败（${response.status}）：${sourceUrl}`);
+    if (existing) return;
+    await withModelDownload(sourceUrl, async (response, source) => {
         const headers = new Headers(response.headers);
-        headers.set('X-FluentRead-Model-Source', sourceUrl);
-        const body = await response.arrayBuffer();
-        for (const cacheUrl of cacheUrls) {
-            await cache.put(cacheUrl, new Response(body.slice(0), {
-                status: response.status,
-                statusText: response.statusText,
-                headers,
-            }));
-        }
-    } catch (error) {
-        if (controller.signal.aborted) {
-            throw new Error(`本地 TTS 模型文件下载超过 ${MODEL_FILE_DOWNLOAD_TIMEOUT_MS / 1000} 秒`);
-        }
-        if (error instanceof Error && error.message.startsWith('本地 TTS 模型文件下载失败')) throw error;
-        throw new Error(`本地 TTS 模型文件下载失败：${sourceUrl}：${error instanceof Error ? error.message : String(error)}`, {cause: error});
-    } finally {
-        self.clearTimeout(timeout);
-    }
+        headers.set('X-FluentRead-Model-Source', source);
+        await cache.put(sourceUrl, new Response(response.body, {headers}));
+    }, {timeoutMs: MODEL_FILE_DOWNLOAD_TIMEOUT_MS});
 }
 
 async function cacheLocalTtsModelNow(): Promise<void> {
@@ -137,8 +114,11 @@ export async function isLocalTtsModelCached(): Promise<boolean> {
         const loaderUrl = getLocalTtsModelLoaderUrl(file);
         const pinned = await modelCache.match(pinnedUrl);
         const loader = await modelCache.match(loaderUrl);
-        if (!loader && pinned) await modelCache.put(loaderUrl, pinned.clone());
-        return loader || pinned;
+        // 旧版本曾把同一固定文件写入两次；仅清理能证明属于当前固定版本的 main 副本。
+        if (pinned && loader && loader.headers.get('X-FluentRead-Model-Source') === pinnedUrl) {
+            await modelCache.delete(loaderUrl);
+        }
+        return pinned || loader;
     }));
     const voiceFiles = await Promise.all(LOCAL_TTS_VOICES.map((voice) => voiceCache.match(getLocalTtsVoiceCacheUrl(voice))));
     return modelFiles.every(Boolean) && voiceFiles.every(Boolean);

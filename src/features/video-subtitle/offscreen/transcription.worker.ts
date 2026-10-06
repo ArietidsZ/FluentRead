@@ -104,8 +104,8 @@ if (env.backends.onnx.wasm) {
   // Dedicated worker 已经是隔离执行上下文；proxy worker 在扩展页面中
   // 反而会触发 extension:// WASM 加载失败，因此保持关闭。
   configureOnnxWasmBackend(env.backends.onnx.wasm, {
-    mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.mjs'),
-    wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'),
+    mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
+    wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
   });
 }
 
@@ -161,6 +161,8 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
       // 中间张量。浏览器实时字幕更看重可回收峰值，关闭后由有界窗口和暖
       // session 复用承担性能，避免 renderer 长时间停留在 GB 级 RSS。
       session_options: {
+        // q8 合并权重同样避开锁定 ORT 的 QDQ 转置缺陷；q4 保留默认完整优化。
+        ...(dtype === 'q8' ? {extra: {optimization: {disable_specified_optimizers: 'QDQSelectorActionTransformer'}}} : {}),
         enableCpuMemArena: false,
         enableMemPattern: false,
         executionMode: 'sequential',
@@ -171,7 +173,7 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
     }) as unknown as Promise<LocalTranscriber>;
     const wasm = env.backends.onnx.wasm;
     const transcriber = await (wasm
-      ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'), createPipeline)
+      ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), createPipeline)
       : createPipeline());
     transcriberDtype = dtype;
     return transcriber;
@@ -206,7 +208,7 @@ async function createLocalTranscriber(
       }) as unknown as Promise<LocalTranscriber>;
       const wasm = env.backends.onnx.wasm;
       gpuTranscriber = await (wasm
-        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.jsep.wasm'), createPipeline)
+        ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), createPipeline)
         : createPipeline());
       transcriberBackend = 'webgpu';
       transcriberDtype = 'q4';

@@ -36,16 +36,17 @@ const model = Buffer.concat([scalar(1, 8), message(7, graph), message(8, scalar(
 fs.writeFileSync(path.join(fixture, 'probe-model.onnx'), model);
 fs.writeFileSync(path.join(fixture, 'probe.html'), '<!doctype html><title>ORT packaged runtime verification</title><h1>ORT packaged runtime verification</h1>');
 
-for (const [name, label, prefix] of [['@huggingface/transformers', 'opus-whisper', ''], ['@huggingface/transformers-kokoro', 'kokoro', 'tts-']]) {
-  const runtimeName = label === 'kokoro' ? 'ort-wasm-simd-threaded.asyncify' : 'ort-wasm-simd-threaded.jsep';
-  const packageRoot = fs.realpathSync(path.resolve('node_modules', name));
+for (const label of ['opus-whisper', 'kokoro', 'paddle']) {
+  const prefix = '';
+  const runtimeName = 'ort-wasm-simd-threaded.asyncify';
+  const packageRoot = fs.realpathSync(path.resolve('node_modules/@huggingface/transformers-kokoro'));
   const req = createRequire(path.join(packageRoot, 'package.json'));
-  const dist = path.dirname(req.resolve('onnxruntime-web'));
+  const dist = path.dirname(req.resolve('onnxruntime-web/webgpu'));
   expectedDigests[label] = createHash('sha256').update(fs.readFileSync(path.join(dist, `${runtimeName}.wasm`))).digest('hex');
-  fs.copyFileSync(path.join(dist, 'ort.webgpu.bundle.min.mjs'), path.join(fixture, `probe-${label}-ort.mjs`));
+  fs.copyFileSync(path.join(dist, 'ort.webgpu.min.mjs'), path.join(fixture, `probe-${label}-ort.mjs`));
   if (prototype) {
-    fs.copyFileSync(path.join(dist, `${runtimeName}.mjs`), path.join(fixture, `fluent-read-ai/${prefix}${runtimeName}.mjs`));
-    fs.writeFileSync(path.join(fixture, `fluent-read-ai/${prefix}${runtimeName}.wasm`), fs.readFileSync(path.join(dist, `${runtimeName}.wasm`)));
+    fs.copyFileSync(path.join(dist, `${runtimeName}.mjs`), path.join(fixture, `fluent-read-ai/${runtimeName}.mjs`));
+    fs.copyFileSync(path.join(dist, `${runtimeName}.wasm`), path.join(fixture, `fluent-read-ai/${runtimeName}.wasm`));
   }
   fs.writeFileSync(path.join(fixture, `probe-${label}.mjs`), `
 import {env, InferenceSession, Tensor} from './probe-${label}-ort.mjs';
@@ -128,7 +129,7 @@ self.onmessage = async ({data: {backend}}) => {
         });
       }
     }
-    for (const label of ['opus-whisper', 'kokoro']) {
+    for (const label of ['opus-whisper', 'kokoro', 'paddle']) {
       for (const backend of ['wasm', 'webgpu']) {
       const logStart = consoleLogs.length;
       const result = await page.evaluate(({label, backend}) => new Promise((resolve, reject) => {
