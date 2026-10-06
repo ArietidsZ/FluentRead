@@ -2,7 +2,7 @@
  * @file src/features/settings/ui/LocalTranslationModelSettings.vue
  *
  * 文件职责：呈现本地翻译模型选择、持续下载进度、删除确认和短文本试译。
- * 主要内容：订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；试译区把输入框与操作栏合成一个输入区，目标语言用标题右侧的分段按钮选择，翻译与取消固定在输入区右下角；页面离开只撤销订阅与试译，不中止下载。
+ * 主要内容：订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，并在下载按钮边框内说明模型存储与卸载清理规则，主卡片保留语言与资源估算；试译区把输入框与操作栏合成一个输入区，目标语言用标题右侧的分段按钮选择，翻译与取消固定在输入区右下角；页面离开只撤销订阅与试译，不中止下载。
  * 模块边界：通过 runtime 消息操作下载任务，配置交给既有设置持久化；不获取模型文件、不创建推理引擎。
  -->
 <template>
@@ -52,7 +52,10 @@
           <div>
             <button v-if="canDelete(item.value)" type="button" class="local-models-icon" :disabled="busy.has(item.value) || state(item.value).phase === 'removing'" :aria-label="t('modelCache.removeNamed', {name: modelName(item)})" :title="t('settings.localTranslation.remove')" @click="confirmRemove(item)"><Delete aria-hidden="true" /></button>
             <button v-if="isDownloading(item.value)" type="button" class="local-models-button" :disabled="busy.has(item.value)" @click="command(item.value, 'pause')"><VideoPause aria-hidden="true" />{{ t('settings.localTranslation.pause') }}</button>
-            <button v-else-if="state(item.value).phase !== 'ready' && !item.legacy" type="button" class="local-models-button primary" :disabled="!modelSupported(item) || !loaded || busy.has(item.value) || state(item.value).phase === 'removing'" @click="command(item.value, 'download')"><Download aria-hidden="true" />{{ t(state(item.value).phase === 'error' ? 'settings.localTranslation.retry' : state(item.value).phase === 'paused' ? 'settings.localTranslation.resume' : 'settings.localTranslation.download') }}</button>
+            <div v-else-if="state(item.value).phase !== 'ready' && !item.legacy" class="local-model-download-control">
+              <button type="button" class="local-models-button primary" :disabled="!modelSupported(item) || !loaded || busy.has(item.value) || state(item.value).phase === 'removing'" @click="command(item.value, 'download')"><Download aria-hidden="true" />{{ t(state(item.value).phase === 'error' ? 'settings.localTranslation.retry' : state(item.value).phase === 'paused' ? 'settings.localTranslation.resume' : 'settings.localTranslation.download') }}</button>
+              <FieldHelp button-class="local-model-storage-help" :content="t('settings.localTranslation.storageNote')" :label="t('settings.localTranslation.storageHelp')" />
+            </div>
           </div>
         </footer>
       </article>
@@ -264,6 +267,9 @@ onUnmounted(() => {
 .local-models-button, .local-models-icon { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--line); border-radius: 6px; min-height: 32px; padding: 6px 10px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; cursor: pointer; line-height: 1.5; }
 .local-models-icon { width: 32px; height: 32px; padding: 6px; flex: none; }
 .local-models-button.primary { border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft); }
+.local-model-download-control { display: inline-flex; align-items: center; border: 1px solid var(--brand); border-radius: 6px; background: var(--brand-soft); white-space: nowrap; }
+.local-model-download-control > .local-models-button { border: 0; border-radius: 5px 0 0 5px; background: transparent; }
+.local-model-download-control :deep(.local-model-storage-help) { margin-right: 4px; color: var(--brand-strong); }
 .local-models button:disabled { opacity: .55; cursor: default; }
 .local-models button:hover:not(:disabled) { border-color: var(--brand); }
 .local-models :is(button, input, textarea, select, a):focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }

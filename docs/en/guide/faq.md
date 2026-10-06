@@ -7,6 +7,17 @@ outline: false
 Check that FluentRead is on, use a normal webpage, and refresh once. Expand the symptom that matches your problem.
 
 <details class="guide-details">
+<summary>Where are local translation models stored? Are they cleared on uninstall?</summary>
+
+## Where are local translation models stored? Are they cleared on uninstall?
+
+Models downloaded through FluentRead’s Local model translation settings are stored in the extension’s local cache in the current browser. Hover over or focus the ⓘ icon inside the download button’s border for storage and removal details.
+
+Uninstalling the extension normally makes the browser automatically clear its storage, including downloaded models and related caches. Disabling the extension keeps this data. You can also delete a model while keeping the extension. Chrome manages its own built-in translation language packs; manually downloaded extension archives or unpacked folders must be removed separately.
+
+</details>
+
+<details class="guide-details">
 <summary>Page translation does nothing</summary>
 
 ## Page translation does nothing
