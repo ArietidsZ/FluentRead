@@ -26,7 +26,7 @@
     "settings.cloud.consentAcknowledgement": "위험을 이해했으며 클라우드 백업에 민감한 정보를 포함하는 데 동의합니다.",
     "settings.cloud.consentConfirm": "동의하고 활성화",
     "settings.cloud.previewSensitive": "저장하거나 병합하면 이 기기의 민감한 정보가 포함됩니다. 복원은 클라우드 백업에 실제로 포함된 내용만 적용합니다.",
-    "settings.cloud.legacySensitive": "이 클라우드 백업에는 민감한 정보가 포함되어 있습니다. 이번 복원은 일반 설정만 적용하고 이 기기의 연결 설정을 유지합니다. 일반 설정의 저장 또는 병합을 확인한 후에만 현재 클라우드 파일에서 민감한 정보가 제거됩니다. 스위치를 꺼도 이전 파일이나 서비스 제공자가 보관하는 과거 버전은 삭제되지 않습니다.",
+    "settings.cloud.legacySensitive": "이 클라우드 백업에는 민감한 정보가 남아 있습니다. 이번에는 일반 설정만 동기화하며 이 기기의 연결 설정은 그대로입니다. 저장하거나 병합한 뒤에만 현재 클라우드 파일에서 제거되며, 이전 파일이나 서비스 제공자가 보관하는 과거 버전에는 영향을 주지 않습니다.",
     "settings.cloud.remoteSettingsOnly": "이 백업에는 일반 설정만 포함됩니다. 복원 시 이 기기의 키와 연결을 유지합니다. 민감한 설정을 켜면 저장하거나 병합할 때 민감한 정보를 포함할 수 있습니다.",
     "settings.webdav.setup": "WebDAV 설정",
     "settings.webdav.editConnection": "연결 수정",

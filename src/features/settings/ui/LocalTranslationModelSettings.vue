@@ -2,7 +2,7 @@
  * @file src/features/settings/ui/LocalTranslationModelSettings.vue
  *
  * 文件职责：呈现本地翻译模型选择、持续下载进度、删除确认和短文本试译。
- * 主要内容：使用统一的下拉选择器保持控件与菜单风格一致；订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；页面离开只撤销订阅与试译，不中止下载。
+ * 主要内容：订阅后台持久快照，通过悬停或焦点提示展示模型用途和许可，主卡片保留语言与资源估算；试译区把输入框与操作栏合成一个输入区，目标语言用标题右侧的分段按钮选择，翻译与取消固定在输入区右下角；页面离开只撤销订阅与试译，不中止下载。
  * 模块边界：通过 runtime 消息操作下载任务，配置交给既有设置持久化；不获取模型文件、不创建推理引擎。
  -->
 <template>
@@ -65,18 +65,21 @@
     </div>
 
     <section class="local-model-trial" aria-labelledby="local-model-trial-title">
-      <h3 id="local-model-trial-title">{{ t('settings.localTranslation.trial') }}</h3>
-      <textarea v-model="trialText" :aria-label="t('settings.localTranslation.trialSource')" rows="3" maxlength="2000" :disabled="trialBusy" />
-      <div class="local-model-trial-actions">
-        <label>{{ t('settings.localTranslation.trialTarget') }}
-          <UiSelect v-model="trialTarget" :disabled="trialBusy" :aria-label="t('settings.localTranslation.trialTarget')">
-            <el-option v-for="language in trialLanguages" :key="language" :value="language" :label="t(languageLabels[language] || language)" />
-          </UiSelect>
-        </label>
-        <button v-if="trialBusy" type="button" class="local-models-button" @click="cancelTrial"><Close aria-hidden="true" />{{ t('settings.localTranslation.cancel') }}</button>
-        <button v-else type="button" class="local-models-button primary" :disabled="!selectedReady || !trialText.trim()" @click="tryTranslation"><Promotion aria-hidden="true" />{{ t('settings.localTranslation.trialAction') }}</button>
+      <header class="local-model-trial-heading">
+        <h3 id="local-model-trial-title">{{ t('settings.localTranslation.trial') }}</h3>
+        <div class="local-model-trial-target">
+          <span aria-hidden="true">{{ t('settings.localTranslation.trialTarget') }}</span>
+          <SegmentedControl v-model="trialTarget" compact :label="t('settings.localTranslation.trialTarget')" :options="trialLanguageOptions" :disabled="trialBusy" />
+        </div>
+      </header>
+      <div class="local-model-trial-composer">
+        <textarea v-model="trialText" :aria-label="t('settings.localTranslation.trialSource')" rows="3" maxlength="2000" :disabled="trialBusy" />
+        <div class="local-model-trial-actions">
+          <p v-if="trialBusy" class="local-model-trial-status" role="status">{{ t('settings.localTranslation.trialBusy') }}</p>
+          <button v-if="trialBusy" type="button" class="local-models-button" @click="cancelTrial"><Close aria-hidden="true" />{{ t('settings.localTranslation.cancel') }}</button>
+          <button v-else type="button" class="local-models-button primary" :disabled="!selectedReady || !trialText.trim()" @click="tryTranslation"><Promotion aria-hidden="true" />{{ t('settings.localTranslation.trialAction') }}</button>
+        </div>
       </div>
-      <p v-if="trialBusy" class="local-model-trial-status" role="status">{{ t('settings.localTranslation.trialBusy') }}</p>
       <p v-if="trialError" class="local-models-error" role="alert">{{ trialError }}</p>
       <div v-if="trialResult" class="local-model-trial-result" role="status"><p>{{ trialResult }}</p><small>{{ t('settings.localTranslation.trialTime', {seconds: trialSeconds}) }}</small></div>
     </section>
@@ -84,7 +87,6 @@
 </template>
 
 <script setup lang="ts">
-import UiSelect from '@/src/ui/components/UiSelect.vue';
 import {computed, onMounted, onUnmounted, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
 import {ElMessageBox} from 'element-plus'
@@ -99,6 +101,7 @@ import {browserCapabilities} from '@/src/platform/browser/capabilities'
 import {supportsHunyuanTranslation} from '@/src/platform/browser/localTranslationSupport'
 import {useUiI18n} from '@/src/ui/i18n'
 import FieldHelp from './components/FieldHelp.vue'
+import SegmentedControl from './components/SegmentedControl.vue'
 
 const props = defineProps<{config: Config; service: string}>()
 const {t} = useUiI18n()
@@ -183,6 +186,7 @@ const trialSeconds = ref('')
 const languageLabels: Record<string, string> = {zh: 'area.settings.languageChinese', en: 'area.settings.languageEnglish', ja: 'area.settings.languageJapanese'}
 const trialLanguages = computed(() => getLocalTranslationModel(selectedModel.value).engine === 'opus'
   ? selectedModel.value === defaultModel ? ['zh', 'en'] : ['ja', 'en'] : ['zh', 'en', 'ja'])
+const trialLanguageOptions = computed(() => trialLanguages.value.map(language => ({value: language, label: t(languageLabels[language] || language)})))
 let trialId: string | undefined
 function cancelTrial(): void {
   if (trialId) void browser.runtime.sendMessage({type: 'fluentReadCancelLocalTranslationTrial', requestId: trialId}).catch(() => undefined)
@@ -268,10 +272,17 @@ onUnmounted(() => {
 .local-models-notes .local-models-pending { color: var(--ink); }
 .local-models-error { margin: 0; color: var(--el-color-danger) !important; font-size: 11px; line-height: 1.65; overflow-wrap: anywhere; }
 .local-model-trial { display: grid; gap: 10px; padding-top: 8px; }
-.local-model-trial textarea { width: 100%; box-sizing: border-box; min-height: 86px; max-height: 220px; resize: vertical; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); font: inherit; font-size: 12px; line-height: 1.7; }
-.local-model-trial-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.local-model-trial-actions label { display: inline-flex; gap: 8px; align-items: center; font-size: 11px; }
-.local-model-trial-actions .fluentread-select { width: 160px; max-width: 100%; }
+.local-model-trial-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.local-model-trial-heading h3 { margin: 0; }
+.local-model-trial-target { display: inline-flex; align-items: center; gap: 10px; min-width: 0; color: var(--muted); font-size: 12px; }
+.local-model-trial-target :deep(.segmented-control) { width: auto; }
+.local-model-trial-target :deep(.segmented-control button) { white-space: nowrap; }
+/* 输入框与操作栏合成一个输入区：语言在标题右侧选择，翻译按钮固定在输入区右下角；支持 field-sizing 的浏览器里输入框随内容增高。 */
+.local-model-trial-composer { display: grid; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); transition: border-color 150ms ease; }
+.local-model-trial-composer:focus-within { border-color: var(--brand); }
+.local-model-trial textarea { width: 100%; box-sizing: border-box; field-sizing: content; min-height: 86px; max-height: 220px; resize: none; padding: 12px 14px 4px; border: 0; border-radius: 12px 12px 0 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 12px; line-height: 1.7; }
+.local-model-trial-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; flex-wrap: wrap; padding: 6px 10px 10px; }
+.local-model-trial-actions .local-model-trial-status { margin: 0 auto 0 4px; }
 .local-model-trial-result { border-left: 2px solid var(--brand); padding: 4px 12px; }
 .local-model-trial-result p { margin: 0 0 8px; font-size: 12px; line-height: 1.8; white-space: pre-wrap; overflow-wrap: anywhere; }
 .local-model-trial-result small, .local-model-trial-status { color: var(--muted); font-size: 11px; }

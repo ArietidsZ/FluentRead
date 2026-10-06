@@ -26,7 +26,7 @@
     "settings.cloud.consentAcknowledgement": "Je comprends les risques et j’accepte d’inclure les informations sensibles dans les sauvegardes cloud.",
     "settings.cloud.consentConfirm": "Accepter et activer",
     "settings.cloud.previewSensitive": "L’enregistrement ou la fusion inclura les informations sensibles de cet appareil. La restauration applique uniquement le contenu réellement présent dans la sauvegarde cloud.",
-    "settings.cloud.legacySensitive": "Cette sauvegarde cloud contient des informations sensibles. Cette restauration applique uniquement les paramètres généraux et conserve les connexions de cet appareil. Les informations sensibles ne seront retirées du fichier cloud actuel qu’après confirmation de l’enregistrement ou de la fusion des paramètres généraux. Désactiver l’option ne supprime ni les anciens fichiers ni les versions conservées par le fournisseur.",
+    "settings.cloud.legacySensitive": "Cette sauvegarde cloud contient encore des informations sensibles. Seuls les paramètres généraux sont synchronisés et les connexions de cet appareil restent inchangées ; elles ne seront retirées du fichier cloud actuel qu’après un enregistrement ou une fusion, sans effet sur les anciens fichiers ni sur les versions conservées par le fournisseur.",
     "settings.cloud.remoteSettingsOnly": "Cette sauvegarde contient uniquement les paramètres généraux. La restauration conserve les clés et connexions de cet appareil. Activez les paramètres sensibles pour les inclure lors de l’enregistrement ou de la fusion.",
     "settings.webdav.setup": "Configurer WebDAV",
     "settings.webdav.editConnection": "Modifier la connexion",

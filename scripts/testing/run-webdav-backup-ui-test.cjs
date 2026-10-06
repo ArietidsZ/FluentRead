@@ -431,7 +431,7 @@ async function main() {
         const actionRect=await page.locator('[data-testid="webdav-sync-now"]').boundingBox();const accountRect=await page.locator('[data-testid="webdav-account"]').boundingBox();
         check(accountRect.x>actionRect.x+actionRect.width,'desktop account summary is to the right of the sync action');
         check(state.calls.some(call=>call.method==='GET'&&call.match==='"v1"'),'missing GET ETag is recovered and checked through file properties');
-        await page.locator('[data-testid="cloud-backup-privacy"]').hover();await page.getByText('仅访问你指定服务器下的 FluentRead 备份文件。',{exact:true}).waitFor();await shot('webdav-privacy-desktop');await page.locator('[data-testid="webdav-sync-now"]').hover();await shot('webdav-backup-desktop');
+        await page.locator('[data-testid="cloud-backup-privacy"]').hover();await page.getByText('仅访问你指定服务器下的 FluentRead 备份文件',{exact:true}).waitFor();await shot('webdav-privacy-desktop');await page.locator('[data-testid="webdav-sync-now"]').hover();await shot('webdav-backup-desktop');
         const requestCount=state.calls.length;
         await page.reload({waitUntil:'domcontentloaded'});await navigate();await page.locator('[data-testid="webdav-sync-now"]').waitFor();
         check(state.calls.length===requestCount,'reopening remembers selected method and connection without network requests');

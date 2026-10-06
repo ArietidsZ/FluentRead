@@ -330,10 +330,10 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .about-experience { min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
 .about-experience h3 { margin: 0 0 8px; color: var(--ink); font-size: 18px; font-weight: 650; line-height: 1.5; }
 .about-experience > p { margin: 0 0 16px; color: var(--muted); font-size: 13px; line-height: 1.8; overflow-wrap: anywhere; }
-.about-features { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.about-feature { display: flex; align-items: center; gap: 12px; min-width: 0; min-height: 48px; padding: 10px 12px; border-radius: 10px; color: var(--ink); background: var(--surface-soft); }
-.about-feature > span { flex: 1; min-width: 0; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
-.about-feature > .fr-ui-icon { color: var(--brand-strong); }
+.about-features { display: grid; gap: 12px; margin: 0; padding: 18px 0 0; border-top: 1px solid var(--line); list-style: none; }
+.about-feature { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--ink); }
+.about-feature > span { flex: 1; min-width: 0; font-size: 13px; font-weight: 550; line-height: 1.5; overflow-wrap: anywhere; }
+.about-feature > .fr-ui-icon { box-sizing: content-box; flex: none; padding: 8px; border-radius: 10px; color: var(--brand-strong); background: var(--brand-soft); }
 .about-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(340px, 1fr); gap: 24px; align-items: stretch; }
 .about-panel { min-width: 0; padding: 28px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
 .about-panel h3 { margin: 0 0 10px; color: var(--ink); font-size: 20px; font-weight: 650; line-height: 1.5; }
@@ -348,16 +348,13 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 .about-links a:hover { border-color: var(--brand); background: var(--surface-soft); }
 .about-links a:hover strong, .about-links a:hover > .fr-ui-icon { color: var(--brand-strong); }
 .about-links a:focus-visible, .about-support-method:focus-visible { outline: 2px solid var(--brand-strong); outline-offset: 3px; }
-.about-support-options { display: flex; align-items: center; justify-content: center; gap: 24px; }
-.about-support-method { max-width: 100%; color: var(--ink); font-size: 13px; line-height: 1.6; text-decoration: none; }
-.about-support-wechat { display: grid; flex: 0 0 176px; justify-items: center; gap: 10px; width: 176px; padding: 0; border: 0; border-radius: 12px; background: transparent; font: inherit; cursor: zoom-in; }
-.about-support-qr { display: block; width: 100%; height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 12px; background: #fff; object-fit: contain; }
-.about-support-wechat:hover { color: var(--brand-strong); }
-.about-support-wechat:hover .about-support-qr { border-color: var(--brand); }
-.about-support-copy { display: grid; min-width: 0; gap: 16px; }
-.about-support-kofi-link { display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--brand-strong); background: var(--surface-soft); }
-.about-support-kofi-link span { min-width: 0; overflow-wrap: anywhere; }
-.about-support-kofi-link:hover { border-color: var(--brand); background: var(--brand-soft); }
+.about-support-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: 12px; }
+.about-support-method { display: grid; align-content: center; justify-items: center; gap: 12px; min-width: 0; min-height: 212px; padding: 20px 16px; border: 1px solid var(--line); border-radius: 14px; color: var(--ink); background: var(--surface); font: inherit; font-size: 13px; font-weight: 550; line-height: 1.6; text-align: center; text-decoration: none; transition: border-color 150ms ease, background 150ms ease, color 150ms ease; }
+.about-support-method:hover { border-color: var(--brand); color: var(--brand-strong); background: var(--surface-soft); }
+.about-support-wechat { cursor: zoom-in; }
+.about-support-qr { display: block; width: min(148px, 100%); height: auto; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 10px; background: #fff; object-fit: contain; }
+.about-support-mark { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; color: var(--brand-strong); background: var(--brand-soft); }
+.about-support-kofi-label { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; min-width: 0; overflow-wrap: anywhere; }
 .about-approve-dialog { border-radius: 18px; background: var(--surface); }
 .about-approve-dialog .el-dialog__title { color: var(--ink); }
 .about-approve-preview { display: block; width: 100%; height: auto; max-height: calc(100dvh - 160px); object-fit: contain; border-radius: 12px; }
@@ -365,8 +362,6 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
   .about-hero { grid-template-columns: minmax(0, 1fr) minmax(260px, .9fr); gap: 24px; padding: 28px; }
   .about-grid { grid-template-columns: minmax(0, 1fr); }
   .about-panel { padding: 24px; }
-  .about-support-options { align-items: center; }
-  .about-support-copy { max-width: 280px; }
 }
 @media (max-width: 900px) {
   .about-hero { grid-template-columns: minmax(0, 1fr); gap: 28px; }
@@ -385,9 +380,8 @@ h1 { margin-bottom: 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.0
 @media (max-width: 480px) {
   .about-links { grid-template-columns: minmax(0, 1fr); }
   .about-links a { min-height: 88px; }
-  .about-support-options { flex-direction: column; align-items: center; gap: 20px; }
-  .about-support-wechat { flex-basis: auto; width: 192px; align-self: center; }
-  .about-support-copy { justify-items: center; text-align: center; }
+  .about-support-options { grid-template-columns: minmax(0, 1fr); }
+  .about-support-method { min-height: 0; }
 }
 /* 桌面侧栏按可用高度收紧留白；保留字号与全部入口，极矮窗口仍独立滚动。 */
 @media (min-width: 701px) {

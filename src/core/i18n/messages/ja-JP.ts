@@ -199,7 +199,6 @@ export const jaJPMessages = {
     "settings.history.recentHint": "保存ごとの具体的な変更を表示。最大10件を保持します。",
     "settings.history.backupHint": "復元に備えて6時間ごとに設定を保存します。",
     "settings.history.changeCount": "{count}項目の変更",
-    "settings.history.moreChanges": "他{count}項目は詳細で確認",
     "settings.history.retainedSnapshot": "最も古い保存済み設定",
     "settings.history.noPrevious": "前の記録は残っていないため、当時の変更は確認できません。現在の設定と比較できます。",
     "settings.history.noVisibleChanges": "表示できる設定変更はありません",

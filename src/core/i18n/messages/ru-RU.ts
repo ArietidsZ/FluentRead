@@ -199,7 +199,6 @@ export const ruRUMessages = {
     "settings.history.recentHint": "Показывает изменения при каждом сохранении. Хранит до 10 версий.",
     "settings.history.backupHint": "Настройки сохраняются каждые 6 часов для восстановления.",
     "settings.history.changeCount": "Изменений: {count}",
-    "settings.history.moreChanges": "Ещё {count} изменений в подробностях",
     "settings.history.retainedSnapshot": "Самый ранний сохранённый снимок",
     "settings.history.noPrevious": "Предыдущая версия не сохранилась. Можно сравнить с текущими настройками.",
     "settings.history.noVisibleChanges": "Нет видимых изменений настроек",

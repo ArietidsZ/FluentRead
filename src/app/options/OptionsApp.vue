@@ -136,12 +136,10 @@
                   <img class="about-support-qr" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
                   <span>{{ t('popup.donationWechat') }}</span>
                 </button>
-                <div class="about-support-copy">
-                  <a class="about-support-method about-support-kofi-link" data-support-method="kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
-                    <span>{{ t('popup.donationKofi') }}</span>
-                    <UiIcon name="external" :size="16" />
-                  </a>
-                </div>
+                <a class="about-support-method about-support-kofi-link" data-support-method="kofi" href="https://ko-fi.com/thinkstu" target="_blank" rel="noopener noreferrer">
+                  <span class="about-support-mark" aria-hidden="true"><UiIcon name="star" :size="26" /></span>
+                  <span class="about-support-kofi-label">{{ t('popup.donationKofi') }}<UiIcon name="external" :size="15" /></span>
+                </a>
               </div>
             </article>
           </div>

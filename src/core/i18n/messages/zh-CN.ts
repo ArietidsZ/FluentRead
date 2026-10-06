@@ -198,7 +198,6 @@ export const zhCNMessages = {
     "settings.history.recentHint": "显示每次保存的具体修改，最多保留 10 份",
     "settings.history.backupHint": "每 6 小时自动留存一份设置，供需要时恢复",
     "settings.history.changeCount": "{count} 项修改",
-    "settings.history.moreChanges": "另有 {count} 项修改，查看详情",
     "settings.history.retainedSnapshot": "最早保留的设置快照",
     "settings.history.noPrevious": "前一份记录未保留，无法还原当时的修改；可与当前设置比较",
     "settings.history.noVisibleChanges": "没有可展示的设置修改",

@@ -26,7 +26,7 @@
     "settings.cloud.consentAcknowledgement": "I understand the risks and agree to include sensitive information in cloud backups.",
     "settings.cloud.consentConfirm": "Agree and enable",
     "settings.cloud.previewSensitive": "Saving or merging will include this device’s sensitive information. Restoring applies only what the cloud backup actually contains.",
-    "settings.cloud.legacySensitive": "This cloud backup contains sensitive information. This restore applies only general settings and keeps this device’s connections. Sensitive information is removed from the current cloud file only after you confirm saving or merging general settings. Turning the option off does not delete old files or versions retained by the provider.",
+    "settings.cloud.legacySensitive": "This cloud backup still contains sensitive information. Only general settings are synced now and this device’s connections stay unchanged; it is removed from the current cloud file only after you save or merge, and old files or versions kept by the provider are not affected.",
     "settings.cloud.remoteSettingsOnly": "This backup contains only general settings. Restoring keeps this device’s keys and connections. Enable sensitive settings to include them when saving or merging.",
     "settings.webdav.setup": "Set up WebDAV",
     "settings.webdav.editConnection": "Edit connection",
