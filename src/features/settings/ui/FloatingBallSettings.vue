@@ -12,7 +12,7 @@
   >
     <SettingsItem
       label="按钮显示方式"
-      description="默认常驻显示品牌和工具；也可选择悬停时展开，或只保留品牌按钮"
+      description="默认悬停时展开，移开后收起；也可始终显示工具，或只保留品牌按钮"
       :disabled="!enabled"
     >
       <SegmentedControl

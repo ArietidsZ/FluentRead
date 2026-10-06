@@ -44,7 +44,7 @@ describe('低干扰悬浮 UI', () => {
     expect(handleDocumentKeydown).toContain('isExpanded.value = false');
   });
 
-  it('收起态保持半透明，交互态恢复清晰，并把勾选标记留在可见侧', () => {
+  it('收起态保持半透明，交互态恢复清晰，品牌图标不展示翻译状态', () => {
     const floatingBall = source('src/features/floating-ball/ui/FloatingBall.vue');
     const rightCollapsed = cssRule(
       floatingBall,
@@ -67,14 +67,12 @@ describe('低干扰悬浮 UI', () => {
     expect(leftCollapsed).toContain('transform: translateX(calc(-50% - var(--fr-ball-edge-gap)))');
     expect(numericDeclaration(expanded, 'opacity')).toBe(1);
     expect(numericDeclaration(cssRule(floatingBall, '.dragging .floating-ball-main'), 'opacity')).toBe(1);
-    expect(cssRule(
-      floatingBall,
-      '.fr-floating-ball[data-position="right"] .floating-ball-main .check-mark',
-    )).toContain('left: -1px');
-    expect(cssRule(
-      floatingBall,
-      '.fr-floating-ball[data-position="left"] .floating-ball-main .check-mark',
-    )).toContain('right: -1px');
+    const brand = floatingBall.match(/<div\s+ref="floatingBallMain"[\s\S]*?<\/div>/u)?.[0] ?? '';
+    const translateButton = floatingBall.match(/<button\s+v-if="showTranslateTool"[\s\S]*?<\/button>/u)?.[0] ?? '';
+    expect(brand).toContain('floating-ball-mascot');
+    expect(brand).not.toContain('check-mark');
+    expect(translateButton).toContain('class="check-mark"');
+    expect(floatingBall).not.toContain('is-translating');
   });
 
   it('中间 Logo 只有越过拖动阈值后才改变位置', () => {

@@ -18,7 +18,7 @@ const english = {
   "语言包管理": "Manage language packs",
   "下载离线文件": "Download offline files",
   "最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。": "Recent pages display immediately. Earlier pages use a compact cache and are restored when you return. Large images reduce the number kept ready to fit the memory budget.",
-  "默认常驻显示品牌和工具；也可选择悬停时展开，或只保留品牌按钮": "Keep the brand and tools visible by default, expand on hover, or keep only the brand button",
+  "默认悬停时展开，移开后收起；也可始终显示工具，或只保留品牌按钮": "Expand on hover and collapse when the pointer leaves by default; you can also keep tools visible or show only the brand button",
   "圈选漫画翻译": "Select manga area to translate",
   "画布或分片漫画 · 拖选可见区域翻译": "Canvas or tiled manga · Select a visible area to translate",
   "请在图片/漫画设置中启用圈选翻译，再拖选漫画区域。": "Enable area translation in Image/manga settings, then select a manga area.",
