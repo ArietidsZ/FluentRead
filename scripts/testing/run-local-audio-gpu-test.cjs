@@ -21,13 +21,20 @@ const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-audio-gpu-exte
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-audio-gpu-profile-'));
 fs.mkdirSync(artifacts, {recursive: true});
 fs.cpSync(source, fixture, {recursive: true});
+if (process.argv.includes('--cross-origin-isolated')) {
+  const manifestPath = path.join(fixture, 'manifest.json');
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  manifest.cross_origin_embedder_policy = {value: 'require-corp'};
+  manifest.cross_origin_opener_policy = {value: 'same-origin'};
+  fs.writeFileSync(manifestPath, JSON.stringify(manifest));
+}
 execFileSync('/usr/bin/say', ['-v', 'Samantha', '-o', path.join(fixture, 'speech.aiff'), 'Hello world. This is a local speech test.']);
 execFileSync('/usr/bin/afconvert', ['-f', 'WAVE', '-d', 'LEI16', path.join(fixture, 'speech.aiff'), path.join(fixture, 'speech.wav')]);
 fs.writeFileSync(path.join(fixture, 'audio-probe.html'), '<!doctype html><meta charset="utf-8"><title>本地音频 GPU 验证</title><h1>本地音频 GPU 验证</h1><pre id="result">正在下载并验证模型…</pre>');
 const report = {source, cases: [], errors: [], injectedFaultErrors: [], workerSha256: {}, evidence: 'Real production Kokoro FP32 and Whisper Tiny q4/q8 workers; controlled synthesized speech, plus explicitly injected GPU initialization/device-loss or q4 initialization faults. Does not cover live website audio capture.'};
 for (const worker of ['localTtsWorker', 'videoTranscriptionWorker']) {
   report.workerSha256[worker] = createHash('sha256').update(fs.readFileSync(path.join(source, `${worker}.js`))).digest('hex');
-  for (const fault of ['unavailable', 'init-failure', 'device-loss', 'q4-failure']) {
+  for (const fault of ['unavailable', 'init-failure', 'device-loss', 'q4-failure', 'thread-failure']) {
     if (fault === 'q4-failure') {
       if (worker !== 'videoTranscriptionWorker') continue;
       const code = fs.readFileSync(path.join(source, `${worker}.js`), 'utf8');
@@ -40,10 +47,13 @@ const queuedMessages = [];
 const queueEarlyMessage = event => queuedMessages.push(event);
 self.addEventListener('message', queueEarlyMessage);
 const fault = ${JSON.stringify(fault)};
+const capabilities={crossOriginIsolated:self.crossOriginIsolated,cores:navigator.hardwareConcurrency,pthreads:0};
+const NativeWorker=self.Worker;
+self.Worker=class extends NativeWorker{constructor(url,options){if(options?.name==='em-pthread'){capabilities.pthreads++;if(fault==='thread-failure')throw new Error('Injected pthread creation failure');}super(url,options);}};
 const gpu = navigator.gpu;
 let probes = 0;
 const devices = [];
-if (fault === 'q4-failure') Object.defineProperty(navigator, 'gpu', {value: undefined});
+if (fault === 'q4-failure' || fault === 'thread-failure') Object.defineProperty(navigator, 'gpu', {value: undefined});
 else if (fault === 'unavailable') Object.defineProperty(navigator, 'gpu', {value: undefined});
 else if (gpu) {
   const requestAdapter = gpu.requestAdapter.bind(gpu);
@@ -61,6 +71,7 @@ else if (gpu) {
 }
 const post = self.postMessage.bind(self);
 self.postMessage = (message, ...args) => {
+  message.capabilities={...capabilities};
   if (fault === 'device-loss' && message.requestId === 1 && message.backend === 'webgpu') {
     devices.forEach(device => device.destroy());
     message.injectedDeviceLoss = devices.length;
@@ -77,13 +88,21 @@ self.postMessage({probeReady: true});`);
 (async () => {
   let session;
   try {
-    await createRequire(require.resolve('vite'))('esbuild').build({stdin: {contents: `export {cacheLocalTtsModelFiles} from './src/features/local-tts/offscreen/modelCache'; export {cacheVideoAiQ4ModelFiles} from './src/features/video-subtitle/offscreen/modelCache'; export {prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio, cancelLocalVideoTranscription} from './src/features/video-subtitle/offscreen/transcription';`, resolveDir: root}, alias: {'@': root}, bundle: true, platform: 'browser', format: 'esm', outfile: path.join(fixture, 'audio-cache.mjs')});
+    await createRequire(require.resolve('vite'))('esbuild').build({stdin: {contents: `export {createSelectionTtsPlayer} from './src/app/offscreen/ttsPlayback'; export {cacheLocalTtsModelFiles} from './src/features/local-tts/offscreen/modelCache'; export {cacheVideoAiQ4ModelFiles} from './src/features/video-subtitle/offscreen/modelCache'; export {prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio, cancelLocalVideoTranscription} from './src/features/video-subtitle/offscreen/transcription';`, resolveDir: root}, alias: {'@': root}, bundle: true, platform: 'browser', format: 'esm', outfile: path.join(fixture, 'audio-cache.mjs')});
     session = await launchFocusSafePersistentContext({chromium, profileDir: profile,
       browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), headless: false, background: true,
       displayTarget: 'secondary', viewport: {width: 1100, height: 800},
       browserArgs: ['--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', ...(installWithCdp ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`])]});
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     const {context} = session;
+    const processSession = await context.browser().newBrowserCDPSession();
+    const browserPid = (await processSession.send('SystemInfo.getProcessInfo')).processInfo.find(p => p.type === 'browser').id;
+    await processSession.detach();
+    function focusGuard() {
+      const current = JSON.parse(execFileSync('/usr/bin/osascript', ['-l', 'JavaScript', '-e', "ObjC.import('AppKit');const a=$.NSWorkspace.sharedWorkspace.frontmostApplication;JSON.stringify({pid:Number(a.processIdentifier)});"], {encoding:'utf8'}));
+      assert.notEqual(current.pid, browserPid, 'Owned test browser must stay behind the user application');
+      (report.focusChecks ??= []).push(current);
+    }
     report.browserVersion = context.browser().version();
     let origin;
     if (installWithCdp) {
@@ -115,9 +134,10 @@ self.postMessage({probeReady: true});`);
       for (const kind of kinds) {
         if (mode === 'q4-failure' && kind !== 'whisper') continue;
         const name = `${kind}-${mode}`;
+        focusGuard();
         activeCase = name;
         console.log(JSON.stringify({phase:'inference', name}));
-        const measured = await measureBrowser(context, name, artifacts, () => page.evaluate(async ({kind, mode}) => {
+        const measured = await measureBrowser(context, name, artifacts, () => page.evaluate(async ({kind, mode, texts}) => {
           if (kind === 'whisper' && mode === 'device-loss') {
             // Run the actual owner source for a lost device: ORT may hang rather than reject.
             const owner = await import('./audio-cache.mjs');
@@ -179,12 +199,33 @@ self.postMessage({probeReady: true});`);
             const outputs = [];
             for (const language of kind==='tts' ? ['en','zh'] : ['en']) {
               if (kind==='tts') {
-                const result = await request({type:'synthesize', text:language==='zh'?'你好，欢迎使用流畅阅读。':'Hello world. This is a local speech test.', voice:language==='zh'?'zf_001':'af_maple', speed:1});
+                const result = await request({type:'synthesize', text:texts[language], voice:language==='zh'?'zf_001':'af_maple', speed:1});
                 const view = new DataView(result.audio);
                 const count = (result.audio.byteLength-44)/2;
-                let peak = 0; for(let i=0;i<count;i++) peak=Math.max(peak, Math.abs(view.getInt16(44+i*2,true)));
+                let peak = 0, power = 0; for(let i=0;i<count;i++){const sample=view.getInt16(44+i*2,true);peak=Math.max(peak, Math.abs(sample));power+=sample*sample;}
                 if (language==='en' && mode==='gpu') window.audioProbeWav = result.audio.slice(0);
-                outputs.push({backend:result.backend, language, audioBytes:result.audio.byteLength, samples:count, peak, samplingRate:result.samplingRate});
+                const context = new OfflineAudioContext(1,1,result.samplingRate);
+                const decoded = await context.decodeAudioData(result.audio.slice(0));
+                const owner = await import('./audio-cache.mjs');
+                const progress = [], states = [];
+                let element;
+                const player = owner.createSelectionTtsPlayer({
+                  createAudio:()=>{element=new Audio();element.muted=true;return element;},
+                  decodeBase64:()=>new Uint8Array(result.audio),
+                  createObjectUrl:(bytes,type)=>URL.createObjectURL(new Blob([bytes],{type})),
+                  revokeObjectUrl:url=>URL.revokeObjectURL(url),
+                  notify:(_request,state)=>states.push(state),
+                  notifyProgress:(_request,value)=>progress.push({time:element.currentTime,...value}),
+                });
+                try {
+                  await player.play({tabId:0,clientRequestId:'clock-probe',audioBase64:'fixture',contentType:'audio/wav',text:texts[language],timings:result.timings});
+                  const deadline=performance.now()+15000;
+                  while(!states.includes('ended')&&performance.now()<deadline)await new Promise(resolve=>setTimeout(resolve,100));
+                  if(!states.includes('ended')||progress.length<2||!progress.some(p=>p.time>.2))throw new Error('Generated WAV did not advance the real Audio clock and end');
+                  const count=progress.length;await new Promise(resolve=>setTimeout(resolve,220));
+                  if(progress.length!==count)throw new Error('Ended audio left a follow-along timer alive');
+                } finally {player.dispose();}
+                outputs.push({backend:result.backend, language, text:texts[language], audioBytes:result.audio.byteLength, samples:count, peak, rms:Math.sqrt(power/count)/32768, duration:decoded.duration, samplingRate:result.samplingRate,timings:result.timings,playback:{muted:true,states,progress}});
               } else {
                 const speech = window.audioProbeWav || await (await fetch('./speech.wav')).arrayBuffer();
                 const audioContext = new OfflineAudioContext(1,16000,16000);
@@ -195,8 +236,9 @@ self.postMessage({probeReady: true});`);
             }
             return {prepared, outputs, cpuRebuilds};
           } finally {worker.terminate();}
-        }, {kind,mode}));
+        }, {kind,mode,texts:{en:arg('tts-en-text','Hello world. This is a local speech test.'),zh:arg('tts-zh-text','你好，欢迎使用流畅阅读。')}}));
         report.cases.push(measured);
+        focusGuard();
         if(measured.error) {report.errors.push(`${name}: ${measured.error}`); continue;}
         if (mode === 'q4-failure' && kind === 'whisper') assert.equal(measured.result.prepared.dtype, 'q8');
         const expected = mode==='gpu'?'webgpu':'wasm';
@@ -222,7 +264,8 @@ self.postMessage({probeReady: true});`);
     await modelRow.scrollIntoViewIfNeeded();
     if (!process.argv.includes('--no-screenshots')) await options.screenshot({path:path.join(artifacts,'settings-model.png')});
     }
-    const focusCheck = await newPageWithoutForeground(context); await focusCheck.close();
+    // 只读检查前台 PID；检查本身无需创建额外窗口。
+    focusGuard();
     if(!report.ok)process.exitCode=1;
     console.log(JSON.stringify({ok:report.ok, cases:report.cases.map(c=>({name:c.name, elapsedMs:c.elapsedMs, error:c.error, result:c.result}))}));
   } catch(error) {report.ok=false; report.failure=error.stack; console.error(error); process.exitCode=1;}

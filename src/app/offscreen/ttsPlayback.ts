@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/ttsPlayback.ts
  * 文件职责：管理 Offscreen 中划词 TTS 的单播放所有权，确保新旧请求、停止、结束、错误和 Blob URL 释放按精确 route 隔离。
- * 主要内容：解析 tabId/clientRequestId 路由及 sourceUrl/base64 音频输入，创建 Audio 端口，给每次播放绑定独立回调与可选 object URL；SelectionTtsPlayer 支持 play、stop、dispose 并回传状态。
+ * 主要内容：解析 tabId/clientRequestId 路由及 sourceUrl/base64 音频输入，创建 Audio 端口，给每次播放绑定独立回调与可选 object URL；SelectionTtsPlayer 支持 play、stop、dispose；按真实媒体时钟发送跟读进度，释放时清理计时器并回传状态。
  * 模块边界：播放器不合成语音、不发送后台请求，也不决定 voice/rate；音频构造和状态传输由依赖注入，网络 TTS 与跨上下文路由属于 selection-translation feature。
  */
 import {
@@ -10,6 +10,7 @@ import {
     type SelectionTtsPlaybackRequest,
     type SelectionTtsPlaybackState,
 } from '@/src/features/selection-translation/protocol';
+import {audioSpeechProgress, parseSpeechCues, type SpeechProgress} from '@/src/core/tts/speechProgress';
 
 export type {
     SelectionTtsPlaybackRequest,
@@ -17,6 +18,8 @@ export type {
 } from '@/src/features/selection-translation/protocol';
 
 export interface SelectionAudioPort {
+    readonly currentTime?: number;
+    readonly duration?: number;
     preload: string;
     src: string;
     onended: ((event: Event) => void) | null;
@@ -37,12 +40,14 @@ export interface SelectionTtsPlayerDependencies {
         state: SelectionTtsPlaybackState,
         error?: unknown,
     ) => void;
+    readonly notifyProgress?: (request: SelectionTtsPlaybackRequest, progress: SpeechProgress) => void;
 }
 
 interface PreparedPlayback {
     readonly request: SelectionTtsPlaybackRequest;
     readonly audio: SelectionAudioPort;
     readonly objectUrl: string;
+    timer?: ReturnType<typeof setInterval>;
 }
 
 function parseOptionalString(value: unknown, field: string): string | undefined {
@@ -65,6 +70,7 @@ export function parseSelectionTtsPlaybackRequest(value: unknown): SelectionTtsPl
     return {
         sourceUrl,
         audioBase64,
+        ...(record.text === undefined ? {} : {text: parseOptionalString(record.text, 'text'), timings: parseSpeechCues(record.timings)}),
         contentType: parseOptionalString(record.contentType, 'contentType'),
         ...route,
     };
@@ -80,6 +86,7 @@ export class SelectionTtsPlayer {
     constructor(private readonly dependencies: SelectionTtsPlayerDependencies) {}
 
     private release(playback: PreparedPlayback): void {
+        clearInterval(playback.timer);
         playback.audio.onended = null;
         playback.audio.onerror = null;
         playback.audio.pause();
@@ -148,6 +155,14 @@ export class SelectionTtsPlayer {
 
         try {
             await audio.play();
+            if (this.active === playback && request.text && this.dependencies.notifyProgress) {
+                const tick = () => {
+                    const progress = audioSpeechProgress(request.text!, audio.currentTime ?? NaN, audio.duration ?? NaN, request.timings);
+                    if (this.active === playback && progress) this.dependencies.notifyProgress!(request, progress);
+                };
+                playback.timer = setInterval(tick, 100);
+                tick();
+            }
         } catch (error) {
             // 步骤 3：只有仍然活跃的请求才上报错误；被后续请求替换的迟到失败已收到 stopped。
             if (this.active === playback) {

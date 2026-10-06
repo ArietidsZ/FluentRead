@@ -1,10 +1,15 @@
 /**
  * @file tests/localTtsWorker.test.ts
  * 文件职责：验证本地 TTS Worker 的 WebGPU 优先、WASM 回退、流式失败恢复和生命周期锁定。
- * 主要内容：用假 Kokoro 模型驱动真实 Worker 消息队列，不加载模型文件或启动浏览器 Worker。
- * 模块边界：只覆盖 tts.worker.ts 的设备选择、模型释放、音频重试和错误边界。
+ * 主要内容：用假 Kokoro 模型驱动真实 Worker 队列，验证句段时间、实际 WAV、PCM16 静音与采样率安全检查。
+ * 模块边界：覆盖 tts.worker.ts 的设备选择、模型释放、编码和错误边界，不加载模型或启动浏览器 Worker。
  */
 
+vi.mock('@/src/shared/onnx/resources', async original => ({
+    ...await original<typeof import('@/src/shared/onnx/resources')>(),
+    paceLocalInference: (operation: () => Promise<unknown>) => operation(),
+    paceLocalInitialization: (operation: () => Promise<unknown>) => operation(),
+}));
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const mocks = vi.hoisted(() => ({
@@ -95,6 +100,114 @@ beforeEach(() => {
     mocks.probeWebGpu.mockReset();
     mocks.probeWebGpu.mockResolvedValue({available: true, info: 'test-gpu'});
     mocks.fromPretrained.mockReset();
+});
+
+describe('local TTS worker audio and timing integrity', () => {
+    it('maps repeated sentence text to original character offsets and cumulative encoded chunk durations', async () => {
+        const text = 'Repeat.  Repeat. 你好。';
+        const sampleRate = 8_000;
+        const cpuModel = modelFrom(async function* () {
+            // 无法匹配的文本与缺失文本仍贡献真实音频时长，但不能虚构字符位置。
+            yield {text: 'not in source', audio: {audio: new Float32Array(4_000).fill(0.125), sampling_rate: sampleRate}};
+            yield {text: 'Repeat.', audio: {audio: new Float32Array(8_000).fill(0.25), sampling_rate: sampleRate}};
+            yield {audio: {audio: [new Float32Array(2_000).fill(0.5), new Float32Array(2_000).fill(-0.5)], sampling_rate: sampleRate}};
+            yield {text: 'Repeat.', audio: {audio: new Float32Array(12_000).fill(0.75), sampling_rate: sampleRate}};
+            yield {text: '你好。', audio: {audio: new Float32Array(4_000).fill(1), sampling_rate: sampleRate}};
+        });
+        mocks.fromPretrained.mockResolvedValue(cpuModel);
+        const workerScope = await start();
+        const response = await send(workerScope, {
+            requestId: 20, type: 'synthesize', device: 'wasm', text, voice: 'zf_001', speed: 1,
+        }, 1);
+        expect(response).toMatchObject({requestId: 20, success: true, backend: 'wasm', samplingRate: sampleRate});
+        expect(response.timings).toEqual([
+            {startChar: 0, endChar: 7, startTime: 0.5, endTime: 1.5},
+            {startChar: 9, endChar: 16, startTime: 2, endTime: 3.5},
+            {startChar: 17, endChar: 20, startTime: 3.5, endTime: 4},
+        ]);
+        expect(cpuModel.stream).toHaveBeenCalledWith(text, {voice: 'zf_001', speed: 1, maxChunkLength: 180});
+        const audio = response.audio as ArrayBuffer;
+        expect(audio).toBeInstanceOf(ArrayBuffer);
+        const wav = new DataView(audio);
+        expect(wav.getUint32(24, true)).toBe(sampleRate);
+        expect(wav.getUint32(40, true)).toBe(32_000 * 2);
+        expect(audio.byteLength).toBe(44 + 32_000 * 2);
+        expect(wav.getUint32(40, true) / (sampleRate * 2)).toBe(4);
+        expect(wav.getInt16(44, true)).toBe(4096);
+        expect(wav.getInt16(44 + 4_000 * 2, true)).toBe(8192);
+        expect(wav.getInt16(44 + 14_000 * 2, true)).toBe(-16384);
+        expect(wav.getInt16(audio.byteLength - 2, true)).toBe(32767);
+        expect(workerScope.postMessage).toHaveBeenCalledWith(response, [audio]);
+    });
+
+    it('keeps legacy chunks without text playable and returns no fabricated timings', async () => {
+        mocks.fromPretrained.mockResolvedValue(modelFrom(() => audioChunks([0.5, -0.5])));
+        const workerScope = await start();
+        const response = await send(workerScope, {requestId: 21, type: 'synthesize', device: 'wasm', text: 'Legacy audio'}, 1);
+        expect(response).toMatchObject({requestId: 21, success: true, samplingRate: 24_000, timings: []});
+        const wav = new DataView(response.audio as ArrayBuffer);
+        expect(wav.getUint32(40, true)).toBe(4);
+        expect(wav.getInt16(44, true)).toBe(16384);
+        expect(wav.getInt16(46, true)).toBe(-16384);
+    });
+
+    it.each(['webgpu', 'wasm'] as const)('rejects nonzero %s samples that all round to zero in PCM16', async device => {
+        const samples = [0.000_001, -0.000_001, 0.000_01, -0.000_01];
+        expect(samples.every(sample => sample !== 0)).toBe(true);
+        const dispose = vi.fn();
+        const model = modelFrom(() => audioChunks(samples), dispose);
+        mocks.fromPretrained.mockResolvedValue(model);
+        const workerScope = await start();
+        const response = await send(workerScope, {
+            requestId: 22, type: 'synthesize', text: 'Sub-PCM signal', ...(device === 'wasm' ? {device} : {}),
+        }, 1);
+        expect(response).toMatchObject({requestId: 22, success: false, error: '本地 TTS 生成了静音音频'});
+        expect(response).not.toHaveProperty('audio');
+        expect(response).not.toHaveProperty('timings');
+        expect(response.retryWithCpu).toBe(device === 'webgpu' ? true : undefined);
+        expect(dispose).toHaveBeenCalledTimes(device === 'webgpu' ? 1 : 0);
+        expect(model.stream).toHaveBeenCalledOnce();
+        expect(mocks.fromPretrained).toHaveBeenCalledOnce();
+        expect(workerScope.postMessage.mock.calls[0]).toHaveLength(1);
+    });
+
+    it('accepts a real nonzero PCM16 signal alongside samples that round to zero', async () => {
+        mocks.fromPretrained.mockResolvedValue(modelFrom(() => audioChunks([0.000_01, -0.000_01, 0.000_02, -0.000_02])));
+        const workerScope = await start();
+        const response = await send(workerScope, {requestId: 23, type: 'synthesize', device: 'wasm', text: 'One PCM step'}, 1);
+        expect(response.success).toBe(true);
+        const wav = new DataView(response.audio as ArrayBuffer);
+        expect([44, 46, 48, 50].map(offset => wav.getInt16(offset, true))).toEqual([0, 0, 1, -1]);
+    });
+
+    it.each([0, -24_000, 24_000.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
+        'rejects invalid sampling rate %s without returning WAV or timings', async sampleRate => {
+            mocks.fromPretrained.mockResolvedValue(modelFrom(() => audioChunks([0.5], sampleRate)));
+            const workerScope = await start();
+            const response = await send(workerScope, {requestId: 24, type: 'synthesize', device: 'wasm', text: 'Bad sampling rate'}, 1);
+            expect(response).toEqual({requestId: 24, success: false, error: '本地 TTS 音频采样率无效或不一致'});
+            expect(workerScope.postMessage.mock.calls[0]).toHaveLength(1);
+        },
+    );
+
+    it.each(['webgpu', 'wasm'] as const)('rejects inconsistent %s chunk rates and discards partial audio', async device => {
+        const dispose = vi.fn();
+        const model = modelFrom(async function* () {
+            yield {text: 'First.', audio: {audio: new Float32Array([0.5]), sampling_rate: 24_000}};
+            yield {text: 'Second.', audio: {audio: new Float32Array([0.5]), sampling_rate: 16_000}};
+        }, dispose);
+        mocks.fromPretrained.mockResolvedValue(model);
+        const workerScope = await start();
+        const response = await send(workerScope, {
+            requestId: 25, type: 'synthesize', text: 'First. Second.', ...(device === 'wasm' ? {device} : {}),
+        }, 1);
+        expect(response).toMatchObject({requestId: 25, success: false, error: '本地 TTS 音频采样率无效或不一致'});
+        expect(response).not.toHaveProperty('audio');
+        expect(response).not.toHaveProperty('timings');
+        expect(response.retryWithCpu).toBe(device === 'webgpu' ? true : undefined);
+        expect(dispose).toHaveBeenCalledTimes(device === 'webgpu' ? 1 : 0);
+        expect(workerScope.postMessage.mock.calls[0]).toHaveLength(1);
+    });
 });
 
 afterEach(() => {

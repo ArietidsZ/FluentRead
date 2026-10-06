@@ -445,7 +445,11 @@
       "tests/webDavHttpIntegration.test.ts",
       "tests/mangaPatchResult.test.ts",
       "tests/mangaCompositor.test.ts",
-      "tests/modelDownloads.test.ts"
+      "tests/modelDownloads.test.ts",
+      "tests/localInferenceResources.test.ts",
+      "tests/speechProgress.test.ts",
+      "tests/mangaInferenceClient.test.ts",
+      "tests/mangaInferenceWorker.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

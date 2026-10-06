@@ -1,9 +1,10 @@
 /**
  * @file src/features/selection-translation/background/ttsHandler.ts
  * 文件职责：编排划词朗读的后台消息路由，按标签页和客户端请求编号管理当前播放所有权，并在 Edge、Google 与页面回退之间传递音频或状态。
- * 主要内容：定义四类 TTS 消息、音频/请求/响应契约，解析 tabId、文本和语言，生成 Google TTS URL、Base64 编码音频，并由工厂创建播放、停止及 Offscreen 状态转发 handlers。
+ * 主要内容：定义四类 TTS 消息、音频/请求/响应契约，解析 tabId、文本和语言，生成 Google TTS URL、Base64 编码音频，并由工厂创建播放、停止及 Offscreen 状态转发 handlers；持续进度不释放路由，终态按精确请求清理。
  * 模块边界：本文件不操作页面 Audio 或 speechSynthesis，也不实现 Edge SSML；具体合成由 services 注入，Offscreen 播放由 adapter 注入，内容页控制器负责忽略迟到状态。
  */
+import {parseSpeechProgress, type SpeechCue} from '@/src/core/tts/speechProgress';
 import {
     parseSelectionTtsClientRequestId,
     parseSelectionTtsPlaybackState,
@@ -27,6 +28,7 @@ export interface SelectionTtsContext {
 }
 
 export interface SelectionTtsAudio {
+    timings?: SpeechCue[];
     audio: ArrayBuffer;
     contentType: string;
     voice: string;
@@ -38,6 +40,7 @@ export interface SelectionTtsPlaybackStateMessage {
     clientRequestId?: unknown;
     state?: unknown;
     error?: unknown;
+    progress?: unknown;
 }
 
 export interface SelectionTtsStopMessage {
@@ -66,6 +69,8 @@ export type SelectionTtsRuntimeMessage =
     | SelectionTtsGoogleMessage;
 
 export interface SelectionTtsPlayAudioRequest {
+    text?: string;
+    timings?: SpeechCue[];
     audioBase64: string;
     contentType: string;
     tabId: number;
@@ -73,6 +78,7 @@ export interface SelectionTtsPlayAudioRequest {
 }
 
 export interface SelectionTtsPlaySourceRequest {
+    text?: string;
     sourceUrl: string;
     tabId: number;
     clientRequestId: string;
@@ -191,13 +197,14 @@ export function createSelectionTtsBackgroundHandlers(
                 }
 
                 // MV3 worker 重建后仍可仅凭 offscreen 自描述消息转发结果。
-                if (activeSelectionTts && sameSelectionTtsRoute(activeSelectionTts, route)) {
+                if (state !== 'progress' && activeSelectionTts && sameSelectionTtsRoute(activeSelectionTts, route)) {
                     activeSelectionTts = null;
                 }
                 await dependencies.sendTabMessage(route.tabId, {
                     type: 'selectionTtsState',
                     clientRequestId: route.clientRequestId,
                     state,
+                    ...(state === 'progress' ? {progress:parseSpeechProgress(message.progress)} : {}),
                     error: typeof message.error === 'string' ? message.error : undefined,
                 }).catch(() => undefined);
                 return {success: true};
@@ -258,6 +265,7 @@ export function createSelectionTtsBackgroundHandlers(
                     try {
                         await dependencies.playWithOffscreen({
                             audioBase64: arrayBufferToBase64(result.audio),
+                            text, ...(result.timings === undefined ? {} : {timings: result.timings}),
                             contentType: result.contentType,
                             tabId,
                             clientRequestId: active.clientRequestId,
@@ -309,6 +317,7 @@ export function createSelectionTtsBackgroundHandlers(
                 try {
                     await dependencies.playWithOffscreen({
                         sourceUrl: googleSelectionTtsUrl(text, language),
+                        text,
                         tabId,
                         clientRequestId: active.clientRequestId,
                     });

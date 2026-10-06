@@ -6,6 +6,8 @@
  * 调用方必须按错误码判断，不能依赖 instanceof。
  */
 
+import type {SpeechCue} from '@/src/core/tts/speechProgress';
+
 export const LOCAL_TTS_MODEL_NOT_DOWNLOADED_CODE = 'local-tts-model-not-downloaded' as const;
 export const LOCAL_TTS_LANGUAGE_UNSUPPORTED_CODE = 'local-tts-language-unsupported' as const;
 
@@ -27,8 +29,10 @@ export class LocalTtsLanguageUnsupportedError extends Error {
     }
 }
 
+
 export interface LocalTtsAudio {
     readonly audio: ArrayBuffer;
+    readonly timings?: SpeechCue[];
     readonly contentType: 'audio/wav';
     readonly voice: string;
     readonly backend?: 'webgpu' | 'wasm';

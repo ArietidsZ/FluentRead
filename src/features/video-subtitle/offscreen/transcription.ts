@@ -1,9 +1,10 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.ts
  * 文件职责：在 Offscreen Document 中串行调度视频 Whisper Worker、PCM 解码和模型预热。
- * 主要内容：管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放。
+ * 主要内容：复用共享并行预算及排队任务代次保护，管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放。
  * 模块边界：只编排 Offscreen/Worker 资源，不解析字幕时间轴，也不管理后台 tab owner。
  */
+import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {
   normalizeVideoLocalTranscriptionModel,
   resampleToWhisperAudio,
@@ -114,6 +115,7 @@ const pendingPreparePromises = new Map<string, Promise<{
 }>>();
 let idleDisposeTimer: number | undefined;
 let activeStreamId = '';
+let workerGeneration = 0;
 let currentTranscriptionStreamId = '';
 
 function createWorkerLifecycleError(message: string): WorkerLifecycleError {
@@ -131,6 +133,7 @@ function toError(value: unknown, fallback: string): Error {
 }
 
 function terminateWorker(error?: Error, releaseStream = false): void {
+  workerGeneration++;
   const current = transcriptionWorker;
   transcriptionWorker = null;
   transcriptionWorkerModel = '';
@@ -176,7 +179,15 @@ function getWorker(): Worker {
   return worker;
 }
 
-function requestWorker(
+function requestWorker(message: Omit<WorkerRequest, 'requestId'>, transfer: Transferable[] = [], timeoutMs: number): Promise<WorkerResponse> {
+  const generation = workerGeneration;
+  return withLocalInferenceBudget(() => {
+    if (generation !== workerGeneration) throw new Error('本地视频 AI 字幕已取消');
+    return requestWorkerNow(message, transfer, timeoutMs);
+  });
+}
+
+function requestWorkerNow(
   message: Omit<WorkerRequest, 'requestId'>,
   transfer: Transferable[] = [],
   timeoutMs: number,

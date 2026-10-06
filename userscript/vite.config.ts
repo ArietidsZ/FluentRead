@@ -62,11 +62,16 @@ const userscriptRequires = bundleLibraries
     : [...uiRequires, 'https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako_inflate.min.js',
         ...(greasyForkSource ? [vendorUrl!, dataUrl!] : [])];
 const metadata = createUserscriptMetadata({version: packageJson.userscriptVersion, iconDataUrl: iconMetaUrl, requires: userscriptRequires});
+// 界面词典只按 key 查询，稳定排序把相似 key 聚在一起，提高静态 JSON 压缩率；数组顺序保持原样。
+function serializeUiMessages(value: unknown): string {
+    return JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
+        ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : item);
+}
 const compressedUiLanguageBundles = greasyForkSource ? {} : Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language === 'en-US')
     .map(([language, bundle]) => [
     language,
-    gzipSync(Buffer.from(JSON.stringify(bundle))).toString('base64'),
+    gzipSync(Buffer.from(serializeUiMessages(bundle)), {level: 9}).toString('base64'),
 ]));
 const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language !== 'en-US')
@@ -109,8 +114,8 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
         load(id) {
             if (id === externalChineseMessagesId) {
                 if (greasyForkSource) return 'export const zhCNMessages = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.zhCNMessages;';
-                const contents = JSON.stringify(zhCNMessages);
-                const compressed = gzipSync(Buffer.from(contents)).toString('base64');
+                const contents = serializeUiMessages(zhCNMessages);
+                const compressed = gzipSync(Buffer.from(contents), {level: 9}).toString('base64');
                 return [
                     `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
                     "import {inflateWithPako} from '@/userscript/pakoRuntime';",
@@ -125,7 +130,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
                 return `export default globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${basename(sourcePath, '.json')};`;
             }
             const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
-            const compressed = gzipSync(Buffer.from(contents)).toString('base64');
+            const compressed = gzipSync(Buffer.from(contents), {level: 9}).toString('base64');
             const digest = createHash('sha256').update(contents).digest('hex');
             return [
                 `/* Non-code site rules: ${normalizePath(sourcePath).slice(projectRoot.length)}; sha256 ${digest}. */`,
@@ -347,7 +352,7 @@ function bundleUserscriptCss(): Plugin {
           handler(_options, bundle) {
             const cssEntries = Object.entries(bundle).filter(([, item]) => item.type === 'asset' && item.fileName.endsWith('.css'));
             const css = cssEntries.map(([, item]) => String(item.type === 'asset' ? item.source : '')).join('\n');
-            const compressedCss = greasyForkSource ? '' : gzipSync(Buffer.from(css, 'utf8')).toString('base64');
+            const compressedCss = greasyForkSource ? '' : gzipSync(Buffer.from(css, 'utf8'), {level: 9}).toString('base64');
             cssEntries.forEach(([fileName]) => delete bundle[fileName]);
 
             if (greasyForkSource) {

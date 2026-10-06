@@ -1,10 +1,12 @@
 /**
  * @file src/features/local-tts/offscreen/tts.worker.ts
  * 文件职责：在独立 Worker 中加载并运行 Kokoro v1.1 中文 TTS，避免推理阻塞 Offscreen DOM。
- * 主要内容：固定模型版本、WebGPU/WASM 回退、串行合成、句段流式生成和 WAV 编码。
+ * 主要内容：固定模型版本、WebGPU/WASM 回退、有界线程与计算间歇、串行合成、PCM16 静音校验、句段流式生成及真实句段时间与 WAV 编码。
  * 模块边界：只运行本地模型，不访问配置、网页、标签页或直接播放 Audio。
  */
 
+import type {SpeechCue} from '@/src/core/tts/speechProgress';
+import {forceSingleThreadInference, localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
 import {KokoroTTS, env as kokoroEnv} from '@uzen/kokoro-js';
 import {env as kokoroTransformersEnv} from '@huggingface/transformers-kokoro';
 import {
@@ -33,6 +35,7 @@ interface WorkerResponse {
     requestId: number;
     success: boolean;
     audio?: ArrayBuffer;
+    timings?: SpeechCue[];
     samplingRate?: number;
     backend?: LocalTtsDevice;
     error?: string;
@@ -125,7 +128,7 @@ function configureRuntime(): void {
     // pre-cache path; keep the MJS static and inject the packaged CPU/WebGPU WASM binary.
     kokoroTransformersEnv.useWasmCache = false;
     if (kokoroTransformersEnv.backends.onnx.wasm) {
-        kokoroTransformersEnv.backends.onnx.wasm.numThreads = 1;
+        kokoroTransformersEnv.backends.onnx.wasm.numThreads = localWasmThreads();
         configureOnnxWasmBackend(kokoroTransformersEnv.backends.onnx.wasm, {
             mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
             wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
@@ -146,9 +149,9 @@ async function createModel(device: LocalTtsDevice): Promise<KokoroTTS> {
         voicePath: LOCAL_TTS_VOICE_PATH,
     });
     const wasm = kokoroTransformersEnv.backends.onnx.wasm;
-    return wasm
+    return paceLocalInitialization(() => wasm
         ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), create)
-        : create();
+        : create());
 }
 
 async function hasUsableWebGpu(): Promise<boolean> {
@@ -184,7 +187,7 @@ async function getModel(): Promise<KokoroTTS> {
     try {
         return await loadModel(preferred);
     } catch (error) {
-        if (preferred !== 'webgpu') throw error;
+        if (preferred !== 'webgpu' && localWasmThreads() === 1) throw error;
         // GPU 初始化可能已污染当前 ORT runtime；外层必须重建 Worker 后再尝试 CPU。
         gpuUnavailable = true;
         throw retryWithCpuError(error);
@@ -236,7 +239,7 @@ function validateAudio(samples: Float32Array): void {
     let invalidSamples = 0;
     for (const sample of samples) {
         if (!Number.isFinite(sample)) invalidSamples += 1;
-        if (sample !== 0) hasSignal = true;
+        if (floatToPcm16(sample) !== 0) hasSignal = true;
     }
     if (invalidSamples) throw new Error(`本地 TTS 生成了无效音频（${invalidSamples}/${samples.length} 个采样）`);
     if (!hasSignal) throw new Error('本地 TTS 生成了静音音频');
@@ -247,20 +250,32 @@ async function synthesizeWithModel(
     text: string,
     voice: string,
     speed: number,
-): Promise<{audio: ArrayBuffer; samplingRate: number}> {
+): Promise<{audio: ArrayBuffer; samplingRate: number; timings: SpeechCue[]}> {
     const chunks: Float32Array[] = [];
     let samplingRate = 24_000;
-    for await (const item of model.stream(text, {voice: voice as never, speed, maxChunkLength: 180})) {
+    const timings: SpeechCue[] = [];
+    let seconds = 0, cursor = 0;
+    const stream = model.stream(text, {voice: voice as never, speed, maxChunkLength: 180})[Symbol.asyncIterator]();
+    while (true) {
+        const next = await paceLocalInference(() => stream.next());
+        if (next.done) break;
+        const item = next.value;
         const samples = item.audio.audio;
+        if (!Number.isSafeInteger(item.audio.sampling_rate) || item.audio.sampling_rate <= 0
+            || (chunks.length > 0 && item.audio.sampling_rate !== samplingRate)) throw new Error('本地 TTS 音频采样率无效或不一致');
         chunks.push(samples instanceof Float32Array ? samples.slice() : concatAudio(samples));
         samplingRate = item.audio.sampling_rate;
+        const chunk = chunks.at(-1)!;
+        const start = typeof item.text === 'string' && item.text ? text.indexOf(item.text,cursor) : -1;
+        if(start >= 0 && chunk.length > 0) { timings.push({startChar:start,endChar:start+item.text.length,startTime:seconds,endTime:seconds+chunk.length/samplingRate});cursor=start+item.text.length; }
+        seconds += chunk.length/samplingRate;
     }
     const samples = concatAudio(chunks);
     validateAudio(samples);
-    return {audio: encodeWav(samples, samplingRate), samplingRate};
+    return {audio: encodeWav(samples, samplingRate), samplingRate, timings};
 }
 
-async function synthesize(request: WorkerRequest): Promise<{audio: ArrayBuffer; samplingRate: number}> {
+async function synthesize(request: WorkerRequest): Promise<{audio: ArrayBuffer; samplingRate: number; timings: SpeechCue[]}> {
     const text = request.text?.trim() || '';
     if (!text) throw new Error('本地 TTS 文本为空');
     const voice = request.voice?.trim() || 'zf_001';
@@ -281,6 +296,7 @@ async function synthesize(request: WorkerRequest): Promise<{audio: ArrayBuffer; 
 }
 
 async function lockCpuForWorker(): Promise<void> {
+    forceSingleThreadInference();
     cpuLocked = true;
     gpuUnavailable = true;
     if (modelBackend === 'webgpu') await disposeModel();
@@ -330,6 +346,7 @@ async function handle(request: WorkerRequest): Promise<void> {
             success: true,
             audio: result.audio,
             samplingRate: result.samplingRate,
+            timings: result.timings,
             backend: modelBackend,
         });
     } catch (error) {

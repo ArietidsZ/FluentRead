@@ -1,9 +1,10 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
  * 文件职责：解析并分派发送到扩展自有 DOM 页面的可信运行时消息，为 Chrome 翻译、本地模型、TTS、远程图片读取、OCR 语言包、整图和区域翻译提供统一响应纪律。
- * 主要内容：校验并传递单图本地识别方式；提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
+ * 主要内容：校验并传递单图本地识别方式；提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，校验本地语音句段时间并保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
+import {parseSpeechCues} from '@/src/core/tts/speechProgress';
 import type {AreaTranslationSelection} from '@/src/features/area-translation/protocol';
 import {imageTranslationFailureResponse} from '@/src/features/image-translation/failure';
 import {isLocalTranslationModel} from '@/src/core/config/localTranslation';
@@ -185,6 +186,7 @@ function serializeLocalTtsAudio(value: unknown): Record<string, unknown> {
     const {audio, ...metadata} = record;
     return {
         ...metadata,
+        ...(record.timings === undefined ? {} : {timings: parseSpeechCues(record.timings)}),
         audioBase64: binaryToBase64(audio, '本地 TTS 合成'),
     };
 }

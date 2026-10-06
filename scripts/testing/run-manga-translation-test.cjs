@@ -5,7 +5,8 @@ const path = require('node:path');
 const assert = require('node:assert/strict');
 const {execFileSync} = require('node:child_process');
 function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1];}
-const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
+let extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
+let diagnosticFixture;
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-manga-browser'));
 const packages = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
 const helper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER);
@@ -42,6 +43,20 @@ const pipelineRounds=Number(arg('pipeline-rounds','3'));
 const graphOverride=arg('pipeline-graph',null);
 const gpuDiagnosis=process.argv.includes('--gpu-diagnosis');
 const forceCpu=process.argv.includes('--pipeline-cpu');
+if (process.argv.includes('--worker-diagnostics')) {
+    diagnosticFixture=fs.mkdtempSync('/private/tmp/fluentread-manga-diagnostics-');
+    fs.cpSync(extensionDir,diagnosticFixture,{recursive:true});extensionDir=diagnosticFixture;
+    fs.renameSync(path.join(extensionDir,'mangaInferenceWorker.js'),path.join(extensionDir,'mangaInferenceWorker.real.js'));
+    fs.writeFileSync(path.join(extensionDir,'mangaInferenceWorker.js'),`
+const early=[],queue=event=>early.push(event);self.addEventListener('message',queue);
+const diagnostics={gpuSubmissions:0,pthreads:0,crossOriginIsolated:self.crossOriginIsolated,cores:navigator.hardwareConcurrency,forceCpu:${forceCpu}};
+if(${forceCpu})Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true});
+if(self.GPUQueue){const submit=GPUQueue.prototype.submit;GPUQueue.prototype.submit=function(...args){diagnostics.gpuSubmissions++;return submit.apply(this,args);};}
+const NativeWorker=self.Worker;self.Worker=class extends NativeWorker{constructor(...args){super(...args);if(args[1]?.name==='em-pthread')diagnostics.pthreads++;}};
+const post=self.postMessage.bind(self);self.postMessage=(message,...args)=>post({...message,diagnostics:{...diagnostics}},...args);
+await import('./mangaInferenceWorker.real.js');self.removeEventListener('message',queue);for(const event of early)self.onmessage?.(event);
+`);
+}
 const extensionDebugging=process.argv.includes('--extension-debugging');
 const startupExtensionId=arg('extension-id',null);
 if(startupExtensionId)assert.match(startupExtensionId,/^[a-p]{32}$/,'Use a verified unpacked extension ID');
@@ -191,7 +206,7 @@ async function ui(hostId, code) {
     try {objectId = (await cdp.send('DOM.resolveNode', {nodeId: shadow.nodeId,...(canvasContentPixels&&hostId===surfaceHost?{executionContextId:contentPixelContext}:{})})).object.objectId;}
     catch(error){if(error.message.includes('No node with given id'))return null;throw error;}
     try {
-        const result=await cdp.send('Runtime.callFunctionOn', {objectId, functionDeclaration:`function(){${code}}`, returnByValue:true});
+        const result=await cdp.send('Runtime.callFunctionOn', {objectId, functionDeclaration:`async function(){${code}}`, returnByValue:true, awaitPromise:true});
         if (result.exceptionDetails) throw new Error(result.exceptionDetails.text);
         return result.result.value;
     } finally {await cdp.send('Runtime.releaseObject', {objectId});}
@@ -523,7 +538,7 @@ async function verifyPageFeedback() {
     await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await toggle();
     await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
     const metrics=await imageUi(`const f=[...this.querySelectorAll('.fr-image-feedback')].find(e=>!e.hidden),r=f.getBoundingClientRect();return {text:f.textContent,width:r.width,height:r.height,x:r.x+r.width/2,y:r.y+r.height/2,pointerEvents:getComputedStyle(f).pointerEvents,buttons:f.querySelectorAll('button').length}`);
-    const bounds=await first.boundingBox();assert.ok(metrics.width<230&&metrics.height<125);assert.equal(metrics.pointerEvents,'none');assert.equal(metrics.buttons,0);
+    const bounds=await first.boundingBox();assert.ok(metrics.width<230&&metrics.height<40);assert.equal(metrics.pointerEvents,'none');assert.equal(metrics.buttons,0);
     assert.ok(metrics.x>bounds.x&&metrics.x<bounds.x+bounds.width&&metrics.y>bounds.y&&metrics.y<bounds.y+bounds.height);assert.match(metrics.text,/翻译文字/);
     report.feedbackMetrics=metrics;await assertQuietReading();report.cases.push(report.currentCase);await screenshot('manga-stage-feedback');
     report.currentCase='owned stage progress displays a true value supplied by transport, no estimated overall percent';
@@ -641,13 +656,20 @@ function auditPageErrors() {
 
 async function verifyPipelinePerformance(extensionId) {
     assert.ok(pipelineRounds>=2 && pipelineRounds<=5,'Measure first use separately from bounded warm runs');
+    await patch({animations:false});
     const chunks=fs.readdirSync(path.join(extensionDir,'chunks'));
     const ortFiles=chunks.filter(name=>/^ort\.(?:webgpu\.)?(?:bundle\.)?min-/.test(name));
-    assert.ok(ortFiles.length,'Production ORT namespace is exported');
+    assert.ok(ortFiles.length || fs.existsSync(path.join(extensionDir,'mangaInferenceWorker.js')),'Production ORT namespace or isolated inference Worker exists');
+    report.pipelineInstrumentationScope=ortFiles.length?'Offscreen inference':'Offscreen rendering; inference executes in a separate Worker';
     // 只在自有临时扩展 Offscreen 中测量；不改变宿主页或普通生产代码。
     await modelObserver.command('Runtime.evaluate',{expression:`(async()=>{
         if(${forceCpu})Object.defineProperty(navigator,'gpu',{value:undefined,configurable:true});
         const samples=globalThis.__pipelineSamples={sessions:[],runs:[],encodes:[],reads:[],canvasCalls:{},yields:[],gpuSubmissions:0,adapters:[],userAgent:navigator.userAgent};
+        samples.workers=[];
+        const NativeWorker=globalThis.Worker;
+        globalThis.Worker=class extends NativeWorker {
+            constructor(...args){super(...args);this.addEventListener('message',event=>{if(event.data?.diagnostics)globalThis.__pipelineSamples.workers.push(event.data.diagnostics);});}
+        };
         const read=FileReader.prototype.readAsDataURL;
         FileReader.prototype.readAsDataURL=function(blob){const start=Date.now();this.addEventListener('loadend',()=>samples.reads.push({start,end:Date.now(),bytes:blob.size}),{once:true});return read.call(this,blob);};
         const schedule=globalThis.setTimeout;
@@ -704,9 +726,20 @@ async function verifyPipelinePerformance(extensionId) {
         });
         await wait(async()=>!!await ball(`return this.querySelector('.floating-ball-manga')`),30000);
         const before=await ops();const start=Date.now();
-        await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples.runs=[];globalThis.__pipelineSamples.encodes=[];globalThis.__pipelineSamples.reads=[];globalThis.__pipelineSamples.sessions=[];globalThis.__pipelineSamples.canvasCalls={};globalThis.__pipelineSamples.yields=[];globalThis.__pipelineSamples.gpuSubmissions=0'});
-        await toggle();
-        await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity==='0'),180000);
+        await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__pipelineSamples.workers=[];globalThis.__pipelineSamples.runs=[];globalThis.__pipelineSamples.encodes=[];globalThis.__pipelineSamples.reads=[];globalThis.__pipelineSamples.sessions=[];globalThis.__pipelineSamples.canvasCalls={};globalThis.__pipelineSamples.yields=[];globalThis.__pipelineSamples.gpuSubmissions=0'});
+        const measured=await require('./local-model-browser-helpers.cjs').measureBrowser(launched.context,`manga-round-${round+1}`,artifacts,async()=>{
+            await toggle();
+            await wait(async()=>await imageUi(`return !!this.querySelector('.fr-image-feedback:not([hidden]) .fr-image-spinner:not([hidden])')`),10000);
+            report.loadingFrames??=[];
+            const animation=await imageUi(`const feedback=this.querySelector('.fr-image-feedback:not([hidden])'),spinner=feedback.querySelector('.fr-image-spinner');const frames=[];for(let n=0;n<12;n++){await new Promise(resolve=>setTimeout(resolve,60));frames.push({at:performance.now(),transform:getComputedStyle(spinner).transform});}const r=feedback.getBoundingClientRect();return {frames,width:r.width,height:r.height,reducedMotion:matchMedia('(prefers-reduced-motion:reduce)').matches,animated:spinner.dataset.animated};`);
+            report.loadingFrames.push(animation);
+            assert.ok(animation.height<40 && animation.width<280,'Status remains compact');
+            if(!animation.reducedMotion)assert.ok(new Set(animation.frames.map(frame=>frame.transform)).size>1,'Spinner keeps rotating when decorative animations are disabled');
+            assert.ok(animation.frames.every((frame,i,frames)=>!i || frame.at-frames[i-1].at<500),'Page heartbeat stays responsive during real inference');
+            await screenshot(`pipeline-loading-${round+1}`);
+            await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity==='0'),180000);
+        });
+        assert.equal(measured.error,undefined,'Measured pipeline completes');
         assert.equal(await page.locator('.zao-image').first().evaluate(i=>i.src),data,'Source stays the exact benchmark image');
         const end=Date.now();
         await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(resolve)));
@@ -719,7 +752,7 @@ async function verifyPipelinePerformance(extensionId) {
         const output=path.join(artifacts,`${path.basename(input,'.png')}-round-${round+1}-translated.png`);
         fs.writeFileSync(output,Buffer.from(translated.split(',')[1],'base64'));
         const display=await page.evaluate(()=>globalThis.__pipelineDisplay);
-        report.pipeline.push({input,round,cold:report.pipeline.length===0,totalMs:end-start,start,display,requestId,progress,texts,...sampled.result.value,output});
+        report.pipeline.push({input,round,cold:report.pipeline.length===0,totalMs:end-start,start,display,requestId,progress,texts,...sampled.result.value,output,resources:measured});
         assert.ok(texts.length>0,'Actual text recognition ran');await assertQuietReading();
         await toggle();await wait(async()=>await page.locator('.zao-image').first().evaluate(i=>i.style.opacity!=='0'));
         focusGuard();console.log(JSON.stringify({input:path.basename(input),round,totalMs:end-start,runs:sampled.result.value.runs.length}));
@@ -1390,6 +1423,7 @@ async function verifyReadAhead() {
     modelObserver?.close();
     if(launched)await launched.close();
     fs.rmSync(profile,{recursive:true,force:true});report.profileRemoved=!fs.existsSync(profile);
+    if(diagnosticFixture)fs.rmSync(diagnosticFixture,{recursive:true,force:true});
     fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));
     console.log(JSON.stringify({status:report.status,cases:report.cases,report:path.join(artifacts,'report.json')},null,2));
 });

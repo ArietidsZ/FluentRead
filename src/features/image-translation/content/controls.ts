@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/controls.ts
  * 文件职责：创建图片翻译的轻量操作条，支持单图反馈和不遮挡阅读的漫画模式，支持取消、重试和首次语言准备与模型/服务设置导航。
- * 主要内容：单图提供隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片中心延迟显示无交互的小型状态提示，展示实际阶段和可用百分比，完成或切回原图后撤下。
+ * 主要内容：单图提供隔离操作条、可信手势按钮与全文详情；漫画隐藏所有操作条，仅在对应图片可见边缘延迟显示无交互的轻量单行状态提示，展示实际阶段和可用百分比；任务旋转独立于装饰动画开关并保留系统减少动态效果偏好，完成或切回原图后撤下。
  * 模块边界：仅操作所属 Shadow DOM，不读取配置、不访问网络、不持有图片请求；业务动作及生命周期由 content/runtime 注入。
  */
 import {createImageTextReader, IMAGE_READER_CSS, type ImageReaderLine} from './textReader';
@@ -47,11 +47,11 @@ export const IMAGE_CONTROLS_CSS = IMAGE_READER_CSS + `
 .fr-image-feedback .fr-image-prepare,.fr-image-feedback .fr-image-model-settings,.fr-image-feedback[data-preparation=false][data-recovery=false] .fluent-read-image-translation-button {order:-1;background:var(--fr-image-brand);color:#fff;font-weight:650;}
 .fr-image-feedback .fr-image-prepare:hover,.fr-image-feedback .fr-image-model-settings:hover,.fr-image-feedback[data-preparation=false][data-recovery=false] .fluent-read-image-translation-button:hover {background:#c62752;color:#fff;}
 .fr-image-feedback .fr-image-dismiss,.fr-image-feedback[data-preparation=true] .fluent-read-image-translation-button {color:var(--fr-image-muted);}
-.fr-image-feedback[data-manga=true][data-phase=loading] {width:max-content;min-width:92px;padding:12px 14px;border:1px solid #ffffff26;border-radius:12px;background:rgba(30,34,42,.78);color:#fff;box-shadow:0 2px 10px #0002;font-size:12px;pointer-events:none;animation:fr-manga-feedback .12s ease .15s both;}
-.fr-image-feedback[data-manga=true] .fr-image-status {flex-direction:column;gap:8px;text-align:center;}
-.fr-image-feedback[data-manga=true] .fr-image-spinner {width:24px;height:24px;border-color:#ffffff40;border-top-color:#fff;}
-.fr-image-progress {height:3px;width:100px;max-width:100%;border-radius:2px;background:#ffffff30;overflow:hidden;align-self:center;}
-.fr-image-progress>span {display:block;height:100%;background:#fff;border-radius:inherit;}
+ .fr-image-feedback[data-manga=true][data-phase=loading] {flex-direction:row;align-items:center;gap:6px;transform:none;min-width:0;padding:6px 9px;font-size:11px;pointer-events:none;animation:fr-manga-feedback .12s ease .15s both;}
+.fr-image-feedback[data-manga=true] .fr-image-status {gap:6px;min-width:0;}
+.fr-image-feedback[data-manga=true] .fr-image-status>span:last-child {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.fr-image-progress {height:2px;width:36px;flex:0 0 36px;border-radius:2px;background:#47556930;overflow:hidden;}
+.fr-image-progress>span {display:block;height:100%;background:#947985;border-radius:inherit;}
 @keyframes fr-manga-feedback {from {opacity:0;} to {opacity:1;}}
 @keyframes fr-image-spin {to {transform:rotate(360deg);}}
 @media (prefers-reduced-motion: reduce) {.fr-image-spinner {animation:none;}.fr-image-controls .fr-image-actions {transition:none;}}
@@ -207,7 +207,8 @@ export function createImageControls(actions: {onAction(): void; onPrepare(): voi
         heading.hidden = next !== 'error';
         feedback.dataset.preparation = String(next === 'error' && options.prepare === true);
         element.dataset.preparation = feedback.dataset.preparation;
-        spinner.dataset.animated = String(options.animations !== false);
+        // 加载旋转属于任务状态反馈，独立于装饰动效开关；系统减少动态效果偏好由 CSS 保留。
+        spinner.dataset.animated = String(next === 'loading');
         sourceMessage = message;
         progress = next === 'loading' ? normalizeImageProgress(options.progress) : undefined;
         refreshLanguage();

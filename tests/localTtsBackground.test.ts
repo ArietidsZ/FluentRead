@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 import {LOCAL_TTS_MODEL, LOCAL_TTS_MODEL_ID, LOCAL_TTS_MODEL_STATE_KEY} from '@/src/core/config/localTts';
 import {
@@ -10,6 +10,18 @@ import {
 import {createLocalTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
 import {LocalTtsLanguageUnsupportedError, localTtsErrorCode} from '@/src/features/local-tts/protocol';
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
+
+vi.mock('@/src/features/local-tts/offscreen/modelCache', () => ({
+    cacheLocalTtsModelFiles: vi.fn(async () => undefined),
+    isLocalTtsModelCached: vi.fn(async () => true),
+    removeLocalTtsModelFiles: vi.fn(async () => undefined),
+}));
+const inferenceBudget = vi.hoisted(() => ({run: vi.fn()}));
+// metadata 用例默认直通；idle 回归则注入真实 budget，模拟其他推理占满并行槽。
+vi.mock('@/src/shared/onnx/resources', async original => ({
+    ...await original<typeof import('@/src/shared/onnx/resources')>(),
+    withLocalInferenceBudget: inferenceBudget.run,
+}));
 
 function createStore(initial: Record<string, unknown> = {}) {
     const data = {...initial};
@@ -156,5 +168,170 @@ describe('本地 TTS Offscreen 适配器', () => {
         ]);
         await adapter.prepare();
         expect(client.send.mock.calls.at(-1)?.[0]).toEqual({type: 'LOCAL_TTS_PREPARE', keepWarm: false});
+    });
+
+    it.each([
+        ['missing', {}, undefined],
+        ['explicit undefined', {timings: undefined}, undefined],
+        ['empty', {timings: []}, []],
+        ['null', {timings: null}, []],
+        ['object', {timings: {}}, []],
+        ['malformed cue', {timings: [{startChar: 0, endChar: 1, startTime: 1, endTime: 0}]}, []],
+    ])('keeps valid audio with %s timing metadata and uses the backward-compatible result shape', async (_kind, metadata, expected) => {
+        const adapter = createLocalTtsOffscreenAdapter(clientWith(async () => ({
+            success: true, audioBase64: btoa('RIFF'), voice: 'zm_009', backend: 'wasm', ...(metadata as object),
+        })));
+        const result = await adapter.synthesize('你好', 'zh-CN', 'auto');
+        expect(new TextDecoder().decode(result.audio)).toBe('RIFF');
+        expect(result).toEqual({
+            audio: new TextEncoder().encode('RIFF').buffer, contentType: 'audio/wav', voice: 'zm_009', backend: 'wasm',
+            ...(expected === undefined ? {} : {timings: expected}),
+        });
+        if (expected === undefined) expect(result).not.toHaveProperty('timings');
+    });
+
+    it('validates timing order and copies only timing fields before exposing decoded audio', async () => {
+        const cues = [
+            {startChar: 0, endChar: 2, startTime: 0, endTime: 1, internal: 'discard'},
+            {startChar: 3, endChar: 5, startTime: 1.5, endTime: 3},
+        ];
+        const client = clientWith(async () => ({success: true, audioBase64: btoa('RIFF'), timings: cues}));
+        const result = await createLocalTtsOffscreenAdapter(client).synthesize('你好 世界', 'zh-CN', 'zf_001');
+        expect(result.timings).toEqual([
+            {startChar: 0, endChar: 2, startTime: 0, endTime: 1}, cues[1],
+        ]);
+        expect(result.timings).not.toBe(cues);
+        expect(result.timings?.[0]).not.toBe(cues[0]);
+        expect(cues[0].internal).toBe('discard');
+    });
+});
+
+describe('local TTS Worker response metadata boundary', () => {
+    let runtime: typeof import('@/src/features/local-tts/offscreen/tts');
+    let metadata: Record<string, unknown>;
+    const audio = new Uint8Array([82, 73, 70, 70]).buffer;
+    const workers: Array<{postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn>}> = [];
+    const cue = {startChar: 0, endChar: 2, startTime: 0, endTime: 1};
+
+    beforeEach(async () => {
+        vi.useFakeTimers();
+        vi.resetModules();
+        inferenceBudget.run.mockReset().mockImplementation((operation: () => Promise<unknown>) => operation());
+        metadata = {};
+        workers.length = 0;
+        vi.stubGlobal('window', {setTimeout, clearTimeout, location: {href: 'chrome-extension://test/offscreen.html'}});
+        vi.stubGlobal('Worker', class {
+            onmessage: ((event: MessageEvent) => void) | null = null;
+            onerror = null;
+            terminate = vi.fn();
+            postMessage = vi.fn((request: {requestId: number}) => {
+                void Promise.resolve().then(() => this.onmessage?.({
+                    data: {requestId: request.requestId, success: true, audio, backend: 'wasm', ...metadata},
+                } as MessageEvent));
+            });
+            constructor() { workers.push(this); }
+        });
+        runtime = await import('@/src/features/local-tts/offscreen/tts');
+    });
+    afterEach(() => {
+        runtime?.disposeLocalTtsWorker();
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    });
+
+    it.each([
+        ['missing', {}, undefined], ['empty', {timings: []}, []], ['null', {timings: null}, []],
+        ['valid', {timings: [{...cue, workerPrivate: true}]}, [cue]],
+        ['invalid', {timings: [{...cue, endTime: 0}]}, []],
+        ['out of order', {timings: [cue, cue]}, []],
+    ])('returns WAV and validated %s timings from the actual runtime', async (_kind, input, expected) => {
+        metadata = input as Record<string, unknown>;
+        const result = await runtime.synthesizeLocalTts('你好', 'zh-CN', 'zf_001');
+        expect(result).toEqual({audio, contentType: 'audio/wav', voice: 'zf_001', backend: 'wasm',
+            ...(expected === undefined ? {} : {timings: expected})});
+        if (expected === undefined) expect(result).not.toHaveProperty('timings');
+        expect(workers).toHaveLength(1);
+        expect(workers[0].postMessage).toHaveBeenCalledWith({requestId: 1, type: 'synthesize', text: '你好', voice: 'zf_001', speed: 1});
+        expect(vi.getTimerCount()).toBe(1);
+        runtime.disposeLocalTtsWorker();
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    async function occupyBudget() {
+        const {createLocalInferenceBudget} = await vi.importActual<typeof import('@/src/shared/onnx/resources')>('@/src/shared/onnx/resources');
+        const budget = createLocalInferenceBudget(1);
+        inferenceBudget.run.mockImplementation(budget);
+        await runtime.synthesizeLocalTts('第一次', 'zh-CN', 'zf_001');
+        expect(vi.getTimerCount()).toBe(1);
+        await vi.advanceTimersByTimeAsync(10_000);
+        let release!: () => void;
+        const gate = new Promise<void>(resolve => { release = resolve; });
+        const competing = budget(() => gate);
+        return {release, competing};
+    }
+
+    it('clears the previous idle timer before waiting for budget and reuses the worker after its old 30-second deadline', async () => {
+        const occupied = await occupyBudget();
+        const controller = new AbortController();
+        const pending = runtime.synthesizeLocalTts('第二次', 'zh-CN', 'zf_001', controller.signal)
+            .then(result => ({result, error: undefined}), error => ({result: undefined, error}));
+        try {
+            await vi.advanceTimersByTimeAsync(0);
+            expect(inferenceBudget.run).toHaveBeenCalledTimes(2);
+            expect(inferenceBudget.run).toHaveBeenLastCalledWith(expect.any(Function), controller.signal);
+            expect(workers[0].postMessage).toHaveBeenCalledOnce();
+            expect(vi.getTimerCount()).toBe(0);
+            // t=10s 发起第二次请求，预算在 t=35s 才放行，跨过旧 idle 的 t=30s。
+            await vi.advanceTimersByTimeAsync(25_000);
+            expect(workers[0].terminate).not.toHaveBeenCalled();
+            expect(workers[0].postMessage).toHaveBeenCalledOnce();
+            occupied.release();
+            await occupied.competing;
+            const completed = await pending;
+            expect(completed.error).toBeUndefined();
+            expect(completed.result).toMatchObject({audio, contentType: 'audio/wav', backend: 'wasm'});
+            expect(workers).toHaveLength(1);
+            expect(workers[0].postMessage).toHaveBeenLastCalledWith({requestId: 2, type: 'synthesize', text: '第二次', voice: 'zf_001', speed: 1});
+            expect(inferenceBudget.run).toHaveBeenCalledTimes(2);
+            expect(vi.getTimerCount()).toBe(1);
+            await vi.advanceTimersByTimeAsync(29_999);
+            expect(workers[0].terminate).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(1);
+            expect(workers[0].terminate).toHaveBeenCalledOnce();
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            occupied.release();
+            await occupied.competing;
+            await pending;
+        }
+    });
+
+    it('explicit disposal during a budget wait invalidates the queued generation without restarting or posting to the worker', async () => {
+        const occupied = await occupyBudget();
+        const pending = runtime.synthesizeLocalTts('排队后卸载', 'zh-CN', 'zf_001')
+            .then(result => ({result, error: undefined}), error => ({result: undefined, error}));
+        try {
+            await vi.advanceTimersByTimeAsync(0);
+            expect(inferenceBudget.run).toHaveBeenCalledTimes(2);
+            expect(vi.getTimerCount()).toBe(0);
+            runtime.disposeLocalTtsWorker();
+            expect(workers[0].terminate).toHaveBeenCalledOnce();
+            await vi.advanceTimersByTimeAsync(25_000);
+            occupied.release();
+            await occupied.competing;
+            const completed = await pending;
+            expect(completed.result).toBeUndefined();
+            expect(completed.error).toMatchObject({name: 'AbortError', message: '本地 TTS 请求已取消'});
+            expect(workers).toHaveLength(1);
+            expect(workers[0].postMessage).toHaveBeenCalledOnce();
+            expect(workers[0].terminate).toHaveBeenCalledOnce();
+            expect(inferenceBudget.run).toHaveBeenCalledTimes(2);
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            occupied.release();
+            await occupied.competing;
+            await pending;
+        }
     });
 });

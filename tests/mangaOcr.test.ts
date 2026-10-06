@@ -1,23 +1,129 @@
+vi.mock('@/src/shared/onnx/resources', async original => ({...await original<any>(), paceLocalInference: mocks.pace}));
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 const mocks = vi.hoisted(() => ({assets:vi.fn(),remove:vi.fn(),initialize:vi.fn(),recognize:vi.fn(),destroy:vi.fn(),options:vi.fn(),
     gpu:vi.fn(),cpuCreate:vi.fn(),sessions:[] as any[],inpaintDispose:vi.fn(),bitmapClose:vi.fn(),contexts:[] as any[],canvases:[] as any[],
+    workerPrepare:vi.fn(),workerRequest:vi.fn(),workerRelease:vi.fn(),pace:vi.fn((operation:()=>Promise<unknown>)=>operation()),
     wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
 vi.mock('@/src/features/image-translation/services/mangaOcrAssets', async importOriginal => ({...await importOriginal<any>(),loadMangaOcrAssets:mocks.assets,removeMangaOcrAssets:mocks.remove}));
 vi.mock('onnxruntime-web/webgpu',()=>({env:{wasm:mocks.wasm},InferenceSession:{create:mocks.cpuCreate}}));
 vi.mock('@/src/shared/onnx/webgpu',()=>({probeWebGpu:mocks.gpu}));
 vi.mock('ppu-paddle-ocr/web',()=>({PaddleOcrService:class{constructor(options:unknown){mocks.options(options)}detectionSession=mocks.sessions[0];recognitionSession=mocks.sessions[1];async initialize(){return mocks.initialize();}recognize=mocks.recognize;destroy=mocks.destroy;}}));
 vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{dispose:mocks.inpaintDispose}}));
+vi.mock('@/src/features/image-translation/services/mangaInferenceClient',async original=>({...await original<any>(),mangaInferenceClient:{prepare:mocks.workerPrepare,request:mocks.workerRequest,release:mocks.workerRelease}}));
 import {createBrowserMangaOcr, createMangaOcrRuntime, mangaOcrRuntime, removeMangaModels, disposeMangaModels} from '@/src/features/image-translation/services/mangaOcr';
 const response = {results:[{text:'Hello world',confidence:0.99,box:{x:10,y:10,width:100,height:20}}]};
 const deferred = <T,>() => {let resolve!:(v:T)=>void,reject!:(e:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
 const tick = async () => {for(let i=0;i<6;i++)await Promise.resolve()};
 beforeEach(()=>{vi.useFakeTimers();vi.clearAllMocks();mocks.contexts=[];mocks.canvases=[];mocks.sessions=[];mocks.gpu.mockResolvedValue({available:false,info:''});mocks.assets.mockResolvedValue({charactersDictionary:new ArrayBuffer(4)});mocks.initialize.mockResolvedValue(undefined);mocks.destroy.mockResolvedValue(undefined);mocks.remove.mockResolvedValue(undefined);mocks.inpaintDispose.mockResolvedValue(undefined);mocks.recognize.mockResolvedValue(response);vi.stubGlobal('GPUDevice',class{get adapterInfo(){return {};}});vi.stubGlobal('chrome',{runtime:{getURL:(p:string)=>'chrome-extension://test'+p}});vi.stubGlobal('fetch',vi.fn(async()=>new Response(new Uint8Array([1,2,3]))));
+    mocks.workerPrepare.mockReset().mockResolvedValue(undefined);mocks.workerRequest.mockReset().mockResolvedValue(response);mocks.workerRelease.mockReset().mockResolvedValue(undefined);
     vi.stubGlobal('createImageBitmap',vi.fn(async()=>({width:200,height:200,close:mocks.bitmapClose})));
     vi.stubGlobal('document',{createElement:vi.fn(()=>{const ctx={drawImage:vi.fn(),fillRect:vi.fn(),getImageData:vi.fn(()=>({data:new Uint8ClampedArray(200*200*4)}))};const canvas={width:0,height:0,getContext:vi.fn(()=>ctx)};mocks.contexts.push(ctx);mocks.canvases.push(canvas);return canvas;})});
 });
-afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks()});
+afterEach(async()=>{await mangaOcrRuntime.dispose().catch(()=>undefined);vi.clearAllTimers();vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks()});
 
 describe('漫画本地神经 OCR 会话',()=>{
+    it('默认 Worker 代理转发图片、取消信号与阶段，复用端口并在空闲后释放',async()=>{
+        const controller=new AbortController(),progress=vi.fn();
+        mocks.workerPrepare.mockImplementationOnce(async(kind,signal,notify)=>{
+            expect(kind).toBe('ocr');expect(signal).toBe(controller.signal);
+            notify('preparing',35);notify('initializing');
+        });
+        mocks.workerRequest.mockImplementationOnce(async(_message,_signal,notify)=>{notify('recognizing',72);return response;});
+        expect(await mangaOcrRuntime.recognize('first','en',200,200,controller.signal,progress)).toHaveLength(1);
+        expect(mocks.workerRequest).toHaveBeenCalledWith({type:'recognize',image:'first'},controller.signal,progress);
+        expect(progress.mock.calls).toEqual([['preparing',0],['preparing',35],['initializing'],['recognizing'],['recognizing',72]]);
+        await mangaOcrRuntime.recognize('second','en',200,200);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();
+        expect(mocks.workerRequest).toHaveBeenLastCalledWith({type:'recognize',image:'second'},undefined,undefined);
+        expect(mocks.assets).not.toHaveBeenCalled();expect(mocks.initialize).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();expect(createImageBitmap).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(179999);expect(mocks.workerRelease).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);expect(mocks.workerRelease).toHaveBeenCalledWith('ocr');
+        await mangaOcrRuntime.recognize('third','en',200,200);expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+        await mangaOcrRuntime.dispose();expect(mocks.workerRelease.mock.calls).toEqual([['ocr'],['ocr']]);
+    });
+
+    it('默认 Worker 准备或识别失败后可重新创建，释放失败保留原推理错误',async()=>{
+        mocks.workerPrepare.mockRejectedValueOnce(new Error('worker prepare failed'));
+        await expect(mangaOcrRuntime.recognize('download','en',200,200)).rejects.toThrow('worker prepare failed');
+        expect(mocks.workerRequest).not.toHaveBeenCalled();expect(mocks.workerRelease).not.toHaveBeenCalled();
+        mocks.workerRequest.mockRejectedValueOnce(new Error('worker inference failed'));
+        mocks.workerRelease.mockRejectedValueOnce(new Error('worker release failed'));
+        await expect(mangaOcrRuntime.recognize('failed','en',200,200)).rejects.toThrow('worker inference failed');
+        expect(mocks.workerRelease).toHaveBeenCalledWith('ocr');
+        expect(await mangaOcrRuntime.recognize('retry','en',200,200)).toHaveLength(1);
+        expect(mocks.workerPrepare).toHaveBeenCalledTimes(3);
+        await removeMangaModels();
+        expect(mocks.workerRelease).toHaveBeenCalledTimes(2);expect(mocks.remove).toHaveBeenCalledOnce();
+    });
+
+    it('默认 Worker 排队取消不转发新请求，运行中取消丢弃迟到结果并释放端口',async()=>{
+        const pending=deferred<typeof response>(),controller=new AbortController(),queuedController=new AbortController();
+        mocks.workerRequest.mockReturnValueOnce(pending.promise);
+        const first=mangaOcrRuntime.recognize('active','en',200,200,controller.signal);
+        await tick();expect(mocks.workerRequest).toHaveBeenCalledWith({type:'recognize',image:'active'},controller.signal,undefined);
+        const queued=mangaOcrRuntime.recognize('queued','en',200,200,queuedController.signal);
+        const queuedCancelled=expect(queued).rejects.toMatchObject({name:'AbortError'});
+        queuedController.abort();await queuedCancelled;expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        const cancelled=expect(first).rejects.toMatchObject({name:'AbortError'});
+        controller.abort();await cancelled;expect(mocks.workerRelease).not.toHaveBeenCalled();
+        pending.resolve(response);await mangaOcrRuntime.dispose();
+        expect(mocks.workerRelease).toHaveBeenCalledWith('ocr');expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        expect(await mangaOcrRuntime.recognize('retry','en',200,200)).toHaveLength(1);
+        expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+    });
+
+    it('Worker 上下文使用 OffscreenCanvas 识别整页和气泡，映射坐标并清空所有画布',async()=>{
+        const pixels=new Uint8ClampedArray(200*200*4);
+        for(let y=40;y<90;y++)for(let x=30;x<80;x++)pixels.fill(255,(y*200+x)*4,(y*200+x)*4+4);
+        const offscreen=vi.fn(function(width:number,height:number){
+            const ctx={drawImage:vi.fn(),fillRect:vi.fn(),getImageData:vi.fn(()=>({data:mocks.canvases.length===1?pixels:new Uint8ClampedArray(200*200*4)}))};
+            const canvas={width,height,getContext:vi.fn(()=>ctx)};
+            mocks.contexts.push(ctx);mocks.canvases.push(canvas);return canvas;
+        });
+        vi.stubGlobal('OffscreenCanvas',offscreen);vi.stubGlobal('document',undefined);
+        mocks.recognize.mockResolvedValueOnce(response).mockResolvedValueOnce({results:[{text:'Dialogue',confidence:.99,box:{x:15,y:30,width:90,height:30}}]});
+        const port=await createBrowserMangaOcr();
+        const result=await port.recognize('worker-image',{flatten:true,noCache:true,strategy:'per-box'});
+        expect(result.results).toEqual(response.results);
+        expect(result.bubbles?.[0].results[0].box).toEqual({x:35,y:50,width:30,height:10});
+        expect(offscreen.mock.calls).toEqual([[0,0],[0,0],[0,0]]);
+        expect(mocks.contexts[1].fillRect).toHaveBeenCalledWith(30,40,50,50);
+        expect(mocks.contexts[2].drawImage).toHaveBeenCalledWith(mocks.canvases[0],30,40,50,50,0,0,150,150);
+        expect(mocks.canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
+        expect(mocks.bitmapClose).toHaveBeenCalledOnce();await port.destroy();
+    });
+
+    it('Worker OffscreenCanvas 推理失败也清空画布并关闭自有位图',async()=>{
+        vi.stubGlobal('document',undefined);
+        vi.stubGlobal('OffscreenCanvas',class {
+            width:number;height:number;
+            constructor(width:number,height:number){this.width=width;this.height=height;mocks.canvases.push(this);}
+            getContext(){return {drawImage:vi.fn(),getImageData:()=>({data:new Uint8ClampedArray(200*200*4)})};}
+        });
+        const failure=new Error('worker OCR failed');mocks.recognize.mockRejectedValueOnce(failure);
+        const port=await createBrowserMangaOcr();
+        await expect(port.recognize('worker-image',{flatten:true,noCache:true,strategy:'per-box'})).rejects.toBe(failure);
+        expect(mocks.canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
+        expect(mocks.bitmapClose).toHaveBeenCalledOnce();await port.destroy();
+    });
+
+    it('CPU detection 与 recognition 会话也经过推理间歇，保持 this、参数与返回值',async()=>{
+        const feeds={input:new Float32Array([1])},options={fetches:['output']};
+        const detectionRun=vi.fn(async function(this:unknown,...args:unknown[]){expect(this).toBe(detection);expect(args).toEqual([feeds,options]);return response;});
+        const recognitionRun=vi.fn(async function(this:unknown,...args:unknown[]){expect(this).toBe(recognition);expect(args).toEqual([feeds]);return response;});
+        const detection={run:detectionRun,release:vi.fn()},recognition={run:recognitionRun,release:vi.fn()};
+        vi.stubGlobal('navigator',{hardwareConcurrency:8,deviceMemory:8});
+        vi.stubGlobal('crossOriginIsolated',true);vi.stubGlobal('SharedArrayBuffer',class {});
+        mocks.sessions=[detection,recognition];
+        mocks.recognize.mockImplementationOnce(async()=>{await detection.run(feeds,options);return recognition.run(feeds);});
+        const port=await createBrowserMangaOcr();
+        expect((await port.recognize('image',{flatten:true,noCache:true,strategy:'per-box'})).results).toEqual(response.results);
+        expect(mocks.wasm.numThreads).toBe(2);
+        expect(mocks.pace).toHaveBeenCalledTimes(2);expect(detectionRun).toHaveBeenCalledOnce();expect(recognitionRun).toHaveBeenCalledOnce();
+        await port.destroy();
+    });
+
     it('硬件 GPU 执行失败时沿用当前请求切换 CPU，取消期间不留下新会话',async()=>{
         mocks.gpu.mockResolvedValue({available:true,info:'hardware'});
         const detection={run:vi.fn().mockRejectedValue(new Error('GPU')),release:vi.fn(async()=>{})};

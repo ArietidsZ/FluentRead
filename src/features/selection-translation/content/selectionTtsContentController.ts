@@ -33,7 +33,7 @@ export interface SelectionTtsContentControllerDependencies {
     readonly stopRemote: (clientRequestId: string) => Promise<unknown>;
 }
 
-const PLAYBACK_STATES = new Set<SelectionTtsPlaybackState>(['ended', 'stopped', 'error']);
+const PLAYBACK_STATES = new Set<SelectionTtsPlaybackState>(['ended', 'stopped', 'error', 'progress']);
 
 /**
  * 内容脚本侧的远程 TTS 所有权状态机。

@@ -593,8 +593,9 @@ function updateOverlayPosition(state: ImageTranslationState): void {
     state.overlay.style.clipPath = `inset(${top - rect.top}px ${rect.right - right}px ${rect.bottom - bottom}px ${left - rect.left}px)`;
     state.controls.element.style.setProperty('left', `${left - rect.left + 8}px`, 'important');
     state.controls.element.style.setProperty('bottom', `${rect.bottom - bottom + 8}px`, 'important');
-    state.controls.feedback.style.left = `${(left + right) / 2 - rect.left}px`;
-    state.controls.feedback.style.top = `${(top + bottom) / 2 - rect.top}px`;
+    const edgeFeedback = state.manga && state.phase === 'loading';
+    state.controls.feedback.style.left = `${edgeFeedback ? left - rect.left + 8 : (left + right) / 2 - rect.left}px`;
+    state.controls.feedback.style.top = `${edgeFeedback ? top - rect.top + 8 : (top + bottom) / 2 - rect.top}px`;
     state.controls.feedback.style.maxHeight = `${Math.max(0, bottom - top - 16)}px`;
     state.controls.feedback.style.maxWidth = `${Math.max(0, right - left - 16)}px`;
     if (!state.translatedImage || state.phase !== 'translated') return;
@@ -960,7 +961,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             timeoutMs: state.manga ? 300_000 : IMAGE_TRANSLATION_TIMEOUT_MS,
             onProgress: (stage, progress) => {
                 if (!requestIsCurrent(state, controller)) return;
-                setButtonState(state, 'loading', stage === 'preparing' ? (state.manga ? '正在准备漫画处理模型…' : '正在准备图片识别模型…') : stage === 'recognizing' ? '正在识别图片文字…'
+                setButtonState(state, 'loading', stage === 'preparing' ? (state.manga ? '正在准备漫画处理模型…' : '正在准备图片识别模型…') : stage === 'initializing' ? '正在初始化本地模型…' : stage === 'recognizing' ? '正在识别图片文字…'
                     : stage === 'cleaning' ? '正在清除原文…'
                     : stage === 'translating' ? '正在翻译文字…' : '正在生成译图…', stage === 'recognizing' || stage === 'preparing' || stage === 'cleaning' ? progress : undefined, stage);
             },

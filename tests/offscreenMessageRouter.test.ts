@@ -136,6 +136,19 @@ describe('Offscreen 消息静态路由', () => {
             .resolves.toEqual({handled: true, response: {success: false, error: 'bad id'}});
     });
 
+    it('forwards generated text and timing metadata to playback without conflating synthesis and playback request IDs', async () => {
+        const timings = [{startChar: 0, endChar: 5, startTime: 0, endTime: 2}];
+        const play = {type: 'PLAY_SELECTION_TTS', target: 'offscreen', audioBase64: 'UklGRg==', contentType: 'audio/wav',
+            text: 'Hello', timings, tabId: 0, clientRequestId: 'playback-client'};
+        await expect(dispatch(play)).resolves.toEqual({handled: true, response: {success: true}});
+        expect(mocks.play).toHaveBeenCalledWith(play);
+        expect(mocks.stop).not.toHaveBeenCalled();
+        const google = {type: 'PLAY_SELECTION_TTS', target: 'offscreen', sourceUrl: 'https://audio',
+            text: 'Hello', tabId: 2, clientRequestId: 'google-client'};
+        await dispatch(google);
+        expect(mocks.play).toHaveBeenLastCalledWith(google);
+    });
+
     it('视频 AI 接收端复用消息通道，并隔离未启用、失败与非法结果', async () => {
         for (const type of ['VIDEO_AI_TRANSCRIBE', 'VIDEO_AI_PREPARE']) {
             expect((await dispatch({type})).response).toMatchObject({success: false});
@@ -594,6 +607,35 @@ describe('Offscreen 本地模型可取消请求', () => {
     const base = {...mocks, ttsPlayer: {play: mocks.play, stop: mocks.stop}};
     const ttsRequest = {type: 'LOCAL_TTS_SYNTHESIZE', requestId: 'tts-1', text: '你好', language: 'zh-CN', voice: 'zf_001'};
     const model = LOCAL_TRANSLATION_MODEL_IDS.m2m100;
+
+    it.each([
+        ['missing', {}, undefined], ['empty', {timings: []}, []], ['null', {timings: null}, []],
+        ['invalid range', {timings: [{startChar: 0, endChar: 0, startTime: 0, endTime: 1}]}, []],
+        ['overlap', {timings: [
+            {startChar: 0, endChar: 2, startTime: 0, endTime: 1},
+            {startChar: 1, endChar: 4, startTime: 1, endTime: 2},
+        ]}, []],
+        ['valid', {timings: [{startChar: 0, endChar: 2, startTime: 0, endTime: 1, internal: 'discard'}]},
+            [{startChar: 0, endChar: 2, startTime: 0, endTime: 1}]],
+    ])('serializes WAV with validated %s timings while preserving voice and routing metadata', async (_kind, metadata, expected) => {
+        const originalMetadata = structuredClone(metadata);
+        const synthesize = vi.fn(async () => ({
+            audio: new Uint8Array([82, 73, 70, 70]).buffer, contentType: 'audio/wav', voice: 'zf_001', backend: 'wasm',
+            ...(metadata as object),
+        }));
+        const handler = createOffscreenMessageListener({...base, localTts: {
+            synthesize, prepare: vi.fn(), status: vi.fn(), removeModel: vi.fn(),
+        }});
+        const result = await dispatch(ttsRequest, handler);
+        expect(result).toEqual({handled: true, response: {
+            success: true, audioBase64: 'UklGRg==', contentType: 'audio/wav', voice: 'zf_001', backend: 'wasm', requestId: 'tts-1',
+            ...(expected === undefined ? {} : {timings: expected}),
+        }});
+        if (expected === undefined) expect(result.response).not.toHaveProperty('timings');
+        expect(result.response).not.toHaveProperty('audio');
+        expect(synthesize).toHaveBeenCalledWith({...ttsRequest, target: 'offscreen'}, expect.any(AbortSignal));
+        expect(metadata).toEqual(originalMetadata);
+    });
 
     it('本地 TTS 未启用时所有入口返回明确不可用', async () => {
         for (const type of ['LOCAL_TTS_PREPARE', 'LOCAL_TTS_STATUS', 'LOCAL_TTS_REMOVE_MODEL', 'LOCAL_TTS_SYNTHESIZE']) {

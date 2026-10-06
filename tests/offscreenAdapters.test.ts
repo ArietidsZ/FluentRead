@@ -1,4 +1,10 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
+import {createSelectionTtsPlayer, type SelectionAudioPort} from '@/src/app/offscreen/ttsPlayback';
+import {createBackgroundMessageRouter, type BackgroundMessageHandler} from '@/src/app/background/messageRouter';
+import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from '@/src/features/selection-translation/background/ttsHandler';
+import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
+import {createSelectionTtsContentController} from '@/src/features/selection-translation/content/selectionTtsContentController';
 import {createAreaTranslationOffscreenAdapter} from '@/src/features/area-translation/background/offscreenAdapter';
 import {createImageTranslationOffscreenAdapter} from '@/src/features/image-translation/background/offscreenAdapter';
 import {createLocalTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
@@ -251,6 +257,19 @@ describe('selection TTS Offscreen adapter', () => {
         sendIfPresent.mockResolvedValueOnce({success: false});
         await expect(adapter.stop(route)).rejects.toThrow('Offscreen TTS 停止失败');
     });
+
+    it('forwards text and timings without mutation for both generated audio and legacy URL playback', async () => {
+        const timings = [{startChar: 0, endChar: 5, startTime: 0, endTime: 1}];
+        for (const payload of [
+            {...route, audioBase64: 'AA==', contentType: 'audio/wav', text: 'Hello', timings},
+            {...route, sourceUrl: 'https://example.test/audio', text: 'Hello'},
+        ]) {
+            send.mockResolvedValueOnce({success: true});
+            await adapter.play(payload);
+            expect(send).toHaveBeenLastCalledWith({type: 'PLAY_SELECTION_TTS', ...payload});
+        }
+        expect(timings).toEqual([{startChar: 0, endChar: 5, startTime: 0, endTime: 1}]);
+    });
 });
 
 describe('local TTS Offscreen adapter', () => {
@@ -302,4 +321,87 @@ it('OCR 清除经离屏端确认且透传失败', async () => {
  send.mockResolvedValueOnce({success:true}); await adapter.removeLanguages(['eng']);
  expect(send).toHaveBeenCalledWith({type:'FLUENT_READ_IMAGE_OCR_REMOVE_OFFSCREEN',languages:['eng']});
  send.mockResolvedValueOnce({success:false,error:'busy'}); await expect(adapter.removeLanguages(['eng'])).rejects.toThrow('busy');
+});
+
+describe('TTS metadata across local synthesis, adapters and routed playback', () => {
+    let player: ReturnType<typeof createSelectionTtsPlayer> | undefined;
+    beforeEach(() => vi.useFakeTimers());
+    afterEach(() => { player?.dispose(); player = undefined; vi.useRealTimers(); });
+    const timings = [
+        {startChar: 0, endChar: 5, startTime: 0, endTime: 1},
+        {startChar: 6, endChar: 11, startTime: 1, endTime: 5},
+    ];
+
+    it.each([
+        ['timed', {timings}, timings], ['legacy', {}, undefined], ['invalid', {timings: [{...timings[0], endTime: 0}]}, []],
+    ])('plays %s local metadata through the actual cross-layer path and keeps progress cancellable', async (kind, metadata, expectedTimings) => {
+        const audios: Array<SelectionAudioPort & {currentTime: number; duration: number}> = [];
+        const messages: Record<string, unknown>[] = [];
+        const received: unknown[] = [];
+        const controller = createSelectionTtsContentController({
+            createClientRequestId: () => 'flow-client', stopRemote: vi.fn(async () => undefined),
+        });
+        const request = controller.beginRemoteRequest();
+        const notify = (audioRequest: {tabId: number; clientRequestId: string}, state: string, progress?: unknown) => {
+            void background.dispatch({type: 'selectionTtsPlaybackState', ...audioRequest, state, progress}, {});
+        };
+        player = createSelectionTtsPlayer({
+            createAudio: () => {
+                const audio = {currentTime: 0, duration: 5, preload: '', src: '', onended: null, onerror: null,
+                    play: vi.fn(async () => undefined), pause: vi.fn(), load: vi.fn(), removeAttribute: vi.fn()};
+                audios.push(audio);
+                return audio;
+            },
+            decodeBase64: value => Uint8Array.from(atob(value), char => char.charCodeAt(0)),
+            createObjectUrl: () => 'blob:cross-layer', revokeObjectUrl: vi.fn(),
+            notify: (audioRequest, state) => notify(audioRequest, state),
+            notifyProgress: (audioRequest, progress) => notify(audioRequest, 'progress', progress),
+        });
+        const synthesizeLocal = vi.fn(async () => ({
+            audio: new Uint8Array([82, 73, 70, 70]).buffer, contentType: 'audio/wav', voice: 'zf_001', ...(metadata as object),
+        }));
+        const offscreen = createOffscreenMessageListener({
+            ttsPlayer: player, translate: vi.fn(), fetchImage: vi.fn(), translateImage: vi.fn(), translateArea: vi.fn(), downloadOcrLanguages: vi.fn(),
+            localTts: {synthesize: synthesizeLocal, prepare: vi.fn(), status: vi.fn(), removeModel: vi.fn()},
+        });
+        const routeMessage = async (message: Record<string, unknown>) => {
+            messages.push(message);
+            return new Promise(resolve => expect(offscreen({...message, target: 'offscreen'}, {}, resolve)).toBe(true));
+        };
+        const localClient = {send: vi.fn(routeMessage), sendIfPresent: vi.fn(routeMessage)} as unknown as OffscreenClient;
+        const local = createLocalTtsOffscreenAdapter(localClient);
+        const playback = createSelectionTtsOffscreenAdapter(localClient);
+        const synthesize = createSelectionTtsSynthesizer({
+            getMode: () => 'local-only', getLocalVoice: () => 'zf_001', getOnlineVoices: () => [],
+            synthesizeLocal: local.synthesize, synthesizeOnline: vi.fn(),
+        });
+        const background = createBackgroundMessageRouter<SelectionTtsContext>(createSelectionTtsBackgroundHandlers({
+            getPreferredVoices: () => [], synthesize, playWithOffscreen: playback.play, stopWithOffscreen: playback.stop,
+            sendTabMessage: vi.fn(async (tabId, message) => {
+                expect(tabId).toBe(0);
+                expect(controller.matchRemoteState(message)).not.toBeNull();
+                received.push(message);
+            }),
+        }) as Array<BackgroundMessageHandler<SelectionTtsContext>>);
+        const result = await background.dispatch({type: 'selectionTts', text: ' Hello world ', language: 'en-US', clientRequestId: request.clientRequestId}, {sender: {tab: {id: 0}}});
+        if (!result.handled) throw new Error('Expected selection TTS to be handled by the background router');
+        expect(result.response).toEqual({success: true, transport: 'offscreen', voice: 'zf_001'});
+        expect(controller.completeRemoteRequest(request, result.response as {success: boolean; transport: string})).toBe('offscreen');
+        expect(messages.find(message => message.type === 'PLAY_SELECTION_TTS')).toEqual({
+            type: 'PLAY_SELECTION_TTS', audioBase64: 'UklGRg==', contentType: 'audio/wav', text: 'Hello world', tabId: 0, clientRequestId: request.clientRequestId,
+            ...(expectedTimings === undefined ? {} : {timings: expectedTimings}),
+        });
+        expect(synthesizeLocal).toHaveBeenCalledWith(expect.objectContaining({text: 'Hello world', language: 'en-US', voice: 'zf_001'}), expect.any(AbortSignal));
+        audios[0].currentTime = 3;
+        await vi.advanceTimersByTimeAsync(100);
+        const progress = (received.at(-1) as {progress: {start: number; end: number; fraction: number; estimated: boolean}}).progress;
+        expect(progress).toMatchObject({start: 6, end: 11, estimated: true});
+        expect(progress.fraction).toBeCloseTo(kind === 'timed' ? 0.5 : 0.12);
+        expect(controller.getState().activeClientRequestId).toBe(request.clientRequestId);
+        await background.dispatch({type: 'selectionTtsStop', clientRequestId: request.clientRequestId}, {sender: {tab: {id: 0}}});
+        expect(messages.at(-1)).toEqual({type: 'STOP_SELECTION_TTS', tabId: 0, clientRequestId: request.clientRequestId});
+        expect(audios[0].pause).toHaveBeenCalledOnce();
+        expect(received.at(-1)).toMatchObject({state: 'stopped', clientRequestId: request.clientRequestId});
+        expect(vi.getTimerCount()).toBe(0);
+    });
 });

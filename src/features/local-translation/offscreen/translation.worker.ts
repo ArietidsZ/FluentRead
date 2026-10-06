@@ -2,9 +2,10 @@
  * @file src/features/local-translation/offscreen/translation.worker.ts
  *
  * 文件职责：在隔离 Worker 中运行轻量 OPUS 翻译和混元 Hy-MT2 翻译。
- * 主要内容：只读取已校验的离线模型；混元优先使用 WebGPU，CPU 限单线程；分句推理和重复保护约束资源与输出。
+ * 主要内容：只读取已校验的离线模型；混元优先使用 WebGPU，OPUS 保持 CPU；复用有界线程与计算间歇，失败重建单线程 Worker，分句推理和重复保护约束资源与输出。
  * 模块边界：不下载模型、不读取页面配置，空闲释放、请求取消和最终超时由外层 Worker 生命周期控制。
  */
+import {forceSingleThreadInference, localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
 import {env, InterruptableStoppingCriteria, pipeline} from '@huggingface/transformers';
 import {Wllama} from '@wllama/wllama/esm/index.js';
 import {
@@ -19,6 +20,7 @@ import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/o
 type Translator = ((text: string, options?: Record<string, unknown>) => Promise<unknown>) & {dispose?: () => Promise<void>};
 interface WorkerRequest {
     requestId: number;
+    singleThread?: boolean;
     type: 'translate' | 'dispose';
     model: string;
     text?: string;
@@ -54,7 +56,7 @@ function configureEnvironment(): void {
     env.remoteHost = LOCAL_TRANSLATION_MODEL_REMOTE_HOST;
     env.remotePathTemplate = '{model}/resolve/{revision}/';
     if (env.backends.onnx.wasm) {
-        env.backends.onnx.wasm.numThreads = 1;
+        env.backends.onnx.wasm.numThreads = localWasmThreads();
         configureOnnxWasmBackend(env.backends.onnx.wasm, {
             mjs: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs'),
             wasm: extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'),
@@ -87,7 +89,7 @@ async function getTranslator(request: WorkerRequest): Promise<Translator> {
         },
     }) as unknown as Promise<Translator>;
     const wasm = env.backends.onnx.wasm;
-    translator = await (wasm
+    translator = await paceLocalInitialization(() => wasm
         ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), create)
         : create());
     translatorRepository = repository;
@@ -112,11 +114,11 @@ async function getHunyuan(model: string): Promise<Wllama> {
     };
     const supportsGpu = 'gpu' in navigator && 'Suspending' in WebAssembly;
     let engine = makeEngine();
-    const load = (gpu: boolean) => engine.loadModel([blob], {
+    const load = (gpu: boolean) => paceLocalInitialization(() => engine.loadModel([blob], {
         n_ctx: 2048, n_batch: 128, n_ubatch: 64, n_threads: 1, n_parallel: 1,
         n_gpu_layers: gpu ? 99 : 0, warmup: false, jinja: true,
         cache_idle_slots: false, ctx_shift: false,
-    });
+    }));
     try {
         await load(supportsGpu);
         backend = supportsGpu ? 'webgpu' : 'wasm';
@@ -145,19 +147,19 @@ async function translate(request: WorkerRequest): Promise<string> {
             if (!chunk.trim()) { results.push(chunk); continue; }
             let translated: string;
             if (isHunyuan) {
-                const response = await (engine as Wllama).createChatCompletion({
-                    messages: [{role: 'user', content: hunyuanTranslationPrompt(chunk.trim(), request.sourceLanguage, request.targetLanguage)}],
+                const response = await paceLocalInference(() => (engine as Wllama).createChatCompletion({
+                    messages: [{role: 'user', content: hunyuanTranslationPrompt(chunk.trim(), request.sourceLanguage!, request.targetLanguage!)}],
                     max_tokens: 768, temperature: 0.7, top_p: 0.6, top_k: 20,
                     penalty_repeat: 1.05, seed: 42, cache_prompt: false, abortSignal: abort.signal,
-                });
+                }));
                 if (response.choices[0]?.finish_reason === 'length') throw new Error('LOCAL_TRANSLATION_OUTPUT_LIMIT');
                 translated = response.choices[0]?.message.content || '';
             } else {
-                const output = await (engine as Translator)(chunk.trim(), {
+                const output = await paceLocalInference(() => (engine as Translator)(chunk.trim(), {
                     src_lang: request.sourceLanguage, tgt_lang: request.targetLanguage,
                     max_new_tokens: 512, do_sample: false, num_beams: 1,
                     no_repeat_ngram_size: 4, repetition_penalty: 1.1, stopping_criteria: stop,
-                });
+                }));
                 const first = Array.isArray(output) ? output[0] : output;
                 translated = (first as {translation_text?: string})?.translation_text || '';
             }
@@ -179,12 +181,13 @@ export function startLocalTranslationWorker(): void {
         if (!request || typeof request.requestId !== 'number') return;
         const run = async () => {
             try {
+                if (request.singleThread) {forceSingleThreadInference(); configureEnvironment();}
                 if (request.type === 'dispose') { await dispose(); self.postMessage({requestId: request.requestId, success: true}); return; }
                 const started = performance.now();
                 const result = await translate(request);
                 self.postMessage({requestId: request.requestId, success: true, result, backend, elapsedMs: performance.now() - started});
             } catch (error) {
-                self.postMessage({requestId: request.requestId, success: false, error: error instanceof Error ? error.message : 'LOCAL_TRANSLATION_FAILED'});
+                self.postMessage({requestId: request.requestId, success: false, error: error instanceof Error ? error.message : 'LOCAL_TRANSLATION_FAILED', ...(localWasmThreads()>1?{retrySingleThread:true}:{})});
             }
         };
         taskQueue = taskQueue.then(run, run);

@@ -1,9 +1,10 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.worker.ts
  * 文件职责：运行独立的 Whisper ONNX Worker，复用模型 session 并执行受限时长的本地音频推理。
- * 主要内容：配置 WASM/WebGPU 后端、串行处理请求，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
+ * 主要内容：配置 WASM/WebGPU 后端、串行处理请求、复用有界线程与计算间歇，线程失效请求单线程重建，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
  * 模块边界：只运行模型与 Worker 消息循环，不访问页面 DOM、后台消息或共享 Offscreen 业务状态。
  */
+import {forceSingleThreadInference, localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
 import { env, InterruptableStoppingCriteria, pipeline, Tensor } from '@huggingface/transformers';
 import {
   getVideoLocalTranscriptionModelId,
@@ -100,7 +101,7 @@ env.remoteHost = VIDEO_AI_MODEL_REMOTE_HOST;
 env.remotePathTemplate = VIDEO_AI_MODEL_REMOTE_PATH_TEMPLATE;
 
 if (env.backends.onnx.wasm) {
-  env.backends.onnx.wasm.numThreads = 1;
+  env.backends.onnx.wasm.numThreads = localWasmThreads();
   // Dedicated worker 已经是隔离执行上下文；proxy worker 在扩展页面中
   // 反而会触发 extension:// WASM 加载失败，因此保持关闭。
   configureOnnxWasmBackend(env.backends.onnx.wasm, {
@@ -129,12 +130,7 @@ function configureWasmThreads(_model: ReturnType<typeof normalizeVideoLocalTrans
   // 只有真正支持 SharedArrayBuffer 的隔离上下文才允许 pthread；否则
   // ONNX Runtime 会强制退回单线程。可用时最多开 2 个线程，避免把
   // Whisper 的内存峰值翻倍，同时让较长窗口不再完全占满单核。
-  const sharedMemoryAvailable = typeof SharedArrayBuffer !== 'undefined'
-    && self.crossOriginIsolated === true;
-  const hardwareConcurrency = typeof navigator.hardwareConcurrency === 'number'
-    ? navigator.hardwareConcurrency
-    : 1;
-  const threads = sharedMemoryAvailable && hardwareConcurrency >= 4 ? 2 : 1;
+  const threads = localWasmThreads();
   if (env.backends.onnx.wasm) env.backends.onnx.wasm.numThreads = threads;
   wasmRuntimeThreads = threads;
   transcriberThreads = threads;
@@ -172,7 +168,7 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
       revision: 'master',
     }) as unknown as Promise<LocalTranscriber>;
     const wasm = env.backends.onnx.wasm;
-    const transcriber = await (wasm
+    const transcriber = await paceLocalInitialization(() => wasm
       ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), createPipeline)
       : createPipeline());
     transcriberDtype = dtype;
@@ -207,7 +203,7 @@ async function createLocalTranscriber(
         revision: 'master',
       }) as unknown as Promise<LocalTranscriber>;
       const wasm = env.backends.onnx.wasm;
-      gpuTranscriber = await (wasm
+      gpuTranscriber = await paceLocalInitialization(() => wasm
         ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), createPipeline)
         : createPipeline());
       transcriberBackend = 'webgpu';
@@ -272,7 +268,7 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
 
 async function runModelInference<T>(operation: () => Promise<T>): Promise<T> {
   try {
-    return await operation();
+    return await paceLocalInference(operation);
   } catch (error) {
     if (transcriberBackend === 'webgpu') throw new WebGpuFallbackError(error);
     throw error;
@@ -479,6 +475,7 @@ workerScope.onmessage = (event) => {
   enqueueWorkerTask(async () => {
     try {
       if (request.device === 'wasm') {
+        forceSingleThreadInference();
         const hadGpuSession = transcriberBackend === 'webgpu';
         disableWebGpu('调用方锁定本 Worker 使用 WASM');
         if (hadGpuSession) await disposeTranscriber();
@@ -509,7 +506,7 @@ workerScope.onmessage = (event) => {
         success: false,
         error: error instanceof Error ? error.message : String(error),
       };
-      if (error instanceof WebGpuFallbackError) response.retryWithCpu = true;
+      if (error instanceof WebGpuFallbackError || localWasmThreads() > 1) response.retryWithCpu = true;
       workerScope.postMessage(response);
     }
   });
