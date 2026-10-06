@@ -703,8 +703,7 @@
   gap: 8px;
 }
 
-.stats-page-jump,
-.stats-page-jump label { display: flex; align-items: center; gap: 8px; }
+.stats-page-jump { display: flex; align-items: center; gap: 8px; }
 .stats-page-jump input {
   width: 54px;
   min-height: 34px;
