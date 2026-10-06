@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏展示品牌与多语言宣传语；关于页以随界面语言显示产品名的宽幅品牌介绍、静态核心体验介绍、项目链接卡片和独立赞赏区组织内容，赞赏码在当前页弹窗放大；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
+ 主要内容：侧栏展示品牌与多语言宣传语；关于页以随界面语言显示产品名的宽幅品牌介绍、项目链接卡片、开源项目下方的微信交流按钮和独立赞赏区组织内容，联系二维码与赞赏码在当前页弹窗展示；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接。
  模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -95,16 +95,6 @@
               </div>
               <h2 data-i18n-ignore>{{ t('brand.tagline') }}</h2>
             </div>
-            <section class="about-experience" :aria-label="t('options.aboutCoreExperience')">
-              <h3>{{ t('options.aboutBornForReading') }}</h3>
-              <p>{{ t('options.aboutCoreDescription') }}</p>
-              <ul class="about-features">
-                <li v-for="feature in aboutFeatures" :key="feature.label" class="about-feature">
-                  <UiIcon :name="feature.icon" :size="21" />
-                  <span>{{ t(feature.label) }}</span>
-                </li>
-              </ul>
-            </section>
           </header>
           <div class="about-grid">
             <section class="about-panel about-links-panel" :aria-label="t('options.aboutLearnMore')">
@@ -116,6 +106,17 @@
                   <span class="about-link-copy"><strong>{{ t(link.label) }}</strong><small>{{ t(link.description) }}</small></span>
                   <UiIcon name="external" :size="16" />
                 </a>
+                <button
+                  ref="wechatContactTrigger"
+                  class="about-wechat-contact"
+                  type="button"
+                  aria-haspopup="dialog"
+                  @click="openQrPreview('contact')"
+                >
+                  <span class="about-link-icon"><UiIcon name="scan" :size="23" /></span>
+                  <span class="about-link-copy"><strong>{{ t('options.aboutWechatContact') }}</strong><small>{{ t('options.aboutWechatContactDescription') }}</small></span>
+                  <UiIcon name="arrow-right" :size="16" />
+                </button>
               </div>
             </section>
             <article class="about-panel about-support-panel">
@@ -129,7 +130,7 @@
                   type="button"
                   :aria-label="t('options.aboutEnlargeCode')"
                   :title="t('options.aboutEnlargeCode')"
-                  @click="approvePreviewVisible = true"
+                  @click="openQrPreview('support')"
                 >
                   <!-- 绑定表达式让模板编译器保留 public 路径，避免再打包一份带 hash 的同图。 -->
                   <img class="about-support-qr" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
@@ -156,8 +157,9 @@
     </main>
     <el-dialog
       v-model="approvePreviewVisible"
-      class="about-approve-dialog"
-      :title="t('popup.donationWechat')"
+      class="about-qr-dialog"
+      :class="qrPreviewKind === 'contact' ? 'about-wechat-contact-dialog' : 'about-approve-dialog'"
+      :title="qrPreviewKind === 'contact' ? t('options.aboutWechatContact') : t('popup.donationWechat')"
       width="min(560px, calc(100vw - 32px))"
       align-center
       :close-on-click-modal="true"
@@ -165,13 +167,20 @@
       destroy-on-close
       @closed="restoreApprovePreviewFocus"
     >
-      <img class="about-approve-preview" :src="approveUrl" :alt="t('popup.donationCodeAlt')" width="1152" height="1152" />
+      <img
+        class="about-approve-preview"
+        :src="qrPreviewKind === 'contact' ? wechatContactUrl : approveUrl"
+        :alt="qrPreviewKind === 'contact' ? t('options.aboutWechatContactCodeAlt') : t('popup.donationCodeAlt')"
+        :width="qrPreviewKind === 'contact' ? 888 : 1152"
+        :height="qrPreviewKind === 'contact' ? 1131 : 1152"
+      />
     </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import UiIcon from '@/src/ui/components/UiIcon.vue'
+import wechatContactUrl from './assets/wechat-contact.jpg'
 import {SETTINGS_TABBED_SECTION_IDS, settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
@@ -207,14 +216,17 @@ const iconUrl = globalThis.__FLUENTREAD_ICON_DATA__ || '/icon/128.png'
 const approveUrl = globalThis.__FLUENTREAD_APPROVE_DATA__ || '/misc/approve.jpg'
 const approvePreviewVisible = ref(false)
 const approvePreviewTrigger = ref<HTMLButtonElement | null>(null)
-function restoreApprovePreviewFocus() {
-  if (activeSection.value === 'settings-about') approvePreviewTrigger.value?.focus({preventScroll: true})
+const wechatContactTrigger = ref<HTMLButtonElement | null>(null)
+const qrPreviewKind = ref<'contact' | 'support'>('support')
+function openQrPreview(kind: 'contact' | 'support') {
+  qrPreviewKind.value = kind
+  approvePreviewVisible.value = true
 }
-const aboutFeatures = [
-  {icon: 'translate', label: 'options.aboutWebReading'},
-  {icon: 'book', label: 'options.aboutReadingTools'},
-  {icon: 'plug', label: 'options.aboutFlexibleServices'},
-]
+function restoreApprovePreviewFocus() {
+  if (activeSection.value !== 'settings-about') return
+  const trigger = qrPreviewKind.value === 'contact' ? wechatContactTrigger : approvePreviewTrigger
+  trigger.value?.focus({preventScroll: true})
+}
 const aboutLinks = [
   {href: websiteUrl, icon: 'globe', label: 'options.aboutWebsite', description: 'options.aboutWebsiteDescription'},
   {href: 'https://fluent.thinkstu.com/', icon: 'book', label: 'options.aboutDocs', description: 'options.aboutDocsDescription'},

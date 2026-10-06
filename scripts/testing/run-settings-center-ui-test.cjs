@@ -1454,9 +1454,8 @@ async function main() {
         }
         await page.keyboard.press('Escape');
         await preview.waitFor({state: 'hidden', timeout});
-        if (await anchor.locator('.about-feature').count() !== 3
-          || await anchor.locator('.about-features button, .about-features a, .about-features [tabindex]').count() !== 0) {
-          throw new Error('关于页核心体验必须是三个静态介绍项');
+        if (await anchor.locator('.about-experience, .about-features, .about-feature').count() !== 0) {
+          throw new Error('关于页仍显示已删除的核心体验介绍');
         }
         if (await supportPanel.locator('.about-support-original-link').count() !== 0) {
           throw new Error('关于页仍显示多余的原图文字链接');
