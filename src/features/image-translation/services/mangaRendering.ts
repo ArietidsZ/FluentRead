@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaRendering.ts
  * 文件职责：在整段漫画区域中绘制适合阅读的译文，避免整行逐框放大和复杂背景扩散条纹。
- * 主要内容：保留整段内容和裁剪边界，对白使用适度粗体，原始大标题使用有界大字与高对比描边；复用页内准确度量和原图背景分类，避免修补后被误判成均匀底色而二次铺板。
+ * 主要内容：保留整段内容和裁剪边界，对白使用随字号缩小的内边距，避免短行损失半数高度；原始大标题使用有界大字与高对比描边；复用页内准确度量和原图背景分类，避免修补后被误判成均匀底色而二次铺板。
  * 模块边界：只操作调用方提供的画布和像素，不运行 OCR/翻译、不修改宿主页面；绘制区域局限于识别框，完整原图仍可通过现有按钮对照。
  */
 import type {MangaRegion} from './mangaRegions';
@@ -55,7 +55,8 @@ export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels:
             const display = !sampled.uniform && !region.vertical && region.fontSize >= width * .045;
             const weight = display ? 800 : 600;
             const maxSize = Math.min(region.fontSize * 1.05,width * (display ? .10 : .034));
-            const inset = Math.min(display ? Math.max(3,maxSize * .12) : 4,(right-left) / 4,(bottom-top) / 4);
+            // OCR 框包含的是字形；固定 4px 会把 7–8px 短行的可用高度减半，译文因此只剩 3px。
+            const inset = Math.min(display ? Math.max(3,maxSize * .12) : Math.min(4,maxSize * .1),(right-left) / 4,(bottom-top) / 4);
             let measuredFont = '';
             const layout = layoutMangaTranslationText(region.text,right-left-inset*2,bottom-top-inset*2,(text,size)=>{
                 const font = `${weight} ${size}px ${MANGA_TEXT_FONT}`, key = `${font}|${text}`;

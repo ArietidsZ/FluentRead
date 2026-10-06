@@ -1,7 +1,7 @@
 <!--
  * @file src/features/floating-ball/ui/FloatingBall.vue
- * 文件职责：呈现低干扰、可拖拽和按需展开的页面悬浮球，并把全文与漫画翻译状态、拖动停靠、打开设置、高级外观参数和键盘关闭整合为可复用 Vue 组件。
- * 主要内容：漫画阅读器采用紧凑阅读图标和真实任务状态，闲置后收回边缘，鼠标与触摸访问后延时收起，键盘聚焦时保持可操作；按展示契约控制展开延迟、触屏与不透明度，使用位移阈值区分点击与拖拽，按视口比例恢复并限制位置。
+ * 文件职责：呈现默认常驻、可辨认流畅阅读品牌的页面悬浮工具，将全文翻译、品牌手柄和漫画入口按顺序组织，并保留拖动停靠与自选悬停模式。
+ * 主要内容：品牌主体只显示圆形本地图标，全文按钮在上、漫画按钮在下；默认不因闲置、移出或 Escape 缩回边缘，显式悬停模式仍按展示契约处理延迟、触屏与不透明度。
  * 模块边界：它只负责视觉与局部交互，不直接调用浏览器消息、保存配置或执行全文翻译；这些副作用由 content/runtime 通过 props、事件和 defineExpose 桥接，外观配置的归一化留在 core/config。
  -->
 <template>
@@ -44,12 +44,31 @@
       <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
     </button>
 
+    <div
+      ref="floatingBallMain"
+      class="floating-ball-main floating-ball-item"
+      :role="isMainActionable ? 'button' : 'img'"
+      :tabindex="isMainActionable ? 0 : undefined"
+      :aria-label="mainActionLabel"
+      :title="mainActionTitle"
+      @pointerdown="startDrag"
+      @pointerup="finishPointerInteraction"
+      @pointercancel="cancelPointerInteraction"
+      @keydown="handleMainKeydown"
+    >
+      <svg class="floating-ball-mascot" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <image v-if="logoUrl" :href="logoUrl" x="0" y="0" width="32" height="32" preserveAspectRatio="none" image-rendering="auto" />
+        <path v-else d="M16 8c-4-3-8-3-12-1v19c4-2 8-2 12 1m0-19c4-3 8-3 12-1v19c-4-2-8-2-12 1V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+      </svg>
+      <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
+    </div>
+
     <button
       v-if="manga?.available"
       class="floating-ball-tool floating-ball-manga floating-ball-item"
       :class="{'manga-active': manga.active, 'manga-pending': manga.pending}"
       type="button"
-      :aria-label="t(manga.active ? '暂停并显示原图' : '漫画翻译')"
+      :aria-label="t(manga.areaFallback ? '圈选漫画翻译' : manga.active ? '暂停并显示原图' : '漫画翻译')"
       :aria-pressed="manga.active"
       :aria-busy="manga.pending"
       :title="mangaTitle"
@@ -65,24 +84,6 @@
       </span>
       <span v-if="manga.pending" class="manga-progress" aria-hidden="true" />
     </button>
-
-    <div
-      ref="floatingBallMain"
-      class="floating-ball-main floating-ball-item"
-      :role="isMainActionable ? 'button' : 'img'"
-      :tabindex="isMainActionable ? 0 : undefined"
-      :aria-label="mainActionLabel"
-      :title="mainActionTitle"
-      @pointerdown="startDrag"
-      @pointerup="finishPointerInteraction"
-      @pointercancel="cancelPointerInteraction"
-      @keydown="handleMainKeydown"
-    >
-      <svg class="floating-ball-mascot" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <image v-if="logoUrl" :href="logoUrl" x="0" y="0" width="32" height="32" preserveAspectRatio="none" image-rendering="auto" />
-      </svg>
-      <span v-if="isTranslating" class="check-mark" aria-hidden="true" />
-    </div>
 
     <button
       v-if="showSettingsTool"
@@ -115,9 +116,9 @@ const DRAG_THRESHOLD = 6;
 const BALL_SIZE = 40;
 const COMPACT_BALL_SIZE = 32;
 
-/** 展示契约的保守默认值：与历史外观一致，供未传入配置的挂载方使用。 */
+/** 与配置默认值一致；独立挂载时品牌和工具同样常驻。 */
 const DEFAULT_PRESENTATION: FloatingBallPresentation = {
-  toolsDisplay: 'hover',
+  toolsDisplay: 'always',
   hoverDelay: 0,
   clickAction: 'translate',
   compact: false,
@@ -207,14 +208,15 @@ const isMenuExpanded = computed(() => isAlwaysExpanded.value || isExpanded.value
 const isMainActionable = computed(() => presentation.value.clickAction !== 'none');
 const mangaTitle = computed(() => {
   const manga = props.manga;
+  if (manga?.areaFallback) return t('画布或分片漫画 · 拖选可见区域翻译');
   if (!manga?.active) return t('漫画翻译 · 自动翻译新页面');
   const message = manga.pending ? manga.message || '正在处理当前漫画页' : manga.errors ? '部分页面未完成' : '连续翻译已开启';
   return `${t(message)} · ${t('暂停并显示原图')}`;
 });
 const mainActionLabel = computed(() => {
-  if (presentation.value.clickAction === 'settings') return '打开 FluentRead 设置';
+  if (presentation.value.clickAction === 'settings') return `FluentRead · ${t('打开 FluentRead 设置')}`;
   if (presentation.value.clickAction === 'translate') {
-    return isTranslating.value ? '恢复网页原文' : '翻译整个网页';
+    return `FluentRead · ${t(isTranslating.value ? '恢复网页原文' : '翻译整个网页')}`;
   }
   return 'FluentRead';
 });
@@ -650,7 +652,13 @@ watch(() => presentation.value.settingsEntryVisible, () => {
   pointer-events: auto;
   opacity: 1;
   overflow: visible;
+  order: 1;
+  color: #ec4d7d;
 }
+
+.floating-ball-translate {order:0;}
+.floating-ball-manga {order:2;}
+.floating-ball-settings {order:3;}
 
 .fr-floating-ball:not(.floating-ball-expanded):not(.dragging)[data-position="right"] .floating-ball-main {
   opacity: var(--fr-ball-collapsed-opacity, 0.52);

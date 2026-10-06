@@ -50,6 +50,16 @@ describe('漫画专用完整排版',()=>{
 describe('原图背景与字体层次',()=>{
     const width=1000,height=400,pixels=new Uint8ClampedArray(width*height*4).fill(255);
     const region={text:'你好世界',fontSize:70,bbox:{x0:100,y0:100,x1:400,y1:250}};
+    it('七八像素高的短行不会被固定内边距挤成三像素，仍裁剪在原始识别范围',()=>{
+        for(const height of [7,8]){
+            const c=context(),bbox={x0:40,y0:40,x1:132,y1:40+height};
+            drawMangaTranslations(c as any,pixels,width,400,[{text:'已准备好。',fontSize:height,bbox}],true,[{color:'rgb(255,255,255)',uniform:true}]);
+            const size=Number(c.font.match(/ ([\d.]+)px/)![1]);
+            expect(size).toBeGreaterThan(height*.65);expect(size*1.2).toBeLessThanOrEqual(height);
+            expect(c.fillText.mock.calls.map(call=>call[0]).join('')).toBe('已准备好。');
+            expect(c.rect).toHaveBeenCalledWith(40,40,92,height);expect(c.fillRect).toHaveBeenCalledWith(40,40,92,height);
+        }
+    });
     it('对白适度粗体且短译文不放大，标题使用源字号与白色描边',()=>{
         const c=context();drawMangaTranslations(c as any,pixels,width,height,[region],true,[{color:'rgb(255,255,255)',uniform:true}]);
         expect(c.font).toMatch(/^600 34px /);expect(c.fillStyle).toBe('#111111');expect(c.lineWidth).toBeCloseTo(1.19);

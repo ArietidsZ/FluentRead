@@ -107,6 +107,19 @@ beforeEach(() => {
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('Offscreen 图片完整操作生命周期', () => {
+    it.each(['ru-RU', 'ko'])('漫画 %s 采用已有 Tesseract，清字、排版和局部结果仍使用漫画链路', async sourceLanguage => {
+        if (sourceLanguage === 'ko') imageOptions.push({naturalWidth: 0, naturalHeight: 0});
+        const controller = new AbortController();
+        mocks.repair.mockImplementationOnce(async pixels => pixels);
+        const result = await translateImageInOffscreen('manga', sourceLanguage, 'Page', controller.signal, 'language-manga', true, 'paddle');
+        expect(mocks.recognize).toHaveBeenCalledWith('manga', sourceLanguage, controller.signal, expect.objectContaining({decodedImage: images[0]}));
+        expect(mocks.mangaRecognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
+        expect(mocks.repair).toHaveBeenCalledOnce();expect(mocks.mangaDraw).toHaveBeenCalledOnce();
+        expect(mocks.repair.mock.calls[0][3][0]).toMatchObject({fontSize: 10, sourceBoxes: [lines[0].bbox]});
+        expect(result.image).toBe('');expect(result.mangaPatches).toMatchObject({width: 32, height: 16});
+        expect(result.lines[0]).toMatchObject({sourceText: 'Hello', text: '你好'});
+        expect(images[0].src).toBe('');expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+    });
     it('单图选择 PaddleOCR 只替换识别引擎，仍返回完整译图与文本，不启动漫画修补', async () => {
         mocks.mangaRecognize.mockResolvedValue(lines);
         const result=await translateImageInOffscreen('image','en','Page',undefined,'single-paddle',false,'paddle');

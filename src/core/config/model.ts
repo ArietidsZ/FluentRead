@@ -302,7 +302,7 @@ export function normalizeFloatingBallVerticalPosition(value: unknown): number | 
 export function normalizeFloatingBallToolsDisplay(value: unknown): FloatingBallToolsDisplay {
     return FLOATING_BALL_TOOLS_DISPLAY_VALUES.includes(value as FloatingBallToolsDisplay)
         ? value as FloatingBallToolsDisplay
-        : 'hover';
+        : 'always';
 }
 
 export function normalizeFloatingBallClickAction(value: unknown): FloatingBallClickAction {
@@ -356,7 +356,7 @@ export class Config {
     hoverTranslationService: string; // 悬浮翻译服务，空值跟随默认网页服务
     selectionTranslationService: string; // 普通划词翻译服务，空值跟随默认网页服务
     imageTranslationService: string; // 图片 OCR 后的文字翻译服务，空值跟随默认网页服务
-    imageTranslationOcrEngine: 'tesseract' | 'paddle'; // 单张图片的本地识别方式；漫画连续阅读固定使用 PaddleOCR
+    imageTranslationOcrEngine: 'tesseract' | 'paddle'; // 单图识别方式；漫画按源语言选择专用模型，俄语/韩语使用既有语言包
     documentService: string; // 文档服务，空值跟随网页默认
     documentModel: IMapping; // 文档翻译按服务保存的独立模型选择
     documentCustomModel: IMapping; // 文档翻译按服务保存的独立自定义模型
@@ -636,12 +636,12 @@ export class Config {
         this.longParagraphLineBreakEnabled = false; // 默认保持原段落排版
         this.translationBeforeOriginal = false; // 默认译文排在每段原文之后
         this.fullPageTranslationMode = 'viewport'; // 默认按阅读进度翻译，避免一次发出过多请求
-        this.disableFloatingBall = true; // 默认关闭悬浮球
+        this.disableFloatingBall = false; // 默认显示流畅阅读品牌与翻译入口；保留用户显式关闭的偏好
         this.floatingBallPosition = 'right'; // 默认在右侧
         this.floatingBallVerticalPosition = null; // 未拖动时保持视口纵向居中
         this.floatingBallHotkey = 'Alt+T'; // 默认快捷键为 Alt+T
         this.customFloatingBallHotkey = ''; // 自定义快捷键为空
-        this.floatingBallToolsDisplay = 'hover'; // 默认指针悬停时才展开翻译与设置按钮
+        this.floatingBallToolsDisplay = 'always'; // 默认常驻展开，不缩回页面边缘
         this.floatingBallHoverDelay = DEFAULT_FLOATING_BALL_HOVER_DELAY; // 默认立即展开，保持既有手感
         this.floatingBallClickAction = 'translate'; // 默认点击悬浮球即切换全文翻译
         this.floatingBallCompact = false; // 默认使用标准尺寸

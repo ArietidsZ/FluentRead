@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/ocrLanguages.ts
  * 文件职责：定义图片 OCR 支持的语言包目录、推荐组合和持久化键，并把用户源语言映射为 Tesseract 实际需要加载的语言代码。
- * 主要内容：包含与八种源语言对应的类型与展示元数据、推荐简繁中英日集合、getRequiredImageOcrLanguages 选择规则、语言包附带的竖排模型展开和 normalizeImageOcrLanguageCodes 白名单去重。
+ * 主要内容：包含八种源语言元数据、推荐简繁中英日集合、语言包选择与竖排模型展开；漫画明确选择俄语或韩语时改用已有 Tesseract 包，其他语言仍使用漫画专用模型，不从网站界面语言猜测正文。
  * 模块边界：此文件只描述受支持语言与规范化规则，不下载资源或访问 storage；下载由后台 Offscreen OCR runtime 执行，状态持久化由 ocrLanguageRepository 和设置组件协调。
  */
 import {getChineseScript} from '@/src/core/language/chinese';
@@ -111,6 +111,12 @@ export function getRequiredImageOcrLanguages(sourceLanguage: string): ImageOcrLa
     if (code) return code === 'eng' ? ['eng'] : [code, 'eng'];
     // 自动源语言同时覆盖简繁、英文与日文，避免默认配置把繁体识别成简体后丢失脚本信息。
     return [...IMAGE_OCR_RECOMMENDED_LANGUAGES];
+}
+
+/** 漫画专用字表不含俄语和韩文；源语言明确时选择已有语言模型，自动模式保留原有识别行为。 */
+export function getMangaOcrEngine(sourceLanguage: string): 'paddle' | 'tesseract' {
+    const language = sourceLanguage.trim().replace(/_/gu, '-').toLowerCase().split('-')[0];
+    return language === 'ru' || language === 'ko' ? 'tesseract' : 'paddle';
 }
 
 export function normalizeImageOcrLanguageCodes(value: unknown): ImageOcrLanguageCode[] {

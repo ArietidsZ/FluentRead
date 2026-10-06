@@ -159,13 +159,13 @@ describe('漫画会话所有权与可见页调度', () => {
     });
 });
 
-function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void) {
+function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.shueisha.co.jp/viewer/1024050', siteRules?: () => import('@/src/core/config/manga').MangaSiteRule[], prefetchPages?: () => number, warm?: (images:HTMLImageElement[])=>void, canvas?: Parameters<typeof createMangaReader>[0]['canvas'], cachePorts?: Pick<Parameters<typeof createMangaReader>[0], 'resetCache' | 'cachePages' | 'reuse' | 'background' | 'segments'>) {
     const {document, window: dom} = parseHTML('<html><body><div class="zao-image-container"><img class="zao-image" src="blob:page-1"></div><img id="logo" src="https://site/logo.png"></body></html>');
     const image = document.querySelector('img')! as HTMLImageElement;
     Object.defineProperties(image, {complete: {writable: true, value: true}, naturalWidth: {writable: true, value: 800}, naturalHeight: {value: 1200}, currentSrc: {get: () => image.src}});
     let bounds = {left: 0, top: 0, right: 800, bottom: 1200, width: 800, height: 1200};
     image.getBoundingClientRect = () => bounds as DOMRect;
-    let style = {visibility: 'visible', display: 'block'};
+    let style = {visibility: 'visible', display: 'block', opacity:'1'};
     let hidden = false; Object.defineProperty(document, 'hidden', {get: () => hidden});
     const events = new Map<string, () => void>(), frames = new Map<number, FrameRequestCallback>(); let id = 0;
     const window = {location: {href: initialUrl}, innerWidth: 1280, innerHeight: 900,
@@ -181,7 +181,7 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         constructor(callback: MutationCallback) {mo.callback = callback;} });
     const ports = {enabled: vi.fn().mockReturnValue(true), identity: (i: HTMLImageElement) => i.src,
         translate: vi.fn().mockResolvedValue(undefined), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), changed: vi.fn()};
-    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm});
+    const reader = createMangaReader({...ports, siteRules, prefetchPages, warm, canvas, ...cachePorts});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
     return {reader, ports, image, io, mo, window, dom, document, run, intersect,
@@ -189,6 +189,384 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it.each(['chapter', 'query'])('Hentaizap 逐页替换保留阅读，%s 变化结束旧章并释放缓存', async change => {
+        const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);
+        const f = readerFixture(false, 'https://hentaizap.com/g/1655925/1', undefined, undefined, undefined, undefined, {resetCache, reuse});
+        const root = f.document.createElement('main');root.id = 'readerApp';root.innerHTML = '<div id="readerAnchor" class="reader_img"></div>';
+        f.image.id = 'readerImg';root.firstElementChild!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();resetCache.mockClear();
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();reuse.mockReturnValue(false);
+        f.image.src = 'blob:page-two';f.window.location.href = 'https://hentaizap.com/g/1655925/2/';f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledTimes(2);expect(resetCache).not.toHaveBeenCalled();
+        f.window.location.href = change === 'chapter' ? 'https://hentaizap.com/g/1655926/1' : 'https://hentaizap.com/g/1655925/2?chapter=other';f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each([
+        ['yaoimangaonline.com', '<article class="herald-single"><div class="entry-content herald-entry-content"><p></p></div></article>', 'p', 'alignnone wp-image-123'],
+        ['nhentaiyaoi.net', '<div class="post-box listaImagens"><ul class="post-fotos"><li><a></a></li></ul></div>', 'a', ''],
+    ])('%s 单帖正文加入、懒加载换源、暂停与换帖清理', async (host, html, parent, imageClass) => {
+        const resetCache = vi.fn(), f = readerFixture(false, `https://${host}/public-post`, undefined, undefined, undefined, undefined, {resetCache});
+        f.document.body.className = 'single-post';expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.innerHTML = html;f.image.className = imageClass;root.querySelector(parent)!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();
+        f.image.src = 'blob:lazy-loaded-body';f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.window.location.href = `https://${host}/another-post`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalled();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
+    it.each(['chapter', 'slug', 'query'])('GANMA 路径页码续译，暂停复用与 %s 身份变化清理保持独立', async change => {
+        const chapter = '/web/reader/chiharasan/a64d24f0-c9d6-11eb-ba7d-2e06529e3f5f';
+        const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);
+        const f = readerFixture(false, `https://ganma.jp${chapter}/0`, undefined, undefined, undefined, undefined, {resetCache, reuse});
+        const root = f.document.createElement('div');root.className = 'h-full-container w-full-container';root.innerHTML = '<div class="flex select-none"><div class="relative flex-1"></div></div>';
+        const parent = root.querySelector('.relative')!;f.image.className = 'pointer-events-none object-contain';f.image.alt = '1ページ目の原稿画像';parent.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);resetCache.mockClear();
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();reuse.mockReturnValue(false);
+        f.image.src = 'blob:page-5';f.image.alt = '5ページ目の原稿画像';f.window.location.href = `https://ganma.jp${chapter}/4/`;
+        f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledTimes(2);expect(resetCache).not.toHaveBeenCalled();
+        const next = change === 'chapter' ? chapter.replace('a64d24f0', 'fe704630') : change === 'slug' ? chapter.replace('chiharasan', 'other') : chapter;
+        f.window.location.href = `https://ganma.jp${next}/4${change === 'query' ? '?chapter=2' : ''}`;f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it('Novelpia 已展示的受限图片只提供圈选，不请求识别，移除与关闭清理', () => {
+        const f = readerFixture(false, 'https://novelpia.com/comic_viewer/18735');
+        expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'viewer_wrap';root.innerHTML = '<div class="viewer_content"><div><div class="viewer_content_box"><div class="comic-content"></div></div></div></div>';
+        root.querySelector('.comic-content')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(f.ports.translate).not.toHaveBeenCalled();f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        root.querySelector('.comic-content')!.append(f.image);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each(['image', 'canvas'])('TOPTOON 可见 %s 正文只发布圈选，移除和关闭清理，不读取像素', kind => {
+        const f = readerFixture(false, 'https://toptoon.com/comic/ep_view/Legendary_Hunter/1/rent');
+        expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'viewerContentsWrap';root.innerHTML = '<div class="comic_img"><div class="canvas-wrapper document_img"></div></div>';
+        const body = kind === 'image' ? f.image : f.document.createElement('canvas');body.className = 'document_img';body.getBoundingClientRect = f.image.getBoundingClientRect;
+        const readPixels = vi.fn();if (kind === 'canvas') (body as HTMLCanvasElement).getContext = readPixels;
+        root.querySelector(kind === 'image' ? '.comic_img' : '.canvas-wrapper')!.append(body);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(readPixels).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
+        body.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        root.querySelector('.canvas-wrapper')!.append(body);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each(['repaint','pause','chapter','removed','zero-width','zero-height','outside','hidden','invisible','transparent','disabled'])('哔哩哔哩同章加载等待 %s：首次加载不发入口，旧页取消，新页仍按用户意图调度',async mode=>{
+        const canvasPorts={identity:vi.fn<() => string | null>().mockReturnValue(null),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,'https://manga.bilibili.com/mc30124/595886',undefined,undefined,undefined,canvasPorts);
+        const root=f.document.createElement('div');root.className='images-container';root.innerHTML='<div class="view-container"><div class="image-container"><canvas></canvas></div><div class="loading-hinter"></div></div>';
+        const canvas=root.querySelector('canvas')!,loading=root.querySelector('.loading-hinter')!;
+        const bounds={left:90,top:0,right:633,bottom:816,width:543,height:816};canvas.width=1099;canvas.height=1649;canvas.getBoundingClientRect=()=>bounds as DOMRect;loading.getBoundingClientRect=()=>bounds as DOMRect;
+        f.document.body.append(root);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});
+        canvasPorts.identity.mockReturnValue('ready-1');f.reader.schedule();f.run();f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();await flush();expect(f.reader.status()).toMatchObject({available:true,active:true,pageCount:0});expect(canvasPorts.release).toHaveBeenCalledWith(canvas);expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        if(mode==='repaint'){canvasPorts.identity.mockReturnValue('ready-2');f.reader.schedule();f.run();await flush();expect(f.reader.status()).toMatchObject({available:true,active:true,pageCount:1});expect(canvasPorts.translate).toHaveBeenCalledTimes(2);}
+        if(mode==='pause')f.reader.toggle();
+        if(mode==='chapter')f.window.location.href='https://manga.bilibili.com/mc30124/999999';
+        if(mode==='removed')loading.remove();
+        if(mode==='zero-width')bounds.width=0;
+        if(mode==='zero-height')bounds.height=0;
+        if(mode==='outside'){bounds.left=1300;bounds.right=1843;}
+        if(mode==='hidden')f.setStyle({display:'none'});
+        if(mode==='invisible')f.setStyle({visibility:'hidden'});
+        if(mode==='transparent')f.setStyle({opacity:'0'});
+        if(mode==='disabled')f.ports.enabled.mockReturnValue(false);
+        if(mode!=='repaint'){f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});expect(canvasPorts.translate).toHaveBeenCalledOnce();}
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,active:false});f.reader.dispose();
+    });
+    it.each([
+        ['https://ranfren.neocities.org/lucid/lucid2/need1','https://ranfren.neocities.org/lucid/lucid22/lucid22thattimei','<center></center>','center','https://ranfren.neocities.org/lucid/lucid2/lucid2-1.jpg'],
+        ['https://www.manhuazhan.com/chapter/235990-51809.html','https://www.manhuazhan.com/chapter/235990-51810.html','<div id="ChapterContent"><p class="chapterpic"></p></div>','p','blob:body'],
+        ['https://poipiku.com/2/13202427.html','https://poipiku.com/2/13202425.html','<section id="IllustItemList"><div class="IllustItem"><a class="IllustItemThumb"></a></div></section>','a','blob:body'],
+    ])('%s 正文动态加入，暂停复用，换章清理；来源消失后移除入口',async(href,nextHref,html,parent,source)=>{
+        const resetCache=vi.fn(),f=readerFixture(false,href,undefined,undefined,undefined,undefined,{resetCache});expect(f.reader.status().available).toBe(false);
+        const root=f.document.createElement('div');root.innerHTML=html;f.image.className='lazy IllustItemThumbImg';f.image.src=source;root.querySelector(parent)!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.toggle();await flush();
+        f.window.location.href=nextHref;f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({active:false,available:true});expect(resetCache).toHaveBeenCalled();
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
+    it('哔哩哔哩正文动态加入后串行识别，暂停复用，原画布重绘失效后重新处理并清理',async()=>{
+        const canvasPorts={identity:vi.fn().mockReturnValue('spread-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,'https://manga.bilibili.com/mc30124/595886',undefined,undefined,undefined,canvasPorts);expect(f.reader.status().available).toBe(false);
+        const root=f.document.createElement('div');root.className='images-container';root.innerHTML='<div class="view-container"><div class="image-container"></div></div>';
+        const canvas=f.document.createElement('canvas');canvas.width=1099;canvas.height=1649;
+        canvas.getBoundingClientRect=()=>({left:93,top:0,right:636,bottom:816,width:543,height:816}) as DOMRect;root.querySelector('.image-container')!.append(canvas);f.document.body.append(root);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,areaFallback:false,pageCount:1});f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue('spread-2');canvasPorts.reuse.mockReturnValue(false);f.reader.schedule();f.run();await flush();expect(canvasPorts.release).toHaveBeenCalledWith(canvas);expect(canvasPorts.translate).toHaveBeenCalledTimes(2);
+        root.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});expect(canvasPorts.release).toHaveBeenCalledWith(canvas);f.reader.dispose();
+    });
+    it('PASH UP 当前屏动态加载后调度画布，暂停恢复和移除清理不处理缓冲屏', async () => {
+        const canvasPorts = {identity: vi.fn().mockReturnValue('current-page'), translate: vi.fn().mockResolvedValue(undefined), reuse: vi.fn().mockReturnValue(false), restore: vi.fn(), release: vi.fn(), failed: vi.fn().mockReturnValue(false), update: vi.fn()};
+        const f = readerFixture(false, 'https://pash-up.jp/viewer/viewer.html?cid=public-chapter', undefined, undefined, undefined, canvasPorts);
+        expect(f.reader.status().available).toBe(false);
+        const viewer = f.document.createElement('div');viewer.id = 'viewer';viewer.innerHTML = '<div id="renderer"><div id="viewport0"></div><div id="viewport1" class="currentScreen"></div></div>';
+        for (const id of ['viewport0', 'viewport1']) {const canvas = f.document.createElement('canvas');canvas.width = 2544;canvas.height = 1632;canvas.getBoundingClientRect = () => ({left: 0, right: 1272, top: 0, bottom: 816, width: 1272, height: 816}) as DOMRect;viewer.querySelector(`#${id}`)!.append(canvas);}
+        f.document.body.append(viewer);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: true, pageCount: 1, areaFallback: false});
+        const body = viewer.querySelector('#viewport1 canvas')!;f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();expect(canvasPorts.translate).toHaveBeenCalledWith(body);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(body);canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        viewer.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(canvasPorts.release).toHaveBeenCalledWith(body);f.reader.dispose();
+    });
+    it.each(['https://ctccomic.com/', 'https://www.ctccomic.com/comic/000'])('Countdown %s 正文加载后可连续翻译，主页标识不发布漫画入口', async href => {
+        const f = readerFixture(false, href);expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('div');root.id = 'cc-comicbody';const link = f.document.createElement('a');f.image.id = 'cc-comic';link.append(f.image);root.append(link);f.document.body.append(root);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: true, pageCount: 1});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each([
+        ['https://mangamillion.shueisha.co.jp/zh-CN/title/1/chapter/66193', '<div class="eAvsta_slide_container"><div class="-KWKsa_spread"><div class="_b9ZNa_page_container"><div class="__wfZG_placeholder"></div></div></div></div>', 'div.__wfZG_placeholder'],
+        ['https://www.orchisasia.org/comic/story/0001-chapter-1', '<div class="read-container"><div class="reading-content"><div class="page-break"></div></div></div>', '.page-break'],
+        ['https://qimanga.com/series/the-otherworld-general-store/chapter-1', '<app-reader><div class="r-strip"><div class="r-page" data-page="1"></div></div></app-reader>', '.r-page'],
+        ['https://nyxscans.com/series/press-play-sami/chapter-96', '<div class="comic-body-container"><div class="comic-images-wrapper"><figure class="image-container"></figure></div></div>', 'figure'],
+        ['https://omegascans.org/series/little-miss-delinquent/chapter-53', '<div class="lg:container"><div class="flex flex-col items-center justify-center overflow-hidden"><div class="relative flex w-full justify-center"></div></div></div>', 'div.relative'],
+    ])('%s 动态正文加入同一会话，暂停恢复，移除与换章清理', async (href, html, parentSelector) => {
+        const f = readerFixture(false, href);expect(f.reader.status().available).toBe(false);
+        const root = f.document.createElement('section');root.innerHTML = html;f.document.body.append(root);
+        root.querySelector(parentSelector)!.append(f.image);f.image.className = 'r-page-img wp-manga-chapter-img block object-contain G54Y0W_page';f.image.alt = 'page_0';f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, pageCount: 1, areaFallback: false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.toggle();await flush();
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);expect(f.ports.release).toHaveBeenCalledWith(f.image);
+        f.window.location.href = href.replace(/chapter-\d+$/, 'chapter-97');f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
+    it('MangaLove 不可读正文只提供圈选，像素读取和连续图片请求不启动', () => {
+        const f = readerFixture(false, 'https://mangalove.me/viewer/79762');expect(f.reader.status().available).toBe(false);
+        f.document.body.id = 'viewerBody';
+        const viewer = f.document.createElement('div'), wrap = f.document.createElement('div');viewer.className = 'viewer vertical';wrap.className = 'imgWrap';
+        const canvas = f.document.createElement('canvas');canvas.width = 760;canvas.height = 1100;
+        canvas.getBoundingClientRect = () => ({left: 0, right: 600, top: 0, bottom: 850, width: 600, height: 850}) as DOMRect;
+        const readPixels = vi.fn();canvas.getContext = readPixels;wrap.append(canvas);viewer.append(wrap);f.document.body.append(viewer);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available: true, areaFallback: true, pageCount: 0});expect(f.reader.toggle()).toBe(false);
+        expect(readPixels).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
+        canvas.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available: false, areaFallback: false});f.reader.dispose();
+    });
+    it('MangaLib 原站 p 页码更新继续同章并识别新页，换章后结束会话和清缓存', async () => {
+        const resetCache = vi.fn(), f = readerFixture(false, 'https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=1&bid=1', undefined, undefined, undefined, undefined, {resetCache});
+        const root=f.document.createElement('div');root.innerHTML='<div data-reader-mode="horizontal"><main data-reader-info-visible="false"><div><div data-page="1"></div></div></main></div>';
+        root.querySelector('[data-page]')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();resetCache.mockClear();
+        const next=f.image.cloneNode() as HTMLImageElement;next.src='https://cdn.example.com/mangalib-page-2.jpg';
+        Object.defineProperties(next,{complete:{value:true},naturalWidth:{value:1337},naturalHeight:{value:1920}});
+        next.getBoundingClientRect=()=>({left:0,right:800,top:0,bottom:1200,width:800,height:1200}) as DOMRect;
+        const holder=f.document.createElement('div');holder.setAttribute('data-page','2');holder.append(next);root.querySelector('main > div')!.append(holder);
+        f.setRect({top:-3000,bottom:-1800});f.window.location.href='https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=2&bid=1';f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledWith(next);expect(resetCache).not.toHaveBeenCalled();
+        f.reader.toggle();expect(f.reader.status().active).toBe(false);expect(f.ports.restore).toHaveBeenCalledWith(next);f.reader.toggle();await flush();expect(f.reader.status().active).toBe(true);
+        f.window.location.href='https://mangalib.me/ru/3172--kakegurui/read/v22/c130?p=2&bid=1';f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();f.reader.dispose();
+    });
+    it.each(['?p=0&bid=1','?p=01&bid=1','?p=abc&bid=1','?p=10000&bid=1','?p=2&p=3&bid=1','?p=2&bid=2'])('MangaLib 异常页码或译组身份变化 %s 清理旧会话', async search => {
+        const f=readerFixture(false,'https://mangalib.me/ru/3172--kakegurui/read/v22/c129?p=1&bid=1');
+        const root=f.document.createElement('div');root.innerHTML='<div data-reader-mode="vertical"><main data-reader-info-visible="false"><div><div data-page="1"></div></div></main></div>';root.querySelector('[data-page]')!.append(f.image);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();
+        f.window.location.href=`https://mangalib.me/ru/3172--kakegurui/read/v22/c129${search}`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
+    it('Mangahub 正常页码变化继续同一会话，下一正文入队；章节路径改变才暂停和清缓存', async () => {
+        const resetCache = vi.fn();
+        const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1', undefined, undefined, undefined, undefined, {resetCache});
+        const root = f.document.createElement('reader-viewer'), scan = f.document.createElement('reader-scan');scan.className = 'reader-viewer-scan';
+        f.image.className = 'reader-viewer-img';scan.append(f.image);root.append(scan);f.document.body.append(root);f.reader.schedule();f.run();
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);resetCache.mockClear();
+        const next = f.image.cloneNode() as HTMLImageElement;next.src = 'https://cdn.example.com/next.jpg';
+        Object.defineProperties(next, {complete: {value: true}, naturalWidth: {value: 760}, naturalHeight: {value: 1200}});
+        next.getBoundingClientRect = () => ({left: 0, right: 760, top: 0, bottom: 1200, width: 760, height: 1200}) as DOMRect;
+        const nextScan = f.document.createElement('reader-scan');nextScan.className = 'reader-viewer-scan';nextScan.append(next);root.append(nextScan);
+        f.setRect({top: -3000, bottom: -1800});f.window.location.href = 'https://mangahub.ru/read/962303?page=2';
+        f.document.dispatchEvent(new f.dom.Event('fluentread-route-change'));f.run();await flush();
+        expect(f.reader.status().active).toBe(true);expect(f.ports.translate).toHaveBeenCalledWith(next);expect(resetCache).not.toHaveBeenCalled();
+        f.window.location.href = 'https://mangahub.ru/read/962304?page=2';f.reader.schedule();f.run();
+        expect(f.reader.status().active).toBe(false);expect(resetCache).toHaveBeenCalledOnce();f.reader.dispose();
+    });
+    it.each(['?page=0', '?page=abc', '?page=10000', '?page=2&page=3', '?page=2&chapter=8'])('Mangahub 非法页码或其他章节参数 %s 仍使旧会话失效', async search => {
+        const f = readerFixture(false, 'https://mangahub.ru/read/962303?page=1');
+        const root = f.document.createElement('reader-viewer'), scan = f.document.createElement('reader-scan');scan.className = 'reader-viewer-scan';
+        f.image.className = 'reader-viewer-img';scan.append(f.image);root.append(scan);f.document.body.append(root);f.reader.schedule();f.run();f.reader.toggle();await flush();
+        f.window.location.href = `https://mangahub.ru/read/962303${search}`;f.reader.schedule();f.run();expect(f.reader.status().active).toBe(false);f.reader.dispose();
+    });
+    it('GlobalComix 受限正文只发布圈选入口，封面、移除和总开关不启动图片请求',()=>{
+        const f=readerFixture(false,'https://globalcomix.com/read/be3701bf-70cc-43e8-b16d-3f168abaf799/1/1');
+        expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        const root=f.document.createElement('div');root.id='readerReleasePages';const horizontal=f.document.createElement('div');horizontal.id='horizontalReader';
+        horizontal.append(f.image);root.append(horizontal);f.document.body.append(root);f.image.className='chakra-image';f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});expect(f.reader.toggle()).toBe(false);expect(f.ports.translate).not.toHaveBeenCalled();
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        horizontal.append(f.image);f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it('长图分段与普通图片共用可见优先串行队列，暂停、失败重试和清理不走整图 OCR',async()=>{
+        const values=new Map<HTMLImageElement,import('@/src/features/image-translation/content/mangaImageSegments').MangaImageSegment[]>(),warm=vi.fn();
+        const segments={identity:vi.fn(s=>s.source),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn(()=>false),restore:vi.fn(),release:vi.fn(),failed:vi.fn(()=>false),update:vi.fn(),prepare:vi.fn(()=>values),pixels:vi.fn(()=>1_800_000),bounds:vi.fn(s=>({left:0,top:s.top,right:800,bottom:s.top+600,width:800,height:600}) as DOMRect)};
+        let ahead=1;const f=readerFixture(true,undefined,undefined,()=>ahead,warm,undefined,{segments});
+        const first={image:f.image,top:0,height:600,width:800,contextTop:0,contextHeight:600,source:'one'},second={...first,top:1200,source:'two'};
+        values.set(f.image,[first,second]);f.reader.schedule();f.run();
+        const pending=deferred();segments.translate.mockReturnValueOnce(pending.promise);f.reader.toggle();await flush();
+        expect(segments.translate.mock.calls.map(c=>c[0])).toEqual([first]);expect(f.ports.translate).not.toHaveBeenCalled();expect(warm).toHaveBeenLastCalledWith([]);
+        pending.resolve();await flush();expect(segments.translate.mock.calls.map(c=>c[0])).toEqual([first,second]);
+        ahead=0;f.reader.toggle();expect(segments.restore).toHaveBeenCalledWith(first);segments.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(segments.translate).toHaveBeenCalledTimes(2);
+        segments.failed.mockReturnValue(true);f.reader.retry(first);await flush();expect(f.reader.status().errors).toBe(1);
+        segments.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(segments.release).toHaveBeenCalledWith(first);
+        values.clear();f.reader.schedule();f.run();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(segments.prepare).toHaveBeenLastCalledWith([]);
+        f.reader.dispose();expect(segments.prepare).toHaveBeenLastCalledWith([]);expect(segments.update).toHaveBeenCalled();
+    });
+    it('背景正文加入同一串行会话，CSS 换页、暂停复用、失败重试和关闭都清理所有权',async()=>{
+        const background={identity:vi.fn().mockReturnValue('bg-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn(),prepare:vi.fn(),pixels:vi.fn(()=>713*1024),bounds:vi.fn((element:HTMLElement)=>element.getBoundingClientRect())};
+        const warm=vi.fn(),f=readerFixture(true,'https://palcy.jp/comics/554',undefined,()=>0,warm,undefined,{background});
+        const page=f.document.createElement('div') as HTMLElement;page.id='page-1';page.style.backgroundImage='url(blob:https://palcy.jp/one)';
+        page.getBoundingClientRect=()=>({left:14,top:0,right:640,bottom:900,width:626,height:900}) as DOMRect;f.document.body.append(page);
+        const own=page.cloneNode() as HTMLElement;own.setAttribute('data-fluent-read-ui','probe');f.document.body.append(own);
+        f.reader.schedule();f.run();expect(background.prepare).toHaveBeenLastCalledWith([page]);expect(f.reader.status()).toMatchObject({pageCount:1,areaFallback:false});
+        f.reader.toggle();await flush();expect(background.translate).toHaveBeenCalledWith(page);expect(f.ports.translate).not.toHaveBeenCalled();expect(warm).toHaveBeenLastCalledWith([]);
+        f.reader.toggle();expect(background.restore).toHaveBeenCalledWith(page);background.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(background.translate).toHaveBeenCalledOnce();
+        background.failed.mockReturnValue(true);f.reader.retry(page);await flush();expect(f.reader.status().errors).toBe(1);background.failed.mockReturnValue(false);
+        background.identity.mockReturnValue('bg-2');page.style.backgroundImage='url(blob:https://palcy.jp/two)';
+        f.mo.callback([{type:'attributes',attributeName:'style',target:page} as unknown as MutationRecord],{} as MutationObserver);f.run();await flush();expect(background.release).toHaveBeenCalledWith(page);
+        background.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({pageCount:0,areaFallback:true});
+        page.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(background.prepare).toHaveBeenLastCalledWith([]);f.reader.dispose();expect(background.prepare).toHaveBeenLastCalledWith([]);
+    });
+    it.each([{display:'none'},{visibility:'hidden'},{visibility:'collapse'},{}])('背景正文就绪判断尊重 CSS 可见性 %j',style=>{
+        const background={identity:vi.fn(()=> 'bg'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn(()=>false),restore:vi.fn(),release:vi.fn(),failed:vi.fn(()=>false),update:vi.fn(),prepare:vi.fn(),pixels:vi.fn(()=>1),bounds:vi.fn(()=>({left:0,top:0,right:640,bottom:900,width:640,height:900}) as DOMRect)};
+        const f=readerFixture(false,'https://comic.pixiv.net/viewer/stories/249534',undefined,undefined,undefined,undefined,{background});
+        const page=f.document.createElement('div');page.id='page-2';page.style.backgroundImage='url(blob:page)';f.document.body.append(page);f.setStyle(style);f.reader.schedule();f.run();f.reader.toggle();f.reader.dispose();
+    });
+    it('无背景处理端口时仅提供正文圈选，尺寸不足不启动正文翻译',()=>{
+        const f=readerFixture(false,'https://palcy.jp/comics/554');const page=f.document.createElement('div');page.id='page-1';page.style.backgroundImage='url(blob:page)';
+        page.getBoundingClientRect=()=>({left:0,top:0,right:640,bottom:900,width:640,height:900}) as DOMRect;f.document.body.append(page);f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(true);f.reader.dispose();
+    });
+    it.each([
+        'https://rimacomiplus.jp/digitalmargaret/episodes/4a895d1d5884a',
+        'https://heros-web.com/episodes/a806742880560',
+        'https://younganimal.com/episodes/ff98f6eba590d',
+        'https://youngchampion.jp/episodes/c35433f99f53d',
+    ])('新增 Comici 实页等待正文画布，复用暂停结果且不调度宣传封面 %s', async href => {
+        const canvasPorts={identity:vi.fn().mockReturnValue('page-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const f=readerFixture(false,href,undefined,undefined,undefined,canvasPorts);
+        expect(f.reader.status().available).toBe(false);
+        const container=f.document.createElement('div');container.id='comici-viewer';container.innerHTML='<div class="-cv-page-canvas"></div>';f.document.body.append(container);
+        const canvas=f.document.createElement('canvas') as HTMLCanvasElement;canvas.width=844;canvas.height=1200;
+        canvas.getBoundingClientRect=()=>({left:0,right:563,top:0,bottom:800,width:563,height:800}) as DOMRect;
+        container.firstElementChild!.append(canvas);f.reader.schedule();f.run();
+        expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});f.reader.toggle();await flush();
+        expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);expect(f.ports.translate).not.toHaveBeenCalled();
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);
+        canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({areaFallback:true,pageCount:0});
+        canvas.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it('另页正在识别时同步复用可见缓存页，不把其显示排在识别队列之后', async () => {
+        let cached:HTMLImageElement;
+        const reuse=vi.fn((image:HTMLImageElement)=>image===cached),pending=deferred();
+        const f=readerFixture(false,undefined,undefined,undefined,undefined,undefined,{reuse});
+        cached=f.image.cloneNode() as HTMLImageElement;cached.src='blob:cached';
+        Object.defineProperties(cached,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+        cached.getBoundingClientRect=()=>({left:800,right:1600,top:0,bottom:1200,width:800,height:1200}) as DOMRect;
+        f.image.parentElement!.append(cached);f.ports.translate.mockReturnValueOnce(pending.promise);
+        f.reader.schedule();f.run();f.reader.toggle();await flush();
+        expect(reuse).toHaveBeenCalledWith(cached);expect(f.ports.translate).toHaveBeenCalledOnce();
+        expect(f.reader.status()).toMatchObject({pending:true,completed:1});
+        pending.resolve();await flush();expect(f.reader.status()).toMatchObject({pending:false,completed:2});f.reader.dispose();
+    });
+    it('可读画布与正文图片共用串行队列，重绘失效、暂停恢复和不可读降级不选推广图', async () => {
+        const pending=deferred(), canvasPorts={identity:vi.fn().mockReturnValue('canvas-1'),translate:vi.fn().mockResolvedValue(undefined),reuse:vi.fn().mockReturnValue(false),restore:vi.fn(),release:vi.fn(),failed:vi.fn().mockReturnValue(false),update:vi.fn()};
+        const warm=vi.fn(),f=readerFixture(false,'https://comic-zenon.com/episode/12207421983509986288',undefined,undefined,warm,canvasPorts,{cachePages:()=>2});
+        f.image.className='page-image';f.image.parentElement!.className='page-area';
+        const canvas=f.document.createElement('canvas') as HTMLCanvasElement;canvas.className='js-page-image';canvas.width=400;canvas.height=300;
+        canvas.getBoundingClientRect=()=>({left:800,right:1200,top:0,bottom:300,width:400,height:300}) as DOMRect;f.image.parentElement!.append(canvas);
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:2,areaFallback:false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledOnce();expect(canvasPorts.translate).not.toHaveBeenCalled();
+        pending.resolve();await flush();expect(canvasPorts.translate).toHaveBeenCalledWith(canvas);expect(canvasPorts.failed).toHaveBeenCalledWith(canvas);expect(warm).toHaveBeenLastCalledWith([f.image]);
+        f.reader.toggle();expect(canvasPorts.restore).toHaveBeenCalledWith(canvas);expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        canvasPorts.reuse.mockReturnValue(true);f.reader.toggle();await flush();expect(canvasPorts.translate).toHaveBeenCalledOnce();
+        canvasPorts.failed.mockReturnValue(true);expect(f.reader.retry(canvas)).toBe(true);await flush();expect(f.reader.status().errors).toBe(1);
+        canvasPorts.identity.mockReturnValue('canvas-2');f.reader.schedule();f.run();await flush();expect(canvasPorts.release).toHaveBeenCalledWith(canvas);
+        f.image.remove();canvasPorts.identity.mockReturnValue(null);f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});
+        expect(f.reader.toggle()).toBe(false);
+        canvasPorts.identity.mockReturnValue('canvas-3');canvasPorts.reuse.mockReturnValue(false);
+        let canvasQueries=0;const read=f.document.querySelectorAll.bind(f.document);const blocked=vi.spyOn(f.document,'querySelectorAll').mockImplementation(((selector:string)=>{if(selector.includes('canvas') && ++canvasQueries===2)throw new Error('host DOM query unavailable');return read(selector);}) as typeof f.document.querySelectorAll);
+        // 像素不可读时，圈选回退的独立 DOM 查询异常也不能中断网页。
+        canvasPorts.identity.mockReturnValue(null);f.reader.schedule();expect(()=>f.run()).not.toThrow();expect(f.reader.status().areaFallback).toBe(false);blocked.mockRestore();
+        f.reader.dispose();expect(canvasPorts.update).toHaveBeenCalled();
+    });
+    it.each([
+        ['https://dynasty-scans.com/chapters/the_nth_encore', 'reader', 'image', 'thumbnail'],
+        ['https://weebcentral.com/chapters/01M43Q7CFX4XXN7WBVZH1MTEFS', 'chapter-images', '', ''],
+    ])('正文专用规则接受 %s，翻译后仍可暂停恢复', async (href, parentId, imageId, imageClass) => {
+        const f=readerFixture(false, href), parent=f.image.parentElement!;
+        parent.id=parentId;
+        if (imageId) {const wrapper=f.document.createElement('div');wrapper.id=imageId;wrapper.className=imageClass;parent.append(wrapper);wrapper.append(f.image);}
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1,areaFallback:false});
+        f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledWith(f.image);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);f.reader.dispose();
+    });
+    it.each(['https://comic-days.com/episode/10834108156634732370', 'https://comic-zenon.com/episode/12207421983509986288', 'https://ichicomi.com/episode/2551460909671541131', 'https://jumptoon.com/series/JT00064/episodes/14436/'])('画布正文只发布圈选入口，推荐图不进入队列，离屏和关闭后入口消失 %s', async href => {
+        const f=readerFixture(false,href);
+        f.image.parentElement!.className='link-page-content';
+        const page=f.document.createElement('div');page.className='page-area';
+        if(href.includes('jumptoon.com'))page.id='1';
+        const canvas=f.document.createElement('canvas');canvas.className='js-page-image';page.append(canvas);f.document.body.append(page);
+        let top=0;canvas.getBoundingClientRect=()=>({left:0,right:688,top,bottom:top+1024,width:688,height:1024}) as DOMRect;
+        const pixels=vi.fn();canvas.getContext=pixels;
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,areaFallback:true,pageCount:0});
+        expect(f.ports.changed).toHaveBeenLastCalledWith(expect.objectContaining({areaFallback:true}));
+        expect(f.reader.toggle()).toBe(false);await flush();expect(f.ports.translate).not.toHaveBeenCalled();expect(pixels).not.toHaveBeenCalled();
+        top=1500;f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:false,areaFallback:false});
+        top=0;page.setAttribute('data-fluent-read-ui','owned');f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(false);
+        page.removeAttribute('data-fluent-read-ui');f.reader.schedule();f.run();expect(f.reader.status().areaFallback).toBe(true);
+        f.ports.enabled.mockReturnValue(false);f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+        expect(f.reader.status().areaFallback).toBe(false);
+    });
+    it('MangaDNA 动态正文进入连续队列，正文外的封面不翻译，暂停恢复原图', async () => {
+        const resetCache=vi.fn(),f=readerFixture(false,'https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-311',undefined,undefined,undefined,undefined,{resetCache});
+        expect(f.reader.status().available).toBe(false);
+        f.image.parentElement!.className='read-content';
+        const reader=f.document.createElement('div');reader.className='read-manga';reader.append(f.image.parentElement!);f.document.body.append(reader);
+        const cover=f.image.cloneNode() as HTMLImageElement;cover.className='cover';cover.src='blob:cover';f.document.body.append(cover);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1});
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(call=>call[0])).toEqual([f.image]);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.window.location.href='https://mangadna.com/manga/omniscient-readers-viewpoint/chapter-312';f.reader.schedule();f.run();expect(resetCache).toHaveBeenCalledTimes(2);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
+    it.each([
+        ['https://asurascans.com/comics/title/chapter/8', '<div class="select-none"><div data-page="0"></div></div>', '[data-page]'],
+        ['https://arenascan.com/like-a-fiery-flame-chapter-98/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://kingofshojo.com/ill-save-a-decent-family-chapter-199/', '<article><div id="readerarea"><p></p></div></article>', '#readerarea p'],
+        ['https://violetmanga.com/a-portrait-of-pride-chapter-12/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://www.mangaread.org/manga/title/chapter-17/', '<div class="reading-content"><div class="page-break"></div></div>', '.page-break'],
+        ['https://mangaforfree.net/manga/title/chapter-14-raw/', '<div class="reading-content"><div class="page-break"></div></div>', '.page-break'],
+        ['https://manhwabuddy.com/manhwa/title/chapter-157/', '<div class="reading-chapter"><div class="reading-content"><p></p></div></div>', '.reading-content p'],
+        ['https://vortexscans.org/series/title/chapter-7', '<div class="comic-images-wrapper"><figure class="image-container"></figure></div>', 'figure'],
+        ['https://rookie.shonenjump.com/series/TWpXKpYkRIE/TWpXKpYkRIM', '<div class="page-area"></div>', '.page-area'],
+        ['https://www.webtoons.com/en/romance/title/episode-1/viewer?title_no=1&episode_no=1', '<div id="_imageList"></div>', '#_imageList'],
+        ['https://mgeko.cc/reader/en/title-chapter-1-eng-li/', '<div id="chapter-reader"></div>', '#chapter-reader'],
+        ['https://roliascan.com/read/title/ch28-123/', '<div id="chapter-images-container"><a class="comic-image-container"></a></div>', '.comic-image-container'],
+        ['https://mangadex.org/chapter/80da5ab1-b615-4564-9a19-0f1502dbde05', '<div class="md--reader-pages"><div class="md--page"></div></div>', '.md--page'],
+        ['https://twicomi.com/manga/author/2077704742067904960', '<div class="tweet-images"><div class="image"></div></div>', '.image'],
+        ['https://comic-fuz.com/manga/4018', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://manga-one.com/manga/28579/chapter/360007', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://comic.mf-fleur.jp/manga/cb245_01.html', '<div class="manga-content"><div class="manga-content__image"></div></div>', '.manga-content__image'],
+        ['https://ac.qq.com/ComicView/index/id/656723/cid/105748', '<ul id="comicContain"><li></li></ul>', 'li'],
+        ['https://www.corocoro.jp/chapter/10580/viewer', '<div data-testid="placeholder"></div>', '[data-testid]'],
+        ['https://ww3.mangafreak.me/Read1_One_Piece_1', '<div class="slideshow-container"><div class="mySlides"></div></div>', '.mySlides'],
+        ['https://mn4u.net/2360/296144/', '<div class="chapter-content"><div id="list-imga"></div></div>', '#list-imga'],
+        ['https://mgread.io/manga/title/chapter-1/', '<main id="init-manga-single-chapter"><div id="chapter-content"></div></main>', '#chapter-content'],
+        ['https://yymanhua.com/m7261/', '<div id="showimage"><div id="cp_img"></div></div>', '#cp_img'],
+        ['https://mangarawjp.me/manga/blue-lock/363-wa', '<div id="TopPage" class="ImageGallery"></div>', '#TopPage'],
+        ['https://www.antbyw.com/plugin.php?id=jameson_manhua&a=read&kuid=189309&zjid=1435867', '<div id="img_list"><div></div></div>', '#img_list > div'],
+        ['https://speed-manga.net/the-mirror-legacy-0/', '<article><div id="readerarea"></div></article>', '#readerarea'],
+        ['https://w9.smokingbehindthesupermarket.com/manga/title-chapter-1/', '<article><div id="content"><div class="separator"></div></div></article>', '.separator'],
+    ])('公开章节只调度正文而不选择正文容器外的封面 %s', async (href, markup, mount) => {
+        const f=readerFixture(false,href);
+        f.image.className='js-page-image _images comic-image chapter-img img-fluid ts-main-image';
+        f.image.alt='page_0';
+        if(href.includes('yymanhua.com'))f.image.id='cp_image';
+        if(href.includes('antbyw.com'))f.image.id='img_0';
+        const wrapper=f.document.createElement('div');wrapper.innerHTML=markup;f.document.body.append(wrapper);
+        const cover=f.image.cloneNode() as HTMLImageElement;cover.src='blob:cover';wrapper.append(cover);
+        wrapper.querySelector(mount)!.append(f.image);
+        f.reader.schedule();f.run();expect(f.reader.status()).toMatchObject({available:true,pageCount:1});
+        f.reader.toggle();await flush();expect(f.ports.translate.mock.calls.map(call=>call[0])).toEqual([f.image]);
+        f.reader.toggle();expect(f.ports.restore).toHaveBeenCalledWith(f.image);
+        f.image.remove();f.reader.schedule();f.run();expect(f.reader.status().available).toBe(false);f.reader.dispose();
+    });
     it('预合成按可见优先与几何距离排序，左右一屏和容量都有边界',()=>{
         const warm=vi.fn(),f=readerFixture(true,undefined,undefined,undefined,warm);
         const near=f.document.createElement('img'),far=f.document.createElement('img');
@@ -220,6 +598,8 @@ describe('漫画站点适配与 DOM 生命周期', () => {
             scroll();resize();f.run();await flush();
         }
         expect(query).not.toHaveBeenCalled();
+        f.setRect({left:1400,right:2200});f.mo.callback([{target:f.image.parentElement,attributeName:'style',type:'attributes'} as unknown as MutationRecord],{} as MutationObserver);f.run();await flush();
+        expect(query).not.toHaveBeenCalled();expect(f.ports.release).toHaveBeenCalledWith(f.image);
         f.mo.callback([{target:f.image} as unknown as MutationRecord],{} as MutationObserver);f.run();
         expect(query).toHaveBeenCalledTimes(1);
         f.reader.schedule();f.run();expect(query).toHaveBeenCalledTimes(2);f.reader.dispose();

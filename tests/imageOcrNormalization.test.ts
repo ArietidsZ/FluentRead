@@ -8,6 +8,7 @@ import {
     restoreOcrLineCoordinates,
     selectChangedTranslations,
 } from '@/src/features/image-translation/core';
+import {getMangaOcrEngine, getRequiredImageOcrLanguages} from '@/src/features/image-translation/ocrLanguages';
 
 describe('普通图片按完整段落翻译', () => {
     const line = (text: string, x0: number, y0: number, width = 200, h = 12): ImageTextRegion =>
@@ -83,6 +84,17 @@ describe('普通图片按完整段落翻译', () => {
 });
 
 describe('图片 OCR 有界尺寸和可信文本', () => {
+    it('漫画按明确源语言覆盖专用字表缺口，区域代码共用语言包规则，自动模式不猜网站语言', () => {
+        for (const source of ['ru', ' RU-ru ', 'ru_RU']) {
+            expect(getMangaOcrEngine(source)).toBe('tesseract');
+            expect(getRequiredImageOcrLanguages(source)).toEqual(['rus', 'eng']);
+        }
+        for (const source of ['ko', ' KO-kr ', 'ko_KR']) {
+            expect(getMangaOcrEngine(source)).toBe('tesseract');
+            expect(getRequiredImageOcrLanguages(source)).toEqual(['kor', 'eng']);
+        }
+        for (const source of ['auto', '', 'en', 'ja', 'zh-Hans', 'es', 'fr', 'uk', 'russian', 'korean']) expect(getMangaOcrEngine(source)).toBe('paddle');
+    });
     it('普通图片保留原始尺寸，大图同时受像素总数和最长边约束', () => {
         expect(getOcrImageSize(320, 180)).toEqual({width: 320, height: 180});
         expect(getOcrImageSize(1920, 1080)).toEqual({width: 1920, height: 1080});

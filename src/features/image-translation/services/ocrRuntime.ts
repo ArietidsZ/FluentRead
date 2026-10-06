@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/services/ocrRuntime.ts
  * 文件职责：将 Tesseract.js Worker 适配为图片翻译可调用的 OCR 服务，配置扩展内 worker/core 资源并按源语言串行执行识别或语言包预下载。
- * 主要内容：配置扩展语言资源、转发引擎任务进度与图片/圈选识别策略；保持竖排检测和空结果一次布局重试，坐标映回原图并按策略隔离有界缓存；合并同图在途任务并独立取消，整图借用预检已解码图片，其他路径限时解码并释放自有像素。
- * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译识别文本也不绘制图片；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
+ * 主要内容：配置语言资源并转发任务进度；复用已解码位图把 AVIF/WebP 等格式转为内核可读的 PNG，保持坐标和有界尺寸；保留竖排检测、空结果布局重试与有界缓存，同图任务合并并独立取消，解码后释放自有像素。
+ * 模块边界：该文件是 Tesseract 基础设施边界，不保存下载状态、不翻译文本或绘制译文；并发所有权由 ocrWorkerRuntime 管理，持久化由后台 repository 负责。
  */
 import { createWorker, PSM, type Worker } from 'tesseract.js';
 import {
@@ -118,7 +118,9 @@ async function prepareOcrImage(image: string, profile: 'image' | 'area', signal?
             ? getAreaOcrImageSize(sourceWidth, sourceHeight)
             : {...getOcrImageSize(sourceWidth, sourceHeight), padding: 0};
         let recognitionImage = image;
-        if (size.padding || size.width !== sourceWidth || size.height !== sourceHeight) {
+        // 页面已解码的 AVIF/WebP 等格式不一定被 Tesseract 内核支持；复用位图转为 PNG，尺寸和坐标不变。
+        const needsRasterEncoding = /^data:image\//iu.test(image) && !/^data:image\/(?:png|jpeg|jpg)[;,]/iu.test(image);
+        if (needsRasterEncoding || size.padding || size.width !== sourceWidth || size.height !== sourceHeight) {
             const canvas = document.createElement('canvas');
             try {
                 canvas.width = size.width + size.padding * 2;

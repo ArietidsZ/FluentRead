@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaBubbles.ts
  * 文件职责：从漫画像素定位封闭浅色气泡，让小字以局部高分辨率识别并排除绘画噪声。
- * 主要内容：以四邻域扫描亮色连通区域，排除页面边缘、过小、过大和稀疏背景，最多返回二十四个局部区域；漫画单独合并每个气泡中的识别行并保留气泡外可靠旁白；普通图片去重局部结果后保留物理行，不套用漫画分组间距。
+ * 主要内容：以四邻域扫描亮色连通区域，排除页面边缘、过小、过大和稀疏背景，最多返回二十四个局部区域；漫画单独合并每个气泡中的识别行并局部容许略宽行距并保留气泡外可靠旁白；普通图片去重局部结果后保留物理行，不套用漫画分组间距。
  * 模块边界：纯像素和坐标算法，不创建 Canvas、不访问网络、不运行模型；气泡本身不作为文字证据，只有后续识别出的有效文本进入翻译。
  */
 import {groupMangaText,type MangaOcrItem,type MangaRegion} from './mangaRegions';
@@ -44,7 +44,7 @@ export function collectMangaRegions(page:MangaOcrPage,language:string,width:numb
             .map(({sourceBoxes: _boxes, ...line}) => line)
             .sort((a,b) => a.bbox.y0-b.bbox.y0 || a.bbox.x0-b.bbox.x0);
     }
-    const paragraphs=bubbles.map(bubble=>groupMangaText(bubble.results,language,width,height));
+    const paragraphs=bubbles.map(bubble=>groupMangaText(bubble.results,language,width,height,'bubble'));
     const dialogue=paragraphs.filter(regions=>regions.length>0).length>=2;
     const outside=groupMangaText(page.results,language,width,height).filter(region=>{
         const x=(region.bbox.x0+region.bbox.x1)/2,y=(region.bbox.y0+region.bbox.y1)/2;

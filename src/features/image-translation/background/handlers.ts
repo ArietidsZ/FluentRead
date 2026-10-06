@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/handlers.ts
  * 文件职责：定义跨域图片读取、整图翻译、文本批译、阶段进度、取消和语言包下载后台消息，并对来自页面或扩展 UI 的未知输入执行严格校验。
- * 主要内容：按已保存设置选择单图 OCR，PaddleOCR 不要求 Tesseract 语言包；包含消息解析、OCR 语言白名单、阶段与百分比通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的符号与技术标识，去重批量和有界并发翻译同时保留原行映射、后台恢复的可信页面范围、源语言与术语版本。
+ * 主要内容：按设置选择单图 OCR，漫画俄语和韩语要求既有语言包，其他漫画走 PaddleOCR；包含消息解析、OCR 语言白名单、阶段通知和取消预算；逐包下载排队、去重、部分成功保存和跨页状态查询；图片文本排除无需翻译的标识，去重批量和有界并发翻译同时保留原行映射、可信页面范围与术语版本。
  * 模块边界：本文件只负责协议入口与用例编排，不直接运行 Tesseract、Canvas、网络 fetch 或 Offscreen；图像读取和运算能力均由 Offscreen adapter 与 services 实现并由 app 注入。
  */
 import {normalizeRemoteImageUrl} from '../services/remoteImage';
@@ -13,6 +13,7 @@ import {resolveGlossaryEntries, type GlossaryLibrary} from '@/src/core/glossary'
 import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProgress, type ImageTranslationStage} from '../progress';
 import {
     IMAGE_OCR_LANGUAGE_PACKS,
+    getMangaOcrEngine,
     normalizeImageOcrLanguageCodes,
     type ImageOcrLanguageCode,
     type ImageOcrDownloadState,
@@ -482,8 +483,9 @@ export function createImageTranslationBackgroundHandlers(
                 try {
                     const result = parseObjectResult(
                         await operationRegistry.run(message, async (options) => {
-                            const paddle = !message.manga && dependencies.getImageOcrEngine?.() === 'paddle';
-                            if (!message.manga && !paddle) await dependencies.assertLanguagesDownloaded(sourceLanguage);
+                            const paddle = message.manga ? getMangaOcrEngine(sourceLanguage) === 'paddle'
+                                : dependencies.getImageOcrEngine?.() === 'paddle';
+                            if (!paddle) await dependencies.assertLanguagesDownloaded(sourceLanguage);
                             if (options.signal.aborted) throw imageAbortError(false);
                             const progressOwner = {context};
                             progressOwners.set(options.requestId, progressOwner);

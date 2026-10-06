@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/content/runtime.ts
- * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和单图及漫画连续模式的原图/译图切换，保持宿主图片与响应式图片资源不变。
- * 主要内容：单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；单图识别方式纳入缓存身份，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
+ * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、长图分段、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
+ * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；识别方式和漫画有效源语言纳入缓存身份，自动模式使用已确认的路径提示、手动语言优先，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import {imageTranslationFailureCode, imageLocalFailureMessage, type ImageLocalFailure} from '../failure';
@@ -25,9 +25,13 @@ import {isImageHoverEligible} from './hoverEligibility';
 import {createMangaReader} from './mangaReader';
 import type {MangaTranslationStatus} from './mangaSession';
 import {imageLoadTracker} from './imageLoads';
-import {normalizeMangaCachePages, mangaCachePixelBudget} from '@/src/core/config/manga';
+import {normalizeMangaCachePages, mangaCachePixelBudget, resolveMangaSite, resolveMangaSourceLanguage} from '@/src/core/config/manga';
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage} from '../mangaPatchResult';
 import {composeMangaPage} from './mangaCompositor';
+import {createMangaCanvas} from './mangaCanvas';
+import {createMangaBackground} from './mangaBackground';
+import {createMangaImageSegments} from './mangaImageSegments';
+import {getMangaOcrEngine} from '../ocrLanguages';
 
 const IMAGE_TRANSLATION_OVERLAY = 'fluent-read-image-translation-overlay';
 const IMAGE_TRANSLATION_ROOT = 'fluent-read-image-translation-root';
@@ -112,6 +116,9 @@ function clearWarmTasks(): void {warming.forEach(task => task.controller.abort()
 function clearMangaCache(): void {
     clearWarmTasks(); lightCache.clear(); lightKeys = new WeakMap();
     Array.from(resultCache.keys()).forEach(deleteCachedResult);
+    mangaCanvas?.resetCache();
+    mangaBackground?.resetCache();
+    mangaSegments?.resetCache();
 }
 function forgetLightResult(image: HTMLImageElement): void {
     const key = lightKeys.get(image); if (key) lightCache.remove(key.key);
@@ -189,6 +196,9 @@ function prepareMangaCachedImages(images: HTMLImageElement[]): void {
 }
 
 let mangaReader: ReturnType<typeof createMangaReader> | null = null;
+let mangaCanvas: ReturnType<typeof createMangaCanvas> | null = null;
+let mangaBackground: ReturnType<typeof createMangaBackground> | null = null;
+let mangaSegments: ReturnType<typeof createMangaImageSegments> | null = null;
 let mangaStatus: MangaTranslationStatus = {available: false, active: false, pending: false, errors: 0};
 const mangaListeners = new Set<(status: MangaTranslationStatus) => void>();
 
@@ -269,18 +279,23 @@ function sourceIdentity(image: HTMLImageElement): string {
     ]);
 }
 
+function mangaSourceLanguage(): string {
+    return resolveMangaSourceLanguage(window.location?.href || '', config.from, config.imageTranslationMangaSites);
+}
+
 function configurationIdentity(manga = false): string {
     const service = config.imageTranslationService || config.service;
+    const sourceLanguage = manga ? mangaSourceLanguage() : config.from;
     // 只保留公开翻译语义；端点、请求体、凭据与完整 provider 对象不进入位图缓存键。
     return JSON.stringify([
         configurationRevision,
-        config.from, config.to, service, config.model?.[service], config.customModel?.[service],
+        sourceLanguage, config.to, service, config.model?.[service], config.customModel?.[service],
         config.modelThinking?.[service], config.system_role?.[service], config.user_role?.[service],
         config.enableAIContext,
         config.minimaxBillingPlan, config.minimaxRegion, config.mimoBillingPlan, config.mimoRegion,
         document.title,
         manga,
-        manga ? 'paddle' : config.imageTranslationOcrEngine,
+        manga ? getMangaOcrEngine(sourceLanguage) : config.imageTranslationOcrEngine,
     ]);
 }
 
@@ -693,6 +708,24 @@ export function readPageImageInCors(source: string, signal?: AbortSignal, timeou
     return fetchPageImageForOcr(source, signal, timeoutMs);
 }
 
+async function readAuthorizedImage(image: HTMLImageElement, options: {readonly signal?: AbortSignal; readonly timeoutMs?: number}): Promise<string> {
+    const source = image.currentSrc || image.src;
+    if (!source) throw new Error('图片地址不可用');
+    const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
+        ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
+    const deadline = Date.now() + budget;
+    try {return await readPageImageInCors(source, options.signal, budget);}
+    catch (readError) {
+        if (options.signal?.aborted) throw createImageAbortError();
+        // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
+        if (!(readError instanceof TypeError)) throw readError;
+        const remaining = deadline - Date.now();
+        if (remaining <= 0) throw new Error('图片读取超时');
+        return withImageSourceAuthorization(image, source, options.signal, requestId =>
+            fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));
+    }
+}
+
 export async function getImageData(
     image: HTMLImageElement,
     options: {readonly signal?: AbortSignal; readonly timeoutMs?: number} = {},
@@ -722,22 +755,7 @@ export async function getImageData(
         if (!(error instanceof Error) || error.name !== 'SecurityError') throw error;
         canvas.width = 0;
         canvas.height = 0;
-        const source = image.currentSrc || image.src;
-        if (!source) throw new Error('图片地址不可用');
-        const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
-            ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
-        const deadline = Date.now() + budget;
-        try {
-            return await readPageImageInCors(source, options.signal, budget);
-        } catch (readError) {
-            if (options.signal?.aborted) throw createImageAbortError();
-            // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
-            if (!(readError instanceof TypeError)) throw readError;
-            const remaining = deadline - Date.now();
-            if (remaining <= 0) throw new Error('图片读取超时');
-            return withImageSourceAuthorization(image, source, options.signal, requestId =>
-                fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));
-        }
+        return await readAuthorizedImage(image, options);
     } finally {
         canvas.width = 0;
         canvas.height = 0;
@@ -880,7 +898,7 @@ function requestIsCurrent(state: ImageTranslationState, controller: AbortControl
 
 async function translateImage(state: ImageTranslationState, prepareLanguages = false): Promise<void> {
     // 识别方式改变后，不继续下载旧方式的语言包；新方式在用户的翻译任务内准备自己的资源。
-    if (config.imageTranslationOcrEngine === 'paddle') prepareLanguages = false;
+    if (!state.manga && config.imageTranslationOcrEngine === 'paddle') prepareLanguages = false;
     if (state.phase === 'loading' || !state.image.isConnected || !imageTranslationAllowed(state.manga === true)) return;
     state.hoverEntry = false;
     if (sourceIdentity(state.image) !== state.sourceIdentity || !presentationMatchesSource(state.image, state.presentation)) invalidateSource(state);
@@ -906,11 +924,12 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
         return;
     }
     deleteCachedResult(state.image);
+    const sourceLanguage = state.manga ? mangaSourceLanguage() : config.from;
+    if (state.manga && getMangaOcrEngine(sourceLanguage) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) prepareLanguages = true;
     state.needsPreparation = false;
     state.localFailure = undefined;
     state.errorDetails = undefined;
     const controller = new AbortController();
-    const sourceLanguage = config.from;
     state.abortController = controller;
     let preparingLanguages = prepareLanguages;
     setButtonState(state, 'loading', prepareLanguages ? '正在准备识别语言包…' : '正在读取图片…');
@@ -919,6 +938,7 @@ async function translateImage(state: ImageTranslationState, prepareLanguages = f
             await prepareImageOcrLanguages(sourceLanguage, controller.signal);
             preparingLanguages = false;
             if (!requestIsCurrent(state, controller)) return;
+            if (configurationIdentity(state.manga) !== identity) throw new Error('翻译设置已更改，请重试');
             setButtonState(state, 'loading', '正在读取图片…');
         }
         state.waitingForImage = !state.image.complete;
@@ -1202,12 +1222,53 @@ export function mountImageTranslator(): void {
     if (mounted) return;
     mounted = true;
     stopConfigurationWatch = watchTranslationConfiguration();
+    const translateSnapshot = async (image: string, signal: AbortSignal) => {
+        const identity = configurationIdentity(true);
+        const sourceLanguage = mangaSourceLanguage();
+        if (getMangaOcrEngine(sourceLanguage) === 'tesseract' && config.imageTranslationMangaDownloadConfirmed) {
+            publishMangaStatus({...mangaStatus, stage: 'preparing'});
+            await prepareImageOcrLanguages(sourceLanguage, signal);
+        }
+        if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) {
+            throw Object.assign(new Error('漫画识别请求已取消'), {name: 'AbortError'});
+        }
+        return translateImageInExtension(image, sourceLanguage, document.title, {manga: true, signal, timeoutMs: 300_000,
+            onProgress: (stage, progress) => {
+                if (signal.aborted || identity !== configurationIdentity(true) || !mangaStatus.active) return;
+                publishMangaStatus({...mangaStatus, stage, progress});
+            }});
+    };
+    mangaCanvas = createMangaCanvas({
+        enabled: () => mounted && imageTranslationAllowed(true),
+        configurationIdentity: () => configurationIdentity(true),
+        cacheEnabled: () => config.useCache,
+        acceptsInteractionLayer: (_canvas, hit) => {
+            const selector = resolveMangaSite(window.location.href, config.imageTranslationMangaSites)?.canvasInteractionSelector;
+            return !!selector && hit.matches(selector);
+        },
+        translate: translateSnapshot,
+    });
+    mangaBackground = createMangaBackground({
+        enabled: () => mounted && imageTranslationAllowed(true),
+        configurationIdentity: () => configurationIdentity(true),
+        cacheEnabled: () => config.useCache,
+        ready: () => mangaReader?.schedule(),
+        translate: translateSnapshot,
+    });
+    mangaSegments = createMangaImageSegments({
+        enabled: () => mounted && imageTranslationAllowed(true),
+        configurationIdentity: () => configurationIdentity(true),
+        cacheEnabled: () => config.useCache,
+        imageIdentity: sourceIdentity,
+        readSource: (image, signal) => readAuthorizedImage(image, {signal}),
+        translate: translateSnapshot,
+    });
     mangaReader = createMangaReader({
         enabled: () => config.on && config.imageTranslationMangaEnabled !== false,
         siteRules: () => config.imageTranslationMangaSites,
         prefetchPages: () => config.imageTranslationMangaPrefetchPages,
         cachePages: () => config.imageTranslationMangaCachePages,
-        identity: image => `${sourceIdentity(image)}:${configurationIdentity()}`,
+        identity: image => `${sourceIdentity(image)}:${configurationIdentity(true)}`,
         translate: translateMangaImage,
         reuse: reuseMangaImage,
         warm: prepareMangaCachedImages,
@@ -1216,6 +1277,9 @@ export function mountImageTranslator(): void {
         release: image => { const state = states.get(image); if (state) removeState(state); },
         failed: image => states.get(image)?.phase === 'error',
         changed: publishMangaStatus,
+        canvas: mangaCanvas,
+        background: mangaBackground,
+        segments: mangaSegments,
     });
     const stopHoverWatch = subscribeConfig(next => {
         if (next.imageTranslationHoverEnabled !== false && !next.disableImageTranslator && next.on) return;
@@ -1270,6 +1334,12 @@ export function unmountImageTranslator(): void {
     mounted = false;
     mangaReader?.dispose();
     mangaReader = null;
+    mangaCanvas?.dispose();
+    mangaCanvas = null;
+    mangaBackground?.dispose();
+    mangaBackground = null;
+    mangaSegments?.dispose();
+    mangaSegments = null;
     clearPointerRevealTimer();
     contextImage = null;
     pointerImage = null;

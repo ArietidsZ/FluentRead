@@ -1,11 +1,16 @@
-import {readFileSync} from 'node:fs';
+import {existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
+import {tmpdir} from 'node:os';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import {describe, expect, it, vi} from 'vitest';
+import {resolveNavigationItem, resolveRequestedSection} from '@/src/features/settings/model/navigation';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 const require = createRequire(import.meta.url);
 const FOCUS_SAFE_SCRIPTS = [
+    'scripts/testing/run-manga-entry-ui-test.cjs',
+    'scripts/testing/run-manga-translation-test.cjs',
     'scripts/run-cache-settings-test.cjs',
     'scripts/run-selection-trigger-test.cjs',
     'scripts/run-full-page-translation-test.cjs',
@@ -67,6 +72,51 @@ function readScript(path: string): string {
 }
 
 describe('browser regression focus safety', () => {
+    it.each([
+        {samples:[],error:'Explicit public URL subset'},
+        {samples:{url:'https://example.test'},error:'Explicit public URL subset'},
+        {samples:['file:///etc/hosts'],error:'HTTP(S) URLs without credentials'},
+        {samples:['https://user:password@example.test'],error:'HTTP(S) URLs without credentials'},
+        {samples:[{url:'https://example.test',openSelector:''}],error:'explicit selector'},
+        {samples:[{url:'https://example.test',openSelector:null}],error:'explicit selector'},
+        {samples:[{url:'https://example.test',openSelector:'x'.repeat(1025)}],error:'explicit selector'},
+    ])('公开调查 CLI 在加载浏览器依赖及创建 profile 前拒绝不合法样本 $error', ({samples,error}) => {
+        const directory=mkdtempSync(resolve(tmpdir(),'fluentread-inspection-cli-'));
+        try {
+            const urls=resolve(directory,'urls.json'),artifacts=resolve(directory,'artifacts');
+            writeFileSync(urls,JSON.stringify(samples));
+            const result=spawnSync(process.execPath,[resolve(PROJECT_ROOT,'scripts/testing/inspect-manga-readers.cjs'),
+                '--urls-file',urls,'--artifacts-dir',artifacts,'--playwright-root',resolve(directory,'missing-runtime'),
+                '--focus-safe-helper',resolve(directory,'missing-helper.cjs')],{encoding:'utf8',timeout:5000});
+            expect(result.status).toBe(1);
+            expect(result.stderr).toContain(error);
+            expect(result.stderr).not.toContain('MODULE_NOT_FOUND');
+            expect(existsSync(artifacts)).toBe(false);
+        } finally {rmSync(directory,{recursive:true,force:true});}
+    });
+    it('实页入口在等待正文前保存 HTTP 状态，未预期的访问限制不能记为入口通过', () => {
+        const source = readScript('scripts/testing/run-manga-entry-ui-test.cjs');
+        const liveSource = source.slice(source.indexOf("const liveReadersFile=arg('reader-sites',null)"));
+        expect(liveSource).toContain('(report.liveReaders??=[]).push(result)');
+        expect(liveSource.indexOf('(report.liveReaders??=[]).push(result)')).toBeLessThan(liveSource.indexOf('if(sample.readerReadySelector)'));
+        expect(liveSource.indexOf("result.result='access-restricted'")).toBeLessThan(liveSource.indexOf('if(sample.readerReadySelector)'));
+        expect(liveSource).toContain('throw new Error(`Public reader access failed: HTTP');
+        expect(liveSource).toContain("result.result='body-not-ready'");
+        expect(liveSource).toContain('result.readerReadiness=');
+    });
+    it('公开正文调查的焦点或原生激活故障中止整批，创建与关闭页签均保留阶段校验', () => {
+        const source = readScript('scripts/testing/inspect-manga-readers.cjs');
+        expect(source).toContain("focusGuard('before-page-create')");
+        expect(source).toContain("focusGuard('before-page-close')");
+        expect(source).toContain("focusGuard('after-page-close')");
+        expect(source).toContain("focusGuard('before-page-activation')");
+        expect(source).toContain("focusGuard('after-page-activation')");
+        expect(source).toMatch(/if \(error instanceof FocusSafetyError\) \{\s*report\.pages\.push\(result\);\s*throw error;/u);
+        expect(source).toContain('throw new FocusSafetyError(`public-page-activation: ${error.message}`)');
+        expect(source).toContain('throw new FocusSafetyError(`public-tab-state: ${error.message}`)');
+        expect(source.indexOf("assert.ok(!activationExtension")).toBeLessThan(source.indexOf('fs.mkdtempSync('));
+        expect(source).not.toContain('.bringToFront(');
+    });
     it('全文配置读取复用隔离页并只在该页已关闭时重新创建', async () => {
         const {getConfigurationPage} = require(resolve(
             PROJECT_ROOT, 'scripts/run-full-page-translation-test.cjs',
@@ -227,7 +277,12 @@ describe('browser regression focus safety', () => {
         }
         const selectionSource = readScript('scripts/run-selection-trigger-test.cjs');
         expect(selectionSource).toContain('if (!result.ok) throw new Error');
-        expect(selectionSource).toContain('/options.html#settings-translation');
+        const selectionHash = selectionSource.match(/\/options\.html(#[a-z-]+)/u)?.[1];
+        expect(selectionHash).toBe('#settings-selection');
+        const selectionSection = resolveRequestedSection(selectionHash!);
+        expect(resolveNavigationItem(selectionSection).label).toBe('划词翻译');
+        expect(readScript('src/features/settings/ui/SettingsSections.vue'))
+            .toMatch(new RegExp(`id="${selectionSection}"[^>]*>\\s*<SelectionSettings`, 'u'));
         expect(selectionSource).not.toContain('/options.html#settings-shortcuts');
         const fullPageSource = readScript('scripts/run-full-page-translation-test.cjs');
         expect(fullPageSource).toContain("matches(':hover') === true");

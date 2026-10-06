@@ -14,7 +14,7 @@ function pageFixture() {
     const removeListener = vi.fn(listener => listeners.delete(listener));
     const document = {URL: documentUrl};
     const attributes = {src: url, srcset: null, sizes: null};
-    const image = {src: url, currentSrc: '', isConnected: true, getAttribute: (name: keyof typeof attributes) => attributes[name]} as unknown as HTMLImageElement;
+    const image = {src: url, currentSrc: '', isConnected: true, ownerDocument: document, getAttribute: (name: keyof typeof attributes) => attributes[name]} as unknown as HTMLImageElement;
     vi.stubGlobal('document', document);
     vi.stubGlobal('browser', {runtime: {id: 'fluentread-id', onMessage: {addListener, removeListener}}});
     const challenge = (requestId: string, extra = {}, sender: {id: string; tab?: unknown} = {id: 'fluentread-id'}) => {
@@ -28,6 +28,27 @@ function pageFixture() {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('跨域图片读取任务的页面授权', () => {
+    it('同文档翻页允许浏览器 sender 的初始路径，仍拒绝跨源、换文档和请求期间再次导航',async()=>{
+        const env=pageFixture();env.document.URL='https://globalcomix.com/read/chapter/3';
+        await withImageSourceAuthorization(env.image,url,undefined,async id=>{
+            expect(env.challenge(id,{documentUrl:'https://globalcomix.com/read/chapter/1'})).toHaveBeenCalledWith({valid:true});
+            for(const documentUrl of [null,'invalid','https://other.example/read/chapter/1','http://globalcomix.com/read/chapter/1','https://globalcomix.com:444/read/chapter/1'])expect(env.challenge(id,{documentUrl})).toHaveBeenCalledWith({valid:false});
+            Object.assign(env.image,{ownerDocument:{URL:env.document.URL}});expect(env.challenge(id,{documentUrl:env.document.URL})).toHaveBeenCalledWith({valid:false});
+            Object.assign(env.image,{ownerDocument:env.document});vi.stubGlobal('document',{URL:env.document.URL});expect(env.challenge(id,{documentUrl:env.document.URL})).toHaveBeenCalledWith({valid:false});
+            vi.stubGlobal('document',env.document);env.document.URL='https://globalcomix.com/read/chapter/4';expect(env.challenge(id,{documentUrl:'https://globalcomix.com/read/chapter/1'})).toHaveBeenCalledWith({valid:false});
+        });
+        expect(env.listeners.size).toBe(0);
+    });
+    it('本地文件只允许相同完整地址，损坏的文档地址不能匹配其他来源',async()=>{
+        const env=pageFixture();env.document.URL='file:///tmp/manga.html';
+        await withImageSourceAuthorization(env.image,url,undefined,async id=>{
+            expect(env.challenge(id,{documentUrl:env.document.URL})).toHaveBeenCalledWith({valid:true});
+            expect(env.challenge(id,{documentUrl:'file:///tmp/another.html'})).toHaveBeenCalledWith({valid:false});
+        });
+        env.document.URL='invalid';await withImageSourceAuthorization(env.image,url,undefined,async id=>{
+            expect(env.challenge(id,{documentUrl:'https://other.example/'})).toHaveBeenCalledWith({valid:false});
+        });
+    });
     it('Pixiv 临时规则精确绑定图片及扩展发起者，不触碰宿主请求；成功和失败都移除', async () => {
         const api={updateSessionRules:vi.fn().mockResolvedValue(undefined)},operation=vi.fn().mockResolvedValue('image');
         const source='https://i.pximg.net/img-original/123_p0.jpg?a=1&b=2';
