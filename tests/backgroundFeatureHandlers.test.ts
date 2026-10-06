@@ -74,7 +74,7 @@ describe('后台 feature handlers', () => {
         expect(translate.mock.calls[0][0]).toMatchObject({
             origin: ' hello ',
             targetLanguage: 'zh',
-            serviceOverride: 'microsoft',
+            serviceOverride: config.service,
         });
 
         await expect(handler.handle({type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE, text: 1, targetLang: 'zh'}))
@@ -112,7 +112,7 @@ describe('后台 feature handlers', () => {
         expect(openSection).toHaveBeenNthCalledWith(1, 'settings-video');
         expect(openSection).toHaveBeenNthCalledWith(2, 'settings-translation');
         expect(openSection).toHaveBeenNthCalledWith(3, 'settings-translation');
-        expect(openSection).toHaveBeenNthCalledWith(4, 'settings-area-translation');
+        expect(openSection).toHaveBeenNthCalledWith(4, 'settings-image-translation');
 
         await expect(handler.handle({type: OPEN_OPTIONS_PAGE_MESSAGE_TYPE, section: 'settings-secret'}))
             .rejects.toThrow('无效的设置页面');

@@ -45,7 +45,7 @@ describe('compressed ONNX WASM loader', () => {
         expect(wxt).toContain('ort-wasm-simd-threaded.asyncify.wasm');
         expect(tts).toContain('ort-wasm-simd-threaded.asyncify.mjs');
         expect(tts).toContain('ort-wasm-simd-threaded.asyncify.wasm');
-        expect(tts).toContain('return wasm');
+        expect(tts).toMatch(/paceLocalInitialization\(\(\) => wasm\s*\? withCompressedWasmBinary\(wasm,/u);
         expect(tts).not.toContain("device === 'wasm' && wasm");
     });
 

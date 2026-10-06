@@ -246,17 +246,20 @@ describe('popup feature visibility', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         const settings = source('src/features/settings/ui/SettingsSections.vue');
         const modelSettings = source('src/features/settings/ui/VideoLocalModelSettings.vue');
+        const ttsSettings = source('src/features/settings/ui/LocalTtsSettings.vue');
         const appearance = source('src/features/settings/ui/VideoSubtitleAppearanceSettings.vue');
         const translationStyle = source('src/features/settings/ui/TranslationStyleSettings.vue');
 
         expect(settings).toContain('id="settings-video"');
-        expect(settings).toContain('config.videoSubtitleDisplayMode');
+        expect(settings).toContain('<VideoSubtitleAppearanceSettings');
+        expect(appearance).toContain('v-model="config.videoSubtitleDisplayMode"');
         expect(popup).not.toContain('v-model="config.videoService"');
         expect(popup).not.toContain('v-model="config.videoLocalModel"');
         expect(popup).not.toContain('v-model="config.selectionTtsVoices"');
         expect(settings).toContain('v-model="config.videoService"');
         expect(settings).toContain('v-model="config.videoSourceLanguage"');
-        expect(settings).toContain('v-model="config.selectionTtsVoices"');
+        expect(settings).toContain('<LocalTtsSettings :config="config"');
+        expect(ttsSettings).toContain('v-model="config.selectionTtsVoices"');
         // 译文样式迁到界面风格页的样式卡片；弹窗“译文显示”只保留翻译模式并跳转到那里。
         expect(settings).not.toContain('v-model="config.style"');
         expect(translationStyle).toContain('@click="selectPreset(preset.value)"');

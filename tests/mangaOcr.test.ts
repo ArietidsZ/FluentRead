@@ -88,6 +88,7 @@ describe('漫画本地神经 OCR 会话',()=>{
         expect(result.results).toEqual(response.results);
         expect(result.bubbles?.[0].results[0].box).toEqual({x:35,y:50,width:30,height:10});
         expect(offscreen.mock.calls).toEqual([[0,0],[0,0],[0,0]]);
+        for(const canvas of mocks.canvases) expect(canvas.getContext).toHaveBeenCalledWith('2d',{willReadFrequently:true});
         expect(mocks.contexts[1].fillRect).toHaveBeenCalledWith(30,40,50,50);
         expect(mocks.contexts[2].drawImage).toHaveBeenCalledWith(mocks.canvases[0],30,40,50,50,0,0,150,150);
         expect(mocks.canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
