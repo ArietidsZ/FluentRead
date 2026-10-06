@@ -1,6 +1,6 @@
 # 2026-10-06 图片悬浮、Popup 启动与近期回归扫描
 
-产品基线为 `190a96e6`，近期历史范围从 `2c328ef8` 开始。自动检查范围包含 838 个变动文件，其中 291 个位于 `src`，134 个为变动测试；执行这些测试与架构契约的并集，共 157 个现存测试文件。完整路径与结构化结果见 [scope.json](./assets/recent-regression-scan-20261006/scope.json) 和 [validation.json](./assets/recent-regression-scan-20261006/validation.json)。
+产品基线为 `190a96e6`，近期历史范围从 `2c328ef8` 开始。近期变更与本次修复共 841 个变动文件，其中 291 个位于 `src`，136 个为变动测试；执行相关测试与架构契约的并集，共 157 个现存测试文件。完整路径与结构化结果见 [scope.json](./assets/recent-regression-scan-20261006/scope.json) 和 [validation.json](./assets/recent-regression-scan-20261006/validation.json)。
 
 ## 确认并修复的问题
 
