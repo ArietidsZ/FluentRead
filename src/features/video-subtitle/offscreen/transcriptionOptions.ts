@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcriptionOptions.ts
  * 文件职责：构建每次 Whisper 转写调用独立的 generation options，隔离显式语言与 auto 模式。
- * 主要内容：规范化视频源语言、计算有界 token 预算，并显式固定 transcribe 任务和 auto 的 null language。
+ * 主要内容：规范化视频源语言、读取语言置信度、计算有界 token 预算，固定 transcribe 任务并限制解码 n-gram 循环。
  * 模块边界：只处理纯参数，不访问 Worker、模型、浏览器 API 或页面配置。
  */
 import {normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
@@ -13,6 +13,7 @@ export interface WhisperTranscriptionGenerationOptions {
   max_new_tokens: number;
   do_sample: false;
   num_beams: 1;
+  no_repeat_ngram_size: number;
   stopping_criteria: unknown;
   language: string | null;
   task: 'transcribe';
@@ -98,9 +99,14 @@ export function buildWhisperTranscriptionGenerationOptions(
   const tokenBudget = normalizedModel === 'base'
     ? {minimum: 32, maximum: 96, perSecond: 7}
     : {minimum: 24, maximum: 64, perSecond: 6};
+  const language = normalizeWhisperSourceLanguage(sourceLanguage);
+  // 中日韩单个字常占多个 Whisper token；英文预算会截断正常对白。仍保留总量与推理时间上限。
+  const effectiveBudget = language === 'zh' || language === 'ja' || language === 'ko'
+    ? normalizedModel === 'base' ? {minimum: 32, maximum: 160, perSecond: 12} : {minimum: 24, maximum: 128, perSecond: 10}
+    : tokenBudget;
   const maxNewTokens = Math.min(
-    tokenBudget.maximum,
-    Math.max(tokenBudget.minimum, Math.ceil(Math.max(0, audioSeconds) * tokenBudget.perSecond)),
+    effectiveBudget.maximum,
+    Math.max(effectiveBudget.minimum, Math.ceil(Math.max(0, audioSeconds) * effectiveBudget.perSecond)),
   );
   return {
     return_timestamps: true,
@@ -108,8 +114,10 @@ export function buildWhisperTranscriptionGenerationOptions(
     max_new_tokens: maxNewTokens,
     do_sample: false,
     num_beams: 1,
+    // 在当前 Transformers.js 3.8.1 支持的 logits processor 层阻止长串重复，保留普通叠词。
+    no_repeat_ngram_size: 8,
     stopping_criteria: stoppingCriteria,
-    language: normalizeWhisperSourceLanguage(sourceLanguage),
+    language,
     task: 'transcribe',
   };
 }

@@ -6,7 +6,7 @@
  */
 import type {VideoSubtitleCue} from '@/src/features/video-subtitle/content/youtubeSubtitleData';
 import {normalizeVideoAiSubtitleTimeline} from '@/src/features/video-subtitle/content/video-ai/cueTimeline';
-import {normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+import {isDegenerateVideoTranscript, normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 
 export const VIDEO_AI_SUBTITLE_CACHE_GET_MESSAGE = 'fluentReadGetVideoAiSubtitleCache' as const;
 export const VIDEO_AI_SUBTITLE_CACHE_SET_MESSAGE = 'fluentReadSetVideoAiSubtitleCache' as const;
@@ -98,7 +98,8 @@ export function buildVideoAiSubtitleCacheKey(identity: VideoAiSubtitleCacheIdent
 export function normalizeCompletedVideoAiSubtitleCues(value: unknown): VideoSubtitleCue[] {
   if (!Array.isArray(value) || value.length === 0) return [];
   if (value.length > VIDEO_AI_SUBTITLE_CACHE_MAX_CUES) return [];
-  if (value.some((cue) => !cue || typeof cue !== 'object' || (cue as {partial?: unknown}).partial === true)) return [];
+  if (value.some((cue) => !cue || typeof cue !== 'object' || (cue as {partial?: unknown}).partial === true
+    || isDegenerateVideoTranscript((cue as VideoSubtitleCue).text))) return [];
   const normalized = normalizeVideoAiSubtitleTimeline(value as VideoSubtitleCue[])
     .filter((cue) => Number.isFinite(cue.startMs) && Number.isFinite(cue.durationMs) && cue.text.trim());
   // A bounded cache entry must remain a complete timeline. Silently keeping

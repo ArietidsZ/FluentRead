@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，声明默认推荐模型，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，拦截识别退化的长串重复文本，并把多声道 PCM 按目标采样率混音和重采样。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -56,6 +56,15 @@ export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptio
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);
   return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.modelId;
+}
+
+/** 拒绝解码循环产生的长串重复字/短语；正常叠词、强调和短句重复仍可保留。 */
+export function isDegenerateVideoTranscript(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const compact = value.replace(/<\|[^|]+\|>/gu, '').replace(/[\s\p{P}\p{S}]/gu, '');
+  if (/([\p{L}\p{N}])\1{15,}/u.test(compact)) return true;
+  const repeated = compact.match(/([\p{L}\p{N}]{2,24})\1{5,}/u);
+  return Boolean(repeated && repeated[0].length >= 48);
 }
 
 /** 将解码后的多声道音频重采样为 Whisper 使用的单声道 PCM。 */

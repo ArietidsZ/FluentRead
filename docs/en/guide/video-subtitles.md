@@ -38,7 +38,11 @@ The desktop Chrome / Edge extension can try local AI transcription:
 2. Return to the X player and choose to generate AI subtitles.
 3. Wait for recognition. You can stop the job. Once recognition finishes, the timeline is available immediately; translations are fetched near the playback position. Original-only mode does not request translations.
 
+Tiny and Base are multilingual models. For Chinese speech, choose **Video settings → Spoken language → Chinese**; Base is the available option that prioritizes recognition quality. Auto detection waits for two sufficiently long, confident audio windows to agree before fixing the language for the video. Repeated decoding output is retried once with stronger repetition controls; if it remains corrupt, the job reports an error rather than displaying or caching it.
+
 Audio recognition runs locally; recognized subtitle text still goes to your translation service. Model downloads require a network connection. Processing depends on video length and your computer. Videos up to 20 minutes are supported; some formats or restricted media cannot be read.
+
+Moving the pointer away and back, rebuilding playback controls, temporarily hiding the video, or attaching its thumbnail does not discard the current AI timeline. A different media identity clears the previous video’s subtitles.
 
 You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying; the model does not need another download. Switching videos clears the previous video’s error, progress and model prompt.
 
