@@ -1212,4 +1212,51 @@ describe('options UI composition architecture', () => {
     expect(page).not.toContain(':hover > .fluent-read-bilingual-content::before')
     expect(page).not.toContain(':has(> .fluent-read-bilingual-content[data-fr-translation-owned="true"]):hover')
   })
+
+  it('renders every settings row through SettingsItem with help kept in the label tooltip', () => {
+    const settings = source('src/features/settings/ui/SettingsSections.vue')
+    const item = source('src/features/settings/ui/components/SettingsItem.vue')
+
+    expect(settings).not.toContain('<el-row')
+    expect(settings).not.toContain('<el-col')
+    expect(settings).not.toContain('InfoFilled')
+    expect(item).toContain('<FieldHelp v-if="help" :content="help" />')
+    expect(item).toContain('<slot name="description"><small v-if="description">{{ description }}</small></slot>')
+    expect(settings).toContain(`label="划词触发方式" :help="t('selectionTrigger.modeDescription')">`)
+    expect(settings).toContain('<SettingsItem id="floating-ball-toggle" label="全文翻译悬浮球">')
+    expect(settings).toContain(`:description="t('settings.fullPage.multiSegmentDescription')" :help="t('settings.fullPage.multiSegmentHelp')"`)
+  })
+
+  it('uses one compact number field for delays, lengths and limits', () => {
+    const field = source('src/features/settings/ui/components/SettingsNumberInput.vue')
+    const users = [
+      'src/features/settings/ui/SettingsSections.vue',
+      'src/features/settings/ui/FloatingBallSettings.vue',
+      'src/features/settings/ui/ParagraphHandlingSettings.vue',
+      'src/features/settings/ui/HarnessSettings.vue',
+    ]
+
+    expect(field).toContain('<el-input-number v-bind="$attrs" :controls="false" />')
+    expect(field).toContain('defineOptions({ inheritAttrs: false })')
+    expect(field).toContain('width: 132px;')
+    for (const path of users) {
+      const content = source(path)
+      expect(content, path).toContain('<SettingsNumberInput')
+      expect(content, path).not.toContain('<el-input-number')
+    }
+  })
+
+  it('keeps feature pages on the shared label-left rows instead of bespoke grids', () => {
+    const manga = source('src/features/image-translation/ui/MangaSettings.vue')
+    const writing = source('src/features/settings/ui/WritingSettings.vue')
+    const speech = source('src/features/settings/ui/LocalTtsSettings.vue')
+    const floatingBall = source('src/features/settings/ui/FloatingBallSettings.vue')
+
+    expect(manga).toContain(`<SettingsGroup class="manga-translation-options" :title="t('image.settings.languageServiceTitle')"`)
+    expect(manga).not.toContain('class="manga-setting-fields"')
+    expect(writing).not.toContain('class="writing-service-grid"')
+    expect(writing).toContain('<SettingsItem label="AI 服务">')
+    expect(speech).not.toContain(' stacked')
+    expect(floatingBall).toContain('.floating-ball-settings :deep(.site-rules-editor)')
+  })
 })

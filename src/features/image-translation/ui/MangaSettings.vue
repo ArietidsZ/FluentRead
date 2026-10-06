@@ -6,14 +6,11 @@
  -->
 <template>
   <div class="manga-settings" data-testid="manga-settings">
-    <section class="manga-settings-card manga-translation-options" data-settings-anchor="language-service" :data-settings-anchor-label="t('翻译服务')">
-      <div class="manga-setting-fields">
-        <label>{{ t('area.settings.sourceLanguage') }}<UiSelect v-model="settings.from" :aria-label="t('area.settings.sourceLanguage')"><el-option v-for="item in sourceLanguages" :key="item.value" :value="item.value" :label="t(item.label)" /></UiSelect></label>
-        <label>{{ t('翻译成') }}<UiSelect v-model="settings.to" :aria-label="t('漫画目标语言')"><el-option v-for="item in targetLanguages" :key="item.value" :value="item.value" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect></label>
-        <label>{{ t('翻译服务') }}<UiSelect v-model="settings.imageTranslationService" :empty-values="[null, undefined]" :placeholder="t('跟随网页翻译服务')" :aria-label="t('漫画翻译服务')"><el-option value="" :label="t('跟随网页翻译服务')" /><el-option v-for="item in serviceOptions" :key="item.value" :value="item.value" :disabled="item.disabled" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect></label>
-      </div>
-      <p class="manga-language-note">{{ t('原语言和目标语言与网页翻译共用；图片与漫画共用这里的翻译服务。') }}</p>
-    </section>
+    <SettingsGroup class="manga-translation-options" :title="t('image.settings.languageServiceTitle')" :description="t('原语言和目标语言与网页翻译共用；图片与漫画共用这里的翻译服务。')" data-settings-anchor="language-service" :data-settings-anchor-label="t('image.settings.languageServiceTitle')">
+      <SettingsItem :label="t('area.settings.sourceLanguage')"><UiSelect v-model="settings.from" :aria-label="t('area.settings.sourceLanguage')"><el-option v-for="item in sourceLanguages" :key="item.value" :value="item.value" :label="t(item.label)" /></UiSelect></SettingsItem>
+      <SettingsItem :label="t('翻译成')"><UiSelect v-model="settings.to" :aria-label="t('漫画目标语言')"><el-option v-for="item in targetLanguages" :key="item.value" :value="item.value" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect></SettingsItem>
+      <SettingsItem :label="t('翻译服务')"><UiSelect v-model="settings.imageTranslationService" :empty-values="[null, undefined]" :placeholder="t('跟随网页翻译服务')" :aria-label="t('漫画翻译服务')"><el-option value="" :label="t('跟随网页翻译服务')" /><el-option v-for="item in serviceOptions" :key="item.value" :value="item.value" :disabled="item.disabled" :label="t(item.label)" data-i18n-ignore>{{ t(item.label) }}</el-option></UiSelect></SettingsItem>
+    </SettingsGroup>
     <SettingsGroup class="image-recognition-settings" data-testid="image-recognition-settings" data-settings-anchor="image" :data-settings-anchor-label="t('网页图片翻译')">
       <FeatureEnableCard :model-value="imageEnabled" :disabled="!available" :title="t('网页图片翻译')" :description="t('悬停图片或右键翻译，随时对照原图。')" @update:model-value="emit('update:imageEnabled', $event)" />
       <SettingsPreviewLayout :label="t('图片翻译效果预览')">
@@ -24,8 +21,6 @@
           </SettingsItem>
           <SettingsItem :label="t('image.hover')" :description="t('鼠标停在图片上时显示翻译入口')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationHoverEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.hover')" /></SettingsItem>
           <SettingsItem :label="t('image.context')" :description="t('右键点击图片时提供翻译操作')" :disabled="!available || !imageEnabled"><el-switch v-model="settings.imageTranslationContextMenuEnabled" :disabled="!available || !imageEnabled" :aria-label="t('image.context')" /></SettingsItem>
-          <p>{{ t('在图片上点击翻译入口，完成后可切换原图和译图；文字面板可查看完整译文。') }}</p>
-          <p v-if="!imageEnabled" role="status">{{ t('网页图片翻译已关闭，开启后使用这些设置。') }}</p>
         </div>
       </SettingsPreviewLayout>
     </SettingsGroup>
@@ -39,7 +34,6 @@
           </SettingsItem>
           <SettingsItem :label="t('独立漫画按钮')" :description="t('隐藏悬浮球时显示独立漫画按钮，阅读和翻译过程中不会自动弹出面板')" :disabled="!available || !settings.imageTranslationMangaEnabled"><el-switch v-model="settings.imageTranslationMangaPromptEnabled" :disabled="!available || !settings.imageTranslationMangaEnabled" :aria-label="t('独立漫画按钮')" /></SettingsItem>
           <SettingsItem :label="t('快速缓存图片数量')" :description="t(settings.useCache ? '最近页面直接显示。较早页面保留轻量缓存，返回时自动恢复；大图会按内存预算减少快速缓存数量。' : '翻译缓存已关闭；开启通用设置中的翻译缓存后可调整。')" stacked :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache"><UiSelect v-model="settings.imageTranslationMangaCachePages" :disabled="!available || !settings.imageTranslationMangaEnabled || !settings.useCache" :aria-label="t('快速缓存图片数量')"><el-option v-for="count in 24" :key="count" :value="count" :label="`${count} ${t('张图片')}`" /></UiSelect></SettingsItem>
-          <p>{{ t('漫画连续翻译独立于网页图片开关；开启后，在支持的阅读页按需启动。') }}</p>
         </div>
       </SettingsPreviewLayout>
     </SettingsGroup>
@@ -107,7 +101,6 @@ function addSite() {
 .manga-settings{display:grid;gap:12px}.manga-settings-card{padding:16px;border:1px solid var(--el-border-color-light);border-radius:12px;background:var(--el-fill-color-blank);color:var(--el-text-color-primary)}.manga-settings>details.manga-settings-card{padding:12px 16px}.manga-settings :deep(.settings-group){margin-bottom:0}.manga-settings-card>summary{cursor:pointer;font-size:14px;font-weight:600}.manga-settings>details.manga-settings-card>summary{border:0;padding:0;min-height:32px;background:transparent}.manga-settings>details.manga-settings-card[open]>summary{margin-bottom:12px}.manga-resources[open]>summary{margin-bottom:14px}.manga-settings h2{font-size:16px;margin:0 0 6px}.manga-settings p{font-size:13px;color:var(--el-text-color-secondary);line-height:1.6;margin:4px 0}.manga-settings header,.manga-setting-row{display:flex;align-items:center;justify-content:space-between;gap:24px}.manga-setting-row{margin-top:18px;padding-top:18px;border-top:1px solid var(--el-border-color-lighter)}.manga-setting-row strong{font-size:14px}.manga-setting-fields{display:grid;grid-template-columns:1fr 1fr 1.3fr;gap:14px;margin-top:0}.manga-setting-inline{display:grid!important;grid-template-columns:minmax(140px,1fr) minmax(180px,320px);align-items:center;gap:16px!important;margin:14px 0 7px}.manga-settings .image-engine-hint{font-size:12px}.manga-resources :deep(.image-ocr-section){margin-top:16px;border-top:1px solid var(--el-border-color-lighter);padding-top:16px}.manga-settings label{display:grid;gap:7px;font-size:13px}.manga-settings input{width:100%;min-height:36px;border:1px solid var(--el-border-color);border-radius:8px;background:var(--el-fill-color-blank);color:var(--el-text-color-primary);font:inherit;padding:6px 9px}.manga-settings small{display:block;color:var(--el-text-color-secondary);font-size:12px}.manga-site{display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 0}.manga-site-badge{font-size:12px;background:var(--el-color-primary-light-9);color:var(--el-color-primary);padding:3px 8px;border-radius:6px}.manga-sites details{margin-top:16px;padding-top:14px;border-top:1px solid var(--el-border-color-lighter);font-size:13px}.manga-sites summary{cursor:pointer;font-weight:600}.manga-sites form{display:grid;gap:12px;margin-top:14px}.manga-sites button{justify-self:start;font:inherit;cursor:pointer;border:1px solid var(--el-border-color);border-radius:7px;padding:6px 12px;background:var(--el-fill-color-blank);color:var(--el-text-color-primary)}.manga-custom-site{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px;overflow-wrap:anywhere}.manga-settings-error{color:var(--el-color-danger)!important}.manga-settings :is(button,select,input,summary):focus-visible{outline:2px solid var(--el-color-primary);outline-offset:2px}@media(max-width:650px){.manga-settings-card{padding:16px}.manga-setting-fields,.manga-setting-inline{grid-template-columns:1fr}.manga-settings header,.manga-setting-row{gap:12px}}
 .manga-settings { width:min(100%,1080px); margin-inline:auto; gap:20px; }
 .manga-settings-card { border-color:var(--line); border-radius:10px; background:var(--surface); }
-.manga-settings .manga-language-note { margin-top:12px; font-size:11px; color:var(--muted); }
 .manga-resource-body { padding:20px; }
 .manga-preview-preferences :deep(.settings-item) { grid-template-columns:minmax(0,1fr) auto; padding:16px 0; gap:12px; }
 .manga-preview-preferences :deep(.settings-item:first-child) { padding-top:0; }

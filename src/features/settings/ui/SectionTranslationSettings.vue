@@ -1,13 +1,12 @@
 <!--
  * @file src/features/settings/ui/SectionTranslationSettings.vue
  * 文件职责：在翻译交互设置中介绍局部翻译（点选网页中的一块区域、只翻译这部分）的用法，并提供进入选择模式的快捷键开关、预设组合、自定义录制和独立快捷方案。
- * 主要内容：展示功能说明与操作方式，绑定 sectionTranslationHotkeyEnabled、sectionTranslationHotkey 与 customSectionTranslationHotkey，对悬浮、全文、划词、圈选、段落复制、输入框翻译和快捷翻译方案的占用给出冲突提示，取消录制时恢复原有组合。
+ * 主要内容：展示功能说明，把较长的操作步骤收进快捷键开关旁的提示图标，绑定 sectionTranslationHotkeyEnabled、sectionTranslationHotkey 与 customSectionTranslationHotkey，对悬浮、全文、划词、圈选、段落复制、输入框翻译和快捷翻译方案的占用给出冲突提示，取消录制时恢复原有组合。
  * 模块边界：本组件只修改传入的 config 对象并提示冲突，不持久化配置、不监听网页按键，也不执行翻译；快捷键归一化归 core/config/sectionTranslation，选择模式与区域翻译归 features/section-translation 与全文翻译 feature。
  -->
 <template>
   <SettingsGroup :title="t('sectionTranslation.settings.title')" :description="t('sectionTranslation.settings.description')">
-    <p class="section-translation-usage">{{ t('sectionTranslation.settings.usage') }}</p>
-    <SettingsItem :label="t('sectionTranslation.settings.hotkeyEnabled')" :description="t('sectionTranslation.settings.hotkeyEnabledDescription', {shortcut: hotkeyDisplayName})">
+    <SettingsItem :label="t('sectionTranslation.settings.hotkeyEnabled')" :description="t('sectionTranslation.settings.hotkeyEnabledDescription', {shortcut: hotkeyDisplayName})" :help="t('sectionTranslation.settings.usage')">
       <el-switch v-model="props.config.sectionTranslationHotkeyEnabled" class="settings-toggle" :aria-label="t('sectionTranslation.settings.hotkeyEnabled')" @change="handleEnabledChange" />
     </SettingsItem>
     <SettingsItem :label="t('sectionTranslation.settings.hotkey')" :description="t('sectionTranslation.settings.hotkeyDescription')" :disabled="!props.config.sectionTranslationHotkeyEnabled">
@@ -161,7 +160,6 @@ function handleCustomHotkeyCancel(): void {
 </script>
 
 <style scoped>
-.section-translation-usage { margin: 0; padding: 12px 16px; border-bottom: 1px solid var(--line, #e7e9f0); color: var(--muted, #737c8f); font-size: 11px; line-height: 1.65; }
 .hotkey-config { display: flex; flex-direction: column; gap: 8px; width: 100%; }
 .section-translation-hotkey-custom { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 1px dashed var(--line, #e7e9f0); border-radius: 8px; }
 .section-translation-hotkey-text { font-size: 12px; color: var(--ink, #172033); }

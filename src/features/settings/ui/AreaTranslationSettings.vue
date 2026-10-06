@@ -32,23 +32,25 @@
       </el-select>
     </SettingsItem>
     <p v-if="unavailableMessage" class="area-settings-note area-settings-warning" role="status">{{ unavailableMessage }}</p>
-    <SettingsItem :label="t('area.settings.recognitionMode')" :description="t(prefersVision ? capabilityMessageKey : 'area.settings.recognitionModeDescription')">
+    <SettingsItem :label="t('area.settings.recognitionMode')" :description="t(prefersVision ? capabilityMessageKey : 'area.settings.recognitionModeDescription')" :help="t(prefersVision ? 'area.settings.visionPrivacy' : 'area.settings.privacy')">
       <el-select v-model="props.config.areaRecognitionMode" data-testid="area-recognition-mode" :aria-label="t('area.settings.recognitionMode')">
         <el-option value="prefer-vision" :label="t('area.settings.recognitionVision')" />
         <el-option value="ocr" :label="t('area.settings.recognitionOcr')" />
       </el-select>
     </SettingsItem>
-    <SettingsItem :label="t('area.settings.mode')" :description="t(props.config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription')">
+    <SettingsItem :label="t('area.settings.mode')">
+      <template #description>
+        <small v-if="!supportsAI" :class="{'area-settings-warning': props.config.areaTranslationMode === 'ai'}" role="status">{{ t('area.settings.chooseAI') }}</small>
+        <small v-else>{{ t(props.config.areaTranslationMode === 'ai' ? 'area.settings.aiDescription' : 'area.settings.standardDescription') }}</small>
+      </template>
       <el-select v-model="props.config.areaTranslationMode" :aria-label="t('area.settings.mode')">
         <el-option value="standard" :label="t('area.settings.standard')" />
         <el-option value="ai" :label="t('area.settings.ai')" :disabled="!supportsAI" />
       </el-select>
     </SettingsItem>
-    <p v-if="!supportsAI" class="area-settings-note" :class="{'area-settings-warning': props.config.areaTranslationMode === 'ai'}" role="status">{{ t('area.settings.chooseAI') }}</p>
     <SettingsItem v-if="prefersVision" :label="t('area.settings.visionPrompt')" :description="t('area.settings.visionPromptDescription')">
       <el-button plain @click="promptEditorOpen = true">{{ t('area.settings.editVisionPrompt') }}</el-button>
     </SettingsItem>
-    <p class="area-settings-note area-privacy">{{ t(prefersVision ? 'area.settings.visionPrivacy' : 'area.settings.privacy') }}</p>
     </div>
   </SettingsGroup>
   <details v-if="props.showOcr !== false" class="area-ocr-details" :open="!prefersVision">
@@ -214,11 +216,10 @@ const savedServiceUnavailable = computed(() => props.config.areaTranslationServi
 
 <style scoped>
 .area-settings-compact :deep(.feature-enable-card) { margin-bottom: 8px; border: 0; background: transparent; }
-.area-settings-compact :deep(.feature-enable-card button) { min-height: 64px; padding: 12px 16px; }
+.area-settings-compact :deep(.feature-enable-card button) { min-height: 64px; padding: 14px 20px; }
 .area-settings-compact :deep(.settings-group-body) { padding: 4px 0 0; }
-.area-settings-note { margin: 8px 16px 16px; color: var(--muted); font-size: 12px; line-height: 1.65; }
-.area-settings-warning { color: var(--el-color-warning); }
-.area-privacy { margin-top: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+.area-settings-note { margin: 8px 20px 16px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.area-settings-warning, .area-translation-details small.area-settings-warning { color: var(--el-color-warning); }
 .area-ocr-details { width: min(100%, 1080px); margin: 0 auto 24px; }
 .area-ocr-details > summary { padding: 2px 2px 14px; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; }
 .area-ocr-details > summary:hover { color: var(--ink); }

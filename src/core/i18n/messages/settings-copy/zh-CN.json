@@ -93,7 +93,12 @@
     "settings.services.prompts.syncConfirmAction": "同步",
     "settings.services.prompts.syncCancel": "取消",
     "settings.services.prompts.syncDone": "已同步到 {count} 个 AI 服务",
-    "settings.services.visionProbeShort": "检测"
+    "settings.services.visionProbeShort": "检测",
+    "settings.fullPage.multiSegmentDescription": "用 AI 服务翻译全文时，把相邻短段合并为一次请求",
+    "settings.fullPage.multiSegmentHelp": "仅对支持通用提示词的 AI 服务生效；机器翻译、悬浮、划词和输入框翻译不受影响",
+    "glossary.builtin.helpDisabled": "术语库尚未启用，添加后需打开上方开关才会生效",
+    "image.settings.languageServiceTitle": "语言与服务",
+    "settings.floatingBall.disabledNote": "悬浮球已关闭；这些偏好会保留，重新开启后生效"
   },
   "legacy": {}
 }

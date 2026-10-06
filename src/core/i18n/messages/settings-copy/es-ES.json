@@ -93,7 +93,12 @@
     "settings.services.prompts.syncConfirmAction": "Sincronizar",
     "settings.services.prompts.syncCancel": "Cancelar",
     "settings.services.prompts.syncDone": "Sincronizado con {count} servicios de IA",
-    "settings.services.visionProbeShort": "Probar"
+    "settings.services.visionProbeShort": "Probar",
+    "settings.fullPage.multiSegmentDescription": "Combina los párrafos cortos contiguos en una sola solicitud al traducir la página completa con un servicio de IA",
+    "settings.fullPage.multiSegmentHelp": "Solo se aplica a los servicios de IA compatibles con prompts genéricos. No afecta a la traducción automática, al pasar el ratón, de la selección ni de campos de texto.",
+    "glossary.builtin.helpDisabled": "El glosario está desactivado. Activa el interruptor de arriba para que los glosarios añadidos se apliquen.",
+    "image.settings.languageServiceTitle": "Idiomas y servicio",
+    "settings.floatingBall.disabledNote": "El botón flotante está desactivado. Estas preferencias se conservan y se aplicarán al volver a activarlo."
   },
   "legacy": {
     "同步连接已变化，请重新生成预览。": "La conexión ha cambiado. Genera una nueva vista previa.",

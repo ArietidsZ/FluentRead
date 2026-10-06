@@ -9,7 +9,7 @@
     <SettingsGroup :title="t('inputTranslation.title')" :description="workflowDescription">
       <SettingsItem :label="t('inputTranslation.trigger')">
         <template #copy>
-          <strong>{{ t('inputTranslation.trigger') }}</strong>
+          <strong class="settings-item-label"><span>{{ t('inputTranslation.trigger') }}</span><FieldHelp :content="t('inputTranslation.triggerDescription')" /></strong>
           <el-popover v-if="inputConfig.inputBoxTranslationTrigger.startsWith('triple_')" trigger="click" placement="bottom-start" :width="280" popper-class="fluentread-settings-number-popover">
             <template #reference>
               <button type="button" class="input-translation-text-button input-translation-timing-link" data-testid="input-translation-timing-toggle">
@@ -76,7 +76,6 @@
           <small v-if="credentialWarning" class="input-translation-credential-warning" role="status">{{ credentialWarning }}</small>
         </div>
       </SettingsItem>
-      <p class="input-translation-scope">{{ t('inputTranslation.triggerDescription') }}</p>
 
       <div v-if="showPrompt" class="input-translation-prompt-options">
         <button type="button" class="input-translation-prompt-toggle" data-testid="input-translation-prompt-toggle" :aria-expanded="promptsExpanded" @click="promptsExpanded = !promptsExpanded">
@@ -151,6 +150,7 @@ import {
 import { useUiI18n } from '@/src/ui/i18n'
 import SettingsGroup from './components/SettingsGroup.vue'
 import SettingsItem from './components/SettingsItem.vue'
+import FieldHelp from './components/FieldHelp.vue'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import PromptTemplateEditor from './services/PromptTemplateEditor.vue'
 
@@ -341,7 +341,6 @@ const workflowDescription = computed(() => {
 .input-translation-service-option :deep(.service-brand-icon) { flex: none; box-shadow: none; }
 .input-translation-model-control { display: grid; gap: 6px; min-width: 0; }
 .input-translation-model-control label { color: var(--ink); font-size: 11px; font-weight: 650; }
-.input-translation-scope { margin: 0; padding: 0 16px 14px; color: var(--muted); font-size: 10.5px; line-height: 1.6; }
 
 .input-translation-timing-panel { color: var(--ink); font-size: 12px; }
 .input-translation-timing-panel strong { font-weight: 600; }
