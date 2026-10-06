@@ -14,7 +14,7 @@ const maxWorkers = Number.isInteger(configuredMaxWorkers) && configuredMaxWorker
  */
 export default defineConfig({
     plugins: [vue({include: [
-        /\/src\/(?:features\/share-card\/ui\/ShareCardStudio|features\/selection-translation\/ui\/SelectionTranslator|features\/settings\/ui\/services\/RequestLimit(?:Settings|Fields)|features\/reading-assistant\/ui\/[^/]+|ui\/components\/(?:MarkdownContent|MarkdownTable|[^/]*Reading[^/]*)|features\/image-translation\/ui\/MangaEntry|app\/document-translation\/(?:DocumentApp|DocumentSegmentEditor)|ui\/components\/(?:CustomHotkeyInput|UiSelect|GlossaryLibrarySelect|ServiceIcon|TranslationLoadingPreview|UiIcon|InterfaceBackdrop|FeatureEnableCard)|features\/settings\/ui\/components\/(?:FieldHelp|InterfaceSkinPreview|PopupLayoutPreview|PopupLayoutPreviewItem|SettingsGroup|SettingsItem|TranslationColorField|TranslationStylePreview|WritingStylePreview|SegmentedControl))\.vue$/,
+        /\/src\/(?:features\/share-card\/ui\/ShareCardStudio|features\/selection-translation\/ui\/SelectionTranslator|features\/settings\/ui\/services\/RequestLimit(?:Settings|Fields)|features\/reading-assistant\/ui\/[^/]+|ui\/components\/(?:MarkdownContent|MarkdownTable|[^/]*Reading[^/]*)|features\/image-translation\/ui\/MangaEntry|app\/document-translation\/(?:DocumentApp|DocumentSegmentEditor)|ui\/components\/(?:CustomHotkeyInput|UiSelect|GlossaryLibrarySelect|ServiceIcon|TranslationLoadingPreview|UiIcon|FeatureEnableCard)|features\/settings\/ui\/components\/(?:FieldHelp|InterfaceSkinPreview|PopupLayoutPreview|PopupLayoutPreviewItem|SettingsGroup|SettingsItem|TranslationColorField|TranslationStylePreview|WritingStylePreview|SegmentedControl))\.vue$/,
         resolve(__dirname, 'docs/.vitepress/theme/BrandReader.vue'),
         resolve(__dirname, 'docs/.vitepress/theme/BrowserGlyph.vue'),
         resolve(__dirname, 'docs/.vitepress/theme/BrowserGuide.vue'),
@@ -56,6 +56,8 @@ export default defineConfig({
         resolve(__dirname, 'src/features/settings/ui/VideoLocalModelSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/WebDavBackup.vue'),
         resolve(__dirname, 'src/features/settings/ui/components/SettingsPanel.vue'),
+        resolve(__dirname, 'src/features/settings/ui/components/PopupPreview.vue'),
+        resolve(__dirname, 'src/ui/components/DownloadProgress.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingChoices.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingLanguagePicker.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingPanel.vue'),
@@ -76,7 +78,7 @@ export default defineConfig({
         minWorkers: 1,
         fileParallelism: false,
         // 按真实规则内容验证共享词书样式，与普通测试配置一致。
-        css: {include: [/vocabulary-reencounter\.css/]},
+        css: {include: [/(?:src\/app\/content\/page|src\/ui\/styles\/(?:translation-display|bilingual-sentence-highlight|vocabulary-reencounter))\.css(?:\?|$)/]},
         include: [
             'tests/implementationAudit49A.test.ts',
             'tests/implementationAudit49B.test.ts',
@@ -557,7 +559,6 @@ export default defineConfig({
                 'src/ui/components/ServiceIcon.vue',
                 'src/ui/components/TranslationLoadingPreview.vue',
                 'src/ui/components/UiIcon.vue',
-                'src/ui/components/InterfaceBackdrop.vue',
                 'src/ui/components/FeatureEnableCard.vue',
                 'src/features/settings/ui/components/FieldHelp.vue',
                 'src/features/settings/ui/components/InterfaceSkinPreview.vue',

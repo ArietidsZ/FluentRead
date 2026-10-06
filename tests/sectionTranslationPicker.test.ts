@@ -2,7 +2,6 @@ import {parseHTML} from 'linkedom';
 import {isEditingInPage} from '@/src/shared/dom/editingTarget';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {SectionLabelSummary} from '@/src/features/section-translation/core';
-import {isEditingInPage} from '@/src/shared/dom/editingTarget';
 
 type Listener = {type: string; listener: (event: any) => void; signal?: AbortSignal};
 

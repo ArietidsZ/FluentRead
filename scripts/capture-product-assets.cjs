@@ -133,6 +133,8 @@ const server = http.createServer(async (req, res) => {
 ;(async () => {
   let launched
   let profile
+  let launchAttempted = false
+  const captureSessions = new Set()
   const report = {
     extension: 'production chrome-mv3',
     captureScale: 2,
@@ -185,6 +187,7 @@ const server = http.createServer(async (req, res) => {
         encoding: 'utf8',
       })
       .trim()
+    launchAttempted = true
     launched = await helper.launchFocusSafePersistentContext({
       chromium,
       profileDir: profile,
@@ -270,6 +273,7 @@ const server = http.createServer(async (req, res) => {
     const scale = async (p, w = 1280, h = 800) => {
       await p.setViewportSize({ width: w, height: h })
       const c = await ctx.newCDPSession(p)
+      captureSessions.add(c)
       captures.set(p, { c, w, h })
       await c.send('Emulation.setDeviceMetricsOverride', {
         width: w,
@@ -510,17 +514,39 @@ const server = http.createServer(async (req, res) => {
     process.exitCode = 1
   } finally {
     // 各资源独立清理；报告写盘失败不能跳过浏览器和 loopback server 的关闭。
-    let closed = !launched
+    for (const c of captureSessions) {
+      try { await c.detach() }
+      catch (e) {
+        ;(report.cdpCleanupErrors ||= []).push(e.stack || String(e))
+        process.exitCode = 1
+        console.error(e)
+      }
+    }
+    captureSessions.clear()
+    let closed = !launchAttempted
     try {
-      if (launched) await launched.close()
-      closed = true
+      if (launched) { await launched.close(); closed = true }
     } catch (e) {
       report.cleanupError = e.stack || String(e)
       process.exitCode = 1
       console.error(e)
     }
-    server.closeAllConnections()
-    await new Promise((r) => server.close(r))
+    try { server.closeAllConnections() }
+    catch (e) {
+      report.connectionCleanupError = e.stack || String(e)
+      process.exitCode = 1
+      console.error(e)
+    }
+    try {
+      await new Promise((resolve, reject) => server.close(error => {
+        if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error)
+        else resolve()
+      }))
+    } catch (e) {
+      report.serverCleanupError = e.stack || String(e)
+      process.exitCode = 1
+      console.error(e)
+    }
     if (profile && closed) {
       try {
         fs.rmSync(profile, {
@@ -548,6 +574,8 @@ const server = http.createServer(async (req, res) => {
         JSON.stringify(report, null, 2) + '\n'
       )
     } catch (e) {
+      report.reportWriteError = e.stack || String(e)
+      report.ok = false
       console.error(e)
       process.exitCode = 1
     }

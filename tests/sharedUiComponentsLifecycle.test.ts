@@ -59,7 +59,7 @@ vi.mock('element-plus', async () => {
   const ElColorPicker = defineComponent({inheritAttrs: false, props: {modelValue: String, size: String, teleported: {type: Boolean, default: true}}, emits: ['update:modelValue'], setup(props, {attrs, emit}) {
     ports.pickers.push({props, emit});return () => h('span', [h('button', {...attrs, type: 'button', 'data-color-picker-port': ''}, props.modelValue),
       h(Teleport, {to: document.body, disabled: !props.teleported}, h('span', {'data-color-menu-port': ''}, 'Color menu'))]);}});
-  const ElTooltip = defineComponent({props: {content: String, trigger: Array, showAfter: Number, hideAfter: Number, placement: String, popperClass: String, teleported: {type: Boolean, default: true}},
+  const ElTooltip = defineComponent({props: {content: String, trigger: [Array, String], showAfter: Number, hideAfter: Number, placement: String, popperClass: String, teleported: {type: Boolean, default: true}},
     setup: (props, {slots}) => {ports.tooltips.push({props});return () => h('div', {'data-tooltip-port': ''}, [slots.default?.(),
       h(Teleport, {to: document.body, disabled: !props.teleported}, h('span', {'data-tooltip-content-port': ''}, slots.content?.() ?? props.content))]);}});
   return {ElSelect, ElOption, ElColorPicker, ElTooltip};
@@ -70,7 +70,6 @@ import GlossaryLibrarySelect from '@/src/ui/components/GlossaryLibrarySelect.vue
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import TranslationLoadingPreview from '@/src/ui/components/TranslationLoadingPreview.vue';
 import UiIcon from '@/src/ui/components/UiIcon.vue';
-import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue';
 import FeatureEnableCard from '@/src/ui/components/FeatureEnableCard.vue';
 import FieldHelp from '@/src/features/settings/ui/components/FieldHelp.vue';
 import InterfaceSkinPreview from '@/src/features/settings/ui/components/InterfaceSkinPreview.vue';
@@ -122,8 +121,8 @@ beforeEach(() => {dom.document.body.replaceChildren(); dom.frames.clear(); ports
 afterEach(async () => {for (const app of apps) app.unmount(); apps.clear(); await settle(); dom.frames.clear(); vi.restoreAllMocks();});
 
 describe('shared UI actual client SFC lifecycle', () => {
-  it('loads all seventeen actual SFC client render functions without any server render replacement', () => {
-    for (const component of [UiSelect, GlossaryLibrarySelect, ServiceIcon, TranslationLoadingPreview, UiIcon, InterfaceBackdrop, FeatureEnableCard, FieldHelp,
+  it('loads all sixteen actual SFC client render functions without any server render replacement', () => {
+    for (const component of [UiSelect, GlossaryLibrarySelect, ServiceIcon, TranslationLoadingPreview, UiIcon, FeatureEnableCard, FieldHelp,
       InterfaceSkinPreview, PopupLayoutPreview, PopupLayoutPreviewItem, SettingsGroup, SettingsItem, TranslationColorField, TranslationStylePreview, WritingStylePreview, SegmentedControl]) {
       expect((component as any).render).toBeTypeOf('function');expect((component as any).ssrRender).toBeUndefined();
     }
@@ -441,11 +440,11 @@ describe('shared UI actual client SFC lifecycle', () => {
   });
   it('projects hidden, missing-order and nested modules without mutating input arrays across skins', async () => {
     const initial = layoutProps();initial.moduleOrder = ['unknown', 'translation'];initial.quickFeatureItems.push({id: 'unknown', label: 'Unknown', visible: true});
-    const mounted = await mount(PopupLayoutPreview, initial);expect(mounted.root.querySelector('.layout-preview-site.nested')).not.toBeNull();expect(mounted.props.moduleOrder).toEqual(['unknown', 'translation']);
+    const mounted = await mount(PopupLayoutPreview, initial);expect(mounted.root.querySelector('[data-preview-popup-module="translation"] [data-preview-popup-module="siteRule"]')).not.toBeNull();expect(mounted.props.moduleOrder).toEqual(['unknown', 'translation']);
     for (const value of ['default', 'emoji', 'ocean', 'minimal', 'compact', 'contrast']) {
       const chosen = skin(value);if (!chosen) continue;mounted.props.skin = chosen;await settle();expect(mounted.root.querySelector('section')!.getAttribute('data-preview-skin')).toBe(value);
     }
-    mounted.props.moduleItems = initial.moduleItems.map(item => ({...item, visible: item.id !== 'translation'}));await settle();expect(mounted.root.querySelector('.layout-preview-site.nested')).toBeNull();
+    mounted.props.moduleItems = initial.moduleItems.map(item => ({...item, visible: item.id !== 'translation'}));await settle();expect(mounted.root.querySelector('[data-preview-popup-module="translation"] [data-preview-popup-module="siteRule"]')).toBeNull();
   });
   it('uses the actual drag controller with nested stop propagation, drop coordinates and scoped cleanup', async () => {
     let mounted: Awaited<ReturnType<typeof mount>>;const update = vi.fn(order => {mounted.props.moduleOrder = order;});
@@ -538,13 +537,6 @@ describe('shared UI actual client SFC lifecycle', () => {
     for (const name of ['unknown', 'constructor', '__proto__', 'toString']) {mounted.props.name = name;await settle();expect(mounted.root.querySelector('path')!.getAttribute('d')).toBe(path);}
     mounted.props.name = 'book';mounted.props.size = 24;await settle();expect(mounted.root.querySelector('path')!.getAttribute('d')).not.toBe(path);expect(mounted.root.querySelector('svg')!.getAttribute('focusable')).toBe('false');
   });
-  it('renders every backdrop motif without interactive or external nodes and hides none', async () => {
-    const mounted = await mount(InterfaceBackdrop, {motif: 'none'});expect(mounted.root.querySelector('.interface-backdrop')).toBeNull();
-    for (const motif of ['ocean', 'matcha', 'sakura', 'cheese', 'midnight', 'paper', 'aurora', 'arcade', 'sunset', 'emoji']) {
-      mounted.props.motif = motif;await settle();expect(mounted.root.querySelector('.interface-backdrop')!.getAttribute('aria-hidden')).toBe('true');expect(mounted.root.querySelectorAll('button,a,input,img')).toHaveLength(0);
-    }
-    mounted.props.motif = 'unknown';await settle();expect(mounted.root.querySelector('svg')!.children).toHaveLength(0);
-  });
   it('renders feature switches, settings group slot shells and keyboard help names without form submission', async () => {
     const update = vi.fn();const mounted = await mount(FeatureEnableCard, {modelValue: false, title: 'Enable', description: 'Help'}, {listeners: {'onUpdate:modelValue': update}});
     const button = mounted.root.querySelector('button')!;expect(button.getAttribute('role')).toBe('switch');expect(button.getAttribute('aria-checked')).toBe('false');expect(button.getAttribute('type')).toBe('button');event(button, 'click');expect(update).toHaveBeenCalledWith(true);
@@ -556,7 +548,7 @@ describe('shared UI actual client SFC lifecycle', () => {
   });
   it('projects skin previews and updates their accessible labels and tokens across every registry entry', async () => {
     const mounted = await mount(InterfaceSkinPreview, {skin: skin(), skinLabel: 'Default', previewLabel: 'Preview'});
-    for (const chosen of interfaceSkinOptions) {mounted.props.skin = chosen;mounted.props.previewLabel = chosen.label;await settle();const section = mounted.root.querySelector('section')!;expect(section.getAttribute('data-preview-skin')).toBe(chosen.value);expect(section.getAttribute('aria-label')).toBe(chosen.label);expect(section.style.getPropertyValue('--preview-canvas')).toContain(chosen.preview.canvas);expect(mounted.root.querySelectorAll('button,input')).toHaveLength(0);}
+    for (const chosen of interfaceSkinOptions) {mounted.props.skin = chosen;mounted.props.previewLabel = chosen.label;await settle();const section = mounted.root.querySelector('section')!;expect(section.getAttribute('data-preview-skin')).toBe(chosen.value);expect(section.getAttribute('aria-label')).toBe(chosen.label);expect(section.style.getPropertyValue('--interface-popup-width')).toBe(`${chosen.popupWidth}px`);expect(section.querySelector('.preview-popup')!.getAttribute('data-preview-skin')).toBe(chosen.value);expect(mounted.root.querySelectorAll('button,input')).toHaveLength(0);}
   });
   it('updates writing examples and all custom fallback notes using the actual pure preview module', async () => {
     const mounted = await mount(WritingStylePreview, {length: 'short', style: 'auto', tone: 'natural', role: 'auto', animated: false});

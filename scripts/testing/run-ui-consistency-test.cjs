@@ -13,8 +13,10 @@ fs.mkdirSync(artifacts, {recursive: true});
 const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], extensionDir};
 (async () => {
  let launched;
+ let launchAttempted = false;
  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-ui-consistency-'));
  try {
+  launchAttempted = true;
   launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false, browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run'], viewport: {width: 1440, height: 1000}, timeout: 30000});
   Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
   const context = launched.context;
@@ -151,8 +153,8 @@ const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], e
   report.ok = true;
  } catch(error) { report.error = error.stack || String(error); throw error; }
  finally {
-  let closed = !launched;
-  try {await launched?.close(); closed = true;}
+  let closed = !launchAttempted;
+  try {if (launched) {await launched.close(); closed = true;}}
   catch(error) {report.cleanupError = error.stack || String(error); process.exitCode = 1;}
   if (closed) {
    try {fs.rmSync(profileDir, {recursive: true, force: true});}
@@ -160,6 +162,6 @@ const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], e
   } else report.retainedProfile = profileDir;
   if (process.exitCode) report.ok = false;
   try {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));}
-  catch(error) {console.error(error); process.exitCode = 1;}
+  catch(error) {report.reportWriteError = error.stack || String(error); report.ok = false; console.error(error); process.exitCode = 1;}
  }
 })().catch(error => {console.error(error);process.exitCode=1;});

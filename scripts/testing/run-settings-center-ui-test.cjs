@@ -1445,15 +1445,52 @@ async function main() {
         }
         const pageCount = context.pages().length;
         const aboutUrl = page.url();
-        await supportPanel.locator('.about-support-wechat').click();
-        const preview = page.locator('.about-approve-dialog');
-        await preview.waitFor({state: 'visible', timeout});
-        await preview.locator('img').evaluate(image => image.decode());
-        if (context.pages().length !== pageCount || page.url() !== aboutUrl) {
-          throw new Error('点击赞赏码离开了关于页或打开了新标签页');
+        const checkQrPreview = async kind => {
+          const contact = kind === 'contact';
+          const triggerSelector = contact ? '#settings-about .about-wechat-contact' : '#settings-about .about-support-wechat';
+          const preview = page.locator(contact ? '.about-wechat-contact-dialog' : '.about-approve-dialog');
+          await page.locator(triggerSelector).click();
+          await preview.waitFor({state: 'visible', timeout});
+          const image = await preview.locator('img').evaluate(async image => {
+            await image.decode();
+            return {
+              src: image.currentSrc,
+              width: image.naturalWidth,
+              height: image.naturalHeight,
+              declaredWidth: image.getAttribute('width'),
+              declaredHeight: image.getAttribute('height'),
+            };
+          });
+          const expectedWidth = contact ? '888' : '1152';
+          const expectedHeight = contact ? '1131' : '1152';
+          if (!image.src || image.width <= 0 || image.height <= 0
+            || image.declaredWidth !== expectedWidth || image.declaredHeight !== expectedHeight) {
+            throw new Error(`关于页 ${kind} 二维码没有正确解码或尺寸异常：${JSON.stringify(image)}`);
+          }
+          if (context.pages().length !== pageCount || page.url() !== aboutUrl) {
+            throw new Error(contact ? '点击联系码离开了关于页或打开了新标签页' : '点击赞赏码离开了关于页或打开了新标签页');
+          }
+          await page.keyboard.press('Escape');
+          await preview.waitFor({state: 'hidden', timeout});
+          await page.waitForFunction(selector => document.querySelector(selector) === document.activeElement, triggerSelector, {timeout});
+          return image;
+        };
+        const supportImage = await checkQrPreview('support');
+        const contactImage = await checkQrPreview('contact');
+        if (contactImage.src === supportImage.src) throw new Error('微信联系码错误地使用了赞赏码图片');
+
+        await page.locator('button[data-section="settings-general"]').click();
+        await page.locator('#settings-general').waitFor({state: 'visible', timeout});
+        await anchor.waitFor({state: 'detached', timeout});
+        if (await page.locator('.about-qr-dialog:visible').count() !== 0) throw new Error('离开关于页后仍显示二维码弹窗');
+        await button.click();
+        await anchor.waitFor({state: 'visible', timeout});
+        const returnedContactImage = await checkQrPreview('contact');
+        const returnedSupportImage = await checkQrPreview('support');
+        if (returnedContactImage.src !== contactImage.src || returnedSupportImage.src !== supportImage.src) {
+          throw new Error('返回关于页后联系码或赞赏码图片发生错误切换');
         }
-        await page.keyboard.press('Escape');
-        await preview.waitFor({state: 'hidden', timeout});
+        report.assertions.aboutQrRoundTrip = {contactImage, supportImage, returnedContactImage, returnedSupportImage};
         if (await anchor.locator('.about-experience, .about-features, .about-feature').count() !== 0) {
           throw new Error('关于页仍显示已删除的核心体验介绍');
         }
@@ -1469,7 +1506,7 @@ async function main() {
         }
         report.assertions.aboutSupportArea = true;
       }
-      const visiblePageHeadings = await page.locator('.topbar h1:visible').count();
+      const visiblePageHeadings = await page.locator('.workspace > .settings-content-title:visible').count();
       if (visiblePageHeadings !== 1) throw new Error(`${id} 页面级标题数量异常：${visiblePageHeadings}`);
       if (await page.locator('.card-intro:visible').count() !== 0) throw new Error(`${id} 仍有重复 card intro`);
       const metrics = await page.evaluate(() => ({
@@ -1480,7 +1517,7 @@ async function main() {
       if (metrics.horizontalOverflow) throw new Error(`${id} 出现横向滚动：${JSON.stringify(metrics)}`);
       const file = `settings-${String(index + 1).padStart(2, '0')}-${id}.png`;
       report.screenshots.push(await screenshot(page, file));
-      report.navigation.push({id, label, title: (await page.locator('.topbar h1').textContent())?.trim(), metrics});
+      report.navigation.push({id, label, title: (await page.locator('.workspace > .settings-content-title').textContent())?.trim(), metrics});
     }
     page = await verifyIndependentAreaSettings(page, context, extensionOrigin, report, attachPageDiagnostics);
     report.assertions.navigation = true;

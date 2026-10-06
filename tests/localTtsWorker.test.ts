@@ -11,6 +11,8 @@ vi.mock('@/src/shared/onnx/resources', async original => ({
     paceLocalInitialization: (operation: () => Promise<unknown>) => operation(),
 }));
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {getLocalTtsModelFileUrl, getLocalTtsModelLoaderUrl, getLocalTtsVoiceCacheUrl} from '@/src/features/local-tts/offscreen/modelCache';
+import {LOCAL_TTS_MODEL_CACHE_NAME, LOCAL_TTS_VOICE_CACHE_NAME} from '@/src/core/config/localTts';
 
 const mocks = vi.hoisted(() => ({
     probeWebGpu: vi.fn(),
@@ -180,7 +182,7 @@ describe('local TTS worker audio and timing integrity', () => {
         expect([44, 46, 48, 50].map(offset => wav.getInt16(offset, true))).toEqual([0, 0, 1, -1]);
     });
 
-    it.each([0, -24_000, 24_000.5, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
+    it.each([0, -24_000, 24_000.5, 0x8000_0000, Number.NaN, Number.POSITIVE_INFINITY, Number.MAX_SAFE_INTEGER + 1])(
         'rejects invalid sampling rate %s without returning WAV or timings', async sampleRate => {
             mocks.fromPretrained.mockResolvedValue(modelFrom(() => audioChunks([0.5], sampleRate)));
             const workerScope = await start();
@@ -217,6 +219,55 @@ afterEach(() => {
 });
 
 describe('local TTS worker device fallback', () => {
+    it('loads model and voice bytes from qualified mirror caches through the actual SDK fetch port', async () => {
+        const pinned = getLocalTtsModelFileUrl('config.json');
+        const voice = getLocalTtsVoiceCacheUrl('zf_001');
+        const modelCache = new Map([[pinned, new Response('model-bytes', {
+            headers: {'X-FluentRead-Model-Source': pinned.replace('https://huggingface.co/', 'https://hf-mirror.net/')},
+        })]]);
+        const voiceCache = new Map([[voice, new Response('voice-bytes', {
+            headers: {'X-FluentRead-Model-Source': voice.replace('https://huggingface.co/', 'https://hf-mirror.com/')},
+        })]]);
+        const open = vi.fn(async (name: string) => ({
+            match: async (url: string) => (name === LOCAL_TTS_MODEL_CACHE_NAME ? modelCache : voiceCache).get(url)?.clone(),
+        }));
+        vi.stubGlobal('caches', {open});
+        const nativeFetch = vi.fn(async () => { throw new Error('Model inference must remain offline'); });
+        vi.stubGlobal('fetch', nativeFetch);
+        const consumed: string[] = [];
+        mocks.fromPretrained.mockImplementation(async () => {
+            const {env} = await import('@huggingface/transformers-kokoro');
+            consumed.push(await (await env.fetch(getLocalTtsModelLoaderUrl('config.json'))).text());
+            consumed.push(await (await env.fetch(voice)).text());
+            return modelFrom(() => audioChunks([0.5]));
+        });
+        const workerScope = await start();
+        const response = await send(workerScope, {requestId: 30, type: 'prepare', device: 'wasm'}, 1);
+        expect(response).toMatchObject({requestId: 30, success: true, backend: 'wasm'});
+        expect(consumed).toEqual(['model-bytes', 'voice-bytes']);
+        expect(open.mock.calls.map(([name]) => name)).toEqual([LOCAL_TTS_MODEL_CACHE_NAME, LOCAL_TTS_VOICE_CACHE_NAME]);
+        expect(nativeFetch).not.toHaveBeenCalled();
+    });
+
+    it('rejects an unmarked main alias through the public prepare message without falling through to network', async () => {
+        const loader = getLocalTtsModelLoaderUrl('config.json');
+        vi.stubGlobal('caches', {open: vi.fn(async () => ({
+            match: async (url: string) => url === loader ? new Response('unknown-version') : undefined,
+        }))});
+        const nativeFetch = vi.fn(async () => { throw new Error('No implicit download allowed'); });
+        vi.stubGlobal('fetch', nativeFetch);
+        mocks.fromPretrained.mockImplementation(async () => {
+            const {env} = await import('@huggingface/transformers-kokoro');
+            await env.fetch(loader);
+            return modelFrom(() => audioChunks([0.5]));
+        });
+        const workerScope = await start();
+        const response = await send(workerScope, {requestId: 31, type: 'prepare', device: 'wasm'}, 1);
+        expect(response).toMatchObject({requestId: 31, success: false, error: `本地 TTS 缓存缺少模型文件：${loader}`});
+        expect(response).not.toHaveProperty('retryWithCpu');
+        expect(nativeFetch).not.toHaveBeenCalled();
+    });
+
     it('prefers WebGPU and reports initialization failure for a fresh CPU worker', async () => {
         mocks.fromPretrained.mockRejectedValueOnce(new Error('webgpu init failed'));
         const workerScope = await start();

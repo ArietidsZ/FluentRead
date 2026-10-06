@@ -143,7 +143,7 @@
       <SettingsNumberInput v-model="config.harness.hoverDelay" unit="ms" :min="200" :max="3000" :step="100" aria-label="悬停等待时间" />
     </SettingsItem>
     </SettingsGroup>
-    <template #advanced><LocalTtsSettings :config="config" /></template>
+    <template #advanced><LocalTtsSettings :config="config" :active="viewActive && props.activeSection === 'settings-selection'" :context="config" /></template>
     </SelectionSettings>
   </section>
   <section v-if="hasVisitedSection('settings-glossary')" v-show="props.activeSection === 'settings-glossary'" id="settings-glossary" class="settings-section">
@@ -258,7 +258,7 @@
             <el-option v-for="item in VIDEO_SOURCE_LANGUAGE_OPTIONS" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </SettingsItem>
-        <VideoLocalModelSettings :config="config" />
+        <VideoLocalModelSettings :config="config" :active="viewActive && props.activeSection === 'settings-video' && (!props.activePanel || props.activePanel === 'local')" :context="config" />
       </SettingsGroup>
 </SettingsPanel>
     </section>

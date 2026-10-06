@@ -53,6 +53,7 @@ const report = {source, cases: [], errors: [], injectedFaultErrors: [], workerSh
 
 (async () => {
   let session;
+  let launchAttempted = false;
   try {
     fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-audio-gpu-extension-'));
     profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-audio-gpu-profile-'));
@@ -121,6 +122,7 @@ self.postMessage({probeReady: true});`);
       }
     }
     await createRequire(require.resolve('vite'))('esbuild').build({stdin: {contents: `export {createSelectionTtsPlayer} from './src/app/offscreen/ttsPlayback'; export {cacheLocalTtsModelFiles} from './src/features/local-tts/offscreen/modelCache'; export {cacheVideoAiQ4ModelFiles} from './src/features/video-subtitle/offscreen/modelCache'; export {prepareLocalVideoTranscriptionModel, transcribeLocalVideoAudio, cancelLocalVideoTranscription} from './src/features/video-subtitle/offscreen/transcription';`, resolveDir: root}, alias: {'@': root}, bundle: true, platform: 'browser', format: 'esm', outfile: path.join(fixture, 'audio-cache.mjs')});
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({chromium, profileDir: profile,
       browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), headless: false, background: true,
       displayTarget: 'secondary', viewport: {width: 1100, height: 800},
@@ -302,18 +304,28 @@ self.postMessage({probeReady: true});`);
     console.log(JSON.stringify({ok:report.ok, cases:report.cases.map(c=>({name:c.name, elapsedMs:c.elapsedMs, error:c.error, result:c.result}))}));
   } catch(error) {report.ok=false; report.failure=error.stack; console.error(error); process.exitCode=1;}
   finally {
+    let closed = !launchAttempted;
     try {
-      fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));
-    } finally {
-      let safeToRemoveFixture = false;
-      if (session) {
-        await session.close();
-        if (profile) fs.rmSync(profile,{recursive:true,force:true});
-        safeToRemoveFixture = true;
-      } else if (profile) {
-        try {fs.rmdirSync(profile); safeToRemoveFixture = true;} catch { /* Retain a possibly active partial launch. */ }
-      } else safeToRemoveFixture = true;
-      if (fixture && safeToRemoveFixture) fs.rmSync(fixture,{recursive:true,force:true});
+      if (session) {await session.close(); closed = true;}
+    } catch (error) {
+      report.cleanupError = error.stack || String(error);
+      report.ok = false; process.exitCode = 1; console.error(error);
     }
+    if (closed) {
+      for (const directory of [profile, fixture]) {
+        if (!directory) continue;
+        try {fs.rmSync(directory,{recursive:true,force:true});}
+        catch (error) {
+          (report.directoryCleanupErrors ||= []).push({directory, error: error.stack || String(error)});
+          report.ok = false; process.exitCode = 1; console.error(error);
+        }
+      }
+    } else {
+      // 启动已尝试或 close 未确认时，保留本次 profile 和加载中的扩展副本。
+      report.retainedProfile = profile;
+      report.retainedFixture = fixture;
+    }
+    try {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));}
+    catch (error) {report.reportWriteError = error.stack || String(error); report.ok = false; process.exitCode = 1; console.error(error);}
   }
 })();

@@ -92,7 +92,7 @@ function normalizeImageTimeout(value: number | undefined): number {
 }
 
 function remainingTimeout(deadlineAt: number): number {
-    return Math.max(0, deadlineAt - Date.now());
+    return Math.max(0, deadlineAt - performance.now());
 }
 
 function normalizeTranslationTransportError(error: unknown): Error {
@@ -198,7 +198,8 @@ export async function translateImageInExtension(
     };
     const timeoutMs = normalizeImageTimeout(options.timeoutMs);
     if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
-    const deadlineAt = Date.now() + timeoutMs;
+    // 总恢复预算只按单调耗时计算，系统时间校正不能延长等待或提前耗尽预算。
+    const deadlineAt = performance.now() + timeoutMs;
     let requestId = options.requestId || createImageRequestId();
     for (let attempt = 0; ; attempt += 1) {
         if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
@@ -238,12 +239,27 @@ export async function prepareImageOcrLanguages(
     signal?: AbortSignal,
     onProgress?: (percent: number) => void,
 ): Promise<void> {
+    if (signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
     const languages = getRequiredImageOcrLanguages(sourceLanguage);
     let stopWatching: (() => void) | undefined;
     if (onProgress) {
-        // 状态读取只影响进度的分母；扩展上下文失效等同步异常也在这里吞掉，由随后的下载请求给出规范错误。
-        const status = await (async () => browser.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}))()
-            .catch(() => undefined) as ImageOcrStatusResponse | undefined;
+        // 状态只影响进度分母，读取失败仍继续下载；取消必须立即结束等待，迟到回复只被消费。
+        const status = await new Promise<ImageOcrStatusResponse | undefined>((resolve, reject) => {
+            const finish = (response: ImageOcrStatusResponse | undefined) => {
+                signal?.removeEventListener('abort', handleAbort);
+                resolve(response);
+            };
+            const handleAbort = () => {
+                signal?.removeEventListener('abort', handleAbort);
+                reject(createImageClientError('图片 OCR 请求已取消', 'AbortError'));
+            };
+            signal?.addEventListener('abort', handleAbort, {once: true});
+            if (signal?.aborted) {handleAbort(); return;}
+            void (async () => browser.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}))().then(
+                response => finish(response as ImageOcrStatusResponse | undefined),
+                () => finish(undefined),
+            );
+        });
         const downloaded = normalizeImageOcrLanguageCodes(status?.languages);
         const missing = languages.filter(language => !downloaded.includes(language)).map(ocrLanguageDownloadId);
         stopWatching = watchDownloadProgress(missing, createDownloadCompletionSummary(missing, onProgress));

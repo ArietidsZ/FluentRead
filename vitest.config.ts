@@ -9,7 +9,7 @@ const maxWorkers = Number.isInteger(configuredMaxWorkers) && configuredMaxWorker
 export default defineConfig({
     // 组件生命周期测试执行实际客户端 SFC 模板，让 V8 归因到原始 Vue 源码。
     plugins: [vue({include: [
-        /\/src\/(?:features\/share-card\/ui\/ShareCardStudio|features\/selection-translation\/ui\/SelectionTranslator|features\/settings\/ui\/services\/RequestLimit(?:Settings|Fields)|features\/reading-assistant\/ui\/[^/]+|ui\/components\/(?:MarkdownContent|MarkdownTable|[^/]*Reading[^/]*)|features\/image-translation\/ui\/MangaEntry|app\/document-translation\/(?:DocumentApp|DocumentSegmentEditor)|ui\/components\/(?:CustomHotkeyInput|UiSelect|GlossaryLibrarySelect|ServiceIcon|TranslationLoadingPreview|UiIcon|InterfaceBackdrop|FeatureEnableCard)|features\/settings\/ui\/components\/(?:FieldHelp|InterfaceSkinPreview|PopupLayoutPreview|PopupLayoutPreviewItem|SettingsGroup|SettingsItem|TranslationColorField|TranslationStylePreview|WritingStylePreview|SegmentedControl))\.vue$/,
+        /\/src\/(?:features\/share-card\/ui\/ShareCardStudio|features\/selection-translation\/ui\/SelectionTranslator|features\/settings\/ui\/services\/RequestLimit(?:Settings|Fields)|features\/reading-assistant\/ui\/[^/]+|ui\/components\/(?:MarkdownContent|MarkdownTable|[^/]*Reading[^/]*)|features\/image-translation\/ui\/MangaEntry|app\/document-translation\/(?:DocumentApp|DocumentSegmentEditor)|ui\/components\/(?:CustomHotkeyInput|UiSelect|GlossaryLibrarySelect|ServiceIcon|TranslationLoadingPreview|UiIcon|FeatureEnableCard)|features\/settings\/ui\/components\/(?:FieldHelp|InterfaceSkinPreview|PopupLayoutPreview|PopupLayoutPreviewItem|SettingsGroup|SettingsItem|TranslationColorField|TranslationStylePreview|WritingStylePreview|SegmentedControl))\.vue$/,
         resolve(__dirname, 'docs/.vitepress/theme/BrandReader.vue'),
         resolve(__dirname, 'docs/.vitepress/theme/BrowserGlyph.vue'),
         resolve(__dirname, 'docs/.vitepress/theme/BrowserGuide.vue'),
@@ -51,6 +51,8 @@ export default defineConfig({
         resolve(__dirname, 'src/features/settings/ui/VideoLocalModelSettings.vue'),
         resolve(__dirname, 'src/features/settings/ui/WebDavBackup.vue'),
         resolve(__dirname, 'src/features/settings/ui/components/SettingsPanel.vue'),
+        resolve(__dirname, 'src/features/settings/ui/components/PopupPreview.vue'),
+        resolve(__dirname, 'src/ui/components/DownloadProgress.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingChoices.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingLanguagePicker.vue'),
         resolve(__dirname, 'src/features/writing-assistant/ui/WritingPanel.vue'),
@@ -72,7 +74,7 @@ export default defineConfig({
         maxWorkers,
         minWorkers: 1,
         fileParallelism: false,
-        // 词书扫描器按真实规则内容确认共享样式，不能用默认空 CSS 代替。
-        css: {include: [/vocabulary-reencounter\.css/]},
+        // 页内样式契约执行四份实际 CSS，避免空 inline 样式掩盖命名或所有权回归。
+        css: {include: [/(?:src\/app\/content\/page|src\/ui\/styles\/(?:translation-display|bilingual-sentence-highlight|vocabulary-reencounter))\.css(?:\?|$)/]},
     },
 });

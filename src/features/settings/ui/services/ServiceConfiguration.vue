@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/services/ServiceConfiguration.vue
  * 文件职责：渲染当前翻译服务的详细连接配置：连接字段（密钥、区域、端点等）直接排在服务标题下方、不再单设“连接与密钥”标题，输入下方是添加密钥与密钥使用方式；其后用模型偏好、提示词、请求限制、接口兼容几个页签显示代理、密钥要求、提示词、自定义请求体与请求头、按域名移除来源头等字段，以及服务和模型的独立请求限制；只有一个页签的服务改用小节标题。
- * 主要内容：组件派生字段可见性与连接示例，密钥列表始终展示全部已保存的密钥并区分参与请求与备用的行，密钥要求放在接口兼容页签，提示词可在确认后一键同步到所有 AI 服务；将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对并用进度条显示模型下载比例，通过配置 store 提交修改；隐藏、缓存停用或配置变化取消所属等待，Chrome 状态只在活跃服务订阅，恢复模板和删除确认绑定当前操作。
+ * 主要内容：组件派生字段可见性与连接示例，密钥列表始终展示全部已保存的密钥并区分参与请求与备用的行，密钥要求放在接口兼容页签，提示词可在确认后一键同步到所有 AI 服务；将成对密钥 ID 同步到 apiKeys 和兼容 token，区分缺少必填 Key 与允许匿名的连接检查并管理等待超时；免费翻译检查完整目录并逐服务展示结果，Chrome 在点击时准备当前语言对并用进度条显示模型下载比例，通过配置 store 提交修改；隐藏、缓存停用或配置变化取消所属等待，Chrome 状态只在活跃服务订阅，恢复、同步模板和删除共用当前操作所属确认，同步复验来源并按确认时刻重算目标。
  * 模块边界：本组件不执行网页正文翻译或保存公开配置中的明文凭据；Chrome 内置翻译仅在当前点击页完成模型自检，其他连接测试经后台消息，字段规则来自 core/config，服务切换由 ServiceCatalog 和 SettingsSections 负责。
  -->
 <template>
@@ -364,7 +364,7 @@
           <div class="custom-template-heading">
             <p class="configuration-scope">{{ t('settings.organization.promptsHelp') }}</p>
             <div class="custom-template-actions">
-              <button type="button" class="prompt-sync-button" data-testid="prompt-sync-all" :disabled="promptSyncTargets.length === 0" @click="syncPromptTemplates">
+              <button type="button" class="prompt-sync-button" data-testid="prompt-sync-all" :disabled="!active || activeSettingsTab !== 'prompts' || serviceActionOpen || promptSyncTargets.length === 0" :onClick="syncPromptTemplates">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4 3 8l4 4M3 8h13a5 5 0 0 1 5 5M17 20l4-4-4-4M21 16H8a5 5 0 0 1-5-5" /></svg>
                 {{ t('settings.services.prompts.syncAll') }}
               </button>
@@ -427,20 +427,20 @@
       <button type="button" class="delete-service-button" data-testid="custom-service-delete" @click="confirmDeleteProvider"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7" /></svg>删除服务</button>
     </div>
   </section>
-  <el-dialog v-model="serviceActionOpen" :title="serviceActionTitle" width="min(460px, calc(100vw - 32px))" append-to-body destroy-on-close>
+  <el-dialog :key="serviceActionRevision" :model-value="serviceActionOpen" :onUpdate:modelValue="serviceActionButtons.open" :title="serviceActionTitle" width="min(460px, calc(100vw - 32px))" append-to-body destroy-on-close>
     <p>{{ serviceActionMessage }}</p>
     <template #footer>
-      <el-button @click="serviceActionButtons.cancel">{{ t('common.cancel') }}</el-button>
-      <el-button :type="pendingServiceAction?.kind === 'delete' ? 'danger' : 'primary'" @click="serviceActionButtons.confirm">{{ t('common.confirm') }}</el-button>
+      <el-button :onClick="serviceActionButtons.cancel">{{ t(pendingServiceAction?.kind === 'sync' ? 'settings.services.prompts.syncCancel' : 'common.cancel') }}</el-button>
+      <el-button :type="pendingServiceAction?.kind === 'delete' ? 'danger' : 'primary'" :onClick="serviceActionButtons.confirm">{{ t(pendingServiceAction?.kind === 'sync' ? 'settings.services.prompts.syncConfirmAction' : 'common.confirm') }}</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, onActivated, onBeforeUnmount, onDeactivated, ref, shallowRef, toRef, watch } from 'vue'
+import { computed, ref, shallowRef, toRef, watch } from 'vue'
 import type { Config } from '@/src/core/config/model'
 import type { TranslationParams } from '@/src/core/i18n'
-import { defaultOption, options as optionConfig, resolveConfiguredModel, services } from '@/src/core/config/catalog'
+import { defaultOption, options as optionConfig, resolveConfiguredModel, services, servicesType } from '@/src/core/config/catalog'
 import {
   MAX_CUSTOM_OPENAI_PROVIDER_ENDPOINT_LENGTH,
   MAX_CUSTOM_OPENAI_PROVIDER_NAME_LENGTH,
@@ -456,7 +456,7 @@ import browser from 'webextension-polyfill'
 import { requestConfigSave, waitForConfigPersistenceQueue } from '@/src/services/config/store'
 import { CONNECTION_TEST_MESSAGE, DEFAULT_OLLAMA_ENDPOINT, getAliyunTranslationEndpoint, getMimoEndpoint, MINIMAX_ENDPOINTS } from '@/src/core/config/constants'
 import { chromeTranslationPreparationStore } from '@/src/platform/browser/chromeTranslationPreparationRequest'
-import { ElMessage, ElMessageBox, ElTabs, ElTabPane } from 'element-plus'
+import { ElMessage, ElTabs, ElTabPane } from 'element-plus'
 import 'element-plus/es/components/tabs/style/css'
 import FieldHelp from '../components/FieldHelp.vue'
 import SegmentedControl from '../components/SegmentedControl.vue'
@@ -482,6 +482,7 @@ import RequestHeaderSettings from './RequestHeaderSettings.vue'
 import { checkAllFreeTranslationProviders, type FreeTranslationChecks } from './freeTranslationChecks'
 import { listPromptTemplateSyncTargets, syncPromptTemplates as applyPromptTemplateSync } from './promptTemplateSync'
 import {waitForSettingsTask} from '../../model/taskWait'
+import {useSettingsActionContext} from '../../model/useSettingsActionContext'
 
 const props = withDefaults(defineProps<{
   config: Config
@@ -508,9 +509,13 @@ const options = toRef(props, 'options')
 const isValidAzureEndpoint = toRef(props, 'isValidAzureEndpoint')
 const customProvider = toRef(props, 'customProvider')
 const { language, t, translateLegacy } = useUiI18n()
-const viewActive = ref(true)
-const active = computed(() => viewActive.value && props.active)
 const activeSettingsTab = ref('requests')
+const serviceActionOpen = ref(false)
+const sourcePromptProvider = computed(() => config.value.customOpenAIProviders.find(provider => provider.id === service.value))
+const {active, capture: captureServiceActionContext, revision: serviceActionRevision} = useSettingsActionContext(() => props.active, () => [
+  config.value, service.value, customProvider.value, activeSettingsTab.value, Boolean(compute.value.showAI), serviceActionOpen.value,
+  sourcePromptProvider.value, config.value.system_role[service.value], config.value.user_role[service.value],
+])
 watch(() => [service.value, Boolean(compute.value.showAI), Boolean(compute.value.showModel)], () => {
   activeSettingsTab.value = compute.value.showAI && compute.value.showModel ? 'translation' : compute.value.showAI ? 'prompts' : 'requests'
 }, {immediate: true})
@@ -1039,28 +1044,35 @@ async function testConnection(): Promise<void> {
   }
 }
 
-type ServiceAction = {kind: 'reset' | 'delete'; config: Config; service: string; provider: CustomOpenAIProvider | undefined; system: string; user: string; name: string}
+type ServiceAction = {kind: 'reset' | 'delete' | 'sync'; config: Config; service: string; provider: CustomOpenAIProvider | undefined; sourceProvider: CustomOpenAIProvider | undefined; system: string; user: string; name: string}
 const pendingServiceAction = shallowRef<ServiceAction | null>(null)
-const serviceActionOpen = ref(false)
-const serviceActionTitle = computed(() => translateLegacy(pendingServiceAction.value?.kind === 'delete' ? '删除自定义服务' : '恢复默认模板'))
+const serviceActionTitle = computed(() => pendingServiceAction.value?.kind === 'sync'
+  ? t('settings.services.prompts.syncConfirmTitle')
+  : translateLegacy(pendingServiceAction.value?.kind === 'delete' ? '删除自定义服务' : '恢复默认模板'))
 const serviceActionMessage = computed(() => pendingServiceAction.value?.kind === 'delete'
   ? `确定要删除“${pendingServiceAction.value.name}”吗？相关模型和连接配置也会一并清理。`
-  : '确定要恢复当前 AI 服务的默认 system 和 user 模板吗？此操作会覆盖当前模板。')
+  : pendingServiceAction.value?.kind === 'sync'
+    ? t('settings.services.prompts.syncConfirmMessage', {count: promptSyncTargets.value.length})
+    : '确定要恢复当前 AI 服务的默认 system 和 user 模板吗？此操作会覆盖当前模板。')
 const serviceActionButtons = computed(() => {
   const action = pendingServiceAction.value
-  return {confirm: () => performServiceAction(action), cancel: () => {if (pendingServiceAction.value === action) closeServiceAction()}}
+  const cancel = () => {if (pendingServiceAction.value === action) closeServiceAction()}
+  return {confirm: () => performServiceAction(action), cancel, open: (open: boolean) => {if (!open) cancel()}}
 })
 function closeServiceAction(): void {pendingServiceAction.value = null;serviceActionOpen.value = false}
 function isCurrentServiceAction(action: ServiceAction): boolean {
   return active.value && action.config === config.value && action.service === service.value && action.provider === customProvider.value
     && (action.kind === 'delete' ? Boolean(compute.value.showCustomOpenAI && customProvider.value?.id === service.value && customProvider.value.name === action.name)
       : Boolean(compute.value.showAI && activeSettingsTab.value === 'prompts'
-        && action.system === config.value.system_role[service.value] && action.user === config.value.user_role[service.value]))
+        && action.system === config.value.system_role[service.value] && action.user === config.value.user_role[service.value]
+        && (action.kind !== 'sync' || (servicesType.AI.has(action.service)
+          || Boolean(action.sourceProvider && action.sourceProvider === sourcePromptProvider.value)))))
 }
 function openServiceAction(kind: ServiceAction['kind']): void {
   if (serviceActionOpen.value || !active.value) return
   const action: ServiceAction = {kind, config: config.value, service: service.value, provider: customProvider.value,
-    system: config.value.system_role[service.value], user: config.value.user_role[service.value], name: customProvider.value?.name || '此自定义服务'}
+    sourceProvider: sourcePromptProvider.value, system: config.value.system_role[service.value], user: config.value.user_role[service.value], name: customProvider.value?.name || '此自定义服务'}
+  if (kind === 'sync' && promptSyncTargets.value.length === 0) return
   if (!isCurrentServiceAction(action)) return
   pendingServiceAction.value = action;serviceActionOpen.value = true
 }
@@ -1071,6 +1083,13 @@ function performServiceAction(action: ServiceAction | null): void {
     action.config.system_role[action.service] = defaultOption.system_role
     action.config.user_role[action.service] = defaultOption.user_role
     ElMessage.success(translateLegacy('已恢复当前 AI 服务默认模板'))
+  } else if (action.kind === 'sync') {
+    // 来源仍属于这次确认；目标允许删增，保留 main 按确认时刻重新计算全部可用 AI 服务的语义。
+    const count = listPromptTemplateSyncTargets(action.config, action.service).length
+    const next = applyPromptTemplateSync(action.config, action.service)
+    action.config.system_role = next.system_role
+    action.config.user_role = next.user_role
+    ElMessage.success(t('settings.services.prompts.syncDone', {count}))
   } else emit('delete:custom-provider')
 }
 function resetCustomTemplate(): void {
@@ -1079,27 +1098,10 @@ function resetCustomTemplate(): void {
 
 const promptSyncTargets = computed(() => listPromptTemplateSyncTargets(config.value, service.value))
 
-function syncPromptTemplates(): void {
-  const count = promptSyncTargets.value.length
-  if (count === 0) return
-  void ElMessageBox.confirm(
-    t('settings.services.prompts.syncConfirmMessage', {count}),
-    t('settings.services.prompts.syncConfirmTitle'),
-    {
-      confirmButtonText: t('settings.services.prompts.syncConfirmAction'),
-      cancelButtonText: t('settings.services.prompts.syncCancel'),
-      type: 'warning',
-    },
-  ).then(() => {
-    // 确认期间目标可能变化（例如另一页面删除了自定义服务），按确认时刻的配置重新计算。
-    const next = applyPromptTemplateSync(config.value, service.value)
-    config.value.system_role = next.system_role
-    config.value.user_role = next.user_role
-    ElMessage.success(t('settings.services.prompts.syncDone', {count: listPromptTemplateSyncTargets(config.value, service.value).length}))
-  }).catch(() => {
-    // 用户取消同步，不修改任何服务的提示词。
-  })
-}
+const syncPromptTemplates = computed(() => {
+  const current = captureServiceActionContext()
+  return () => {if (current()) openServiceAction('sync')}
+})
 
 function confirmDeleteProvider(): void {
   openServiceAction('delete')
@@ -1126,9 +1128,6 @@ watch(() => active.value && isChromeConnectionTest.value, enabled => {
 }, {immediate: true, flush: 'sync'})
 watch(() => pendingServiceAction.value && !isCurrentServiceAction(pendingServiceAction.value), invalid => {if (invalid) closeServiceAction()}, {flush: 'sync'})
 watch(serviceActionOpen, open => {if (!open) pendingServiceAction.value = null}, {flush: 'sync'})
-onActivated(() => {viewActive.value = true})
-onDeactivated(() => {viewActive.value = false})
-onBeforeUnmount(() => {viewActive.value = false})
 </script>
 
 <style scoped>

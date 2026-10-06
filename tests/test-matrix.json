@@ -530,7 +530,16 @@
       "tests/implementationAudit49H.test.ts",
       "tests/implementationAudit49I.test.ts",
       "tests/implementationAudit49J.test.ts",
-      "tests/implementationAudit49K.test.ts"
+      "tests/implementationAudit49K.test.ts",
+      "tests/imageClientRecoveryBudget.test.ts",
+      "tests/imageOcrStatusCancellation.test.ts",
+      "tests/localModelSettingsLifecycle.test.ts",
+      "tests/promptSyncLifecycle.test.ts",
+      "tests/settingsUiFixtureCli.test.ts",
+      "tests/testSuiteAuditCli.test.ts",
+      "tests/verificationCliCleanup.test.ts",
+      "tests/videoSubtitleTrackPriorityRuntime.test.ts",
+      "tests/xNativeSubtitleFlickerCli.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

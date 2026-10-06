@@ -389,9 +389,9 @@ function browserPolicy(fixture, options) {
         };
     }
     return {
-        launchMode: 'macos-hidden-cdp',
+        launchMode: 'macos-background-cdp',
         focusPolicy: 'launchservices-no-foreground',
-        windowPlacement: {state: 'normal', placement: 'screen-off'},
+        windowPlacement: {state: 'normal', mode: 'background-visible-no-focus'},
     };
 }
 

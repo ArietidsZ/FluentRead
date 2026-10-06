@@ -5,7 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 import {spawn} from 'node:child_process';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
+import {realpathSync} from 'node:fs';
 import {randomUUID} from 'node:crypto';
 
 const PROJECT_ROOT = path.resolve(fileURLToPath(new URL('../..', import.meta.url)));
@@ -317,7 +318,17 @@ async function main(argv = process.argv.slice(2)) {
     }
 }
 
-if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+// Node canonicalizes entry paths unless preserve-symlinks is enabled; file URLs also encode spaces and Unicode.
+let commandLineEntry = false;
+if (process.argv[1]) {
+    try {
+        commandLineEntry = import.meta.url === pathToFileURL(process.argv[1]).href ||
+            realpathSync(fileURLToPath(import.meta.url)) === realpathSync(process.argv[1]);
+    } catch {
+        // Imported modules may have a synthetic or unavailable caller path.
+    }
+}
+if (commandLineEntry) {
     main().then((code) => {
         process.exitCode = code;
     }).catch(async (error) => {

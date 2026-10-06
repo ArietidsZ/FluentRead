@@ -19,6 +19,7 @@ const report = {source, cases: [], pageErrors: [], evidence: 'Real packaged Tess
     let session;
     let profile;
     let fixture;
+    let launchAttempted = false;
     try {
         fs.mkdirSync(artifacts, {recursive: true});
         profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ocr-diagnostics-profile-'));
@@ -29,6 +30,7 @@ const report = {source, cases: [], pageErrors: [], evidence: 'Real packaged Tess
         fs.copyFileSync(path.resolve('public/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js'), path.join(fixture, 'probe-ocr-baseline.js'));
         fs.copyFileSync(path.resolve('node_modules/tesseract.js/dist/tesseract.min.js'), path.join(fixture, 'probe-tesseract.js'));
         fs.writeFileSync(path.join(fixture, 'probe.html'), '<!doctype html><title>OCR diagnostics verification</title><h1>OCR diagnostics verification</h1>');
+        launchAttempted = true;
         session = await launchFocusSafePersistentContext({chromium, profileDir: profile,
             browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
             viewport: {width: 1100, height: 800}, browserArgs: ['--no-first-run', '--no-default-browser-check', `--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`]});
@@ -95,12 +97,11 @@ const report = {source, cases: [], pageErrors: [], evidence: 'Real packaged Tess
         assert.ok(logs.some(entry => entry.type === 'error' && /Error|Failed|couldn.t/i.test(entry.text)));
         assert.deepEqual(report.pageErrors, []);
         report.ok = true;
-    } catch (error) {report.ok = false; report.failure = error.stack; process.exitCode = 1;}
+    } catch (error) {report.ok = false; report.failure = error.stack || String(error); process.exitCode = 1; console.error(error);}
     finally {
-        let closed = !session;
+        let closed = !launchAttempted;
         try {
-            if (session) await session.close();
-            closed = true;
+            if (session) {await session.close(); closed = true;}
         } catch (error) {
             report.cleanupError = error.stack || String(error);
             report.ok = false;
@@ -122,7 +123,7 @@ const report = {source, cases: [], pageErrors: [], evidence: 'Real packaged Tess
             report.retainedFixture = fixture;
         }
         try {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));}
-        catch (error) {console.error(error); report.ok = false; process.exitCode = 1;}
+        catch (error) {report.reportWriteError = error.stack || String(error); console.error(error); report.ok = false; process.exitCode = 1;}
         console.log(JSON.stringify(report, null, 2));
     }
 })();

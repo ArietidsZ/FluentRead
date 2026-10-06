@@ -147,14 +147,22 @@ describe('图片翻译客户端断线恢复', () => {
 
     it('截止时间在恢复前耗尽时不发送第二次业务请求', async () => {
         vi.useFakeTimers();
-        sendMessage.mockImplementationOnce(async () => {
-            vi.setSystemTime(Date.now() + 20);
-            throw new Error('Receiving end does not exist');
-        });
-        const pending = translateImageInExtension('source', 'en', 'Page', {requestId: 'expired', timeoutMs: 10});
-        const rejected = expect(pending).rejects.toMatchObject({name: 'TimeoutError'});
-        await rejected;
-        expect(sendMessage).toHaveBeenCalledOnce();
+        const monotonicNow = vi.spyOn(performance, 'now').mockReturnValue(0);
+        try {
+            sendMessage.mockImplementationOnce(async () => {
+                // 模拟回复回调耗时，不先触发定时器，独立验证恢复前的剩余预算检查。
+                monotonicNow.mockReturnValue(20);
+                throw new Error('Receiving end does not exist');
+            });
+            const pending = translateImageInExtension('source', 'en', 'Page', {requestId: 'expired', timeoutMs: 10});
+            const rejected = expect(pending).rejects.toMatchObject({name: 'TimeoutError'});
+            await rejected;
+            expect(sendMessage).toHaveBeenCalledOnce();
+            expect(sendMessage.mock.calls[0][0]).toMatchObject({timeoutMs: 10});
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            monotonicNow.mockRestore();
+        }
     });
 
     it('TimeoutError 即使错误文本包含 channel closed 也不重试', async () => {
@@ -166,12 +174,19 @@ describe('图片翻译客户端断线恢复', () => {
 
     it('旧任务清理消耗完剩余预算后不再启动恢复请求', async () => {
         vi.useFakeTimers();
-        sendMessage.mockRejectedValueOnce(new Error('The message channel closed'))
-            .mockImplementationOnce(async () => { vi.setSystemTime(Date.now() + 20); });
-        await expect(translateImageInExtension('source', 'en', 'Page', {timeoutMs: 10}))
-            .rejects.toMatchObject({name: 'TimeoutError'});
-        expect(sendMessage.mock.calls.map(([message]) => message.type))
-            .toEqual(['fluentReadImageTranslate', 'fluentReadImageCancel']);
+        const monotonicNow = vi.spyOn(performance, 'now').mockReturnValue(0);
+        try {
+            sendMessage.mockRejectedValueOnce(new Error('The message channel closed'))
+                .mockImplementationOnce(async () => { monotonicNow.mockReturnValue(20); });
+            await expect(translateImageInExtension('source', 'en', 'Page', {timeoutMs: 10}))
+                .rejects.toMatchObject({name: 'TimeoutError'});
+            expect(sendMessage.mock.calls.map(([message]) => message.type))
+                .toEqual(['fluentReadImageTranslate', 'fluentReadImageCancel']);
+            expect(sendMessage.mock.calls[0][0]).toMatchObject({timeoutMs: 10});
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {
+            monotonicNow.mockRestore();
+        }
     });
 
     it('通道回复断开与用户取消同时发生时优先取消', async () => {
@@ -187,7 +202,7 @@ describe('图片翻译客户端断线恢复', () => {
     });
 
     it('迟到的旧进度不会污染重试请求', async () => {
-        vi.useFakeTimers();
+        vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance']});
         const first = deferred<unknown>();
         const second = deferred<unknown>();
         sendMessage.mockReturnValueOnce(first.promise)
@@ -201,6 +216,10 @@ describe('图片翻译客户端断线恢复', () => {
         setTimeout(() => first.reject(new Error('Receiving end does not exist')), 15);
         await vi.advanceTimersByTimeAsync(15);
         expect(sendMessage).toHaveBeenCalledTimes(3);
+        expect(sendMessage.mock.calls[1][0]).toEqual({type: 'fluentReadImageCancel', requestId: 'progress-old'});
+        const retryRequest = sendMessage.mock.calls[2][0];
+        expect(retryRequest).toMatchObject({type: 'fluentReadImageTranslate', timeoutMs: 5});
+        expect(retryRequest.requestId).not.toBe('progress-old');
         for (const listener of listeners) listener({type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: 'progress-old', stage: 'rendering'});
         expect(progress).not.toHaveBeenCalled();
         const rejected = expect(pending).rejects.toMatchObject({name: 'TimeoutError'});

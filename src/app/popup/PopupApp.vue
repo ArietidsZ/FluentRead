@@ -384,7 +384,6 @@ import {createPopupPageActions, type PopupPageState} from './pageActions';
 import {useSettingsActionContext} from '@/src/features/settings/model/useSettingsActionContext';
 import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
-import {isBrowserTabId} from '@/src/platform/browser/ids';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';
 import {popupQuickFeatureIconPaths, popupQuickFeatureIconTones, type PopupQuickFeatureIconTone} from '@/src/ui/popupQuickFeatureIcons';
 import {useUiI18n} from '@/src/ui/i18n';
@@ -731,8 +730,7 @@ const drawerActions = computed(() => {
   const current = drawerContext.capture(), section = drawerSettingsSection[activeDrawer.value];
   const bind = (run: () => void | Promise<void>) => () => {if (current()) return run()};
   return {close: bind(() => {drawerVisible.value = false}), aiContext: bind(toggleAIContext), hover: bind(toggleDefaultHoverShortcut),
-    selection: bind(toggleSelectionTranslation), simple: bind(() => {config.value.selectionTranslatorPresentation = 'simple'}),
-    card: bind(() => {config.value.selectionTranslatorPresentation = 'card'}), image: bind(() => setImageTranslatorEnabled(config.value.disableImageTranslator)),
+    selection: bind(toggleSelectionTranslation), image: bind(() => setImageTranslatorEnabled(config.value.disableImageTranslator)),
     area: bind(() => setAreaEnabled(!config.value.selectionAreaEnabled)), options: bind(() => openOptions(section)),
     services: bind(() => openDrawer('services')), serviceSettings: bind(() => openOptions('settings-services')),
     translationSettings: bind(() => openOptions('settings-translation'))};

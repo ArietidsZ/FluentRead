@@ -17,9 +17,8 @@ const {chromium} = createRequire(path.join(arg('playwright-root'), 'package.json
 const helper = require(path.resolve(arg('focus-safe-helper')));
 const report = {ok: false, extensionDir, cases: [], screenshots: [], consoleErrors: []};
 const record = name => { report.cases.push(name); console.log('PASS', name); };
-let session, page, optionsUrl;
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-history-'));
-fs.mkdirSync(output, {recursive: true});
+let session, page, optionsUrl, profileDir;
+let launchAttempted = false;
 async function storedHistory() {
   const response = await support.sendExtensionMessage(page, {type: 'configStorageRead', key: 'local:configHistory'});
   assert.equal(response.success, true);
@@ -73,6 +72,9 @@ async function newOptions() {
 }
 (async () => {
   try {
+    fs.mkdirSync(output, {recursive: true});
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-history-'));
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({
       chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       headless: false, background: true, displayTarget: 'secondary',
@@ -223,12 +225,20 @@ async function newOptions() {
     report.ok = true;
   } catch (error) {
     report.error = error.stack || String(error);
+    console.error(error);
     if (page && !page.isClosed()) { try { await shot('failure'); } catch {} }
     process.exitCode = 1;
   } finally {
-    fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    let closed = !launchAttempted;
+    try {if (session) {await session.close(); closed = true;}}
+    catch (error) {report.cleanupError = error.stack || String(error); process.exitCode = 1; console.error(error);}
+    if (profileDir && closed) {
+      try {fs.rmSync(profileDir, {recursive: true, force: true});}
+      catch (error) {report.profileCleanupError = error.stack || String(error); process.exitCode = 1; console.error(error);}
+    } else if (profileDir) report.retainedProfile = profileDir;
+    if (process.exitCode) report.ok = false;
+    try {fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n');}
+    catch (error) {report.reportWriteError = error.stack || String(error); report.ok = false; process.exitCode = 1; console.error(error);}
     console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, consoleErrors: report.consoleErrors, report: path.join(output, 'report.json'), error: report.error || null}));
   }
 })();

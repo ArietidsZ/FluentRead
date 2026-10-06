@@ -21,7 +21,7 @@ import type {ReencounterOccurrence} from '@/src/features/vocabulary/content/read
 const ports = vi.hoisted(() => ({
     config: {vocabularyReencounterEnabled: true, interfaceSkin: 'default', interfaceFont: 'system', theme: 'light'},
     extension: {inIncognitoContext: false}, send: vi.fn(), addMessage: vi.fn(), removeMessage: vi.fn(),
-    createSentenceUi: vi.fn(), createReencounterUi: vi.fn(), installScanner: vi.fn(), patch: vi.fn(),
+    createReencounterUi: vi.fn(), installScanner: vi.fn(), patch: vi.fn(),
     scanner: {setEntries: vi.fn(), dispose: vi.fn()}, writingMounted: false,
     mountWriting: vi.fn(), unmountWriting: vi.fn(), setLanguage: vi.fn(), language: undefined as unknown as Vue.Ref<string>,
     appearance: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), reload: vi.fn(),
@@ -34,9 +34,7 @@ vi.mock('vue', async importOriginal => {
 });
 vi.mock('webextension-polyfill', () => ({default: {extension: ports.extension, i18n: {getUILanguage: () => 'en-US'},
     runtime: {sendMessage: ports.send, onMessage: {addListener: ports.addMessage, removeListener: ports.removeMessage}}}}));
-vi.mock('@/src/platform/shadow-ui/vue', () => ({createVueShadowUi: ports.createSentenceUi}));
 vi.mock('@/src/platform/shadow-ui', () => ({createVueShadowUi: ports.createReencounterUi}));
-vi.mock('@/src/features/vocabulary/ui/SentenceActions.vue', () => ({default: {name: 'SentenceActionsPort'}}));
 vi.mock('@/src/features/vocabulary/ui/ReencounterPanel.vue', () => ({default: {name: 'ReencounterPanelPort'}}));
 vi.mock('@/src/features/vocabulary/content/scanner', () => ({installReencounterScanner: ports.installScanner}));
 vi.mock('@/src/services/config/store', () => ({config: ports.config, requestConfigPatch: ports.patch, subscribeConfig: ports.subscribe}));
@@ -48,8 +46,7 @@ vi.mock('@/src/ui/interfaceAppearance', () => ({applyInterfaceSkin: ports.appear
 import {createLearningContentFeatures} from '@/src/app/content/learningFeatures';
 import {createContentFeatureRegistry, type ContentFeatureRegistry} from '@/src/app/content/featureRegistry';
 import {resolveBrowserCapabilities} from '@/src/platform/browser/capabilities';
-import {mountSentenceActions, unmountSentenceActions, isSentenceActionsMounted,
-    mountVocabularyReencounter, unmountVocabularyReencounter} from '@/src/features/vocabulary/content/public';
+import {mountVocabularyReencounter, unmountVocabularyReencounter} from '@/src/features/vocabulary/content/public';
 import {registerUiLanguageBundle, translate, translateLegacyText, type RegisteredUiLanguage} from '@/src/core/i18n';
 import * as i18n from '@/src/core/i18n';
 import * as onboardingMessages from '@/src/core/i18n/messages/onboarding';
@@ -70,11 +67,6 @@ async function settle() {for (let n = 0; n < 8; n++) {await Promise.resolve(); a
 let app: Vue.App | undefined, registry: ContentFeatureRegistry | undefined, document: Document;
 let events: Map<Element, Record<string, unknown>>;
 let focused: Element | null;
-function connectedSentenceSurface() {
-    const shadowHost = document.createElement('div');
-    document.body.appendChild(shadowHost);
-    return {shadowHost, remove: vi.fn(() => shadowHost.remove())};
-}
 beforeEach(() => {
     vi.clearAllMocks(); vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']});
     ports.config.vocabularyReencounterEnabled = true; ports.extension.inIncognitoContext = false; ports.writingMounted = false;
@@ -83,7 +75,6 @@ beforeEach(() => {
     ports.installScanner.mockReturnValue(ports.scanner); ports.patch.mockResolvedValue(undefined);
     ports.subscribe.mockReturnValue(ports.unsubscribe); ports.language = Vue.ref('zh-CN');
     ports.setLanguage.mockResolvedValue(true); ports.send.mockResolvedValue({success: true, data: []});
-    ports.createSentenceUi.mockReset().mockImplementation(async () => connectedSentenceSurface());
     ports.createReencounterUi.mockResolvedValue({remove: vi.fn(), shadowHost: {isConnected: true}});
     const dom = parseHTML('<html><body><div id="app"></div></body></html>');
     document = dom.document as unknown as Document; focused = document.body; events = new Map();
@@ -95,7 +86,7 @@ beforeEach(() => {
 });
 afterEach(async () => {
     registry?.unmountAll(); registry = undefined;
-    unmountSentenceActions(); unmountVocabularyReencounter(); app?.unmount(); app = undefined;
+    unmountVocabularyReencounter(); app?.unmount(); app = undefined;
     await settle(); vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
 });
 
@@ -171,61 +162,36 @@ function loadClientComponent(file: 'src/ui/components/UiLanguageOnboarding.vue' 
 }
 function element(selector: string) {const node = document.querySelector(selector); expect(node, selector).not.toBeNull(); return node!;}
 function click(selector: string) {const callback = events.get(element(selector))?.onClick; expect(callback).toBeTypeOf('function'); return (callback as () => unknown)();}
-function learning(config: {on: boolean; bilingualSentenceHighlightEnabled?: boolean; writing: {enabled: boolean}}, browser = 'chrome') {
+function learning(config: {on: boolean; writing: {enabled: boolean}}, browser = 'chrome') {
     const capabilities = resolveBrowserCapabilities({browser, manifestVersion: 3});
     registry = createContentFeatureRegistry(createLearningContentFeatures(ctx, config as Config, capabilities), {capabilities});
     return registry;
 }
 function activation(controller = new AbortController()) {return {ctx, signal: controller.signal, isCurrent: () => !controller.signal.aborted};}
 
-describe('48K 学习装配公开消费者', () => {
+describe('48K 当前写作学习装配公开消费者', () => {
     it.each([
-        ['userscript', true, true, true, 'https://github.com/a/b/issues/new', ['skipped', 'skipped']],
-        ['chrome', false, true, true, 'https://github.com/a/b/issues/new', ['skipped', 'skipped']],
-        ['chrome', true, false, true, 'https://github.com/a/b/issues/new', ['skipped', 'mounted']],
-        ['chrome', true, true, false, 'https://github.com/a/b/issues/new', ['mounted', 'skipped']],
-        ['chrome', true, true, true, 'https://example.test/article', ['mounted', 'skipped']],
-    ] as const)('%s 开关 %s/%s/%s 与页面 %s 的注册表状态', async (browser, on, highlight, writing, href, statuses) => {
+        ['userscript', true, true, 'https://github.com/a/b/issues/new', 'skipped'],
+        ['chrome', false, true, 'https://github.com/a/b/issues/new', 'skipped'],
+        ['chrome', true, false, 'https://github.com/a/b/issues/new', 'skipped'],
+        ['chrome', true, true, 'https://github.com/a/b/issues/new', 'mounted'],
+        ['chrome', true, true, 'https://example.test/article', 'skipped'],
+    ] as const)('%s 开关 %s/%s 与页面 %s 的写作注册状态', async (browser, on, writing, href, status) => {
         window.location.href = href;
-        const runtime = learning({on, bilingualSentenceHighlightEnabled: highlight, writing: {enabled: writing}}, browser);
-        expect((await runtime.mountEnabled(activation())).map(row => row.status)).toEqual(statuses);
-        expect(ports.createSentenceUi).toHaveBeenCalledTimes(statuses[0] === 'mounted' ? 1 : 0);
-        expect(ports.mountWriting).toHaveBeenCalledTimes(statuses[1] === 'mounted' ? 1 : 0);
-        if (statuses[0] === 'mounted') expect(ports.createSentenceUi).toHaveBeenCalledWith(ctx, expect.objectContaining({hostId: 'fluent-read-sentence-actions'}));
+        const runtime = learning({on, writing: {enabled: writing}}, browser);
+        expect((await runtime.mountEnabled(activation())).map(row => row.status)).toEqual([status]);
+        expect(ports.mountWriting).toHaveBeenCalledTimes(status === 'mounted' ? 1 : 0);
     });
-    it('配置水合与外部关闭立即协调真实句子挂载，反复协调不重复持有 UI', async () => {
-        const config = {on: true, bilingualSentenceHighlightEnabled: false, writing: {enabled: false}};
+    it('配置水合和关闭协调当前写作入口，反复协调不重复挂载', async () => {
+        const config = {on: true, writing: {enabled: false}};
         const runtime = learning(config); await runtime.mountEnabled(activation());
-        config.bilingualSentenceHighlightEnabled = true; config.writing.enabled = true;
-        expect((await runtime.reconcileEnabled()).map(row => row.status)).toEqual(['mounted', 'mounted']);
-        const ui = await ports.createSentenceUi.mock.results[0].value;
-        await runtime.reconcileEnabled(); expect(ports.createSentenceUi).toHaveBeenCalledOnce(); expect(ports.mountWriting).toHaveBeenCalledOnce();
-        config.on = false; await runtime.reconcileEnabled(); expect(ui.remove).toHaveBeenCalledOnce(); expect(isSentenceActionsMounted()).toBe(false);
-        config.on = true; await runtime.reconcileEnabled(); expect(isSentenceActionsMounted()).toBe(true); expect(ports.createSentenceUi).toHaveBeenCalledTimes(2);
-    });
-    it('两个挂载逆序完成时，仅最新 UI 保留，旧 owner 不能移除新 UI', async () => {
-        const old = deferred<ReturnType<typeof connectedSentenceSurface>>(), current = deferred<ReturnType<typeof connectedSentenceSurface>>();
-        ports.createSentenceUi.mockReturnValueOnce(old.promise).mockReturnValueOnce(current.promise);
-        const oldMount = mountSentenceActions(ctx), currentMount = mountSentenceActions(ctx);
-        const oldUi = connectedSentenceSurface(), currentUi = connectedSentenceSurface();
-        current.resolve(currentUi); await currentMount; old.resolve(oldUi); await oldMount;
-        expect(oldUi.remove).toHaveBeenCalledOnce(); expect(currentUi.remove).not.toHaveBeenCalled(); expect(isSentenceActionsMounted()).toBe(true);
-        unmountSentenceActions(); expect(currentUi.remove).toHaveBeenCalledOnce();
-    });
-    it('异常挂载不覆盖既有 UI，新成功挂载只替换自己的先前 UI', async () => {
-        const first = connectedSentenceSurface(), second = connectedSentenceSurface();
-        ports.createSentenceUi.mockResolvedValueOnce(first).mockRejectedValueOnce(new Error('shadow unavailable')).mockResolvedValueOnce(second);
-        await mountSentenceActions(ctx); await expect(mountSentenceActions(ctx)).rejects.toThrow('shadow unavailable');
-        expect(first.remove).not.toHaveBeenCalled(); expect(isSentenceActionsMounted()).toBe(true);
-        await mountSentenceActions(ctx); expect(first.remove).toHaveBeenCalledOnce(); unmountSentenceActions(); expect(second.remove).toHaveBeenCalledOnce();
-    });
-    it('注册表关闭期间迟到的真实句子 UI 释放，重新激活独立持有 UI', async () => {
-        const gate = deferred<ReturnType<typeof connectedSentenceSurface>>(), late = connectedSentenceSurface();
-        ports.createSentenceUi.mockReturnValueOnce(gate.promise);
-        const runtime = learning({on: true, bilingualSentenceHighlightEnabled: true, writing: {enabled: false}}), controller = new AbortController();
-        const pending = runtime.mountEnabled(activation(controller)); controller.abort(); runtime.unmountAll();
-        gate.resolve(late); await pending; expect(late.remove).toHaveBeenCalledOnce(); expect(isSentenceActionsMounted()).toBe(false);
-        await runtime.mountEnabled(activation()); expect(isSentenceActionsMounted()).toBe(true);
+        config.writing.enabled = true;
+        expect((await runtime.reconcileEnabled()).map(row => row.status)).toEqual(['mounted']);
+        await runtime.reconcileEnabled(); expect(ports.mountWriting).toHaveBeenCalledOnce();
+        config.on = false; await runtime.reconcileEnabled();
+        expect(ports.unmountWriting).toHaveBeenCalledOnce(); expect(ports.writingMounted).toBe(false);
+        config.on = true; await runtime.reconcileEnabled();
+        expect(ports.mountWriting).toHaveBeenCalledTimes(2); expect(ports.writingMounted).toBe(true);
     });
 });
 

@@ -77,6 +77,7 @@ vi.mock('@/src/features/settings/ui/CloudConfigBackup.vue', () => ({default: {re
 vi.mock('@/src/features/settings/ui/LocalDataManagement.vue', () => ({default: {render: () => null}}));
 
 import {createApp, h, nextTick, reactive, type App, type Component} from 'vue';
+import browser from 'webextension-polyfill';
 import GlossarySettings from '@/src/features/glossary/ui/GlossarySettings.vue';
 import LocalTtsSettings from '@/src/features/settings/ui/LocalTtsSettings.vue';
 import LearningMemoryManager from '@/src/features/settings/ui/LearningMemoryManager.vue';
@@ -123,6 +124,8 @@ function input(host: HTMLElement, selector: string, value: string, change = true
 }
 function storageChanged() {for (const listener of ports.storageListeners) listener({[LOCAL_TTS_MODEL_STATE_KEY]: {}}, 'local');}
 beforeEach(() => {
+    // WXT supplies this auto-import to the real progress watcher in the extension.
+    vi.stubGlobal('browser', browser);
     ports.send.mockReset(); ports.patch.mockReset(); ports.confirm.mockReset(); ports.get.mockReset(); ports.messages.mockReset();
     ports.delayDialogClosed = false;
     for (const key of Object.keys(ports.config)) delete ports.config[key];
@@ -139,7 +142,7 @@ afterEach(async () => {
     expect(ports.listeners.size).toBe(0); expect(ports.storageListeners.size).toBe(0);
     expect(ports.historyListeners.size).toBe(0);
     expect(ports.pendingDialogClosed.size).toBe(0);
-    dom.document.body.replaceChildren(); vi.useRealTimers();
+    dom.document.body.replaceChildren(); vi.useRealTimers(); vi.unstubAllGlobals();
 });
 
 function authFixture() {
@@ -283,6 +286,9 @@ describe('audit49C local TTS lifecycle through real controls and backend message
         const {host} = await mount(LocalTtsSettings, {config: normalizeConfig({})});
         const stale = deferred<unknown>(); ports.send.mockImplementationOnce(() => stale.promise);
         storageChanged(); await settle();
+        // Current main reconciles the authoritative state after every model command.
+        // Keep the captured old read stale, but let the terminal read see the completed operation.
+        ports.send.mockResolvedValue({success: true, downloaded: operation === 'download'});
         host.querySelector<HTMLButtonElement>(`[data-testid="local-tts-${operation}"]`)!.click(); await settle();
         stale.resolve({success: true, downloaded: operation === 'remove'}); await settle();
         expect(host.querySelector(`[data-testid="local-tts-${operation === 'download' ? 'remove' : 'download'}"]`)).not.toBeNull();
@@ -316,6 +322,7 @@ describe('audit49C local TTS lifecycle through real controls and backend message
         const command = deferred<unknown>(); ports.send.mockImplementationOnce(() => command.promise);
         host.querySelector<HTMLButtonElement>('[data-testid="local-tts-download"]')!.click(); await settle();
         const calls = ports.send.mock.calls.length; storageChanged(); await settle(); expect(ports.send).toHaveBeenCalledTimes(calls);
+        ports.send.mockResolvedValue({success: true, downloaded: true});
         command.resolve({success: true}); await settle(); expect(host.querySelector('[data-testid="local-tts-remove"]')).not.toBeNull();
     });
     it('retains a command failure when an unrelated successful status read arrives', async () => {
