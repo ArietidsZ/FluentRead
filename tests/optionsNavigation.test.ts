@@ -122,13 +122,13 @@ describe('options navigation view-model', () => {
     expect(filterNavigationItems('简约风格')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
-    expect(filterNavigationItems('奶酪')).toEqual([
+    expect(filterNavigationItems('青花')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
     expect(filterNavigationItems('菜单栏布局')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
-    expect(filterNavigationItems('emoji')).toEqual([
+    expect(filterNavigationItems('传统色')).toEqual([
       expect.objectContaining({ id: 'settings-interface' }),
     ])
     // 译文样式、颜色和逐句高亮都集中在界面风格页，不再同时命中通用设置。

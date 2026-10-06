@@ -349,7 +349,7 @@ describe('popup feature visibility', () => {
 
     it('keeps two compact site switches without a visible domain and frames the service entry', () => {
         const site = source('src/app/popup/PopupSiteRule.vue');
-        const preview = source('src/features/settings/ui/components/PopupLayoutPreview.vue');
+        const preview = source('src/features/settings/ui/components/PopupPreview.vue');
         const styles = source('src/app/popup/popup.css');
         expect(site).not.toContain('class="site-rule-copy"');
         expect(site).not.toContain('<span>当前网站</span>');

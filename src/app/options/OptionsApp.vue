@@ -49,7 +49,6 @@
     </aside>
 
     <main class="workspace">
-      <InterfaceBackdrop :motif="interfaceSkin.motif" />
       <h1 class="settings-content-title">{{ activeItem.title }}</h1>
       <header v-show="((activePanels.length || hasSectionAnchors) && !userscriptUnavailableSection) || props.onClose" class="topbar">
         <nav v-if="activePanels.length && !userscriptUnavailableSection" class="settings-page-tabs" :aria-label="t('options.categories')">
@@ -175,8 +174,6 @@
 import UiIcon from '@/src/ui/components/UiIcon.vue'
 import {SETTINGS_TABBED_SECTION_IDS, settingsPagePanels, resolveSettingsPanel, filterNavigationItems, filterSettingsSearchTargets, isUiLanguageSearch, settingsSearchTargets} from '@/src/features/settings/model/navigation';
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import InterfaceBackdrop from '@/src/ui/components/InterfaceBackdrop.vue'
-import {getInterfaceSkinOption} from '@/src/core/config/interfaceAppearance'
 import SettingsNavigationIcon from '@/src/features/settings/ui/SettingsNavigationIcon.vue'
 import SettingsSectionNavigation from '@/src/features/settings/ui/components/SettingsSectionNavigation.vue'
 const SettingsSections = defineAsyncComponent(() => import('@/src/features/settings/ui/SettingsSections.vue'))
@@ -226,7 +223,6 @@ const aboutLinks = [
 ]
 const {t, translateLegacy} = useUiI18n()
 const query = ref('')
-const interfaceSkin = ref(getInterfaceSkinOption(runtimeConfig.interfaceSkin))
 function sectionFromHash(hash: string): string {
   if (!props.settingsHashPrefix) return hash.replace(/^#/, '')
   const prefix = `${props.settingsHashPrefix}/`
@@ -321,7 +317,6 @@ const activeItem = computed(() => localizedNavigationItems.value.find((item) => 
   || localizedNavigationItems.value[0])
 const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
   syncInterfaceTheme(nextConfig.theme)
-  interfaceSkin.value = getInterfaceSkinOption(nextConfig.interfaceSkin)
   applyInterfaceSkin(nextConfig.interfaceSkin, props.appearanceRoot)
   applyInterfaceFont(nextConfig.interfaceFont, props.appearanceRoot)
 })
@@ -329,7 +324,6 @@ const unsubscribeInterfaceConfig = subscribeConfig((nextConfig) => {
 void configReady
   .then(() => {
     syncInterfaceTheme(runtimeConfig.theme)
-    interfaceSkin.value = getInterfaceSkinOption(runtimeConfig.interfaceSkin)
     applyInterfaceSkin(runtimeConfig.interfaceSkin, props.appearanceRoot)
     applyInterfaceFont(runtimeConfig.interfaceFont, props.appearanceRoot)
   })

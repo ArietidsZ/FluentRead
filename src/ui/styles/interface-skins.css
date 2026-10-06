@@ -10,16 +10,16 @@
 @import './interface-skins/minimal.css';
 @import './interface-skins/compact.css';
 @import './interface-skins/contrast.css';
-@import './interface-skins/cheese.css';
-@import './interface-skins/ocean.css';
-@import './interface-skins/matcha.css';
-@import './interface-skins/sakura.css';
-@import './interface-skins/midnight.css';
-@import './interface-skins/paper.css';
-@import './interface-skins/emoji.css';
-@import './interface-skins/aurora.css';
-@import './interface-skins/arcade.css';
-@import './interface-skins/sunset.css';
+@import './interface-skins/qinghua.css';
+@import './interface-skins/zhusha.css';
+@import './interface-skins/shuimo.css';
+@import './interface-skins/zhuqing.css';
+@import './interface-skins/ouhe.css';
+@import './interface-skins/xiangse.css';
+@import './interface-skins/qinglv.css';
+@import './interface-skins/yuebai.css';
+@import './interface-skins/xuanqing.css';
+@import './interface-skins/wujin.css';
 
 /* 所有内置皮肤（含完整默认布局）均使用内容高度，栏目显隐或文字换行后自然收缩与伸展。 */
 :root[data-popup-height="content"] {

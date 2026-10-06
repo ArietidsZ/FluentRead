@@ -1,9 +1,9 @@
 /**
  * @file src/ui/styles/interface-skins/palette.css
- * 文件职责：为所有配色型界面皮肤提供共享的 Popup 与 Options 组件适配层，避免每套配色重复维护完整选择器集合。
- * 主要内容：通过可选画布纹理、卡片圆角与阴影变量适配各主题的空间层次，统一翻译卡片、设置导航与控件，并保留可辨识的状态与键盘焦点。
- * 层叠约定：同时限定皮肤类型与 ID，使亮暗色基础样式不能因打包顺序覆盖配色语义。
- * 模块边界：本文件只匹配 data-interface-skin-kind="palette"，不声明任何具体皮肤色值；新增或删除单套配色只需调整注册表、入口 import 和对应色值模块。
+ * 文件职责：为所有传统色风格提供共享的 Popup 与 Options 组件适配层，把每套风格声明的造型变量落到具体组件上，避免每套风格重复维护完整选择器集合。
+ * 主要内容：定义一份造型契约——版面底色、主卡片、控件、顶部按钮、快捷入口卡片、图标底、站点开关与主按钮各有一组带默认值的变量，风格模块只需覆盖与自己造型有关的部分；所有表面都是平涂的纯色，不使用渐变、模糊或光效，品牌图标保持原样；设置页的工作区、侧栏与分组卡片始终使用中性纯色表面，侧栏选中项用正文色文字配浅色底，并保留可辨识的状态与键盘焦点。
+ * 层叠约定：同时限定皮肤类型与 ID，使亮暗色基础样式不能因打包顺序覆盖风格语义。
+ * 模块边界：本文件只匹配 data-interface-skin-kind="palette"，不声明任何具体风格的色值或造型；新增或删除单套风格只需调整注册表、入口 import 和对应风格模块。
  */
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] {
@@ -27,7 +27,7 @@
   --el-text-color-secondary: var(--muted);
   --el-text-color-placeholder: var(--muted);
   color: var(--ink);
-  background: var(--skin-page);
+  background: var(--skin-workspace, var(--skin-page));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] body.popup-page,
@@ -36,82 +36,137 @@
   background: var(--skin-page);
 }
 
+/*
+ * Popup 造型契约。每个部件读取一组变量，默认值给出最朴素的白卡片；风格模块覆盖其中一部分形成自己的造型。
+ * 版面底色是一块平涂的纯色，不使用渐变、图片或模糊；品牌图标保持原样，任何风格都不改变它的形状与颜色。
+ */
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell {
-  position: relative;
-  isolation: isolate;
   color: var(--ink);
-  background: var(--skin-canvas-background, var(--skin-page));
+  background: var(--skin-page);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .brand img {
   box-shadow: none;
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-button,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .donation-button,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .hero-card,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .service-field,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-row,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card {
-  border-color: var(--line);
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-button,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .donation-button,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .hero-card,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card {
-  background: var(--surface);
-}
-
+/* 主卡片：承载语言、服务与翻译操作。 */
 :root[data-interface-skin-kind="palette"][data-interface-skin] .hero-card {
-  border-radius: var(--skin-panel-radius, var(--skin-radius, 14px));
+  border: var(--skin-panel-border, 1px solid var(--line));
+  border-radius: var(--skin-panel-radius, 14px);
   background: var(--skin-panel-background, var(--surface));
   box-shadow: var(--skin-panel-shadow, none);
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .language-pair select,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .service-field,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-row {
-  color: var(--ink);
-  background: var(--surface-soft);
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .language-pair select,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .service-field,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-row {
+/* 控件：语言选择、服务汇总、局部翻译与站点开关行共用一种表面。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] :is(
+  .language-pair select,
+  .language-pair .fluentread-select .el-select__wrapper,
+  .service-field,
+  .provider-summary,
+  .section-translate-button,
+  .site-rule-row
+) {
+  border: var(--skin-control-border, 1px solid var(--line));
   border-radius: var(--skin-control-radius, 10px);
+  color: var(--ink);
+  background: var(--skin-control-background, var(--surface-soft));
+  box-shadow: var(--skin-control-shadow, none);
 }
 
-/* 可选主题为纸卡建立层次；尺寸、排列与点击范围仍由 Popup 布局决定。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .section-translate-button {
+  color: var(--skin-section-color, var(--brand-strong));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .language-pair label > span {
+  color: var(--skin-label-color, var(--muted));
+}
+
+/* 服务头像的描边取所在控件的颜色，叠放时才像从控件里切出来。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .provider-summary .provider-avatar {
+  border-color: var(--skin-avatar-ring, var(--surface));
+  background: var(--skin-avatar-background, var(--surface-soft));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] :is(
+  .service-field:hover:not(:disabled),
+  .service-field[aria-expanded="true"],
+  .provider-summary:hover,
+  .provider-summary[aria-expanded="true"],
+  .section-translate-button:hover:not(:disabled)
+) {
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
+  color: var(--brand-strong);
+  background: var(--skin-control-hover, var(--brand-soft));
+  transform: none;
+}
+
+/* 顶部的赞赏与设置按钮。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell :is(.settings-button, .donation-button) {
+  border: var(--skin-chip-border, 1px solid var(--line));
+  border-radius: var(--skin-chip-radius, var(--skin-control-radius, 10px));
+  color: var(--skin-chip-color, var(--muted));
+  background: var(--skin-chip-background, var(--surface));
+  box-shadow: var(--skin-chip-shadow, none);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .settings-button {
+  color: var(--skin-chip-color, var(--ink));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell :is(.settings-button, .donation-button):hover {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
+  color: var(--skin-chip-hover-color, var(--brand-strong));
+  background: var(--skin-chip-hover, var(--brand-soft));
+  transform: none;
+}
+
+/* 快捷入口卡片；尺寸、排列与点击范围仍由 Popup 布局决定。 */
 :root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card {
+  border: var(--skin-feature-border, 1px solid var(--line));
   border-radius: var(--skin-feature-radius, 10px);
+  background: var(--skin-feature-background, var(--surface));
   box-shadow: var(--skin-feature-shadow, none);
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .service-field:hover:not(:disabled),
-:root[data-interface-skin-kind="palette"][data-interface-skin] .service-field[aria-expanded="true"],
 :root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--brand) 45%, var(--line));
-  background: var(--surface-soft);
-  box-shadow: none;
+  background: var(--skin-feature-hover, var(--surface-soft));
+  box-shadow: var(--skin-feature-shadow, none);
   transform: none;
 }
-:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button {
-  color: var(--skin-action-text, #fff);
-  border-radius: var(--skin-control-radius, 10px);
-  background: var(--brand);
-  box-shadow: none;
-  transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.rose,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.violet,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.blue,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.amber,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.teal {
+  border: var(--skin-icon-border, 0);
+  border-radius: var(--skin-icon-radius, 8px);
+  color: var(--skin-icon-color, var(--brand-strong));
+  background: var(--skin-icon-background, var(--brand-soft));
+  box-shadow: var(--skin-icon-shadow, none);
 }
+
+/* 主按钮是每套风格最主要的色彩落点；文字色由风格按填充色的对比度单独声明。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button {
+  border: var(--skin-action-border, 0);
+  border-radius: var(--skin-action-radius, var(--skin-control-radius, 10px));
+  color: var(--skin-action-text, #fff);
+  background: var(--skin-action-background, var(--brand));
+  box-shadow: var(--skin-action-shadow, none);
+  transition: filter 160ms ease, opacity 160ms ease;
+}
+
 :root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--brand) 90%, var(--ink));
-  box-shadow: none;
+  box-shadow: var(--skin-action-shadow, none);
+  filter: brightness(.96) saturate(1.06);
   transform: none;
 }
 
 /* 完成翻译后变为轻底色的恢复操作，文字与快捷键同时继承当前状态。 */
 :root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button.translated {
+  border-color: color-mix(in srgb, var(--brand) 40%, var(--line));
   color: var(--brand-strong);
   background: var(--brand-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand) 40%, var(--line));
@@ -121,32 +176,19 @@
   color: var(--brand-strong);
   background: color-mix(in srgb, var(--brand) 12%, var(--surface));
   box-shadow: inset 0 0 0 1px var(--brand);
+  filter: none;
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button .translate-hotkey {
-  border-color: color-mix(in srgb, currentColor 25%, transparent);
-  border-radius: 5px;
+  border-color: color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: min(6px, var(--skin-control-radius, 6px));
   color: inherit;
-  background: transparent;
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .translate-button .spinner {
   border-color: color-mix(in srgb, currentColor 30%, transparent);
   border-top-color: currentColor;
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell :is(.settings-button, .donation-button) {
-  border-color: var(--line);
-  border-radius: 9px;
-  color: var(--muted);
-  background: var(--surface);
-}
-
-:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell :is(.settings-button, .donation-button):hover {
-  border-color: var(--line);
-  color: var(--ink);
-  background: var(--surface-soft);
-  transform: none;
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .eyebrow {
@@ -155,19 +197,66 @@
   letter-spacing: .04em;
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.rose,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.violet,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.blue,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.amber,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .feature-card .feature-icon.teal {
+/* 站点开关的启用、悬停与圆点跟随风格强调色，不再保留默认风格的粉色描边。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-button {
+  border-color: color-mix(in srgb, var(--brand) 26%, var(--line));
+  border-radius: var(--skin-tag-radius, min(8px, var(--skin-control-radius, 8px)));
   color: var(--brand-strong);
-  border-radius: 7px;
-  background: var(--skin-icon-background, var(--surface-soft));
+  background: var(--skin-tag-background, var(--surface));
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell > footer {
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-button > i {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-button.enabled {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--line));
+  background: var(--brand-soft);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-button.enabled > i {
+  background: var(--brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-rule-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
+  background: var(--brand-soft);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-disable-rule-button {
+  border-color: var(--line);
   color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-disable-rule-button.enabled {
+  border-color: color-mix(in srgb, var(--ink) 34%, var(--line));
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 8%, var(--skin-tag-background, var(--surface)));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-disable-rule-button.enabled > i {
+  background: var(--ink);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .site-disable-rule-button:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--ink) 30%, var(--line));
+  background: color-mix(in srgb, var(--ink) 6%, var(--skin-tag-background, var(--surface)));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell footer {
+  border-color: var(--skin-footer-line, var(--line));
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell footer button {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .popup-shell .opensource-link {
+  color: var(--muted);
+  background: var(--skin-chip-background, var(--surface-soft));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .popup-drawer,
@@ -193,9 +282,36 @@
 :root[data-interface-skin-kind="palette"][data-interface-skin] .interaction-preview,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .image-translation-preview,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .area-translation-block,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .wordbook-shortcut {
+:root[data-interface-skin-kind="palette"][data-interface-skin] .wordbook-shortcut,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .capability-unavailable {
   border-color: var(--line);
   background: var(--surface-soft);
+}
+
+/* 抽屉里的次要状态同样读取风格语义色，深色风格下不再出现固定的浅色块。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .capability-unavailable,
+:root[data-interface-skin-kind="palette"][data-interface-skin] .capability-unavailable small {
+  color: var(--muted);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .capability-unavailable strong {
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .switch:not([aria-checked="true"]) {
+  background: color-mix(in srgb, var(--muted) 42%, var(--surface-soft));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .chips button.selected {
+  box-shadow: none;
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .area-translation-preview {
+  border-color: color-mix(in srgb, var(--brand) 38%, var(--line));
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .area-ring {
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--brand) 10%, transparent);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] button:focus-visible,
@@ -206,26 +322,28 @@
   outline-offset: 2px;
 }
 
-/* Options：使用同一组语义变量覆盖页面骨架与高频控件。 */
+/* Options：使用同一组语义变量覆盖页面骨架与高频控件；主操作按钮与菜单栏主按钮同色。 */
 :root[data-interface-skin-kind="palette"][data-interface-skin] .el-button--primary:not(.is-link):not(.is-text):not(.is-plain) {
+  --el-button-bg-color: var(--skin-action-color, var(--brand));
+  --el-button-border-color: var(--skin-action-color, var(--brand));
+  --el-button-hover-bg-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 88%, var(--ink));
+  --el-button-hover-border-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 88%, var(--ink));
+  --el-button-active-bg-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 80%, var(--ink));
+  --el-button-active-border-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 80%, var(--ink));
+  --el-button-disabled-bg-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 45%, var(--surface));
+  --el-button-disabled-border-color: color-mix(in srgb, var(--skin-action-color, var(--brand)) 45%, var(--surface));
   --el-button-text-color: var(--skin-action-text);
   --el-button-hover-text-color: var(--skin-action-text);
   --el-button-active-text-color: var(--skin-action-text);
   --el-button-disabled-text-color: var(--skin-action-text);
 }
 
+/* 设置页是用来阅读和查找的：工作区与侧栏一律是中性的平涂底色，分组卡片是纯色表面，不铺风格背景。 */
 :root[data-interface-skin-kind="palette"][data-interface-skin] body,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-app,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .workspace {
   color: var(--ink);
-  background: var(--skin-page);
-}
-
-/* 画布只绘制一次，内部滚动内容与背景纹理各自保持稳定。 */
-:root[data-interface-skin-kind="palette"][data-interface-skin] .workspace {
-  position: relative;
-  isolation: isolate;
-  background: var(--skin-canvas-background, var(--skin-page));
+  background: var(--skin-workspace, var(--skin-page));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar {
@@ -234,9 +352,23 @@
   backdrop-filter: none;
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .nav-icon,
+/* 当前页用深色文字配浅色底，图标取强调色：选中态清楚，文字本身不变淡。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar nav button[data-section] {
+  border-radius: min(var(--skin-control-radius, 8px), 10px);
+  color: var(--ink);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar nav button[data-section].active {
+  color: var(--ink);
+  background: var(--skin-nav-active, var(--brand-soft));
+  box-shadow: var(--skin-nav-active-shadow, none);
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .sidebar nav button[data-section].active .nav-icon {
+  color: var(--brand-strong);
+}
+
 :root[data-interface-skin-kind="palette"][data-interface-skin] .search-box,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-body,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .settings-control-row,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-row,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-collapse,
@@ -246,21 +378,38 @@
   box-shadow: none;
 }
 
-/* 分组纸面承接主题圆角和浅阴影，行内表单仍使用安静的实色底保证阅读。 */
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-body {
-  border-radius: var(--skin-panel-radius, 16px);
-  background: var(--skin-panel-background, var(--surface));
-  box-shadow: var(--skin-panel-shadow, none);
+/* 分组卡片承接风格的描边、圆角与投影；圆角上限与默认设置页接近，保持各风格下的版面稳定。 */
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group {
+  --skin-group-radius: min(var(--skin-panel-radius, 12px), 14px);
+  border: var(--skin-group-border, 1px solid var(--line));
+  border-radius: var(--skin-group-radius);
+  background: var(--surface);
+  box-shadow: var(--skin-group-shadow, none);
 }
 
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .settings-control-row,
-:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-row {
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-heading {
+  border-color: var(--line);
+  border-radius: calc(var(--skin-group-radius) - 1px) calc(var(--skin-group-radius) - 1px) 0 0;
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-body {
+  border-radius: calc(var(--skin-group-radius) - 1px);
+  background: transparent;
+  box-shadow: none;
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-group-heading + .settings-group-body {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+:root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .settings-control-row {
   background: var(--surface-soft);
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .settings-control-row:hover,
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card .el-row:hover {
-  border-color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 35%, var(--line));
   background: var(--surface);
 }
 
@@ -290,7 +439,7 @@
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .interface-skin-option:hover {
-  border-color: var(--brand);
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--line));
   background: var(--surface-soft);
 }
 
@@ -503,7 +652,7 @@
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card :is(.image-ocr-primary-action, .image-ocr-download-button:not(:disabled)) {
   color: var(--skin-action-text, #fff);
-  background: var(--brand);
+  background: var(--skin-action-color, var(--brand));
   box-shadow: none;
 }
 
@@ -585,7 +734,7 @@
   .review-complete button
 ) {
   color: var(--skin-action-text, #fff);
-  background: var(--brand);
+  background: var(--skin-action-color, var(--brand));
 }
 
 :root[data-interface-skin-kind="palette"][data-interface-skin] .settings-card.vocabulary-view .vocabulary-book .privacy-note {

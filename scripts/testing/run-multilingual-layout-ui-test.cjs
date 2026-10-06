@@ -53,7 +53,7 @@ async function audit(page,label){
       await audit(workspace,`${language}-document-workspace-${width}`);await workspace.locator('.reader-tabs button').last().click();await audit(workspace,`${language}-document-edit-${width}`);await workspace.locator('.reader-tabs button').first().click();}
  }
  // 对主要皮肤复核长文案的外层宽度与内部滚动，复用同一个隔离窗口。
- for(const language of ['zh-CN','en-US'])for(const skin of ['default','minimal','compact','ocean'])for(const theme of ['light','dark']) {
+ for(const language of ['zh-CN','en-US'])for(const skin of ['default','minimal','compact','yuebai'])for(const theme of ['light','dark']) {
   const current=await options.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});return typeof r.value==='string'?JSON.parse(r.value):r.value;});
   await patch({uiLanguage:language,interfaceSkin:skin,theme},{uiLanguage:current.uiLanguage,interfaceSkin:current.interfaceSkin,theme:current.theme});
   await popup.waitForFunction(text=>document.querySelector('.translate-label')?.textContent===text,messages[language][0]);await popup.waitForTimeout(100);

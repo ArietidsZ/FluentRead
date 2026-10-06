@@ -106,7 +106,7 @@
     "云端保存后校验未通过，请重新读取备份后重试；本机配置未修改。": "La vérification de la sauvegarde a échoué. Relisez-la avant de réessayer ; la configuration de cet appareil n’a pas changé.",
     "当前网站的始终翻译和禁用扩展开关。": "Commandes Toujours traduire et Désactiver l’extension pour le site actuel.",
     "风格只改变扩展界面的呈现，不影响网页翻译效果。": "Le style modifie uniquement l’interface de l’extension, sans affecter la traduction des pages web.",
-    "从效率布局、趣味配色到夜间和护眼方案，选择适合自己的界面；也可以只留下常用栏目。": "Choisissez l’interface qui vous convient, des dispositions efficaces aux palettes ludiques, nocturnes ou reposantes. Vous pouvez aussi ne garder que les sections utiles.",
+    "从效率布局到传统色配色，选择适合自己的界面；也可以只留下常用栏目。": "Choisissez l’interface qui vous convient, des dispositions efficaces aux palettes tirées des couleurs traditionnelles chinoises. Vous pouvez aussi ne garder que les sections utiles.",
     "当前模型已下载，可直接生成。": "Modèle téléchargé, prêt à générer.",
     "支持完整 Chat Completions 地址或以 /v1 结尾的 Base URL；模型须支持 Chat Completions。": "Saisissez une URL Chat Completions complète ou une Base URL se terminant par /v1 ; le modèle doit prendre en charge Chat Completions.",
     "网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。": "Réessayez les problèmes réseau après quelques minutes.",

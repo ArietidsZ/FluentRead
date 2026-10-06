@@ -890,6 +890,7 @@ export default defineConfig({
                 'src/ui/view-model/serviceLibrary.ts',
                 'src/ui/view-model/aiContext.ts',
                 'src/ui/translationLoadingIndicator.ts',
+                'src/ui/popupQuickFeatureIcons.ts',
             ],
             exclude: ['**/*.d.ts'],
             thresholds: {

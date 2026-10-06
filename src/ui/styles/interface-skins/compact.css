@@ -1,7 +1,7 @@
 /**
  * @file src/ui/styles/interface-skins/compact.css
  * 文件职责：实现 FluentRead 紧凑风格，在不隐藏功能的前提下压缩 Popup 与 Options 的间距和控件高度。
- * 主要内容：缩小品牌区、语言与服务控件、功能卡和设置导航，同时保留长文案换行、可点击面积及清晰焦点状态。
+ * 主要内容：缩小品牌区、语言与服务控件、功能卡和设置导航的间距与高度，同时保留长文案换行、可点击面积及清晰焦点状态；文字不随之缩到难以辨认，次要文字不小于 9px。
  * 模块边界：本文件只服务 data-interface-skin="compact"，不改变栏目可见性、配置语义或翻译行为，可从样式入口独立增删。
  */
 
@@ -30,7 +30,7 @@
 }
 
 :root[data-interface-skin="compact"] .popup-shell .brand small {
-  font-size: 8.5px;
+  font-size: 9.5px;
 }
 
 :root[data-interface-skin="compact"] .donation-button,
@@ -50,7 +50,7 @@
 
 :root[data-interface-skin="compact"] .eyebrow {
   margin-bottom: 2px;
-  font-size: 8.5px;
+  font-size: 9px;
 }
 
 :root[data-interface-skin="compact"] .hero-card h1 {
@@ -64,8 +64,8 @@
 }
 
 :root[data-interface-skin="compact"] .language-pair label > span {
-  margin-bottom: 4px;
-  font-size: 8.5px;
+  margin-bottom: 3px;
+  font-size: 9.5px;
 }
 
 :root[data-interface-skin="compact"] .language-pair select,
@@ -78,7 +78,30 @@
   padding-right: 22px;
   padding-left: 8px;
   border-radius: 8px;
-  font-size: 9.5px;
+  font-size: 10.5px;
+}
+
+/* 语言选择与服务汇总是当前菜单栏实际使用的控件，与上面的高度保持一致。 */
+:root[data-interface-skin="compact"] .language-pair .fluentread-select .el-select__wrapper {
+  min-height: 32px;
+  border-radius: 8px;
+}
+
+:root[data-interface-skin="compact"] .provider-summary {
+  min-height: 34px;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 9px;
+}
+
+:root[data-interface-skin="compact"] .provider-avatar {
+  width: 26px;
+  height: 26px;
+}
+
+:root[data-interface-skin="compact"] .provider-avatar :is(.service-icon) {
+  width: 20px;
+  height: 20px;
 }
 
 :root[data-interface-skin="compact"] .service-picker {
@@ -92,11 +115,11 @@
 }
 
 :root[data-interface-skin="compact"] .service-copy small {
-  font-size: 7.5px;
+  font-size: 9px;
 }
 
 :root[data-interface-skin="compact"] .service-copy strong {
-  font-size: 9.5px;
+  font-size: 10.5px;
 }
 
 :root[data-interface-skin="compact"] .translate-action {
@@ -128,10 +151,10 @@
   border-radius: 8px;
 }
 
-:root[data-interface-skin="compact"] .site-rule-copy span,
-:root[data-interface-skin="compact"] .site-rule-copy strong,
 :root[data-interface-skin="compact"] .site-rule-button {
-  font-size: 7.5px;
+  min-height: 22px;
+  padding: 0 7px;
+  font-size: 9px;
 }
 
 :root[data-interface-skin="compact"] .features {
@@ -149,7 +172,7 @@
 :root[data-interface-skin="compact"] .feature-card {
   grid-template-columns: 24px minmax(0, 1fr) 6px;
   gap: 5px;
-  min-height: 39px;
+  min-height: 42px;
   padding: 4px 6px;
   border-radius: 9px;
 }
@@ -168,17 +191,20 @@
 
 :root[data-interface-skin="compact"] .feature-card strong {
   overflow-wrap: anywhere;
-  font-size: 8.5px;
-  line-height: 1.2;
+  font-size: 10.5px;
+  line-height: 1.25;
 }
 
 :root[data-interface-skin="compact"] .feature-card small {
-  font-size: 6.5px;
+  margin-top: 1px;
+  font-size: 9px;
 }
 
-:root[data-interface-skin="compact"] .popup-shell > footer {
-  margin-top: 5px;
-  font-size: 7.5px;
+:root[data-interface-skin="compact"] .popup-shell footer {
+  min-height: 26px;
+  margin-top: 6px;
+  padding-top: 4px;
+  font-size: 9px;
 }
 
 /* Options：减少侧栏与设置项占用，但保持原有信息架构。 */

@@ -423,15 +423,9 @@ async function inspectInterfaceMotif(locator, skin) {
       };
     });
   });
-  if (skin.kind === 'palette') {
-    const motif = metrics[0];
-    if (metrics.length !== 1 || motif.motif !== skin.value || motif.ariaHidden !== 'true'
-      || motif.pointerEvents !== 'none' || motif.position !== 'absolute'
-      || motif.opacity <= 0 || motif.width <= 0 || motif.height <= 0 || motif.graphics === 0) {
-      throw new Error(`${skin.label}缺少可见但不妨碍操作的主题图案：${JSON.stringify(metrics)}`);
-    }
-  } else if (metrics.length !== 0) {
-    throw new Error(`${skin.label}不应增加氛围皮肤的主题图案：${JSON.stringify(metrics)}`);
+  // 任何风格都不再挂载主题图案：传统色风格只用平涂色，正文与控件背后没有装饰。
+  if (metrics.length !== 0) {
+    throw new Error(`${skin.label}不应挂载主题图案：${JSON.stringify(metrics)}`);
   }
   return metrics;
 }
@@ -471,7 +465,7 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
       metrics.textContrast = contrastRatio(metrics.ink, metrics.surface);
       if (metrics.horizontalOverflow || metrics.selectedSkin !== skin.value || metrics.cardCount !== 14
         || !metrics.cardsWithinViewport || !metrics.previewWithinViewport || !metrics.groupsWithinViewport
-        || metrics.textContrast < 4.5 || (skin.kind === 'palette' && metrics.workspaceBackgroundImage === 'none')) {
+        || metrics.textContrast < 4.5 || metrics.workspaceBackgroundImage !== 'none') {
         throw new Error(`${skin.label} ${theme} ${viewport.width}px 界面布局异常：${JSON.stringify(metrics)}`);
       }
       const workspaceMotif = await inspectInterfaceMotif(page.locator('.workspace'), skin);
@@ -501,7 +495,7 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
         || layoutMetrics.moduleCount !== 4 || layoutMetrics.featureCount !== 7) {
         throw new Error(`${skin.label} ${theme} ${viewport.width}px 菜单栏工作台异常：${JSON.stringify(layoutMetrics)}`);
       }
-      const layoutMotif = await inspectInterfaceMotif(page.locator('.popup-layout-live-preview .layout-preview-popup'), skin);
+      const layoutMotif = await inspectInterfaceMotif(page.locator('.popup-layout-live-preview .preview-popup'), skin);
       report.screenshots.push(await screenshot(page, `settings-menu-layout-${skin.value}-${theme}-${viewport.width}.png`));
       if (viewport.width === 1440) {
         report.screenshots.push(await screenshotElement(page.locator('.interface-skin-live-preview'), `settings-design-preview-${skin.value}-${theme}.png`));
@@ -1496,7 +1490,7 @@ async function main() {
     if (!report.assertions.noLegacyIntros) throw new Error('仍存在旧的重复介绍元素');
 
     const interfaceSearchCases = [];
-    for (const query of ['界面风格', '菜单栏布局', '海盐', '樱花', '抹茶', 'Emoji']) {
+    for (const query of ['界面风格', '菜单栏布局', '传统色', '青花', '水墨', '乌金']) {
       await page.locator('button[data-section="settings-general"]').click();
       await page.locator('.search-box input').fill(query);
       const interfaceResult = page.locator('.search-results button').filter({has: page.locator('strong', {hasText: /^界面风格$/u})});
@@ -1630,16 +1624,16 @@ async function main() {
       {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 350, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 340, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
       {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 360, brand: '#111', surface: '#fff', darkSurface: '#050505'},
-      {value: 'cheese', label: '奶酪 🧀', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#946d2f', surface: '#fffefa', darkSurface: '#28261f'},
-      {value: 'ocean', label: '海盐 🌊', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#0676b7', surface: '#ffffff', darkSurface: '#102e40'},
-      {value: 'matcha', label: '抹茶 🍵', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#327b28', surface: '#fffffc', darkSurface: '#22351d'},
-      {value: 'sakura', label: '樱花 🌸', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#c83474', surface: '#fffefe', darkSurface: '#402335'},
-      {value: 'emoji', label: 'Emoji 乐园 ✨', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#7143ca', surface: '#fffefd', darkSurface: '#382744'},
-      {value: 'midnight', label: '夜幕 🌙', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#9eb5d0', surface: '#1d2632', darkSurface: '#1d2632'},
-      {value: 'paper', label: '纸张护眼 📖', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#806b51', surface: '#fbf9f3', darkSurface: '#292620'},
-      {value: 'aurora', label: '极光舷窗 🛰️', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#5147a8', surface: '#fcfbff', darkSurface: '#272544'},
-      {value: 'arcade', label: '像素街机 🎮', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#087f65', surface: '#fbfffd', darkSurface: '#172f35'},
-      {value: 'sunset', label: '落日公路 🛣️', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#b64f3b', surface: '#fffdfa', darkSurface: '#382b37'},
+      {value: 'qinghua', label: '青花', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#183a65', surface: '#ffffff', darkSurface: '#111d31'},
+      {value: 'zhusha', label: '朱砂', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#c3272b', surface: '#ffffff', darkSurface: '#211a17'},
+      {value: 'shuimo', label: '水墨', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#3d3b4f', surface: '#ffffff', darkSurface: '#17181d'},
+      {value: 'zhuqing', label: '竹青', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#057748', surface: '#ffffff', darkSurface: '#17221b'},
+      {value: 'ouhe', label: '藕荷', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#574266', surface: '#ffffff', darkSurface: '#221b27'},
+      {value: 'xiangse', label: '缃色', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#8a6200', surface: '#ffffff', darkSurface: '#1f1c16'},
+      {value: 'qinglv', label: '青绿', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#205580', surface: '#ffffff', darkSurface: '#142430'},
+      {value: 'yuebai', label: '月白', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#576d93', surface: '#ffffff', darkSurface: '#1b2c37'},
+      {value: 'xuanqing', label: '玄青', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#8db4dc', surface: '#1e2030', darkSurface: '#1e2030'},
+      {value: 'wujin', label: '乌金', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#f2be45', surface: '#1b1a16', darkSurface: '#1b1a16'},
     ];
     const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
     if (await skinCards.count() !== expectedInterfaceSkins.length) {
@@ -2123,26 +2117,9 @@ async function main() {
         || metrics.translateButtonBackground === 'rgb(239, 71, 118)'
         || metrics.heroSwitchBackground === 'rgb(239, 71, 118)'
         || metrics.brandIconFilter !== 'none'
-        || metrics.brandIconOpacity !== '0.78'
+        || metrics.brandIconOpacity !== '1'
       )) {
         throw new Error(`简约风格仍包含装饰标签或高强调控件：${JSON.stringify(metrics)}`);
-      }
-      if (skin.value === 'emoji') {
-        metrics.emojiIcons = await skinPopup.locator('.feature-card .feature-icon').evaluateAll(elements => elements.map(element => ({
-          text: element.textContent?.trim(),
-          ariaHidden: element.getAttribute('aria-hidden'),
-          background: getComputedStyle(element).backgroundColor,
-          withinCard: (() => {
-            const icon = element.getBoundingClientRect();
-            const card = element.closest('.feature-card').getBoundingClientRect();
-            return icon.left >= card.left && icon.right <= card.right && icon.top >= card.top && icon.bottom <= card.bottom;
-          })(),
-        })));
-        if (JSON.stringify(metrics.emojiIcons.map(icon => icon.text)) !== JSON.stringify(['🖱️', '✍️', '🎨', '🖼️', '✂️', '🎬', '📖'])
-          || metrics.emojiIcons.some(icon => icon.ariaHidden !== 'true' || !icon.withinCard)
-          || new Set(metrics.emojiIcons.map(icon => icon.background)).size < 4) {
-          throw new Error(`Emoji 风格没有呈现清晰、独立配色且不挤压操作的七枚功能贴纸：${JSON.stringify(metrics.emojiIcons)}`);
-        }
       }
       visualSignatures.add(JSON.stringify([
         skin.kind,
@@ -2424,7 +2401,7 @@ async function main() {
       throw new Error(`恢复默认后快捷功能卡片顺序异常：${JSON.stringify(restoredPopupQuickFeatureOrder)}`);
     }
     const deliverablePopupSkins = [];
-    for (const skin of ['ocean', 'emoji']) {
+    for (const skin of ['yuebai', 'shuimo']) {
       await interfaceSettingsGroup.locator(`.interface-skin-option[data-skin="${skin}"]`).click();
       await page.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin, {timeout});
       await page.waitForTimeout(450);
@@ -2443,7 +2420,7 @@ async function main() {
     await page.setViewportSize({width: 1440, height: 1000});
     await page.locator('button[data-section="settings-interface"]').click();
     await liveSkinPreview.scrollIntoViewIfNeeded();
-    report.screenshots.push(await screenshot(page, 'deliverable-settings-emoji-1440.png'));
+    report.screenshots.push(await screenshot(page, 'deliverable-settings-shuimo-1440.png'));
     report.deliverablePopupSkins = deliverablePopupSkins;
     await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="default"]').click();
     await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'default', undefined, {timeout});
