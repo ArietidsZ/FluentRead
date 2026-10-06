@@ -1,7 +1,8 @@
 /**
  * @file src/platform/webdav/api.ts
  * 文件职责：在用户指定的 WebDAV 目录下读写、条件删除 FluentRead 配置密文并验证服务器能力。
- * 主要内容：只读连接测试、首次备份识别、补取并核验强 ETag；缺少强版本时在 PUT/DELETE 前重新核对密文摘要，上传后读回验证。
+ * 主要内容：只读连接测试、首次备份识别、补取并核验强 ETag；缺少强版本时在 PUT/DELETE 前重新核对密文摘要，
+ * 兼容坚果云等服务返回的无引号 ETag，按服务原始版本值发出条件请求，上传后读回验证。
  * 内容核验无法原子阻止其他设备并发写入，由预览明确提示避免同时同步；不将弱 ETag 或内容摘要当作服务器版本。
  * 禁止跟随重定向、携带浏览器 Cookie 或返回服务器异常正文，防止连接凭据流向其他地址。
  * 模块边界：只消费后台会话与密文，不读取配置或保存密码；冲突合并由云备份服务处理。
@@ -15,6 +16,10 @@ import {createWebDavSession, WebDavError, type WebDavConnection, type WebDavSess
 export const WEBDAV_BACKUP_DIRECTORY = 'FluentRead/';
 export const WEBDAV_BACKUP_FILE = 'fluentread-config.encrypted.json';
 const XML_LIMIT = 128 * 1024;
+function unquotedWebDavEtag(value: string | null): string | undefined {
+    // 仅接受有界的单个可见 ASCII 标识，排除弱版本、通配符、列表和引号；不放宽共用的强 ETag 校验。
+    return value && value.length <= 512 && !value.startsWith('W/') && /^[A-Za-z0-9][A-Za-z0-9._~+/=-]*$/u.test(value) ? value : undefined;
+}
 function failure(status: number): WebDavError {
     const codes = {401: 'auth', 403: 'forbidden', 404: 'notFound', 409: 'notFound', 412: 'conflict', 423: 'locked', 507: 'quota'} as const;
     return new WebDavError(codes[status as keyof typeof codes] ?? 'http', status);
@@ -84,10 +89,12 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             }
             if (response.status !== 200) throw failure(response.status);
             const content = await consumeText(response, maxBytes);
-            const etag = strongCloudEtag(response.headers.get('etag'));
+            const rawEtag = response.headers.get('etag');
+            const etag = strongCloudEtag(rawEtag);
+            const unquotedEtag = unquotedWebDavEtag(rawEtag);
             const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(content));
             const version = [...new Uint8Array(digest)].map(byte => byte.toString(16).padStart(2, '0')).join('');
-            return {file: {id: filename(session), version, modifiedTime: response.headers.get('last-modified') ?? '', ...(etag ? {etag} : {})}, content};
+            return {file: {id: filename(session), version, modifiedTime: response.headers.get('last-modified') ?? '', ...(etag ? {etag} : {}), ...(unquotedEtag ? {unquotedEtag} : {})}, content};
         });
         if (!remote || remote.file.etag) return remote;
         let etag = await request(session, url, {method: 'PROPFIND', headers: {Depth: '0', 'Content-Type': 'application/xml; charset=utf-8'}, body: '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>'}, async response => {
@@ -122,8 +129,9 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
         const current = await read(session);
         if (!current) return null;
         if (current.file.version !== previous.version) throw new WebDavError('conflict');
-        // 若服务器恢复强版本能力立即使用它；否则 * 仅保护资源仍存在，不冒充版本条件。
-        return {'If-Match': current.file.etag ?? '*'};
+        // 若服务器恢复强版本能力立即使用它；无引号 ETag 须在内容核验后按服务器原值发送，
+        // 避免丢弃可用版本后发送 *，导致坚果云拒绝覆盖。只有没有可用版本标识时才使用存在性条件。
+        return {'If-Match': current.file.etag ?? current.file.unquotedEtag ?? '*'};
     }
     async function write(session: WebDavSession, content: string, previous: CloudSyncFile | null): Promise<CloudSyncFile> {
         let envelope: unknown;

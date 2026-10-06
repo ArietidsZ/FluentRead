@@ -6,8 +6,9 @@ import {createWebDavSession,parseWebDavConnection} from '@/src/platform/webdav/c
 import {encryptDriveConfig} from '@/src/platform/google-drive/encryption';
 
 describe('WebDAV 真实 HTTP 协议夹具',()=>{
-    it.each(['get','prop','head','none'] as const)('真实 HTTP 完成首次和再次保存、冲突拒绝（ETag 来源: %s）',async(etagSource)=>{
+    it.each(['get','prop','head','none','unquoted'] as const)('真实 HTTP 完成首次和再次保存、冲突拒绝（ETag 来源: %s）',async(etagSource)=>{
         let content:string|null=null;let version=0;let folder=false;
+        const etag=()=>etagSource==='unquoted'?`fixture-v${version}`:`"v${version}"`;
         const calls:Array<{method:string;url:string;match?:string;none?:string}>=[];
         const expected='Basic '+Buffer.from('fixture-user:fixture-http-password').toString('base64');
         const server=createServer(async(req,res)=>{
@@ -22,14 +23,14 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             if(req.url!=='/dav/FluentRead/fluentread-config.encrypted.json'){res.writeHead(404).end();return;}
             if(req.method==='PROPFIND') {res.writeHead(207,{'Content-Type':'application/xml'}).end(`<d:multistatus xmlns:d="DAV:"><d:response><d:href>${req.url}</d:href><d:propstat><d:prop>${etagSource==='prop'?`<d:getetag>&quot;v${version}&quot;</d:getetag>`:''}</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>`);return;}
             if(req.method==='HEAD'){res.writeHead(200,etagSource==='head'?{ETag:`"v${version}"`}:{}).end();return;}
-            if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}if(req.headers['if-match']&&req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}res.writeHead(200,etagSource==='get'?{ETag:`"v${version}"`}:{}).end(content);return;}
+            if(req.method==='GET'){if(!content){res.writeHead(folder?404:409).end();return;}if(req.headers['if-match']&&req.headers['if-match']!==etag()){res.writeHead(412).end();return;}res.writeHead(200,etagSource==='get'||etagSource==='unquoted'?{ETag:etag()}:{}).end(content);return;}
             if(req.method==='DELETE'){
                 if(!content){res.writeHead(404).end();return;}
-                if(req.headers['if-match']!=='*'&&req.headers['if-match']!==`"v${version}"`){res.writeHead(412).end();return;}
+                if((etagSource==='unquoted'||req.headers['if-match']!=='*')&&req.headers['if-match']!==etag()){res.writeHead(412).end();return;}
                 content=null;res.writeHead(204).end();return;
             }
             if(req.method==='PUT'){
-                if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']==='*'&&!content)||(req.headers['if-match']&&req.headers['if-match']!=='*'&&req.headers['if-match']!==`"v${version}"`)){res.writeHead(412).end();return;}
+                if((req.headers['if-none-match']==='*'&&content)||(req.headers['if-match']==='*'&&(!content||etagSource==='unquoted'))||(req.headers['if-match']&&req.headers['if-match']!=='*'&&req.headers['if-match']!==etag())){res.writeHead(412).end();return;}
                 const chunks=[];for await(const chunk of req)chunks.push(Buffer.from(chunk));content=Buffer.concat(chunks).toString();version++;res.writeHead(201).end();return;
             }
             res.writeHead(405).end();
@@ -49,14 +50,25 @@ describe('WebDAV 真实 HTTP 协议夹具',()=>{
             await expect(api.write(session,encrypted,null)).rejects.toMatchObject({code:'conflict'});
             const changed=await encryptDriveConfig({config:{fixture:'second'}},'FluentReadEncryption');
             const second=await api.write(session,changed,first);
-            expect(second.etag).toBe(etagSource==='none'?undefined:'"v2"');
-            if(etagSource==='none') expect(second.contentGuard).toBe(true);
-            await expect(api.write(session,encrypted,first)).rejects.toMatchObject({code:'conflict'});expect(content).toBe(changed);
+            expect(second.etag).toBe(etagSource==='none'||etagSource==='unquoted'?undefined:'"v2"');
+            if(etagSource==='none'||etagSource==='unquoted') expect(second.contentGuard).toBe(true);
+            if(etagSource==='unquoted') {
+                expect(second.unquotedEtag).toBe('fixture-v2');
+                expect(calls.filter(c=>c.method==='PUT').at(-1)?.match).toBe('fixture-v1');
+                const thirdContent=await encryptDriveConfig({config:{fixture:'third'}},'FluentReadEncryption');
+                const third=await api.write(session,thirdContent,second);
+                expect(third.unquotedEtag).toBe('fixture-v3');expect(content).toBe(thirdContent);
+                expect(calls.filter(c=>c.method==='PUT').at(-1)?.match).toBe('fixture-v2');
+                // 再次修改并上传后继续使用最新版本验证删除。
+                Object.assign(second,third);
+            }
+            const savedContent=content;
+            await expect(api.write(session,encrypted,first)).rejects.toMatchObject({code:'conflict'});expect(content).toBe(savedContent);
             await expect(api.test({...connection,password:'wrong-fixture'})).rejects.toMatchObject({code:'auth'});
             await expect(api.test({...connection,url:origin+'/redirect/'})).rejects.toMatchObject({code:'network'});
             expect(calls.some(c=>c.url==='/private-other/')).toBe(false);
             expect(content).not.toContain('fixture-http-password');
-            await expect(api.remove(session,first)).rejects.toMatchObject({code:'conflict'});expect(content).toBe(changed);
+            await expect(api.remove(session,first)).rejects.toMatchObject({code:'conflict'});expect(content).toBe(savedContent);
             await api.remove(session,second);expect(content).toBeNull();expect(folder).toBe(true);expect(await api.read(session)).toBeNull();
             await api.remove(session,second);
             expect(calls.filter(c=>c.method==='DELETE').every(c=>c.url==='/dav/FluentRead/fluentread-config.encrypted.json')).toBe(true);
