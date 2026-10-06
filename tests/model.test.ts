@@ -117,7 +117,7 @@ describe('AI 模型编号列表', () => {
         expect(models.get(services.yiyan)).toContain('ernie-5.1');
         expect(models.get(services.minimax)).toContain('MiniMax-M2.7');
         expect(models.get(services.minimax)).toContain('MiniMax-M3');
-        expect(models.get(services.minimax)).toContain('MiniMax-M3.1');
+        expect(models.get(services.minimax)).toContain('MiniMax-M3.1-flash');
         expect(models.get(services.mimo)).toEqual([
             'mimo-v2.6-flash', 'mimo-v2.6-pro', customModelString,
         ]);
@@ -1360,6 +1360,8 @@ describe('旧模型编号兼容迁移', () => {
                 [services.huanYuan]: 'hunyuan-turbos-latest',
                 [services.infini]: 'glm-4-9b-chat',
             },
+            documentModel: {[services.minimax]: 'MiniMax-M3.1'},
+            modelThinking: {[services.minimax]: {'MiniMax-M3.1': true}},
         });
 
         expect(normalized.model).toMatchObject({
@@ -1369,6 +1371,8 @@ describe('旧模型编号兼容迁移', () => {
             [services.huanYuan]: 'hy3',
             [services.infini]: 'glm-5.2',
         });
+        expect(normalized.documentModel[services.minimax]).toBe('MiniMax-M3.1-flash');
+        expect(normalized.modelThinking[services.minimax]).toEqual({'MiniMax-M3.1-flash': true});
     });
 
     it('把内置兼容服务的部署别名收敛为可收藏模型，同时保留动态自定义接口的直接模型', () => {

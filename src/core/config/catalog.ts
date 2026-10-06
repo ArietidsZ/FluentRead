@@ -486,7 +486,7 @@ export const models = new Map<string, Array<string>>([
     [services.lingyi, [defaultModelIds[services.lingyi], customModelString]],
     // 旧 Flash 编号仍由官方兼容路由，保留它以维持已保存的模型与 Thinking 偏好。
     [services.deepseek, [currentModelIds.deepseek, "deepseek-v4-pro", "deepseek-v4-flash", customModelString]],
-    [services.minimax, [defaultModelIds[services.minimax], "MiniMax-M3.1", "MiniMax-M3", currentModelIds.minimax, "MiniMax-M2.5", "MiniMax-M2.5-highspeed", customModelString]],
+    [services.minimax, [defaultModelIds[services.minimax], "MiniMax-M3.1-flash", "MiniMax-M3", currentModelIds.minimax, "MiniMax-M2.5", "MiniMax-M2.5-highspeed", customModelString]],
     [services.mimo, [defaultModelIds[services.mimo], currentModelIds.mimo, customModelString]],
     [services.jieyue, [defaultModelIds[services.jieyue], "step-3.5-flash-2603", currentModelIds.jieyue, "step-3", "step-2", customModelString]],
     [services.huanYuan, [currentModelIds.huanYuan, customModelString]],

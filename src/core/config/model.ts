@@ -779,6 +779,7 @@ const modelMigrations: Record<string, Record<string, string>> = {
     [services.minimax]: {
         chatcompletion_v2: currentModelIds.minimax,
         'MiniMax-Text-01': currentModelIds.minimax,
+        'MiniMax-M3.1': 'MiniMax-M3.1-flash',
     },
     [services.mimo]: {
         // 官方将在 2026-10-21 直接停用旧编号；网页、文档和模型级偏好使用同一映射。
