@@ -101,6 +101,11 @@
 .bv-button:hover {
   transform: translateY(-2px);
 }
+/* 文档中的按钮链接保持按钮样式，避免继承正文链接的下划线。 */
+.vp-doc a.bv-button,
+.vp-doc a.bv-button:hover {
+  text-decoration: none;
+}
 .bv-primary,
 .vp-doc .bv-primary {
   background: #ba2654;
