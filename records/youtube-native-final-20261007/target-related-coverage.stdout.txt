@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts tests/youtubeSubtitleData.test.ts tests/xVideoSubtitleData.test.ts tests/videoSubtitleLogic.test.ts tests/videoSubtitleDownloads.test.ts --coverage.include=src/features/video-subtitle/content/youtubeSubtitleData.ts --coverage.reportsDirectory=$RECORDS_ROOT/target-coverage --reporter=dot --no-cache
+
+ RUN  v2.1.9 $REVISION_WORKTREE
+      Coverage enabled with v8
+
+ ✓ tests/youtubeSubtitleData.test.ts (294 tests) 29ms
+ ✓ tests/videoSubtitleLogic.test.ts (21 tests) 34ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 18ms
+ ✓ tests/xVideoSubtitleData.test.ts (9 tests) 5ms
+
+ Test Files  4 passed (4)
+      Tests  331 passed (331)
+   Start at  18:36:55
+   Duration  963ms (transform 220ms, setup 0ms, collect 384ms, tests 86ms, environment 0ms, prepare 110ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |                   
+ ...ubtitleData.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

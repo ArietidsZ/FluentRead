@@ -1,0 +1,181 @@
+{
+  "code_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "parent_commit": "9dc1391e36ce488429167b5dfecbe02a9c1c57de",
+  "branch": "fix/youtube-native-cue-data-20261007",
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+  "code_change": {
+    "files": 2,
+    "insertions": 85,
+    "deletions": 3,
+    "production_file_insertions": 3,
+    "production_file_deletions": 3,
+    "test_insertions": 82
+  },
+  "execution_environment": "CW local; existing dependencies and BrowserOS Neo native MCP",
+  "target_related": {
+    "status": "PASS",
+    "files": 4,
+    "tests": 331,
+    "youtube_tests": 294,
+    "x_tests": 9,
+    "logic_tests": 21,
+    "download_tests": 7,
+    "exit_code": 0
+  },
+  "target_coverage": {
+    "status": "PASS",
+    "statements_pct": 100,
+    "branches_pct": 100,
+    "functions_pct": 100,
+    "lines_pct": 100
+  },
+  "browser_pure_module": {
+    "status": "PASS",
+    "assertions": 69,
+    "errors": 0,
+    "console_warn_error_calls": 0,
+    "source_identity_verified": true,
+    "mcp_server_info": {
+      "name": "browseros-neo",
+      "title": "BrowserOS neo",
+      "version": "0.0.66"
+    },
+    "scope": "Real browser pure-module smoke only; no extension injection, YouTube capture, player UI, GPU or ASR"
+  },
+  "typecheck": {
+    "status": "PASS",
+    "exit_code": 0
+  },
+  "audit": {
+    "status": "PASS",
+    "exit_code": 0
+  },
+  "diffcheck": {
+    "status": "PASS",
+    "exit_code": 0
+  },
+  "full_strict": {
+    "status": "FAIL_EXISTING_BASELINE",
+    "revision": {
+      "files": 382,
+      "passed_files": 375,
+      "failed_files": 7,
+      "tests": 9665,
+      "passed_tests": 9648,
+      "failed_tests": 17,
+      "collection_errors": 1,
+      "unhandled_errors": 2,
+      "exit_code": 1
+    },
+    "baseline_83deca4": {
+      "files": 382,
+      "passed_files": 375,
+      "failed_files": 7,
+      "tests": 9385,
+      "passed_tests": 9368,
+      "failed_tests": 17,
+      "collection_errors": 1,
+      "unhandled_errors": 2,
+      "exit_code": 1
+    },
+    "new_failures": 0,
+    "failed_test_ids_identical": true,
+    "failed_file_ids_identical": true,
+    "collection_error_ids_identical": true,
+    "unhandled_error_signatures_identical": true,
+    "global_coverage_summary": "NOT_GENERATED: suite failed; target module coverage recorded separately"
+  },
+  "architecture": {
+    "status": "FAIL_EXISTING_BASELINE",
+    "revision": {
+      "files": 32,
+      "passed_files": 29,
+      "failed_files": 3,
+      "tests": 1332,
+      "passed_tests": 1328,
+      "failed_tests": 4,
+      "exit_code": 1
+    },
+    "baseline_83deca4": {
+      "files": 32,
+      "passed_files": 29,
+      "failed_files": 3,
+      "tests": 1332,
+      "passed_tests": 1328,
+      "failed_tests": 4,
+      "exit_code": 1
+    },
+    "new_failures": 0,
+    "failed_test_ids_identical": true,
+    "launcher": "pnpm unavailable; official resource wrapper and exact 32-file matrix via existing Node/Vitest"
+  },
+  "preliminary_sandbox_runs": {
+    "status": "FAIL_ENVIRONMENT_AND_EXISTING_BASELINE",
+    "files": [
+      "architecture-revision.*",
+      "full-strict-revision.*"
+    ],
+    "limitations": [
+      "child process EPERM",
+      "localhost listener EPERM"
+    ],
+    "authoritative_comparison": "*-host logs; same inputs and flags for revision and detached baseline, differing output paths"
+  },
+  "counterexample_reproduction": {
+    "revision": "9dc1391e36ce488429167b5dfecbe02a9c1c57de",
+    "status": "EXPECTED_FAIL",
+    "failed_tests": 2,
+    "exit_code": 1,
+    "record": "new-counterexamples-9dc1391e.*"
+  },
+  "not_run": [
+    "full grouped unit/functional/regression stages",
+    "WXT prepare and Chrome/Firefox/userscript/docs builds",
+    "extension injection",
+    "YouTube capture and player UI",
+    "browser aggregate site/network matrix",
+    "RTX5090 WebGPU",
+    "ASR"
+  ],
+  "existing_escaped_xml_divergence": {
+    "input": "<text start=\"1\" dur=\"2\">&lt;hello&gt;</text>",
+    "baseline_and_revision": {
+      "dom": [],
+      "regex": [
+        {
+          "durationMs": 2000,
+          "startMs": 1000,
+          "text": "<hello>"
+        }
+      ]
+    },
+    "status": "UNCHANGED_EXISTING_DIFFERENCE"
+  },
+  "deferred": [
+    "Hangul spacing",
+    "null segments",
+    "tOffsetMs and single-event multi-sentence splitting"
+  ],
+  "publication_redactions": {
+    "filesystem_prefix_placeholders": [
+      "$RECORDS_ROOT",
+      "$REVISION_WORKTREE",
+      "$BASELINE_WORKTREE",
+      "$SHARED_DEPENDENCIES",
+      "$TASK_ROOT",
+      "$LOCAL_HOME",
+      "$TMPDIR/"
+    ],
+    "credential_pattern_matches": 0,
+    "mcp_session_values_published": false,
+    "local_server_pid_port_metadata_published": false,
+    "user_tab_content_published": false
+  },
+  "fixture_cleanup": {
+    "stop_signal": "SIGTERM",
+    "only_verified_task_process": true,
+    "neo_kept_running": true,
+    "task_tabs_closed": true
+  }
+}

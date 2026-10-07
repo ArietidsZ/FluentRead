@@ -1,0 +1,25 @@
+{
+  "label": "full-strict-revision",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--coverage",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage.reportsDirectory=$RECORDS_ROOT/full-strict-coverage",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/full-strict-revision.results.json",
+    "--no-cache"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-07T10:39:03.274452+00:00",
+  "duration_seconds": 167.061,
+  "exit_code": 1
+}

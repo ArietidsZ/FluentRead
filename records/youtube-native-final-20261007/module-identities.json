@@ -1,0 +1,18 @@
+[
+  {
+    "name": "revision",
+    "sourceSha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+    "javascriptSha256": "64ce2488033c8c45c17ebd67b3b029ff416d2aaeb482fc60f3d56b08272e7ea0",
+    "compiler": "existing TypeScript 5.7.3",
+    "target": "ES2022",
+    "module": "ESNext"
+  },
+  {
+    "name": "baseline",
+    "sourceSha256": "5caebbba90496afb5dfbd716da622f0de8841e8061a7f256e1da6b24a747a2c5",
+    "javascriptSha256": "66c1366f01695ea1dc734c2e8339d3d641512d971071a13c2f3f0229c24f8d64",
+    "compiler": "existing TypeScript 5.7.3",
+    "target": "ES2022",
+    "module": "ESNext"
+  }
+]

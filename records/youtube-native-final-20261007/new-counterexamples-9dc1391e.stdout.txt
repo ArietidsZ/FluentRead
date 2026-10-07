@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/youtubeSubtitleData.test.ts --testNamePattern=否定后缀 don|后缀后的逗号和空格 --reporter=verbose --no-cache
+
+ RUN  v2.1.9 $REVISION_WORKTREE
+
+ × tests/youtubeSubtitleData.test.ts > YouTube 字幕轨道数据 > 否定后缀 don 和 apostrophe t 事件连接为完整词
+   → expected [ { startMs: +0, …(2) } ] to deeply equal [ { startMs: +0, …(2) } ]
+ × tests/youtubeSubtitleData.test.ts > YouTube 字幕轨道数据 > 后缀后的逗号和空格续文仍连接缩写词
+   → expected [ { startMs: +0, …(2) } ] to deeply equal [ { startMs: +0, …(2) } ]
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 89 skipped (91)
+   Start at  18:35:49
+   Duration  131ms (transform 35ms, setup 0ms, collect 29ms, tests 6ms, environment 0ms, prepare 20ms)
+

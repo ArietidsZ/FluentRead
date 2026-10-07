@@ -1,0 +1,19 @@
+{
+  "label": "new-counterexamples-9dc1391e",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/youtubeSubtitleData.test.ts",
+    "--testNamePattern=否定后缀 don|后缀后的逗号和空格",
+    "--reporter=verbose",
+    "--no-cache"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-07T10:35:49.261406+00:00",
+  "duration_seconds": 0.291,
+  "exit_code": 1
+}

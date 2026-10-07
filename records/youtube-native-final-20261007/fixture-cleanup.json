@@ -1,0 +1,6 @@
+{
+  "stop_signal": "SIGTERM",
+  "only_verified_task_process": true,
+  "neo_kept_running": true,
+  "task_tabs_closed": true
+}

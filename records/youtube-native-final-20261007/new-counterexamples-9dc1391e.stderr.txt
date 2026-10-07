@@ -1,0 +1,52 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/youtubeSubtitleData.test.ts > YouTube 字幕轨道数据 > 否定后缀 don 和 apostrophe t 事件连接为完整词
+AssertionError: expected [ { startMs: +0, …(2) } ] to deeply equal [ { startMs: +0, …(2) } ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "durationMs": 1850,
+      "startMs": 0,
+-     "text": "don't do that.",
++     "text": "don 't do that.",
+    },
+  ]
+
+ ❯ tests/youtubeSubtitleData.test.ts:656:45
+    654|       startMs: index * 450, durationMs: 500, text,
+    655|     }));
+    656|     expect(finalizeVideoSubtitleCues(cues)).toEqual([
+       |                                             ^
+    657|       {startMs: 0, durationMs: 1850, text: "don't do that."},
+    658|     ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/youtubeSubtitleData.test.ts > YouTube 字幕轨道数据 > 后缀后的逗号和空格续文仍连接缩写词
+AssertionError: expected [ { startMs: +0, …(2) } ] to deeply equal [ { startMs: +0, …(2) } ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "durationMs": 1850,
+      "startMs": 0,
+-     "text": "we're, in fact, ready today.",
++     "text": "we 're, in fact, ready today.",
+    },
+  ]
+
+ ❯ tests/youtubeSubtitleData.test.ts:665:45
+    663|       startMs: index * 450, durationMs: 500, text,
+    664|     }));
+    665|     expect(finalizeVideoSubtitleCues(cues)).toEqual([
+       |                                             ^
+    666|       {startMs: 0, durationMs: 1850, text: "we're, in fact, ready toda…
+    667|     ]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

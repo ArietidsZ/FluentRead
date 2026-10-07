@@ -1,0 +1,1132 @@
+{
+  "checks": [
+    {
+      "actual": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "It works today."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "AI"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "is"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "useful."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "It works today."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "AI"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "is"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "useful."
+        }
+      ],
+      "name": "AI sentence: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "It works today."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "AI"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "is"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "useful."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "It works today."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "AI"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "is"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "useful."
+        }
+      ],
+      "name": "AI sentence: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,400\nIt works today.\n\n2\n00:00:01,350 --> 00:00:01,850\nAI\n\n3\n00:00:01,800 --> 00:00:02,300\nis\n\n4\n00:00:02,250 --> 00:00:02,750\nuseful.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,400\nIt works today.\n\n2\n00:00:01,350 --> 00:00:01,850\nAI\n\n3\n00:00:01,800 --> 00:00:02,300\nis\n\n4\n00:00:02,250 --> 00:00:02,750\nuseful.\n",
+      "name": "AI sentence: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,400\nIt works today.\n\n2\n00:00:01,350 --> 00:00:01,850\nAI\n\n3\n00:00:01,800 --> 00:00:02,300\nis\n\n4\n00:00:02,250 --> 00:00:02,750\nuseful.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,400\nIt works today.\n\n2\n00:00:01,350 --> 00:00:01,850\nAI\n\n3\n00:00:01,800 --> 00:00:02,300\nis\n\n4\n00:00:02,250 --> 00:00:02,750\nuseful.\n",
+      "name": "AI sentence: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "it's a test."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "it's a test."
+        }
+      ],
+      "name": "apostrophe s: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "it's a test."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "it's a test."
+        }
+      ],
+      "name": "apostrophe s: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nit's a test.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nit's a test.\n",
+      "name": "apostrophe s: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nit's a test.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nit's a test.\n",
+      "name": "apostrophe s: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "I live in U.S."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "We"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "agree."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "I live in U.S."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "We"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "agree."
+        }
+      ],
+      "name": "U.S. sentence: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "I live in U.S."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "We"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "agree."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "I live in U.S."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "We"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "agree."
+        }
+      ],
+      "name": "U.S. sentence: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nI live in U.S.\n\n2\n00:00:01,800 --> 00:00:02,300\nWe\n\n3\n00:00:02,250 --> 00:00:02,750\nagree.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nI live in U.S.\n\n2\n00:00:01,800 --> 00:00:02,300\nWe\n\n3\n00:00:02,250 --> 00:00:02,750\nagree.\n",
+      "name": "U.S. sentence: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nI live in U.S.\n\n2\n00:00:01,800 --> 00:00:02,300\nWe\n\n3\n00:00:02,250 --> 00:00:02,750\nagree.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nI live in U.S.\n\n2\n00:00:01,800 --> 00:00:02,300\nWe\n\n3\n00:00:02,250 --> 00:00:02,750\nagree.\n",
+      "name": "U.S. sentence: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "I chose 1."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "2"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "was"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "wrong."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "I chose 1."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "2"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "was"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "wrong."
+        }
+      ],
+      "name": "number sentence: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "I chose 1."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "2"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "was"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "wrong."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1400,
+          "startMs": 0,
+          "text": "I chose 1."
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1350,
+          "text": "2"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 1800,
+          "text": "was"
+        },
+        {
+          "durationMs": 500,
+          "startMs": 2250,
+          "text": "wrong."
+        }
+      ],
+      "name": "number sentence: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,400\nI chose 1.\n\n2\n00:00:01,350 --> 00:00:01,850\n2\n\n3\n00:00:01,800 --> 00:00:02,300\nwas\n\n4\n00:00:02,250 --> 00:00:02,750\nwrong.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,400\nI chose 1.\n\n2\n00:00:01,350 --> 00:00:01,850\n2\n\n3\n00:00:01,800 --> 00:00:02,300\nwas\n\n4\n00:00:02,250 --> 00:00:02,750\nwrong.\n",
+      "name": "number sentence: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,400\nI chose 1.\n\n2\n00:00:01,350 --> 00:00:01,850\n2\n\n3\n00:00:01,800 --> 00:00:02,300\nwas\n\n4\n00:00:02,250 --> 00:00:02,750\nwrong.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,400\nI chose 1.\n\n2\n00:00:01,350 --> 00:00:01,850\n2\n\n3\n00:00:01,800 --> 00:00:02,300\nwas\n\n4\n00:00:02,250 --> 00:00:02,750\nwrong.\n",
+      "name": "number sentence: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "don't do that."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "don't do that."
+        }
+      ],
+      "name": "negative t: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "don't do that."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "don't do that."
+        }
+      ],
+      "name": "negative t: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ndon't do that.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ndon't do that.\n",
+      "name": "negative t: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ndon't do that.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ndon't do that.\n",
+      "name": "negative t: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we're, in fact, ready today."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we're, in fact, ready today."
+        }
+      ],
+      "name": "suffix comma continuation: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we're, in fact, ready today."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we're, in fact, ready today."
+        }
+      ],
+      "name": "suffix comma continuation: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe're, in fact, ready today.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe're, in fact, ready today.\n",
+      "name": "suffix comma continuation: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe're, in fact, ready today.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe're, in fact, ready today.\n",
+      "name": "suffix comma continuation: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "Dr. Smith is here."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "Dr. Smith is here."
+        }
+      ],
+      "name": "title: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "Dr. Smith is here."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "Dr. Smith is here."
+        }
+      ],
+      "name": "title: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nDr. Smith is here.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nDr. Smith is here.\n",
+      "name": "title: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nDr. Smith is here.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nDr. Smith is here.\n",
+      "name": "title: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 'ready' now."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 'ready' now."
+        }
+      ],
+      "name": "true quote: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 'ready' now."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 'ready' now."
+        }
+      ],
+      "name": "true quote: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe say 'ready' now.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe say 'ready' now.\n",
+      "name": "true quote: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe say 'ready' now.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe say 'ready' now.\n",
+      "name": "true quote: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 's,' now."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 's,' now."
+        }
+      ],
+      "name": "quoted suffix comma: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 's,' now."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "we say 's,' now."
+        }
+      ],
+      "name": "quoted suffix comma: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe say 's,' now.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe say 's,' now.\n",
+      "name": "quoted suffix comma: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\nwe say 's,' now.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\nwe say 's,' now.\n",
+      "name": "quoted suffix comma: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "name": "composed accents: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "name": "composed accents: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "name": "composed accents: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "name": "composed accents: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "name": "decomposed accents: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "café déjà très bien."
+        }
+      ],
+      "name": "decomposed accents: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "name": "decomposed accents: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\ncafé déjà très bien.\n",
+      "name": "decomposed accents: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "今天学习TypeScript字幕。"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "今天学习TypeScript字幕。"
+        }
+      ],
+      "name": "Chinese mixed: exact cues",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "今天学习TypeScript字幕。"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1850,
+          "startMs": 0,
+          "text": "今天学习TypeScript字幕。"
+        }
+      ],
+      "name": "Chinese mixed: idempotence",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\n今天学习TypeScript字幕。\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\n今天学习TypeScript字幕。\n",
+      "name": "Chinese mixed: SRT stability",
+      "pass": true
+    },
+    {
+      "actual": "1\n00:00:00,000 --> 00:00:01,850\n今天学习TypeScript字幕。\n",
+      "expected": "1\n00:00:00,000 --> 00:00:01,850\n今天学习TypeScript字幕。\n",
+      "name": "Chinese mixed: exact SRT",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "name": "valid XML: native DOMParser",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "name": "valid XML: regex",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 2000,
+          "startMs": 1500,
+          "text": "Hello & welcome"
+        }
+      ],
+      "name": "valid XML: parity",
+      "pass": true
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "name": "valid XML: parser restored",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "name": "missing duration XML: native DOMParser",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "name": "missing duration XML: regex",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 0,
+          "startMs": 1000,
+          "text": "A complete first cue"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 3000,
+          "text": "A complete final cue"
+        }
+      ],
+      "name": "missing duration XML: parity",
+      "pass": true
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "name": "missing duration XML: parser restored",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "name": "invalid XML times: native DOMParser",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "name": "invalid XML times: regex",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 2000,
+          "text": "valid"
+        }
+      ],
+      "name": "invalid XML times: parity",
+      "pass": true
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "name": "invalid XML times: parser restored",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "name": "XML entities: native DOMParser",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "name": "XML entities: regex",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 1000,
+          "startMs": 0,
+          "text": "A & B \"quoted\" 'word'"
+        }
+      ],
+      "name": "XML entities: parity",
+      "pass": true
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "name": "XML entities: parser restored",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 500,
+          "startMs": 0,
+          "text": "Hello world"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 1200,
+          "text": "中文TypeScript"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 500,
+          "startMs": 0,
+          "text": "Hello world"
+        },
+        {
+          "durationMs": 0,
+          "startMs": 1200,
+          "text": "中文TypeScript"
+        }
+      ],
+      "name": "JSON3 raw segments and timing",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 500,
+          "startMs": 0,
+          "text": "Hello world"
+        },
+        {
+          "durationMs": 2000,
+          "startMs": 1200,
+          "text": "中文TypeScript"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 500,
+          "startMs": 0,
+          "text": "Hello world"
+        },
+        {
+          "durationMs": 2000,
+          "startMs": 1200,
+          "text": "中文TypeScript"
+        }
+      ],
+      "name": "JSON3 missing duration fallback",
+      "pass": true
+    },
+    {
+      "actual": [],
+      "expected": [],
+      "name": "escaped tag-looking XML baseline/revision DOM behavior",
+      "pass": true
+    },
+    {
+      "actual": [
+        {
+          "durationMs": 2000,
+          "startMs": 1000,
+          "text": "<hello>"
+        }
+      ],
+      "expected": [
+        {
+          "durationMs": 2000,
+          "startMs": 1000,
+          "text": "<hello>"
+        }
+      ],
+      "name": "escaped tag-looking XML baseline/revision regex behavior",
+      "pass": true
+    },
+    {
+      "actual": true,
+      "expected": true,
+      "name": "DOMParser final restored",
+      "pass": true
+    }
+  ],
+  "consoleCalls": [],
+  "done": true,
+  "errors": [],
+  "escapedTagComparison": {
+    "baseline": {
+      "dom": [],
+      "regex": [
+        {
+          "durationMs": 2000,
+          "startMs": 1000,
+          "text": "<hello>"
+        }
+      ]
+    },
+    "revision": {
+      "dom": [],
+      "regex": [
+        {
+          "durationMs": 2000,
+          "startMs": 1000,
+          "text": "<hello>"
+        }
+      ]
+    }
+  },
+  "moduleVersions": {
+    "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+    "revision": "current working source"
+  },
+  "passed": true,
+  "scope": "Real browser pure-module smoke only; no extension injection, YouTube capture, player UI, GPU or ASR",
+  "serverInfo": {
+    "name": "browseros-neo",
+    "title": "BrowserOS neo",
+    "version": "0.0.66"
+  }
+}

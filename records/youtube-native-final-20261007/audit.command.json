@@ -1,0 +1,11 @@
+{
+  "label": "audit",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-07T10:38:01.352449+00:00",
+  "duration_seconds": 0.857,
+  "exit_code": 0
+}

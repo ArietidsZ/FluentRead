@@ -1,0 +1,25 @@
+{
+  "label": "target-related-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "tests/youtubeSubtitleData.test.ts",
+    "tests/xVideoSubtitleData.test.ts",
+    "tests/videoSubtitleLogic.test.ts",
+    "tests/videoSubtitleDownloads.test.ts",
+    "--coverage.include=src/features/video-subtitle/content/youtubeSubtitleData.ts",
+    "--coverage.reportsDirectory=$RECORDS_ROOT/target-coverage",
+    "--reporter=dot",
+    "--no-cache"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-07T10:36:55.852574+00:00",
+  "duration_seconds": 1.15,
+  "exit_code": 0
+}
