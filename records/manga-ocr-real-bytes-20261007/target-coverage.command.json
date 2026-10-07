@@ -1,0 +1,29 @@
+{
+  "label": "target-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/mangaOcrAssets.test.ts",
+    "tests/mangaOcrAssetManifest.test.ts",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage",
+    "--coverage.include=src/features/image-translation/services/mangaOcrAssets.ts",
+    "--coverage.include=src/features/image-translation/services/mangaOcrAssetManifest.ts",
+    "--coverage.reportsDirectory=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/target-coverage",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/target-coverage.results.json",
+    "--no-cache"
+  ],
+  "cwd": "$CW_TASK_DIR/FluentRead-manga-real-bytes-fix",
+  "started_at": "2026-10-07T13:16:02.848612+00:00",
+  "duration_seconds": 0.612,
+  "exit_code": 0
+}

@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts --testNamePattern 原生无 body --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-size-validation.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ❯ tests/mangaOcrAssets.test.ts (24 tests | 1 failed | 23 skipped) 8ms
+   × 漫画模型真实小字节完整性与生命周期 > 原生无 body Response 的零字节 arrayBuffer 同样拒绝 7ms
+     → expected Error: 漫画模型下载未完成，请切换下载来源或导入模型后重试 to match object { cause: ObjectContaining{…} }
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 skipped (24)
+   Start at  21:24:54
+   Duration  163ms (transform 46ms, setup 0ms, collect 42ms, tests 8ms, environment 0ms, prepare 24ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-size-validation.results.json

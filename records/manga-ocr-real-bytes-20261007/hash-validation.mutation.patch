@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssets.ts
++++ b/src/features/image-translation/services/mangaOcrAssets.ts
+@@ -80,7 +80,7 @@
+     if (buffer.byteLength !== asset.bytes) throw new Error('漫画识别模型文件不完整，请重试');
+     const digest = await crypto.subtle.digest('SHA-256', buffer);
+     const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+-    if (hash !== asset.sha256) throw new Error('漫画识别模型校验失败，请重试');
++    
+     return buffer;
+ }
+ 

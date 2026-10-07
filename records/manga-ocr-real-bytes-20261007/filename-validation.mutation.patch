@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssets.ts
++++ b/src/features/image-translation/services/mangaOcrAssets.ts
+@@ -63,7 +63,7 @@
+ 
+ /** 文件名、尺寸、哈希都匹配后才写入，浏览器选择的文件从不上传。 */
+ export async function importMangaModel(file:File):Promise<void> {
+-    const asset=MANGA_OCR_ASSETS.find(asset=>asset.path.split('/').pop()===file.name);
++    const asset=MANGA_OCR_ASSETS[0];
+     const metadata=asset??(file.name==='lama-manga-dynamic.onnx'?MANGA_INPAINT_ASSET:undefined);
+     if(!metadata||file.size!==metadata.bytes)throw new Error('请选择配套的漫画模型文件');
+     const buffer=await verifiedArrayBuffer(await file.arrayBuffer(),metadata);

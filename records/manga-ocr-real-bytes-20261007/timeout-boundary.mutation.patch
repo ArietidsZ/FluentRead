@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssets.ts
++++ b/src/features/image-translation/services/mangaOcrAssets.ts
+@@ -35,7 +35,7 @@
+         assertMangaOcrActive(signal);
+         const controller=new AbortController();let timeout:ReturnType<typeof setTimeout>;
+         const abort=()=>controller.abort();signal?.addEventListener('abort',abort,{once:true});
+-        const arm=()=>{clearTimeout(timeout);timeout=setTimeout(abort,20_000);};
++        const arm=()=>{clearTimeout(timeout);timeout=setTimeout(abort,19_999);};
+         const state:MangaDownloadState={phase:'downloading',file:url.split('/').pop()!,loaded:0,total:asset.bytes,source:new URL(source).host};download=state;
+         try {
+             arm();const response=await fetch(source,{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});

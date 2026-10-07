@@ -1,0 +1,112 @@
+[
+  {
+    "label": "size-validation",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "2f0f40bcb57e6cef5ed5ff08cb6a9cb93f3c816064ec47783399ddea8f3ca2c0",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "漫画模型真实小字节完整性与生命周期 原生无 body Response 的零字节 arrayBuffer 同样拒绝"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "hash-validation",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "757ae0e5254a9d281b0e5bcf961b967c50d72d16577fce210914cc0fbf8ff37a",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "漫画模型真实小字节完整性与生命周期 错误 filename、真实 file size 和同大小错误哈希均拒绝离线导入"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "filename-validation",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "4412f19c31c06caee201cab6b2f6fae94b3d2455980781ae9f502618a6031fb2",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "漫画模型真实小字节完整性与生命周期 错误 filename、真实 file size 和同大小错误哈希均拒绝离线导入"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "timeout-boundary",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "3f3d46d4177d08d1628cb1ae8cdfb0ce621e1cd4de4176b668cd52345e7149a5",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "漫画模型真实小字节完整性与生命周期 19,999ms 不回退；超过 20,000ms 先 abort 旧源再启动备用源"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "user-cancellation",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "e17e8c503f074cf9442f054e85cf9501125d0b4872273b0f097d20881e7bed5c",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "漫画模型真实小字节完整性与生命周期 用户取消立即结束，不回退、不写 cache，paused 状态可被完整缓存解除"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "reader-rejection-cleanup",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssets.ts",
+    "source_blob": "4e70720e6619b6e18f10c2549427aeabae36cf55",
+    "source_sha256_before": "8dac8fc4004b257c476223a9b4deb0371ca5e93ef149d9d641373d994628570b",
+    "mutated_source_sha256": "f560892a828453eb8ab3fe61dfce710dc47f705671f114b7b38c3f1dab4752eb",
+    "test_file": "tests/mangaOcrAssets.test.ts",
+    "test_blob": "040a2a9ef7e53eabaf4a14cedbc6b5896c9aee73",
+    "actual_exit_code": 1,
+    "failed_assertions": [],
+    "unhandled_reported": true,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  },
+  {
+    "label": "production-revision-contract",
+    "source_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+    "source_file": "src/features/image-translation/services/mangaOcrAssetManifest.ts",
+    "source_blob": "c06895d6a37cb2888a4f2f81d7131a36f634ba91",
+    "source_sha256_before": "e0e3ed34bda3059f22f04c03b3e3fa87c054830f419866153ef3adf80e7a165c",
+    "mutated_source_sha256": "a10275e84d281062a55b757cfb45a44a0689511d61d820fc63ae30ae03fbc4f5",
+    "test_file": "tests/mangaOcrAssetManifest.test.ts",
+    "test_blob": "58adc257d1fb98f274c91f2cc4877b49244792d5",
+    "actual_exit_code": 1,
+    "failed_assertions": [
+      "未 mock 的漫画发布资产清单契约 识别源固定 URL/revision，文件名、精确尺寸和 SHA-256 保持原发布值"
+    ],
+    "unhandled_reported": false,
+    "interpretation": "Expected behavior mutant detected; production and tests restored after the run."
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "prior_baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "baseline_record_reused": true,
+  "new_ownership_tests": 13,
+  "passed": 11,
+  "failed": 2,
+  "exact_failure_diff_blocks_match_prior_baseline": true,
+  "unowned_file": "scripts/verify-storybook-build.mjs",
+  "existing_strict_coverage_owner_gaps": 18,
+  "new_manifest_is_not_a_gap": true,
+  "full_architecture_not_rerun": "Prior baseline has 4 failures in 3 files; this batch only reran ownership."
+}

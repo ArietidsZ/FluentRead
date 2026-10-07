@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts --testNamePattern 19,999ms --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-timeout-boundary.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ❯ tests/mangaOcrAssets.test.ts (24 tests | 1 failed | 23 skipped) 10ms
+   × 漫画模型真实小字节完整性与生命周期 > 19,999ms 不回退；超过 20,000ms 先 abort 旧源再启动备用源 9ms
+     → expected "spy" to be called 1 times, but got 2 times
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 23 skipped (24)
+   Start at  21:24:55
+   Duration  161ms (transform 43ms, setup 0ms, collect 38ms, tests 10ms, environment 0ms, prepare 24ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-timeout-boundary.results.json

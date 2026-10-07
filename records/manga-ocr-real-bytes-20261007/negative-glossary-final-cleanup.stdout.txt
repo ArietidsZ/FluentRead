@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/imageGlossaryContext.test.ts --testNamePattern 重复OCR文本经三路并发 --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-glossary-final-cleanup.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-quality-six-integration
+
+ ❯ tests/imageGlossaryContext.test.ts (14 tests | 1 failed | 13 skipped) 14ms
+   × 图片、圈选OCR到真实术语broker的完整请求边界 > 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文 14ms
+     → expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 skipped (14)
+   Start at  21:30:11
+   Duration  604ms (transform 351ms, setup 0ms, collect 484ms, tests 14ms, environment 0ms, prepare 21ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-glossary-final-cleanup.results.json

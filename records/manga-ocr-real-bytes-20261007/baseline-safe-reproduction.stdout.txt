@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts --testNamePattern 离线导入只接受|下载固定来源、校验哈希 --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/baseline-safe-reproduction.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ❯ tests/mangaOcrAssets.test.ts (13 tests | 2 failed | 11 skipped) 6ms
+   × 漫画模型固定版本和完整性 > 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入 5ms
+     → Invalid typed array length: 74948
+   × 漫画模型固定版本和完整性 > 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像 1ms
+     → Invalid typed array length: 9880512
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 skipped (13)
+   Start at  21:03:28
+   Duration  132ms (transform 30ms, setup 0ms, collect 23ms, tests 6ms, environment 0ms, prepare 22ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/baseline-safe-reproduction.results.json

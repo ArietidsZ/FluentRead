@@ -1,0 +1,27 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型真实小字节完整性与生命周期 > 用户取消立即结束，不回退、不写 cache，paused 状态可被完整缓存解除
+AssertionError: promise resolved "" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ ArrayBuffer [
++   68,
++   68,
++   68,
++   68,
++   68,
++ ]
+
+ ❯ tests/mangaOcrAssets.test.ts:140:46
+    138|         }));
+    139|         const pending = loadMangaInpaintAsset(abort.signal);
+    140|         const check = observed(expect(pending).rejects.toMatchObject({…
+       |                                              ^
+    141|         try {
+    142|             await vi.advanceTimersByTimeAsync(1); abort.abort(); await…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

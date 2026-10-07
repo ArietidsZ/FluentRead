@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/architecture/verificationOwnership.test.ts --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/verification-ownership.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ❯ tests/architecture/verificationOwnership.test.ts (13 tests | 2 failed) 493ms
+   × repository verification ownership > 每个产品、构建和测试基础设施文件都有明确验证归属 4ms
+     → expected [ { …(2) } ] to deeply equal []
+   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 293ms
+     → expected [ …(18) ] to deeply equal []
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 passed (13)
+   Start at  21:21:24
+   Duration  761ms (transform 23ms, setup 0ms, collect 165ms, tests 493ms, environment 0ms, prepare 20ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/verification-ownership.results.json

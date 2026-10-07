@@ -1,0 +1,25 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型真实小字节完整性与生命周期 > 原生无 body Response 的零字节 arrayBuffer 同样拒绝
+AssertionError: expected Error: 漫画模型下载未完成，请切换下载来源或导入模型后重试 to match object { cause: ObjectContaining{…} }
+
+- Expected
++ Received
+
+- Object {
+-   "cause": ObjectContaining {
+-     "message": StringContaining "不完整",
+-   },
+- }
++ [Error: 漫画模型下载未完成，请切换下载来源或导入模型后重试]
+
+ ❯ tests/mangaOcrAssets.test.ts:166:9
+    164|     it('原生无 body Response 的零字节 arrayBuffer 同样拒绝', async () …
+    165|         vi.mocked(fetch).mockImplementation(async () => new Response(n…
+    166|         await expect(loadMangaOcrAssets()).rejects.toMatchObject({caus…
+       |         ^
+    167|         expect(cache.put).not.toHaveBeenCalled();
+    168|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

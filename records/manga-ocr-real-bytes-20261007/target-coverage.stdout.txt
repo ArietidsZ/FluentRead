@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts tests/mangaOcrAssetManifest.test.ts --config vitest.coverage.config.ts --coverage --coverage.include=src/features/image-translation/services/mangaOcrAssets.ts --coverage.include=src/features/image-translation/services/mangaOcrAssetManifest.ts --coverage.reportsDirectory=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/target-coverage --coverage.reporter=json-summary --coverage.reporter=text --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/target-coverage.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+      Coverage enabled with v8
+
+ ✓ tests/mangaOcrAssets.test.ts (24 tests) 29ms
+ ✓ tests/mangaOcrAssetManifest.test.ts (3 tests) 2ms
+
+ Test Files  2 passed (2)
+      Tests  27 passed (27)
+   Start at  21:16:02
+   Duration  409ms (transform 49ms, setup 0ms, collect 52ms, tests 31ms, environment 0ms, prepare 56ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/target-coverage.results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |                   
+ ...setManifest.ts |     100 |      100 |     100 |     100 |                   
+ mangaOcrAssets.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

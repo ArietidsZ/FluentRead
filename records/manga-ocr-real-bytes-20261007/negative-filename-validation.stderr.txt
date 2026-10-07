@@ -1,0 +1,21 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型真实小字节完整性与生命周期 > 错误 filename、真实 file size 和同大小错误哈希均拒绝离线导入
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected: 
+[Error: rejected promise]
+
++ Received: 
+undefined
+
+ ❯ tests/mangaOcrAssets.test.ts:175:80
+    173|     });
+    174|     it('错误 filename、真实 file size 和同大小错误哈希均拒绝离线导入',…
+    175|         await expect(importMangaModel(fileFor(fixture.assets[0], 'wron…
+       |                                                                                ^
+    176|         await expect(importMangaModel(new File([new Uint8Array(30)], '…
+    177|         await expect(importMangaModel(new File([corrupted(fixture.asse…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

@@ -1,0 +1,14 @@
+{
+  "status": "EXPECTED_ASSERTION_FAILURE_CLEANUP_COMPLETE",
+  "source_commit": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "source_sha256": "402002f057f3b75358808988fc69fec2527d64061203811eca148ff25709c895",
+  "source_git_blob": "809e78e8b724a67feb65401f4e46be0bd424e30a",
+  "mutated_test_sha256": "144b3149ece100662fb7daea194f4f937f4b0a851e43111f9ca7d83af1df0b45",
+  "actual_exit_code": 1,
+  "failed_assertions": [
+    "图片、圈选OCR到真实术语broker的完整请求边界 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文"
+  ],
+  "unhandled": 0,
+  "production_broker_changed": false,
+  "interpretation": "Only proves an early expectation failure still drains deferred gates and pending providers; not a broker behavior mutation detector."
+}

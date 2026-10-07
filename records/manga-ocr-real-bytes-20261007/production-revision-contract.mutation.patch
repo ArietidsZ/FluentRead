@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssetManifest.ts
++++ b/src/features/image-translation/services/mangaOcrAssetManifest.ts
+@@ -4,7 +4,7 @@
+  * 主要内容：保存上游固定 revision、文件路径、精确字节数和 SHA-256，以及识别模型总容量与缓存名。
+  * 模块边界：仅导出数据及由清单求和的总字节数，不下载、校验、缓存或执行模型；运行时服务与独立清单契约测试共用这些发布数据。
+  */
+-export const MANGA_OCR_ROOT = 'https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/bf1d5edb0335d3262be7caf13f766ba274b4cadd/';
++export const MANGA_OCR_ROOT = 'https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/0000000000000000000000000000000000000000/';
+ export const MANGA_OCR_CACHE = 'fluent-read-manga-ocr-v1';
+ export const MANGA_OCR_ASSETS = [
+     {key: 'detection', path: 'detection/PP-OCRv6_small_det.onnx', bytes: 9880512,

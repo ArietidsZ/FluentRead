@@ -1,0 +1,9 @@
+{
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "runtime_functions_byte_for_byte_unchanged": true,
+  "original_and_extracted_functions_sha256": "3dcbed846dd98642358c6afa559eb3a94b8b988cb3fe4d9c71c60410a7643ea4",
+  "new_manifest_strict_coverage_registered": true,
+  "thresholds_unchanged": true,
+  "test_baseline_safe_subset_only": true,
+  "earlier_eight_failure_record_reused": "quality-five-groups-20261007/integration-full-strict.results.json"
+}

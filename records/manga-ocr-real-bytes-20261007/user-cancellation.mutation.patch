@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssets.ts
++++ b/src/features/image-translation/services/mangaOcrAssets.ts
+@@ -10,7 +10,7 @@
+ export {MANGA_OCR_CACHE, MANGA_OCR_ASSETS, MANGA_OCR_MODEL_BYTES, MANGA_INPAINT_ASSET} from './mangaOcrAssetManifest';
+ 
+ export function assertMangaOcrActive(signal?: AbortSignal): void {
+-    if (signal?.aborted) throw new DOMException('漫画识别已取消', 'AbortError');
++    if (false) throw new DOMException('漫画识别已取消', 'AbortError');
+ }
+ 
+ export type MangaModelSource = 'auto' | 'official' | 'mirror';

@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssetManifest.test.ts --testNamePattern 识别源固定 --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-production-revision-contract.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ❯ tests/mangaOcrAssetManifest.test.ts (3 tests | 1 failed | 2 skipped) 4ms
+   × 未 mock 的漫画发布资产清单契约 > 识别源固定 URL/revision，文件名、精确尺寸和 SHA-256 保持原发布值 4ms
+     → expected 'https://huggingface.co/snowfluke/ppu-…' to be 'https://huggingface.co/snowfluke/ppu-…' // Object.is equality
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 skipped (3)
+   Start at  21:24:56
+   Duration  155ms (transform 39ms, setup 0ms, collect 31ms, tests 4ms, environment 0ms, prepare 25ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-production-revision-contract.results.json

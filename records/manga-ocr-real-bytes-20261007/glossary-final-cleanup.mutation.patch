@@ -1,0 +1,11 @@
+--- a/tests/imageGlossaryContext.test.ts
++++ b/tests/imageGlossaryContext.test.ts
+@@ -247,7 +247,7 @@
+         void pending.catch(() => {});
+         try {
+             await firstWindow.promise;
+-            expect(started).toEqual([protectedApi, 'other', 'third']);
++            expect(started).toEqual(['API', 'other', 'third']);
+             expect(h.requests.map(request => (request as {origin: string}).origin)).toEqual(['API', 'other', 'third']);
+             expect(h.provider.mock.calls.map(([request]) => request.origin)).toEqual([protectedApi, 'other', 'third']);
+             expect(h.requests).toHaveLength(3);

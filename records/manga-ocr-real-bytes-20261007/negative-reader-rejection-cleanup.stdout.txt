@@ -1,0 +1,18 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts --testNamePattern 真实 reader.cancel --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-reader-rejection-cleanup.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ✓ tests/mangaOcrAssets.test.ts (24 tests | 23 skipped) 8ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 passed (1)
+      Tests  1 passed | 23 skipped (24)
+     Errors  1 error
+   Start at  21:24:56
+   Duration  156ms (transform 44ms, setup 0ms, collect 40ms, tests 8ms, environment 0ms, prepare 23ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/negative-reader-rejection-cleanup.results.json

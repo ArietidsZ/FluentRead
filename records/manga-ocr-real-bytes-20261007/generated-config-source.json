@@ -1,0 +1,5 @@
+{
+  "source_prepared_worktree": "$CW_TASK_DIR/FluentRead-quality-integration",
+  "tsconfig_sha256": "c15fb0142bc081ebaece383995c949510112365c33a71ecba5d5ccb8e4f6fe27",
+  "prepare_or_dependency_install_not_run": true
+}

@@ -1,0 +1,17 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/mangaOcrAssets.test.ts tests/mangaOcrAssetManifest.test.ts tests/modelDownloads.test.ts tests/mangaOcr.test.ts tests/mangaInpainting.test.ts tests/mangaSessionFallback.test.ts --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/related-tests.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-manga-real-bytes-fix
+
+ ✓ tests/mangaOcr.test.ts (19 tests) 82ms
+ ✓ tests/mangaOcrAssets.test.ts (24 tests) 25ms
+ ✓ tests/mangaInpainting.test.ts (14 tests) 311ms
+ ✓ tests/modelDownloads.test.ts (8 tests) 17ms
+ ✓ tests/mangaSessionFallback.test.ts (3 tests) 3ms
+ ✓ tests/mangaOcrAssetManifest.test.ts (3 tests) 2ms
+
+ Test Files  6 passed (6)
+      Tests  71 passed (71)
+   Start at  21:19:09
+   Duration  1.06s (transform 105ms, setup 0ms, collect 139ms, tests 439ms, environment 0ms, prepare 123ms)
+
+JSON report written to $CW_TASK_DIR/manga-ocr-real-bytes-20261007/related-tests.results.json

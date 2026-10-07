@@ -1,0 +1,55 @@
+{
+  "commit": "e02f471b6e8b9e459118ee0fe92d0490c1a1c982",
+  "record_reused": true,
+  "not_rerun_this_batch": true,
+  "failed_assertions": [
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库",
+      "message_head": "RangeError: Invalid typed array length: 9880512"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 20 秒无数据会切换备用来源，用户取消则立即结束且不切换",
+      "message_head": "RangeError: Invalid typed array length: 206291843"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源",
+      "message_head": "RangeError: Invalid typed array length: 21159378"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入",
+      "message_head": "RangeError: Invalid typed array length: 74948"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像",
+      "message_head": "RangeError: Invalid typed array length: 9880512"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 损坏缓存被删除并重新下载，不保留坏模型",
+      "message_head": "RangeError: Invalid typed array length: 9880512"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常",
+      "message_head": "RangeError: Invalid typed array length: 206291843"
+    },
+    {
+      "file": "$CW_TASK_DIR/FluentRead-quality-integration/tests/mangaOcrAssets.test.ts",
+      "name": "漫画模型固定版本和完整性 LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备",
+      "message_head": "RangeError: Invalid typed array length: 206291843"
+    }
+  ],
+  "prior_stdout_sha256_source": "quality-five-groups-20261007/integration-full-strict.stdout.txt",
+  "test_suite_full_counts": {
+    "numTotalTests": 9395,
+    "numPassedTests": 9387,
+    "numFailedTests": 8,
+    "numTotalTestSuites": 1077,
+    "numFailedTestSuites": 2
+  }
+}

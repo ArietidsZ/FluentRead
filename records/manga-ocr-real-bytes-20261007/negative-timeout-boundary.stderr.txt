@@ -1,0 +1,14 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型真实小字节完整性与生命周期 > 19,999ms 不回退；超过 20,000ms 先 abort 旧源再启动备用源
+AssertionError: expected "spy" to be called 1 times, but got 2 times
+ ❯ tests/mangaOcrAssets.test.ts:127:27
+    125|         try {
+    126|             await vi.advanceTimersByTimeAsync(0); await vi.advanceTime…
+    127|             expect(fetch).toHaveBeenCalledTimes(1); expect(events).toE…
+       |                           ^
+    128|             expect(vi.mocked(fetch).mock.calls[0][1]!.signal!.aborted)…
+    129|             await vi.advanceTimersByTimeAsync(2); await check;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

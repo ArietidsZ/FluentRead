@@ -1,0 +1,11 @@
+--- a/src/features/image-translation/services/mangaOcrAssets.ts
++++ b/src/features/image-translation/services/mangaOcrAssets.ts
+@@ -50,7 +50,7 @@
+                         complete.set(chunk.value,received-chunk.value.length);state.loaded=received;onProgress?.(received);
+                     }
+                     if(received!==asset.bytes)throw new Error('漫画识别模型文件不完整，请重试');buffer=complete.buffer;
+-                } finally {void reader.cancel().catch(()=>undefined);reader.releaseLock();}
++                } finally {void reader.cancel();reader.releaseLock();}
+             }else buffer=await response.arrayBuffer();
+             clearTimeout(timeout!);assertMangaOcrActive(signal);state.phase='verifying';
+             const verified=await verifiedArrayBuffer(buffer,asset);assertMangaOcrActive(signal);download=undefined;return verified;

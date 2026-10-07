@@ -1,0 +1,22 @@
+{
+  "label": "baseline-safe-reproduction",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/mangaOcrAssets.test.ts",
+    "--testNamePattern",
+    "离线导入只接受|下载固定来源、校验哈希",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$CW_TASK_DIR/manga-ocr-real-bytes-20261007/baseline-safe-reproduction.results.json",
+    "--no-cache"
+  ],
+  "cwd": "$CW_TASK_DIR/FluentRead-manga-real-bytes-fix",
+  "started_at": "2026-10-07T13:03:28.344001+00:00",
+  "duration_seconds": 0.292,
+  "exit_code": 1
+}

@@ -1,0 +1,25 @@
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: already closed
+ ❯ Object.<anonymous> tests/mangaOcrAssets.test.ts:210:50
+    208|     });
+    209|     it('真实 reader.cancel 拒绝不泄漏未处理异常，坏源后仍能完成正确回…
+    210|         const cancel = vi.fn(async () => { throw new Error('already cl…
+       |                                                  ^
+    211|         const stream = new ReadableStream<Uint8Array>({
+    212|             start(controller) { controller.enqueue(new Uint8Array(fixt…
+ ❯ Object.mockCall ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/@vitest+spy@2.1.9/node_modules/@vitest/spy/dist/index.js:61:17
+ ❯ Object.spy [as cancel] ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/tinyspy@3.0.2/node_modules/tinyspy/dist/index.js:45:80
+ ❯ Object.<anonymous> node:internal/webstreams/util:343:25
+ ❯ readableStreamDefaultControllerCancelSteps node:internal/webstreams/readablestream:2737:37
+ ❯ ReadableStreamDefaultController.[kCancel] node:internal/webstreams/readablestream:1210:12
+ ❯ readableStreamCancel node:internal/webstreams/readablestream:2255:39
+ ❯ readableStreamReaderGenericCancel node:internal/webstreams/readablestream:2404:10
+ ❯ ReadableStreamDefaultReader.cancel node:internal/webstreams/readablestream:1012:12
+ ❯ downloadAsset src/features/image-translation/services/mangaOcrAssets.ts:53:40
+
+This error originated in "tests/mangaOcrAssets.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "真实 reader.cancel 拒绝不泄漏未处理异常，坏源后仍能完成正确回退". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+

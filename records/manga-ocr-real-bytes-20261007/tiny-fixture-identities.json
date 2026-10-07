@@ -1,0 +1,26 @@
+[
+  {
+    "key": "detection",
+    "byte": 17,
+    "bytes": 31,
+    "sha256": "1111c25290ba8140ae97e06d6267b23d910cb7a501be159795deb61dc445c6ce"
+  },
+  {
+    "key": "recognition",
+    "byte": 34,
+    "bytes": 68,
+    "sha256": "69e1045a3f8e8f7c1bf0f0162e2a8886600ca156301f6c64486f0651093098ee"
+  },
+  {
+    "key": "charactersDictionary",
+    "byte": 51,
+    "bytes": 1,
+    "sha256": "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+  },
+  {
+    "key": "inpainting",
+    "byte": 68,
+    "bytes": 5,
+    "sha256": "0efd96d5951d54fe88c49bc538f0724685c17e65022eaf644325453a9ae86680"
+  }
+]

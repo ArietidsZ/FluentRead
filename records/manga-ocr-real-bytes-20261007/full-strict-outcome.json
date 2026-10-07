@@ -1,0 +1,338 @@
+{
+  "assertions": 9409,
+  "passed_assertions": 9409,
+  "failed_assertions": 0,
+  "files": 383,
+  "collection_errors": 0,
+  "unhandled_reported": false,
+  "actual_command_exit_code": 1,
+  "global_coverage": {
+    "lines": {
+      "total": 64116,
+      "covered": 64110,
+      "skipped": 0,
+      "pct": 99.99
+    },
+    "statements": {
+      "total": 64116,
+      "covered": 64110,
+      "skipped": 0,
+      "pct": 99.99
+    },
+    "functions": {
+      "total": 4400,
+      "covered": 4399,
+      "skipped": 0,
+      "pct": 99.97
+    },
+    "branches": {
+      "total": 32092,
+      "covered": 32080,
+      "skipped": 0,
+      "pct": 99.96
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "coverage_gaps": [
+    {
+      "path": "src/app/background/providerRuntime.ts",
+      "coverage": {
+        "lines": {
+          "total": 26,
+          "covered": 20,
+          "skipped": 0,
+          "pct": 76.92
+        },
+        "functions": {
+          "total": 4,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 75
+        },
+        "statements": {
+          "total": 26,
+          "covered": 20,
+          "skipped": 0,
+          "pct": 76.92
+        },
+        "branches": {
+          "total": 3,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "f37265adacac2f8ec9704ea3ac0bfd40f2c231d0",
+      "baseline_blob": "f37265adacac2f8ec9704ea3ac0bfd40f2c231d0"
+    },
+    {
+      "path": "src/core/config/model.ts",
+      "coverage": {
+        "lines": {
+          "total": 1412,
+          "covered": 1412,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 50,
+          "covered": 50,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 1412,
+          "covered": 1412,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 469,
+          "covered": 466,
+          "skipped": 0,
+          "pct": 99.36
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "569a567552c80284685c60c895cef06945347128",
+      "baseline_blob": "569a567552c80284685c60c895cef06945347128"
+    },
+    {
+      "path": "src/features/area-translation/background/handlers.ts",
+      "coverage": {
+        "lines": {
+          "total": 129,
+          "covered": 129,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 12,
+          "covered": 12,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 129,
+          "covered": 129,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 110,
+          "covered": 109,
+          "skipped": 0,
+          "pct": 99.09
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "9732d9d9d3790c5d143484cd018ae55080004b10",
+      "baseline_blob": "9732d9d9d3790c5d143484cd018ae55080004b10"
+    },
+    {
+      "path": "src/features/document-translation/core/document.ts",
+      "coverage": {
+        "lines": {
+          "total": 609,
+          "covered": 609,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 35,
+          "covered": 35,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 609,
+          "covered": 609,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 352,
+          "covered": 351,
+          "skipped": 0,
+          "pct": 99.71
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "59db79fa0eff3f6324ac373dfd68b439c4cd3369",
+      "baseline_blob": "59db79fa0eff3f6324ac373dfd68b439c4cd3369"
+    },
+    {
+      "path": "src/features/document-translation/services/binary.ts",
+      "coverage": {
+        "lines": {
+          "total": 694,
+          "covered": 694,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 35,
+          "covered": 35,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 694,
+          "covered": 694,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 392,
+          "covered": 389,
+          "skipped": 0,
+          "pct": 99.23
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "9370a3f3288f194bf52a3583a1f0c93f0570c89c",
+      "baseline_blob": "9370a3f3288f194bf52a3583a1f0c93f0570c89c"
+    },
+    {
+      "path": "src/features/full-page-translation/content/liveTextTranslation.ts",
+      "coverage": {
+        "lines": {
+          "total": 142,
+          "covered": 142,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 5,
+          "covered": 5,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 142,
+          "covered": 142,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 47,
+          "covered": 46,
+          "skipped": 0,
+          "pct": 97.87
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "3722a4bb64c8468777d59fa434b2769631068c78",
+      "baseline_blob": "3722a4bb64c8468777d59fa434b2769631068c78"
+    },
+    {
+      "path": "src/features/image-translation/services/mangaBubbles.ts",
+      "coverage": {
+        "lines": {
+          "total": 43,
+          "covered": 43,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 3,
+          "covered": 3,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 43,
+          "covered": 43,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 62,
+          "covered": 61,
+          "skipped": 0,
+          "pct": 98.38
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "7226678b994f7522a19cd95e606a602776366b17",
+      "baseline_blob": "7226678b994f7522a19cd95e606a602776366b17"
+    },
+    {
+      "path": "src/services/translation/broker.ts",
+      "coverage": {
+        "lines": {
+          "total": 1475,
+          "covered": 1475,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 79,
+          "covered": 79,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 1475,
+          "covered": 1475,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 646,
+          "covered": 645,
+          "skipped": 0,
+          "pct": 99.84
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "c247fb674e5b5b7d2e034472f67b701e14f88cf0",
+      "baseline_blob": "c247fb674e5b5b7d2e034472f67b701e14f88cf0"
+    },
+    {
+      "path": "src/services/translation/requestSnapshot.ts",
+      "coverage": {
+        "lines": {
+          "total": 270,
+          "covered": 270,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 27,
+          "covered": 27,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 270,
+          "covered": 270,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 146,
+          "covered": 145,
+          "skipped": 0,
+          "pct": 99.31
+        }
+      },
+      "source_unchanged_from_fixed_baseline": true,
+      "current_blob": "db482c220da0842163881a1f14d5577a1bdadb82",
+      "baseline_blob": "db482c220da0842163881a1f14d5577a1bdadb82"
+    }
+  ],
+  "thresholds": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "prior_suite_had_no_generated_coverage": "No claim of identical baseline global coverage; these current source blobs are unchanged."
+}

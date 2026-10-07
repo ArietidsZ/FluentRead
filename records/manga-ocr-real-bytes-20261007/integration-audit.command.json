@@ -1,0 +1,11 @@
+{
+  "label": "integration-audit",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "$CW_TASK_DIR/FluentRead-quality-six-integration",
+  "started_at": "2026-10-07T13:24:37.855198+00:00",
+  "duration_seconds": 0.766,
+  "exit_code": 0
+}

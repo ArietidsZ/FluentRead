@@ -1,0 +1,28 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型固定版本和完整性 > 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入
+RangeError: Invalid typed array length: 74948
+ ❯ Module.importMangaModel src/features/image-translation/services/mangaOcrAssets.ts:83:98
+     81|     if(!metadata||file.size!==metadata.bytes)throw new Error('请选择配…
+     82|     const buffer=await verifiedArrayBuffer(await file.arrayBuffer(),me…
+     83|     await (await caches.open(MANGA_OCR_CACHE)).put(asset?ROOT+asset.pa…
+       |                                                                                                  ^
+     84|     download=undefined;
+     85| }
+ ❯ tests/mangaOcrAssets.test.ts:58:9
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/mangaOcrAssets.test.ts > 漫画模型固定版本和完整性 > 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像
+RangeError: Invalid typed array length: 9880512
+ ❯ Module.loadMangaOcrAssets src/features/image-translation/services/mangaOcrAssets.ts:133:34
+    131|             buffer = await downloadAsset(url,asset,signal,bytes=>repor…
+    132|             assertMangaOcrActive(signal);
+    133|             await cache.put(url, new Response(buffer));
+       |                                  ^
+    134|         }
+    135|         model[asset.key] = buffer;
+ ❯ tests/mangaOcrAssets.test.ts:64:72
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

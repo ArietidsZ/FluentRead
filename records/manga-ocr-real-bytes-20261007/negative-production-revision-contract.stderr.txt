@@ -1,0 +1,18 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/mangaOcrAssetManifest.test.ts > 未 mock 的漫画发布资产清单契约 > 识别源固定 URL/revision，文件名、精确尺寸和 SHA-256 保持原发布值
+AssertionError: expected 'https://huggingface.co/snowfluke/ppu-…' to be 'https://huggingface.co/snowfluke/ppu-…' // Object.is equality
+
+Expected: "https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/bf1d5edb0335d3262be7caf13f766ba274b4cadd/"
+Received: "https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/0000000000000000000000000000000000000000/"
+
+ ❯ tests/mangaOcrAssetManifest.test.ts:8:32
+      6| describe('未 mock 的漫画发布资产清单契约', () => {
+      7|     it('识别源固定 URL/revision，文件名、精确尺寸和 SHA-256 保持原发布…
+      8|         expect(MANGA_OCR_ROOT).toBe('https://huggingface.co/snowfluke/…
+       |                                ^
+      9|         expect(MANGA_OCR_ASSETS).toEqual([
+     10|     {key: 'detection', path: 'detection/PP-OCRv6_small_det.onnx', byte…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

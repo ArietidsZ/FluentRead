@@ -1,0 +1,673 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --coverage --config vitest.coverage.config.ts --coverage.reportsDirectory=$CW_TASK_DIR/quality-five-groups-20261007/integration-full-strict-coverage --coverage.reporter=json-summary --coverage.reporter=text --reporter=default --reporter=json --outputFile=$CW_TASK_DIR/quality-five-groups-20261007/integration-full-strict.results.json --no-cache
+
+ RUN  v2.1.9 $CW_TASK_DIR/FluentRead-quality-integration
+      Coverage enabled with v8
+
+ ✓ tests/fullPageVisibilityScheduling.test.ts (213 tests) 741ms
+ ✓ tests/translationBroker.test.ts (144 tests) 1416ms
+ ✓ tests/translationCore.test.ts (136 tests) 2079ms
+   ✓ translation candidate core > bounds one readability probe on an extremely wide subtree 481ms
+   ✓ translation candidate core > shares text ancestor protection across one adversarially deep discovery 359ms
+ ✓ tests/config.test.ts (129 tests) 6548ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1391ms
+ ✓ tests/imageTranslationRuntime.test.ts (182 tests) 457ms
+ ✓ tests/translationTruncation.test.ts (59 tests) 178ms
+ ✓ tests/mangaSites.test.ts (285 tests) 64ms
+ ✓ tests/model.test.ts (113 tests) 108ms
+ ✓ tests/mangaReader.test.ts (144 tests) 199ms
+ ✓ tests/sectionTranslationPicker.test.ts (49 tests) 578ms
+ ✓ tests/bilingualRemount.test.ts (58 tests) 117ms
+ ✓ tests/i18n.test.ts (57 tests) 2251ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 1160ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 464ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 364ms
+ ✓ tests/backgroundFeatureHandlers.test.ts (51 tests) 2086ms
+   ✓ 后台 feature handlers > 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口 1202ms
+   ✓ 后台 feature handlers > 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对 601ms
+ ✓ tests/inputTranslationContentFeature.test.ts (69 tests) 461ms
+ ✓ tests/configDiff.test.ts (50 tests) 17ms
+ ✓ tests/videoAiFullCapture.test.ts (30 tests) 251ms
+ ✓ tests/googleDriveSync.test.ts (45 tests) 18387ms
+   ✓ Google Drive 同步事务 > 只读备份仍展示差异并可在后台重启后恢复，伪造保存请求也不能写入云端 648ms
+   ✓ Google Drive 同步事务 > 配置一致或合并结果等于云端时只更新基线，不重复写入备份 584ms
+   ✓ Google Drive 同步事务 > MV3 后台重启后仍可用口令恢复一次性预览，暂存中没有明文凭据 696ms
+   ✓ Google Drive 同步事务 > 每次点击只授权一次，结束后清理缓存且保留密文基线与同步时间 318ms
+   ✓ Google Drive 同步事务 > 基于共同基线合并独立设置变化，私密连接冲突必须整组选择 573ms
+   ✓ Google Drive 同步事务 > 云端新增、删除和修改均使旧预览失效，上传失败保留本机和基线 829ms
+   ✓ Google Drive 同步事务 > 本机写入失败先恢复原设置，不把失败记录为同步成功 471ms
+   ✓ Google Drive 同步事务 > 旧基线无法解密和换账号时不隐含合并；再次同步同账号保留基线 468ms
+   ✓ Google Drive 同步事务 > 升级为 Drive 账号标识时不能按同邮箱复用旧 OAuth 基线，确认前保留两端配置 468ms
+   ✓ Google Drive 同步事务 > 删除自定义服务和另一端选择它形成整组冲突，确认后备份可再次读取 681ms
+   ✓ Google Drive 同步事务 > 6MiB 合法请求体首次上传后可再次预览，后台重启后可合并及跨设备恢复 4239ms
+   ✓ Google Drive 同步事务 > 成功同步记录账号，重开不授权；换号取消或失败仍保留上次成功记录 313ms
+   ✓ 云备份删除确认事务 > 损坏、未知格式与旧完整备份可删除，重启后仅删除确认的文件并清除基线，本机凭据保持不变 522ms
+   ✓ 单次敏感范围事务 > 旧 v1 的默认 merge 保护本机连接和私密字段；download 保留云端秘密 365ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 download 当作完整连接删除 311ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 merge 当作完整连接删除 364ms
+   ✓ 单次敏感范围事务 > 范围切换投影基线，普通设置完全一致时仍覆盖旧云秘密，重新同意才能上传完整快照 1247ms
+   ✓ 单次敏感范围事务 > 普通基线遇到完整云端时不对敏感字段给出错误自动建议 417ms
+   ✓ 单次敏感范围事务 > 旧 pending、篡改 scope 以及重启后的范围字段缺失均拒绝且不写云 1191ms
+   ✓ 单次敏感范围事务 > 完整原始本机快照检测投影外变化，并在保存失败后精确回滚 367ms
+ ✓ tests/translationState.test.ts (53 tests) 426ms
+   ✓ 指定节点翻译状态机 > removed subtree 查询不会读取大批无关 active owner 的状态 315ms
+ ✓ tests/imageTranslationFlow.test.ts (34 tests) 508ms
+ ✓ tests/selectionTranslatorCore.test.ts (58 tests) 95ms
+ ✓ tests/videoAiStreaming.test.ts (58 tests) 524ms
+   ✓ 本地 AI 字幕音频窗口 > 以不规则小块连续重采样五分钟仍不累计采样数漂移 384ms
+ ✓ tests/configStorage.test.ts (28 tests) 273ms
+ ✓ tests/offscreenMessageRouter.test.ts (35 tests) 436ms
+ ✓ tests/quickTranslationContentFeature.test.ts (40 tests) 18ms
+ ✓ tests/translationStability.test.ts (41 tests) 102ms
+ ✓ tests/glossarySettingsComponent.test.ts (41 tests) 16857ms
+   ✓ GlossarySettings compiled component > renders separate script choices from the shared translation catalog and persists traditional scope 675ms
+   ✓ GlossarySettings compiled component > starts empty and disabled without saving defaults, and explains service support and local preview 413ms
+   ✓ GlossarySettings compiled component > creates libraries and preserves blank translations, case options, search, and order 393ms
+   ✓ GlossarySettings compiled component > adds a real bundled word list, persists it without enabling the master switch, and opens rather than overwrites an edited copy 392ms
+   ✓ GlossarySettings compiled component > does not add builtins before readiness or while saving, and reports capacity and storage failures without losing existing libraries 381ms
+   ✓ GlossarySettings compiled component > retains saved state and displays failure instead of claiming a failed change was saved 379ms
+   ✓ GlossarySettings compiled component > clears an older success indicator when the later queued save fails 375ms
+   ✓ GlossarySettings compiled component > persists master and library enablement and updates an entry without creating a duplicate 373ms
+   ✓ GlossarySettings compiled component > serializes nearby field edits and applies both patches to the original selected library 372ms
+   ✓ GlossarySettings compiled component > keeps uncommitted name input through an older receipt in the actual template 453ms
+   ✓ GlossarySettings compiled component > keeps uncommitted domains input through an older receipt in the actual template 460ms
+   ✓ GlossarySettings compiled component > syncs external metadata without overwriting an edited name field 468ms
+   ✓ GlossarySettings compiled component > syncs external metadata without overwriting an edited domains field 461ms
+   ✓ GlossarySettings compiled component > reconciles failed 'name' saves without losing a later edit: false 454ms
+   ✓ GlossarySettings compiled component > reconciles failed 'name' saves without losing a later edit: true 458ms
+   ✓ GlossarySettings compiled component > reconciles failed 'domains' saves without losing a later edit: false 450ms
+   ✓ GlossarySettings compiled component > reconciles failed 'domains' saves without losing a later edit: true 438ms
+   ✓ GlossarySettings compiled component > isolates 'name' drafts after switching or deleting the old library: false 451ms
+   ✓ GlossarySettings compiled component > isolates 'name' drafts after switching or deleting the old library: true 448ms
+   ✓ GlossarySettings compiled component > isolates 'domains' drafts after switching or deleting the old library: false 480ms
+   ✓ GlossarySettings compiled component > isolates 'domains' drafts after switching or deleting the old library: true 461ms
+   ✓ GlossarySettings compiled component > keeps a new draft when an older entry save finishes after switching libraries 382ms
+   ✓ GlossarySettings compiled component > preserves same-draft source edits during a save and updates the saved entry on retry 387ms
+   ✓ GlossarySettings compiled component > preserves same-draft target edits during a save and updates the saved entry on retry 373ms
+   ✓ GlossarySettings compiled component > preserves same-draft caseSensitive edits during a save and updates the saved entry on retry 374ms
+   ✓ GlossarySettings compiled component > deletes the originally selected entry when selection changes during confirmation 367ms
+   ✓ GlossarySettings compiled component > rejects invalid domains and previews website filtering, conflicts, and a disabled master switch 372ms
+   ✓ GlossarySettings compiled component > blocks malformed imports, requires warning review, and appends rather than replaces 363ms
+   ✓ GlossarySettings compiled component > ignores stale file completions after a newer file or a closed import dialog 382ms
+   ✓ GlossarySettings compiled component > preserves pasted text during a pending file read and clears file errors for a paste retry 369ms
+   ✓ GlossarySettings compiled component > starts new libraries in the current target language with unique names and guards library capacity 370ms
+   ✓ GlossarySettings compiled component > preserves per-library entry drafts on navigation, including switching during a pending save 373ms
+   ✓ GlossarySettings compiled component > blocks shadowed duplicates with Unicode and case semantics but allows distinct case-sensitive spellings 378ms
+   ✓ GlossarySettings compiled component > confirms replacing unsaved entries and keeps the draft when cancelled 377ms
+   ✓ GlossarySettings compiled component > merges entry changes with the latest list and never restores an externally deleted entry 372ms
+   ✓ GlossarySettings compiled component > keeps a dirty draft when clicking its own edit action and rejects an entry deleted before Save 370ms
+   ✓ GlossarySettings compiled component > starts the first entry directly, hides advanced controls and saves a matchable term 366ms
+   ✓ GlossarySettings compiled component > requires confirmation before deletion and unsubscribes when unmounted 384ms
+   ✓ Glossary integration and user-content boundaries > gives every branded select and pagination control an exact accessible name 375ms
+   ✓ Glossary integration and user-content boundaries > distinguishes glossary-only profile overrides in the real collapsed summary and keeps inheritance unchanged 518ms
+   ✓ Glossary integration and user-content boundaries > reuses the branded three-state selector across profiles, documents, and subtitle settings 370ms
+ ✓ tests/videoPlayerLocator.test.ts (35 tests) 36ms
+ ✓ tests/glossary.test.ts (53 tests) 244ms
+ ✓ tests/offscreenTranslation.test.ts (45 tests) 223ms
+ ✓ tests/siteAdaptationCore.test.ts (36 tests) 93ms
+ ✓ tests/free-translation.test.ts (65 tests) 822ms
+ ✓ tests/wordDictionaryEdge.test.ts (36 tests) 288ms
+ ✓ tests/mainWorldBridgeCore.test.ts (25 tests) 11ms
+ ✓ tests/selectionTtsBackgroundHandler.test.ts (38 tests) 368ms
+ ✓ tests/videoPlayerBinding.test.ts (36 tests) 30ms
+ ✓ tests/videoAiFullCaptureFailures.test.ts (29 tests) 119ms
+ ✓ tests/harnessRuntime.test.ts (38 tests) 30ms
+ ✓ tests/offscreenClient.test.ts (22 tests) 242ms
+ ✓ tests/vocabularyBook.test.ts (28 tests) 488ms
+   ✓ vocabulary identity and upsert > allows updates at the five-thousand-entry limit but rejects a new identity 370ms
+ ✓ tests/imageTranslationOffscreenRuntime.test.ts (55 tests) 92ms
+ ✓ tests/translationCache.test.ts (46 tests) 931ms
+ ✓ tests/backgroundConfigPersistenceHandler.test.ts (81 tests) 375ms
+ ✓ tests/writingEditors.test.ts (34 tests) 46ms
+ ✓ tests/videoAiBackendCoverage.test.ts (24 tests) 24ms
+ ✓ tests/hoverTranslationContentFeature.test.ts (35 tests) 20ms
+ ✓ tests/writingRuntime.test.ts (130 tests) 177ms
+ ✓ tests/configTransfer.test.ts (28 tests) 90ms
+ ✓ tests/ocrWorkerRuntime.test.ts (30 tests) 867ms
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 低置信度首窗不锁定错误语言，两个中文窗确认后复用；显式中文跳过检测
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：false）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：true）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 总文本正常但 timestamp chunk 出现重复时也重新识别
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 硬件 WebGPU 可用时优先创建 q4 session，并回传 GPU 诊断
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Apple / MTL / GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 语言检测失败时释放旧 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 上的语言配置错误直接返回，不误判为 GPU 故障或重建 session
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 显式源语言的 GPU 推理失败后释放 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > WASM 推理失败时直接返回错误，不再次创建或重试 session
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 收到 device wasm 时释放 GPU session 并锁定本 Worker 使用 WASM
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+ ✓ tests/videoAiWorker.test.ts (22 tests) 77ms
+ ✓ tests/mangaInferenceClient.test.ts (31 tests) 42ms
+ ✓ tests/modalDialogHost.test.ts (17 tests) 72ms
+ ✓ tests/videoUiI18n.test.ts (16 tests) 34ms
+ ✓ tests/videoAiCapture.test.ts (27 tests) 512ms
+   ✓ VideoAiCaptureController 公共边界路径 > 连续窗口更新自适应步长、处理缺少分段时间并淘汰过期 cue 身份 442ms
+ ✓ tests/chromeTranslationPreparation.test.ts (25 tests) 31ms
+ ✓ tests/template.test.ts (74 tests) 14ms
+ ✓ tests/imageOcrRuntime.test.ts (34 tests) 161ms
+ ✓ tests/modelUsageRepository.test.ts (15 tests) 251ms
+ ✓ tests/contentRuntimeLifecycle.test.ts (37 tests) 390ms
+ ✓ tests/freeFallback.test.ts (48 tests) 26ms
+ ✓ tests/mangaOcr.test.ts (19 tests) 45ms
+ ✓ tests/translationDocumentCorpus.test.ts (9 tests) 451ms
+   ✓ GitHub release source-line ownership > places every release line under its own paragraph instead of its outer list item 321ms
+ ✓ tests/bilingualSentenceHighlight.test.ts (19 tests) 38ms
+ ✓ tests/contextMenu.test.ts (31 tests) 19ms
+ ✓ tests/offscreenAdapters.test.ts (21 tests) 18ms
+ ✓ tests/viewportStability.test.ts (17 tests) 11ms
+ ✓ tests/connection-test.test.ts (28 tests) 71ms
+ ✓ tests/syntheticRemount.test.ts (19 tests) 31ms
+ ✓ tests/imageGlossaryContext.test.ts (14 tests) 27ms
+ ✓ tests/translationGlossaryIntegration.test.ts (25 tests) 39ms
+ ✓ tests/cloudVendorProviders.test.ts (36 tests) 27ms
+ ✓ tests/localTranslationRuntime.test.ts (26 tests) 300ms
+ ✓ tests/videoSubtitle.test.ts (29 tests) 24ms
+ ✓ tests/webDavApi.test.ts (15 tests) 32ms
+ ✓ tests/mangaInferenceWorker.test.ts (21 tests) 23ms
+ ✓ tests/bilingualReplay.test.ts (16 tests) 63ms
+ ✓ tests/siteAdaptationSettings.test.ts (21 tests) 33ms
+ ✓ tests/offscreenTtsPlayback.test.ts (22 tests) 18ms
+ ✓ tests/vocabularyBackgroundHandler.test.ts (13 tests) 13ms
+ ✓ tests/videoAiOffscreen.test.ts (19 tests) 12ms
+ ✓ tests/contentMessageRuntime.test.ts (11 tests) 228ms
+ ✓ tests/backgroundTranslationHandler.test.ts (47 tests) 9ms
+ ✓ tests/allNodesTranslationCore.test.ts (16 tests) 67ms
+ ✓ tests/requestConfigSnapshot.test.ts (12 tests) 8ms
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > preserves blank pages in a bilingual PDF without failing to embed them
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in bilingual mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in translated mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > cancels between PDF pages and retries without changing translations
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > releases decoded PNG pixels before rendering the next PDF page
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > 按 PDF 页解析版面文本块、坐标和页码上下文
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF partial export uses source for an empty reviewed block
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF 双语导出将每张原页和保留版式的译页并排放在同一页
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > 全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationBinary.test.ts (23 tests) 2027ms
+   ✓ binary document translation formats > 拒绝解压后单项过大的 ePub/DOCX 压缩包 1318ms
+ ✓ tests/inputEditableHost.test.ts (20 tests) 17ms
+ ✓ tests/configHistoryDomain.test.ts (18 tests) 149ms
+ ✓ tests/translationStatsRepository.test.ts (14 tests) 143ms
+ ✓ tests/languageIdentification.test.ts (94 tests) 84ms
+stdout | tests/harnessModelGateway.test.ts > harness model gateway > uses native Claude Messages API and honors configured proxy
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+
+ ✓ tests/harnessModelGateway.test.ts (16 tests) 65ms
+ ✓ tests/fullPageTranslationProgress.test.ts (23 tests) 13ms
+ ✓ tests/freeBalancedRouting.test.ts (39 tests) 1062ms
+   ✓ balanced free fallback routing > does not let a delayed persisted record overwrite a service that already succeeded 1001ms
+ ✓ tests/translationRequestScheduler.test.ts (19 tests) 606ms
+   ✓ translation request scheduler > 大量等待请求经过内部压缩后仍保持结果顺序 594ms
+ ✓ tests/pageTranslationAdvanced.test.ts (16 tests) 24ms
+ ✓ tests/sectionTranslationRegion.test.ts (16 tests) 7ms
+ ✓ tests/cloudVendorCatalog.test.ts (15 tests) 39ms
+ ✓ tests/localTtsBackground.test.ts (21 tests) 23ms
+ ✓ tests/aiSdkEndpoints.test.ts (73 tests) 8ms
+ ✓ tests/googleDriveConfig.test.ts (15 tests) 82ms
+ ✓ tests/mangaInpainting.test.ts (14 tests) 530ms
+   ✓ 漫画局部神经修补 > 默认 Worker 只修补复杂背景，转发补丁和进度，复用端口并空闲释放 301ms
+ ✓ tests/documentTranslationApi.test.ts (28 tests) 60ms
+ ✓ tests/modelUsageAggregation.test.ts (12 tests) 10ms
+ ✓ tests/vocabularyRepositoryEdges.test.ts (8 tests) 395ms
+   ✓ vocabulary repository untrusted imports > rolls back an import that would exceed the five-thousand-entry cap 355ms
+ ✓ tests/translationStatsAggregation.test.ts (16 tests) 11ms
+ ✓ tests/readingAssistantPresentation.test.ts (29 tests) 42ms
+ ✓ tests/contentFeatureMounting.test.ts (17 tests) 70ms
+ ✓ tests/videoSubtitleLogic.test.ts (21 tests) 32ms
+ ✓ tests/localTts.test.ts (20 tests) 30ms
+ ✓ tests/translationControlOwnership.test.ts (19 tests) 151ms
+ ✓ tests/fullPagePriority.test.ts (13 tests) 7ms
+ ✓ tests/contentFeatureRegistry.test.ts (17 tests) 8ms
+ ✓ tests/apiKeyRotation.test.ts (42 tests) 70ms
+ ✓ tests/imageTranslationPresentation.test.ts (34 tests) 13ms
+ ✓ tests/webDavBackup.test.ts (10 tests) 4248ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 upload，worker 重启后仍可提交且保护本机密钥 534ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 merge，worker 重启后仍可提交且保护本机密钥 519ms
+   ✓ WebDAV 配置云备份事务 > 后台重启后恢复一次性预览，完整凭据可在第二设备恢复；连接密码不进入备份 315ms
+   ✓ WebDAV 配置云备份事务 > 相同连接保留基线，换连接使预览失效；另一页面不能更改连接或取消事务 574ms
+   ✓ WebDAV 配置云备份事务 > 合并单边修改，云端和本机变化使预览失效；失败不更新成功记录 937ms
+   ✓ WebDAV 默认普通范围经 worker 休眠仍去密，单次同意完整备份可明确删除凭据 1151ms
+ ✓ tests/imageSourceAuthorization.test.ts (12 tests) 11ms
+ ✓ tests/configDomainBoundaries.test.ts (23 tests) 31ms
+ ✓ tests/interfaceFonts.test.ts (31 tests) 1397ms
+   ✓ 字体下载、缓存和切换生命周期 > 阻塞的下载超时后切换下一个源 1011ms
+ ✓ tests/googleDriveApi.test.ts (16 tests) 1791ms
+   ✓ Google Drive appDataFolder HTTP 边界 > 持续版本变化或读回鉴权失败时明确已上传待核验，不再次创建也不误报同步成功 653ms
+ ✓ tests/remoteImage.test.ts (10 tests) 10ms
+ ✓ tests/fullPageModalPriority.test.ts (14 tests) 12ms
+ ✓ tests/youtubeSubtitleData.test.ts (14 tests) 6ms
+ ✓ tests/harnessConversation.test.ts (14 tests) 10ms
+ ✓ tests/siteAdaptationCatalog.test.ts (235 tests) 1136ms
+ ✓ tests/mangaCanvas.test.ts (26 tests) 19ms
+ ✓ tests/chineseLanguage.test.ts (171 tests) 26ms
+ ✓ tests/writingCore.test.ts (11 tests) 70ms
+ ✓ tests/documentTranslationBinaryEdge.test.ts (12 tests) 156ms
+ ✓ tests/sectionTranslationCore.test.ts (19 tests) 19ms
+ ✓ tests/visionProbe.test.ts (13 tests) 126ms
+ ✓ tests/dataBackup.test.ts (14 tests) 23ms
+ ✓ tests/translationSnapshotProtection.test.ts (26 tests) 136ms
+ ✓ tests/harnessBackground.test.ts (17 tests) 11ms
+ ✓ tests/credentialBinding.test.ts (12 tests) 37ms
+ ✓ tests/chromeTranslationPreparationRequest.test.ts (11 tests) 7ms
+ ✓ tests/localTranslationDownloads.test.ts (18 tests) 1082ms
+ ✓ tests/freeTranslationSettings.test.ts (11 tests) 972ms
+   ✓ free translation settings compiled component > 所有服务直接展示逐项结果与测试耗时，停用服务也保留本轮检查 576ms
+ ✓ tests/configHarness.test.ts (25 tests) 20ms
+ ✓ tests/mangaEntry.test.ts (19 tests) 12ms
+ ✓ tests/interfaceAppearance.test.ts (9 tests) 13ms
+ ✓ tests/optionsNavigation.test.ts (24 tests) 5ms
+ ✓ tests/backgroundImageServices.test.ts (11 tests) 160ms
+ ✓ tests/liveTextRender.test.ts (10 tests) 18ms
+ ✓ tests/configRepository.test.ts (13 tests) 30ms
+ ✓ tests/translationAppearance.test.ts (13 tests) 11ms
+ ✓ tests/fullPageTitleTranslation.test.ts (21 tests) 8ms
+ ✓ tests/documentTranslation.test.ts (19 tests) 9ms
+ ✓ tests/videoAiAlgorithmsCoverage.test.ts (7 tests) 11ms
+ ✓ tests/harnessSessionRepository.test.ts (10 tests) 30ms
+ ✓ tests/translationBrokerStats.test.ts (8 tests) 121ms
+ ✓ tests/liveTextTranslation.test.ts (13 tests) 17ms
+ ✓ tests/videoAiModelSetup.test.ts (13 tests) 7ms
+ ✓ tests/providerUsageNormalization.test.ts (15 tests) 4ms
+ ✓ tests/modelThinking.test.ts (26 tests) 5ms
+ ✓ tests/modelUsageHandler.test.ts (13 tests) 8ms
+ ✓ tests/commonUtilities.test.ts (51 tests) 26ms
+ ✓ tests/paragraphCopyRuntime.test.ts (14 tests) 15ms
+ ✓ tests/freeExtraWebProviders.test.ts (20 tests) 11ms
+ ✓ tests/imageTranslation.test.ts (11 tests) 6ms
+ ❯ tests/mangaOcrAssets.test.ts (13 tests | 8 failed) 26ms
+   × 漫画模型固定版本和完整性 > 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库 7ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 20 秒无数据会切换备用来源，用户取消则立即结束且不切换 2ms
+     → Invalid typed array length: 206291843
+   × 漫画模型固定版本和完整性 > 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源 7ms
+     → Invalid typed array length: 21159378
+   × 漫画模型固定版本和完整性 > 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入 1ms
+     → Invalid typed array length: 74948
+   × 漫画模型固定版本和完整性 > 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像 1ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 损坏缓存被删除并重新下载，不保留坏模型 1ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常 1ms
+     → Invalid typed array length: 206291843
+   × 漫画模型固定版本和完整性 > LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备 1ms
+     → Invalid typed array length: 206291843
+ ✓ tests/qqMailFrameHandlers.test.ts (8 tests) 6ms
+ ✓ tests/contentFeatureLifecycle.test.ts (10 tests) 157ms
+ ✓ tests/firefoxDocumentRuntime.test.ts (8 tests) 118ms
+ ✓ tests/localInferenceResources.test.ts (15 tests) 11ms
+ ✓ tests/featureTranslationClients.test.ts (36 tests) 13ms
+ ✓ tests/imageOcrNormalization.test.ts (25 tests) 10ms
+ ✓ tests/freeChineseWebProviders.test.ts (14 tests) 25ms
+ ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 20ms
+ ✓ tests/myMemoryProvider.test.ts (31 tests) 32ms
+ ✓ tests/quickTranslation.test.ts (13 tests) 5ms
+ ✓ tests/imageTranslationClientRecovery.test.ts (12 tests) 60ms
+ ✓ tests/doubaoSeedTranslation.test.ts (13 tests) 37ms
+ ✓ tests/translateQueue.test.ts (20 tests) 367ms
+ ✓ tests/hlsAudio.test.ts (12 tests) 33ms
+ ✓ tests/translationFont.test.ts (12 tests) 17ms
+ ✓ tests/hotkey.test.ts (12 tests) 5ms
+ ✓ tests/translationPrompts.test.ts (19 tests) 4ms
+ ✓ tests/translationHeightLayout.test.ts (12 tests) 35ms
+ ✓ tests/sectionTranslationRuntime.test.ts (8 tests) 14ms
+ ✓ tests/mangaImageSegments.test.ts (29 tests) 21ms
+ ✓ tests/areaTextTranslation.test.ts (26 tests) 23ms
+ ✓ tests/fullPageTranslationIndicators.test.ts (14 tests) 18ms
+ ✓ tests/languageCodes.test.ts (335 tests) 30ms
+ ✓ tests/siteRules.test.ts (20 tests) 26ms
+ ✓ tests/mangaBackground.test.ts (36 tests) 25ms
+ ✓ tests/apiKeyPool.test.ts (15 tests) 5ms
+ ✓ tests/freeOfficialWebProviders.test.ts (46 tests) 19ms
+ ✓ tests/aiSdkErrors.test.ts (49 tests) 7ms
+ ✓ tests/serviceCatalog.test.ts (16 tests) 11ms
+ ✓ tests/deeplx.test.ts (22 tests) 59ms
+ ✓ tests/localTranslationArtifacts.test.ts (15 tests) 1287ms
+   ✓ verified resumable model downloads > restarts a partial file if the mirror ignores Range 499ms
+   ✓ verified resumable model downloads > keeps completed chunks on pause and resumes at their byte offset after a new caller attaches 513ms
+ ✓ tests/configCount.test.ts (11 tests) 9ms
+ ✓ tests/modelDownloads.test.ts (8 tests) 19ms
+ ✓ tests/inputBox.test.ts (12 tests) 3ms
+ ✓ tests/serializationPerformance.test.ts (5 tests) 401ms
+   ✓ translation snapshot mapping performance > maps a large flat candidate with linear tree-walker work and no sibling path scans 340ms
+ ✓ tests/imageTranslationRendering.test.ts (19 tests) 22ms
+ ✓ tests/chineseTechnicalParagraphs.test.ts (439 tests) 56ms
+ ✓ tests/downloadProgress.test.ts (11 tests) 5ms
+ ✓ tests/translationStatsPresentation.test.ts (7 tests) 11ms
+ ✓ tests/wordDictionary.test.ts (11 tests) 6ms
+ ✓ tests/translationLoadingIndicator.test.ts (10 tests) 8ms
+ ✓ tests/uiLanguageBundles.test.ts (15 tests) 502ms
+ ✓ tests/languageStatistical.test.ts (28 tests) 48ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 18ms
+ ✓ tests/onnxWasmBinary.test.ts (9 tests) 20ms
+ ✓ tests/chromeTranslatorLanguageRegression.test.ts (9 tests) 6ms
+ ✓ tests/browserCapabilities.test.ts (11 tests) 3ms
+ ✓ tests/imageTranslationPageRead.test.ts (9 tests) 19ms
+ ✓ tests/googleDriveAuth.test.ts (7 tests) 11ms
+ ✓ tests/harnessAppRuntime.test.ts (3 tests) 4ms
+ ✓ tests/imageTranslationInpainting.test.ts (14 tests) 240ms
+ ✓ tests/requestLimits.test.ts (5 tests) 7ms
+ ✓ tests/freeWebProviders.test.ts (16 tests) 22ms
+ ✓ tests/learningMemoryRepository.test.ts (10 tests) 106ms
+ ✓ tests/languageTechnicalTokens.test.ts (114 tests) 15ms
+ ✓ tests/videoTranscriptionCacheClient.test.ts (9 tests) 9ms
+ ✓ tests/backgroundConfigAutoBackup.test.ts (7 tests) 117ms
+ ✓ tests/settingsCompositionAutosave.test.ts (4 tests) 135ms
+ ✓ tests/mangaQuality.test.ts (14 tests) 11ms
+ ✓ tests/areaTranslationCore.test.ts (8 tests) 4ms
+ ✓ tests/xVideoSubtitleData.test.ts (9 tests) 5ms
+ ✓ tests/configAutoBackupStore.test.ts (6 tests) 405ms
+ ✓ tests/visionConfig.test.ts (8 tests) 10ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 8ms
+ ✓ tests/harnessConversationPersistence.test.ts (7 tests) 586ms
+   ✓ Harness streaming with real IndexedDB persistence > checkpoints partial output and retains it as stopped when the user cancels 557ms
+ ✓ tests/harnessCore.test.ts (11 tests) 8ms
+ ✓ tests/learningMemoryHandler.test.ts (6 tests) 6ms
+ ✓ tests/backgroundConfigStorage.test.ts (6 tests) 108ms
+ ✓ tests/videoAiBackground.test.ts (11 tests) 5ms
+ ✓ tests/writingIntegration.test.ts (4 tests) 7ms
+ ✓ tests/modelUsageInsights.test.ts (10 tests) 4ms
+ ✓ tests/backgroundGoogleDriveSync.test.ts (8 tests) 12ms
+ ✓ tests/videoAiSubtitleCache.test.ts (5 tests) 32ms
+ ✓ tests/translationVisionProviders.test.ts (14 tests) 41ms
+ ✓ tests/paragraphCopyCore.test.ts (17 tests) 8ms
+ ✓ tests/documentTranslationEdge.test.ts (10 tests) 8ms
+ ✓ tests/builtinGlossaries.test.ts (19 tests) 33ms
+ ✓ tests/chineseTranslationProviders.test.ts (79 tests) 39ms
+ ✓ tests/mangaTypography.test.ts (13 tests) 26ms
+ ✓ tests/requestHeaderRules.test.ts (6 tests) 64ms
+ ✓ tests/optionalContentFeatures.test.ts (7 tests) 4ms
+ ✓ tests/writingBackground.test.ts (7 tests) 25ms
+ ✓ tests/vocabularyLearningModel.test.ts (11 tests) 7ms
+ ✓ tests/harnessMemorySearch.test.ts (10 tests) 6ms
+ ✓ tests/deepl.test.ts (59 tests) 15ms
+ ✓ tests/ocrModelDownload.test.ts (5 tests) 17ms
+ ✓ tests/customOpenAI.test.ts (6 tests) 5ms
+ ✓ tests/webDavHttpIntegration.test.ts (5 tests) 663ms
+ ✓ tests/translationAvailability.test.ts (8 tests) 107ms
+ ✓ tests/videoTranslationCache.test.ts (11 tests) 12ms
+ ✓ tests/runtimeMessages.test.ts (13 tests) 6ms
+ ✓ tests/freeTranslationConfig.test.ts (6 tests) 17ms
+ ✓ tests/glossaryConfig.test.ts (7 tests) 23ms
+ ✓ tests/downloadProgressTransport.test.ts (5 tests) 4ms
+ ✓ tests/selectionTtsContentController.test.ts (5 tests) 4ms
+ ✓ tests/translationSourceStability.test.ts (45 tests) 19ms
+ ✓ tests/readingAssistantClient.test.ts (5 tests) 5ms
+ ✓ tests/backgroundVisionProbe.test.ts (5 tests) 61ms
+ ✓ tests/translationOwnershipBoundaries.test.ts (12 tests) 197ms
+ ✓ tests/translationCenterSession.test.ts (10 tests) 4ms
+ ✓ tests/documentTranslationPresentation.test.ts (8 tests) 7ms
+ ✓ tests/writingReference.test.ts (15 tests) 5ms
+ ✓ tests/qqMailFrameSession.test.ts (22 tests) 5ms
+ ✓ tests/translationCacheManagement.test.ts (35 tests) 10ms
+ ✓ tests/imageTextReader.test.ts (9 tests) 10ms
+ ✓ tests/backgroundConnectionTestHandler.test.ts (10 tests) 6ms
+ ✓ tests/sameTargetLanguageRegression.test.ts (27 tests) 18ms
+ ✓ tests/credentialPreview.test.ts (6 tests) 3ms
+ ✓ tests/modelCacheRemoval.test.ts (5 tests) 13ms
+ ✓ tests/translationSourceStabilityGate.test.ts (17 tests) 11ms
+ ✓ tests/imageTranslationSecurityContract.test.ts (6 tests) 23ms
+ ✓ tests/languageIdentificationCorpus.test.ts (380 tests) 648ms
+ ✓ tests/selectionTtsProtocol.test.ts (33 tests) 10ms
+ ✓ tests/translationGitHubTaskList.test.ts (11 tests) 244ms
+ ✓ tests/backgroundWebDavBackup.test.ts (5 tests) 11ms
+ ✓ tests/translationCachePolicyBinding.test.ts (6 tests) 8ms
+ ✓ tests/issue146EmbeddedFrames.test.ts (3 tests) 4ms
+ ✓ tests/edgeTtsPolicy.test.ts (7 tests) 5ms
+ ✓ tests/fullPageStateNotification.test.ts (6 tests) 4ms
+ ✓ tests/translationStatsHandler.test.ts (3 tests) 4ms
+ ✓ tests/featureTranslationServices.test.ts (6 tests) 12ms
+ ✓ tests/speechProgress.test.ts (7 tests) 6ms
+ ✓ tests/languageScripts.test.ts (41 tests) 6ms
+ ✓ tests/siteAdaptationSession.test.ts (5 tests) 15ms
+ ✓ tests/inputTranslationConfig.test.ts (5 tests) 8ms
+ ✓ tests/backgroundCoreHandlers.test.ts (9 tests) 5ms
+ ✓ tests/syntheticCandidateFreshness.test.ts (10 tests) 41ms
+ ✓ tests/modalProgressHint.test.ts (6 tests) 6ms
+ ✓ tests/mangaPatchResult.test.ts (37 tests) 60ms
+ ✓ tests/areaVisionRecognition.test.ts (9 tests) 14ms
+ ✓ tests/freeWeights.test.ts (6 tests) 3ms
+ ✓ tests/videoSpeechAlignment.test.ts (8 tests) 29ms
+ ✓ tests/upstreamTranslationBoundaries.test.ts (3 tests) 39ms
+ ✓ tests/backgroundMessageRouter.test.ts (6 tests) 3ms
+ ✓ tests/videoAiModelCache.test.ts (6 tests) 13ms
+ ✓ tests/translationVisionBroker.test.ts (5 tests) 8ms
+ ✓ tests/translationVisionPayload.test.ts (5 tests) 4ms
+ ✓ tests/configEncryption.test.ts (5 tests) 6ms
+ ✓ tests/videoSubtitleAppearance.test.ts (5 tests) 9ms
+ ✓ tests/mangaBubbles.test.ts (7 tests) 66ms
+ ✓ tests/googleDriveEncryption.test.ts (6 tests) 5380ms
+   ✓ Google Drive 本机认证加密 > 20 MiB 配置边界及预览独立预算，超过配置上限的暂存不能冒充云端配置 4845ms
+ ✓ tests/harnessUsage.test.ts (3 tests) 11ms
+ ✓ tests/configValidation.test.ts (10 tests) 2ms
+ ✓ tests/harnessStreamPort.test.ts (3 tests) 4ms
+ ✓ tests/usePopupLayoutReorder.test.ts (8 tests) 3ms
+ ✓ tests/localTranslationInference.test.ts (6 tests) 77ms
+ ✓ tests/aiContextPresentation.test.ts (16 tests) 2ms
+ ✓ tests/actionIcon.test.ts (15 tests) 6ms
+ ✓ tests/translationError.test.ts (12 tests) 4ms
+stdout | tests/documentTranslationExamplesApi.test.ts > document translation examples API regression > 'sample.pdf' passes through binary parse, translation, and same-format export
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationExamplesApi.test.ts (12 tests) 287ms
+ ✓ tests/webDavConnection.test.ts (4 tests) 4ms
+ ✓ tests/configAutoBackupDomain.test.ts (3 tests) 28ms
+ ✓ tests/translationLanguage.test.ts (7 tests) 24ms
+ ✓ tests/xSubtitleLoader.test.ts (5 tests) 19ms
+ ✓ tests/freeRoutingPolicy.test.ts (5 tests) 3ms
+ ✓ tests/translationVisualProtection.test.ts (18 tests) 18ms
+ ✓ tests/mangaEncoding.test.ts (11 tests) 9ms
+ ✓ tests/writingMarkdown.test.ts (8 tests) 4ms
+ ✓ tests/writingPreview.test.ts (8 tests) 3ms
+ ✓ tests/pageStyles.test.ts (4 tests) 11ms
+ ✓ tests/tongyi.test.ts (4 tests) 6ms
+ ✓ tests/mangaCompositor.test.ts (13 tests) 7ms
+ ✓ tests/identicalTranslation.test.ts (26 tests) 12ms
+ ✓ tests/paragraphCopyConfig.test.ts (6 tests) 3ms
+ ✓ tests/writingEntryPlacement.test.ts (6 tests) 25ms
+ ✓ tests/requestHeaderRuntime.test.ts (2 tests) 55ms
+ ✓ tests/apiKeyCheckIdentity.test.ts (3 tests) 4ms
+ ✓ tests/localTranslation.test.ts (4 tests) 9ms
+ ✓ tests/sectionTranslationConfig.test.ts (5 tests) 3ms
+ ✓ tests/videoPretranslationController.test.ts (3 tests) 4ms
+ ✓ tests/googleDrivePreview.test.ts (4 tests) 3ms
+ ✓ tests/translationAppearanceStyles.test.ts (3 tests) 5ms
+ ✓ tests/translationStatsI18n.test.ts (2 tests) 37ms
+ ✓ tests/serviceLibrary.test.ts (4 tests) 10ms
+ ✓ tests/harnessSessionHandler.test.ts (3 tests) 4ms
+ ✓ tests/siteAdaptationRuntime.test.ts (3 tests) 3ms
+ ✓ tests/backgroundCapabilityRegistry.test.ts (5 tests) 3ms
+ ✓ tests/myMemoryConnectionTest.test.ts (6 tests) 8ms
+ ✓ tests/modelOptions.test.ts (3 tests) 5ms
+ ✓ tests/httpError.test.ts (6 tests) 4ms
+ ✓ tests/googleDriveSyncClient.test.ts (4 tests) 3ms
+ ✓ tests/apiKeyTypes.test.ts (5 tests) 2ms
+ ✓ tests/promptTemplateSync.test.ts (3 tests) 3ms
+ ✓ tests/videoTranslationScheduler.test.ts (4 tests) 8ms
+ ✓ tests/mangaSessionFallback.test.ts (3 tests) 4ms
+ ✓ tests/localTranslationProvider.test.ts (5 tests) 4ms
+ ✓ tests/selectionPageZoom.test.ts (5 tests) 4ms
+ ✓ tests/legacyPageCache.test.ts (5 tests) 2ms
+ ✓ tests/http.test.ts (5 tests) 7ms
+ ✓ tests/backgroundProviderRuntime.test.ts (2 tests) 3ms
+ ✓ tests/localModelReadiness.test.ts (14 tests) 4ms
+ ✓ tests/configApiKeys.test.ts (4 tests) 8ms
+ ✓ tests/translationConfigCheck.test.ts (6 tests) 2ms
+ ✓ tests/fullPageTranslationErrorMessage.test.ts (33 tests) 3ms
+ ✓ tests/documentArchive.test.ts (5 tests) 137ms
+ ✓ tests/microsoftTransport.test.ts (3 tests) 6ms
+ ✓ tests/webDavBackupClient.test.ts (3 tests) 3ms
+ ✓ tests/pageContextPolicy.test.ts (4 tests) 2ms
+ ✓ tests/modelUsageTokenFormat.test.ts (4 tests) 3ms
+ ✓ tests/onnxWebGpu.test.ts (15 tests) 5ms
+ ✓ tests/tabTranslationState.test.ts (4 tests) 2ms
+ ✓ tests/videoSubtitleLanguage.test.ts (3 tests) 12ms
+ ✓ tests/backgroundRetiredContentScripts.test.ts (3 tests) 3ms
+ ✓ tests/harnessMemoryRecall.test.ts (3 tests) 4ms
+ ✓ tests/backgroundCacheCleanup.test.ts (2 tests) 6ms
+ ✓ tests/imageLoads.test.ts (5 tests) 2ms
+ ✓ tests/videoTranscription.test.ts (4 tests) 2ms
+ ✓ tests/documentTranslationRegression.test.ts (10 tests) 6ms
+ ✓ tests/translationCachePolicy.test.ts (12 tests) 2ms
+ ✓ tests/localInsightsHandlers.test.ts (1 test) 3ms
+ ✓ tests/freeTranslationWeightsHandler.test.ts (2 tests) 3ms
+ ✓ tests/fullPageHostMarkers.test.ts (5 tests) 4ms
+ ✓ tests/floatingBallPosition.test.ts (3 tests) 10ms
+ ✓ tests/translationToolbarStatus.test.ts (3 tests) 2ms
+ ✓ tests/translationStatsMeasure.test.ts (3 tests) 2ms
+ ✓ tests/popupCache.test.ts (2 tests) 3ms
+ ✓ tests/mangaOnnxBuild.test.ts (1 test) 7ms
+ ✓ tests/mangaGpu.test.ts (3 tests) 2ms
+ ✓ tests/sha256.test.ts (10 tests) 51ms
+ ✓ tests/freeTranslationHealthStorage.test.ts (1 test) 2ms
+ ✓ tests/mainWorldBridgeLifecycle.test.ts (1 test) 1ms
+ ✓ tests/visionProbeStorage.test.ts (1 test) 2ms
+ ✓ tests/auth.test.ts (3 tests) 2ms
+ ✓ tests/credentialStorageContext.test.ts (8 tests) 1ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 381 passed (382)
+      Tests  8 failed | 9387 passed (9395)
+     Errors  1 error
+   Start at  19:42:28
+   Duration  166.79s (transform 4.33s, setup 0ms, collect 18.72s, tests 96.51s, environment 36ms, prepare 10.15s)
+
+JSON report written to $CW_TASK_DIR/quality-five-groups-20261007/integration-full-strict.results.json

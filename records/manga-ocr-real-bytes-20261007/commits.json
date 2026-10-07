@@ -1,0 +1,16 @@
+{
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "fix_commit": "ee041a0a0bb081ffdf19af28482d24711668cd8d",
+  "fix_branch": "fix/manga-ocr-real-byte-fixture-20261007",
+  "prior_five_integration": "e02f471b6e8b9e459118ee0fe92d0490c1a1c982",
+  "integration_commit": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "integration_branch": "fix/quality-six-integration-20261007",
+  "code_files": [
+    "src/features/image-translation/services/mangaOcrAssets.ts",
+    "src/features/image-translation/services/mangaOcrAssetManifest.ts",
+    "tests/mangaOcrAssets.test.ts",
+    "tests/mangaOcrAssetManifest.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ]
+}
