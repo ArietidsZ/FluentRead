@@ -208,8 +208,8 @@
     },
     {
       "file": "README.md",
-      "original_sha256": "7fe46616fffc9213182c66eaecb4aa86511b6ca7a44010ab9c9004ae7411a895",
-      "published_sha256": "7fe46616fffc9213182c66eaecb4aa86511b6ca7a44010ab9c9004ae7411a895"
+      "original_sha256": "5f9c540096a9c2712deb86c29d0e98e1522780456a8c0c32af51004fc93392ce",
+      "published_sha256": "5f9c540096a9c2712deb86c29d0e98e1522780456a8c0c32af51004fc93392ce"
     },
     {
       "file": "build-reverification.json",
