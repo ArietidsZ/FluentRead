@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const r=await browser.cdp('Target.getTargets');return r.targetInfos.filter(x=>x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/')).map(x=>({targetId:x.targetId,url:x.url,type:x.type,title:x.title}));",
+    "timeout": 10000
+  },
+  "timestamp": "2026-10-07T12:22:11.898951+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: []"
+    }
+  ],
+  "success": true
+}

@@ -1,0 +1,21 @@
+{
+  "tool": "act",
+  "arguments": {
+    "page": 8,
+    "kind": "click",
+    "ref": "e5",
+    "diff": "none"
+  },
+  "timestamp": "2026-10-07T11:52:43.937025+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok (click)"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

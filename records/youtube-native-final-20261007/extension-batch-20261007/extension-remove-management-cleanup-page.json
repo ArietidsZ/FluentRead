@@ -1,0 +1,9 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(10);return await p.evaluate(async()=>{const id='djnlaiohfaaifbibleebjggkghlmcpcj';const xs=await new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},resolve));const x=xs.find(x=>x.id===id);if(!x)return {removed:true,alreadyAbsent:true};if(x.location!=='UNPACKED'||x.version!=='0.0.35'||!x.path.endsWith('/FluentRead-youtube-remaining-combined/.output/chrome-mv3'))throw Error('Refuse unrelated extension removal');return await new Promise(resolve=>chrome.management.uninstall(id,{showConfirmDialog:false},()=>resolve({removed:!chrome.runtime.lastError,error:chrome.runtime.lastError?.message??null,target:id})));});",
+    "timeout": 15000
+  },
+  "success": false,
+  "error": "{'content': [{'type': 'text', 'text': 'error: run exceeded 15000ms'}], 'structuredContent': {'error': 'run exceeded 15000ms', 'logs': [], 'ok': False}, 'isError': True}"
+}

@@ -1,0 +1,213 @@
+{
+  "execution_environment": "CW local only; existing dedicated native Wayland Neo",
+  "code_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "build_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "build_integrity": {
+    "timestamp": "2026-10-07T12:06:59.195505+00:00",
+    "commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+    "expected_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+    "source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+    "expected_source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+    "build_target": "chrome-mv3",
+    "file_count": 398,
+    "bytes": 60306304,
+    "all_398_build_files_match_prior_verified_manifest": true,
+    "mismatches": [],
+    "manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+  },
+  "loaded_extension": {
+    "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "location": "UNPACKED",
+    "manifestErrors": [],
+    "name": "FluentRead-流畅阅读",
+    "path": "$CW_TASK_DIR/FluentRead-youtube-remaining-combined/.output/chrome-mv3",
+    "runtimeErrors": [],
+    "state": "ENABLED",
+    "version": "0.0.35"
+  },
+  "baseline": {
+    "developerMode": false,
+    "extensionIds": [],
+    "fluentRead": []
+  },
+  "after": {
+    "developerMode": false,
+    "extensionIds": [
+      "djnlaiohfaaifbibleebjggkghlmcpcj"
+    ],
+    "fluentRead": [
+      {
+        "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+        "name": "FluentRead-流畅阅读",
+        "path": "$CW_TASK_DIR/FluentRead-youtube-remaining-combined/.output/chrome-mv3",
+        "state": "DISABLED",
+        "version": "0.0.35"
+      }
+    ]
+  },
+  "outcomes": {
+    "specified_build_loaded_via_normal_ui": "PASS",
+    "extension_name_version_path_enabled_state": "PASS",
+    "management_card_visible": "PASS",
+    "manifest_and_runtime_errors_at_load": "NONE_REPORTED",
+    "popup_native_mcp_visibility": "BLOCKED_UNKNOWN_PAGE",
+    "subtitle_fixture_provider_isolation": "BLOCKED_NOT_ESTABLISHED",
+    "actual_extension_subtitle_injection_and_translation": "NOT_RUN",
+    "real_youtube_capture": "NOT_RUN",
+    "provider_api_or_model_download_actions": "NOT_RUN",
+    "provider_network_request_count": "NOT_MEASURED",
+    "rtx5090_webgpu_and_asr": "NOT_RUN",
+    "developer_mode_restored_off": "PASS",
+    "test_extension_removed": "BLOCKED_PERMISSION_SCOPE",
+    "baseline_extension_set_restored": "FAIL_ONE_DISABLED_TEST_EXTENSION_REMAINS",
+    "owned_cua_daemons_stopped": "PASS",
+    "existing_neo_kept_running": "PASS",
+    "owned_extension_tabs_closed": "PASS"
+  },
+  "remaining_action": {
+    "target_id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "state": "DISABLED",
+    "permission_required": "One-time Cua read and confirmation of this test extension native uninstall dialog; previous Cua scope was the system directory chooser only.",
+    "risk": "Delete only this newly loaded unpacked extension from the dedicated test profile. Do not operate another extension, page, profile, or security setting.",
+    "approval_received": false
+  },
+  "process_state": {
+    "timestamp": "2026-10-07T12:32:02.044264+00:00",
+    "neo_pid": 68168,
+    "neo_executable": "/usr/lib/browserclaw/browserclaw",
+    "neo_running": true,
+    "dedicated_profile": true,
+    "native_wayland": true,
+    "unsafe_extension_debugging_flag": false,
+    "no_sandbox_flag": false,
+    "owned_cua_daemon_still_present": false,
+    "windows": [
+      {
+        "id": 11,
+        "pid": 68168,
+        "title": "about:blank - BrowserOS neo",
+        "x": 664,
+        "y": 47,
+        "w": 1233,
+        "h": 1378,
+        "buffer_x": 648,
+        "buffer_y": 37,
+        "focused": true,
+        "minimized": false,
+        "visible": true,
+        "stacking": 2
+      }
+    ],
+    "argv_parsing_note": "Browser main process rewrites its argv storage into one string; parsed that string after executable verification.",
+    "verified_after_owned_tabs_closed": true
+  },
+  "owned_tabs_after": {
+    "closedThisTestsManagerPage": 14,
+    "remainingExtensionManagerPages": [],
+    "ownedPopupTargets": []
+  },
+  "github_cli_readonly_diagnostic": {
+    "timestamp": "2026-10-07T12:28:33.422304+00:00",
+    "environment": "CW local",
+    "gh_installed": true,
+    "gh_path": "/usr/bin/gh",
+    "requests": [
+      {
+        "argv": [
+          "/usr/bin/gh",
+          "api",
+          "user",
+          "--include",
+          "--jq",
+          "{login,id,type}"
+        ],
+        "exit_code": 0,
+        "endpoint": "user",
+        "selected_response": {
+          "id": 69024461,
+          "login": "ArietidsZ",
+          "type": "User"
+        },
+        "selected_response_headers": {
+          "X-Accepted-Oauth-Scopes": "",
+          "X-Github-Request-Id": "C079:301227:407F6:4CE10:6AC63AF1",
+          "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+        }
+      },
+      {
+        "argv": [
+          "/usr/bin/gh",
+          "api",
+          "repos/FluentRead/FluentRead",
+          "--include",
+          "--jq",
+          "{full_name,private,permissions,default_branch}"
+        ],
+        "exit_code": 0,
+        "endpoint": "repos/FluentRead/FluentRead",
+        "selected_response": {
+          "default_branch": "main",
+          "full_name": "FluentRead/FluentRead",
+          "permissions": {
+            "admin": false,
+            "maintain": false,
+            "pull": true,
+            "push": false,
+            "triage": false
+          },
+          "private": false
+        },
+        "selected_response_headers": {
+          "X-Accepted-Oauth-Scopes": "repo",
+          "X-Github-Request-Id": "62A9:1807A0:46D25:533C4:6AC63AF2",
+          "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+        }
+      },
+      {
+        "argv": [
+          "/usr/bin/gh",
+          "api",
+          "repos/ArietidsZ/FluentRead",
+          "--include",
+          "--jq",
+          "{full_name,private,permissions,default_branch}"
+        ],
+        "exit_code": 0,
+        "endpoint": "repos/ArietidsZ/FluentRead",
+        "selected_response": {
+          "default_branch": "main",
+          "full_name": "ArietidsZ/FluentRead",
+          "permissions": {
+            "admin": true,
+            "maintain": true,
+            "pull": true,
+            "push": true,
+            "triage": true
+          },
+          "private": false
+        },
+        "selected_response_headers": {
+          "X-Accepted-Oauth-Scopes": "repo",
+          "X-Github-Request-Id": "5F09:280E1C:3EE33:4AFFA:6AC63AF2",
+          "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+        }
+      }
+    ],
+    "credential_material_read_or_printed": false,
+    "auth_changed": false,
+    "pr_created": false,
+    "headers_whitelist": [
+      "X-OAuth-Scopes",
+      "X-Accepted-OAuth-Scopes",
+      "X-GitHub-Request-Id"
+    ],
+    "outcome": "EXISTING_AUTHENTICATED_USER_SESSION_FOUND",
+    "current_account": {
+      "id": 69024461,
+      "login": "ArietidsZ",
+      "type": "User"
+    },
+    "interpretation_limit": "Repository push:false does not establish inability to submit a fork pull request. Successful reads do not prove a PR write path or resolve the original connector 403. Token type and scope beyond selected safe headers remain unknown."
+  },
+  "claims_limit": "Loading and management-card visibility do not establish content injection, subtitle correctness, translation, provider isolation, WebGPU, or ASR."
+}

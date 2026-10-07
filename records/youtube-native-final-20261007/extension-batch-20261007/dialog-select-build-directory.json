@@ -1,0 +1,17 @@
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "result": {
+    "content": [
+      {
+        "text": "Policy loading error: capability manifest expired",
+        "type": "text"
+      }
+    ],
+    "isError": true,
+    "structuredContent": {
+      "code": "tool_invocation_failed",
+      "exit_code": 1
+    }
+  }
+}

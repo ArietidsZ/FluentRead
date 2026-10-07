@@ -1,0 +1,9 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.open('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html');return {page:p.id,ready:await p.waitForSelector('#app',{timeout:10000}),snapshot:await p.snapshot({mode:'interactive',depth:5})};",
+    "timeout": 15000
+  },
+  "success": false,
+  "error": "{'content': [{'type': 'text', 'text': 'error: wait failed: Unknown page 9. List pages to see what is open.'}], 'structuredContent': {'error': 'wait failed: Unknown page 9. List pages to see what is open.', 'logs': [], 'ok': False}, 'isError': True}"
+}

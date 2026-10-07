@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "result": {
+    "content": [
+      {
+        "text": "Typed 103 character(s) (via Wayland virtual-keyboard).",
+        "type": "text"
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Typed 103 character(s) (via Wayland virtual-keyboard)."
+    }
+  }
+}

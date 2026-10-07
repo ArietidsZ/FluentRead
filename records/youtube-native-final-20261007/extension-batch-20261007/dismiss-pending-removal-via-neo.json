@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(10);await p.press('Escape');return await p.evaluate(()=>new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},xs=>resolve({developerMode:document.querySelector('extensions-manager').inDevMode,extensions:xs.map(x=>({id:x.id,name:x.name,state:x.state}))}))));",
+    "timeout": 10000
+  },
+  "timestamp": "2026-10-07T12:14:09.327119+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 10,\n  \"value\": {\n    \"developerMode\": false,\n    \"extensions\": [\n      {\n        \"id\": \"djnlaiohfaaifbibleebjggkghlmcpcj\",\n        \"name\": \"FluentRead-流畅阅读\",\n        \"state\": \"DISABLED\"\n      }\n    ]\n  }\n}"
+    }
+  ],
+  "success": true
+}

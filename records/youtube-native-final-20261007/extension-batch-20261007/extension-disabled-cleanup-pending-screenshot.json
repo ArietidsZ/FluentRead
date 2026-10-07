@@ -1,0 +1,13 @@
+{
+  "tool": "screenshot",
+  "arguments": {
+    "page": 13,
+    "format": "png",
+    "size": {
+      "width": 1200,
+      "height": 900
+    }
+  },
+  "success": false,
+  "error": "{'content': [{'type': 'text', 'text': 'screenshot failed: CDP request timed out: Page.captureScreenshot'}], 'isError': True}"
+}

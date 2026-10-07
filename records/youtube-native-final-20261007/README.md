@@ -36,3 +36,7 @@ Full grouped unit/functional/regression stages, WXT preparation, browser/userscr
 ## Additional remaining-stage acceptance
 
 [Remaining batch: grouped tests, pure/combined builds and read-only browser blockers](remaining-batch-20261007/README.md) supplements the original record above. It does not change its logged outcomes.
+
+## Extension load continuation and existing CLI session
+
+[CW Neo extension round](extension-batch-20261007/README.md) records the approved `bf22ae08` build's real normal-UI load and management-card visibility, unchanged hashes, native-MCP limitations, and the specifically authorized three-read GitHub CLI diagnostic. Functional subtitle/provider isolation was not established. Developer mode is OFF, test tabs and owned Cua daemons were closed, and existing Neo stays running. **One disabled test extension remains installed:** completing its native uninstall confirmation requires a Cua scope supplement beyond the previously approved system directory chooser. The extension cleanup gate is blocked, not passed.

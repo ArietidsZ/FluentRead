@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const xs=await browser.pages.list();return xs.filter(x=>x.pageId===8).map(x=>({pageId:x.pageId,url:x.url,ownership:x.ownership,ownerLabel:x.ownerLabel,groupId:x.groupId}));",
+    "timeout": 10000
+  },
+  "timestamp": "2026-10-07T12:12:09.126753+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: [\n  {\n    \"pageId\": 8,\n    \"url\": \"chrome://extensions/\",\n    \"ownership\": \"other-agent\",\n    \"ownerLabel\": null,\n    \"groupId\": \"$NEO_TEST_GROUP_ID\"\n  }\n]"
+    }
+  ],
+  "success": true
+}

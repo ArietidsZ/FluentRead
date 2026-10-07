@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "result": {
+    "content": [
+      {
+        "text": "Pressed key 'Enter' (via Wayland virtual-keyboard).",
+        "type": "text"
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "synthetic_events",
+      "summary": "Pressed key 'Enter' (via Wayland virtual-keyboard)."
+    }
+  }
+}

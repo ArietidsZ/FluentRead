@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-10-07T12:06:59.195505+00:00",
+  "commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "expected_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+  "expected_source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+  "build_target": "chrome-mv3",
+  "file_count": 398,
+  "bytes": 60306304,
+  "all_398_build_files_match_prior_verified_manifest": true,
+  "mismatches": [],
+  "manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+}

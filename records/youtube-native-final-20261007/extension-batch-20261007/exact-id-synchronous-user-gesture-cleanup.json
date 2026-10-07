@@ -1,0 +1,9 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "await (await browser.page(11)).close();const p=await browser.open('chrome://extensions/');console.log('cleanup page',p.id);return await p.cdp('Runtime.evaluate',\"{\\\"expression\\\":\\\"new Promise(resolve=>chrome.management.uninstall('djnlaiohfaaifbibleebjggkghlmcpcj',{showConfirmDialog:false},()=>resolve({removed:!chrome.runtime.lastError,error:chrome.runtime.lastError?.message??null,target:'djnlaiohfaaifbibleebjggkghlmcpcj'})))\\\",\\\"awaitPromise\\\":true,\\\"returnByValue\\\":true,\\\"userGesture\\\":true,\\\"timeout\\\":10000}\");",
+    "timeout": 15000
+  },
+  "success": false,
+  "error": "{'content': [{'type': 'text', 'text': 'error: run exceeded 15000ms\\nlogs:\\ncleanup page 12'}], 'structuredContent': {'error': 'run exceeded 15000ms', 'logs': ['cleanup page 12'], 'ok': False}, 'isError': True}"
+}

@@ -1,0 +1,19 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const xs=await browser.pages.list();return xs.filter(x=>x.url==='chrome://extensions/'||x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/')).map(x=>({pageId:x.pageId,url:x.url,title:x.title,ownership:x.ownership,ownerLabel:x.ownerLabel}));",
+    "timeout": 10000
+  },
+  "timestamp": "2026-10-07T12:07:22.144963+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: [\n  {\n    \"pageId\": 8,\n    \"url\": \"chrome://extensions/\",\n    \"title\": \"Extensions\",\n    \"ownership\": \"other-agent\",\n    \"ownerLabel\": null\n  }\n]"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

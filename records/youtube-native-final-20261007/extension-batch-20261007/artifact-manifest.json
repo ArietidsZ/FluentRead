@@ -1,0 +1,537 @@
+{
+  "redactions": [
+    {
+      "replacement": "$CW_TASK_DIR",
+      "kind": "machine prefix or ephemeral group id"
+    },
+    {
+      "replacement": "$HOME",
+      "kind": "machine prefix or ephemeral group id"
+    },
+    {
+      "replacement": "$NEO_TEST_GROUP_ID",
+      "kind": "machine prefix or ephemeral group id"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "README.md",
+      "original_bytes": 5324,
+      "original_sha256": "6cf0b41875e6ee8e138b543d8bf45a33303e6d3e565b02a042addc7a9cf9ec64",
+      "published": true,
+      "published_bytes": 5324,
+      "published_sha256": "6cf0b41875e6ee8e138b543d8bf45a33303e6d3e565b02a042addc7a9cf9ec64"
+    },
+    {
+      "file": "build-integrity-reverified.json",
+      "original_bytes": 602,
+      "original_sha256": "3e18f3c836a9ddd5a3cc1ff8870e4787aa0234af42d9c2d2d64fa23a81a87ae9",
+      "published": true,
+      "published_bytes": 602,
+      "published_sha256": "3e18f3c836a9ddd5a3cc1ff8870e4787aa0234af42d9c2d2d64fa23a81a87ae9"
+    },
+    {
+      "file": "cleanup-auto-review-rejection.json",
+      "original_bytes": 532,
+      "original_sha256": "f3c68c2f63e18b8c2d3afc0e3b3120ff700f20486e257c99decf2a86f1a898ec",
+      "published": true,
+      "published_bytes": 532,
+      "published_sha256": "f3c68c2f63e18b8c2d3afc0e3b3120ff700f20486e257c99decf2a86f1a898ec"
+    },
+    {
+      "file": "cleanup-final-status-read.json",
+      "original_bytes": 3752,
+      "original_sha256": "ed10c8e29bdb14561fe40fbafc5a4e1f20065c43a40fee7bc52a3120b977dc2e",
+      "published": true,
+      "published_bytes": 3718,
+      "published_sha256": "72ee7692d187e9e96c2ba8eb2a1b46c73ff7198f2c90841cd3442bafe16870dd"
+    },
+    {
+      "file": "cleanup-process-state.local.json",
+      "original_bytes": 823,
+      "original_sha256": "477efd912b75fde7591412ffc5c03aabf37c5e1d4f4c0fa7eb245e424c737eb0",
+      "published": false,
+      "omission_reason": "Private process/socket/window launch metadata; normalized summary is published."
+    },
+    {
+      "file": "cleanup-status-after-api.json",
+      "original_bytes": 1184,
+      "original_sha256": "6a11d97319f6a2f1e6a1bd03f369ae738cb9f4a2de9915784c9584c02dddfb59",
+      "published": true,
+      "published_bytes": 1184,
+      "published_sha256": "6a11d97319f6a2f1e6a1bd03f369ae738cb9f4a2de9915784c9584c02dddfb59"
+    },
+    {
+      "file": "clear-own-cleanup-page-and-reopen.json",
+      "original_bytes": 2897,
+      "original_sha256": "c95d2ed401593c6f10a6ef312d1a46ac7ba3426da19b4cf3a589344040ef15b9",
+      "published": true,
+      "published_bytes": 2897,
+      "published_sha256": "c95d2ed401593c6f10a6ef312d1a46ac7ba3426da19b4cf3a589344040ef15b9"
+    },
+    {
+      "file": "close-confirmed-test-manager-and-open-cleanup-page.json",
+      "original_bytes": 3181,
+      "original_sha256": "188f7d8d9b8b175cd6319cdc0238d7d71ec61fc218bf50b41462c75d3821b710",
+      "published": true,
+      "published_bytes": 3181,
+      "published_sha256": "188f7d8d9b8b175cd6319cdc0238d7d71ec61fc218bf50b41462c75d3821b710"
+    },
+    {
+      "file": "cua-dialog-session.py",
+      "original_bytes": 2642,
+      "original_sha256": "344b179b9f1980a42dec11de1dc6e16af55220272d87d56bc657a6fd49ce07e6",
+      "published": true,
+      "published_bytes": 2642,
+      "published_sha256": "344b179b9f1980a42dec11de1dc6e16af55220272d87d56bc657a6fd49ce07e6"
+    },
+    {
+      "file": "cua-file-dialog-daemon-renewed.log",
+      "original_bytes": 1234,
+      "original_sha256": "874a0169d8a466cf9599a80de2c9de36d8c3a80c0e73aecb317178b80413bc1e",
+      "published": true,
+      "published_bytes": 1234,
+      "published_sha256": "874a0169d8a466cf9599a80de2c9de36d8c3a80c0e73aecb317178b80413bc1e"
+    },
+    {
+      "file": "cua-file-dialog-daemon.log",
+      "original_bytes": 1234,
+      "original_sha256": "d5d48451204993fae8d7aea503d032376bc3d4fd969d0ac0089598708589f4b5",
+      "published": true,
+      "published_bytes": 1234,
+      "published_sha256": "d5d48451204993fae8d7aea503d032376bc3d4fd969d0ac0089598708589f4b5"
+    },
+    {
+      "file": "cua-file-dialog-launch-renewed.local.json",
+      "original_bytes": 1014,
+      "original_sha256": "3f37114b115b24e4552f5d5f182fbac6842f596a638e4c525436584123797376",
+      "published": false,
+      "omission_reason": "Private process/socket/window launch metadata; normalized summary is published."
+    },
+    {
+      "file": "cua-file-dialog-launch.local.json",
+      "original_bytes": 1014,
+      "original_sha256": "3f37114b115b24e4552f5d5f182fbac6842f596a638e4c525436584123797376",
+      "published": false,
+      "omission_reason": "Private process/socket/window launch metadata; normalized summary is published."
+    },
+    {
+      "file": "cua-file-dialog-proxy.stderr",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published": true,
+      "published_bytes": 0,
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "cua-mcp-initialize.json",
+      "original_bytes": 1933,
+      "original_sha256": "914c8a7c67d4931d21da999a336e2475a87c169cf137277c15a834316e376b48",
+      "published": false,
+      "omission_reason": "Transport/session initialization is not needed for public acceptance evidence."
+    },
+    {
+      "file": "cua-session-stopped.json",
+      "original_bytes": 104,
+      "original_sha256": "2bb36b7a7ee8472e33cdcfb8cec49ad500c402a2a51c70590e2a41c05fa3f270",
+      "published": true,
+      "published_bytes": 104,
+      "published_sha256": "2bb36b7a7ee8472e33cdcfb8cec49ad500c402a2a51c70590e2a41c05fa3f270"
+    },
+    {
+      "file": "developer-mode-off.json",
+      "original_bytes": 732,
+      "original_sha256": "49a0406dfb82ffbf023824d199d10b147365411224606bfa91801733bcc85eb7",
+      "published": true,
+      "published_bytes": 732,
+      "published_sha256": "49a0406dfb82ffbf023824d199d10b147365411224606bfa91801733bcc85eb7"
+    },
+    {
+      "file": "developer-mode-on.json",
+      "original_bytes": 2223,
+      "original_sha256": "cf27dd7cc73ad4f516a0ab96507a540ed11cbcfa04aa2ba9eb9aea5d9454cb03",
+      "published": true,
+      "published_bytes": 2223,
+      "published_sha256": "cf27dd7cc73ad4f516a0ab96507a540ed11cbcfa04aa2ba9eb9aea5d9454cb03"
+    },
+    {
+      "file": "dialog-build-directory-state-2.png",
+      "original_bytes": 118955,
+      "original_sha256": "6eb892fc476b076332b5e9fe7c2e615f4b93c7aebe0afd2719a121458ea75605",
+      "published": false,
+      "omission_reason": "Native chooser screenshot contains local folder names; kept private."
+    },
+    {
+      "file": "dialog-build-directory-state.json",
+      "original_bytes": 8130,
+      "original_sha256": "47125fb069ec4bc438caf5d42c11df67721466e0da92b21a9975696eba0f82fb",
+      "published": true,
+      "published_bytes": 8096,
+      "published_sha256": "935888064ffea4d27dafce1561a1a2794c80e0953fee146c2d6d34fa4e0d6dff"
+    },
+    {
+      "file": "dialog-enter-build-directory.json",
+      "original_bytes": 415,
+      "original_sha256": "99bb2775f4b550eb1823732e977b01783f8ac835f849fb05481a8466efc8c38a",
+      "published": true,
+      "published_bytes": 415,
+      "published_sha256": "99bb2775f4b550eb1823732e977b01783f8ac835f849fb05481a8466efc8c38a"
+    },
+    {
+      "file": "dialog-fresh-state-1.png",
+      "original_bytes": 102818,
+      "original_sha256": "c6a27b6ac17dc51a4f787b2ab3a31c8ec300a81561aff4910b4e6c1c7257a2ca",
+      "published": false,
+      "omission_reason": "Native chooser screenshot contains local folder names; kept private."
+    },
+    {
+      "file": "dialog-fresh-state.json",
+      "original_bytes": 6665,
+      "original_sha256": "c39850fb7d81b5a69eb038e62a891dad33e5ba882ccace1abe030aaa35a14b1b",
+      "published": true,
+      "published_bytes": 6631,
+      "published_sha256": "3fa008c0d53048dde7cafe37f832d3ad9d6ab8a0b16824388aa0c78591d89b7f"
+    },
+    {
+      "file": "dialog-location-shortcut-foreground.json",
+      "original_bytes": 431,
+      "original_sha256": "e78e6691dca1842382260b72d4e6a8fed9c4819bf04311724f06179df27261be",
+      "published": true,
+      "published_bytes": 431,
+      "published_sha256": "e78e6691dca1842382260b72d4e6a8fed9c4819bf04311724f06179df27261be"
+    },
+    {
+      "file": "dialog-location-shortcut.json",
+      "original_bytes": 976,
+      "original_sha256": "7202ba2c522823f9ab2ed4b92ef6c743fba21a0261534bc6a737bfc0f5c61bf0",
+      "published": true,
+      "published_bytes": 976,
+      "published_sha256": "7202ba2c522823f9ab2ed4b92ef6c743fba21a0261534bc6a737bfc0f5c61bf0"
+    },
+    {
+      "file": "dialog-location-state-2.png",
+      "original_bytes": 106328,
+      "original_sha256": "910c7cd989dfbb9f0f20e79715378edb74651fcdec294b7c39ac907bc3d09a46",
+      "published": false,
+      "omission_reason": "Native chooser screenshot contains local folder names; kept private."
+    },
+    {
+      "file": "dialog-location-state.json",
+      "original_bytes": 14095,
+      "original_sha256": "874213880b24ab275638e1f1b85de77c2fd830a01ec11afd8c3915cf7e16a600",
+      "published": true,
+      "published_bytes": 13926,
+      "published_sha256": "df2db4d243b4e1738fde0163ab8c210666b5281ac2e8e89a9f66cd04670c835f"
+    },
+    {
+      "file": "dialog-renewed-state-1.png",
+      "original_bytes": 117123,
+      "original_sha256": "e290e94e03202ef99c64fd44f00561365f8c7ad71c546d5b9a8e1ff303a8259d",
+      "published": false,
+      "omission_reason": "Native chooser screenshot contains local folder names; kept private."
+    },
+    {
+      "file": "dialog-renewed-state.json",
+      "original_bytes": 7933,
+      "original_sha256": "35be7d5fe3b75ebfd33e1a7d7584a39cab357b21530426fc97e015f577801072",
+      "published": true,
+      "published_bytes": 7899,
+      "published_sha256": "ac642811db01bf2f70b774b0470aaccc67f0e2814bdf8f04a1eaa89a92ce1164"
+    },
+    {
+      "file": "dialog-select-build-directory-renewed.json",
+      "original_bytes": 675,
+      "original_sha256": "b4929f04e77201587435a6d77b267aab8be37af11c00cabd3f30b506f53a986a",
+      "published": true,
+      "published_bytes": 675,
+      "published_sha256": "b4929f04e77201587435a6d77b267aab8be37af11c00cabd3f30b506f53a986a"
+    },
+    {
+      "file": "dialog-select-build-directory.json",
+      "original_bytes": 299,
+      "original_sha256": "0350ab08aab62490e869dd7e36cf0515956564d3a794097f4b2cf43f79a2cee5",
+      "published": true,
+      "published_bytes": 299,
+      "published_sha256": "0350ab08aab62490e869dd7e36cf0515956564d3a794097f4b2cf43f79a2cee5"
+    },
+    {
+      "file": "dialog-type-build-directory.json",
+      "original_bytes": 417,
+      "original_sha256": "17bdaade9ec252b254f04376bc666d5bffeb513a1c795d00317df641a7ff2a6a",
+      "published": true,
+      "published_bytes": 417,
+      "published_sha256": "17bdaade9ec252b254f04376bc666d5bffeb513a1c795d00317df641a7ff2a6a"
+    },
+    {
+      "file": "dismiss-pending-removal-via-neo.json",
+      "original_bytes": 828,
+      "original_sha256": "c65f4358a6292e72a6151fd3a0ceddce10741f201a2c04ea82f1c19248a99784",
+      "published": true,
+      "published_bytes": 828,
+      "published_sha256": "c65f4358a6292e72a6151fd3a0ceddce10741f201a2c04ea82f1c19248a99784"
+    },
+    {
+      "file": "exact-id-synchronous-user-gesture-cleanup.json",
+      "original_bytes": 869,
+      "original_sha256": "3524f544930a9be8cef41b90b01fcb693812f1ec5d778b9c6f0788d68fabc77c",
+      "published": true,
+      "published_bytes": 869,
+      "published_sha256": "3524f544930a9be8cef41b90b01fcb693812f1ec5d778b9c6f0788d68fabc77c"
+    },
+    {
+      "file": "extension-cleanup-state-before-stop.json",
+      "original_bytes": 3807,
+      "original_sha256": "7b2d21153dff916d4e60c2bf41be7c25cda8f9bbae7731ed0691bb44d2994e25",
+      "published": true,
+      "published_bytes": 3773,
+      "published_sha256": "17d665abc36617bf8bd51e075932f1c663541812ea50350a51c585f57c26a4a0"
+    },
+    {
+      "file": "extension-disabled-cleanup-pending-screenshot.json",
+      "original_bytes": 306,
+      "original_sha256": "20263adf223294656e39c505e5d89f1a5bd8725472262658bf4b75207dcc5a89",
+      "published": true,
+      "published_bytes": 306,
+      "published_sha256": "20263adf223294656e39c505e5d89f1a5bd8725472262658bf4b75207dcc5a89"
+    },
+    {
+      "file": "extension-disabled-no-pending-dialog-screenshot.json",
+      "original_bytes": 306,
+      "original_sha256": "4ca79204d7fedb029d36fa7305717289c30c6b17fcbbd8b8f3231604da5dbaeb",
+      "published": true,
+      "published_bytes": 306,
+      "published_sha256": "4ca79204d7fedb029d36fa7305717289c30c6b17fcbbd8b8f3231604da5dbaeb"
+    },
+    {
+      "file": "extension-loaded-screenshot-0.png",
+      "original_bytes": 28912,
+      "original_sha256": "015bb12bb17b419079e8d4b8a0f618fd6a6d5673a65b0360b8c0695b8c56e4dd",
+      "published": true,
+      "published_bytes": 28912,
+      "published_sha256": "015bb12bb17b419079e8d4b8a0f618fd6a6d5673a65b0360b8c0695b8c56e4dd"
+    },
+    {
+      "file": "extension-loaded-screenshot.json",
+      "original_bytes": 870,
+      "original_sha256": "32fd9249c1b0704220986dfc333708d26a75e4fda76a63fd8752f86c258e6849",
+      "published": true,
+      "published_bytes": 836,
+      "published_sha256": "e35bea86025d36bfd1c2cc39380c1fe5942af1d3708f0f4527da2eb148c2675d"
+    },
+    {
+      "file": "extension-popup-open.json",
+      "original_bytes": 584,
+      "original_sha256": "599362897348a07b7a95f5f35ca4372fc7f173a05495eb9a6a73cac8889c7b88",
+      "published": true,
+      "published_bytes": 584,
+      "published_sha256": "599362897348a07b7a95f5f35ca4372fc7f173a05495eb9a6a73cac8889c7b88"
+    },
+    {
+      "file": "extension-remove-approved-target-user-gesture.json",
+      "original_bytes": 1132,
+      "original_sha256": "cd2b935328848dc48812c1e4e09d1c098b4e640a84e03124c404fc9cab792b88",
+      "published": true,
+      "published_bytes": 1132,
+      "published_sha256": "cd2b935328848dc48812c1e4e09d1c098b4e640a84e03124c404fc9cab792b88"
+    },
+    {
+      "file": "extension-remove-exact-test-id.json",
+      "original_bytes": 1383,
+      "original_sha256": "b99ab5524c770f2a5ec0ba808f4e545513dc02faf19dcb25b167cfc384d20751",
+      "published": true,
+      "published_bytes": 1383,
+      "published_sha256": "b99ab5524c770f2a5ec0ba808f4e545513dc02faf19dcb25b167cfc384d20751"
+    },
+    {
+      "file": "extension-remove-management-cleanup-page.json",
+      "original_bytes": 981,
+      "original_sha256": "484af534656ba3d0afef5c1ea2f6d57ea81bfd8499734fa7201257a8d5d7b95c",
+      "published": true,
+      "published_bytes": 981,
+      "published_sha256": "484af534656ba3d0afef5c1ea2f6d57ea81bfd8499734fa7201257a8d5d7b95c"
+    },
+    {
+      "file": "extension-remove-management-exact-id.json",
+      "original_bytes": 980,
+      "original_sha256": "0972e0a18a78eeb50e95b44f79e41ac41a442bb3d0a353e1a0aae0793f1d604a",
+      "published": true,
+      "published_bytes": 980,
+      "published_sha256": "0972e0a18a78eeb50e95b44f79e41ac41a442bb3d0a353e1a0aae0793f1d604a"
+    },
+    {
+      "file": "extension-remove-open.json",
+      "original_bytes": 3261,
+      "original_sha256": "e362adbbb0bd75f9736751280fd5c5977c4d9eb7bb812bf7ca4ba4adfc340495",
+      "published": true,
+      "published_bytes": 3261,
+      "published_sha256": "e362adbbb0bd75f9736751280fd5c5977c4d9eb7bb812bf7ca4ba4adfc340495"
+    },
+    {
+      "file": "extension-remove-status.json",
+      "original_bytes": 4028,
+      "original_sha256": "6db0c63cc9095514e96d41dc0a5c1d38012b765aad12d12fa64750b061cf6247",
+      "published": true,
+      "published_bytes": 4028,
+      "published_sha256": "6db0c63cc9095514e96d41dc0a5c1d38012b765aad12d12fa64750b061cf6247"
+    },
+    {
+      "file": "extensions-before.json",
+      "original_bytes": 2032,
+      "original_sha256": "e780d56d64ec56b72cd485b741ef7b63548cdd622b4e32b4c5ddba7f17369bd7",
+      "published": true,
+      "published_bytes": 2032,
+      "published_sha256": "e780d56d64ec56b72cd485b741ef7b63548cdd622b4e32b4c5ddba7f17369bd7"
+    },
+    {
+      "file": "extensions-loaded-reconnected.json",
+      "original_bytes": 4185,
+      "original_sha256": "f772b31ea86e3a2f517243ef54d99277f6bc16d5f61ae6c7d5550c9f708771cd",
+      "published": true,
+      "published_bytes": 4151,
+      "published_sha256": "a61dcec5fb7b90eb432c8c5d2ce6558f336be1c9597823fc514fa9364d1dd8ce"
+    },
+    {
+      "file": "extensions-loaded.json",
+      "original_bytes": 657,
+      "original_sha256": "d8d9d3315f90676a725368ca85cded623071b201d09fe35d7c0bce4d671ce916",
+      "published": true,
+      "published_bytes": 657,
+      "published_sha256": "d8d9d3315f90676a725368ca85cded623071b201d09fe35d7c0bce4d671ce916"
+    },
+    {
+      "file": "file-dialog-capabilities-renewed.json",
+      "original_bytes": 373,
+      "original_sha256": "e7d62156b98026a4db7e836d72b1e207210881054a4a2694ae1f119aefcb3930",
+      "published": true,
+      "published_bytes": 373,
+      "published_sha256": "e7d62156b98026a4db7e836d72b1e207210881054a4a2694ae1f119aefcb3930"
+    },
+    {
+      "file": "file-dialog-capabilities.json",
+      "original_bytes": 427,
+      "original_sha256": "088ac21244eb48edd58190f1dea2d2f85fa8e46ef45c366ba40a70ac520e2368",
+      "published": true,
+      "published_bytes": 427,
+      "published_sha256": "088ac21244eb48edd58190f1dea2d2f85fa8e46ef45c366ba40a70ac520e2368"
+    },
+    {
+      "file": "final-read-only-cleanup-manager.json",
+      "original_bytes": 3838,
+      "original_sha256": "a197d84c8bae5d21f18b5adcedcd5fedeeb47c35deeef19aba1370964f3c2a46",
+      "published": true,
+      "published_bytes": 3804,
+      "published_sha256": "7f7637e89ae11a10df5cfee055351f9387370e6e9276bdb92e0fe9611e46a6ef"
+    },
+    {
+      "file": "fixture-isolation-blocker.json",
+      "original_bytes": 4209,
+      "original_sha256": "96925e6ea64004c3bc83b4938d30c8f221553aeceb0e0a0d2ae417675e064f3e",
+      "published": true,
+      "published_bytes": 4209,
+      "published_sha256": "96925e6ea64004c3bc83b4938d30c8f221553aeceb0e0a0d2ae417675e064f3e"
+    },
+    {
+      "file": "fresh-dialog-windows.local.json",
+      "original_bytes": 543,
+      "original_sha256": "bf19e073a9e650a0740c67b859aa3fefd0df63d7cc33703cd75ede9fc7b37c0b",
+      "published": false,
+      "omission_reason": "Private process/socket/window launch metadata; normalized summary is published."
+    },
+    {
+      "file": "github-cli-readonly-diagnostic.json",
+      "original_bytes": 2900,
+      "original_sha256": "43b2972b33f30fad3aeb9b1e8a21449e897df44636fa53d2a4bfaa55ebaa2dfe",
+      "published": true,
+      "published_bytes": 2900,
+      "published_sha256": "43b2972b33f30fad3aeb9b1e8a21449e897df44636fa53d2a4bfaa55ebaa2dfe"
+    },
+    {
+      "file": "load-unpacked-open.json",
+      "original_bytes": 317,
+      "original_sha256": "b569765176370c865689ce13200217d059752ccb75f95ded755162fc4e1d2760",
+      "published": true,
+      "published_bytes": 317,
+      "published_sha256": "b569765176370c865689ce13200217d059752ccb75f95ded755162fc4e1d2760"
+    },
+    {
+      "file": "neo-session.py",
+      "original_bytes": 1783,
+      "original_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329",
+      "published": true,
+      "published_bytes": 1783,
+      "published_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329"
+    },
+    {
+      "file": "owned-extension-pages.json",
+      "original_bytes": 713,
+      "original_sha256": "86b31e306a1989608f16817749e63ce9c66197000f7c988ccf843ea54f7495c9",
+      "published": true,
+      "published_bytes": 713,
+      "published_sha256": "86b31e306a1989608f16817749e63ce9c66197000f7c988ccf843ea54f7495c9"
+    },
+    {
+      "file": "owned-popup-targets-read.json",
+      "original_bytes": 454,
+      "original_sha256": "0403c9742f603a7bd4e7cc8fcda5de25448b646bd622924743d6937dbfa85df2",
+      "published": true,
+      "published_bytes": 454,
+      "published_sha256": "0403c9742f603a7bd4e7cc8fcda5de25448b646bd622924743d6937dbfa85df2"
+    },
+    {
+      "file": "owned-test-tabs-closed.json",
+      "original_bytes": 1113,
+      "original_sha256": "09872ec432995d2df1d9e4b762c1376bb6c91cadb2f85fe9bc8ef52f2bd99d54",
+      "published": true,
+      "published_bytes": 1113,
+      "published_sha256": "09872ec432995d2df1d9e4b762c1376bb6c91cadb2f85fe9bc8ef52f2bd99d54"
+    },
+    {
+      "file": "publish-extension-evidence.py",
+      "original_bytes": 11698,
+      "original_sha256": "cd6751c4c9bbf335543e9fdaff33135af6925f00018e771e736f2aec2139d5a2",
+      "published": true,
+      "published_bytes": 11675,
+      "published_sha256": "ccecadaa9cb5ef7c9f8abaab1edfca61933c8783d43a6e631b08a1798875b94f"
+    },
+    {
+      "file": "remove-disabled-test-via-specific-safety-check-control.json",
+      "original_bytes": 3115,
+      "original_sha256": "8ba60cfd2143143df311aa6a1d024c7fbb26013abc8997fab1ae6db2fafc02a1",
+      "published": true,
+      "published_bytes": 3115,
+      "published_sha256": "8ba60cfd2143143df311aa6a1d024c7fbb26013abc8997fab1ae6db2fafc02a1"
+    },
+    {
+      "file": "source-worktrees-after.json",
+      "original_bytes": 411,
+      "original_sha256": "79e48227b0d539d2ca913adc02a9f8ed902a0992c7361a21030d28eb04e65a48",
+      "published": true,
+      "published_bytes": 411,
+      "published_sha256": "79e48227b0d539d2ca913adc02a9f8ed902a0992c7361a21030d28eb04e65a48"
+    },
+    {
+      "file": "summary.json",
+      "original_bytes": 7491,
+      "original_sha256": "51ffb1629db14e44064233450d94394cce09d6f8edbb2ea7ad3656f6122bd9b3",
+      "published": true,
+      "published_bytes": 7423,
+      "published_sha256": "dacf0bb46f03d3ed114501155337742acca428ed23cb4e60cd33ed05d6303be3"
+    },
+    {
+      "file": "test-page-ownership-read.json",
+      "original_bytes": 597,
+      "original_sha256": "7de8aa87bf0fe50fb3453f14676eb84643b4fc4ebc8c572dc6bfdecaa7a5bb79",
+      "published": true,
+      "published_bytes": 583,
+      "published_sha256": "cde65612da3d5bba6682ef9ad79785ccea446e3376d4065af5ed4a7814c7874b"
+    },
+    {
+      "file": "uninstall-confirmation-scope-proposal.json",
+      "original_bytes": 1350,
+      "original_sha256": "04646be721741cc2855f0115d518687971d1cdd9579c776c8c7d7a81ffae01c9",
+      "published": true,
+      "published_bytes": 1350,
+      "published_sha256": "04646be721741cc2855f0115d518687971d1cdd9579c776c8c7d7a81ffae01c9"
+    }
+  ]
+}

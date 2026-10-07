@@ -1,0 +1,9 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(8);return await p.evaluate(async()=>{const id='djnlaiohfaaifbibleebjggkghlmcpcj';const xs=await new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},resolve));const x=xs.find(x=>x.id===id);if(!x)return {removed:true,alreadyAbsent:true};if(x.location!=='UNPACKED'||x.version!=='0.0.35'||!x.path.endsWith('/FluentRead-youtube-remaining-combined/.output/chrome-mv3'))throw Error('Refuse to remove an extension outside the exact test build');return await new Promise(resolve=>chrome.developerPrivate.uninstallExtension(id,{showConfirmDialog:false},()=>resolve({removed:!chrome.runtime.lastError,error:chrome.runtime.lastError?.message??null,target:id})));});",
+    "timeout": 15000
+  },
+  "success": false,
+  "error": "{'content': [{'type': 'text', 'text': 'error: evaluate: TypeError: chrome.developerPrivate.uninstallExtension is not a function\\n    at <anonymous>:1:555\\n    at new Promise (<anonymous>)\\n    at <anonymous>:1:510\\n    at async <anonymous>:1:23'}], 'structuredContent': {'error': 'evaluate: TypeError: chrome.developerPrivate.uninstallExtension is not a function\\n    at <anonymous>:1:555\\n    at new Promise (<anonymous>)\\n    at <anonymous>:1:510\\n    at async <anonymous>:1:23', 'logs': [], 'ok': False}, 'isError': True}"
+}

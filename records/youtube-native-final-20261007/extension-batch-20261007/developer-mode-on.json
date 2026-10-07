@@ -1,0 +1,18 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const page=browser.page(8); await page.click('e3'); return {state:await page.evaluate(()=>({developerMode:document.querySelector('extensions-manager').inDevMode})),snapshot:await page.snapshot({mode:'interactive',depth:6})};"
+  },
+  "timestamp": "2026-10-07T11:51:40.131363+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"state\": {\n    \"page\": 8,\n    \"value\": {\n      \"developerMode\": true\n    }\n  },\n  \"snapshot\": {\n    \"refs\": [\n      {\n        \"backendNodeId\": 222,\n        \"name\": \"Main menu\",\n        \"nth\": 0,\n        \"ref\": \"e1\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 239,\n        \"name\": \"Search extensions\",\n        \"nth\": 0,\n        \"ref\": \"e2\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 268,\n        \"name\": \"Developer mode\",\n        \"nth\": 0,\n        \"ref\": \"e3\",\n        \"role\": \"switch\"\n      },\n      {\n        \"backendNodeId\": 273,\n        \"name\": \"Load unpacked\",\n        \"nth\": 0,\n        \"ref\": \"e5\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 280,\n        \"name\": \"Pack extension\",\n        \"nth\": 0,\n        \"ref\": \"e6\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 287,\n        \"name\": \"Update\",\n        \"nth\": 0,\n        \"ref\": \"e7\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 361,\n        \"name\": \"Chrome Web Store\",\n        \"nth\": 0,\n        \"ref\": \"e4\",\n        \"role\": \"link\"\n      }\n    ],\n    \"text\": \"- banner\\n  - button \\\"Main menu\\\" [ref=e1]\\n  - heading \\\"Extensions\\\" [level=1]\\n  - button \\\"Search extensions\\\" [ref=e2]\\n  - switch \\\"Developer mode\\\" [ref=e3]\\n  - button \\\"Load unpacked\\\" [ref=e5]\\n  - button \\\"Pack extension\\\" [ref=e6]\\n  - button \\\"Update\\\" [ref=e7]\\n- main\\n  - link \\\"Chrome Web Store\\\" [ref=e4]\",\n    \"url\": \"chrome://extensions/\"\n  }\n}"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

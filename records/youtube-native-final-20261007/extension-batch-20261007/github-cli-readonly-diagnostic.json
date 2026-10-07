@@ -1,0 +1,103 @@
+{
+  "timestamp": "2026-10-07T12:28:33.422304+00:00",
+  "environment": "CW local",
+  "gh_installed": true,
+  "gh_path": "/usr/bin/gh",
+  "requests": [
+    {
+      "argv": [
+        "/usr/bin/gh",
+        "api",
+        "user",
+        "--include",
+        "--jq",
+        "{login,id,type}"
+      ],
+      "exit_code": 0,
+      "endpoint": "user",
+      "selected_response": {
+        "id": 69024461,
+        "login": "ArietidsZ",
+        "type": "User"
+      },
+      "selected_response_headers": {
+        "X-Accepted-Oauth-Scopes": "",
+        "X-Github-Request-Id": "C079:301227:407F6:4CE10:6AC63AF1",
+        "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/gh",
+        "api",
+        "repos/FluentRead/FluentRead",
+        "--include",
+        "--jq",
+        "{full_name,private,permissions,default_branch}"
+      ],
+      "exit_code": 0,
+      "endpoint": "repos/FluentRead/FluentRead",
+      "selected_response": {
+        "default_branch": "main",
+        "full_name": "FluentRead/FluentRead",
+        "permissions": {
+          "admin": false,
+          "maintain": false,
+          "pull": true,
+          "push": false,
+          "triage": false
+        },
+        "private": false
+      },
+      "selected_response_headers": {
+        "X-Accepted-Oauth-Scopes": "repo",
+        "X-Github-Request-Id": "62A9:1807A0:46D25:533C4:6AC63AF2",
+        "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+      }
+    },
+    {
+      "argv": [
+        "/usr/bin/gh",
+        "api",
+        "repos/ArietidsZ/FluentRead",
+        "--include",
+        "--jq",
+        "{full_name,private,permissions,default_branch}"
+      ],
+      "exit_code": 0,
+      "endpoint": "repos/ArietidsZ/FluentRead",
+      "selected_response": {
+        "default_branch": "main",
+        "full_name": "ArietidsZ/FluentRead",
+        "permissions": {
+          "admin": true,
+          "maintain": true,
+          "pull": true,
+          "push": true,
+          "triage": true
+        },
+        "private": false
+      },
+      "selected_response_headers": {
+        "X-Accepted-Oauth-Scopes": "repo",
+        "X-Github-Request-Id": "5F09:280E1C:3EE33:4AFFA:6AC63AF2",
+        "X-Oauth-Scopes": "gist, read:org, repo, workflow"
+      }
+    }
+  ],
+  "credential_material_read_or_printed": false,
+  "auth_changed": false,
+  "pr_created": false,
+  "headers_whitelist": [
+    "X-OAuth-Scopes",
+    "X-Accepted-OAuth-Scopes",
+    "X-GitHub-Request-Id"
+  ],
+  "outcome": "EXISTING_AUTHENTICATED_USER_SESSION_FOUND",
+  "current_account": {
+    "id": 69024461,
+    "login": "ArietidsZ",
+    "type": "User"
+  },
+  "interpretation_limit": "Repository push:false does not establish inability to submit a fork pull request. Successful reads do not prove a PR write path or resolve the original connector 403. Token type and scope beyond selected safe headers remain unknown."
+}

@@ -1,0 +1,46 @@
+{
+  "approved": false,
+  "not_launched": true,
+  "purpose": "Only observe and confirm removal of the newly loaded, currently disabled FluentRead test extension; no browser-page automation.",
+  "target_extension_id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "requires_new_user_scope_supplement": true,
+  "previous_cua_scope": "Native system directory chooser only",
+  "proposed_manifest": {
+    "version": 3,
+    "expires_after": "5m",
+    "idle_timeout": "2m",
+    "resources": {
+      "desktop": {
+        "applications": [],
+        "windows": [
+          {
+            "pid": 68168,
+            "window_id": 11
+          }
+        ],
+        "display": false
+      }
+    },
+    "allow": {
+      "tools": [
+        "get_window_state",
+        "click"
+      ]
+    },
+    "deny": {
+      "tools": []
+    }
+  },
+  "preconditions": [
+    "Explicit scope supplement received",
+    "Reverify Neo process and fresh WinRects window identity",
+    "Open removal control through Neo native MCP",
+    "Read actual native confirmation and match FluentRead name before a capture-bound click"
+  ],
+  "cleanup_afterwards": [
+    "Stop owned Cua daemon",
+    "Read extension list and Developer mode using Neo native MCP",
+    "Confirm baseline empty extension list and Developer mode OFF",
+    "Close only new owned test manager tab; keep existing Neo running"
+  ]
+}

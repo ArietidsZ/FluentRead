@@ -1,0 +1,18 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const page = await browser.open('chrome://extensions/'); const state = await page.evaluate(async () => { const items=await new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},resolve)); return {developerMode:document.querySelector('extensions-manager').inDevMode, extensionIds:items.map(x=>x.id), fluentRead:items.filter(x=>/fluent.?read|流畅阅读/i.test(x.name)).map(x=>({id:x.id,name:x.name,version:x.version,state:x.state}))}; }); return {page:page.id,state,snapshot:await page.snapshot({mode:'interactive',depth:6})};"
+  },
+  "timestamp": "2026-10-07T11:50:22.819641+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 8,\n  \"state\": {\n    \"page\": 8,\n    \"value\": {\n      \"developerMode\": false,\n      \"extensionIds\": [],\n      \"fluentRead\": []\n    }\n  },\n  \"snapshot\": {\n    \"refs\": [\n      {\n        \"backendNodeId\": 222,\n        \"name\": \"Main menu\",\n        \"nth\": 0,\n        \"ref\": \"e1\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 239,\n        \"name\": \"Search extensions\",\n        \"nth\": 0,\n        \"ref\": \"e2\",\n        \"role\": \"button\"\n      },\n      {\n        \"backendNodeId\": 268,\n        \"name\": \"Developer mode\",\n        \"nth\": 0,\n        \"ref\": \"e3\",\n        \"role\": \"switch\"\n      },\n      {\n        \"backendNodeId\": 361,\n        \"name\": \"Chrome Web Store\",\n        \"nth\": 0,\n        \"ref\": \"e4\",\n        \"role\": \"link\"\n      }\n    ],\n    \"text\": \"- banner\\n  - button \\\"Main menu\\\" [ref=e1]\\n  - heading \\\"Extensions\\\" [level=1]\\n  - button \\\"Search extensions\\\" [ref=e2]\\n  - switch \\\"Developer mode\\\" [ref=e3]\\n- main\\n  - link \\\"Chrome Web Store\\\" [ref=e4]\",\n    \"url\": \"chrome://extensions/\"\n  }\n}"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

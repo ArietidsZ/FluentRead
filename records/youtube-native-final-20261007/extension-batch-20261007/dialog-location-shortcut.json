@@ -1,0 +1,22 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "text": "Background delivery is not available: the requested target has no focus-free input backend; the remaining XTest/X11 route can only deliver to the globally focused widget. Retry this action with delivery_mode:\"foreground\"; Cua Driver will activate the target window, confirm it holds the input focus, and deliver real input to it.",
+        "type": "text"
+      }
+    ],
+    "isError": true,
+    "structuredContent": {
+      "code": "background_unavailable",
+      "detail": "the requested target has no focus-free input backend; the remaining XTest/X11 route can only deliver to the globally focused widget",
+      "escalation": {
+        "reason": "background input is unavailable on this surface; retry this action with delivery_mode:\"foreground\".",
+        "recommended": "foreground"
+      },
+      "suggestion": "Retry this action with delivery_mode:\"foreground\"."
+    }
+  }
+}

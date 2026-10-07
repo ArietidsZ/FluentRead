@@ -1,0 +1,177 @@
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "result": {
+    "content": [
+      {
+        "text": "window_id=15 pid=397773 elements=4 walk_ms=74\n\n- [0] window \"Select the extension directory.\" [actions=[slot.reload,view.create-link-shortcut,view.open-current-directory-with-files,default.activate,slot.backspaceup,slot.bookmark-current-directory,view.open-scripts-folder,slot.files-view-mode-toggle,choices.x-nautilus-is-read-only,view.show-hidden-files,view.zoom-in,view.select-pattern,view.popup-menu,view.visible-captions,chooser.accept,slot.star-current-directory,slot.search-visible,view.invert-selection,slot.up,slot.search-global,slot.back,view.new-folder,view.zoom-standard,window.close,slot.down,slot.focus-search,view.copy-current-location]]\n                    - [1] generic \"\" [actions=[slot.focus-search,slot.up,slot.files-view-mode-toggle,slot.bookmark-current-directory,slot.search-visible,slot.down,slot.star-current-directory,slot.backspaceup,slot.back,slot.reload,slot.search-global]]\n                        - [2] tool bar \"\" [actions=[toolbar.prompt-root-location,toolbar.prompt-home-location,toolbar.edit-location]]\n                  - [3] list \"Sidebar\" (description \"List of common shortcuts, mountpoints, and bookmarks.\") [actions=[row.properties,row.stop,row.mount,row.rename,row.start,row.eject,row.format,row.unmount,row.empty-trash,row.remove,row.rescan,row.history-trash-settings]]\n",
+        "type": "text"
+      },
+      {
+        "text": "Invalidated snapshots s00000002: their element_tokens are stale.",
+        "type": "text"
+      },
+      {
+        "mimeType": "image/png",
+        "type": "image",
+        "saved_path": "$CW_TASK_DIR/youtube-extension-acceptance-20261007/dialog-build-directory-state-2.png"
+      }
+    ],
+    "structuredContent": {
+      "_note": "Prefer `elements` \u2014 `tree_markdown` will continue to work but new fields will only be added to the structured side. Use `max_elements` / `max_depth` to bound the AT-SPI walk on apps with very large trees.",
+      "app_name": "Select the extension directory.",
+      "bounds_complete": true,
+      "capture_id": "capture_42d4a69128f14c88a2f4cc338301689f_0000000000000002",
+      "coordinate_frame": "window",
+      "element_count": 4,
+      "elements": [
+        {
+          "actions": [
+            "slot.reload",
+            "view.create-link-shortcut",
+            "view.open-current-directory-with-files",
+            "default.activate",
+            "slot.backspaceup",
+            "slot.bookmark-current-directory",
+            "view.open-scripts-folder",
+            "slot.files-view-mode-toggle",
+            "choices.x-nautilus-is-read-only",
+            "view.show-hidden-files",
+            "view.zoom-in",
+            "view.select-pattern",
+            "view.popup-menu",
+            "view.visible-captions",
+            "chooser.accept",
+            "slot.star-current-directory",
+            "slot.search-visible",
+            "view.invert-selection",
+            "slot.up",
+            "slot.search-global",
+            "slot.back",
+            "view.new-folder",
+            "view.zoom-standard",
+            "window.close",
+            "slot.down",
+            "slot.focus-search",
+            "view.copy-current-location"
+          ],
+          "depth": 0,
+          "element_index": 0,
+          "element_token": "s00000003:0",
+          "enabled": true,
+          "frame": {
+            "h": 550,
+            "w": 890,
+            "x": 835,
+            "y": 461
+          },
+          "label": "Select the extension directory.",
+          "role": "window"
+        },
+        {
+          "actions": [
+            "slot.focus-search",
+            "slot.up",
+            "slot.files-view-mode-toggle",
+            "slot.bookmark-current-directory",
+            "slot.search-visible",
+            "slot.down",
+            "slot.star-current-directory",
+            "slot.backspaceup",
+            "slot.back",
+            "slot.reload",
+            "slot.search-global"
+          ],
+          "depth": 10,
+          "element_index": 1,
+          "element_token": "s00000003:1",
+          "enabled": true,
+          "frame": {
+            "h": 436,
+            "w": 710,
+            "x": 1015,
+            "y": 507
+          },
+          "parent_index": 0,
+          "role": "generic"
+        },
+        {
+          "actions": [
+            "toolbar.prompt-root-location",
+            "toolbar.prompt-home-location",
+            "toolbar.edit-location"
+          ],
+          "depth": 12,
+          "element_index": 2,
+          "element_token": "s00000003:2",
+          "enabled": true,
+          "frame": {
+            "h": 46,
+            "w": 710,
+            "x": 1015,
+            "y": 461
+          },
+          "parent_index": 0,
+          "role": "tool bar"
+        },
+        {
+          "actions": [
+            "row.properties",
+            "row.stop",
+            "row.mount",
+            "row.rename",
+            "row.start",
+            "row.eject",
+            "row.format",
+            "row.unmount",
+            "row.empty-trash",
+            "row.remove",
+            "row.rescan",
+            "row.history-trash-settings"
+          ],
+          "depth": 9,
+          "description": "List of common shortcuts, mountpoints, and bookmarks.",
+          "element_index": 3,
+          "element_token": "s00000003:3",
+          "enabled": true,
+          "frame": {
+            "h": 504,
+            "w": 180,
+            "x": 835,
+            "y": 507
+          },
+          "label": "Sidebar",
+          "parent_index": 0,
+          "role": "list"
+        }
+      ],
+      "elements_complete": true,
+      "frame_note": "x/y for click / double_click / right_click / drag / scroll on this window are pixels of THIS screenshot (window-local, 0..screenshot_width x 0..screenshot_height), as are the element frames; the screenshot is kept at or below 1.15 megapixels so the image you read is the image these pixels index (frame_scale < 1 says the window was downsized to it). window_bounds is where it sits on the screen. Pass scope:\"desktop\" only for get_desktop_state pixels.",
+      "invalidated_snapshot_ids": [
+        "s00000002"
+      ],
+      "nodes_pending": 0,
+      "nodes_visited": 4,
+      "pid": 397773,
+      "returned_element_count": 4,
+      "screenshot_frame_valid": true,
+      "screenshot_height": 550,
+      "screenshot_mime_type": "image/png",
+      "screenshot_width": 890,
+      "snapshot_id": "s00000003",
+      "timeout_ms": 2000,
+      "total_element_count": 4,
+      "tree_markdown": "- [0] window \"Select the extension directory.\" [actions=[slot.reload,view.create-link-shortcut,view.open-current-directory-with-files,default.activate,slot.backspaceup,slot.bookmark-current-directory,view.open-scripts-folder,slot.files-view-mode-toggle,choices.x-nautilus-is-read-only,view.show-hidden-files,view.zoom-in,view.select-pattern,view.popup-menu,view.visible-captions,chooser.accept,slot.star-current-directory,slot.search-visible,view.invert-selection,slot.up,slot.search-global,slot.back,view.new-folder,view.zoom-standard,window.close,slot.down,slot.focus-search,view.copy-current-location]]\n                    - [1] generic \"\" [actions=[slot.focus-search,slot.up,slot.files-view-mode-toggle,slot.bookmark-current-directory,slot.search-visible,slot.down,slot.star-current-directory,slot.backspaceup,slot.back,slot.reload,slot.search-global]]\n                        - [2] tool bar \"\" [actions=[toolbar.prompt-root-location,toolbar.prompt-home-location,toolbar.edit-location]]\n                  - [3] list \"Sidebar\" (description \"List of common shortcuts, mountpoints, and bookmarks.\") [actions=[row.properties,row.stop,row.mount,row.rename,row.start,row.eject,row.format,row.unmount,row.empty-trash,row.remove,row.rescan,row.history-trash-settings]]\n",
+      "truncated": false,
+      "walk_elapsed_ms": 74,
+      "window_bounds": {
+        "height": 550,
+        "width": 890,
+        "x": 835,
+        "y": 461
+      },
+      "window_id": 15,
+      "window_title": "Select the extension directory."
+    }
+  }
+}

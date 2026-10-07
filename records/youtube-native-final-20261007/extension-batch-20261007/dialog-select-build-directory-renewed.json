@@ -1,0 +1,20 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "result": {
+    "content": [
+      {
+        "text": "Clicked at (823.0, 516.0) \u00d7 1 (delivery_mode=foreground, path=wayland_activate); not verified \u2014 confirm with a screenshot. [window_point=(823, 516) screen_point=(1658, 977)]",
+        "type": "text"
+      }
+    ],
+    "structuredContent": {
+      "delivery": {
+        "mode": "foreground"
+      },
+      "effect": "unverifiable",
+      "route": "global_input",
+      "summary": "Clicked at (823.0, 516.0) \u00d7 1 (delivery_mode=foreground, path=wayland_activate); not verified \u2014 confirm with a screenshot. [window_point=(823, 516) screen_point=(1658, 977)]"
+    }
+  }
+}

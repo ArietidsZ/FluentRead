@@ -1,0 +1,17 @@
+[
+  {
+    "worktree": "FluentRead-youtube-native-fix",
+    "commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+    "status": ""
+  },
+  {
+    "worktree": "FluentRead-youtube-remaining-combined",
+    "commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+    "status": ""
+  },
+  {
+    "worktree": "FluentRead-quality-integration",
+    "commit": "e02f471b6e8b9e459118ee0fe92d0490c1a1c982",
+    "status": ""
+  }
+]

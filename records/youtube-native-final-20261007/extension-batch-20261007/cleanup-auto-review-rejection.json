@@ -1,0 +1,9 @@
+{
+  "action": "close test-created chrome://extensions/ page 8",
+  "rejected": true,
+  "reason": "Page ownership became other-agent after Neo transport reconnect; auto-review treated it as unrelated ownership. No close executed.",
+  "authorization_evidence": "extensions-before.json explicitly records this test opening page 8; same continued CW test, not a new agent.",
+  "workaround_used": false,
+  "resolved_after_ownership_evidence": true,
+  "successful_retry_record": "close-confirmed-test-manager-and-open-cleanup-page.json"
+}

@@ -1,0 +1,9 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(8);const v=await p.evaluate(()=>new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},xs=>resolve({developerMode:document.querySelector('extensions-manager').shadowRoot.querySelector('extensions-toolbar').shadowRoot.querySelector('#devMode').checked,extensions:xs.map(x=>({id:x.id,name:x.name,version:x.version,state:x.state,path:x.path,location:x.location,manifestErrors:x.manifestErrors,runtimeErrors:x.runtimeErrors}))}))));return v;",
+    "timeout": 15000
+  },
+  "success": false,
+  "error": "HTTP Error 404: Not Found"
+}
