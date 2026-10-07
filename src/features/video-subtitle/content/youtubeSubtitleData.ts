@@ -203,20 +203,18 @@ function countCueWords(value: string): number {
   return normalized.split(' ').filter(Boolean).length;
 }
 
-/** 常见称谓与点分缩写中的末点不是独立的句末，也需要保留后续词间空格。 */
-function hasCueAbbreviation(value: string): boolean {
-  return /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e|(?:[a-z]\.)+[a-z])\.$/i.test(value);
+/** 只延续常见称谓后紧接的大写人名式词形；其余歧义缩写保留事件句界。 */
+function hasCueTitleContinuation(value: string, nextValue: string): boolean {
+  return /\b(?:Mr|Mrs|Ms|Dr|Prof)\.$/i.test(normalizeCueComparisonText(value))
+    && /^\p{Lu}[\p{L}\p{M}]+(?=$|[\s.,!?])/u.test(normalizeCueComparisonText(nextValue));
 }
 
 function hasCueTerminalPunctuation(value: string, nextValue = ''): boolean {
   const text = normalizeCueComparisonText(value).replace(/["'’”»)\]}」』】）]+$/u, '');
   if (/[!?。！？；;：:…]$/.test(text)) return true;
-  if (!text.endsWith('.') || hasCueAbbreviation(text)) return false;
-  const next = normalizeCueComparisonText(nextValue);
-  // 小数/版本或常见域名可能恰好跨事件；只检查相邻事件，不拆分或捏造时间锚点。
-  if (/\d\.$/.test(text) && /^\d/.test(next)) return false;
-  if (/\b[a-z0-9-]+\.$/i.test(text) && /^(?:com|org|net|edu|gov|io|ai|co)(?:\b|[./?#])/i.test(next)) return false;
-  return true;
+  if (!text.endsWith('.')) return false;
+  // 普通 cue 没有词内连续性证据；末点不跨事件猜测域名、小数或点分缩写。
+  return !hasCueTitleContinuation(value, nextValue);
 }
 
 /** 自动字幕逐词流通常以短词、短间隔事件连续写入 timedtext。 */
@@ -241,8 +239,12 @@ function canJoinWordStreamCues(previous: VideoSubtitleCue, next: VideoSubtitleCu
 function joinCueText(previous: string, next: string): string {
   const left = previous.trim();
   const right = next.trim();
-  const leftWord = hasCueAbbreviation(left) ? left.slice(0, -1) : left;
-  const rightWord = right.replace(/^["'“‘«(\[{「『【（]+/u, '');
+  const leftWord = hasCueTitleContinuation(left, right)
+    ? left.slice(0, -1)
+    : left.replace(/["'’”»)\]}」』】）]+$/u, '');
+  const rightWord = /^['’](?:s|re|ve|ll|d|m)(?=$|\s)/i.test(right)
+    ? right
+    : right.replace(/^["'“‘«(\[{「『【（]+/u, '');
   const boundary = [...Array.from(leftWord).slice(-1), ...Array.from(rightWord).slice(0, 1)].join('');
   // 此处只连接不同事件；JSON3 原始 segment 仍按原样 join('')，避免破坏子词。
   const needsSpace = /^[\p{L}\p{N}\p{M}]{2}$/u.test(boundary)

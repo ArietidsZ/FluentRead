@@ -386,6 +386,7 @@ describe('YouTube 字幕轨道数据', () => {
     [['中', '文', '无空格'], '中文无空格'],
     [['今天', '学习', 'Type', 'Script'], '今天学习TypeScript'],
     [['caf', 'é', ' ', 'déjà'], 'café déjà'],
+    [['The ', 'U.S. ', 'Army'], 'The U.S. Army'],
   ])('JSON3 原始 segment 保留空白及无空白子词：%j', (segments, text) => {
     expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [{
       tStartMs: 0, dDurationMs: 500, segs: segments.map((utf8) => ({utf8})),
@@ -404,20 +405,40 @@ describe('YouTube 字幕轨道数据', () => {
 
   it.each([
     [['Dr.', 'Smith', 'is', 'here.'], 'Dr. Smith is here.'],
+    [['Mr.', 'Smith', 'is', 'here.'], 'Mr. Smith is here.'],
     [['Mrs.', 'Smith', 'is', 'here.'], 'Mrs. Smith is here.'],
-    [['The', 'U.S.', 'has', 'rules.'], 'The U.S. has rules.'],
+    [['Ms.', 'Smith', 'is', 'here.'], 'Ms. Smith is here.'],
+    [['Prof.', 'Élodie', 'is', 'here.'], 'Prof. Élodie is here.'],
     [['Value', '3.14', 'is', 'ready.'], 'Value 3.14 is ready.'],
     [['Use', 'v1.2', 'again', 'today.'], 'Use v1.2 again today.'],
     [['Visit', 'example.com', 'again', 'today.'], 'Visit example.com again today.'],
-    [['Value', '3.', '14', 'works.'], 'Value 3.14 works.'],
-    [['Use', 'v1.', '2', 'today.'], 'Use v1.2 today.'],
-    [['Visit', 'example.', 'com', 'today.'], 'Visit example.com today.'],
-  ])('常见缩写、小数、版本及域名不误断句：%j', (words, text) => {
+  ])('可靠称谓后继及完整词内的小数、版本、域名保持文本：%j', (words, text) => {
     const cues = words.map((word, index) => ({startMs: index * 450, durationMs: 500, text: word}));
     const finalized = finalizeVideoSubtitleCues(cues);
     expect(finalized).toEqual([{startMs: 0, durationMs: 1850, text}]);
     expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
     expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
+
+  it.each([
+    ['Value', '3.', '14', 'works.'],
+    ['Use', 'v1.', '2', 'today.'],
+    ['Visit', 'example.', 'com', 'today.'],
+    ['The', 'U.S.', 'has', 'rules.'],
+    ['The', 'U.S.', 'Army', 'arrived.'],
+    ['Things', 'etc.', 'are', 'listed.'],
+    ['Visit', 'St.', 'Louis', 'today.'],
+  ])('无词内连续性证据时保守保留点号事件边界：%j / %j / %j / %j', (...words) => {
+    const cues = words.map((text, index) => ({startMs: index * 450, durationMs: 500, text}));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual(cues);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalizeVideoSubtitleCues(cues)));
+  });
+
+  it.each(['smith', '42'])('称谓没有可靠人名式后继时保留事件边界：%s', (next) => {
+    const cues = ['Dr.', next, 'is', 'here.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual(cues);
   });
 
   it.each(['Hello.', '"Hello."', '(Hello.)', '“Hello!”', '「你好。」'])('保留真正句末及闭引号/括号边界：%s', (terminal) => {
@@ -548,5 +569,83 @@ describe('YouTube 字幕轨道数据', () => {
       {startMs: 900, durationMs: 500, text: 'tail'},
     ];
     expect(finalizeVideoSubtitleCues(cues)).toEqual(cues);
+  });
+
+  it('普通句末之后的 AI 保留事件句界，不推测为域名后缀', () => {
+    const cues = ['It', 'works', 'today.', 'AI', 'is', 'useful.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1400, text: 'It works today.'},
+      ...cues.slice(3),
+    ]);
+  });
+
+  it('apostrophe 缩写 it 和单独的后缀事件连接成完整词', () => {
+    const cues = ['it', "'s", 'a', 'test.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: "it's a test."},
+    ]);
+  });
+
+  it('歧义缩写 U.S. 保守保留句界，不跨到后续 We 句子', () => {
+    const cues = ['I', 'live', 'in', 'U.S.', 'We', 'agree.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: 'I live in U.S.'},
+      {startMs: 1800, durationMs: 500, text: 'We'},
+      {startMs: 2250, durationMs: 500, text: 'agree.'},
+    ]);
+  });
+
+  it('带点的数字事件之后出现新数字时保留句界，不推测为小数', () => {
+    const cues = ['I', 'chose', '1.', '2', 'was', 'wrong.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1400, text: 'I chose 1.'},
+      ...cues.slice(3),
+    ]);
+  });
+
+  it.each([
+    [['we', "'re", 'all', 'ready.'], "we're all ready."],
+    [['they', "'ve", 'just', 'arrived.'], "they've just arrived."],
+    [['he', "'ll", 'come', 'tomorrow.'], "he'll come tomorrow."],
+    [['she', "'d", 'prefer', 'tea.'], "she'd prefer tea."],
+    [['I', "'m", 'here', 'today.'], "I'm here today."],
+    [['it', '’s', 'a', 'test.'], 'it’s a test.'],
+    [['we', '’re', 'all', 'ready.'], 'we’re all ready.'],
+    [['they', '’ve', 'just', 'arrived.'], 'they’ve just arrived.'],
+    [['he', '’ll', 'come', 'tomorrow.'], 'he’ll come tomorrow.'],
+    [['she', '’d', 'prefer', 'tea.'], 'she’d prefer tea.'],
+    [['I', '’m', 'here', 'today.'], 'I’m here today.'],
+  ])('事件间直/弯 apostrophe 缩写后缀不插入空格：%j', (words, text) => {
+    const cues = words.map((word, index) => ({startMs: index * 450, durationMs: 500, text: word}));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual([{startMs: 0, durationMs: 1850, text}]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+  });
+
+  it.each(["'ready'", '‘ready’', "'s'", '‘s’'])('真正引用词保留前后词间空格：%s', (quoted) => {
+    const cues = ['we', 'say', quoted, 'now.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: `we say ${quoted} now.`},
+    ]);
+  });
+
+  it('被引用的称谓末点仍保留句界，不借后继人名越过闭引号', () => {
+    const cues = ['one', 'two', 'three', '"Dr."', 'Smith', 'is', 'here.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: 'one two three "Dr."'},
+      ...cues.slice(4),
+    ]);
   });
 });
