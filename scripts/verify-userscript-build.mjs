@@ -8,7 +8,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const artifactPath = path.join(root, '.output/userscript/fluent-read.user.js');
 const source = fs.readFileSync(artifactPath, 'utf8');
 const artifactBytes = Buffer.byteLength(source);
-const MAX_USERSCRIPT_BYTES = 1_950_000;
+// 整词跟读、媒体时钟与 5 秒跳转新增约 3 KB；保留小幅余量，继续按 UTF-8 实际字节检查。
+const MAX_USERSCRIPT_BYTES = 1_955_000;
 const preludeStartMarker = '/* FluentRead userscript compatibility prelude:start */';
 const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */';
 const preludeStart = source.indexOf(preludeStartMarker);

@@ -1,10 +1,10 @@
 /**
  * @file src/features/selection-translation/background/ttsHandler.ts
  * 文件职责：编排划词朗读的后台消息路由，按标签页和客户端请求编号管理当前播放所有权，并在 Edge、Google 与页面回退之间传递音频或状态。
- * 主要内容：定义四类 TTS 消息、音频/请求/响应契约，解析 tabId、文本和语言，生成 Google TTS URL、Base64 编码音频，并由工厂创建播放、停止及 Offscreen 状态转发 handlers；持续进度不释放路由，终态按精确请求清理。
+ * 主要内容：定义 TTS 消息与音频契约，解析标签页、文本、语言及媒体时钟，编排播放、停止、5 秒跳转及状态转发；持续进度不释放路由，终态按精确请求清理。
  * 模块边界：本文件不操作页面 Audio 或 speechSynthesis，也不实现 Edge SSML；具体合成由 services 注入，Offscreen 播放由 adapter 注入，内容页控制器负责忽略迟到状态。
  */
-import {parseSpeechProgress, type SpeechCue} from '@/src/core/tts/speechProgress';
+import {parseSpeechProgress, parseSpeechPlaybackPosition, type SpeechCue} from '@/src/core/tts/speechProgress';
 import {
     parseSelectionTtsClientRequestId,
     parseSelectionTtsPlaybackState,
@@ -16,6 +16,7 @@ import {
 
 export const SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE = 'selectionTtsPlaybackState' as const;
 export const SELECTION_TTS_STOP_MESSAGE_TYPE = 'selectionTtsStop' as const;
+export const SELECTION_TTS_SEEK_MESSAGE_TYPE = 'selectionTtsSeek' as const;
 export const SELECTION_TTS_MESSAGE_TYPE = 'selectionTts' as const;
 export const SELECTION_TTS_GOOGLE_MESSAGE_TYPE = 'selectionTtsGoogle' as const;
 
@@ -41,6 +42,13 @@ export interface SelectionTtsPlaybackStateMessage {
     state?: unknown;
     error?: unknown;
     progress?: unknown;
+    position?: unknown;
+}
+
+export interface SelectionTtsSeekMessage {
+    type: typeof SELECTION_TTS_SEEK_MESSAGE_TYPE;
+    clientRequestId?: unknown;
+    offsetSeconds?: unknown;
 }
 
 export interface SelectionTtsStopMessage {
@@ -65,6 +73,7 @@ export interface SelectionTtsGoogleMessage {
 export type SelectionTtsRuntimeMessage =
     | SelectionTtsPlaybackStateMessage
     | SelectionTtsStopMessage
+    | SelectionTtsSeekMessage
     | SelectionTtsMessage
     | SelectionTtsGoogleMessage;
 
@@ -94,6 +103,7 @@ export interface SelectionTtsBackgroundDependencies {
     ) => Promise<SelectionTtsAudio>;
     readonly playWithOffscreen: (request: SelectionTtsPlayAudioRequest | SelectionTtsPlaySourceRequest) => Promise<void>;
     readonly stopWithOffscreen: (route: SelectionTtsRoute) => Promise<void>;
+    readonly seekWithOffscreen: (route: SelectionTtsRoute, offsetSeconds: -5 | 5) => Promise<boolean>;
     readonly offscreenPlaybackEnabled?: boolean;
     readonly sendTabMessage: (tabId: number, message: unknown) => Promise<unknown>;
     readonly warn?: (message: string, error: unknown) => void;
@@ -101,7 +111,7 @@ export interface SelectionTtsBackgroundDependencies {
 
 export type SelectionTtsResponse =
     | {success: true; transport: 'offscreen'; voice?: string}
-    | {success: true; transport: 'page'; audioBase64: string; contentType: string; voice: string}
+    | {success: true; transport: 'page'; audioBase64: string; contentType: string; voice: string; timings?: SpeechCue[]}
     | {success: false; error: string};
 
 export interface SelectionTtsBackgroundHandler<TMessage extends SelectionTtsRuntimeMessage = SelectionTtsRuntimeMessage> {
@@ -205,9 +215,22 @@ export function createSelectionTtsBackgroundHandlers(
                     clientRequestId: route.clientRequestId,
                     state,
                     ...(state === 'progress' ? {progress:parseSpeechProgress(message.progress)} : {}),
+                    ...(state === 'progress' && message.position !== undefined ? {position:parseSpeechPlaybackPosition(message.position)} : {}),
                     error: typeof message.error === 'string' ? message.error : undefined,
                 }).catch(() => undefined);
                 return {success: true};
+        },
+    };
+
+    const seekHandler: SelectionTtsBackgroundHandler<SelectionTtsSeekMessage> = {
+        type: SELECTION_TTS_SEEK_MESSAGE_TYPE,
+        async handle(message, context) {
+            const tabId = parseTabId(context);
+            if (tabId === null || dependencies.offscreenPlaybackEnabled === false) return {success: false};
+            const route = {tabId, clientRequestId: parseSelectionTtsClientRequestId(message.clientRequestId)};
+            if (message.offsetSeconds !== -5 && message.offsetSeconds !== 5) throw new TypeError('TTS 跳转必须为前进或后退 5 秒');
+            // worker 重启后仍交给播放器按精确 route 校验；不建立新的合成或播放请求。
+            return {success: await dependencies.seekWithOffscreen(route, message.offsetSeconds)};
         },
     };
 
@@ -293,6 +316,7 @@ export function createSelectionTtsBackgroundHandlers(
                     contentType: result.contentType,
                     voice: result.voice,
                     transport: 'page',
+                    ...(result.timings === undefined ? {} : {timings: result.timings}),
                 };
         },
     };
@@ -337,5 +361,5 @@ export function createSelectionTtsBackgroundHandlers(
         },
     };
 
-    return [playbackStateHandler, stopHandler, edgeTtsHandler, googleTtsHandler];
+    return [playbackStateHandler, stopHandler, seekHandler, edgeTtsHandler, googleTtsHandler];
 }

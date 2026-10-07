@@ -8,6 +8,7 @@ import {
     SELECTION_TTS_MESSAGE_TYPE,
     SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE,
     SELECTION_TTS_STOP_MESSAGE_TYPE,
+    SELECTION_TTS_SEEK_MESSAGE_TYPE,
     type SelectionTtsAudio,
     type SelectionTtsBackgroundDependencies,
     type SelectionTtsContext,
@@ -52,6 +53,7 @@ function createSubject(overrides: Partial<SelectionTtsBackgroundDependencies> = 
         synthesize: vi.fn(async () => audio()),
         playWithOffscreen: vi.fn(async () => undefined),
         stopWithOffscreen: vi.fn(async () => undefined),
+        seekWithOffscreen: vi.fn(async () => true),
         sendTabMessage: vi.fn(async () => undefined),
         warn: vi.fn(),
         ...overrides,
@@ -61,6 +63,36 @@ function createSubject(overrides: Partial<SelectionTtsBackgroundDependencies> = 
 }
 
 describe('selection TTS background handlers', () => {
+    it('routes 5 second seeks using sender tab and exact UUID even after worker restart', async () => {
+        const {dependencies,router}=createSubject();
+        const message={type:SELECTION_TTS_SEEK_MESSAGE_TYPE,clientRequestId:'seek',offsetSeconds:5};
+        const context={sender:{tab:{id:7}}};
+        await expect(router.dispatch({...message,tabId:999},context)).resolves.toEqual({handled:true,response:{success:true}});
+        expect(dependencies.seekWithOffscreen).toHaveBeenLastCalledWith({tabId:7,clientRequestId:'seek'},5);
+        vi.mocked(dependencies.seekWithOffscreen).mockResolvedValueOnce(false);
+        await expect(router.dispatch({...message,offsetSeconds:-5},context)).resolves.toEqual({handled:true,response:{success:false}});
+        await expect(router.dispatch(message,{})).resolves.toEqual({handled:true,response:{success:false}});
+        await expect(router.dispatch({...message,offsetSeconds:15},context)).rejects.toThrow('5 秒');
+        await expect(router.dispatch({...message,clientRequestId:''},context)).rejects.toThrow('clientRequestId');
+        const disabled=createSubject({offscreenPlaybackEnabled:false});
+        await disabled.router.dispatch(message,context);expect(disabled.dependencies.seekWithOffscreen).not.toHaveBeenCalled();
+        expect(dependencies.synthesize).not.toHaveBeenCalled();expect(dependencies.playWithOffscreen).not.toHaveBeenCalled();
+    });
+
+    it('forwards sanitized audio clock metadata without ending playback ownership', async () => {
+        const {dependencies,router}=createSubject();
+        const message={type:SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE,tabId:0,clientRequestId:'seek',state:'progress',position:{currentTime:7,duration:12,extra:'discard'}};
+        await router.dispatch(message,{});
+        expect(dependencies.sendTabMessage).toHaveBeenLastCalledWith(0,expect.objectContaining({position:{currentTime:7,duration:12}}));
+        await router.dispatch({...message,position:{currentTime:NaN,duration:12}},{});
+        expect(dependencies.sendTabMessage).toHaveBeenLastCalledWith(0,expect.objectContaining({position:null}));
+    });
+
+    it('preserves chunk timings in page playback fallback so seeks stay aligned with local audio', async () => {
+        const timings=[{startChar:0,endChar:5,startTime:0,endTime:2}];
+        const {router}=createSubject({synthesize:vi.fn(async()=>({...audio(),timings})),offscreenPlaybackEnabled:false});
+        await expect(router.dispatch({type:SELECTION_TTS_MESSAGE_TYPE,text:'hello',clientRequestId:'page-timed'},{sender:{tab:{id:0}}})).resolves.toMatchObject({handled:true,response:{success:true,transport:'page',timings}});
+    });
     it('无 tab 的 Edge TTS 保留 page audio fallback，不进入 offscreen', async () => {
         const {dependencies, router} = createSubject();
 
