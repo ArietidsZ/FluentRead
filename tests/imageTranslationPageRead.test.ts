@@ -1,6 +1,8 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 const remote = vi.hoisted(() => vi.fn());
+const browserFixture = vi.hoisted(() => ({runtime: {id: 'test-id', onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}}));
+vi.mock('webextension-polyfill', () => ({default: browserFixture}));
 vi.mock('@/src/services/config/store', () => ({config: {on: true, from: 'auto'}}));
 vi.mock('@/src/features/image-translation/services/client', () => ({fetchImageInExtension: remote}));
 import {getImageData, readPageImageInCors} from '@/src/features/image-translation/content/runtime';
@@ -14,11 +16,11 @@ function canvasFixture(width = 400, height = 200, readable = true) {
     const canvas = {width: 0, height: 0, getContext: vi.fn(() => context), toDataURL: vi.fn(() => 'data:image/png;base64,local')};
     const image = {isConnected: true, getAttribute: () => null, naturalWidth: width, naturalHeight: height, currentSrc: 'https://images.example.test/photo.png', src: 'https://images.example.test/photo.png'} as unknown as HTMLImageElement;
     vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
-    vi.stubGlobal('browser', {runtime: {id: 'test-id', onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
+    vi.stubGlobal('browser', browserFixture);
     return {canvas, context, image};
 }
 
-afterEach(() => {remote.mockReset(); vi.unstubAllGlobals(); vi.useRealTimers();});
+afterEach(() => {remote.mockReset(); browserFixture.runtime.onMessage.addListener.mockReset(); browserFixture.runtime.onMessage.removeListener.mockReset(); vi.unstubAllGlobals(); vi.useRealTimers();});
 
 describe('图片像素读取与网页 CORS 权限', () => {
     it('大图先按 16MP / 8192 边长缩放再分配读取区域，处理后释放 Canvas', async () => {
@@ -56,7 +58,10 @@ describe('图片像素读取与网页 CORS 权限', () => {
         const env = canvasFixture(400, 200, false);
         await expect(getImageData(env.image)).resolves.toBe('data:image/png;base64,remote');
         expect(remote).toHaveBeenCalledWith(env.image.src, {requestId: expect.stringMatching(/^image-source-/), timeoutMs: expect.any(Number)});
-        expect(browser.runtime.onMessage.removeListener).toHaveBeenCalledOnce();
+        expect(browser).toBe(browserFixture);
+        expect(browserFixture.runtime.onMessage.addListener).toHaveBeenCalledOnce();
+        expect(browserFixture.runtime.onMessage.removeListener).toHaveBeenCalledOnce();
+        expect(browserFixture.runtime.onMessage.removeListener).toHaveBeenCalledWith(browserFixture.runtime.onMessage.addListener.mock.calls[0][0]);
         remote.mockClear(); const controller = new AbortController();
         fetch.mockImplementationOnce(async () => {controller.abort(); throw new Error('aborted');});
         await expect(getImageData(env.image, {signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
