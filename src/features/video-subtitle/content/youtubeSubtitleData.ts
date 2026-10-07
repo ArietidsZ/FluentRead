@@ -241,10 +241,10 @@ function joinCueText(previous: string, next: string): string {
   const right = next.trim();
   const leftWord = hasCueTitleContinuation(left, right)
     ? left.slice(0, -1)
-    : left.replace(/["'’”»)\]}」』】）]+$/u, '');
-  const rightWord = /^['’](?:s|re|ve|ll|d|m)(?=$|\s)/i.test(right)
+    : left.replace(/["'’”»)\]}」』】）,]+$/u, '');
+  const rightWord = /^['’](?:s|re|ve|ll|d|m|t)[.,!?;:]*(?=$|\s)/i.test(right)
     ? right
-    : right.replace(/^["'“‘«(\[{「『【（]+/u, '');
+    : right.replace(/^["'’“‘«(\[{「『【（]+/u, '');
   const boundary = [...Array.from(leftWord).slice(-1), ...Array.from(rightWord).slice(0, 1)].join('');
   // 此处只连接不同事件；JSON3 原始 segment 仍按原样 join('')，避免破坏子词。
   const needsSpace = /^[\p{L}\p{N}\p{M}]{2}$/u.test(boundary)

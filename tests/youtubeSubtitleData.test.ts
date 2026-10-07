@@ -648,4 +648,86 @@ describe('YouTube 字幕轨道数据', () => {
       ...cues.slice(4),
     ]);
   });
+
+  it('否定后缀 don 和 apostrophe t 事件连接为完整词', () => {
+    const cues = ['don', "'t", 'do', 'that.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: "don't do that."},
+    ]);
+  });
+
+  it('后缀后的逗号和空格续文仍连接缩写词', () => {
+    const cues = ['we', "'re, in", 'fact, ready', 'today.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: "we're, in fact, ready today."},
+    ]);
+  });
+
+  const suffixForms = [
+    ['it', 's'], ['we', 're'], ['they', 've'], ['he', 'll'],
+    ['she', 'd'], ['I', 'm'], ['don', 't'],
+  ] as const;
+  const apostrophes = ["'", '’'] as const;
+  const suffixPunctuation = ['', ',', '.', ';', ':', '!', '?'] as const;
+
+  it.each(suffixForms.flatMap(([stem, suffix]) => apostrophes.flatMap((apostrophe) =>
+    suffixPunctuation.map((punctuation) => [stem, suffix, apostrophe, punctuation] as const),
+  )))('七种后缀及标点保留词形和真实事件句界：%s / %s / %s / %s', (stem, suffix, apostrophe, punctuation) => {
+    const cues = ['The', 'caption', 'reads', stem, `${apostrophe}${suffix}${punctuation}`, 'next.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    const sentence = `The caption reads ${stem}${apostrophe}${suffix}${punctuation}`;
+    const finalized = finalizeVideoSubtitleCues(cues);
+    const endsSentence = ['.', ';', ':', '!', '?'].includes(punctuation);
+    expect(finalized).toEqual(endsSentence ? [
+      {startMs: 0, durationMs: 2300, text: sentence},
+      {startMs: 2250, durationMs: 500, text: 'next.'},
+    ] : [{startMs: 0, durationMs: 2750, text: `${sentence} next.`}]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
+
+  it.each(suffixForms.flatMap(([stem, suffix]) => apostrophes.flatMap((apostrophe) =>
+    suffixPunctuation.filter(Boolean).map((punctuation) => [stem, suffix, apostrophe, punctuation] as const),
+  )))('后缀消费标点后遇空格续文仍保持词形：%s / %s / %s / %s', (stem, suffix, apostrophe, punctuation) => {
+    const cues = ['The', 'caption', 'reads', stem, `${apostrophe}${suffix}${punctuation} in`, 'fact, ready', 'today.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual([{
+      startMs: 0, durationMs: 3200,
+      text: `The caption reads ${stem}${apostrophe}${suffix}${punctuation} in fact, ready today.`,
+    }]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
+
+  it.each([["'", "'"], ['‘', '’'], ['’', '’']].flatMap(([open, close]) =>
+    ['s', 's,', 's!', 's?', 'ready'].map((word) => [`${open}${word}${close}`, word] as const),
+  ))('完整引用词及引用标点不误识别为缩写：%s', (quoted, word) => {
+    const cues = ['The', 'caption', 'reads', quoted, 'next.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual(word.endsWith('!') || word.endsWith('?') ? [
+      {startMs: 0, durationMs: 1850, text: `The caption reads ${quoted}`},
+      {startMs: 1800, durationMs: 500, text: 'next.'},
+    ] : [{startMs: 0, durationMs: 2300, text: `The caption reads ${quoted} next.`}]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
+
+  it.each(apostrophes.flatMap((apostrophe) => ['some', 'remainder', 'team'].map((word) => `${apostrophe}${word}`)))('相似开引号词不能按后缀前缀匹配：%s', (word) => {
+    const cues = ['The', 'caption', 'reads', word, 'next.'].map((text, index) => ({
+      startMs: index * 450, durationMs: 500, text,
+    }));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual([{startMs: 0, durationMs: 2300, text: `The caption reads ${word} next.`}]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
 });
