@@ -39,6 +39,7 @@
       "tests/translationCenterSession.test.ts",
       "tests/featureTranslationServices.test.ts",
       "tests/sha256.test.ts",
+      "tests/mangaOcrAssetManifest.test.ts",
       "tests/configApiKeys.test.ts",
       "tests/apiKeyCheckIdentity.test.ts",
       "tests/modalDialogHost.test.ts",
