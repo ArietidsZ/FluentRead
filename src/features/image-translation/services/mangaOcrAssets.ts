@@ -1,26 +1,13 @@
 /**
  * @file src/features/image-translation/services/mangaOcrAssets.ts
  * 文件职责：按固定上游版本加载并缓存本地漫画识别模型，不上传漫画图片。
- * 主要内容：固定模型版本、尺寸和 SHA-256，流式显示下载进度，断流或损坏时切换已登记的备用来源；缓存已完成文件，保留来源偏好，支持校验后导入离线模型、读取状态与清除。
+ * 主要内容：从独立资产清单读取固定版本、尺寸和 SHA-256，流式显示下载进度，断流或损坏时切换已登记的备用来源；缓存已完成文件，保留来源偏好，支持校验后导入离线模型、读取状态与清除。
  * 模块边界：只处理模型数据文件，不加载远程代码、不执行 OCR、不读取用户配置；仅下载 Apache-2.0 模型数据；镜像与离线文件必须通过相同完整性校验，来源偏好不包含用户凭据。
  */
 import {modelDownloadSources} from '@/src/platform/http/modelDownloads';
 
-const ROOT = 'https://huggingface.co/snowfluke/ppu-paddle-ocr-models/resolve/bf1d5edb0335d3262be7caf13f766ba274b4cadd/';
-export const MANGA_OCR_CACHE = 'fluent-read-manga-ocr-v1';
-export const MANGA_OCR_ASSETS = [
-    {key: 'detection', path: 'detection/PP-OCRv6_small_det.onnx', bytes: 9880512,
-        sha256: 'd73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e'},
-    {key: 'recognition', path: 'recognition/PP-OCRv6_small_rec.onnx', bytes: 21159378,
-        sha256: '5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634'},
-    {key: 'charactersDictionary', path: 'recognition/ppocrv6_dict.txt', bytes: 74948,
-        sha256: '41557512862dfe31970cf22407742b629725461dd84c0d8771bde9c87c2202c8'},
-] as const;
-export const MANGA_OCR_MODEL_BYTES = MANGA_OCR_ASSETS.reduce((sum, asset) => sum + asset.bytes, 0);
-export const MANGA_INPAINT_ASSET = {
-    url: 'https://huggingface.co/ogkalu/lama-manga-onnx-dynamic/resolve/ee4ed4a8447b6730fc41d34f90876b6c48af925a/lama-manga-dynamic.onnx',
-    bytes: 206291843, sha256: 'de31ffa5ba26916b8ea35319f6c12151ff9654d4261bccf0583a69bb095315f9',
-};
+import {MANGA_OCR_ROOT as ROOT, MANGA_OCR_CACHE, MANGA_OCR_ASSETS, MANGA_OCR_MODEL_BYTES, MANGA_INPAINT_ASSET} from './mangaOcrAssetManifest';
+export {MANGA_OCR_CACHE, MANGA_OCR_ASSETS, MANGA_OCR_MODEL_BYTES, MANGA_INPAINT_ASSET} from './mangaOcrAssetManifest';
 
 export function assertMangaOcrActive(signal?: AbortSignal): void {
     if (signal?.aborted) throw new DOMException('漫画识别已取消', 'AbortError');
