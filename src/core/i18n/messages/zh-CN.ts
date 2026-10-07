@@ -147,6 +147,8 @@ export const zhCNMessages = {
     "featureServices.needsSetup": "待配置",
     "popup.clearSearch": "清除搜索",
     "popup.noServiceFound": "没有匹配的翻译服务",
+    "popup.matchingModels": "匹配模型：{models}",
+    "popup.serviceModelSearchHint": "搜索模型用于查找服务，不会选中该模型。请在设置中修改模型。",
     "popup.unsupportedPage": "当前页面不可用",
     "featureServices.assignments": "翻译服务选择",
     "featureServices.connections": "服务连接",

@@ -148,6 +148,8 @@ export const frFRMessages = {
     "featureServices.needsSetup": "À configurer",
     "popup.clearSearch": "Effacer la recherche",
     "popup.noServiceFound": "Aucun service de traduction correspondant",
+    "popup.matchingModels": "Modèles correspondants : {models}",
+    "popup.serviceModelSearchHint": "La recherche de modèles trouve des services, sans sélectionner de modèle. Modifiez le modèle dans les paramètres.",
     "popup.unsupportedPage": "Indisponible sur cette page",
     "featureServices.assignments": "Choix des services de traduction",
     "featureServices.connections": "Connexions",

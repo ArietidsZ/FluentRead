@@ -148,6 +148,8 @@ export const jaJPMessages = {
     "featureServices.needsSetup": "要設定",
     "popup.clearSearch": "検索をクリア",
     "popup.noServiceFound": "一致する翻訳サービスがありません",
+    "popup.matchingModels": "一致するモデル：{models}",
+    "popup.serviceModelSearchHint": "モデル検索はサービスを探すためのもので、モデルは選択されません。モデルは設定で変更してください。",
     "popup.unsupportedPage": "このページでは利用できません",
     "featureServices.assignments": "翻訳サービスの選択",
     "featureServices.connections": "接続設定",

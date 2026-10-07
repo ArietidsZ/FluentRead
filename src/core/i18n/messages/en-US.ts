@@ -150,6 +150,8 @@ export const enUSMessages = {
     "featureServices.needsSetup": "Needs setup",
     "popup.clearSearch": "Clear search",
     "popup.noServiceFound": "No matching translation services",
+    "popup.matchingModels": "Matching models: {models}",
+    "popup.serviceModelSearchHint": "Model search finds services; it does not select a model. Change models in Settings.",
     "popup.unsupportedPage": "Unavailable on this page",
     "featureServices.assignments": "Translation service selection",
     "featureServices.connections": "Connections",

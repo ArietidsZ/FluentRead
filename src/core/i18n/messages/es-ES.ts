@@ -148,6 +148,8 @@ export const esESMessages = {
     "featureServices.needsSetup": "Por configurar",
     "popup.clearSearch": "Borrar búsqueda",
     "popup.noServiceFound": "No hay servicios de traducción coincidentes",
+    "popup.matchingModels": "Modelos coincidentes: {models}",
+    "popup.serviceModelSearchHint": "La búsqueda de modelos encuentra servicios; no selecciona un modelo. Cambia el modelo en Ajustes.",
     "popup.unsupportedPage": "No disponible en esta página",
     "featureServices.assignments": "Selección de servicios de traducción",
     "featureServices.connections": "Conexiones",

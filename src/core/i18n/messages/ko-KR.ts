@@ -148,6 +148,8 @@ export const koKRMessages = {
     "featureServices.needsSetup": "설정 필요",
     "popup.clearSearch": "검색 지우기",
     "popup.noServiceFound": "일치하는 번역 서비스가 없습니다",
+    "popup.matchingModels": "일치하는 모델: {models}",
+    "popup.serviceModelSearchHint": "모델 검색은 서비스를 찾으며 모델을 선택하지 않습니다. 모델은 설정에서 변경하세요.",
     "popup.unsupportedPage": "이 페이지에서는 사용할 수 없습니다",
     "featureServices.assignments": "번역 서비스 선택",
     "featureServices.connections": "연결 설정",

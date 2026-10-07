@@ -148,6 +148,8 @@ export const ruRUMessages = {
     "featureServices.needsSetup": "Требует настройки",
     "popup.clearSearch": "Очистить поиск",
     "popup.noServiceFound": "Нет подходящих сервисов перевода",
+    "popup.matchingModels": "Найденные модели: {models}",
+    "popup.serviceModelSearchHint": "Поиск моделей находит сервисы, но не выбирает модель. Модель можно изменить в настройках.",
     "popup.unsupportedPage": "Недоступно на этой странице",
     "featureServices.assignments": "Выбор сервисов перевода",
     "featureServices.connections": "Подключения",
