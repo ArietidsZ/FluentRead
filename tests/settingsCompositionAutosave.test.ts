@@ -6,10 +6,10 @@ import { parseHTML } from 'linkedom';
 import * as ts from 'typescript';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-function loadPromptTemplateEditor(vueRuntime: typeof import('vue')): import('vue').Component {
+function loadPromptTemplateEditor(vueRuntime: typeof import('vue'), sourceOverride?: string): import('vue').Component {
   const compiler = createRequire(require.resolve('@vitejs/plugin-vue'))('@vue/compiler-sfc');
   const filename = resolve(process.cwd(), 'src/features/settings/ui/services/PromptTemplateEditor.vue');
-  const source = readFileSync(filename, 'utf8');
+  const source = sourceOverride ?? readFileSync(filename, 'utf8');
   const descriptor = compiler.parse(source, {filename}).descriptor;
   const compiledScript = compiler.compileScript(descriptor, {id: 'data-v-settings-composition-test'});
   const script = compiledScript.content;
@@ -17,11 +17,18 @@ function loadPromptTemplateEditor(vueRuntime: typeof import('vue')): import('vue
     /^import \{ ([^\n]+) \} from 'vue'\n/gmu,
     (_match: string, bindings: string) => `const {${bindings.replace(/\s+as\s+/gu, ': ')}} = Vue;\n`,
   )
+    .replace(/^import FieldHelp from '\.\.\/components\/FieldHelp\.vue'\n/gmu, '')
     .replace('export default', 'return');
+  const unknownImport = scriptWithRuntime.match(/^\s*import[^\n]*/mu);
+  if (unknownImport) throw new Error(`Unsupported SFC test import: ${unknownImport[0].trim()}`);
   const scriptJavaScript = ts.transpileModule(scriptWithRuntime, {
     compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext},
   }).outputText;
-  const component = new Function('Vue', scriptJavaScript)(vueRuntime) as import('vue').Component & {render?: Function};
+  const fieldHelp = vueRuntime.defineComponent({
+    name: 'FieldHelpFixture', props: ['content'],
+    render() { return vueRuntime.h('span', {class: 'field-help-fixture'}, this.content); },
+  });
+  const component = new Function('Vue', 'FieldHelp', scriptJavaScript)(vueRuntime, fieldHelp) as import('vue').Component & {render?: Function};
 
   const template = compiler.compileTemplate({
     source: descriptor.template.content,
@@ -147,6 +154,12 @@ async function mountEditor() {
 }
 
 describe('设置页输入法与自动保存集成', () => {
+  it('SFC 测试加载器遇到未知新 import 时明确失败', () => {
+    const vueRuntime = createRequire(import.meta.url)('vue') as typeof import('vue');
+    const filename = resolve(process.cwd(), 'src/features/settings/ui/services/PromptTemplateEditor.vue');
+    const source = readFileSync(filename, 'utf8').replace('<script setup lang="ts">', '<script setup lang="ts">\nimport Unexpected from "./Unexpected.vue"');
+    expect(() => loadPromptTemplateEditor(vueRuntime, source)).toThrow('Unsupported SFC test import: import Unexpected');
+  });
   it('原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本', async () => {
     const h = await mountEditor();
     expect(h.textarea).not.toBeNull();
