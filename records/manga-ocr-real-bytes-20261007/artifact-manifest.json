@@ -3,7 +3,8 @@
     "CW task root",
     "dependency checkout root",
     "local home",
-    "secret-shaped test values in failure metadata"
+    "secret-shaped test values in failure metadata",
+    "JSON redaction preserves structure via parse/recursive-string-redaction/serialization"
   ],
   "omissions": [
     "Coverage per-source details and HTML; summary JSON retained",
@@ -20,43 +21,50 @@
       "path": "tiny-fixture-identities.json",
       "original_sha256": "ebdde90389d02be87407a3581411536c58d613841dc74eef1fb51ed6d1b98ef0",
       "published_sha256": "ebdde90389d02be87407a3581411536c58d613841dc74eef1fb51ed6d1b98ef0",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "verification-ownership.results.json",
       "original_sha256": "c8c6722d53a5e01e316fbd6742642939b0c5e51eff50cb9a354b9f2e73652306",
-      "published_sha256": "fa8ca360a0863f47cde4150c2a0cc9f9d465d03b5f78b225a5d3b703f326aaca",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "5ffcc55e46f38b35cd97233cb657e961720ef728865c81069af9d49fc597b422",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "related-tests.results.json",
       "original_sha256": "87c32a6a4e97e56693b3731f7613739889e538f29418f46926ac834b55c64a30",
-      "published_sha256": "5bb29edff41e942528aad393a6a0313e7a70357d494c2c3b5f1f7e3b5bf9d5cc",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "e597e297a8fd211fae243334594b949ff9a5f8c263afb626dd2dda4017bdd826",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "baseline-safe-reproduction.command.json",
       "original_sha256": "7bd6756e07cfca5bd0e42c62e5e7cc86a7f94879ae73768631b0115a75b02687",
       "published_sha256": "a233c7905ea0ae4d6fec0398eb493b4f8745d3d454f9ecdb24c374c3a99c0e7b",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-hash-validation.results.json",
       "original_sha256": "e2065e01165a5a298e3c0cd3a704504d6447e526bdb3be9c744cec28245d2442",
-      "published_sha256": "8d101d123f32579dd159807218bd938b8189b697d428156523649d23b1a4a4e2",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "4a1813739b1fee3d0de3db84908b47a34b2ecf3f4f943b82ecb535d0e78f68c0",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "generated-config-source.json",
       "original_sha256": "016da8cd91693df9c3374cc4418a00ce5ba691f9fa68c2f463d42ea1ef44c6a9",
       "published_sha256": "a9db2c46e2fb0b4095c4dd14a3b02644528f07a670a2647ded92932f3f16f982",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-timeout-boundary.results.json",
       "original_sha256": "df03ad228a5844f8c295ab824ea3c5ae192eee944aad53084f7007cb994a92ca",
-      "published_sha256": "edbc728f3b124de2abff5182811c8f73ec8c21707ba33f52f5f801238a516e1b",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "b6dbad108a0d12c236836de09af4c9ed59ab596af2b075de39131b059eee7765",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-production-revision-contract.stderr.txt",
@@ -67,20 +75,23 @@
     {
       "path": "baseline-safe-reproduction.results.json",
       "original_sha256": "e2af333412a8150b27d1d9d79d4fc070aee0d5c8513d5bba3be62f90d51e3580",
-      "published_sha256": "9d9a9672be9a50c9b159e1136a37dc0a451b85924a483c6b7378f69d1b960f4e",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "7f9076978e538004de3e0744cd7577b0ece57eb9d80bfc1f0d72faf347209711",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "extraction-contract.json",
       "original_sha256": "6d7dfb8bd1ba7c7362588a3f9a22f61bdb4c67600b82783e6152b3e7e22ae018",
       "published_sha256": "6d7dfb8bd1ba7c7362588a3f9a22f61bdb4c67600b82783e6152b3e7e22ae018",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "prior-five-full-strict-baseline.json",
       "original_sha256": "1d65efe744b395e580c0f2e6e12c4217077fcd1aec44db9f6dab7f848f280147",
       "published_sha256": "31f127d85c0e6a79db5e37cd44c08abdc01f53d2a76810e6d2e1e8855a9ebe3e",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-full-strict.stderr.txt",
@@ -104,13 +115,15 @@
       "path": "commits.json",
       "original_sha256": "1250f1a6f541f911e163b79d8247caa122cc83d7740ea99a27a81cefc2bfe806",
       "published_sha256": "1250f1a6f541f911e163b79d8247caa122cc83d7740ea99a27a81cefc2bfe806",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-coverage.command.json",
       "original_sha256": "e3e5be96fe2ea6f764fde2cbb3cc9d8649349f14e520d015897f27a4f0c0e0f3",
       "published_sha256": "3a0cb9abc287f7297b176eb7379b199b8eb9d24c4853dcc38dd51328e1cc33d7",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "restored-targets.stdout.txt",
@@ -128,7 +141,8 @@
       "path": "integration-typecheck.command.json",
       "original_sha256": "5a19def138d2572138fc46e862d3e9169dae8b50c5bd110f850ab7f4982efc44",
       "published_sha256": "62dcafd3eec8a479af19a540184b03a90e59c27b1a062c79f21bfdfaec2ee02e",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "related-tests.stderr.txt",
@@ -140,13 +154,15 @@
       "path": "negative-timeout-boundary.command.json",
       "original_sha256": "6325bfd583e90319812dc7d8ef54c891b53e1b7f0050b1bbd7dbfcb9264ba24e",
       "published_sha256": "aacc7fdbefdefb3ff32493328f476dd1df86aa4e1c6943a57dfb953dfd7f6b03",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-audit.command.json",
       "original_sha256": "ce69e65a0f81e1b7a7afc0c76a28512a59fc7bb99ed43e4d7c44b985c5abdf54",
       "published_sha256": "3fc3c1bbb67f36034a31d27ea3ac893ca3ac35b71d206328e7694c7d6ec99bdd",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "run-negative-controls.py",
@@ -158,7 +174,8 @@
       "path": "glossary-final-cleanup-control.json",
       "original_sha256": "f6496ed08e54f6aad285f359fa9beac2254c65180e81ba7680095533be5b1a78",
       "published_sha256": "f6496ed08e54f6aad285f359fa9beac2254c65180e81ba7680095533be5b1a78",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "timeout-boundary.mutation.patch",
@@ -169,8 +186,9 @@
     {
       "path": "negative-production-revision-contract.results.json",
       "original_sha256": "d6f79a7fabb41ae3a13fe47c842939826107cea0748840fb47ce7576098b5175",
-      "published_sha256": "428814380c6af0c39b8e17157b27a3f49063f93e21b6258a846f9f95bf5b1b7f",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "4ee949377be7c7ffb8540705c0b173a1911d887ba9d5c69d7181bab81bf6c45b",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "user-cancellation.mutation.patch",
@@ -182,7 +200,8 @@
       "path": "upstream-check.json",
       "original_sha256": "16d47db5290d074a0e82403dd4760b8b1ae47c9f9602b397f9f127a9a6839414",
       "published_sha256": "16d47db5290d074a0e82403dd4760b8b1ae47c9f9602b397f9f127a9a6839414",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-full-strict.stdout.txt",
@@ -194,7 +213,8 @@
       "path": "fix-audit.command.json",
       "original_sha256": "4296a79a551819798cb501379cf3e5c2aa19930ef7a19cf9f5603c913ef073ab",
       "published_sha256": "41d7ceffec46dadb7f69493a1f9137836eb63c3b603c1c72669e78bad8663313",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-size-validation.stdout.txt",
@@ -217,20 +237,23 @@
     {
       "path": "negative-filename-validation.results.json",
       "original_sha256": "a7f1d945c4f53e9f8273a7beee89dae986edfbf3368462003fdab9c122305778",
-      "published_sha256": "830f6af003b4732bfa978d012478313a8ff601569acb625950b477fa5346979b",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "e74b778f9243a51d8e05e9cca7cca59a79d9b731dcdd40f357ada7556073f3eb",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-production-revision-contract.command.json",
       "original_sha256": "57fe26f5a5ec74d21dd8c60769f9e4e391b30106ab7ac84af3c018c634c86d86",
       "published_sha256": "6b1ef63b61c5a4d09345b89e869be1cbeadac57d0ddbff5d79d8d4abff2e5c25",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-controls.json",
       "original_sha256": "819169af4447dc8cb8d5932b02fb66d870da621ebe6100398aedcf9070d026d3",
       "published_sha256": "819169af4447dc8cb8d5932b02fb66d870da621ebe6100398aedcf9070d026d3",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-audit.stdout.txt",
@@ -254,13 +277,15 @@
       "path": "negative-reader-rejection-cleanup.command.json",
       "original_sha256": "5ee68c349e703f70aac89edb0b1779856e3b6960c8b0c79f6a30b3bee0e5cb05",
       "published_sha256": "3ca1c5cd93019fcc85243479c6fda0b778c2858b5f00104cf06b7d042307ce73",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-glossary-final-cleanup.results.json",
       "original_sha256": "701e2482adc5488e574682c02ed6193d4c5b949a061a4eb35cbb35524fe32656",
-      "published_sha256": "b0f1229f28c6caeced8f30e18a68d3c9800b822cbe497395cbf7b4450064f62b",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "54cb772b032fda30ef93216932bf05da737c6bd680b621dfaeb43948daf6d32a",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-glossary-final-cleanup.stderr.txt",
@@ -314,7 +339,8 @@
       "path": "verification-ownership.command.json",
       "original_sha256": "a86e83c3ce61cd42d1ff55ccab98e56a59f3a233ba00011e55466d5dd4b36754",
       "published_sha256": "5f9afaff97f94c5a40d754e0ca704e2be11a337c40f6dd78672db24d49b86489",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-user-cancellation.stderr.txt",
@@ -331,20 +357,23 @@
     {
       "path": "restored-targets.results.json",
       "original_sha256": "c5b190e8ea508bd20798f37724867125a63e8dae5dba266483d9c0ae00607d6b",
-      "published_sha256": "24dd271fd337898c72c22c63231f513db833ba14e9099c483586144e4fb72a4f",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "e192940be8a1a340ce70a5d72ef9f4fe2ad8fc2729a1928f9f0e9be82df768b1",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-coverage.results.json",
       "original_sha256": "0a8b59b52595e44c0656ef476034a0afc2d651a00f4b932881daf4c997ec5765",
-      "published_sha256": "d42b37816c7eefa566988c800075dfb2f8d8bb52d84dd5add184b76c55f34f8b",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "7420a52d55439d39b153e46e91d71a1254e4dce1eff2796e9e0c61c2d788a5b2",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-full-strict.results.json",
       "original_sha256": "23eab7d948b7e75a3bbacc6412acb024ef1e99267609a5a3996d8756b042f33f",
-      "published_sha256": "96b1b8d3939c5c1aba4755b451b3599fe80324cc3b46d0c704043cf1bdc07c5f",
-      "secret_shaped_test_values_masked": 4
+      "published_sha256": "1c6ec92e257b9977fef59d0ca8cc4530022f03f702387671724199c898619636",
+      "secret_shaped_test_values_masked": 4,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-filename-validation.stdout.txt",
@@ -356,7 +385,8 @@
       "path": "related-tests.command.json",
       "original_sha256": "ff25f1f5bc7a4d59214c36bc8ad792794a81cd096fd885075a456aaaf05f234c",
       "published_sha256": "87ed6914609b6e9d73e2a591a8d2fc5e2ba7716eb08d0dd70f45d8006fe90f10",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-production-revision-contract.stdout.txt",
@@ -373,8 +403,9 @@
     {
       "path": "target-first.results.json",
       "original_sha256": "740e9fe39ba3f67574c00c284639410ef6ed61d2826aa224cbd7fadaeafbeaf8",
-      "published_sha256": "21c4dd03751ba4aba5cbf5ed8fa4612ec42e83509db5d1fd2cb24ea2e26ead00",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "eb03e4ebce41285a678caf45c2c255e9701c941a9dc90c3bfacce89acbf54a86",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-hash-validation.stdout.txt",
@@ -386,13 +417,15 @@
       "path": "negative-user-cancellation.command.json",
       "original_sha256": "171304bee4317cd6bfb5c85d0faac78c85083f06c79feb4c6fd509f073ce008d",
       "published_sha256": "f2887401dabe28d4325f64c56114c6f27c36bee08acad1b3d302e6eadde087a2",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-hash-validation.command.json",
       "original_sha256": "cd0a849be8ecbf160edb302c60ab133d8326aee6451dc49f166a0e79b1424142",
       "published_sha256": "4cfabb0ecb60a48e54fbdd1145b872d6d8aea619fcaf72635daac70c695dfbb9",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "verification-ownership.stderr.txt",
@@ -404,13 +437,15 @@
       "path": "target-first.command.json",
       "original_sha256": "28fea71bfde2732cbc22288182377b7a7855474305d3260d4cfe788c9f214043",
       "published_sha256": "9061173e04d8bf7b0c75df2b24c643b2ba9969f8197dd1ee29cd0669374bf8c1",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-glossary-final-cleanup.command.json",
       "original_sha256": "1c010196da697cb9c133ad333ed833d46d6251c1654159ee5264650018a7d994",
       "published_sha256": "472e318deefd9bb9b78d746085322b14a8d4574eaa2fe5e292abc4a48b929568",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "size-validation.mutation.patch",
@@ -422,31 +457,36 @@
       "path": "restored-targets.command.json",
       "original_sha256": "f99f619c5c5fb03898c5c215320eb9b8ee1b4fc8de49dcd210af5d2ad0bb0a59",
       "published_sha256": "b891817c352c58577b569a6d80f5bfb465c6037ccee36083462cacf0190a7291",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "integration-full-strict.command.json",
       "original_sha256": "fbd96cab8cf8fbac9f45c7f1adeff806cebffd79194c0d5ff448ca843cf9d8d2",
       "published_sha256": "a8ca9b2656f2520d765bb6aea4523d635a23d5918588c68a8f84091c77f07ec2",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-size-validation.results.json",
       "original_sha256": "a37bd06bcf66b924eccbd6d1f1f01ed0f50c752ca06053e04583572e6e03aae4",
-      "published_sha256": "8f74c97cbb053e99c63959d518e1300044579a2b47f6b53c838799fe70b98e5f",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "8a4a61f2e4e2ff8258b66ce21176d1d09d5a46e2e5a5fde8e61ed00d2806fb74",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-size-validation.command.json",
       "original_sha256": "f924839d45045632c3b44f71c8fce3a629486cb839d57de25f713df1f02443eb",
       "published_sha256": "868f26587c535bdd28d1128fb367b665418cfacf0f7f01a087843216631d066e",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "negative-filename-validation.command.json",
       "original_sha256": "fd214923a6e946d3f45f2092eef9ea7717bdd9cd71b79eddb920a7f3c39002b1",
       "published_sha256": "6c63f57bcab4b2e55f6661b780817102bb143fabc7ae860c621392f581d23fb8",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-coverage.stderr.txt",
@@ -470,7 +510,8 @@
       "path": "ownership-baseline-comparison.json",
       "original_sha256": "229e80680304609a752b7b54fc63abad26d6a5c746d124b146e35072b2d14d55",
       "published_sha256": "229e80680304609a752b7b54fc63abad26d6a5c746d124b146e35072b2d14d55",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-coverage.stdout.txt",
@@ -494,7 +535,8 @@
       "path": "full-strict-outcome.json",
       "original_sha256": "5d0d4f18985cf9ce59098eaec029f2d339cc85e050b0f8ac207c666f78c29c1b",
       "published_sha256": "5d0d4f18985cf9ce59098eaec029f2d339cc85e050b0f8ac207c666f78c29c1b",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-first.stderr.txt",
@@ -529,14 +571,16 @@
     {
       "path": "negative-reader-rejection-cleanup.results.json",
       "original_sha256": "fd56196d6eca15622ab279a7e25758ddfd735877ea68aa78c12e90b47c426cd6",
-      "published_sha256": "c5f90aa2d8fd7e7b02f001683e10ced8dd23074f1c755b680cf74e76984cbadb",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "19141ea29387744ab7c9adc6101aefdb199c7e74a514c3fb98c8f81646e5fbc9",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "fix-typecheck.command.json",
       "original_sha256": "773226b501cd135247ccd369bde21aba4c06e9ae63974c4ee3025830d2b59b96",
       "published_sha256": "21bbbdbe62c94cf61d46ca50b466d499661fc463b4d1d1ae079b9559ef7cf4b6",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "production-revision-contract.mutation.patch",
@@ -547,8 +591,9 @@
     {
       "path": "negative-user-cancellation.results.json",
       "original_sha256": "2c4db2f97b596ca460ce7c3dc4ed6293e12dc98971e78d197d710aa2a2a6190d",
-      "published_sha256": "b0d6148ee677bc20ba19b44254967389c131b6cfeaa1c9886a91f75c0591c14f",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "2087efb68f3993b734a6c3e330fff3403d89b33de88296ac75c104346714f0c2",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "fix-audit.stdout.txt",
@@ -571,26 +616,30 @@
     {
       "path": "integration-full-strict-coverage/coverage-summary.json",
       "original_sha256": "a7f35c2b3aaa0b955c2db3b0def93568b52197a05d4b7b093d905bd5de531717",
-      "published_sha256": "b4bcaad6418b11f7811878866fec52c3ced2c4f8dda177e6dafcd8005fdedfa5",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "aabc08559ec08b0f4c8717e1607df4d2f5a69c57bb9f02899c03b0cf7c1f1355",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "target-coverage/coverage-summary.json",
       "original_sha256": "9ab26359f786f899208f3ee127249fa4d3cdeeaf3cdad3162a13100d92821cbd",
-      "published_sha256": "abef0c78037546a69c0d0546cf6180bb9adf62ed2c8a84ff5c355d1dc0b0755e",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "853272a257d3c46042a145c712c99865d432013c83a2681546dd3128979c45fa",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "known-prior-five-full-strict/integration-full-strict.command.json",
       "original_sha256": "8bed9e7979793c389ee916e7ff29892f55ca9d23c3ebaae6715b1e48886f35ec",
       "published_sha256": "87f6cc8fd6f3234fc18dd1f6d104a6566fd54fdfcfd393f3217c1e75e5929802",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "known-prior-five-full-strict/integration-full-strict.results.json",
       "original_sha256": "5d7de33160df0c255cd2dbe8cc7ab922f2502840b08d668d1240bc7841ee3cde",
-      "published_sha256": "241616247c61f279f583aad45eb9b0d9b79b246f61b8366ec1464e4174c4b208",
-      "secret_shaped_test_values_masked": 4
+      "published_sha256": "70a402a0928126e83231b802dfbdbfc0b1a3a6ee6f5cf9b17bb715d8a8dfebb7",
+      "secret_shaped_test_values_masked": 4,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "known-prior-five-full-strict/integration-full-strict.stdout.txt",
@@ -608,13 +657,15 @@
       "path": "known-prior-architecture-baseline/architecture-baseline-host.command.json",
       "original_sha256": "1c38b5811a369b613328ba4010a947028fd5da07a44307d80381a755fc0ba169",
       "published_sha256": "6fc6d16dd651d2662608caeccced5c7d1259ddb7cfd9c40bc2f138ba3ac4238b",
-      "secret_shaped_test_values_masked": 0
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "known-prior-architecture-baseline/architecture-baseline-host.results.json",
       "original_sha256": "de24b9f19bbbf8275e01f536c24d389067b1bd09571ae06a734616e2e3a69ee5",
-      "published_sha256": "d730cc6c18a4d7702585d9bde5516d3889c21ae70ea1be3af9843901f6e098f0",
-      "secret_shaped_test_values_masked": 0
+      "published_sha256": "8715bdbfe47b31b254b6bf02ddf7cdc4cae80cfe195ccaeea736b3a042fdd173",
+      "secret_shaped_test_values_masked": 0,
+      "redaction_method": "Parse original JSON, recursively redact string values and keys, then serialize."
     },
     {
       "path": "known-prior-architecture-baseline/architecture-baseline-host.stdout.txt",

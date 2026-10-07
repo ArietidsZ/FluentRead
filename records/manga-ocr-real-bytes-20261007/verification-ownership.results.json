@@ -1,1 +1,187 @@
-{"numTotalTestSuites":2,"numPassedTestSuites":0,"numFailedTestSuites":2,"numPendingTestSuites":0,"numTotalTests":13,"numPassedTests":11,"numFailedTests":2,"numPendingTests":0,"numTodoTests":0,"snapshot":{"added":0,"failure":false,"filesAdded":0,"filesRemoved":0,"filesRemovedList":[],"filesUnmatched":0,"filesUpdated":0,"matched":0,"total":0,"unchecked":0,"uncheckedKeysByFile":[],"unmatched":0,"updated":0,"didUpdate":false},"startTime":1791379284376,"success":false,"testResults":[{"assertionResults":[{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口","status":"passed","title":"产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口","duration":0.9193630000000041,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口","status":"passed","title":"产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口","duration":0.49569099999999366,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口","status":"passed","title":"产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口","duration":0.22402099999999336,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口","status":"passed","title":"产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口","duration":0.5601509999999905,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口","status":"passed","title":"产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口","duration":0.25634099999999194,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程","status":"passed","title":"文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程","duration":12.891567000000009,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程","status":"passed","title":"文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程","duration":10.924540999999977,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程","status":"passed","title":"文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程","duration":11.136032,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约","status":"passed","title":"文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约","duration":0.4168809999999894,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 每个产品、构建和测试基础设施文件都有明确验证归属","status":"failed","title":"每个产品、构建和测试基础设施文件都有明确验证归属","duration":3.6070309999999495,"failureMessages":["AssertionError: expected [ { …(2) } ] to deeply equal []\n    at $CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts:346:25\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)"],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界","status":"failed","title":"src 中每个可执行非组装模块都进入四维 100% 覆盖率边界","duration":293.028186,"failureMessages":["AssertionError: expected [ …(18) ] to deeply equal []\n    at $CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts:355:27\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)"],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖","status":"passed","title":"覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖","duration":157.56596000000002,"failureMessages":[],"meta":{}},{"ancestorTitles":["repository verification ownership"],"fullName":"repository verification ownership 验证归属覆盖所有审计文件且路径不重复","status":"passed","title":"验证归属覆盖所有审计文件且路径不重复","duration":0.2245110000000068,"failureMessages":[],"meta":{}}],"startTime":1791379284634,"endTime":1791379285126.566,"status":"failed","message":"","name":"$CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts"}]}
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 13,
+  "numPassedTests": 11,
+  "numFailedTests": 2,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791379284376,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "status": "passed",
+          "title": "产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "duration": 0.9193630000000041,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "status": "passed",
+          "title": "产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "duration": 0.49569099999999366,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口",
+          "status": "passed",
+          "title": "产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口",
+          "duration": 0.22402099999999336,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口",
+          "status": "passed",
+          "title": "产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口",
+          "duration": 0.5601509999999905,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口",
+          "status": "passed",
+          "title": "产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口",
+          "duration": 0.25634099999999194,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "passed",
+          "title": "文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "duration": 12.891567000000009,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "passed",
+          "title": "文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "duration": 10.924540999999977,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "passed",
+          "title": "文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "duration": 11.136032,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约",
+          "status": "passed",
+          "title": "文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约",
+          "duration": 0.4168809999999894,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 每个产品、构建和测试基础设施文件都有明确验证归属",
+          "status": "failed",
+          "title": "每个产品、构建和测试基础设施文件都有明确验证归属",
+          "duration": 3.6070309999999495,
+          "failureMessages": [
+            "AssertionError: expected [ { …(2) } ] to deeply equal []\n    at $CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts:346:25\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+          "status": "failed",
+          "title": "src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+          "duration": 293.028186,
+          "failureMessages": [
+            "AssertionError: expected [ …(18) ] to deeply equal []\n    at $CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts:355:27\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://$DEPENDENCY_CHECKOUT/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖",
+          "status": "passed",
+          "title": "覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖",
+          "duration": 157.56596000000002,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 验证归属覆盖所有审计文件且路径不重复",
+          "status": "passed",
+          "title": "验证归属覆盖所有审计文件且路径不重复",
+          "duration": 0.2245110000000068,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791379284634,
+      "endTime": 1791379285126.566,
+      "status": "failed",
+      "message": "",
+      "name": "$CW_TASK_DIR/FluentRead-manga-real-bytes-fix/tests/architecture/verificationOwnership.test.ts"
+    }
+  ]
+}
