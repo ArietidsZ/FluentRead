@@ -268,7 +268,7 @@ describe('YouTube 字幕轨道数据', () => {
               textContent: 'ignored',
             },
             {
-              getAttribute: (name: string) => name === 'start' ? '2.5' : '',
+              getAttribute: (name: string) => name === 'start' ? '2.5' : null,
               textContent: 'DOM &amp; XML',
             },
           ],
@@ -322,7 +322,7 @@ describe('YouTube 字幕轨道数据', () => {
       {startMs: 9000, durationMs: 1400, text: 'go too far merge.'},
     ]);
 
-    expect(cuesToSrt([{startMs: -100, durationMs: 20, text: 'early'}])).toContain('00:00:00,000 --> 00:00:00,000');
+    expect(cuesToSrt([{startMs: -100, durationMs: 20, text: 'early'}])).toBe('');
     expect(getYoutubeVideoId({hostname: 'www.youtube.com', pathname: '/watch', search: '?v=abc123'} as Location)).toBe('abc123');
     expect(getYoutubeVideoId({hostname: 'www.youtube.com', pathname: '/shorts/short-id', search: ''} as Location)).toBe('short-id');
     expect(getYoutubeVideoId({hostname: 'www.youtube.com', pathname: '/', search: ''} as Location)).toBe('');
@@ -379,5 +379,174 @@ describe('YouTube 字幕轨道数据', () => {
       {startMs: 0, durationMs: 2000, text: 'complete phrase'},
       {startMs: 0, durationMs: 500, text: 'complete'},
     ])).toEqual([{startMs: 0, durationMs: 2000, text: 'complete phrase'}]);
+  });
+
+  it.each([
+    [['Hel', 'lo', '  ', 'w', 'orld'], 'Hello world'],
+    [['中', '文', '无空格'], '中文无空格'],
+    [['今天', '学习', 'Type', 'Script'], '今天学习TypeScript'],
+    [['caf', 'é', ' ', 'déjà'], 'café déjà'],
+  ])('JSON3 原始 segment 保留空白及无空白子词：%j', (segments, text) => {
+    expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [{
+      tStartMs: 0, dDurationMs: 500, segs: segments.map((utf8) => ({utf8})),
+    }]}))).toEqual([{startMs: 0, durationMs: 500, text}]);
+  });
+
+  it.each([
+    [['café', 'déjà', 'très', 'bien.'], 'café déjà très bien.'],
+    [['cafe\u0301', 'de\u0301ja\u0300', 'très', 'bien.'], 'cafe\u0301 de\u0301ja\u0300 très bien.'],
+    [['中文', '没有', '空格', '。'], '中文没有空格。'],
+    [['今天', '学习', 'TypeScript', '字幕。'], '今天学习TypeScript字幕。'],
+  ])('事件级词流使用 Unicode 词边界并保留中英混合：%j', (words, text) => {
+    const cues = words.map((word, index) => ({startMs: index * 450, durationMs: 500, text: word}));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([{startMs: 0, durationMs: 1850, text}]);
+  });
+
+  it.each([
+    [['Dr.', 'Smith', 'is', 'here.'], 'Dr. Smith is here.'],
+    [['Mrs.', 'Smith', 'is', 'here.'], 'Mrs. Smith is here.'],
+    [['The', 'U.S.', 'has', 'rules.'], 'The U.S. has rules.'],
+    [['Value', '3.14', 'is', 'ready.'], 'Value 3.14 is ready.'],
+    [['Use', 'v1.2', 'again', 'today.'], 'Use v1.2 again today.'],
+    [['Visit', 'example.com', 'again', 'today.'], 'Visit example.com again today.'],
+    [['Value', '3.', '14', 'works.'], 'Value 3.14 works.'],
+    [['Use', 'v1.', '2', 'today.'], 'Use v1.2 today.'],
+    [['Visit', 'example.', 'com', 'today.'], 'Visit example.com today.'],
+  ])('常见缩写、小数、版本及域名不误断句：%j', (words, text) => {
+    const cues = words.map((word, index) => ({startMs: index * 450, durationMs: 500, text: word}));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual([{startMs: 0, durationMs: 1850, text}]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+  });
+
+  it.each(['Hello.', '"Hello."', '(Hello.)', '“Hello!”', '「你好。」'])('保留真正句末及闭引号/括号边界：%s', (terminal) => {
+    const words = ['one', 'two', 'three', terminal, 'tail', 'is', 'next', 'end.'];
+    const cues = words.map((text, index) => ({startMs: index * 450, durationMs: 500, text}));
+    expect(finalizeVideoSubtitleCues(cues)).toEqual([
+      {startMs: 0, durationMs: 1850, text: `one two three${terminal.startsWith('「') ? '' : ' '}${terminal}`},
+      {startMs: 1800, durationMs: 1850, text: 'tail is next end.'},
+    ]);
+  });
+
+  it.each([-1, null, '', ' ', true, [], {}, 'NaN', 'Infinity'])('JSON3 拒绝无效起点：%j', (start) => {
+    expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [
+      {tStartMs: start, dDurationMs: 500, segs: [{utf8: 'invalid'}]},
+      {tStartMs: '1000', dDurationMs: '500', segs: [{utf8: 'valid'}]},
+    ]}))).toEqual([{startMs: 1000, durationMs: 500, text: 'valid'}]);
+  });
+
+  it.each([-1, null, '', ' ', true, [], {}, 'NaN', 'Infinity'])('JSON3 拒绝无效已提供 duration：%j', (duration) => {
+    expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [
+      {tStartMs: 0, dDurationMs: duration, segs: [{utf8: 'invalid'}]},
+      {tStartMs: 1000, dDurationMs: 500, segs: [{utf8: 'valid'}]},
+    ]}))).toEqual([{startMs: 1000, durationMs: 500, text: 'valid'}]);
+  });
+
+  it('缺失或零 duration 仍按下一个有效起点推断，最后一条保留默认时长', () => {
+    const parsed = parseYoutubeTimedTextResponse(JSON.stringify({events: [
+      {tStartMs: 0, segs: [{utf8: 'A complete first cue'}]},
+      {tStartMs: 1500, dDurationMs: 0, segs: [{utf8: 'A complete final cue'}]},
+    ]}));
+    expect(parsed).toEqual([
+      {startMs: 0, durationMs: 0, text: 'A complete first cue'},
+      {startMs: 1500, durationMs: 0, text: 'A complete final cue'},
+    ]);
+    expect(finalizeVideoSubtitleCues(parsed)).toEqual([
+      {startMs: 0, durationMs: 1500, text: 'A complete first cue'},
+      {startMs: 1500, durationMs: 2000, text: 'A complete final cue'},
+    ]);
+  });
+
+  it('XML 正则与 DOM 解析都拒绝无效时间字段，缺失 duration 保持回退', () => {
+    const rows: Array<{start: string | null; duration: string | null; text: string}> = [
+      {start: null, duration: '1', text: 'missing start'},
+      {start: '', duration: '1', text: 'empty start'},
+      {start: '-1', duration: '1', text: 'negative start'},
+      {start: 'NaN', duration: '1', text: 'NaN start'},
+      {start: 'Infinity', duration: '1', text: 'infinite start'},
+      {start: '1', duration: '', text: 'empty duration'},
+      {start: '1', duration: '-1', text: 'negative duration'},
+      {start: '1', duration: 'Infinity', text: 'infinite duration'},
+      {start: '1', duration: 'NaN', text: 'NaN duration'},
+      {start: '1e308', duration: '1', text: 'overflow start conversion'},
+      {start: '1', duration: '1e308', text: 'overflow duration conversion'},
+      {start: '1', duration: '1', text: ''},
+      {start: '2', duration: null, text: 'valid missing duration'},
+    ];
+    const xml = '<transcript>' + rows.map(({start, duration, text}) =>
+      `<text${start === null ? '' : ` start="${start}"`}${duration === null ? '' : ` dur="${duration}"`}>${text}</text>`,
+    ).join('') + '</transcript>';
+    const previousParser = Object.getOwnPropertyDescriptor(globalThis, 'DOMParser');
+    const expected = [{startMs: 2000, durationMs: 0, text: 'valid missing duration'}];
+    try {
+      Reflect.deleteProperty(globalThis, 'DOMParser');
+      expect(parseYoutubeTimedTextResponse(xml)).toEqual(expected);
+      Object.defineProperty(globalThis, 'DOMParser', {
+        configurable: true,
+        value: class {
+          parseFromString() {
+            return {querySelectorAll: () => rows.map(({start, duration, text}) => ({
+              getAttribute: (name: string) => name === 'start' ? start : duration,
+              textContent: text,
+            }))};
+          }
+        },
+      });
+      expect(parseYoutubeTimedTextResponse(xml)).toEqual(expected);
+    } finally {
+      if (previousParser) Object.defineProperty(globalThis, 'DOMParser', previousParser);
+      else Reflect.deleteProperty(globalThis, 'DOMParser');
+    }
+  });
+
+  it('finalize 排除无效起点和非有限 duration，重叠 cue 保留实际最晚结束时间', () => {
+    const invalid = [
+      ...[-1, null, '', Number.NaN, Number.POSITIVE_INFINITY].map((startMs) => ({startMs, durationMs: 500, text: 'bad start'})),
+      ...[null, '', Number.NaN, Number.POSITIVE_INFINITY].map((durationMs) => ({startMs: 0, durationMs, text: 'bad duration'})),
+    ] as Parameters<typeof finalizeVideoSubtitleCues>[0];
+    const cues = [
+      {startMs: 0, durationMs: 2000, text: 'one'},
+      {startMs: 350, durationMs: 500, text: 'two'},
+      {startMs: 700, durationMs: 500, text: 'three'},
+      {startMs: 1050, durationMs: 100, text: 'done.'},
+    ];
+    expect(finalizeVideoSubtitleCues([...invalid, ...cues])).toEqual([
+      {startMs: 0, durationMs: 2000, text: 'one two three done.'},
+    ]);
+  });
+
+  it('词流合并后新出现的增量前缀关系一次收敛，重复 finalize 和 SRT 导出幂等', () => {
+    const cues = [
+      {startMs: 0, durationMs: 500, text: 'alpha'},
+      {startMs: 30, durationMs: 500, text: 'beta'},
+      {startMs: 60, durationMs: 500, text: 'gamma'},
+      {startMs: 90, durationMs: 500, text: 'alpha beta gamma and a much longer continuation'},
+    ];
+    const snapshot = cues.map((cue) => ({...cue}));
+    const finalized = finalizeVideoSubtitleCues(cues);
+    expect(finalized).toEqual([cues[3]]);
+    expect(finalizeVideoSubtitleCues(finalized)).toEqual(finalized);
+    expect(finalizeVideoSubtitleCues(finalizeVideoSubtitleCues(finalized))).toEqual(finalized);
+    expect(cuesToSrt(cues)).toBe(cuesToSrt(finalized));
+    expect(cues).toEqual(snapshot);
+  });
+
+  it('有限数值相加溢出时也拒绝无效结束时间，避免导出 Infinity', () => {
+    const cue = {startMs: 1e308, durationMs: 1e308, text: 'overflow'};
+    expect(finalizeVideoSubtitleCues([cue])).toEqual([]);
+    expect(cuesToSrt([cue])).toBe('');
+    expect(parseYoutubeTimedTextResponse(JSON.stringify({events: [{
+      tStartMs: cue.startMs, dDurationMs: cue.durationMs, segs: [{utf8: cue.text}],
+    }]}))).toEqual([]);
+  });
+
+  it('普通完整长句及之后的短 cue 不误识别为连续逐词流', () => {
+    const cues = [
+      {startMs: 0, durationMs: 500, text: 'word'},
+      {startMs: 450, durationMs: 500, text: 'A complete terminal sentence.'},
+      {startMs: 900, durationMs: 500, text: 'tail'},
+    ];
+    expect(finalizeVideoSubtitleCues(cues)).toEqual(cues);
   });
 });
