@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/background/offscreenAdapter.ts
  * 文件职责：把划词 TTS 的播放、停止及路由信息转换为平台 Offscreen 消息，并验证隔离文档是否接受了对应音频请求。
- * 主要内容：定义 SelectionTtsOffscreenResponse，提供 createSelectionTtsOffscreenAdapter 和默认实例，发送 play/stop 消息时携带 tabId 与 clientRequestId 防止旧状态串扰。
+ * 主要内容：定义响应与默认适配器，发送播放、停止和 5 秒跳转消息时携带 tabId 与 clientRequestId；跳转仅连接已有播放器，防止旧状态串扰。
  * 模块边界：适配器不合成音频、不创建 Audio 或 Offscreen document；音频资源生命周期归 offscreen 应用，Edge/Google TTS 获取归 handler/services，平台 client 负责文档创建与复用。
  */
 import {extensionDomClient} from '@/src/platform/offscreen/extensionClient';
@@ -16,6 +16,7 @@ import {
 interface SelectionTtsOffscreenResponse {
     readonly success?: boolean;
     readonly error?: string;
+    readonly seeked?: boolean;
 }
 
 /** TTS 消息始终携带 {tabId, clientRequestId}，不依赖可重启 worker 的内存。 */
@@ -35,6 +36,14 @@ export function createSelectionTtsOffscreenAdapter(client: OffscreenClient = ext
                 ...route,
             });
             if (response && !response.success) throw new Error(response.error || 'Offscreen TTS 停止失败');
+        },
+
+        async seek(route: SelectionTtsRoute, offsetSeconds: -5 | 5): Promise<boolean> {
+            const response = await client.sendIfPresent<SelectionTtsOffscreenResponse>({
+                type: 'SEEK_SELECTION_TTS', ...route, offsetSeconds,
+            });
+            if (response && !response.success) throw new Error(response.error || '语音跳转失败');
+            return response?.seeked === true;
         },
     };
 }

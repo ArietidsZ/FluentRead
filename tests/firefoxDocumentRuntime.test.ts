@@ -20,7 +20,7 @@ function createSubject(overrides: Partial<OffscreenMessageDependencies> = {}) {
     const document = makeDocument();
     const dependencies: OffscreenMessageDependencies = {
         translate: vi.fn(async () => 'translated'),
-        ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn()},
+        ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn(), seek: vi.fn(() => true)},
         fetchImage: vi.fn(async () => 'data:image/png;base64,AA=='),
         translateImage: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),
         translateArea: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),

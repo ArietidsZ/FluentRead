@@ -50,6 +50,19 @@ node scripts/testing/run-local-audio-gpu-test.cjs \
 
 音频专项验证实际 WAV 解码、媒体时钟推进、进度和结束清理；默认静音测试播放。需要双线程能力对照时仅在临时副本增加 `--cross-origin-isolated --modes unavailable,thread-failure`，不更改生产 manifest。线程创建故障注入和实际 GPU 不可用情况分别记录；真实设置页、扬声器和 Firefox 实机音频不在这个限定命令的验收范围内。
 
+划词朗读的整词高亮与前后 5 秒跳转使用独立专项：
+
+```sh
+pnpm test tests/speechProgress.test.ts tests/offscreenTtsPlayback.test.ts tests/selectionTtsBackgroundHandler.test.ts tests/offscreenMessageRouter.test.ts tests/offscreenAdapters.test.ts tests/selectionTranslatorLifecycle.test.ts tests/selectionTtsProtocol.test.ts tests/selectionTtsContentController.test.ts
+node scripts/run-selection-speech-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-selection-speech
+```
+
+浏览器专项加载生产扩展，在第二屏临时 Edge 后台窗口运行；翻译与语音响应使用确定性夹具，但音频解码、媒体时钟、跳转及跨后台路由真实执行。验证完整词高亮、文字节点与换行稳定、跳转不重新合成、浅色/深色/390px 布局、减少动画和停止清理；保存 `report.json` 与卡片截图。它不证明在线发音对齐、扬声器输出或 Firefox 实机行为。
+
 ## 设置分组、阅读辅助与右键菜单
 
 生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。

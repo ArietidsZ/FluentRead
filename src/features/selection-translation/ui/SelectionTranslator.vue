@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示安全的跟读扫色。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -159,7 +159,16 @@
         </div>
       </div>
       <div class="fr-playing-status" :class="{'is-idle': !isPlaying && !isPreparingAudio}" :aria-hidden="!isPlaying && !isPreparingAudio" :aria-busy="isPreparingAudio" role="status">
-        <template v-if="isPlaying || isPreparingAudio"><span v-if="isPreparingAudio">正在生成语音…</span><span v-else>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</span><button type="button" :aria-label="isPreparingAudio ? '停止生成语音' : '停止播放'" :title="isPreparingAudio ? '停止生成语音' : '停止播放'" @click="stopAudioFromUi">停止</button></template>
+        <template v-if="isPlaying || isPreparingAudio">
+          <span class="fr-playing-label"><template v-if="isPreparingAudio">正在生成语音…</template><template v-else>正在播放{{ currentAudioKind === 'source' ? '原文' : currentAudioKind === 'word' ? '单词' : '译文' }}</template></span>
+          <div class="fr-playback-controls">
+            <span v-if="audioPosition && !isPreparingAudio" class="fr-playback-time" aria-hidden="true">{{ playbackTime(audioPosition.currentTime) }} / {{ playbackTime(audioPosition.duration) }}</span>
+            <template v-if="isPlaying && !isPreparingAudio">
+              <button v-for="control in seekControls" :key="control.offset" class="fr-seek-btn" type="button" :aria-label="control.label" :title="audioPosition ? control.label : '当前语音不支持按秒跳转'" :disabled="!audioPosition || (control.offset < 0 ? audioPosition.currentTime <= 0 : audioPosition.currentTime >= audioPosition.duration)" @click="seekAudio(control.offset)"><svg viewBox="0 0 24 24" aria-hidden="true"><path :d="control.offset < 0 ? 'M4 9a8 8 0 1 1 0 7M4 4v5h5' : 'M20 9a8 8 0 1 0 0 7M20 4v5h-5'" /><text x="12" y="16">5</text></svg></button>
+            </template>
+            <button type="button" :aria-label="isPreparingAudio ? '停止生成语音' : '停止播放'" :title="isPreparingAudio ? '停止生成语音' : '停止播放'" @click="stopAudioFromUi">停止</button>
+          </div>
+        </template>
       </div>
       <div v-for="edge in popupResizeEdges" :key="edge" class="fr-popup-resize-handle" :class="`fr-popup-resize-${edge}`" :data-resize-edge="edge" aria-hidden="true" />
     </section>
@@ -170,7 +179,7 @@
 </template>
 
 <script setup lang="ts">
-import {audioSpeechProgress, boundarySpeechProgress, parseSpeechProgress, type SpeechProgress} from '@/src/core/tts/speechProgress';
+import {audioSpeechProgress, boundarySpeechProgress, parseSpeechCues, parseSpeechProgress, parseSpeechPlaybackPosition, seekSpeechTime, type SpeechProgress, type SpeechPlaybackPosition, type SpeechCue} from '@/src/core/tts/speechProgress';
 import SpeechFollowText from './SpeechFollowText.vue';
 import {hasDistinctTranslation} from '@/src/core/translation/result';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
@@ -245,6 +254,8 @@ const snapshot = ref<SelectionSnapshot | null>(null);
 const isPlaying = ref(false);
 const isPreparingAudio = ref(false);
 const audioProgress = ref<SpeechProgress | null>(null);
+const audioPosition = ref<SpeechPlaybackPosition | null>(null);
+const seekControls = [{offset:-5, label:'后退 5 秒'}, {offset:5, label:'前进 5 秒'}] as const;
 const audioTextOffset = ref(0);
 function partOffset(parts: readonly {text:string}[] | undefined, index:number) {return parts?.slice(0,index).reduce((sum,part)=>sum+part.text.length,0) ?? 0;}
 function audioProgressFor(kind: AudioKind) {
@@ -287,6 +298,7 @@ let lastTrustedSelectionInteractionAt = 0;
 const TRUSTED_SELECTION_INTERACTION_GRACE_MS = 1_500;
 let audio: HTMLAudioElement | null = null;
 let audioUrl = '';
+let pageAudioProgressTimer: ReturnType<typeof setInterval> | undefined;
 let utterance: SpeechSynthesisUtterance | null = null;
 const ttsContentController = createSelectionTtsContentController({
   createClientRequestId: createSelectionTtsClientRequestId,
@@ -1184,9 +1196,49 @@ function isCurrentWordAudio(pronunciation: WordPronunciation): boolean {
 }
 
 function releasePageAudio(): void {
-  if (audio) { audio.pause(); audio.removeAttribute('src'); audio = null; }
+  clearInterval(pageAudioProgressTimer);
+  pageAudioProgressTimer = undefined;
+  if (audio) { audio.onended = audio.onerror = audio.ontimeupdate = audio.onseeked = audio.onloadedmetadata = audio.ondurationchange = null; audio.pause(); audio.removeAttribute('src'); audio = null; }
   if (audioUrl) URL.revokeObjectURL(audioUrl);
   audioUrl = '';
+  audioPosition.value = null;
+}
+
+function followPageAudio(nextAudio: HTMLAudioElement, text: string, cues: readonly SpeechCue[] = []): void {
+  const tick = () => {
+    if (audio !== nextAudio) return;
+    audioPosition.value = parseSpeechPlaybackPosition({currentTime: nextAudio.currentTime, duration: nextAudio.duration});
+    audioProgress.value = audioSpeechProgress(text, nextAudio.currentTime, nextAudio.duration, cues);
+  };
+  nextAudio.ontimeupdate = nextAudio.onseeked = nextAudio.onloadedmetadata = nextAudio.ondurationchange = tick;
+  clearInterval(pageAudioProgressTimer);
+  pageAudioProgressTimer = setInterval(tick, 100);
+  tick();
+}
+
+function playbackTime(seconds: number): string {
+  const whole = Math.floor(seconds);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
+
+async function seekAudio(offsetSeconds: -5 | 5): Promise<void> {
+  if (!isPlaying.value || isPreparingAudio.value || !audioPosition.value) return;
+  if (audio) {
+    const time = seekSpeechTime(audio.currentTime, audio.duration, offsetSeconds);
+    if (time === null) return;
+    try { audio.currentTime = time; audio.ontimeupdate?.(new Event('timeupdate')); }
+    catch { showNotice('语音跳转失败，请重试'); }
+    return;
+  }
+  const clientRequestId = ttsContentController.getState().activeClientRequestId;
+  if (!clientRequestId) return;
+  const generation = ttsContentController.currentGeneration();
+  try {
+    const response = await browser.runtime.sendMessage({type: 'selectionTtsSeek', clientRequestId, offsetSeconds}) as {success?: boolean};
+    if (ttsContentController.isCurrentGeneration(generation) && !response?.success) showNotice('语音跳转失败，请重试');
+  } catch {
+    if (ttsContentController.isCurrentGeneration(generation)) showNotice('语音跳转失败，请重试');
+  }
 }
 
 function stopAudio(notifyRemote = true): void {
@@ -1232,6 +1284,7 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
       success?: boolean;
       audioBase64?: string;
       contentType?: string;
+      timings?: unknown;
       transport?: 'offscreen' | 'page';
       errorCode?: unknown;
       error?: string;
@@ -1256,7 +1309,6 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
     const nextAudioUrl = base64ToBlobUrl(response.audioBase64, response.contentType || 'audio/mpeg');
     const nextAudio = new Audio(nextAudioUrl);
     nextAudio.preload = 'auto';
-    nextAudio.ontimeupdate = () => {if(audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
     nextAudio.onended = () => { if (audio === nextAudio) { releasePageAudio(); stopAudio(); } };
     nextAudio.onerror = () => {
       if (audio !== nextAudio) return;
@@ -1266,6 +1318,7 @@ async function playEdgeSpeech(text: string, language: string, kind: AudioKind, r
       currentAudioText.value = '';
     };
     audio = nextAudio;
+    followPageAudio(nextAudio, text, parseSpeechCues(response.timings));
     audioUrl = nextAudioUrl;
     currentAudioKind.value = kind;
     currentAudioText.value = text;
@@ -1297,7 +1350,7 @@ function playBrowserSpeech(text: string, language: string, kind: AudioKind): boo
     const nextUtterance = new SpeechSynthesisUtterance(text);
     nextUtterance.lang = language;
     nextUtterance.voice = selectVoice(language) ?? null;
-    nextUtterance.onboundary = event => {if (utterance === nextUtterance) audioProgress.value = boundarySpeechProgress(text,event.charIndex,event.charLength);};
+    nextUtterance.onboundary = event => {if (utterance === nextUtterance && (!event.name || event.name === 'word')) audioProgress.value = boundarySpeechProgress(text,event.charIndex,event.charLength);};
     nextUtterance.onend = () => { if (utterance === nextUtterance) stopAudio(); };
     nextUtterance.onerror = event => { if (utterance === nextUtterance && event.error !== 'canceled' && event.error !== 'interrupted') stopAudio(); };
     utterance = nextUtterance;
@@ -1343,7 +1396,6 @@ async function playGoogleFallback(text: string, language: string, kind: AudioKin
   const speechUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${encodeURIComponent(language)}&client=tw-ob&q=${encodeURIComponent(text)}`;
   const nextAudio = new Audio(speechUrl);
   nextAudio.preload = 'auto';
-  nextAudio.ontimeupdate = () => {if (audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
   nextAudio.onended = () => { if (audio === nextAudio) { releasePageAudio(); stopAudio(); } };
   nextAudio.onerror = () => {
     if (audio !== nextAudio) return;
@@ -1352,6 +1404,7 @@ async function playGoogleFallback(text: string, language: string, kind: AudioKin
     stopAudio(false);
   };
   audio = nextAudio;
+  followPageAudio(nextAudio, text);
   currentAudioKind.value = kind;
   currentAudioText.value = text;
   currentAudioKey.value = text;
@@ -1372,12 +1425,11 @@ async function playExternalAudio(url: string, text: string, kind: AudioKind, key
   currentAudioText.value = text;
   currentAudioKey.value = key;
   isPlaying.value = true;
-  nextAudio.ontimeupdate = () => {if (audio === nextAudio) audioProgress.value = audioSpeechProgress(text,nextAudio.currentTime,nextAudio.duration);};
+  followPageAudio(nextAudio, text);
   nextAudio.onended = () => { if (audio === nextAudio) stopAudio(); };
   nextAudio.onerror = () => {
     if (audio !== nextAudio) return;
-    audio = null;
-    nextAudio.removeAttribute('src');
+    releasePageAudio();
     isPlaying.value = false;
   };
   try {
@@ -1385,8 +1437,7 @@ async function playExternalAudio(url: string, text: string, kind: AudioKind, key
     return true;
   } catch (cause) {
     if (audio === nextAudio) {
-      audio = null;
-      nextAudio.removeAttribute('src');
+      releasePageAudio();
       isPlaying.value = false;
     }
     if (ttsContentController.isCurrentGeneration(requestId)) console.warn('Dictionary pronunciation audio unavailable:', cause);
@@ -1434,7 +1485,12 @@ function handleSelectionTtsState(message: unknown): true | undefined {
   const text = currentAudioText.value;
   const kind = currentAudioKind.value;
   const language = kind && text ? speechLanguage(text, kind) : '';
-  if (state === 'progress') {audioProgress.value = parseSpeechProgress((message as {progress?:unknown}).progress); return true;}
+  if (state === 'progress') {
+    const payload = message as {progress?:unknown; position?:unknown};
+    audioProgress.value = parseSpeechProgress(payload.progress);
+    audioPosition.value = parseSpeechPlaybackPosition(payload.position);
+    return true;
+  }
   if (state === 'ended' || state === 'stopped') {
     stopAudio(false);
     return true;
@@ -1959,9 +2015,18 @@ onBeforeUnmount(() => {
 .fr-text-audio-btn:hover, .fr-text-audio-btn:focus-visible { border-color: rgba(214, 63, 118, .25); background: rgba(255, 255, 255, .72); color: #d63f76; outline: none; transform: translateY(-1px); }
 .fr-text-block pre { overflow-wrap:anywhere; margin:0; white-space:pre-wrap; word-break:break-word; font:inherit; font-size:14px; line-height:1.7; user-select:text; }
 .fr-original-text pre { font-size:12.5px; line-height:1.65; }
-.fr-playing-status { flex: none; box-sizing: border-box; height: 36px; padding: 4px 14px; display: flex; align-items: center; justify-content: space-between; color: #777780; font-size: 12px; }
+.fr-playing-status { flex: none; box-sizing: border-box; height: 36px; padding: 4px 14px; display: flex; align-items: center; justify-content: space-between; gap:8px; color: #777780; font-size: 12px; }
 .fr-playing-status.is-idle { visibility: hidden; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
+.fr-playing-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fr-playback-controls { display:flex; flex:none; align-items:center; gap:5px; }
+.fr-playback-time { font-size:10px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.fr-playing-status .fr-seek-btn { display:grid; place-items:center; width:27px; height:27px; padding:0; border-color:transparent; color:inherit; }
+.fr-seek-btn svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.fr-seek-btn text { fill:currentColor; stroke:none; font:10px system-ui; text-anchor:middle; }
+.fr-playing-status .fr-seek-btn:hover:not(:disabled) { background:color-mix(in srgb,currentColor 10%,transparent); }
+.fr-playing-status button:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
+.fr-playing-status .fr-seek-btn:disabled { opacity:.35; cursor:default; }
 .fr-copy-success-toast { position: fixed; right: 18px; bottom: 18px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
 .fr-action-toast { position: fixed; right: 18px; bottom: 18px; display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-radius: 9px; background: #2c2c35; color: #fff; font-size: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, .18); }
 .fr-action-toast button { padding: 0; border: 0; color: #ffc2d5; background: transparent; cursor: pointer; font: inherit; font-weight: 700; }

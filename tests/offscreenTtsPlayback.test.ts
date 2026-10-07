@@ -224,6 +224,37 @@ describe('Offscreen TTS media progress', () => {
         {startChar: 13, endChar: 17, startTime: 1, endTime: 5},
     ];
 
+    it('5 秒跳转使用媒体时间并立即更新高亮，不重建音频或干扰另一条路由', async () => {
+        const state = fixture();
+        expect(state.player.seek({...route('old'),offsetSeconds:5})).toBe(false);
+        await state.player.play({sourceUrl:'https://audio',text:'Hello world',...route('seek',0)});
+        const audio=state.audios[0];audio.duration=12;audio.currentTime=2;
+        expect(state.player.seek({...route('seek',1),offsetSeconds:5})).toBe(false);
+        expect(state.player.seek({...route('old',0),offsetSeconds:5})).toBe(false);
+        expect(audio.currentTime).toBe(2);
+        expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(true);
+        expect(audio.currentTime).toBe(7);
+        expect(state.progressNotifications.at(-1)?.progress.start).toBe(6);
+        expect(state.notifyProgress).toHaveBeenLastCalledWith(expect.objectContaining(route('seek',0)),expect.any(Object),{currentTime:7,duration:12});
+        expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(true);
+        expect(audio.currentTime).toBe(12);
+        expect(state.player.seek({...route('seek',0),offsetSeconds:-5})).toBe(true);
+        expect(audio.currentTime).toBe(7);
+        state.player.seek({...route('seek',0),offsetSeconds:-5});state.player.seek({...route('seek',0),offsetSeconds:-5});
+        expect(audio.currentTime).toBe(0);
+        expect(state.audios).toHaveLength(1);expect(audio.play).toHaveBeenCalledOnce();expect(state.notifications).toEqual([]);
+        audio.duration=NaN;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        audio.duration=undefined;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        audio.duration=12;audio.currentTime=undefined;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        expect(()=>state.player.seek({...route('seek',0),offsetSeconds:15})).toThrow('5 秒');
+        state.player.stop(route('seek',0));expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        const legacy=fixture();await legacy.player.play({sourceUrl:'https://audio/legacy',...route('legacy-seek')});
+        expect(legacy.player.seek({...route('legacy-seek'),offsetSeconds:5})).toBe(true);
+        expect(legacy.notifyProgress).not.toHaveBeenCalled();
+        const silent=fixture(false);await silent.player.play({sourceUrl:'https://audio',text:'Hello',...route('silent-seek')});
+        expect(silent.player.seek({...route('silent-seek'),offsetSeconds:5})).toBe(true);
+    });
+
     it('samples actual currentTime every 100ms and uses chunk timings for words, Chinese characters and seeks', async () => {
         const state = fixture();
         await state.player.play({sourceUrl: 'https://audio', text, timings, ...route('timed-request', 0)});

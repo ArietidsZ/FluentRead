@@ -335,6 +335,44 @@ function expectAudioReset(state: Record<string, any>) {
 }
 
 describe('SelectionTranslator TTS generation and progress ownership', () => {
+    it('5 second controls use the active route, reject unavailable playback and ignore late seek failures', async () => {
+        const fixture=mountSelection();const response=deferredTts();prepareTts(fixture,[response.promise]);
+        const pending=fixture.state.toggleAudio('Hello world','source');
+        await fixture.state.seekAudio(5);expect(ttsMessages(fixture,'selectionTtsSeek')).toEqual([]);
+        response.resolve({success:true,transport:'offscreen'});await pending;
+        await fixture.state.seekAudio(5);expect(ttsMessages(fixture,'selectionTtsSeek')).toEqual([]);
+        emitTtsState(fixture,'tts-client-1','progress',{progress:{start:0,end:5,fraction:0,estimated:true},position:{currentTime:2,duration:12}});
+        fixture.browser.runtime.sendMessage.mockResolvedValue({success:true});
+        await fixture.state.seekAudio(5);await fixture.state.seekAudio(-5);
+        expect(ttsMessages(fixture,'selectionTtsSeek')).toEqual([
+            {type:'selectionTtsSeek',clientRequestId:'tts-client-1',offsetSeconds:5},
+            {type:'selectionTtsSeek',clientRequestId:'tts-client-1',offsetSeconds:-5},
+        ]);
+        expect(fixture.state.audioPosition).toEqual({currentTime:2,duration:12});
+        const delayed=deferredTts();fixture.browser.runtime.sendMessage.mockImplementation(message=>message.type==='selectionTtsSeek'?delayed.promise:Promise.resolve({success:true}));
+        const jump=fixture.state.seekAudio(5);fixture.state.stopAudio();delayed.resolve({success:false});await jump;
+        expect(fixture.state.audioPosition).toBeNull();expect(fixture.state.noticeMessage).toBe('');
+        expect(fixture.state.playbackTime(65.9)).toBe('1:05');
+    });
+
+    it('page audio jumps by 5 seconds, updates text immediately and clears its sampling timer on stop', async () => {
+        const fixture=mountSelection();const audios:FakeSeekAudio[]=[];
+        class FakeSeekAudio {
+            currentTime=2;duration=12;ontimeupdate:((event?:Event)=>void)|null=null;
+            play=vi.fn(async()=>undefined);pause=vi.fn();removeAttribute=vi.fn();
+            constructor(public src:string){audios.push(this);}
+        }
+        vi.stubGlobal('Audio',FakeSeekAudio);
+        await fixture.state.playExternalAudio('https://audio','Hello world','source','Hello world',0);
+        await fixture.state.seekAudio(5);expect(audios[0].currentTime).toBe(7);
+        expect(fixture.state.audioPosition).toEqual({currentTime:7,duration:12});expect(fixture.state.audioProgress.start).toBe(6);
+        await fixture.state.seekAudio(-5);await fixture.state.seekAudio(-5);expect(audios[0].currentTime).toBe(0);
+        expect(fixture.state.audioProgress.start).toBe(0);
+        await fixture.state.seekAudio(5);await fixture.state.seekAudio(5);await fixture.state.seekAudio(5);expect(audios[0].currentTime).toBe(12);
+        expect(audios[0].play).toHaveBeenCalledOnce();expect(ttsMessages(fixture,'selectionTtsSeek')).toEqual([]);
+        fixture.state.stopAudio();expect(fixture.state.audioPosition).toBeNull();
+        const stopped=fixture.state.audioProgress;await vi.advanceTimersByTimeAsync(500);expect(fixture.state.audioProgress).toBe(stopped);
+    });
     it.each(['source', 'translation'] as const)('keeps %s in preparation until synthesis succeeds', async kind => {
         const fixture = mountSelection();
         const response = deferredTts();
@@ -668,7 +706,8 @@ describe('SelectionTranslator word TTS generation and fallback', () => {
         expect(fixture.state.isPlaying).toBe(true);
         expect(fixture.state.currentAudioKind).toBe('word');
         expect(fixture.state.currentAudioKey).toBe(pronunciation.audio);
-        expect(fixture.state.audioProgress).toBeNull();
+        expect(fixture.state.audioProgress).toEqual({start:0,end:5,fraction:0,estimated:true});
+        expect(fixture.state.audioPosition).toEqual({currentTime:0,duration:4});
         expect(ttsMessages(fixture, 'selectionTts')).toEqual([]);
         const audio = audios[0];
         expect(audio.src).toBe(pronunciation.audio);

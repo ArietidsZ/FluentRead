@@ -28,7 +28,7 @@ export type OffscreenSendResponse = (response: unknown) => void;
 
 export interface OffscreenMessageDependencies {
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
-    readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop'>;
+    readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop' | 'seek'>;
     readonly fetchImage: (url: string, signal: AbortSignal) => Promise<unknown>;
     readonly translateImage: (
         image: string,
@@ -329,6 +329,9 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                 return true;
             case 'STOP_SELECTION_TTS':
                 respondWith(async () => dependencies.ttsPlayer.stop(message), sendResponse, () => ({success: true}));
+                return true;
+            case 'SEEK_SELECTION_TTS':
+                respondWith(async () => dependencies.ttsPlayer.seek(message), sendResponse, (seeked) => ({success: true, seeked}));
                 return true;
             case 'VIDEO_AI_TRANSCRIBE':
                 if (!dependencies.videoAi) { sendResponse({success: false, error: '视频 AI 未启用'}); return true; }

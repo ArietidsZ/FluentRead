@@ -225,6 +225,18 @@ describe('image translation Offscreen adapter', () => {
 
 describe('selection TTS Offscreen adapter', () => {
     const adapter = createSelectionTtsOffscreenAdapter(client);
+
+    it('seeks only an existing document and returns whether its current route accepted the jump', async () => {
+        sendIfPresent.mockResolvedValueOnce({success:true,seeked:true});
+        await expect(adapter.seek(route,5)).resolves.toBe(true);
+        expect(sendIfPresent).toHaveBeenLastCalledWith({type:'SEEK_SELECTION_TTS',...route,offsetSeconds:5});
+        for(const response of [undefined,{success:true},{success:true,seeked:false}]){
+            sendIfPresent.mockResolvedValueOnce(response);await expect(adapter.seek(route,-5)).resolves.toBe(false);
+        }
+        sendIfPresent.mockResolvedValueOnce({success:false,error:'seek custom'});await expect(adapter.seek(route,5)).rejects.toThrow('seek custom');
+        sendIfPresent.mockResolvedValueOnce({success:false});await expect(adapter.seek(route,5)).rejects.toThrow('语音跳转失败');
+        expect(send).not.toHaveBeenCalled();
+    });
     const route = {tabId: 7, clientRequestId: 'request-1'};
 
     it('plays audio/source payloads and rejects unsuccessful playback', async () => {
@@ -376,7 +388,7 @@ describe('TTS metadata across local synthesis, adapters and routed playback', ()
             synthesizeLocal: local.synthesize, synthesizeOnline: vi.fn(),
         });
         const background = createBackgroundMessageRouter<SelectionTtsContext>(createSelectionTtsBackgroundHandlers({
-            getPreferredVoices: () => [], synthesize, playWithOffscreen: playback.play, stopWithOffscreen: playback.stop,
+            getPreferredVoices: () => [], synthesize, playWithOffscreen: playback.play, stopWithOffscreen: playback.stop, seekWithOffscreen: playback.seek,
             sendTabMessage: vi.fn(async (tabId, message) => {
                 expect(tabId).toBe(0);
                 expect(controller.matchRemoteState(message)).not.toBeNull();

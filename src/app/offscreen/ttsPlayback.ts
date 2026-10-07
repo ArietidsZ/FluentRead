@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/ttsPlayback.ts
  * 文件职责：管理 Offscreen 中划词 TTS 的单播放所有权，确保新旧请求、停止、结束、错误和 Blob URL 释放按精确 route 隔离。
- * 主要内容：解析 tabId/clientRequestId 路由及 sourceUrl/base64 音频输入，创建 Audio 端口，给每次播放绑定独立回调与可选 object URL；SelectionTtsPlayer 支持 play、stop、dispose；按真实媒体时钟发送跟读进度，释放时清理计时器并回传状态。
+ * 主要内容：解析路由及音频输入，给每次播放绑定独立回调与可选 object URL；支持播放、停止和按秒跳转，按真实媒体时钟发送跟读进度与时长，释放时清理计时器并回传状态。
  * 模块边界：播放器不合成语音、不发送后台请求，也不决定 voice/rate；音频构造和状态传输由依赖注入，网络 TTS 与跨上下文路由属于 selection-translation feature。
  */
 import {
@@ -10,7 +10,7 @@ import {
     type SelectionTtsPlaybackRequest,
     type SelectionTtsPlaybackState,
 } from '@/src/features/selection-translation/protocol';
-import {audioSpeechProgress, parseSpeechCues, type SpeechProgress} from '@/src/core/tts/speechProgress';
+import {audioSpeechProgress, parseSpeechCues, parseSpeechPlaybackPosition, seekSpeechTime, type SpeechProgress, type SpeechPlaybackPosition} from '@/src/core/tts/speechProgress';
 
 export type {
     SelectionTtsPlaybackRequest,
@@ -18,7 +18,7 @@ export type {
 } from '@/src/features/selection-translation/protocol';
 
 export interface SelectionAudioPort {
-    readonly currentTime?: number;
+    currentTime?: number;
     readonly duration?: number;
     preload: string;
     src: string;
@@ -40,7 +40,7 @@ export interface SelectionTtsPlayerDependencies {
         state: SelectionTtsPlaybackState,
         error?: unknown,
     ) => void;
-    readonly notifyProgress?: (request: SelectionTtsPlaybackRequest, progress: SpeechProgress) => void;
+    readonly notifyProgress?: (request: SelectionTtsPlaybackRequest, progress: SpeechProgress, position: SpeechPlaybackPosition) => void;
 }
 
 interface PreparedPlayback {
@@ -112,6 +112,27 @@ export class SelectionTtsPlayer {
         return this.stopActive(notify);
     }
 
+    private publishProgress(playback: PreparedPlayback): void {
+        if (this.active !== playback || !playback.request.text || !this.dependencies.notifyProgress) return;
+        const {audio, request} = playback;
+        const position = parseSpeechPlaybackPosition({currentTime: audio.currentTime, duration: audio.duration});
+        const progress = audioSpeechProgress(request.text!, audio.currentTime ?? NaN, audio.duration ?? NaN, request.timings);
+        if (position && progress) this.dependencies.notifyProgress(request, progress, position);
+    }
+
+    seek(value: unknown): boolean {
+        const route = parseSelectionTtsRoute(value);
+        const offset = (value as {offsetSeconds?: unknown}).offsetSeconds;
+        if (offset !== -5 && offset !== 5) throw new TypeError('TTS 跳转必须为前进或后退 5 秒');
+        const active = this.active;
+        if (!active || !sameSelectionTtsRoute(active.request, route)) return false;
+        const time = seekSpeechTime(active.audio.currentTime ?? NaN, active.audio.duration ?? NaN, offset);
+        if (time === null) return false;
+        active.audio.currentTime = time;
+        this.publishProgress(active);
+        return true;
+    }
+
     dispose(): void {
         this.stopActive(false);
     }
@@ -156,10 +177,7 @@ export class SelectionTtsPlayer {
         try {
             await audio.play();
             if (this.active === playback && request.text && this.dependencies.notifyProgress) {
-                const tick = () => {
-                    const progress = audioSpeechProgress(request.text!, audio.currentTime ?? NaN, audio.duration ?? NaN, request.timings);
-                    if (this.active === playback && progress) this.dependencies.notifyProgress!(request, progress);
-                };
+                const tick = () => this.publishProgress(playback);
                 playback.timer = setInterval(tick, 100);
                 tick();
             }

@@ -3007,4 +3007,9 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "跟读进度按句段时长估算": "El progreso de lectura se estima a partir de la duración del audio de cada frase",
     "跟随语音词边界": "Seguir los límites de las palabras de la voz",
     "正在初始化本地模型…": "Inicializando los modelos locales…",
+    // 划词朗读的 5 秒跳转控件与反馈。
+    "后退 5 秒": "Retroceder 5 segundos",
+    "前进 5 秒": "Avanzar 5 segundos",
+    "当前语音不支持按秒跳转": "Esta voz no permite saltar en la reproducción",
+    "语音跳转失败，请重试": "No se pudo saltar en el audio. Inténtalo de nuevo.",
 };
