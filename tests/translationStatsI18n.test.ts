@@ -57,6 +57,11 @@ describe('翻译统计界面文案', () => {
                 if (language !== 'ja-JP') expect(localized, `${language}: ${source}`).not.toMatch(/[\u3400-\u9fff]/u);
             }
         }
+        const keywordGroups = item.searchDescription.split(' · ');
+        expect(keywordGroups).toHaveLength(2);
+        expect(keywordGroups[0]).toContain('服务对比、性能');
+        expect(keywordGroups[1]).toContain('模型用量、调用统计、Token');
+        expect(keywordGroups[1]).toContain('Kimi、月之暗面、OpenAI、DeepSeek');
         expect(translateLegacyText(item.label, 'en-US')).toBe('Translation statistics');
     });
 });
