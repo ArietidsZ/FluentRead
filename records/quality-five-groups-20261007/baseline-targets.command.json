@@ -1,0 +1,25 @@
+{
+  "label": "baseline-targets",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationStatsI18n.test.ts",
+    "tests/contentFeatureMounting.test.ts",
+    "tests/harnessConversation.test.ts",
+    "tests/imageGlossaryContext.test.ts",
+    "tests/settingsCompositionAutosave.test.ts",
+    "tests/imageTranslationPageRead.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/baseline-targets.results.json",
+    "--no-cache"
+  ],
+  "cwd": "FluentRead-youtube-remaining-base83",
+  "started_at": "2026-10-07T11:32:57.345673+00:00",
+  "duration_seconds": 2.221,
+  "exit_code": 1
+}

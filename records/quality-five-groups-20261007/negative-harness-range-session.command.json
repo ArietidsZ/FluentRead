@@ -1,0 +1,22 @@
+{
+  "label": "negative-harness-range-session",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/contentFeatureMounting.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/negative-harness-range-session.results.json",
+    "--no-cache",
+    "--testNamePattern",
+    "Harness 共享实例"
+  ],
+  "cwd": "$GROUP_WORKTREE_HARNESS_CONTRACTS",
+  "started_at": "2026-10-07T11:39:16.805152+00:00",
+  "duration_seconds": 0.312,
+  "exit_code": 1
+}

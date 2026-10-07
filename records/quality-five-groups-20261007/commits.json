@@ -1,0 +1,80 @@
+{
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "groups": {
+    "stats-i18n": {
+      "commit": "e113c86683d653fc501e42780bd4fe4ef5e6a6d7",
+      "branch": "fix/quality-stats-i18n-20261007",
+      "files": [
+        "src/features/settings/model/navigation.ts",
+        "tests/translationStatsI18n.test.ts"
+      ],
+      "source_sha256": {
+        "src/features/settings/model/navigation.ts": "5ca6544c94e31fa1f12e2c793d426f51c2271c66ece9e55925e3aecd566e7932",
+        "tests/translationStatsI18n.test.ts": "3019c4cf5edc09e192022a619f0ba4d2058519134854a02d84b1421cfcd689f6"
+      }
+    },
+    "harness-contracts": {
+      "commit": "b88f50ff0226dc56772866314471b7b04370b70e",
+      "branch": "fix/quality-harness-contracts-20261007",
+      "files": [
+        "tests/contentFeatureMounting.test.ts",
+        "tests/harnessConversation.test.ts"
+      ],
+      "source_sha256": {
+        "tests/contentFeatureMounting.test.ts": "edf88a39deb7edf387eae3bd1c9263af79f45bc221711fbc005f83580c4e1285",
+        "tests/harnessConversation.test.ts": "4ac366bb41c7eb56ceff099c37f052e781dfbdbf1f272364fd9cde5d6a7ee61b"
+      }
+    },
+    "glossary-fixture": {
+      "commit": "8225bff5f253e041a93bc49ab63e711b6756a8c6",
+      "branch": "fix/quality-glossary-fixture-20261007",
+      "files": [
+        "tests/imageGlossaryContext.test.ts"
+      ],
+      "source_sha256": {
+        "tests/imageGlossaryContext.test.ts": "402002f057f3b75358808988fc69fec2527d64061203811eca148ff25709c895"
+      }
+    },
+    "ime-loader": {
+      "commit": "dc5c51594410c1d8542f30e8131a745bd0b585c9",
+      "branch": "fix/quality-ime-loader-20261007",
+      "files": [
+        "tests/settingsCompositionAutosave.test.ts"
+      ],
+      "source_sha256": {
+        "tests/settingsCompositionAutosave.test.ts": "8a4fdca68e81eef44d56c727f06eb58ef8a60e56fcaed885633115da5e169da2"
+      }
+    },
+    "page-read-fixture": {
+      "commit": "285fb828e3ef7e3a1df74b1c3b5f029afc1dea01",
+      "branch": "fix/quality-page-read-fixture-20261007",
+      "files": [
+        "tests/imageTranslationPageRead.test.ts"
+      ],
+      "source_sha256": {
+        "tests/imageTranslationPageRead.test.ts": "4c049f521befa1ff56be081b0e614dc8164638b7ec2da3c1fbb0af96b0a01876"
+      }
+    }
+  },
+  "integration": {
+    "commit": "e02f471b6e8b9e459118ee0fe92d0490c1a1c982",
+    "branch": "fix/quality-five-integration-20261007",
+    "files": [
+      "src/features/settings/model/navigation.ts",
+      "tests/contentFeatureMounting.test.ts",
+      "tests/harnessConversation.test.ts",
+      "tests/imageGlossaryContext.test.ts",
+      "tests/imageTranslationPageRead.test.ts",
+      "tests/settingsCompositionAutosave.test.ts",
+      "tests/translationStatsI18n.test.ts"
+    ],
+    "cherry_pick_commits": [
+      "d8f7ae23553d086e3efca969dd812cf1937f29ec",
+      "7e21a2f215037e91033c66aff0460d3d37732791",
+      "573f25fbf6c126640ced8388ce77543e5182c34d",
+      "2ee276671293f0009544afdf8428728863299569",
+      "e02f471b6e8b9e459118ee0fe92d0490c1a1c982"
+    ]
+  },
+  "subtitle_and_buildfix_excluded": true
+}

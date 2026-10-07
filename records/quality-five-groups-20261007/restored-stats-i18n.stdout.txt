@@ -1,0 +1,11 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationStatsI18n.test.ts --no-cache
+
+ RUN  v2.1.9 $GROUP_WORKTREE_STATS_I18N
+
+ ✓ tests/translationStatsI18n.test.ts (2 tests) 30ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  19:39:19
+   Duration  640ms (transform 395ms, setup 0ms, collect 500ms, tests 30ms, environment 0ms, prepare 21ms)
+

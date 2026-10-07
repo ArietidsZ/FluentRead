@@ -1,0 +1,23 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/settingsCompositionAutosave.test.ts > 设置页输入法与自动保存集成 > 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入
+AssertionError: expected [ '你' ] to deeply equal [ '你', '你' ]
+
+- Expected
++ Received
+
+  Array [
+    "你",
+-   "你",
+  ]
+
+ ❯ tests/settingsCompositionAutosave.test.ts:198:23
+    196|     await h.nextTick();
+    197| 
+    198|     expect(h.updates).toEqual(['你', '你']);
+       |                       ^
+    199|     expect(h.saves).toEqual(['你', 'other', '你']);
+    200|     h.app.unmount();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

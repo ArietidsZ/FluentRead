@@ -1,0 +1,22 @@
+{
+  "label": "negative-harness-selection-gate",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/contentFeatureMounting.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/negative-harness-selection-gate.results.json",
+    "--no-cache",
+    "--testNamePattern",
+    "划词关闭时"
+  ],
+  "cwd": "$GROUP_WORKTREE_HARNESS_CONTRACTS",
+  "started_at": "2026-10-07T11:39:16.482557+00:00",
+  "duration_seconds": 0.306,
+  "exit_code": 1
+}

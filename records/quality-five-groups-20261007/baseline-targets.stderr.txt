@@ -1,0 +1,235 @@
+stderr | tests/imageGlossaryContext.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/imageTranslationPageRead.test.ts [ tests/imageTranslationPageRead.test.ts ]
+Error: This script should only be loaded in a browser extension.
+ ❯ ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/webextension-polyfill@0.12.0/node_modules/webextension-polyfill/dist/browser-polyfill.js:10:9
+ ❯ ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/webextension-polyfill@0.12.0/node_modules/webextension-polyfill/dist/browser-polyfill.js:5:5
+ ❯ Object.<anonymous> ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/webextension-polyfill@0.12.0/node_modules/webextension-polyfill/dist/browser-polyfill.js:13:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI
+TypeError: You must provide a Promise to expect() when using .resolves, not 'object'.
+ ❯ tests/contentFeatureMounting.test.ts:112:67
+    110|         const mounted = ui();
+    111|         mocks.createVueShadowUi.mockResolvedValueOnce(mounted);
+    112|         await expect(runtime.mountSelectionTranslator({} as never)).re…
+       |                                                                   ^
+    113|         runtime.unmountSelectionTranslator();
+    114|         const pending = pendingUi();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host
+TypeError: Cannot read properties of undefined (reading '1')
+ ❯ tests/contentFeatureMounting.test.ts:139:65
+    137| 
+    138|         await runtime.mountSelectionTranslator({} as never);
+    139|         const firstReport = mocks.createVueShadowUi.mock.calls[0][1].p…
+       |                                                                 ^
+    140|         const range = {startContainer: {nodeType: 3}};
+    141|         firstReport(range);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  tests/harnessConversation.test.ts > Harness persistent conversation coordination > keeps a switched action in the same saved reading record but excludes previous answers from analysis
+AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "intent": "grammar",
+-   "question": "拆句",
++   "question": "词性与句法",
+  }
+
+ ❯ tests/harnessConversation.test.ts:46:51
+     44|         expect(runtime.run.mock.calls[0][0]).toMatchObject({question: …
+     45|         expect(store.upsertTurn.mock.calls[1][0]).toMatchObject({id: '…
+     46|         expect(store.upsertTurn.mock.calls[1][1]).toMatchObject({quest…
+       |                                                   ^
+     47|     });
+     48|     it('anchors follow-ups to the visible action and excludes later, e…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  tests/imageGlossaryContext.test.ts > 图片、圈选OCR到真实术语broker的完整请求边界 > 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文
+AssertionError: expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]
+
+- Expected
++ Received
+
+  Array [
+-   "API",
++   "__FRTERM_5d4ff6fe9d78_0__",
+    "other",
+    "third",
+  ]
+
+ ❯ tests/imageGlossaryContext.test.ts:245:25
+    243|         const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequ…
+    244|         await firstWindow.promise;
+    245|         expect(started).toEqual(['API', 'other', 'third']);
+       |                         ^
+    246|         expect(h.requests).toHaveLength(3);
+    247|         h.config.from = 'ja';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  tests/imageGlossaryContext.test.ts > 图片、圈选OCR到真实术语broker的完整请求边界 > 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果
+AssertionError: expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'
+
+Expected: "provider down"
+Received: "图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')"
+
+ ❯ tests/imageGlossaryContext.test.ts:288:9
+    286|         h.config.glossaryLibraries[0].entries[0].target = '更新接口';
+    287|         gates.get('other')!.reject(new Error('provider down'));
+    288|         await failed;
+       |         ^
+    289|         expect(h.requests).toHaveLength(3);
+    290|         expect(h.provider).toHaveBeenCalledTimes(3);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  tests/settingsCompositionAutosave.test.ts > 设置页输入法与自动保存集成 > 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本
+SyntaxError: Cannot use import statement outside a module
+ ❯ loadPromptTemplateEditor tests/settingsCompositionAutosave.test.ts:24:21
+     22|     compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.Modul…
+     23|   }).outputText;
+     24|   const component = new Function('Vue', scriptJavaScript)(vueRuntime) …
+       |                     ^
+     25| 
+     26|   const template = compiler.compileTemplate({
+ ❯ mountEditor tests/settingsCompositionAutosave.test.ts:111:18
+ ❯ tests/settingsCompositionAutosave.test.ts:151:21
+
+Module SyntaxError: Cannot use import statement outside a module seems to be an ES Module but shipped in a CommonJS package. You might want to create an issue to the package "SyntaxError: Cannot use import statement outside a module" asking them to ship the file in .mjs extension or add "type": "module" in their package.json.
+
+As a temporary workaround you can try to inline the package by updating your config:
+
+// vitest.config.js
+export default {
+  test: {
+    server: {
+      deps: {
+        inline: [
+          "SyntaxError: Cannot use import statement outside a module"
+        ]
+      }
+    }
+  }
+}
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  tests/settingsCompositionAutosave.test.ts > 设置页输入法与自动保存集成 > 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入
+SyntaxError: Cannot use import statement outside a module
+ ❯ loadPromptTemplateEditor tests/settingsCompositionAutosave.test.ts:24:21
+     22|     compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.Modul…
+     23|   }).outputText;
+     24|   const component = new Function('Vue', scriptJavaScript)(vueRuntime) …
+       |                     ^
+     25| 
+     26|   const template = compiler.compileTemplate({
+ ❯ mountEditor tests/settingsCompositionAutosave.test.ts:111:18
+ ❯ tests/settingsCompositionAutosave.test.ts:172:21
+
+Module SyntaxError: Cannot use import statement outside a module seems to be an ES Module but shipped in a CommonJS package. You might want to create an issue to the package "SyntaxError: Cannot use import statement outside a module" asking them to ship the file in .mjs extension or add "type": "module" in their package.json.
+
+As a temporary workaround you can try to inline the package by updating your config:
+
+// vitest.config.js
+export default {
+  test: {
+    server: {
+      deps: {
+        inline: [
+          "SyntaxError: Cannot use import statement outside a module"
+        ]
+      }
+    }
+  }
+}
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  tests/settingsCompositionAutosave.test.ts > 设置页输入法与自动保存集成 > InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本
+SyntaxError: Cannot use import statement outside a module
+ ❯ loadPromptTemplateEditor tests/settingsCompositionAutosave.test.ts:24:21
+     22|     compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.Modul…
+     23|   }).outputText;
+     24|   const component = new Function('Vue', scriptJavaScript)(vueRuntime) …
+       |                     ^
+     25| 
+     26|   const template = compiler.compileTemplate({
+ ❯ mountEditor tests/settingsCompositionAutosave.test.ts:111:18
+ ❯ tests/settingsCompositionAutosave.test.ts:191:21
+
+Module SyntaxError: Cannot use import statement outside a module seems to be an ES Module but shipped in a CommonJS package. You might want to create an issue to the package "SyntaxError: Cannot use import statement outside a module" asking them to ship the file in .mjs extension or add "type": "module" in their package.json.
+
+As a temporary workaround you can try to inline the package by updating your config:
+
+// vitest.config.js
+export default {
+  test: {
+    server: {
+      deps: {
+        inline: [
+          "SyntaxError: Cannot use import statement outside a module"
+        ]
+      }
+    }
+  }
+}
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  tests/translationStatsI18n.test.ts > 翻译统计界面文案 > 翻译统计导航与搜索文案覆盖全部非中文界面语言
+AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality
+ ❯ tests/translationStatsI18n.test.ts:56:65
+     54|             for (const source of sources) {
+     55|                 const localized = translateLegacyText(source, language…
+     56|                 expect(localized, `${language}: ${source}`).not.toBe(s…
+       |                                                                 ^
+     57|                 if (language !== 'ja-JP') expect(localized, `${languag…
+     58|             }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: 图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')
+ ❯ Module.createImageTranslationFailure src/features/image-translation/failure.ts:23:26
+     21| export function createImageTranslationFailure(message: string, value: …
+     22|     const errorCode = imageTranslationFailureCode(value);
+     23|     return Object.assign(new Error(message), errorCode ? {errorCode} :…
+       |                          ^
+     24| }
+     25| 
+ ❯ worker src/features/image-translation/background/handlers.ts:386:31
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+ ❯ translateImageTexts src/features/image-translation/background/handlers.ts:390:13
+
+This error originated in "tests/imageGlossaryContext.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "tests/imageGlossaryContext.test.ts". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+

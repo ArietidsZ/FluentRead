@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/settingsCompositionAutosave.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/negative-ime-external-value-sync.results.json --no-cache --testNamePattern 外部 modelValue
+
+ RUN  v2.1.9 $GROUP_WORKTREE_IME_LOADER
+
+ ❯ tests/settingsCompositionAutosave.test.ts (4 tests | 1 failed | 3 skipped) 86ms
+   × 设置页输入法与自动保存集成 > 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入 86ms
+     → expected [ '你' ] to deeply equal [ '你', '你' ]
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 skipped (4)
+   Start at  19:39:18
+   Duration  372ms (transform 21ms, setup 0ms, collect 179ms, tests 86ms, environment 0ms, prepare 22ms)
+
+JSON report written to $RECORDS_ROOT/negative-ime-external-value-sync.results.json

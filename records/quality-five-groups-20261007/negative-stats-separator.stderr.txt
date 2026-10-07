@@ -1,0 +1,14 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/translationStatsI18n.test.ts > 翻译统计界面文案 > 翻译统计导航与搜索文案覆盖全部非中文界面语言
+AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality
+ ❯ tests/translationStatsI18n.test.ts:56:65
+     54|             for (const source of sources) {
+     55|                 const localized = translateLegacyText(source, language…
+     56|                 expect(localized, `${language}: ${source}`).not.toBe(s…
+       |                                                                 ^
+     57|                 if (language !== 'ja-JP') expect(localized, `${languag…
+     58|             }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

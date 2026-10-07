@@ -1,0 +1,20 @@
+--- src/features/selection-translation/content/runtime.ts
++++ src/features/selection-translation/content/runtime.ts
+@@ -25,7 +25,7 @@
+   if (ctx) contentScriptContext = ctx;
+ 
+   // 如果已存在实例或配置禁用了此功能，则不创建
+-  if (selectionTranslatorInstance || mountingPromise || (config.disableSelectionTranslator || config.selectionTranslatorMode === 'disabled')) {
++  if (selectionTranslatorInstance || mountingPromise || false) {
+     return mountingPromise;
+   }
+ 
+@@ -47,7 +47,7 @@
+     },
+   }).then((ui) => {
+     // 异步创建结束后复核代次和开关，旧请求不得覆盖较新的挂载状态。
+-    if (requestId !== mountRequestId || (config.disableSelectionTranslator || config.selectionTranslatorMode === 'disabled')) {
++    if (requestId !== mountRequestId || false) {
+       ui.remove();
+       return null;
+     }

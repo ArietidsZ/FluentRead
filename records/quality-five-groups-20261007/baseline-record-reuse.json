@@ -1,0 +1,8 @@
+{
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "source_record_commit": "dc86c6cdfe17d0190748abeb5add040dfb287ef8",
+  "source_files": "records/youtube-native-final-20261007/full-strict-baseline-host.*",
+  "raw_copy": "known-baseline-full-strict/",
+  "rerun_in_this_batch": false,
+  "reason": "User requested exact comparison against known baseline; previous actual fresh baseline uses the same coverage config and flags."
+}

@@ -1,0 +1,29 @@
+{
+  "stats-i18n": [
+    "tests/translationStatsI18n.test.ts",
+    "tests/optionsNavigation.test.ts",
+    "tests/i18n.test.ts"
+  ],
+  "harness-contracts": [
+    "tests/contentFeatureMounting.test.ts",
+    "tests/harnessConversation.test.ts",
+    "tests/configHarness.test.ts",
+    "tests/contentFeatureLifecycle.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts"
+  ],
+  "glossary-fixture": [
+    "tests/imageGlossaryContext.test.ts",
+    "tests/glossary.test.ts",
+    "tests/translationGlossaryIntegration.test.ts",
+    "tests/imageTranslation.test.ts"
+  ],
+  "ime-loader": [
+    "tests/settingsCompositionAutosave.test.ts"
+  ],
+  "page-read-fixture": [
+    "tests/imageTranslationPageRead.test.ts",
+    "tests/remoteImage.test.ts",
+    "tests/imageSourceAuthorization.test.ts",
+    "tests/runtimeMessages.test.ts"
+  ]
+}

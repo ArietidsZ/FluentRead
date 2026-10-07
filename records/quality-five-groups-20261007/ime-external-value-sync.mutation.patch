@@ -1,0 +1,11 @@
+--- src/features/settings/ui/services/PromptTemplateEditor.vue
++++ src/features/settings/ui/services/PromptTemplateEditor.vue
+@@ -115,7 +115,7 @@
+ const headingId = `fluentread-${props.role}-prompt-${useId()}`
+ 
+ watch(() => props.modelValue, (value) => {
+-  if (!isComposing.value) lastEmittedValue.value = value
++  if (false) lastEmittedValue.value = value
+ }, {flush: 'sync'})
+ 
+ const promptTokens = computed<PromptToken[]>(() => props.tokens || (props.role === 'user'

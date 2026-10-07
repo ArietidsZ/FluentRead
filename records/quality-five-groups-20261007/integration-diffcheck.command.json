@@ -1,0 +1,14 @@
+{
+  "label": "integration-diffcheck",
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "83deca40091415666fc8fe5a45579b6b80487dcb",
+    "HEAD"
+  ],
+  "cwd": "$INTEGRATION_WORKTREE",
+  "started_at": "2026-10-07T11:42:28.094238+00:00",
+  "duration_seconds": 0.002,
+  "exit_code": 0
+}

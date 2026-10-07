@@ -1,0 +1,17 @@
+--- src/features/settings/ui/services/PromptTemplateEditor.vue
++++ src/features/settings/ui/services/PromptTemplateEditor.vue
+@@ -149,12 +149,12 @@
+ function handleInput(event: Event): void {
+   const input = event.currentTarget
+   if (!(input instanceof HTMLTextAreaElement)) return
+-  if ((event as InputEvent).isComposing === true) {
++  if (false) {
+     isComposing.value = true
+     rememberSelection()
+     return
+   }
+-  if (isComposing.value) {
++  if (false) {
+     rememberSelection()
+     return
+   }

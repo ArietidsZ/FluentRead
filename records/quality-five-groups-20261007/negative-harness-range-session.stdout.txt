@@ -1,0 +1,36 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/contentFeatureMounting.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/negative-harness-range-session.results.json --no-cache --testNamePattern Harness 共享实例
+
+ RUN  v2.1.9 $GROUP_WORKTREE_HARNESS_CONTRACTS
+
+ ❯ tests/contentFeatureMounting.test.ts (17 tests | 1 failed | 16 skipped) 9ms
+   × 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host 8ms
+     → expected "spy" to not be called at all, but actually been called 2 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {
+        "startContainer": Object {
+          "nodeType": 3,
+        },
+      },
+    ]
+
+  2nd spy call:
+
+    Array [
+      null,
+    ]
+
+
+Number of calls: 2
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 skipped (17)
+   Start at  19:39:16
+   Duration  142ms (transform 35ms, setup 0ms, collect 24ms, tests 9ms, environment 0ms, prepare 22ms)
+
+JSON report written to $RECORDS_ROOT/negative-harness-range-session.results.json

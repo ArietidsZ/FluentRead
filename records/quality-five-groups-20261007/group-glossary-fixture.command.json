@@ -1,0 +1,23 @@
+{
+  "label": "group-glossary-fixture",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageGlossaryContext.test.ts",
+    "tests/glossary.test.ts",
+    "tests/translationGlossaryIntegration.test.ts",
+    "tests/imageTranslation.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/group-glossary-fixture.results.json",
+    "--no-cache"
+  ],
+  "cwd": "$GROUP_WORKTREE_GLOSSARY_FIXTURE",
+  "started_at": "2026-10-07T11:36:58.837790+00:00",
+  "duration_seconds": 1.459,
+  "exit_code": 0
+}

@@ -1,0 +1,23 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/settingsCompositionAutosave.test.ts > 设置页输入法与自动保存集成 > 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本
+AssertionError: expected [ 'ni' ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "ni",
++ ]
+
+ ❯ tests/settingsCompositionAutosave.test.ts:171:23
+    169|     await h.nextTick();
+    170| 
+    171|     expect(h.updates).toEqual([]);
+       |                       ^
+    172|     expect(h.saves).toEqual([]);
+    173| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

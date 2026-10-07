@@ -1,0 +1,42 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationStatsI18n.test.ts tests/contentFeatureMounting.test.ts tests/harnessConversation.test.ts tests/imageGlossaryContext.test.ts tests/settingsCompositionAutosave.test.ts tests/imageTranslationPageRead.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/baseline-targets.results.json --no-cache
+
+ RUN  v2.1.9 $BASELINE_WORKTREE
+
+ ❯ tests/imageGlossaryContext.test.ts (14 tests | 2 failed) 31ms
+   × 图片、圈选OCR到真实术语broker的完整请求边界 > 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文 4ms
+     → expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]
+   × 图片、圈选OCR到真实术语broker的完整请求边界 > 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果 3ms
+     → expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'
+ ❯ tests/contentFeatureMounting.test.ts (17 tests | 2 failed) 75ms
+   × 划词翻译挂载生命周期 > Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI 3ms
+     → You must provide a Promise to expect() when using .resolves, not 'object'.
+   × 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host 1ms
+     → Cannot read properties of undefined (reading '1')
+ ❯ tests/harnessConversation.test.ts (14 tests | 1 failed) 14ms
+   × Harness persistent conversation coordination > keeps a switched action in the same saved reading record but excludes previous answers from analysis 4ms
+     → expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }
+(6 matching properties omitted from actual)
+ ❯ tests/imageTranslationPageRead.test.ts (0 test)
+ ❯ tests/settingsCompositionAutosave.test.ts (3 tests | 3 failed) 95ms
+   × 设置页输入法与自动保存集成 > 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本 79ms
+     → Cannot use import statement outside a module
+   × 设置页输入法与自动保存集成 > 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入 9ms
+     → Cannot use import statement outside a module
+   × 设置页输入法与自动保存集成 > InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本 7ms
+     → Cannot use import statement outside a module
+ ❯ tests/translationStatsI18n.test.ts (2 tests | 1 failed) 26ms
+   × 翻译统计界面文案 > 翻译统计导航与搜索文案覆盖全部非中文界面语言 8ms
+     → en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  6 failed (6)
+      Tests  9 failed | 41 passed (50)
+     Errors  1 error
+   Start at  19:32:57
+   Duration  2.02s (transform 800ms, setup 0ms, collect 1.25s, tests 241ms, environment 0ms, prepare 130ms)
+
+JSON report written to $RECORDS_ROOT/baseline-targets.results.json

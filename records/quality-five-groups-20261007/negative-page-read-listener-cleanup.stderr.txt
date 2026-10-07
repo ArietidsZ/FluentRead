@@ -1,0 +1,14 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/imageTranslationPageRead.test.ts > 图片像素读取与网页 CORS 权限 > 页面 CORS 被拒绝才授权当前图片交给后台，取消后不能触发该回退
+AssertionError: expected "spy" to be called once, but got 0 times
+ ❯ tests/imageTranslationPageRead.test.ts:63:65
+     61|         expect(browser).toBe(browserFixture);
+     62|         expect(browserFixture.runtime.onMessage.addListener).toHaveBee…
+     63|         expect(browserFixture.runtime.onMessage.removeListener).toHave…
+       |                                                                 ^
+     64|         expect(browserFixture.runtime.onMessage.removeListener).toHave…
+     65|         remote.mockClear(); const controller = new AbortController();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

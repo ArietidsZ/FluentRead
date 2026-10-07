@@ -1,0 +1,11 @@
+--- src/features/image-translation/content/sourceAuthorization.ts
++++ src/features/image-translation/content/sourceAuthorization.ts
+@@ -41,7 +41,7 @@
+                 .every((value, index) => value === identity[index])});
+         return false;
+     };
+-    const cleanup = () => browser.runtime.onMessage.removeListener(listener);
++    const cleanup = () => {};
+     if (signal?.aborted) throw Object.assign(new Error('图片翻译已取消'), {name: 'AbortError'});
+     browser.runtime.onMessage.addListener(listener);
+     signal?.addEventListener('abort', cleanup, {once: true});

@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/settingsCompositionAutosave.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/negative-ime-composition.results.json --no-cache --testNamePattern 原生提示词
+
+ RUN  v2.1.9 $GROUP_WORKTREE_IME_LOADER
+
+ ❯ tests/settingsCompositionAutosave.test.ts (4 tests | 1 failed | 3 skipped) 85ms
+   × 设置页输入法与自动保存集成 > 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本 85ms
+     → expected [ 'ni' ] to deeply equal []
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 skipped (4)
+   Start at  19:39:18
+   Duration  373ms (transform 22ms, setup 0ms, collect 181ms, tests 85ms, environment 0ms, prepare 21ms)
+
+JSON report written to $RECORDS_ROOT/negative-ime-composition.results.json

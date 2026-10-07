@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/contentFeatureMounting.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/negative-harness-selection-gate.results.json --no-cache --testNamePattern 划词关闭时
+
+ RUN  v2.1.9 $GROUP_WORKTREE_HARNESS_CONTRACTS
+
+ ❯ tests/contentFeatureMounting.test.ts (17 tests | 1 failed | 16 skipped) 9ms
+   × 划词翻译挂载生命周期 > 划词关闭时 Harness 不挂载共享 UI，开启后待挂载结果在再次关闭时被丢弃 9ms
+     → expected Promise{…} to be null
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 16 skipped (17)
+   Start at  19:39:16
+   Duration  140ms (transform 34ms, setup 0ms, collect 23ms, tests 9ms, environment 0ms, prepare 22ms)
+
+JSON report written to $RECORDS_ROOT/negative-harness-selection-gate.results.json

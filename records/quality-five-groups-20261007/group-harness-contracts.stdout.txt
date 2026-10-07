@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/contentFeatureMounting.test.ts tests/harnessConversation.test.ts tests/configHarness.test.ts tests/contentFeatureLifecycle.test.ts tests/contentRuntimeLifecycle.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/group-harness-contracts.results.json --no-cache
+
+ RUN  v2.1.9 $GROUP_WORKTREE_HARNESS_CONTRACTS
+
+ ✓ tests/contentRuntimeLifecycle.test.ts (37 tests) 525ms
+ ✓ tests/contentFeatureMounting.test.ts (17 tests) 73ms
+ ✓ tests/harnessConversation.test.ts (14 tests) 10ms
+ ✓ tests/configHarness.test.ts (25 tests) 17ms
+ ✓ tests/contentFeatureLifecycle.test.ts (10 tests) 157ms
+
+ Test Files  5 passed (5)
+      Tests  103 passed (103)
+   Start at  19:36:57
+   Duration  1.46s (transform 289ms, setup 0ms, collect 245ms, tests 782ms, environment 0ms, prepare 109ms)
+
+JSON report written to $RECORDS_ROOT/group-harness-contracts.results.json

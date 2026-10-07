@@ -1,0 +1,22 @@
+{
+  "label": "negative-ime-composition",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsCompositionAutosave.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/negative-ime-composition.results.json",
+    "--no-cache",
+    "--testNamePattern",
+    "原生提示词"
+  ],
+  "cwd": "$GROUP_WORKTREE_IME_LOADER",
+  "started_at": "2026-10-07T11:39:17.934429+00:00",
+  "duration_seconds": 0.547,
+  "exit_code": 1
+}

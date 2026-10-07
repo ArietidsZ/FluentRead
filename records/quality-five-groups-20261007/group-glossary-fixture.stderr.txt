@@ -1,0 +1,13 @@
+stderr | tests/imageGlossaryContext.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($GROUP_WORKTREE_GLOSSARY_FIXTURE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($GROUP_WORKTREE_GLOSSARY_FIXTURE/src/services/config/store.ts:595:41)
+    at $GROUP_WORKTREE_GLOSSARY_FIXTURE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $GROUP_WORKTREE_GLOSSARY_FIXTURE/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+

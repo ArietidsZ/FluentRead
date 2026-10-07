@@ -1,0 +1,12 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/settingsCompositionAutosave.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/group-ime-loader.results.json --no-cache
+
+ RUN  v2.1.9 $GROUP_WORKTREE_IME_LOADER
+
+ ✓ tests/settingsCompositionAutosave.test.ts (4 tests) 111ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:37:00
+   Duration  406ms (transform 22ms, setup 0ms, collect 185ms, tests 111ms, environment 0ms, prepare 21ms)
+
+JSON report written to $RECORDS_ROOT/group-ime-loader.results.json

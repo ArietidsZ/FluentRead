@@ -1,0 +1,23 @@
+{
+  "label": "group-page-read-fixture",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageTranslationPageRead.test.ts",
+    "tests/remoteImage.test.ts",
+    "tests/imageSourceAuthorization.test.ts",
+    "tests/runtimeMessages.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/group-page-read-fixture.results.json",
+    "--no-cache"
+  ],
+  "cwd": "$GROUP_WORKTREE_PAGE_READ_FIXTURE",
+  "started_at": "2026-10-07T11:37:00.885532+00:00",
+  "duration_seconds": 0.946,
+  "exit_code": 0
+}

@@ -1,0 +1,15 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/imageGlossaryContext.test.ts tests/glossary.test.ts tests/translationGlossaryIntegration.test.ts tests/imageTranslation.test.ts --reporter=default --reporter=json --outputFile=$RECORDS_ROOT/group-glossary-fixture.results.json --no-cache
+
+ RUN  v2.1.9 $GROUP_WORKTREE_GLOSSARY_FIXTURE
+
+ ✓ tests/glossary.test.ts (53 tests) 239ms
+ ✓ tests/imageGlossaryContext.test.ts (14 tests) 26ms
+ ✓ tests/translationGlossaryIntegration.test.ts (25 tests) 36ms
+ ✓ tests/imageTranslation.test.ts (11 tests) 5ms
+
+ Test Files  4 passed (4)
+      Tests  103 passed (103)
+   Start at  19:36:58
+   Duration  1.30s (transform 407ms, setup 0ms, collect 640ms, tests 307ms, environment 0ms, prepare 84ms)
+
+JSON report written to $RECORDS_ROOT/group-glossary-fixture.results.json

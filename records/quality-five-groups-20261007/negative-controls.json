@@ -1,0 +1,86 @@
+[
+  {
+    "label": "stats-separator",
+    "group": "stats-i18n",
+    "file": "src/features/settings/model/navigation.ts",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "5ca6544c94e31fa1f12e2c793d426f51c2271c66ece9e55925e3aecd566e7932",
+    "mutated_sha256": "94f14cd729c0589db5585cdc0dac659ced1e9af8b1b3ccece28e4579d2e0025d",
+    "restored": true
+  },
+  {
+    "label": "harness-selection-gate",
+    "group": "harness-contracts",
+    "file": "src/features/selection-translation/content/runtime.ts",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "9f75197ba34051fddc5d08d2ddd32f1fed5fbf3f334f0d594259256f4d49a111",
+    "mutated_sha256": "94a616d555b7690d632f2f7143cd89a34b198b84a877319e8ac85ba1d17d6084",
+    "restored": true
+  },
+  {
+    "label": "harness-range-session",
+    "group": "harness-contracts",
+    "file": "src/features/selection-translation/content/runtime.ts",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "9f75197ba34051fddc5d08d2ddd32f1fed5fbf3f334f0d594259256f4d49a111",
+    "mutated_sha256": "97c505f923feb036e994c2ce7d7fc0dd369523788527728d28e30c539a975cb1",
+    "restored": true
+  },
+  {
+    "label": "glossary-protected-origin-and-drain",
+    "group": "glossary-fixture",
+    "file": "tests/imageGlossaryContext.test.ts",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "197e059cbf20bf23f44ea0506aabd9813b9013031ca4d0848ebec5e671fb099a",
+    "mutated_sha256": "f68084beebfb9b103cae37e43c8351636d1c990ec9ded604a76bc2a9ac8115f1",
+    "restored": true
+  },
+  {
+    "label": "ime-composition",
+    "group": "ime-loader",
+    "file": "src/features/settings/ui/services/PromptTemplateEditor.vue",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "343c941c32f5fb712e9e488c749b7687343d1a0c53ce3b2f2d03ebb3507b70e7",
+    "mutated_sha256": "8bea8d3cbe9db4a4bfc5d54f46bb7efc77ae097c30a9abeaeedbca5ca114c81b",
+    "restored": true
+  },
+  {
+    "label": "ime-external-value-sync",
+    "group": "ime-loader",
+    "file": "src/features/settings/ui/services/PromptTemplateEditor.vue",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "343c941c32f5fb712e9e488c749b7687343d1a0c53ce3b2f2d03ebb3507b70e7",
+    "mutated_sha256": "6df4d17e60959a063733895e3b791825b89521b24a55eb75c78a2b4fcfe25b5c",
+    "restored": true
+  },
+  {
+    "label": "page-read-listener-cleanup",
+    "group": "page-read-fixture",
+    "file": "src/features/image-translation/content/sourceAuthorization.ts",
+    "expected_exit_code": 1,
+    "actual_exit_code": 1,
+    "failed_tests": 1,
+    "unhandled_errors": 0,
+    "original_sha256": "7ff021eaa0db702000cb91e2b04162063d3f86e846093e0bcf4b22ef607a9742",
+    "mutated_sha256": "9a7218921b2de9f078cf4796fb3888a72d7eab8d4bb88b69bbd1a5726e3b123d",
+    "restored": true
+  }
+]

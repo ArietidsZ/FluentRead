@@ -1,0 +1,21 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > 划词关闭时 Harness 不挂载共享 UI，开启后待挂载结果在再次关闭时被丢弃
+AssertionError: expected Promise{…} to be null
+
+- Expected: 
+null
+
++ Received: 
+Promise {}
+
+ ❯ tests/contentFeatureMounting.test.ts:111:63
+    109|         const runtime = await import('@/src/features/selection-transla…
+    110|         mocks.createVueShadowUi.mockResolvedValue(ui());
+    111|         expect(runtime.mountSelectionTranslator({} as never)).toBeNull…
+       |                                                               ^
+    112|         expect(mocks.createVueShadowUi).not.toHaveBeenCalled();
+    113| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

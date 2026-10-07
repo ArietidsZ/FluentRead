@@ -1,0 +1,11 @@
+--- src/features/selection-translation/content/runtime.ts
++++ src/features/selection-translation/content/runtime.ts
+@@ -41,7 +41,7 @@
+     mode: 'closed',
+     props: {
+       onSelectionRangeChange: (range: Range | null) => {
+-        if (requestId !== mountRequestId) return;
++        // negative control: stale range callback allowed
+         modalDialogHost?.placeForRange(range);
+       },
+     },

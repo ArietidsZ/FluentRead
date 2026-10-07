@@ -1,0 +1,6 @@
+{
+  "source": "previously prepared existing CW dependency checkout .wxt",
+  "copied_to": "each isolated worktree .wxt",
+  "tsconfig_sha256": "c15fb0142bc081ebaece383995c949510112365c33a71ecba5d5ccb8e4f6fe27",
+  "production_changes": false
+}

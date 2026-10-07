@@ -1,0 +1,22 @@
+{
+  "label": "negative-glossary-protected-origin-and-drain",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageGlossaryContext.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/negative-glossary-protected-origin-and-drain.results.json",
+    "--no-cache",
+    "--testNamePattern",
+    "重复OCR文本"
+  ],
+  "cwd": "$GROUP_WORKTREE_GLOSSARY_FIXTURE",
+  "started_at": "2026-10-07T11:39:17.134549+00:00",
+  "duration_seconds": 0.784,
+  "exit_code": 1
+}

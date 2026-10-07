@@ -1,0 +1,36 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host
+AssertionError: expected "spy" to not be called at all, but actually been called 2 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      Object {
+        "startContainer": Object {
+          "nodeType": 3,
+        },
+      },
+    ]
+
+  2nd spy call:
+
+    Array [
+      null,
+    ]
+
+
+Number of calls: 2
+
+ ❯ tests/contentFeatureMounting.test.ts:155:52
+    153|         firstReport(range);
+    154|         firstReport(null);
+    155|         expect(secondController.placeForRange).not.toHaveBeenCalled();
+       |                                                    ^
+    156|         secondReport(range);
+    157|         secondReport(null);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

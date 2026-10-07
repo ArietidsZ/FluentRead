@@ -1,0 +1,20 @@
+{
+  "label": "group-ime-loader",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsCompositionAutosave.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=$RECORDS_ROOT/group-ime-loader.results.json",
+    "--no-cache"
+  ],
+  "cwd": "$GROUP_WORKTREE_IME_LOADER",
+  "started_at": "2026-10-07T11:37:00.312138+00:00",
+  "duration_seconds": 0.557,
+  "exit_code": 0
+}
