@@ -414,6 +414,7 @@
       "tests/writingRuntime.test.ts",
       "tests/writingIntegration.test.ts",
       "tests/popupActions.test.ts",
+      "tests/popupServiceModelClarity.test.ts",
       "tests/areaTranslationRecovery.test.ts",
       "tests/areaTranslationTrigger.test.ts",
       "tests/backgroundBadgeRuntime.test.ts",

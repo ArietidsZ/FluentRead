@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
+ 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、有效模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
@@ -22,7 +22,7 @@
             <ServiceIcon v-if="!field.feature?.inherit || selected(field.feature)" :service="effective(field.feature)" :label="label(effective(field.feature))" size="small" />
             <span>{{ field.feature?.inherit && !selected(field.feature) ? t('featureServices.followDefault') : label(effective(field.feature)) }}</span>
           </span>
-          <small v-if="!warning(field.feature) && field.feature && selected(field.feature) && servicesType.isUseModel(effective(field.feature))" :title="getFeatureModel(config, field.feature)">{{ getFeatureModel(config, field.feature) }}</small>
+          <small v-if="!warning(field.feature) && currentModel(field.feature)" :title="currentModel(field.feature)">{{ t('settings.organization.modelScope', {model: currentModel(field.feature)}) }}</small>
         </span>
         <span class="assignment-chevron" aria-hidden="true">›</span>
       </button>
@@ -73,7 +73,7 @@
 import {computed, nextTick, ref} from 'vue';
 import type {Config} from '@/src/core/config/model';
 import {featureServiceDefinitions, getFeatureService, setFeatureService, getFeatureModel, type FeatureServiceDefinition} from '@/src/core/config/featureServices';
-import {models, customModelString, servicesType} from '@/src/core/config/catalog';
+import {models, customModelString, resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {isHarnessService} from '@/src/core/config/harness';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {getTranslationServiceUnavailableMessage, isTranslationServiceAvailable} from '@/src/services/translation/capabilities';
@@ -96,8 +96,17 @@ const popularServices = new Set(['freeTranslation', 'microsoft', 'google', 'deep
 const selected = (feature?: FeatureServiceDefinition) => feature ? getFeatureService(props.config, feature) : props.config.service;
 const effective = (feature?: FeatureServiceDefinition) => selected(feature) || props.config.service;
 const label = (service: string) => props.serviceOptions.find(option => option.value === service)?.label || service;
-const selectedLabel = (feature?: FeatureServiceDefinition) => feature?.inherit && !selected(feature)
-  ? t('featureServices.follow', {service: label(props.config.service)}) : label(effective(feature));
+const currentModel = (feature?: FeatureServiceDefinition) => {
+  const service = effective(feature);
+  if (!servicesType.isUseModel(service)) return '';
+  return feature ? getFeatureModel(props.config, feature) : resolveConfiguredModel(props.config.model[service], props.config.customModel[service]);
+};
+const selectedLabel = (feature?: FeatureServiceDefinition) => {
+  const service = feature?.inherit && !selected(feature)
+    ? t('featureServices.follow', {service: label(props.config.service)}) : label(effective(feature));
+  const model = currentModel(feature);
+  return model ? `${service} · ${t('settings.organization.modelScope', {model})}` : service;
+};
 const searchableModels = computed(() => {
   const merged = new Map<string, readonly string[]>(models);
   Object.entries(props.config.customModels).forEach(([service, saved]) => merged.set(service, [...new Set([...(merged.get(service) || []).filter(model => model !== customModelString), ...saved])]));
