@@ -1,0 +1,23 @@
+{
+  "tool": "screenshot",
+  "arguments": {
+    "page": 15,
+    "format": "png",
+    "size": {
+      "width": 1200,
+      "height": 900
+    }
+  },
+  "timestamp": "2026-10-07T12:41:56.767546+00:00",
+  "content": [
+    {
+      "type": "image",
+      "path": "$CW_TASK_DIR/youtube-extension-cleanup-completion-20261007/cleanup-manager-after-screenshot-0.png"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

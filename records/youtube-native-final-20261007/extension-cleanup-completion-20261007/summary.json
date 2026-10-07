@@ -1,0 +1,66 @@
+{
+  "environment": "CW local; same existing dedicated Neo profile",
+  "build_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "subtitle_code_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "prior_record_commit": "0f4d4bd8a55d181993a7e42e562927b744e1e2b3",
+  "authorization_resolution": "Parent clarified that original GUI-only Cua authorization includes approved extension management and cleanup. No additional approval was needed.",
+  "before": {
+    "developerMode": false,
+    "extensions": [
+      {
+        "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+        "location": "UNPACKED",
+        "name": "FluentRead-流畅阅读",
+        "path": "$CW_TASK_DIR/FluentRead-youtube-remaining-combined/.output/chrome-mv3",
+        "state": "DISABLED",
+        "version": "0.0.35"
+      }
+    ]
+  },
+  "after": {
+    "developerMode": false,
+    "extensionIds": [],
+    "fluentRead": []
+  },
+  "tabs_after": {
+    "closedThisTestManagerPage": 15,
+    "remainingExtensionManagerPages": [],
+    "testExtensionTargets": []
+  },
+  "process_after": {
+    "timestamp": "2026-10-07T12:45:33.722218+00:00",
+    "neo_pid": 68168,
+    "neo_running": true,
+    "dedicated_profile": true,
+    "native_wayland": true,
+    "unsafe_extension_debugging_flag": false,
+    "no_sandbox_flag": false,
+    "owned_cleanup_cua_daemon_still_present": false,
+    "owned_cleanup_socket_present": false,
+    "verified_after_manager_closed": true,
+    "owned_stale_socket_removed": true
+  },
+  "result": "CLEANUP_PASS",
+  "verified": {
+    "test_extension_removed": true,
+    "baseline_empty_extension_list_restored": true,
+    "developer_mode_off": true,
+    "native_confirmation_dismissed": true,
+    "owned_manager_closed": true,
+    "owned_cua_stopped": true,
+    "owned_socket_removed": true,
+    "existing_neo_kept_running": true
+  },
+  "gui_actions": {
+    "tool": "Cua get_window_state/click only",
+    "windows": 1,
+    "confirmation_clicks": 1,
+    "target": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "native_before_and_after_images_inspected": true
+  },
+  "correction_to_prior_report": "Closing the test tabs did not remove the native uninstall confirmation; it remained visible on the main Neo window. The one actual GUI confirmation in this continuation completed deletion.",
+  "functional_acceptance": "BLOCKED_PROVIDER_ISOLATION_NOT_ESTABLISHED; no subtitle/provider/GPU/ASR tests added",
+  "provider_request_count": "NOT_MEASURED",
+  "github_cli_diagnostic": "Earlier three authorized read-only requests retained; no repeat, no auth changes, no PR write.",
+  "quality_fixes": "No code changes or repeated tests in this continuation."
+}

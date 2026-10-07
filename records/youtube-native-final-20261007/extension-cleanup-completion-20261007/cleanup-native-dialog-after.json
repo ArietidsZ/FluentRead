@@ -1,0 +1,112 @@
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "result": {
+    "content": [
+      {
+        "text": "window_id=11 pid=68168 elements=3 walk_ms=63\n\n- [0] frame \"about:blank - BrowserOS neo\" [actions=[doDefault,showContextMenu]]\n- [1] frame \"\" [actions=[doDefault,showContextMenu]]\n- [2] frame \"\" [actions=[doDefault,showContextMenu]]\n",
+        "type": "text"
+      },
+      {
+        "text": "Invalidated snapshots s00000001: their element_tokens are stale.",
+        "type": "text"
+      },
+      {
+        "mimeType": "image/png",
+        "type": "image",
+        "saved_path": "$CW_TASK_DIR/youtube-extension-cleanup-completion-20261007/cleanup-native-dialog-after-2.png"
+      }
+    ],
+    "structuredContent": {
+      "_note": "Prefer `elements` \u2014 `tree_markdown` will continue to work but new fields will only be added to the structured side. Use `max_elements` / `max_depth` to bound the AT-SPI walk on apps with very large trees.",
+      "app_name": "about:blank - BrowserOS neo",
+      "bounds_complete": true,
+      "capture_id": "capture_d96d412f437343a6a1753f5fc477bd91_0000000000000001",
+      "coordinate_frame": "window",
+      "element_count": 3,
+      "elements": [
+        {
+          "actions": [
+            "doDefault",
+            "showContextMenu"
+          ],
+          "depth": 0,
+          "element_index": 0,
+          "element_token": "s00000002:0",
+          "enabled": true,
+          "frame": {
+            "h": 1420,
+            "w": 1265,
+            "x": 664,
+            "y": 47
+          },
+          "label": "about:blank - BrowserOS neo",
+          "role": "frame"
+        },
+        {
+          "actions": [
+            "doDefault",
+            "showContextMenu"
+          ],
+          "depth": 0,
+          "element_index": 1,
+          "element_token": "s00000002:1",
+          "enabled": true,
+          "frame": {
+            "h": 88,
+            "w": 573,
+            "x": 427,
+            "y": -5
+          },
+          "role": "frame"
+        },
+        {
+          "actions": [
+            "doDefault",
+            "showContextMenu"
+          ],
+          "depth": 0,
+          "element_index": 2,
+          "element_token": "s00000002:2",
+          "enabled": true,
+          "frame": {
+            "h": 89,
+            "w": 573,
+            "x": 427,
+            "y": -5
+          },
+          "role": "frame"
+        }
+      ],
+      "elements_complete": true,
+      "frame_note": "x/y for click / double_click / right_click / drag / scroll on this window are pixels of THIS screenshot (window-local, 0..screenshot_width x 0..screenshot_height), as are the element frames; the screenshot is kept at or below 1.15 megapixels so the image you read is the image these pixels index (frame_scale < 1 says the window was downsized to it). window_bounds is where it sits on the screen. Pass scope:\"desktop\" only for get_desktop_state pixels.",
+      "frame_scale": 0.8223844282238443,
+      "invalidated_snapshot_ids": [
+        "s00000001"
+      ],
+      "nodes_pending": 0,
+      "nodes_visited": 3,
+      "pid": 68168,
+      "returned_element_count": 3,
+      "screenshot_frame_valid": true,
+      "screenshot_height": 1133,
+      "screenshot_mime_type": "image/png",
+      "screenshot_original_width": 1233,
+      "screenshot_width": 1014,
+      "snapshot_id": "s00000002",
+      "timeout_ms": 2500,
+      "total_element_count": 3,
+      "tree_markdown": "- [0] frame \"about:blank - BrowserOS neo\" [actions=[doDefault,showContextMenu]]\n- [1] frame \"\" [actions=[doDefault,showContextMenu]]\n- [2] frame \"\" [actions=[doDefault,showContextMenu]]\n",
+      "truncated": false,
+      "walk_elapsed_ms": 63,
+      "window_bounds": {
+        "height": 1378,
+        "width": 1233,
+        "x": 664,
+        "y": 47
+      },
+      "window_id": 11,
+      "window_title": "about:blank - BrowserOS neo"
+    }
+  }
+}

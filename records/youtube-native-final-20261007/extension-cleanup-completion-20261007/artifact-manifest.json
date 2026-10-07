@@ -1,0 +1,181 @@
+{
+  "redactions": [
+    "$CW_TASK_DIR",
+    "$HOME"
+  ],
+  "artifacts": [
+    {
+      "file": "README.md",
+      "original_bytes": 2883,
+      "original_sha256": "c225537ea1c7c28025e5e15e6ebe2c452e3dd34e274fb1c59fb19feed25315b1",
+      "published": true,
+      "published_bytes": 2883,
+      "published_sha256": "c225537ea1c7c28025e5e15e6ebe2c452e3dd34e274fb1c59fb19feed25315b1"
+    },
+    {
+      "file": "cleanup-browser-initial-state-1.png",
+      "original_bytes": 72396,
+      "original_sha256": "c5c74702362a7853cff1e918e42fd335c35edb169d5d226421de2332876b820e",
+      "published": true,
+      "published_bytes": 72396,
+      "published_sha256": "c5c74702362a7853cff1e918e42fd335c35edb169d5d226421de2332876b820e"
+    },
+    {
+      "file": "cleanup-browser-initial-state.json",
+      "original_bytes": 3710,
+      "original_sha256": "f7ea656182aebd703a65b11014cc164e65343130e178bf5508b59617ec9b25f3",
+      "published": true,
+      "published_bytes": 3676,
+      "published_sha256": "abe0962e7b83bd6ac1f8fd1dcf8934c540b895c4d72ec49373961b8f5bc5611a"
+    },
+    {
+      "file": "cleanup-capabilities.json",
+      "original_bytes": 372,
+      "original_sha256": "6ca603961d8119ba8e97ec0496ac5ad50917e7ee4db9f21f7fb3ab8956ae3854",
+      "published": true,
+      "published_bytes": 372,
+      "published_sha256": "6ca603961d8119ba8e97ec0496ac5ad50917e7ee4db9f21f7fb3ab8956ae3854"
+    },
+    {
+      "file": "cleanup-extensions-after.json",
+      "original_bytes": 2164,
+      "original_sha256": "52f4ec596099ae968b475aee3c5b9819c83d03269f6c256aff0ed92a7be62b97",
+      "published": true,
+      "published_bytes": 2164,
+      "published_sha256": "52f4ec596099ae968b475aee3c5b9819c83d03269f6c256aff0ed92a7be62b97"
+    },
+    {
+      "file": "cleanup-final-process-state.local.json",
+      "original_bytes": 395,
+      "original_sha256": "9fe09a210fe02688c5b9b4deb7789ac16861a18c35bd262b637c6838fd67996f",
+      "published": false,
+      "omission_reason": "Private launch/process/transport metadata; normalized final summary is published."
+    },
+    {
+      "file": "cleanup-manager-after-screenshot-0.png",
+      "original_bytes": 9358,
+      "original_sha256": "5926097d5168b232bac0e6a9993f9a7722a60bd33268abca79ce9c9b96b51e04",
+      "published": true,
+      "published_bytes": 9358,
+      "published_sha256": "5926097d5168b232bac0e6a9993f9a7722a60bd33268abca79ce9c9b96b51e04"
+    },
+    {
+      "file": "cleanup-manager-after-screenshot.json",
+      "original_bytes": 472,
+      "original_sha256": "47ada47431565df68d66760932a55aca503273b35b9d0c97b9e7cc50c3b70b82",
+      "published": true,
+      "published_bytes": 438,
+      "published_sha256": "776b7aec868ba134e4111f3da66eb96810445147ff1ede7581ec7f7bb8209b4e"
+    },
+    {
+      "file": "cleanup-manager-open.json",
+      "original_bytes": 3745,
+      "original_sha256": "13b3dbaa91e1e36fa5379df664e9b67ad02a2efd5c62adca510dcd3362efed89",
+      "published": true,
+      "published_bytes": 3711,
+      "published_sha256": "e10a68114f3efa648f94c858b65a3c5f288486d4ef7f7ec74efc69a71ab48911"
+    },
+    {
+      "file": "cleanup-native-confirm-remove.json",
+      "original_bytes": 675,
+      "original_sha256": "99f0499cc7521176569075e57205c685fa094165007e13c5cd9ca7d2ac145f7d",
+      "published": true,
+      "published_bytes": 675,
+      "published_sha256": "99f0499cc7521176569075e57205c685fa094165007e13c5cd9ca7d2ac145f7d"
+    },
+    {
+      "file": "cleanup-native-dialog-after-2.png",
+      "original_bytes": 50628,
+      "original_sha256": "5372d467dd809624b884831d0de656c15e5f13789befaf3893aa180b42534aad",
+      "published": true,
+      "published_bytes": 50628,
+      "published_sha256": "5372d467dd809624b884831d0de656c15e5f13789befaf3893aa180b42534aad"
+    },
+    {
+      "file": "cleanup-native-dialog-after.json",
+      "original_bytes": 3897,
+      "original_sha256": "edf6879ce967cc11cdd3600ce7203b6c78536962dda0acbfa3f64f8f7f962ee1",
+      "published": true,
+      "published_bytes": 3863,
+      "published_sha256": "4d73aeea7f6591a90832b70f16fdf56fd002e83a00d02930bad1b1326106fbf9"
+    },
+    {
+      "file": "cleanup-owned-cua-stopped.json",
+      "original_bytes": 188,
+      "original_sha256": "20222af31edd66f1e7c3b1461636774404d85aa14509a17b6555a718f115698e",
+      "published": true,
+      "published_bytes": 188,
+      "published_sha256": "20222af31edd66f1e7c3b1461636774404d85aa14509a17b6555a718f115698e"
+    },
+    {
+      "file": "cleanup-owned-manager-closed.json",
+      "original_bytes": 852,
+      "original_sha256": "ed59df16b1bc88b7f358b9c37697375dae6a5bd94ee82c3d973dae99102e91fa",
+      "published": true,
+      "published_bytes": 852,
+      "published_sha256": "ed59df16b1bc88b7f358b9c37697375dae6a5bd94ee82c3d973dae99102e91fa"
+    },
+    {
+      "file": "cua-cleanup-daemon.log",
+      "original_bytes": 1232,
+      "original_sha256": "15dea492e42c53929066f8b218d0384098f3cfc9fba48e00d7b5ba2996f46c67",
+      "published": true,
+      "published_bytes": 1232,
+      "published_sha256": "15dea492e42c53929066f8b218d0384098f3cfc9fba48e00d7b5ba2996f46c67"
+    },
+    {
+      "file": "cua-cleanup-launch.local.json",
+      "original_bytes": 1186,
+      "original_sha256": "348a4d845e5a7d09a88e8ca07d691256c3ae68c5a3da6309168864579849029f",
+      "published": false,
+      "omission_reason": "Private launch/process/transport metadata; normalized final summary is published."
+    },
+    {
+      "file": "cua-cleanup-mcp-initialize.local.json",
+      "original_bytes": 1933,
+      "original_sha256": "914c8a7c67d4931d21da999a336e2475a87c169cf137277c15a834316e376b48",
+      "published": false,
+      "omission_reason": "Private launch/process/transport metadata; normalized final summary is published."
+    },
+    {
+      "file": "cua-cleanup-proxy.stderr",
+      "original_bytes": 0,
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published": true,
+      "published_bytes": 0,
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "cua-cleanup-session.py",
+      "original_bytes": 2651,
+      "original_sha256": "96779b9b78dc00c50d897558c61a6f3627c22dfeae864f3e008b2319955b0903",
+      "published": true,
+      "published_bytes": 2651,
+      "published_sha256": "96779b9b78dc00c50d897558c61a6f3627c22dfeae864f3e008b2319955b0903"
+    },
+    {
+      "file": "neo-session.py",
+      "original_bytes": 1783,
+      "original_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329",
+      "published": true,
+      "published_bytes": 1783,
+      "published_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329"
+    },
+    {
+      "file": "publish-cleanup-evidence.py",
+      "original_bytes": 7643,
+      "original_sha256": "8c6865ffb18b6aabe2765fcf7f29fda4814ddaa37a4865d483d283c4fd0ae302",
+      "published": true,
+      "published_bytes": 7634,
+      "published_sha256": "07b3a6c2755d23abc35c163c0ff7cc5a2c0cd47dad316c991cc75278aa36e762"
+    },
+    {
+      "file": "summary.json",
+      "original_bytes": 2662,
+      "original_sha256": "6e2f2745a692bf45a7dd9ed23be366e586cea930b92f761dfc7efe0c7f34cc02",
+      "published": true,
+      "published_bytes": 2628,
+      "published_sha256": "f69acab653fa9f222c9f748af085d9624ceac3486560412722b9b999725a5765"
+    }
+  ]
+}
