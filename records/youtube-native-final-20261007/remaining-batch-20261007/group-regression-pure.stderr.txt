@@ -1,0 +1,90 @@
+▲ [WARNING] Cannot find base config file "./.wxt/tsconfig.json" [tsconfig.json]
+
+    tsconfig.json:2:13:
+      2 │   "extends": "./.wxt/tsconfig.json",
+        ╵              ~~~~~~~~~~~~~~~~~~~~~~
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 33 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/allNodesTranslationCore.test.ts [ tests/allNodesTranslationCore.test.ts ]
+ FAIL  tests/discordServerIconBoundary.test.ts [ tests/discordServerIconBoundary.test.ts ]
+ FAIL  tests/documentTranslationEdge.test.ts [ tests/documentTranslationEdge.test.ts ]
+ FAIL  tests/documentTranslationExamplesApi.test.ts [ tests/documentTranslationExamplesApi.test.ts ]
+ FAIL  tests/documentTranslationRegression.test.ts [ tests/documentTranslationRegression.test.ts ]
+ FAIL  tests/featureVerticalSliceRegression.test.ts [ tests/featureVerticalSliceRegression.test.ts ]
+ FAIL  tests/fullPageHostClassPreservation.test.ts [ tests/fullPageHostClassPreservation.test.ts ]
+ FAIL  tests/fullPageTitleTranslation.test.ts [ tests/fullPageTitleTranslation.test.ts ]
+ FAIL  tests/fullPageTranslationProgress.test.ts [ tests/fullPageTranslationProgress.test.ts ]
+ FAIL  tests/mainWorldBridgeCore.test.ts [ tests/mainWorldBridgeCore.test.ts ]
+ FAIL  tests/myMemoryConnectionTest.test.ts [ tests/myMemoryConnectionTest.test.ts ]
+ FAIL  tests/pageTranslationAdvanced.test.ts [ tests/pageTranslationAdvanced.test.ts ]
+ FAIL  tests/readingThemeStyles.test.ts [ tests/readingThemeStyles.test.ts ]
+ FAIL  tests/sameTargetLanguageRegression.test.ts [ tests/sameTargetLanguageRegression.test.ts ]
+ FAIL  tests/serializationPerformance.test.ts [ tests/serializationPerformance.test.ts ]
+ FAIL  tests/siteTranslationHarness.test.ts [ tests/siteTranslationHarness.test.ts ]
+ FAIL  tests/siteTranslationIdle.test.ts [ tests/siteTranslationIdle.test.ts ]
+ FAIL  tests/syntheticCandidateFreshness.test.ts [ tests/syntheticCandidateFreshness.test.ts ]
+ FAIL  tests/translationControlOwnership.test.ts [ tests/translationControlOwnership.test.ts ]
+ FAIL  tests/translationDocumentCorpus.test.ts [ tests/translationDocumentCorpus.test.ts ]
+ FAIL  tests/translationGitHubTaskList.test.ts [ tests/translationGitHubTaskList.test.ts ]
+ FAIL  tests/translationHeightLayout.test.ts [ tests/translationHeightLayout.test.ts ]
+ FAIL  tests/translationOwnershipBoundaries.test.ts [ tests/translationOwnershipBoundaries.test.ts ]
+ FAIL  tests/translationSnapshotProtection.test.ts [ tests/translationSnapshotProtection.test.ts ]
+ FAIL  tests/translationTruncation.test.ts [ tests/translationTruncation.test.ts ]
+ FAIL  tests/translationVisualProtection.test.ts [ tests/translationVisualProtection.test.ts ]
+ FAIL  tests/upstreamTranslationBoundaries.test.ts [ tests/upstreamTranslationBoundaries.test.ts ]
+ FAIL  tests/userscriptCredentialPersistence.test.ts [ tests/userscriptCredentialPersistence.test.ts ]
+ FAIL  tests/userscriptDexieIsolation.test.ts [ tests/userscriptDexieIsolation.test.ts ]
+ FAIL  tests/vocabularyBookComponentLifecycle.test.ts [ tests/vocabularyBookComponentLifecycle.test.ts ]
+ FAIL  tests/vocabularyReencounterLifecycle.test.ts [ tests/vocabularyReencounterLifecycle.test.ts ]
+ FAIL  tests/vocabularyStudyLifecycle.test.ts [ tests/vocabularyStudyLifecycle.test.ts ]
+TSConfckParseError: failed to resolve "extends":"./.wxt/tsconfig.json" in $PURE_WORKTREE/tsconfig.json
+  Plugin: vite:esbuild
+  File: $PURE_WORKTREE/tests/translationTruncation.test.ts
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18845:8
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ getParsedDeep ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18662:4
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18635:13
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+ ❯ PluginContainer.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:49099:18
+ ❯ loadAndTransform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:51977:27
+
+Caused by: Error: Cannot find module './.wxt/tsconfig.json'
+Require stack:
+- $PURE_WORKTREE/tsconfig.json
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18833:14
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ getParsedDeep ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18662:4
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18635:13
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/33]⎯
+
+ FAIL  tests/fullPageVisibilityScheduling.test.ts [ tests/fullPageVisibilityScheduling.test.ts ]
+TSConfckParseError: failed to resolve "extends":"./.wxt/tsconfig.json" in $PURE_WORKTREE/tsconfig.json
+  Plugin: vite:esbuild
+  File: $PURE_WORKTREE/tests/fullPageVisibilityScheduling.test.ts
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18845:8
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18638:23
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+ ❯ PluginContainer.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:49099:18
+ ❯ loadAndTransform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:51977:27
+
+Caused by: Error: Cannot find module './.wxt/tsconfig.json'
+Require stack:
+- $PURE_WORKTREE/tsconfig.json
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18833:14
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18638:23
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/33]⎯
+

@@ -1,0 +1,7 @@
+{
+  "source": "existing repository .wxt generated metadata",
+  "destination": "isolated pure worktree .wxt copy",
+  "source_changes": false,
+  "reason": "initial group attempts could not collect tests because WXT prepare failed; generated tsconfig needed for esbuild",
+  "tsconfig_sha256": "c15fb0142bc081ebaece383995c949510112365c33a71ecba5d5ccb8e4f6fe27"
+}

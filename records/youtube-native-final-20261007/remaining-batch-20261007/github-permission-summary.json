@@ -1,0 +1,15 @@
+{
+  "loginPerformed": false,
+  "path": "/login",
+  "pendingPermissionUpdate": null,
+  "pullRequestsPermission": null,
+  "status": "BLOCKED_SIGN_IN_REQUIRED",
+  "urlOrigin": "https://github.com",
+  "requested_installation": "https://github.com/settings/installations/100252756",
+  "target_account": "ArietidsZ",
+  "settings_changed": false,
+  "permissions_accepted": false,
+  "tokens_or_cookies_read": false,
+  "pr_creation_attempted": false,
+  "task_tab_closed": true
+}

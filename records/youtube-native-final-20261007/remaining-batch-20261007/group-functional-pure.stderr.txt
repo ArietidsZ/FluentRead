@@ -1,0 +1,171 @@
+▲ [WARNING] Cannot find base config file "./.wxt/tsconfig.json" [tsconfig.json]
+
+    tsconfig.json:2:13:
+      2 │   "extends": "./.wxt/tsconfig.json",
+        ╵              ~~~~~~~~~~~~~~~~~~~~~~
+
+⎯⎯⎯⎯⎯ Failed Suites 114 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/aiSdkOpenAICompatible.test.ts [ tests/aiSdkOpenAICompatible.test.ts ]
+ FAIL  tests/areaTranslationRecovery.test.ts [ tests/areaTranslationRecovery.test.ts ]
+ FAIL  tests/areaTranslationTrigger.test.ts [ tests/areaTranslationTrigger.test.ts ]
+ FAIL  tests/areaVisionRecognition.test.ts [ tests/areaVisionRecognition.test.ts ]
+ FAIL  tests/backgroundBadgeRuntime.test.ts [ tests/backgroundBadgeRuntime.test.ts ]
+ FAIL  tests/backgroundGoogleDriveSync.test.ts [ tests/backgroundGoogleDriveSync.test.ts ]
+ FAIL  tests/bilingualSentenceHighlight.test.ts [ tests/bilingualSentenceHighlight.test.ts ]
+ FAIL  tests/chineseTranslationProviders.test.ts [ tests/chineseTranslationProviders.test.ts ]
+ FAIL  tests/chromeTranslatorLanguageRegression.test.ts [ tests/chromeTranslatorLanguageRegression.test.ts ]
+ FAIL  tests/claude.test.ts [ tests/claude.test.ts ]
+ FAIL  tests/cloudVendorProviders.test.ts [ tests/cloudVendorProviders.test.ts ]
+ FAIL  tests/configAutoBackupStore.test.ts [ tests/configAutoBackupStore.test.ts ]
+ FAIL  tests/configIndexedDbIntegration.test.ts [ tests/configIndexedDbIntegration.test.ts ]
+ FAIL  tests/configStorage.test.ts [ tests/configStorage.test.ts ]
+ FAIL  tests/connection-test.test.ts [ tests/connection-test.test.ts ]
+ FAIL  tests/contentMessageRuntime.test.ts [ tests/contentMessageRuntime.test.ts ]
+ FAIL  tests/contentUiRuntime.test.ts [ tests/contentUiRuntime.test.ts ]
+ FAIL  tests/deepl.test.ts [ tests/deepl.test.ts ]
+ FAIL  tests/deeplx.test.ts [ tests/deeplx.test.ts ]
+ FAIL  tests/documentArchive.test.ts [ tests/documentArchive.test.ts ]
+ FAIL  tests/documentBatchComponent.test.ts [ tests/documentBatchComponent.test.ts ]
+ FAIL  tests/documentPdfRasterizer.test.ts [ tests/documentPdfRasterizer.test.ts ]
+ FAIL  tests/documentTranslation.test.ts [ tests/documentTranslation.test.ts ]
+ FAIL  tests/documentTranslationApi.test.ts [ tests/documentTranslationApi.test.ts ]
+ FAIL  tests/documentTranslationBinary.test.ts [ tests/documentTranslationBinary.test.ts ]
+ FAIL  tests/documentTranslationBinaryEdge.test.ts [ tests/documentTranslationBinaryEdge.test.ts ]
+ FAIL  tests/doubaoSeedTranslation.test.ts [ tests/doubaoSeedTranslation.test.ts ]
+ FAIL  tests/featureTranslationClients.test.ts [ tests/featureTranslationClients.test.ts ]
+ FAIL  tests/floatingBallPosition.test.ts [ tests/floatingBallPosition.test.ts ]
+ FAIL  tests/floatingUiPresentation.test.ts [ tests/floatingUiPresentation.test.ts ]
+ FAIL  tests/free-translation.test.ts [ tests/free-translation.test.ts ]
+ FAIL  tests/freeWebProviders.test.ts [ tests/freeWebProviders.test.ts ]
+ FAIL  tests/fullPageTranslationIndicators.test.ts [ tests/fullPageTranslationIndicators.test.ts ]
+ FAIL  tests/gemini.test.ts [ tests/gemini.test.ts ]
+ FAIL  tests/glossarySettingsComponent.test.ts [ tests/glossarySettingsComponent.test.ts ]
+ FAIL  tests/google.test.ts [ tests/google.test.ts ]
+ FAIL  tests/googleDriveSync.test.ts [ tests/googleDriveSync.test.ts ]
+ FAIL  tests/harnessConversationPersistence.test.ts [ tests/harnessConversationPersistence.test.ts ]
+ FAIL  tests/harnessSessionRepository.test.ts [ tests/harnessSessionRepository.test.ts ]
+ FAIL  tests/imageGlossaryContext.test.ts [ tests/imageGlossaryContext.test.ts ]
+ FAIL  tests/imageLoads.test.ts [ tests/imageLoads.test.ts ]
+ FAIL  tests/imageOcrRuntime.test.ts [ tests/imageOcrRuntime.test.ts ]
+ FAIL  tests/imageSourceAuthorization.test.ts [ tests/imageSourceAuthorization.test.ts ]
+ FAIL  tests/imageTextReader.test.ts [ tests/imageTextReader.test.ts ]
+ FAIL  tests/imageTranslationClientRecovery.test.ts [ tests/imageTranslationClientRecovery.test.ts ]
+ FAIL  tests/imageTranslationFlow.test.ts [ tests/imageTranslationFlow.test.ts ]
+ FAIL  tests/imageTranslationOffscreenRuntime.test.ts [ tests/imageTranslationOffscreenRuntime.test.ts ]
+ FAIL  tests/imageTranslationPageRead.test.ts [ tests/imageTranslationPageRead.test.ts ]
+ FAIL  tests/imageTranslationPresentation.test.ts [ tests/imageTranslationPresentation.test.ts ]
+ FAIL  tests/imageTranslationRuntime.test.ts [ tests/imageTranslationRuntime.test.ts ]
+ FAIL  tests/languageIdentificationCorpus.test.ts [ tests/languageIdentificationCorpus.test.ts ]
+ FAIL  tests/learningMemoryRepository.test.ts [ tests/learningMemoryRepository.test.ts ]
+ FAIL  tests/localInferenceResources.test.ts [ tests/localInferenceResources.test.ts ]
+ FAIL  tests/mangaBackground.test.ts [ tests/mangaBackground.test.ts ]
+ FAIL  tests/mangaBubbles.test.ts [ tests/mangaBubbles.test.ts ]
+ FAIL  tests/mangaCanvas.test.ts [ tests/mangaCanvas.test.ts ]
+ FAIL  tests/mangaCompositor.test.ts [ tests/mangaCompositor.test.ts ]
+ FAIL  tests/mangaEncoding.test.ts [ tests/mangaEncoding.test.ts ]
+ FAIL  tests/mangaEntry.test.ts [ tests/mangaEntry.test.ts ]
+ FAIL  tests/mangaGpu.test.ts [ tests/mangaGpu.test.ts ]
+ FAIL  tests/mangaImageSegments.test.ts [ tests/mangaImageSegments.test.ts ]
+ FAIL  tests/mangaInferenceClient.test.ts [ tests/mangaInferenceClient.test.ts ]
+ FAIL  tests/mangaInferenceWorker.test.ts [ tests/mangaInferenceWorker.test.ts ]
+ FAIL  tests/mangaInpainting.test.ts [ tests/mangaInpainting.test.ts ]
+ FAIL  tests/mangaOcr.test.ts [ tests/mangaOcr.test.ts ]
+ FAIL  tests/mangaOcrAssets.test.ts [ tests/mangaOcrAssets.test.ts ]
+ FAIL  tests/mangaOnnxBuild.test.ts [ tests/mangaOnnxBuild.test.ts ]
+ FAIL  tests/mangaPatchResult.test.ts [ tests/mangaPatchResult.test.ts ]
+ FAIL  tests/mangaQuality.test.ts [ tests/mangaQuality.test.ts ]
+ FAIL  tests/mangaReader.test.ts [ tests/mangaReader.test.ts ]
+ FAIL  tests/mangaSessionFallback.test.ts [ tests/mangaSessionFallback.test.ts ]
+ FAIL  tests/mangaSites.test.ts [ tests/mangaSites.test.ts ]
+ FAIL  tests/mangaTypography.test.ts [ tests/mangaTypography.test.ts ]
+ FAIL  tests/mimo.test.ts [ tests/mimo.test.ts ]
+ FAIL  tests/modelDownloads.test.ts [ tests/modelDownloads.test.ts ]
+ FAIL  tests/modelUsageRepository.test.ts [ tests/modelUsageRepository.test.ts ]
+ FAIL  tests/myMemoryProvider.test.ts [ tests/myMemoryProvider.test.ts ]
+ FAIL  tests/obsidianDocumentIntegration.test.ts [ tests/obsidianDocumentIntegration.test.ts ]
+ FAIL  tests/obsidianTranslationGateway.test.ts [ tests/obsidianTranslationGateway.test.ts ]
+ FAIL  tests/obsidianVault.test.ts [ tests/obsidianVault.test.ts ]
+ FAIL  tests/offscreenMessageRouter.test.ts [ tests/offscreenMessageRouter.test.ts ]
+ FAIL  tests/optionsAppNavigationLifecycle.test.ts [ tests/optionsAppNavigationLifecycle.test.ts ]
+ FAIL  tests/pageContextDefuddle.test.ts [ tests/pageContextDefuddle.test.ts ]
+ FAIL  tests/pageNotice.test.ts [ tests/pageNotice.test.ts ]
+ FAIL  tests/popupActions.test.ts [ tests/popupActions.test.ts ]
+ FAIL  tests/qqMailFrameRuntime.test.ts [ tests/qqMailFrameRuntime.test.ts ]
+ FAIL  tests/readingPanelLifecycle.test.ts [ tests/readingPanelLifecycle.test.ts ]
+ FAIL  tests/resourceSafeRunner.test.ts [ tests/resourceSafeRunner.test.ts ]
+ FAIL  tests/sameTargetLanguageClient.test.ts [ tests/sameTargetLanguageClient.test.ts ]
+ FAIL  tests/sameTargetLanguageSlots.test.ts [ tests/sameTargetLanguageSlots.test.ts ]
+ FAIL  tests/sectionTranslationPicker.test.ts [ tests/sectionTranslationPicker.test.ts ]
+ FAIL  tests/settingsCompositionAutosave.test.ts [ tests/settingsCompositionAutosave.test.ts ]
+ FAIL  tests/siteAdaptationRuntime.test.ts [ tests/siteAdaptationRuntime.test.ts ]
+ FAIL  tests/speechProgress.test.ts [ tests/speechProgress.test.ts ]
+ FAIL  tests/tongyi.test.ts [ tests/tongyi.test.ts ]
+ FAIL  tests/translateApiPerformance.test.ts [ tests/translateApiPerformance.test.ts ]
+ FAIL  tests/translationAvailability.test.ts [ tests/translationAvailability.test.ts ]
+ FAIL  tests/translationCachePolicyBinding.test.ts [ tests/translationCachePolicyBinding.test.ts ]
+ FAIL  tests/translationCenterComponent.test.ts [ tests/translationCenterComponent.test.ts ]
+ FAIL  tests/translationGlossaryIntegration.test.ts [ tests/translationGlossaryIntegration.test.ts ]
+ FAIL  tests/translationStatsRepository.test.ts [ tests/translationStatsRepository.test.ts ]
+ FAIL  tests/translationVisionBroker.test.ts [ tests/translationVisionBroker.test.ts ]
+ FAIL  tests/translationVisionProviders.test.ts [ tests/translationVisionProviders.test.ts ]
+ FAIL  tests/uiI18nBundleLoading.test.ts [ tests/uiI18nBundleLoading.test.ts ]
+ FAIL  tests/videoCaptionPlatformRuntime.test.ts [ tests/videoCaptionPlatformRuntime.test.ts ]
+ FAIL  tests/videoSubtitle.test.ts [ tests/videoSubtitle.test.ts ]
+ FAIL  tests/vocabularyBook.test.ts [ tests/vocabularyBook.test.ts ]
+ FAIL  tests/vocabularyBookComponent.test.ts [ tests/vocabularyBookComponent.test.ts ]
+ FAIL  tests/webDavBackup.test.ts [ tests/webDavBackup.test.ts ]
+ FAIL  tests/webDavHttpIntegration.test.ts [ tests/webDavHttpIntegration.test.ts ]
+ FAIL  tests/writingIntegration.test.ts [ tests/writingIntegration.test.ts ]
+ FAIL  tests/writingRuntime.test.ts [ tests/writingRuntime.test.ts ]
+ FAIL  tests/zhipuCredentials.test.ts [ tests/zhipuCredentials.test.ts ]
+TSConfckParseError: failed to resolve "extends":"./.wxt/tsconfig.json" in $PURE_WORKTREE/tsconfig.json
+  Plugin: vite:esbuild
+  File: $PURE_WORKTREE/tests/imageTranslationRuntime.test.ts
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18845:8
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ getParsedDeep ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18662:4
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18635:13
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+ ❯ PluginContainer.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:49099:18
+ ❯ loadAndTransform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:51977:27
+
+Caused by: Error: Cannot find module './.wxt/tsconfig.json'
+Require stack:
+- $PURE_WORKTREE/tsconfig.json
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18833:14
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ getParsedDeep ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18662:4
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18635:13
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/114]⎯
+
+ FAIL  tests/config.test.ts [ tests/config.test.ts ]
+TSConfckParseError: failed to resolve "extends":"./.wxt/tsconfig.json" in $PURE_WORKTREE/tsconfig.json
+  Plugin: vite:esbuild
+  File: $PURE_WORKTREE/tests/config.test.ts
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18845:8
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18638:23
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+ ❯ PluginContainer.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:49099:18
+ ❯ loadAndTransform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:51977:27
+
+Caused by: Error: Cannot find module './.wxt/tsconfig.json'
+Require stack:
+- $PURE_WORKTREE/tsconfig.json
+ ❯ resolveExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18833:14
+ ❯ parseExtends ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24
+ ❯ parse$e ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18638:23
+ ❯ loadTsconfigJsonForFile ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20
+ ❯ transformWithEsbuild ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30
+ ❯ TransformPluginContext.transform ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/114]⎯
+

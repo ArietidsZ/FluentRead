@@ -1,0 +1,246 @@
+stderr | tests/translationBroker.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/selectionTranslatorLifecycle.test.ts > SelectionTranslator lifecycle after extension reload > ends an unresponsive message after 3.5 seconds while keeping the ordinary translation
+Selection word lookup unavailable: Error: Dictionary lookup timed out
+    at eval (eval at mountSelection ($BASELINE_WORKTREE/tests/selectionTranslatorLifecycle.test.ts:101:5), <anonymous>:942:49)
+    at callTimer (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/vi.DgezovHB.js:2300:25)
+    at doTickInner (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/vi.DgezovHB.js:2886:30)
+    at doTick (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/vi.DgezovHB.js:2967:21)
+    at Immediate.<anonymous> (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/vi.DgezovHB.js:2987:30)
+    at processImmediate (node:internal/timers:574:21)
+
+stderr | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 语言检测失败时释放旧 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 已禁用 WebGPU，当前生命周期改用 WASM WebGpuFallbackError: GPU language detection failed
+    at runModelInference ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:273:48)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at detectWhisperSourceLanguage ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:309:14)
+    at resolveWhisperSourceLanguage ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:332:20)
+    at transcribeAudioOnce ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:361:8)
+    at transcribeAudio ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:431:12)
+    at $BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:496:22 {
+  retryWithCpu: true
+}
+[FluentRead] Worker GPU Whisper 请求失败，请求 fresh WASM Worker WebGpuFallbackError: GPU language detection failed
+    at runModelInference ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:273:48)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at detectWhisperSourceLanguage ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:309:14)
+    at resolveWhisperSourceLanguage ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:332:20)
+    at transcribeAudioOnce ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:361:8)
+    at transcribeAudio ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:431:12)
+    at $BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:496:22 {
+  retryWithCpu: true
+}
+
+stderr | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 初始化失败后释放状态并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 已禁用 WebGPU，当前生命周期改用 WASM Error: GPU init failed
+    at $BASELINE_WORKTREE/tests/videoAiWorker.test.ts:334:48
+    at file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:644:9)
+    at processTimers (node:internal/timers:618:7)
+    at runSuite (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+[FluentRead] Worker WebGPU Whisper 初始化失败，请求 fresh WASM Worker Error: GPU init failed
+    at $BASELINE_WORKTREE/tests/videoAiWorker.test.ts:334:48
+    at file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14
+    at file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11
+    at runWithTimeout (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)
+    at runTest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at listOnTimeout (node:internal/timers:644:9)
+    at processTimers (node:internal/timers:618:7)
+    at runSuite (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+
+stderr | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 显式源语言的 GPU 推理失败后释放 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 已禁用 WebGPU，当前生命周期改用 WASM WebGpuFallbackError: GPU inference failed
+    at runModelInference ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:273:48)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at transcribeAudioOnce ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:376:14)
+    at transcribeAudio ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:431:12)
+    at $BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:496:22 {
+  retryWithCpu: true
+}
+[FluentRead] Worker GPU Whisper 请求失败，请求 fresh WASM Worker WebGpuFallbackError: GPU inference failed
+    at runModelInference ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:273:48)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at transcribeAudioOnce ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:376:14)
+    at transcribeAudio ($BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:431:12)
+    at $BASELINE_WORKTREE/src/features/video-subtitle/offscreen/transcription.worker.ts:496:22 {
+  retryWithCpu: true
+}
+
+stderr | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 收到 device wasm 时释放 GPU session 并锁定本 Worker 使用 WASM
+[FluentRead] 本地视频 Worker 已禁用 WebGPU，当前生命周期改用 WASM 调用方锁定本 Worker 使用 WASM
+
+stderr | tests/videoUiI18n.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/features/video-subtitle/content/ui.ts:2:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > 非法 JSON 被安全忽略，payload 不变
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > JSON 数组被忽略（必须是对象）
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > JSON 基本类型被忽略（数字 / 字符串 / 布尔 / null）
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > commonMsgTemplate（集成） > 非法的自定义请求体被忽略，标准请求体保持完整
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/harnessModelGateway.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/providers/translation/ai-sdk/endpoints.ts:2:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/harnessModelGateway.test.ts > harness model gateway > uses native Claude Messages API and honors configured proxy
+AI SDK Warning (fluentread-harness-claude / claude-test): The feature "maxOutputTokens" is used in a compatibility mode. The model "claude-test" is unknown. The max output tokens have been limited to 128000. Set maxOutputTokens explicitly to override this limit.
+
+stderr | tests/liveTextRender.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/features/full-page-translation/content/renderer.ts:2:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/translationBrokerStats.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/modalProgressHint.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/features/full-page-translation/ui/modalProgressHint.ts:2:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+stderr | tests/translationVisionPayload.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ($BASELINE_WORKTREE/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ($BASELINE_WORKTREE/src/services/config/store.ts:595:41)
+    at $BASELINE_WORKTREE/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at $BASELINE_WORKTREE/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://$SHARED_DEPENDENCIES/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI
+TypeError: You must provide a Promise to expect() when using .resolves, not 'object'.
+ ❯ tests/contentFeatureMounting.test.ts:112:67
+    110|         const mounted = ui();
+    111|         mocks.createVueShadowUi.mockResolvedValueOnce(mounted);
+    112|         await expect(runtime.mountSelectionTranslator({} as never)).re…
+       |                                                                   ^
+    113|         runtime.unmountSelectionTranslator();
+    114|         const pending = pendingUi();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/contentFeatureMounting.test.ts > 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host
+TypeError: Cannot read properties of undefined (reading '1')
+ ❯ tests/contentFeatureMounting.test.ts:139:65
+    137| 
+    138|         await runtime.mountSelectionTranslator({} as never);
+    139|         const firstReport = mocks.createVueShadowUi.mock.calls[0][1].p…
+       |                                                                 ^
+    140|         const range = {startContainer: {nodeType: 3}};
+    141|         firstReport(range);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/harnessConversation.test.ts > Harness persistent conversation coordination > keeps a switched action in the same saved reading record but excludes previous answers from analysis
+AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+    "intent": "grammar",
+-   "question": "拆句",
++   "question": "词性与句法",
+  }
+
+ ❯ tests/harnessConversation.test.ts:46:51
+     44|         expect(runtime.run.mock.calls[0][0]).toMatchObject({question: …
+     45|         expect(store.upsertTurn.mock.calls[1][0]).toMatchObject({id: '…
+     46|         expect(store.upsertTurn.mock.calls[1][1]).toMatchObject({quest…
+       |                                                   ^
+     47|     });
+     48|     it('anchors follow-ups to the visible action and excludes later, e…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/translationStatsI18n.test.ts > 翻译统计界面文案 > 翻译统计导航与搜索文案覆盖全部非中文界面语言
+AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality
+ ❯ tests/translationStatsI18n.test.ts:56:65
+     54|             for (const source of sources) {
+     55|                 const localized = translateLegacyText(source, language…
+     56|                 expect(localized, `${language}: ${source}`).not.toBe(s…
+       |                                                                 ^
+     57|                 if (language !== 'ja-JP') expect(localized, `${languag…
+     58|             }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+

@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/wxt/bin/wxt.mjs prepare
+
+WXT 0.20.18
+ℹ Generating types...
+✖ Command failed after 925 ms

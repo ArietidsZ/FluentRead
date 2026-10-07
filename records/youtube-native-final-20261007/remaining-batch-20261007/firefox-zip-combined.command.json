@@ -1,0 +1,17 @@
+{
+  "label": "firefox-zip-combined",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "zip",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "$COMBINED_WORKTREE",
+  "started_at": "2026-10-07T11:18:17.953564+00:00",
+  "duration_seconds": 40.717,
+  "exit_code": 0
+}

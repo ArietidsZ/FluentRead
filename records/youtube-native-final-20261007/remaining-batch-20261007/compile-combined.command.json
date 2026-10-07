@@ -1,0 +1,15 @@
+{
+  "label": "compile-combined",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "$COMBINED_WORKTREE",
+  "started_at": "2026-10-07T11:17:27.075293+00:00",
+  "duration_seconds": 12.589,
+  "exit_code": 0
+}

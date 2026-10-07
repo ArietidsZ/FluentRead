@@ -1,0 +1,54 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/discordServerIconBoundary.test.ts tests/myMemoryConnectionTest.test.ts tests/readingThemeStyles.test.ts tests/translationControlOwnership.test.ts tests/upstreamTranslationBoundaries.test.ts tests/documentTranslationExamplesApi.test.ts tests/documentTranslationRegression.test.ts tests/documentTranslationEdge.test.ts tests/fullPageTranslationProgress.test.ts tests/fullPageTitleTranslation.test.ts tests/featureVerticalSliceRegression.test.ts tests/fullPageVisibilityScheduling.test.ts tests/fullPageHostClassPreservation.test.ts tests/pageTranslationAdvanced.test.ts tests/mainWorldBridgeCore.test.ts tests/serializationPerformance.test.ts tests/siteTranslationHarness.test.ts tests/siteTranslationIdle.test.ts tests/translationDocumentCorpus.test.ts tests/translationGitHubTaskList.test.ts tests/translationVisualProtection.test.ts tests/translationSnapshotProtection.test.ts tests/translationOwnershipBoundaries.test.ts tests/syntheticCandidateFreshness.test.ts tests/translationTruncation.test.ts tests/translationHeightLayout.test.ts tests/userscriptCredentialPersistence.test.ts tests/userscriptDexieIsolation.test.ts tests/vocabularyBookComponentLifecycle.test.ts tests/vocabularyStudyLifecycle.test.ts tests/allNodesTranslationCore.test.ts tests/sameTargetLanguageRegression.test.ts tests/vocabularyReencounterLifecycle.test.ts --reporter=default --reporter=json --outputFile=$BATCH_RECORDS_ROOT/group-regression-pure-prepared.results.json --no-cache
+
+ RUN  v2.1.9 $PURE_WORKTREE
+
+ ✓ tests/fullPageVisibilityScheduling.test.ts (213 tests) 567ms
+ ✓ tests/translationTruncation.test.ts (59 tests) 156ms
+ ✓ tests/siteTranslationHarness.test.ts (59 tests) 188ms
+ ✓ tests/mainWorldBridgeCore.test.ts (25 tests) 10ms
+ ✓ tests/translationDocumentCorpus.test.ts (9 tests) 251ms
+ ✓ tests/allNodesTranslationCore.test.ts (16 tests) 55ms
+ ✓ tests/fullPageTranslationProgress.test.ts (23 tests) 11ms
+ ✓ tests/pageTranslationAdvanced.test.ts (16 tests) 20ms
+ ✓ tests/translationControlOwnership.test.ts (19 tests) 96ms
+ ✓ tests/translationSnapshotProtection.test.ts (26 tests) 87ms
+ ✓ tests/fullPageTitleTranslation.test.ts (21 tests) 8ms
+ ✓ tests/translationHeightLayout.test.ts (12 tests) 30ms
+ ✓ tests/vocabularyReencounterLifecycle.test.ts (9 tests) 6ms
+ ✓ tests/serializationPerformance.test.ts (5 tests) 301ms
+ ✓ tests/documentTranslationEdge.test.ts (10 tests) 7ms
+ ✓ tests/vocabularyBookComponentLifecycle.test.ts (2 tests) 634ms
+   ✓ VocabularyBook mounted lifecycle > does not subscribe, register listeners, or list after unmounting before configReady 633ms
+ ✓ tests/vocabularyStudyLifecycle.test.ts (2 tests) 550ms
+   ✓ saved sentence explanation lifecycle > generates only on demand and preserves reading while saving a separate note 373ms
+ ✓ tests/siteTranslationIdle.test.ts (11 tests) 9ms
+ ✓ tests/translationOwnershipBoundaries.test.ts (12 tests) 128ms
+ ✓ tests/sameTargetLanguageRegression.test.ts (27 tests) 18ms
+ ✓ tests/translationGitHubTaskList.test.ts (11 tests) 142ms
+ ❯ tests/featureVerticalSliceRegression.test.ts (5 tests | 1 failed) 10ms
+   × 划词、圈选和图片翻译纵向切片回归 > OCR 下载把接收端初始化故障与真实资源下载失败分开提示 8ms
+     → expected '<!--\n * @file src/features/image-tra…' to contain 'OCR 服务初始化失败，请重新打开设置页后重试。'
+ ✓ tests/syntheticCandidateFreshness.test.ts (10 tests) 33ms
+ ✓ tests/upstreamTranslationBoundaries.test.ts (3 tests) 29ms
+ ✓ tests/userscriptCredentialPersistence.test.ts (2 tests) 257ms
+ ✓ tests/fullPageHostClassPreservation.test.ts (4 tests) 6ms
+stdout | tests/documentTranslationExamplesApi.test.ts > document translation examples API regression > 'sample.pdf' passes through binary parse, translation, and same-format export
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationExamplesApi.test.ts (12 tests) 201ms
+ ✓ tests/translationVisualProtection.test.ts (18 tests) 16ms
+ ✓ tests/discordServerIconBoundary.test.ts (4 tests) 23ms
+ ✓ tests/myMemoryConnectionTest.test.ts (6 tests) 8ms
+ ✓ tests/documentTranslationRegression.test.ts (10 tests) 5ms
+ ✓ tests/readingThemeStyles.test.ts (2 tests) 25ms
+ ✓ tests/userscriptDexieIsolation.test.ts (2 tests) 9ms
+
+ Test Files  1 failed | 32 passed (33)
+      Tests  1 failed | 664 passed (665)
+   Start at  19:17:16
+   Duration  9.14s (transform 941ms, setup 0ms, collect 2.67s, tests 3.90s, environment 2ms, prepare 672ms)
+
+JSON report written to $BATCH_RECORDS_ROOT/group-regression-pure-prepared.results.json

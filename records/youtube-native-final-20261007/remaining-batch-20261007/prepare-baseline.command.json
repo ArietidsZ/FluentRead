@@ -1,0 +1,15 @@
+{
+  "label": "prepare-baseline",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "prepare"
+  ],
+  "cwd": "$BASELINE_WORKTREE",
+  "started_at": "2026-10-07T11:21:17.369820+00:00",
+  "duration_seconds": 1.141,
+  "exit_code": 1
+}

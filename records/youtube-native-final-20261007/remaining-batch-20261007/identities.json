@@ -1,0 +1,10 @@
+{
+  "pure_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "existing_buildfix": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "pure_worktree": "$PURE_WORKTREE",
+  "code_branch_untouched": true,
+  "combined_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "combined_branch": "acceptance/youtube-native-buildfix-20261007",
+  "combined_worktree": "$COMBINED_WORKTREE"
+}

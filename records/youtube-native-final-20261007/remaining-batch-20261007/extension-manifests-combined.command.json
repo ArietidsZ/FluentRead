@@ -1,0 +1,12 @@
+{
+  "label": "extension-manifests-combined",
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs",
+    "--require-firefox-archives"
+  ],
+  "cwd": "$COMBINED_WORKTREE",
+  "started_at": "2026-10-07T11:18:58.687090+00:00",
+  "duration_seconds": 0.353,
+  "exit_code": 0
+}

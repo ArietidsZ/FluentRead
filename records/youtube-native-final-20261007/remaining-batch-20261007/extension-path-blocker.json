@@ -1,0 +1,21 @@
+{
+  "status": "BLOCKED",
+  "reason": "Existing authorized Neo agent profile has developer mode disabled and no FluentRead extension loaded; loading a new unpacked extension would require an additional browser security setting or debug launch capability. No existing extension-level fixture is available in this session.",
+  "facility": {
+    "existing_profile_is_agent_profile": true,
+    "unsafe_extension_debugging_flag_present": false,
+    "developer_mode": false,
+    "fluentread_extension_count": 0
+  },
+  "new_browser_settings_changed": false,
+  "new_permissions_granted": false,
+  "extension_injection_run": false,
+  "cue_render_export_run": false,
+  "duplicate_cancel_navigation_browser_run": false,
+  "external_provider_requests": "NOT_MEASURED; no provider fixture or extension execution was started",
+  "launch_mode": "reuse existing BrowserOS Neo native MCP",
+  "focus_policy": "task-created tabs opened in background and closed in finally",
+  "window_placement": "Reuse existing window; position/state not measured or changed in this batch",
+  "browser_control": "native Neo MCP only",
+  "cua_used": false
+}

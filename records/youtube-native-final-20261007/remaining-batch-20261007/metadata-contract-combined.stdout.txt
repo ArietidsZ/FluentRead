@@ -1,0 +1,11 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/extensionManifestContract.test.ts --no-cache
+
+ RUN  v2.1.9 $COMBINED_WORKTREE
+
+ ✓ tests/extensionManifestContract.test.ts (20 tests) 42ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  19:17:39
+   Duration  1.00s (transform 417ms, setup 0ms, collect 850ms, tests 42ms, environment 0ms, prepare 22ms)
+

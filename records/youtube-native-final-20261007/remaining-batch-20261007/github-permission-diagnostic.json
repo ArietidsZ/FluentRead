@@ -1,0 +1,11 @@
+{
+  "page": 5,
+  "value": {
+    "loginPerformed": false,
+    "path": "/login",
+    "pendingPermissionUpdate": null,
+    "pullRequestsPermission": null,
+    "status": "BLOCKED_SIGN_IN_REQUIRED",
+    "urlOrigin": "https://github.com"
+  }
+}

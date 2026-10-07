@@ -1,0 +1,15 @@
+{
+  "label": "chrome-build-combined",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "$COMBINED_WORKTREE",
+  "started_at": "2026-10-07T11:17:40.863213+00:00",
+  "duration_seconds": 18.486,
+  "exit_code": 0
+}

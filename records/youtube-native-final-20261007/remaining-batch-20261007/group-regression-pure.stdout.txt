@@ -1,0 +1,44 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/discordServerIconBoundary.test.ts tests/myMemoryConnectionTest.test.ts tests/readingThemeStyles.test.ts tests/translationControlOwnership.test.ts tests/upstreamTranslationBoundaries.test.ts tests/documentTranslationExamplesApi.test.ts tests/documentTranslationRegression.test.ts tests/documentTranslationEdge.test.ts tests/fullPageTranslationProgress.test.ts tests/fullPageTitleTranslation.test.ts tests/featureVerticalSliceRegression.test.ts tests/fullPageVisibilityScheduling.test.ts tests/fullPageHostClassPreservation.test.ts tests/pageTranslationAdvanced.test.ts tests/mainWorldBridgeCore.test.ts tests/serializationPerformance.test.ts tests/siteTranslationHarness.test.ts tests/siteTranslationIdle.test.ts tests/translationDocumentCorpus.test.ts tests/translationGitHubTaskList.test.ts tests/translationVisualProtection.test.ts tests/translationSnapshotProtection.test.ts tests/translationOwnershipBoundaries.test.ts tests/syntheticCandidateFreshness.test.ts tests/translationTruncation.test.ts tests/translationHeightLayout.test.ts tests/userscriptCredentialPersistence.test.ts tests/userscriptDexieIsolation.test.ts tests/vocabularyBookComponentLifecycle.test.ts tests/vocabularyStudyLifecycle.test.ts tests/allNodesTranslationCore.test.ts tests/sameTargetLanguageRegression.test.ts tests/vocabularyReencounterLifecycle.test.ts --reporter=default --reporter=json --outputFile=$BATCH_RECORDS_ROOT/group-regression-pure.results.json --no-cache
+
+ RUN  v2.1.9 $PURE_WORKTREE
+
+ ❯ tests/fullPageVisibilityScheduling.test.ts (0 test)
+ ❯ tests/translationTruncation.test.ts (0 test)
+ ❯ tests/siteTranslationHarness.test.ts (0 test)
+ ❯ tests/mainWorldBridgeCore.test.ts (0 test)
+ ❯ tests/translationDocumentCorpus.test.ts (0 test)
+ ❯ tests/allNodesTranslationCore.test.ts (0 test)
+ ❯ tests/fullPageTranslationProgress.test.ts (0 test)
+ ❯ tests/pageTranslationAdvanced.test.ts (0 test)
+ ❯ tests/translationControlOwnership.test.ts (0 test)
+ ❯ tests/translationSnapshotProtection.test.ts (0 test)
+ ❯ tests/fullPageTitleTranslation.test.ts (0 test)
+ ❯ tests/translationHeightLayout.test.ts (0 test)
+ ❯ tests/vocabularyReencounterLifecycle.test.ts (0 test)
+ ❯ tests/serializationPerformance.test.ts (0 test)
+ ❯ tests/documentTranslationEdge.test.ts (0 test)
+ ❯ tests/vocabularyBookComponentLifecycle.test.ts (0 test)
+ ❯ tests/vocabularyStudyLifecycle.test.ts (0 test)
+ ❯ tests/siteTranslationIdle.test.ts (0 test)
+ ❯ tests/translationOwnershipBoundaries.test.ts (0 test)
+ ❯ tests/sameTargetLanguageRegression.test.ts (0 test)
+ ❯ tests/translationGitHubTaskList.test.ts (0 test)
+ ❯ tests/featureVerticalSliceRegression.test.ts (0 test)
+ ❯ tests/syntheticCandidateFreshness.test.ts (0 test)
+ ❯ tests/upstreamTranslationBoundaries.test.ts (0 test)
+ ❯ tests/userscriptCredentialPersistence.test.ts (0 test)
+ ❯ tests/fullPageHostClassPreservation.test.ts (0 test)
+ ❯ tests/documentTranslationExamplesApi.test.ts (0 test)
+ ❯ tests/translationVisualProtection.test.ts (0 test)
+ ❯ tests/discordServerIconBoundary.test.ts (0 test)
+ ❯ tests/myMemoryConnectionTest.test.ts (0 test)
+ ❯ tests/documentTranslationRegression.test.ts (0 test)
+ ❯ tests/readingThemeStyles.test.ts (0 test)
+ ❯ tests/userscriptDexieIsolation.test.ts (0 test)
+
+ Test Files  33 failed (33)
+      Tests  no tests
+   Start at  19:10:26
+   Duration  2.53s (transform 12ms, setup 0ms, collect 0ms, tests 0ms, environment 3ms, prepare 692ms)
+
+JSON report written to $BATCH_RECORDS_ROOT/group-regression-pure.results.json

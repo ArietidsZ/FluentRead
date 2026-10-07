@@ -1,0 +1,23 @@
+{
+  "transport": "existing loopback Neo native MCP",
+  "server_info_record": "neo-server-info.json",
+  "tools_used": [
+    "run"
+  ],
+  "executed_scripts": [
+    "github-permission-read.js",
+    "extension-facility-read.js"
+  ],
+  "command_execution_exit_code": 0,
+  "results": [
+    "github-permission-diagnostic.json",
+    "extension-facility-read-result.json"
+  ],
+  "scope": "Only task-owned background tabs; finally close after reads",
+  "cua_used": false,
+  "login_performed": false,
+  "settings_changes": false,
+  "model_or_provider_calls": false,
+  "credentials_read": false,
+  "session_values_recorded": false
+}

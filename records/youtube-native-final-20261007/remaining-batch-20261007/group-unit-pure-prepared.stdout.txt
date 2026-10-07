@@ -1,0 +1,368 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationCenterSession.test.ts tests/featureTranslationServices.test.ts tests/sha256.test.ts tests/configApiKeys.test.ts tests/apiKeyCheckIdentity.test.ts tests/modalDialogHost.test.ts tests/selectionPageZoom.test.ts tests/chineseLanguage.test.ts tests/chineseTechnicalParagraphs.test.ts tests/aiContextPresentation.test.ts tests/aiSdkEndpoints.test.ts tests/aiSdkErrors.test.ts tests/areaTranslationCore.test.ts tests/areaTextTranslation.test.ts tests/auth.test.ts tests/bilingualRemount.test.ts tests/bilingualReplay.test.ts tests/syntheticRemount.test.ts tests/backgroundCacheCleanup.test.ts tests/backgroundCapabilityRegistry.test.ts tests/backgroundConfigAutoBackup.test.ts tests/backgroundFeatureHandlers.test.ts tests/backgroundImageServices.test.ts tests/configDomainBoundaries.test.ts tests/configHarness.test.ts tests/configAutoBackupDomain.test.ts tests/configCount.test.ts tests/configDiff.test.ts tests/glossary.test.ts tests/builtinGlossaries.test.ts tests/glossaryConfig.test.ts tests/credentialPreview.test.ts tests/dataBackup.test.ts tests/configEncryption.test.ts tests/configHistoryDomain.test.ts tests/configTransfer.test.ts tests/configValidation.test.ts tests/configRepository.test.ts tests/commonUtilities.test.ts tests/browserCapabilities.test.ts tests/actionIcon.test.ts tests/runtimeMessages.test.ts tests/thunderbirdMessageRuntime.test.ts tests/chromeTranslationPreparation.test.ts tests/chromeTranslationPreparationRequest.test.ts tests/credentialBinding.test.ts tests/edgeTtsPolicy.test.ts tests/contentFeatureMounting.test.ts tests/contentFeatureLifecycle.test.ts tests/contentRuntimeLifecycle.test.ts tests/optionalContentFeatures.test.ts tests/contentFeatureRegistry.test.ts tests/credentialStorageContext.test.ts tests/fullPageHostMarkers.test.ts tests/fullPageTranslationErrorMessage.test.ts tests/hoverTranslationContentFeature.test.ts tests/paragraphCopyConfig.test.ts tests/paragraphCopyCore.test.ts tests/paragraphCopyRuntime.test.ts tests/sectionTranslationConfig.test.ts tests/sectionTranslationCore.test.ts tests/sectionTranslationRegion.test.ts tests/sectionTranslationRuntime.test.ts tests/hotkey.test.ts tests/i18n.test.ts tests/contentHotkeyRuntime.test.ts tests/inputTranslationContentFeature.test.ts tests/mainWorldBridgeLifecycle.test.ts tests/customService.test.ts tests/customOpenAI.test.ts tests/http.test.ts tests/httpError.test.ts tests/harnessCore.test.ts tests/harnessModelGateway.test.ts tests/harnessRuntime.test.ts tests/harnessUsage.test.ts tests/imageTranslation.test.ts tests/contextMenu.test.ts tests/remoteImage.test.ts tests/inputBox.test.ts tests/inputEditableHost.test.ts tests/inputTranslationConfig.test.ts tests/inputTranslationBackground.test.ts tests/interfaceAppearance.test.ts tests/interfaceSkinReadability.test.ts tests/translationAppearance.test.ts tests/translationAppearanceStyles.test.ts tests/pageStyles.test.ts tests/interfaceFonts.test.ts tests/usePopupLayoutReorder.test.ts tests/legacyPageCache.test.ts tests/liveTextRender.test.ts tests/liveTextTranslation.test.ts tests/model.test.ts tests/modelOptions.test.ts tests/modelThinking.test.ts tests/modelUsageAggregation.test.ts tests/modelUsageHandler.test.ts tests/modelUsageInsights.test.ts tests/modelUsageTokenFormat.test.ts tests/translationStatsMeasure.test.ts tests/translationStatsAggregation.test.ts tests/translationStatsPresentation.test.ts tests/translationStatsHandler.test.ts tests/translationStatsI18n.test.ts tests/translationBrokerStats.test.ts tests/localInsightsHandlers.test.ts tests/optionsNavigation.test.ts tests/ocrWorkerRuntime.test.ts tests/offscreenTranslation.test.ts tests/localTranslation.test.ts tests/localTranslationArtifacts.test.ts tests/localTranslationDownloads.test.ts tests/localTranslationInference.test.ts tests/localTranslationProvider.test.ts tests/localTranslationRuntime.test.ts tests/localTts.test.ts tests/offscreenAdapters.test.ts tests/offscreenClient.test.ts tests/firefoxDocumentRuntime.test.ts tests/offscreenTtsPlayback.test.ts tests/pageContext.test.ts tests/pageContextPolicy.test.ts tests/popupCache.test.ts tests/providerUsageNormalization.test.ts tests/providerRegistry.test.ts tests/quickTranslation.test.ts tests/quickTranslationContentFeature.test.ts tests/quickTranslationRuntime.test.ts tests/requestConfigSnapshot.test.ts tests/documentTranslationPresentation.test.ts tests/selectionTranslatorCore.test.ts tests/selectionTranslatorLifecycle.test.ts tests/selectionTtsContentController.test.ts tests/selectionTtsProtocol.test.ts tests/serviceCatalog.test.ts tests/serviceLibrary.test.ts tests/serviceIcons.test.ts tests/cloudVendorCatalog.test.ts tests/siteRules.test.ts tests/issue146EmbeddedFrames.test.ts tests/supportedFrameEntrypoint.test.ts tests/issue146SiteRules.test.ts tests/shadowUi.test.ts tests/tabTranslationState.test.ts tests/template.test.ts tests/translateQueue.test.ts tests/translationRequestScheduler.test.ts tests/translationCache.test.ts tests/translationBroker.test.ts tests/microsoftTransport.test.ts tests/translationConfigCheck.test.ts tests/translationFont.test.ts tests/translationCore.test.ts tests/identicalTranslation.test.ts tests/translationError.test.ts tests/translationLanguage.test.ts tests/readingAssistantPresentation.test.ts tests/translationLoadingIndicator.test.ts tests/translationPrompts.test.ts tests/translationState.test.ts tests/translationStability.test.ts tests/translationSourceStability.test.ts tests/translationSourceStabilityGate.test.ts tests/userscriptCount.test.ts tests/userscriptCompression.test.ts tests/userscriptFullOptions.test.ts tests/userscriptHttp.test.ts tests/userscriptInitialize.test.ts tests/userscriptLanguageBundles.test.ts tests/userscriptManagerSmokeCli.test.ts tests/userscriptPageContext.test.ts tests/userscriptPlatform.test.ts tests/userscriptRequires.test.ts tests/userscriptStorage.test.ts tests/userscriptUnsupportedCapabilities.test.ts tests/vocabularyBackgroundHandler.test.ts tests/vocabularyLearningModel.test.ts tests/vocabularyRepositoryEdges.test.ts tests/viewportStability.test.ts tests/readmeContributors.test.ts tests/wordDictionary.test.ts tests/wordDictionaryEdge.test.ts tests/youtubeSubtitleData.test.ts tests/xVideoSubtitleData.test.ts tests/xSubtitleLoader.test.ts tests/hlsAudio.test.ts tests/xHlsAudioRuntime.test.ts tests/videoTranslationScheduler.test.ts tests/videoPretranslationController.test.ts tests/videoTranslationCache.test.ts tests/videoSubtitleLogic.test.ts tests/localModelReadiness.test.ts tests/videoSubtitleLanguage.test.ts tests/videoAiModelSetup.test.ts tests/videoUiI18n.test.ts tests/videoSubtitleAppearance.test.ts tests/videoAiBackground.test.ts tests/videoAiCapture.test.ts tests/videoAiFullCapture.test.ts tests/videoAiFullCaptureFailures.test.ts tests/videoAiModelCache.test.ts tests/videoAiOffscreen.test.ts tests/videoAiStreaming.test.ts tests/videoAiWorker.test.ts tests/videoTranscription.test.ts tests/videoSpeechAlignment.test.ts tests/videoAiAlgorithmsCoverage.test.ts tests/videoAiBackendCoverage.test.ts tests/videoAiSubtitleCache.test.ts tests/videoPlayerLocator.test.ts tests/videoPlayerBinding.test.ts tests/videoSubtitleViewport.test.ts tests/qqMailFrameHandlers.test.ts tests/qqMailFrameSession.test.ts tests/fullPageStateNotification.test.ts tests/translationCachePolicy.test.ts tests/translationCacheManagement.test.ts tests/harnessConversation.test.ts tests/harnessStreamPort.test.ts tests/harnessSessionHandler.test.ts tests/readingAssistantClient.test.ts tests/imageOcrNormalization.test.ts tests/imageTranslationRendering.test.ts tests/imageTranslationInpainting.test.ts tests/videoTranscriptionCacheClient.test.ts tests/xCaptionSource.test.ts tests/siteAdaptationCore.test.ts tests/siteAdaptationSession.test.ts tests/siteAdaptationSettings.test.ts tests/siteAdaptationCatalog.test.ts tests/harnessMemoryRecall.test.ts tests/harnessMemorySearch.test.ts tests/learningMemoryHandler.test.ts tests/freeTranslationConfig.test.ts tests/freeFallback.test.ts tests/modelCacheRemoval.test.ts tests/downloadProgress.test.ts tests/downloadProgressTransport.test.ts tests/ocrModelDownload.test.ts tests/writingCore.test.ts tests/writingPreview.test.ts tests/writingEntryPlacement.test.ts tests/writingReference.test.ts tests/writingEditors.test.ts tests/writingMarkdown.test.ts tests/translationToolbarStatus.test.ts tests/apiKeyRotation.test.ts tests/apiKeyPool.test.ts tests/apiKeyTypes.test.ts tests/promptTemplateSync.test.ts tests/freeRoutingPolicy.test.ts tests/freeWeights.test.ts tests/freeBalancedRouting.test.ts tests/freeTranslationHealthStorage.test.ts tests/freeChineseWebProviders.test.ts tests/freeExtraWebProviders.test.ts tests/userscriptFreeTranslationSettings.test.ts tests/freeTranslationI18n.test.ts tests/visionConfig.test.ts tests/translationVisionPayload.test.ts tests/requestLimits.test.ts tests/fullPageModalPriority.test.ts tests/fullPagePriority.test.ts tests/modalProgressHint.test.ts tests/uiLanguageBundles.test.ts tests/localTtsBackground.test.ts tests/localTtsModelCache.test.ts tests/onnxWasmBinary.test.ts tests/wasmDiagnostics.test.ts tests/onnxWebGpu.test.ts tests/localTtsWorker.test.ts tests/languageCodes.test.ts tests/languageTechnicalTokens.test.ts tests/languageScripts.test.ts tests/languageStatistical.test.ts tests/languageIdentification.test.ts tests/shareCardCore.test.ts tests/shareCardExcerpt.test.ts tests/shareCardRender.test.ts tests/shareCardRuntime.test.ts tests/shareCardExport.test.ts tests/shareCardStudio.test.ts tests/videoCaptionPlatforms.test.ts tests/videoSubtitleDownloads.test.ts tests/googleDriveEncryption.test.ts tests/googleDriveConfig.test.ts tests/googleDriveAuth.test.ts tests/googleDriveApi.test.ts tests/googleDriveSyncClient.test.ts tests/googleDrivePreview.test.ts tests/visionProbe.test.ts tests/visionProbeStorage.test.ts tests/webDavConnection.test.ts tests/webDavApi.test.ts tests/webDavProperties.test.ts tests/backgroundWebDavBackup.test.ts tests/webDavBackupClient.test.ts tests/requestHeaderRules.test.ts tests/vocabularyReencounter.test.ts tests/sentenceActionsMount.test.ts tests/freeOfficialWebProviders.test.ts --reporter=default --reporter=json --outputFile=$BATCH_RECORDS_ROOT/group-unit-pure-prepared.results.json --no-cache
+
+ RUN  v2.1.9 $PURE_WORKTREE
+
+ ✓ tests/translationBroker.test.ts (144 tests) 1404ms
+ ✓ tests/translationCore.test.ts (136 tests) 1197ms
+ ✓ tests/model.test.ts (113 tests) 82ms
+ ✓ tests/bilingualRemount.test.ts (58 tests) 95ms
+ ✓ tests/i18n.test.ts (57 tests) 1536ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 542ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 441ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 349ms
+ ✓ tests/backgroundFeatureHandlers.test.ts (51 tests) 2082ms
+   ✓ 后台 feature handlers > 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口 1203ms
+   ✓ 后台 feature handlers > 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对 601ms
+ ✓ tests/inputTranslationContentFeature.test.ts (69 tests) 456ms
+ ✓ tests/configDiff.test.ts (50 tests) 16ms
+ ✓ tests/videoAiFullCapture.test.ts (30 tests) 205ms
+ ✓ tests/translationState.test.ts (53 tests) 290ms
+ ✓ tests/selectionTranslatorLifecycle.test.ts (51 tests) 80ms
+ ✓ tests/selectionTranslatorCore.test.ts (58 tests) 89ms
+ ✓ tests/videoAiStreaming.test.ts (58 tests) 157ms
+ ✓ tests/quickTranslationContentFeature.test.ts (40 tests) 17ms
+ ✓ tests/translationStability.test.ts (41 tests) 77ms
+ ✓ tests/videoPlayerLocator.test.ts (35 tests) 31ms
+ ✓ tests/glossary.test.ts (53 tests) 225ms
+ ✓ tests/offscreenTranslation.test.ts (45 tests) 223ms
+ ✓ tests/siteAdaptationCore.test.ts (36 tests) 74ms
+ ✓ tests/wordDictionaryEdge.test.ts (36 tests) 271ms
+ ✓ tests/videoPlayerBinding.test.ts (36 tests) 25ms
+ ✓ tests/videoAiFullCaptureFailures.test.ts (29 tests) 32ms
+ ✓ tests/harnessRuntime.test.ts (38 tests) 28ms
+ ✓ tests/offscreenClient.test.ts (22 tests) 237ms
+ ✓ tests/youtubeSubtitleData.test.ts (294 tests) 24ms
+ ✓ tests/translationCache.test.ts (46 tests) 735ms
+ ✓ tests/writingEditors.test.ts (34 tests) 33ms
+ ✓ tests/videoAiBackendCoverage.test.ts (24 tests) 16ms
+ ✓ tests/hoverTranslationContentFeature.test.ts (35 tests) 18ms
+ ✓ tests/configTransfer.test.ts (28 tests) 75ms
+ ✓ tests/ocrWorkerRuntime.test.ts (30 tests) 864ms
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 低置信度首窗不锁定错误语言，两个中文窗确认后复用；显式中文跳过检测
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：false）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：true）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 总文本正常但 timestamp chunk 出现重复时也重新识别
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 硬件 WebGPU 可用时优先创建 q4 session，并回传 GPU 诊断
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Apple / MTL / GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 语言检测失败时释放旧 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 上的语言配置错误直接返回，不误判为 GPU 故障或重建 session
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 显式源语言的 GPU 推理失败后释放 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > WASM 推理失败时直接返回错误，不再次创建或重试 session
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 收到 device wasm 时释放 GPU session 并锁定本 Worker 使用 WASM
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+ ✓ tests/videoAiWorker.test.ts (22 tests) 73ms
+ ✓ tests/modalDialogHost.test.ts (17 tests) 71ms
+ ✓ tests/videoUiI18n.test.ts (16 tests) 26ms
+ ✓ tests/videoAiCapture.test.ts (27 tests) 297ms
+ ✓ tests/chromeTranslationPreparation.test.ts (25 tests) 27ms
+ ✓ tests/template.test.ts (74 tests) 13ms
+ ✓ tests/contentRuntimeLifecycle.test.ts (37 tests) 375ms
+ ✓ tests/freeFallback.test.ts (48 tests) 24ms
+ ✓ tests/contextMenu.test.ts (31 tests) 17ms
+ ✓ tests/offscreenAdapters.test.ts (21 tests) 15ms
+ ✓ tests/viewportStability.test.ts (17 tests) 11ms
+ ✓ tests/syntheticRemount.test.ts (19 tests) 25ms
+ ✓ tests/localTranslationRuntime.test.ts (26 tests) 297ms
+ ✓ tests/webDavApi.test.ts (15 tests) 29ms
+ ✓ tests/bilingualReplay.test.ts (16 tests) 56ms
+ ✓ tests/siteAdaptationSettings.test.ts (21 tests) 29ms
+ ✓ tests/offscreenTtsPlayback.test.ts (22 tests) 17ms
+ ✓ tests/vocabularyBackgroundHandler.test.ts (13 tests) 10ms
+ ✓ tests/videoAiOffscreen.test.ts (19 tests) 10ms
+ ✓ tests/requestConfigSnapshot.test.ts (12 tests) 7ms
+ ✓ tests/inputEditableHost.test.ts (20 tests) 16ms
+ ✓ tests/configHistoryDomain.test.ts (18 tests) 123ms
+ ✓ tests/languageIdentification.test.ts (94 tests) 66ms
+ ✓ tests/contentHotkeyRuntime.test.ts (20 tests) 109ms
+stdout | tests/harnessModelGateway.test.ts > harness model gateway > uses native Claude Messages API and honors configured proxy
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+
+ ✓ tests/harnessModelGateway.test.ts (16 tests) 54ms
+ ✓ tests/freeBalancedRouting.test.ts (39 tests) 1059ms
+   ✓ balanced free fallback routing > does not let a delayed persisted record overwrite a service that already succeeded 1001ms
+ ✓ tests/translationRequestScheduler.test.ts (19 tests) 124ms
+ ✓ tests/sectionTranslationRegion.test.ts (16 tests) 6ms
+ ✓ tests/cloudVendorCatalog.test.ts (15 tests) 38ms
+ ✓ tests/localTtsBackground.test.ts (21 tests) 22ms
+ ✓ tests/aiSdkEndpoints.test.ts (73 tests) 7ms
+ ✓ tests/googleDriveConfig.test.ts (15 tests) 68ms
+ ✓ tests/modelUsageAggregation.test.ts (12 tests) 9ms
+ ✓ tests/vocabularyRepositoryEdges.test.ts (8 tests) 138ms
+ ✓ tests/translationStatsAggregation.test.ts (16 tests) 10ms
+ ✓ tests/readingAssistantPresentation.test.ts (29 tests) 29ms
+ ✓ tests/videoSubtitleLogic.test.ts (21 tests) 31ms
+ ❯ tests/contentFeatureMounting.test.ts (17 tests | 2 failed) 70ms
+   × 划词翻译挂载生命周期 > Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI 3ms
+     → You must provide a Promise to expect() when using .resolves, not 'object'.
+   × 划词翻译挂载生命周期 > Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host 1ms
+     → Cannot read properties of undefined (reading '1')
+ ✓ tests/localTts.test.ts (20 tests) 32ms
+ ✓ tests/fullPagePriority.test.ts (13 tests) 6ms
+ ✓ tests/contentFeatureRegistry.test.ts (17 tests) 6ms
+ ✓ tests/apiKeyRotation.test.ts (42 tests) 58ms
+ ✓ tests/localTtsWorker.test.ts (20 tests) 1237ms
+ ✓ tests/configDomainBoundaries.test.ts (23 tests) 29ms
+ ✓ tests/interfaceFonts.test.ts (31 tests) 1395ms
+   ✓ 字体下载、缓存和切换生命周期 > 阻塞的下载超时后切换下一个源 1010ms
+ ✓ tests/interfaceSkinReadability.test.ts (9 tests) 15ms
+ ✓ tests/googleDriveApi.test.ts (16 tests) 1793ms
+   ✓ Google Drive appDataFolder HTTP 边界 > 持续版本变化或读回鉴权失败时明确已上传待核验，不再次创建也不误报同步成功 653ms
+ ✓ tests/remoteImage.test.ts (10 tests) 11ms
+ ✓ tests/fullPageModalPriority.test.ts (14 tests) 11ms
+ ❯ tests/harnessConversation.test.ts (14 tests | 1 failed) 13ms
+   × Harness persistent conversation coordination > keeps a switched action in the same saved reading record but excludes previous answers from analysis 4ms
+     → expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }
+(6 matching properties omitted from actual)
+ ✓ tests/siteAdaptationCatalog.test.ts (235 tests) 661ms
+ ✓ tests/vocabularyReencounter.test.ts (17 tests) 40ms
+ ✓ tests/chineseLanguage.test.ts (171 tests) 23ms
+ ✓ tests/writingCore.test.ts (11 tests) 64ms
+ ✓ tests/sectionTranslationCore.test.ts (19 tests) 15ms
+ ✓ tests/visionProbe.test.ts (13 tests) 125ms
+ ✓ tests/dataBackup.test.ts (14 tests) 19ms
+ ✓ tests/credentialBinding.test.ts (12 tests) 32ms
+ ✓ tests/chromeTranslationPreparationRequest.test.ts (11 tests) 6ms
+ ✓ tests/localTranslationDownloads.test.ts (18 tests) 1078ms
+ ✓ tests/configHarness.test.ts (25 tests) 17ms
+ ✓ tests/interfaceAppearance.test.ts (9 tests) 12ms
+ ✓ tests/optionsNavigation.test.ts (24 tests) 5ms
+ ✓ tests/backgroundImageServices.test.ts (11 tests) 160ms
+ ✓ tests/liveTextRender.test.ts (10 tests) 16ms
+ ✓ tests/configRepository.test.ts (13 tests) 27ms
+ ✓ tests/translationAppearance.test.ts (13 tests) 10ms
+ ✓ tests/videoAiAlgorithmsCoverage.test.ts (7 tests) 11ms
+ ✓ tests/translationBrokerStats.test.ts (8 tests) 120ms
+ ✓ tests/liveTextTranslation.test.ts (13 tests) 15ms
+ ✓ tests/videoAiModelSetup.test.ts (13 tests) 6ms
+ ✓ tests/providerUsageNormalization.test.ts (15 tests) 4ms
+ ✓ tests/modelThinking.test.ts (26 tests) 5ms
+ ✓ tests/modelUsageHandler.test.ts (13 tests) 7ms
+ ✓ tests/commonUtilities.test.ts (51 tests) 22ms
+ ✓ tests/paragraphCopyRuntime.test.ts (14 tests) 13ms
+ ✓ tests/freeExtraWebProviders.test.ts (20 tests) 10ms
+ ✓ tests/imageTranslation.test.ts (11 tests) 5ms
+ ✓ tests/qqMailFrameHandlers.test.ts (8 tests) 5ms
+ ✓ tests/contentFeatureLifecycle.test.ts (10 tests) 153ms
+ ✓ tests/firefoxDocumentRuntime.test.ts (8 tests) 155ms
+ ✓ tests/imageOcrNormalization.test.ts (25 tests) 10ms
+ ✓ tests/freeChineseWebProviders.test.ts (14 tests) 23ms
+ ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 17ms
+ ✓ tests/videoSubtitleViewport.test.ts (17 tests) 12ms
+ ✓ tests/quickTranslation.test.ts (13 tests) 4ms
+ ✓ tests/translateQueue.test.ts (20 tests) 364ms
+ ✓ tests/hlsAudio.test.ts (12 tests) 33ms
+ ✓ tests/translationFont.test.ts (12 tests) 16ms
+ ✓ tests/hotkey.test.ts (12 tests) 4ms
+ ✓ tests/translationPrompts.test.ts (19 tests) 4ms
+ ✓ tests/sectionTranslationRuntime.test.ts (8 tests) 14ms
+ ✓ tests/areaTextTranslation.test.ts (26 tests) 22ms
+ ✓ tests/languageCodes.test.ts (335 tests) 24ms
+ ✓ tests/siteRules.test.ts (20 tests) 20ms
+ ✓ tests/apiKeyPool.test.ts (15 tests) 5ms
+ ✓ tests/freeOfficialWebProviders.test.ts (46 tests) 17ms
+ ✓ tests/aiSdkErrors.test.ts (49 tests) 7ms
+ ✓ tests/serviceCatalog.test.ts (16 tests) 10ms
+ ✓ tests/localTranslationArtifacts.test.ts (15 tests) 103ms
+ ✓ tests/configCount.test.ts (11 tests) 7ms
+ ✓ tests/issue146SiteRules.test.ts (6 tests) 41ms
+ ✓ tests/inputBox.test.ts (12 tests) 3ms
+ ✓ tests/imageTranslationRendering.test.ts (19 tests) 24ms
+ ✓ tests/chineseTechnicalParagraphs.test.ts (439 tests) 48ms
+ ✓ tests/userscriptInitialize.test.ts (8 tests) 79ms
+ ✓ tests/xHlsAudioRuntime.test.ts (14 tests) 14ms
+ ✓ tests/downloadProgress.test.ts (11 tests) 4ms
+ ✓ tests/translationStatsPresentation.test.ts (7 tests) 11ms
+ ✓ tests/wasmDiagnostics.test.ts (13 tests) 57ms
+ ✓ tests/wordDictionary.test.ts (11 tests) 5ms
+ ✓ tests/translationLoadingIndicator.test.ts (10 tests) 7ms
+ ✓ tests/uiLanguageBundles.test.ts (15 tests) 472ms
+ ✓ tests/languageStatistical.test.ts (28 tests) 38ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 17ms
+ ✓ tests/onnxWasmBinary.test.ts (9 tests) 15ms
+ ✓ tests/browserCapabilities.test.ts (11 tests) 3ms
+ ✓ tests/googleDriveAuth.test.ts (7 tests) 12ms
+ ✓ tests/imageTranslationInpainting.test.ts (14 tests) 147ms
+ ✓ tests/requestLimits.test.ts (5 tests) 6ms
+ ✓ tests/languageTechnicalTokens.test.ts (114 tests) 16ms
+ ✓ tests/videoTranscriptionCacheClient.test.ts (9 tests) 8ms
+ ✓ tests/backgroundConfigAutoBackup.test.ts (7 tests) 118ms
+ ✓ tests/areaTranslationCore.test.ts (8 tests) 3ms
+ ✓ tests/xVideoSubtitleData.test.ts (9 tests) 4ms
+ ✓ tests/visionConfig.test.ts (8 tests) 8ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 7ms
+ ✓ tests/harnessCore.test.ts (11 tests) 9ms
+ ✓ tests/learningMemoryHandler.test.ts (6 tests) 5ms
+ ✓ tests/videoAiBackground.test.ts (11 tests) 5ms
+ ✓ tests/modelUsageInsights.test.ts (10 tests) 3ms
+ ✓ tests/videoAiSubtitleCache.test.ts (5 tests) 30ms
+ ✓ tests/paragraphCopyCore.test.ts (17 tests) 7ms
+ ✓ tests/builtinGlossaries.test.ts (19 tests) 29ms
+ ✓ tests/requestHeaderRules.test.ts (6 tests) 64ms
+ ✓ tests/localTtsModelCache.test.ts (4 tests) 12ms
+ ✓ tests/optionalContentFeatures.test.ts (7 tests) 4ms
+ ✓ tests/vocabularyLearningModel.test.ts (11 tests) 6ms
+ ✓ tests/harnessMemorySearch.test.ts (10 tests) 5ms
+ ✓ tests/userscriptCount.test.ts (7 tests) 4ms
+ ✓ tests/ocrModelDownload.test.ts (5 tests) 15ms
+ ✓ tests/customOpenAI.test.ts (6 tests) 5ms
+ ✓ tests/videoTranslationCache.test.ts (11 tests) 13ms
+ ✓ tests/runtimeMessages.test.ts (13 tests) 6ms
+ ✓ tests/freeTranslationConfig.test.ts (6 tests) 16ms
+ ✓ tests/glossaryConfig.test.ts (7 tests) 21ms
+ ✓ tests/shareCardStudio.test.ts (6 tests) 105ms
+ ✓ tests/quickTranslationRuntime.test.ts (4 tests) 3ms
+ ✓ tests/downloadProgressTransport.test.ts (5 tests) 4ms
+ ✓ tests/selectionTtsContentController.test.ts (5 tests) 3ms
+ ✓ tests/translationSourceStability.test.ts (45 tests) 17ms
+ ✓ tests/readingAssistantClient.test.ts (5 tests) 4ms
+ ✓ tests/userscriptFullOptions.test.ts (7 tests) 4ms
+ ✓ tests/translationCenterSession.test.ts (10 tests) 4ms
+ ✓ tests/documentTranslationPresentation.test.ts (8 tests) 6ms
+ ✓ tests/writingReference.test.ts (15 tests) 4ms
+ ✓ tests/userscriptHttp.test.ts (6 tests) 6ms
+ ✓ tests/xCaptionSource.test.ts (6 tests) 8ms
+ ✓ tests/qqMailFrameSession.test.ts (22 tests) 6ms
+ ✓ tests/translationCacheManagement.test.ts (35 tests) 8ms
+ ✓ tests/credentialPreview.test.ts (6 tests) 3ms
+ ✓ tests/modelCacheRemoval.test.ts (5 tests) 11ms
+ ✓ tests/translationSourceStabilityGate.test.ts (17 tests) 9ms
+ ✓ tests/customService.test.ts (5 tests) 30ms
+ ✓ tests/selectionTtsProtocol.test.ts (33 tests) 7ms
+ ✓ tests/backgroundWebDavBackup.test.ts (5 tests) 10ms
+ ✓ tests/issue146EmbeddedFrames.test.ts (3 tests) 4ms
+ ✓ tests/edgeTtsPolicy.test.ts (7 tests) 4ms
+ ✓ tests/fullPageStateNotification.test.ts (6 tests) 3ms
+ ✓ tests/translationStatsHandler.test.ts (3 tests) 4ms
+ ✓ tests/featureTranslationServices.test.ts (6 tests) 10ms
+ ✓ tests/languageScripts.test.ts (41 tests) 6ms
+ ✓ tests/siteAdaptationSession.test.ts (5 tests) 11ms
+ ✓ tests/inputTranslationConfig.test.ts (5 tests) 8ms
+ ✓ tests/shareCardRender.test.ts (30 tests) 23ms
+ ✓ tests/modalProgressHint.test.ts (6 tests) 5ms
+ ✓ tests/freeWeights.test.ts (6 tests) 3ms
+ ✓ tests/videoSpeechAlignment.test.ts (8 tests) 11ms
+ ✓ tests/userscriptStorage.test.ts (5 tests) 4ms
+ ✓ tests/videoAiModelCache.test.ts (6 tests) 11ms
+ ✓ tests/translationVisionPayload.test.ts (5 tests) 3ms
+ ✓ tests/configEncryption.test.ts (5 tests) 6ms
+ ✓ tests/videoSubtitleAppearance.test.ts (5 tests) 8ms
+ ✓ tests/userscriptPlatform.test.ts (4 tests) 4ms
+ ✓ tests/googleDriveEncryption.test.ts (6 tests) 5136ms
+   ✓ Google Drive 本机认证加密 > 20 MiB 配置边界及预览独立预算，超过配置上限的暂存不能冒充云端配置 4596ms
+ ✓ tests/harnessUsage.test.ts (3 tests) 9ms
+ ✓ tests/configValidation.test.ts (10 tests) 2ms
+ ✓ tests/harnessStreamPort.test.ts (3 tests) 3ms
+ ✓ tests/usePopupLayoutReorder.test.ts (8 tests) 3ms
+ ✓ tests/localTranslationInference.test.ts (6 tests) 39ms
+ ✓ tests/aiContextPresentation.test.ts (16 tests) 2ms
+ ✓ tests/actionIcon.test.ts (15 tests) 5ms
+ ✓ tests/shadowUi.test.ts (5 tests) 4ms
+ ✓ tests/translationError.test.ts (12 tests) 4ms
+ ✓ tests/shareCardRuntime.test.ts (4 tests) 3ms
+ ✓ tests/webDavConnection.test.ts (4 tests) 4ms
+ ✓ tests/configAutoBackupDomain.test.ts (3 tests) 23ms
+ ✓ tests/webDavProperties.test.ts (5 tests) 6ms
+ ✓ tests/translationLanguage.test.ts (7 tests) 20ms
+ ✓ tests/readmeContributors.test.ts (4 tests) 3ms
+ ✓ tests/xSubtitleLoader.test.ts (5 tests) 19ms
+ ✓ tests/freeRoutingPolicy.test.ts (5 tests) 2ms
+ ✓ tests/userscriptLanguageBundles.test.ts (3 tests) 34ms
+ ✓ tests/writingMarkdown.test.ts (8 tests) 4ms
+ ✓ tests/writingPreview.test.ts (8 tests) 3ms
+ ✓ tests/pageStyles.test.ts (4 tests) 10ms
+ ✓ tests/identicalTranslation.test.ts (26 tests) 10ms
+ ✓ tests/paragraphCopyConfig.test.ts (6 tests) 3ms
+ ✓ tests/writingEntryPlacement.test.ts (6 tests) 23ms
+ ✓ tests/apiKeyCheckIdentity.test.ts (3 tests) 3ms
+ ✓ tests/localTranslation.test.ts (4 tests) 8ms
+ ✓ tests/shareCardCore.test.ts (8 tests) 14ms
+ ✓ tests/sectionTranslationConfig.test.ts (5 tests) 2ms
+ ✓ tests/videoPretranslationController.test.ts (3 tests) 3ms
+ ✓ tests/googleDrivePreview.test.ts (4 tests) 2ms
+ ✓ tests/translationAppearanceStyles.test.ts (3 tests) 4ms
+ ✓ tests/serviceLibrary.test.ts (4 tests) 9ms
+ ✓ tests/harnessSessionHandler.test.ts (3 tests) 3ms
+ ✓ tests/thunderbirdMessageRuntime.test.ts (4 tests) 153ms
+ ✓ tests/backgroundCapabilityRegistry.test.ts (5 tests) 3ms
+ ✓ tests/modelOptions.test.ts (3 tests) 4ms
+ ✓ tests/httpError.test.ts (6 tests) 3ms
+ ✓ tests/googleDriveSyncClient.test.ts (4 tests) 3ms
+ ✓ tests/apiKeyTypes.test.ts (5 tests) 2ms
+ ✓ tests/promptTemplateSync.test.ts (3 tests) 3ms
+ ✓ tests/userscriptPageContext.test.ts (2 tests) 5ms
+ ✓ tests/videoTranslationScheduler.test.ts (4 tests) 8ms
+ ❯ tests/translationStatsI18n.test.ts (2 tests | 1 failed) 27ms
+   × 翻译统计界面文案 > 翻译统计导航与搜索文案覆盖全部非中文界面语言 8ms
+     → en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality
+ ✓ tests/localTranslationProvider.test.ts (5 tests) 4ms
+ ✓ tests/selectionPageZoom.test.ts (5 tests) 3ms
+ ✓ tests/legacyPageCache.test.ts (5 tests) 2ms
+ ✓ tests/http.test.ts (5 tests) 5ms
+ ✓ tests/localModelReadiness.test.ts (14 tests) 5ms
+ ✓ tests/configApiKeys.test.ts (4 tests) 7ms
+ ✓ tests/translationConfigCheck.test.ts (6 tests) 2ms
+ ✓ tests/fullPageTranslationErrorMessage.test.ts (33 tests) 3ms
+ ✓ tests/serviceIcons.test.ts (3 tests) 253ms
+ ✓ tests/pageContext.test.ts (2 tests) 22ms
+ ✓ tests/microsoftTransport.test.ts (3 tests) 5ms
+ ✓ tests/webDavBackupClient.test.ts (3 tests) 3ms
+ ✓ tests/freeTranslationI18n.test.ts (13 tests) 10ms
+ ✓ tests/pageContextPolicy.test.ts (4 tests) 2ms
+ ✓ tests/modelUsageTokenFormat.test.ts (4 tests) 3ms
+ ✓ tests/onnxWebGpu.test.ts (15 tests) 4ms
+ ✓ tests/userscriptManagerSmokeCli.test.ts (2 tests) 3ms
+ ✓ tests/tabTranslationState.test.ts (4 tests) 2ms
+ ✓ tests/videoSubtitleLanguage.test.ts (3 tests) 11ms
+ ✓ tests/harnessMemoryRecall.test.ts (3 tests) 3ms
+ ✓ tests/backgroundCacheCleanup.test.ts (2 tests) 5ms
+ ✓ tests/videoTranscription.test.ts (4 tests) 2ms
+ ✓ tests/shareCardExcerpt.test.ts (3 tests) 4ms
+ ✓ tests/translationCachePolicy.test.ts (12 tests) 2ms
+ ✓ tests/localInsightsHandlers.test.ts (1 test) 2ms
+ ✓ tests/userscriptUnsupportedCapabilities.test.ts (2 tests) 2ms
+ ✓ tests/fullPageHostMarkers.test.ts (5 tests) 3ms
+ ✓ tests/userscriptFreeTranslationSettings.test.ts (3 tests) 5ms
+ ✓ tests/translationToolbarStatus.test.ts (3 tests) 1ms
+ ✓ tests/sentenceActionsMount.test.ts (3 tests) 3ms
+ ✓ tests/providerRegistry.test.ts (2 tests) 2ms
+ ✓ tests/translationStatsMeasure.test.ts (3 tests) 1ms
+ ✓ tests/supportedFrameEntrypoint.test.ts (1 test) 4ms
+ ✓ tests/userscriptCompression.test.ts (3 tests) 8ms
+ ✓ tests/popupCache.test.ts (2 tests) 2ms
+ ✓ tests/userscriptRequires.test.ts (1 test) 71ms
+ ✓ tests/sha256.test.ts (10 tests) 19ms
+ ✓ tests/freeTranslationHealthStorage.test.ts (1 test) 2ms
+ ✓ tests/mainWorldBridgeLifecycle.test.ts (1 test) 1ms
+ ✓ tests/shareCardExport.test.ts (1 test) 2ms
+ ✓ tests/visionProbeStorage.test.ts (1 test) 2ms
+ ✓ tests/auth.test.ts (3 tests) 1ms
+ ✓ tests/credentialStorageContext.test.ts (8 tests) 1ms
+
+ Test Files  3 failed | 299 passed (302)
+      Tests  4 failed | 6428 passed (6432)
+   Start at  19:14:46
+   Duration  65.41s (transform 3.22s, setup 0ms, collect 12.18s, tests 30.20s, environment 23ms, prepare 6.19s)
+
+JSON report written to $BATCH_RECORDS_ROOT/group-unit-pure-prepared.results.json

@@ -1,0 +1,321 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationCenterComponent.test.ts tests/resourceSafeRunner.test.ts tests/settingsCompositionAutosave.test.ts tests/chineseTranslationProviders.test.ts tests/cloudVendorProviders.test.ts tests/doubaoSeedTranslation.test.ts tests/aiSdkOpenAICompatible.test.ts tests/config.test.ts tests/configAutoBackupStore.test.ts tests/configIndexedDbIntegration.test.ts tests/configStorage.test.ts tests/chromeTranslatorLanguageRegression.test.ts tests/claude.test.ts tests/connection-test.test.ts tests/contentMessageRuntime.test.ts tests/contentUiRuntime.test.ts tests/translationGlossaryIntegration.test.ts tests/imageGlossaryContext.test.ts tests/glossarySettingsComponent.test.ts tests/deepl.test.ts tests/deeplx.test.ts tests/documentTranslationBinaryEdge.test.ts tests/documentTranslation.test.ts tests/documentBatchComponent.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationBinary.test.ts tests/documentPdfRasterizer.test.ts tests/documentArchive.test.ts tests/obsidianDocumentIntegration.test.ts tests/obsidianTranslationGateway.test.ts tests/obsidianVault.test.ts tests/free-translation.test.ts tests/fullPageTranslationIndicators.test.ts tests/floatingUiPresentation.test.ts tests/floatingBallPosition.test.ts tests/featureTranslationClients.test.ts tests/gemini.test.ts tests/google.test.ts tests/mimo.test.ts tests/modelUsageRepository.test.ts tests/translationStatsRepository.test.ts tests/offscreenMessageRouter.test.ts tests/pageContextDefuddle.test.ts tests/pageNotice.test.ts tests/translateApiPerformance.test.ts tests/tongyi.test.ts tests/videoSubtitle.test.ts tests/vocabularyBook.test.ts tests/vocabularyBookComponent.test.ts tests/zhipuCredentials.test.ts tests/qqMailFrameRuntime.test.ts tests/translationCachePolicyBinding.test.ts tests/translationAvailability.test.ts tests/harnessSessionRepository.test.ts tests/harnessConversationPersistence.test.ts tests/imageOcrRuntime.test.ts tests/imageTranslationPresentation.test.ts tests/imageTranslationFlow.test.ts tests/imageTextReader.test.ts tests/imageTranslationClientRecovery.test.ts tests/imageTranslationRuntime.test.ts tests/imageTranslationPageRead.test.ts tests/imageLoads.test.ts tests/imageSourceAuthorization.test.ts tests/imageTranslationOffscreenRuntime.test.ts tests/siteAdaptationRuntime.test.ts tests/readingPanelLifecycle.test.ts tests/learningMemoryRepository.test.ts tests/optionsAppNavigationLifecycle.test.ts tests/myMemoryProvider.test.ts tests/freeWebProviders.test.ts tests/writingRuntime.test.ts tests/writingIntegration.test.ts tests/popupActions.test.ts tests/areaTranslationRecovery.test.ts tests/areaTranslationTrigger.test.ts tests/backgroundBadgeRuntime.test.ts tests/translationVisionProviders.test.ts tests/translationVisionBroker.test.ts tests/areaVisionRecognition.test.ts tests/uiI18nBundleLoading.test.ts tests/bilingualSentenceHighlight.test.ts tests/languageIdentificationCorpus.test.ts tests/sameTargetLanguageClient.test.ts tests/sameTargetLanguageSlots.test.ts tests/sectionTranslationPicker.test.ts tests/videoCaptionPlatformRuntime.test.ts tests/googleDriveSync.test.ts tests/backgroundGoogleDriveSync.test.ts tests/mangaCanvas.test.ts tests/mangaBackground.test.ts tests/mangaImageSegments.test.ts tests/mangaReader.test.ts tests/mangaSites.test.ts tests/mangaEntry.test.ts tests/mangaQuality.test.ts tests/mangaTypography.test.ts tests/mangaOcr.test.ts tests/mangaOcrAssets.test.ts tests/mangaInpainting.test.ts tests/mangaEncoding.test.ts tests/mangaGpu.test.ts tests/mangaSessionFallback.test.ts tests/mangaOnnxBuild.test.ts tests/mangaBubbles.test.ts tests/webDavBackup.test.ts tests/webDavHttpIntegration.test.ts tests/mangaPatchResult.test.ts tests/mangaCompositor.test.ts tests/modelDownloads.test.ts tests/localInferenceResources.test.ts tests/speechProgress.test.ts tests/mangaInferenceClient.test.ts tests/mangaInferenceWorker.test.ts --reporter=default --reporter=json --outputFile=$BATCH_RECORDS_ROOT/group-functional-pure-prepared.results.json --no-cache
+
+ RUN  v2.1.9 $PURE_WORKTREE
+
+ ✓ tests/config.test.ts (129 tests) 5751ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1089ms
+ ✓ tests/imageTranslationRuntime.test.ts (182 tests) 367ms
+ ✓ tests/mangaSites.test.ts (285 tests) 55ms
+ ✓ tests/mangaReader.test.ts (144 tests) 171ms
+ ✓ tests/sectionTranslationPicker.test.ts (49 tests) 584ms
+ ✓ tests/googleDriveSync.test.ts (45 tests) 18038ms
+   ✓ Google Drive 同步事务 > 只读备份仍展示差异并可在后台重启后恢复，伪造保存请求也不能写入云端 645ms
+   ✓ Google Drive 同步事务 > 配置一致或合并结果等于云端时只更新基线，不重复写入备份 572ms
+   ✓ Google Drive 同步事务 > MV3 后台重启后仍可用口令恢复一次性预览，暂存中没有明文凭据 675ms
+   ✓ Google Drive 同步事务 > 每次点击只授权一次，结束后清理缓存且保留密文基线与同步时间 313ms
+   ✓ Google Drive 同步事务 > 基于共同基线合并独立设置变化，私密连接冲突必须整组选择 570ms
+   ✓ Google Drive 同步事务 > 云端新增、删除和修改均使旧预览失效，上传失败保留本机和基线 833ms
+   ✓ Google Drive 同步事务 > 本机写入失败先恢复原设置，不把失败记录为同步成功 469ms
+   ✓ Google Drive 同步事务 > 旧基线无法解密和换账号时不隐含合并；再次同步同账号保留基线 463ms
+   ✓ Google Drive 同步事务 > 升级为 Drive 账号标识时不能按同邮箱复用旧 OAuth 基线，确认前保留两端配置 466ms
+   ✓ Google Drive 同步事务 > 删除自定义服务和另一端选择它形成整组冲突，确认后备份可再次读取 682ms
+   ✓ Google Drive 同步事务 > 6MiB 合法请求体首次上传后可再次预览，后台重启后可合并及跨设备恢复 4010ms
+   ✓ Google Drive 同步事务 > 成功同步记录账号，重开不授权；换号取消或失败仍保留上次成功记录 313ms
+   ✓ 云备份删除确认事务 > 损坏、未知格式与旧完整备份可删除，重启后仅删除确认的文件并清除基线，本机凭据保持不变 516ms
+   ✓ 单次敏感范围事务 > 旧 v1 的默认 merge 保护本机连接和私密字段；download 保留云端秘密 362ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 download 当作完整连接删除 308ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 merge 当作完整连接删除 364ms
+   ✓ 单次敏感范围事务 > 范围切换投影基线，普通设置完全一致时仍覆盖旧云秘密，重新同意才能上传完整快照 1240ms
+   ✓ 单次敏感范围事务 > 普通基线遇到完整云端时不对敏感字段给出错误自动建议 413ms
+   ✓ 单次敏感范围事务 > 旧 pending、篡改 scope 以及重启后的范围字段缺失均拒绝且不写云 1179ms
+   ✓ 单次敏感范围事务 > 完整原始本机快照检测投影外变化，并在保存失败后精确回滚 363ms
+ ✓ tests/imageTranslationFlow.test.ts (34 tests) 506ms
+ ✓ tests/configStorage.test.ts (28 tests) 263ms
+ ✓ tests/offscreenMessageRouter.test.ts (35 tests) 395ms
+ ✓ tests/glossarySettingsComponent.test.ts (41 tests) 9381ms
+   ✓ GlossarySettings compiled component > renders separate script choices from the shared translation catalog and persists traditional scope 448ms
+ ✓ tests/free-translation.test.ts (65 tests) 773ms
+ ✓ tests/vocabularyBook.test.ts (28 tests) 188ms
+ ✓ tests/imageTranslationOffscreenRuntime.test.ts (55 tests) 90ms
+ ✓ tests/translateApiPerformance.test.ts (36 tests) 273ms
+ ✓ tests/writingRuntime.test.ts (130 tests) 162ms
+ ✓ tests/mangaInferenceClient.test.ts (31 tests) 41ms
+ ✓ tests/imageOcrRuntime.test.ts (34 tests) 155ms
+ ✓ tests/modelUsageRepository.test.ts (15 tests) 148ms
+ ✓ tests/mangaOcr.test.ts (19 tests) 80ms
+ ✓ tests/bilingualSentenceHighlight.test.ts (19 tests) 32ms
+ ✓ tests/aiSdkOpenAICompatible.test.ts (27 tests) 6061ms
+   ✓ Vercel AI SDK OpenAI-compatible transport > AI SDK 的首次请求和内部重试都经过共享 attempt scheduler 6005ms
+ ✓ tests/connection-test.test.ts (28 tests) 71ms
+ ✓ tests/translationGlossaryIntegration.test.ts (25 tests) 39ms
+ ✓ tests/cloudVendorProviders.test.ts (36 tests) 27ms
+ ✓ tests/videoSubtitle.test.ts (29 tests) 22ms
+ ✓ tests/qqMailFrameRuntime.test.ts (20 tests) 520ms
+ ✓ tests/mangaInferenceWorker.test.ts (21 tests) 21ms
+ ❯ tests/imageGlossaryContext.test.ts (14 tests | 2 failed) 28ms
+   × 图片、圈选OCR到真实术语broker的完整请求边界 > 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文 4ms
+     → expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]
+   × 图片、圈选OCR到真实术语broker的完整请求边界 > 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果 3ms
+     → expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'
+ ✓ tests/contentUiRuntime.test.ts (14 tests) 66ms
+ ✓ tests/google.test.ts (27 tests) 195ms
+ ✓ tests/contentMessageRuntime.test.ts (11 tests) 228ms
+ ✓ tests/readingPanelLifecycle.test.ts (16 tests) 4870ms
+   ✓ reading action ownership and reuse > has no active answer or model request before entering learning, and starts the default action after an empty history view 568ms
+   ✓ reading action ownership and reuse > expands one historical turn without changing the current answer or context, and folds history when the current turn changes 327ms
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > preserves blank pages in a bilingual PDF without failing to embed them
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in bilingual mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in translated mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > cancels between PDF pages and retries without changing translations
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > releases decoded PNG pixels before rendering the next PDF page
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > 按 PDF 页解析版面文本块、坐标和页码上下文
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF partial export uses source for an empty reviewed block
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF 双语导出将每张原页和保留版式的译页并排放在同一页
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > 全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationBinary.test.ts (23 tests) 716ms
+ ✓ tests/translationStatsRepository.test.ts (14 tests) 138ms
+ ✓ tests/backgroundBadgeRuntime.test.ts (35 tests) 373ms
+ ✓ tests/videoCaptionPlatformRuntime.test.ts (15 tests) 41ms
+ ✓ tests/mangaInpainting.test.ts (14 tests) 312ms
+ ✓ tests/documentTranslationApi.test.ts (28 tests) 59ms
+ ✓ tests/documentBatchComponent.test.ts (17 tests) 106ms
+ ✓ tests/imageTranslationPresentation.test.ts (34 tests) 9ms
+ ✓ tests/webDavBackup.test.ts (10 tests) 4238ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 upload，worker 重启后仍可提交且保护本机密钥 533ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 merge，worker 重启后仍可提交且保护本机密钥 516ms
+   ✓ WebDAV 配置云备份事务 > 后台重启后恢复一次性预览，完整凭据可在第二设备恢复；连接密码不进入备份 318ms
+   ✓ WebDAV 配置云备份事务 > 相同连接保留基线，换连接使预览失效；另一页面不能更改连接或取消事务 571ms
+   ✓ WebDAV 配置云备份事务 > 合并单边修改，云端和本机变化使预览失效；失败不更新成功记录 937ms
+   ✓ WebDAV 默认普通范围经 worker 休眠仍去密，单次同意完整备份可明确删除凭据 1151ms
+ ✓ tests/imageSourceAuthorization.test.ts (12 tests) 9ms
+ ✓ tests/translationCenterComponent.test.ts (20 tests) 238ms
+ ✓ tests/mangaCanvas.test.ts (26 tests) 17ms
+ ✓ tests/documentTranslationBinaryEdge.test.ts (12 tests) 129ms
+ ✓ tests/pageContextDefuddle.test.ts (8 tests) 119ms
+ ✓ tests/mangaEntry.test.ts (19 tests) 11ms
+ ✓ tests/documentTranslation.test.ts (19 tests) 8ms
+ ✓ tests/sameTargetLanguageClient.test.ts (61 tests) 130ms
+ ✓ tests/harnessSessionRepository.test.ts (10 tests) 25ms
+ ✓ tests/sameTargetLanguageSlots.test.ts (20 tests) 19ms
+ ❯ tests/mangaOcrAssets.test.ts (13 tests | 8 failed) 22ms
+   × 漫画模型固定版本和完整性 > 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库 6ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 20 秒无数据会切换备用来源，用户取消则立即结束且不切换 2ms
+     → Invalid typed array length: 206291843
+   × 漫画模型固定版本和完整性 > 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源 7ms
+     → Invalid typed array length: 21159378
+   × 漫画模型固定版本和完整性 > 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入 1ms
+     → Invalid typed array length: 74948
+   × 漫画模型固定版本和完整性 > 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像 1ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 损坏缓存被删除并重新下载，不保留坏模型 1ms
+     → Invalid typed array length: 9880512
+   × 漫画模型固定版本和完整性 > 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常 1ms
+     → Invalid typed array length: 206291843
+   × 漫画模型固定版本和完整性 > LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备 0ms
+     → Invalid typed array length: 206291843
+ ✓ tests/popupActions.test.ts (10 tests) 133ms
+ ✓ tests/localInferenceResources.test.ts (15 tests) 10ms
+ ✓ tests/featureTranslationClients.test.ts (36 tests) 12ms
+ ✓ tests/myMemoryProvider.test.ts (31 tests) 26ms
+ ✓ tests/imageTranslationClientRecovery.test.ts (12 tests) 59ms
+ ✓ tests/doubaoSeedTranslation.test.ts (13 tests) 26ms
+ ✓ tests/mangaImageSegments.test.ts (29 tests) 18ms
+ ✓ tests/resourceSafeRunner.test.ts (8 tests) 6575ms
+   ✓ resource safe runner > 并发设为 1 时多个真实进程串行运行，竞争回收死进程锁时不同时进入 4159ms
+   ✓ resource safe runner > 直接 Vitest setup 和 wrapper 竞争同一把锁，过期的继承环境不能绕过等待 1084ms
+   ✓ resource safe runner > 并发槽位数限制同时运行的进程，满额后的进程等待空槽再运行 1049ms
+ ✓ tests/fullPageTranslationIndicators.test.ts (14 tests) 16ms
+ ✓ tests/mangaBackground.test.ts (36 tests) 19ms
+ ✓ tests/areaTranslationTrigger.test.ts (8 tests) 148ms
+ ✓ tests/configIndexedDbIntegration.test.ts (2 tests) 186ms
+ ✓ tests/deeplx.test.ts (22 tests) 58ms
+ ✓ tests/modelDownloads.test.ts (8 tests) 16ms
+ ✓ tests/gemini.test.ts (13 tests) 14ms
+ ✓ tests/floatingUiPresentation.test.ts (6 tests) 4ms
+ ✓ tests/chromeTranslatorLanguageRegression.test.ts (9 tests) 6ms
+ ✓ tests/optionsAppNavigationLifecycle.test.ts (6 tests) 357ms
+ ✓ tests/freeWebProviders.test.ts (16 tests) 20ms
+ ✓ tests/learningMemoryRepository.test.ts (10 tests) 73ms
+ ✓ tests/pageNotice.test.ts (11 tests) 19ms
+ ❯ tests/imageTranslationPageRead.test.ts (0 test)
+ ✓ tests/mangaQuality.test.ts (14 tests) 9ms
+ ✓ tests/configAutoBackupStore.test.ts (6 tests) 354ms
+ ✓ tests/areaTranslationRecovery.test.ts (4 tests) 210ms
+ ✓ tests/harnessConversationPersistence.test.ts (7 tests) 583ms
+   ✓ Harness streaming with real IndexedDB persistence > checkpoints partial output and retains it as stopped when the user cancels 556ms
+ ✓ tests/writingIntegration.test.ts (4 tests) 6ms
+ ✓ tests/backgroundGoogleDriveSync.test.ts (8 tests) 11ms
+ ✓ tests/translationVisionProviders.test.ts (14 tests) 28ms
+ ❯ tests/settingsCompositionAutosave.test.ts (3 tests | 3 failed) 86ms
+   × 设置页输入法与自动保存集成 > 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本 73ms
+     → Cannot use import statement outside a module
+   × 设置页输入法与自动保存集成 > 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入 7ms
+     → Cannot use import statement outside a module
+   × 设置页输入法与自动保存集成 > InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本 6ms
+     → Cannot use import statement outside a module
+ ✓ tests/chineseTranslationProviders.test.ts (79 tests) 37ms
+ ✓ tests/mangaTypography.test.ts (13 tests) 22ms
+ ✓ tests/deepl.test.ts (59 tests) 14ms
+ ✓ tests/webDavHttpIntegration.test.ts (5 tests) 646ms
+ ✓ tests/translationAvailability.test.ts (8 tests) 104ms
+ ✓ tests/uiI18nBundleLoading.test.ts (4 tests) 84ms
+ ✓ tests/imageTextReader.test.ts (9 tests) 9ms
+ ✓ tests/languageIdentificationCorpus.test.ts (380 tests) 481ms
+ ✓ tests/translationCachePolicyBinding.test.ts (6 tests) 7ms
+ ✓ tests/speechProgress.test.ts (7 tests) 6ms
+ ✓ tests/mangaPatchResult.test.ts (37 tests) 55ms
+ ✓ tests/areaVisionRecognition.test.ts (9 tests) 13ms
+ ✓ tests/translationVisionBroker.test.ts (5 tests) 7ms
+ ✓ tests/mangaBubbles.test.ts (7 tests) 19ms
+stdout | tests/obsidianDocumentIntegration.test.ts > Obsidian Markdown document flow > extracts text from a real two-page PDF without changing the fixture
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/obsidianDocumentIntegration.test.ts (4 tests) 172ms
+ ✓ tests/mangaEncoding.test.ts (11 tests) 7ms
+ ❯ tests/documentPdfRasterizer.test.ts (6 tests | 1 failed) 58ms
+   × PDF rasterizer resource lifecycle > encodes the original preview before painting translation and releases the shared canvas 2ms
+     → Cannot read properties of undefined (reading 'some')
+ ✓ tests/tongyi.test.ts (4 tests) 5ms
+ ✓ tests/mangaCompositor.test.ts (13 tests) 7ms
+ ✓ tests/siteAdaptationRuntime.test.ts (3 tests) 2ms
+ ✓ tests/mangaSessionFallback.test.ts (3 tests) 3ms
+ ✓ tests/mimo.test.ts (2 tests) 24ms
+ ✓ tests/vocabularyBookComponent.test.ts (4 tests) 2ms
+ ✓ tests/documentArchive.test.ts (5 tests) 38ms
+ ✓ tests/obsidianTranslationGateway.test.ts (3 tests) 55ms
+ ✓ tests/obsidianVault.test.ts (2 tests) 3ms
+ ✓ tests/claude.test.ts (2 tests) 4ms
+ ✓ tests/imageLoads.test.ts (5 tests) 1ms
+ ✓ tests/floatingBallPosition.test.ts (3 tests) 8ms
+ ✓ tests/zhipuCredentials.test.ts (1 test) 4ms
+ ✓ tests/mangaOnnxBuild.test.ts (1 test) 6ms
+ ✓ tests/mangaGpu.test.ts (3 tests) 1ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 2 unhandled errors during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  5 failed | 109 passed (114)
+      Tests  14 failed | 3146 passed (3160)
+     Errors  2 errors
+   Start at  19:15:51
+   Duration  84.79s (transform 2.34s, setup 0ms, collect 8.47s, tests 67.31s, environment 9ms, prepare 2.34s)
+
+JSON report written to $BATCH_RECORDS_ROOT/group-functional-pure-prepared.results.json

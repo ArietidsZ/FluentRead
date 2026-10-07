@@ -32,3 +32,7 @@ The two new counterexamples were first run against unchanged `9dc1391e` and fail
 Escaped tag-looking XML (`&lt;hello&gt;`) still yields no cue through native DOMParser and a `<hello>` cue through regex fallback, identically on baseline and revision. This existing discrepancy was asserted and left unchanged. Hangul spacing, null segments, `tOffsetMs` and per-event sentence splitting remain separate work.
 
 Full grouped unit/functional/regression stages, WXT preparation, browser/userscript/docs builds, extension injection, site/network browser matrix, RTX5090 WebGPU and ASR are **NOT_RUN**. Unrelated baseline failures were not modified. This branch contains only this record directory; it is evidence, not a code branch or a deployment claim.
+
+## Additional remaining-stage acceptance
+
+[Remaining batch: grouped tests, pure/combined builds and read-only browser blockers](remaining-batch-20261007/README.md) supplements the original record above. It does not change its logged outcomes.

@@ -1,0 +1,11 @@
+{
+  "label": "docs-verifier-baseline",
+  "command": [
+    "node",
+    "scripts/verify-docs-build.mjs"
+  ],
+  "cwd": "$BASELINE_WORKTREE",
+  "started_at": "2026-10-07T11:21:22.540827+00:00",
+  "duration_seconds": 0.241,
+  "exit_code": 1
+}

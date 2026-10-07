@@ -1,0 +1,334 @@
+{
+  "unit": {
+    "revision_66abb72": {
+      "files": 302,
+      "passed_files": 299,
+      "failed_files": [
+        "tests/contentFeatureMounting.test.ts",
+        "tests/harnessConversation.test.ts",
+        "tests/translationStatsI18n.test.ts"
+      ],
+      "tests": 6432,
+      "passed_tests": 6428,
+      "failed_tests": 4,
+      "failures": [
+        {
+          "file": "tests/contentFeatureMounting.test.ts",
+          "test": "划词翻译挂载生命周期 Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host",
+          "message_head": "TypeError: Cannot read properties of undefined (reading '1')"
+        },
+        {
+          "file": "tests/contentFeatureMounting.test.ts",
+          "test": "划词翻译挂载生命周期 Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI",
+          "message_head": "TypeError: You must provide a Promise to expect() when using .resolves, not 'object'."
+        },
+        {
+          "file": "tests/harnessConversation.test.ts",
+          "test": "Harness persistent conversation coordination keeps a switched action in the same saved reading record but excludes previous answers from analysis",
+          "message_head": "AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }"
+        },
+        {
+          "file": "tests/translationStatsI18n.test.ts",
+          "test": "翻译统计界面文案 翻译统计导航与搜索文案覆盖全部非中文界面语言",
+          "message_head": "AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality"
+        }
+      ],
+      "collection_errors": [],
+      "unhandled_errors": [],
+      "exit_code": 1
+    },
+    "baseline_83deca4": {
+      "files": 302,
+      "passed_files": 299,
+      "failed_files": [
+        "tests/contentFeatureMounting.test.ts",
+        "tests/harnessConversation.test.ts",
+        "tests/translationStatsI18n.test.ts"
+      ],
+      "tests": 6152,
+      "passed_tests": 6148,
+      "failed_tests": 4,
+      "failures": [
+        {
+          "file": "tests/contentFeatureMounting.test.ts",
+          "test": "划词翻译挂载生命周期 Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host",
+          "message_head": "TypeError: Cannot read properties of undefined (reading '1')"
+        },
+        {
+          "file": "tests/contentFeatureMounting.test.ts",
+          "test": "划词翻译挂载生命周期 Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI",
+          "message_head": "TypeError: You must provide a Promise to expect() when using .resolves, not 'object'."
+        },
+        {
+          "file": "tests/harnessConversation.test.ts",
+          "test": "Harness persistent conversation coordination keeps a switched action in the same saved reading record but excludes previous answers from analysis",
+          "message_head": "AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }"
+        },
+        {
+          "file": "tests/translationStatsI18n.test.ts",
+          "test": "翻译统计界面文案 翻译统计导航与搜索文案覆盖全部非中文界面语言",
+          "message_head": "AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality"
+        }
+      ],
+      "collection_errors": [],
+      "unhandled_errors": [],
+      "exit_code": 1
+    },
+    "new_failures": [],
+    "resolved_failures": [],
+    "failed_ids_identical": true,
+    "failure_message_heads_identical": true,
+    "collection_errors_identical": true,
+    "unhandled_error_signatures_identical": true
+  },
+  "functional": {
+    "revision_66abb72": {
+      "files": 114,
+      "passed_files": 109,
+      "failed_files": [
+        "tests/documentPdfRasterizer.test.ts",
+        "tests/imageGlossaryContext.test.ts",
+        "tests/imageTranslationPageRead.test.ts",
+        "tests/mangaOcrAssets.test.ts",
+        "tests/settingsCompositionAutosave.test.ts"
+      ],
+      "tests": 3160,
+      "passed_tests": 3146,
+      "failed_tests": 14,
+      "failures": [
+        {
+          "file": "tests/documentPdfRasterizer.test.ts",
+          "test": "PDF rasterizer resource lifecycle encodes the original preview before painting translation and releases the shared canvas",
+          "message_head": "TypeError: Cannot read properties of undefined (reading 'some')"
+        },
+        {
+          "file": "tests/imageGlossaryContext.test.ts",
+          "test": "图片、圈选OCR到真实术语broker的完整请求边界 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果",
+          "message_head": "AssertionError: expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'"
+        },
+        {
+          "file": "tests/imageGlossaryContext.test.ts",
+          "test": "图片、圈选OCR到真实术语broker的完整请求边界 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文",
+          "message_head": "AssertionError: expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 20 秒无数据会切换备用来源，用户取消则立即结束且不切换",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 损坏缓存被删除并重新下载，不保留坏模型",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源",
+          "message_head": "RangeError: Invalid typed array length: 21159378"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入",
+          "message_head": "RangeError: Invalid typed array length: 74948"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        }
+      ],
+      "collection_errors": [
+        {
+          "file": "tests/imageTranslationPageRead.test.ts",
+          "message": "This script should only be loaded in a browser extension."
+        }
+      ],
+      "unhandled_errors": [
+        "Error: 图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')",
+        "RangeError: Invalid typed array length: 206291843"
+      ],
+      "exit_code": 1
+    },
+    "baseline_83deca4": {
+      "files": 114,
+      "passed_files": 109,
+      "failed_files": [
+        "tests/documentPdfRasterizer.test.ts",
+        "tests/imageGlossaryContext.test.ts",
+        "tests/imageTranslationPageRead.test.ts",
+        "tests/mangaOcrAssets.test.ts",
+        "tests/settingsCompositionAutosave.test.ts"
+      ],
+      "tests": 3160,
+      "passed_tests": 3146,
+      "failed_tests": 14,
+      "failures": [
+        {
+          "file": "tests/documentPdfRasterizer.test.ts",
+          "test": "PDF rasterizer resource lifecycle encodes the original preview before painting translation and releases the shared canvas",
+          "message_head": "TypeError: Cannot read properties of undefined (reading 'some')"
+        },
+        {
+          "file": "tests/imageGlossaryContext.test.ts",
+          "test": "图片、圈选OCR到真实术语broker的完整请求边界 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果",
+          "message_head": "AssertionError: expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'"
+        },
+        {
+          "file": "tests/imageGlossaryContext.test.ts",
+          "test": "图片、圈选OCR到真实术语broker的完整请求边界 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文",
+          "message_head": "AssertionError: expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 20 秒无数据会切换备用来源，用户取消则立即结束且不切换",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 损坏缓存被删除并重新下载，不保留坏模型",
+          "message_head": "RangeError: Invalid typed array length: 9880512"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源",
+          "message_head": "RangeError: Invalid typed array length: 21159378"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入",
+          "message_head": "RangeError: Invalid typed array length: 74948"
+        },
+        {
+          "file": "tests/mangaOcrAssets.test.ts",
+          "test": "漫画模型固定版本和完整性 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常",
+          "message_head": "RangeError: Invalid typed array length: 206291843"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        },
+        {
+          "file": "tests/settingsCompositionAutosave.test.ts",
+          "test": "设置页输入法与自动保存集成 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入",
+          "message_head": "SyntaxError: Cannot use import statement outside a module"
+        }
+      ],
+      "collection_errors": [
+        {
+          "file": "tests/imageTranslationPageRead.test.ts",
+          "message": "This script should only be loaded in a browser extension."
+        }
+      ],
+      "unhandled_errors": [
+        "Error: 图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')",
+        "RangeError: Invalid typed array length: 206291843"
+      ],
+      "exit_code": 1
+    },
+    "new_failures": [],
+    "resolved_failures": [],
+    "failed_ids_identical": true,
+    "failure_message_heads_identical": true,
+    "collection_errors_identical": true,
+    "unhandled_error_signatures_identical": true
+  },
+  "regression": {
+    "revision_66abb72": {
+      "files": 33,
+      "passed_files": 32,
+      "failed_files": [
+        "tests/featureVerticalSliceRegression.test.ts"
+      ],
+      "tests": 665,
+      "passed_tests": 664,
+      "failed_tests": 1,
+      "failures": [
+        {
+          "file": "tests/featureVerticalSliceRegression.test.ts",
+          "test": "划词、圈选和图片翻译纵向切片回归 OCR 下载把接收端初始化故障与真实资源下载失败分开提示",
+          "message_head": "AssertionError: expected '<!--\\n * @file src/features/image-tra…' to contain 'OCR 服务初始化失败，请重新打开设置页后重试。'"
+        }
+      ],
+      "collection_errors": [],
+      "unhandled_errors": [],
+      "exit_code": 1
+    },
+    "baseline_83deca4": {
+      "files": 33,
+      "passed_files": 32,
+      "failed_files": [
+        "tests/featureVerticalSliceRegression.test.ts"
+      ],
+      "tests": 665,
+      "passed_tests": 664,
+      "failed_tests": 1,
+      "failures": [
+        {
+          "file": "tests/featureVerticalSliceRegression.test.ts",
+          "test": "划词、圈选和图片翻译纵向切片回归 OCR 下载把接收端初始化故障与真实资源下载失败分开提示",
+          "message_head": "AssertionError: expected '<!--\\n * @file src/features/image-tra…' to contain 'OCR 服务初始化失败，请重新打开设置页后重试。'"
+        }
+      ],
+      "collection_errors": [],
+      "unhandled_errors": [],
+      "exit_code": 1
+    },
+    "new_failures": [],
+    "resolved_failures": [],
+    "failed_ids_identical": true,
+    "failure_message_heads_identical": true,
+    "collection_errors_identical": true,
+    "unhandled_error_signatures_identical": true
+  }
+}

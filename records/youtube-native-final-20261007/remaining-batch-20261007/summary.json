@@ -1,0 +1,700 @@
+{
+  "pure_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "baseline": "83deca40091415666fc8fe5a45579b6b80487dcb",
+  "existing_buildfix": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "pure_worktree": "$PURE_WORKTREE",
+  "code_branch_untouched": true,
+  "combined_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "combined_branch": "acceptance/youtube-native-buildfix-20261007",
+  "combined_worktree": "$COMBINED_WORKTREE",
+  "subtitle_patch_unchanged": true,
+  "subtitle_source_sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a",
+  "stages": [
+    {
+      "label": "chrome-build-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "chrome-build-baseline.command.json",
+      "stdout_record": "chrome-build-baseline.stdout.txt",
+      "stderr_record": "chrome-build-baseline.stderr.txt"
+    },
+    {
+      "label": "chrome-build-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "chrome-build-combined.command.json",
+      "stdout_record": "chrome-build-combined.stdout.txt",
+      "stderr_record": "chrome-build-combined.stderr.txt"
+    },
+    {
+      "label": "chrome-build-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "chrome-build-pure.command.json",
+      "stdout_record": "chrome-build-pure.stdout.txt",
+      "stderr_record": "chrome-build-pure.stderr.txt"
+    },
+    {
+      "label": "compile-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "compile-combined.command.json",
+      "stdout_record": "compile-combined.stdout.txt",
+      "stderr_record": "compile-combined.stderr.txt"
+    },
+    {
+      "label": "docs-build-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "docs-build-baseline.command.json",
+      "stdout_record": "docs-build-baseline.stdout.txt",
+      "stderr_record": "docs-build-baseline.stderr.txt"
+    },
+    {
+      "label": "docs-build-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "docs-build-pure.command.json",
+      "stdout_record": "docs-build-pure.stdout.txt",
+      "stderr_record": "docs-build-pure.stderr.txt"
+    },
+    {
+      "label": "docs-verifier-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "docs-verifier-baseline.command.json",
+      "stdout_record": "docs-verifier-baseline.stdout.txt",
+      "stderr_record": "docs-verifier-baseline.stderr.txt"
+    },
+    {
+      "label": "docs-verifier-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "docs-verifier-pure.command.json",
+      "stdout_record": "docs-verifier-pure.stdout.txt",
+      "stderr_record": "docs-verifier-pure.stderr.txt"
+    },
+    {
+      "label": "extension-manifests-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "extension-manifests-combined.command.json",
+      "stdout_record": "extension-manifests-combined.stdout.txt",
+      "stderr_record": "extension-manifests-combined.stderr.txt"
+    },
+    {
+      "label": "firefox-build-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "firefox-build-baseline.command.json",
+      "stdout_record": "firefox-build-baseline.stdout.txt",
+      "stderr_record": "firefox-build-baseline.stderr.txt"
+    },
+    {
+      "label": "firefox-build-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "firefox-build-combined.command.json",
+      "stdout_record": "firefox-build-combined.stdout.txt",
+      "stderr_record": "firefox-build-combined.stderr.txt"
+    },
+    {
+      "label": "firefox-build-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "firefox-build-pure.command.json",
+      "stdout_record": "firefox-build-pure.stdout.txt",
+      "stderr_record": "firefox-build-pure.stderr.txt"
+    },
+    {
+      "label": "firefox-zip-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "firefox-zip-combined.command.json",
+      "stdout_record": "firefox-zip-combined.stdout.txt",
+      "stderr_record": "firefox-zip-combined.stderr.txt"
+    },
+    {
+      "label": "group-functional-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-functional-baseline.command.json",
+      "stdout_record": "group-functional-baseline.stdout.txt",
+      "stderr_record": "group-functional-baseline.stderr.txt"
+    },
+    {
+      "label": "group-functional-pure-prepared",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-functional-pure-prepared.command.json",
+      "stdout_record": "group-functional-pure-prepared.stdout.txt",
+      "stderr_record": "group-functional-pure-prepared.stderr.txt"
+    },
+    {
+      "label": "group-functional-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "SUPERSEDED_SETUP_FAIL",
+      "exit_code": 1,
+      "command_record": "group-functional-pure.command.json",
+      "stdout_record": "group-functional-pure.stdout.txt",
+      "stderr_record": "group-functional-pure.stderr.txt"
+    },
+    {
+      "label": "group-regression-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-regression-baseline.command.json",
+      "stdout_record": "group-regression-baseline.stdout.txt",
+      "stderr_record": "group-regression-baseline.stderr.txt"
+    },
+    {
+      "label": "group-regression-pure-prepared",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-regression-pure-prepared.command.json",
+      "stdout_record": "group-regression-pure-prepared.stdout.txt",
+      "stderr_record": "group-regression-pure-prepared.stderr.txt"
+    },
+    {
+      "label": "group-regression-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "SUPERSEDED_SETUP_FAIL",
+      "exit_code": 1,
+      "command_record": "group-regression-pure.command.json",
+      "stdout_record": "group-regression-pure.stdout.txt",
+      "stderr_record": "group-regression-pure.stderr.txt"
+    },
+    {
+      "label": "group-unit-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-unit-baseline.command.json",
+      "stdout_record": "group-unit-baseline.stdout.txt",
+      "stderr_record": "group-unit-baseline.stderr.txt"
+    },
+    {
+      "label": "group-unit-pure-prepared",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "group-unit-pure-prepared.command.json",
+      "stdout_record": "group-unit-pure-prepared.stdout.txt",
+      "stderr_record": "group-unit-pure-prepared.stderr.txt"
+    },
+    {
+      "label": "group-unit-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "SUPERSEDED_SETUP_FAIL",
+      "exit_code": 1,
+      "command_record": "group-unit-pure.command.json",
+      "stdout_record": "group-unit-pure.stdout.txt",
+      "stderr_record": "group-unit-pure.stderr.txt"
+    },
+    {
+      "label": "metadata-contract-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "metadata-contract-combined.command.json",
+      "stdout_record": "metadata-contract-combined.stdout.txt",
+      "stderr_record": "metadata-contract-combined.stderr.txt"
+    },
+    {
+      "label": "prepare-baseline",
+      "scope": "baseline",
+      "source_commit": "83deca40091415666fc8fe5a45579b6b80487dcb",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "prepare-baseline.command.json",
+      "stdout_record": "prepare-baseline.stdout.txt",
+      "stderr_record": "prepare-baseline.stderr.txt"
+    },
+    {
+      "label": "prepare-combined",
+      "scope": "combined",
+      "source_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "prepare-combined.command.json",
+      "stdout_record": "prepare-combined.stdout.txt",
+      "stderr_record": "prepare-combined.stderr.txt"
+    },
+    {
+      "label": "prepare-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "BASELINE_FAIL",
+      "exit_code": 1,
+      "command_record": "prepare-pure.command.json",
+      "stdout_record": "prepare-pure.stdout.txt",
+      "stderr_record": "prepare-pure.stderr.txt"
+    },
+    {
+      "label": "userscript-build-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "userscript-build-pure.command.json",
+      "stdout_record": "userscript-build-pure.stdout.txt",
+      "stderr_record": "userscript-build-pure.stderr.txt"
+    },
+    {
+      "label": "userscript-verifier-pure",
+      "scope": "pure",
+      "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+      "status": "PASS",
+      "exit_code": 0,
+      "command_record": "userscript-verifier-pure.command.json",
+      "stdout_record": "userscript-verifier-pure.stdout.txt",
+      "stderr_record": "userscript-verifier-pure.stderr.txt"
+    }
+  ],
+  "groups": {
+    "unit": {
+      "revision_66abb72": {
+        "files": 302,
+        "passed_files": 299,
+        "failed_files": [
+          "tests/contentFeatureMounting.test.ts",
+          "tests/harnessConversation.test.ts",
+          "tests/translationStatsI18n.test.ts"
+        ],
+        "tests": 6432,
+        "passed_tests": 6428,
+        "failed_tests": 4,
+        "failures": [
+          {
+            "file": "tests/contentFeatureMounting.test.ts",
+            "test": "划词翻译挂载生命周期 Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host",
+            "message_head": "TypeError: Cannot read properties of undefined (reading '1')"
+          },
+          {
+            "file": "tests/contentFeatureMounting.test.ts",
+            "test": "划词翻译挂载生命周期 Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI",
+            "message_head": "TypeError: You must provide a Promise to expect() when using .resolves, not 'object'."
+          },
+          {
+            "file": "tests/harnessConversation.test.ts",
+            "test": "Harness persistent conversation coordination keeps a switched action in the same saved reading record but excludes previous answers from analysis",
+            "message_head": "AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }"
+          },
+          {
+            "file": "tests/translationStatsI18n.test.ts",
+            "test": "翻译统计界面文案 翻译统计导航与搜索文案覆盖全部非中文界面语言",
+            "message_head": "AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality"
+          }
+        ],
+        "collection_errors": [],
+        "unhandled_errors": [],
+        "exit_code": 1
+      },
+      "baseline_83deca4": {
+        "files": 302,
+        "passed_files": 299,
+        "failed_files": [
+          "tests/contentFeatureMounting.test.ts",
+          "tests/harnessConversation.test.ts",
+          "tests/translationStatsI18n.test.ts"
+        ],
+        "tests": 6152,
+        "passed_tests": 6148,
+        "failed_tests": 4,
+        "failures": [
+          {
+            "file": "tests/contentFeatureMounting.test.ts",
+            "test": "划词翻译挂载生命周期 Harness 共享实例重挂载后，旧组件 Range 回调不得移动新 modal host",
+            "message_head": "TypeError: Cannot read properties of undefined (reading '1')"
+          },
+          {
+            "file": "tests/contentFeatureMounting.test.ts",
+            "test": "划词翻译挂载生命周期 Harness 独立启用时保留共享挂载，并在两个入口都停用后丢弃待挂载 UI",
+            "message_head": "TypeError: You must provide a Promise to expect() when using .resolves, not 'object'."
+          },
+          {
+            "file": "tests/harnessConversation.test.ts",
+            "test": "Harness persistent conversation coordination keeps a switched action in the same saved reading record but excludes previous answers from analysis",
+            "message_head": "AssertionError: expected { id: 'id-1', question: '词性与句法', …(6) } to match object { question: '拆句', intent: 'grammar' }"
+          },
+          {
+            "file": "tests/translationStatsI18n.test.ts",
+            "test": "翻译统计界面文案 翻译统计导航与搜索文案覆盖全部非中文界面语言",
+            "message_head": "AssertionError: en-US: 翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、最大耗时、P95、响应速度、成功率、失败原因、超时、缓存命中、服务对比、性能模型用量、调用统计、Token、请求记录、耗时、输入 Token、输出 Token、缓存输入、缓存写入、缓存命中率、导入、导出、Kimi、月之暗面、OpenAI、DeepSeek: expected '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' not to be '翻译统计、请求统计、请求大小、请求规模、字符数、耗时、平均耗时、最长耗时、…' // Object.is equality"
+          }
+        ],
+        "collection_errors": [],
+        "unhandled_errors": [],
+        "exit_code": 1
+      },
+      "new_failures": [],
+      "resolved_failures": [],
+      "failed_ids_identical": true,
+      "failure_message_heads_identical": true,
+      "collection_errors_identical": true,
+      "unhandled_error_signatures_identical": true
+    },
+    "functional": {
+      "revision_66abb72": {
+        "files": 114,
+        "passed_files": 109,
+        "failed_files": [
+          "tests/documentPdfRasterizer.test.ts",
+          "tests/imageGlossaryContext.test.ts",
+          "tests/imageTranslationPageRead.test.ts",
+          "tests/mangaOcrAssets.test.ts",
+          "tests/settingsCompositionAutosave.test.ts"
+        ],
+        "tests": 3160,
+        "passed_tests": 3146,
+        "failed_tests": 14,
+        "failures": [
+          {
+            "file": "tests/documentPdfRasterizer.test.ts",
+            "test": "PDF rasterizer resource lifecycle encodes the original preview before painting translation and releases the shared canvas",
+            "message_head": "TypeError: Cannot read properties of undefined (reading 'some')"
+          },
+          {
+            "file": "tests/imageGlossaryContext.test.ts",
+            "test": "图片、圈选OCR到真实术语broker的完整请求边界 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果",
+            "message_head": "AssertionError: expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'"
+          },
+          {
+            "file": "tests/imageGlossaryContext.test.ts",
+            "test": "图片、圈选OCR到真实术语broker的完整请求边界 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文",
+            "message_head": "AssertionError: expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 20 秒无数据会切换备用来源，用户取消则立即结束且不切换",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 损坏缓存被删除并重新下载，不保留坏模型",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源",
+            "message_head": "RangeError: Invalid typed array length: 21159378"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入",
+            "message_head": "RangeError: Invalid typed array length: 74948"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          }
+        ],
+        "collection_errors": [
+          {
+            "file": "tests/imageTranslationPageRead.test.ts",
+            "message": "This script should only be loaded in a browser extension."
+          }
+        ],
+        "unhandled_errors": [
+          "Error: 图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')",
+          "RangeError: Invalid typed array length: 206291843"
+        ],
+        "exit_code": 1
+      },
+      "baseline_83deca4": {
+        "files": 114,
+        "passed_files": 109,
+        "failed_files": [
+          "tests/documentPdfRasterizer.test.ts",
+          "tests/imageGlossaryContext.test.ts",
+          "tests/imageTranslationPageRead.test.ts",
+          "tests/mangaOcrAssets.test.ts",
+          "tests/settingsCompositionAutosave.test.ts"
+        ],
+        "tests": 3160,
+        "passed_tests": 3146,
+        "failed_tests": 14,
+        "failures": [
+          {
+            "file": "tests/documentPdfRasterizer.test.ts",
+            "test": "PDF rasterizer resource lifecycle encodes the original preview before painting translation and releases the shared canvas",
+            "message_head": "TypeError: Cannot read properties of undefined (reading 'some')"
+          },
+          {
+            "file": "tests/imageGlossaryContext.test.ts",
+            "test": "图片、圈选OCR到真实术语broker的完整请求边界 术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果",
+            "message_head": "AssertionError: expected [Function] to throw error including 'provider down' but got '图片第 1 段文字翻译失败：Cannot read properties …'"
+          },
+          {
+            "file": "tests/imageGlossaryContext.test.ts",
+            "test": "图片、圈选OCR到真实术语broker的完整请求边界 重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文",
+            "message_head": "AssertionError: expected [ '__FRTERM_5d4ff6fe9d78_0__', …(2) ] to deeply equal [ 'API', 'other', 'third' ]"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 20 秒无数据会切换备用来源，用户取消则立即结束且不切换",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 LaMa 同样按固定版本校验并复用缓存，损坏文件重新准备",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 下载固定来源、校验哈希和尺寸、按文件报告进度，不上传图像",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 持久化合法来源，镜像优先失败后回退官方，损坏镜像不会入库",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 损坏缓存被删除并重新下载，不保留坏模型",
+            "message_head": "RangeError: Invalid typed array length: 9880512"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 流式接收显示真实字节、校验后完成，过量和截断数据进入备用来源",
+            "message_head": "RangeError: Invalid typed array length: 21159378"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 离线导入只接受指定文件名、容量和完整哈希，原字典与修补模型均可导入",
+            "message_head": "RangeError: Invalid typed array length: 74948"
+          },
+          {
+            "file": "tests/mangaOcrAssets.test.ts",
+            "test": "漫画模型固定版本和完整性 非 Error 失败仍结束下载并报告可重试状态，取消清理失败不成为未处理异常",
+            "message_head": "RangeError: Invalid typed array length: 206291843"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 InputEvent.isComposing 为 true 时即使漏掉 compositionstart 也不会提交中间文本",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 原生提示词 textarea 在 IME 组合期间不保存中间文本，只提交最终文本",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          },
+          {
+            "file": "tests/settingsCompositionAutosave.test.ts",
+            "test": "设置页输入法与自动保存集成 外部 modelValue 变化后不会吞掉与旧提交值相同的新输入",
+            "message_head": "SyntaxError: Cannot use import statement outside a module"
+          }
+        ],
+        "collection_errors": [
+          {
+            "file": "tests/imageTranslationPageRead.test.ts",
+            "message": "This script should only be loaded in a browser extension."
+          }
+        ],
+        "unhandled_errors": [
+          "Error: 图片第 1 段文字翻译失败：Cannot read properties of undefined (reading 'promise')",
+          "RangeError: Invalid typed array length: 206291843"
+        ],
+        "exit_code": 1
+      },
+      "new_failures": [],
+      "resolved_failures": [],
+      "failed_ids_identical": true,
+      "failure_message_heads_identical": true,
+      "collection_errors_identical": true,
+      "unhandled_error_signatures_identical": true
+    },
+    "regression": {
+      "revision_66abb72": {
+        "files": 33,
+        "passed_files": 32,
+        "failed_files": [
+          "tests/featureVerticalSliceRegression.test.ts"
+        ],
+        "tests": 665,
+        "passed_tests": 664,
+        "failed_tests": 1,
+        "failures": [
+          {
+            "file": "tests/featureVerticalSliceRegression.test.ts",
+            "test": "划词、圈选和图片翻译纵向切片回归 OCR 下载把接收端初始化故障与真实资源下载失败分开提示",
+            "message_head": "AssertionError: expected '<!--\\n * @file src/features/image-tra…' to contain 'OCR 服务初始化失败，请重新打开设置页后重试。'"
+          }
+        ],
+        "collection_errors": [],
+        "unhandled_errors": [],
+        "exit_code": 1
+      },
+      "baseline_83deca4": {
+        "files": 33,
+        "passed_files": 32,
+        "failed_files": [
+          "tests/featureVerticalSliceRegression.test.ts"
+        ],
+        "tests": 665,
+        "passed_tests": 664,
+        "failed_tests": 1,
+        "failures": [
+          {
+            "file": "tests/featureVerticalSliceRegression.test.ts",
+            "test": "划词、圈选和图片翻译纵向切片回归 OCR 下载把接收端初始化故障与真实资源下载失败分开提示",
+            "message_head": "AssertionError: expected '<!--\\n * @file src/features/image-tra…' to contain 'OCR 服务初始化失败，请重新打开设置页后重试。'"
+          }
+        ],
+        "collection_errors": [],
+        "unhandled_errors": [],
+        "exit_code": 1
+      },
+      "new_failures": [],
+      "resolved_failures": [],
+      "failed_ids_identical": true,
+      "failure_message_heads_identical": true,
+      "collection_errors_identical": true,
+      "unhandled_error_signatures_identical": true
+    }
+  },
+  "group_file_count": 449,
+  "initial_group_setup_failures": {
+    "labels": [
+      "group-unit-pure",
+      "group-functional-pure",
+      "group-regression-pure"
+    ],
+    "actual_tests_executed": 0,
+    "reason": "Missing isolated-worktree generated .wxt/tsconfig.json; all initial group collection failed. Recovered by copying existing generated metadata only, recorded in prepared-config-reuse.json.",
+    "status": "SUPERSEDED_SETUP_FAIL"
+  },
+  "pure_extension_build_failure": {
+    "status": "BASELINE_FAIL",
+    "runtime_error": "onnxruntime-node1.24.3 native binding resolved libonnxruntime1.21.0 lacking VERS_1.24.3 during localTtsWorker metadata import",
+    "same_on_baseline": true,
+    "existing_fix_tested_on_isolated_combined_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4"
+  },
+  "docs_verifier": {
+    "status": "BASELINE_FAIL",
+    "same_on_baseline": true,
+    "message": "Missing link /storybook/?path=/docs/foundations-colors--docs in en/guide/design-system.html"
+  },
+  "extension_browser_path": {
+    "status": "BLOCKED",
+    "reason": "Existing authorized Neo agent profile has developer mode disabled and no FluentRead extension loaded; loading a new unpacked extension would require an additional browser security setting or debug launch capability. No existing extension-level fixture is available in this session.",
+    "facility": {
+      "existing_profile_is_agent_profile": true,
+      "unsafe_extension_debugging_flag_present": false,
+      "developer_mode": false,
+      "fluentread_extension_count": 0
+    },
+    "new_browser_settings_changed": false,
+    "new_permissions_granted": false,
+    "extension_injection_run": false,
+    "cue_render_export_run": false,
+    "duplicate_cancel_navigation_browser_run": false,
+    "external_provider_requests": "NOT_MEASURED; no provider fixture or extension execution was started",
+    "launch_mode": "reuse existing BrowserOS Neo native MCP",
+    "focus_policy": "task-created tabs opened in background and closed in finally",
+    "window_placement": "Reuse existing window; position/state not measured or changed in this batch",
+    "browser_control": "native Neo MCP only",
+    "cua_used": false
+  },
+  "github_permission_read": {
+    "loginPerformed": false,
+    "path": "/login",
+    "pendingPermissionUpdate": null,
+    "pullRequestsPermission": null,
+    "status": "BLOCKED_SIGN_IN_REQUIRED",
+    "urlOrigin": "https://github.com",
+    "requested_installation": "https://github.com/settings/installations/100252756",
+    "target_account": "ArietidsZ",
+    "settings_changed": false,
+    "permissions_accepted": false,
+    "tokens_or_cookies_read": false,
+    "pr_creation_attempted": false,
+    "task_tab_closed": true
+  },
+  "previous_checks_not_repeated": [
+    "full strict",
+    "architecture group",
+    "standalone 331-test target coverage batch",
+    "69-assertion pure-module browser smoke"
+  ],
+  "not_run": [
+    "extension injection and subtitle fixture UI/export/duplicate/cancel/navigation browser path: BLOCKED, see extension-path-blocker.json",
+    "real YouTube media acquisition",
+    "additional browser/site network matrix",
+    "RTX5090 WebGPU and ASR",
+    "actual model/search/translation provider APIs"
+  ],
+  "source_pr_status": "Awaiting user approval; no PR/merge/force/deployment attempted"
+}
