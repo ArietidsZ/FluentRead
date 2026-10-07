@@ -1,7 +1,10 @@
 import {readFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {createRequire} from 'node:module';
+import {dirname, resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+import ts from 'typescript';
+import {defineUnlistedScript} from 'wxt/utils/define-unlisted-script';
 import {createHash} from 'node:crypto';
 import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGLE_DRIVE_SCOPES} from '@/src/platform/google-drive/constants';
 import type {Entrypoint, EntrypointGroup} from 'wxt';
@@ -66,6 +69,38 @@ function sourceBody(path: string): string {
     const header = source.match(/^\/\*\*[\s\S]*?\*\/\s*/u)?.[0];
     return header?.includes(`@file ${path}`) ? source.slice(header.length) : source;
 }
+
+describe('TTS worker entrypoint metadata isolation', () => {
+    it('WXT 的实际元数据转换移除 TTS 运行时导入，避免在 Node 中装载另一版 ONNX', async () => {
+        const transformUrl = pathToFileURL(resolve(dirname(createRequire(import.meta.url).resolve('wxt')), 'core/utils/transform.mjs')).href;
+        const {removeMainFunctionCode} = await import(/* @vite-ignore */ transformUrl) as {
+            removeMainFunctionCode(source: string): {code: string};
+        };
+        const source = sourceBody('entrypoints/localTtsWorker.ts');
+        const metadata = removeMainFunctionCode(source).code;
+        expect(metadata).toContain('defineUnlistedScript');
+        expect(metadata).not.toContain('startLocalTtsWorkerApp');
+        expect(metadata).not.toContain('@/src/app/offscreen/localTtsWorker');
+    });
+
+    it('真实入口保留静态导入，并在 main 调用时同步启动 Worker 一次', () => {
+        const source = sourceBody('entrypoints/localTtsWorker.ts');
+        expect(source).toContain("import {startLocalTtsWorkerApp} from '@/src/app/offscreen/localTtsWorker';");
+        const start = vi.fn();
+        const requireApp = vi.fn((path: string) => {
+            expect(path).toBe('@/src/app/offscreen/localTtsWorker');
+            return {startLocalTtsWorkerApp: start};
+        });
+        const exports: {default?: {main?: () => void}} = {};
+        const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS}}).outputText;
+        new Function('require', 'exports', 'defineUnlistedScript', compiled)(requireApp, exports, defineUnlistedScript);
+        expect(requireApp).toHaveBeenCalledOnce();
+        expect(start).not.toHaveBeenCalled();
+        expect(exports.default!.main!()).toBeUndefined();
+        expect(start).toHaveBeenCalledOnce();
+        expect(start).toHaveBeenCalledWith();
+    });
+});
 
 function permissionsFor(browser: string, manifestVersion: 2 | 3): string[] {
     const manifest = createExtensionManifest({browser, manifestVersion} as Parameters<typeof createExtensionManifest>[0]);
