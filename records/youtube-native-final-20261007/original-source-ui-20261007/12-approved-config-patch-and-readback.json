@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const t=await browser.cdp('Target.getTargets');const x=t.targetInfos.find(x=>x.type==='page'&&x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html'));if(!x)throw new Error('extension realm missing');const a=await browser.cdp('Target.attachToTarget',{targetId:x.targetId,flatten:true});try{return await browser.cdp('Runtime.evaluate',{expression:\"(async()=>{if(location.origin!=='chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj'||chrome.runtime.id!=='djnlaiohfaaifbibleebjggkghlmcpcj')throw new Error('wrong realm');const read=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof read.value==='string'?JSON.parse(read.value):read.value;const patch={\\\"on\\\":true,\\\"videoTranslationEnabled\\\":true,\\\"videoSubtitleVisible\\\":true,\\\"videoSubtitleDisplayMode\\\":\\\"original-only\\\",\\\"videoSubtitleOffsetMs\\\":0,\\\"videoPreferHumanSubtitles\\\":false,\\\"autoTranslate\\\":false,\\\"alwaysTranslateDomains\\\":[],\\\"enableAIContext\\\":false,\\\"selectionTranslatorMode\\\":\\\"disabled\\\",\\\"inputBoxTranslationTrigger\\\":\\\"disabled\\\"};patch.harness={...c.harness,enabled:false};const expected=Object.fromEntries(Object.keys(patch).map(k=>[k,c[k]]));const saved=await chrome.runtime.sendMessage({type:'persistConfig',mode:'patch',config:patch,expected,clientId:'cw-original-source-ui-20261007',sequence:1,baseRevision:c.__fluentConfigRevision});const rr=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const v=typeof rr.value==='string'?JSON.parse(rr.value):rr.value;const fields=Object.fromEntries(Object.keys(patch).filter(k=>k!=='harness').map(k=>[k,v[k]]));return {saved,revision:v.__fluentConfigRevision,fields,harnessEnabled:v.harness?.enabled,allRequiredFieldsMatch:Object.entries(patch).every(([k,val])=>k==='harness'?v.harness?.enabled===false:JSON.stringify(v[k])===JSON.stringify(val))};})()\",returnByValue:true,awaitPromise:true},a.sessionId)}finally{await browser.cdp('Target.detachFromTarget',{sessionId:a.sessionId})}",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:45:52.529608+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"result\": {\n    \"type\": \"object\",\n    \"value\": {\n      \"allRequiredFieldsMatch\": true,\n      \"fields\": {\n        \"alwaysTranslateDomains\": [],\n        \"autoTranslate\": false,\n        \"enableAIContext\": false,\n        \"inputBoxTranslationTrigger\": \"disabled\",\n        \"on\": true,\n        \"selectionTranslatorMode\": \"disabled\",\n        \"videoPreferHumanSubtitles\": false,\n        \"videoSubtitleDisplayMode\": \"original-only\",\n        \"videoSubtitleOffsetMs\": 0,\n        \"videoSubtitleVisible\": true,\n        \"videoTranslationEnabled\": true\n      },\n      \"harnessEnabled\": false,\n      \"revision\": 2,\n      \"saved\": {\n        \"revision\": 2,\n        \"success\": true\n      }\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

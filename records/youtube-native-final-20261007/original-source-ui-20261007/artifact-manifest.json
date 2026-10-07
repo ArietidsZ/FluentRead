@@ -1,0 +1,339 @@
+{
+  "redactions": [
+    "CW task root",
+    "local home",
+    "Neo profile/download root",
+    "transient CDP attachment"
+  ],
+  "files": [
+    {
+      "file": "01-management-open.json",
+      "original_sha256": "57988b3265a2d634daf8b73214131842ade648b7d787f1ff5c6f779632a0f24f",
+      "published_sha256": "57988b3265a2d634daf8b73214131842ade648b7d787f1ff5c6f779632a0f24f"
+    },
+    {
+      "file": "02-management-before.json",
+      "original_sha256": "12970f44fa766a86b12498687b6d3ba9bb6be90e67b52be05ffcdf599e940139",
+      "published_sha256": "12970f44fa766a86b12498687b6d3ba9bb6be90e67b52be05ffcdf599e940139"
+    },
+    {
+      "file": "03-devmode-on.json",
+      "original_sha256": "e51b1f06333d5c62cb0f7eb312ba14ad43371087a7230485b3af8c9387a6422f",
+      "published_sha256": "e51b1f06333d5c62cb0f7eb312ba14ad43371087a7230485b3af8c9387a6422f"
+    },
+    {
+      "file": "04-normal-load-unpacked.json",
+      "original_sha256": "b5031d78361c6a54eeda160d9366974b5972cf4c4353b8684b18319a042e22c4",
+      "published_sha256": "b5031d78361c6a54eeda160d9366974b5972cf4c4353b8684b18319a042e22c4"
+    },
+    {
+      "file": "06-select-build-directory.json",
+      "original_sha256": "c620f178e233d346cf98b4d1fd4c81564e11a5e2f21f8d102b94fff057d394c8",
+      "published_sha256": "c620f178e233d346cf98b4d1fd4c81564e11a5e2f21f8d102b94fff057d394c8"
+    },
+    {
+      "file": "07-loaded-and-extension-targets.json",
+      "original_sha256": "841e3ccbae4eecabeee0c0ec74c99c5058f1f4655b821ddecd55363ddaa929e0",
+      "published_sha256": "af2d1474dc361d61ebf43ae84458e93a9116b7a49484c2bad08724bb1e9d4e61"
+    },
+    {
+      "file": "08-options-target-open.json",
+      "original_sha256": "a38e25f97fdd231d988123146323c99b538543f043ed46c019c7be8ba1c49481",
+      "published_sha256": "a38e25f97fdd231d988123146323c99b538543f043ed46c019c7be8ba1c49481"
+    },
+    {
+      "file": "09-config-whitelist-before.json",
+      "original_sha256": "e4c8019bcd67b5a98da417b8a013ddf55c94874ada88ff551e895c0ef677ae1a",
+      "published_sha256": "e4c8019bcd67b5a98da417b8a013ddf55c94874ada88ff551e895c0ef677ae1a"
+    },
+    {
+      "file": "10-extension-realm-attach.json",
+      "original_sha256": "81185fa7df9ed3d0288ad17d3588eb78629d39bd0135face86a922229d753c2d",
+      "published_sha256": "9d6dda28b86ca04b1d8bf8389f5005e548b9c9939becf821334cc1575b510e6a"
+    },
+    {
+      "file": "11-config-legitimate-realm-read.json",
+      "original_sha256": "1493d4327ffbb2bb0cc93c4fec8e77e690d6fe5d391f9d7f3e3dd445d07e9f97",
+      "published_sha256": "1493d4327ffbb2bb0cc93c4fec8e77e690d6fe5d391f9d7f3e3dd445d07e9f97"
+    },
+    {
+      "file": "12-approved-config-patch-and-readback.json",
+      "original_sha256": "2f178b21c116f61075d129927918cb39bb958b3ece731bcd8ceeacd6d76bdcee",
+      "published_sha256": "2f178b21c116f61075d129927918cb39bb958b3ece731bcd8ceeacd6d76bdcee"
+    },
+    {
+      "file": "13-owned-youtube-open.json",
+      "original_sha256": "cb807d8341ae73eca5c101e16c50d4450ea75cfc7059d8b456aed9683c1ab20a",
+      "published_sha256": "cb807d8341ae73eca5c101e16c50d4450ea75cfc7059d8b456aed9683c1ab20a"
+    },
+    {
+      "file": "14-video-pause-and-controls.json",
+      "original_sha256": "7ad2f04a518c85af6dc0f04143b6296ce5e3c5ce9cbbb2dc235e18636d649cf0",
+      "published_sha256": "7ad2f04a518c85af6dc0f04143b6296ce5e3c5ce9cbbb2dc235e18636d649cf0"
+    },
+    {
+      "file": "15-owned-caption-video-navigate.json",
+      "original_sha256": "8ee85abad22d9a3eb64d7cb8900f623094d1bcb6bd51acf68738027373ad4309",
+      "published_sha256": "8ee85abad22d9a3eb64d7cb8900f623094d1bcb6bd51acf68738027373ad4309"
+    },
+    {
+      "file": "16-caption-video-controls.json",
+      "original_sha256": "da29486f82923e73ad544c6e8d4b4bfde89bffa21c05b7380338a971d07f516b",
+      "published_sha256": "da29486f82923e73ad544c6e8d4b4bfde89bffa21c05b7380338a971d07f516b"
+    },
+    {
+      "file": "17-ad-state-only.json",
+      "original_sha256": "e3250151f9dceabb1bd6d59feeb0f9af484e6328442ea0d66df73fda005dca68",
+      "published_sha256": "e3250151f9dceabb1bd6d59feeb0f9af484e6328442ea0d66df73fda005dca68"
+    },
+    {
+      "file": "18-real-video-native-controls.json",
+      "original_sha256": "ed2c3263693283ca994daff9ecc42a06e37d69646bf6490007b1916bd3806ff7",
+      "published_sha256": "ed2c3263693283ca994daff9ecc42a06e37d69646bf6490007b1916bd3806ff7"
+    },
+    {
+      "file": "19-native-track-and-timing-menu.json",
+      "original_sha256": "30011c95f940166e1a293515702d7ce6c1d018b5cb8e25f6095506e8e0cbf3e9",
+      "published_sha256": "30011c95f940166e1a293515702d7ce6c1d018b5cb8e25f6095506e8e0cbf3e9"
+    },
+    {
+      "file": "20-native-caption-toggle.json",
+      "original_sha256": "b3b5c15b192bed041696deb7b69dbb0690934cc97dca44d863c4a31cf512d2f6",
+      "published_sha256": "b3b5c15b192bed041696deb7b69dbb0690934cc97dca44d863c4a31cf512d2f6"
+    },
+    {
+      "file": "21-real-trusted-plus-500.json",
+      "original_sha256": "7ffda69b4a9a2208e1529f8d40d03443d9f7135f201f582cf12ada1f97ed0536",
+      "published_sha256": "7ffda69b4a9a2208e1529f8d40d03443d9f7135f201f582cf12ada1f97ed0536"
+    },
+    {
+      "file": "22-plus-500-config-readback.json",
+      "original_sha256": "d178f38e1b1fa5c7da0a624e9307138438c6d112d8d2512aa4d5cadf215fa833",
+      "published_sha256": "d178f38e1b1fa5c7da0a624e9307138438c6d112d8d2512aa4d5cadf215fa833"
+    },
+    {
+      "file": "23-synthetic-owned-navigation-clear.json",
+      "original_sha256": "bd1cbed027d1e6dfe941dd59034a4f21cfac76a9261e91b2dc009ae1992c733e",
+      "published_sha256": "bd1cbed027d1e6dfe941dd59034a4f21cfac76a9261e91b2dc009ae1992c733e"
+    },
+    {
+      "file": "24-json3-consumer-cues-and-gaps.json",
+      "original_sha256": "147b57d8edfd6433d7367a39eef57b1ce4ea7adafba795208e41ba5d3dc3f03a",
+      "published_sha256": "147b57d8edfd6433d7367a39eef57b1ce4ea7adafba795208e41ba5d3dc3f03a"
+    },
+    {
+      "file": "25-source-download-first-trusted.json",
+      "original_sha256": "ec7e9f70b956c08f5d00903c434c218009386ab3c70208ebb2f3543a873d2d0a",
+      "published_sha256": "ec7e9f70b956c08f5d00903c434c218009386ab3c70208ebb2f3543a873d2d0a"
+    },
+    {
+      "file": "26-source-button-restored-and-repeat.json",
+      "original_sha256": "8e46ed2b35561bd09135dec72582093be6c41c5b0a478f7aa2b4f005703983b7",
+      "published_sha256": "8e46ed2b35561bd09135dec72582093be6c41c5b0a478f7aa2b4f005703983b7"
+    },
+    {
+      "file": "27-owned-download-records.json",
+      "original_sha256": "88cfb028f22a182b0ab079d7861cd8600ad6c2ffda3d6058d26e0e76065a8ef6",
+      "published_sha256": "88cfb028f22a182b0ab079d7861cd8600ad6c2ffda3d6058d26e0e76065a8ef6"
+    },
+    {
+      "file": "28-reset-offset-real-click.json",
+      "original_sha256": "b5c2dcaa74902ee25ee8572ade648ddbade86c59958c9f636cf984c545c7fa86",
+      "published_sha256": "b5c2dcaa74902ee25ee8572ade648ddbade86c59958c9f636cf984c545c7fa86"
+    },
+    {
+      "file": "29-download-records-native-list.json",
+      "original_sha256": "184d3c0d942dafdf01caa1ffb7a311371bf8921b810cd4ecd35832f4c8606dc5",
+      "published_sha256": "4e442f676586ab20e4ea296bca62f2d4c20e579ac94148f25f3682bf94e0843d"
+    },
+    {
+      "file": "30-reset-real-trusted-and-navigation.json",
+      "original_sha256": "452b5664aa3794e611059357fab250766c0f2b0878aa77bdcb8bca34e98fc1d5",
+      "published_sha256": "452b5664aa3794e611059357fab250766c0f2b0878aa77bdcb8bca34e98fc1d5"
+    },
+    {
+      "file": "31-reset-config-readback.json",
+      "original_sha256": "34ffed49a859207bc52773b7e3decfea4c80b36f168bda6bc21d7409e77052ee",
+      "published_sha256": "34ffed49a859207bc52773b7e3decfea4c80b36f168bda6bc21d7409e77052ee"
+    },
+    {
+      "file": "32-real-video-navigation-clear.json",
+      "original_sha256": "4f660a8aa407306e28a401c81122167102b8d3e31d96b130a616884ed4b3ef96",
+      "published_sha256": "4f660a8aa407306e28a401c81122167102b8d3e31d96b130a616884ed4b3ef96"
+    },
+    {
+      "file": "33-owned-pages-close-and-management.json",
+      "original_sha256": "bfad2a801aa1804d9204b49d7c3a432d8bb3a78e3c6f5350b6bf7db58a44f65c",
+      "published_sha256": "bfad2a801aa1804d9204b49d7c3a432d8bb3a78e3c6f5350b6bf7db58a44f65c"
+    },
+    {
+      "file": "34-normal-extension-remove.json",
+      "original_sha256": "3d2d8ff2622194760db5f5e388a5018ca7c8449940d80e5297639c297fc68f6b",
+      "published_sha256": "3d2d8ff2622194760db5f5e388a5018ca7c8449940d80e5297639c297fc68f6b"
+    },
+    {
+      "file": "35-native-remove-before-1.png",
+      "original_sha256": "12f053f16421d124e3496ed6e8bbf2a4f54fd55db8c11ca0271e38c8bce2113c",
+      "published_sha256": "12f053f16421d124e3496ed6e8bbf2a4f54fd55db8c11ca0271e38c8bce2113c"
+    },
+    {
+      "file": "35-native-remove-before.json",
+      "original_sha256": "a72c695297eb5e74f44905c09f5d0e4fd7dece95aeeabebbf8ba2473467e6234",
+      "published_sha256": "38ffaadf4b1a1277b6c97ec451858ebc9076fc33a903bea3c07e92fc21255d89"
+    },
+    {
+      "file": "36-native-confirm-only-test-extension.json",
+      "original_sha256": "cf4756d047b90c481aa631d8abb3e8f4dc594a0edbcab7ceed7fee171ec4a4cd",
+      "published_sha256": "cf4756d047b90c481aa631d8abb3e8f4dc594a0edbcab7ceed7fee171ec4a4cd"
+    },
+    {
+      "file": "37-uninstall-and-devmode-off-readback.json",
+      "original_sha256": "7fb880f39ffae58dc32d6526a8f1461b797b3b3557b1a80fb6b87ef17cfb1cfd",
+      "published_sha256": "7fb880f39ffae58dc32d6526a8f1461b797b3b3557b1a80fb6b87ef17cfb1cfd"
+    },
+    {
+      "file": "38-native-remove-after-2.png",
+      "original_sha256": "a62f43eb29b5ab57e7c934f7b9aa901207c4e0103653e8ce9c84d5953a2df763",
+      "published_sha256": "a62f43eb29b5ab57e7c934f7b9aa901207c4e0103653e8ce9c84d5953a2df763"
+    },
+    {
+      "file": "38-native-remove-after.json",
+      "original_sha256": "05c518c7c26dc9fe927f39e4ab24cb444e09dedbc7d74e562b2e45f683c3e800",
+      "published_sha256": "5627ced94b48356702d1e00d0e9b6bc0d78dfad1ffa3a3d13387defc83ebc0dc"
+    },
+    {
+      "file": "39-close-management-and-final-targets.json",
+      "original_sha256": "114c9957c6b280c0ecdb4178d2587021016a6ef200cf2239aaafa5b08f8e673d",
+      "published_sha256": "114c9957c6b280c0ecdb4178d2587021016a6ef200cf2239aaafa5b08f8e673d"
+    },
+    {
+      "file": "README.md",
+      "original_sha256": "7fe46616fffc9213182c66eaecb4aa86511b6ca7a44010ab9c9004ae7411a895",
+      "published_sha256": "7fe46616fffc9213182c66eaecb4aa86511b6ca7a44010ab9c9004ae7411a895"
+    },
+    {
+      "file": "build-reverification.json",
+      "original_sha256": "a7651e18bc18ac1935dbee2dae2d0bba134c9ddc4b18a7b15ad43bdc6088b0ef",
+      "published_sha256": "a7651e18bc18ac1935dbee2dae2d0bba134c9ddc4b18a7b15ad43bdc6088b0ef"
+    },
+    {
+      "file": "capabilities.json",
+      "original_sha256": "74078a4d159c61fc0c5cbff5d8efc0788a82352025d8d2690634e8e8fe12628a",
+      "published_sha256": "74078a4d159c61fc0c5cbff5d8efc0788a82352025d8d2690634e8e8fe12628a"
+    },
+    {
+      "file": "cleanup-capabilities.json",
+      "original_sha256": "74dabe7bd4b6f353cba26b8277dcd5f5bbe319d38e8262e212a717a2d90e8163",
+      "published_sha256": "74dabe7bd4b6f353cba26b8277dcd5f5bbe319d38e8262e212a717a2d90e8163"
+    },
+    {
+      "file": "cleanup-final.json",
+      "original_sha256": "c752b45b7f3089cdd41ef63e1f5a3ee38def500b11e66c9ea59c6aa87bec3108",
+      "published_sha256": "c752b45b7f3089cdd41ef63e1f5a3ee38def500b11e66c9ea59c6aa87bec3108"
+    },
+    {
+      "file": "cua-cleanup-daemon.stderr",
+      "original_sha256": "45a22e157011b2130d9dad46286f0a561140bef1e74824232e1b9eadda1e96a4",
+      "published_sha256": "45a22e157011b2130d9dad46286f0a561140bef1e74824232e1b9eadda1e96a4"
+    },
+    {
+      "file": "cua-cleanup-proxy.stderr",
+      "original_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "published_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "cua-cleanup-session.py",
+      "original_sha256": "96779b9b78dc00c50d897558c61a6f3627c22dfeae864f3e008b2319955b0903",
+      "published_sha256": "96779b9b78dc00c50d897558c61a6f3627c22dfeae864f3e008b2319955b0903"
+    },
+    {
+      "file": "cua-daemon.stderr",
+      "original_sha256": "e29731a5f41ee724c31361df93428108b6644986e431823ab02f1a74f8ad53ff",
+      "published_sha256": "e29731a5f41ee724c31361df93428108b6644986e431823ab02f1a74f8ad53ff"
+    },
+    {
+      "file": "neo-session.py",
+      "original_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329",
+      "published_sha256": "d256a3369fd7773d6b1906783e2ea3c6d0b8ff9fe31d6ccf020418e3ca3da329"
+    },
+    {
+      "file": "owned-download-files-cleanup.json",
+      "original_sha256": "3b7d55a13d3b89cbb6a47c6a7d5e967856bad388c0b1019f9ac9932da2c0acbe",
+      "published_sha256": "3b7d55a13d3b89cbb6a47c6a7d5e967856bad388c0b1019f9ac9932da2c0acbe"
+    },
+    {
+      "file": "source-bindings.json",
+      "original_sha256": "16add8e93689626966aeec19b5831fc255e873e4f64dd3428660bf2479437ece",
+      "published_sha256": "16add8e93689626966aeec19b5831fc255e873e4f64dd3428660bf2479437ece"
+    },
+    {
+      "file": "srt-download-verification.json",
+      "original_sha256": "80f0afa76fb2cfbbd646a59fa0a57bd69f8e1fd373be7def9379395b1a1aea52",
+      "published_sha256": "80f0afa76fb2cfbbd646a59fa0a57bd69f8e1fd373be7def9379395b1a1aea52"
+    },
+    {
+      "file": "synthetic-download-1.srt",
+      "original_sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e",
+      "published_sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e"
+    },
+    {
+      "file": "synthetic-download-2.srt",
+      "original_sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e",
+      "published_sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e"
+    },
+    {
+      "file": "synthetic-json3-payload.json",
+      "original_sha256": "49e19cf91a90d15edff5e06abeadf1f512c8ab7b5039e27621f15e3eedc3b5b5",
+      "published_sha256": "49e19cf91a90d15edff5e06abeadf1f512c8ab7b5039e27621f15e3eedc3b5b5"
+    },
+    {
+      "file": "verification-summary.json",
+      "original_sha256": "2d8bffacadf4505ae3385221a41bcbcfbbf9dbebca80813dedb8ec946b4a08af",
+      "published_sha256": "2d8bffacadf4505ae3385221a41bcbcfbbf9dbebca80813dedb8ec946b4a08af"
+    }
+  ],
+  "omitted": [
+    {
+      "file": "05-chooser-before.local-1.png",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "05-chooser-before.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "chooser-window.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "cua-cleanup-launch.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "cua-cleanup-mcp-initialize.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "cua-install-launch.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "download-destination.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "downloads-before.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "downloads-first.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    },
+    {
+      "file": "native-window-before.local.json",
+      "reason": "Private local chooser/window/destination/launch or MCP initialization metadata; kept local."
+    }
+  ],
+  "credentials": "No credentials/auth files read or published; config output was whitelist-only.",
+  "images": "Only visually inspected native Remove confirmation and after screenshot published."
+}

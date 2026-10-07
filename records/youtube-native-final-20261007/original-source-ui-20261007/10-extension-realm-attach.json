@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const t=await browser.cdp('Target.getTargets'); const x=t.targetInfos.find(x=>x.type==='page'&&x.url==='chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html#settings-video');if(!x)throw new Error('extension options target missing');const a=await browser.cdp('Target.attachToTarget',{targetId:x.targetId,flatten:true});const v=await browser.cdp('Runtime.evaluate',{expression:'JSON.stringify({origin:location.origin,runtimeId:chrome.runtime.id})',returnByValue:true},a.sessionId);return {targetId:x.targetId,sessionId:a.sessionId,value:v};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:44:30.639590+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"targetId\": \"B7E435AED9902CC50727E4F576F53096\",\n  \"sessionId\": \"$CDP_ATTACHMENT\",\n  \"value\": {\n    \"result\": {\n      \"type\": \"string\",\n      \"value\": \"{\\\"origin\\\":\\\"chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj\\\",\\\"runtimeId\\\":\\\"djnlaiohfaaifbibleebjggkghlmcpcj\\\"}\"\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

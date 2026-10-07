@@ -1,0 +1,45 @@
+{
+  "commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "files": [
+    {
+      "path": "src/features/video-subtitle/content/runtime.ts",
+      "blob": "2cd4038c6248f88a58c7f15b16a7a2aee33fe0ae",
+      "sha256": "88185e731106898619836a0341fd6bddd2466ebdb7b0915c86f6bbcd65bf19a7"
+    },
+    {
+      "path": "src/features/video-subtitle/content/youtubeSubtitleData.ts",
+      "blob": "86367fdeb2ac2c25370c41feff18493831bbc401",
+      "sha256": "d75ea58c761d2a504f1c76ee7f373e9f12802de131b5048f11d3129b0fafa30a"
+    },
+    {
+      "path": "src/features/video-subtitle/content/youtubeTimedTextMessage.ts",
+      "blob": "adcbbd775cc536564d69cbe5bd871e227d8a1e43",
+      "sha256": "720e6e31311899675abf2182ccf2434134463102170f32b0bf975700e2c351ea"
+    },
+    {
+      "path": "src/features/video-subtitle/content/downloads.ts",
+      "blob": "4b75d22b0e3faa5b264422906621fd770973d46d",
+      "sha256": "077bf4e439deeb5c09b4e27a67ca3ea00b7cecb9f8bc6e8a8faa16e6357187b4"
+    },
+    {
+      "path": "src/features/video-subtitle/content/ui.ts",
+      "blob": "0dfdc0ee1a82f09ce4c54686e457fff195b9ee36",
+      "sha256": "d65f9092f3d3be212ce920eb3d269253fb44e307fb29ad2c89a48ebe8a99e1a4"
+    },
+    {
+      "path": "src/app/background/handlers/configPersistence.ts",
+      "blob": "7db5ba804f854b4286be28a572b91b5ed2bdf9dd",
+      "sha256": "6ba0d88f1f9e9e1a712ca2545e8f0029e1399866d70c084c260cd683d30db176"
+    },
+    {
+      "path": "src/app/background/handlers/configStorage.ts",
+      "blob": "782830028357823aa9b868d26a5da4e770d32a0a",
+      "sha256": "a1b2ef5ab0ec09c2bb991390c13fe6d07edbf63659aac5bcdb8a8e470ca15d7b"
+    },
+    {
+      "path": "src/services/config/schema.ts",
+      "blob": "a95982c659467e1361904a29beb9a58769c23c15",
+      "sha256": "a0f84b50ebc7e0980ec0723058849b5442b75836d8cabaaa36dca8549f934832"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "events": [
+    {
+      "tStartMs": 1000,
+      "dDurationMs": 1000,
+      "segs": [
+        {
+          "utf8": "We can"
+        },
+        {
+          "utf8": "'t wait."
+        }
+      ]
+    },
+    {
+      "tStartMs": 3000,
+      "dDurationMs": 1000,
+      "segs": [
+        {
+          "utf8": "  Ready\n now!  "
+        }
+      ]
+    },
+    {
+      "tStartMs": 4500,
+      "dDurationMs": 500,
+      "segs": [
+        {
+          "utf8": "A &amp; B."
+        }
+      ]
+    }
+  ]
+}

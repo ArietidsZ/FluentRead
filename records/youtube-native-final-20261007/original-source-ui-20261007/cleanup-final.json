@@ -1,0 +1,12 @@
+{
+  "own_cua_pids": [
+    643446,
+    633340
+  ],
+  "all_own_cua_daemons_absent": true,
+  "own_socket_removed": true,
+  "own_socket_directory_removed": true,
+  "neo_pid": 68168,
+  "neo_still_running": true,
+  "only_two_hash_bound_synthetic_downloads_deleted": true
+}

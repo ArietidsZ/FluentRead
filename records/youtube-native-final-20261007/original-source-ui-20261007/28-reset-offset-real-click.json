@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);const s=await p.snapshot({mode:'interactive',depth:10});const b=s.refs.find(x=>/重置字幕|重置.*时间|重置.*偏移/.test(x.name));return {resetCandidates:s.refs.filter(x=>/重置|时间/.test(x.name)).map(x=>({ref:x.ref,name:x.name,role:x.role})),downloadState:await p.evaluate(()=>({disabled:document.querySelector('[data-action=\"download-subtitles\"]')?.disabled,ariaBusy:document.querySelector('[data-action=\"download-subtitles\"]')?.getAttribute('aria-busy')}))};",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:56:53.985526+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"resetCandidates\": [\n    {\n      \"ref\": \"e31\",\n      \"name\": \"重置字幕时间\",\n      \"role\": \"menuitem\"\n    }\n  ],\n  \"downloadState\": {\n    \"page\": 18,\n    \"value\": {\n      \"ariaBusy\": null,\n      \"disabled\": false\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(16);await p.click('e11');return {requested:'Remove only FluentRead unpacked test extension djnlaiohfaaifbibleebjggkghlmcpcj'};",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T14:01:22.096471+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"requested\": \"Remove only FluentRead unpacked test extension djnlaiohfaaifbibleebjggkghlmcpcj\"\n}"
+    }
+  ],
+  "success": true
+}

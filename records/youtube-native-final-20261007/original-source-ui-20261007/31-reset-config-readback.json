@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const t=await browser.cdp('Target.getTargets');const x=t.targetInfos.find(x=>x.type==='page'&&x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html'));const a=await browser.cdp('Target.attachToTarget',{targetId:x.targetId,flatten:true});try{return await browser.cdp('Runtime.evaluate',{expression:\"(async()=>{if(location.origin!=='chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj')throw new Error('wrong realm');const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return {revision:c.__fluentConfigRevision,videoSubtitleOffsetMs:c.videoSubtitleOffsetMs,videoSubtitleDisplayMode:c.videoSubtitleDisplayMode,autoTranslate:c.autoTranslate,harnessEnabled:c.harness?.enabled};})()\",returnByValue:true,awaitPromise:true},a.sessionId)}finally{await browser.cdp('Target.detachFromTarget',{sessionId:a.sessionId})}",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:59:36.187441+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"result\": {\n    \"type\": \"object\",\n    \"value\": {\n      \"autoTranslate\": false,\n      \"harnessEnabled\": false,\n      \"revision\": 4,\n      \"videoSubtitleDisplayMode\": \"original-only\",\n      \"videoSubtitleOffsetMs\": 0\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

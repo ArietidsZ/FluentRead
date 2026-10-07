@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.open('https://www.youtube.com/watch?v=jNQXAC9IVRw');return {createdPageId:p.id};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:46:20.120489+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"createdPageId\": 18\n}"
+    }
+  ],
+  "success": true
+}

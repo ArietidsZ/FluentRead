@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(16);const before=await p.evaluate(()=>new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},xs=>resolve({developerMode:document.querySelector('extensions-manager').inDevMode,fluentRead:xs.filter(x=>x.id==='djnlaiohfaaifbibleebjggkghlmcpcj').map(x=>({id:x.id,state:x.state}))}))));if(before.value.fluentRead.length)throw new Error('test extension removal not completed');const s=await p.snapshot({mode:'interactive',depth:5});const sw=s.refs.find(x=>x.role==='switch'&&x.name==='Developer mode');if(before.value.developerMode)await p.click(sw.ref);const after=await p.evaluate(()=>new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},xs=>resolve({developerMode:document.querySelector('extensions-manager').inDevMode,extensionIds:xs.map(x=>x.id),fluentRead:xs.filter(x=>x.id==='djnlaiohfaaifbibleebjggkghlmcpcj').map(x=>({id:x.id,state:x.state}))}))));return {before,after};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T14:02:43.350715+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"before\": {\n    \"page\": 16,\n    \"value\": {\n      \"developerMode\": true,\n      \"fluentRead\": []\n    }\n  },\n  \"after\": {\n    \"page\": 16,\n    \"value\": {\n      \"developerMode\": false,\n      \"extensionIds\": [],\n      \"fluentRead\": []\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

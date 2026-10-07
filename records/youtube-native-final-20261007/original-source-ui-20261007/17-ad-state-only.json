@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);return await p.evaluate(()=>({adShowing:!!document.querySelector('.ad-showing'),duration:document.querySelector('video')?.duration,skipButtons:[...document.querySelectorAll('button')].filter(x=>/skip/i.test(x.textContent||'')).map(x=>({label:x.getAttribute('aria-label'),text:x.textContent.slice(0,30)}))}));",
+    "timeout": 10000
+  },
+  "timestamp": "2026-10-07T13:48:33.169027+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 18,\n  \"value\": {\n    \"adShowing\": false,\n    \"duration\": 1262.961,\n    \"skipButtons\": [\n      {\n        \"label\": \"Skip navigation\",\n        \"text\": \"Skip navigation\"\n      }\n    ]\n  }\n}"
+    }
+  ],
+  "success": true
+}

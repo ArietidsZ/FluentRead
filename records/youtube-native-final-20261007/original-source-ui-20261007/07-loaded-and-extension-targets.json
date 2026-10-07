@@ -1,0 +1,19 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(16); const state=await p.evaluate(()=>new Promise(resolve=>chrome.developerPrivate.getExtensionsInfo({includeDisabled:true,includeTerminated:true},xs=>resolve({developerMode:document.querySelector('extensions-manager').inDevMode,fluentRead:xs.filter(x=>x.id==='djnlaiohfaaifbibleebjggkghlmcpcj').map(x=>({id:x.id,name:x.name,version:x.version,state:x.state,path:x.path,location:x.location,manifestErrors:x.manifestErrors,runtimeErrors:x.runtimeErrors}))})))); const targets=await browser.cdp('Target.getTargets'); return {state,targets:targets.targetInfos.filter(x=>x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/')).map(x=>({targetId:x.targetId,url:x.url,type:x.type,title:x.title}))};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:42:45.395773+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"state\": {\n    \"page\": 16,\n    \"value\": {\n      \"developerMode\": true,\n      \"fluentRead\": [\n        {\n          \"id\": \"djnlaiohfaaifbibleebjggkghlmcpcj\",\n          \"location\": \"UNPACKED\",\n          \"manifestErrors\": [],\n          \"name\": \"FluentRead-流畅阅读\",\n          \"path\": \"$CW_TASK_DIR/FluentRead-youtube-remaining-combined/.output/chrome-mv3\",\n          \"runtimeErrors\": [],\n          \"state\": \"ENABLED\",\n          \"version\": \"0.0.35\"\n        }\n      ]\n    }\n  },\n  \"targets\": [\n    {\n      \"targetId\": \"76079E01D464C353C3A93F3FC0F44628\",\n      \"url\": \"chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js\",\n      \"type\": \"service_worker\",\n      \"title\": \"Service Worker chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js\"\n    }\n  ]\n}"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

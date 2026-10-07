@@ -44,3 +44,7 @@ Full grouped unit/functional/regression stages, WXT preparation, browser/userscr
 ## Extension cleanup completion
 
 [Cleanup completion](extension-cleanup-completion-20261007/README.md) supersedes that point-in-time cleanup blocker. The parent clarified that original GUI-only Cua authorization already covered the approved extension management and cleanup; no extra approval was needed. One actual native confirmation click removed the test extension. Neo reports developerMode=false and an empty extension list, matching baseline. Test tabs, the owned Cua daemon and its socket are gone; existing dedicated Wayland Neo remains running. **Cleanup PASS; functional subtitle/provider acceptance remains blocked and was not rerun.** The actual native before/after images also correct the earlier claim that closing test tabs had cancelled the native confirmation: it remained present until this GUI confirmation.
+
+## Original-only source UI acceptance
+
+[Original source UI batch](original-source-ui-20261007/README.md) adds real trusted menu-click and synthetic consumer/render/SRT-export evidence using the unchanged approved build. This bounded scope passed; two actual 131-byte SRT downloads matched and cleanup completed again. The prior functional blocker is superseded for **original-only source scope**. MAIN-world real network capture and background/offscreen provider request counts remain NOT_MEASURED; bilingual/provider/ASR acceptance remains NOT_RUN. No PR was created.

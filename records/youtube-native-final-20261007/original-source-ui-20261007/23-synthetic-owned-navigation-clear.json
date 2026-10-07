@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);return await p.evaluate(async()=>{const v=document.querySelector('video');v.pause();const before={originalExists:!!document.querySelector('#fluent-read-video-subtitle-original'),originalLength:document.querySelector('#fluent-read-video-subtitle-original')?.textContent?.length||0,translationEmpty:!(document.querySelector('#fluent-read-video-subtitle')?.textContent||'')};history.replaceState(history.state,'','/watch?v=CWFixture01');await new Promise(r=>setTimeout(r,1200));return {purpose:'explicit synthetic consumer fixture, not MAIN-world network capture',before,after:{href:location.href,original:document.querySelector('#fluent-read-video-subtitle-original')?.textContent||'',translation:document.querySelector('#fluent-read-video-subtitle')?.textContent||'',paused:v.paused,nativePressed:document.querySelector('.ytp-subtitles-button')?.getAttribute('aria-pressed')}}});",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:53:21.555337+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 18,\n  \"value\": {\n    \"after\": {\n      \"href\": \"https://www.youtube.com/watch?v=CWFixture01\",\n      \"nativePressed\": \"true\",\n      \"original\": \"\",\n      \"paused\": true,\n      \"translation\": \"\"\n    },\n    \"before\": {\n      \"originalExists\": true,\n      \"originalLength\": 45,\n      \"translationEmpty\": true\n    },\n    \"purpose\": \"explicit synthetic consumer fixture, not MAIN-world network capture\"\n  }\n}"
+    }
+  ],
+  "success": true
+}

@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(19);return await p.evaluate(()=>{const m=document.querySelector('downloads-manager');return {ownSrt:(m?.items||[]).filter(x=>String(x.url||'').startsWith('blob:https://www.youtube.com/')&&String(x.fileName||'').endsWith('.srt')).slice(0,2).map(x=>({id:x.id,fileName:x.fileName,filePath:x.filePath,state:x.state,dangerType:x.dangerType,startTime:x.startTime,receivedBytes:x.receivedBytes,totalBytes:x.totalBytes})),managerReady:!!m};});",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:56:40.636182+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 19,\n  \"value\": {\n    \"managerReady\": true,\n    \"ownSrt\": []\n  }\n}"
+    }
+  ],
+  "success": true
+}

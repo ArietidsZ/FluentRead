@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(19);return await p.evaluate(()=>{const m=document.querySelector('downloads-manager');const xs=m?.items_||m?.items||[...m.shadowRoot.querySelectorAll('downloads-item')].map(x=>x.data);return {listCount:xs.length,ownSrt:xs.filter(x=>String(x.fileName||'').endsWith('.srt')&&String(x.url||'').startsWith('blob:https://www.youtube.com/')).slice(0,2).map(x=>({id:x.id,fileName:x.fileName,filePath:x.filePath,state:x.state,dangerType:x.dangerType,startTime:x.startTime,receivedBytes:x.receivedBytes,totalBytes:x.totalBytes}))};});",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:57:31.343075+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 19,\n  \"value\": {\n    \"listCount\": 2,\n    \"ownSrt\": [\n      {\n        \"dangerType\": 0,\n        \"fileName\": \"Your Body Language May Shape Who You Are _ Amy Cuddy _ TED-en (1).srt\",\n        \"filePath\": \"$NEO_DOWNLOADS/Your Body Language May Shape Who You Are _ Amy Cuddy _ TED-en (1).srt\",\n        \"id\": \"2\",\n        \"state\": 2\n      },\n      {\n        \"dangerType\": 0,\n        \"fileName\": \"Your Body Language May Shape Who You Are _ Amy Cuddy _ TED-en.srt\",\n        \"filePath\": \"$NEO_DOWNLOADS/Your Body Language May Shape Who You Are _ Amy Cuddy _ TED-en.srt\",\n        \"id\": \"1\",\n        \"state\": 2\n      }\n    ]\n  }\n}"
+    }
+  ],
+  "success": true
+}

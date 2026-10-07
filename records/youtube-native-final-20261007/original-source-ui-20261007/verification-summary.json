@@ -1,0 +1,112 @@
+{
+  "status": "PASS for bounded original-only consumer/render/export scope",
+  "source_commit": "66abb72b9e5830634616099172f0b3cc9970c369",
+  "loaded_combined_build_commit": "bf22ae081ab5b997c088640c605fcc962f7f4bd4",
+  "extension_id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "build_reused_no_rebuild": true,
+  "config_before_youtube": {
+    "allRequiredFieldsMatch": true,
+    "fields": {
+      "alwaysTranslateDomains": [],
+      "autoTranslate": false,
+      "enableAIContext": false,
+      "inputBoxTranslationTrigger": "disabled",
+      "on": true,
+      "selectionTranslatorMode": "disabled",
+      "videoPreferHumanSubtitles": false,
+      "videoSubtitleDisplayMode": "original-only",
+      "videoSubtitleOffsetMs": 0,
+      "videoSubtitleVisible": true,
+      "videoTranslationEnabled": true
+    },
+    "harnessEnabled": false,
+    "revision": 2,
+    "saved": {
+      "revision": 2,
+      "success": true
+    }
+  },
+  "real_caption_track": "English, selected native track; two trusted native control clicks",
+  "real_plus500_click": true,
+  "plus500_readback": {
+    "autoTranslate": false,
+    "harnessEnabled": false,
+    "revision": 3,
+    "videoPreferHumanSubtitles": false,
+    "videoSubtitleDisplayMode": "original-only",
+    "videoSubtitleOffsetMs": 500
+  },
+  "real_paused_original_overlay_observed": true,
+  "synthetic_consumer_samples": [
+    {
+      "nativePressed": "true",
+      "original": "We can't wait.",
+      "paused": true,
+      "time": 1.6,
+      "translation": ""
+    },
+    {
+      "nativePressed": "true",
+      "original": "",
+      "paused": true,
+      "time": 2.6,
+      "translation": ""
+    },
+    {
+      "nativePressed": "true",
+      "original": "Ready\nnow!",
+      "paused": true,
+      "time": 3.6,
+      "translation": ""
+    },
+    {
+      "nativePressed": "true",
+      "original": "A & B.",
+      "paused": true,
+      "time": 5.1,
+      "translation": ""
+    }
+  ],
+  "synthetic_classification": "Same-origin existing timedtext protocol in an owned paused real YouTube page with unique history videoId; not MAIN-world network interception.",
+  "synthetic_srt": {
+    "download_clicks": 2,
+    "trusted": true,
+    "bytes_each": 131,
+    "sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e",
+    "timing_and_short_text_match": true,
+    "button_restored_before_repeat": true,
+    "repeat_identical": true
+  },
+  "reset_readback": {
+    "autoTranslate": false,
+    "harnessEnabled": false,
+    "revision": 4,
+    "videoSubtitleDisplayMode": "original-only",
+    "videoSubtitleOffsetMs": 0
+  },
+  "navigation": {
+    "href": "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+    "originalEmpty": true,
+    "paused": true,
+    "syntheticTextRemains": false,
+    "translationEmpty": true
+  },
+  "limitations": {
+    "background_offscreen_provider_requests": "NOT_MEASURED",
+    "MAIN_world_network_capture_acceptance": "NOT_MEASURED",
+    "bilingual_translation": "NOT_RUN",
+    "provider_transport": "NOT_RUN",
+    "ASR": "NOT_RUN",
+    "translated_export_cancellation": "NOT_RUN; source resolve has no AbortController",
+    "OCR_GPU_model_calls": "NOT_RUN"
+  },
+  "cleanup": {
+    "extension_uninstalled": true,
+    "developer_mode_off": true,
+    "own_test_pages_closed": true,
+    "own_cua_stopped_and_socket_removed": true,
+    "own_download_files_removed_evidence_copies_retained": true,
+    "neo_kept_running": true
+  },
+  "PR_created": false
+}

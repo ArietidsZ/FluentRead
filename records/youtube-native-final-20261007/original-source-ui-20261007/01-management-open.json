@@ -1,0 +1,19 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p = await browser.open('chrome://extensions/'); return {created: p.id, pages: (await browser.pages.list()).filter(x=>x.url==='chrome://extensions/').map(x=>({pageId:x.pageId,url:x.url}))};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:38:40.833744+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"created\": 16,\n  \"pages\": [\n    {\n      \"pageId\": 16,\n      \"url\": \"chrome://extensions/\"\n    }\n  ]\n}"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

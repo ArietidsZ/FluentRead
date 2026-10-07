@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "expires_after": "5m",
+  "idle_timeout": "2m",
+  "resources": {
+    "desktop": {
+      "applications": [],
+      "windows": [
+        {
+          "pid": 68168,
+          "window_id": 11
+        },
+        {
+          "pid": 632977,
+          "window_id": 17
+        }
+      ],
+      "display": false
+    }
+  },
+  "allow": {
+    "tools": [
+      "get_window_state",
+      "click",
+      "hotkey",
+      "type_text",
+      "press_key"
+    ]
+  },
+  "deny": {
+    "tools": []
+  }
+}

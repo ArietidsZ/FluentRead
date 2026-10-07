@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);return await p.evaluate(async()=>{if(location.hostname!=='www.youtube.com'||new URL(location.href).searchParams.get('v')!=='CWFixture01')throw new Error('wrong owned fixture');const v=document.querySelector('video');v.pause();window.postMessage({source:'fluent-read',type:'fluent-read-youtube-timedtext',url:'https://www.youtube.com/api/timedtext?v=CWFixture01&lang=en&kind=fixture-json3',responseText:\"{\\\"events\\\":[{\\\"tStartMs\\\":1000,\\\"dDurationMs\\\":1000,\\\"segs\\\":[{\\\"utf8\\\":\\\"We can\\\"},{\\\"utf8\\\":\\\"'t wait.\\\"}]},{\\\"tStartMs\\\":3000,\\\"dDurationMs\\\":1000,\\\"segs\\\":[{\\\"utf8\\\":\\\"  Ready\\\\n now!  \\\"}]},{\\\"tStartMs\\\":4500,\\\"dDurationMs\\\":500,\\\"segs\\\":[{\\\"utf8\\\":\\\"A &amp; B.\\\"}]}]}\"},location.origin);await new Promise(r=>setTimeout(r,1200));const samples=[];for(const time of [1.6,2.6,3.6,5.1]){v.currentTime=time;await new Promise(r=>setTimeout(r,1200));samples.push({time:v.currentTime,paused:v.paused,original:document.querySelector('#fluent-read-video-subtitle-original')?.textContent||'',translation:document.querySelector('#fluent-read-video-subtitle')?.textContent||'',nativePressed:document.querySelector('.ytp-subtitles-button')?.getAttribute('aria-pressed')});}return {classification:'synthetic consumer, not real network bridge capture',samples};});",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:54:07.492473+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"page\": 18,\n  \"value\": {\n    \"classification\": \"synthetic consumer, not real network bridge capture\",\n    \"samples\": [\n      {\n        \"nativePressed\": \"true\",\n        \"original\": \"We can't wait.\",\n        \"paused\": true,\n        \"time\": 1.6,\n        \"translation\": \"\"\n      },\n      {\n        \"nativePressed\": \"true\",\n        \"original\": \"\",\n        \"paused\": true,\n        \"time\": 2.6,\n        \"translation\": \"\"\n      },\n      {\n        \"nativePressed\": \"true\",\n        \"original\": \"Ready\\nnow!\",\n        \"paused\": true,\n        \"time\": 3.6,\n        \"translation\": \"\"\n      },\n      {\n        \"nativePressed\": \"true\",\n        \"original\": \"A & B.\",\n        \"paused\": true,\n        \"time\": 5.1,\n        \"translation\": \"\"\n      }\n    ]\n  }\n}"
+    }
+  ],
+  "success": true
+}

@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);const before=await p.evaluate(()=>({disabled:document.querySelector('[data-action=\"download-subtitles\"]')?.disabled,ariaBusy:document.querySelector('[data-action=\"download-subtitles\"]')?.getAttribute('aria-busy')}));if(before.value.disabled!==false||before.value.ariaBusy!==null)throw new Error('download button not restored');const s=await p.snapshot({mode:'interactive',depth:10});const b=s.refs.find(x=>x.name==='下载原文字幕');if(!b)throw new Error('source button missing');await p.click(b.ref);const d=await browser.open('chrome://downloads/');return {before,repeatClicked:b.ref,downloadsPageId:d.id,events:await p.evaluate(()=>window.__cwSourceUiEvents)};",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:56:04.879066+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"before\": {\n    \"page\": 18,\n    \"value\": {\n      \"ariaBusy\": null,\n      \"disabled\": false\n    }\n  },\n  \"repeatClicked\": \"e34\",\n  \"downloadsPageId\": 19,\n  \"events\": {\n    \"page\": 18,\n    \"value\": [\n      {\n        \"action\": \"native-captions\",\n        \"isTrusted\": true\n      },\n      {\n        \"action\": \"native-captions\",\n        \"isTrusted\": true\n      },\n      {\n        \"action\": \"subtitle-later\",\n        \"isTrusted\": true\n      },\n      {\n        \"action\": \"download-subtitles\",\n        \"isTrusted\": true\n      },\n      {\n        \"action\": \"download-subtitles\",\n        \"isTrusted\": true\n      }\n    ]\n  }\n}"
+    }
+  ],
+  "success": true
+}

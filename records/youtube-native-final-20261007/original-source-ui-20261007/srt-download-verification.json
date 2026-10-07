@@ -1,0 +1,32 @@
+{
+  "synthetic_only": true,
+  "repeat_identical": true,
+  "downloads": [
+    {
+      "browser_download_id": "2",
+      "state": 2,
+      "bytes": 131,
+      "sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e",
+      "timing_lines": [
+        "00:00:01,000 --> 00:00:02,000",
+        "00:00:03,000 --> 00:00:04,000",
+        "00:00:04,500 --> 00:00:05,000"
+      ],
+      "content": "1\n00:00:01,000 --> 00:00:02,000\nWe can't wait.\n\n2\n00:00:03,000 --> 00:00:04,000\nReady\nnow!\n\n3\n00:00:04,500 --> 00:00:05,000\nA & B.\n",
+      "expected_content_matches": true
+    },
+    {
+      "browser_download_id": "1",
+      "state": 2,
+      "bytes": 131,
+      "sha256": "4f802954f580c453e77065521812fc26fd226f3ad80c8821e08d60d523e2f50e",
+      "timing_lines": [
+        "00:00:01,000 --> 00:00:02,000",
+        "00:00:03,000 --> 00:00:04,000",
+        "00:00:04,500 --> 00:00:05,000"
+      ],
+      "content": "1\n00:00:01,000 --> 00:00:02,000\nWe can't wait.\n\n2\n00:00:03,000 --> 00:00:04,000\nReady\nnow!\n\n3\n00:00:04,500 --> 00:00:05,000\nA & B.\n",
+      "expected_content_matches": true
+    }
+  ]
+}

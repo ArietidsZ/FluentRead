@@ -1,0 +1,19 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(16); await p.click('e5'); return {requested:'normal Load unpacked directory chooser'};",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:40:35.884002+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"requested\": \"normal Load unpacked directory chooser\"\n}"
+    },
+    {
+      "type": "text",
+      "text": ""
+    }
+  ],
+  "success": true
+}

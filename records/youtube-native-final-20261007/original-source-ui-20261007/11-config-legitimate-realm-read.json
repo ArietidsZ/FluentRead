@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const t=await browser.cdp('Target.getTargets');const x=t.targetInfos.find(x=>x.type==='page'&&x.url.startsWith('chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/options.html'));if(!x)throw new Error('extension realm missing');const a=await browser.cdp('Target.attachToTarget',{targetId:x.targetId,flatten:true});try{return await browser.cdp('Runtime.evaluate',{expression:\"(async()=>{if(location.origin!=='chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj'||chrome.runtime.id!=='djnlaiohfaaifbibleebjggkghlmcpcj')throw new Error('wrong extension realm');const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;const keys=['on','videoTranslationEnabled','videoSubtitleVisible','videoSubtitleDisplayMode','videoSubtitleOffsetMs','videoPreferHumanSubtitles','autoTranslate','alwaysTranslateDomains','enableAIContext','selectionTranslatorMode','inputBoxTranslationTrigger'];return {realm:location.origin,revision:c?.__fluentConfigRevision,fields:Object.fromEntries(keys.map(k=>[k,c?.[k]])),harnessEnabled:c?.harness?.enabled,readSuccess:r.success};})()\",returnByValue:true,awaitPromise:true},a.sessionId)}finally{await browser.cdp('Target.detachFromTarget',{sessionId:a.sessionId})}",
+    "timeout": 20000
+  },
+  "timestamp": "2026-10-07T13:45:00.156919+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"result\": {\n    \"type\": \"object\",\n    \"value\": {\n      \"fields\": {\n        \"alwaysTranslateDomains\": [],\n        \"autoTranslate\": false,\n        \"enableAIContext\": false,\n        \"inputBoxTranslationTrigger\": \"disabled\",\n        \"on\": true,\n        \"selectionTranslatorMode\": \"disabled\",\n        \"videoPreferHumanSubtitles\": true,\n        \"videoSubtitleDisplayMode\": \"bilingual\",\n        \"videoSubtitleOffsetMs\": 0,\n        \"videoSubtitleVisible\": true,\n        \"videoTranslationEnabled\": true\n      },\n      \"harnessEnabled\": false,\n      \"readSuccess\": true,\n      \"realm\": \"chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj\",\n      \"revision\": 1\n    }\n  }\n}"
+    }
+  ],
+  "success": true
+}

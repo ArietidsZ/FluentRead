@@ -1,0 +1,15 @@
+{
+  "tool": "run",
+  "arguments": {
+    "code": "const p=await browser.page(18);const v=await p.evaluate(()=>{document.querySelector('video')?.pause();return {paused:document.querySelector('video')?.paused,duration:document.querySelector('video')?.duration,captionLabel:document.querySelector('.ytp-subtitles-button')?.getAttribute('aria-label'),captionPressed:document.querySelector('.ytp-subtitles-button')?.getAttribute('aria-pressed')}});const s=await p.snapshot({mode:'interactive',depth:8});return {state:v,buttons:s.refs.filter(x=>x.role==='button'&&(/Subtitle|caption|FluentRead|Play \\(/i.test(x.name))).map(x=>({ref:x.ref,name:x.name}))};",
+    "timeout": 15000
+  },
+  "timestamp": "2026-10-07T13:49:11.466821+00:00",
+  "content": [
+    {
+      "type": "text",
+      "text": "ok\nreturn: {\n  \"state\": {\n    \"page\": 18,\n    \"value\": {\n      \"captionLabel\": \"Subtitles/closed captions unavailable\",\n      \"captionPressed\": \"true\",\n      \"duration\": 1262.961,\n      \"paused\": true\n    }\n  },\n  \"buttons\": [\n    {\n      \"ref\": \"e13\",\n      \"name\": \"Play (k)\"\n    },\n    {\n      \"ref\": \"e19\",\n      \"name\": \"Subtitles/closed captions unavailable\"\n    },\n    {\n      \"ref\": \"e71\",\n      \"name\": \"FluentRead 字幕翻译：已开启\"\n    }\n  ]\n}"
+    }
+  ],
+  "success": true
+}
