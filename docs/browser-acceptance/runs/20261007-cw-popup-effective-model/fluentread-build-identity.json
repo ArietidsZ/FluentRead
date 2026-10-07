@@ -1,0 +1,17 @@
+{
+  "repository_head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+  "status": "",
+  "manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+  "extension_id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "name": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+  "version": "0.0.35",
+  "action": {
+    "default_title": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+    "default_popup": "popup.html"
+  },
+  "product_code_changed": false,
+  "extension_loaded": false,
+  "popup_tested": false,
+  "prior_integration_report_exists": true,
+  "prior_integration_report_sha256": "3b38e2d89f065425293e1202f226aaa3d4602beb6955d3f5bb16faa60934badc"
+}

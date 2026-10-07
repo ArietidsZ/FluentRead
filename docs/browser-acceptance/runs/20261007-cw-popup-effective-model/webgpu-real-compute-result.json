@@ -1,0 +1,29 @@
+{
+  "id": 1,
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "isFallbackAdapter": false
+        },
+        "gpuComputed": [
+          3,
+          5,
+          7,
+          9
+        ],
+        "expected": [
+          3,
+          5,
+          7,
+          9
+        ],
+        "passed": true,
+        "javaScriptComputeFallback": false
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "id": 1,
+  "result": {
+    "result": {
+      "type": "object",
+      "value": {
+        "service": "ollama",
+        "reading": {
+          "service": "custom:cw-test-b",
+          "model": "cw-reading-explicit"
+        },
+        "writing": {
+          "service": "custom:cw-test-b",
+          "model": ""
+        },
+        "models": {
+          "a": "cw-a-model",
+          "b": "cw-b-model"
+        },
+        "focus": true,
+        "active": {
+          "tag": "SPAN"
+        },
+        "rows": [
+          {
+            "feature": "default",
+            "text": "Default page service\nOllama\nCurrent model: cw-default-model\n›",
+            "aria": "Default page service · Ollama · Current model: cw-default-model"
+          },
+          {
+            "feature": "hover",
+            "text": "Hover translation\nMicrosoft Translator\n›",
+            "aria": "Hover translation · Microsoft Translator"
+          },
+          {
+            "feature": "selection",
+            "text": "Selection translation\n!\nOpenAI\n›",
+            "aria": "Selection translation · OpenAI · Current model: cw-warning-model"
+          },
+          {
+            "feature": "input",
+            "text": "Input translation\nOllama\nCurrent model: cw-input-explicit\n›",
+            "aria": "Input translation · Ollama · Current model: cw-input-explicit"
+          },
+          {
+            "feature": "video",
+            "text": "Video subtitles\nFollow default\nCurrent model: cw-default-model\n›",
+            "aria": "Video subtitles · Follow default · Ollama · Current model: cw-default-model"
+          },
+          {
+            "feature": "document",
+            "text": "Document translation\nOllama\nCurrent model: cw-document-explicit\n›",
+            "aria": "Document translation · Ollama · Current model: cw-document-explicit"
+          },
+          {
+            "feature": "image",
+            "text": "Image translation\nFollow default\nCurrent model: cw-default-model\n›",
+            "aria": "Image translation · Follow default · Ollama · Current model: cw-default-model"
+          },
+          {
+            "feature": "area",
+            "text": "Area translation\nFollow default\nCurrent model: cw-default-model\n›",
+            "aria": "Area translation · Follow default · Ollama · Current model: cw-default-model"
+          },
+          {
+            "feature": "reading",
+            "text": "Selection AI explanations\n!\nCW Test B\n›",
+            "aria": "Selection AI explanations · CW Test B · Current model: cw-reading-explicit"
+          },
+          {
+            "feature": "writing",
+            "text": "Writing assistant\nCW Test B\nCurrent model: cw-b-model\n›",
+            "aria": "Writing assistant · CW Test B · Current model: cw-b-model"
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,613 @@
+{
+  "schema_version": 1,
+  "record_kind": "existing scoped local acceptance evidence, public subset",
+  "prepared_at_utc": "2026-10-07T03:11:09.422818+00:00",
+  "acceptance_date_utc": "2026-10-07",
+  "publication_repository": "ArietidsZ/FluentRead",
+  "base": "5420bbc819264a7415d8a7d213dff569191356b6",
+  "heads": {
+    "pure_ui": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+    "independent_prerequisite": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+    "tested_combination": "812aa425b8381833aeb32f49f724bd4e6a487ae9"
+  },
+  "branches": {
+    "pure_ui": "codex/popup-effective-model-unverified-20261007",
+    "independent_prerequisite": "codex/wxt-worker-metadata-20261007",
+    "tested_combination": "acceptance/integration-popup-effective-model-20261007",
+    "evidence_only": "acceptance/cw-popup-effective-model-evidence-20261007"
+  },
+  "evidence_branch_scope": {
+    "parent": "5420bbc819264a7415d8a7d213dff569191356b6",
+    "only_added_directory": "docs/browser-acceptance/runs/20261007-cw-popup-effective-model",
+    "product_code_changes": false,
+    "tests_builds_or_browser_actions_during_evidence_preparation": false,
+    "pr_created": false
+  },
+  "build_identity": {
+    "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+    "extension_id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "version": "0.0.35",
+    "manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+    "identity_snapshot_phase": "before extension load; original extension_loaded/popup_tested=false fields preserved"
+  },
+  "existing_checks": [
+    {
+      "name": "prepare",
+      "command": [
+        "pnpm",
+        "exec",
+        "wxt",
+        "prepare"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:05:53.235782+00:00",
+      "finished": "2026-10-07T01:05:54.351051+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "prepare.log",
+        "published": false,
+        "bytes": 201,
+        "sha256": "e65f2712830be93840d8a63d16c447a3ea6d1f7be63afc1f83d9d967352f5fc6"
+      }
+    },
+    {
+      "name": "focused-final",
+      "command": [
+        "pnpm",
+        "test",
+        "tests/popupServiceModelClarity.test.ts",
+        "tests/featureTranslationServices.test.ts",
+        "tests/serviceCatalog.test.ts",
+        "tests/customOpenAI.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/popupActions.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/localTtsWorker.test.ts"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:05:54.351233+00:00",
+      "finished": "2026-10-07T01:05:59.973014+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "focused-final.log",
+        "published": false,
+        "bytes": 1899,
+        "sha256": "22c2ec57ceaa30f42174553bb17647c99172abcde2386d382292ec6e2a28dc54"
+      },
+      "counts": {
+        "passed_files": 8,
+        "passed_tests": 101
+      }
+    },
+    {
+      "name": "compile",
+      "command": [
+        "pnpm",
+        "compile"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:05:59.973264+00:00",
+      "finished": "2026-10-07T01:06:14.705653+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "compile.log",
+        "published": false,
+        "bytes": 379,
+        "sha256": "ffd69ad510f1002dabed7902789b0ddd5275f01fdb62df1ee5460759eada59bb"
+      }
+    },
+    {
+      "name": "chrome-build",
+      "command": [
+        "pnpm",
+        "build"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:06:14.705868+00:00",
+      "finished": "2026-10-07T01:06:35.697084+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "chrome-build.log",
+        "published": false,
+        "bytes": 49028,
+        "sha256": "e28341589d8b73288d0b1f9d2a59580f8f98269f214cddbcef9ef4ee6cbbc4b4"
+      }
+    },
+    {
+      "name": "firefox-build",
+      "command": [
+        "pnpm",
+        "build:firefox"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:06:35.697349+00:00",
+      "finished": "2026-10-07T01:06:56.846096+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "firefox-build.log",
+        "published": false,
+        "bytes": 49466,
+        "sha256": "4df0b8cb223f7f9615f9ea993a7278c529a43e5e2a0cbff701e603adf81cc1f6"
+      }
+    },
+    {
+      "name": "firefox-zip",
+      "command": [
+        "pnpm",
+        "zip:firefox"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:06:56.846330+00:00",
+      "finished": "2026-10-07T01:07:39.965414+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "firefox-zip.log",
+        "published": false,
+        "bytes": 49677,
+        "sha256": "961ccca50e5d61507bc9c712ed74436bce2d4503f36868fa05d5199e84a1a51a"
+      }
+    },
+    {
+      "name": "extension-manifests",
+      "command": [
+        "pnpm",
+        "verify:extension-manifests",
+        "--",
+        "--require-firefox-archives"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:39.965616+00:00",
+      "finished": "2026-10-07T01:07:40.580234+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "extension-manifests.log",
+        "published": false,
+        "bytes": 1301,
+        "sha256": "8dbb5b642babafa7bf388629aec390127332e3579972c6a71192af29bf66333a"
+      }
+    },
+    {
+      "name": "userscript-build",
+      "command": [
+        "pnpm",
+        "build:userscript"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:40.580465+00:00",
+      "finished": "2026-10-07T01:07:45.000708+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "userscript-build.log",
+        "published": false,
+        "bytes": 674,
+        "sha256": "858499b1bc6d524d8a9a08b06d1f73a8a41c8d135f409601ea68e408458f799b"
+      }
+    },
+    {
+      "name": "userscript-verifier",
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:45.000933+00:00",
+      "finished": "2026-10-07T01:07:45.032823+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "userscript-verifier.log",
+        "published": false,
+        "bytes": 220,
+        "sha256": "d5b85994deac00def725306f26896a61132641b0cf31eeddbedeb8a2d68bea12"
+      }
+    },
+    {
+      "name": "docs-build",
+      "command": [
+        "pnpm",
+        "docs:build"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:45.032988+00:00",
+      "finished": "2026-10-07T01:07:47.950569+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "docs-build.log",
+        "published": false,
+        "bytes": 638,
+        "sha256": "cf8136cea00fa480fa7e3bb9dd995d428ea9548818756f41bcf9d646cb607ade"
+      }
+    },
+    {
+      "name": "docs-check",
+      "command": [
+        "pnpm",
+        "docs:check"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:47.950825+00:00",
+      "finished": "2026-10-07T01:07:48.465382+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "docs-check.log",
+        "published": false,
+        "bytes": 333,
+        "sha256": "9f1c29aa95c7b983b17dd2c7cc5d61409d5991fed03faff49911652b75f07f8c"
+      }
+    },
+    {
+      "name": "docs-typecheck",
+      "command": [
+        "pnpm",
+        "docs:typecheck"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:48.465635+00:00",
+      "finished": "2026-10-07T01:07:49.981491+00:00",
+      "exit": 0,
+      "status": "PASS",
+      "private_log": {
+        "filename": "docs-typecheck.log",
+        "published": false,
+        "bytes": 282,
+        "sha256": "5d87580a7c3da963c4f1ed78707a995ae6253d01b990e278f1040a5671ebba89"
+      }
+    },
+    {
+      "name": "full-regression",
+      "command": [
+        "pnpm",
+        "test:regression:all"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "started": "2026-10-07T01:07:49.981732+00:00",
+      "finished": "2026-10-07T01:11:09.652054+00:00",
+      "exit": 1,
+      "status": "FAIL",
+      "private_log": {
+        "filename": "full-regression.log",
+        "published": false,
+        "bytes": 103469,
+        "sha256": "8479febd62b4336f84b439db8dad4f5dc5b4a52b8e35074acffcea6481e22cfb"
+      },
+      "stopped_at": "strict coverage, subsequent pipeline stages not entered",
+      "counts": {
+        "failed_files": 6,
+        "passed_files": 376,
+        "failed_tests": 9,
+        "passed_tests": 9369,
+        "errors": 1
+      },
+      "four_dimensions_100_percent_established": false
+    },
+    {
+      "name": "coverage-duplicate",
+      "command": [
+        "pnpm",
+        "test:coverage"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "exit": "stopped",
+      "reason": "Full regression already completed the same strict-coverage command; stopped duplicate run, no result claimed.",
+      "status": "STOPPED",
+      "private_log": {
+        "filename": "coverage.log",
+        "published": false,
+        "bytes": 13846,
+        "sha256": "86e03ad355580233390ae1e175fa0cf54a1128f477e96a12f380423840d5797d"
+      }
+    },
+    {
+      "name": "architecture",
+      "command": [
+        "pnpm",
+        "test:architecture"
+      ],
+      "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+      "exit": 1,
+      "summary": "3 failed / 29 passed files; 3 failed / 1328 passed tests; same three baseline failures",
+      "status": "FAIL",
+      "private_log": {
+        "filename": "architecture.log",
+        "published": false,
+        "bytes": 6553,
+        "sha256": "ec32e1dbe25743edb382c3bb893adba7de73af01b90888c0aa04a5a15ee88126"
+      }
+    }
+  ],
+  "other_existing_checks": [
+    {
+      "name": "pure UI audit/diff and 6-file focused tests",
+      "head": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+      "status": "PASS",
+      "passed_tests": 61,
+      "source": "private validation/integration/report.txt"
+    },
+    {
+      "name": "independent prerequisite prepare and 2-file focused tests",
+      "head": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+      "status": "PASS",
+      "passed_tests": 40,
+      "source": "private validation/integration/report.txt"
+    }
+  ],
+  "browser_scope": {
+    "head": "812aa425b8381833aeb32f49f724bd4e6a487ae9",
+    "actual_toolbar_action_popup": true,
+    "popup_html_tab_substitution": false,
+    "mode": "normal GUI, native GNOME Wayland, sandbox retained, dedicated temporary Neo profile/HOME/XDG/BROWSERCLAW_DIR",
+    "focus_policy": "actual foreground input limited by Cua manifest to the temporary Neo PID/window; no daily profile used",
+    "screenshots": "whole temporary browser window, original unedited bytes",
+    "versions": {
+      "neo_release": "browserclaw/v0.51.0",
+      "chromium_package": "155.0.8309.26",
+      "mcp": "browseros-neo 0.0.65",
+      "mcp_tool_count": 22,
+      "cua": "0.34.0",
+      "winrects": "version 8 ACTIVE"
+    },
+    "passed": [
+      "real toolbar popup and language onboarding",
+      "effective default/inherited/input/document model display",
+      "native search/Down/Return and focus movement for custom reading/writing choices",
+      "reading/writing overrides and writing provider model reset",
+      "no-key warning and machine provider without fabricated model",
+      "Escape and blur actual popup closure",
+      "actual toolbar reopen with saved assignments",
+      "local Neo MCP tabs/snapshot/screenshot",
+      "non-fallback RTX 5090 basic WebGPU compute"
+    ],
+    "not_run": [
+      "pure UI head native browser acceptance",
+      "Firefox native UI",
+      "all seven locales native UI",
+      "native removed-provider and model-only search专项",
+      "real translation API or real credentials",
+      "AI model inference",
+      "GPU benchmark",
+      "long-running/background or whole-product browser regression"
+    ],
+    "gpu_result_scope": "basic WGSL compute only, input [1,2,3,4], GPU readback [3,5,7,9], no JavaScript compute fallback",
+    "isolation_limits": [
+      "Chromium main process six environment fields not directly observable",
+      "config protection checks were metadata comparisons, not content hashes",
+      "MCP listener wildcard bind, with observed non-loopback rejection; not claimed loopback bind",
+      "Cua window capability does not define all portal or GNOME helper capability bounds"
+    ],
+    "cleanup": "existing private record confirms task-owned processes absent and acceptance ports not listening; profile/evidence preserved; installed tools/settings and portal effects not claimed reverted"
+  },
+  "privacy": {
+    "selected_pngs_visually_reviewed": true,
+    "accounts_credentials_unrelated_desktop_in_selected_files": false,
+    "screenshots_edited_or_cropped": false,
+    "full_private_reports_profiles_runtime_session_auth_files_uploaded": false,
+    "private_source_root_label": "CW audit / 20261007-acceptance (local originals retained)"
+  },
+  "public_raw_files": [
+    {
+      "path": "cua-real-popup-rendered-2.png",
+      "source_original_filename": "cua-real-popup-rendered-2.png",
+      "purpose": "actual_toolbar_popup",
+      "raw_unmodified_copy": true,
+      "privacy_review": "window-only synthetic content",
+      "bytes": 162755,
+      "sha256": "9190dbb90b9b121eb091fac02b5f0b95d8df594c64f1b567c783706d8c8a7f72"
+    },
+    {
+      "path": "cua-effective-models-2.png",
+      "source_original_filename": "cua-effective-models-2.png",
+      "purpose": "effective_default_inherited_explicit_models",
+      "raw_unmodified_copy": true,
+      "privacy_review": "window-only synthetic content",
+      "bytes": 135660,
+      "sha256": "6f9c7df7e633b3c82d7d403b846b7f753ef420c0b73e11e1ad6520c3aadbd251"
+    },
+    {
+      "path": "cua-custom-read-write-correct-2.png",
+      "source_original_filename": "cua-custom-read-write-correct-2.png",
+      "purpose": "custom_reading_writing_choices_and_keyboard_focus",
+      "raw_unmodified_copy": true,
+      "privacy_review": "window-only synthetic content",
+      "bytes": 143842,
+      "sha256": "b4f639874ec95bcb0ad21dfe8d9d98e76834a84aae54e8854cad6bb28d8287b8"
+    },
+    {
+      "path": "cua-final-persistence-panel-2.png",
+      "source_original_filename": "cua-final-persistence-panel-2.png",
+      "purpose": "actual_toolbar_reopen_after_persisting_assignments",
+      "raw_unmodified_copy": true,
+      "privacy_review": "window-only synthetic content",
+      "bytes": 138193,
+      "sha256": "8ccd3dd5e03e8ff8cf11b97356ba58f494ed9ff5fd50529b54bb518aa63f590a"
+    },
+    {
+      "path": "fluentread-build-identity.json",
+      "source_original_filename": "fluentread-build-identity.json",
+      "purpose": "preload_build_identity_snapshot",
+      "raw_unmodified_copy": true,
+      "privacy_review": "build identity or synthetic assertion only",
+      "bytes": 647,
+      "sha256": "fd29b59e3512bfe0d8900536ada345f6692b24dcc7c9df66b3be121422c73d19"
+    },
+    {
+      "path": "popup-close-escape-check.json",
+      "source_original_filename": "popup-close-escape-check.json",
+      "purpose": "escape_closed_actual_popup_target",
+      "raw_unmodified_copy": true,
+      "privacy_review": "build identity or synthetic assertion only",
+      "bytes": 18,
+      "sha256": "08cbbaa5237f58980924c8dced7d484b9d654e014a9b80928c137e72cdfd53d1"
+    },
+    {
+      "path": "popup-blur-check.json",
+      "source_original_filename": "popup-blur-check.json",
+      "purpose": "native_blur_closed_actual_popup_target",
+      "raw_unmodified_copy": true,
+      "privacy_review": "build identity or synthetic assertion only",
+      "bytes": 53,
+      "sha256": "e1f47dd73033bcd2ad49801de81ec0b1d7e8b5e157ceeb6d25540ee611e67e17"
+    },
+    {
+      "path": "config-final-reopen-persistence.json",
+      "source_original_filename": "config-final-reopen-persistence.json",
+      "purpose": "synthetic_assignments_after_actual_reopen",
+      "raw_unmodified_copy": true,
+      "privacy_review": "build identity or synthetic assertion only",
+      "bytes": 2857,
+      "sha256": "a205140ee90bbd8fbe0238958ac32bf32cf0a4ab6359fc0fa7235588059252c4"
+    },
+    {
+      "path": "webgpu-real-compute-result.json",
+      "source_original_filename": "webgpu-real-compute-result.json",
+      "purpose": "gpu_basic_compute_readback_only",
+      "raw_unmodified_copy": true,
+      "privacy_review": "build identity or synthetic assertion only",
+      "bytes": 479,
+      "sha256": "f30f42a2c6aebca3f04433a9af9feb853e565d56da8a9b2fbe0828e4e6f5411c"
+    }
+  ],
+  "public_report": {
+    "path": "README.md",
+    "bytes": 9566,
+    "sha256": "3d48807f4658ffc20b7acd72ce2beb5b787ffdae3d98b503e3d91236641be36c"
+  },
+  "private_source_provenance": [
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "RESUMED-REPORT.txt",
+      "published": false,
+      "bytes": 10822,
+      "sha256": "625ba26e4aada2fb7c6bd1d5e8cde98e4c40847558e6b16c32620bc1b492dcca"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "popup-dom-effective-models.json",
+      "published": false,
+      "bytes": 10145,
+      "sha256": "a9f625ef93f0c104c08ce8fa6309c9d2e63cd2c994339e0e0e2972939dfeee64"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "popup-dom-keyboard-tab.json",
+      "published": false,
+      "bytes": 10170,
+      "sha256": "6b9cc847a50bd631eefb495b28645ad2ca04eaab783afe4e3cda6b26b20ed130"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "popup-dom-key-down.json",
+      "published": false,
+      "bytes": 6321,
+      "sha256": "f0bee02256d40ca417727e66e9193a32e61938b6980027eb0c0e8aa2dc8a7950"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "config-custom-read-write-assert.json",
+      "published": false,
+      "bytes": 2953,
+      "sha256": "f26436cfdbdbf4d5fca23e9793cf5f7847212134324c1bc88808bd0cfd1e40ef"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "config-provider-change-clears-model.json",
+      "published": false,
+      "bytes": 2957,
+      "sha256": "3f8b1d665a9acd56b2221ce27a5650793eafe91cfe3a90a1c82b4c19945ad238"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "config-machine-warning-assert.json",
+      "published": false,
+      "bytes": 4514,
+      "sha256": "7c7bd163f6bd48e74c064655c1bfab657ec5d4de1fffccfe161e302c4471866e"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-real-gpu-systeminfo.json",
+      "published": false,
+      "bytes": 8071,
+      "sha256": "d4bec6da9d712045568fc6b2f64ef04f0d835c41ff01615b01ad701af5176954"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-isolation-process-check.json",
+      "published": false,
+      "bytes": 1887,
+      "sha256": "d6d3cfe3261bc2f69a8540f51d9b9e5ca1dc8dee4a2aa08ae39ccc3b8fbd850f"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-isolation-open-paths.json",
+      "published": false,
+      "bytes": 22675,
+      "sha256": "c3b1122b53f1e0f84301636ab4d7c5d1d72726ac26bd7a70583ae4b461c85e4e"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-isolation-comparison.json",
+      "published": false,
+      "bytes": 1102,
+      "sha256": "56ed6a13db1f3ffc93c51c0d1acc928e8beec52e650ae2bdc0c8d7fc5e5b69fc"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-nonloopback-rejection.json",
+      "published": false,
+      "bytes": 259,
+      "sha256": "163c195b066c84066d9f5c6437b4be04933b3bba8917589f845ce80dd0bee36e"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "neo-fixture-mcp-snapshot-final.json",
+      "published": false,
+      "bytes": 1156,
+      "sha256": "823e73db6a985a0943f3aa037575a164721ac9698e82a44b8974ac6f06d9cd66"
+    },
+    {
+      "source": "private CW acceptance audit, 20261007-acceptance",
+      "filename": "acceptance-cleanup.json",
+      "published": false,
+      "bytes": 737,
+      "sha256": "175ef7f613cfac504525a320b0b8dcb15ada3325cbd61811b55c57517445add5"
+    },
+    {
+      "source": "private validation/integration, before browser acceptance",
+      "filename": "results.json",
+      "published": false,
+      "bytes": 6050,
+      "sha256": "a8bc547112003a04d6a81568350e5732cb1ca04decb2a063da7d80babef930d2"
+    },
+    {
+      "source": "private validation/integration, before browser acceptance",
+      "filename": "report.txt",
+      "published": false,
+      "bytes": 5296,
+      "sha256": "3b38e2d89f065425293e1202f226aaa3d4602beb6955d3f5bb16faa60934badc"
+    },
+    {
+      "source": "private validation/integration, before browser acceptance",
+      "filename": "relationship-and-preflight.json",
+      "published": false,
+      "bytes": 1956,
+      "sha256": "ff8bf2bdc3884cd269343d23d974e1c2a1d1be971842bae82e040e758cd9a10b"
+    },
+    {
+      "source": "private validation/integration, before browser acceptance",
+      "filename": "build-artifacts.json",
+      "published": false,
+      "bytes": 1878,
+      "sha256": "3389bd63858398aa88a46928a26f1a362a3d6b1a07b21df250a0365872f4c0a7"
+    }
+  ],
+  "overall_required_gate": "FAIL: full coverage and architecture checks remain failing; no PR created"
+}
