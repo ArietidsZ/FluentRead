@@ -6,7 +6,7 @@ import {
     IMAGE_CANCEL_MESSAGE_TYPE, type ImageTranslationBackgroundDependencies,
 } from '@/src/features/image-translation/background/handlers';
 import {AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, createAreaTranslationBackgroundHandlers} from '@/src/features/area-translation/background/handlers';
-import {buildGlossaryRevision} from '@/src/core/glossary';
+import {buildGlossaryRevision, protectGlossaryText} from '@/src/core/glossary';
 import {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
 import {createTranslationBroker} from '@/src/services/translation/broker';
@@ -163,7 +163,9 @@ function integration(batch: boolean, texts = ['API', 'other']) {
     const requests: object[] = [];
     const provider = vi.fn(async (message: Record<string, unknown>) => {
         const snapshot = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config));
-        const translate = (origin: string) => getTranslationGlossaryTerms(snapshot, origin)[0]?.target ?? `译文:${origin}`;
+        const protectedApi = protectGlossaryText('API', config.glossaryLibraries[0].entries, '0').text;
+        const translate = (origin: string) => origin === protectedApi ? origin
+            : getTranslationGlossaryTerms(snapshot, origin)[0]?.target ?? `译文:${origin}`;
         return Array.isArray(message.origin) ? message.origin.map(translate) : translate(String(message.origin));
     });
     const broker = createTranslationBroker({
@@ -227,7 +229,8 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
     it('重复OCR文本经三路并发和乱序回执后保序还原，每个请求仍携带同一可信术语上下文', async () => {
         const h = integration(false, ['API', 'other', 'API', 'third', 'fourth', 'other']);
         const translate = h.provider.getMockImplementation()!;
-        const gates = new Map(['API', 'other', 'third', 'fourth'].map(text => [text, deferred<void>()]));
+        const protectedApi = protectGlossaryText('API', h.config.glossaryLibraries[0].entries, '0').text;
+        const gates = new Map([protectedApi, 'other', 'third', 'fourth'].map(text => [text, deferred<void>()]));
         const firstWindow = deferred<void>();
         const fourthStarted = deferred<void>();
         const started: string[] = [];
@@ -241,35 +244,44 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         });
         const revision = buildGlossaryRevision(h.config.glossaryLibraries, true);
         const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest);
-        await firstWindow.promise;
-        expect(started).toEqual(['API', 'other', 'third']);
-        expect(h.requests).toHaveLength(3);
-        h.config.from = 'ja';
-        gates.get('third')!.resolve();
-        await fourthStarted.promise;
-        expect(started).toEqual(['API', 'other', 'third', 'fourth']);
-        gates.get('fourth')!.resolve();
-        gates.get('other')!.resolve();
-        gates.get('API')!.resolve();
-        await expect(pending).resolves.toMatchObject({
-            success: true, lines: ['专用接口', '译文:other', '专用接口', '译文:third', '译文:fourth', '译文:other'],
-        });
-        expect(h.provider).toHaveBeenCalledTimes(4);
-        const control = getTranslationRequestControl(h.requests[0])!;
-        expect(control.ownershipKey).toBe(`image:${imageRequest.requestId}`);
-        for (const request of h.requests) {
-            expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
-            expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
-            expect(getTranslationRequestControl(request)?.signal).toBe(control.signal);
+        void pending.catch(() => {});
+        try {
+            await firstWindow.promise;
+            expect(started).toEqual([protectedApi, 'other', 'third']);
+            expect(h.requests.map(request => (request as {origin: string}).origin)).toEqual(['API', 'other', 'third']);
+            expect(h.provider.mock.calls.map(([request]) => request.origin)).toEqual([protectedApi, 'other', 'third']);
+            expect(h.requests).toHaveLength(3);
+            h.config.from = 'ja';
+            gates.get('third')!.resolve();
+            await fourthStarted.promise;
+            expect(started).toEqual([protectedApi, 'other', 'third', 'fourth']);
+            gates.get('fourth')!.resolve();
+            gates.get('other')!.resolve();
+            gates.get(protectedApi)!.resolve();
+            await expect(pending).resolves.toMatchObject({
+                success: true, lines: ['专用接口', '译文:other', '专用接口', '译文:third', '译文:fourth', '译文:other'],
+            });
+            expect(h.provider).toHaveBeenCalledTimes(4);
+            const control = getTranslationRequestControl(h.requests[0])!;
+            expect(control.ownershipKey).toBe(`image:${imageRequest.requestId}`);
+            for (const request of h.requests) {
+                expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
+                expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
+                expect(getTranslationRequestControl(request)?.signal).toBe(control.signal);
+            }
+            expect(control.signal.aborted).toBe(false);
+        } finally {
+            for (const gate of gates.values()) gate.resolve();
+            await Promise.allSettled([pending, ...h.provider.mock.results.map(result => result.value)]);
         }
-        expect(control.signal.aborted).toBe(false);
     });
 
     it('术语图片并发一段失败取消同批且不启动余段，同ID重试使用新版本并忽略旧provider迟到结果', async () => {
         const h = integration(false, ['API', 'other', 'API', 'third', 'fourth']);
         h.config.translationMaxRetries = 0;
         const translate = h.provider.getMockImplementation()!;
-        const gates = new Map(['API', 'other', 'third'].map(text => [text, deferred<void>()]));
+        const protectedApi = protectGlossaryText('API', h.config.glossaryLibraries[0].entries, '0').text;
+        const gates = new Map([protectedApi, 'other', 'third'].map(text => [text, deferred<void>()]));
         const firstWindow = deferred<void>();
         let started = 0;
         h.provider.mockImplementation(async message => {
@@ -279,41 +291,50 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         });
         const oldRevision = buildGlossaryRevision(h.config.glossaryLibraries, true);
         const pending = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest);
+        void pending.catch(() => {});
         const failed = expect(pending).rejects.toThrow('provider down');
-        await firstWindow.promise;
-        const oldRequests = [...h.requests];
-        const oldProviderResults = h.provider.mock.results.map(result => result.value);
-        h.config.glossaryLibraries[0].entries[0].target = '更新接口';
-        gates.get('other')!.reject(new Error('provider down'));
-        await failed;
-        expect(h.requests).toHaveLength(3);
-        expect(h.provider).toHaveBeenCalledTimes(3);
-        for (const request of oldRequests) {
-            expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: oldRevision});
-            expect(getTranslationRequestControl(request)?.signal.aborted).toBe(true);
-        }
-        await expect(h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {
-            requestId: imageRequest.requestId, texts: ['API'],
-        }, offscreen)).rejects.toThrow('上下文已失效');
+        void failed.catch(() => {});
+        try {
+            await firstWindow.promise;
+            expect(h.requests.map(request => (request as {origin: string}).origin)).toEqual(['API', 'other', 'third']);
+            expect(h.provider.mock.calls.map(([request]) => request.origin)).toEqual([protectedApi, 'other', 'third']);
+            const oldRequests = [...h.requests];
+            const oldProviderResults = h.provider.mock.results.map(result => result.value);
+            h.config.glossaryLibraries[0].entries[0].target = '更新接口';
+            gates.get('other')!.reject(new Error('provider down'));
+            await failed;
+            expect(h.requests).toHaveLength(3);
+            expect(h.provider).toHaveBeenCalledTimes(3);
+            for (const request of oldRequests) {
+                expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: oldRevision});
+                expect(getTranslationRequestControl(request)?.signal.aborted).toBe(true);
+            }
+            await expect(h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {
+                requestId: imageRequest.requestId, texts: ['API'],
+            }, offscreen)).rejects.toThrow('上下文已失效');
 
-        h.provider.mockImplementation(translate);
-        const revision = buildGlossaryRevision(h.config.glossaryLibraries, true);
-        expect(revision).not.toBe(oldRevision);
-        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({
-            success: true, lines: ['更新接口', '译文:other', '更新接口', '译文:third', '译文:fourth'],
-        });
-        gates.get('API')!.resolve();
-        gates.get('third')!.resolve();
-        await Promise.allSettled(oldProviderResults);
-        expect(h.requests).toHaveLength(7);
-        expect(h.provider).toHaveBeenCalledTimes(7);
-        const retryRequests = h.requests.slice(3);
-        const oldSignal = getTranslationRequestControl(oldRequests[0])!.signal;
-        for (const request of retryRequests) {
-            expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
-            expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
-            expect(getTranslationRequestControl(request)?.signal).not.toBe(oldSignal);
-            expect(getTranslationRequestControl(request)?.signal.aborted).toBe(false);
+            h.provider.mockImplementation(translate);
+            const revision = buildGlossaryRevision(h.config.glossaryLibraries, true);
+            expect(revision).not.toBe(oldRevision);
+            await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({
+                success: true, lines: ['更新接口', '译文:other', '更新接口', '译文:third', '译文:fourth'],
+            });
+            gates.get(protectedApi)!.resolve();
+            gates.get('third')!.resolve();
+            await Promise.allSettled(oldProviderResults);
+            expect(h.requests).toHaveLength(7);
+            expect(h.provider).toHaveBeenCalledTimes(7);
+            const retryRequests = h.requests.slice(3);
+            const oldSignal = getTranslationRequestControl(oldRequests[0])!.signal;
+            for (const request of retryRequests) {
+                expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
+                expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
+                expect(getTranslationRequestControl(request)?.signal).not.toBe(oldSignal);
+                expect(getTranslationRequestControl(request)?.signal.aborted).toBe(false);
+            }
+        } finally {
+            for (const gate of gates.values()) gate.resolve();
+            await Promise.allSettled([pending, failed, ...h.provider.mock.results.map(result => result.value)]);
         }
     });
 
