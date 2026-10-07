@@ -71,6 +71,10 @@ pnpm dev
 
 欢迎通过 [Issue](https://github.com/FluentRead/FluentRead/issues) 报告问题或提出建议，并通过 Pull Request 改进代码、文档、界面翻译及[网站适配](../docs/contributing/site-adaptation.md)。
 
+## 设计系统
+
+运行 `pnpm storybook` 可在本地查看真实 Vue 组件、界面皮肤与交互状态。详见[设计系统与组件预览](../docs/guide/design-system.md)。使用 `pnpm docs:build:site` 可一起构建文档与组件展示站。
+
 ## 支持项目
 
 FluentRead 是一个开源项目，其持续开发离不开社区的慷慨支持。可以通过微信赞赏或 Ko-fi 自愿赞赏。

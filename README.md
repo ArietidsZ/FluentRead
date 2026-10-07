@@ -67,6 +67,8 @@ pnpm dev
 
 Use `pnpm build` to build the Chrome extension, `pnpm compile` for type checking, and `pnpm docs:build` to build the website. See [architecture](./docs/architecture.md) and [testing](./docs/testing.md) for project conventions.
 
+Run `pnpm storybook` to explore the real Vue components and interface themes locally. See the [design system guide](./docs/en/guide/design-system.md). Use `pnpm docs:build:site` to build the documentation with the component explorer.
+
 ## Contributing
 
 Report bugs and propose changes through [Issues](https://github.com/FluentRead/FluentRead/issues). Pull requests for code, documentation, interface translations, and [website adaptation](./docs/contributing/site-adaptation.md) are welcome.

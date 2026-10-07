@@ -77,6 +77,11 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
     },
     {
       collapsed: true,
+      text: en ? 'Design & contribution' : '设计与贡献',
+      items: [item('设计系统与组件预览', 'Design system & component previews', '/guide/design-system')],
+    },
+    {
+      collapsed: true,
       text: en ? 'Help' : '帮助',
       items: [
         item('常见问题', 'Troubleshooting', '/guide/faq'),

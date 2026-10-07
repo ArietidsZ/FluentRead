@@ -27,7 +27,8 @@ const resolve = (href) => {
 }
 const docs = new Map(
   files(dist)
-    .filter((f) => f.endsWith('.html'))
+    // Storybook has its own HTML shell and artifact checker, not VitePress page metadata.
+    .filter((f) => f.endsWith('.html') && !path.relative(dist, f).startsWith('storybook/'))
     .map((f) => [f, parseHTML(fs.readFileSync(f, 'utf8')).document])
 )
 const report = { pages: docs.size, links: 0, anchors: 0, images: 0 }
