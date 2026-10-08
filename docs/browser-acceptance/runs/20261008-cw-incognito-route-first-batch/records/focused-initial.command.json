@@ -1,0 +1,18 @@
+{
+  "label": "focused-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "vitest",
+    "run",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/requestConfigSnapshot.test.ts",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/template.test.ts"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T07:35:51.460466+00:00",
+  "duration_seconds": 0.022,
+  "exit_code": 1
+}

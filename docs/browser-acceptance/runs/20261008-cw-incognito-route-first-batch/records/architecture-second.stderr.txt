@@ -1,0 +1,132 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > accepts the package-manager argument separator before runner flags
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:38:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > defaults to the deterministic local plan only
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:45:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > requires explicit network and allow-network gates together
+AssertionError: expected '' to contain '--network 和 --allow-network'
+
+- Expected
++ Received
+
+- --network 和 --allow-network
+
+ ❯ tests/fullRegressionRunner.test.ts:86:37
+     84|         const missingAllow = runRunner(['--dry-run', '--network', ...B…
+     85|         expect(missingAllow.status).not.toBe(0);
+     86|         expect(missingAllow.stderr).toContain('--network 和 --allow-ne…
+       |                                     ^
+     87|
+     88|         const strayAllow = runRunner(['--dry-run', '--allow-network']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > passes focus-safe background and isolated artifacts to local browser fixtures
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:94:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > keeps glossary background-only with supported arguments and its own artifact directory
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:142:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > runs the site matrix only behind network plus allow-network gates
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:173:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/12]⎯
+
+ FAIL  tests/fullRegressionRunner.test.ts > full regression runner > marks headed mode as foreground-authorized only when explicitly requested
+SyntaxError: Unexpected end of JSON input
+ ❯ dryRun tests/fullRegressionRunner.test.ts:33:17
+     31|     const result = runRunner(['--dry-run', ...args]);
+     32|     expect(result.status, result.stderr).toBe(0);
+     33|     return JSON.parse(result.stdout);
+       |                 ^
+     34| }
+     35|
+ ❯ tests/fullRegressionRunner.test.ts:188:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/12]⎯
+
+ FAIL  tests/userscriptViteConfig.test.ts > userscript browser shim injection > pins each remote language file to a commit containing exactly its built contents
+Error: spawnSync git EPERM
+ ❯ tests/userscriptViteConfig.test.ts:35:31
+     33|         for (const file of Object.values(bundles)) {
+     34|             const path = `userscript/languages/${file}`;
+     35|             const committed = execFileSync('git', ['show', `${commit}:…
+       |                               ^
+     36|             expect(committed).toBe(readFileSync(resolve(process.cwd(),…
+     37|         }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/12]⎯
+
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 文档工具 scripts/verify-storybook-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程
+AssertionError: expected [Function] to not throw an error but 'Error: spawnSync /home/arietids/.loca…' was thrown
+
+- Expected:
+undefined
+
++ Received:
+"Error: spawnSync CW_EXISTING_NODE/bin/node EPERM"
+
+ ❯ tests/architecture/verificationOwnership.test.ts:374:107
+    372|     });
+    373|     it.each(DOCS_TOOL_SCRIPTS)('文档工具 %s 保持可解析的 Node 入口且不…
+    374|         expect(() => execFileSync(process.execPath, ['--check', projec…
+       |                                                                                                           ^
+    375|     });
+    376|     it('文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/12]⎯
+

@@ -1,0 +1,17 @@
+{
+  "label": "userscript-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T07:47:35.701519+00:00",
+  "duration_seconds": 3.462,
+  "exit_code": 0
+}

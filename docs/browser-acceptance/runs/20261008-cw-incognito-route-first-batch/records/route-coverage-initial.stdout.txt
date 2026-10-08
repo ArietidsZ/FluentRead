@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false --config vitest.coverage.config.ts tests/incognitoTranslationRoute.test.ts --coverage.include=src/core/config/incognitoRoute.ts --coverage.include=src/platform/browser/incognitoSource.ts --coverage.reportsDirectory=CW_INCOGNITO_EVIDENCE/route-coverage-initial-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text
+
+ RUN  v2.1.9 CW_INCOGNITO_WORKTREE
+      Coverage enabled with v8
+
+ ✓ tests/incognitoTranslationRoute.test.ts (31 tests) 72ms
+
+ Test Files  1 passed (1)
+      Tests  31 passed (31)
+   Start at  15:42:05
+   Duration  749ms (transform 323ms, setup 0ms, collect 441ms, tests 72ms, environment 0ms, prepare 30ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |    98.73 |     100 |     100 |
+ core/config       |     100 |    98.64 |     100 |     100 |
+  ...gnitoRoute.ts |     100 |    98.64 |     100 |     100 | 47
+ platform/browser  |     100 |      100 |     100 |     100 |
+  ...nitoSource.ts |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|-------------------

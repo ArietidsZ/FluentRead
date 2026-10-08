@@ -1,0 +1,11 @@
+{
+  "label": "userscript-verify-fourth",
+  "command": [
+    "node",
+    "scripts/verify-userscript-build.mjs"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T07:53:30.972559+00:00",
+  "duration_seconds": 0.027,
+  "exit_code": 1
+}

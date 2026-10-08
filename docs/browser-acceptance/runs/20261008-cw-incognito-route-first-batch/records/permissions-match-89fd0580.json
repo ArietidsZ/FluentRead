@@ -1,0 +1,13 @@
+{
+  "reference_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "source_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
+  "compared_fields": [
+    "permissions",
+    "optional_permissions",
+    "host_permissions",
+    "optional_host_permissions",
+    "incognito"
+  ],
+  "chrome-mv3": "equal",
+  "firefox-mv2": "equal"
+}

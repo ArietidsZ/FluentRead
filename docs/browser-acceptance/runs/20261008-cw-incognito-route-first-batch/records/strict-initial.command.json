@@ -1,0 +1,25 @@
+{
+  "label": "strict-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=CW_INCOGNITO_EVIDENCE/strict-initial.results.json",
+    "--coverage.reportsDirectory=CW_INCOGNITO_EVIDENCE/strict-initial-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T07:38:31.456587+00:00",
+  "duration_seconds": 171.288,
+  "exit_code": 1
+}

@@ -1,0 +1,7 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/incognitoTranslationRoute.test.ts(33,9): error TS2322: Type '{ [x: string]: Mock<(message: TranslationProviderRequest<string>) => Promise<string>>; }' is not assignable to type 'TranslationProviderRegistry'.
+  'string' index signatures are incompatible.
+    Type 'Mock<(message: TranslationProviderRequest<string>) => Promise<string>>' is not assignable to type 'TranslationProvider'.
+      Types of parameters 'message' and 'message' are incompatible.
+        Type 'Record<string, unknown>' is not assignable to type 'TranslationProviderRequest<string>'.
+          Property 'origin' is missing in type 'Record<string, unknown>' but required in type '{ origin: string; summaryPrompt?: string | undefined; summarySystemPrompt?: string | undefined; }'.

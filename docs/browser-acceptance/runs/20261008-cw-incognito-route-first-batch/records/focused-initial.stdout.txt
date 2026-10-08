@@ -1,0 +1,1 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: vitest run tests/incognitoTranslationRoute.test.ts tests/requestConfigSnapshot.test.ts tests/backgroundTranslationHandler.test.ts tests/template.test.ts

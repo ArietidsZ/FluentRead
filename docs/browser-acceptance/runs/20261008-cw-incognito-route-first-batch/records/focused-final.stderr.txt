@@ -1,0 +1,15 @@
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > 非法 JSON 被安全忽略，payload 不变
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > JSON 数组被忽略（必须是对象）
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > mergeCustomBody（纯函数） > JSON 基本类型被忽略（数字 / 字符串 / 布尔 / null）
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+
+stderr | tests/template.test.ts > commonMsgTemplate（集成） > 非法的自定义请求体被忽略，标准请求体保持完整
+[FluentRead] 自定义请求体必须是合法的 JSON 对象，已忽略
+

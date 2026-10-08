@@ -1,0 +1,21 @@
+{
+  "label": "focused-third",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/requestConfigSnapshot.test.ts",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/template.test.ts"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T07:37:32.128457+00:00",
+  "duration_seconds": 1.207,
+  "exit_code": 0
+}

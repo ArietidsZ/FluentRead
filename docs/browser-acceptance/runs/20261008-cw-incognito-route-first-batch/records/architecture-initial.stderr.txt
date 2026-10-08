@@ -1,0 +1,56 @@
+node:events:505
+    throw er; // Unhandled 'error' event
+    ^
+
+Error: spawn pnpm ENOENT
+    at ChildProcess._handle.onexit (node:internal/child_process:286:19)
+    at onErrorNT (node:internal/child_process:524:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+Emitted 'error' event on ChildProcess instance at:
+    at ChildProcess._handle.onexit (node:internal/child_process:292:12)
+    at onErrorNT (node:internal/child_process:524:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -2,
+  code: 'ENOENT',
+  syscall: 'spawn pnpm',
+  path: 'pnpm',
+  spawnargs: [
+    'exec',
+    'vitest',
+    'run',
+    'tests/architecture/moduleBoundaries.test.ts',
+    'tests/architecture/providerBoundaries.test.ts',
+    'tests/architecture/sourceFileHeaders.test.ts',
+    'tests/architecture/verificationOwnership.test.ts',
+    'tests/backgroundConfigPersistenceHandler.test.ts',
+    'tests/backgroundConfigStorage.test.ts',
+    'tests/backgroundConnectionTestHandler.test.ts',
+    'tests/backgroundCoreHandlers.test.ts',
+    'tests/backgroundMessageRouter.test.ts',
+    'tests/backgroundProviderRuntime.test.ts',
+    'tests/freeTranslationWeightsHandler.test.ts',
+    'tests/backgroundRetiredContentScripts.test.ts',
+    'tests/backgroundTranslationHandler.test.ts',
+    'tests/selectionTtsBackgroundHandler.test.ts',
+    'tests/browserFocusSafety.test.ts',
+    'tests/harnessBackground.test.ts',
+    'tests/harnessAppRuntime.test.ts',
+    'tests/contentTrustBoundary.test.ts',
+    'tests/extensionManifestContract.test.ts',
+    'tests/fullRegressionRunner.test.ts',
+    'tests/imageTranslationSecurityContract.test.ts',
+    'tests/popupFeatureVisibility.test.ts',
+    'tests/settingsUiArchitecture.test.ts',
+    'tests/userscriptMetadata.test.ts',
+    'tests/userscriptPrivacy.test.ts',
+    'tests/userscriptViteConfig.test.ts',
+    'tests/freeTranslationSettings.test.ts',
+    'tests/writingBackground.test.ts',
+    'tests/requestLimitSettings.test.ts',
+    'tests/backgroundVisionProbe.test.ts',
+    'tests/requestHeaderRuntime.test.ts',
+    'tests/extensionSizeBudget.test.ts'
+  ]
+}
+
+Node.js v26.7.0
