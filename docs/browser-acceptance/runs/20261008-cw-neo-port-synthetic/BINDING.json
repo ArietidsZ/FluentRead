@@ -17,5 +17,11 @@
   "platform": "CW Linux Xvfb headed / BrowserOS Neo155.0.8309.26 browserclaw/v0.51.0",
   "no_extra_dependencies_installed": true,
   "cancel_checkpoint": "9da3fd9f01f912268cc7c919db4a804c250f62ca",
-  "cancel_full_regression_status": "pending; did not delay Neo switch"
+  "cancel_full_regression_status": "pending; did not delay Neo switch",
+  "navigation_diagnostic": {
+    "observation": "keyring prompt process and navigation stall occurred in initial temporary session",
+    "causality": "not established; correlation only",
+    "successful_minimal_measure": "service autostart restriction only in owned temporary D-Bus config",
+    "system_daily_services_keyring_credentials_password_store_changed": false
+  }
 }

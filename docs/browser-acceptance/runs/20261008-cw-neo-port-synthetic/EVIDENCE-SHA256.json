@@ -568,5 +568,23 @@
     "raw_sha256": "c3c948a5a2d97788c423f23da2c958b838982eea29fdc3ea74309351a06f0042",
     "published_sha256": "c3c948a5a2d97788c423f23da2c958b838982eea29fdc3ea74309351a06f0042",
     "redacted": false
+  },
+  {
+    "path": "records/publication/docs-diagnostic-clarification.command.json",
+    "raw_sha256": "fe030a85f114578b5d296cca0f43e9fbd4404490408064007bd5e86c55b09c98",
+    "published_sha256": "fe030a85f114578b5d296cca0f43e9fbd4404490408064007bd5e86c55b09c98",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/docs-diagnostic-clarification.stdout.txt",
+    "raw_sha256": "56f12054bba413d186da704bda91a8b4011cf6f878f2093f6b255de5e7eed6d2",
+    "published_sha256": "56f12054bba413d186da704bda91a8b4011cf6f878f2093f6b255de5e7eed6d2",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/docs-diagnostic-clarification.stderr.txt",
+    "raw_sha256": "f2055471be410a36848b72e28af7c90a87ea38c16232fbad41e7e552c22492d9",
+    "published_sha256": "f2055471be410a36848b72e28af7c90a87ea38c16232fbad41e7e552c22492d9",
+    "redacted": false
   }
 ]
