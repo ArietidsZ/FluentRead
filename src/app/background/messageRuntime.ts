@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
- * 主要内容：向图片处理注入已保存的单图识别方式；创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为通用翻译装配原生 sender/context 三态来源解析，为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，接入离屏下载进度转存，注册类型化 router 并管理响应与错误。
+ * 主要内容：向图片处理注入已保存的单图识别方式；创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为通用翻译装配原生 sender/context 三态来源解析，为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，接入离屏下载进度转存，注册类型化 router，绑定独立文本文档 Port 的原生租约和断连取消，并管理响应与错误。
  * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
  */
 import {getFreeTranslationWeightSnapshot, createProviderTestRuntimeHandlers} from './providerRuntime';
@@ -29,6 +29,7 @@ import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWei
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
 import {createDownloadProgressHandler} from './handlers/downloadProgress';
 import {createTranslationCancelHandler, createNativeTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
+import {createTranslationDocumentPortHandler} from '@/src/services/translation/documentChannel';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
@@ -61,8 +62,8 @@ export interface BackgroundMessageRuntimeOptions {
 export function installBackgroundMessageRuntime(options: BackgroundMessageRuntimeOptions): void {
     const cancelWriting = installWritingBackgroundRuntime();
     const capabilities = options.capabilities ?? browserCapabilities;
-    const translationRequestRegistry = createTranslationRequestRegistry();
-    const inputTranslationRequestRegistry = createTranslationRequestRegistry();
+    const translationRequestRegistry = createTranslationRequestRegistry(true);
+    const inputTranslationRequestRegistry = createTranslationRequestRegistry(true);
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
@@ -96,6 +97,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         createInputBoxTranslationCancelHandler(inputTranslationRequestRegistry),
         createInputBoxTranslationHandler({
             requestRegistry: inputTranslationRequestRegistry,
+            requireDocumentOwner: true,
             ready: configReady,
             getConfig: () => config,
             translate: translateWithCache,
@@ -150,16 +152,23 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const router = createBackgroundMessageRouter(
         handlers,
         createNativeTranslationRequestFallback(browser.runtime as unknown as IncognitoSourceRuntime, {
+            ready: configReady,
             translate: translateWithCache,
             serializeError: serializeTranslationError,
             requestRegistry: translationRequestRegistry,
+            requireDocumentOwner: true,
         }),
     );
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
+    const textPorts = createTranslationDocumentPortHandler({runtimeId: browser.runtime.id,
+        dispatch: (message, context) => router.dispatch(message, context as BackgroundRuntimeContext),
+        registries: [translationRequestRegistry, inputTranslationRequestRegistry]});
+    browser.runtime.onConnect.addListener(textPorts.connect);
     browser.runtime.onConnect.addListener(imageAreaRuntime.connect);
     selectionPageZoom.installZoomChangeListener();
     browser.tabs.onRemoved.addListener((tabId: number) => {
         imageAreaRuntime.releaseTab(Number(tabId));
+        textPorts.releaseTab(Number(tabId));
         releaseVideoSubtitleOwnerForTab(Number(tabId));
     });
     installBrowserConfigStorageBroadcast();

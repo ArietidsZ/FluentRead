@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，页面功能取消后关闭图片文档 Port，低频检查扩展重载以主动释放旧页面。
+ * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，取消后关闭图片及 Firefox 文本文档 Port，低频检查扩展重载以主动释放旧页面。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import {createLearningContentFeatures} from './learningFeatures';
@@ -12,6 +12,8 @@ import {isExtensionDisabledOnSite} from '@/src/features/site-rules/domain';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {cancelAllTranslations} from '@/src/app/translation/client';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {sendTranslationRuntimeMessage, translationDocumentClient} from '@/src/services/translation/documentClient';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
 import {clearLegacyPageTranslationCache} from '@/src/services/translation/legacyPageCache';
 import {getCenterPoint} from '@/src/shared/geometry/touch';
@@ -60,11 +62,12 @@ export async function startContentApp(ctx: ContentScriptContext,
     let cleanedUp = false;
     let pageAvailability: ContentPageAvailabilityRuntime | null = null;
     const imageChannel = capabilities.browser === 'userscript' ? undefined : imageDocumentClient();
-    let cleanup = (): void => { cleanedUp = true; pageEventController.abort(); imageChannel?.dispose(); };
+    const textChannel = NATIVE_PRIVATE_ROUTE_SUPPORTED && (capabilities.browser === 'firefox' || capabilities.browser === 'thunderbird') ? translationDocumentClient() : undefined;
+    let cleanup = (): void => { cleanedUp = true; pageEventController.abort(); imageChannel?.dispose(); textChannel?.dispose(); };
     ctx.onInvalidated(() => cleanup());
     const pageLifecycle = installContentPageLifecycle(window, pageEventController.signal, {
-        suspend: () => { void pageAvailability?.reconcile(); imageChannel?.suspend(); },
-        resume: () => { imageChannel?.resume(); void pageAvailability?.reconcile(); },
+        suspend: () => { void pageAvailability?.reconcile(); imageChannel?.suspend(); textChannel?.suspend(); },
+        resume: () => { imageChannel?.resume(); textChannel?.resume(); void pageAvailability?.reconcile(); },
         dispose: () => cleanup(),
     }, capabilities.browser === 'userscript' ? undefined : ctx);
     // 非中文界面资源是扩展内本地文件，挂载前取得可避免非响应式浮层先以中文回退渲染；中文同步命中。
@@ -81,16 +84,13 @@ export async function startContentApp(ctx: ContentScriptContext,
     let optionalContentFeatures: OptionalContentFeatureRuntime | null = null;
     let activePageFeatureRegistry: ContentFeatureRegistry | null = null;
     let removePageStyles: (() => void) | null = null;
-    let inputBoxConfigGeneration = 0;
-    let previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
+    let inputBoxConfigGeneration = 0, previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
     const hotkeys = createContentHotkeyRuntime(() => currentPageSiteDisabled);
     const inputTranslationFeature = createInputTranslationContentFeature({
-        context: ctx,
-        config,
-        document,
+        context: ctx, config, document,
         isSiteDisabled: () => currentPageSiteDisabled,
         readConfigGeneration: () => inputBoxConfigGeneration,
-        sendMessage: (message) => browser.runtime.sendMessage(message),
+        sendMessage: (message) => NATIVE_PRIVATE_ROUTE_SUPPORTED ? sendTranslationRuntimeMessage(message) : browser.runtime.sendMessage(message),
         createUi: createShadowRootUi,
         logger: console,
     });
@@ -236,7 +236,7 @@ export async function startContentApp(ctx: ContentScriptContext,
             if (runtimeMessageListener) runtimeMessages.removeListener(runtimeMessageListener);
         } catch { /* 失效上下文的监听由浏览器释放，页面清理仍由本运行时负责。 */ }
         disposePageFeatures();
-        imageChannel?.dispose();
+        imageChannel?.dispose(); textChannel?.dispose();
         unsubscribeContentConfig?.(); unsubscribeContentConfig = null;
     };
     runtimeMessageListener = createContentRuntimeMessageHandler(ctx, {

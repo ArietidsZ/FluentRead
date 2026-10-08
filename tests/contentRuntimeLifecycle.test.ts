@@ -298,7 +298,7 @@ describe('content composition root 冷启动与暂停恢复', () => {
         }});
     });
 
-    afterEach(() => { invalidated?.(); vi.unstubAllGlobals(); });
+    afterEach(() => { invalidated?.(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
     it('空闲页面在扩展失效后主动清理，停止上下文检查且不再次挂载', async () => {
         vi.useFakeTimers();
@@ -416,6 +416,56 @@ describe('content composition root 冷启动与暂停恢复', () => {
         transition(page,'pageshow',true);await expect(translateImageInExtension('source','en','Page')).rejects.toMatchObject({name:'AbortError'});
         expect(runtime.connect).toHaveBeenCalledTimes(2);
     });
+    it.each(['firefox', 'thunderbird'])('%s 文本和输入共用文档 peer，真实暂停清空等待，恢复只为新请求建连接', async browserName => {
+        vi.stubEnv('BROWSER', 'firefox'); vi.stubEnv('MANIFEST_VERSION', '2');
+        if (browserName === 'thunderbird') vi.stubGlobal('navigator', {userAgent: 'Thunderbird/140.0'});
+        const connections: ReturnType<typeof documentPortPair>[] = [];
+        const runtime = browser.runtime as any;
+        runtime.connect = vi.fn(({name}: {name: string}) => {
+            const pair = documentPortPair(); connections.push(pair);
+            pair.background.onMessage.addListener(packet => {
+                if (packet.kind === 'request' && connections.length > 1)
+                    pair.background.postMessage({kind: 'result', rpcId: packet.rpcId, response: {success: true, data: 'restored'}});
+            });
+            return {...pair.client, name};
+        });
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const {sendTranslationRuntimeMessage} = await import('@/src/services/translation/documentClient');
+        const features = await import('@/src/app/content/features');
+        const starting = startContentApp(context as never); ready(); await starting;
+        const input = vi.mocked(features.createInputTranslationContentFeature).mock.calls[0][0];
+        const text = (id: string) => ({origin: 'Synthetic text.', clientRequestId: id});
+        const first = sendTranslationRuntimeMessage(text('first')).catch(error => error);
+        const inputPending = input.sendMessage({type: 'inputBoxTranslation', clientRequestId: 'input', text: 'Synthetic input.'} as never).catch(error => error);
+        expect(runtime.connect).toHaveBeenCalledOnce(); expect(runtime.connect).toHaveBeenCalledWith({name: 'fluentReadTranslationDocument:v1'});
+        transition(page, 'pagehide', true, false); expect(connections[0].client.disconnect).not.toHaveBeenCalled();
+        transition(page, 'pagehide', true);
+        await expect(first).resolves.toMatchObject({name: 'AbortError'}); await expect(inputPending).resolves.toMatchObject({name: 'AbortError'});
+        await expect(sendTranslationRuntimeMessage(text('paused'))).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.connect).toHaveBeenCalledOnce();
+        transition(page, 'pageshow', true);
+        await expect(sendTranslationRuntimeMessage(text('new'))).resolves.toMatchObject({data: 'restored'});
+        expect(runtime.connect).toHaveBeenCalledTimes(2); invalidated();
+        expect(connections[1].client.disconnect).toHaveBeenCalledOnce();
+        transition(page, 'pageshow', true); await expect(sendTranslationRuntimeMessage(text('disposed'))).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({origin: 'Synthetic text.'}));
+    });
+
+    it('Firefox 在配置永不返回时离开仍释放已挂起文档连接，并拒绝迟到重用', async () => {
+        vi.stubEnv('BROWSER', 'firefox'); vi.stubEnv('MANIFEST_VERSION', '2');
+        const pair = documentPortPair(), runtime = browser.runtime as any;
+        runtime.connect = vi.fn(() => ({...pair.client, name: 'fluentReadTranslationDocument:v1'}));
+        const {startContentApp} = await import('@/src/app/content/runtime');
+        const {sendTranslationRuntimeMessage} = await import('@/src/services/translation/documentClient');
+        const starting = startContentApp(context as never);
+        const pending = sendTranslationRuntimeMessage({origin: 'Synthetic text.', clientRequestId: 'waiting'}).catch(error => error);
+        transition(page, 'pagehide');
+        await expect(pending).resolves.toMatchObject({name: 'AbortError'}); expect(pair.client.disconnect).toHaveBeenCalledOnce();
+        ready(); await starting; expect(mocks.installPageStyles).not.toHaveBeenCalled();
+        await expect(sendTranslationRuntimeMessage({origin: 'Late text.', clientRequestId: 'late'})).rejects.toMatchObject({name: 'AbortError'});
+        expect(runtime.connect).toHaveBeenCalledOnce();
+    });
+
     it('写作和分享卡片遵循同一启停和 BFCache 恢复生命周期', async () => {
         Object.assign(page, {location: {href: 'https://github.com/FluentRead/FluentRead/issues/1'}});
         mocks.config.writing.enabled = true;

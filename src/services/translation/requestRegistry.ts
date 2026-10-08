@@ -2,9 +2,10 @@
  * @file src/services/translation/requestRegistry.ts
  * 文件职责：为不同原生文本协议提供可独立实例化的请求注册表，以真实发送者和有限 ID 绑定后台取消。
  * 主要内容：严格解析公开 ID、同步捕获 sender、管理活动 AbortController、可取消的 provider 前准备等待，以及各自最多 512 条的乱序取消和已完成历史。
- * 模块边界：不监听 runtime、不读取配置或凭据、不选择 provider；handler 在任何 await 前注册，准备取消后消费底层迟到结果，但不竞速整个已分派 operation。documentId 缺失时仅沿用 tab/frame 或页面 URL 范围，不能替代文档生命周期授权。
+ * 模块边界：不监听 runtime、不读取配置或凭据、不选择 provider；生产必须持有 native documentId 或原生 Port 租约，先登记再等待准备；断连只中止信号，不竞速已分派 operation 或提前释放 provider lease。userscript 与未启用原生边界的旧适配保持兼容。
  */
 import {requestOwnerKey} from '@/src/platform/browser/requestOwner';
+import {assertNativeDocumentContext, copyNativeDocumentSession, getNativeDocumentSession} from '@/src/platform/browser/documentSession';
 import type {TranslationCancelResponse} from './types';
 export interface TranslationRequestContext {
     sender?: {
@@ -23,6 +24,7 @@ export interface TranslationRequestRegistry {
         ownershipKey: string,
     ) => Promise<T>): Promise<T>;
     cancel(clientRequestId: unknown, context: TranslationRequestContext): TranslationCancelResponse;
+    releaseOwner(context: TranslationRequestContext): void;
 }
 
 const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
@@ -44,7 +46,7 @@ function translationAbortError(): Error {
 }
 
 /** 有界保存 cancel-before-start/已用 ID，同时用 sender scope 防止跨页面误取消。 */
-export function createTranslationRequestRegistry(): TranslationRequestRegistry {
+export function createTranslationRequestRegistry(requireDocumentOwner = false): TranslationRequestRegistry {
     const active = new Map<string, AbortController>();
     const cancelledBeforeStart = new Set<string>();
     const completed = new Set<string>();
@@ -59,7 +61,8 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
 
     return {
         async run(clientRequestId, context, operation) {
-            const owner = requestOwnerKey(context);
+            assertNativeDocumentContext(context, requireDocumentOwner);
+            const owner = getNativeDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
             const key = `${owner.length}:${owner}:${clientRequestId}`;
             if (cancelledBeforeStart.delete(key)) {
                 remember(completed, completionOrder, key);
@@ -79,12 +82,18 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
         },
         cancel(clientRequestIdValue, context) {
             const clientRequestId = parseClientRequestId(clientRequestIdValue)!;
-            const owner = requestOwnerKey(context);
+            assertNativeDocumentContext(context, requireDocumentOwner);
+            const owner = getNativeDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
             const key = `${owner.length}:${owner}:${clientRequestId}`;
             const controller = active.get(key);
             if (controller) controller.abort();
             else if (!completed.has(key)) remember(cancelledBeforeStart, cancellationOrder, key);
             return {success: true, cancelled: Boolean(controller), clientRequestId};
+        },
+        releaseOwner(context) {
+            const owner = getNativeDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
+            const prefix = `${owner.length}:${owner}:`;
+            for (const [key, controller] of active) if (key.startsWith(prefix)) controller.abort();
         },
     };
 }
@@ -93,7 +102,8 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
 /** 异步等待之前固定原生身份和页面 URL，避免后续复用的上下文改变归属。 */
 export function captureTranslationRequestContext(context?: TranslationRequestContext): TranslationRequestContext {
     const sender = context?.sender;
-    return {sender: sender ? {...sender, tab: sender.tab ? {...sender.tab} : undefined} : undefined};
+    const captured = {sender: sender ? {...sender, tab: sender.tab ? {...sender.tab} : undefined} : undefined};
+    return context ? copyNativeDocumentSession(context, captured) : captured;
 }
 
 export function throwIfTranslationRequestAborted(signal?: AbortSignal): void {

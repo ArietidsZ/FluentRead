@@ -33,3 +33,5 @@ manifest 保持 spanning。Chrome spanning 下私密窗口是否能打开扩展�
 阅读与写作独立 modelGateway、字典查词绕过该 broker，仍未受此路线保护。两套视频和文档等全部入口与缓存仍待逐项核验。输入框后台取消协议和 cancellation ID 是后续依赖，本批不扩展事务注册表、Port 或 ABA 修复，也不把随机 ID 当授权。设置界面用七种语言说明已接入和临时受限范围；选择成功不代表所有运行时已支持。
 
 测试使用固定夹具和 mock 传输；不读取真实配置或认证文件、不调用真实模型或搜索 API。浏览器加载、开发者模式和真实 RTX5090 WebGPU 验证仍未执行。
+
+文本取消的旧 Firefox 文档范围现由原生文本 Port 租约补齐：每次真实连接由后台生成独立身份，断连释放该连接的普通文本、批量与输入请求，同 URL/frame 重连和迟到 cancel 不能复用旧授权。Chrome 的 documentId 直连与 userscript 旧协议保留。Port 只提供文档生命周期所有权；无 tab 扩展页的 getContexts 私密来源限制仍存在，不将租约当作私密状态或伪造 documentId。本批仅做确定性测试和产物验证，既有 `89fd0580` 的 Neo GUI 结果不属于这批源码。

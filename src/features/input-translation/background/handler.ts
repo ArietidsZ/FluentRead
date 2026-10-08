@@ -1,13 +1,14 @@
 /**
  * @file src/features/input-translation/background/handler.ts
  * 文件职责：定义输入框快捷翻译的后台消息处理器，在调用共享翻译 broker 前校验原文和目标语言，并统一返回成功译文结构。
- * 主要内容：同步校验纯文本与可选请求 ID 并捕获真实 sender，使用独立注册表在水合与来源等待前登记；每次等待后核验取消，锁定私密路线与提示词快照，最后附着带输入协议范围的不可枚举 control；专用 cancel 只作用于同 owner 的输入请求。
+ * 主要内容：同步校验纯文本与可选请求 ID 并捕获真实 sender 和原生文档租约，生产拒绝无文档身份的 frame；使用独立注册表在水合与来源等待前登记，断连或取消及时结束准备等待，锁定快照后最后附着 control；专用 cancel 只作用于同 owner 输入请求。
  * 模块边界：不监听键盘、不修改输入框或绑定 provider；content 负责触发和提交，composition root 为 start/cancel 注入同一输入注册表，统一路由负责错误响应。页面公开 ID 在 broker 前移除，模型与凭据仅从后台配置读取；userscript 沿用旧纯文本协议。
  */
 import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {Config} from '@/src/core/config/model';
 import {getLockedIncognitoRoute, lockIncognitoRoute, resolveIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED, type IncognitoRoute} from '@/src/core/config/incognitoRoute';
 import type {NativeMessageSender} from '@/src/platform/browser/incognitoSource';
+import {assertNativeDocumentContext} from '@/src/platform/browser/documentSession';
 import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, waitForTranslationRequestPreparation, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {attachTranslationSourcePrivacy, type TranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {
@@ -50,6 +51,7 @@ export interface InputBoxTranslationDependencies {
     readonly translate: (message: TranslationSingleRequestMessage) => Promise<string | string[]>;
     readonly resolveSourcePrivacy?: (sender: NativeMessageSender | undefined) => Promise<TranslationSourcePrivacy>;
     readonly requestRegistry?: TranslationRequestRegistry;
+    readonly requireDocumentOwner?: boolean;
 }
 
 export interface InputBoxTranslationContext {sender?: NativeMessageSender}
@@ -142,6 +144,7 @@ export function createInputBoxTranslationHandler(
             if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
                 const clientRequestId = parseClientRequestId(message.clientRequestId, true);
                 const captured = captureTranslationRequestContext(context);
+                assertNativeDocumentContext(captured, dependencies.requireDocumentOwner);
                 const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
                     await waitForTranslationRequestPreparation(dependencies.ready, signal);
                     throwIfTranslationRequestAborted(signal);

@@ -2,11 +2,12 @@
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
  * 主要内容：同步校验 origin 与公开请求 ID、捕获原生 sender，先注册活动请求再等待来源，逐步核验取消；附着隐私、术语来源后最后附着不可枚举 control，并提供精确取消 handler。
- * 模块边界：只承担协议验证与 fallback 适配，注册表由共享 service 工厂提供；不选择 provider、不缓存或读取配置凭据，公开 ID 在 broker 前移除。没有 documentId 的发送者沿用现有 tab/frame 或扩展页 URL 范围，尚不能代替文档生命周期 Port 授权。
+ * 模块边界：只承担协议验证与 fallback 适配，注册表由共享 service 工厂提供；不选择 provider、不缓存或读取配置凭据，公开 ID 在 broker 前移除。生产缺 documentId 时必须持有浏览器原生 Port 租约，不以 frame 或 URL 冒充文档。
  */
 import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, waitForTranslationRequestPreparation, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 export {createTranslationRequestRegistry, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {isTrustedIncognitoSender, resolveNativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
+import {assertNativeDocumentContext} from '@/src/platform/browser/documentSession';
 import type {IncognitoSourceRuntime, NativeMessageSender, NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
 import {attachTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import type {BackgroundFallbackHandler} from '../messageRouter';
@@ -26,6 +27,8 @@ interface TranslationRequestCandidate extends Record<string, unknown> {
 
 export interface TranslationRequestHandlerDependencies {
     runtimeId?: string;
+    requireDocumentOwner?: boolean;
+    ready?: Promise<unknown>;
     resolveSourcePrivacy?: (sender: NativeMessageSender | undefined) => Promise<NativeSourcePrivacy>;
     translate(message: TranslationRequestMessage): Promise<string | string[]>;
     serializeError(error: unknown): unknown;
@@ -143,7 +146,10 @@ export function createTranslationRequestFallback<TContext = undefined>(
                 const parsed = parseTranslationRequest(candidate);
                 const clientRequestId = parseClientRequestId(candidate.clientRequestId, true);
                 const captured = captureTranslationRequestContext(context as TranslationRequestContext | undefined);
+                assertNativeDocumentContext(captured, dependencies.requireDocumentOwner);
                 const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
+                    if (dependencies.ready) await waitForTranslationRequestPreparation(dependencies.ready, signal);
+                    throwIfTranslationRequestAborted(signal);
                     const sender = captured.sender;
                     const message = dependencies.resolveSourcePrivacy
                         ? attachTranslationSourcePrivacy(parsed, await waitForTranslationRequestPreparation(dependencies.resolveSourcePrivacy(sender), signal))

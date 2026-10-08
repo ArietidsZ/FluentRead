@@ -459,7 +459,9 @@
       "tests/speechProgress.test.ts",
       "tests/mangaInferenceClient.test.ts",
       "tests/mangaInferenceWorker.test.ts",
-      "tests/popupMount.test.ts"
+      "tests/popupMount.test.ts",
+      "tests/translationDocumentLifetime.test.ts",
+      "tests/translationDocumentPort.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

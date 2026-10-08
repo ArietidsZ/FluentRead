@@ -4,5 +4,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "exclude": ["node_modules", ".output", "storybook", ".storybook"]
+  "exclude": [
+    "node_modules",
+    ".output",
+    "storybook",
+    ".storybook",
+    "docs/browser-acceptance/runs/**"
+  ]
 }
