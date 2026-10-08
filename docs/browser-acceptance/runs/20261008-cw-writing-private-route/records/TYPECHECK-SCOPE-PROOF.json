@@ -1,0 +1,24 @@
+{
+  "groups": {
+    "src": {
+      "expected": 799,
+      "listed": 799,
+      "missing": []
+    },
+    "tests": {
+      "expected": 496,
+      "listed": 496,
+      "missing": []
+    },
+    "entrypoints": {
+      "expected": 15,
+      "listed": 15,
+      "missing": []
+    }
+  },
+  "archive_files_listed": [],
+  "tsconfig_changed_in_this_batch": false,
+  "unchanged_exclusion": "docs/browser-acceptance/runs/**",
+  "tsconfig_sha256": "f1397c3b7f2d20a45ce39df71ea6dab777d4d1f1304cdd53ad5a395232ccd263",
+  "command": "vue-tsc --noEmit --listFilesOnly"
+}

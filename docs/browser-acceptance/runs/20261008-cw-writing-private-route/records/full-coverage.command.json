@@ -1,0 +1,23 @@
+{
+  "label": "full-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/full-coverage.results.json",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<RAW>/full-coverage"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:10:09.758578+00:00",
+  "duration_seconds": 187.017,
+  "exit_code": 0
+}

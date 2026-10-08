@@ -1,0 +1,24 @@
+{
+  "label": "writing-route-targeted",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/writingPrivacyRoute.test.ts",
+    "tests/writingRuntime.test.ts",
+    "tests/writingBackground.test.ts",
+    "tests/writingIntegration.test.ts",
+    "tests/writingReference.test.ts",
+    "tests/harnessModelGateway.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/writing-route-targeted.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:04:22.449169+00:00",
+  "duration_seconds": 3.213,
+  "exit_code": 0
+}

@@ -1,0 +1,26 @@
+{
+  "source_commit": "dd6f2bce476de15f1c6d0a8bfa447568d1c89798",
+  "source_tree": "7a3e32e1422937a100a940ba64bdc8701d696b19",
+  "base_head": "1e60e1f11544eb7755208da2c4b9796e08ade133",
+  "accepted_base_application": "469ce1991f00fd69b09faaac492d76e567171421",
+  "input_scope": "tracked and new source/tests/config/docs excluding published browser acceptance run data",
+  "input_files": 4006,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/writingRuntime.ts",
+    "src/features/writing-assistant/background.ts",
+    "src/services/harness/modelGateway.ts",
+    "src/services/writing/runtime.ts",
+    "tests/test-matrix.json",
+    "tests/writingBackground.test.ts",
+    "tests/writingIntegration.test.ts",
+    "tests/writingPrivacyRoute.test.ts",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "5c571e842411837407726ca668a56b4527609d68ba6a5e9f3569dd04eb124253",
+  "artifact_manifest_sha256": "f6f868d09cf3c02866779245cf9517c4c069fd9ec53777a86c795c35865965e4"
+}

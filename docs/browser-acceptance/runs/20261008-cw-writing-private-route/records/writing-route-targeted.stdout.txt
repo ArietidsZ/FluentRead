@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/writingPrivacyRoute.test.ts tests/writingRuntime.test.ts tests/writingBackground.test.ts tests/writingIntegration.test.ts tests/writingReference.test.ts tests/harnessModelGateway.test.ts --no-cache --reporter=json --outputFile=<RAW>/writing-route-targeted.results.json
+JSON report written to <RAW>/writing-route-targeted.results.json

@@ -1,0 +1,250 @@
+{
+  "source_commit": "dd6f2bce476de15f1c6d0a8bfa447568d1c89798",
+  "source_tree": "7a3e32e1422937a100a940ba64bdc8701d696b19",
+  "base_head": "1e60e1f11544eb7755208da2c4b9796e08ade133",
+  "accepted_base_application": "469ce1991f00fd69b09faaac492d76e567171421",
+  "input_scope": "tracked and new source/tests/config/docs excluding published browser acceptance run data",
+  "input_files": 4006,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/writingRuntime.ts",
+    "src/features/writing-assistant/background.ts",
+    "src/services/harness/modelGateway.ts",
+    "src/services/writing/runtime.ts",
+    "tests/test-matrix.json",
+    "tests/writingBackground.test.ts",
+    "tests/writingIntegration.test.ts",
+    "tests/writingPrivacyRoute.test.ts",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "5c571e842411837407726ca668a56b4527609d68ba6a5e9f3569dd04eb124253",
+  "artifact_manifest_sha256": "f6f868d09cf3c02866779245cf9517c4c069fd9ec53777a86c795c35865965e4",
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "5c571e842411837407726ca668a56b4527609d68ba6a5e9f3569dd04eb124253",
+  "artifacts": 797,
+  "userscript_bytes": 1954988,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "userscript_identical_to_469ce199": true,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning",
+  "slice": {
+    "completed": "writing background -> writing runtime -> shared model gateway private route and cancellation",
+    "not_completed": "reading-assistant Harness/conversation source routing",
+    "reading_entrypoint_and_conversation_unchanged": true,
+    "shared_gateway_change": "only rejects conflicts when an internal incognito route lock already exists",
+    "unchanged_ports": "existing image and text document lifetime ports",
+    "unknown_dedicated_route": "fail closed",
+    "both_empty": "original writing route and memory policy",
+    "provider_calls": "actual AI SDK adapter to synthetic fetch only"
+  },
+  "tests": {
+    "numTotalTests": 9916,
+    "numPassedTests": 9916,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 403,
+  "coverage": {
+    "lines": {
+      "total": 66024,
+      "covered": 66024,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 66024,
+      "covered": 66024,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4599,
+      "covered": 4599,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33611,
+      "covered": 33611,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "changed_modules_coverage": {
+    "app/background/writingRuntime.ts": {
+      "lines": {
+        "total": 33,
+        "covered": 33,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 33,
+        "covered": 33,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 29,
+        "covered": 29,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "features/writing-assistant/background.ts": {
+      "lines": {
+        "total": 74,
+        "covered": 74,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 74,
+        "covered": 74,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 68,
+        "covered": 68,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "services/harness/modelGateway.ts": {
+      "lines": {
+        "total": 134,
+        "covered": 134,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 17,
+        "covered": 17,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 134,
+        "covered": 134,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 89,
+        "covered": 89,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "services/writing/runtime.ts": {
+      "lines": {
+        "total": 152,
+        "covered": 152,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 152,
+        "covered": 152,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 120,
+        "covered": 120,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "targeted_tests": 203,
+  "red_tests": {
+    "numTotalTests": 26,
+    "numPassedTests": 6,
+    "numFailedTests": 20
+  },
+  "architecture_tests": 1379,
+  "architecture_files": 32,
+  "checks": {
+    "writing-route-coverage-final": 0,
+    "full-coverage": 0,
+    "architecture": 0,
+    "typecheck-final": 0,
+    "typecheck-list": 0,
+    "audit": 0,
+    "build-chrome": 0,
+    "build-firefox": 0,
+    "build-userscript": 0,
+    "verify-extension-manifests": 0,
+    "verify-userscript": 0,
+    "docs-source-build": 0,
+    "bindings-final": 0,
+    "bind-source-commit": 0
+  },
+  "typecheck_scope": {
+    "groups": {
+      "src": {
+        "expected": 799,
+        "listed": 799,
+        "missing": []
+      },
+      "tests": {
+        "expected": 496,
+        "listed": 496,
+        "missing": []
+      },
+      "entrypoints": {
+        "expected": 15,
+        "listed": 15,
+        "missing": []
+      }
+    },
+    "archive_files_listed": [],
+    "tsconfig_changed_in_this_batch": false,
+    "unchanged_exclusion": "docs/browser-acceptance/runs/**",
+    "tsconfig_sha256": "f1397c3b7f2d20a45ce39df71ea6dab777d4d1f1304cdd53ad5a395232ccd263",
+    "command": "vue-tsc --noEmit --listFilesOnly"
+  },
+  "no_gui_or_real_provider_api_run": true,
+  "no_credentials_permissions_defaults_or_dependencies_changed": true,
+  "previous_neo_source_not_this_acceptance": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "pending": [
+    "reading-assistant source routing before Harness/conversation/modelGateway",
+    "dictionary and other source routes",
+    "real Firefox/Neo GUI acceptance for this source",
+    "real RTX5090 WebGPU acceptance"
+  ],
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 86
+}

@@ -1,0 +1,16 @@
+{
+  "label": "build-firefox",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/.bin/wxt",
+    "build",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:10:44.542615+00:00",
+  "duration_seconds": 20.478,
+  "exit_code": 0
+}

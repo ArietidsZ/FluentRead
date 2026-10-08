@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/writingPrivacyRoute.test.ts --no-cache --reporter=json --outputFile=<RAW>/writing-route-red.results.json
+JSON report written to <RAW>/writing-route-red.results.json

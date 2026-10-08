@@ -1,0 +1,15 @@
+{
+  "label": "source-commit",
+  "command": [
+    "git",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-m",
+    "fix: apply trusted private model routing to writing generation"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:14:02.687008+00:00",
+  "duration_seconds": 0.009,
+  "exit_code": 0
+}

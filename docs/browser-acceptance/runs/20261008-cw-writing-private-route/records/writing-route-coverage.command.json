@@ -1,0 +1,32 @@
+{
+  "label": "writing-route-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/writingPrivacyRoute.test.ts",
+    "tests/writingRuntime.test.ts",
+    "tests/writingBackground.test.ts",
+    "tests/writingIntegration.test.ts",
+    "tests/writingReference.test.ts",
+    "tests/harnessModelGateway.test.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.include=src/services/writing/runtime.ts",
+    "--coverage.include=src/features/writing-assistant/background.ts",
+    "--coverage.include=src/app/background/writingRuntime.ts",
+    "--coverage.include=src/services/harness/modelGateway.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<RAW>/targeted-coverage",
+    "--reporter=json",
+    "--outputFile=<RAW>/writing-route-coverage.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:06:50.225451+00:00",
+  "duration_seconds": 3.763,
+  "exit_code": 0
+}

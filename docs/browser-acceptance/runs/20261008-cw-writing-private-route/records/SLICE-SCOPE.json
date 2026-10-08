@@ -1,0 +1,10 @@
+{
+  "completed": "writing background -> writing runtime -> shared model gateway private route and cancellation",
+  "not_completed": "reading-assistant Harness/conversation source routing",
+  "reading_entrypoint_and_conversation_unchanged": true,
+  "shared_gateway_change": "only rejects conflicts when an internal incognito route lock already exists",
+  "unchanged_ports": "existing image and text document lifetime ports",
+  "unknown_dedicated_route": "fail closed",
+  "both_empty": "original writing route and memory policy",
+  "provider_calls": "actual AI SDK adapter to synthetic fetch only"
+}

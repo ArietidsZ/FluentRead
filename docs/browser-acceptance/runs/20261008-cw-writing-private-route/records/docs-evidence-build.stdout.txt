@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/.bin/vitepress build docs
+
+  vitepress v1.6.3
+
+build complete in 2.53s.
