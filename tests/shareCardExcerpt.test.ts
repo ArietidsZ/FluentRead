@@ -28,4 +28,12 @@ describe('精确双语摘录所有权', () => {
         expect(readBilingualExcerpt(document.querySelector('p')!)).toBeNull();
         state.bilingualContentTemplate.textContent = ''; expect(readBilingualExcerpt(artifact)).toBeNull();
     });
+    it('兼容没有译文模板的已绑定工件，并拒绝失效的 DOM 文本 getter', () => {
+        const {state, artifact} = fixture();
+        delete (state as {bilingualContentTemplate?: Element}).bilingualContentTemplate;
+        expect(readBilingualExcerpt(artifact)).toEqual({original: 'first', translation: '页面被改写的文字', artifact});
+        // 宿主页可覆盖 DOM 属性；这是防御路径故障注入，不代表正常 textContent 返回值。
+        Object.defineProperty(artifact, 'textContent', {get: () => null});
+        expect(readBilingualExcerpt(artifact)).toBeNull();
+    });
 });

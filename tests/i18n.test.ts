@@ -38,11 +38,25 @@ import {navigationItems} from '@/src/features/settings/model/navigation';
 import {parseHotkey} from '@/src/core/hotkey';
 import {IMAGE_OCR_LANGUAGE_PACKS} from '@/src/features/image-translation/ocrLanguages';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+import {onboardingChineseMessages, onboardingEnglishMessages, onboardingLoadError} from '@/src/core/i18n/messages/onboarding';
 
 // 扩展运行时按需加载界面语言；本文件验证全部语言的文案契约，因此一次注册全部资源包。
 registerAllUiLanguageBundles();
 
 describe('界面 i18n 契约', () => {
+  it('首启静态资源的中英文键一致、值非空，并与完整目录共享同一文案', () => {
+    const keys = Object.keys(onboardingChineseMessages).sort();
+    expect(keys.length).toBeGreaterThan(0);
+    expect(Object.keys(onboardingEnglishMessages).sort()).toEqual(keys);
+    for (const key of keys as Array<keyof typeof onboardingChineseMessages>) {
+      expect(onboardingChineseMessages[key].trim()).not.toBe('');
+      expect(onboardingEnglishMessages[key].trim()).not.toBe('');
+      expect(zhCNMessages[key]).toBe(onboardingChineseMessages[key]);
+      expect(enUSMessages[key]).toBe(onboardingEnglishMessages[key]);
+    }
+    expect(Object.keys(onboardingLoadError).sort()).toEqual(['en-US', 'zh-CN']);
+    for (const value of Object.values(onboardingLoadError)) expect(value.trim()).not.toBe('');
+  });
   it('配置云备份和 WebDAV 七种语言的键与插值一致，供应商可互换', () => {
     const languages = ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'] as const;
     const catalogs = languages.map(language => JSON.parse(readFileSync(join(process.cwd(), 'src/core/i18n/messages/cloud-backup', language + '.json'), 'utf8')).messages as Record<string, string>);

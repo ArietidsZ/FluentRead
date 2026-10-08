@@ -2,15 +2,36 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {normalizeShareCardPreferences, SHARE_CARD_THEMES} from '@/src/core/config/shareCard';
 import {renderShareCard} from '@/src/features/share-card/render';
 let canvas: {width: number; height: number; getContext: ReturnType<typeof vi.fn>; toBlob: ReturnType<typeof vi.fn>};
-let painted: Array<{text: string; x: number; y: number}>;
+let painted: Array<{text: string; x: number; y: number; direction: string; align: string}>;
 beforeEach(() => {
     painted = [];
-    const ctx = {font: '', measureText(text: string) {return {width: Array.from(text).length * Number(this.font.match(/([\d.]+)px/)?.[1]) * .6};}, scale: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), bezierCurveTo: vi.fn(), closePath: vi.fn(), arc: vi.fn(), roundRect: vi.fn(), rect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(), fillText(text: string, x: number, y: number) {painted.push({text, x, y});}, createRadialGradient: () => ({addColorStop: vi.fn()}), createLinearGradient: () => ({addColorStop: vi.fn()})};
+    const ctx = {font: '', direction: 'ltr', textAlign: 'left', measureText(text: string) {return {width: Array.from(text).length * Number(this.font.match(/([\d.]+)px/)?.[1]) * .6};}, scale: vi.fn(), save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), moveTo: vi.fn(), lineTo: vi.fn(), bezierCurveTo: vi.fn(), closePath: vi.fn(), arc: vi.fn(), roundRect: vi.fn(), rect: vi.fn(), fill: vi.fn(), stroke: vi.fn(), fillRect: vi.fn(), strokeRect: vi.fn(), fillText(text: string, x: number, y: number) {painted.push({text, x, y, direction: this.direction, align: this.textAlign});}, createRadialGradient: () => ({addColorStop: vi.fn()}), createLinearGradient: () => ({addColorStop: vi.fn()})};
     canvas = {width: 0, height: 0, getContext: vi.fn(() => ctx), toBlob: vi.fn(fn => fn(new Blob(['png'], {type: 'image/png'})))};
     vi.stubGlobal('document', {createElement: () => canvas});
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('卡片排版边界', () => {
+    it.each([
+        {original: ' ', translation: '你好', reason: 'empty'},
+        {original: 'a'.repeat(3001), translation: '你好', reason: 'long'},
+    ])('非法摘录 $reason 在申请 Canvas 前明确拒绝', async ({original, translation, reason}) => {
+        await expect(renderShareCard({original, translation, source: ''}, normalizeShareCardPreferences())).rejects.toMatchObject({reason});
+        expect(canvas.getContext).not.toHaveBeenCalled(); expect(canvas.toBlob).not.toHaveBeenCalled();
+    });
+    it('数字前缀后的阿拉伯正文仍从右向左，第二列英文保留独立方向', async () => {
+        await renderShareCard({original: '123 مرحبا', translation: 'Hello', source: ''}, normalizeShareCardPreferences({theme: 'pearl', showBrand: false}));
+        expect(painted[0]).toMatchObject({text: '123 مرحبا', direction: 'rtl', align: 'right', x: 300});
+        expect(painted[1]).toMatchObject({text: 'Hello', direction: 'ltr', align: 'left', x: 340});
+        expect(canvas.getContext().direction).toBe('ltr'); expect(canvas.getContext().textAlign).toBe('left');
+    });
+    it('隐藏品牌时来源可使用全部页脚宽度，换行后仍完整保留', async () => {
+        const source = 'source.' + 'a'.repeat(120) + '.example';
+        await renderShareCard({original: 'Hello', translation: '你好', source}, normalizeShareCardPreferences({showBrand: false}));
+        const footer = painted.slice(2);
+        expect(footer.length).toBeGreaterThan(1); expect(footer.map(line => line.text).join('')).toBe(source);
+        expect(footer.every(line => line.y > painted[1].y)).toBe(true);
+        expect(painted.map(line => line.text)).not.toContain('FluentRead');
+    });
     it.each(SHARE_CARD_THEMES)('%s 支持方形和隐藏页脚，超长摘录不会裁切导出', async theme => {
         const result = await renderShareCard({original: 'Hello', translation: '你好', source: 'private'}, normalizeShareCardPreferences({theme, format: 'square', showSource: false, showBrand: false}));
         expect(result.width).toBe(result.height); expect(painted.map(item => item.text)).not.toContain('private');

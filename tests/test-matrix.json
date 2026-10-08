@@ -454,7 +454,8 @@
       "tests/localInferenceResources.test.ts",
       "tests/speechProgress.test.ts",
       "tests/mangaInferenceClient.test.ts",
-      "tests/mangaInferenceWorker.test.ts"
+      "tests/mangaInferenceWorker.test.ts",
+      "tests/popupMount.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

@@ -1,9 +1,18 @@
-import {describe, expect, it} from 'vitest';
+import {afterEach, describe, expect, it, vi} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
 import {normalizeShareCardPreferences, SHARE_CARD_THEMES} from '@/src/core/config/shareCard';
 import {cardGraphemes, cardSourceDomain, cleanCardText, validateCardExcerpt, wrapCardText} from '@/src/features/share-card/core';
+afterEach(() => vi.unstubAllGlobals());
 
 describe('双语分享卡片内容与外观', () => {
+    it.each(['small', 'large'] as const)('保留用户选择的 %s 正文字号', fontSize => {
+        expect(normalizeShareCardPreferences({fontSize}).fontSize).toBe(fontSize);
+    });
+    it('旧环境没有 Segmenter 时仍保留完整 Unicode 码点，换行不保留溢出的空白', () => {
+        vi.stubGlobal('Intl', {...Intl, Segmenter: undefined});
+        expect(cardGraphemes('a😀𠮷')).toEqual(['a', '😀', '𠮷']);
+        expect(wrapCardText('wide    word', 4, text => text.length)).toEqual(['wide', 'word']);
+    });
     it('八套样式稳定且新增样式通过持久化归一化往返', () => {
         expect(SHARE_CARD_THEMES).toHaveLength(8); expect(new Set(SHARE_CARD_THEMES).size).toBe(8);
         for (const theme of SHARE_CARD_THEMES) expect(normalizeConfig(JSON.parse(JSON.stringify({shareCard: {theme}}))).shareCard.theme).toBe(theme);

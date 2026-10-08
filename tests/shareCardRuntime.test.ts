@@ -14,6 +14,12 @@ beforeEach(() => {
 });
 afterEach(() => {unmountShareCard(); vi.unstubAllGlobals();});
 describe('分享卡片按需挂载所有权', () => {
+    it('调用边界丢失 context 时安全退出，不创建或打开工作台', async () => {
+        // 显式故障注入：正常 WXT 调用提供 context，私有 guard 不需导出为测试入口。
+        mountShareCard(null as unknown as ContentScriptContext);
+        await openShareCard({original: 'first', translation: '第一'});
+        expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.notice).not.toHaveBeenCalled();
+    });
     it('启动不监听宿主页面或创建 UI，两个主动入口复用单个闭合 Shadow UI', async () => {
         const documentListener = vi.spyOn(document, 'addEventListener');
         const windowListener = vi.spyOn(window, 'addEventListener');

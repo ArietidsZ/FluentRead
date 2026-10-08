@@ -133,8 +133,29 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     return [...owners].sort();
 }
 
+function isTypeOnlySource(source: string): boolean {
+    const file = ts.createSourceFile('module.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const declarationsOnly = file.statements.length > 0 && file.statements.every(statement => {
+        if (ts.isInterfaceDeclaration(statement) || ts.isTypeAliasDeclaration(statement)) return true;
+        if (ts.isImportDeclaration(statement)) {
+            const clause = statement.importClause;
+            return Boolean(clause && (clause.isTypeOnly || (!clause.name && clause.namedBindings
+                && ts.isNamedImports(clause.namedBindings) && clause.namedBindings.elements.length > 0
+                && clause.namedBindings.elements.every(binding => binding.isTypeOnly))));
+        }
+        if (ts.isExportDeclaration(statement)) {
+            return statement.isTypeOnly || Boolean(statement.exportClause && ts.isNamedExports(statement.exportClause)
+                && statement.exportClause.elements.length > 0 && statement.exportClause.elements.every(binding => binding.isTypeOnly));
+        }
+        return false;
+    });
+    return declarationsOnly && !(ts.transpileModule(source, {reportDiagnostics: true,
+        compilerOptions: {target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext},
+    }).diagnostics ?? []).some(diagnostic => diagnostic.category === ts.DiagnosticCategory.Error);
+}
+
 function isTypeOnlyModule(path: string): boolean {
-    return path.endsWith('/types.ts') || path.endsWith('.d.ts');
+    return path.endsWith('.ts') && isTypeOnlySource(readFileSync(projectPath(path), 'utf8'));
 }
 
 function isPureBarrel(path: string): boolean {
@@ -169,6 +190,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/core/i18n/messages/ko-KR.ts',
     'src/core/i18n/messages/ru-RU.ts',
     'src/core/i18n/messages/zh-CN.ts',
+    // 首启资源只导出静态中英文文案；i18n.test 校验 key parity 与非空值，不能概括豁免其他资源文件。
+    'src/core/i18n/messages/onboarding.ts',
     'src/ui/i18n.ts',
     // 设置快捷键组合器只协调 Vue ref、Element Plus 消息和 SFC 对话框；纯冲突识别由 strict coverage 验证，交互由隔离浏览器回归验证。
     'src/features/settings/ui/useTranslationShortcutSettings.ts',
@@ -313,6 +336,37 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
 ]);
 
 describe('repository verification ownership', () => {
+    it.each([
+        'export interface State {ready: boolean}',
+        'import type {Entry} from "./entries"; export interface State {entry: Entry}',
+        'import {type Entry} from "./entries"; export type State = Entry;',
+        'import type Entry from "./entries"; export type State = Entry;',
+        'import type * as Entries from "./entries"; export type State = Entries.Entry;',
+        'export type {Entry} from "./entries";',
+        'export {type Entry} from "./entries";',
+    ])('只有类型声明与显式类型导入/导出才能豁免：%s', source => {
+        expect(isTypeOnlySource(source)).toBe(true);
+    });
+    it.each([
+        '', '/* no declaration */',
+        'import "./side-effect"; export interface State {}',
+        'import {Entry} from "./entries"; export type State = Entry;',
+        'import {type Entry, value} from "./entries"; export type State = Entry;',
+        'export const state = initialize();',
+        'export const VERSION = 1;',
+        'export class State {}', 'export enum State {Ready}',
+        'export function initialize() {}',
+        'export {value} from "./values";',
+        'console.log("effect"); export interface State {}',
+        'export interface State {',
+    ])('运行时值、执行、错误语法和空文件不能冒充 type-only：%s', source => {
+        expect(isTypeOnlySource(source)).toBe(false);
+    });
+    it('类型归属按源码判定，不能靠 types.ts 文件名藏匿运行时常量', () => {
+        expect(isTypeOnlyModule('src/features/vocabulary/content/reencounterState.ts')).toBe(true);
+        expect(isTypeOnlyModule('src/services/harness/sessionTypes.ts')).toBe(true);
+        expect(isTypeOnlyModule('src/services/translation-stats/types.ts')).toBe(false);
+    });
     it.each(PRODUCT_TOOL_SCRIPTS)('产品工具 %s 保持可解析的 CommonJS 入口', path => {
         expect(() => new Script(readFileSync(projectPath(path), 'utf8'), {filename: path})).not.toThrow();
     });
@@ -359,8 +413,9 @@ describe('repository verification ownership', () => {
 
     it('覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖', () => {
         const audited = new Set(auditedFiles);
+        // 纯类型可冗余保留在既有清单；组装根和 barrel 仍不得伪装为可执行业务覆盖。
         const invalid = [...strictCoverage].filter((path) => !audited.has(path)
-            || isCoverageExemptSrcModule(path));
+            || isPureBarrel(path) || BUILD_ONLY_SRC_ALLOWLIST.has(path));
 
         expect(invalid).toEqual([]);
     });
