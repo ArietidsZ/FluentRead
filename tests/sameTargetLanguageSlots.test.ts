@@ -215,10 +215,21 @@ describe('X 实际中文界面标签的全文请求边界', () => {
             '경제(經濟) 성장률이 올해 크게 높아졌습니다.',
             '時間',
             '日本国立大学',
+            '趨勢',
         ];
         const hansResult = await translateTextSlots(foreignOrUncertain, captureFullPageTranslationConfig());
         expect(submitted()).toEqual(foreignOrUncertain);
         expect(hansResult).toEqual(foreignOrUncertain.map(text => `T:${text}`));
+
+        runtime.requests = [];
+        runtime.config.to = 'zh-Hant';
+        await expect(translateTextSlots(['趨勢'], captureFullPageTranslationConfig())).resolves.toEqual(['T:趨勢']);
+        expect(submitted()).toEqual(['趨勢']);
+
+        runtime.requests = [];
+        Object.assign(runtime.config, {to: 'en', excludedLanguages: ['zh-Hant']});
+        await expect(translateTextSlots(['趨勢'], captureFullPageTranslationConfig())).resolves.toEqual(['T:趨勢']);
+        expect(submitted()).toEqual(['趨勢']);
     });
 });
 
