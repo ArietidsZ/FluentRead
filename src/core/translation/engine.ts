@@ -371,7 +371,8 @@ export class TranslationCandidateCore {
             inheritedGuard = ownGuard.prune ? ownGuard : inheritedGuard;
             evaluationContext.hardGuards.set(item, inheritedGuard);
 
-            const parent = getComposedParent(item);
+            // 全部节点范围不使用正文结构祖先；完整硬守卫仍由上方祖先链评估。
+            const parent = this.scope === 'all' ? null : getComposedParent(item);
             const hasStructuralAncestor = Boolean(parent && !isDocumentSurface(parent) && (
                 !isIncludedSidebarRegion(item, this.structuralRegionOptions()) &&
                 !isIncludedSidebarRegion(parent, this.structuralRegionOptions()) &&
