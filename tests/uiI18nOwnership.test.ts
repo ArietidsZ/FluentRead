@@ -6,8 +6,10 @@
  */
 import 'fake-indexeddb/auto'
 import {resolve} from 'node:path'
-import {afterEach, describe, expect, it, vi} from 'vitest'
-import {createLanguageHarness, deferred, settle} from './uiI18nAuditHarness'
+import {Server as TcpServer} from 'node:net'
+import {promises as dnsPromises} from 'node:dns'
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
+import {createLanguageHarness, deferred, settle, languageHarnessPhases} from './uiI18nAuditHarness'
 import {EncryptedConfigRepository, FluentReadConfigDatabase} from '@/src/platform/storage/configRepository'
 import {createBackgroundConfigStorage, type ConfigStoragePort} from '@/src/platform/storage/configStorage'
 import {normalizeConfig} from '@/src/core/config/model'
@@ -35,7 +37,13 @@ vi.mock('@/src/platform/i18n/uiLanguageBundles', () => ({ensureUiLanguageBundle:
 let harness: Awaited<ReturnType<typeof createLanguageHarness>> | undefined
 let actualHarness: Awaited<ReturnType<typeof createActualStoreHarness>> | undefined
 async function create(mount = false) {return harness = await createLanguageHarness({mount})}
-afterEach(async () => {vi.restoreAllMocks();await harness?.close();harness = undefined;await actualHarness?.close();actualHarness = undefined})
+beforeEach(() => {languageHarnessPhases.length = 0})
+afterEach(async ctx => {
+  try {
+    if (ctx.task.result?.state === 'fail' && process.env.FLUENTREAD_UI_LANGUAGE_TEST_DIAGNOSTICS === '1') console.error('UI_LANGUAGE_HARNESS_PHASES', JSON.stringify(languageHarnessPhases))
+    vi.restoreAllMocks();await harness?.close();harness = undefined;await actualHarness?.close();actualHarness = undefined
+  } finally {languageHarnessPhases.length = 0}
+})
 
 async function createActualStoreHarness() {
   vi.resetModules();vi.stubGlobal('location', {protocol:'chrome-extension:'})
@@ -251,5 +259,21 @@ describe('实际 localizeServiceOptions 的翻译与 profile 搜索成本', () =
     const h=await actual(), translate=vi.fn(h.context.translateLegacy), read=vi.fn(() => 'unused')
     expect(h.i18n.localizeServiceOptions([],[{get id(){return read()},endpoint:'unused',models:[]}],translate)).toEqual([]);expect(read).not.toHaveBeenCalled();expect(translate).not.toHaveBeenCalled()
     expect(h.i18n.localizeServiceOptions([{value:'x',label:'x',extra:42}],[],translate)).toEqual([{value:'x',label:'x',description:undefined,searchTerms:['x','x'],extra:42}])
+  })
+})
+
+
+describe('SSR 语言夹具资源边界', () => {
+  it('无需 localhost DNS 解析，真实语言模块仍可读取', async () => {
+    const lookup = vi.spyOn(dnsPromises, 'lookup')
+    const h = await create()
+    expect(h.context.language.value).toBe('zh-CN')
+    expect(lookup).not.toHaveBeenCalled()
+  })
+  it('不建立 TCP 或 WebSocket 监听，真实语言模块仍可读取', async () => {
+    const listen = vi.spyOn(TcpServer.prototype, 'listen')
+    const h = await create()
+    expect(h.context.language.value).toBe('zh-CN')
+    expect(listen).not.toHaveBeenCalled()
   })
 })

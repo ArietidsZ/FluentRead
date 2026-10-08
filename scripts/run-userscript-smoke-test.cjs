@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -10,7 +11,7 @@ function parseArgs(argv, env = process.env) {
   const args = {
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     background: true,
-    focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
+    focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || path.join(__dirname, 'testing/focus-safe-browser.cjs'),
     timeout: 60000,
     suite: 'full',
     gmMode: 'legacy',
@@ -167,7 +168,7 @@ async function startFixtureServer() {
   const address = server.address();
   return {
     url: `http://127.0.0.1:${address.port}/fixture`,
-    close: () => new Promise((resolve) => server.close(resolve)),
+    close: () => new Promise((resolve) => {server.close(resolve); server.closeAllConnections();}),
   };
 }
 
@@ -268,6 +269,9 @@ async function main() {
   const artifactsDir = path.resolve(args.artifactsDir);
   if (!fs.existsSync(artifact)) throw new Error(`userscript 产物不存在：${artifact}`);
   if (args.engine === 'chromium' && !fs.existsSync(args.browserPath)) throw new Error(`Chromium 浏览器不存在：${args.browserPath}`);
+  const focusSafe = args.background && args.engine === 'chromium'
+    ? loadFocusSafeBrowser(args.focusSafeHelper)
+    : null;
   fs.mkdirSync(artifactsDir, {recursive: true});
 
   const {chromium, webkit} = loadPlaywright(args.playwrightRoot);
@@ -275,6 +279,8 @@ async function main() {
   let profileDir;
   let context;
   let closeBrowser;
+  let primaryError;
+  let launchAttempted = false;
   let createIsolatedPage = () => context.newPage();
   let launchMode = args.background ? null : 'playwright-headed';
   let focusPolicy = args.background ? null : 'foreground-authorized';
@@ -304,6 +310,7 @@ async function main() {
         '--no-default-browser-check',
     ];
     if (args.engine === 'webkit') {
+      launchAttempted = true;
       const browser = await webkit.launch({headless: true, timeout: args.timeout});
       closeBrowser = () => browser.close();
       context = await browser.newContext({viewport: {width: 1280, height: 900}});
@@ -311,7 +318,7 @@ async function main() {
       focusPolicy = 'headless-no-window';
       windowPlacement = {mode: 'headless', visible: false, hidden: true, browserFrontmost: false};
     } else if (args.background) {
-      const focusSafe = loadFocusSafeBrowser(args.focusSafeHelper);
+      launchAttempted = true;
       const browserSession = await focusSafe.launchFocusSafePersistentContext({
         chromium,
         profileDir,
@@ -322,6 +329,7 @@ async function main() {
         viewport: {width: 1280, height: 900},
         timeout: args.timeout,
       });
+      guardBrowserClose(browserSession, profileDir);
       closeBrowser = browserSession.close;
       context = browserSession.context;
       createIsolatedPage = () => focusSafe.newPageWithoutForeground(context, args.timeout);
@@ -329,6 +337,7 @@ async function main() {
       focusPolicy = browserSession.focusPolicy;
       windowPlacement = browserSession.windowPlacement;
     } else {
+      launchAttempted = true;
       context = await chromium.launchPersistentContext(profileDir, {
         executablePath: args.browserPath,
         headless: false,
@@ -1220,32 +1229,37 @@ async function main() {
     fs.writeFileSync(path.join(artifactsDir, 'evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
     if (consoleErrors.length) throw new Error(`浏览器控制台出现错误：${JSON.stringify(consoleErrors)}`);
     console.log(JSON.stringify(evidence, null, 2));
-  } finally {
+  } catch (error) {primaryError = error; throw error;} finally {
+    const cleanupErrors = [];
+    const cleanup = async release => {
+      try {await release();} catch (error) {cleanupErrors.push(error);}
+    };
     let browserClosed = false;
-    try {
-      if (closeBrowser) {
-        await closeBrowser();
-        browserClosed = true;
-      }
-    } finally {
-      try {
-        await fixture.close();
-      } finally {
-        if (profileDir && browserClosed) {
-          for (let attempt = 0; attempt < 5; attempt += 1) {
-            try {
-              fs.rmSync(profileDir, {recursive: true, force: true});
-              break;
-            } catch (error) {
-              if (attempt === 4) console.error(`userscript 临时 profile 清理警告：${error.message}`);
-              await new Promise((resolve) => setTimeout(resolve, 100));
-            }
+    let profileRemoved = false;
+    await cleanup(async () => {
+      if (closeBrowser) {await closeBrowser(); browserClosed = true;}
+    });
+    await cleanup(async () => {await fixture.close();});
+    await cleanup(async () => {
+      if (profileDir && browserClosed) {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          try {
+            fs.rmSync(profileDir, {recursive: true, force: true});
+            profileRemoved = true;
+            break;
+          } catch (error) {
+            if (attempt === 4) console.error(`userscript 临时 profile 清理警告：${error.message}`);
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
-        } else if (profileDir && !closeBrowser) {
-          try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
         }
+      } else if (profileDir && !launchAttempted) {
+        try {fs.rmdirSync(profileDir); profileRemoved = true;} catch { /* Retain nonempty profiles before any attempted launch. */ }
       }
-    }
+    });
+    if (profileDir && !profileRemoved) console.error(`Unconfirmed browser/profile cleanup; retained profile: ${profileDir}`);
+    for (const error of cleanupErrors) console.error(`Cleanup failed: ${error.stack || error}`);
+    if (cleanupErrors.length) process.exitCode = 1;
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 

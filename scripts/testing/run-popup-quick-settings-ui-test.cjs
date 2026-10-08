@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 
 // Focused production Popup/options proof for the compact quick-settings surface.
 // This runner intentionally owns only test artifacts and a temporary Edge profile.
@@ -19,7 +20,7 @@ const playwrightRoot = path.resolve(arg(
 ));
 const focusSafeHelper = path.resolve(arg(
   'focus-safe-helper',
-  '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs',
+  path.join(__dirname, 'focus-safe-browser.cjs'),
 ));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-popup-quick-settings-ui'));
 const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
@@ -191,7 +192,7 @@ async function migrationCase(context, origin, errors, report, timeoutMs) {
   const seedPage = await openPage(context, `${origin}/options.html#settings-general`, timeoutMs, errors);
   await waitOptions(seedPage, timeoutMs);
   const seedResponse = await seedCompatibilityConfig(seedPage);
-  await seedPage.close().catch(() => {});
+  await seedPage.close();
   await sleep(500);
 
   const popup = await openPage(context, `${origin}/popup.html`, timeoutMs, errors);
@@ -225,7 +226,7 @@ async function migrationCase(context, origin, errors, report, timeoutMs) {
     retainedVideoMode: 'original-only',
     hiddenVideoRestored: true,
   };
-  await popup.close().catch(() => {});
+  await popup.close();
 }
 
 async function drawerCases(context, origin, errors, report, timeoutMs) {
@@ -294,7 +295,7 @@ async function drawerCases(context, origin, errors, report, timeoutMs) {
   assert(retained.videoSubtitleAppearance.fontScale === 140, '字幕字号未保留');
   report.retainedPreferences = preferences;
   report.caseCoverage.drawers = cases;
-  await page.close().catch(() => {});
+  await page.close();
 }
 
 async function settingsLinkCases(context, origin, errors, report, timeoutMs) {
@@ -313,8 +314,8 @@ async function settingsLinkCases(context, origin, errors, report, timeoutMs) {
     await waitOptions(options, timeoutMs);
     results[id] = new URL(options.url()).hash;
     assert(results[id] === `#${hash}`, `${id} 完整设置入口路由错误`, results[id]);
-    await options.close().catch(() => {});
-    await popup.close().catch(() => {});
+    await options.close();
+    await popup.close();
   }
   report.caseCoverage.settingsLinks = results;
 }
@@ -379,7 +380,7 @@ async function persistenceCases(context, origin, errors, report, timeoutMs) {
   assert((await readConfig(reopened)).service === selectedService, 'Popup 快速关闭后服务没有保存');
   report.persistenceCases.push({case: 'popup-reopen', value: after?.trim() || '', serviceSelected: serviceAfter});
   report.screenshots.push(await shot(reopened, 'popup-reopened-persisted.png'));
-  await reopened.close().catch(() => {});
+  await reopened.close();
 
   const options = await openPage(context, `${origin}/options.html#settings-general`, timeoutMs, errors);
   await waitOptions(options, timeoutMs);
@@ -396,7 +397,7 @@ async function persistenceCases(context, origin, errors, report, timeoutMs) {
   assert(crossValue?.trim() === optionLanguage.after, 'Options 修改后跨页 Popup 没有同步最终语言', {expected: optionLanguage.after, actual: crossValue});
   report.crossPageSync = {optionsChanged: true, popupReopen: true, expected: optionLanguage.after, actual: crossValue?.trim() || ''};
   report.screenshots.push(await shot(crossPopup, 'popup-cross-page-persisted.png'));
-  await crossPopup.close().catch(() => {});
+  await crossPopup.close();
 
   const latest = await openPage(context, `${origin}/options.html#settings-general`, timeoutMs, errors);
   await waitOptions(latest, timeoutMs);
@@ -409,7 +410,7 @@ async function persistenceCases(context, origin, errors, report, timeoutMs) {
   const finalValue = await finalPopup.locator('.el-select:has([aria-label="目标语言"]) .el-select__selected-item:not(.el-select__input-wrapper)').textContent();
   assert(finalValue?.trim() === secondWrite.after, '连续写入没有保持最新值', {firstWrite, secondWrite, finalValue});
   report.latestWriteWins = {first: firstWrite.after, second: secondWrite.after, final: finalValue?.trim() || '', passed: true};
-  await finalPopup.close().catch(() => {});
+  await finalPopup.close();
 }
 
 async function optionsResponsive(context, origin, errors, report, timeoutMs) {
@@ -556,11 +557,13 @@ async function main() {
       note: 'full UI runner 独立运行；结果见交付报告，专项结果不代表完整套件通过。',
     },
   };
-  let launched;
+  let launched, primaryError;
+  let launchAttempted = false;
   try {
     report.manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
     assert(typeof (report.manifest.action?.default_popup || report.manifest.browser_action?.default_popup) === 'string', 'manifest 缺少 Popup');
     assert(typeof (report.manifest.options_page || report.manifest.options_ui?.page) === 'string', 'manifest 缺少 options');
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({
       chromium,
       profileDir,
@@ -577,6 +580,7 @@ async function main() {
       viewport: {width: 1440, height: 1000},
       timeout,
     });
+    guardBrowserClose(launched, profileDir);
     report.launchMode = launched.launchMode;
     report.focusPolicy = launched.focusPolicy;
     report.windowPlacement = launched.windowPlacement;
@@ -594,12 +598,34 @@ async function main() {
     report.ok = errors.length === 0;
     assert(report.ok, '浏览器控制台存在错误', errors);
   } catch (error) {
+    primaryError = error;
+    report.ok = false;
     report.error = error instanceof Error ? {message: error.message, stack: error.stack} : {message: String(error)};
   } finally {
-    const reportPath = path.join(artifactsDir, 'report.json');
-    fs.writeFileSync(reportPath, JSON.stringify(report, null, 2));
-    if (launched) await launched.close().catch(() => {});
-    try { fs.rmSync(profileDir, {recursive: true, force: true}); } catch { /* profile cleanup is best effort after exact browser close */ }
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exitCode = 1;

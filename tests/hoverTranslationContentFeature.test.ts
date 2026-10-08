@@ -1,4 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {matchesConfiguredHotkey} from '@/src/core/hotkey';
 import {
     matchesPressedHotkeyParts,
     mountHoverTranslationContentFeature,
@@ -719,5 +720,157 @@ describe('hover translation content feature', () => {
 
         expect(keydown.preventDefault).not.toHaveBeenCalled();
         expect(deps.handleTranslation).not.toHaveBeenCalled();
+    });
+});
+
+function mountSharedHoverShortcutHarness(shortcut = 'F9', overrides: Partial<HoverTranslationContentDependencies> = {}) {
+    const selectionShortcut = {value: shortcut};
+    const harness = mountHarness({
+        getConfiguredSelectionHotkey: () => 'custom',
+        getCustomSelectionHotkey: () => selectionShortcut.value,
+        matchesSelectionTranslatorShortcut: vi.fn(event => matchesConfiguredHotkey(event, 'custom', selectionShortcut.value)),
+        ...overrides,
+    });
+    Object.assign(harness.deps.config, {hotkey: 'custom', customHotkey: shortcut});
+    const documentKeydown = vi.fn();
+    const documentKeyup = vi.fn();
+    harness.documentTarget.addEventListener('keydown', documentKeydown, {capture: true});
+    harness.documentTarget.addEventListener('keyup', documentKeyup, {capture: true});
+    // 仅模拟 Window capture 到 Document 的交接；观察器不模拟 Vue 的 held 状态或卡片。
+    const dispatch = (type: 'keydown' | 'keyup', event: ReturnType<typeof trustedEvent>) => {
+        harness.windowTarget.emit(type, event);
+        if (event.stopPropagation.mock.calls.length === 0) harness.documentTarget.emit(type, event);
+    };
+    return {...harness, selectionShortcut, documentKeydown, documentKeyup, dispatch};
+}
+
+describe('shared hover shortcut release ownership', () => {
+    it('共享 custom F9 仍执行一次 hover，并将 keyup 交给 Document 清理；完整释放后不保留共享归属', () => {
+        const {deps, selectionShortcut, documentKeydown, documentKeyup, dispatch} = mountSharedHoverShortcutHarness();
+        const keydown = trustedEvent({key: 'F9', code: 'F9'});
+        const keyup = trustedEvent({key: 'F9', code: 'F9'});
+        dispatch('keydown', keydown);
+        dispatch('keyup', keyup);
+
+        expect(keydown.preventDefault).toHaveBeenCalledOnce();
+        expect(keydown.stopPropagation).not.toHaveBeenCalled();
+        expect(documentKeydown.mock.calls).toEqual([[keydown]]);
+        expect(keyup.preventDefault).toHaveBeenCalledOnce();
+        expect(keyup.stopPropagation).not.toHaveBeenCalled();
+        expect(documentKeyup.mock.calls).toEqual([[keyup]]);
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0]]);
+        expect(deps.matchesSelectionTranslatorShortcut).toHaveBeenCalledOnce();
+
+        dispatch('keyup', trustedEvent({key: 'F9', code: 'F9'}));
+        expect(deps.handleTranslation).toHaveBeenCalledOnce();
+        documentKeyup.mockClear();
+        selectionShortcut.value = 'F10';
+        const ordinaryDown = trustedEvent({key: 'F9', code: 'F9'});
+        const ordinaryUp = trustedEvent({key: 'F9', code: 'F9'});
+        dispatch('keydown', ordinaryDown);
+        dispatch('keyup', ordinaryUp);
+        expect(ordinaryDown.stopPropagation).toHaveBeenCalledOnce();
+        expect(ordinaryUp.stopPropagation).toHaveBeenCalledOnce();
+        expect(documentKeyup).not.toHaveBeenCalled();
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0], [0, 0]]);
+    });
+
+    it.each(['modifier-first', 'primary-first'] as const)('共享 Control+Shift+F9 的 %s 释放顺序保持开始时归属', order => {
+        const {deps, documentKeyup, dispatch} = mountSharedHoverShortcutHarness('Control+Shift+F9');
+        dispatch('keydown', trustedEvent({key: 'Control', code: 'ControlLeft', ctrlKey: true}));
+        dispatch('keydown', trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true, shiftKey: true}));
+        dispatch('keydown', trustedEvent({key: 'F9', code: 'F9', ctrlKey: true, shiftKey: true}));
+        const releases = order === 'modifier-first'
+            ? [
+                trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}),
+                trustedEvent({key: 'Control', code: 'ControlLeft'}),
+                trustedEvent({key: 'F9', code: 'F9'}),
+            ]
+            : [
+                trustedEvent({key: 'F9', code: 'F9', ctrlKey: true, shiftKey: true}),
+                trustedEvent({key: 'Shift', code: 'ShiftLeft', ctrlKey: true}),
+                trustedEvent({key: 'Control', code: 'ControlLeft'}),
+            ];
+        for (const [index, release] of releases.entries()) {
+            dispatch('keyup', release);
+            expect(release.stopPropagation).not.toHaveBeenCalled();
+            expect(documentKeyup).toHaveBeenNthCalledWith(index + 1, release);
+            expect(deps.handleTranslation).toHaveBeenCalledTimes(index === releases.length - 1 ? 1 : 0);
+        }
+        expect(matchesConfiguredHotkey(releases[2], 'custom', 'Control+Shift+F9')).toBe(false);
+        expect(deps.matchesSelectionTranslatorShortcut).toHaveBeenCalledTimes(3);
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0]]);
+    });
+
+    it.each([true, false])('划词配置改变不重算本轮共享归属 sharedAtStart=%s', sharedAtStart => {
+        const {deps, selectionShortcut, documentKeyup, dispatch} = mountSharedHoverShortcutHarness();
+        selectionShortcut.value = sharedAtStart ? 'F9' : 'F10';
+        dispatch('keydown', trustedEvent({key: 'F9', code: 'F9'}));
+        selectionShortcut.value = sharedAtStart ? 'F10' : 'F9';
+        const keyup = trustedEvent({key: 'F9', code: 'F9'});
+        dispatch('keyup', keyup);
+        if (sharedAtStart) {
+            expect(keyup.stopPropagation).not.toHaveBeenCalled();
+            expect(documentKeyup.mock.calls).toEqual([[keyup]]);
+        } else {
+            expect(keyup.stopPropagation).toHaveBeenCalledOnce();
+            expect(documentKeyup).not.toHaveBeenCalled();
+        }
+        expect(deps.matchesSelectionTranslatorShortcut).toHaveBeenCalledOnce();
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0]]);
+    });
+
+    it.each([
+        'reset', 'blur', 'selection-reserved', 'hover-config-change', 'disabled',
+        'site-disabled', 'extra-key', 'pointerdown', 'selectionchange', 'abort',
+    ])('共享手势在 %s 后释放不触发 hover，取消归属不泄漏到下一轮', reason => {
+        let disabled = false;
+        const {
+            deps, selectionShortcut, documentTarget, windowTarget, controller,
+            resetKeyboardGesture, documentKeyup, dispatch,
+        } = mountSharedHoverShortcutHarness('F9', {isSiteDisabled: () => disabled});
+        dispatch('keydown', trustedEvent({key: 'F9', code: 'F9'}));
+        if (reason === 'reset') resetKeyboardGesture();
+        if (reason === 'blur') windowTarget.emit('blur');
+        if (reason === 'selection-reserved') {
+            selectionShortcut.value = 'F10';
+            vi.mocked(deps.shouldReserveSelectionShortcut).mockReturnValue(true);
+            dispatch('keydown', trustedEvent({key: 'F10', code: 'F10'}));
+        }
+        if (reason === 'hover-config-change') deps.config.customHotkey = 'F10';
+        if (reason === 'disabled') deps.config.on = false;
+        if (reason === 'site-disabled') disabled = true;
+        if (reason === 'extra-key') {
+            dispatch('keydown', trustedEvent({key: 'x', code: 'KeyX'}));
+            dispatch('keyup', trustedEvent({key: 'x', code: 'KeyX'}));
+        }
+        if (reason === 'pointerdown') documentTarget.emit('pointerdown', trustedEvent());
+        if (reason === 'selectionchange') {
+            vi.mocked(deps.hasActiveSelectionTranslationCandidate).mockReturnValue(true);
+            documentTarget.emit('selectionchange', trustedEvent());
+        }
+        if (reason === 'abort') controller.abort();
+        const keyup = trustedEvent({key: 'F9', code: 'F9'});
+        dispatch('keyup', keyup);
+        expect(deps.cancelPendingHoverTranslation).toHaveBeenCalledOnce();
+        expect(deps.handleTranslation).not.toHaveBeenCalled();
+        expect(keyup.preventDefault).not.toHaveBeenCalled();
+        expect(keyup.stopPropagation).not.toHaveBeenCalled();
+        expect(documentKeyup).toHaveBeenLastCalledWith(keyup);
+        // FakeTarget 不模拟 signal 移除监听器；abort 这里只核对真实控制器的状态清理。
+        if (reason === 'abort') return;
+
+        Object.assign(deps.config, {on: true, customHotkey: 'F9'});
+        disabled = false;
+        selectionShortcut.value = 'F10';
+        vi.mocked(deps.shouldReserveSelectionShortcut).mockReturnValue(false);
+        vi.mocked(deps.hasActiveSelectionTranslationCandidate).mockReturnValue(false);
+        documentKeyup.mockClear();
+        dispatch('keydown', trustedEvent({key: 'F9', code: 'F9'}));
+        const ordinaryUp = trustedEvent({key: 'F9', code: 'F9'});
+        dispatch('keyup', ordinaryUp);
+        expect(ordinaryUp.stopPropagation).toHaveBeenCalledOnce();
+        expect(documentKeyup).not.toHaveBeenCalled();
+        expect(vi.mocked(deps.handleTranslation).mock.calls).toEqual([[0, 0]]);
     });
 });

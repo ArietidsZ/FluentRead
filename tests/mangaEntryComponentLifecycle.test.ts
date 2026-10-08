@@ -27,11 +27,11 @@ function deferred<T>() {
   const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;});
   return {promise, resolve, reject};
 }
-async function mountEntry() {
+async function mountEntry(toolsDisplay?: 'hover' | 'always') {
   const props = runtime.reactive({
     status:{available:true, active:false, pending:false, errors:0} as MangaTranslationStatus,
     page:{site:'fixture', route:'/chapter/1'},
-    settings:{promptEnabled:true, floatingBallVisible:false, downloadConfirmed:false, animations:true},
+    settings:{promptEnabled:true, floatingBallVisible:false, downloadConfirmed:false, animations:true, ...(toolsDisplay === undefined ? {} : {toolsDisplay})},
     toggle:vi.fn(), inspectResources:vi.fn(async () => false), persist:vi.fn(async (_patch: Record<string, unknown>) => undefined), openSettings:vi.fn(),
   });
   const remove = (value: HostNode) => {if (value.parent) {const at = value.parent.children.indexOf(value); if (at >= 0) value.parent.children.splice(at,1); value.parent = null;}};
@@ -165,30 +165,69 @@ describe('actual manga entry resource consent and lifecycle', () => {
 
 describe('actual manga entry focus and idle lifecycle', () => {
   it('keeps one idle timer under repeated mouse movement and retracts at the last 2.5 second deadline', async () => {
-    const {panel} = await mountEntry(); launcher(panel);
+    const {panel} = await mountEntry('hover'); launcher(panel);
     for (let i=0;i<100;i++) panel.pointerReveal({pointerType:'mouse'}); expect(vi.getTimerCount()).toBe(1); expect(panel.expanded).toBe(true);
     vi.advanceTimersByTime(2499); expect(panel.expanded).toBe(true); panel.reveal(); vi.advanceTimersByTime(2499); expect(panel.expanded).toBe(true);
     vi.advanceTimersByTime(1); expect(panel.expanded).toBe(false); expect(vi.getTimerCount()).toBe(0);
   });
   it('touch and pen movement alone do not reopen the launcher, and mouse leave clears its timer', async () => {
-    const {panel} = await mountEntry(); launcher(panel); panel.pointerReveal({pointerType:'touch'}); panel.pointerReveal({pointerType:'pen'});
+    const {panel} = await mountEntry('hover'); launcher(panel); panel.pointerReveal({pointerType:'touch'}); panel.pointerReveal({pointerType:'pen'});
     expect(panel.expanded).toBe(false); expect(vi.getTimerCount()).toBe(0); panel.reveal(); panel.retract();
     expect(panel.expanded).toBe(false); expect(vi.getTimerCount()).toBe(0);
   });
   it('keyboard focus prevents idle and mouse leave collapse, while Escape blurs and clears the launcher', async () => {
-    const {panel} = await mountEntry(), {button,focus} = launcher(panel); panel.reveal(); focus();
+    const {panel} = await mountEntry('hover'), {button,focus} = launcher(panel); panel.reveal(); focus();
     vi.advanceTimersByTime(2500); expect(panel.expanded).toBe(true); panel.reveal(); panel.retract(); expect(panel.expanded).toBe(true); expect(vi.getTimerCount()).toBe(0);
     panel.collapseLauncher(); expect(button.blur).toHaveBeenCalledOnce(); expect(panel.expanded).toBe(false); expect(vi.getTimerCount()).toBe(0);
   });
   it.each([0,1])('activation preserves keyboard focus only for keyboard click detail=%s', async detail => {
-    const {panel,props} = await mountEntry(), {button,focus} = launcher(panel); focus(); panel.activate({detail});
+    const {panel,props} = await mountEntry('hover'), {button,focus} = launcher(panel); focus(); panel.activate({detail});
     expect(props.inspectResources).toHaveBeenCalledOnce(); expect(button.blur).toHaveBeenCalledTimes(detail);
     expect(vi.getTimerCount()).toBe(detail); await runtime.nextTick();
   });
   it.each(['floating-ball','prompt','unmount'] as const)('clears idle timers when the standalone launcher leaves through %s', async reason => {
-    const {panel,props,tick,dispose} = await mountEntry(); launcher(panel); panel.reveal();
+    const {panel,props,tick,dispose} = await mountEntry('hover'); launcher(panel); panel.reveal();
     if (reason === 'floating-ball') props.settings.floatingBallVisible = true; else if (reason === 'prompt') props.settings.promptEnabled = false; else dispose();
     await tick(); expect(vi.getTimerCount()).toBe(0);
     if (reason !== 'unmount') expect(panel.expanded).toBe(false);
+  });
+});
+
+describe('actual manga entry persistent display lifecycle', () => {
+  it.each(['always', undefined] as const)('keeps the rendered launcher expanded without idle timers for toolsDisplay=%s', async toolsDisplay => {
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
+    const {panel,props,tick,find} = await mountEntry(toolsDisplay), button = panel.launcher;
+    const expectExpanded = async () => {
+      await tick(); expect(find(value => value === runtime.toRaw(button))?.props.class.split(/\s+/)).toContain('is-expanded'); expect(vi.getTimerCount()).toBe(0);
+    };
+    if (toolsDisplay === undefined) expect(Object.prototype.hasOwnProperty.call(props.settings, 'toolsDisplay')).toBe(false);
+    else expect(props.settings.toolsDisplay).toBe('always');
+    expect(panel.expanded).toBe(false); await expectExpanded();
+    vi.advanceTimersByTime(60_000); await expectExpanded();
+    button.props.onMouseenter(); await expectExpanded();
+    for (let i=0;i<100;i++) button.props.onPointermove({pointerType:'mouse'});
+    await expectExpanded(); vi.advanceTimersByTime(60_000); await expectExpanded();
+    button.props.onMouseleave(); expect(panel.expanded).toBe(false); await expectExpanded();
+    for (const pointerType of ['touch','pen']) {button.props.onPointermove({pointerType}); await expectExpanded();}
+    vi.advanceTimersByTime(60_000); await expectExpanded();
+    expect(props.inspectResources).not.toHaveBeenCalled(); expect(props.persist).not.toHaveBeenCalled(); expect(props.toggle).not.toHaveBeenCalled();
+  });
+  it.each(['always', undefined] as const)('keeps the rendered launcher expanded through keyboard and pointer activation for toolsDisplay=%s', async toolsDisplay => {
+    const {panel,props,tick,find} = await mountEntry(toolsDisplay), {button,focus} = launcher(panel);
+    const expectExpanded = async () => {
+      await tick(); expect(find(value => value === runtime.toRaw(button))?.props.class.split(/\s+/)).toContain('is-expanded'); expect(vi.getTimerCount()).toBe(0);
+    };
+    props.settings.downloadConfirmed = true;
+    focus(); button.props.onFocusin(); await expectExpanded();
+    button.props.onMouseleave(); await expectExpanded();
+    button.props.onClick({detail:0}); expect(button.blur).not.toHaveBeenCalled(); expect(props.toggle).toHaveBeenCalledOnce(); await expectExpanded();
+    vi.advanceTimersByTime(60_000); await expectExpanded();
+    button.props.onClick({detail:1}); expect(button.blur).toHaveBeenCalledOnce(); expect(props.toggle).toHaveBeenCalledTimes(2); await expectExpanded();
+    button.props.onFocusout(); expect(panel.expanded).toBe(false); await expectExpanded();
+    focus(); button.props.onFocusin(); await expectExpanded();
+    const stopPropagation = vi.fn(); button.props.onKeydown({key:'Escape',stopPropagation});
+    expect(stopPropagation).toHaveBeenCalledOnce(); expect(button.blur).toHaveBeenCalledTimes(2); expect(panel.expanded).toBe(false); await expectExpanded();
+    vi.advanceTimersByTime(60_000); await expectExpanded();
+    expect(props.inspectResources).not.toHaveBeenCalled(); expect(props.persist).not.toHaveBeenCalled();
   });
 });

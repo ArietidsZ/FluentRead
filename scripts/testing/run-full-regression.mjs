@@ -134,7 +134,7 @@ function printUsage() {
     console.log([
         '用法: node scripts/testing/run-full-regression.mjs [--dry-run] [--browser] [--network --allow-network] [options]',
         '',
-        '默认/local 只执行确定性流水线：audit、prepare、compile、strict coverage、分组 Vitest、Chrome/Firefox/userscript/docs build。',
+        '默认/local 只执行确定性流水线：audit、prepare、compile、strict coverage、分组 Vitest、Chrome/Firefox/userscript build、docs/Storybook typecheck、build 与产物校验。',
         '',
         '显式门禁：',
         '  --browser                 追加本地真实浏览器 fixtures。',
@@ -146,7 +146,7 @@ function printUsage() {
         '  --extension-dir <path>       默认 FLUENTREAD_EXTENSION_DIR 或 .output/chrome-mv3',
         '  --playwright-root <path>     默认 PLAYWRIGHT_ROOT',
         '  --browser-path <path>        默认 FLUENTREAD_BROWSER_PATH',
-        '  --focus-safe-helper <path>   默认 FLUENTREAD_FOCUS_SAFE_HELPER；后台浏览器必需',
+        '  --focus-safe-helper <path>   默认 FLUENTREAD_FOCUS_SAFE_HELPER 或仓库 helper',
         '  --artifacts-dir <path>       默认系统临时目录下的 fluentread-full-regression-*',
         '  --timeout <ms>               传给支持 timeout 的浏览器脚本',
     ].join('\n'));
@@ -174,7 +174,7 @@ export function parseCli(argv, env = process.env, runtime = {}) {
         extensionDir: env.FLUENTREAD_EXTENSION_DIR || '.output/chrome-mv3',
         playwrightRoot: env.PLAYWRIGHT_ROOT || '',
         browserPath: env.FLUENTREAD_BROWSER_PATH || '',
-        focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
+        focusSafeHelper: env.FLUENTREAD_FOCUS_SAFE_HELPER || path.join(PROJECT_ROOT, 'scripts/testing/focus-safe-browser.cjs'),
         artifactsDir: env.FLUENTREAD_REGRESSION_ARTIFACTS_DIR ||
             path.join(os.tmpdir(), `fluentread-full-regression-${process.pid}-${runtime.now ?? Date.now()}`),
         timeout: env.FLUENTREAD_BROWSER_TIMEOUT || '',
@@ -305,6 +305,20 @@ function deterministicSteps() {
             args: ['scripts/testing/run-test-group.mjs', group],
         })),
         step({
+            id: 'agent-bridge',
+            phase: 'local',
+            label: 'agent bridge public process protocol',
+            command: 'node',
+            args: ['--test', 'tests/agentBridge.test.mjs'],
+        }),
+        step({
+            id: 'focus-safe-browser-lifecycle',
+            phase: 'local',
+            label: 'focus-safe browser ordinary context lifecycle',
+            command: 'node',
+            args: ['--test', 'tests/focusSafeBrowserOrdinaryLifecycle.test.mjs'],
+        }),
+        step({
             id: 'chrome-build',
             phase: 'local',
             label: 'chrome build',
@@ -347,11 +361,46 @@ function deterministicSteps() {
             args: ['scripts/verify-userscript-build.mjs'],
         }),
         step({
+            id: 'docs-typecheck',
+            phase: 'local',
+            label: 'docs typecheck',
+            command: 'pnpm',
+            args: ['docs:typecheck'],
+        }),
+        step({
+            id: 'storybook-typecheck',
+            phase: 'local',
+            label: 'storybook typecheck',
+            command: 'pnpm',
+            args: ['storybook:typecheck'],
+        }),
+        step({
             id: 'docs-build',
             phase: 'local',
             label: 'docs build',
             command: 'pnpm',
             args: ['docs:build'],
+        }),
+        step({
+            id: 'storybook-build',
+            phase: 'local',
+            label: 'storybook build',
+            command: 'pnpm',
+            args: ['storybook:build'],
+        }),
+        step({
+            id: 'storybook-verifier',
+            phase: 'local',
+            label: 'storybook artifact verifier',
+            command: 'pnpm',
+            args: ['storybook:check'],
+        }),
+        step({
+            id: 'docs-verifier',
+            phase: 'local',
+            label: 'docs shipped artifact verifier',
+            command: 'pnpm',
+            args: ['docs:check'],
         }),
     ];
 }

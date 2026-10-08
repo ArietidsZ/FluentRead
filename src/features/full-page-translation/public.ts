@@ -11,6 +11,7 @@ export {
     invalidateFullPageTranslationSessionCache,
     isFullPageTranslationActive,
     getFullPageTranslationFrameState,
+    readFullPageUnchangedCompletion,
     resetFullPageTranslationRouteState,
     restoreOriginalContent,
     type PageTranslationInvocation,

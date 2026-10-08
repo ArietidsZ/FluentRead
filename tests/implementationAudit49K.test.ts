@@ -828,4 +828,8 @@ describe('audit49K actual browser SDK build producer and public createWorker', (
         mkdirSync(dirname(input), {recursive: true}); writeFileSync(join(dirname(input), '../package.json'), '{"version":"6.0.2"}');
         expect(() => actualPlugin.transform.call({}, readFileSync(sdkSourceFile, 'utf8'), input)).toThrow('Unsupported');
     });
+    it.each(['?commonjs-proxy', '?commonjs-entry', ''])('leaves a virtual SDK module untouched (%s)', suffix => {
+        const actualPlugin = sdkProducer!.tesseractSdkBuildPlugin();
+        expect(actualPlugin.transform.call({}, 'export default controlledProxy;', `\0${sdkSourceFile}${suffix}`)).toBeUndefined();
+    });
 });

@@ -6,14 +6,15 @@
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createHash} from 'node:crypto';
-import {writeFileSync} from 'node:fs';
+import {mkdirSync, writeFileSync} from 'node:fs';
 import {LOCAL_TTS_MODEL_ID, LOCAL_TTS_MODEL_STATE_KEY, LOCAL_TTS_MODEL_CACHE_NAME, LOCAL_TTS_VOICE_CACHE_NAME} from '@/src/core/config/localTts';
 
 const external = vi.hoisted(() => ({fromPretrained: vi.fn(), env: {backends: {onnx: {} as {wasm?: object}}, fetch: undefined as unknown as typeof fetch, useBrowserCache: true}}));
 vi.mock('@uzen/kokoro-js', () => ({KokoroTTS: {from_pretrained: external.fromPretrained}, env: {}}));
 vi.mock('@huggingface/transformers-kokoro', () => ({env: external.env}));
 
-const evidence = process.env.AUDIT48D_EVIDENCE_ROOT || '/private/tmp/fluentread-audit-20261005/parallel-audit-48-d-continuation-1';
+const evidence = process.env.AUDIT48D_EVIDENCE_ROOT;
+if (evidence) mkdirSync(evidence, {recursive: true});
 const nativeFetch = globalThis.fetch;
 function deferred<T>() {let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;}); return {promise, resolve, reject};}
 async function flush() {for (let n = 0; n < 100; n++) await Promise.resolve();}
@@ -25,7 +26,12 @@ function cacheFixture() {
   let entries = maps.get(name); if (!entries) {entries = new Map(); maps.set(name, entries);}
   return {
    match: vi.fn(async (url: RequestInfo | URL) => entries!.get(key(url))?.clone()),
-   put: vi.fn(async (url: RequestInfo | URL, response: Response) => {puts.push(key(url)); entries!.set(key(url), response.clone());}),
+   put: vi.fn(async (url: RequestInfo | URL, response: Response) => {
+    // Cache.put 完成须已消费完整响应体，后台下载才能释放 reader；写入前失败不留下缓存。
+    const body = new Uint8Array(await response.arrayBuffer());
+    entries!.set(key(url), new Response(body, {status: response.status, statusText: response.statusText, headers: response.headers}));
+    puts.push(key(url));
+   }),
    delete: vi.fn(async (url: RequestInfo | URL) => entries!.delete(key(url))),
   };
  })};
@@ -78,6 +84,7 @@ async function startWorker(stream: () => AsyncGenerator<unknown>) {
 }
 beforeEach(() => {
  vi.resetModules(); external.fromPretrained.mockReset(); external.env.useBrowserCache = true; external.env.backends.onnx.wasm=undefined; WorkerPort.instances = [];
+ vi.stubGlobal('navigator', {language: 'en-US'});
  vi.stubGlobal('fetch',vi.fn(async () => {throw new Error('controlled fixture: external fetch unavailable');}));
 });
 afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals(); globalThis.fetch = nativeFetch; vi.clearAllTimers(); vi.useRealTimers();});
@@ -96,17 +103,27 @@ describe('audit48D cache public lifecycle', () => {
   const fixture = cacheFixture(); const api = await seeded(fixture, {status: 503});
   await expect(api.isLocalTtsModelCached()).resolves.toBe(false);
  });
- it('prepare replaces a wrong-version loader alias from the pinned response', async () => {
+ it('prepare preserves the qualified pinned response over a wrong-version loader alias without rewriting unowned bytes', async () => {
   const fixture = cacheFixture(); const api = await seeded(fixture);
   const model = await fixture.caches.open(LOCAL_TTS_MODEL_CACHE_NAME);
-  for (const file of api.LOCAL_TTS_MODEL_FILES) await model.put(api.getLocalTtsModelLoaderUrl(file), new Response('other-revision', {headers: {'X-FluentRead-Model-Source': 'https://fixture.invalid/old'}}));
-  vi.stubGlobal('fetch', vi.fn(async () => {throw new Error('unexpected network');}));
+  for (const file of api.LOCAL_TTS_MODEL_FILES) {
+   const pinned = api.getLocalTtsModelFileUrl(file);
+   await model.put(pinned, new Response('pinned-' + file, {headers: {'X-FluentRead-Model-Source': pinned.replace('https://huggingface.co/', 'https://hf-mirror.net/')}}));
+   await model.put(api.getLocalTtsModelLoaderUrl(file), new Response('other-revision', {headers: {'X-FluentRead-Model-Source': 'https://fixture.invalid/old'}}));
+  }
+  fixture.puts.length = 0;
+  const fetchPort = vi.fn(async () => {throw new Error('unexpected network');}); vi.stubGlobal('fetch', fetchPort);
   await api.cacheLocalTtsModelFiles();
   for (const file of api.LOCAL_TTS_MODEL_FILES) {
+   const pinned = await model.match(api.getLocalTtsModelFileUrl(file));
+   expect(await pinned!.text()).toBe('pinned-' + file);
+   expect(pinned!.headers.get('X-FluentRead-Model-Source')).toBe(api.getLocalTtsModelFileUrl(file).replace('https://huggingface.co/', 'https://hf-mirror.net/'));
    const alias = await model.match(api.getLocalTtsModelLoaderUrl(file));
-   expect(await alias!.text()).toBe('pinned-' + file);
-   expect(alias!.headers.get('X-FluentRead-Model-Source')).toBe(api.getLocalTtsModelFileUrl(file));
+   expect(await alias!.text()).toBe('other-revision');
+   expect(alias!.headers.get('X-FluentRead-Model-Source')).toBe('https://fixture.invalid/old');
   }
+  expect(fixture.puts).toEqual([]); expect(fetchPort).not.toHaveBeenCalled();
+  await expect(api.isLocalTtsModelCached()).resolves.toBe(true);
  });
  it('coalesces bounded downloads and preserves all cache bytes without explicit buffer copies', async () => {
   const fixture = cacheFixture(); const api = await import('@/src/features/local-tts/offscreen/modelCache');
@@ -118,11 +135,11 @@ describe('audit48D cache public lifecycle', () => {
   await first;
   const sliceArgs = copying.mock.calls.map(args => [...args]);
   const explicitCopies = sliceArgs.filter(args => args.length === 1 && args[0] === 0).length; copying.mockRestore();
-  expect(fetchPort).toHaveBeenCalledTimes(8); expect(fixture.puts).toHaveLength(12);
+  expect(fetchPort).toHaveBeenCalledTimes(8); expect(fixture.puts).toHaveLength(8);
   const hashes: string[] = [];
   for (const entries of fixture.maps.values()) for (const response of entries.values()) hashes.push(createHash('sha256').update(new Uint8Array(await response.clone().arrayBuffer())).digest('hex'));
-  const hash = createHash('sha256').update(bytes).digest('hex'); expect(hashes).toEqual(Array(12).fill(hash));
-  writeFileSync(evidence + '/' + (process.env.AUDIT48D_MODE || 'current') + '-cache-performance.json', JSON.stringify({inputBytes:bytes.length,fetches:8,puts:12,explicitCopies,sliceArgs,hashes,elapsedMs:performance.now()-begin}));
+  const hash = createHash('sha256').update(bytes).digest('hex'); expect(hashes).toEqual(Array(8).fill(hash));
+  if (evidence) writeFileSync(evidence + '/' + (process.env.AUDIT48D_MODE || 'current') + '-cache-performance.json', JSON.stringify({inputBytes:bytes.length,fetches:8,puts:8,explicitCopies,sliceArgs,hashes,elapsedMs:performance.now()-begin}));
   expect(explicitCopies).toBe(0);
  });
  it('rejects removal while a model download is in flight and releases the download on completion', async () => {
@@ -235,7 +252,7 @@ describe('audit48D real Worker message entry', () => {
   const expected = [-32768,-16384,0,16384,32767];
   for (let i=0;i<chunkCount;i++) for (let j=0;j<chunkLength;j++) expect(view.getInt16(44+(i*chunkLength+j)*2,true)).toBe(expected[(i+j)%5]);
   const hash = createHash('sha256').update(new Uint8Array(result.audio)).digest('hex');
-  writeFileSync(evidence + '/' + (process.env.AUDIT48D_MODE || 'current') + (process.env.AUDIT48D_PROBE === '1' ? '-probe-wav-performance.json' : '-wav-performance.json'),JSON.stringify({chunks:chunkCount,samples:chunkCount*chunkLength,copiedSamples,hash,elapsedMs:performance.now()-begin}));
+  if (evidence) writeFileSync(evidence + '/' + (process.env.AUDIT48D_MODE || 'current') + (process.env.AUDIT48D_PROBE === '1' ? '-probe-wav-performance.json' : '-wav-performance.json'),JSON.stringify({chunks:chunkCount,samples:chunkCount*chunkLength,copiedSamples,hash,elapsedMs:performance.now()-begin}));
   expect(copiedSamples).toBe(0);
  });
  it('reads the pinned cache before a conflicting main alias through the actual model fetch port', async () => {
@@ -350,7 +367,7 @@ describe('audit48D retained public contracts', () => {
   const {createOffscreenMessageListener}=await import('@/src/app/offscreen/messageRouter');
   const {createOffscreenClient}=await import('@/src/platform/offscreen/client');
   const {createLocalTtsOffscreenAdapter}=await import('@/src/features/local-tts/background/offscreenAdapter');
-  const listener=createOffscreenMessageListener({translate:async () => '',ttsPlayer:{play:async () => undefined,stop:() => false},fetchImage:async () => '',translateImage:async () => ({}),translateArea:async () => ({}),downloadOcrLanguages:async () => undefined,
+  const listener=createOffscreenMessageListener({translate:async () => '',ttsPlayer:{play:async () => undefined,stop:() => false,seek:() => {throw Error('Unexpected speech seek in local synthesis fixture');}},fetchImage:async () => '',translateImage:async () => ({}),translateArea:async () => ({}),downloadOcrLanguages:async () => undefined,
    localTts:{synthesize:(r,signal) => api.synthesizeLocalTts(String(r.text),String(r.language),r.voice,signal),prepare:() => api.prepareLocalTtsModel(),status:api.getLocalTtsModelStatus,removeModel:api.removeLocalTtsModel}});
   const client=createOffscreenClient({getOffscreen:() => ({createDocument:async () => undefined}),getRuntime:() => ({getContexts:async () => [{}],sendMessage:(message,callback) => {expect(listener(message,{},callback)).toBe(true);}})});
   const adapter=createLocalTtsOffscreenAdapter(client);
@@ -391,10 +408,10 @@ describe('audit48D physical offscreen document lifecycle', () => {
 describe('audit48D bounded background state reconciliation', () => {
  it('settles repeated legal mutations during every status read within a bounded attempt count', async () => {
   const {createLocalTtsBackgroundHandlers}=await import('@/src/features/local-tts/background/handlers');
-  const marker=evidence+'/'+(process.env.AUDIT48D_MODE || 'current')+'-state-loop-marker.json';
+  const marker=evidence ? evidence+'/'+(process.env.AUDIT48D_MODE || 'current')+'-state-loop-marker.json' : undefined;
   if (process.env.AUDIT48D_LOOP_PROBE === '1') {
    console.info('AUDIT48D_MODULE_LOADED:src/features/local-tts/background/handlers.ts');
-   writeFileSync(marker,JSON.stringify({moduleLoaded:true,reads:0,legalMutations:0}));
+   if (marker) writeFileSync(marker,JSON.stringify({moduleLoaded:true,reads:0,legalMutations:0}));
   }
   let reads=0; let downloaded=false; let list:ReturnType<typeof createLocalTtsBackgroundHandlers>;
   const stored:Record<string,unknown>={};
@@ -403,14 +420,14 @@ describe('audit48D bounded background state reconciliation', () => {
    if (process.env.AUDIT48D_LOOP_PROBE !== '1' && reads>64) throw new Error('controlled fixture attempt cap reached');
    const mutation=list[reads%2 ? 1 : 2];
    await mutation.handle({type:mutation.type},undefined);
-   if(process.env.AUDIT48D_LOOP_PROBE === '1' && reads<=9) writeFileSync(marker,JSON.stringify({moduleLoaded:true,reads,legalMutations:reads}));
+   if(marker && process.env.AUDIT48D_LOOP_PROBE === '1' && reads<=9) writeFileSync(marker,JSON.stringify({moduleLoaded:true,reads,legalMutations:reads}));
    return {models:[{model:LOCAL_TTS_MODEL_ID,downloaded:stale}]};
   });
   list=createLocalTtsBackgroundHandlers({offscreen:{status,prepare:async () => {downloaded=true;return {};},remove:async () => {downloaded=false;}},storage:{get:async key => ({[key]:stored[key]}),set:async value => {Object.assign(stored,value);}}});
   await expect(list[0].handle({type:list[0].type},undefined)).rejects.toThrow('状态变更过于频繁');
   expect(reads).toBeLessThanOrEqual(8);
   expect(stored[LOCAL_TTS_MODEL_STATE_KEY]).toMatchObject({downloaded});
-  writeFileSync(evidence+'/'+(process.env.AUDIT48D_MODE || 'current')+'-state-retry-probe.json',JSON.stringify({reads,downloaded,stored:stored[LOCAL_TTS_MODEL_STATE_KEY]}));
+  if (evidence) writeFileSync(evidence+'/'+(process.env.AUDIT48D_MODE || 'current')+'-state-retry-probe.json',JSON.stringify({reads,downloaded,stored:stored[LOCAL_TTS_MODEL_STATE_KEY]}));
  });
  it('returns the latest state after two real mutations and never persists the earlier snapshots', async () => {
   const {createLocalTtsBackgroundHandlers}=await import('@/src/features/local-tts/background/handlers');
@@ -486,8 +503,11 @@ describe('audit48D remaining public offscreen branches', () => {
 describe('audit48D cache external failure boundaries', () => {
  it('rejects a non-OK download response without retaining its body and then permits recovery', async () => {
   const fixture=cacheFixture();const api=await import('@/src/features/local-tts/offscreen/modelCache');
-  const fetchPort=vi.fn().mockResolvedValueOnce(new Response('failed body',{status:503})).mockImplementation(async () => new Response('recovered'));vi.stubGlobal('fetch',fetchPort);
-  await expect(api.cacheLocalTtsModelFiles()).rejects.toThrow('本地 TTS 模型文件下载失败（503）');expect(fixture.puts).toEqual([]);
+  const fetchPort=vi.fn(async (_input:RequestInfo | URL) => new Response('failed body',{status:503}));vi.stubGlobal('fetch',fetchPort);
+  await expect(api.cacheLocalTtsModelFiles()).rejects.toThrow('模型文件下载失败（503）');expect(fixture.puts).toEqual([]);
+  const pinned=api.getLocalTtsModelFileUrl(api.LOCAL_TTS_MODEL_FILES[0]);
+  expect(fetchPort.mock.calls.map(([url]) => url)).toEqual([pinned,pinned.replace('https://huggingface.co/','https://hf-mirror.com/'),pinned.replace('https://huggingface.co/','https://hf-mirror.net/')]);
+  fetchPort.mockImplementation(async () => new Response('recovered'));
   await api.cacheLocalTtsModelFiles();await expect(api.isLocalTtsModelCached()).resolves.toBe(true);
  });
  it('recovers download and removal after Cache Storage is unavailable', async () => {
@@ -496,19 +516,22 @@ describe('audit48D cache external failure boundaries', () => {
   await expect(api.cacheLocalTtsModelFiles()).rejects.toThrow('不支持本地 TTS 模型缓存');
   await expect(api.removeLocalTtsModelFiles()).rejects.toThrow('不支持本地 TTS 模型缓存');
   const fixture=cacheFixture(); vi.stubGlobal('fetch',vi.fn(async () => new Response('model')));
-  await api.cacheLocalTtsModelFiles(); expect(fixture.puts).toHaveLength(12); await api.removeLocalTtsModelFiles();
+  await api.cacheLocalTtsModelFiles(); expect(fixture.puts).toHaveLength(8); await api.removeLocalTtsModelFiles();
  });
  it.each([{value:new Error('network disconnected'),message:'network disconnected'},{value:'rejected string',message:'rejected string'},{value:new Error('本地 TTS 模型文件下载失败：controlled'),message:'controlled'}])('releases download ownership after external failure $message', async ({value,message}) => {
   cacheFixture(); const api=await import('@/src/features/local-tts/offscreen/modelCache');
-  const fetchPort=vi.fn().mockRejectedValueOnce(value).mockImplementation(async () => new Response('retry bytes'));vi.stubGlobal('fetch',fetchPort);
+  const fetchPort=vi.fn().mockRejectedValue(value);vi.stubGlobal('fetch',fetchPort);
   await expect(api.cacheLocalTtsModelFiles()).rejects.toThrow(message);
+  const pinned=api.getLocalTtsModelFileUrl(api.LOCAL_TTS_MODEL_FILES[0]);
+  expect(fetchPort.mock.calls.map(([url]) => url)).toEqual([pinned,pinned.replace('https://huggingface.co/','https://hf-mirror.com/'),pinned.replace('https://huggingface.co/','https://hf-mirror.net/')]);
+  fetchPort.mockImplementation(async () => new Response('retry bytes'));
   await api.cacheLocalTtsModelFiles(); await expect(api.isLocalTtsModelCached()).resolves.toBe(true);
  });
  it('aborts a stalled model download at its real timer and permits a later download', async () => {
   vi.useFakeTimers();cacheFixture(); const api=await import('@/src/features/local-tts/offscreen/modelCache');
   const fetchPort=vi.fn((_url,options) => new Promise<Response>((_resolve,reject) => {options.signal.addEventListener('abort',() => reject(new Error('port aborted')),{once:true});})); vi.stubGlobal('fetch',fetchPort);
   const pending=api.cacheLocalTtsModelFiles().catch(e => e.message);await flush();await vi.advanceTimersByTimeAsync(300000);
-  expect(await pending).toContain('下载超过 300 秒');expect(fetchPort.mock.calls[0][1].signal.aborted).toBe(true);expect(vi.getTimerCount()).toBe(0);
+  expect(await pending).toBe('模型文件下载超过等待时限');expect(fetchPort).toHaveBeenCalledTimes(3);for(const [,options] of fetchPort.mock.calls) expect(options.signal.aborted).toBe(true);expect(vi.getTimerCount()).toBe(0);
   fetchPort.mockImplementation(async () => new Response('retry'));await api.cacheLocalTtsModelFiles();
  });
  it('rejects a download and second removal while pending deletion owns the cache', async () => {
@@ -592,8 +615,8 @@ describe('audit48D Worker controlled model ports', () => {
   external.env.backends.onnx.wasm={};const getURL=vi.fn(path => 'chrome-extension://fixture/'+path);vi.stubGlobal('chrome',{runtime:{getURL}});
   const s=await startWorker(async function*(){yield {audio:{audio:new Float32Array([0.5]),sampling_rate:24000}};});
   await expect(s.send({requestId:1,type:'prepare'})).resolves.toMatchObject({success:true,backend:'wasm'});
-  expect(fetchPort).toHaveBeenCalledOnce();expect(fetchPort.mock.calls[0][0]).toBe('chrome-extension://fixture/fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm');
-  expect(external.env.backends.onnx.wasm).toMatchObject({numThreads:1,proxy:false,wasmBinary:undefined,wasmPaths:{wasm:'chrome-extension://fixture/fluent-read-ai/tts-ort-wasm-simd-threaded.asyncify.wasm'}});
+  expect(fetchPort).toHaveBeenCalledOnce();expect(fetchPort.mock.calls[0][0]).toBe('chrome-extension://fixture/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm');
+  expect(external.env.backends.onnx.wasm).toMatchObject({numThreads:1,proxy:false,wasmBinary:undefined,wasmPaths:{mjs:'chrome-extension://fixture/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs',wasm:'chrome-extension://fixture/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'}});
   await s.send({requestId:2,type:'dispose'});
  });
  it('reads fixed model and voice caches for string URL and Request inputs and forwards only packaged requests', async () => {

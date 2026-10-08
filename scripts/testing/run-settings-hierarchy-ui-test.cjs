@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 设置层级专项：在隔离生产扩展中检查入口、渐进展开、配置保留、移动目录和主题布局。
 const fs = require('node:fs');
 const path = require('node:path');
@@ -6,21 +7,24 @@ function arg(name, fallback) { const i = process.argv.indexOf(`--${name}`); retu
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-settings-hierarchy'));
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 const assert = (value, message) => { if (!value) throw new Error(message); };
 fs.mkdirSync(artifactsDir, {recursive: true});
 async function main() {
   const profileDir = fs.mkdtempSync('/private/tmp/fr-settings-hierarchy-');
   const report = {ok: false, artifact: 'production', extensionDir, cases: [], persistenceCases: [], quickClose: false, latestWriteWins: false, crossPageSync: false, screenshots: [], consoleErrors: []};
-  let launched, page;
+  let launched, page, primaryError;
   const timeout = 30000;
+  let launchAttempted = false;
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
     report.manifest = {options: manifest.options_page || manifest.options_ui?.page, popup: manifest.action?.default_popup};
     assert(report.manifest.options && report.manifest.popup, 'Manifest UI entries missing');
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, timeout, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', displayTarget: arg('display', 'secondary'), viewport: {width: 1440, height: 900},
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     const context = launched.context;
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout});
@@ -199,8 +203,33 @@ async function main() {
     await check('language-search-after-reorder');
     assert(report.consoleErrors.length === 0, `Browser errors: ${report.consoleErrors.join('\n')}`);
     report.ok = true;
-  } catch (e) { report.error = e.stack || String(e); if (page && !page.isClosed()) await page.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {}); }
-  finally { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); if (launched) await launched.close(); fs.rmSync(profileDir, {recursive: true, force: true}); }
+  } catch (e) { primaryError = e; report.error = e.stack || String(e); if (page && !page.isClosed()) await page.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {}); }
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+  }
   console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, error: report.error, artifactsDir}));
   if (!report.ok) process.exitCode = 1;
 }

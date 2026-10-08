@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/freeFallback.ts
  * 文件职责：在健康免费服务间加权均衡并自动回退，持久遵守各类错误的恢复窗口。
- * 主要内容：协调总预算、单次超时、服务并发与间隔、错误退避、恢复单探测、异步持久化、有预算的延迟备用竞争、取消代际保护；把特定文本的原文回显或明显错语种结果作为不冷却线路的请求失败，并向调用方旁路上报每次线路尝试的结果与耗时。
+ * 主要内容：协调总预算、单次超时、服务并发与间隔、错误退避、恢复单探测、异步持久化、有预算的延迟备用竞争、取消代际保护；在线路容量或间隔等待时归还全局许可并于唤醒后重新校验，结构化区分总截止时间和线路耗尽，把特定文本的原文回显或明显错语种结果作为不冷却线路的请求失败，并向调用方旁路上报每次线路尝试的结果与耗时。
  * 模块边界：只接收匿名身份、provider 回调和注入的存储端口；不读取用户配置或供应商凭据。
  */
 import {abortErrorFromSignal} from '@/src/platform/http/runtime';
@@ -66,8 +66,8 @@ interface Health {
     nextAttemptAt: number;
     performance?: FreeProviderPerformance;
 }
-class AttemptTimeoutError extends Error { readonly retryable = false; constructor() { super('请求超时'); } }
-class FreePoolExhaustedError extends Error { readonly retryable = false; }
+class AttemptTimeoutError extends Error { readonly kind = 'timeout'; readonly retryable = false; constructor() { super('请求超时'); } }
+class FreePoolExhaustedError extends Error { readonly kind = 'provider'; readonly retryable = false; }
 
 /** 响应只对当前文本无效，换线重试但不降低该服务对其他文本的权重。 */
 export class UntranslatedFreeResultError extends Error {
@@ -133,7 +133,7 @@ async function boundedStorage<T>(request: Promise<T>, limitMs = 1000, signal?: A
 
 export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeFallbackDependencies = {}): FreeFallbackRunner {
     const health = new Map<string, Health>();
-    const queue: Array<() => void> = [];
+    const queue: Array<{deadline: number; wake: () => void}> = [];
     const availabilityWaiters = new Set<() => void>();
     const concurrency = Math.max(1, Math.floor(maxConcurrency));
     const random = dependencies.random ?? Math.random;
@@ -217,17 +217,26 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
                 const cleanup = () => {
                     clearTimeout(timer);
                     signal?.removeEventListener('abort', onAbort);
-                    const index = queue.indexOf(onReady);
+                    const index = queue.findIndex(item => item.wake === onReady);
                     if (index >= 0) queue.splice(index, 1);
                 };
                 const onReady = () => { cleanup(); resolve(); };
                 const onAbort = () => { cleanup(); reject(abortErrorFromSignal(signal!)); };
                 const timer = setTimeout(() => { cleanup(); reject(new AttemptTimeoutError()); }, Math.max(1, deadline - Date.now()));
                 signal?.addEventListener('abort', onAbort, {once: true});
-                queue.push(onReady);
+                // 同一批次的后续槽仍沿用原截止时间；优先服务更早到期的请求，
+                // 避免持续到达的新段落把已完成大半的旧批次排到队尾耗尽预算。
+                let low = 0, high = queue.length;
+                while (low < high) {
+                    const middle = (low + high) >>> 1;
+                    if (queue[middle]!.deadline <= deadline) low = middle + 1;
+                    else high = middle;
+                }
+                // 相同截止时间保持到达顺序，取消/到期仍由每个等待者自己的句柄清理。
+                queue.splice(low, 0, {deadline, wake: onReady});
             });
         } else active += 1;
-        return () => { const next = queue.shift(); if (next) next(); else active -= 1; };
+        return () => { const next = queue.shift(); if (next) next.wake(); else active -= 1; };
     }
 
     async function waitForAvailability(durationMs: number, signal?: AbortSignal): Promise<void> {
@@ -246,7 +255,10 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
         if (!candidates.length) throw new FreePoolExhaustedError('免费翻译服务均不可用：未选择可用的免密钥服务');
         const deadline = Math.min(options.deadline ?? Infinity, Date.now() + FREE_TRANSLATION_TOTAL_TIMEOUT_MS);
         if (dependencies.persistence) await boundedStorage(loadHealth(), Math.min(1000, deadline - Date.now()), options.signal);
-        const release = await acquire(deadline, options.signal);
+        // 保留首次调度前的异步取消边界，但不为不可用线路领取全局许可。
+        await Promise.resolve();
+        let release: () => void = () => undefined;
+        let ownsPermit = false;
         const attempted = new Set<string>();
         const failures: string[] = [];
         let hedged = false;
@@ -318,17 +330,30 @@ export function createFreeFallbackRunner(maxConcurrency = 3, dependencies: FreeF
                 if (options.signal?.aborted) throw abortErrorFromSignal(options.signal);
                 const remaining = deadline - Date.now();
                 if (remaining <= 0) throw new AttemptTimeoutError();
-                const candidate = choose(readyCandidates());
-                if (!candidate) {
+                const ready = readyCandidates();
+                if (!ready.length) {
                     const waiting = pendingCandidates().filter(item => getHealth(item.identity).retryAt <= Date.now());
                     if (!waiting.length) break;
                     const nextInterval = Math.min(...waiting.map(item => {
                         const time = getHealth(item.identity).nextAttemptAt - Date.now();
                         return time > 0 ? time : remaining;
                     }));
+                    // 等线路容量或间隔时没有在途 attempt，不能占住全局许可阻塞其他可用线路。
+                    // 先放弃本次许可所有权；等待失败时 finally 只调用空操作，避免重复归还。
+                    release();
+                    release = () => undefined;
+                    ownsPermit = false;
                     await waitForAvailability(Math.min(remaining, nextInterval), options.signal);
                     continue;
                 }
+                if (!ownsPermit) {
+                    // 没有可用线路的 owner 不进入全局队列；取得许可后重新校验线路容量和取消。
+                    release = await acquire(deadline, options.signal);
+                    ownsPermit = true;
+                    continue;
+                }
+                // ready 已通过非空检查；两种选择策略都从该数组返回一项。
+                const candidate = choose(ready)!;
                 const controller = new AbortController();
                 const onAbort = () => controller.abort(options.signal?.reason);
                 options.signal?.addEventListener('abort', onAbort, {once: true});

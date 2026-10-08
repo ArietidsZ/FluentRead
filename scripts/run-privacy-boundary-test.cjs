@@ -6,6 +6,7 @@
 // 3. 凭据不进入公开配置、宿主 DOM 或页面可访问的 Shadow DOM；
 // 4. options 真实消息/UI 路径始终使用加密持久凭据、完整明文导出，并能在扩展运行时重载后恢复。
 
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -42,7 +43,7 @@ function parseArgs(argv) {
     background: true,
     timeout: 45_000,
     browserPath: null,
-    focusSafeHelper: process.env.FLUENTREAD_FOCUS_SAFE_HELPER || '',
+    focusSafeHelper: process.env.FLUENTREAD_FOCUS_SAFE_HELPER || path.join(__dirname, 'testing/focus-safe-browser.cjs'),
     artifactsDir: path.join(os.tmpdir(), 'fluentread-privacy-boundary-evidence'),
   };
 
@@ -234,7 +235,11 @@ async function startFixtureServer() {
     server.listen(0, '127.0.0.1', resolve);
   });
   const address = server.address();
-  if (!address || typeof address === 'string') throw new Error('无法确定本地 fixture 端口');
+  if (!address || typeof address === 'string') {
+    const error = new Error('无法确定本地 fixture 端口');
+    try {await closeServer(server);} catch (cleanupError) {process.stderr.write(`Fixture close failed: ${cleanupError.stack || cleanupError}\n`);}
+    throw error;
+  }
   return {
     server,
     url: `http://127.0.0.1:${address.port}/privacy-boundary.html`,
@@ -243,7 +248,8 @@ async function startFixtureServer() {
 
 function closeServer(server) {
   if (!server) return Promise.resolve();
-  return new Promise((resolve) => server.close(() => resolve()));
+  if (!server.listening) return Promise.resolve();
+  return new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
 }
 
 function storageObjectFromPage() {
@@ -816,16 +822,17 @@ async function main() {
   const artifactsDir = path.resolve(args.artifactsDir);
   const browserPath = resolveBrowserExecutable(args.browserPath);
   const manifestEvidence = readManifest(extensionDir);
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-privacy-boundary-'));
   const credentialSentinel = `${CREDENTIAL_SENTINEL_PREFIX}${randomUUID()}`;
   const credentialSentinelSha256 = createHash('sha256').update(credentialSentinel).digest('hex');
   const privacySurfaceClientId = `privacy-boundary-surface-setup-${randomUUID()}`;
   const credentialMessageClientId = `privacy-boundary-credential-lifecycle-${randomUUID()}`;
-  assertDedicatedTemporaryProfile(profileDir);
   fs.mkdirSync(artifactsDir, { recursive: true });
 
   const { chromium } = loadPlaywright(playwrightRoot);
-  const fixture = await startFixtureServer();
+  let fixture;
+  let primaryError;
+  let evidencePath;
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-privacy-boundary-'));
   const browserArgs = [
     `--disable-extensions-except=${extensionDir}`,
     `--load-extension=${extensionDir}`,
@@ -842,7 +849,7 @@ async function main() {
     ok: false,
     extensionDir,
     browserPath,
-    fixtureUrl: fixture.url,
+    fixtureUrl: null,
     windowMode: args.background ? 'background-screen-off' : 'headed-isolated',
     launchMode: null,
     focusPolicy: null,
@@ -866,13 +873,18 @@ async function main() {
     }
   };
 
+  let launchAttempted = false;
   try {
+    assertDedicatedTemporaryProfile(profileDir);
+    fixture = await startFixtureServer();
+    evidence.fixtureUrl = fixture.url;
     if (args.background) {
       const {
         activateExtensionTabWithoutForeground,
         launchFocusSafePersistentContext,
         newPageWithoutForeground,
       } = loadFocusSafeBrowser(args.focusSafeHelper);
+      launchAttempted = true;
       browserSession = await launchFocusSafePersistentContext({
         chromium,
         profileDir,
@@ -883,6 +895,7 @@ async function main() {
         viewport: { width: 1280, height: 900 },
         timeout: args.timeout,
       });
+      guardBrowserClose(browserSession, profileDir);
       context = browserSession.context;
       createPage = () => newPageWithoutForeground(context, args.timeout);
       activatePage = (targetPage) => activateExtensionTabWithoutForeground(context, targetPage, args.timeout);
@@ -893,6 +906,7 @@ async function main() {
         windowPlacement: browserSession.windowPlacement,
       };
     } else {
+      launchAttempted = true;
       context = await chromium.launchPersistentContext(profileDir, {
         executablePath: browserPath,
         headless: false,
@@ -1179,6 +1193,8 @@ async function main() {
       consoleErrors,
     };
   } catch (error) {
+    primaryError = error;
+    process.exitCode = 1;
     evidence = {
       ...evidence,
       error: redactEvidenceText(error instanceof Error ? error.message : String(error)),
@@ -1199,14 +1215,34 @@ async function main() {
       }).catch(() => {});
     }
   } finally {
-    if (browserSession) await browserSession.close().catch(() => {});
-    else if (context) await context.close().catch(() => {});
-    await closeServer(fixture.server).catch(() => {});
-    fs.rmSync(profileDir, { recursive: true, force: true });
-    evidence.isolation.temporaryProfileRemoved = !fs.existsSync(profileDir);
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if ((browserSession || context)) {await (browserSession || context).close(); browserClosed = true;}
+    });
+    await cleanup(async () => {await closeServer(fixture?.server);});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+      evidence.isolation.temporaryProfileRemoved = !fs.existsSync(profileDir);
+    });
+    if (cleanupErrors.length) {
+      evidence.ok = false;
+      evidence.cleanupErrors = cleanupErrors.map(error => redactEvidenceText(error.stack || String(error)));
+    }
+    await cleanup(async () => {evidencePath = await writeEvidence(artifactsDir, evidence);});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${redactEvidenceText(error.stack || error)}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 
-  const evidencePath = await writeEvidence(artifactsDir, evidence);
   const output = { ...evidence, evidencePath };
   process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
   if (!evidence.ok) process.exitCode = 1;

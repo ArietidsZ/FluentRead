@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 实际生产 Offscreen OCR：初始化、语言切换、同图并发与取消。模型下载与识别分别计时。
 const fs = require('node:fs'), path = require('node:path'), os = require('node:os');
 const assert = require('node:assert/strict');
@@ -8,17 +9,20 @@ const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-ocr
 const label = arg('label', 'candidate');
 const imageFile = arg('image-file');
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-browser-translation-test/scripts/focus-safe-browser.cjs'));
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ocr-performance-profile-'));
-const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ocr-performance-extension-'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
+let profile, fixture;
 fs.mkdirSync(artifacts, {recursive: true});
-fs.cpSync(extension, fixture, {recursive: true});
-fs.writeFileSync(path.join(fixture, 'probe.html'), '<!doctype html><title>FluentRead OCR performance</title>');
 const report = {label, extension, scope: 'production Offscreen area OCR, real unchanged models, generated print and optional local screenshot; translation transport excluded', cases: [], errors: []};
-(async () => {let session; try {
+(async () => {let session, primaryError, launchAttempted = false; try {
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ocr-performance-profile-'));
+    fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ocr-performance-extension-'));
+    fs.cpSync(extension, fixture, {recursive: true});
+    fs.writeFileSync(path.join(fixture, 'probe.html'), '<!doctype html><title>FluentRead OCR performance</title>');
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({chromium, profileDir: profile,
         browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
         viewport: {width: 1100, height: 800}, browserArgs: ['--no-first-run', '--no-default-browser-check', `--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`]});
+    guardBrowserClose(session, profile);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     const context = session.context;
     const sw = context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker');
@@ -102,11 +106,36 @@ const report = {label, extension, scope: 'production Offscreen area OCR, real un
     }
     assert.deepEqual(report.errors, []);
     report.ok = true;
-} catch (error) {report.ok = false; report.failure = error.stack; process.exitCode = 1;}
+} catch (error) {primaryError = error; report.ok = false; report.failure = error.stack; process.exitCode = 1;}
 finally {
-    if (session) await session.close();
-    fs.rmSync(profile, {recursive: true, force: true}); fs.rmSync(fixture, {recursive: true, force: true});
-    report.cleaned = true;
-    fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('extension fixture', () => {
+      // 启动尝试后，活浏览器可能仍从副本加载 Worker/WASM。
+      if (fixture && (!launchAttempted || browserClosed)) fs.rmSync(fixture, {recursive: true, force: true});
+    });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profile); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    report.cleaned = (!profile || !fs.existsSync(profile)) && (!fixture || !fs.existsSync(fixture));
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     console.log(JSON.stringify({label, ok: report.ok, duplicateMs: report.duplicate?.ms, failure: report.failure}));
-}})();
+}})().catch(error => {console.error(error); process.exitCode = 1;});

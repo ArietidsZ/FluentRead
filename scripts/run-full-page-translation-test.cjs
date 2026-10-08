@@ -7,6 +7,7 @@
 // 展开/收起、中间 Logo 点击稳定性、勾选标记几何与离屏任务下的进度面板显隐。
 // 它不会连接用户正在使用的浏览器 profile，也不会通过 JS 合成键盘事件。
 
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -29,7 +30,7 @@ function parseArgs(argv) {
     // 仅在本次临时 profile 中写入服务，便于把“回退服务慢”和“全文机制问题”分开。
     // 不传此参数时，脚本不会修改任何配置。
     configureService: null,
-    focusSafeHelper: null,
+    focusSafeHelper: path.join(__dirname, 'testing/focus-safe-browser.cjs'),
     verifyFloatingUi: false,
     verifyLoadingStyleIsolation: false,
   };
@@ -402,7 +403,7 @@ async function startFixtureServer() {
   return {
     url: `http://127.0.0.1:${address.port}/unified-translation-fixture.html`,
     isListening: () => server.listening,
-    close: () => new Promise((resolve) => server.close(resolve)),
+    close: () => new Promise((resolve) => {server.close(resolve); server.closeAllConnections();}),
   };
 }
 
@@ -464,6 +465,18 @@ async function waitForTranslationRequestsIdle(page, translationFixtureServer, ti
     }
   }
   throw new Error(`等待翻译请求静默超时：${count}`);
+}
+
+// DOM loading 消失只是当前正文批次的状态，不代表标题/预取/调度队列已经停止请求。
+// 两个准备条件共用原有 loading 等待预算，静默窗口沿用既有 1200ms。
+async function waitForUnchangedAttributeBaseline(page, translationFixtureServer, timeout) {
+  const deadline = Date.now() + timeout;
+  await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout});
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new Error('等待同值属性请求基线超时');
+  const count = await waitForTranslationRequestsIdle(page, translationFixtureServer, remaining);
+  if (Date.now() > deadline) throw new Error('等待同值属性请求基线超时');
+  return count;
 }
 
 async function getConfigurationPage(context, createPage) {
@@ -745,8 +758,7 @@ async function verifyUnchangedAttributeStability({
     await page.waitForFunction(() => document.querySelector('#paragraph-two .fluent-read-single-slot') &&
       /[\u3400-\u9fff]/u.test(document.querySelector('#save-button')?.textContent || ''),
     undefined, {timeout: args.timeout});
-    await page.waitForFunction(() => !document.querySelector('.fluent-read-loading'), undefined, {timeout: args.timeout});
-    const beforeRequests = translationFixtureServer.requestCount();
+    const beforeRequests = await waitForUnchangedAttributeBaseline(page, translationFixtureServer, args.timeout);
     const sample = await page.evaluate(async (targets) => {
       const records = targets.map((selector) => {
         const owner = document.querySelector(selector);
@@ -792,7 +804,8 @@ async function verifyUnchangedAttributeStability({
     }, selectors);
     const screenshot = artifactsDir ? path.join(artifactsDir, 'full-page-unchanged-attributes-stable.png') : null;
     if (screenshot) await page.screenshot({path: screenshot, fullPage: false});
-    const evidence = {beforeRequests, afterRequests: translationFixtureServer.requestCount(), ...sample, screenshot};
+    const evidence = {beforeRequests, afterRequests: translationFixtureServer.requestCount(),
+      requestPayloads: translationFixtureServer.requestPayloads().slice(beforeRequests), ...sample, screenshot};
     assertUnchangedAttributeStability(evidence);
     await page.waitForFunction(() => document.querySelectorAll(
       '#single-source-protection-target .fluent-read-single-slot').length === 2,
@@ -1292,19 +1305,25 @@ async function readFloatingUiState(page) {
     const main = findCdpNode(ball, node => hasCdpClass(node, 'floating-ball-main'));
     const translateTool = findCdpNode(ball, node => hasCdpClass(node, 'floating-ball-translate'));
     const mainCheck = findCdpNode(main, node => node !== main && hasCdpClass(node, 'check-mark'));
+    // 全文状态属于翻译按钮；品牌主体保持纯 Logo。
+    const toolCheck = findCdpNode(translateTool, node => node !== translateTool && hasCdpClass(node, 'check-mark'));
+    const translateToolPressed = cdpAttribute(translateTool, 'aria-pressed');
     const shortcutTooltip = findCdpNode(ball, node => hasCdpClass(node, 'shortcut-tooltip'));
     const progressHost = findCdpNode(root, node => cdpAttribute(node, 'id') === 'fluent-read-translation-status-container');
     const progressPanel = findCdpNode(progressHost, node => hasCdpClass(node, 'fr-translation-progress'));
     const progressCompactCheck = findCdpNode(progressPanel, node => hasCdpClass(node, 'fr-progress-compact-check'));
-    const [mainStyle, toolStyle, mainBox, translateToolBox, checkBox] = await Promise.all([
+    const [mainStyle, toolStyle, checkStyle, mainBox, translateToolBox, checkBox] = await Promise.all([
       computedStyleValues(session, main, ['opacity', 'transform']),
       computedStyleValues(session, translateTool, ['opacity', 'visibility', 'display']),
+      computedStyleValues(session, toolCheck, ['opacity', 'visibility', 'display']),
       nodeBounds(session, main),
       nodeBounds(session, translateTool),
-      nodeBounds(session, mainCheck),
+      nodeBounds(session, toolCheck),
     ]);
     const viewport = await page.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
-    const checkVisible = Boolean(checkBox &&
+    const checkVisible = Boolean(toolCheck && Number(toolStyle.opacity) > 0 &&
+      toolStyle.visibility === 'visible' && toolStyle.display !== 'none' &&
+      Number(checkStyle.opacity) > 0 && checkStyle.visibility === 'visible' && checkStyle.display !== 'none' && checkBox &&
       checkBox.right > 0 && checkBox.left < viewport.width &&
       checkBox.bottom > 0 && checkBox.top < viewport.height);
     return {
@@ -1314,7 +1333,10 @@ async function readFloatingUiState(page) {
       ballStyle: cdpAttribute(ball, 'style'),
       position: cdpAttribute(ball, 'data-position'),
       expanded: hasCdpClass(ball, 'floating-ball-expanded'),
-      translated: hasCdpClass(ball, 'is-translating'),
+      translated: translateToolPressed === 'true',
+      translateTool: Boolean(translateTool),
+      translateToolPressed,
+      mainCheck: Boolean(mainCheck),
       mainOpacity: Number(mainStyle.opacity),
       mainTransform: mainStyle.transform || '',
       mainBox,
@@ -1322,7 +1344,7 @@ async function readFloatingUiState(page) {
       translateToolOpacity: Number(toolStyle.opacity),
       translateToolVisibility: toolStyle.visibility || '',
       translateToolDisplay: toolStyle.display || '',
-      check: Boolean(mainCheck),
+      check: Boolean(toolCheck),
       checkBox,
       checkVisible,
       shortcutTooltip: Boolean(shortcutTooltip),
@@ -1369,9 +1391,10 @@ async function assertNoAutomaticFloatingExpansion(page, durationMs = 160) {
 }
 
 function isCollapsedFloatingUiState(state, translated) {
-  return Boolean(state.host && state.ball && !state.expanded && state.translated === translated &&
+  return Boolean(state.host && state.ball && state.translateTool && !state.mainCheck && !state.expanded &&
+    state.translateToolPressed === String(translated) && state.translated === translated &&
     Math.abs(state.mainOpacity - 0.52) <= 0.03 && state.translateToolOpacity === 0 &&
-    state.check === translated && (!translated || state.checkVisible));
+    state.check === translated && !state.checkVisible);
 }
 
 function assertCollapsedFloatingUi(state, translated, label) {
@@ -1381,7 +1404,10 @@ function assertCollapsedFloatingUi(state, translated, label) {
 }
 
 function isExpandedFloatingUiState(state) {
-  return Boolean(state.expanded && Math.abs(state.mainOpacity - 1) <= 0.01 && state.translateToolOpacity === 1);
+  return Boolean(state.host && state.ball && state.translateTool && !state.mainCheck && state.expanded &&
+    ['true', 'false'].includes(state.translateToolPressed) &&
+    state.check === state.translated && state.checkVisible === state.translated &&
+    Math.abs(state.mainOpacity - 1) <= 0.01 && state.translateToolOpacity === 1);
 }
 
 function assertExpandedFloatingUi(state, label) {
@@ -1986,7 +2012,8 @@ async function main() {
   const { chromium } = loadPlaywright(args.playwrightRoot);
   const focusSafe = args.background ? loadFocusSafeBrowser(args.focusSafeHelper) : null;
   let context;
-  let closeBrowser = async () => { if (context) await context.close().catch(() => {}); };
+  let closeBrowser;
+  let primaryError, evidence;
   let createIsolatedPage = () => context.newPage();
   let activateTestPage = async () => undefined;
   let launchMode = args.background ? null : 'playwright-headed';
@@ -2022,8 +2049,9 @@ async function main() {
         viewport: { width: 1280, height: 900 },
         timeout: args.timeout,
       });
-      context = browserSession.context;
+      guardBrowserClose(browserSession, profileDir);
       closeBrowser = browserSession.close;
+      context = browserSession.context;
       createIsolatedPage = () => focusSafe.newPageWithoutForeground(context, args.timeout);
       activateTestPage = page => focusSafe.activateExtensionTabWithoutForeground(context, page, args.timeout);
       launchMode = browserSession.launchMode;
@@ -2036,6 +2064,7 @@ async function main() {
         viewport: { width: 1280, height: 900 },
         args: browserArgs,
       });
+      closeBrowser = () => context.close();
     }
     translationFixtureServer = await startTranslationFixtureServer(
       unexpectedNetworkRequests,
@@ -2092,6 +2121,10 @@ async function main() {
         fullPageTranslationMode: 'viewport',
         // 点击本体默认切换全文翻译；这里验证“仅拖动”模式下点击 Logo 的几何与页面稳定性。
         floatingBallClickAction: 'none',
+        // 此场景明确验证 hover 模式；常驻模式另按产品契约验收。
+        floatingBallToolsDisplay: 'hover',
+        floatingBallHoverDelay: 0,
+        floatingBallCollapsedOpacity: 52,
         // 关闭免滚动预翻译，离屏 fixture 才能保留待滚动候选。
         eagerTranslationCharacters: 0,
       });
@@ -2664,7 +2697,7 @@ async function main() {
       throw new Error('图标字体连字进入了翻译服务请求');
     }
 
-    const evidence = {
+    evidence = {
       ok: true,
       windowMode: args.background ? windowPlacement?.mode : 'headed-isolated',
       launchMode,
@@ -2716,11 +2749,38 @@ async function main() {
       fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(evidence, null, 2)}\n`);
     }
     process.stdout.write(`${JSON.stringify(evidence, null, 2)}\n`);
-  } finally {
-    await closeBrowser();
-    await translationFixtureServer?.close().catch(() => {});
-    await fixtureServer?.close().catch(() => {});
-    fs.rmSync(profileDir, { recursive: true, force: true });
+  } catch (error) {primaryError = error; throw error;} finally {
+    const cleanupErrors = [];
+    const cleanupDetails = [];
+    let retainedProfile;
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        cleanupDetails.push({resource, error: String(error.stack || error)});
+        if (resource === 'profile') retainedProfile = profileDir;
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (closeBrowser) {await closeBrowser(); browserClosed = true;}
+    });
+    await cleanup('translation fixture', async () => {await translationFixtureServer?.close();});
+    await cleanup('page fixture', async () => {await fixtureServer?.close();});
+    await cleanup('profile', () => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else retainedProfile = profileDir;
+    });
+    if (evidence && (cleanupErrors.length || retainedProfile)) {
+      evidence.ok = false;
+      evidence.cleanupErrors = cleanupDetails;
+      if (retainedProfile) evidence.retainedProfile = retainedProfile;
+      if (artifactsDir) await cleanup('report', () => {
+        fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+      });
+    }
+    if (retainedProfile) process.stderr.write(`Unconfirmed browser/profile cleanup; retained profile: ${retainedProfile}\n`);
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 
@@ -2732,6 +2792,9 @@ if (require.main === module) {
 }
 
 module.exports = {
+  readFloatingUiState,
+  isCollapsedFloatingUiState,
+  isExpandedFloatingUiState,
   readConfig,
   installTranslationFixtureOnWorker,
   toggleFullPage,
@@ -2741,6 +2804,7 @@ module.exports = {
   assertSingleSourceProtection,
   assertSingleCloneRestoration,
   assertUnchangedAttributeStability,
+  waitForUnchangedAttributeBaseline,
   buildFixtureMicrosoftResponseBody,
   createFixtureRequestHandler,
   getConfigurationPage,

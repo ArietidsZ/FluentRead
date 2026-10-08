@@ -122,12 +122,10 @@ export function installBilingualSentenceHighlight(document: Document): () => voi
         const point = pending;
         if (!point || point.event.buttons || document.getSelection()?.isCollapsed === false) return clear();
         const {event, target: hit} = point;
-        if (!installed) return;
         const nextOwner = hit && (hit === ownerTarget ? owner : ownerFor(hit));
         if (!nextOwner?.isConnected) return clear();
         if (nextOwner !== owner) {
             clear();
-            if (!installed) return;
             owner = nextOwner;
             const wrappers = Array.from(owner.children).filter(child => child.matches(wrapperSelector));
             if (wrappers.length !== 1) return clear();

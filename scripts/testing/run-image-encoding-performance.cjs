@@ -14,7 +14,9 @@ const { launchFocusSafePersistentContext, newPageWithoutForeground } = require(f
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-encoding-'));
 (async () => {
     let launched;
+    let launchAttempted = false;
     try {
+        launchAttempted = true;
         launched = await launchFocusSafePersistentContext({ chromium, profileDir, browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), headless: false, background: true, viewport: { width: 1280, height: 900 } });
         assert.equal(launched.windowPlacement.browserFrontmost, false);
         const page = await newPageWithoutForeground(launched.context);
@@ -92,8 +94,8 @@ const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-encoding-')
         if (launched) {
             await launched.close();
             fs.rmSync(profileDir, { recursive: true, force: true });
-        } else {
-            try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
+        } else if (!launchAttempted) {
+            try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
         }
     }
 })().catch(error => { console.error(error); process.exitCode = 1; });

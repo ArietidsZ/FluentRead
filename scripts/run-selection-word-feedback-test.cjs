@@ -97,7 +97,7 @@ async function main() {
     }
     res.end('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');
   });
-  
+
   try {
     await new Promise((resolve, reject) => {
     const onError = error => {server.off('listening', onListening); reject(error);};

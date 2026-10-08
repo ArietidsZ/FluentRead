@@ -749,6 +749,7 @@ function updateTheme(theme: string) {
 }
 // 配置信息
 const config = ref(new Config());
+let applyingExternalConfig = false;
 const {
   getCustomHotkeyDisplayName,
   getCustomMouseHotkeyDisplayName,
@@ -773,7 +774,9 @@ const {
   validateCustomFullPageHotkey,
   validateCustomMouseHotkey,
   validateCustomSelectionHotkey,
-} = useTranslationShortcutSettings(config, kind => viewActive.value && props.activeSection === (kind === 'selection' ? 'settings-selection' : 'settings-translation'));
+} = useTranslationShortcutSettings(config,
+  kind => viewActive.value && props.activeSection === (kind === 'selection' ? 'settings-selection' : 'settings-translation'),
+  () => applyingExternalConfig);
 const customProviderDialogOpen = ref(false);
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
@@ -782,7 +785,6 @@ const saveSiteAdaptationSettings = (value: SiteAdaptationConfig): Promise<void> 
   persistConfigPatch({siteAdaptation: value});
 let lastSerialized = '';
 let hydrated = false;
-let applyingExternalConfig = false;
 let pageExitSaveStarted = false;
 const unsubscribeConfig = subscribeConfig((nextConfig) => {
   if (disposed) return;

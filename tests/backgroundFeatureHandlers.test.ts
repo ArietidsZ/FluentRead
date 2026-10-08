@@ -1031,7 +1031,7 @@ describe('后台 feature handlers', () => {
     });
 
     it('图片 legacy 并发窗口共享绝对预算，超时后不再启动后续段', async () => {
-        vi.useFakeTimers();
+        vi.useFakeTimers({toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout']});
         vi.setSystemTime(0);
         try {
             const translateTexts = vi.fn((request: {origin: string | string[]; requestTimeoutMs: number}) => (

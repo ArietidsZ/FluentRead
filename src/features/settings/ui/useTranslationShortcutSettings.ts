@@ -15,7 +15,8 @@ const selectionShortcutTriggers = new Set(['Control', 'Alt', 'Shift', 'custom'])
 type ShortcutKind = 'page' | 'hover' | 'selection';
 const kinds: readonly ShortcutKind[] = ['page', 'hover', 'selection'];
 
-export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (kind: ShortcutKind) => boolean = () => true) {
+export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (kind: ShortcutKind) => boolean = () => true,
+    isApplyingExternalConfig: () => boolean = () => false) {
     const {t, translateLegacy} = useUiI18n();
     const showCustomHotkeyDialog = ref(false);
     const showCustomMouseHotkeyDialog = ref(false);
@@ -28,7 +29,7 @@ export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (k
         hover: {mode: 'hotkey', custom: 'customHotkey', fallback: 'Control', visible: showCustomMouseHotkeyDialog, previous: previousMouseHotkey},
         selection: {mode: 'selectionTranslatorTrigger', custom: 'customSelectionTranslatorHotkey', fallback: 'icon', visible: showCustomSelectionHotkeyDialog, previous: previousSelectionTrigger},
     } as const;
-    const owners: Record<ShortcutKind, Config | null> = {page: null, hover: null, selection: null};
+    const owners: Record<ShortcutKind, {config: Config; mode: string; custom: string} | null> = {page: null, hover: null, selection: null};
     const timers: Record<ShortcutKind, ReturnType<typeof setTimeout> | null> = {page: null, hover: null, selection: null};
     let disposed = false;
     const available = (kind: ShortcutKind): boolean => !disposed && isActive(kind);
@@ -53,14 +54,14 @@ export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (k
         draft.previous.value = null;
         owners[kind] = null;
         // 清除归属后再写配置，同步 watcher 不会重复恢复；旧配置和用户的新选择都不能被取消覆盖。
-        if (restore && owner === config.value && previous !== null
+        if (restore && owner?.config === config.value && previous !== null
             && config.value[draft.mode] === 'custom' && !config.value[draft.custom]) setMode(kind, previous);
     }
     function openDialog(kind: ShortcutKind): void {
         if (!available(kind)) return;
         clearTimer(kind);
         const draft = drafts[kind];
-        owners[kind] = config.value;
+        owners[kind] = {config: config.value, mode: config.value[draft.mode], custom: config.value[draft.custom]};
         if (!config.value[draft.custom] && draft.previous.value === null && config.value[draft.mode] === 'custom') {
             draft.previous.value = draft.fallback;
         }
@@ -82,13 +83,17 @@ export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (k
         if (draft.previous.value === null) {
             draft.previous.value = config.value[draft.mode] === 'custom' ? draft.fallback : config.value[draft.mode];
         }
-        owners[kind] = config.value;
-        setMode(kind, value);
+        // 空的划词自定义值会被持久化规范化为 icon。确认前保留已生效的触发方式，
+        // 录制意图只归本地草稿所有，避免保存回声提前关闭弹窗。
+        const mode = kind === 'selection' ? draft.previous.value! : value;
+        owners[kind] = {config: config.value, mode, custom: config.value[draft.custom]};
+        setMode(kind, mode);
         clearTimer(kind);
         timers[kind] = setTimeout(() => {
             timers[kind] = null;
-            if (available(kind) && owners[kind] === config.value
-                && config.value[draft.mode] === 'custom' && !config.value[draft.custom]) openDialog(kind);
+            const owner = owners[kind];
+            if (available(kind) && owner?.config === config.value
+                && config.value[draft.mode] === owner.mode && !config.value[draft.custom]) openDialog(kind);
         }, 100);
     }
     function displayName(kind: ShortcutKind): string {
@@ -99,7 +104,7 @@ export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (k
         return parsed.isValid ? parsed.displayName : value;
     }
     function confirm(kind: ShortcutKind, hotkey: string): void {
-        if (!available(kind) || owners[kind] !== config.value || quickTranslationConflictMessage(hotkey)) return;
+        if (!available(kind) || owners[kind]?.config !== config.value || quickTranslationConflictMessage(hotkey)) return;
         config.value[drafts[kind].custom] = hotkey === 'none' ? '' : hotkey;
         setMode(kind, hotkey === 'none' ? (kind === 'selection' ? 'icon' : 'none') : 'custom');
         closeDraft(kind, false);
@@ -113,11 +118,17 @@ export function useTranslationShortcutSettings(config: Ref<Config>, isActive: (k
         config.value.hotkey, config.value.customHotkey, config.value.selectionTranslatorTrigger,
         config.value.customSelectionTranslatorHotkey, ...kinds.map(kind => isActive(kind))], () => {
         for (const kind of kinds) {
-            if (!owners[kind]) continue;
+            const owner = owners[kind];
+            if (!owner) continue;
             const draft = drafts[kind];
             if (!available(kind)) closeDraft(kind, true);
-            else if (owners[kind] !== config.value || config.value[draft.mode] !== 'custom') closeDraft(kind, false);
-            else if (timers[kind] !== null && config.value[draft.custom]) closeDraft(kind, false);
+            else if (owner.config !== config.value || config.value[draft.mode] !== owner.mode) closeDraft(kind, false);
+            else if (isApplyingExternalConfig() && config.value[draft.custom] !== owner.custom) closeDraft(kind, false);
+            else if (timers[kind] !== null && config.value[draft.custom]) {
+                closeDraft(kind, false);
+                // 外部完整快照已经决定触发方式；只把本地等待期间录入的值启用为自定义。
+                if (kind === 'selection') setMode(kind, 'custom');
+            }
         }
     }, {flush: 'sync'});
     onScopeDispose(() => {disposed = true; for (const kind of kinds) closeDraft(kind, true);});

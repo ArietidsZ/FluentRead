@@ -159,12 +159,12 @@ function collectSlots(
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
     protectionOptions?: TranslationTextProtectionOptions,
+    protectionCache = createTranslationTextProtectionCache(),
 ): TranslationTextSlot[] {
     const slots: TranslationTextSlot[] = [];
     const document = root.ownerDocument;
     if (!document?.createTreeWalker) return slots;
     const walker = document.createTreeWalker(root, 4);
-    const protectionCache = createTranslationTextProtectionCache();
     let current = walker.nextNode();
     while (current) {
         const node = current as Text;
@@ -273,17 +273,20 @@ export function createTranslationSourceSnapshot(
     return {clone, slots};
 }
 
+/** 传入缓存只可在判定参数相同的同步只读阶段复用；写 DOM 后必须换新。 */
 export function collectLiveTranslationTextSlots(
     node: HTMLElement,
     shouldStayOriginal?: (element: Element) => boolean,
     ignoredExtensionElement?: Element,
     protectionOptions?: TranslationTextProtectionOptions,
+    protectionCache?: TranslationTextProtectionCache,
 ): TranslationTextSlot[] {
     return collectSlots(
         node,
         shouldStayOriginal,
         ignoredExtensionElement,
         protectionOptions,
+        protectionCache,
     );
 }
 

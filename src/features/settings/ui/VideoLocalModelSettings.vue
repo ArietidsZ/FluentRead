@@ -122,7 +122,7 @@ const cacheError = ref('');
 const clearingCache = ref(false);
 const mounted = ref(false);
 // 记录已交给后台、尚未回包的各模型下载；视图停用不会取消这些任务。
-const pendingDownloads = new Set<VideoLocalTranscriptionModel>();
+const pendingDownloads = ref(new Set<VideoLocalTranscriptionModel>());
 let modelGeneration = 0;
 let cacheGeneration = 0;
 
@@ -132,7 +132,7 @@ function selectModel(model: VideoLocalTranscriptionModel, current: () => boolean
 }
 
 function isDownloading(model: VideoLocalTranscriptionModel): boolean {
-  return !downloaded.value.includes(model) && (downloading.value.includes(model) || observedDownloads.value.includes(model));
+  return !downloaded.value.includes(model) && (downloading.value.includes(model) || observedDownloads.value.includes(model) || pendingDownloads.value.has(model));
 }
 
 function handleDownloadProgress(id: string, next: DownloadProgressValue | undefined): void {
@@ -172,12 +172,12 @@ async function download(model: VideoLocalTranscriptionModel, current = capture()
     downloadError.value = '当前浏览器不支持本地 AI 字幕';
     return;
   }
-  if (pendingDownloads.has(model) || downloaded.value.includes(model) || isDownloading(model)) return;
+  if (pendingDownloads.value.has(model) || downloaded.value.includes(model) || isDownloading(model)) return;
   modelGeneration++;
   downloadError.value = '';
   progress.value = {...progress.value, [model]: undefined};
   downloading.value = [...downloading.value, model];
-  pendingDownloads.add(model);
+  pendingDownloads.value.add(model);
   try {
     const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalVideoModel', model}) as {success?: boolean; models?: unknown; error?: string} | undefined;
     if (!current()) return;
@@ -185,13 +185,13 @@ async function download(model: VideoLocalTranscriptionModel, current = capture()
   } catch (error) {
     if (current()) downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试';
   } finally {
-    pendingDownloads.delete(model);
+    pendingDownloads.value.delete(model);
     if (current()) {
       downloading.value = downloading.value.filter(item => item !== model);
       observedDownloads.value = observedDownloads.value.filter(item => item !== model);
-      // 回包可能早于其他命令/外部变化；最后一项本页命令结束后重读权威 storage。
-      await refresh();
     }
+    // 命令结算后新视图独立重读权威状态，不移交旧回包或错误。
+    if (active.value) await refresh();
   }
 }
 
@@ -280,7 +280,6 @@ watch(() => [mounted.value, revision.value], () => {
     document.removeEventListener('visibilitychange', refreshVisibleCacheStats);
     window.removeEventListener('focus', refreshVisibleCacheStats);
   };
-  observedDownloads.value = [...pendingDownloads];
   void refresh(true);
   void refreshCacheStats();
 }, {flush: 'sync'});

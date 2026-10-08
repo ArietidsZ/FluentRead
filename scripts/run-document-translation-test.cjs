@@ -4,6 +4,7 @@
 // 文档产品流程回归：临时 profile、生产扩展、真实 UI 输入和下载，网络仅连接本机确定性服务。
 // 覆盖所有支持格式、长 PDF/归档取消重试、暂停续译、失败恢复、完整校订、设置变化、离开保护及响应式外观。
 const assert = require('node:assert/strict');
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -44,7 +45,7 @@ async function main() {
   const formats = arg('formats', 'sample.pdf,sample.epub,sample.docx,sample.html,sample.txt,sample.md,sample.srt,sample.vtt,sample.ass,sample.ssa,sample.lrc,sample.json').split(',');
   const exampleDir = path.resolve(arg('example-dir', 'examples/document-translation'));
   const packages = arg('playwright-root');
-  const helperPath = arg('focus-safe-helper');
+  const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
   assert(packages && helperPath, '需要 Playwright 和 focus-safe helper');
   const requireRuntime = createRequire(path.join(packages, 'document-runner.cjs'));
   const {chromium} = requireRuntime('playwright');
@@ -60,6 +61,7 @@ async function main() {
       browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
       background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     const context = launched.context;
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout: 30000});
@@ -465,7 +467,7 @@ async function main() {
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
     assert.match(await page.locator('.workspace-heading h1').innerText(), /long-document/);
     await select('文档目标语言', '日本語 / Japanese / 日语');
-    await page.locator('.notice.warning').filter({hasText: '设置已更改'}).waitFor();
+    await page.locator('.document-taskbar .notice.warning.task-notice').filter({hasText: '设置已更改'}).waitFor();
     await page.getByRole('button', {name: '按新设置翻译'}).click();
     await page.locator('dialog[open]').getByRole('button', {name: '返回文档'}).click();
     await select('文档目标语言', '简体中文 / Simplified Chinese');
@@ -486,7 +488,7 @@ async function main() {
     await load('failure.txt', Buffer.from('A successful first paragraph.\n\nAnother successful paragraph.\n\nFailure target paragraph.'));
     await page.getByRole('button', {name: '开始翻译', exact: true}).click();
     await status('翻译中断');
-    assert(Number(await page.getByRole('progressbar').getAttribute('aria-valuenow')) < 100);
+    assert(Number(await page.getByRole('progressbar', {name: '文档翻译进度', includeHidden: true}).getAttribute('aria-valuenow')) < 100);
     await shot('08-interrupted');
     fixture.state.fail = false;
     await page.locator('.translation-actions button').click();
@@ -594,15 +596,18 @@ async function main() {
     throw error;
   } finally {
     report.cleanupErrors = [];
-    let closed = !launchAttempted;
+    let closed = false;
     if (launched) {
       try {await launched.close(); closed = true;}
-      catch (error) {report.cleanupErrors.push(`session close: ${error.message}`);}
+      catch (error) {report.cleanupErrors.push(`session close: ${error.stack || error}`);}
     }
     try {await fixture?.close();} catch (error) {report.cleanupErrors.push(`fixture close: ${error.message}`);}
     if (profileDir) {
       if (closed) {
         try {fs.rmSync(profileDir, {recursive: true, force: true});}
+        catch (error) {report.cleanupErrors.push(`profile removal: ${error.message}`); report.retainedProfile = profileDir;}
+      } else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);}
         catch (error) {report.cleanupErrors.push(`profile removal: ${error.message}`); report.retainedProfile = profileDir;}
       } else report.retainedProfile = profileDir;
     }

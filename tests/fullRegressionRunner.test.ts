@@ -60,15 +60,28 @@ describe('full regression runner', () => {
             'vitest-unit',
             'vitest-functional',
             'vitest-regression',
+            'agent-bridge',
+            'focus-safe-browser-lifecycle',
             'chrome-build',
             'firefox-build',
             'firefox-zip',
             'extension-manifest-verifier',
             'userscript-build',
             'userscript-verifier',
+            'docs-typecheck',
+            'storybook-typecheck',
             'docs-build',
+            'storybook-build',
+            'storybook-verifier',
+            'docs-verifier',
         ]);
         const firefoxZip = plan.steps.find((step: {id: string}) => step.id === 'firefox-zip');
+        expect(plan.steps.find((step: {id: string}) => step.id === 'agent-bridge')).toMatchObject({
+            command: 'node', args: ['--test', 'tests/agentBridge.test.mjs'],
+        });
+        expect(plan.steps.find((step: {id: string}) => step.id === 'focus-safe-browser-lifecycle')).toMatchObject({
+            phase: 'local', command: 'node', args: ['--test', 'tests/focusSafeBrowserOrdinaryLifecycle.test.mjs'],
+        });
         const manifestVerifier = plan.steps.find(
             (step: {id: string}) => step.id === 'extension-manifest-verifier',
         );

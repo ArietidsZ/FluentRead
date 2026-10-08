@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 
 // 在独立产物副本中验证生产 Worker 的模块加载/消息，再用真实 ORT 执行微型 ONNX 图。
 // 只附加测试页/Worker，保留被测扩展的 CSP；不下载模型、不修改生产产物。
@@ -14,11 +15,9 @@ const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-ort
 const prototype = process.argv.includes('--prototype');
 const diagnostics = process.argv.includes('--diagnostics');
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-profile-'));
-const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-extension-'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
+let profile, fixture;
 fs.mkdirSync(artifacts, {recursive: true});
-fs.cpSync(source, fixture, {recursive: true});
 const report = {source, prototype, diagnostics, workerEntries: [], cases: [], errors: [], evidence: 'Production Worker entry/chunk loading and no-model message handling, plus real ONNX Identity sessions in owned probe Workers; this does not claim full translation, speech synthesis or transcription quality.'};
 const expectedDigests = {};
 
@@ -33,6 +32,12 @@ const valueInfo = name => message(name === 'input' ? 11 : 12, Buffer.concat([
 const unused = diagnostics ? message(5, Buffer.concat([scalar(1, 1), scalar(2, 1), message(8, 'unused_diagnostic_probe'), message(9, Buffer.from([0, 0, 128, 63]))])) : Buffer.alloc(0);
 const graph = Buffer.concat([message(1, Buffer.concat([message(1, 'input'), message(2, 'output'), message(4, 'Identity')])), message(2, 'identity'), valueInfo('input'), valueInfo('output'), unused]);
 const model = Buffer.concat([scalar(1, 8), message(7, graph), message(8, scalar(2, 13))]);
+(async () => {
+  let session, primaryError, launchAttempted = false;
+  try {
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-profile-'));
+    fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-ort-smoke-extension-'));
+    fs.cpSync(source, fixture, {recursive: true});
 fs.writeFileSync(path.join(fixture, 'probe-model.onnx'), model);
 fs.writeFileSync(path.join(fixture, 'probe.html'), '<!doctype html><title>ORT packaged runtime verification</title><h1>ORT packaged runtime verification</h1>');
 
@@ -76,12 +81,13 @@ self.onmessage = async ({data: {backend}}) => {
 };`);
 }
 
-(async () => {
-  let session;
-  try {
+
+
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({chromium, profileDir: profile,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
       viewport: {width: 1100, height: 800}, browserArgs: ['--no-first-run', '--no-default-browser-check', `--disable-extensions-except=${fixture}`, `--load-extension=${fixture}`]});
+    guardBrowserClose(session, profile);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     const {context} = session;
     const background = context.serviceWorkers().find(worker => worker.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', {timeout: 30000});
@@ -154,12 +160,37 @@ self.onmessage = async ({data: {backend}}) => {
     }
     assert.deepEqual(report.errors, []);
     report.ok = true;
-    console.log(JSON.stringify(report, null, 2));
-  } catch (error) {report.ok = false; report.failure = error.stack; console.error(error); process.exitCode = 1;}
+  } catch (error) {primaryError = error; report.ok = false; report.failure = error.stack; console.error(error); process.exitCode = 1;}
   finally {
-    fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) await session.close();
-    fs.rmSync(profile, {recursive: true, force: true});
-    fs.rmSync(fixture, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('extension fixture', () => {
+      // 启动尝试后，活浏览器可能仍从副本加载 Worker/WASM。
+      if (fixture && (!launchAttempted || browserClosed)) fs.rmSync(fixture, {recursive: true, force: true});
+    });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profile); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    report.cleaned = (!profile || !fs.existsSync(profile)) && (!fixture || !fs.existsSync(fixture));
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
-})();
+  if (report.ok) console.log(JSON.stringify(report, null, 2));
+})().catch(error => {console.error(error); process.exitCode = 1;});

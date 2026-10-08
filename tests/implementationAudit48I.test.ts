@@ -251,18 +251,26 @@ async function mountReading(service = 'openai') {
     expect((component as any).render).toBeTypeOf('function');
     app = renderer.createApp(component); app.directive('ui-i18n', {}); app.mount(doc.querySelector('#fluent-read-selection-translator-container')!);
     await settle(); expect(translateSelectionFromContextMenu()).toBe(true); await settle();
-    function click(selector: string, index = 0) {
-        const target = doc.querySelectorAll(selector)[index]; expect(target).toBeTruthy();
+    function click(selector: string, index: number | string = 0) {
+        const targets = Array.from(doc.querySelectorAll(selector));
+        const target = typeof index === 'number' ? targets[index] : targets.find(node => node.textContent?.trim() === index);
+        if (!target) throw new Error(`Missing public control ${selector} (${index})`);
         const fn = handlers.get(target)?.onClick; expect(fn).toBeTypeOf('function');
         fn({target, currentTarget: target, stopPropagation() {}, preventDefault() {}});
     }
-    click('.fr-study-toolbar button'); await settle();
+    click('.fr-study-toolbar button', '读懂'); await settle();
     expect(doc.querySelector('[data-reading-panel]')).not.toBeNull(); expect(streams).toHaveLength(1);
     function finish(answer: string, stream = streams.at(-1)!) {
         for (const fn of stream.messages) fn({type: 'result', requestId: stream.request.requestId,
             response: {success: true, text: answer, service: 'openai', model: 'controlled-model'}});
     }
-    async function choose(index: number) {click('.fr-reading-actions button', index); await settle();}
+    async function choose(index: number) {
+        // SelectionTranslator owns main's visible action navigation; its real
+        // ReadingPanel receives the action through the public initialAction prop.
+        const label = ['读懂', '词性与句法', '用法', '练习'][index];
+        expect(label).toBeTypeOf('string');
+        click('.fr-study-toolbar button', label); await settle();
+    }
     function updateCredentials(change: (value: any) => any) {background.emit('local:credentials', change(background.records.get('local:credentials')));}
     return {background, store, doc, streams, tabMessages, broadcastRuntime, finish, choose, click, updateCredentials, frames};
 }

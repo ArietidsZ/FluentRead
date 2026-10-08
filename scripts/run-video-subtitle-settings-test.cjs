@@ -155,7 +155,9 @@ async function main() {
     consoleErrors: [],
   };
   let session;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({
       chromium: playwright.chromium,
       profileDir,
@@ -328,8 +330,8 @@ async function main() {
     if (session) {
       await session.close();
       fs.rmSync(profileDir, {recursive: true, force: true});
-    } else {
-      try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
+    } else if (!launchAttempted) {
+      try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
     }
     fs.writeFileSync(path.join(options.artifactsDir, 'report.json'), JSON.stringify(result, null, 2));
   }

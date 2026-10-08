@@ -93,6 +93,7 @@ interface ResolutionEvaluationContext {
     topLevelApplicationShellBypassed: boolean;
     hardGuards: WeakMap<Element, HardGuardResult>;
     adapterDecisions: WeakMap<Element, AdapterDecisionResult>;
+    adapterContext?: AdapterContext;
     adapterPrunedAncestors: WeakMap<Element, AdapterPrunedAncestor | null>;
     extensionElements: WeakMap<Element, boolean>;
     structuralContainers: WeakMap<Element, boolean>;
@@ -244,7 +245,7 @@ export class TranslationCandidateCore {
 
         for (const adapter of this.adapters) {
             try {
-                const decision = adapter.decide(element, this.context);
+                const decision = adapter.decide(element, this.adapterContextForResolution(evaluationContext));
                 if (decision.kind !== 'pass') {
                     const result = {decision, adapterId: adapter.id};
                     evaluationContext?.adapterDecisions.set(element, result);
@@ -267,13 +268,21 @@ export class TranslationCandidateCore {
         return !this.adapters.some((adapter) => adapter.genericCandidatePolicy === 'targets-only');
     }
 
-    shouldStayOriginal = (element: Element): boolean => this.adapters.some((adapter) => {
-        try {
-            return adapter.shouldStayOriginal?.(element, this.context) === true;
-        } catch {
-            return false;
-        }
-    });
+    private adapterContextForResolution(evaluationContext?: ResolutionEvaluationContext): AdapterContext {
+        return evaluationContext?.adapterContext ?? this.context;
+    }
+
+    shouldStayOriginal = (element: Element): boolean => this.shouldStayOriginalWithContext(element, this.context);
+
+    private shouldStayOriginalWithContext(element: Element, context: AdapterContext): boolean {
+        return this.adapters.some((adapter) => {
+            try {
+                return adapter.shouldStayOriginal?.(element, context) === true;
+            } catch {
+                return false;
+            }
+        });
+    }
 
     /** 双语快照省略宿主元数据；原文保护仍由 shouldStayOriginal 独立负责。 */
     shouldOmitFromTranslation = (element: Element): boolean => this.adapters.some((adapter) => {
@@ -431,6 +440,8 @@ export class TranslationCandidateCore {
 
     inspect(element: Element, textProtectionOptions?: TranslationTextProtectionOptions): TranslationCoreInspection {
         const evaluationContext = createResolutionEvaluationContext(textProtectionOptions);
+        // 只在此同步只读 inspect 生效；resolve/discover 与不同 owner 不共享。
+        evaluationContext.adapterContext = {...this.context, closestSelectorMisses: new WeakMap()};
         return this.inspectWithTextProtectionCache(
             element,
             evaluationContext.textProtectionCache,
@@ -443,6 +454,10 @@ export class TranslationCandidateCore {
         textProtectionCache: TranslationTextProtectionCache,
         evaluationContext?: ResolutionEvaluationContext,
     ): TranslationCoreInspection {
+        const adapterContext = this.adapterContextForResolution(evaluationContext);
+        const shouldStayOriginal = evaluationContext?.adapterContext
+            ? (item: Element) => this.shouldStayOriginalWithContext(item, adapterContext)
+            : this.shouldStayOriginal;
         const hardGuard = this.hardGuard(element, evaluationContext);
         if (hardGuard.prune) {
             return {candidate: null};
@@ -461,7 +476,7 @@ export class TranslationCandidateCore {
             const target = asHTMLElement(decision.target ?? element);
             if (!target || !hasMeaningfulTranslationTextInNodes(
                 [target],
-                this.shouldStayOriginal,
+                shouldStayOriginal,
                 textProtectionCache,
                 evaluationContext?.textProtectionOptions,
             ) ||
@@ -489,7 +504,7 @@ export class TranslationCandidateCore {
         }
         const classification = classifyGenericCandidate(
             element,
-            this.shouldStayOriginal,
+            shouldStayOriginal,
             evaluationContext !== undefined,
             textProtectionCache,
             evaluationContext?.textProtectionOptions,

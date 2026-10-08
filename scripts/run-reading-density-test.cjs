@@ -142,7 +142,7 @@ async function main(){
   for(const part of response.match(/[\s\S]{1,40}/g)){res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{content:part},finish_reason:null}]})+'\n\n');await wait(chunkDelay);}
   res.end('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');
  });
- 
+
  try{
    await new Promise((resolve, reject) => {
     const onError = error => {server.off('listening', onListening); reject(error);};

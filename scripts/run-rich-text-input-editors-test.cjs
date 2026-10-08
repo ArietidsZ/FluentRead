@@ -97,7 +97,9 @@ const EDITORS = [
 
 let session;
 async function main() {
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true,
       headless: false, viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000,
@@ -198,8 +200,8 @@ async function main() {
       if (session) {
         await session.close();
         fs.rmSync(profileDir, {recursive: true, force: true});
-      } else {
-        try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
+      } else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
       }
     }
   }

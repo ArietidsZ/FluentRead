@@ -28,7 +28,21 @@ vi.mock('element-plus', async () => {
     const {defineComponent, h} = await import('vue');
     return {ElTooltip: defineComponent({setup: (_, {slots}) => () => h('span', slots.default?.())})};
 });
-import {createApp, defineComponent, getCurrentInstance, h, nextTick, reactive, watch, type App, type Component} from 'vue';
+vi.mock('@/src/features/settings/ui/components/SegmentedControl.vue', async importOriginal => {
+    const {default: SegmentedControl} = await importOriginal<typeof import('@/src/features/settings/ui/components/SegmentedControl.vue')>();
+    const {defineComponent, h} = await import('vue');
+    return {default: defineComponent({name: 'ObservedSegmentedControl', inheritAttrs: false,
+        props: ['modelValue', 'options', 'label', 'disabled', 'compact', 'onUpdate:modelValue'],
+        setup(props, {attrs}) {
+            // Observe the complete event callback supplied through the public
+            // component prop contract. Keep the real control and client DOM;
+            // retain this render's callback to model a queued control event.
+            ports.controls.push({label: props.label, update: props['onUpdate:modelValue']});
+            return () => h(SegmentedControl, {...attrs, ...props});
+        },
+    })};
+});
+import {createApp, defineComponent, h, nextTick, reactive, watch, type App, type Component} from 'vue';
 import RequestLimitSettings from '@/src/features/settings/ui/services/RequestLimitSettings.vue';
 import ReadingPanel from '@/src/features/reading-assistant/ui/ReadingPanel.vue';
 import {normalizeConfig} from '@/src/core/config/model';
@@ -54,8 +68,6 @@ afterEach(async () => {
 });
 const ElOption = defineComponent({props: ['label', 'value'], setup: props => () => h('option', {value: props.value}, props.label)});
 const ElSelect = defineComponent({props: ['modelValue'], emits: ['update:modelValue'], setup(props, {attrs, slots, emit}) {
-    // 捕获控件当时收到的真实 SFC callback；emit 会读取更新后的 vnode，不能模拟迟到的旧回调。
-    ports.controls.push({attrs, change: getCurrentInstance()!.vnode.props!['onUpdate:modelValue']});
     return () => h('select', {...attrs, value: props.modelValue, onChange: (event: Event) => emit('update:modelValue', (event.target as HTMLSelectElement).value)}, slots.default?.());
 }});
 const ElInputNumber = defineComponent({props: ['modelValue', 'disabled', 'min', 'max'], emits: ['change'], setup(props, {attrs, emit}) {
@@ -70,10 +82,6 @@ async function mount(component: Component, props: Record<string, any>) {
     app.component('el-select', ElSelect); app.component('el-option', ElOption); app.component('el-input-number', ElInputNumber);
     mounted.add(app); app.mount(host); await settle();
     return {host, state, stop: () => {app.unmount(); mounted.delete(app);}};
-}
-function choose(host: HTMLElement, selector: string, value: string) {
-    const select = host.querySelector<HTMLSelectElement>(selector)!;
-    select.value = value; select.dispatchEvent(new Event('change', {bubbles: true}));
 }
 function press(host: HTMLElement, label: string) {
     host.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
@@ -148,8 +156,9 @@ describe('audit48C scoped limit ownership and bounded selected-entry work', () =
         const config = normalizeConfig({serviceRequestLimits: {openai: {enabled: true, limits: {maxConcurrentTranslations: 4}}}});
         const {host, state, stop} = await mount(RequestLimitSettings, {config, service: 'openai', model: 'reader', active: true});
         expect(host.querySelector('input')!.value).toBe('4'); expect(host.querySelector('input')!.disabled).toBe(true);
-        const stale = ports.controls.find(control => control.attrs['aria-label'] === 'settings.requestLimits.mode').change;
-        choose(host, '[aria-label="settings.requestLimits.mode"]', 'custom'); await settle();
+        const stale = ports.controls.find(control => control.label === 'settings.requestLimits.mode').update;
+        expect(stale).toBeTypeOf('function');
+        host.querySelector<HTMLButtonElement>('[data-request-limit-mode] button[data-option-index="1"]')!.click(); await settle();
         const input = host.querySelector<HTMLInputElement>('input')!; expect(input.disabled).toBe(false);
         input.value = '7'; input.dispatchEvent(new Event('change', {bubbles: true})); await settle();
         expect(state.config.modelRequestLimits.openai.reader.limits.maxConcurrentTranslations).toBe(7);

@@ -562,37 +562,45 @@ async function openHistoryRestore() {
 }
 describe('audit49C followup1 configuration restore confirmation ownership', () => {
     it.each(['unmount', 'close'] as const)('does not send a public history restore after %s while confirmation is pending', async boundary => {
-        const page = await openHistoryRestore(); const confirm = deferred<void>(); ports.confirm.mockImplementationOnce(() => confirm.promise);
+        const page = await openHistoryRestore();
         namedButton(page.host, '恢复此版本').click(); await settle();
+        expect(page.host.querySelector('.config-restore-confirm-dialog')).not.toBeNull();
         if (boundary === 'unmount') page.stop(); else {namedButton(page.host, '关闭').click(); await settle();}
-        confirm.resolve(); await settle(); expect(ports.send.mock.calls.map(([message]) => message.type)).not.toContain('configHistoryAction');
+        await settle(); expect(ports.send.mock.calls.map(([message]) => message.type)).not.toContain('configHistoryAction');
+        expect(page.host.querySelector('.config-restore-confirm-dialog')).toBeNull();
         expect(ports.messages).not.toHaveBeenCalled();
     });
     it('allows only one pending confirmation and sends the selected version through the real public client', async () => {
-        const page = await openHistoryRestore(); const confirm = deferred<void>(); ports.confirm.mockImplementation(() => confirm.promise);
+        const page = await openHistoryRestore();
         const restore = namedButton(page.host, '恢复此版本'); restore.click(); restore.click(); await settle();
-        expect(ports.confirm).toHaveBeenCalledOnce(); confirm.resolve(); await settle();
+        expect(page.host.querySelectorAll('.config-restore-confirm-dialog')).toHaveLength(1);
+        expect(ports.confirm).not.toHaveBeenCalled();
+        namedButton(page.host, '恢复').click(); await settle();
         expect(ports.send.mock.calls.map(([message]) => message)).toEqual([{type: 'configHistoryAction', action: 'restore', version: 1}]);
         expect(ports.messages).toHaveBeenCalledWith('success', '设置已恢复');
     });
     it('releases cancellation and failed restore so the same visible version can be retried', async () => {
-        const page = await openHistoryRestore(); ports.confirm.mockRejectedValueOnce('cancel'); namedButton(page.host, '恢复此版本').click(); await settle();
+        const page = await openHistoryRestore(); namedButton(page.host, '恢复此版本').click(); await settle();
+        namedButton(page.host, '取消').click(); await settle();
         expect(ports.send).not.toHaveBeenCalled();
         ports.send.mockResolvedValueOnce({success: false, error: 'controlled restore failure'});
         namedButton(page.host, '恢复此版本').click(); await settle();
+        namedButton(page.host, '恢复').click(); await settle();
         expect(ports.messages).toHaveBeenCalledWith('error', '恢复失败：controlled restore failure');
         namedButton(page.host, '恢复此版本').click(); await settle();
+        namedButton(page.host, '恢复').click(); await settle();
         expect(ports.send).toHaveBeenCalledTimes(2); expect(ports.messages).toHaveBeenLastCalledWith('success', '设置已恢复');
     });
-    it('does not apply a confirmed old target after its preview is closed and another version is opened', async () => {
-        const page = await openHistoryRestore(); const confirm = deferred<void>(); ports.confirm.mockImplementationOnce(() => confirm.promise);
+    it('does not retain the old confirmation after its preview is closed and another version is opened', async () => {
+        const page = await openHistoryRestore();
         namedButton(page.host, '恢复此版本').click(); await settle(); namedButton(page.host, '关闭').click(); await settle();
-        page.host.querySelector<HTMLButtonElement>('.version-entry')!.click(); await settle(); confirm.resolve(); await settle();
+        page.host.querySelector<HTMLButtonElement>('.version-entry')!.click(); await settle();
         expect(ports.send).not.toHaveBeenCalled(); expect(page.host.querySelector('.preview-summary')!.textContent).toContain('v2');
     });
     it.each(['success', 'error'] as const)('ignores a late public restore %s notification after unmount', async result => {
         const page = await openHistoryRestore(); const response = deferred<any>(); ports.send.mockImplementationOnce(() => response.promise);
-        namedButton(page.host, '恢复此版本').click(); await settle(); expect(ports.send).toHaveBeenCalledOnce(); page.stop();
+        namedButton(page.host, '恢复此版本').click(); await settle(); namedButton(page.host, '恢复').click(); await settle();
+        expect(ports.send).toHaveBeenCalledOnce(); page.stop();
         response.resolve(result === 'success' ? {success: true, history: ports.history} : {success: false, error: 'late restore failure'}); await settle();
         expect(ports.messages).not.toHaveBeenCalled();
     });
@@ -607,6 +615,7 @@ describe('audit49C followup2 restore visibility during the dialog closing transi
         if (kind === 'backup') {page.host.querySelector<HTMLButtonElement>('.backup-panel .version-entry')!.click(); await settle();}
         const response = deferred<any>(); ports.send.mockImplementationOnce(() => response.promise);
         const restore = namedButton(page.host, '恢复此版本'); expect(restore.disabled).toBe(false); restore.click(); await settle();
+        namedButton(page.host, '恢复').click(); await settle();
         expect(ports.send).toHaveBeenCalledOnce();
         expect(ports.send.mock.calls[0][0]).toEqual(kind === 'history'
             ? {type: 'configHistoryAction', action: 'restore', version: 1} : {type: 'configAutoBackupRestore', version: 1});

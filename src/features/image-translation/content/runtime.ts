@@ -727,13 +727,13 @@ async function readAuthorizedImage(image: HTMLImageElement, options: {readonly s
     if (!source) throw new Error('图片地址不可用');
     const budget = typeof options.timeoutMs === 'number' && Number.isFinite(options.timeoutMs)
         ? Math.max(1, Math.min(options.timeoutMs, IMAGE_READ_TIMEOUT_MS)) : IMAGE_READ_TIMEOUT_MS;
-    const deadline = Date.now() + budget;
+    const deadline = performance.now() + budget;
     try {return await readPageImageInCors(source, options.signal, budget);}
     catch (readError) {
         if (options.signal?.aborted) throw createImageAbortError();
         // 只有未取得响应的网络/CORS 失败可以改走扩展权限，保留状态、超限、解码和流错误。
         if (!(readError instanceof TypeError)) throw readError;
-        const remaining = deadline - Date.now();
+        const remaining = deadline - performance.now();
         if (remaining <= 0) throw new Error('图片读取超时');
         return withImageSourceAuthorization(image, source, options.signal, requestId =>
             fetchImageInExtension(source, {...options, requestId, timeoutMs: remaining}));

@@ -677,6 +677,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     const providerMessage = attachTranslationRequestScheduler(attachTranslationRouteObserver(
                         attachTranslationModelUsageObserver({
                             ...message,
+                            // 外层排队已消费预算；传给内部 freepool/数组 worker 的只能是入场后剩余值。
+                            requestTimeoutMs: remainingTimeoutMs,
                             abortSignal: controller.signal,
                         }, (observation) => observations.push({...observation})),
                         (observation) => collectRouteAttempt(execution.trace, observation),
@@ -1225,6 +1227,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestGeneration: number,
         requestDeadline: number,
         pendingBudgetMs: number,
+        recoverSharedDeadline = true,
     ): Promise<string> {
         const key = buildCacheKey(
             execution,
@@ -1237,12 +1240,21 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const imageInput = getTranslationImageInput(message);
         const imageSuffix = imageInput ? `:image:${sha256Hex(imageInput)}` : '';
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) {
             execution.trace.shared = true;
-            return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            try {
+                return await runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            } catch (error) {
+                // 仅恢复早于自身截止时间的共享 transport 超时；普通失败和自身取消仍原样返回。
+                if (!recoverSharedDeadline || !(error instanceof TranslationProviderDeadlineError) || now() >= requestDeadline) throw error;
+                // 恢复轮按原绝对截止时间去重；相同等待者共享一次重发，仍最多恢复一轮。
+                execution.trace.shared = false;
+                return translateSingleWithCache(execution, message, context, pageContext, useCache,
+                    requestGeneration, requestDeadline, pendingBudgetMs, false);
+            }
         }
 
         const request = useCache ? (async () => {
@@ -1328,6 +1340,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestGeneration: number,
         requestDeadline: number,
         pendingBudgetMs: number,
+        recoverSharedDeadline = true,
     ): Promise<string[]> {
         const cacheMode: CacheRequestMode = message.aiMultiSegment === true
             ? 'ai-multi-segment'
@@ -1342,11 +1355,20 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         // 完整批次身份只计算一次；AI 分项用定长摘要保留邻段和槽位语义，避免逐项携带整个批次。
         const batchFingerprint = cacheMode === 'ai-multi-segment' ? sha256Hex(batchKey) : '';
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) {
             execution.trace.shared = true;
-            return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            try {
+                return await runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            } catch (error) {
+                // 仅恢复早于自身截止时间的共享 transport 超时；普通失败和自身取消仍原样返回。
+                if (!recoverSharedDeadline || !(error instanceof TranslationProviderDeadlineError) || now() >= requestDeadline) throw error;
+                // 恢复轮按原绝对截止时间去重；相同等待者共享一次重发，仍最多恢复一轮。
+                execution.trace.shared = false;
+                return translateBatchWithCache(execution, message, context, pageContext, useCache,
+                    requestGeneration, requestDeadline, pendingBudgetMs, false);
+            }
         }
 
         const request = useCache ? (async () => {

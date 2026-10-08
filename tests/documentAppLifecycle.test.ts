@@ -232,3 +232,37 @@ it('documentbinaryAudit mounts the actual page assembly with its app, document t
     expect(mount).toHaveBeenCalledWith('#document-root');
     vi.doUnmock('vue');
 });
+
+// 私有候选：追加至 tests/documentAppLifecycle.test.ts；执行真实 SFC 模板事件，未在本任务运行。
+it('glossary gate document settings buttons open the modal and translate back to complete 1/1', async () => {
+    state.config.on = true;
+    state.config.documentService = 'google';
+    await state.loadFiles([file('glossary.txt', 'The agent uses FluentRead.')]);
+    await flush();
+    expect(state.parsedDocument.segments).toHaveLength(1);
+    expect(state.credentialWarning).toBeNull();
+    const walk = (entry: HostNode): HostNode[] => [entry, ...entry.children.flatMap(walk)];
+    const text = (entry: HostNode): string => (entry.text || '') + entry.children.map(text).join('');
+    const settings = walk(root).find(entry => entry.type === 'dialog' && entry.props['aria-labelledby'] === 'document-settings-heading')!;
+    const open = walk(root).find(entry => entry.type === 'button' && entry.props['aria-label'] === '调整文档翻译设置')!;
+    expect(settings).toBeDefined();
+    expect(open).toBeDefined();
+    expect(settings.showModal).not.toHaveBeenCalled();
+    expect(ports.translate).not.toHaveBeenCalled();
+    open.props.onClick();
+    expect(settings.showModal).toHaveBeenCalledOnce();
+    const start = walk(settings).find(entry => entry.type === 'button' && entry.props.class === 'translate-document-button')!;
+    expect(start.props.disabled).toBe(false);
+    expect(text(start)).toBe('开始翻译');
+    start.props.onClick();
+    expect(settings.close).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(state.translationComplete).toBe(true));
+    await flush();
+    expect(ports.translate).toHaveBeenCalledOnce();
+    expect(ports.translate.mock.calls[0][0]).toBe('The agent uses FluentRead.');
+    expect(state.parsedDocument.segments[0].source).toBe('The agent uses FluentRead.');
+    expect(state.pendingAction).toBeNull();
+    const status = walk(root).find(entry => entry.props.class === 'document-status')!;
+    expect(text(status)).toMatch(/^翻译完成\s*·\s*1\s*\/\s*1$/);
+    expect(walk(root).find(entry => entry.props.role === 'progressbar' && entry.props['aria-label'] === '文档翻译进度')!.props['aria-valuenow']).toBe(100);
+});

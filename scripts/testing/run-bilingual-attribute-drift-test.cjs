@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // PR #640：真实快捷键与指针验证链接提示漂移、语义属性恢复及源骨架重放。
 // 只启动临时后台 Edge；翻译响应固定，--live-wikipedia 才访问真实维基页面。
 const assert = require('node:assert/strict');
@@ -14,14 +16,14 @@ async function main() {
   const extensionDir = path.resolve(argument('extension-dir') || '.output/chrome-mv3');
   const artifactsDir = path.resolve(argument('artifacts-dir') || '/private/tmp/fluentread-attribute-drift');
   const packages = argument('playwright-root');
-  const helperPath = argument('focus-safe-helper');
+  const helperPath = (process.argv.includes('--focus-safe-helper') ? argument('focus-safe-helper') : path.join(__dirname, 'focus-safe-browser.cjs'));
   assert(packages && helperPath, 'Pass --playwright-root and --focus-safe-helper');
   const {chromium} = require(path.join(packages, 'playwright'));
   const helper = require(helperPath);
+  fs.mkdirSync(artifactsDir, {recursive: true});
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-attribute-edge-'));
   const report = {ok: false, checks: [], errors: [], screenshots: [], profileMode: 'new-temporary-profile',
     evidenceBoundary: 'Production extension, deterministic Microsoft responses; no live provider quality or Firefox runtime claim.'};
-  fs.mkdirSync(artifactsDir, {recursive: true});
   const server = http.createServer((_request, response) => {
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title translate="no">Attribute drift fixture</title>
@@ -35,12 +37,16 @@ async function main() {
   });
   let launched;
   let page;
+  let primaryError;
+  let launchAttempted = false;
   try {
-    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+    await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
     const url = `http://127.0.0.1:${server.address().port}`;
+    launchAttempted = true;
     launched = await helper.launchFocusSafePersistentContext({chromium, profileDir, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1280, height: 900},
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
     assert.equal(report.focusPolicy, 'launchservices-no-foreground');
@@ -73,11 +79,11 @@ async function main() {
     const requestCount = async () => (await requestTexts()).length;
     const popup = await helper.newPageWithoutForeground(context);
     await popup.goto(`chrome-extension://${new URL(worker.url()).host}/popup.html`);
-    await popup.waitForFunction(async () => {
+    await waitForAsyncCondition(() => popup.evaluate(async () => {
       const read = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       const c = typeof read.value === 'string' ? JSON.parse(read.value) : read.value;
       return !!c?.service;
-    });
+    }), {timeoutMs: 30000, message: "双语属性漂移测试服务配置尚未就绪"});
     const configured = await popup.evaluate(async () => {
       const read = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       const c = typeof read.value === 'string' ? JSON.parse(read.value) : read.value;
@@ -203,14 +209,36 @@ async function main() {
     assert.deepEqual(report.errors, []);
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack || String(error);
     if (page && !page.isClosed()) await page.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
     throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    await launched?.close();
-    await new Promise(resolve => server.close(resolve));
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (launched) {await launched.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   console.log(JSON.stringify(report, null, 2));
 }

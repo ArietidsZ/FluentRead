@@ -30,6 +30,7 @@ const DOCS_TOOL_SCRIPTS = [
     'scripts/capture-docs-ui.cjs',
     'scripts/verify-brand-copy.mjs',
     'scripts/verify-docs-build.mjs',
+    'scripts/verify-storybook-build.mjs',
 ];
 
 type VerificationOwner =
@@ -125,7 +126,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
     if (path === 'src/features/full-page-translation/content/state.ts') owners.add('full-page-state-functional');
     if (path.startsWith('docs/.vitepress/')) owners.add('docs-build');
-    if (path === 'scripts/verify-docs-build.mjs') owners.add('docs-build');
+    if (path === 'scripts/verify-docs-build.mjs' || path === 'scripts/verify-storybook-build.mjs') owners.add('docs-build');
     if (path === 'scripts/verify-brand-copy.mjs') owners.add('brand-copy-functional');
     if (path.startsWith('examples/')) owners.add('isolated-browser-regression');
     if (path.startsWith('scripts/run-') || path.startsWith('scripts/site-translation/')

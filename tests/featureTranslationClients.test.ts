@@ -1,4 +1,4 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     captureVisibleAreaInExtension,
     translateCapturedAreaInExtension,
@@ -18,6 +18,8 @@ beforeEach(() => {
     sendMessage.mockReset();
     vi.stubGlobal('browser', {runtime: {sendMessage}});
 });
+
+afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('圈选翻译内容脚本客户端', () => {
     it('通过后台读取当前可见页面，并保留协议消息', async () => {
@@ -193,6 +195,8 @@ describe('图片翻译内容脚本客户端', () => {
 
 
     it('返回完整图片翻译结果并保留页面上下文', async () => {
+        // Freeze only the external monotonic clock for this exact entry budget assertion.
+        vi.spyOn(performance, 'now').mockReturnValue(0);
         const lines = [{text: '你好', bbox: {x0: 1, y0: 2, x1: 3, y1: 4}, backgroundColor: '#fff'}];
         sendMessage.mockResolvedValue({success: true, image: 'translated', lines});
 
@@ -233,6 +237,8 @@ describe('图片翻译内容脚本客户端', () => {
     });
 
     it('把非有限 timeoutMs 归一化为图片操作默认预算', async () => {
+        // Freeze only the external monotonic clock for this exact entry budget assertion.
+        vi.spyOn(performance, 'now').mockReturnValue(0);
         sendMessage.mockResolvedValue({success: true, image: 'translated', lines: []});
 
         await expect(translateImageInExtension('image', 'en', 'Page', {

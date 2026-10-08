@@ -18,9 +18,11 @@ import {
     getTranslationState,
     hasTranslationLayoutOverride,
     isBilingualArtifactHostWriteBudgetCapitulated,
+    isTrustedBilingualArtifactWithHostClass,
     markTranslationComplete,
     resetAllBilingualArtifactHostWriteBudgets,
     restoreAllTranslations,
+    restoreTranslation,
     setBilingualContent,
     setRenderedStyleAttribute,
     tryRepairBilingualTranslationArtifact,
@@ -92,6 +94,81 @@ afterEach(() => {
 });
 
 describe('双语 owner 同源重挂交接', () => {
+    it('离线模板自身复验仍逐次拒绝内容漂移和所有权标记丢失', () => {
+        const scenario = createCommittedScenario();
+        const template = scenario.previousState.bilingualContentTemplate!;
+        const trusted = () => isTrustedBilingualArtifactWithHostClass(template, scenario.previousState);
+        expect(template.isConnected).toBe(false);
+        expect(trusted()).toBe(true);
+
+        template.textContent = '篡改译文';
+        expect(trusted()).toBe(false);
+        template.textContent = scenario.previousState.bilingualHTML!;
+        expect(trusted()).toBe(true);
+        template.removeAttribute('data-fr-translation-owned');
+        expect(trusted()).toBe(false);
+        template.setAttribute('data-fr-translation-owned', 'true');
+        expect(trusted()).toBe(true);
+        template.classList.remove('fluent-read-bilingual-content');
+        expect(trusted()).toBe(false);
+        template.classList.add('fluent-read-bilingual-content');
+        expect(trusted()).toBe(true);
+    });
+
+    it.each([
+        ['data-fr-translation-owned', 'false'], ['translate', 'yes'], ['lang', 'fr'],
+        ['dir', 'rtl'], ['style', 'display:none'], ['onclick', 'run()'],
+        ['class', 'fluent-read-bilingual-content fluent-read-forged'],
+        ['class', 'fluent-read-bilingual-content notranslate'],
+        ['class', 'fluent-read-bilingual-content sr-only'],
+    ] as const)('模板以外的工件仍拒绝 %s=%s 篡改', (attribute, value) => {
+        const scenario = createCommittedScenario();
+        const copy = scenario.previousState.bilingualContentTemplate!.cloneNode(true) as HTMLElement;
+        const trusted = () => isTrustedBilingualArtifactWithHostClass(copy, scenario.previousState);
+        scenario.replacementOwner.appendChild(copy);
+        expect(trusted()).toBe(true);
+        copy.classList.add('host-hover-decoration');
+        expect(trusted()).toBe(true);
+        copy.setAttribute(attribute, value);
+        expect(trusted()).toBe(false);
+        expect(scenario.replacementOwner.firstChild?.textContent).toBe('Same source.');
+    });
+
+    it.each([true, false])('模板复验后重挂、恢复和再翻译保留原 Text 与译文位置，前置 %s', beforeSource => {
+        const scenario = createCommittedScenario(beforeSource);
+        const owner = scenario.replacementOwner;
+        const source = owner.firstChild as Text;
+        const result = transferEquivalentBilingualOwners(scenario.record(), () => ({
+            sourceTextNodes: [source], reconcileLayout: () => true,
+        }));
+        expect(result.transfers).toHaveLength(1);
+        expect(result.capitulations).toEqual([]);
+        expect(getTranslationState(scenario.previousOwner)).toBeUndefined();
+        expect(source.parentNode).toBe(owner);
+        expect(source.data).toBe('Same source.');
+        const content = getTranslationState(owner)!.bilingualContent!;
+        expect(content === owner.firstChild).toBe(beforeSource);
+        expect(owner.querySelectorAll(BILINGUAL_SELECTOR)).toHaveLength(1);
+
+        expect(restoreTranslation(owner)).toBe(true);
+        expect(getTranslationState(owner)).toBeUndefined();
+        expect(owner.innerHTML).toBe('Same source.');
+        expect(owner.firstChild).toBe(source);
+        const next = beginTranslation(owner, 'bilingual', 'content', false, source.data, [source])!;
+        expect(markTranslationComplete(owner, next.state, next.generation)).toBe(true);
+        const nextContent = content.cloneNode(true) as HTMLElement;
+        if (beforeSource) owner.insertBefore(nextContent, source);
+        else owner.appendChild(nextContent);
+        setBilingualContent(owner, nextContent);
+        expect(owner.querySelectorAll(BILINGUAL_SELECTOR)).toHaveLength(1);
+        expect(nextContent === owner.firstChild).toBe(beforeSource);
+        expect(source.parentNode).toBe(owner);
+        expect(source.data).toBe('Same source.');
+        expect(restoreTranslation(owner)).toBe(true);
+        expect(owner.firstChild).toBe(source);
+        expect(owner.innerHTML).toBe('Same source.');
+    });
+
     it.each([true, false])('source-only 重挂保留已提交的译文位置，前置选项为 %s', beforeSource => {
         const scenario = createCommittedScenario(beforeSource);
         expect(transferEquivalentBilingualOwners(scenario.record(), () => preparation()).transfers).toHaveLength(1);

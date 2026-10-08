@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/hotkeyRuntime.ts
  * 文件职责：在宿主页面统一接管 FluentRead 的键盘与鼠标快捷手势，并按配置、站点禁用状态和冲突优先级路由到相应翻译动作。
- * 主要内容：按录制器同一逻辑按键记录组合键，监听 keydown/keyup、pointer 与 touch 状态，匹配悬浮、全文、统一划词和区域快捷键；同语言选区默认跳过，开启中英双向划词后为反向翻译预留快捷键，并提供 dispose 清理监听器。
+ * 主要内容：复用 core 记录组合键并仲裁划词优先级，将待回退的全文手势绑定主键/code 与全文、划词、悬浮快捷键身份；额外组合、不可用状态、失焦、中止和文档路由变化取消旧手势，同语言选区默认跳过，中英双向划词可保留反向候选。
  * 模块边界：这里判定并分派手势，不实现语言检测算法、翻译请求、UI 挂载或配置持久化；具体动作由注入/导入的 feature 公共函数完成。
  */
 import {config} from '@/src/services/config/store';
@@ -9,8 +9,10 @@ import {shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/
 import {readSelectionText, selectionReverseTarget, shouldIgnoreSelection} from '@/src/features/selection-translation/core';
 import {
     addPressedHotkeyEventKey,
+    canonicalizeHotkey,
     deletePressedHotkeyEventKey,
     matchesConfiguredHotkey,
+    normalizeHotkeyEventKey,
     parseHotkey,
     resolveConfiguredHotkey,
     shouldClaimConfiguredHotkey,
@@ -91,8 +93,8 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
     const installFloatingBallHotkey = (signal: AbortSignal): (() => void) => {
         const hotkeysPressed = new Set<string>();
         const hotkeyByCode = new Map<string, string>();
-        let pendingFullPageToggle = false;
-        const resetKeyboardGesture = () => { pendingFullPageToggle = false; hotkeysPressed.clear(); hotkeyByCode.clear(); };
+        let pendingFullPageToggle: {key: string; code: string; shortcuts: readonly [string, string, string]} | undefined;
+        const resetKeyboardGesture = () => { pendingFullPageToggle = undefined; hotkeysPressed.clear(); hotkeyByCode.clear(); };
         const isDev = process.env.NODE_ENV === 'development';
         const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
 
@@ -102,13 +104,38 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
             return [...parsed.modifiers.map((key) => key === 'ctrl' ? 'control' : key), parsed.key];
         };
 
+        const shortcutIdentity = (configured: string | undefined, custom?: string): string => {
+            const resolved = resolveConfiguredHotkey(configured, custom);
+            return !resolved || resolved === 'none' ? '' : canonicalizeHotkey(resolved) || resolved;
+        };
+        const configuredIdentities = (): readonly [string, string, string] => [
+            shortcutIdentity(config.floatingBallHotkey, config.customFloatingBallHotkey),
+            shortcutIdentity(getConfiguredSelectionHotkey(), config.customSelectionTranslatorHotkey),
+            shortcutIdentity(config.hotkey, config.customHotkey),
+        ];
+        const discardUnavailableGesture = (event: KeyboardEvent): boolean => {
+            if (!config.on || isSiteDisabled()
+                || (isMac && (event.metaKey || normalizeHotkeyEventKey(event) === 'meta'))) {
+                resetKeyboardGesture();
+                return true;
+            }
+            if (pendingFullPageToggle) {
+                const identities = configuredIdentities();
+                if (pendingFullPageToggle.shortcuts.some((shortcut, index) => shortcut !== identities[index])) {
+                    resetKeyboardGesture();
+                    return true;
+                }
+            }
+            return false;
+        };
+
         if (isDev) {
             console.log(`[FluentRead] 设置悬浮球快捷键: ${config.floatingBallHotkey}, 系统: ${isMac ? 'macOS' : '其他'}`);
         }
 
         document.addEventListener('keydown', (event) => {
             if (!event.isTrusted) return;
-            if (isSiteDisabled() || event.repeat || (isMac && event.metaKey)) return;
+            if (discardUnavailableGesture(event) || event.repeat) return;
 
             // 划词与全文快捷键冲突时，有有效选区的划词翻译拥有本次按键。
             if (shouldReserveSelectionShortcut(event)) {
@@ -125,13 +152,18 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
             const parts = configuredParts();
             if (parts.length === 0
                 || !parts.every((key) => hotkeysPressed.has(key))
-                || parts.length !== hotkeysPressed.size
-                || !config.on) return;
+                || parts.length !== hotkeysPressed.size) {
+                // 额外可信非重复按键作废整轮回退，不能让它自己的 keyup 消费主键手势。
+                pendingFullPageToggle = undefined;
+                return;
+            }
 
             event.preventDefault();
             event.stopPropagation();
             if (matchesSelectionTranslatorShortcut(event)) {
-                pendingFullPageToggle = !matchesConfiguredHotkey(event, config.hotkey, config.customHotkey);
+                pendingFullPageToggle = matchesConfiguredHotkey(event, config.hotkey, config.customHotkey)
+                    ? undefined
+                    : {key: normalizeHotkeyEventKey(event), code: event.code || '', shortcuts: configuredIdentities()};
                 return;
             }
 
@@ -146,10 +178,14 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
 
         document.addEventListener('keyup', (event) => {
             if (!event.isTrusted) return;
-            if (isSiteDisabled()) return;
-            if (pendingFullPageToggle) {
-                pendingFullPageToggle = false;
-                if (config.on && !hasActiveSelectionTranslationCandidate()) {
+            if (discardUnavailableGesture(event)) return;
+            const pending = pendingFullPageToggle;
+            // 同一物理主键优先；无 code 时才退回 core 保存/归一化的逻辑键。
+            // Shift/Option 先释放会改变 key 和修饰标志，不能重新匹配原组合来消费 pending。
+            const releasedKey = (event.code && hotkeyByCode.get(event.code)) || normalizeHotkeyEventKey(event);
+            if (pending && (pending.code && event.code ? pending.code === event.code : pending.key === releasedKey)) {
+                pendingFullPageToggle = undefined;
+                if (!hasActiveSelectionTranslationCandidate()) {
                     event.preventDefault();
                     event.stopPropagation();
                     toggleFullPageTranslation();
@@ -162,6 +198,7 @@ export function createContentHotkeyRuntime(isSiteDisabled: () => boolean,
             if (!event.shiftKey) hotkeysPressed.delete('shift');
         }, {signal, capture: true});
 
+        document.addEventListener('fluentread-route-change', resetKeyboardGesture, {signal});
         window.addEventListener('blur', resetKeyboardGesture, {signal});
         signal.addEventListener('abort', resetKeyboardGesture, {once: true});
         return resetKeyboardGesture;

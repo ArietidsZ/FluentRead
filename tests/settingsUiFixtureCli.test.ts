@@ -1,10 +1,13 @@
 /**
  * @file tests/settingsUiFixtureCli.test.ts
  * 文件职责：通过两个设置专项的实际公开 CLI 子进程验证异常与资源清理。
- * 主要内容：仅替换外部 launcher/page/文件系统故障端口；partial launch 使用本测试实际持有的 Node 子进程句柄，等待关闭回执后才允许 profile 删除。
+ * 主要内容：仅替换外部 launcher/page/文件系统故障端口；partial launch 使用本测试实际持有的 Node 子进程句柄；设置中心等待用实际脚本谓词和共享 Node 轮询器验证异步存储、截止时间与错误传播。
  * 模块边界：不模拟设置 DOM、不执行 native/UI 断言、不启动浏览器或请求服务；默认执行 process.cwd() 下的公开脚本，私有源覆写必须显式提供。
  */
-import {afterAll, beforeAll, describe, expect, it} from 'vitest';
+import {afterAll, afterEach, beforeAll, describe, expect, it, vi} from 'vitest';
+import {createRequire} from 'node:module';
+import {Script} from 'node:vm';
+import ts from 'typescript';
 import {spawn, type ChildProcess} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync} from 'node:fs';
@@ -336,5 +339,161 @@ for (const script of scripts) describe(`${script} actual public CLI cleanup`, ()
         expect(result.report.retainedProfile).toBe(result.profiles[0].path);
         expect(result.profiles[0].existsAtCliClose).toBe(true);
         expect(count(result, 'profile-remove')).toBe(0);
+    });
+});
+
+// 只取实际调用表达式执行，不提取 main 或仿造设置 DOM；浏览器端谓词按
+// page.evaluate 的序列化边界放进独立 VM，存储端口可控，轮询器使用真实字节。
+const requireSettingsWait = createRequire(import.meta.url);
+const {waitForAsyncCondition} = requireSettingsWait(path.join(sourceRoot, 'scripts/testing/wait-for-async-condition.cjs'));
+const centerSource = readFileSync(path.join(sourceRoot, 'scripts/testing/run-settings-center-ui-test.cjs'), 'utf8');
+const centerAst = ts.createSourceFile('settings-center.cjs', centerSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+const storageWaitCalls: ts.CallExpression[] = [];
+function collectStorageWaits(node: ts.Node): void {
+    if (ts.isCallExpression(node) && node.expression.getText(centerAst) === 'waitForAsyncCondition') storageWaitCalls.push(node);
+    ts.forEachChild(node, collectStorageWaits);
+}
+collectStorageWaits(centerAst);
+function runStorageWait(index: number, page: unknown, {count = 2, activeName = '回归对照', timeout = 30000} = {}): Promise<void> {
+    if (storageWaitCalls.length !== 2) throw new Error('设置中心必须保留两个独立存储等待');
+    return new Script(`(async () => ${storageWaitCalls[index].getText(centerAst)})()`).runInNewContext({
+        waitForAsyncCondition, page, count, activeName, timeout,
+        configDatabaseName: 'FluentReadConfiguration',
+        migratedRecordKeys: ['local:config', 'local:configAutoBackups', 'local:credentials'],
+    });
+}
+function pageWithStorage(ports: Record<string, unknown>) {
+    return {evaluate: vi.fn((predicate: (args: unknown) => unknown, args: unknown) =>
+        new Script(`(${predicate.toString()})(args)`).runInNewContext({...ports, args}))};
+}
+function profileSnapshot(names = ['回归阅读', '回归对照'], active = names.at(-1) || '') {
+    return {translationStyleProfiles: names.map((name, id) => ({id: String(id), name, style: id})),
+        activeTranslationStyleProfileId: String(names.indexOf(active))};
+}
+async function flushWait() {for (let i = 0; i < 20; i++) await Promise.resolve();}
+function pendingRead<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>(yes => {resolve = yes;});
+    return {promise, resolve};
+}
+function indexedDbPort(readKeys: () => Promise<string[]>) {
+    const close = vi.fn();
+    const indexedDB = {open: vi.fn(() => {
+        const open: any = {};
+        queueMicrotask(() => {
+            open.result = {close, transaction: vi.fn(() => ({objectStore: vi.fn(() => ({getAllKeys: () => {
+                const request: any = {};
+                void readKeys().then(keys => {request.result = keys; request.onsuccess();}, error => {request.error = error; request.onerror();});
+                return request;
+            }}))}))};
+            open.onsuccess();
+        });
+        return open;
+    })};
+    return {indexedDB, close};
+}
+
+describe('settings center actual async storage waits', () => {
+    afterEach(() => {vi.useRealTimers();});
+    function clock() {vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout', 'performance']});}
+    it.each(['object', 'json'])('awaits %s false results, checks exact count and active name, and serializes reads', async format => {
+        clock();
+        const gate = pendingRead<any>();
+        const value = (config: unknown) => ({success: true, value: format === 'json' ? JSON.stringify(config) : config});
+        const sendMessage = vi.fn().mockReturnValueOnce(gate.promise)
+            .mockResolvedValueOnce(value(profileSnapshot(['回归阅读', '回归对照'], '回归阅读')))
+            .mockResolvedValueOnce(value(profileSnapshot()));
+        const page = pageWithStorage({chrome: {runtime: {sendMessage}}});
+        let completed = false;
+        const result = runStorageWait(0, page).then(() => {completed = true;});
+        await flushWait();
+        await vi.advanceTimersByTimeAsync(500);
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+        expect(completed).toBe(false);
+        gate.resolve(value(profileSnapshot(['回归阅读'])));
+        await flushWait();
+        await vi.advanceTimersByTimeAsync(99);
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(sendMessage).toHaveBeenCalledTimes(2);
+        expect(completed).toBe(false);
+        await vi.advanceTimersByTimeAsync(100);
+        await result;
+        expect(sendMessage).toHaveBeenCalledTimes(3);
+        expect(sendMessage).toHaveBeenLastCalledWith({type: 'configStorageRead', key: 'local:config'});
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('preserves the empty/deleted style case and exact active-name matching', async () => {
+        clock();
+        const sendMessage = vi.fn().mockResolvedValue({success: true, value: profileSnapshot([])});
+        await runStorageWait(0, pageWithStorage({chrome: {runtime: {sendMessage}}}), {count: 0, activeName: ''});
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it.each(['mismatch', 'hung'])('fails %s at the original 30000ms deadline and clears timers', async fault => {
+        clock();
+        const gate = pendingRead<any>();
+        const sendMessage = vi.fn(() => fault === 'hung' ? gate.promise : Promise.resolve({success: true, value: profileSnapshot(['回归阅读'])}));
+        const result = runStorageWait(0, pageWithStorage({chrome: {runtime: {sendMessage}}})).catch(error => error);
+        await flushWait();
+        await vi.advanceTimersByTimeAsync(29999);
+        expect(vi.getTimerCount()).toBeGreaterThan(0);
+        await vi.advanceTimersByTimeAsync(1);
+        const error = await result;
+        expect(error.message).toContain('命名译文样式未持久化');
+        expect(error.message).toContain('30000ms');
+        expect(vi.getTimerCount()).toBe(0);
+        const reads = sendMessage.mock.calls.length;
+        gate.resolve({success: true, value: profileSnapshot()});
+        await flushWait();
+        await vi.advanceTimersByTimeAsync(1000);
+        expect(sendMessage).toHaveBeenCalledTimes(reads);
+    });
+    it('propagates storage rejection and malformed JSON without retrying or passing', async () => {
+        clock();
+        const original = new Error('CONTROLLED_CONFIG_READ_FAILURE');
+        const sendMessage = vi.fn().mockRejectedValue(original);
+        await expect(runStorageWait(0, pageWithStorage({chrome: {runtime: {sendMessage}}}))).rejects.toBe(original);
+        expect(sendMessage).toHaveBeenCalledTimes(1);
+        const malformed = vi.fn().mockResolvedValue({success: true, value: '{'});
+        await expect(runStorageWait(0, pageWithStorage({chrome: {runtime: {sendMessage: malformed}}}))).rejects.toHaveProperty('name', 'SyntaxError');
+        expect(malformed).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('awaits missing encrypted record keys, polls again and closes every IndexedDB handle', async () => {
+        clock();
+        const readKeys = vi.fn().mockResolvedValueOnce(['local:config'])
+            .mockResolvedValueOnce(['local:config', 'local:configAutoBackups', 'local:credentials']);
+        const port = indexedDbPort(readKeys);
+        const page = pageWithStorage({indexedDB: port.indexedDB});
+        let completed = false;
+        const result = runStorageWait(1, page).then(() => {completed = true;});
+        await flushWait();
+        expect(completed).toBe(false);
+        expect(port.close).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(100);
+        await result;
+        expect(port.indexedDB.open).toHaveBeenLastCalledWith('FluentReadConfiguration');
+        expect(port.close).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('fails permanently missing migration records within 30000ms instead of passing', async () => {
+        clock();
+        const port = indexedDbPort(vi.fn().mockResolvedValue(['local:config']));
+        const result = runStorageWait(1, pageWithStorage({indexedDB: port.indexedDB})).catch(error => error);
+        await flushWait();
+        await vi.advanceTimersByTimeAsync(30000);
+        expect((await result).message).toContain('旧存储迁移后缺少预期的加密配置记录');
+        expect(port.close).toHaveBeenCalledTimes(port.indexedDB.open.mock.calls.length);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('propagates IndexedDB read failure and still closes the opened handle', async () => {
+        clock();
+        const original = new Error('CONTROLLED_INDEXED_DB_READ_FAILURE');
+        const port = indexedDbPort(vi.fn().mockRejectedValue(original));
+        await expect(runStorageWait(1, pageWithStorage({indexedDB: port.indexedDB}))).rejects.toBe(original);
+        expect(port.indexedDB.open).toHaveBeenCalledTimes(1);
+        expect(port.close).toHaveBeenCalledTimes(1);
+        expect(vi.getTimerCount()).toBe(0);
     });
 });

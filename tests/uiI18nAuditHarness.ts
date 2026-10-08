@@ -18,6 +18,11 @@ import type {UiI18nContext} from '@/src/ui/i18n'
 
 export const runtime = createRequire(import.meta.url)('vue') as typeof import('vue')
 const key = '__frUiLanguageOwnershipAudit'
+// 可选诊断仅记录夹具的等待阶段，帮助定位全量运行中的超时，不改变 Promise 或计时门槛。
+export const languageHarnessPhases: Array<{phase: string; at: number; value?: unknown}> = []
+function recordPhase(phase: string, value?: unknown) {
+  if (process.env.FLUENTREAD_UI_LANGUAGE_TEST_DIAGNOSTICS === '1') languageHarnessPhases.push({phase, at: performance.now(), value})
+}
 export function deferred<T>() {
   let resolve!: (value: T) => void, reject!: (error: unknown) => void
   const promise = new Promise<T>((yes, no) => {resolve = yes;reject = no})
@@ -26,6 +31,7 @@ export function deferred<T>() {
 export async function settle() {await runtime.nextTick();for (let i = 0; i < 8; i++) await Promise.resolve();await runtime.nextTick()}
 
 export async function createLanguageHarness({parent = false, mount = true, ready = Promise.resolve()} = {}) {
+  languageHarnessPhases.length = 0; recordPhase('create-start')
   const dom = parseHTML('<html><body><div id="app"></div></body></html>'), document = dom.document
   const frames = new Map<number, FrameRequestCallback>();let frame = 0, revision = 0
   const listeners = new Set<(config: Record<string, unknown>) => void>(), controls: import('vue').ComponentInternalInstance[] = []
@@ -43,11 +49,11 @@ export async function createLanguageHarness({parent = false, mount = true, ready
   const patch = vi.fn(async (value: Record<string, unknown>, _sender?: unknown) => {
     // 父组件退出交接的全配置不属于本夹具的语言请求；不为它创建等待门。
     if (Object.keys(value).some(name => name !== 'uiLanguage' && name !== 'uiLanguageSetupCompleted')) return
-    await ready;
+    recordPhase('patch-await-ready'); await ready; recordPhase('patch-ready');
     const expected = config.uiLanguage, gate = deferred<void>(), requested = value.uiLanguage as UiLanguage
     requests.push({value: requested, expected, gate});emit(value)
     try {
-      await gate.promise
+      recordPhase('patch-await-gate', requested); await gate.promise; recordPhase('patch-gate-done', requested)
       if (stored.uiLanguage !== expected && stored.uiLanguage !== requested) throw new Error('配置字段已由其他页面更新')
       stored = {...stored, ...value};revision += 1
       if (config.uiLanguage !== stored.uiLanguage || config.uiLanguageSetupCompleted !== stored.uiLanguageSetupCompleted) emit(stored)
@@ -88,13 +94,17 @@ export async function createLanguageHarness({parent = false, mount = true, ready
     if (id === '\0language-capabilities') return "export const browserCapabilities={browser:'chrome'};"
     return null
   }}
-  const server = await createServer({configFile: false, appType: 'custom', logLevel: 'silent', root: process.cwd(),
+  recordPhase('server-create'); const server = await createServer({configFile: false, publicDir: false, appType: 'custom', logLevel: 'silent', root: process.cwd(),
     plugins: [mocks, vue()], resolve: {alias: {'@': process.cwd()}},
-    ssr: {noExternal: ['element-plus', '@element-plus/icons-vue', 'webextension-polyfill']}, server: {hmr: false, middlewareMode: true, watch: null}})
+    // 夹具只加载 SSR 模块；不扫描静态资源或 HTML，也不预构建客户端依赖。
+    optimizeDeps: {noDiscovery: true, include: []},
+    ssr: {noExternal: ['element-plus', '@element-plus/icons-vue', 'webextension-polyfill']}, // Vite5 的 hmr:false 仍创建 WebSocket 服务；ws:false 才禁用实际 TCP 监听。
+    // client-inject 的 buildStart 即使禁用 WebSocket 也解析默认 localhost；SSR 无需 DNS。
+    server: {host: '127.0.0.1', ws: false, hmr: false, middlewareMode: true, watch: null}})
   let context!: UiI18nContext
   try {
-    const module = await server.ssrLoadModule('/src/ui/i18n.ts')
-    context = module.createUiI18nContext()
+    recordPhase('server-created'); recordPhase('ssr-module-load'); const module = await server.ssrLoadModule('/src/ui/i18n.ts'); recordPhase('ssr-module-loaded')
+    context = module.createUiI18nContext(); recordPhase('context-created')
     const loadComponent = async (relative: string) => {
       const filename = resolve(relative), directory = process.env.FLUENTREAD_UI_LANGUAGE_TEST_SOURCE_DIR
       const original = directory ? resolve(directory, basename(filename)) : filename
@@ -129,11 +139,11 @@ export async function createLanguageHarness({parent = false, mount = true, ready
       app.provide(module.UI_I18N_KEY, context);app.provide(runtime.ssrContextKey, {modules: new Set<string>()});app.config.warnHandler = () => {}
       app.mount(document.getElementById('app')!);await settle()
     } else await settle()
-    const control = () => controls.at(-1)!, handles = () => ({...control().vnode.props})
+    recordPhase('create-done'); const control = () => controls.at(-1)!, handles = () => ({...control().vnode.props})
     return {context, uiModule: module, props, visible, parentState, document, controls, requests, bundles, data,
       stored: () => stored.uiLanguage, foreign: (value: UiLanguage) => {stored = {...stored, uiLanguage: value};revision += 1;emit(stored)},
       control, handles, selector: () => control().parent!, open: async () => {handles().onVisibleChange?.(true);await settle()},
       change: (value: UiLanguage) => handles().onChange(value), pagehide: () => window.dispatchEvent(new dom.window.Event('pagehide')),
-      unmount: () => {app?.unmount();app = undefined}, close: async () => {app?.unmount();context.dispose();await settle();await server.close();delete (globalThis as Record<string,unknown>)[key];vi.unstubAllGlobals()}}
+      unmount: () => {app?.unmount();app = undefined}, close: async () => {recordPhase('close-start');app?.unmount();context.dispose();await settle();recordPhase('server-close');await server.close();recordPhase('close-done');delete (globalThis as Record<string,unknown>)[key];vi.unstubAllGlobals()}}
   } catch (error) {app?.unmount();context?.dispose();await server.close();delete (globalThis as Record<string,unknown>)[key];vi.unstubAllGlobals();throw error}
 }

@@ -9,6 +9,8 @@ import {
     reportTranslationRoute,
 } from '@/src/services/translation/requestSnapshot';
 import type {TranslationRequestStatsEvent} from '@/src/services/translation-stats/types';
+import {createFreeFallbackRunner} from '@/src/services/translation/freeFallback';
+import {getTranslationErrorMessage} from '@/src/features/full-page-translation/core/errorMessage';
 
 const IMAGE = `data:image/png;base64,${Buffer.alloc(9, 1).toString('base64')}`;
 
@@ -119,6 +121,57 @@ afterEach(() => {
 });
 
 describe('翻译 broker 请求统计', () => {
+    it('免费池总预算在尚未尝试线路时耗尽，broker 仍记录为 timeout', async () => {
+        const run = createFreeFallbackRunner(1);
+        const translate = vi.fn().mockResolvedValue('译文');
+        harness.provider.mockImplementationOnce(() => run([
+            {identity: 'microsoft:test', label: '微软翻译', translate},
+        ], {timeoutMs: 100, cooldownMs: 1000, deadline: Date.now() - 1}));
+
+        await expect(harness.translate({origin: 'deadline before route', useCache: false}))
+            .rejects.toMatchObject({kind: 'timeout', retryable: false, message: '请求超时'});
+        expect(translate).not.toHaveBeenCalled();
+        expect(harness.events()[0]).toMatchObject({outcome: 'timeout', errorKind: 'timeout', upstreamCalls: 1});
+        expect(harness.events()[0]).not.toHaveProperty('routeAttempts');
+    });
+
+    it('线路超时后换线成功，只记录线路 timeout 和请求 success', async () => {
+        const run = createFreeFallbackRunner(1);
+        harness.provider.mockImplementationOnce(message => run([
+            {identity: 'slow', label: '慢线路', translate: () => new Promise(() => {})},
+            {identity: 'healthy', label: '健康线路', translate: async () => '有效译文'},
+        ], {
+            timeoutMs: 5, cooldownMs: 1000,
+            onAttempt: attempt => reportTranslationRoute(message, {...attempt, route: attempt.identity, chars: 5}),
+        }));
+
+        await expect(harness.translate({origin: 'fallback recovery', useCache: false})).resolves.toBe('有效译文');
+        const [event] = harness.events();
+        expect(event).toMatchObject({outcome: 'success'});
+        expect(event).not.toHaveProperty('errorKind');
+        expect(event.routeAttempts?.map(attempt => attempt.outcome)).toEqual(['timeout', 'success']);
+    });
+
+    it('线路耗尽汇总中的 timeout 不冒充总截止时间，统计和全文提示保留 provider 失败', async () => {
+        const run = createFreeFallbackRunner(1);
+        harness.provider.mockImplementationOnce(message => run([
+            {identity: 'slow', label: '慢线路', translate: () => new Promise(() => {})},
+            {identity: 'echo', label: '空结果线路', translate: async () => ''},
+        ], {
+            timeoutMs: 5, cooldownMs: 1000,
+            onAttempt: attempt => reportTranslationRoute(message, {...attempt, route: attempt.identity, chars: 5}),
+        }));
+
+        let failure!: Error;
+        try { await harness.translate({origin: 'pool exhausted', useCache: false}); }
+        catch (error) { failure = error as Error; }
+        expect(failure).toMatchObject({kind: 'provider', retryable: false});
+        expect(failure.message).toContain('慢线路: 请求超时');
+        expect(getTranslationErrorMessage(failure.message, '免费翻译')).toBe(failure.message);
+        expect(harness.events()[0]).toMatchObject({outcome: 'error', errorKind: 'provider'});
+        expect(harness.events()[0].routeAttempts?.map(attempt => attempt.outcome)).toEqual(['timeout', 'error']);
+    });
+
     it('单条请求记录规模、服务耗时与结果字符，并在缓存命中时标记来源', async () => {
         harness.provider.mockImplementationOnce(async (message: Record<string, unknown>) => {
             harness.advance(250);

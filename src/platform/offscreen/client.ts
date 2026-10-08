@@ -2,7 +2,7 @@
  * @file src/platform/offscreen/client.ts
  *
  * 文件职责：统一管理扩展自有 DOM 的创建、复用与消息发送，为 OCR、内置翻译和音频等后台能力提供基础设施客户端。
- * 主要内容：定义 runtime/document 依赖端口和 OffscreenClient，串行创建文档、等待接收端 ready 握手，并在接收端丢失时受控重建一次；准备超时后继续持有未结束的原生创建或关闭操作，避免迟到文档与后续重建重叠。默认 chromeOffscreenClient 连接浏览器 API。
+ * 主要内容：定义 runtime/document 依赖端口和 OffscreenClient，串行创建文档、等待接收端 ready 握手，并在接收端丢失时受控重建一次，恢复请求的取消信号贯穿排队和文档变更边界；准备超时后继续持有未结束的原生创建或关闭操作，避免迟到文档与后续重建重叠。默认 chromeOffscreenClient 连接浏览器 API。
  * 模块边界：只封装文档生命周期与消息可靠性；默认连接 Chrome Offscreen，Firefox 注入文档容器与查询端口，不复制任务调度或业务逻辑。
  */
 
@@ -113,6 +113,7 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
     type DocumentPreparationResult = {createdDocument: boolean};
     let preparingDocument: {
         forceRecreate: boolean;
+        ownerSignal?: AbortSignal;
         promise: Promise<DocumentPreparationResult>;
     } | null = null;
     let documentMutation: Promise<void> | null = null;
@@ -301,12 +302,23 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
 
     const runDocumentPreparation = async (
         forceRecreate: boolean,
+        rebuildSignal?: AbortSignal,
     ): Promise<DocumentPreparationResult> => {
         const currentPreparation = preparingDocument;
         if (currentPreparation) {
             // 强制重建可以同时满足普通探测，但业务消息丢失接收端后，普通探测绝不能
             // 消耗其重建请求。
-            if (!forceRecreate || currentPreparation.forceRecreate) return currentPreparation.promise;
+            if (!forceRecreate || currentPreparation.forceRecreate) {
+                try {
+                    return await currentPreparation.promise;
+                } catch (error) {
+                    // 强制恢复的所有者取消后，存活的共享调用方重新查询实际文档。
+                    // 只接管已确认的所有者取消；真实准备错误仍按原路径报告。
+                    if (!isAbortError(error) || !currentPreparation.ownerSignal?.aborted
+                        || rebuildSignal?.aborted) throw error;
+                    return runDocumentPreparation(forceRecreate, rebuildSignal);
+                }
+            }
             try {
                 const result = await currentPreparation.promise;
                 // 如果普通准备流程已经创建并确认新 document，就已完成排队的重建。
@@ -315,27 +327,30 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
             } catch {
                 // 下方的强制重建会取代已失败的普通就绪探测。
             }
-            return runDocumentPreparation(true);
+            if (rebuildSignal?.aborted) throw createAbortError();
+            return runDocumentPreparation(true, rebuildSignal);
         }
 
         const controller = new AbortController();
+        // 初始准备是共享资源；强制重建属于触发恢复的请求。取消恢复必须穿过
+        // 排队、getContexts、closeDocument 和 createDocument 的每个 await 边界。
         // 文档准备是共享资源，不能继承首个调用方可能只剩数毫秒的业务预算。
         const deadlineAt = Date.now() + preparationTimeoutMs;
         const promise = runWithinDeadline(
             () => prepareDocument(forceRecreate, controller.signal, deadlineAt),
             deadlineAt,
             'Offscreen 文档准备超时',
-            undefined,
+            rebuildSignal,
             () => controller.abort(),
         ).finally(() => {
             if (preparingDocument?.promise === promise) preparingDocument = null;
         });
-        preparingDocument = {forceRecreate, promise};
+        preparingDocument = {forceRecreate, ownerSignal: rebuildSignal, promise};
         return promise;
     };
 
-    const rebuildDocument = async (): Promise<void> => {
-        await runDocumentPreparation(true);
+    const rebuildDocument = async (signal?: AbortSignal): Promise<void> => {
+        await runDocumentPreparation(true, signal);
     };
 
     const ensureDocumentWithin = async (
@@ -358,7 +373,7 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
             }
             try {
                 await runWithinDeadline(
-                    rebuildDocument,
+                    () => rebuildDocument(signal),
                     deadlineAt,
                     'Offscreen 文档准备超时',
                     signal,
@@ -409,7 +424,7 @@ export function createOffscreenClient(dependencies: OffscreenClientDependencies)
                 if (!isMissingReceiverError(error)) throw error;
                 const rebuildDeadlineAt = deadlineAt ?? Date.now() + preparationTimeoutMs;
                 await runWithinDeadline(
-                    rebuildDocument,
+                    () => rebuildDocument(options.signal),
                     rebuildDeadlineAt,
                     'Offscreen 文档准备超时',
                     options.signal,

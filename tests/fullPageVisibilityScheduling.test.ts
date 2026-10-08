@@ -304,6 +304,8 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
 import {
     autoTranslateEnglishPage,
     getFullPageTranslationFrameState,
+    readFullPageUnchangedCompletion,
+    translateTarget,
     cancelPendingHoverTranslation,
     handleBilingualTranslation,
     handleTranslation,
@@ -527,6 +529,208 @@ describe("全文翻译可见性锚点", () => {
             else Reflect.deleteProperty(globalThis, name);
         }
         replacedGlobals.clear();
+    });
+
+    // 站点属性变化复用真实候选和规则，验证边界清理与异步提交。
+    // The source contract is a 500ms attribute debounce and a separate 50ms discovery flush.
+    function attributeBoundaryFixture(attributeName: 'class' | 'style') {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<aside id="flag"></aside><main>' +
+            '<p id="excluded">This published paragraph has a conditional site boundary.</p>' +
+            '<p id="neighbor">This neighboring paragraph remains in the site boundary.</p></main>';
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const excluded = document.querySelector<HTMLElement>('#excluded')!;
+        const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+        [excluded, neighbor].forEach(element => setLayoutBox(element, 600, 60));
+        const selector = attributeName === 'class'
+            ? 'body:has(#flag.blocked) #excluded'
+            : 'body:has(#flag[style="display: block;"]) #excluded';
+        const core = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'private-boundary', name: 'Private boundary',
+                match: {hosts: ['example.com']}, mode: 'augment', exclude: [selector]}],
+        })});
+        runtime.realCore = core;
+        expect(core.adapters[0]!.observedAttributes).toBeNull();
+        const exclude = () => {
+            flag.setAttribute(attributeName, attributeName === 'class' ? 'blocked' : 'display: block;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName,
+                oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        };
+        return {core, flag, excluded, neighbor, exclude};
+    }
+
+    it(
+        'ordinary class does not inspect all owners synchronously; timer removes excluded owner',
+        async () => {
+            const {core, excluded, neighbor, exclude} = attributeBoundaryFixture('class');
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            const previous = getTranslationState(excluded)!;
+            const neighborState = getTranslationState(neighbor)!;
+            expect(previous).toMatchObject({phase: 'translated', syntheticSegment: false});
+            expect(previous.allowTopLevelApplicationShell).not.toBe(true);
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+            const inspect = vi.spyOn(core, 'inspect'); // Call-through: retain the real boundary result/signature.
+            try {
+                exclude();
+                expect(inspect, 'ordinary wide attribute callback must defer broad candidate inspection').not.toHaveBeenCalled();
+                expect(getTranslationState(excluded)).toBe(previous);
+                // Time follows the existing contract, not a count of Promise checkpoints.
+                await vi.advanceTimersByTimeAsync(500);
+                expect(previous.controller.signal.aborted).toBe(true);
+                expect(getTranslationState(excluded)).toBeUndefined();
+                expect(excluded.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+                expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+                expect(inspect.mock.calls.some(([element]) => element === excluded)).toBe(true);
+                expect(getTranslationState(neighbor)).toBe(neighborState);
+                expect(runtime.requests).toHaveBeenCalledTimes(2);
+            } finally {inspect.mockRestore();}
+        },
+    );
+
+    it('site true then nonSite false reschedule retains boundary validation before the loading early return', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<main><i id="flag"></i>' +
+            '<p id="excluded">This published paragraph has a conditional site boundary.</p></main>';
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const excluded = document.querySelector<HTMLElement>('#excluded')!;
+        setLayoutBox(excluded, 600, 60);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'class-only-boundary', name: 'Class only boundary',
+                match: {hosts: ['example.com']}, mode: 'augment', exclude: ['#flag.blocked + #excluded']}],
+        })});
+        expect(runtime.realCore.adapters[0]!.observedAttributes).toEqual(expect.arrayContaining(['class']));
+        expect(runtime.realCore.adapters[0]!.observedAttributes).not.toContain('style');
+        const pending = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(pending.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(1);
+        const previous = getTranslationState(excluded)!;
+        expect(previous.phase).toBe('loading');
+        try {
+            flag.className = 'blocked';
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName: 'class',
+                oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            expect(previous.controller.signal.aborted).toBe(false);
+            await vi.advanceTimersByTimeAsync(100);
+            const oldStyle = excluded.getAttribute('style');
+            excluded.setAttribute('style', 'opacity: 0.9;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: excluded, attributeName: 'style',
+                oldValue: oldStyle, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            // Layout remains trailing, but scope invalidation must occur at the first boundary deadline.
+            await vi.advanceTimersByTimeAsync(399);
+            expect(previous.controller.signal.aborted).toBe(false);
+            expect(getTranslationState(excluded)).toBe(previous);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(excluded)).toBeUndefined();
+            expect(excluded.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        } finally {
+            pending.resolve(['A late fixture result must stay outside the boundary.']);
+            await finishScheduledWork();
+        }
+        expect(excluded.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('nonSite style reevaluation preserves a hover owner without additional scope inspection', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="owner">A hover translation must survive ordinary layout jitter.</p>';
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        setLayoutBox(owner, 600, 60);
+        const core = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: []});
+        runtime.realCore = core;
+        handleBilingualTranslation(owner, false);
+        await finishScheduledWork();
+        const previous = getTranslationState(owner)!;
+        expect(previous.phase).toBe('translated');
+        runtime.config.translationScope = 'all';
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(getTranslationState(owner)).toBe(previous);
+        const inspect = vi.spyOn(core, 'inspect');
+        try {
+            const oldStyle = owner.getAttribute('style');
+            owner.setAttribute('style', 'opacity: 0.9;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: owner, attributeName: 'style',
+                oldValue: oldStyle, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            expect(inspect).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(500);
+            expect(inspect, 'nonSite timer must keep the original source/artifact checks without a new scope inspection').not.toHaveBeenCalled();
+            expect(getTranslationState(owner)).toBe(previous);
+            expect(previous.controller.signal.aborted).toBe(false);
+            expect(owner.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        } finally {inspect.mockRestore();}
+    });
+
+    it('a provider result inside the 50ms discovery window cannot commit after scope exclusion', async () => {
+        const {excluded, neighbor, exclude} = attributeBoundaryFixture('class');
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(origins => origins.some(origin => origin.includes('conditional site boundary'))
+            ? pending.promise : Promise.resolve(origins.map(origin => `译:${origin}`)));
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(2);
+        const previous = getTranslationState(excluded)!;
+        expect(previous.phase).toBe('loading');
+        try {
+            exclude();
+            pending.resolve(['This provider result must never cross the new site boundary.']);
+            // Drain provider completion and its existing zero-delay render task, before the 50ms rescan.
+            await vi.advanceTimersByTimeAsync(1);
+            expect(excluded.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(runtime.renderOptions, 'no excluded owner render was invoked').toHaveLength(1);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(excluded)).toBeUndefined();
+        } finally {
+            pending.resolve(['Fixture cleanup']);
+            await finishScheduledWork();
+        }
+        expect(getTranslationState(neighbor)?.phase).toBe('translated');
+        expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('a synthetic owner still rejects a non-class site boundary change in the observer callback', async () => {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<aside id="guard"><i id="flag"></i></aside>' +
+            '<div id="mixed">Readable inline prefix <strong>with emphasized prose.</strong>' +
+            '<p id="neighbor">A separate paragraph remains readable.</p></div>';
+        const host = document.querySelector<HTMLElement>('#mixed')!;
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+        [host, neighbor].forEach(element => setLayoutBox(element, 600, 100));
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'synthetic-protection', name: 'Synthetic protection',
+                match: {hosts: ['example.com']}, mode: 'augment',
+                protect: ['#guard:has([data-block="yes"]) + #mixed']}],
+        })});
+        expect(runtime.realCore.adapters[0]!.observedAttributes).toBeNull();
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+        const previous = getTranslationState(segment)!;
+        expect(previous).toMatchObject({phase: 'translated', syntheticSegment: true});
+        const requestsBefore = runtime.requests.mock.calls.length;
+        flag.setAttribute('data-block', 'yes');
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName: 'data-block',
+            oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        expect(previous.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(segment)).toBeUndefined();
+        expect(segment.isConnected).toBe(false);
+        await finishScheduledWork();
+        expect(host.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        expect(host.textContent).toBe('Readable inline prefix with emphasized prose.A separate paragraph remains readable.');
+        expect(runtime.requests).toHaveBeenCalledTimes(requestsBefore);
     });
 
     it('自有译文 mutation 风暴不反复遍历等待视口的候选，宿主删除仍会清理', async () => {
@@ -914,6 +1118,8 @@ describe("全文翻译可见性锚点", () => {
     });
 
     it.each([false, true])('请求在途时公告从DOM移除（分槽=%s），立即释放旧owner并续译，迟到结果不重建已关闭公告', async (synthetic) => {
+        // 冷却调度与虚拟计时器使用同一时钟，避免真实 performance 时间不推进而反复排队。
+        replaceGlobal('performance', {now: () => Date.now()});
         const {notice, announcement, page} = announcementFixture();
         if (synthetic) runtime.candidates = runtime.candidates.map(candidate => candidate.element === announcement
             ? {...candidate, nodes: [announcement.firstChild!], reason: 'generic-inline-run'} : candidate);
@@ -5640,6 +5846,175 @@ describe("全文翻译可见性锚点", () => {
 
         await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    async function startUnchangedReceiptCase(output: string | null = ' Spec ', mode: 'viewport' | 'all' = 'viewport') {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = mode;
+        document.body.innerHTML = '<h2 id="receipt-owner">Spec</h2><h2 id="other-owner">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#receipt-owner')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        runtime.requests.mockImplementation(async () => output === null ? [] : [output]);
+        autoTranslateEnglishPage();
+        const sessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await finishScheduledWork();
+        return {owner, sessionId};
+    }
+
+    it('accepted identical result has exact owner/source/session evidence and no duplicate DOM', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toMatchObject({
+            status: 'available', reason: 'accepted-result-identical', sessionId,
+            source: 'Spec', sources: ['Spec'], outputs: [' Spec '], sourceCurrent: true,
+            requestBoundary: 'accepted-same-session-result-reuse', upstreamDispatchAndRoute: 'unavailable',
+        });
+        expect(owner.textContent).toBe('Spec');
+        expect(owner.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        expect(getTranslationState(owner)).toBeUndefined();
+        expect(readFullPageUnchangedCompletion(document.querySelector<HTMLElement>('#other-owner')!, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId + 1, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+    });
+
+    it.each([null, '', '   '])('empty/incomplete result %s cannot certify unchanged completion', async output => {
+        const {owner, sessionId} = await startUnchangedReceiptCase(output);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('preflight language skip does not masquerade as a completed request', async () => {
+        runtime.clearlyTargetLanguage.mockReturnValue(true);
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('same-text Text replacement, route epoch and restore invalidate exact completion evidence', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        const original = owner.firstChild!;
+        owner.replaceChild(document.createTextNode('Spec'), original);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        owner.replaceChild(original, owner.firstChild!);
+        resetFullPageTranslationRouteState();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        restoreOriginalContent();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('same-session exact semantic source edit-and-return reuses historical acceptance without a new request', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        const text = owner.firstChild!;
+        text.nodeValue = 'Changed source';
+        text.nodeValue = 'Spec';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'characterData', target: text, addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toMatchObject({
+            status: 'available', requestBoundary: 'accepted-same-session-result-reuse', upstreamDispatchAndRoute: 'unavailable',
+        });
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancellation before an identical late result cannot certify the old session', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<h2 id="cancelled-receipt">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#cancelled-receipt')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        autoTranslateEnglishPage();
+        const oldSessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await vi.advanceTimersByTimeAsync(100);
+        restoreOriginalContent();
+        pending.resolve(['Spec']);
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, oldSessionId, 'Spec').status).toBe('unavailable');
+        expect(owner.textContent).toBe('Spec');
+        expect(owner.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+    });
+
+    it('unrelated host mutations preserve exact owner completion evidence', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        const neighbor = document.querySelector<HTMLElement>('#other-owner')!;
+        neighbor.firstChild!.nodeValue = 'Different neighboring source';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'characterData', target: neighbor.firstChild!, addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('new invocation revokes an earlier completion even when the new result fails', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        runtime.requests.mockRejectedValue(new Error('new invocation failed'));
+        const candidate = {element: owner, kind: 'content' as const, reason: 'heading'};
+        const attempt = translateTarget(candidate, 'bilingual', false);
+        await finishScheduledWork();
+        await attempt;
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('current owner policy and structure must still match the accepted proof', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        const completion = readFullPageUnchangedCompletion(owner, sessionId, 'Spec');
+        expect(completion.status).toBe('available');
+        runtime.candidateEligible.mockReturnValue(false);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        runtime.candidateEligible.mockReturnValue(true);
+        owner.setAttribute('lang', 'fr');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        owner.removeAttribute('lang');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toEqual(completion);
+    });
+
+    it('stability skip cannot inherit acceptance and settled changed-source work renders distinctly', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase(' Spec ', 'all');
+        setViewportRect(owner, 0, 48);
+        owner.firstChild!.nodeValue = 'PUT';
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+        runtime.requests.mockImplementation(async () => ['卖权']);
+        const attempt = translateTarget({element: owner, kind: 'content', reason: 'heading'}, 'bilingual', false);
+        await finishScheduledWork();
+        expect(await attempt).toMatchObject({status: 'unchanged', source: 'PUT'});
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+        expect(owner.querySelector('.fluent-read-bilingual-content')?.textContent).toBe('卖权');
+    });
+
+    it('pending, failed or cancelled owner attempts never receive completion evidence', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<h2 id="pending-receipt">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#pending-receipt')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        autoTranslateEnglishPage();
+        const sessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        pending.reject(new Error('provider failed'));
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        restoreOriginalContent();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
     });
 
     it("显式 unchanged 在同一全文会话形成 source 签名墓碑，普通 rescan 不重复请求", async () => {

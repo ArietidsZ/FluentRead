@@ -135,13 +135,23 @@ async function mountBook(confirm: (...args: unknown[]) => Promise<unknown> = asy
 }
 
 describe('VocabularyBook asynchronous action ownership', () => {
-  it('selects one latest entry from a full book with at most one comparison per remaining entry and preserves stable ties', async () => {
+  it('opens the explicitly chosen entry from a full book and closes it without replacing the collection', async () => {
     const book = await mountBook();
-    const entries = Array.from({length:5000},(_,i)=>({...book.entry,id:`saved-${String((i*2879+197)%5000).padStart(4,'0')}`,term:`word ${i}`,identityKey:`en:word ${i}`,normalizedTerm:`word ${i}`}));
-    const expected = [...entries].sort((a,b)=>b.lastSeenAt-a.lastSeenAt || a.id.localeCompare(b.id))[0];
-    const compare = vi.spyOn(String.prototype,'localeCompare');
-    book.panel.entries = Object.freeze(entries.map(item=>Object.freeze(item)));
-    expect(book.panel.latestSavedEntry.id).toBe(expected.id); expect(compare.mock.calls.length).toBeLessThanOrEqual(4999);
+    const entries = Array.from({length:5000},(_,i)=>Object.freeze({...book.entry,id:`saved-${i}`,term:`word ${i}`,identityKey:`en:word ${i}`,normalizedTerm:`word ${i}`,lastSeenAt:i+1}));
+    const collection = Object.freeze(entries);
+    book.panel.entries = collection;
+    expect(book.panel.studyEntry).toBeUndefined();
+    book.panel.startReview();
+    expect(book.panel.reviewStarted).toBe(true);
+    book.panel.openStudy(entries[17]);
+    expect(book.panel.reviewStarted).toBe(false);
+    expect(book.panel.studyEntry).toBe(entries[17]);
+    expect(book.panel.studyEntry.id).not.toBe(entries[4999].id);
+    book.panel.openStudy(entries[4321]);
+    expect(book.panel.studyEntry).toBe(entries[4321]);
+    book.panel.selectedEntryId = '';
+    expect(book.panel.studyEntry).toBeUndefined();
+    expect(book.panel.entries).toBe(collection);
     expect(book.panel.entries.map((item:VocabularyEntry)=>item.id)).toEqual(entries.map(item=>item.id));
   });
   it.each(['clearVocabulary','exportAnki','removeEntry'])('does not start %s after its confirmation outlives the book', async action => {

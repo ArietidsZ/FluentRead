@@ -1,4 +1,6 @@
 // 输入框翻译专项：生产扩展、隔离 Edge、真实按键和本地确定性供应商响应。
+const {waitForAsyncCondition} = require('./testing/wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -8,7 +10,7 @@ const argument = (name, fallback) => {
   return i < 0 ? fallback : process.argv[i + 1];
 };
 const {chromium} = require(path.join(argument('playwright-root', path.join(os.homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules')), 'playwright'));
-const helper = require(argument('focus-safe-helper', path.join(os.homedir(), '.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs')));
+const helper = require(argument('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs')));
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-input-translation'));
 fs.mkdirSync(artifactsDir, {recursive: true});
@@ -64,11 +66,15 @@ body{margin:0;padding:48px;background:#f5f3f7;color:#292337;font:16px/1.7 system
 </script></body></html>`;
 
 async function main() {
+  let primaryError;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true,
       headless: false, viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check', '--disable-background-networking']});
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     const context = session.context;
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
@@ -186,10 +192,10 @@ async function main() {
     const interval = options.getByTestId('input-translation-interval').locator('input');
     await interval.fill('750');
     await interval.press('Tab');
-    await options.waitForFunction(async () => {
+    await waitForAsyncCondition(() => options.evaluate(async () => {
       const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       return (typeof r.value === 'string' ? JSON.parse(r.value) : r.value).inputBoxTranslationInterval === 750;
-    });
+    }), {timeoutMs: 30000, message: "输入框翻译间隔未持久化为 750ms"});
     await options.reload();
     await group.scrollIntoViewIfNeeded();
     assert.equal((await readConfig()).inputBoxTranslationInterval, 750);
@@ -591,19 +597,41 @@ async function main() {
     report.runtimeRequests = await requests();
     report.persistenceCases = report.cases.filter(item => /config|interval/.test(item.name));
     report.completed = true;
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) {
-      await session.close();
-      fs.rmSync(profileDir, {recursive: true, force: true});
-    } else {
-      try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
-    }
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {
+        cleanupErrors.push(error);
+        report.completed = false;
+        report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+      }
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 main().catch(error => {
+  report.completed = false;
   report.fatal = error.stack;
-  fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
   console.error(error);
   process.exitCode = 1;
+  try {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));}
+  catch (reportError) {console.error('Report write failed:', reportError);}
 });

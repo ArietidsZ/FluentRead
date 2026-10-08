@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 'use strict';
+if (process.argv.includes('--verify-actions')) {
+  throw new Error('--verify-actions 已移除：被动悬浮句子入口不再提供；请使用 scripts/run-selection-trigger-test.cjs 或 scripts/run-selection-unified-test.cjs 验证现有划词/选区功能。');
+}
 // 生产扩展经真实全文快捷键翻译，验证句数边界、稀疏或深层来源上的原生指针高亮。
 // 使用临时后台 Edge、本地确定性 transport；测量阶段不运行构建或测试。
 const assert = require('node:assert/strict');
@@ -9,11 +12,11 @@ const http = require('node:http');
 const os = require('node:os');
 const path = require('node:path');
 const {startTranslationFixtureServer, installTranslationFixtureOnWorker} = require('../run-full-page-translation-test.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1];};
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-sentence-responsiveness'));
 const baseline = process.argv.includes('--baseline');
-const verifyActions = process.argv.includes('--verify-actions');
 const traceBudget = process.argv.includes('--trace-budget');
 const {chromium} = require(path.join(arg('playwright-root', path.join(os.homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules')), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', path.join(os.homedir(), '.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs')));
@@ -22,7 +25,7 @@ const cases = alignmentStress
   ? [{id: 'alignment-limit', emptyNodes: 0, sentences: 9000, sentence: 'Go!', expectedHighlight: false},
      {id: 'alignment-boundary', emptyNodes: 0, sentences: 256, sentence: 'Go!', expectedHighlight: true}]
   : [{id: 'sparse', emptyNodes: 50_000, sentences: 200, expectedHighlight: true}, {id: 'deep', depth: 2000, sentences: 3, expectedHighlight: true}];
-const report = {baseline, verifyActions, traceBudget, passed: false, evidence: 'Production extension, native keyboard and pointer; local deterministic Microsoft fixture; optional isolated-world sentence iterator counters are separate from uninstrumented timing',
+const report = {baseline, traceBudget, passed: false, evidence: 'Production extension, native keyboard and pointer; local deterministic Microsoft fixture; optional isolated-world sentence iterator counters are separate from uninstrumented timing',
   buildSha256: crypto.createHash('sha256').update(fs.readFileSync(path.join(extensionDir, 'content-scripts/content.js'))).digest('hex'), cases: [], consoleErrors: []};
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-sentence-responsiveness-'));
 fs.mkdirSync(artifactsDir, {recursive: true});
@@ -32,13 +35,17 @@ const server = http.createServer((_request, response) => {
 });
 async function main() {
   let launched, provider;
+  let launchAttempted = false, browserGuarded = false, hasPrimaryError = false;
   const unexpectedNetwork = [];
   try {
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
     provider = await startTranslationFixtureServer(unexpectedNetwork);
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1440, height: 960},
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
+    browserGuarded = true;
     const {context} = launched;
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy,
       windowPlacement: {mode: launched.windowPlacement.mode, browserFrontmost: launched.windowPlacement.browserFrontmost}});
@@ -182,32 +189,6 @@ async function main() {
       assert.equal(result.hostMutations, 0); assert(result.originalPreserved && result.originalTextIdentity);
       assert.equal(provider.requestCount(), translatedRequests, 'Passive highlight must not request translation');
       await page.screenshot({path: path.join(artifactsDir, fixture.id + '.png')});
-      if (verifyActions && fixture.expectedHighlight) {
-        const actions = page.locator('#fluent-read-sentence-actions');
-        const entry = actions.getByRole('button', {name: '句子操作', exact: true});
-        await entry.waitFor({state: 'visible'}); assert.equal(await actions.getByRole('toolbar').count(), 0);
-        await entry.click(); await actions.getByRole('button', {name: '播放原文', exact: true}).waitFor({state: 'visible'});
-        const translatedPoint = await page.evaluate(() => {
-          const wrapper = document.querySelector('#owner > .fluent-read-bilingual-content');
-          wrapper.scrollIntoView({block: 'start'});
-          const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT); let node;
-          while ((node = walker.nextNode())) {
-            if (!node.length) continue;
-            const range = document.createRange(); range.setStart(node, 1); range.setEnd(node, 2);
-            const rect = range.getClientRects()[0]; if (rect?.width) return {x: rect.left + rect.width / 2, y: rect.top + rect.height / 2};
-          }
-          throw new Error('Translated text point unavailable');
-        });
-        // scroll 事件在下一帧交付，会按产品契约撤销高亮；稳定悬浮应在它结算后开始。
-        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-        await page.mouse.move(translatedPoint.x, translatedPoint.y);
-        await page.waitForFunction(expected => [...(CSS.highlights.get('fluentread-bilingual-sentence') || [])].map(range => range.toString()).join('') === expected + '测试译文：' + expected, expected);
-        await entry.waitFor({state: 'visible'}); assert.equal(await actions.getByRole('toolbar').count(), 0);
-        await entry.click(); await actions.getByRole('button', {name: '播放译文', exact: true}).waitFor({state: 'visible'});
-        await page.screenshot({path: path.join(artifactsDir, fixture.id + '-translation.png')});
-        result.bothDirectionsAndCompactActions = true;
-        assert.equal(provider.requestCount(), translatedRequests);
-      }
       await page.locator('#probe').click(); assert.equal(await page.evaluate(() => window.hostClicks), 1);
       await page.keyboard.press('Alt+t');
       await page.waitForFunction(() => !document.querySelector('#owner .fluent-read-bilingual-content'));
@@ -223,14 +204,36 @@ async function main() {
     report.passed = report.cases.every(result => result.highlighted === result.expectedHighlight) && report.consoleErrors.length === 0;
     report.unexpectedNetworkRequests = unexpectedNetwork.length; assert.equal(unexpectedNetwork.length, 0);
     if (!baseline) assert(report.passed);
-  } catch (error) {report.error = error.stack; process.exitCode = 1;}
+  } catch (error) {hasPrimaryError=true;report.error = error?.stack || String(error);console.error(error);process.exitCode = 1;}
   finally {
-    if (launched) await launched.close();
-    if (provider) await provider.close();
-    if (server.listening) await new Promise(resolve => server.close(resolve));
-    fs.rmSync(profileDir, {recursive: true, force: true});
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource,error:String(error?.stack || error)});
+        report.passed=false;process.exitCode=1;
+        console.error(`Cleanup failed (${resource}):`,error);
+      }
+    };
+    let browserClosed=false;
+    await cleanup('browser',async()=>{if(browserGuarded){await launched.close();browserClosed=true;}});
+    await cleanup('provider',async()=>{
+      const error=await provider?.close();
+      if(error && error.code!=='ERR_SERVER_NOT_RUNNING')throw error;
+    });
+    await cleanup('server connections',()=>server.closeAllConnections());
+    await cleanup('server',async()=>{
+      await new Promise((resolve,reject)=>{
+        server.close(error=>{if(error && error.code!=='ERR_SERVER_NOT_RUNNING')reject(error);else resolve();});
+      });
+    });
+    await cleanup('profile',()=>{
+      if(browserClosed || !launchAttempted)fs.rmSync(profileDir,{recursive:true,force:true});
+      else {report.retainedProfile=profileDir;report.retainedProfileLaunchAttempted=launchAttempted;}
+    });
+    await cleanup('report',()=>fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2)));
     console.log(JSON.stringify({passed: report.passed, baseline, cases: report.cases.map(({id, highlighted, highlightLatencyMs, longTasksMs, maxHeartbeatGapMs}) => ({id, highlighted, highlightLatencyMs, longTasksMs, maxHeartbeatGapMs})), error: report.error?.split('\n')[0]}));
+    if(cleanupErrors.length && !hasPrimaryError)throw cleanupErrors[0];
   }
 }
 main().catch(error => {console.error(error); process.exitCode = 1;});

@@ -1,7 +1,7 @@
 /**
  * @file src/app/offscreen/messageRouter.ts
  * 文件职责：解析并分派发送到扩展自有 DOM 页面的可信运行时消息，为 Chrome 翻译、本地模型、TTS、远程图片读取、OCR 语言包、整图和区域翻译提供统一响应纪律。
- * 主要内容：校验并传递单图本地识别方式；提供 ready 握手，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；以共用的可取消请求表管理取消与单次回复，校验本地语音句段时间并保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
+ * 主要内容：校验并传递单图本地识别方式；提供 ready 与 TTS 一次性许可握手，在播放器前拒绝失效 PLAY，校验文本、语言码、图片与 OCR 语言包请求并分派依赖；验证 TTS 播放控制来自同扩展且不属于网页 tab，以共用的可取消请求表管理取消与单次回复，校验本地语音句段时间并保留 Chrome 待准备语言对、模型不可用和本地 TTS 错误码。
  * 模块边界：路由器不创建 Audio/Worker、不调用 browser.offscreen，也不实现翻译算法；资源实例由 offscreen runtime 构造，具体能力来自 translation、ttsPlayback 和 feature services。
  */
 import {parseSpeechCues} from '@/src/core/tts/speechProgress';
@@ -15,6 +15,7 @@ import {
 } from '@/src/features/image-translation/ocrLanguages';
 import {localTtsErrorCode} from '@/src/features/local-tts/protocol';
 import type {SelectionTtsPlayer} from './ttsPlayback';
+import {createSelectionTtsPlaybackAdmission} from './ttsPlaybackAdmission';
 import {isChromePreparationRequiredError, parseLanguageCode} from './translation';
 import {
     OFFSCREEN_CANCEL_CHROME_TRANSLATION_MESSAGE_TYPE,
@@ -27,6 +28,8 @@ import {
 export type OffscreenSendResponse = (response: unknown) => void;
 
 export interface OffscreenMessageDependencies {
+    /** 生产组合根注入自身扩展 ID，TTS 播放控制仅接受同扩展且无 tab 的发送方。 */
+    readonly runtimeId?: string;
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
     readonly ttsPlayer: Pick<SelectionTtsPlayer, 'play' | 'stop' | 'seek'>;
     readonly fetchImage: (url: string, signal: AbortSignal) => Promise<unknown>;
@@ -271,6 +274,7 @@ function cancelRequest(
 
 /** 静态路由 Offscreen 消息；未知或非对象消息不会占用其他 runtime listener。 */
 export function createOffscreenMessageListener(dependencies: OffscreenMessageDependencies): OffscreenMessageListener {
+    const ttsAdmission = createSelectionTtsPlaybackAdmission();
     const activeChromeTranslations = new Map<string, AbortController>();
     const activeLocalTranslations = new Map<string, AbortController>();
     const activeLocalTts = new Map<string, AbortController>();
@@ -317,19 +321,43 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
             (signal) => operation(signal, requestId), shape, imageTranslationFailureResponse);
     };
 
-    return (message, _sender, sendResponse) => {
+    return (message, sender, sendResponse) => {
         if (!isRecord(message) || typeof message.type !== 'string') return false;
         if (message.target !== 'offscreen') return false;
+        if (dependencies.runtimeId !== undefined
+            && ['READ_SELECTION_TTS_REVISION', 'RESERVE_SELECTION_TTS', 'PLAY_SELECTION_TTS', 'STOP_SELECTION_TTS', 'SEEK_SELECTION_TTS'].includes(message.type)
+            && (!isRecord(sender) || sender.id !== dependencies.runtimeId || sender.tab !== undefined)) {
+            sendResponse({success: false, error: 'TTS 播放控制发送方无效'});
+            return true;
+        }
 
         switch (message.type) {
             case OFFSCREEN_READY_MESSAGE_TYPE:
                 sendResponse({success: true, ready: true});
                 return true;
+            case 'READ_SELECTION_TTS_REVISION':
+                respondWith(async () => ttsAdmission.read(), sendResponse, (snapshot) => ({success: true, ...(snapshot as object)}));
+                return true;
+            case 'RESERVE_SELECTION_TTS':
+                respondWith(async () => ttsAdmission.reserve(message), sendResponse, (playbackToken) =>
+                    playbackToken === undefined ? {success: false, conflict: true} : {success: true, playbackToken});
+                return true;
             case 'PLAY_SELECTION_TTS':
-                respondWith(() => dependencies.ttsPlayer.play(message), sendResponse, () => ({success: true}));
+                respondWith(async () => {
+                    // 消费许可与进入真实播放器连续执行；拒绝旧 PLAY 时尚未创建/停止 Audio。
+                    if (!ttsAdmission.consume(message)) {
+                        return {success: false, error: 'TTS 播放许可已失效',
+                            errorCode: 'selection-tts-permit-invalid', receiverId: ttsAdmission.read().receiverId};
+                    }
+                    await dependencies.ttsPlayer.play(message);
+                    return {success: true};
+                }, sendResponse, (response) => response);
                 return true;
             case 'STOP_SELECTION_TTS':
-                respondWith(async () => dependencies.ttsPlayer.stop(message), sendResponse, () => ({success: true}));
+                respondWith(async () => {
+                    ttsAdmission.stop(message);
+                    return dependencies.ttsPlayer.stop(message);
+                }, sendResponse, () => ({success: true}));
                 return true;
             case 'SEEK_SELECTION_TTS':
                 respondWith(async () => dependencies.ttsPlayer.seek(message), sendResponse, (seeked) => ({success: true, seeked}));

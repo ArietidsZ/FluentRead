@@ -42,6 +42,13 @@ async function dispatch(message: unknown, handler = listener): Promise<{handled:
     return handled ? {handled, response: await response} : {handled};
 }
 
+async function reservePlay(play: Record<string, unknown>) {
+    const snapshot = await dispatch({type: 'READ_SELECTION_TTS_REVISION'});
+    const revision = (snapshot.response as {revision: string}).revision;
+    const reservation = await dispatch({...play, type: 'RESERVE_SELECTION_TTS', expectedRevision: revision});
+    return {...play, playbackToken: (reservation.response as {playbackToken: string}).playbackToken};
+}
+
 describe('Offscreen 消息静态路由', () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -116,15 +123,16 @@ describe('Offscreen 消息静态路由', () => {
     it('TTS 只接收 offscreen target，并统一返回成功或错误', async () => {
         await expect(dispatch({type: 'PLAY_SELECTION_TTS', target: 'page'})).resolves.toEqual({handled: false});
         await expect(dispatch({type: 'STOP_SELECTION_TTS', target: 'page'})).resolves.toEqual({handled: false});
-        const play = {
+        let play = {
             type: 'PLAY_SELECTION_TTS',
             target: 'offscreen',
             sourceUrl: 'x',
             tabId: 0,
             clientRequestId: 'client-1',
         };
-        await expect(dispatch(play)).resolves.toEqual({handled: true, response: {success: true}});
-        expect(mocks.play).toHaveBeenCalledWith(play);
+        const admittedPlay = await reservePlay(play);
+        await expect(dispatch(admittedPlay)).resolves.toEqual({handled: true, response: {success: true}});
+        expect(mocks.play).toHaveBeenCalledWith(admittedPlay);
         const stop = {type: 'STOP_SELECTION_TTS', target: 'offscreen', tabId: 0, clientRequestId: 'client-1'};
         await expect(dispatch(stop))
             .resolves.toEqual({handled: true, response: {success: true}});
@@ -137,7 +145,7 @@ describe('Offscreen 消息静态路由', () => {
         await expect(dispatch(seek)).resolves.toEqual({handled:true,response:{success:true,seeked:false}});
 
         mocks.play.mockRejectedValueOnce(new Error('play failed'));
-        await expect(dispatch(play)).resolves.toEqual({handled: true, response: {success: false, error: 'play failed'}});
+        await expect(dispatch(await reservePlay(play))).resolves.toEqual({handled: true, response: {success: false, error: 'play failed'}});
         mocks.stop.mockImplementationOnce(() => { throw 'bad id'; });
         await expect(dispatch({type: 'STOP_SELECTION_TTS', target: 'offscreen', tabId: 0, clientRequestId: 'bad'}))
             .resolves.toEqual({handled: true, response: {success: false, error: 'bad id'}});
@@ -147,13 +155,15 @@ describe('Offscreen 消息静态路由', () => {
         const timings = [{startChar: 0, endChar: 5, startTime: 0, endTime: 2}];
         const play = {type: 'PLAY_SELECTION_TTS', target: 'offscreen', audioBase64: 'UklGRg==', contentType: 'audio/wav',
             text: 'Hello', timings, tabId: 0, clientRequestId: 'playback-client'};
-        await expect(dispatch(play)).resolves.toEqual({handled: true, response: {success: true}});
-        expect(mocks.play).toHaveBeenCalledWith(play);
+        const admittedPlay = await reservePlay(play);
+        await expect(dispatch(admittedPlay)).resolves.toEqual({handled: true, response: {success: true}});
+        expect(mocks.play).toHaveBeenCalledWith(admittedPlay);
         expect(mocks.stop).not.toHaveBeenCalled();
         const google = {type: 'PLAY_SELECTION_TTS', target: 'offscreen', sourceUrl: 'https://audio',
             text: 'Hello', tabId: 2, clientRequestId: 'google-client'};
-        await dispatch(google);
-        expect(mocks.play).toHaveBeenLastCalledWith(google);
+        const admittedGoogle = await reservePlay(google);
+        await dispatch(admittedGoogle);
+        expect(mocks.play).toHaveBeenLastCalledWith(admittedGoogle);
     });
 
     it('视频 AI 接收端复用消息通道，并隔离未启用、失败与非法结果', async () => {
@@ -592,7 +602,7 @@ describe('Offscreen 消息静态路由', () => {
     it('已消费的取消 ID 再次使用时保留新取消，容量只计算尚未消费的记录', async () => {
         const translateImage = vi.fn(async () => ({image: 'translated', lines: []}));
         const handler = createOffscreenMessageListener({...mocks, translateImage,
-            ttsPlayer: {play: mocks.play, stop: mocks.stop}});
+            ttsPlayer: {play: mocks.play, stop: mocks.stop, seek: mocks.seek}});
         const cancel = (requestId: string) => dispatch({type: OFFSCREEN_CANCEL_IMAGE_OPERATION_MESSAGE_TYPE, requestId}, handler);
         const start = (requestId: string) => dispatch({type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId,
             image: 'data:image/png,x', sourceLanguage: 'en'}, handler);

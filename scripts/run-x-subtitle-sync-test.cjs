@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Deterministic spoken-audio and HLS fixture against the production extension.
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -10,7 +11,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-x-sync-proof'));
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const runtime = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'x-proof.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
@@ -106,7 +107,9 @@ const videoMarkup='<video style="width:100%;height:100%" controls></video>';
 const lifecycleControls = lifecycle ? `<div class="fixture-controls" style="position:absolute;bottom:0;left:0;right:0;display:flex;gap:12px;align-items:center;height:44px;background:#111"><button aria-label="Play" onclick="this.closest('[data-testid=videoPlayer]').querySelector('video').play()">Play</button><button aria-label="Settings">Settings</button><button id="fixture-fullscreen" onclick="this.closest('[data-testid=videoPlayer]').requestFullscreen()">Fullscreen</button></div>` : '';
 const playerMarkup=hostOverlay?`<div style="position:relative;width:960px;height:540px"><div style="position:relative;isolation:isolate;z-index:0;width:100%;height:100%;background:#10283f">${videoMarkup}</div><a id="fixture-media-link" aria-label="View media" href="/cerebras/status/2089870131291943228/video/1" style="position:absolute;inset:0;z-index:10" onclick="event.preventDefault();window.proofHostLinkClicks=(window.proofHostLinkClicks||0)+1"></a></div>`:`<div data-testid="videoPlayer" style="position:relative;width:960px;height:540px;background:#10283f">${videoMarkup}${lifecycleControls}</div>`;
 const profile = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-x-sync-profile-'));
-let browser, control, page;
+let launchAttempted = false;
+let browser, control, page, isolatedProbeSession;
+let primaryError;
 const report = {lifecycle,speechLanguage,fixtureUrl,mediaMode,model,lines,displayMode,startPlaying,earlyHls,hostOverlay,backgroundMusic,backgroundMusicMetric,prepareAfterLoad,trustedStorageRequired,errors:[],console:[],requests:[],samples:[],diagnostics:[],menuSnapshots:[]};
 
 async function captureVideoMenuSnapshot(page, artifacts, report, phase) {
@@ -156,15 +159,24 @@ async function readLocalVideoModelState(control, model) {
  return state;
 }
 async function main() {
+ launchAttempted = true;
  browser = await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath,headless:false,background:true,displayTarget:'secondary',browserArgs:[...(extensionInstall === 'cdp' ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`]),'--autoplay-policy=no-user-gesture-required','--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+ guardBrowserClose(browser, profile);
  const context = browser.context;
  report.browserVersion = context.browser().version();
  report.browserPath = browserPath;
  let loadedExtensionId;
  if (extensionInstall === 'cdp') {
    const extensionSession = await context.browser().newBrowserCDPSession();
-   loadedExtensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;
-   await extensionSession.detach();
+   let installError;
+   try {loadedExtensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;}
+   catch (error) {installError = error; throw error;}
+   finally {
+     try {await extensionSession.detach();} catch (error) {
+       if (!installError) throw error;
+       process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+     }
+   }
  }
  report.extensionInstall = extensionInstall;
  context.on('page', p => {p.on('pageerror', e => report.errors.push(e.message)); p.on('console',m => { if(m.type()==='error'||m.type()==='warning'||m.text().includes('[FluentRead] X audio fast decode unavailable')) report.console.push(m.text()); });});
@@ -272,7 +284,7 @@ async function main() {
    await chrome.storage.local.setAccessLevel({accessLevel: 'TRUSTED_CONTEXTS'});
    return {apiAvailable: true, accessLevel: 'TRUSTED_CONTEXTS'};
  });
- const isolatedProbeSession = await context.newCDPSession(page);
+ isolatedProbeSession = await context.newCDPSession(page);
  const executionContexts = [];
  isolatedProbeSession.on('Runtime.executionContextCreated', event => executionContexts.push(event.context));
  await isolatedProbeSession.send('Runtime.enable');
@@ -334,7 +346,8 @@ async function main() {
    report.modelQueryFailure = {injected: 'one background status failure; no ASR mock', optionsBeforeFailure, optionsAfterFailure, retryEnabled:true};
    await captureVideoMenuSnapshot(page, artifacts, report, 'query-failure');
  }
- await isolatedProbeSession.detach().catch(() => {});
+ await isolatedProbeSession.detach();
+ isolatedProbeSession = null;
  report.modelState = await readLocalVideoModelState(control, model);
  const before=await page.evaluate(()=>{const v=document.querySelector('video');v.currentTime=2;return {time:v.currentTime,paused:v.paused,rate:v.playbackRate,volume:v.volume,muted:v.muted};});
  await page.waitForTimeout(150);
@@ -540,8 +553,31 @@ async function main() {
  assert.deepEqual(report.errors, [], 'the player lifecycle must not produce unhandled page errors');
  report.success=true;
 }
-main().catch(async e=>{report.failure=e.stack;process.exitCode=1;if(page)report.failureState=await page.evaluate(()=>({events:window.proofVideoEvents,samples:window.proofSamples?.slice(-20),video:[...document.querySelectorAll('video')].map(video=>({time:video.currentTime,duration:video.duration,paused:video.paused,ended:video.ended,ready:video.readyState,network:video.networkState,visibility:document.visibilityState,error:video.error?.message}))})).catch(()=>null);if(page)await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}).finally(async()=>{
- fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));
+main().catch(async e=>{primaryError=e;report.failure=e.stack;process.exitCode=1;if(page)report.failureState=await page.evaluate(()=>({events:window.proofVideoEvents,samples:window.proofSamples?.slice(-20),video:[...document.querySelectorAll('video')].map(video=>({time:video.currentTime,duration:video.duration,paused:video.paused,ended:video.ended,ready:video.readyState,network:video.networkState,visibility:document.visibilityState,error:video.error?.message}))})).catch(()=>null);if(page)await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}).finally(async()=>{
+ const cleanupErrors = [];
+ const cleanup = async action => {
+   try {await action();} catch (error) {cleanupErrors.push(error);}
+ };
+ let browserClosed = false;
+ await cleanup(async () => {await isolatedProbeSession?.detach();});
+ await cleanup(async () => {
+   if (browser) {await browser.close(); browserClosed = true;}
+ });
+ await cleanup(() => {
+   if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+   else if (!launchAttempted) {
+     // No browser launch was attempted; only remove an empty initial profile.
+     try {fs.rmdirSync(profile);} catch (error) {
+       if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+     }
+   }
+ });
+ if (cleanupErrors.length) {
+   report.success = false;
+   report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+ }
+ await cleanup(() => {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));});
+ for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+ if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
  console.log(JSON.stringify({success:report.success,generationMs:report.generationMs,prepareMs:report.prepareMs,texts:report.texts,failure:report.failure,artifacts},null,2));
- if(browser)await browser.close();fs.rmSync(profile,{recursive:true,force:true});
-});
+}).catch(error=>{console.error(error.stack||error);process.exitCode=1;});

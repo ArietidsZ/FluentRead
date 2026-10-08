@@ -534,7 +534,8 @@ describe('options UI composition architecture', () => {
     // 圈选快捷键可自定义；启用开关的冲突检查必须读取已解析的快捷键，不能写死 Shift+Z。
     expect(settingsSections).toContain('quickTranslationConflictMessage(resolveAreaTranslationHotkey(config.value.selectionAreaHotkey, config.value.customSelectionAreaHotkey))')
     expect(settingsSections).not.toContain("'Shift+Z'")
-    expect(settingsSections).toContain("useTranslationShortcutSettings(config, kind => viewActive.value && props.activeSection")
+    expect(settingsSections).toMatch(/useTranslationShortcutSettings\(config,\s*kind => viewActive\.value && props\.activeSection/u)
+    expect(settingsSections).toMatch(/\(\) => applyingExternalConfig\);/u)
     expect(translationShortcutSettings).toContain('inputBoxTranslationTriggerHotkey(value)')
     expect(quickTranslationProfiles).toContain('inputBoxTranslationTriggerHotkey(props.config.inputBoxTranslationTrigger)')
     expect(translationShortcutSettings).toContain('previousFullPageHotkey')
@@ -1303,12 +1304,14 @@ describe('options UI composition architecture', () => {
     expect(speech).toContain('data-testid="local-tts-progress"')
     expect(speech).toContain('<p v-else class="local-tts-model-status"')
     expect(speech.match(/settings\.localTts\.statusDownloading/g)).toHaveLength(2)
-    expect(speech).toContain('watchDownloadProgress([LOCAL_TTS_DOWNLOAD_ID], handleDownloadProgress)')
+    expect(speech).toContain(':progress="progress"')
+    // 真实订阅、字节写回、旧回调隔离及清理由 localModelSettingsLifecycle 的完整 client SFC 覆盖。
 
     // 字幕模型：卡片底部的状态文字在下载时换成进度。
     expect(video).toContain(':data-video-model-progress="item.value"')
     expect(video).not.toContain('正在下载模型')
     expect(video).toContain('videoModelDownloadId(item.value)')
+    expect(video).toContain(':progress="progress[item.value]"')
 
     // 语言包与圈选卡片是几 MB 的小资源，只写百分比。
     expect(ocr).toContain('class="image-ocr-pack-progress" detail="percent"')

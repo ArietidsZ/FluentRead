@@ -1,9 +1,12 @@
 /**
  * @file src/features/full-page-translation/content/translationStability.ts
- * 文件职责：提供动态页面翻译的语义稳定性判断和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
+ * 文件职责：提供动态页面翻译的语义稳定性判断、轻量完成证据复验和实时文本槽重绑定，隔离 React/虚拟列表重建造成的生命周期噪声。
  * 主要内容：判断原文与译文工件是否仍完整，排队行内候选逐一复验全部来源节点及顺序，在保留宿主链接焦点管理的前提下决定是否保留当前翻译 generation，并在逐槽核对当前来源后把异步结果映射到实时 Text 节点与空白边界；重挂提取原文和文本槽时共享单文本读取，多槽仍保留独立的链接标识符与属性标签提取政策；按钮型 input 的译文写在标签属性上，另按已记录属性值复验其时效与自身写入。
  * 模块边界：本文件不读取配置、不监听 DOM、不执行 provider 请求；runtime 通过回调提供当前来源与槽位快照。
  */
+import {hasDistinctTranslation} from '@/src/core/translation/result';
+import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+import type {TranslationScope} from '@/src/core/translation/public';
 import {
     collectLiveTranslationTextSlots,
     createTranslationTextProtectionCache,
@@ -14,6 +17,7 @@ import {
     isProtectedDescendantElement,
     isTranslationTextElementProtected,
     type TranslationCandidate,
+    type TranslationTextProtectionCache,
     type TranslationTextProtectionOptions,
     type TranslationTextSlot,
 } from '@/src/core/translation/public';
@@ -27,6 +31,113 @@ import {
     type TranslationState,
 } from './state';
 
+export interface FullPageLifecycleRetry {
+    owner: HTMLElement;
+    source: string;
+    kind: TranslationCandidate["kind"];
+    reason: string;
+    attempts: number;
+    completion?: AcceptedUnchangedCompletion;
+}
+export function createLifecycleRetry(
+    candidate: TranslationCandidate,
+    source: string,
+    attempts: number,
+    completion?: AcceptedUnchangedCompletion,
+): FullPageLifecycleRetry {
+    return {
+        owner: candidate.element,
+        source: normalizeComparableText(source),
+        kind: candidate.kind,
+        reason: candidate.reason,
+        attempts, completion,
+    };
+}
+
+export function sameLifecycleRetry(
+    previous: FullPageLifecycleRetry | undefined,
+    candidate: TranslationCandidate,
+    source: string,
+): boolean {
+    return Boolean(previous &&
+        previous.owner === candidate.element &&
+        previous.source === source &&
+        previous.kind === candidate.kind &&
+        previous.reason === candidate.reason);
+}
+
+/** Lightweight result proof. No TranslationState, controller, candidate or credential retained. */
+export interface AcceptedUnchangedCompletion {
+    reason: 'accepted-result-identical';
+    sources: readonly string[];
+    outputs: readonly string[];
+    sourceNodes: readonly Text[];
+    sourceStructureSignature: string;
+    scope?: TranslationScope;
+    allowTopLevelApplicationShell: boolean;
+    sessionId: number;
+    renderCommitGeneration: number;
+    generation: number;
+    configIdentity: string;
+    configuredService: string;
+    targetLanguage: string;
+    completedAtUnixMs: number;
+}
+interface CompletionConfig {
+    sessionId: number;
+    renderCommitGeneration: number;
+    configIdentity: string;
+    service: string;
+    targetLanguage: string;
+    excludedLanguages?: readonly string[];
+}
+export function createAcceptedUnchangedCompletion(owner: HTMLElement, candidate: TranslationCandidate,
+    state: TranslationState, generation: number, sources: readonly string[], outputs: readonly string[],
+    config: CompletionConfig): AcceptedUnchangedCompletion | undefined {
+    if (owner !== candidate.element || state.syntheticSegment || candidate.nodes?.length || state.mode !== 'bilingual' ||
+        state.kind !== 'content' || state.controller.signal.aborted || state.generation !== generation ||
+        sources.length !== 1 || outputs.length !== 1 || sources[0] !== state.sourceText ||
+        state.sourceTextNodes?.length !== 1 || !state.sourceStructureSignature ||
+        isTranslationSourceStructureOverflow(state.sourceStructureSignature) ||
+        sources[0]!.length > 2048 || outputs[0]!.length > 2048 ||
+        // 三美元公式会由请求链在本地回填，不能据此认证 provider 的相同结果。
+        sources[0]!.includes('$$$') ||
+        !hasDistinctTranslation('', outputs[0]) || hasDistinctTranslation(sources[0]!, outputs[0]) ||
+        shouldSkipTranslationForTarget(sources[0]!, config.targetLanguage, config.excludedLanguages) ||
+        !['freeTranslation', 'microsoft', 'google'].includes(config.service)) return undefined;
+    return {reason: 'accepted-result-identical', sources: [...sources], outputs: [...outputs],
+        sourceNodes: [...state.sourceTextNodes], sourceStructureSignature: state.sourceStructureSignature,
+        scope: state.scope, allowTopLevelApplicationShell: state.allowTopLevelApplicationShell === true,
+        sessionId: config.sessionId, renderCommitGeneration: config.renderCommitGeneration, generation,
+        configIdentity: config.configIdentity, configuredService: config.service,
+        targetLanguage: config.targetLanguage, completedAtUnixMs: Date.now()};
+}
+/** Same-epoch identical semantic state may reuse a historical accepted result; never new live dispatch proof. */
+export function readAcceptedUnchangedCompletion(owner: HTMLElement, record: FullPageLifecycleRetry | undefined,
+    query: {sessionId: number; currentSessionId?: number; renderCommitGeneration?: number;
+        configIdentity?: string; source: string; cancelled: boolean}) {
+    const proof = record?.completion;
+    const unavailable = {status: 'unavailable', reason: 'no-current-accepted-completion'} as const;
+    if (!record || !proof || record.owner !== owner || !owner.isConnected || query.cancelled || getTranslationState(owner) ||
+        query.sessionId !== query.currentSessionId || proof.sessionId !== query.currentSessionId ||
+        proof.renderCommitGeneration !== query.renderCommitGeneration || proof.configIdentity !== query.configIdentity ||
+        normalizeComparableText(query.source) !== record.source ||
+        !isTranslationCandidateCurrent({element: owner, kind: record.kind, reason: record.reason,
+            scope: proof.scope, ...(proof.allowTopLevelApplicationShell ? {allowTopLevelApplicationShell: true} : {})})) return unavailable;
+    const core = getCurrentTranslationCore(proof.scope);
+    const slots = collectLiveTranslationTextSlots(owner, core.shouldStayOriginal, undefined,
+        getTranslationTextProtectionOptions(proof.allowTopLevelApplicationShell, owner));
+    if (slots.length !== proof.sourceNodes.length || slots.some((slot, i) =>
+        slot.node !== proof.sourceNodes[i] || slot.source !== proof.sources[i]) ||
+        getTranslationSourceStructureSignature(owner, proof.allowTopLevelApplicationShell, proof.sourceNodes,
+            proof.scope) !== proof.sourceStructureSignature || owner.querySelector(TRANSLATION_ARTIFACT_SELECTOR)) return unavailable;
+    return {status: 'available', reason: proof.reason, sessionId: proof.sessionId, generation: proof.generation,
+        renderCommitGeneration: proof.renderCommitGeneration, sources: [...proof.sources], outputs: [...proof.outputs],
+        source: query.source, sourceCurrent: true, configuredService: proof.configuredService,
+        targetLanguage: proof.targetLanguage, completedAtUnixMs: proof.completedAtUnixMs,
+        requestBoundary: 'accepted-same-session-result-reuse', upstreamDispatchAndRoute: 'unavailable'} as const;
+}
+
 export interface LiveTextResultSnapshot {
     sources: readonly string[];
     translations: readonly string[];
@@ -39,13 +150,18 @@ export interface ReboundLiveTextResult {
     slots: readonly {node: Text; text: string}[];
 }
 
-const TRANSLATION_ARTIFACT_SELECTOR = [
+export const TRANSLATION_ARTIFACT_SELECTOR = [
     '[data-fr-translation-segment="true"]',
     '[data-fr-translation-owned="true"]',
 ].join(',');
 
 export function normalizeComparableText(text: string): string {
     return text.replace(/[\s\u3000]+/g, ' ').trim();
+}
+
+export function isTranslationStateSourceCurrent(node: HTMLElement, state: TranslationState): boolean {
+    return normalizeComparableText(getCurrentTranslationStateSourceText(node, state)) ===
+        normalizeComparableText(state.sourceText);
 }
 
 export function getTranslationTextProtectionOptions(
@@ -123,6 +239,35 @@ export function isTranslationCandidateCurrent(candidate: TranslationCandidate): 
 }
 
 
+/** 已有 state 的正文范围复验；调用者在任何可能写入 DOM 的操作前使批次失效。 */
+export function isTranslationStateCandidateCurrent(owner: HTMLElement, state: TranslationState): boolean {
+    return isTranslationCandidateCurrent({element: owner, kind: state.kind,
+        reason: 'site-boundary-change', scope: state.scope,
+        ...(state.allowTopLevelApplicationShell ? {allowTopLevelApplicationShell: true} : {})});
+}
+
+/** 同一 observer 只读阶段分别缓存边界与来源；精确 owner/state 不同或发生写入就重新读取。 */
+export function createTranslationMutationStabilityChecks() {
+    type Read = {owner: HTMLElement; scope?: boolean; source?: boolean};
+    let reads = new WeakMap<TranslationState, Read>();
+    const read = (owner: HTMLElement, state: TranslationState, key: 'scope' | 'source',
+        check: (owner: HTMLElement, state: TranslationState) => boolean): boolean => {
+        let previous = reads.get(state);
+        if (!previous || previous.owner !== owner) {
+            previous = {owner};
+            reads.set(state, previous);
+        }
+        return previous[key] ?? (previous[key] = check(owner, state));
+    };
+    return {
+        scopeIsCurrent: (owner: HTMLElement, state: TranslationState) =>
+            read(owner, state, 'scope', isTranslationStateCandidateCurrent),
+        sourceIsCurrent: (owner: HTMLElement, state: TranslationState) =>
+            read(owner, state, 'source', statefulSourceAndTextSlotsAreCurrent),
+        invalidate: () => {reads = new WeakMap();},
+    };
+}
+
 export function getCurrentTranslationStateSourceText(node: HTMLElement, state: TranslationState): string {
     return extractTranslationText(
         node,
@@ -132,27 +277,51 @@ export function getCurrentTranslationStateSourceText(node: HTMLElement, state: T
     );
 }
 
-export function getCurrentTranslationStateTextNodes(node: HTMLElement, state: TranslationState): Text[] {
+export function getCurrentTranslationStateTextNodes(
+    node: HTMLElement, state: TranslationState, protectionCache?: TranslationTextProtectionCache,
+): Text[] {
     return collectLiveTranslationTextSlots(
         node,
         getCurrentTranslationCore(state.scope).shouldStayOriginal,
         getTranslationStateProtectionBoundary(node, state),
         getTranslationTextProtectionOptions(state.allowTopLevelApplicationShell, node),
+        state.syntheticSegment || state.allowTopLevelApplicationShell === true ? undefined : protectionCache,
     ).map((slot) => slot.node);
 }
 
 /** 单个直接 Text 的已验证槽就是完整原文；复杂骨架仍按原文提取政策复核。 */
-export function getCurrentTranslationStateSourceSnapshot(node: HTMLElement, state: TranslationState): {
+export function getCurrentTranslationStateSourceSnapshot(
+    node: HTMLElement, state: TranslationState, protectionCache?: TranslationTextProtectionCache,
+): {
     sourceText: string;
     sourceTextNodes: Text[];
 } {
-    const sourceTextNodes = getCurrentTranslationStateTextNodes(node, state);
+    const sourceTextNodes = getCurrentTranslationStateTextNodes(node, state, protectionCache);
     const singleText = node.childNodes.length === 1 && sourceTextNodes.length === 1 &&
         node.firstChild === sourceTextNodes[0];
     return {
         sourceText: singleText ? normalizeComparableText(sourceTextNodes[0]!.data)
             : getCurrentTranslationStateSourceText(node, state),
         sourceTextNodes,
+    };
+}
+
+/** 同一次重挂 prepare 只读批次共享普通 owner 的资格读数；提交写入前结束使用。 */
+export function createCurrentTranslationStateSourceSnapshotBatch(): (
+    node: HTMLElement, state: TranslationState,
+) => {sourceText: string; sourceTextNodes: Text[]} {
+    const caches = new Map<ReturnType<typeof getCurrentTranslationCore>, TranslationTextProtectionCache>();
+    return (node, state) => {
+        if (state.syntheticSegment || state.allowTopLevelApplicationShell === true) {
+            return getCurrentTranslationStateSourceSnapshot(node, state);
+        }
+        const core = getCurrentTranslationCore(state.scope);
+        let cache = caches.get(core);
+        if (!cache) {
+            cache = createTranslationTextProtectionCache();
+            caches.set(core, cache);
+        }
+        return getCurrentTranslationStateSourceSnapshot(node, state, cache);
     };
 }
 

@@ -3,6 +3,9 @@ import {loadMangaInpaintAsset, loadMangaOcrAssets, mangaOcrModelStatus, removeMa
 import {createBrowserMangaOcr, createMangaOcrRuntime, mangaOcrRuntime, removeMangaModels} from '@/src/features/image-translation/services/mangaOcr';
 import {createBrowserMangaInpainter, createMangaInpaintingRuntime, mangaInpaintingRuntime} from '@/src/features/image-translation/services/mangaInpainting';
 import {createOffscreenMessageListener} from '@/src/app/offscreen/messageRouter';
+import {startMangaInferenceWorker} from '@/src/features/image-translation/services/mangaInference.worker';
+import type {MangaInferenceMessage, MangaInferenceResponse} from '@/src/features/image-translation/services/mangaInferenceClient';
+import * as ort from 'onnxruntime-web/webgpu';
 import {mkdirSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 
@@ -49,39 +52,101 @@ async function tick() {for (let n = 0; n < 40; n++) await Promise.resolve();}
 function capture<T>(promise: Promise<T>) {return promise.then(value => ({value, error: undefined}), error => ({value: undefined, error}));}
 function evidence(name: string, data: unknown) {if (process.env.AUDIT_E2_EVIDENCE) {mkdirSync(process.env.AUDIT_E2_EVIDENCE, {recursive: true}); writeFileSync(join(process.env.AUDIT_E2_EVIDENCE, name + '.json'), JSON.stringify(data, null, 2));}}
 
+// Only the Worker transport is controlled: the production worker public entry
+// performs dispatch, model creation, inference, error responses and release.
+const modelFetch = vi.fn<typeof fetch>();
+const workers: ControlledInferenceWorker[] = [];
+class ControlledInferenceWorker {
+    onmessage: ((event: MessageEvent<MangaInferenceResponse>) => void) | null = null;
+    onerror: ((event: ErrorEvent) => void) | null = null;
+    private closed = false;
+    private scope = {
+        onmessage: null as ((event: MessageEvent<MangaInferenceMessage>) => void) | null,
+        postMessage: (response: MangaInferenceResponse) => {
+            if (!this.closed) this.onmessage?.({data: response} as MessageEvent<MangaInferenceResponse>);
+        },
+    };
+    postMessage = vi.fn((message: MangaInferenceMessage) => {
+        if (!this.closed) this.scope.onmessage?.({data: message} as MessageEvent<MangaInferenceMessage>);
+    });
+    terminate = vi.fn(() => {
+        this.closed = true;
+        this.scope.onmessage = null;
+        this.onmessage = null;
+        this.onerror = null;
+    });
+    constructor(url: string, options: WorkerOptions) {
+        expect(url).toBe('chrome-extension://fixture/mangaInferenceWorker.js');
+        expect(options).toEqual({type: 'module'});
+        const previousScope = globalThis.self;
+        // Native workers have separate ORT module instances. Restore this external
+        // SDK port before each public start, avoiding nested initialization wrappers.
+        ort.InferenceSession.create = sdk.create;
+        vi.stubGlobal('self', this.scope);
+        try {startMangaInferenceWorker();}
+        finally {vi.stubGlobal('self', previousScope);}
+        workers.push(this);
+    }
+}
+
 function deferred<T>() {
     let resolve!: (value: T) => void, reject!: (error: unknown) => void;
     const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;});
     return {promise, resolve, reject};
 }
 beforeEach(async () => {
-    vi.useFakeTimers(); stores.clear(); onDelete = undefined; onPut = undefined;
+    vi.useFakeTimers({toFake: ['Date', 'performance', 'setTimeout', 'clearTimeout']}); stores.clear(); onDelete = undefined; onPut = undefined; workers.length = 0;
     sdk.sessions.length = 0; sdk.detectionSession = undefined; sdk.create.mockReset(); sdk.initialize.mockReset().mockResolvedValue(undefined);
     sdk.destroy.mockReset().mockResolvedValue(undefined); sdk.recognize.mockReset().mockResolvedValue({results: [{text: 'Hello world', confidence: 1, box: {x: 8, y: 8, width: 16, height: 16}}]});
     sdk.create.mockImplementation(async () => {const port = {run: vi.fn(async ({image}) => ({inpainted: {data: new Float32Array(image.data), dispose() {}}})), release: vi.fn(async () => {})}; sdk.sessions.push(port); return port;});
     vi.stubGlobal('caches', {open: async (name: string) => cachePort(name), delete: vi.fn(async (name: string) => {const result = await (onDelete?.() ?? Promise.resolve(true)); if (result) stores.delete(name); return result;})});
     vi.stubGlobal('crypto', {subtle: {digest: vi.fn(async (_method: string, b: ArrayBuffer) => Uint8Array.from(allAssets.find(a => a.bytes === b.byteLength)!.sha256.match(/../g)!, part => parseInt(part, 16)).buffer)}});
-    vi.stubGlobal('navigator', {});
-    vi.stubGlobal('chrome', {runtime: {getURL: (path: string) => 'chrome-extension://fixture' + path}});
+    vi.stubGlobal('navigator', {language: 'en-US'});
+    ort.InferenceSession.create = sdk.create;
+    vi.stubGlobal('Worker', ControlledInferenceWorker);
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({width: 32, height: 32, close: vi.fn()})));
+    vi.stubGlobal('chrome', {runtime: {getURL: (path: string) => 'chrome-extension://fixture/' + path.replace(/^\/+/, '')}});
     vi.stubGlobal('document', {createElement: () => ({width: 0, height: 0, getContext: () => ({drawImage() {}, getImageData: () => ({data: new Uint8ClampedArray(32 * 32 * 4)})})})});
-    vi.stubGlobal('fetch', vi.fn());
+    modelFetch.mockReset().mockRejectedValue(new Error('unexpected controlled model request'));
+    vi.stubGlobal('fetch', vi.fn((url: RequestInfo | URL, options?: RequestInit) => String(url) === 'controlled-image'
+        ? Promise.resolve(new Response(new Uint8Array([0]), {headers: {'content-type': 'image/png'}}))
+        : modelFetch(url, options)));
     await removeMangaOcrAssets();
     vi.mocked(caches.delete).mockClear();
 });
-afterEach(async () => {await Promise.allSettled([mangaOcrRuntime.dispose(), mangaInpaintingRuntime.dispose()]); expect(vi.getTimerCount()).toBe(0); vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks();});
+afterEach(async () => {
+    try {
+        // Release the two public ports in order; native worker shutdown owns any
+        // model whose SDK release failed. Preserve the strict timer assertion.
+        await mangaOcrRuntime.dispose().catch(() => undefined);
+        await mangaInpaintingRuntime.dispose().catch(() => undefined);
+        expect(workers.every(worker => worker.terminate.mock.calls.length === 1)).toBe(true);
+        expect(vi.getTimerCount()).toBe(0);
+    } finally {vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks();}
+});
 
 describe('E2 public manga resource ownership', () => {
     it('preserves the feature error when cache removal clears the last pending download snapshot', async () => {
         const entered = deferred<void>(), finalFetch = deferred<Response>();
-        vi.mocked(fetch).mockRejectedValueOnce(new Error('first controlled fetch failure')).mockImplementationOnce(() => {entered.resolve(); return finalFetch.promise;});
+        modelFetch.mockRejectedValueOnce(new Error('first controlled fetch failure'))
+            .mockRejectedValueOnce(new Error('second controlled fetch failure'))
+            .mockImplementationOnce(() => {entered.resolve(); return finalFetch.promise;});
         const result = loadMangaInpaintAsset().then(() => undefined, error => error);
         await entered.promise;
-        expect((await mangaOcrModelStatus()).download?.source).toBe('hf-mirror.net');
-        await removeMangaOcrAssets();
-        expect(caches.delete).toHaveBeenCalledWith(MANGA_OCR_CACHE);
-        finalFetch.reject(new Error('last controlled fetch failure'));
+        try {
+            // .net is now the final registered mirror, after the new .com mirror.
+            expect(modelFetch.mock.calls.map(([url]) => new URL(String(url)).host)).toEqual(['huggingface.co', 'hf-mirror.com', 'hf-mirror.net']);
+            expect(modelFetch.mock.calls.every(([url]) => new URL(String(url)).pathname === new URL(MANGA_INPAINT_ASSET.url).pathname)).toBe(true);
+            expect((await mangaOcrModelStatus()).download?.source).toBe('hf-mirror.net');
+            await removeMangaOcrAssets();
+            expect(caches.delete).toHaveBeenCalledWith(MANGA_OCR_CACHE);
+        } finally {
+            // An assertion failure must still settle the owned fetch and its timer.
+            finalFetch.reject(new Error('last controlled fetch failure'));
+            await result;
+        }
         const error = await result;
-        evidence('last-fetch-removal', {errorName: error?.name, errorMessage: error?.message, cause: error?.cause?.message, fetchAttempts: vi.mocked(fetch).mock.calls.length});
+        evidence('last-fetch-removal', {errorName: error?.name, errorMessage: error?.message, cause: error?.cause?.message, fetchAttempts: modelFetch.mock.calls.length});
         expect(error).not.toBeInstanceOf(TypeError);
         expect(error).toMatchObject({message: '漫画模型下载未完成，请切换下载来源或导入模型后重试', cause: {message: 'last controlled fetch failure'}});
         expect((await mangaOcrModelStatus()).download).toBeUndefined();
@@ -89,7 +154,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('does not let older failed attempts mark a newer download as failed', async () => {
         const lastA = deferred<Response>(), enteredA = deferred<void>(), pendingB = deferred<Response>(), enteredB = deferred<void>(), abortB = new AbortController();
-        vi.mocked(fetch).mockRejectedValueOnce(new Error('A first')).mockImplementationOnce(() => {enteredA.resolve(); return lastA.promise;})
+        modelFetch.mockRejectedValueOnce(new Error('A first')).mockRejectedValueOnce(new Error('A second')).mockImplementationOnce(() => {enteredA.resolve(); return lastA.promise;})
             .mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;});
         const a = capture(loadMangaInpaintAsset()); await enteredA.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await enteredB.promise;
@@ -102,7 +167,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('does not let an older successful download clear the newer current snapshot', async () => {
         const firstA = deferred<Response>(), enteredA = deferred<void>(), pendingB = deferred<Response>(), enteredB = deferred<void>(), abortB = new AbortController();
-        vi.mocked(fetch).mockImplementationOnce(() => {enteredA.resolve(); return firstA.promise;}).mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;});
+        modelFetch.mockImplementationOnce(() => {enteredA.resolve(); return firstA.promise;}).mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;});
         const a = capture(loadMangaInpaintAsset()); await enteredA.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await enteredB.promise;
         firstA.resolve(responseFor(MANGA_INPAINT_ASSET)); const finishedA = await a;
@@ -112,8 +177,8 @@ describe('E2 public manga resource ownership', () => {
 
     it('keeps newer ownership when an older request switches to its fallback source', async () => {
         const firstA = deferred<Response>(), enteredA = deferred<void>(), pendingB = deferred<Response>(), enteredB = deferred<void>(), fallbackA = deferred<Response>(), enteredFallback = deferred<void>(), abortB = new AbortController();
-        vi.mocked(fetch).mockImplementationOnce(() => {enteredA.resolve(); return firstA.promise;}).mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;})
-            .mockImplementationOnce(() => {enteredFallback.resolve(); return fallbackA.promise;});
+        modelFetch.mockImplementationOnce(() => {enteredA.resolve(); return firstA.promise;}).mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;})
+            .mockImplementationOnce(() => {enteredFallback.resolve(); return fallbackA.promise;}).mockRejectedValueOnce(new Error('A final mirror failure'));
         const a = capture(loadMangaInpaintAsset()); await enteredA.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await enteredB.promise;
         firstA.reject(new Error('A first')); await enteredFallback.promise;
@@ -123,7 +188,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('does not let older cancellation pause the newer current download', async () => {
         const aEntered = deferred<void>(), bEntered = deferred<void>(), abortA = new AbortController(), abortB = new AbortController();
-        vi.mocked(fetch).mockImplementationOnce((_url, options) => {aEntered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('A aborted')), {once: true}));})
+        modelFetch.mockImplementationOnce((_url, options) => {aEntered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('A aborted')), {once: true}));})
             .mockImplementationOnce((_url, options) => {bEntered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('B aborted')), {once: true}));});
         const a = capture(loadMangaInpaintAsset(abortA.signal)); await aEntered.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await bEntered.promise;
@@ -134,9 +199,10 @@ describe('E2 public manga resource ownership', () => {
 
     it('does not let an older multi-file OCR load reclaim ownership on its next asset', async () => {
         const detection = deferred<Response>(), detectionEntered = deferred<void>(), inpaintEntered = deferred<void>(), recognitionEntered = deferred<void>(), recognition = deferred<Response>(), abort = new AbortController();
-        vi.mocked(fetch).mockImplementationOnce(() => {detectionEntered.resolve(); return detection.promise;})
+        modelFetch.mockImplementationOnce(() => {detectionEntered.resolve(); return detection.promise;})
             .mockImplementationOnce((_url, options) => {inpaintEntered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('inpaint abort')), {once: true}));})
-            .mockImplementationOnce(() => {recognitionEntered.resolve(); return recognition.promise;}).mockRejectedValueOnce(new Error('recognition fallback failure'));
+            .mockImplementationOnce(() => {recognitionEntered.resolve(); return recognition.promise;}).mockRejectedValueOnce(new Error('recognition fallback failure'))
+            .mockRejectedValueOnce(new Error('recognition final mirror failure'));
         const ocr = capture(loadMangaOcrAssets()); await detectionEntered.promise;
         const inpaint = capture(loadMangaInpaintAsset(abort.signal)); await inpaintEntered.promise;
         detection.resolve(responseFor(MANGA_OCR_ASSETS[0])); await recognitionEntered.promise;
@@ -146,7 +212,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('publishes legitimate sequential-file progress for the same public OCR load', async () => {
         const stages = MANGA_OCR_ASSETS.map(() => ({entered: deferred<void>(), response: deferred<Response>()}));
-        for (const stage of stages) vi.mocked(fetch).mockImplementationOnce(() => {stage.entered.resolve(); return stage.response.promise;});
+        for (const stage of stages) modelFetch.mockImplementationOnce(() => {stage.entered.resolve(); return stage.response.promise;});
         const loading = capture(loadMangaOcrAssets());
         const snapshots: unknown[] = [];
         try {
@@ -163,7 +229,7 @@ describe('E2 public manga resource ownership', () => {
     it('does not clear a newer download when an older offline import finishes', async () => {
         const imported = deferred<ArrayBuffer>(), entered = deferred<void>(), abort = new AbortController();
         const offline = importMangaModel({name: 'ppocrv6_dict.txt', size: MANGA_OCR_ASSETS[2].bytes, arrayBuffer: () => imported.promise} as File);
-        vi.mocked(fetch).mockImplementationOnce((_url, options) => {entered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('cancel')), {once: true}));});
+        modelFetch.mockImplementationOnce((_url, options) => {entered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('cancel')), {once: true}));});
         const downloading = capture(loadMangaInpaintAsset(abort.signal)); await entered.promise;
         imported.resolve(bytesFor(MANGA_OCR_ASSETS[2])); await offline;
         try {expect((await mangaOcrModelStatus()).download?.phase).toBe('downloading'); expect(stores.get(MANGA_OCR_CACHE)?.has(rootUrl + MANGA_OCR_ASSETS[2].path)).toBe(true);}
@@ -174,7 +240,7 @@ describe('E2 public manga resource ownership', () => {
         const deletion = deferred<boolean>(), enteredDelete = deferred<void>(), enteredFetch = deferred<void>(), abort = new AbortController();
         onDelete = () => {enteredDelete.resolve(); return deletion.promise;};
         const removing = removeMangaOcrAssets(); await enteredDelete.promise;
-        vi.mocked(fetch).mockImplementationOnce((_url, options) => {enteredFetch.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('cancel')), {once: true}));});
+        modelFetch.mockImplementationOnce((_url, options) => {enteredFetch.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('cancel')), {once: true}));});
         const downloading = capture(loadMangaInpaintAsset(abort.signal)); await enteredFetch.promise;
         deletion.resolve(true); await removing;
         try {expect((await mangaOcrModelStatus()).download?.phase).toBe('downloading');}
@@ -182,7 +248,7 @@ describe('E2 public manga resource ownership', () => {
     });
 
     it('preserves the snapshot and admits retry after cache deletion fails', async () => {
-        vi.mocked(fetch).mockRejectedValue(new Error('controlled failure')); await capture(loadMangaInpaintAsset());
+        modelFetch.mockRejectedValue(new Error('controlled failure')); await capture(loadMangaInpaintAsset());
         onDelete = async () => {throw new Error('cache delete failure');};
         await expect(removeMangaOcrAssets()).rejects.toThrow('cache delete failure');
         expect((await mangaOcrModelStatus()).download?.phase).toBe('error');
@@ -191,7 +257,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('clears only the matching paused download after verified offline import', async () => {
         const entered = deferred<void>(), abort = new AbortController();
-        vi.mocked(fetch).mockImplementationOnce((_url, options) => {entered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('pause')), {once: true}));});
+        modelFetch.mockImplementationOnce((_url, options) => {entered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('pause')), {once: true}));});
         const downloading = capture(loadMangaInpaintAsset(abort.signal)); await entered.promise; abort.abort(); await downloading;
         expect((await mangaOcrModelStatus()).download?.phase).toBe('paused');
         await importMangaModel({name: 'lama-manga-dynamic.onnx', size: MANGA_INPAINT_ASSET.bytes, arrayBuffer: async () => bytesFor(MANGA_INPAINT_ASSET)} as File);
@@ -200,7 +266,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('keeps cache writes owned by the deleted cache handle without resurrecting the named cache', async () => {
         const put = deferred<void>(), entered = deferred<void>(); onPut = () => {entered.resolve(); return put.promise;};
-        vi.mocked(fetch).mockResolvedValue(responseFor(MANGA_INPAINT_ASSET));
+        modelFetch.mockResolvedValue(responseFor(MANGA_INPAINT_ASSET));
         const downloading = capture(loadMangaInpaintAsset()); await entered.promise;
         await removeMangaOcrAssets(); put.resolve(); expect((await downloading).error).toBeUndefined();
         expect((await mangaOcrModelStatus()).inpaintingReady).toBe(false);
@@ -208,7 +274,7 @@ describe('E2 public manga resource ownership', () => {
     });
 
     it('rejects failed verified cache persistence and permits a subsequent download', async () => {
-        vi.mocked(fetch).mockResolvedValue(responseFor(MANGA_INPAINT_ASSET)); onPut = async () => {throw new Error('cache put failure');};
+        modelFetch.mockResolvedValue(responseFor(MANGA_INPAINT_ASSET)); onPut = async () => {throw new Error('cache put failure');};
         await expect(loadMangaInpaintAsset()).rejects.toThrow('cache put failure');
         expect((await mangaOcrModelStatus()).inpaintingReady).toBe(false);
         onPut = undefined; await loadMangaInpaintAsset(); expect((await mangaOcrModelStatus()).inpaintingReady).toBe(true);
@@ -253,7 +319,7 @@ describe('E2 real runtime removal admission', () => {
     it('holds later singleton repair admission until both session queues and cache removal finish', async () => {
         seedModels(); await repair(); const entered = deferred<void>(), deletion = deferred<boolean>();
         onDelete = () => {entered.resolve(); return deletion.promise;};
-        vi.mocked(fetch).mockImplementation(async url => responseFor(assetFor(String(url))));
+        modelFetch.mockImplementation(async url => responseFor(assetFor(String(url))));
         const removing = capture(removeMangaModels()); await entered.promise;
         const later = capture(repair()); await tick();
         const creationsWhileRemoving = sdk.create.mock.calls.length;
@@ -267,8 +333,11 @@ describe('E2 real runtime removal admission', () => {
     it('admits later recognition after failed cleanup while still cleaning the other model and cache', async () => {
         seedModels(); await repair(); await recognize(); sdk.sessions[0].release.mockRejectedValueOnce(new Error('inpaint release failure'));
         await expect(removeMangaModels()).rejects.toThrow('inpaint release failure');
-        expect(sdk.destroy).toHaveBeenCalledOnce(); expect(caches.delete).toHaveBeenCalledOnce();
-        vi.mocked(fetch).mockImplementation(async url => responseFor(assetFor(String(url))));
+        // The failed inpaint release terminates the shared native worker, releasing OCR too.
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        expect(workers[0].postMessage.mock.calls.map(([message]) => message.type)).toContain('dispose-inpaint');
+        expect(caches.delete).toHaveBeenCalledOnce();
+        modelFetch.mockImplementation(async url => responseFor(assetFor(String(url))));
         expect(await recognize()).toHaveLength(1); expect(await repair()).toEqual(pixels());
     });
 
@@ -276,7 +345,7 @@ describe('E2 real runtime removal admission', () => {
         seedModels(); await recognize(); sdk.destroy.mockRejectedValueOnce(new Error('OCR destroy failure'));
         await expect(removeMangaModels()).rejects.toThrow('OCR destroy failure'); expect(caches.delete).toHaveBeenCalledOnce();
         await removeMangaModels(); expect(caches.delete).toHaveBeenCalledTimes(2);
-        vi.mocked(fetch).mockImplementation(async url => responseFor(assetFor(String(url)))); expect(await recognize()).toHaveLength(1);
+        modelFetch.mockImplementation(async url => responseFor(assetFor(String(url)))); expect(await recognize()).toHaveLength(1);
     });
 
     it('coalesces concurrent removal and does not strand a cancelled recognition behind it', async () => {
@@ -300,7 +369,7 @@ describe('E2 real runtime removal admission', () => {
     it('rechecks admission when a second removal starts before the first wait resumes', async () => {
         seedModels(); const enteredA = deferred<void>(), enteredB = deferred<void>(), deletionA = deferred<boolean>(), deletionB = deferred<boolean>(); let deletes = 0;
         onDelete = () => {if (++deletes === 1) {enteredA.resolve(); return deletionA.promise;} enteredB.resolve(); return deletionB.promise;};
-        vi.mocked(fetch).mockImplementation(async url => responseFor(assetFor(String(url))));
+        modelFetch.mockImplementation(async url => responseFor(assetFor(String(url))));
         const removalA = removeMangaModels(); await enteredA.promise;
         const waiting = capture(repair()), removalB = capture(removalA.then(() => removeMangaModels()));
         deletionA.resolve(true); await enteredB.promise; await tick();
@@ -319,7 +388,7 @@ describe('E2 real runtime removal admission', () => {
         finally {
             const input = sdk.sessions[0].run.mock.calls.at(-1)[0].image.data;
             active.resolve({inpainted: {data: new Float32Array(input), dispose() {}}});
-            vi.mocked(fetch).mockImplementation(async url => responseFor(assetFor(String(url))));
+            modelFetch.mockImplementation(async url => responseFor(assetFor(String(url))));
             expect((await beforeRemoval).error).toBeUndefined(); await removing; expect((await later).error).toBeUndefined();
         }
         expect(sdk.initialize).toHaveBeenCalledOnce();
@@ -340,7 +409,7 @@ describe('E2 real runtime removal admission', () => {
     it('proves the real Offscreen router already blocks new image admission and duplicate removal', async () => {
         const deletion = deferred<boolean>(), entered = deferred<void>(); onDelete = () => {entered.resolve(); return deletion.promise;};
         const translateImage = vi.fn();
-        const listener = createOffscreenMessageListener({translate: vi.fn(), ttsPlayer: {play: vi.fn(), stop: vi.fn()}, fetchImage: vi.fn(), translateImage, translateArea: vi.fn(), downloadOcrLanguages: vi.fn(), removeMangaModels});
+        const listener = createOffscreenMessageListener({translate: vi.fn(), ttsPlayer: {play: vi.fn(), stop: vi.fn(), seek: () => {throw Error('Unexpected speech seek in image removal fixture');}}, fetchImage: vi.fn(), translateImage, translateArea: vi.fn(), downloadOcrLanguages: vi.fn(), removeMangaModels});
         const send = (type: string, rest = {}) => new Promise<any>(resolve => {expect(listener({target: 'offscreen', type, ...rest}, {}, resolve)).toBe(true);});
         const removing = send('FLUENT_READ_MANGA_MODEL_REMOVE_OFFSCREEN'); await entered.promise;
         try {

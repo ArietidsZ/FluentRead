@@ -4,6 +4,7 @@
  * 在隔离后台 Edge 中验证新版翻译服务设置页的完整服务目录、搜索、配置持久化和响应式边界。
  * 仅在本次临时 profile 写入 fixture 配置，不请求真实翻译服务，不接触用户浏览器或凭据。
  */
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -13,6 +14,7 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((out, value, index,
   if (value.startsWith('--')) out.push([value.slice(2), all[index + 1]]);
   return out;
 }, []));
+if (!Object.prototype.hasOwnProperty.call(args, 'focus-safe-helper')) args['focus-safe-helper'] = path.join(__dirname, 'focus-safe-browser.cjs');
 for (const field of ['extension-dir', 'playwright-root', 'focus-safe-helper', 'artifacts-dir']) assert(args[field], `Missing --${field}`);
 const {chromium} = createRequire(path.join(args['playwright-root'], 'service-library.cjs'))('playwright');
 const helper = require(args['focus-safe-helper']);
@@ -37,14 +39,17 @@ const report = {
 const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
 
 (async () => {
-  let session;
+  let session, primaryError;
   let page;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({
       chromium, profileDir, browserPath, headless: false, background: true, displayTarget: 'secondary',
       viewport: {width: 1440, height: 1000}, timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'],
     });
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
     const context = session.context;
@@ -167,6 +172,39 @@ const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.st
     report.hooks.responsive = true; await page.setViewportSize({width: 1440, height: 1000}); await seed({theme: 'dark'}); await page.reload(); await rail().waitFor({state: 'visible'}); await shot('service-library-dark');
     await seed({uiLanguage: 'en-US'}); await page.reload(); await rail().waitFor({state: 'visible'}); assert.match(await page.getByTestId('custom-service-add').innerText(), /custom/i); await shot('service-library-english');
     assert.deepEqual(report.consoleErrors, []); report.ok = true; save();
-  } catch (error) { report.error = error.stack; if (page) await page.screenshot({path: path.join(artifacts, 'failure.png'), fullPage: true}).catch(() => {}); save(); process.exitCode = 1; }
-  finally { if (session) await session.close(); fs.rmSync(profileDir, {recursive: true, force: true}); save(); console.log(JSON.stringify(report, null, 2)); }
-})();
+  } catch (error) {
+    primaryError = error;
+    report.ok = false;
+    report.error = error.stack;
+    process.exitCode = 1;
+    try { if (page) await page.screenshot({path: path.join(artifacts, 'failure.png'), fullPage: true}); }
+    catch (diagnosticError) { console.error('Failure screenshot failed:', diagnosticError); }
+  }
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { save(); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+    console.log(JSON.stringify(report, null, 2));
+  }
+})().catch(error => {console.error(error); process.exitCode = 1;});

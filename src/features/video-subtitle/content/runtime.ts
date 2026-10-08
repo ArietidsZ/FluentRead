@@ -77,9 +77,7 @@ export {
     getVideoPretranslationWindowMs,
     getVideoServiceLabel,
 } from './serviceProfile';
-import {
-  isXSubtitleResourceUrl,
-} from './xVideoSubtitleData';
+import {isXSubtitleResourceUrl} from './xVideoSubtitleData';
 import {
   normalizeVideoLocalTranscriptionModel,
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,

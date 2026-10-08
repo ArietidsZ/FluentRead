@@ -181,6 +181,31 @@ function backend() {
 }
 let fixture: ReturnType<typeof backend> | undefined;
 const apps = new Set<App>();
+const viewEventRestorers: Array<() => void> = [];
+function observeViewEventPort(target: EventTarget, type: string) {
+    const add = target.addEventListener, remove = target.removeEventListener;
+    const active: Array<{listener: Parameters<EventTarget['addEventListener']>[1]; capture: boolean}> = [];
+    // linkedom's window routes event methods through a Proxy setter; install call-through ports by assignment.
+    target.addEventListener = (...args: Parameters<EventTarget['addEventListener']>) => {
+        add.apply(target, args);
+        const [eventType, listener, options] = args, capture = listenerCapture(options);
+        if (eventType === type && listener && !active.some(item => item.listener === listener && item.capture === capture)) {
+            active.push({listener, capture});
+        }
+    };
+    target.removeEventListener = (...args: Parameters<EventTarget['removeEventListener']>) => {
+        remove.apply(target, args);
+        const [eventType, listener, options] = args;
+        if (eventType !== type) return;
+        const index = active.findIndex(item => item.listener === listener && item.capture === listenerCapture(options));
+        if (index !== -1) active.splice(index, 1);
+    };
+    viewEventRestorers.push(() => {target.addEventListener = add; target.removeEventListener = remove;});
+    return {type, active};
+}
+function listenerCapture(options?: boolean | EventListenerOptions): boolean {
+    return typeof options === 'boolean' ? options : Boolean(options?.capture);
+}
 async function mount(kind: Kind) {
     vi.stubGlobal('browser', browser);
     fixture = backend(); renderedEvents.length = 0;
@@ -198,6 +223,7 @@ async function mount(kind: Kind) {
 }
 afterEach(async () => {
     for (const app of apps) app.unmount(); apps.clear(); await fixture?.close(); await settle();
+    for (const restore of viewEventRestorers.splice(0).reverse()) restore();
     expect(ports.listeners.size).toBe(0); ports.send.mockReset(); ports.get.mockReset(); fixture = undefined;
     renderedEvents.length = 0; dom.document.body.replaceChildren(); vi.unstubAllGlobals();
 });
@@ -217,16 +243,26 @@ async function reopen(h: Awaited<ReturnType<typeof mount>>) {h.cached.value = fa
 
 for (const kind of ['tts', 'video'] as const) describe(`${kind} actual mounted local model lifecycle`, () => {
     it.each(['hidden', 'cached'])('retires UI subscriptions and rejects queued progress/state callbacks after %s and return', async reason => {
+        // Observe real DOM listener ports as well as storage; inactive guards alone must not hide leaked listeners.
+        const viewEvents = [
+            observeViewEventPort(dom.window, 'focus'),
+            observeViewEventPort(dom.document, 'visibilitychange'),
+        ];
         const h = await mount(kind), oldListeners = [...ports.listeners];
+        if (kind === 'video') for (const event of viewEvents) expect(event.active.length).toBeGreaterThan(0);
         expect(oldListeners.length).toBeGreaterThan(0); await hide(h, reason);
+        for (const event of viewEvents) expect(event.active).toEqual([]);
         const hiddenListeners = ports.listeners.size, reads = uiReads(kind), messages = ports.send.mock.calls.length;
         for (const listener of oldListeners) listener({[kind === 'tts' ? ttsModel.LOCAL_TTS_MODEL_STATE_KEY : videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: {}}, 'local');
         dom.window.dispatchEvent(new dom.window.Event('focus')); dom.document.dispatchEvent(new dom.window.Event('visibilitychange')); await settle();
         expect({hiddenListeners, reads: uiReads(kind), messages: ports.send.mock.calls.length}).toEqual({hiddenListeners: 0, reads, messages});
         await reopen(h); const currentReads = uiReads(kind);
+        if (kind === 'video') for (const event of viewEvents) expect(event.active.length).toBeGreaterThan(0);
         const id = kind === 'tts' ? LOCAL_TTS_DOWNLOAD_ID : videoModelDownloadId('tiny');
         for (const listener of oldListeners) listener({[downloadProgressKey(id)]: {newValue: {loaded: 700_000, total: 800_000}}}, 'local');
         await settle(); expect(progress(h.host, kind)).toBeNull(); expect(uiReads(kind)).toBe(currentReads);
+        h.stop();
+        for (const event of viewEvents) expect(event.active).toEqual([]);
     });
     it('keeps the public background download alive while hidden and reconnects actual byte progress before cached completion', async () => {
         const h = await mount(kind), id = kind === 'tts' ? LOCAL_TTS_DOWNLOAD_ID : videoModelDownloadId('tiny');
@@ -261,6 +297,32 @@ for (const kind of ['tts', 'video'] as const) describe(`${kind} actual mounted l
 });
 
 describe('entire captured public template event belongs to its rendered config', () => {
+    it('writes ordered online voices only from the current active template event', async () => {
+        const h = await mount('tts'), config = h.state.config;
+        const isOnline = (event: Captured) => event.tag === 'SelectPort' && event.props['aria-label'] === '划词翻译备用音色顺序';
+        const online = capture(isOnline, 'onUpdate:modelValue');
+        const voices = ['en-US-AriaNeural', 'zh-CN-XiaoxiaoNeural'];
+        online(voices); await settle();
+        expect(config.selectionTtsVoices).toEqual(voices);
+
+        await hide(h, 'hidden');
+        const inactiveOnline = capture(isOnline, 'onUpdate:modelValue');
+        online(['zh-CN-XiaoxiaoNeural']); await settle();
+        expect(config.selectionTtsVoices).toEqual(voices);
+        inactiveOnline([]); await settle();
+        expect(config.selectionTtsVoices).toEqual(voices);
+
+        await reopen(h);
+        online([]); await settle();
+        expect(config.selectionTtsVoices).toEqual(voices);
+        inactiveOnline(['zh-CN-XiaoxiaoNeural']); await settle();
+        expect(config.selectionTtsVoices).toEqual(voices);
+        const currentOnline = capture(isOnline, 'onUpdate:modelValue');
+        const reordered = [...voices].reverse();
+        currentOnline(reordered); await settle();
+        expect(config.selectionTtsVoices).toEqual(reordered);
+        expect(h.state.config).toBe(config);
+    });
     it('rejects old TTS mode/local voice/online voices updates after object replacement while current mode controls still work', async () => {
         const h = await mount('tts'), original = h.state.config;
         const mode = capture(event => event.tag === 'SegmentedControl' && event.props.label === 'settings.localTts.source', 'onUpdate:modelValue');
@@ -285,4 +347,20 @@ describe('entire captured public template event belongs to its rendered config',
         const radio = h.host.querySelector<HTMLInputElement>('input[name="video-local-model"][value="base"]')!;
         radio.checked = true; radio.dispatchEvent(new dom.window.Event('change', {bubbles: true})); await settle(); expect(current.videoLocalModel).toBe('base');
     });
+});
+
+// 回包隔离不能把重新进入的视图永久留在下载中；未发布进度的失败没有 storage 删除事件。
+for (const kind of ['tts', 'video'] as const) it(`${kind} final ui-settings pending download releases retry after hidden return without progress`, async () => {
+    const h = await mount(kind), gate = deferred<any>();
+    const prepare = kind === 'tts' ? h.backend.ttsOffscreen.prepare : h.backend.videoOffscreen.send;
+    prepare.mockReturnValueOnce(gate.promise);
+    downloadButton(h.host, kind).click(); await settle();
+    expect(prepare).toHaveBeenCalledTimes(1);
+    await hide(h, 'hidden'); await reopen(h);
+    expect(downloadButton(h.host, kind).disabled).toBe(true);
+    gate.reject(new Error('OLD_CONTEXT_PREPARATION_FAILED_BEFORE_PROGRESS')); await settle();
+    expect(h.host.querySelector('[role="alert"]')).toBeNull();
+    expect(downloadButton(h.host, kind).disabled).toBe(false);
+    downloadButton(h.host, kind).click(); await settle();
+    expect(prepare).toHaveBeenCalledTimes(2);
 });

@@ -296,6 +296,7 @@ async function decodeAudioToWhisperAudio(audio: ArrayBuffer): Promise<Float32Arr
     decodeAudioContext = new AudioContextConstructor();
   }
   let decodeTimeout: number | undefined;
+  let decodeError: Error | undefined;
   try {
     const decoded = await Promise.race([
       decodeAudioContext.decodeAudioData(audio.slice(0)),
@@ -310,10 +311,11 @@ async function decodeAudioToWhisperAudio(audio: ArrayBuffer): Promise<Float32Arr
     return resampleToWhisperAudio(channels, decoded.sampleRate);
   } catch (error) {
     await closeDecodeAudioContext();
-    throw new Error(`音频解码失败：${toError(error, '未知解码错误').message}`);
+    decodeError = new Error(`音频解码失败：${toError(error, '未知解码错误').message}`);
   } finally {
     if (decodeTimeout !== undefined) window.clearTimeout(decodeTimeout);
   }
+  throw decodeError;
 }
 
 async function disposeLoadedTranscriber(): Promise<void> {

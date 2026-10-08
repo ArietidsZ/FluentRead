@@ -7,6 +7,7 @@ import {
     discardTranslation,
     ensureTranslationTruncationLayout,
     getOwnedTranslationCandidateAtPoint,
+    getTranslationOwnersForIndexedNode,
     getTranslationOwnersForRemovedNode,
     getTranslationOwnersWithin,
     getTranslationSourceStructureSignature,
@@ -688,6 +689,73 @@ describe("指定节点翻译状态机", () => {
             discardTranslation(target, targetAttempt.state);
             unrelatedAttempts.forEach(({owner, state}) => discardTranslation(owner, state));
         }
+    });
+
+    it("状态与 artifact 刷新复用 owner 索引桶，仍同步移除旧 artifact", () => {
+        const {document} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const source = owner.firstChild;
+        // 观察实际反向索引桶的创建，避免用受 JIT/机器影响的耗时阈值。
+        const writes = vi.spyOn(WeakMap.prototype, 'set');
+        const ownerBucketWrites = () => writes.mock.calls.filter(([key, value]) =>
+            key === owner && value instanceof Set &&
+            [...value].some(member => member instanceof WeakRef));
+        try {
+            const attempt = beginTranslation(owner, 'bilingual')!;
+            expect(ownerBucketWrites()).toHaveLength(1);
+            writes.mockClear();
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            const first = document.createElement('span');
+            const second = document.createElement('span');
+            owner.append(first);
+            setSpinner(owner, first);
+            expect(getTranslationOwnersForIndexedNode(first)).toEqual([owner]);
+            first.remove();
+            owner.append(second);
+            setSpinner(owner, second);
+            expect(getTranslationOwnersForIndexedNode(first)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(second)).toEqual([owner]);
+            expect(getTranslationOwnersForIndexedNode(owner)).toEqual([owner]);
+            expect(ownerBucketWrites()).toHaveLength(0);
+            expect(owner.firstChild).toBe(source);
+            expect(source?.textContent).toBe('Readable source.');
+        } finally {
+            writes.mockRestore();
+            restoreTranslation(owner);
+        }
+        expect(getTranslationOwnersForIndexedNode(owner)).toEqual([]);
+    });
+
+    it("共享祖先刷新保持 owner 枚举顺序，移走 owner 后仅删除过期关联", () => {
+        const {document} = parseHTML('<html><body><main id="old"><p id="a">First source.</p><p id="b">Second source.</p></main><main id="new"></main></body></html>');
+        const oldRoot = document.querySelector<HTMLElement>('#old')!;
+        const newRoot = document.querySelector<HTMLElement>('#new')!;
+        const first = document.querySelector<HTMLElement>('#a')!;
+        const second = document.querySelector<HTMLElement>('#b')!;
+        const firstText = first.firstChild;
+        try {
+            for (const owner of [first, second]) {
+                const attempt = beginTranslation(owner, 'bilingual')!;
+                expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+                expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            }
+            expect(getTranslationOwnersForIndexedNode(oldRoot)).toEqual([first, second]);
+            expect(ensureTranslationTruncationLayout(first)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(oldRoot)).toEqual([second, first]);
+            newRoot.append(first);
+            expect(ensureTranslationTruncationLayout(first)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(oldRoot)).toEqual([second]);
+            expect(getTranslationOwnersForIndexedNode(newRoot)).toEqual([first]);
+            expect(first.firstChild).toBe(firstText);
+            expect(first.textContent).toBe('First source.');
+            expect(restoreTranslation(first)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(newRoot)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(oldRoot)).toEqual([second]);
+        } finally {
+            restoreTranslation(first);
+            restoreTranslation(second);
+        }
+        expect(getTranslationOwnersForIndexedNode(oldRoot)).toEqual([]);
     });
 
     it("discard 后 owner 和已脱离的 artifact 都不再命中索引", () => {

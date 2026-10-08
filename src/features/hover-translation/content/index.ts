@@ -58,6 +58,7 @@ interface HoverTranslationScreenState {
     otherKeyPressed: boolean;
     hasSlideTranslation: boolean;
     gestureHotkey: string;
+    gestureSharedWithSelection: boolean;
 }
 
 export function normalizeHoverHotkeyParts(hotkeyString: string | undefined): string[] {
@@ -111,6 +112,7 @@ export function mountHoverTranslationContentFeature(
         otherKeyPressed: false,
         hasSlideTranslation: false,
         gestureHotkey: '',
+        gestureSharedWithSelection: false,
     };
     const mouseHotkeysPressed = new Set<string>();
     const mouseHotkeyByCode = new Map<string, string>();
@@ -148,6 +150,7 @@ export function mountHoverTranslationContentFeature(
         screen.otherKeyPressed = false;
         screen.hasSlideTranslation = false;
         screen.gestureHotkey = '';
+        screen.gestureSharedWithSelection = false;
         mouseHotkeysPressed.clear();
         mouseHotkeyByCode.clear();
     };
@@ -213,6 +216,7 @@ export function mountHoverTranslationContentFeature(
         // 步骤 1：记录当前可信按键集合，只有与配置完全一致时才进入悬浮候选态。
         addPressedKey(event, mouseHotkeysPressed, mouseHotkeyByCode, isMac);
         if (matchesPressed(getConfiguredMouseShortcut().parts) && !screen.otherKeyPressed) {
+            if (!screen.hotkeyPressed) screen.gestureSharedWithSelection = matchesSelectionShortcut;
             screen.hotkeyPressed = true;
             screen.otherKeyPressed = false;
             screen.gestureHotkey = getConfiguredMouseShortcut().identity;
@@ -246,7 +250,8 @@ export function mountHoverTranslationContentFeature(
         if (screen.hotkeyPressed && mouseHotkeysPressed.size === 0 && !screen.otherKeyPressed && !screen.hasSlideTranslation) {
             if (deps.config.on) {
                 event.preventDefault();
-                event.stopPropagation();
+                // 共享归属绑定手势开始；释放修饰键后仍须让 Document 清理划词/全文按键状态。
+                if (!screen.gestureSharedWithSelection) event.stopPropagation();
                 deps.handleTranslation(screen.mouseX, screen.mouseY);
             }
         }

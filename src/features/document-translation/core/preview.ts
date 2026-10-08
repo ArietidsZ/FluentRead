@@ -133,13 +133,15 @@ function pairedUnit(
     kind: 'heading' | 'list-item' | 'quote' | 'paragraph',
     headingLevel = 2,
 ): string {
-    const sourceText = mode === 'translated' ? '' : inlineMarkdown(removeMarkdownMarker(source, kind));
-    const translatedText = mode === 'source' ? '' : inlineMarkdown(removeMarkdownMarker(translation, kind));
+    const sourceContent = removeMarkdownMarker(source, kind);
+    const translationContent = mode === 'source' ? '' : removeMarkdownMarker(translation, kind);
+    const distinct = mode !== 'source' && hasDistinctTranslation(sourceContent, translationContent);
     const tag = kind === 'heading' ? `h${headingLevel}` : kind === 'quote' ? 'blockquote' : 'p';
-    const sourceNode = `<${tag} class="reader-source">${sourceText}</${tag}>`;
-    const translatedNode = `<${tag} class="reader-translation fluentread-translation">${translatedText}</${tag}>`;
-    const body = mode === 'source' || !hasDistinctTranslation(removeMarkdownMarker(source, kind), removeMarkdownMarker(translation, kind))
-        ? sourceNode : mode === 'translated' ? translatedNode : `${sourceNode}${translatedNode}`;
+    const sourceNode = mode === 'translated' && distinct
+        ? '' : `<${tag} class="reader-source">${inlineMarkdown(sourceContent)}</${tag}>`;
+    const translatedNode = distinct
+        ? `<${tag} class="reader-translation fluentread-translation">${inlineMarkdown(translationContent)}</${tag}>` : '';
+    const body = !distinct ? sourceNode : mode === 'translated' ? translatedNode : `${sourceNode}${translatedNode}`;
     return `<section class="reader-unit ${kind}" data-reader-unit>${body}</section>`;
 }
 

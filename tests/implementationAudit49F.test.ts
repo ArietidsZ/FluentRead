@@ -1228,14 +1228,25 @@ describe('49F actual pinned-data virtual catalog consumer', () => {
 
     afterEach(() => vi.unstubAllEnvs());
 
-    it('reconciles all 19 authoritative established rules while preserving every pinned rule and the other catalogs', async () => {
+    it('reconciles all 19 authoritative established rules without mutating pinned data and reuses every unchanged rule', async () => {
         const {catalogs, original} = await loadCatalogs();
         expect(original.established).toHaveLength(17);
         expect(catalogs.established).toHaveLength(19);
         for (const name of ['established', 'websites', 'profiles']) {
             expect(catalogs[name]).toEqual(JSON.parse(readFileSync(resolve(process.cwd(), `src/core/site-adaptation/catalog/${name}.json`), 'utf8')));
         }
-        for (const rule of original.established) expect(catalogs.established.find((current: any) => current.id === rule.id)).toBe(rule);
+        const authoritative = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/site-adaptation/catalog/established.json'), 'utf8'));
+        for (const rule of original.established) {
+            const expected = authoritative.find((current: any) => current.id === rule.id);
+            const actual = catalogs.established.find((current: any) => current.id === rule.id);
+            if (JSON.stringify(expected) === JSON.stringify(rule)) expect(actual).toBe(rule);
+            else {expect(actual).not.toBe(rule);expect(actual).toEqual(expected);}
+        }
+        const github = catalogs.established.find((rule: any) => rule.id === 'github');
+        expect(github.content.flatMap((entry: any) => entry.css)).toContain('a[data-testid="issue-listitem-title-link"]');
+        expect(github.protect).toContain('[data-testid="issues-list-surface"] [class*="Description-module__container"]');
+        expect(original.established.find((rule: any) => rule.id === 'github').protect)
+            .not.toContain('[data-testid="issues-list-surface"] [class*="Description-module__container"]');
         expect(catalogs.websites).toBe(original.websites); expect(catalogs.profiles).toBe(original.profiles);
         expect(original.established).toHaveLength(17);
     });

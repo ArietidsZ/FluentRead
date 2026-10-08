@@ -1,5 +1,10 @@
 import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
+import {resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
 import JSZip from 'jszip';
+import {PDFDocument} from 'pdf-lib';
+import {createServer} from 'vite';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {DOCUMENT_MAX_BYTES, parseDocument, type ParsedDocument, type PdfDocumentBlock} from '@/src/features/document-translation/core/document';
 import {assertArchiveSafety, createDocumentDownload, parseBinaryDocument, parseDocumentFile, pdfTextBlocks, pdfTextLines} from '@/src/features/document-translation/services/binary';
@@ -285,14 +290,97 @@ it('documentbinaryAudit cancels a live archive text stream, ignores its late eve
 });
 
 it('documentbinaryAudit destroys a failed preview without retaining an unload listener or a stale result', async () => {
-    const bytes = sourceBytes(); resourceBytes.push(bytes);
-    const work = createPdfPagePreview(model(bytes), 1);
-    void work.catch(() => undefined);
-    releasePdfDocument(bytes);
-    await expect(work).rejects.toMatchObject({name: 'AbortError'});
-    expect(port.getDocument).not.toHaveBeenCalled();
-    await createPdfPagePreview(model(bytes), 1);
-    expect(port.getDocument).toHaveBeenCalledOnce();
+    const frames = new Map<number, FrameRequestCallback>();
+    let frameId = 0;
+    Object.assign(windowPort, {
+        requestAnimationFrame(callback: FrameRequestCallback) {
+            const id = ++frameId;
+            frames.set(id, callback);
+            queueMicrotask(() => {
+                const pending = frames.get(id);
+                frames.delete(id);
+                pending?.(performance.now());
+            });
+            return id;
+        },
+        cancelAnimationFrame(id: number) {frames.delete(id);},
+    });
+    type PdfApi = typeof import('pdfjs-dist/legacy/build/pdf.mjs');
+    const require = createRequire(import.meta.url);
+    const workerUrl = pathToFileURL(require.resolve('pdfjs-dist/legacy/build/pdf.worker.min.mjs')).href;
+    const actualPdf = await vi.importActual<PdfApi>('pdfjs-dist/legacy/build/pdf.mjs');
+    const apiId = '\0document-lifecycle-real-pdf', workerId = '\0document-lifecycle-worker';
+    const tasks: Array<ReturnType<PdfApi['getDocument']>> = [];
+    const destroyed: Array<{mock: {calls: unknown[][]}}> = [];
+    const pages: number[] = [];
+    const load = vi.fn((options: Parameters<PdfApi['getDocument']>[0]) => {
+        const task = actualPdf.getDocument(options);
+        tasks.push(task); destroyed.push(vi.spyOn(task, 'destroy'));
+        void task.promise.then(pdf => {pages.push(pdf.numPages);}, () => undefined);
+        return task;
+    });
+    vi.stubGlobal('__fluentreadDocumentLifecyclePdfLoad', load);
+    vi.stubGlobal('__fluentreadDocumentLifecyclePdfOptions', actualPdf.GlobalWorkerOptions);
+    // Load the entire production module with the native SDK; observe real loading tasks and control asset/Canvas ports.
+    // Native PDF.js imports workerSrc itself, so Vite's browser-only /@fs/ URL is not a Node import target.
+    const root = resolve(__dirname, '..');
+    const source = await PDFDocument.create(); source.addPage([100, 100]);
+    const bytes = await source.save(), originalBytes = new Uint8Array(bytes);
+    const server = await createServer({root, configFile: false, appType: 'custom', logLevel: 'silent',
+        resolve: {alias: {'@': root}}, server: {middlewareMode: true, hmr: false, watch: null},
+        optimizeDeps: {noDiscovery: true, include: []}, ssr: {noExternal: ['pdfjs-dist']},
+        plugins: [{name: 'document-lifecycle-native-pdf-ports', enforce: 'pre', resolveId(id) {
+            if (id === apiId || id === workerId) return id;
+            if (id === 'pdfjs-dist/legacy/build/pdf.mjs') return apiId;
+            if (id === 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url') return workerId;
+            return null;
+        }, load(id) {
+            if (id === apiId) return `export const GlobalWorkerOptions = globalThis.__fluentreadDocumentLifecyclePdfOptions;
+                export const getDocument = options => globalThis.__fluentreadDocumentLifecyclePdfLoad(options);`;
+            if (id === workerId) return `export default ${JSON.stringify(workerUrl)};`;
+            return null;
+        }}]});
+    let preview: typeof import('../src/features/document-translation/ui/pdfPreview') | undefined;
+    let workerOptions: PdfApi['GlobalWorkerOptions'] | undefined;
+    let previousWorkerSrc: string | undefined;
+    try {
+        workerOptions = (await server.ssrLoadModule(apiId)).GlobalWorkerOptions;
+        previousWorkerSrc = workerOptions!.workerSrc;
+        preview = await server.ssrLoadModule(resolve(root, 'src/features/document-translation/ui/pdfPreview.ts')) as typeof import('../src/features/document-translation/ui/pdfPreview');
+        const work = preview!.createPdfPagePreview(model(bytes), 1);
+        void work.catch(() => undefined);
+        preview!.releasePdfDocument(bytes);
+        await expect(work).rejects.toMatchObject({name: 'AbortError'});
+        expect(load).not.toHaveBeenCalled();
+        const add = vi.spyOn(windowPort, 'addEventListener'), remove = vi.spyOn(windowPort, 'removeEventListener');
+        // A load failure invalidates the cached document. A Canvas failure may
+        // reuse a valid parsed document, so exercise the real SDK's load failure.
+        bytes.fill(0);
+        await expect(preview!.createPdfPagePreview(model(bytes), 1)).rejects.toThrow('Invalid PDF structure');
+        expect(load).toHaveBeenCalledOnce(); expect(pages).toEqual([]);
+        expect(destroyed[0]).toHaveBeenCalledOnce();
+        expect(canvases).toHaveLength(0);
+        expect(workerOptions!.workerSrc).toBe(workerUrl);
+        expect(remove).toHaveBeenCalledWith('pagehide', add.mock.calls[0][1]);
+        windowPort.dispatchEvent(new Event('pagehide'));
+        expect(destroyed[0]).toHaveBeenCalledOnce();
+        bytes.set(originalBytes);
+        Object.assign(context, {transform: vi.fn(), setLineDash: vi.fn(), getTransform: vi.fn(() => ({a: 1, b: 0, c: 0, d: 1, e: 0, f: 0}))});
+        await expect(preview!.createPdfPagePreview(model(bytes), 1)).resolves.toHaveProperty('original');
+        expect(load).toHaveBeenCalledTimes(2); expect(pages).toEqual([1]);
+        expect(destroyed[1]).not.toHaveBeenCalled();
+        windowPort.dispatchEvent(new Event('pagehide'));
+        expect(destroyed.every(spy => spy.mock.calls.length === 1)).toBe(true);
+        expect(bytes).toEqual(originalBytes);
+        expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
+        expect(frames.size).toBe(0);
+    } finally {
+        preview?.releasePdfDocument(bytes);
+        await Promise.allSettled(tasks.map(task => task.destroy()));
+        frames.clear();
+        if (workerOptions && previousWorkerSrc !== undefined) workerOptions.workerSrc = previousWorkerSrc;
+        await server.close();
+    }
 });
 
 it.each(['blob-null', 'blob-reject', 'blob-throw', 'canvas-throw'] as const)('documentbinaryAudit settles %s encoding failure and releases canvas pixels', async kind => {

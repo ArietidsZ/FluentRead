@@ -19,7 +19,6 @@ export function streamReading(request: ReadingRequest, handlers: HarnessStreamHa
     const port = browser.runtime.connect({name: 'fluentReadHarnessStream'});
     let closed = false;
     const close = () => {
-        if (closed) return;
         closed = true;
         port.onMessage.removeListener?.(handleMessage);
         port.onDisconnect.removeListener?.(handleDisconnect);

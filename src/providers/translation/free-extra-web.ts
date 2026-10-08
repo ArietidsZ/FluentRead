@@ -1,7 +1,7 @@
 /**
  * @file src/providers/translation/free-extra-web.ts
  * 文件职责：适配搜狗、Reverso、Lingva 和 Apertium 四个匿名网页翻译候选。
- * 主要内容：读取搜狗网页参数并识别内层业务错误，构造 Reverso 请求，明确 Lingva 公共实例的访问限制，调用 Apertium 动态语言对，初始化信息仅在一次请求内复用；保留文本槽/换行/边缘空白并响应取消。
+ * 主要内容：读取搜狗网页参数并识别内层业务错误，构造 Reverso 请求，明确 Lingva 公共实例的访问限制，调用 Apertium 动态语言对；仅短期记忆有效语言列表确认的不支持方向，不共享在途请求或取消信号；保留文本槽/换行/边缘空白并响应取消。
  * 模块边界：不读取用户 Cookie、凭据或代理；免费链的超时、冷却和并发由上层编排负责。
  */
 import MD5 from 'crypto-js/md5';
@@ -24,6 +24,10 @@ const REVERSO_ENDPOINT = 'https://api.reverso.net/translate/v1/translation';
 const LINGVA_INSTANCE = 'https://lingva.ml';
 const APERTIUM_ENDPOINT = 'https://apertium.org/apy';
 const MAX_CHUNK_CODEPOINTS = 1000;
+const APERTIUM_UNSUPPORTED_DIRECTION_TTL_MS = 5 * 60_000;
+const APERTIUM_UNSUPPORTED_DIRECTION_LIMIT = 32;
+// 只保存公共语言方向与到期时间，不保存正文、配置、请求或调用方信号。
+const unsupportedApertiumDirections = new Map<string, number>();
 
 function failure(message = '免费网页翻译接口请求失败', statusCode = 502, freeFailure: FreeFailure = 'unavailable'): Error {
     return Object.assign(new Error(message), {statusCode, freeFailure});
@@ -129,6 +133,41 @@ function apertiumLanguage(value: string, target: boolean): string {
     return apertiumCodes[code] || code;
 }
 
+function apertiumDirection(source: string, target: string): string {
+    return `${apertiumLanguage(language(source, false), false)}|${apertiumLanguage(language(target, true), true)}`;
+}
+
+/** 只排除动态列表已经确认不支持的方向；其他方向和过期结果仍按既有接口探测。 */
+export function isKnownUnsupportedApertiumDirection(source: string, target: string): boolean {
+    let direction: string;
+    try { direction = apertiumDirection(source, target); }
+    catch { return false; /* 本地语言参数错误仍由实际 provider 处理。 */ }
+    const expiresAt = unsupportedApertiumDirections.get(direction);
+    if (expiresAt === undefined) return false;
+    if (Date.now() >= expiresAt) {
+        unsupportedApertiumDirections.delete(direction);
+        return false;
+    }
+    return true;
+}
+
+/** 畸形/业务失败响应不能证明某个语言方向不可用，不写入方向记忆。 */
+function isApertiumDirectionList(body: unknown): boolean {
+    const pairPattern = /^[a-z][a-z0-9_]*[|-][a-z][a-z0-9_]*$/iu;
+    const isEntry = (item: unknown) => {
+        if (typeof item === 'string') return pairPattern.test(item);
+        if (!item || typeof item !== 'object') return false;
+        const value = item as {sourceLanguage?: unknown; targetLanguage?: unknown; langpair?: unknown};
+        return typeof value.langpair === 'string' && pairPattern.test(value.langpair)
+            || typeof value.sourceLanguage === 'string' && typeof value.targetLanguage === 'string'
+                && pairPattern.test(`${value.sourceLanguage}|${value.targetLanguage}`);
+    };
+    if (Array.isArray(body)) return body.every(isEntry);
+    if (!body || typeof body !== 'object') return false;
+    const keys = Object.keys(body);
+    return keys.length > 0 && keys.every(key => pairPattern.test(key));
+}
+
 async function translateLingvaChunk(text: string, source: string, target: string, signal?: AbortSignal): Promise<string> {
     const from = genericLanguage(source, false);
     const to = genericLanguage(target, true);
@@ -151,7 +190,8 @@ async function translateLingvaChunk(text: string, source: string, target: string
 }
 
 async function translateApertiumChunk(text: string, source: string, target: string, signal?: AbortSignal, pairValidated = false): Promise<string> {
-    const pair = `${apertiumLanguage(source, false)}|${apertiumLanguage(target, true)}`;
+    const pair = apertiumDirection(source, target);
+    if (!pairValidated && isKnownUnsupportedApertiumDirection(source, target)) throw failure('Apertium 不支持当前语言方向', 400, 'request');
     if (!pairValidated) {
         const listResponse = await runtimeFetch(`${APERTIUM_ENDPOINT}/listPairs`, {method: 'GET', credentials: 'omit', signal, headers: {Accept: 'application/json'}});
         checkAbort(signal);
@@ -166,7 +206,18 @@ async function translateApertiumChunk(text: string, source: string, target: stri
             return value.langpair === pair || (typeof value.langpair === 'string' && value.langpair.replace('-', '|') === pair)
                 || `${value.sourceLanguage}|${value.targetLanguage}` === pair;
         }) || !!body && typeof body === 'object' && Object.keys(body).some(key => key === pair || key.replace('-', '|') === pair);
-        if (!hasPair) throw failure('Apertium 不支持当前语言方向', 400, 'request');
+        if (!hasPair) {
+            const status = pairs && typeof pairs === 'object' && 'responseStatus' in pairs
+                ? (pairs as {responseStatus?: unknown}).responseStatus : undefined;
+            if (pair.length <= 160 && (status === undefined || status === 200) && isApertiumDirectionList(body)) {
+                unsupportedApertiumDirections.delete(pair);
+                if (unsupportedApertiumDirections.size >= APERTIUM_UNSUPPORTED_DIRECTION_LIMIT) {
+                    unsupportedApertiumDirections.delete(unsupportedApertiumDirections.keys().next().value!);
+                }
+                unsupportedApertiumDirections.set(pair, Date.now() + APERTIUM_UNSUPPORTED_DIRECTION_TTL_MS);
+            }
+            throw failure('Apertium 不支持当前语言方向', 400, 'request');
+        }
     }
     checkAbort(signal);
     const query = new URLSearchParams({langpair: pair, q: text, format: 'txt'});
@@ -212,7 +263,7 @@ export async function translateExtraFreeWebText(
     if (!text.trim()) return text;
     const from = language(source, false);
     const to = language(target, true);
-    // 初始化数据只在本次文本/槽请求中复用；下一次调用重新读取，不留下跨请求缓存或取消所有权。
+    // 初始化请求只在本次文本/槽请求中复用；不共享 Promise 或取消所有权。
     let sogouSecret: Promise<string> | undefined;
     let apertiumPairValidated = false;
     const translator: ChunkTranslator = id === 'sogouFree'

@@ -1,4 +1,6 @@
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 
 /**
  * @file scripts/testing/run-lazy-options-ui-test.cjs
@@ -19,7 +21,7 @@ function argument(name, fallback) {
 
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const playwrightRoot = path.resolve(argument('playwright-root', ''));
-const focusHelper = path.resolve(argument('focus-safe-helper', ''));
+const focusHelper = path.resolve(argument('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-lazy-options-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
@@ -58,6 +60,7 @@ const report = {
   popup: {},
 };
 let session;
+let primaryError;
 
 function saveReport() {
   fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
@@ -125,7 +128,9 @@ async function visible(locator) {
 }
 
 (async () => {
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({
       chromium,
       profileDir,
@@ -142,6 +147,7 @@ async function visible(locator) {
         '--no-default-browser-check',
       ],
     });
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {
       launchMode: session.launchMode,
       focusPolicy: session.focusPolicy,
@@ -187,7 +193,7 @@ async function visible(locator) {
       await dialog.getByRole('button', {name: 'F10', exact: true}).click();
       await dialog.getByRole('button', {name: '确认', exact: true}).click();
       await dialog.waitFor({state: 'hidden', timeout});
-      await page.waitForFunction(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionTranslatorHotkey==='F10' && c.selectionTranslatorTrigger==='custom';});
+      await waitForAsyncCondition(() => page.evaluate(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionTranslatorHotkey==='F10' && c.selectionTranslatorTrigger==='custom';}), {timeoutMs: 30000, message: "划词 F10 自定义快捷键未持久化"});
       report.cases.push('first-selection-visit-dialog-confirms-and-persists');
       await page.getByRole('button', {name: '编辑划词翻译快捷键', exact: true}).click();
       await dialog.waitFor({state: 'visible', timeout});
@@ -203,7 +209,7 @@ async function visible(locator) {
       await dialog.getByRole('button', {name: '清除快捷键', exact: true}).click();
       await dialog.getByRole('button', {name: '确认', exact: true}).click();
       await dialog.waitFor({state: 'hidden', timeout});
-      await page.waitForFunction(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionTranslatorHotkey==='' && c.selectionTranslatorTrigger==='icon';});
+      await waitForAsyncCondition(() => page.evaluate(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionTranslatorHotkey==='' && c.selectionTranslatorTrigger==='icon';}), {timeoutMs: 30000, message: "清除划词快捷键后图标触发方式未持久化"});
       report.cases.push('clear-selection-shortcut-restores-icon-trigger');
       await chooseCustom('划词翻译触发方式');
       await page.evaluate(() => document.querySelector('nav button[data-section="settings-general"]').click());
@@ -224,7 +230,7 @@ async function visible(locator) {
       await chooseCustom('全文翻译快捷键'); await dialog.waitFor({state:'visible',timeout});
       await dialog.getByRole('button',{name:'F9',exact:true}).click(); await dialog.getByRole('button',{name:'确认',exact:true}).click();
       await dialog.waitFor({state:'hidden',timeout});
-      await page.waitForFunction(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customFloatingBallHotkey==='F9';});
+      await waitForAsyncCondition(() => page.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customFloatingBallHotkey==='F9';}), {timeoutMs: 30000, message: "全文 F9 快捷键未持久化"});
       report.cases.push('traditional-full-page-dialog-confirms-and-persists');
       assert.deepEqual(report.consoleErrors, []); await page.close(); report.ok=true; return;
     }
@@ -246,10 +252,10 @@ async function visible(locator) {
       await card.getByTestId(`quick-profile-target-${id}`).click();
       await page.getByRole('option', {name: '日本語 / Japanese / 日语', exact: true}).click();
       assert.equal(await card.locator('[data-testid^="quick-profile-range-"]').count(), 0, 'a section has no full-page loading range');
-      await page.waitForFunction(async () => {
+      await waitForAsyncCondition(() => page.evaluate(async () => {
         const {value} = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
         return value.quickTranslationProfiles.some(profile => profile.action === 'section' && profile.hotkey === 'F8' && profile.service === 'google' && profile.targetLanguage === 'ja');
-      }, null, {timeout});
+      }, null), {timeoutMs: timeout, message: "分区 F8 / Google / 日语快捷配置未持久化"});
       const saved = (await readConfig(page)).quickTranslationProfiles.find(profile => profile.id === id);
       assert.ok(saved.enabled, 'recording enables the independent profile');
       assert.equal((await readConfig(page)).sectionTranslationHotkeyEnabled, false, 'independent profile does not enable the primary shortcut');
@@ -295,7 +301,7 @@ async function visible(locator) {
       await dialog.getByRole('button', {name: 'F9', exact: true}).click();
       await dialog.getByRole('button', {name: '确认', exact: true}).click();
       await dialog.waitFor({state: 'hidden', timeout});
-      await page.waitForFunction(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customParagraphCopyHotkey==='F9';});
+      await waitForAsyncCondition(() => page.evaluate(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customParagraphCopyHotkey==='F9';}), {timeoutMs: 30000, message: "段落复制 F9 快捷键未持久化"});
       report.cases.push('lazy-paragraph-copy-hotkey-dialog-confirms-and-persists');
       await page.getByTestId('quick-profile-add-hover').click();
       await dialog.waitFor({state: 'visible', timeout});
@@ -314,7 +320,7 @@ async function visible(locator) {
       await dialog.getByRole('button', {name: '当前快捷键为 F8', exact: true}).waitFor({state: 'visible', timeout});
       await dialog.getByRole('button', {name: '确认', exact: true}).click();
       await dialog.waitFor({state: 'hidden', timeout});
-      await page.waitForFunction(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionAreaHotkey==='F8';});
+      await waitForAsyncCondition(() => page.evaluate(async () => {const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.customSelectionAreaHotkey==='F8';}), {timeoutMs: 30000, message: "区域选择 F8 快捷键未持久化"});
       report.cases.push('lazy-area-hotkey-trusted-recording-confirms-and-persists');
       await screenshot(page, 'lazy-hotkeys');
       assert.deepEqual(report.consoleErrors, []);
@@ -516,21 +522,47 @@ async function visible(locator) {
     assert.deepEqual(report.consoleErrors, []);
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.failure = error instanceof Error ? {message: error.message, stack: error.stack} : {message: String(error)};
     report.ok = false;
-    for (const [index, page] of (session?.context.pages() || []).entries()) {
-      if (page.isClosed() || !page.url().startsWith('chrome-extension://')) continue;
-      await screenshot(page, `failure-${index}`).catch(() => undefined);
-      const dom = await page.content().catch(() => '');
-      fs.writeFileSync(path.join(artifactsDir, `failure-${index}.html`), dom);
+    try {
+      for (const [index, page] of (session?.context.pages() || []).entries()) {
+        if (page.isClosed() || !page.url().startsWith('chrome-extension://')) continue;
+        await screenshot(page, `failure-${index}`).catch(() => undefined);
+        const dom = await page.content().catch(() => '');
+        fs.writeFileSync(path.join(artifactsDir, `failure-${index}.html`), dom);
+      }
+    } catch (diagnosticError) {
+      console.error('Failure diagnostics failed:', diagnosticError);
+      process.exitCode = 1;
     }
   } finally {
-    saveReport();
-    await session?.close();
-    report.browserClosed = true;
-    fs.rmSync(profileDir, {recursive: true, force: true});
-    report.profileRemoved = true;
-    saveReport();
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    report.browserClosed = browserClosed;
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    report.profileRemoved = !fs.existsSync(profileDir);
+    await cleanup('report', () => { saveReport(); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (!report.ok) process.exitCode = 1;

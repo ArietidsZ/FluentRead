@@ -12,6 +12,7 @@ export function tesseractSdkBuildPlugin(): Plugin {
         enforce: 'pre',
         apply: 'build',
         transform(source, id) {
+            if (id.includes('\0')) return;
             const file = id.split('?')[0].replace(/\\/g, '/');
             if (!/(?:^|\/)tesseract\.js\/src\/createWorker\.js$/.test(file)) return;
             const version = JSON.parse(fs.readFileSync(resolve(dirname(file), '../package.json'), 'utf8')).version;

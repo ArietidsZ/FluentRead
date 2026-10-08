@@ -50,7 +50,7 @@ describe('界面根节点和字体异步归属', () => {
   })
   it('最后页面释放后回到仍存在的上一页面，全部释放才使用文档根节点', () => {
     const a = root(), b = root();const releaseA = register(a);const releaseB = register(b)
-    releaseB();appearance.applyInterfaceSkin('cheese');expect(a.dataset.interfaceSkin).toBe('cheese')
+    releaseB();appearance.applyInterfaceSkin('cheese');expect(a.dataset.interfaceSkin).toBe('xiangse')
     releaseA();appearance.applyInterfaceSkin('unknown');expect(doc.documentElement.dataset.interfaceSkin).toBe('default')
   })
   it('同一 DOM 的新注册不被旧释放撤销，新的字体请求仍可以完成', async () => {

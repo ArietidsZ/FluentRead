@@ -1,5 +1,6 @@
 /** 验证本轮界面一致性：复用一个隔离后台页签，避免多次创建页签抢占前台。 */
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -110,7 +111,7 @@ const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], e
     return {tiny,base};
   });
   await page.reload(); await page.getByRole('button',{name:/清除 Whisper Tiny/}).click();
-  await page.waitForFunction(async () => !await (await caches.open('transformers-cache')).match('https://modelscope.cn/models/onnx-community/whisper-tiny/resolve/master/onnx/encoder_model_q4.onnx'));
+  await waitForAsyncCondition(() => page.evaluate(async () => !await (await caches.open('transformers-cache')).match('https://modelscope.cn/models/onnx-community/whisper-tiny/resolve/master/onnx/encoder_model_q4.onnx')), {timeoutMs: 30000, message: "清除 Whisper Tiny 后模型缓存仍存在"});
   check(await page.evaluate(async ({base}) => Boolean(await (await caches.open('transformers-cache')).match(base)),modelProof), 'Clearing Tiny through UI retains Base cache');
   check((await page.locator('.video-model-size').allTextContents()).join(' ').includes('100 MB'), 'Whisper cards show estimated download sizes');
   await shot('video-models');

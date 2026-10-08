@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 // 服务配置专项：紧凑页签（单页签改用小节标题）、标签旁提示、多 Key 增删与备用、提示词一键同步、行式请求限制、区域、本地模型与自定义服务；不下载模型或调用外部服务。
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -14,8 +15,10 @@ const report = {ok: false, artifact: extensionDir.endsWith('-dev') ? 'developmen
 fs.mkdirSync(artifactsDir, {recursive: true});
 (async () => {
   let launched, page, profileDir;
+  let launchAttempted = false;
   try {
     profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-service-config-'));
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'), background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000, browserArgs: ['--enable-unsafe-extension-debugging', '--no-first-run', '--no-default-browser-check']});
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
@@ -27,7 +30,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const open = async name => {const p = await newPageWithoutForeground(context, 30000); p.on('pageerror', e => report.consoleErrors.push(e.message)); p.on('console', m => {if (m.type() === 'error') report.consoleErrors.push(m.text());}); await p.goto(`${origin}/${name}.html`, {waitUntil: 'domcontentloaded'}); return p;};
     const popup = await open('popup');
     const readConfig = () => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); const credentials = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:credentials'}); return {...(typeof r.value === 'string' ? JSON.parse(r.value) : r.value), ...(credentials.value || {})};});
-    await popup.waitForFunction(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value);
+    await waitForAsyncCondition(() => popup.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value), {timeoutMs: 30000, message: "服务配置 Popup 尚未读到初始配置"});
     const patch = async changes => {
       const before = await readConfig();
       const expected = Object.fromEntries(Object.keys(changes).map(k => [k, before[k]]));
@@ -300,8 +303,8 @@ fs.mkdirSync(artifactsDir, {recursive: true});
         try {await launched.close(); browserClosed = true;} catch { /* Retain the profile until its browser is confirmed closed. */ }
       }
       if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
-      else if (!launched && profileDir) {
-        try {fs.rmdirSync(profileDir);} catch { /* Retain nonempty profiles after uncertain initialization. */ }
+      else if (!launchAttempted && profileDir) {
+        try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
       }
     }
     console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, layouts: report.layouts.length, screenshots: report.screenshots.length, error: report.error, report: path.join(artifactsDir, 'report.json')}));

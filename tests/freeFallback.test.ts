@@ -454,7 +454,7 @@ describe('speed-first free routing', () => {
         const a = candidate('a', vi.fn(() => new Promise(() => undefined)));
         const b = candidate('b', vi.fn(() => new Promise(() => undefined)));
         const request = run([a, b], {...fastOptions, timeoutMs: 30_000, deadline: Date.now() + 60_000});
-        const rejected = expect(request).rejects.toMatchObject({message: '请求超时', retryable: false});
+        const rejected = expect(request).rejects.toMatchObject({message: '请求超时', kind: 'timeout', retryable: false});
         await vi.advanceTimersByTimeAsync(20_000);
         await rejected;
         expect(vi.getTimerCount()).toBe(0);
@@ -469,6 +469,161 @@ describe('speed-first free routing', () => {
         await vi.advanceTimersByTimeAsync(0);
         await expect(request).resolves.toBe('译:a');
         expect(observer).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+});
+
+
+// 这些结果全部来自受控 deferred/mock；不代表任何 provider 的真实输出或原生 Wikipedia 归因。
+describe('free pool availability waits keep global attempt capacity usable', () => {
+    const ownerOptions = {mode: 'sequential' as const, timeoutMs: 5_000, cooldownMs: 1_000};
+    const settleImmediateWork = () => vi.advanceTimersByTimeAsync(0);
+
+    it('a capacity waiter cannot time out an independent owner with an idle route', async () => {
+        const run = createFreeFallbackRunner(2, {random: () => 0});
+        const gate = deferred();
+        const limitedTranslate = vi.fn().mockImplementationOnce(() => gate.promise).mockResolvedValue('fixture:resumed');
+        const limited = {...candidate('fixture-limited', limitedTranslate), maxConcurrency: 1};
+        const active = run([limited], ownerOptions);
+        await settleImmediateWork();
+        const parked = run([limited], ownerOptions);
+        await settleImmediateWork();
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+
+        const idle = candidate('fixture-idle');
+        const start = Date.now();
+        const ready = run([idle], {...ownerOptions, deadline: start + 1_000});
+        const readyOutcome = ready.then(value => ({value}), error => ({error}));
+        await settleImmediateWork();
+        // 基线在这里是 0 次调用：active + parked 占满 2 个全局许可，idle 被卡在 acquire。
+        expect(idle.translate).toHaveBeenCalledOnce();
+        await expect(readyOutcome).resolves.toEqual({value: '译:fixture-idle'});
+        expect(Date.now()).toBe(start);
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+        gate.resolve('fixture:active');
+        await expect(active).resolves.toBe('fixture:active');
+        await expect(parked).resolves.toBe('fixture:resumed');
+        expect(limitedTranslate).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('an interval waiter cannot occupy the last global permit while every HTTP attempt is idle', async () => {
+        const run = createFreeFallbackRunner(1, {random: () => 0});
+        const paced = {...candidate('fixture-paced'), maxConcurrency: 1, minIntervalMs: 2_000};
+        await expect(run([paced], ownerOptions)).resolves.toBe('译:fixture-paced');
+        const start = Date.now();
+        const parked = run([paced], ownerOptions);
+        await settleImmediateWork();
+        expect(paced.translate).toHaveBeenCalledOnce();
+        const idle = candidate('fixture-idle-interval');
+        const ready = run([idle], {...ownerOptions, deadline: start + 1_000});
+        const readyOutcome = ready.then(value => ({value}), error => ({error}));
+        await settleImmediateWork();
+        // 基线没有任何在途 HTTP，却让 paced 的 2 秒间隔挤掉另一个 owner 的 1 秒预算。
+        expect(idle.translate).toHaveBeenCalledOnce();
+        await expect(readyOutcome).resolves.toEqual({value: '译:fixture-idle-interval'});
+        await vi.advanceTimersByTimeAsync(1_999);
+        expect(paced.translate).toHaveBeenCalledOnce();
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(parked).resolves.toBe('译:fixture-paced');
+        expect(paced.translate).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('cancelling a parked owner returns no second permit and never cancels the active owner', async () => {
+        const run = createFreeFallbackRunner(2, {random: () => 0});
+        const gate = deferred();
+        let activeSignal!: AbortSignal;
+        const limitedTranslate = vi.fn((signal: AbortSignal) => { activeSignal = signal; return gate.promise; });
+        const limited = {...candidate('fixture-cancel-limited', limitedTranslate), maxConcurrency: 1};
+        const active = run([limited], ownerOptions);
+        await settleImmediateWork();
+        const cancelledOwner = new AbortController();
+        const parked = run([limited], {...ownerOptions, signal: cancelledOwner.signal});
+        const parkedOutcome = parked.then(value => ({value}), error => ({error}));
+        await settleImmediateWork();
+        cancelledOwner.abort();
+        await expect(parkedOutcome).resolves.toMatchObject({error: {name: 'AbortError'}});
+        expect(activeSignal.aborted).toBe(false);
+
+        const otherGate = deferred();
+        const other = candidate('fixture-other-live', vi.fn(() => otherGate.promise));
+        const secondActive = run([other], ownerOptions);
+        await settleImmediateWork();
+        expect(other.translate).toHaveBeenCalledOnce();
+        const third = candidate('fixture-third');
+        const queued = run([third], ownerOptions);
+        await settleImmediateWork();
+        // 若 parked 的 finally 重复归还，第三项会突破仍然有效的全局上限。
+        expect(third.translate).not.toHaveBeenCalled();
+        otherGate.resolve('fixture:other');
+        await expect(secondActive).resolves.toBe('fixture:other');
+        await expect(queued).resolves.toBe('译:fixture-third');
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+        gate.resolve('fixture:active');
+        await expect(active).resolves.toBe('fixture:active');
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('an expired parked owner keeps its original deadline and leaves active transport and health untouched', async () => {
+        const run = createFreeFallbackRunner(2, {random: () => 0});
+        const gate = deferred();
+        let activeSignal!: AbortSignal;
+        const limitedTranslate = vi.fn((signal: AbortSignal) => { activeSignal = signal; return gate.promise; });
+        const limited = {...candidate('fixture-deadline-limited', limitedTranslate), maxConcurrency: 1};
+        const active = run([limited], ownerOptions);
+        await settleImmediateWork();
+        const events: FreeFallbackAttempt[] = [];
+        const start = Date.now();
+        const parked = run([limited], {...ownerOptions, deadline: start + 1_000, onAttempt: event => events.push(event)});
+        const parkedOutcome = parked.then(value => ({value}), error => ({error}));
+        await vi.advanceTimersByTimeAsync(999);
+        expect(events).toEqual([]);
+        await vi.advanceTimersByTimeAsync(1);
+        await expect(parkedOutcome).resolves.toMatchObject({error: {kind: 'timeout', retryable: false}});
+        expect(Date.now()).toBe(start + 1_000);
+        expect(events).toEqual([]);
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+        expect(activeSignal.aborted).toBe(false);
+        expect(await run.getHealthSnapshot()).toEqual([]);
+        await expect(run([candidate('fixture-after-timeout')], ownerOptions)).resolves.toBe('译:fixture-after-timeout');
+        gate.resolve('fixture:active');
+        await expect(active).resolves.toBe('fixture:active');
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('awakened owners recheck the route cap after reacquiring instead of reusing a stale ready choice', async () => {
+        const run = createFreeFallbackRunner(3, {random: () => 0});
+        const gates = [deferred(), deferred(), deferred()];
+        let calls = 0;
+        let transports = 0;
+        let maximum = 0;
+        const limitedTranslate = vi.fn(() => {
+            const gate = gates[calls++]!;
+            transports += 1;
+            maximum = Math.max(maximum, transports);
+            return gate.promise.finally(() => { transports -= 1; });
+        });
+        const limited = {...candidate('fixture-recheck', limitedTranslate), maxConcurrency: 1};
+        const first = run([limited], ownerOptions);
+        await settleImmediateWork();
+        const second = run([limited], ownerOptions);
+        const third = run([limited], ownerOptions);
+        await settleImmediateWork();
+        expect(limitedTranslate).toHaveBeenCalledOnce();
+        gates[0]!.resolve('fixture:first');
+        await expect(first).resolves.toBe('fixture:first');
+        await settleImmediateWork();
+        expect(limitedTranslate).toHaveBeenCalledTimes(2);
+        expect(maximum).toBe(1);
+        gates[1]!.resolve('fixture:second');
+        await settleImmediateWork();
+        expect(limitedTranslate).toHaveBeenCalledTimes(3);
+        expect(maximum).toBe(1);
+        gates[2]!.resolve('fixture:third');
+        await expect(Promise.all([second, third])).resolves.toEqual(['fixture:second', 'fixture:third']);
+        expect(transports).toBe(0);
         expect(vi.getTimerCount()).toBe(0);
     });
 });

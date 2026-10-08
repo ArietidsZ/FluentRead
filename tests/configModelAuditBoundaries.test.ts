@@ -459,10 +459,11 @@ describe('configmodelAudit 配置、目录和真实消费者边界', () => {
 
     it('免费服务和云服务端点保持默认产品策略、显式列表、数值边界及地域回退', () => {
         expect(new model.Config().freeTranslationOrder).not.toContain('deeplx');
-        expect(free.normalizeFreeTranslationOrder(['deeplx', 'google', 'deeplx', 'bad', 3])).toEqual(['deeplx', 'google']);
+        expect(free.normalizeFreeTranslationOrder(['alibabaFree', 'google', 'alibabaFree', 'deeplx', 'bad', 3])).toEqual(['alibabaFree', 'google']);
         expect(free.normalizeFreeTranslationOrder([])).toEqual(free.DEFAULT_FREE_TRANSLATION_ORDER);
         expect(free.normalizeFreeTranslationOrder(undefined)).toEqual(free.DEFAULT_FREE_TRANSLATION_ORDER);
-        expect(free.isFreeTranslationProviderId('deeplx')).toBe(true);
+        expect(free.isFreeTranslationProviderId('alibabaFree')).toBe(true);
+        expect(free.isFreeTranslationProviderId('deeplx')).toBe(false);
         expect(free.isFreeTranslationProviderId('bad')).toBe(false);
         expect(free.isFreeTranslationProviderId(5)).toBe(false);
         expect(free.normalizeFreeTranslationMode('sequential')).toBe('sequential');

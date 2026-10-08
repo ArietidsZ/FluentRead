@@ -6,6 +6,7 @@
  * otherwise the captured structural fixture also covers host mutations and node identity.
  * --baseline records the explicitly requested older artifact without claiming build freshness.
  */
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -14,7 +15,7 @@ const crypto = require('node:crypto');
 const {createRequire} = require('node:module');
 const {assertFreshProductionExtension} = require('../run-site-translation-test.cjs');
 const root = path.resolve(__dirname, '../..');
-const args = {timeout: 30000, baseline: false, live: false};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000, baseline: false, live: false};
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i];
   if (key === '--background') continue;
@@ -48,7 +49,8 @@ async function main() {
   report.contentSha256 = crypto.createHash('sha256')
     .update(fs.readFileSync(path.join(args.extensionDir, 'content-scripts/content.js'))).digest('hex');
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-github-task-list-'));
-  let session, context, worker, popup, page;
+  let session, context, worker, popup, page, emulation;
+  let primaryError;
   let sequence = 0;
   const installedWorkers = new WeakMap();
   const installWorker = current => {
@@ -122,10 +124,17 @@ async function main() {
         width: rect.width, height: rect.height, scale: 1};
     });
     const screenshotSession = await context.newCDPSession(page);
+    let screenshotError;
     try {
       const result = await screenshotSession.send('Page.captureScreenshot', {format: 'png', clip, captureBeyondViewport: true, fromSurface: true});
       fs.writeFileSync(path.join(args.artifactsDir, 'translated-task-group.png'), Buffer.from(result.data, 'base64'));
-    } finally { await screenshotSession.detach(); }
+    } catch (error) {screenshotError = error; throw error;}
+    finally {
+      try {await screenshotSession.detach();} catch (error) {
+        if (!screenshotError) throw error;
+        process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+      }
+    }
   };
   const assertGranularity = actual => {
     assert.ok(actual.groupDirect.every(count => count === 0), 'outer group LI must not own a combined wrapper');
@@ -160,11 +169,14 @@ async function main() {
       'two task rows must never share one provider request');
   };
 
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: args.browserPath || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       background: true, headless: false, viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: args.timeout,
       browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     context = session.context;
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
@@ -235,7 +247,7 @@ async function main() {
 
     if (!args.live) {
       const narrow = {name: 'narrow-task-wrapping', viewportWidth: 390}; report.cases.push(narrow);
-      const emulation = await context.newCDPSession(page);
+      emulation = await context.newCDPSession(page);
       await emulation.send('Emulation.setDeviceMetricsOverride', {width: 390, height: 844, deviceScaleFactor: 1, mobile: false});
       await page.waitForTimeout(200);
       narrow.geometry = await page.evaluate(({taskSelector, owned}) => ({
@@ -250,6 +262,7 @@ async function main() {
       assert.ok(narrow.geometry.rows.every(row => row.scrollWidth <= row.width + 1 && row.translations === 1));
       await page.screenshot({caret: 'initial', path: path.join(args.artifactsDir, 'narrow.png')});
       await emulation.send('Emulation.clearDeviceMetricsOverride'); await emulation.detach();
+      emulation = null;
       narrow.passed = true;
       const dynamic = {name: 'dynamic-task-source-controls-and-hidden-updates'}; report.cases.push(dynamic);
       await page.evaluate(({taskSelector, owned}) => {
@@ -332,19 +345,44 @@ async function main() {
     if (!args.live) assert.deepEqual(report.errors, []);
     report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack;
     if (page) {
       report.failureState = await state().catch(() => null);
       report.requests = await worker?.evaluate(() => globalThis.taskListRequests.flat()).catch(() => []);
       await page.screenshot({caret: 'initial', path: path.join(args.artifactsDir, 'failure.png')}).catch(() => {});
       const html = await page.locator(bodySelector).first().innerHTML().catch(() => '');
-      fs.writeFileSync(path.join(args.artifactsDir, 'failure.html'), html);
+      try {fs.writeFileSync(path.join(args.artifactsDir, 'failure.html'), html);}
+      catch (artifactError) {process.stderr.write(`Failure artifact write failed: ${artifactError.stack || artifactError}\n`);}
     }
     throw error;
   } finally {
-    save();
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {if (emulation) await emulation.send('Emulation.clearDeviceMetricsOverride');});
+    await cleanup(async () => {await emulation?.detach();});
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.passed = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {save();});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   console.log(JSON.stringify({passed: report.passed, scope: report.scope, cases: report.cases, artifacts: args.artifactsDir}));
 }

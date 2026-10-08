@@ -4,6 +4,7 @@
  * fixed Microsoft responses, original website HTML/CSS, temporary focus-safe Edge profile.
  * Measures every frame: endpoint-only scroll checks would miss a jump followed by restoration.
  */
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,7 +14,7 @@ const {createRequire} = require('node:module');
 const {assertFreshProductionExtension, waitForTranslationIdle} = require('../run-site-translation-test.cjs');
 const siteCases = require('../../tests/browser-translation-cases.json');
 const root = path.resolve(__dirname, '../..');
-const args = {};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs')};
 for (let i = 2; i < process.argv.length; i++) {
   const flag = process.argv[i];
   if (flag === '--allow-network') { args.allowNetwork = true; continue; }
@@ -42,12 +43,16 @@ async function main() {
   if (!args.expectRegression) assertFreshProductionExtension(args.extensionDir, root);
   report.contentSha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(args.extensionDir, 'content-scripts/content.js'))).digest('hex');
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-viewport-'));
-  let session, page;
+  let session, page, primaryError;
+  const cdpSessions = new Set();
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: args.browserPath || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       background: true, headless: false, displayTarget: 'secondary', viewport: {width: 1280, height: 900},
       browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     const context = session.context;
     report.browserVersion = context.browser().version();
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
@@ -101,6 +106,7 @@ async function main() {
           if (stage !== 'loading') report.errors.push({site: spec.id, ...diagnostic});
         });
         const cdp = await context.newCDPSession(page), worlds = [];
+        cdpSessions.add(cdp);
         cdp.on('Runtime.executionContextCreated', e => worlds.push(e.context));
         await cdp.send('Runtime.enable');
         // No routing / page fixture: public website markup and assets are fetched unchanged.
@@ -193,7 +199,7 @@ async function main() {
         assert.equal(page.url(), site.url);
         // Keep completed tabs until session cleanup: closing an active third-party page may
         // focus a different browser window. Each new tab still passes the helper's focus guard.
-        result.passed = true; save(); await cdp.detach(); page = null;
+        result.passed = true; save(); await cdp.detach(); cdpSessions.delete(cdp); page = null;
         console.log(JSON.stringify({...result, calls: undefined, pageDiagnostics: result.pageDiagnostics.length,
           phases: result.phases.map(({frames, ...p}) => p)}));
       }
@@ -204,11 +210,36 @@ async function main() {
     }
     assert.deepEqual(report.errors, []); report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack;
     if (page) await page.screenshot({path: path.join(args.artifactsDir, 'failure.png')}).catch(() => {});
     throw error;
   } finally {
-    save(); if (session) await session.close(); fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    for (const cdp of cdpSessions) await cleanup('CDP session', () => cdp.detach());
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { save(); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });

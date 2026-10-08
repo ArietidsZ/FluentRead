@@ -1,9 +1,10 @@
+import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import {createServer, type ViteDevServer} from 'vite';
-import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it} from 'vitest';
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {compileScript, compileTemplate, parse} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import {Config} from '@/src/core/config/model';
@@ -55,11 +56,13 @@ async function mountComponent(advanced: boolean): Promise<void> {
 }
 
 beforeEach(async () => {
+  // The external browser constructor is present in production; complete the renderer port.
+  vi.stubGlobal('ShadowRoot', parseHTML('<html><body></body></html>').window.ShadowRoot);
   config = runtime.reactive(new Config());
   checks = runtime.reactive({});
   await mountComponent(false);
 });
-afterEach(() => app?.unmount());
+afterEach(() => {app?.unmount(); vi.unstubAllGlobals();});
 afterAll(async () => server?.close());
 function control(ariaLabel: string): Node { const element = [...elements].reverse().find(node => node.props['aria-label'] === ariaLabel); expect(element, ariaLabel).toBeDefined(); return element!; }
 

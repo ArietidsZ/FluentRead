@@ -1472,7 +1472,9 @@ describe('视频预览不自动显示图片翻译', () => {
         env.dispatch(env.image, 'contextmenu'); expect(toggleContextMenuImage(env.image.src)).toBe(true); await flush();
         expect(env.bitmap()).toBe(canvas); expect(client.translate).toHaveBeenCalledOnce();
         env.image.src = 'https://example.test/new-page.png';
-        const layout = env.observers.find(observer => observer.observe.mock.calls[0]?.[1]?.attributeFilter?.includes('style'))!;
+        // Both reader and overlay observers now watch style; deliver this source mutation
+        // to the actual overlay observer, whose public filter also owns opacity/alt changes.
+        const layout = env.observers.find(observer => observer.observe.mock.calls[0]?.[1]?.attributeFilter?.includes('alt'))!;
         layout.callback([{type: 'attributes', attributeName: 'src', target: env.image} as unknown as MutationRecord], {} as MutationObserver);
         expect(canvas).toMatchObject({width: 0, height: 0}); expect(env.image.style.opacity).not.toBe('0');
     });

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 
 /**
  * Verify the production AI context entry in a temporary, focus-safe Edge profile.
@@ -22,7 +23,7 @@ function argument(name, fallback) {
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-ai-context-ui'));
 const playwrightRoot = path.resolve(argument('playwright-root', ''));
-const helperPath = path.resolve(argument('focus-safe-helper', path.join(os.homedir(), '.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs')));
+const helperPath = path.resolve(argument('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs')));
 const timeout = Number(argument('timeout', '30000'));
 const {chromium} = require(path.join(playwrightRoot, 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
@@ -30,6 +31,7 @@ const skins = ['default', 'minimal', 'compact', 'contrast', 'qinghua', 'zhusha',
 
 async function assertBackground(context, report, label) {
   const session = await context.browser().newBrowserCDPSession();
+  let primaryError;
   try {
     const {processInfo} = await session.send('SystemInfo.getProcessInfo');
     const browserPid = processInfo.find(item => item.type === 'browser')?.id;
@@ -39,8 +41,14 @@ async function assertBackground(context, report, label) {
     assert.ok(Number.isInteger(browserPid) && Number.isInteger(frontmost.pid), 'Cannot verify browser focus');
     assert.notEqual(frontmost.pid, browserPid, `Test browser stole foreground focus: ${label}`);
     report.focusChecks.push({label, browserFrontmost: false, frontmostApplication: frontmost.name});
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    await session.detach();
+    try {await session.detach();} catch (error) {
+      if (!primaryError) throw error;
+      process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+    }
   }
 }
 
@@ -66,11 +74,14 @@ async function main() {
   });
   let launched;
   let popup;
+  let primaryError;
+  let launchAttempted = false;
   try {
     await new Promise((resolve, reject) => {
       server.once('error', reject);
       server.listen(0, '127.0.0.1', resolve);
     });
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({
       chromium, profileDir,
       browserPath: argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
@@ -78,6 +89,7 @@ async function main() {
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'],
       viewport: {width: 1280, height: 900}, timeout,
     });
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
     assert.equal(report.focusPolicy, 'launchservices-no-foreground');
@@ -407,6 +419,7 @@ async function main() {
     assert.deepEqual(report.layoutFailures, [], 'Popup height regressions were collected in layoutFailures');
     report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.failure = error.message;
     if (popup && !popup.isClosed()) {
       const failureFile = path.join(artifactsDir, 'failure.png');
@@ -414,10 +427,31 @@ async function main() {
     }
     throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
-    await launched?.close();
-    await new Promise(resolve => server.close(resolve));
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (launched) {await launched.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.passed = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   process.stdout.write(`${JSON.stringify({passed: report.passed, report: path.join(artifactsDir, 'report.json'), cases: report.caseCoverage.length, layouts: report.layouts.length, screenshots: report.screenshots.length, consoleErrors: report.consoleErrors.length})}\n`);
 }

@@ -154,7 +154,7 @@ export async function translateLiveText(
         forceFailedRequest,
     );
     const changed = translations.some((translation, index) =>
-        hasDistinctTranslation(origins[index] ?? '', translation),
+        hasDistinctTranslation(origins[index]!, translation),
     );
 
     return {

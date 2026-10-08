@@ -142,14 +142,14 @@ const statusLoaded = ref(false)
 // 本页发起的请求与其他页面发起、仍在进行的下载都算“下载中”；后者只能从实时进度事件得知。
 const requesting = ref(false)
 const observedDownload = ref(false)
-const downloading = computed(() => !downloaded.value && (requesting.value || observedDownload.value))
+const downloading = computed(() => !downloaded.value && (requesting.value || observedDownload.value || pendingDownloads.value > 0))
 const progress = ref<DownloadProgressValue>()
 const removing = ref(false)
 const errorMessage = ref('')
 let stopObserving: (() => void) | undefined
 const mounted = ref(false)
 // 只记录本实例已交给后台、尚未回包的下载，不取消后台任务或伪造进度。
-let pendingDownloads = 0
+const pendingDownloads = ref(0)
 let generation = 0
 let statusReadFailed = false
 
@@ -191,13 +191,13 @@ async function refresh(force = false): Promise<void> {
 }
 
 async function downloadModel(current = capture()): Promise<void> {
-  if (!current() || pendingDownloads || !statusLoaded.value || downloading.value || removing.value || !browserCapabilities.extensionDom) return
+  if (!current() || pendingDownloads.value || !statusLoaded.value || downloading.value || removing.value || !browserCapabilities.extensionDom) return
   generation++
   statusReadFailed = false
   errorMessage.value = ''
   progress.value = undefined
   requesting.value = true
-  pendingDownloads++
+  pendingDownloads.value++
   try {
     const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalTtsModel'}) as unknown
     if (!current()) return
@@ -210,12 +210,13 @@ async function downloadModel(current = capture()): Promise<void> {
   } catch (error) {
     if (current()) errorMessage.value = error instanceof Error ? error.message : t('settings.localTts.downloadFailed')
   } finally {
-    pendingDownloads--
+    pendingDownloads.value--
     if (current()) {
       requesting.value = false
       observedDownload.value = false
-      await refresh()
     }
+    // 命令结算后新视图独立重读权威状态，不移交旧回包或错误。
+    if (active.value) await refresh()
   }
 }
 
@@ -275,7 +276,6 @@ watch(() => [mounted.value, revision.value], () => {
   browser.storage.onChanged.addListener(handleStorageChange)
   const stopProgress = watchDownloadProgress([LOCAL_TTS_DOWNLOAD_ID], (id, next) => {if (current()) handleDownloadProgress(id, next)})
   stopObserving = () => {browser.storage.onChanged.removeListener(handleStorageChange); stopProgress()}
-  observedDownload.value = pendingDownloads > 0
   void refresh(true)
 }, {flush: 'sync'})
 onMounted(() => {mounted.value = true})

@@ -1,7 +1,7 @@
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createTranslationLayoutMeasurements} from '@/src/core/translation/layoutMeasurements';
-import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow} from '@/src/core/translation/serialization';
+import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow, isTranslationHeightBoundary} from '@/src/core/translation/serialization';
 import {beginTranslation, createTranslationTruncationLayoutBatch, ensureTranslationTruncationLayout,
     markTranslationComplete, restoreAllTranslations, restoreTranslation, setBilingualContent} from '@/src/features/full-page-translation/content/state';
 
@@ -154,5 +154,67 @@ describe('synchronous translation layout measurements', () => {
         expect(main.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
         restoreTranslation(owners[1]!);
         expect(main.getAttribute('style')).toBe(originalStyle);
+    });
+});
+
+function installStyle(window: Window, read: (element: Element) => object): () => void {
+    const previous = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+    Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: read});
+    return () => {
+        if (previous) Object.defineProperty(window, 'getComputedStyle', previous);
+        else Reflect.deleteProperty(window, 'getComputedStyle');
+    };
+}
+
+describe('同步布局测量字段的冻结与失效', () => {
+    it('边界预检查不读取无关高度/矩形，字段按需冻结且失效后取得新值', () => {
+        const {document, window} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        let currentHeight = '100px';
+        const height = vi.fn(() => currentHeight);
+        const transform = vi.fn(() => 'none');
+        const rectangle = vi.fn(() => ({top: 0, bottom: 100} as DOMRect));
+        owner.getBoundingClientRect = rectangle;
+        const restore = installStyle(window, () => ({
+            position: 'static', get transform() { return transform(); },
+            overflow: 'visible', overflowY: 'visible', display: 'block',
+            maxHeight: 'none', webkitLineClamp: 'none',
+            get height() { return height(); }, getPropertyValue: () => '',
+        }));
+        try {
+            const measurements = createTranslationLayoutMeasurements();
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+            expect(height).not.toHaveBeenCalled();
+            expect(rectangle).not.toHaveBeenCalled();
+            const first = measurements.style(owner)!;
+            expect(first.height).toBe('100px');
+            currentHeight = '200px'; // 只改变测试读数；DOM 变化必须先 invalidate。
+            expect(first.height).toBe('100px');
+            expect(height).toHaveBeenCalledTimes(1);
+            expect(transform).toHaveBeenCalledTimes(1);
+            measurements.invalidate();
+            expect(measurements.style(owner)?.height).toBe('200px');
+            expect(height).toHaveBeenCalledTimes(2);
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+            expect(transform).toHaveBeenCalledTimes(2);
+        } finally { restore(); }
+    });
+
+    it('空字段按需缓存，重复边界判定不重读宿主', () => {
+        const {document, window} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const empty = vi.fn(() => '');
+        const restore = installStyle(window, () => ({
+            get position() { return empty(); }, transform: 'none',
+            overflow: 'visible', overflowY: 'visible', display: 'block',
+            maxHeight: 'none', webkitLineClamp: 'none', height: '100px',
+            getPropertyValue: vi.fn(() => ''),
+        }));
+        try {
+            const measurements = createTranslationLayoutMeasurements();
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+            expect(empty).toHaveBeenCalledTimes(1);
+        } finally { restore(); }
     });
 });

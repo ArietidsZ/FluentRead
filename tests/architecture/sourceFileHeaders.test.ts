@@ -5,6 +5,7 @@ import {describe, expect, it} from 'vitest';
 const PROJECT_ROOT = resolve(__dirname, '../..');
 const SRC_ROOT = resolve(PROJECT_ROOT, 'src');
 const DOCUMENTED_EXTENSIONS = new Set(['.css', '.cts', '.md', '.mts', '.ts', '.tsx', '.vue']);
+const BINARY_ASSET_EXTENSIONS = new Set(['.jpg']);
 const REQUIRED_SECTIONS = ['文件职责：', '主要内容：', '模块边界：'] as const;
 
 function relativePath(path: string): string {
@@ -62,7 +63,18 @@ describe('src file header documentation', () => {
         for (const path of dataFiles) {
             expect(() => JSON.parse(readFileSync(resolve(PROJECT_ROOT, path), 'utf8')), path).not.toThrow();
         }
-        const unsupported = allSourceFiles.filter((path) => !DOCUMENTED_EXTENSIONS.has(extensionOf(path)) && extensionOf(path) !== '.json');
+        // main 新增的 JPEG 联系图片是构建资产；验证位置和格式，不能给二进制添加源码注释。
+        const binaryAssets = allSourceFiles.filter((path) => BINARY_ASSET_EXTENSIONS.has(extensionOf(path)));
+        for (const path of binaryAssets) {
+            expect(path).toMatch(/^src\/app\/options\/assets\/[^/]+\.jpg$/u);
+            const bytes = readFileSync(resolve(PROJECT_ROOT, path));
+            expect(bytes.length, path).toBeGreaterThan(4);
+            expect([...bytes.subarray(0, 3)], path).toEqual([0xff, 0xd8, 0xff]);
+            // JPEG 的结束标记后可以保留附加数据，不能要求它占据文件最后两个字节。
+            expect(bytes.lastIndexOf(Buffer.from([0xff, 0xd9])), path).toBeGreaterThan(2);
+        }
+        const unsupported = allSourceFiles.filter((path) => !DOCUMENTED_EXTENSIONS.has(extensionOf(path))
+            && extensionOf(path) !== '.json' && !BINARY_ASSET_EXTENSIONS.has(extensionOf(path)));
         expect(unsupported).toEqual([]);
         expect(sourceFiles.length).toBeGreaterThan(0);
     });

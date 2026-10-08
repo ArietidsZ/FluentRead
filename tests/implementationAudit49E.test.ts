@@ -18,18 +18,21 @@ vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: {w
 vi.mock('@/src/ui/i18n', () => ({useUiI18n: () => ({translateLegacy: (s: string) => s, t: (s: string) => s})}));
 vi.mock('element-plus/es/components/select/style/css', () => ({}));
 vi.mock('element-plus', async () => {
-    const {defineComponent, h} = await import('vue');
-    return {ElSelect: defineComponent({props: ['modelValue', 'disabled'], setup: (p, {slots}) => () => h('div', {'data-select': '', 'aria-disabled': p.disabled}, slots.default?.())})};
+    const {defineComponent, h, provide} = await import('vue');
+    // Only the third-party select port is controlled; real UiSelect and feature templates run.
+    return {ElSelect: defineComponent({props: ['modelValue', 'disabled'], emits: ['update:modelValue'], setup(p, {slots, emit}) {
+        provide('audit-select-port', {value: () => p.modelValue, disabled: () => p.disabled, select: (value: unknown) => emit('update:modelValue', value)});
+        return () => h('div', {'data-select': '', 'aria-disabled': p.disabled}, slots.default?.());
+    }})};
 });
-import {createApp, h, nextTick, reactive, type App, type Component} from 'vue';
+import {createApp, h, inject, nextTick, reactive, type App, type Component} from 'vue';
 import {createHash} from 'node:crypto';
 import {spawn} from 'node:child_process';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {fileURLToPath} from 'node:url';
-import {dirname, resolve} from 'node:path';
+import {resolve} from 'node:path';
 import {createRequire} from 'node:module';
-const {buildSync} = createRequire(createRequire(import.meta.url).resolve('vite'))('esbuild');
+const {buildSync} = createRequire(createRequire(resolve(process.cwd(), 'package.json')).resolve('vite'))('esbuild');
 import {createDocumentSegmentTranslator, createDocumentFileLoadGuard, type DocumentTranslationGateway} from '@/src/features/document-translation/services/translation';
 import type {DocumentSegment} from '@/src/features/document-translation/core/document';
 import {splitLocalTranslationText, assertLocalTranslationOutput, hunyuanTranslationPrompt} from '@/src/core/translation/localInference';
@@ -49,10 +52,16 @@ const explicitEvidence = process.env.AUDIT_E_EVIDENCE;
 const evidence = explicitEvidence || mkdtempSync(resolve(tmpdir(), 'fluentread-audit49-e-'));
 mkdirSync(evidence, {recursive: true});
 afterAll(() => {if (!explicitEvidence) rmSync(evidence, {recursive: true, force: true});});
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const root = process.cwd();
 const baseline = process.env.AUDIT_E_BASELINE === '1';
 const entries = new Map<string, Response>();
 const apps = new Set<App>();
+type StorageListener = (changes: Record<string, {newValue?: unknown}>, areaName: string) => void;
+const progressListeners = new Set<StorageListener>();
+const progressEvents = {
+    addListener: vi.fn((listener: StorageListener) => {progressListeners.add(listener);}),
+    removeListener: vi.fn((listener: StorageListener) => {progressListeners.delete(listener);}),
+};
 let failStateWrite = false;
 let onPut: ((key: string) => void | Promise<void>) | undefined;
 let preferenceMatch: (() => Promise<Response>) | undefined;
@@ -72,7 +81,11 @@ async function settle() {for (let i = 0; i < 20; i++) {await Promise.resolve(); 
 async function mount(component: Component, props: Record<string, unknown> = {}) {
     const container = document.createElement('div'); document.body.append(container);
     const input = reactive(props); const app = createApp({render: () => h(component, input)});
-    app.component('el-option', {props: ['value', 'label'], render() {return h('span', String((this as any).label));}});
+    app.component('el-option', {props: ['value', 'label', 'disabled'], setup(p: {value?: unknown; label?: string; disabled?: boolean}) {
+        const select = inject<{value: () => unknown; disabled: () => boolean; select: (value: unknown) => void}>('audit-select-port')!;
+        return () => h('button', {type: 'button', 'data-option-value': String(p.value), 'aria-pressed': select.value() === p.value,
+            disabled: p.disabled || select.disabled(), onClick: () => select.select(p.value)}, String(p.label));
+    }});
     app.component('el-switch', {props: ['modelValue', 'disabled'], render() {return h('button', {'aria-disabled': (this as any).disabled});}});
     apps.add(app); app.mount(container); await settle(); return {container, app, props: input};
 }
@@ -80,6 +93,8 @@ function segments(): DocumentSegment[] {return [{id: 0, source: 'one', role: 'pa
 function gateway(batch = true): DocumentTranslationGateway {return {waitUntilReady() {}, getDefaultService: () => 'fixture', supportsBatch: () => batch, translateText: async text => 'translated ' + text, translateTextBatch: async texts => texts.map(s => 'translated ' + s)};}
 function fileFor(body: Uint8Array): TranslationArtifact {return {repo: 'fixture/model', revision: 'immutable', path: 'model.bin', size: body.length, sha256: createHash('sha256').update(body).digest('hex')};}
 beforeEach(() => {
+    progressListeners.clear(); progressEvents.addListener.mockClear(); progressEvents.removeListener.mockClear();
+    vi.stubGlobal('browser', {storage: {onChanged: progressEvents}});
     entries.clear(); preferenceMatch = undefined; onPut = undefined; onMatch = undefined; failStateWrite = false;
     ports.message.mockReset().mockImplementation(async ({type}) => type === 'fluentReadImageOcrStatus' ? {success: true, languages: [], states: {}} : {success: true, ready: false, bytes: 0, source: 'auto'});
     ports.stopWatch.mockReset(); ports.watch.mockReset().mockReturnValue(ports.stopWatch); ports.imageOcr = true;
@@ -89,8 +104,12 @@ beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => {throw new Error('unconfigured external port');}));
 });
 afterEach(async () => {
-    for (const app of apps) app.unmount(); apps.clear(); await settle();
-    vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+    try {
+        for (const app of apps) app.unmount(); apps.clear(); await settle();
+        expect(progressListeners.size).toBe(0);
+    } finally {
+        vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals();
+    }
 });
 
 describe('audit 49 E actual translation and cache entries', () => {
@@ -242,19 +261,17 @@ describe('audit 49 E real Vue client model settings', () => {
         vi.useFakeTimers(); const hydration = deferred<string>();
         preferenceMatch = async () => ({text: () => hydration.promise} as Response);
         const {container} = await mount(MangaModelSettings);
-        const select = container.querySelector<HTMLSelectElement>('select')!;
-        select.value = 'mirror';
-        select.dispatchEvent(new Event('change', {bubbles: true})); await settle();
+        container.querySelector<HTMLButtonElement>('[aria-label="模型下载来源"] [data-option-value="mirror"]')!.click(); await settle();
         expect(await entries.get('https://fluent-read.invalid/manga-model-source')!.text()).toBe('mirror');
         hydration.resolve('auto'); await settle();
-        // Inspect the actual option-selection patch written by the client render.
-        expect(container.querySelector('option[value="mirror"]')!.hasAttribute('selected')).toBe(true);
+        // Read the current modelValue delivered through real UiSelect after the late response.
+        expect(container.querySelector('[aria-label="模型下载来源"] [data-option-value="mirror"]')!.getAttribute('aria-pressed')).toBe('true');
     });
     it('hydrates model source from external status updates and cleans polling on repeated unmount', async () => {
         vi.useFakeTimers(); ports.message.mockResolvedValue({success: true, ready: true, bytes: 30, source: 'mirror'});
         for (let i = 0; i < 3; i++) {
             const {container, app} = await mount(MangaModelSettings, {showInpainting: false});
-            expect(container.querySelector('option[value="mirror"]')!.hasAttribute('selected')).toBe(true);
+            expect(container.querySelector('[aria-label="模型下载来源"] [data-option-value="mirror"]')!.getAttribute('aria-pressed')).toBe('true');
             expect(container.textContent).not.toContain('背景文字清除'); expect(container.querySelectorAll('li')).toHaveLength(3);
             app.unmount(); apps.delete(app); await settle(); expect(vi.getTimerCount()).toBe(0);
         }
@@ -271,10 +288,9 @@ describe('audit 49 E real Vue client model settings', () => {
     it('prevents a stale status response from replacing a newly selected model source', async () => {
         vi.useFakeTimers(); const pending = deferred<unknown>(); ports.message.mockReturnValueOnce(pending.promise);
         const {container} = await mount(MangaModelSettings);
-        const select = container.querySelector<HTMLSelectElement>('select')!; select.value = 'mirror';
-        select.dispatchEvent(new Event('change', {bubbles: true})); await settle();
+        container.querySelector<HTMLButtonElement>('[aria-label="模型下载来源"] [data-option-value="mirror"]')!.click(); await settle();
         pending.resolve({success: true, ready: false, bytes: 0, source: 'auto'}); await settle();
-        expect(container.querySelector('option[value="mirror"]')!.hasAttribute('selected')).toBe(true);
+        expect(container.querySelector('[aria-label="模型下载来源"] [data-option-value="mirror"]')!.getAttribute('aria-pressed')).toBe('true');
     });
     it('does not subscribe or send OCR requests when the capability is unavailable', async () => {
         ports.imageOcr = false; const {container} = await mount(ImageOcrSettings);
@@ -292,17 +308,17 @@ describe('audit 49 E real Vue client model settings', () => {
         expect(ports.message).toHaveBeenCalledWith({type: 'fluentReadImageOcrDownload', languages: ['eng']});
         expect(container.querySelector('[data-language="eng"]')!.getAttribute('data-state')).toBe('ready');
         container.querySelector<HTMLButtonElement>('.image-ocr-remove')!.click(); await settle(); expect(languages).toEqual([]);
-        app.unmount(); apps.delete(app); expect(ports.stopWatch).toHaveBeenCalledOnce(); expect(vi.getTimerCount()).toBe(0);
+        app.unmount(); apps.delete(app); expect(ports.stopWatch).toHaveBeenCalledOnce(); expect(progressEvents.removeListener).toHaveBeenCalledOnce(); expect(progressListeners.size).toBe(0); expect(vi.getTimerCount()).toBe(0);
     });
     it('ignores an OCR response after the client is unmounted', async () => {
         vi.useFakeTimers(); const pending = deferred<unknown>(); ports.message.mockReturnValueOnce(pending.promise);
         const {app} = await mount(ImageOcrSettings); app.unmount(); apps.delete(app);
-        pending.resolve({success: true, languages: ['eng'], states: {}}); await settle(); expect(vi.getTimerCount()).toBe(0); expect(ports.stopWatch).toHaveBeenCalledOnce();
+        pending.resolve({success: true, languages: ['eng'], states: {}}); await settle(); expect(vi.getTimerCount()).toBe(0); expect(ports.stopWatch).toHaveBeenCalledOnce(); expect(progressEvents.removeListener).toHaveBeenCalledOnce(); expect(progressListeners.size).toBe(0);
     });
     it('adds and deletes validated manga rules via the actual rendered form and parent configuration', async () => {
         const settings = new Config(); settings.imageTranslationMangaSites = [];
         const {container, props} = await mount(MangaSettings, {settings, imageEnabled: false, available: true, serviceOptions: []});
-        const address = container.querySelector<HTMLInputElement>('input[type="url"]')!, selector = container.querySelectorAll<HTMLInputElement>('input')[1];
+        const address = container.querySelector<HTMLInputElement>('form input[aria-label="阅读页或阅读路径"]')!, selector = container.querySelector<HTMLInputElement>('form input[aria-label="漫画图片选择器"]')!;
         address.value = 'https://fixture.example/chapter/'; address.dispatchEvent(new Event('input', {bubbles: true}));
         selector.value = 'main img'; selector.dispatchEvent(new Event('input', {bubbles: true}));
         container.querySelector('form')!.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true})); await settle();

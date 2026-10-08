@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // 多语言界面布局专项：临时后台 Edge、完整标签与横向边界；不调用供应商、不操作用户浏览器。
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
 const {chromium}=require(path.join((()=>{const i=process.argv.indexOf('--playwright-root');assert(i>=0,'--playwright-root is required');return process.argv[i+1]})(),'playwright'));
-const {launchFocusSafePersistentContext,newPageWithoutForeground}=require((()=>{const i=process.argv.indexOf('--focus-safe-helper');assert(i>=0,'--focus-safe-helper is required');return path.resolve(process.argv[i+1])})());
+const {launchFocusSafePersistentContext,newPageWithoutForeground}=require((()=>{const i=process.argv.indexOf('--focus-safe-helper');return i<0?path.join(__dirname, 'focus-safe-browser.cjs'):path.resolve(process.argv[i+1])})());
 const arg=(name,fallback)=>{const i=process.argv.indexOf('--'+name);return i<0?fallback:process.argv[i+1]};
 const root=process.cwd(),out=path.resolve(arg('artifacts-dir','/private/tmp/fluentread-multilingual-ui'));fs.mkdirSync(out,{recursive:true});
 const extensionDir=path.resolve(arg('extension-dir','.output/chrome-mv3'));
@@ -32,8 +33,9 @@ async function audit(page,label){
  });report.views.push({label,...data});
  if(label.startsWith('en-US')||/^(zh-CN|fr-FR|ru-RU)-popup$/.test(label))await page.screenshot({path:path.join(out,label+'.png'),fullPage:true,animations:'disabled'});
 }
-(async()=>{try{
- const ext=extensionDir;session=await launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${ext}`,`--load-extension=${ext}`,'--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+(async()=>{let primaryError, launchAttempted = false;try{
+ const ext=extensionDir;launchAttempted = true;session=await launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${ext}`,`--load-extension=${ext}`,'--no-first-run','--no-default-browser-check'],viewport:{width:1280,height:900}});
+ guardBrowserClose(session, profile);
  const ctx=session.context,worker=ctx.serviceWorkers()[0]||await ctx.waitForEvent('serviceworker');const id=new URL(worker.url()).host;Object.assign(report,{launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement});
  const options=await newPageWithoutForeground(ctx);options.on('pageerror',e=>report.errors.push(e.message));await options.goto(`chrome-extension://${id}/options.html`);await options.locator('.settings-app').waitFor();
  async function patch(config,expected){const r=await options.evaluate(async payload=>chrome.runtime.sendMessage(payload),{type:'persistConfig',mode:'patch',config,expected,clientId:'multilingual-layout-audit',sequence:++seq});assert.equal(r.success,true);}
@@ -61,7 +63,32 @@ async function audit(page,label){
   await audit(popup,`${language}-popup-${skin}-${theme}`);
  }
  report.ok=report.errors.length===0&&report.views.every(v=>v.documentWidth<=v.width+1&&!v.rootOverflow&&v.issues.length===0);
- }finally{if(session)await session.close();fs.rmSync(profile,{recursive:true,force:true});fs.writeFileSync(path.join(out,'report.json'),JSON.stringify(report,null,2));}
+ } catch (error) { primaryError = error; throw error; } finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profile); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(out, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+ }
  if(!report.ok)process.exitCode=1;
  console.log(JSON.stringify({ok:report.ok,views:report.views.length,issues:report.views.reduce((n,v)=>n+v.issues.length,0),out}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

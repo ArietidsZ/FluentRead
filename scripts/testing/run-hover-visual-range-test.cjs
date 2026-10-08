@@ -10,6 +10,7 @@ const http = require('node:http');
 const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const {startTranslationFixtureServer, installTranslationFixtureOnWorker} = require('../run-full-page-translation-test.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const arg = (name, fallback) => {const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1];};
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-hover-window'));
@@ -262,16 +263,20 @@ async function runNestedViewport(context, setup, provider, port, worker) {
 
 (async()=>{
   let launched,provider;
+  let launchAttempted = false, browserGuarded = false, hasPrimaryError = false;
   try {
     await new Promise((resolve,reject)=>{
       server.once('error',reject);
       server.listen(0,'127.0.0.1',()=>{server.off('error',reject);resolve();});
     });
     provider=await startTranslationFixtureServer([],5);
+    launchAttempted = true;
     launched=await launchFocusSafePersistentContext({chromium,profileDir,
       browserPath:arg('browser-path','/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
       headless:false,background:true,viewport:{width:1280,height:900},
       browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
+    guardBrowserClose(launched,profileDir);
+    browserGuarded = true;
     const {context}=launched;
     report.launchMode=launched.launchMode;report.focusPolicy=launched.focusPolicy;
     report.windowPlacement=Object.fromEntries(['mode','visible','hidden','windowState','displayTarget','browserFrontmost'].map(key=>[key,launched.windowPlacement?.[key]]));
@@ -423,13 +428,40 @@ async function runNestedViewport(context, setup, provider, port, worker) {
     await setup.close();
     assert.deepEqual(report.consoleErrors,[]);report.ok=true;
     assert.equal(report.buildSha256,sha256(path.join(extensionDir,'content-scripts/content.js')),'Build changed during browser evidence');
-    console.log(JSON.stringify(report,null,2));
-  } catch(error) {report.ok=false;report.failure=error.stack;console.error(error);process.exitCode=1;}
+  } catch(error) {hasPrimaryError=true;report.ok=false;report.failure=error?.stack || String(error);console.error(error);process.exitCode=1;}
   finally {
-    report.requestPayloads=provider?.requestPayloads().map(payload=>payload.map(value=>({
-      characters:value.length,sha256:crypto.createHash('sha256').update(value).digest('hex'),
-    })));
-    fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));
-    await launched?.close();await provider?.close();server.close();fs.rmSync(profileDir,{recursive:true,force:true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error:String(error?.stack || error)});
+        report.ok = false; process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {if (browserGuarded) {await launched.close(); browserClosed = true;}});
+    await cleanup('provider', async () => {
+      const error = await provider?.close();
+      if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') throw error;
+    });
+    await cleanup('server connections', () => server.closeAllConnections());
+    await cleanup('server', async () => {
+      await new Promise((resolve, reject) => {
+        server.close(error => {if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve();});
+      });
+    });
+    await cleanup('profile', () => {
+      if (browserClosed || !launchAttempted) fs.rmSync(profileDir, {recursive:true,force:true});
+      else {report.retainedProfile=profileDir;report.retainedProfileLaunchAttempted=launchAttempted;}
+    });
+    await cleanup('report', () => {
+      report.requestPayloads=provider?.requestPayloads().map(payload=>payload.map(value=>({
+        characters:value.length,sha256:crypto.createHash('sha256').update(value).digest('hex'),
+      })));
+      fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));
+    });
+    if (cleanupErrors.length && !hasPrimaryError) throw cleanupErrors[0];
+    if (report.ok) console.log(JSON.stringify(report,null,2));
   }
-})();
+})().catch(error => {console.error(error);process.exitCode=1;});

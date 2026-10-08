@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 
 // 生产扩展的主线程响应性基准：隔离 profile、本地确定性译文、真实按键、宿主点击、整批重挂与恢复。
 const fs = require('node:fs');
@@ -22,16 +23,13 @@ const repeated = process.argv.includes('--repeated-source');
 const allowChineseBaseline = process.argv.includes('--allow-chinese-baseline');
 const cpuRate = Number(arg('cpu-rate', '1'));
 const {chromium} = require(path.join(arg('playwright-root', path.join(os.homedir(), '.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules')), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', path.join(os.homedir(), '.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs')));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 assert.ok(Number.isInteger(paragraphs) && paragraphs>0, '--paragraphs must be a positive integer');
 assert.ok(Number.isFinite(cpuRate) && cpuRate>=1, '--cpu-rate must be at least 1');
 assert.ok(!remountMiddle || remount, '--remount-middle requires --remount');
 assert.ok(!remountRoot || remount, '--remount-root requires --remount');
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-responsiveness-'));
-fs.mkdirSync(artifactsDir, {recursive: true});
 const chinese = 'FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 <strong>DeepSeek Harness 会话内核的浏览器适配</strong>，支持结合上下文解释选中文字并连续追问。';
 const html = '<!doctype html><html lang="en"><meta charset="utf-8"><title>Responsiveness fixture</title><style>body{font:16px/1.7 system-ui;margin:40px}main{max-width:900px}#probe{position:fixed;right:24px;top:24px;z-index:100000}p{margin:20px 0}</style><button id="probe" translate="no">Host click</button><main><p id="chinese">' + chinese + '</p>' + Array.from({length: paragraphs}, (_, i) => `<section><p id="p${i}">The browser should remain responsive while this paragraph number ${repeated ? 0 : i} is translated. Readers can click the controls and scroll through the document without waiting for every translation to finish.</p></section>`).join('') + '</main><script>window.probeClicks=0;document.querySelector("#probe").onclick=()=>window.probeClicks++;</script></html>';
-const server = http.createServer((_req, res) => {res.writeHead(200, {'content-type': 'text/html; charset=utf-8'});res.end(html);});
 const report = {extensionDir, paragraphs, remount, remountMiddle, remountRoot, translationBefore, repeated, evidence: 'Production extension and real browser; local deterministic Microsoft transport, no live provider claims', consoleErrors: [], phases: []};
 
 async function startPhase(page, name) {
@@ -287,13 +285,26 @@ async function runGithub(context, provider) {
 }
 
 (async () => {
-  let launched, provider;
+  let launched, provider, server, profileDir;
+  let hasPrimaryError = false;
+  let launchAttempted = false;
   try {
-    await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
+    fs.mkdirSync(artifactsDir, {recursive: true});
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-responsiveness-'));
+    server = http.createServer((_req, res) => {res.writeHead(200, {'content-type': 'text/html; charset=utf-8'});res.end(html);});
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => {
+        server.off('error', reject);
+        resolve();
+      });
+    });
     provider = await startTranslationFixtureServer([], 5);
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium,profileDir,
       browserPath:arg('browser-path','/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),headless:false,background:true,viewport:{width:1280,height:900},
       browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     const {context}=launched;
     Object.assign(report,{launchMode:launched.launchMode,focusPolicy:launched.focusPolicy,windowPlacement:Object.fromEntries(['mode','visible','hidden','windowState','displayTarget','browserFrontmost'].map(key=>[key,launched.windowPlacement?.[key]]))});
     const worker=context.serviceWorkers().find(w=>w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker');
@@ -312,7 +323,7 @@ async function runGithub(context, provider) {
     if (github) {
       await runGithub(context, provider);
       assert.deepEqual(report.consoleErrors, []); report.ok=true;
-      console.log(JSON.stringify(report.sites,null,2)); return;
+      return;
     }
     const page=await newPageWithoutForeground(context);
     page.on('pageerror',e=>report.consoleErrors.push(e.message));
@@ -368,7 +379,65 @@ async function runGithub(context, provider) {
     report.submittedChinese=provider.requestPayloads().flat().filter(t=>String(t).includes('支持在原网页'));
     if(!allowChineseBaseline) assert.deepEqual(report.submittedChinese,[]);
     assert.equal(report.consoleErrors.length,0);report.ok=true;
+
+  }catch(e){hasPrimaryError=true;report.ok=false;report.failure=e.stack;console.error(e);process.exitCode=1;}
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {
+        await release();
+      } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error?.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (launched) {
+        await launched.close();
+        browserClosed = true;
+      }
+    });
+    await cleanup('provider', async () => {
+      const error = await provider?.close();
+      // This fixture's close Promise resolves with the server callback's error.
+      if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') throw error;
+    });
+    await cleanup('server', async () => {
+      if (!server) return;
+      await new Promise((resolve, reject) => {
+        server.close(error => {
+          if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error);
+          else resolve();
+        });
+        server.closeAllConnections();
+      });
+    });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          // No browser launch was attempted; only remove an empty initial profile.
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => {
+      fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+    });
+    if (cleanupErrors.length && !hasPrimaryError) throw cleanupErrors[0];
+    if (report.ok) {
+      if (github) console.log(JSON.stringify(report.sites, null, 2));
+      else if (!compare) {
     console.log(JSON.stringify({ok:report.ok,phases:report.phases.map(({longTasks,...p})=>({...p,longTaskCount:longTasks.length,maxLongTaskMs:Math.max(0,...longTasks.map(t=>t.duration))})),metrics:report.metrics,items:report.items},null,2));
-  }catch(e){report.ok=false;report.failure=e.stack;console.error(e);process.exitCode=1;}
-  finally{fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));await launched?.close();await provider?.close();server.close();fs.rmSync(profileDir,{recursive:true,force:true});}
-})();
+      }
+    }
+  }
+})().catch(error => {
+  console.error(error);
+  process.exitCode = 1;
+});

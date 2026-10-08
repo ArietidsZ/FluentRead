@@ -169,7 +169,7 @@ describe('synthesis cancellation public factory', () => {
 describe('background request ownership through public handlers', () => {
     function subject(overrides: Partial<SelectionTtsBackgroundDependencies> = {}) {
         const dependencies = {getPreferredVoices: () => [], synthesize: vi.fn(async () => audioResult()),
-            playWithOffscreen: vi.fn(async () => {}), stopWithOffscreen: vi.fn(async () => {}), sendTabMessage: vi.fn(async () => {}), ...overrides};
+            playWithOffscreen: vi.fn(async () => {}), stopWithOffscreen: vi.fn(async () => {}), seekWithOffscreen: vi.fn(async () => {throw Error('Unexpected seek in background ownership fixture');}), sendTabMessage: vi.fn(async () => {}), ...overrides};
         const handlers = createSelectionTtsBackgroundHandlers(dependencies);
         const dispatch = (type: string, id: string) => handlers.find(handler => handler.type === type)!.handle(
             {type, text: id, language: 'en-US', clientRequestId: id} as any, {sender: {tab: {id: 1}}});
@@ -236,6 +236,9 @@ describe('SelectionTranslator actual client template', () => {
             patchProp: (node, key, _old, value) => {
                 if (key.startsWith('on')) {const saved = handlers.get(node) || {}; saved[key] = value; handlers.set(node, saved);}
                 else if (key === 'style') Object.assign(node.style, value || {});
+                // ARIA boolean values are string attributes in the real client
+                // DOM, unlike disabled/other boolean HTML attributes.
+                else if (key.startsWith('aria-') && value != null) node.setAttribute(key, String(value));
                 else if (value === false || value == null) node.removeAttribute(key);
                 else node.setAttribute(key, value === true ? '' : String(value));
             },
@@ -251,12 +254,28 @@ describe('SelectionTranslator actual client template', () => {
             expect(doc.querySelector('.fr-translation-tooltip')).not.toBeNull();
         }
     }
-    function click(selector: string) {
-        const target = doc.querySelector(selector)!;
+    function click(selector: string, label?: string) {
+        const target = (label === undefined ? doc.querySelector(selector)
+            : Array.from(doc.querySelectorAll(selector)).find(node => node.textContent?.trim() === label) ?? null)!;
         expect(target).not.toBeNull();
         const event = {target, currentTarget: target, stopPropagation() {}, preventDefault() {}};
         const fn = handlers.get(target)?.onClick;
         expect(fn).toBeTypeOf('function'); fn(event);
+    }
+    function expectPlayingStatus(state: 'playing' | 'idle') {
+        const status = doc.querySelector('.fr-playing-status');
+        expect(status).not.toBeNull();
+        expect(status!.classList.contains('is-idle')).toBe(state === 'idle');
+        expect(status!.getAttribute('role')).toBe('status');
+        expect(status!.getAttribute('aria-hidden')).toBe(String(state === 'idle'));
+        expect(status!.getAttribute('aria-busy')).toBe('false');
+        if (state === 'idle') {
+            expect(status!.textContent?.trim()).toBe('');
+            expect(status!.querySelector('button')).toBeNull();
+        } else {
+            expect(status!.textContent).toContain('正在播放');
+            expect(status!.querySelector('button[aria-label="停止播放"]')?.getAttribute('aria-label')).toBe('停止播放');
+        }
     }
     beforeEach(() => {
         vi.useFakeTimers(); ports.listeners.clear(); ports.subscriptions.clear();
@@ -308,13 +327,14 @@ describe('SelectionTranslator actual client template', () => {
         await selectFromPage();
         expect(doc.querySelector('.fr-word-learning-card')).not.toBeNull();
         expect(doc.querySelector('[data-reading-target]')).toBeNull();
-        click('.fr-study-toolbar button'); await settle();
+        click('.fr-study-toolbar button', '读懂'); await settle();
         expect(doc.querySelector('[data-reading-target]')?.getAttribute('data-reading-target')).toBe('zh-Hans');
     });
     it('falls back to browser speech after word TTS failure through the rendered button', async () => {
         await mount(); click('.fr-word-heading-audio'); await settle();
         expect(ports.speech).toHaveBeenCalledOnce(); expect(speechUtterances[0].text).toBe('hello');
         expect(doc.querySelector('.fr-playing-status')?.textContent).toContain('单词');
+        expectPlayingStatus('playing');
     });
     it('keeps successful offscreen word playback without a duplicate fallback', async () => {
         const send = ports.send.getMockImplementation()!;
@@ -322,8 +342,9 @@ describe('SelectionTranslator actual client template', () => {
         await mount(); click('.fr-word-heading-audio'); await settle();
         expect(ports.speech).not.toHaveBeenCalled();
         expect(doc.querySelector('.fr-playing-status')).not.toBeNull();
+        expectPlayingStatus('playing');
         click('.fr-word-heading-audio'); await settle();
-        expect(doc.querySelector('.fr-playing-status')).toBeNull();
+        expectPlayingStatus('idle');
         expect(ports.send.mock.calls.filter(([m]) => m.type === 'selectionTts')).toHaveLength(1);
     });
     it('keeps local-only playback errors from starting another speech source', async () => {
@@ -334,16 +355,18 @@ describe('SelectionTranslator actual client template', () => {
         const request = ports.send.mock.calls.find(([message]) => message.type === 'selectionTts')![0];
         for (const listener of ports.listeners) listener({type: 'selectionTtsState', clientRequestId: request.clientRequestId, state: 'error'});
         await settle();
-        expect(doc.querySelector('.fr-playing-status')).toBeNull();
+        expectPlayingStatus('idle');
         expect(ports.speech).not.toHaveBeenCalled();
         expect(ports.send.mock.calls.filter(([message]) => message.type === 'selectionTtsGoogle')).toHaveLength(0);
     });
     it.each(['card', 'simple'])('clears the pending play indicator after a local-only %s failure', async presentation => {
         ports.config.selectionTtsMode = 'local-only';
         await mount('hello', presentation);
-        click(presentation === 'card' ? '.fr-word-heading-audio' : '.fr-original-text .fr-text-audio-btn'); await settle();
+        // Both persisted presentation values use main's unified word card.
+        expect(doc.querySelector('.fr-translation-tooltip')?.getAttribute('data-presentation')).toBe('card');
+        click('.fr-word-heading-audio'); await settle();
         expect(ports.speech).not.toHaveBeenCalled();
-        expect(doc.querySelector('.fr-playing-status')).toBeNull();
+        expectPlayingStatus('idle');
         expect(doc.querySelector('.fr-action-toast')?.textContent).toContain('selectionTts.localModelNotDownloaded');
     });
     it('keeps the pronunciation key when browser speech takes over a word variant', async () => {
@@ -354,14 +377,15 @@ describe('SelectionTranslator actual client template', () => {
         await mount(); click('.fr-word-pronunciation .fr-text-audio-btn'); await settle();
         expect(ports.speech).toHaveBeenCalledOnce();
         expect(doc.querySelector('.fr-word-pronunciation .fr-text-audio-btn')?.getAttribute('aria-label')).toBe('停止播放单词发音');
+        expectPlayingStatus('playing');
         click('.fr-word-pronunciation .fr-text-audio-btn'); await settle();
-        expect(doc.querySelector('.fr-playing-status')).toBeNull();
+        expectPlayingStatus('idle');
         expect(ports.send.mock.calls.filter(([m]) => m.type === 'selectionTts')).toHaveLength(1);
     });
     it('opens learning for a manually reversed Chinese selection with the effective languages', async () => {
         ports.config.from = 'auto'; ports.config.selectionTranslatorBidirectional = true;
         ports.config.harness.enabled = true;
-        await mount('这是一段中文'); click('.fr-study-toolbar button'); await settle();
+        await mount('这是一段中文'); click('.fr-study-toolbar button', '读懂'); await settle();
         expect(doc.querySelector('[data-reading-target]')?.getAttribute('data-reading-target')).toBe('en');
         expect(doc.querySelector('[data-reading-source]')?.getAttribute('data-reading-source')).toBe('zh-Hans');
     });
@@ -381,8 +405,9 @@ describe('SelectionTranslator actual client template', () => {
         await mount(); click('.fr-word-pronunciation .fr-text-audio-btn'); await settle();
         expect(play).toHaveBeenCalledOnce();
         expect(doc.querySelector('.fr-word-pronunciation .fr-text-audio-btn')?.getAttribute('aria-label')).toBe('停止播放单词发音');
+        expectPlayingStatus('playing');
         click('.fr-word-pronunciation .fr-text-audio-btn'); await settle();
-        expect(doc.querySelector('.fr-playing-status')).toBeNull();
+        expectPlayingStatus('idle');
         expect(ports.send.mock.calls.filter(([m]) => m.type === 'selectionTts')).toHaveLength(1);
         expect(pause).toHaveBeenCalledOnce(); expect(revoke).toHaveBeenCalledOnce();
     });

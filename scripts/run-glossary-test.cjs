@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 
 // 术语库回归：--suite ui 仅验证管理界面；默认全链路使用 loopback AI fixture。
 // 独立临时 Edge、真实配置消息与页面手势，不抢占前台焦点。
@@ -58,9 +59,9 @@ async function startFixture() {
     const paragraph = request.url === '/builtin' ? 'The large language model uses a context window to read this document.' : 'The agent uses FluentRead to understand this document.';
     response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Glossary fixture</title></head><body style="padding:60px;font:20px/1.8 sans-serif"><main><h1>Terminology reading test</h1><p id="glossary-primary">${paragraph}</p><p id="glossary-neighbor">This paragraph is a separate sentence without a matching term.</p></main></body></html>`);
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
   return {url: `http://127.0.0.1:${server.address().port}`, requests,
-    close: () => new Promise(resolve => server.close(resolve))};
+    close: () => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))};
 }
 
 async function main() {
@@ -68,7 +69,7 @@ async function main() {
   assert(['ui', 'full'].includes(suite), 'suite 仅支持 ui 或 full');
   const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
   const packages = argument('playwright-root');
-  const helperPath = argument('focus-safe-helper');
+  const helperPath = argument('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
   assert(packages && helperPath, '必须传入 Playwright 包目录和 focus-safe helper');
   assert(fs.existsSync(path.join(extensionDir, 'manifest.json')), '缺少扩展构建产物');
   const {chromium} = require(path.join(packages, 'playwright'));
@@ -79,14 +80,19 @@ async function main() {
   const report = {ok: false, suite, extensionDir, artifactsDir, profileDir, service: suite === 'ui' ? null : 'loopback-openai-fixture',
     scope: suite === 'ui' ? 'glossary direct actions, stable settings disclosure, multi-library order/drafts, import/export, persistence and responsive themes' : 'production built-in glossary catalog/preview/adoption/removal, real matched-term requests, persistence, lossless language import/export, hover/full-page toggles, document selection, cache invalidation and responsive themes',
     cases: [], consoleErrors: [], screenshots: [], persistenceCases: [], quickClose: null, crossPageSync: null, latestWriteWins: null};
-  const fixture = suite === 'full' ? await startFixture() : null;
+  let fixture;
   let launched;
   let currentPage;
+  let primaryError;
+  let launchAttempted = false;
   try {
+    fixture = suite === 'full' ? await startFixture() : null;
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
       background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     const context = launched.context;
     const capture = (surface, source) => {
@@ -518,25 +524,32 @@ async function main() {
     await patchConfig({documentService: service, documentModel: {[service]: 'glossary-fixture'}});
     const documentPage = await createPage(`${extensionOrigin}/document.html`, 'document');
     await documentPage.locator('input[type="file"]').setInputFiles({name: 'glossary.txt', mimeType: 'text/plain', buffer: Buffer.from('The agent uses FluentRead to understand this document.')});
-    await chooseComboboxOption(documentPage, documentPage.getByRole('combobox', {name: '术语库使用方式'}), '不使用术语库');
+    const documentSettings = documentPage.getByRole('dialog', {name: '翻译设置', exact: true});
+    await documentPage.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
+    await documentSettings.waitFor({state: 'visible'});
+    await chooseComboboxOption(documentPage, documentSettings.getByRole('combobox', {name: '术语库使用方式', exact: true}), '不使用术语库');
     await waitConfig(config => Array.isArray(config.documentGlossaryIds) && config.documentGlossaryIds.length === 0);
-    await documentPage.getByRole('button', {name: '开始翻译', exact: true}).click();
-    await documentPage.locator('.document-status').filter({hasText: /^翻译完成$/}).waitFor();
+    await documentSettings.getByRole('button', {name: '开始翻译', exact: true}).click();
+    await documentSettings.waitFor({state: 'hidden'});
+    await documentPage.locator('.document-status').filter({hasText: /^翻译完成\s*·\s*1\s*\/\s*1$/}).waitFor();
     assert.deepEqual(fixture.requests.at(-1).terms, []);
     report.crossPageSync = 'document selection persisted through shared background store';
     await documentPage.reload({waitUntil: 'domcontentloaded'});
     await documentPage.locator('input[type="file"]').setInputFiles({name: 'glossary.txt', mimeType: 'text/plain', buffer: Buffer.from('The agent uses FluentRead.')});
-    await documentPage.waitForFunction(() => document.querySelector('[aria-label="术语库使用方式"]')?.closest('.el-select')?.querySelector('.el-select__selected-item:not(.el-select__input-wrapper)')?.textContent?.trim() === '不使用术语库');
+    await documentPage.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
+    await documentSettings.waitFor({state: 'visible'});
+    await documentPage.waitForFunction(() => document.querySelector('.document-settings-dialog[open] [aria-label="术语库使用方式"]')?.closest('.el-select')?.querySelector('.el-select__selected-item:not(.el-select__input-wrapper)')?.textContent?.trim() === '不使用术语库');
     await shot(documentPage, 'glossary-document-persisted');
     report.cases.push('document native glossary selector, explicit disable, actual provider request and reload persistence');
 
-    await chooseComboboxOption(documentPage, documentPage.getByRole('combobox', {name: '术语库使用方式'}), '指定词库');
-    const documentPicker = documentPage.getByTestId('glossary-library-select');
+    await chooseComboboxOption(documentPage, documentSettings.getByRole('combobox', {name: '术语库使用方式', exact: true}), '指定词库');
+    const documentPicker = documentSettings.getByTestId('glossary-library-select');
     await documentPicker.locator('input[type="checkbox"]').nth(1).check();
     await documentPicker.locator('input[type="checkbox"]').nth(0).uncheck();
     await waitConfig(config => config.documentGlossaryIds?.length === 1 && config.documentGlossaryIds[0] === persisted.glossaryLibraries[1].id);
-    await documentPage.getByRole('button', {name: '开始翻译', exact: true}).click();
-    await documentPage.locator('.document-status').filter({hasText: /^翻译完成$/}).waitFor();
+    await documentSettings.getByRole('button', {name: '开始翻译', exact: true}).click();
+    await documentSettings.waitFor({state: 'hidden'});
+    await documentPage.locator('.document-status').filter({hasText: /^翻译完成\s*·\s*1\s*\/\s*1$/}).waitFor();
     assert.equal(fixture.requests.at(-1).terms.length, 1);
     assert(fixture.requests.at(-1).terms[0].source.startsWith('__FRTERM_'));
     await shot(documentPage, 'glossary-document-selected');
@@ -654,6 +667,7 @@ async function main() {
     assert.deepEqual(report.consoleErrors, []);
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack || String(error);
     if (currentPage && !currentPage.isClosed()) {
       await currentPage.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
@@ -661,12 +675,31 @@ async function main() {
     }
     throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    await launched?.close();
-    await fixture?.close();
-    // Edge 的 profile 子进程可能在 context.close() 返回后短暂补写 Default。
-    // 允许 Node 内置的 ENOTEMPTY/EBUSY 重试，避免成功用例被清理竞态误判。
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 8, retryDelay: 250});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (launched) {await launched.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {await fixture?.close();});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 8, retryDelay: 250});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     process.stdout.write(`${JSON.stringify({ok: report.ok, cases: report.cases, error: report.error, artifactsDir})}\n`);
   }
 }

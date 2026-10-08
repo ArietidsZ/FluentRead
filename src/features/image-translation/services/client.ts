@@ -254,7 +254,6 @@ export async function prepareImageOcrLanguages(
                 reject(createImageClientError('图片 OCR 请求已取消', 'AbortError'));
             };
             signal?.addEventListener('abort', handleAbort, {once: true});
-            if (signal?.aborted) {handleAbort(); return;}
             void (async () => browser.runtime.sendMessage({type: 'fluentReadImageOcrStatus'}))().then(
                 response => finish(response as ImageOcrStatusResponse | undefined),
                 () => finish(undefined),

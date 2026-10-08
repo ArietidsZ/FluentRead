@@ -208,7 +208,7 @@ describe('audit48F: cancellation at controlled external boundaries', () => {
         const environment = {Translator: {availability: async () => 'available', create}};
         const unexpected = async () => {throw new Error('unexpected unrelated offscreen port');};
         const listener = createOffscreenMessageListener({translate: (data, signal) => translateWithChromeApi(data, environment, signal),
-            ttsPlayer: {play: unexpected, stop: () => {throw new Error('unexpected unrelated offscreen port');}}, fetchImage: unexpected, translateImage: unexpected,
+            ttsPlayer: {play: unexpected, stop: () => {throw new Error('unexpected unrelated offscreen port');}, seek: () => {throw new Error('unexpected unrelated offscreen port');}}, fetchImage: unexpected, translateImage: unexpected,
             translateArea: () => {throw new Error('unexpected unrelated offscreen port');}, downloadOcrLanguages: unexpected,
         });
         const sent: Array<Record<string, unknown>> = [];

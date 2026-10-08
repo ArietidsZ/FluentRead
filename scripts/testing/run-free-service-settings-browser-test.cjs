@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 // 免费服务设置专项：统一目录、测试耗时/失败/重测、分流、邮箱、顺序与多尺寸；仅使用隔离后台 Chromium profile。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -38,7 +39,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const create = async url => {const p = await newPageWithoutForeground(context, 30000); p.on('pageerror', e => report.consoleErrors.push(e.message)); await p.goto(url, {waitUntil: 'domcontentloaded'}); return p;};
     const popup = await create(`${origin}/popup.html`);
     const readConfig = () => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value) : r.value;});
-    await popup.waitForFunction(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;});
+    await waitForAsyncCondition(() => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;}), {timeoutMs: 30000, message: "免费服务测试默认服务配置尚未就绪"});
     const existing = await readConfig();
     assert.deepEqual(existing.freeTranslationOrder, defaultIds);
     report.caseCoverage.push('fresh configuration enables 15 official providers');

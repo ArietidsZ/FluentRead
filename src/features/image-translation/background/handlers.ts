@@ -320,7 +320,7 @@ async function translateImageTexts(
     const useImageDetectionText = service === 'localTranslation'
         && identifyTextLanguage(imageDetectionText).status === 'identified'
         && new Set(segmentScriptWords(imageDetectionText).map(word => word.script)).size === 1;
-    const now = dependencies.now ?? (() => Date.now());
+    const now = dependencies.now ?? (() => performance.now());
     const deadline = now() + Math.min(options.timeoutMs, IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
     const baseRequest = {
         context: title,

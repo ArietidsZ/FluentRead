@@ -17,6 +17,7 @@ const arg = (name) => {
 }
 const runtimePath = arg('runtime'),
   helperPath = arg('helper')
+const { guardBrowserClose } = require('./testing/owned-browser-close.cjs')
 const runtime = createRequire(path.join(runtimePath, 'docs-ui.cjs'))
 const { chromium } = runtime('playwright'),
   sharp = runtime('sharp')
@@ -53,6 +54,7 @@ const report = {
   errors: [],
 }
 let profile, server, launched
+let launchAttempted = false, browserGuarded = false, hasPrimaryError = false
 ;(async () => {
   profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-docs-ui-'))
   server = http.createServer((_, res) => {
@@ -68,6 +70,7 @@ let profile, server, launched
       resolve()
     })
   })
+  launchAttempted = true
   launched = await helper.launchFocusSafePersistentContext({
     chromium,
     profileDir: profile,
@@ -83,6 +86,8 @@ let profile, server, launched
     ],
     timeout: 30000,
   })
+  guardBrowserClose(launched, profile)
+  browserGuarded = true
   Object.assign(report, {
     launchMode: launched.launchMode,
     focusPolicy: launched.focusPolicy,
@@ -316,38 +321,48 @@ let profile, server, launched
     path.join(root, 'docs/.vitepress/theme/guide-ui.json'),
     JSON.stringify(guides, null, 2) + '\n'
   )
-  fs.writeFileSync(
-    path.join(root, 'marketing/site-ui-manifest.json'),
-    JSON.stringify(report, null, 2) + '\n'
-  )
-  console.log(JSON.stringify(report))
 })()
   .catch((e) => {
+    hasPrimaryError = true
+    report.error = e?.stack || String(e)
     console.error(e)
     process.exitCode = 1
   })
   .finally(async () => {
-    // Every owned resource gets a cleanup attempt, even when an earlier close fails.
-    // Keep the primary error above and report each cleanup failure separately.
-    for (const [resource, cleanup] of [
-      ['browser', () => launched?.close()],
-      ['server connections', () => server?.closeAllConnections()],
-      ['server', async () => {
-        if (!server) return
-        await new Promise((resolve, reject) => server.close((error) => {
-          if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error)
-          else resolve()
-        }))
-      }],
-      ['profile', () => {
-        if (profile) fs.rmSync(profile, { recursive: true, force: true })
-      }],
-    ]) {
-      try {
-        await cleanup()
-      } catch (error) {
+    const cleanupErrors = []
+    const cleanup = async (resource, release) => {
+      try { await release() } catch (error) {
+        cleanupErrors.push(error)
+        ;(report.cleanupErrors ||= []).push({resource, error: String(error?.stack || error)})
         console.error(`Failed to clean up ${resource}:`, error)
         process.exitCode = 1
       }
     }
+    let browserClosed = false
+    await cleanup('browser', async () => {
+      if (browserGuarded) { await launched.close(); browserClosed = true }
+    })
+    await cleanup('server connections', () => server?.closeAllConnections())
+    await cleanup('server', async () => {
+      if (!server) return
+      await new Promise((resolve, reject) => server.close((error) => {
+        if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error)
+        else resolve()
+      }))
+    })
+    await cleanup('profile', () => {
+      if (!profile) return
+      if (browserClosed || !launchAttempted) fs.rmSync(profile, { recursive: true, force: true })
+      else {
+        report.retainedProfile = profile
+        report.retainedProfileLaunchAttempted = launchAttempted
+      }
+    })
+    await cleanup('report', () => fs.writeFileSync(
+      path.join(root, 'marketing/site-ui-manifest.json'),
+      JSON.stringify(report, null, 2) + '\n'
+    ))
+    if (cleanupErrors.length && !hasPrimaryError) throw cleanupErrors[0]
+    if (!hasPrimaryError) console.log(JSON.stringify(report))
   })
+  .catch((error) => { console.error(error); process.exitCode = 1 })

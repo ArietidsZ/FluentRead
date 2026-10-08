@@ -92,7 +92,7 @@ async function main() {
     profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-portrait-'));
     mediaDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-portrait-media-'));
     videoPath = path.join(mediaDir, 'portrait.mp4');
-    
+
     run('/opt/homebrew/bin/ffmpeg', [
       '-y', '-f', 'lavfi', '-i', 'color=c=0x17212b:s=360x640:r=24', '-t', '3',
       '-an', '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',

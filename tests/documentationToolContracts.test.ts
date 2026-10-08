@@ -33,13 +33,13 @@ function recordProbe(probe: Record<string, unknown>) {
 afterEach(() => {for (const root of roots.splice(0)) fs.rmSync(root, {recursive: true, force: true});});
 
 // Every probe waits for close, kills a timed-out child, and has bounded captured output.
-async function child(args: string[], cwd: string, label: string) {
+async function child(args: string[], cwd: string, label: string, budgetMs = 8000) {
     return new Promise<{code: number | null; signal: string | null; out: string; err: string; timedOut: boolean}>((resolve, reject) => {
         const coverageRoot = process.env.DOCUMENTATION_TOOL_CHILD_COVERAGE;
         const proc = spawn(process.execPath, args, {cwd, env: {...process.env,
             ...(coverageRoot ? {NODE_V8_COVERAGE: path.join(coverageRoot, label)} : {})}, stdio: ['ignore', 'pipe', 'pipe']});
         let out = '', err = '', timedOut = false;
-        const timeout = setTimeout(() => {timedOut = true; proc.kill('SIGKILL');}, 8000);
+        const timeout = setTimeout(() => {timedOut = true; proc.kill('SIGKILL');}, budgetMs);
         proc.stdout.on('data', data => {out = (out + data).slice(-1000000);});
         proc.stderr.on('data', data => {err = (err + data).slice(-1000000);});
         proc.once('error', error => {clearTimeout(timeout); reject(error);});
@@ -78,8 +78,8 @@ function brandFixture(bilingual = false) {
         write(root, `${folder}/description.txt`, `${taglines[language]}\n\nFixture`);
         write(root, `marketing/copy/${locale}.md`, taglines[language]);
     }
-    write(root, 'README.md', `<div>${bilingual ? combined : taglines['en-US']}</div>`);
-    write(root, 'misc/README_ZH.md', `<div>${bilingual ? combined : taglines['zh-CN']}</div>`);
+    write(root, 'README.md', `<div>${bilingual ? combined : taglines['en-US']}\n[简体中文](./misc/README_ZH.md)</div>`);
+    write(root, 'misc/README_ZH.md', `<div>${bilingual ? combined : taglines['zh-CN']}\n[English](../README.md)</div>`);
     return root;
 }
 
@@ -114,6 +114,25 @@ function docsFixture(extra = '') {
     return root;
 }
 
+function storybookFixture() {
+    const root = fixture(), dist = 'docs/.vitepress/dist/storybook';
+    const titles = ['Overview/Introduction', 'Foundations/Colors', 'Foundations/Typography', 'Foundations/Surfaces', 'UI/Select', 'UI/FeatureEnableCard', 'UI/DownloadProgress', 'UI/ServiceIcon', 'UI/UiIcon', 'UI/TranslationLoading', 'UI/Controls', 'Examples/Settings'];
+    const entries: Record<string, {id: string; title: string; type: string}> = {};
+    for (const title of titles) {
+        const slug = title.toLowerCase().replace('/', '-');
+        for (const type of ['story', 'docs']) {
+            const id = `${slug}--${type}`;
+            entries[id] = {id, title, type};
+        }
+    }
+    write(root, `${dist}/index.json`, JSON.stringify({entries}));
+    write(root, `${dist}/index.html`, '<!doctype html><script src="./assets/app.js"></script>');
+    write(root, `${dist}/iframe.html`, '<!doctype html><link rel="stylesheet" href="./assets/app.css">');
+    write(root, `${dist}/assets/app.js`, 'console.log("fixture");');
+    write(root, `${dist}/assets/app.css`, 'body { color: black; }');
+    return root;
+}
+
 // External ports only: execute the entire actual CJS file without extracting its helpers.
 const captureRunner = String.raw`
 const fs = require('node:fs'), path = require('node:path'), vm = require('node:vm'), {EventEmitter} = require('node:events');
@@ -121,13 +140,15 @@ const {performance} = require('node:perf_hooks');
 const input = JSON.parse(process.argv[1]), source = fs.readFileSync(input.source, 'utf8');
 const state = {loaded:true, calls:[], errors:[], reports:[], writes:[], config:[], cdps:0, detached:0, profile:null, removed:[], listening:false};
 let server, clip, metrics;
+state.actorGone = false; state.guardProbes = []; state.required = [];
+const unrelated=path.join(input.fixture,'unrelated-profile');fs.mkdirSync(unrelated);fs.writeFileSync(path.join(unrelated,'sentinel'),'unrelated owner');
 const fail = name => {if (input.fail?.includes(name)) throw Error(name + '-failure');};
 const virtual = new Map(), bytes = Buffer.from('fixture-pixels');
 const fsPort = {...fs,
  readFileSync(file, encoding) {if(String(file).endsWith('manifest.json')) return JSON.stringify({version:'fixture'}); return encoding ? 'fixture-source' : Buffer.from('fixture-source');},
  mkdtempSync() {state.calls.push('profile.create'); fail('profile'); state.profile = fs.mkdtempSync(path.join(input.fixture,'owned-profile-')); return state.profile;},
  mkdirSync() {},
- writeFileSync(file, data) {state.writes.push(String(file)); virtual.set(String(file),data); fail('write');},
+ writeFileSync(file, data) {state.writes.push(String(file)); if(String(file).endsWith('/marketing/site-ui-manifest.json')||String(file).endsWith('/report.json')) {state.calls.push('report.write'); state.attemptedReport=JSON.parse(data); fail('report');} virtual.set(String(file),data); fail('write');},
  statSync() {return {size:bytes.length};},
  rmSync(file, options) {state.calls.push('profile.remove'); state.removed.push(String(file)); if(file!==state.profile) throw Error('unowned-remove'); fs.rmSync(file,options); fail('remove');}
 };
@@ -136,7 +157,7 @@ const httpPort = {createServer(callback) {
  server.listen = (port, host, ready) => {state.calls.push('server.listen'); if(input.fail?.includes('listen')) {queueMicrotask(()=>server.emit('error', Error('listen-failure'))); return server;} server.listening=true; queueMicrotask(ready); return server;};
  server.address = () => ({port:12345});
  server.closeAllConnections = () => {state.calls.push('server.connections'); fail('connections');};
- server.close = callback => {state.calls.push('server.close'); server.listening=false; callback(input.fail?.includes('server.close') ? Error('server.close-failure') : undefined);};
+ server.close = callback => {state.calls.push('server.close'); server.listening=false; callback?.(input.fail?.includes('server.close') ? Error('server.close-failure') : undefined);};
  return server;
 }};
 function locator(selector) {return {waitFor:async()=>{fail('wait');},click:async()=>{},first(){return this;},last(){return this;},boundingBox:async()=> {
@@ -147,18 +168,47 @@ function locator(selector) {return {waitFor:async()=>{fail('wait');},click:async
 }};}
 const page = {on(name, fn) {if(input.fail?.includes('pageerror')) fn(Error('pageerror-failure'));}, goto:async()=>{fail('goto');},reload:async()=>{},locator,
  evaluate:async(fn,arg)=>fn(arg), setViewportSize:async()=>{},waitForTimeout:async()=>{},close:async()=>{state.calls.push('page.close');}};
-const ctx = {serviceWorkers:()=>input.waitWorker ? [] : [{url:()=> 'chrome-extension://fixture/worker.js'}],waitForEvent:async()=>({url:()=> 'chrome-extension://fixture/worker.js'}),
+const ctx = {browser:()=>({newBrowserCDPSession:async()=>({send:async()=>({processInfo:[{type:'browser',id:424242}]}),detach:async()=>{}})}),serviceWorkers:()=>{if(input.fixtureCLI)throw Error('body-failure');return input.waitWorker ? [] : [{url:()=> 'chrome-extension://fixture/worker.js'}];},waitForEvent:async()=>({url:()=> 'chrome-extension://fixture/worker.js'}),
  newCDPSession:async()=>{state.cdps++; return {send:async(method, options)=>{fail('cdp'); if(method==='Emulation.setDeviceMetricsOverride') metrics=options; else {clip=options.clip; return {data:bytes.toString('base64')};}},detach:async()=>{state.detached++;fail('detach');}};}};
 const helper = {launchFocusSafePersistentContext:async options=> {
- state.calls.push('browser.launch'); fail('launch'); state.launch=options; state.listening=server.listening;
- const response={setHeader:(_,value)=>state.article={type:value},end:text=>state.article.text=text};server.respond({},response);
- return {context:ctx,launchMode:'fixture',focusPolicy:'fixture',windowPlacement:'fixture',close:async()=>{state.calls.push('browser.close'); fail('browser.close');}};
+ state.calls.push('browser.launch'); state.launch=options; fail('launch'); if(input.noSession)return undefined; state.listening=server.listening;
+ if(!input.fixtureCLI){const response={setHeader:(_,value)=>state.article={type:value},end:text=>state.article.text=text};server.respond({},response);}
+ state.session = {context:ctx,launchMode:input.fixtureCLI||input.fail?.includes('helper.legacy')?'macos-background-cdp':'fixture',focusPolicy:input.fixtureCLI?'launchservices-no-foreground':'fixture',windowPlacement:input.fixtureCLI?{mode:'background-visible-no-focus',browserFrontmost:false}:'fixture',close:async()=>{state.calls.push('browser.close'); state.actorGone=true; fail('browser.close');state.rawCloseFulfilled=true;}};
+ if(input.fixtureCLI&&!input.fail?.includes('helper.legacy')) {state.session.closeBrowserConnection=state.session.close;state.session.useGuardedClose=()=>state.calls.push('guard.route');}
+ return state.session;
 },newPageWithoutForeground:async()=>page,activateExtensionTabWithoutForeground:async()=>{}};
 const sharp = () => {const api={webp:()=>api,ensureAlpha:()=>api,raw:()=>api,toBuffer:async()=>bytes,
  toFile:async file=>{virtual.set(file,bytes);},metadata:async()=>({width:clip.width*metrics.deviceScaleFactor,height:clip.height*metrics.deviceScaleFactor})};return api;};
-const processPort = {argv:['fixture-node','fixture-script',...(input.args||['--runtime',input.fixture,'--helper','fixture-helper'])],exitCode:0};
+const provider={requestPayloads:()=>[],close:async()=>{state.calls.push('provider.close');fail('provider.close');if(input.fail?.includes('provider.callback'))return Error('provider.callback-failure');}};
+const args=input.fixtureCLI?['--playwright-root',input.fixture,'--focus-safe-helper','fixture-helper','--extension-dir',path.join(input.fixture,'extension'),'--artifacts-dir',path.join(input.fixture,'artifacts')]:['--runtime',input.fixture,'--helper','fixture-helper'];
+const processPort = {argv:['fixture-node','fixture-script',...(input.args||args)],exitCode:0};
+// Run the unchanged owned-browser-close implementation. CDP/ps/kill are
+// explicit controlled ports; their simulated PID absence is never native proof.
+const guardModule = {exports:{}};
+const guardSource=fs.readFileSync(input.guardSource,'utf8');
+state.guardSha256=require('node:crypto').createHash('sha256').update(guardSource).digest('hex');
+vm.runInNewContext(guardSource,{module:guardModule,require:name=>{
+ if(name==='node:child_process') return {execFile:(_cmd,args,_options,callback)=>{
+  if(_cmd!=='/bin/ps'||args[2]!=='424242') throw Error('unexpected-process-query');
+  state.guardProbes.push(state.actorGone?'absent':'present');
+  if(input.fail?.includes('guard.receipt')) {const error=Error('guard.receipt-failure');error.code='EACCES';callback(error,'','denied');}
+  else if(state.actorGone) {const error=Error('absent');error.code=1;callback(error,'','');}
+  else callback(null,'424242 Thu Oct 8 12:00:00 2026 S /fixture/browser --user-data-dir='+state.profile+'\n','');
+ }};
+ if(['node:fs','node:os','node:path'].includes(name)) return require(name);
+ throw Error('unexpected-guard-dependency: '+name);
+},process:{pid:process.pid,platform:'darwin',env:{},kill:(pid,signal)=>{if(pid!==424242)throw Error('unowned-signal');state.calls.push('guard.signal.'+signal);state.actorGone=true;}},performance,setTimeout,clearTimeout},{filename:input.guardSource,timeout:2000});
+const guardPort={guardBrowserClose(session,profile){
+ state.calls.push('guard.bind'); fail('guard.bind');
+ if(session!==state.session||profile!==state.profile) throw Error('guard-binding-ownership');
+ const guarded=guardModule.exports.guardBrowserClose(session,profile);state.guardBound=true;return guarded;
+}};
 const requirePort = name => {
+ state.required.push(name);
+ if(name==='../run-full-page-translation-test.cjs')return {startTranslationFixtureServer:async()=>{state.calls.push('provider.create');fail('provider.start');return provider;},installTranslationFixtureOnWorker:()=>{throw Error('unexpected-worker-entry');}};
+ if(name===path.join(input.fixture,'playwright'))return {chromium:{fixture:true}};
  if(name==='node:fs') return fsPort; if(name==='node:http') return httpPort;
+ if(name==='./testing/owned-browser-close.cjs'||name==='./owned-browser-close.cjs') return guardPort;
  if(name==='node:module') return {createRequire:file=>{state.calls.push('runtime.load');state.runtimePath=file;return name=>name==='playwright'?{chromium:{fixture:true}}:sharp;}};
  if(name==='node:child_process') return {execFileSync:(_,args)=>args[0]==='rev-parse'?'fixture-head\n':''};
  if(name==='fixture-helper' || name==='fixture-node') {state.calls.push('helper.load');state.helperPath=name;return helper;}
@@ -169,7 +219,11 @@ const sandbox = {require:requirePort,__dirname:path.dirname(input.source),Buffer
  document:{fonts:{ready:Promise.resolve()}},crypto:require('node:crypto').webcrypto,
  chrome:{runtime:{sendMessage:async message=>{fail('message');if(message.type==='configStorageRead') {if(input.fail?.includes('read')) return {success:false,error:'read-failure'};return {success:true,value:input.objectConfig ? {__fluentConfigRevision:3,fixture:true}:JSON.stringify({__fluentConfigRevision:3,fixture:true})};}state.config.push(message);return {success:!input.fail?.includes('persist'),error:'persist-failure'};}}},
  setTimeout,clearTimeout,queueMicrotask};
-(async()=>{const start=performance.now();try {await vm.runInNewContext(source,sandbox,{filename:input.source,timeout:2000});}catch(error){state.rejection=String(error.stack||error);}
+(async()=>{const start=performance.now();const context=vm.createContext(sandbox);try {await vm.runInContext(source,context,{filename:input.source,timeout:2000});}catch(error){state.rejection=String(error.stack||error);}
+ try {state.finalReport=JSON.parse(vm.runInContext('JSON.stringify(report)',context));}catch{}
+ delete state.session;
+ state.protectedUnchanged=fs.readFileSync(path.join(unrelated,'sentinel'),'utf8')==='unrelated owner';
+ state.sourceSha256=require('node:crypto').createHash('sha256').update(source).digest('hex');
  state.durationMs=performance.now()-start;state.exitCode=processPort.exitCode;state.profileExists=state.profile?fs.existsSync(state.profile):false;state.listening=server?.listening||false;
  console.log(JSON.stringify(state));
  // The harness owns this safety net, which is deliberately excluded from observed cleanup.
@@ -179,23 +233,66 @@ const sandbox = {require:requirePort,__dirname:path.dirname(input.source),Buffer
 `;
 async function capture(options: Record<string, unknown> = {}) {
     const root = fixture();
-    const result = await child(['-e', captureRunner, JSON.stringify({source: path.join(sourceRoot, 'scripts/capture-docs-ui.cjs'), fixture: root, ...options})], root, 'capture-docs-ui.cjs');
+    const result = await child(['-e', captureRunner, JSON.stringify({source: path.join(sourceRoot, String(options.script || 'scripts/capture-docs-ui.cjs')), guardSource: path.join(sourceRoot, 'scripts/testing/owned-browser-close.cjs'), fixture: root, ...options})], root, 'capture-docs-ui.cjs');
     recordProbe({family:'capture',sourceRoot,options,result});
     expect(result.timedOut, result.err).toBe(false);
     expect(result.code, result.err).toBe(0);
-    const state = JSON.parse(result.out.trim()) as {loaded: boolean; calls: string[]; errors: string[]; rejection?: string; profileExists: boolean; listening: boolean; exitCode: number; reports: Array<{screenshots: Array<{locale: string; name: string; points: unknown[]; losslessPixels: boolean}>}>; config: Array<{config: Record<string, unknown>; baseRevision: number}>; removed: string[]; profile: string; writes: string[]; cdps: number; detached: number; article: {text: string; type: string}; durationMs: number; runtimePath: string};
+    const state = JSON.parse(result.out.trim()) as {loaded: boolean; calls: string[]; errors: string[]; rejection?: string; profileExists: boolean; listening: boolean; exitCode: number; reports: Array<{screenshots: Array<{locale: string; name: string; points: unknown[]; losslessPixels: boolean}>}>; config: Array<{config: Record<string, unknown>; baseRevision: number}>; removed: string[]; profile: string; writes: string[]; cdps: number; detached: number; article: {text: string; type: string}; durationMs: number; runtimePath: string; guardBound?: boolean; guardProbes: string[]; finalReport?: {error?: string; failure?: string; cleanupErrors?: Array<{resource:string;error:string}>; retainedProfile?: string; retainedProfileLaunchAttempted?: boolean}; attemptedReport?: {error?: string; failure?: string}; actorGone: boolean; rawCloseFulfilled?: boolean; protectedUnchanged: boolean; required:string[]; launch?: {profileDir:string;background:boolean;headless:boolean}};
     expect(state.loaded).toBe(true);
     return state;
 }
 
 describe('documentation delivery CLI contracts', () => {
+    it('checks VitePress pages while leaving Storybook HTML shells to their own verifier', async () => {
+        const root = docsFixture();
+        write(root, 'docs/.vitepress/dist/storybook/index.html', '<!doctype html><div id="storybook-root"></div>');
+        write(root, 'docs/.vitepress/dist/storybook/iframe.html', '<!doctype html><div id="storybook-root"></div>');
+        const result = await checker(root, 'verify-docs-build.mjs');
+        expect(result.code, result.err).toBe(0);
+        expect(JSON.parse(result.out).pages).toBe(9);
+    });
+    it('validates the Storybook index and relative assets in the combined shipped artifact', async () => {
+        const result = await checker(storybookFixture(), 'verify-storybook-build.mjs');
+        expect(result.code, result.err).toBe(0);
+        expect(JSON.parse(result.out)).toEqual({groups:12,stories:12,docs:12,assets:2});
+    });
+    it('rejects a directory masquerading as a Storybook entry asset', async () => {
+        const root = storybookFixture(), target = path.join(root, 'docs/.vitepress/dist/storybook/assets/app.js');
+        fs.rmSync(target); fs.mkdirSync(target);
+        const result = await checker(root, 'verify-storybook-build.mjs');
+        expect(result.code).toBe(1); expect(result.err).toContain('Missing entry asset');
+    });
+    it.each(['assets/app.js', 'index.json', 'iframe.html'])('rejects an artifact-external Storybook symlink at %s', async file => {
+        const root = storybookFixture(), target = path.join(root, 'docs/.vitepress/dist/storybook', file);
+        const outside = path.join(root, 'outside-file');
+        fs.writeFileSync(outside, fs.readFileSync(target));
+        fs.rmSync(target); fs.symlinkSync(outside, target);
+        const result = await checker(root, 'verify-storybook-build.mjs');
+        expect(result.code).toBe(1); expect(result.err).toContain('shipped Storybook artifact');
+    });
+    it('retains an artifact-internal symlink to a regular Storybook entry asset', async () => {
+        const root = storybookFixture(), dist = path.join(root, 'docs/.vitepress/dist/storybook');
+        write(root, 'docs/.vitepress/dist/storybook/assets/shared.js', 'console.log("shared fixture");');
+        fs.rmSync(path.join(dist, 'assets/app.js'));
+        fs.symlinkSync('shared.js', path.join(dist, 'assets/app.js'));
+        const result = await checker(root, 'verify-storybook-build.mjs');
+        expect(result.code, result.err).toBe(0); expect(JSON.parse(result.out).assets).toBe(2);
+    });
+    it('rejects a Storybook subtree linked outside the shipped documentation artifact', async () => {
+        const root = storybookFixture(), dist = path.join(root, 'docs/.vitepress/dist/storybook');
+        const outside = path.join(root, 'outside-storybook');
+        fs.renameSync(dist, outside); fs.symlinkSync(outside, dist, 'dir');
+        const result = await checker(root, 'verify-storybook-build.mjs');
+        expect(result.code).toBe(1); expect(result.err).toContain('Storybook must belong to the shipped documentation artifact');
+    });
     it('accepts canonical localized README openings without duplicated product copy', async () => {
         const result = await checker(brandFixture(), 'verify-brand-copy.mjs');
         expect(result.code, result.err).toBe(0);
     });
     it.each([['README.md', 'en-US'], ['misc/README_ZH.md', 'zh-CN']])('rejects a missing localized opening in %s even when it appears later', async (file, language) => {
         const root = brandFixture(true);
-        write(root, file, `<div>${taglines[language === 'en-US' ? 'zh-CN' : 'en-US']}</div>${taglines[language]}`);
+        const counterpart = language === 'en-US' ? './misc/README_ZH.md' : '../README.md';
+        write(root, file, `<div>${taglines[language === 'en-US' ? 'zh-CN' : 'en-US']}\n[Language](${counterpart})</div>${taglines[language]}`);
         const result = await checker(root, 'verify-brand-copy.mjs');
         expect(result.code).toBe(1); expect(result.err).toContain(file);
     });
@@ -303,13 +400,16 @@ describe('documentation delivery CLI contracts', () => {
         expect(state.config.every(item=>item.baseRevision===3 && item.config.fixture===true && item.config.service==='freeTranslation')).toBe(true);
         expect(state.article.text).toContain('Reading example'); expect(state.article.type).toBe('text/html; charset=utf-8');
         expect(state.cdps).toBe(28); expect(state.detached).toBe(28);
+        expect(state.guardBound).toBe(true); expect(state.guardProbes).toContain('present'); expect(state.guardProbes.at(-1)).toBe('absent');
+        expect(state.calls.indexOf('guard.bind')).toBeLessThan(state.calls.indexOf('browser.close'));
+        expect(state.calls.indexOf('browser.close')).toBeLessThan(state.calls.indexOf('profile.remove'));
         expect(state.removed).toEqual([state.profile]); expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
     });
     it('retains serviceworker waiting and object-valued config compatibility', async () => {
         const state = await capture({waitWorker:true,objectConfig:true});
         expect(state.errors).toEqual([]); expect(state.reports[0].screenshots).toHaveLength(28);
     });
-    it.each(['launch','goto','wait','read','persist','write','rect','target','target.right','cdp','pageerror'])('cleans owned resources after %s failure', async failure => {
+    it.each(['goto','wait','read','persist','write','rect','target','target.right','cdp','pageerror'])('cleans owned resources after %s failure', async failure => {
         const state = await capture({fail:[failure]});
         expect(state.exitCode).toBe(1); expect(state.errors.length).toBeGreaterThan(0);
         expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
@@ -319,29 +419,147 @@ describe('documentation delivery CLI contracts', () => {
         const state = await capture({fail:['write','detach','browser.close']});
         expect(state.detached).toBe(1); expect(state.exitCode).toBe(1);
         for (const name of ['write','detach','browser.close']) expect(state.errors.join('\n')).toContain(name+'-failure');
-        expect(state.rejection).toBeUndefined(); expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
+        expect(state.rejection).toBeUndefined(); expect(state.profileExists).toBe(true); expect(state.listening).toBe(false);
+        expect(state.removed).toEqual([]); expect(state.finalReport?.error).toContain('write-failure');
+        expect(state.finalReport?.cleanupErrors).toContainEqual(expect.objectContaining({resource:'browser',error:expect.stringContaining('browser.close-failure')}));
     });
     it('fails the capture when session detach alone fails', async () => {
         const state = await capture({fail:['detach']});
         expect(state.exitCode).toBe(1); expect(state.errors.join('\n')).toContain('detach-failure');
         expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
     });
-    it('continues server/profile cleanup when browser close rejects, retaining the primary failure', async () => {
+    it('continues server cleanup and retains the profile when guarded browser close rejects', async () => {
         const state = await capture({fail:['goto','browser.close']});
         expect(state.errors.join('\n')).toContain('goto-failure'); expect(state.errors.join('\n')).toContain('browser.close-failure');
-        expect(state.rejection).toBeUndefined(); expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
-        expect(state.calls.slice(-4)).toEqual(['browser.close','server.connections','server.close','profile.remove']);
+        expect(state.rejection).toBeUndefined(); expect(state.profileExists).toBe(true); expect(state.listening).toBe(false);
+        expect(state.removed).toEqual([]);
+        expect(state.calls.slice(-4)).toEqual(['browser.close','server.connections','server.close','report.write']);
+        expect(state.finalReport?.error).toContain('goto-failure');
+        expect(state.finalReport?.cleanupErrors).toEqual([expect.objectContaining({resource:'browser',error:expect.stringContaining('browser.close-failure')})]);
+        expect(state.finalReport?.retainedProfile).toBe(state.profile);
+        expect(state.finalReport?.retainedProfileLaunchAttempted).toBe(true);
     });
     it.each([['browser.close'], ['connections'], ['server.close'], ['remove'], ['connections','server.close','remove']].map(fail=>({fail})))('exposes cleanup failures without abandoning later cleanup: $fail', async ({fail}) => {
         const state = await capture({fail});
         expect(state.exitCode).toBe(1); expect(state.rejection).toBeUndefined();
         for (const name of fail) expect(state.errors.join('\n')).toContain(name+'-failure');
-        expect(state.profileExists).toBe(false); expect(state.listening).toBe(false); expect(state.removed).toEqual([state.profile]);
+        expect(state.profileExists).toBe(fail.includes('browser.close')); expect(state.listening).toBe(false);
+        expect(state.removed).toEqual(fail.includes('browser.close') ? [] : [state.profile]);
+        expect(state.calls).toContain('server.connections'); expect(state.calls).toContain('server.close'); expect(state.calls.at(-1)).toBe('report.write');
+        expect(state.finalReport?.cleanupErrors?.length).toBe(fail.length);
     });
     it.each(['server.create','listen'])('cleans a partially acquired profile after %s fails', async failure => {
         const state = await capture({fail:[failure]});
         expect(state.errors.join('\n')).toContain(failure+'-failure'); expect(state.exitCode).toBe(1);
         expect(state.profileExists).toBe(false); expect(state.listening).toBe(false);
+    });
+    it('capture launch rejection retains the attempted profile without a close receipt', async () => {
+        const state = await capture({fail:['launch']});
+        expect(state.exitCode).toBe(1); expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]);
+        expect(state.calls).not.toContain('guard.bind'); expect(state.calls).not.toContain('browser.close');
+        expect(state.listening).toBe(false); expect(state.calls).toContain('server.connections'); expect(state.calls).toContain('server.close');
+        expect(state.finalReport?.error).toContain('launch-failure');
+        expect(state.finalReport?.retainedProfile).toBe(state.profile); expect(state.finalReport?.retainedProfileLaunchAttempted).toBe(true);
+    });
+    it.each(['scripts/capture-docs-ui.cjs','scripts/testing/run-hover-visual-range-test.cjs','scripts/testing/run-sentence-highlight-responsiveness.cjs'])('capture launch without a returned session retains profile in %s', async script => {
+        const state=await capture({script,fixtureCLI:script!=='scripts/capture-docs-ui.cjs',noSession:true});
+        expect(state.exitCode).toBe(1);expect(state.rejection).toBeUndefined();expect(state.profileExists).toBe(true);expect(state.removed).toEqual([]);
+        expect(state.guardBound).not.toBe(true);expect(state.calls).not.toContain('browser.close');
+        expect(state.calls).toContain('server.connections');expect(state.calls).toContain('server.close');expect(state.listening).toBe(false);
+        if(script!=='scripts/capture-docs-ui.cjs')expect(state.calls).toContain('provider.close');
+        expect(state.finalReport?.error||state.finalReport?.failure).toContain('undefined');expect(state.finalReport?.retainedProfileLaunchAttempted).toBe(true);
+    });
+    it('capture guard rejects raw close fulfillment without a verified PID receipt', async () => {
+        const state = await capture({fail:['guard.receipt']});
+        expect(state.exitCode).toBe(1); expect(state.guardBound).toBe(true); expect(state.actorGone).toBe(true);
+        expect(state.calls).toContain('browser.close'); expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]);
+        expect(state.listening).toBe(false); expect(state.calls).toContain('server.connections'); expect(state.calls).toContain('server.close');
+        expect(state.finalReport?.cleanupErrors).toContainEqual(expect.objectContaining({resource:'browser',error:expect.stringContaining('guard.receipt-failure')}));
+    });
+    it.each(['guard.bind','helper.legacy'])('capture guard boundary preserves the attempted profile at %s', async failure => {
+        const state = await capture({fail:[failure]});
+        expect(state.exitCode).toBe(1); expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]);
+        expect(state.calls).not.toContain('browser.close'); expect(state.listening).toBe(false);
+        expect(state.calls).toContain('server.connections'); expect(state.calls).toContain('server.close');
+        expect(state.finalReport?.retainedProfileLaunchAttempted).toBe(true);
+        expect(state.errors.join('\n')).toContain(failure==='guard.bind' ? 'guard.bind-failure' : 'transport-only close');
+    });
+    it.each([['goto','report'],['goto','browser.close','connections','server.close','report']].map(fail=>({fail})))('capture report IO cannot prevent releases or erase the primary failure: $fail', async ({fail}) => {
+        const state = await capture({fail});
+        expect(state.exitCode).toBe(1); expect(state.rejection).toBeUndefined(); expect(state.finalReport?.error).toContain('goto-failure');
+        expect(state.calls).toContain('server.connections'); expect(state.calls).toContain('server.close'); expect(state.listening).toBe(false);
+        expect(state.profileExists).toBe(fail.includes('browser.close'));
+        expect(state.removed).toEqual(fail.includes('browser.close') ? [] : [state.profile]);
+        expect(state.calls.at(-1)).toBe('report.write'); expect(state.attemptedReport?.error).toContain('goto-failure');
+        expect(state.finalReport?.cleanupErrors?.length).toBe(fail.length-1);
+        for(const name of fail.slice(1)) expect(state.finalReport?.cleanupErrors?.some(error=>error.error.includes(name+'-failure'))).toBe(true);
+    });
+    // These CLIs acquire a provider before launch and intentionally fail at
+    // the worker port. Reuse the complete-entry capture VM and real guard;
+    // this probes finalizers, not hover/highlight product success or native IO.
+    describe.each(['scripts/testing/run-hover-visual-range-test.cjs', 'scripts/testing/run-sentence-highlight-responsiveness.cjs'])('public CLI resource boundaries: %s', script => {
+        async function run(fail: string[] = [], extraArgs?: string[]) {
+            return capture({script,fixtureCLI:true,fail,...(extraArgs ? {args:extraArgs} : {})});
+        }
+        function released(state: Awaited<ReturnType<typeof capture>>, fail: string[] = []) {
+            expect(state.calls.filter(call=>call==='server.connections')).toHaveLength(1);
+            expect(state.calls.filter(call=>call==='server.close')).toHaveLength(1);
+            expect(state.calls.filter(call=>call==='provider.close')).toHaveLength(fail.includes('provider.start')?0:1);
+            expect(state.listening).toBe(false); expect(state.protectedUnchanged).toBe(true);
+            expect(state.exitCode).toBe(1); expect(state.rejection).toBeUndefined();
+            const primary=fail.includes('launch')?'launch':fail.includes('provider.start')?'provider.start':fail.includes('guard.bind')?'guard.bind':'body';
+            expect(state.finalReport?.error||state.finalReport?.failure).toContain(primary+'-failure');
+            expect(state.errors.join('\n')).toContain(primary+'-failure');
+            if(!fail.includes('provider.start'))expect(state.launch).toMatchObject({profileDir:state.profile,background:true,headless:false});
+        }
+        it('retains the launch-attempt profile without any session/close receipt', async () => {
+            const state=await run(['launch']);
+            expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]); released(state,['launch']);
+            expect(state.calls).not.toContain('guard.bind'); expect(state.calls).not.toContain('browser.close');
+            expect(state.finalReport?.retainedProfile).toBe(state.profile); expect(state.finalReport?.retainedProfileLaunchAttempted).toBe(true);
+        });
+        it('retains the profile and primary error when guarded close rejects', async () => {
+            const state=await run(['browser.close']); released(state); expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]);
+            expect(state.finalReport?.cleanupErrors).toEqual([expect.objectContaining({resource:'browser',error:expect.stringContaining('browser.close-failure')})]);
+        });
+        it('deletes only the owned profile after a fulfilled guarded PID receipt', async () => {
+            const state=await run(); released(state); expect(state.profileExists).toBe(false); expect(state.removed).toEqual([state.profile]);
+            expect(state.guardBound).toBe(true); expect(state.guardProbes.at(-1)).toBe('absent'); expect(state.rawCloseFulfilled).toBe(true);
+            expect(state.calls.indexOf('guard.bind')).toBeLessThan(state.calls.indexOf('browser.close'));
+            expect(state.calls.indexOf('browser.close')).toBeLessThan(state.calls.indexOf('profile.remove')); expect(state.calls.at(-1)).toBe('report.write');
+            expect(state.finalReport?.cleanupErrors||[]).toEqual([]);
+        });
+        it.each(['guard.receipt','guard.bind'])('retains the attempted profile at the %s boundary', async failure => {
+            const state=await run([failure]); expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]); released(state,[failure]);
+            if(failure==='guard.receipt') {expect(state.rawCloseFulfilled).toBe(true);expect(state.finalReport?.cleanupErrors).toEqual([expect.objectContaining({resource:'browser',error:expect.stringContaining('guard.receipt-failure')})]);}
+            else expect(state.calls).not.toContain('browser.close');
+        });
+        it('cleans an unused profile when provider acquisition rejects before launch', async () => {
+            const state=await run(['provider.start']); released(state,['provider.start']); expect(state.profileExists).toBe(false);
+            expect(state.calls).not.toContain('browser.launch'); expect(state.calls).not.toContain('guard.bind'); expect(state.removed).toEqual([state.profile]);
+        });
+        it.each([['report','report'],['provider.close','provider'],['provider.callback','provider'],['connections','server connections'],['server.close','server']])('independently releases other resources when %s fails', async (failure, resource) => {
+            const state=await run([failure]); released(state); expect(state.profileExists).toBe(false); expect(state.removed).toEqual([state.profile]); expect(state.calls.at(-1)).toBe('report.write');
+            expect(state.finalReport?.cleanupErrors).toEqual([expect.objectContaining({resource,error:expect.stringContaining(failure+'-failure')})]);
+            expect(state.attemptedReport?.error||state.attemptedReport?.failure).toContain('body-failure');
+        });
+        it('keeps the primary failure and every simultaneous cleanup error', async () => {
+            const state=await run(['browser.close','provider.close','connections','server.close','report']); released(state);
+            expect(state.profileExists).toBe(true); expect(state.removed).toEqual([]);
+            expect(state.finalReport?.cleanupErrors?.map(error=>error.resource)).toEqual(['browser','provider','server connections','server','report']);
+        });
+    });
+    it('deprecated --verify-actions fails the complete sentence CLI before dependency or resource acquisition', async () => {
+        const state=await capture({script:'scripts/testing/run-sentence-highlight-responsiveness.cjs',fixtureCLI:true,args:['--verify-actions']});
+        expect(state.rejection).toContain('--verify-actions 已移除'); expect(state.rejection).toContain('scripts/run-selection-trigger-test.cjs');
+        expect(state.required).toEqual([]); expect(state.calls).toEqual([]); expect(state.profileExists).toBe(false); expect(state.writes).toEqual([]);
+    });
+    it('deprecated flag exits a real Node CLI process before missing runtime/browser dependencies', async () => {
+        const root=fixture(), script='scripts/testing/run-sentence-highlight-responsiveness.cjs';
+        const result=await child([path.join(sourceRoot,script),'--verify-actions'],root,'deprecated-sentence-cli',2000);
+        recordProbe({family:'deprecated-real-node-cli-no-browser',sourceRoot,result});
+        expect(result.timedOut).toBe(false); expect(result.signal).toBeNull(); expect(result.code).toBe(1); expect(result.out).toBe('');
+        expect(result.err).toContain('--verify-actions 已移除'); expect(result.err).toContain('scripts/run-selection-unified-test.cjs');
     });
     it('keeps bounded repeated-link output and operation evidence for actual script execution', async () => {
         const extra = '<a href="/docs/">Repeated</a>'.repeat(120);

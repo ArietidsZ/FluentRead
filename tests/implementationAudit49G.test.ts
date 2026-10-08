@@ -241,7 +241,11 @@ describe('audit 49G shipped userscript resources', () => {
         const {catalogs, original} = await shippedCatalogs();
         expect(original.established).toHaveLength(17);
         expect(realm.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.established).toEqual(original.established);
-        for (const rule of original.established) expect(catalogs.established.find((current: any) => current.id === rule.id)).toBe(rule);
+        for (const rule of original.established) {
+            const current = catalogs.established.find((candidate: any) => candidate.id === rule.id);
+            if (JSON.stringify(current) === JSON.stringify(rule)) expect(current).toBe(rule);
+            else expect(current).not.toBe(rule);
+        }
         expect(catalogs.websites).toBe(original.websites);
         expect(catalogs.profiles).toBe(original.profiles);
         for (const name of ['established', 'profiles', 'websites']) {

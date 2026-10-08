@@ -1,4 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {parseHTML} from 'linkedom';
 
 import {
     createDocumentDownloadName,
@@ -156,5 +157,35 @@ describe('document translation edge contracts', () => {
 
         expect(() => createDocumentPreviewHtml(parseDocument('episode.srt', 'WEBVTT\n'), [], 'source'))
             .toThrow('不支持为 srt 生成富文档预览');
+    });
+
+    it.each(['txt', 'md'].flatMap(extension => [
+        {kind: 'missing', translation: undefined},
+        {kind: 'sparse', translation: undefined},
+        {kind: 'empty', translation: ''},
+        {kind: 'whitespace-only', translation: ' \n\t\u3000'},
+        {kind: 'identical', translation: 'Café  world'},
+        {kind: 'Unicode-equivalent', translation: 'Cafe\u0301  world'},
+        {kind: 'whitespace-equivalent', translation: '  Café \nworld\u3000'},
+        {kind: 'Unicode-and-whitespace-equivalent', translation: '  Cafe\u0301 \nworld\u3000'},
+    ].map(value => ({extension, ...value}))))('translated $extension preview retains source for $kind translation', ({extension, kind, translation}) => {
+        const source = extension === 'md' ? '# Café  world' : 'Café  world';
+        const document = parseDocument(`source.${extension}`, source);
+        const before = JSON.stringify(document);
+        const translations: string[] = kind === 'sparse' ? new Array(1) : translation === undefined ? [] : [translation];
+        const html = createDocumentPreviewHtml(document, translations, 'translated');
+        const dom = parseHTML(html).document;
+        expect(dom.body.textContent).toBe('Café  world');
+        expect(dom.querySelectorAll('.reader-source')).toHaveLength(1);
+        expect(dom.querySelectorAll('.fluentread-translation, [data-fluent-read-document-translation]')).toHaveLength(0);
+        expect(JSON.stringify(document)).toBe(before);
+    });
+
+    it.each(['txt', 'md'])('translated %s preview renders a distinct translation once', extension => {
+        const document = parseDocument(`source.${extension}`, extension === 'md' ? '# Café  world' : 'Café  world');
+        const dom = parseHTML(createDocumentPreviewHtml(document, ['咖啡世界'], 'translated')).document;
+        expect(dom.body.textContent).toBe('咖啡世界');
+        expect(dom.querySelectorAll('.reader-source')).toHaveLength(0);
+        expect(dom.querySelectorAll('.fluentread-translation')).toHaveLength(1);
     });
 });

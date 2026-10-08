@@ -54,12 +54,12 @@
   },
   "github-eugeny-issue-list": {
     "url": "https://github.com/Eugeny/tabby/issues?q=is%3Aissue%20state%3Aopen%20in%3Atitle%20%22right%20click%20not%20working%22",
-    "hoverSelector": "[data-testid='issue-pr-title-link']",
-    "requiredSelectors": ["[data-testid='issue-pr-title-link']"],
+    "hoverSelector": "a[data-testid^='issue-'][data-testid$='-title-link']",
+    "requiredSelectors": ["a[data-testid^='issue-'][data-testid$='-title-link']"],
     "coverageRules": [
       {
         "name": "issue-list-titles",
-        "selector": "[data-testid='issue-pr-title-link']",
+        "selector": "a[data-testid^='issue-'][data-testid$='-title-link']",
         "kind": "content",
         "minInitial": 1,
         "trackDynamic": true,
@@ -68,13 +68,13 @@
     ],
     "forbiddenSelectors": [
       "span[class*='IssueLabel']",
-      "[data-testid='list-row-repo-name-and-number']",
-      "[data-testid='created-at']"
+      "[data-testid='issues-list-surface'] [class*='Description-module__container']",
+      "[data-testid='issue-activity-timestamp']"
     ],
     "forbiddenMustExistSelectors": [
       "span[class*='IssueLabel']",
-      "[data-testid='list-row-repo-name-and-number']",
-      "[data-testid='created-at']"
+      "[data-testid='issues-list-surface'] [class*='Description-module__container']",
+      "[data-testid='issue-activity-timestamp']"
     ],
     "dynamicForbiddenSelectors": ["span[class*='IssueLabel']"],
     "interactionSelectors": ["main a[href]"],
@@ -300,6 +300,7 @@
   },
   "roadmap-frontend": {
     "url": "https://roadmap.sh/frontend",
+    "prepareClickText": "Reject All",
     "hoverSelector": "main p",
     "requiredSelectors": ["main h1", "main h2", "main p"],
     "coverageRules": [
@@ -481,17 +482,18 @@
   },
   "example-com": {
     "url": "https://example.com",
-    "selector": "p",
-    "requiredSelectors": ["p"],
+    "selector": "body p[lang='en']",
+    "requiredSelectors": ["body p[lang='en']", "body p[lang='fr']", "body p[lang='es']"],
     "coverageRules": [
-      {"name": "example-title", "selector": "body h1", "kind": "heading", "minInitial": 1, "sourceIncludes": ["Example Domain"]},
-      {"name": "example-paragraphs", "selector": "body p", "kind": "content", "minInitial": 2}
+      {"name": "example-english", "selector": "body p[lang='en']", "kind": "content", "minInitial": 1, "sourceIncludes": ["documentation examples"]},
+      {"name": "example-french", "selector": "body p[lang='fr']", "kind": "content", "minInitial": 1, "sourceIncludes": ["exemples de documentation"]},
+      {"name": "example-spanish", "selector": "body p[lang='es']", "kind": "content", "minInitial": 1, "sourceIncludes": ["ejemplos de documentación"]}
     ],
-    "forbiddenSelectors": ["head meta[name=viewport]"],
+    "forbiddenSelectors": ["head meta[name=viewport]", "body svg[aria-hidden='true']", "body p[lang='zh']"],
     "interactionSelectors": ["main a[href], body a[href]"],
     "modes": ["hover", "full"],
     "tier": "required",
-    "notes": "保留最小静态页，并通过 selector 字段验证旧配置仍可运行。",
+    "notes": "页面现为六语种静态段落；覆盖英法西正文并保护中文、SVG 和 viewport，通过 selector 字段验证旧配置解析路径。全局可见 H1 约束仍适用，标题沿用全文翻译功能。",
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation"
@@ -794,14 +796,21 @@
   },
   "factorio-issue-209": {
     "url": "https://mods.factorio.com/",
-    "selector": ".mod-list > .panel-inset-lighter:nth-child(2) p.result-field.pre-line.line-clamp-4",
+    "selector": ".mod-list",
+    "hoverTargets": [
+      {
+        "name": "eligible-mod-description",
+        "selector": ".mod-list > .panel-inset-lighter p.result-field.pre-line.line-clamp-4",
+        "index": 0
+      }
+    ],
     "requiredSelectors": [
-      ".mod-list > .panel-inset-lighter:nth-child(-n+3) p.result-field.pre-line.line-clamp-4"
+      ".mod-list"
     ],
     "coverageRules": [
       {
-        "name": "first-three-mod-descriptions",
-        "selector": ".mod-list > .panel-inset-lighter:nth-child(-n+3) p.result-field.pre-line.line-clamp-4",
+        "name": "eligible-mod-descriptions",
+        "selector": ".mod-list > .panel-inset-lighter p.result-field.pre-line.line-clamp-4",
         "kind": "content",
         "minInitial": 3
       }
@@ -813,7 +822,7 @@
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation",
-    "notes": "Issue #209：检查模组卡片前三条描述的全文覆盖；固定高度 line-clamp 的可见性另由布局回归验证。"
+    "notes": "Issue #209：实时模组列表包含多语言描述，悬浮选择首个 eligible 可译正文；全文以列表容器为锚点，覆盖全部 eligible 描述且至少 3 条，避免中文首卡或排序变化造成假失败；固定高度 line-clamp 的可见性另由布局回归验证。"
   },
   "producthunt-posting-access": {
     "url": "https://help.producthunt.com/en/articles/481909-how-can-i-get-access-to-post",

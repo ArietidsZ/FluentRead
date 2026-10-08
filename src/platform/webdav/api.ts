@@ -54,15 +54,18 @@ export function createWebDavApi(fetcher: typeof fetch, options: {timeoutMs?: num
             const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 30_000);
             return (async () => {
                 let response: Response | undefined;
+                let requestError: WebDavError | undefined;
                 try {
                     response = await fetcher(url, {...init, headers: {...init.headers, Authorization: authorization}, signal: controller.signal, redirect: 'error', credentials: 'omit', cache: 'no-store', referrerPolicy: 'no-referrer'});
                     return await consume(response);
                 } catch (error) {
-                    if (error instanceof WebDavError) throw error;
-                    throw new WebDavError(controller.signal.aborted ? 'timeout' : 'network');
+                    requestError = error instanceof WebDavError
+                        ? error
+                        : new WebDavError(controller.signal.aborted ? 'timeout' : 'network');
                 } finally {
                     if (response?.body && !response.body.locked) await response.body.cancel().catch(() => undefined);
                 }
+                throw requestError;
             })().finally(() => clearTimeout(timer));
         });
     }

@@ -2211,6 +2211,106 @@ describe('translation candidate core', () => {
         expect(core.shouldIgnoreMutation(createdAt)).toBe(true);
     });
 
+    it.each([
+        ['10084', 'kikyoulg', 'on Dec 6, 2024'],
+        ['9414', 'Preston2jager', 'on Jan 24, 2024'],
+    ])('owns the current GitHub issue #%s anchor in full and hover translation while preserving metadata', (number, author, date) => {
+        const {document, core} = page(`
+            <main><div data-testid="issues-list-surface"><ul><li id="modern-row">
+                <div class="Title-module__container__fixture" data-listview-item-title-container="true">
+                    <h3 id="modern-heading" class="Title-module__heading__fixture">
+                        <a id="modern-title" class="Title-module__anchor__fixture" data-testid="issue-listitem-title-link"
+                            href="https://github.com/Eugeny/tabby/issues/${number}"><span><span data-component="Text">right click not working</span></span></a>
+                    </h3>
+                    <span class="Title-module__trailingBadgesContainer__fixture"><button type="button" aria-label="Filter by label T: Bug">
+                        <span id="modern-label" class="prc-Token-IssueLabel-2IazM LabelToken-module__IssueLabelToken__fixture"><span>T: Bug</span></span>
+                    </button></span>
+                </div>
+                <div class="MainContent-module__container__fixture"><div class="MainContent-module__inner__fixture">
+                    <div id="modern-metadata" class="Description-module__container__fixture">
+                        <span id="modern-repo">Eugeny/tabby#${number}</span><span> · <button type="button" data-testid="author-filter-link"
+                            class="IssueListItem-module__authorLink__fixture"><span class="prc-VisuallyHidden-VisuallyHidden-Q0qSB">Filter by author </span>${author}</button>
+                            <span id="modern-opened">opened</span> <relative-time data-testid="issue-activity-timestamp">${date}</relative-time>
+                        </span>
+                    </div>
+                </div></div>
+            </li></ul></div><article class="markdown-body"><p id="modern-prose">The author opened a reproducible issue.</p></article></main>
+        `, 'https://github.com/Eugeny/tabby/issues?q=is%3Aissue%20state%3Aopen%20in%3Atitle%20%22right%20click%20not%20working%22');
+        const title = document.getElementById('modern-title')!;
+        const titleText = title.querySelector('[data-component="Text"]')!.firstChild!;
+        const row = document.getElementById('modern-row')!;
+        const metadata = document.getElementById('modern-metadata')!;
+        const label = document.getElementById('modern-label')!;
+        const sourceBefore = document.body.outerHTML;
+        const originals = [title, metadata, label].map(element => [element, ...element.querySelectorAll('*')]);
+        const originalChildren = originals.flat().map(element => [...element.childNodes]);
+        const fullCandidates = core.discover(document);
+
+        expect(fullCandidates.map(({element}) => element.id)).toEqual(['modern-title', 'modern-prose']);
+        expect(fullCandidates[0]).toMatchObject({element: title, adapterId: 'github', reason: 'github-issue-or-pr-title'});
+        expect(fullCandidates[0]?.nodes).toBeUndefined();
+        expect(core.resolve(titleText)).toMatchObject({element: title, adapterId: 'github', reason: 'github-issue-or-pr-title'});
+        expect(core.createSynchronousResolver()(titleText)?.element).toBe(title);
+        // 元数据不是因字符串过滤而偶然通过：原始值可翻译，但受完整子树保护。
+        expect(isMeaningfulTranslationText(`Eugeny/tabby#${number}`)).toBe(true);
+        expect(isMeaningfulTranslationText('opened')).toBe(true);
+        expect(hasMeaningfulTranslationTextInNodes([metadata], core.shouldStayOriginal)).toBe(false);
+        for (const region of [metadata, label]) {
+            expect(core.discover(region)).toEqual([]);
+            expect(createTranslationSourceSnapshot(region, core.shouldStayOriginal).slots).toEqual([]);
+            for (const element of [region, ...region.querySelectorAll('*')]) {
+                expect(core.shouldStayOriginal(element)).toBe(true);
+                expect(core.shouldIgnoreMutation(element)).toBe(true);
+                expect(core.resolve(element)).toBeNull();
+                expect(core.resolve(element.firstChild)).toBeNull();
+            }
+        }
+        const snapshot = createTranslationSourceSnapshot(row, core.shouldStayOriginal);
+        expect(snapshot.slots.map(({source}) => source)).toEqual(['right click not working']);
+        const translatedClone = applyTranslationsToSnapshot(snapshot, ['右键单击不起作用']);
+        expect(translatedClone).toContain(`Eugeny/tabby#${number}`);
+        expect(translatedClone).toContain('T: Bug');
+        expect(translatedClone).toContain(author);
+        expect(translatedClone).toContain(date);
+        // 只模拟命中坐标；站点适配、候选解析与保护判断都走真实 core。
+        let hit: Node = titleText;
+        const previousCaret = Object.getOwnPropertyDescriptor(document, 'caretPositionFromPoint');
+        Object.defineProperty(document, 'caretPositionFromPoint', {configurable: true, value: () => ({offsetNode: hit, offset: 1})});
+        try {
+            expect(core.resolveAtPoint(document, 10, 20)).toMatchObject({element: title, adapterId: 'github', reason: 'github-issue-or-pr-title'});
+            for (const element of [metadata, ...metadata.querySelectorAll('*'), label, ...label.querySelectorAll('*')]) {
+                hit = element.firstChild ?? element;
+                expect(core.resolveAtPoint(document, 10, 20)).toBeNull();
+            }
+        } finally {
+            if (previousCaret) Object.defineProperty(document, 'caretPositionFromPoint', previousCaret);
+            else Reflect.deleteProperty(document, 'caretPositionFromPoint');
+        }
+        expect(document.body.outerHTML).toBe(sourceBefore);
+        originals.flat().forEach((element, index) => {
+            const children = [...element.childNodes];
+            expect(children).toHaveLength(originalChildren[index]!.length);
+            children.forEach((child, childIndex) => expect(child).toBe(originalChildren[index]![childIndex]));
+        });
+    });
+
+    it.each([
+        ['https://github.com/Eugeny/tabby/issues', ''],
+        ['https://example.test/issues', 'data-testid="issues-list-surface"'],
+    ])('keeps readable Description content outside the GitHub issue-list boundary at %s', (url, surfaceAttributes) => {
+        const {document, core} = page(`<main><div ${surfaceAttributes}>
+            <div id="readable-description" class="Description-module__container__fixture">
+                <p id="description-prose">The author opened a readable description.</p>
+            </div>
+        </div></main>`, url);
+        const description = document.getElementById('readable-description')!;
+        const prose = document.getElementById('description-prose')!;
+        expect(core.shouldStayOriginal(description)).toBe(false);
+        expect(core.shouldIgnoreMutation(description)).toBe(false);
+        expect(core.discover(document).some(({element}) => element === prose)).toBe(true);
+        expect(core.resolve(prose.firstChild)?.element).toBe(prose);
+    });
+
     it('keeps GitHub issue-detail labels and activity metadata original while translating body prose', () => {
         const {document, core} = page(`
             <main>

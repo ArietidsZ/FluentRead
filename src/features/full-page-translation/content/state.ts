@@ -399,8 +399,7 @@ function clearOwnershipIndex(owner: HTMLElement): void {
 }
 
 function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): void {
-    clearOwnershipIndex(owner);
-    // 每次状态跃迁都会重建索引；直接写入 Set，不为每类产物先摊出临时数组。
+    // 重建节点集合，但复用仍有效的反向索引桶；每类产物直接写入 Set。
     const indexedNodes = new Set<Node>();
     indexedNodes.add(owner);
     if (state.spinner) indexedNodes.add(state.spinner);
@@ -409,8 +408,15 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
     state.singleTextSlotHosts?.forEach(({host}) => indexedNodes.add(host));
     state.layoutOverrideElements?.forEach((element) => indexedNodes.add(element));
     state.layoutWatchElements?.forEach((element) => indexedNodes.add(element));
-    indexedNodesByOwner.set(owner, indexedNodes);
+    const previousIndexedNodes = indexedNodesByOwner.get(owner);
     const ownerRef = trackActiveNode(owner);
+    previousIndexedNodes?.forEach((indexedNode) => {
+        if (indexedNodes.has(indexedNode)) return;
+        const owners = ownersByIndexedNode.get(indexedNode);
+        owners?.delete(ownerRef);
+        if (owners?.size === 0) ownersByIndexedNode.delete(indexedNode);
+    });
+    indexedNodesByOwner.set(owner, indexedNodes);
 
     indexedNodes.forEach((indexedNode) => {
         let owners = ownersByIndexedNode.get(indexedNode);
@@ -418,6 +424,8 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
             owners = new Set<WeakRef<HTMLElement>>();
             ownersByIndexedNode.set(indexedNode, owners);
         }
+        // 保留原来 clear/re-add 的枚举顺序，同时避免单 owner 桶删除后重新分配。
+        owners.delete(ownerRef);
         owners.add(ownerRef);
     });
 }

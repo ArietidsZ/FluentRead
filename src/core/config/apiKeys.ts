@@ -43,11 +43,12 @@ export function getServiceApiKeys(source: ApiKeyConfigSource, service: string): 
 
 /** UI/调用方需要保留空行时使用；规范化仅移除非字符串项，空字符串原样保留。 */
 export function getServiceApiKeyRows(source: ApiKeyConfigSource, service: string): string[] {
-    if (isRecord(source.apiKeys) && Object.prototype.hasOwnProperty.call(source.apiKeys, service)) {
+    // `in` 让响应式配置订阅服务字段的首次添加；仍只读取自有属性，拒绝原型上的凭据。
+    if (isRecord(source.apiKeys) && service in source.apiKeys && Object.prototype.hasOwnProperty.call(source.apiKeys, service)) {
         const keys = source.apiKeys[service];
         if (Array.isArray(keys)) return normalizeKeyRows(keys);
     }
-    if (!isRecord(source.token) || !Object.prototype.hasOwnProperty.call(source.token, service)) return [];
+    if (!isRecord(source.token) || !(service in source.token) || !Object.prototype.hasOwnProperty.call(source.token, service)) return [];
     const token = source.token[service];
     if (typeof token !== 'string') return [];
     const key = token.trim();

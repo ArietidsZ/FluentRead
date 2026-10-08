@@ -903,7 +903,6 @@ export function resolveDocumentTranslation(source: string, translation: string |
 
 function formatBilingualTranslation(document: ParsedDocument, part: SegmentPart, translation: string): string {
     const source = originalPartSource(part);
-    if (!hasDistinctPartTranslation(document, part.source, translation)) return `${part.prefix}${source}${part.suffix}`;
     const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
         ? preserveSubtitleMarkup(part.source, translation)
         : translation;

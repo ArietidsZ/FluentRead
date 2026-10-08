@@ -193,6 +193,86 @@ describe('WebDAV 文件协议', () => {
         const fetcher = vi.fn(async (_url, init) => new Promise<Response>((_resolve, reject) => init.signal.addEventListener('abort', () => reject(new Error('abort')))));
         await expect(createWebDavApi(fetcher, {timeoutMs: 1}).read(session)).rejects.toMatchObject({code: 'timeout'});
     });
+    it('首次备份的 404 正文取消同步失败仍返回缺失，并清除请求计时器', async () => {
+        vi.useFakeTimers();
+        try {
+            const cancel = vi.fn(() => {throw new Error('fixture-private cancellation failure');});
+            const body = new ReadableStream<Uint8Array>({
+                start(controller) {controller.enqueue(new TextEncoder().encode('fixture-private missing body'));},
+                cancel,
+            });
+            const missing = new Response(body, {status: 404});
+            const fetcher = vi.fn<typeof fetch>(async () => missing);
+
+            await expect(createWebDavApi(fetcher).read(session)).resolves.toBeNull();
+
+            expect(fetcher).toHaveBeenCalledOnce();
+            expect(cancel).toHaveBeenCalledOnce();
+            expect(missing.bodyUsed).toBe(true);
+            expect(body.locked).toBe(false);
+            expect(vi.getTimerCount()).toBe(0);
+            await vi.advanceTimersByTimeAsync(30_000);
+            expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(false);
+        } finally {vi.useRealTimers();}
+    });
+    it('PUT 成功正文的异步取消失败不阻断读回校验，也不重试条件上传', async () => {
+        vi.useFakeTimers();
+        try {
+            const cancel = vi.fn(async () => {throw new Error('fixture-private upload cleanup failure');});
+            const body = new ReadableStream<Uint8Array>({
+                start(controller) {controller.enqueue(new TextEncoder().encode('fixture-private upload response'));},
+                cancel,
+            });
+            const uploaded = new Response(body, {status: 201});
+            const verified = response(content, 200, {etag: '"two"'});
+            const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(uploaded).mockResolvedValueOnce(verified);
+            const previous = {id: connection.url+'FluentRead/fluentread-config.encrypted.json', version: '1', modifiedTime: '', etag: '"one"'};
+
+            await expect(createWebDavApi(fetcher).write(session, content, previous)).resolves.toMatchObject({id: previous.id, etag: '"two"'});
+
+            expect(fetcher.mock.calls.map(([url, init]) => [url, init?.method])).toEqual([[previous.id, 'PUT'], [previous.id, 'GET']]);
+            expect(fetcher.mock.calls[0][1]).toMatchObject({headers: {'If-Match': '"one"'}, body: content});
+            expect(cancel).toHaveBeenCalledOnce();
+            expect(uploaded.bodyUsed).toBe(true);
+            expect(body.locked).toBe(false);
+            expect(verified.body!.locked).toBe(false);
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {vi.useRealTimers();}
+    });
+    it.each(['network', 'timeout'] as const)('HTTP 200 部分正文读取发生 %s 时不返回截断备份，释放流锁和计时器', async code => {
+        vi.useFakeTimers();
+        try {
+            let streamController!: ReadableStreamDefaultController<Uint8Array>;
+            let reading!: () => void;
+            const bodyReadStarted = new Promise<void>(resolve => {reading = resolve;});
+            const body = new ReadableStream<Uint8Array>({
+                start(controller) {
+                    streamController = controller;
+                    controller.enqueue(new TextEncoder().encode(content.slice(0, 12)));
+                },
+                pull(controller) {
+                    reading();
+                    if (code === 'network') controller.error(new TypeError('fixture-private transport interruption'));
+                },
+            }, {highWaterMark: 0}); // 禁止预取，让失败发生在已读部分正文之后。
+            const interrupted = new Response(body, {status: 200, headers: {etag: '"one"'}});
+            const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
+                init!.signal!.addEventListener('abort', () => streamController.error(new DOMException('fixture-private body abort', 'AbortError')), {once: true});
+                return interrupted;
+            });
+            const failure = expect(createWebDavApi(fetcher, {timeoutMs: 10}).read(session)).rejects.toMatchObject({code, status: undefined, message: `WebDAV ${code}`});
+
+            await bodyReadStarted;
+            if (code === 'timeout') await vi.advanceTimersByTimeAsync(10);
+            await failure;
+
+            expect(fetcher).toHaveBeenCalledOnce();
+            expect(interrupted.bodyUsed).toBe(true);
+            expect(body.locked).toBe(false);
+            expect(fetcher.mock.calls[0][1]?.signal?.aborted).toBe(code === 'timeout');
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {vi.useRealTimers();}
+    });
     it('缺少 ETag 时在实际 PUT/DELETE 前核对内容，变更或消失不能上传，删除消失幂等', async () => {
         let current: string | null = content;
         let upgraded = false;
