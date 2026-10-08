@@ -1,0 +1,11 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundProviderRuntime.test.ts --cache false
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/backgroundProviderRuntime.test.ts (3 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  18:08:16
+   Duration  427ms (transform 230ms, setup 0ms, collect 311ms, tests 6ms, environment 0ms, prepare 22ms)
+

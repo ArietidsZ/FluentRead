@@ -1,0 +1,13 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/incognitoInputRoute.test.ts tests/inputTranslationContentFeature.test.ts tests/contentRuntimeLifecycle.test.ts --cache false
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/inputTranslationContentFeature.test.ts (81 tests) 564ms
+ ✓ tests/contentRuntimeLifecycle.test.ts (39 tests) 434ms
+ ✓ tests/incognitoInputRoute.test.ts (22 tests) 94ms
+
+ Test Files  3 passed (3)
+      Tests  142 passed (142)
+   Start at  18:00:42
+   Duration  1.96s (transform 441ms, setup 0ms, collect 615ms, tests 1.09s, environment 0ms, prepare 62ms)
+

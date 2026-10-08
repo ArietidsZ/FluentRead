@@ -1,0 +1,21 @@
+{
+  "label": "route-containment-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/incognitoRouteSettings.test.ts",
+    "--cache",
+    "false"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:04:02.594631+00:00",
+  "duration_seconds": 3.28,
+  "exit_code": 0
+}

@@ -1,0 +1,20 @@
+{
+  "label": "content-route-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "--cache",
+    "false"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:00:42.704315+00:00",
+  "duration_seconds": 2.115,
+  "exit_code": 0
+}

@@ -1,0 +1,23 @@
+{
+  "label": "regression-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/incognitoNativeSource.test.ts",
+    "tests/inputTranslationBackground.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "tests/translationAvailability.test.ts",
+    "tests/backgroundTranslationHandler.test.ts"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T09:42:56.499299+00:00",
+  "duration_seconds": 2.105,
+  "exit_code": 0
+}

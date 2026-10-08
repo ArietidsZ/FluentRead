@@ -1,0 +1,17 @@
+{
+  "label": "userscript-seventh",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:02:42.384138+00:00",
+  "duration_seconds": 3.705,
+  "exit_code": 0
+}

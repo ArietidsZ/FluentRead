@@ -1,0 +1,18 @@
+{
+  "label": "architecture-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundProviderRuntime.test.ts",
+    "--cache",
+    "false"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:08:16.623018+00:00",
+  "duration_seconds": 0.581,
+  "exit_code": 0
+}

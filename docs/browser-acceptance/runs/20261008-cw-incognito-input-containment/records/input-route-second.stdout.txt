@@ -1,0 +1,15 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoInputRoute.test.ts tests/inputTranslationBackground.test.ts tests/backgroundFeatureHandlers.test.ts
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/backgroundFeatureHandlers.test.ts (52 tests) 2087ms
+   ✓ 后台 feature handlers > 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口 1202ms
+   ✓ 后台 feature handlers > 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对 603ms
+ ✓ tests/incognitoInputRoute.test.ts (22 tests) 98ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 7ms
+
+ Test Files  3 passed (3)
+      Tests  80 passed (80)
+   Start at  17:53:05
+   Duration  3.09s (transform 388ms, setup 0ms, collect 642ms, tests 2.19s, environment 0ms, prepare 66ms)
+

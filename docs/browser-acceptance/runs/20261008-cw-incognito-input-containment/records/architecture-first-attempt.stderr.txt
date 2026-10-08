@@ -1,0 +1,25 @@
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/backgroundProviderRuntime.test.ts [ tests/backgroundProviderRuntime.test.ts ]
+Error: [vitest] No "customModelString" export is defined on the "@/src/core/config/catalog" mock. Did you forget to return it from "vi.mock"?
+If you need to partially mock a module, you can use "importOriginal" helper inside:
+
+vi.mock(import("@/src/core/config/catalog"), async (importOriginal) => {
+  const actual = await importOriginal()
+  return {
+    ...actual,
+    // your mocked methods
+  }
+})
+
+ ❯ src/core/config/incognitoRoute.ts:11:23
+      9|
+     10| // 使用既有保留占位符保留错误类型；它不能成为实际服务或模型。
+     11| const INVALID_FIELD = customModelString;
+       |                       ^
+     12| const ROUTE = Symbol('fluentread.incognito-route');
+     13| /** 构建目标能力；油猴适配器为 false，不是用户可设置的信任字段。 */
+ ❯ src/services/translation/requestPrivacy.ts:1:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

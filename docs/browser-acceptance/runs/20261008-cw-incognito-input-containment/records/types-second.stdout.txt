@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/helpers/incognitoInputRuntime.ts(30,25): error TS2352: Conversion of type 'Record<string, unknown>' to type 'TranslationProviderRequest<string>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Property 'origin' is missing in type 'Record<string, unknown>' but required in type '{ origin: string; summaryPrompt?: string | undefined; summarySystemPrompt?: string | undefined; }'.
+tests/incognitoInputRoute.test.ts(182,22): error TS2352: Conversion of type '{ word: string; phonetics: never[]; meanings: { partOfSpeech: string; definitions: { definition: string; }[]; }[]; }' to type 'WordCardData' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ word: string; phonetics: never[]; meanings: { partOfSpeech: string; definitions: { definition: string; }[]; }[]; }' is missing the following properties from type 'WordCardData': normalizedWord, sources

@@ -1,0 +1,21 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoInputRoute.test.ts tests/inputTranslationContentFeature.test.ts tests/incognitoTranslationRoute.test.ts
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/inputTranslationContentFeature.test.ts (69 tests) 454ms
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 103ms
+ ❯ tests/incognitoInputRoute.test.ts (22 tests | 1 failed) 1048ms
+   × typed input native handler → availability → broker → captured provider > reads config once after hydration and source resolution, then freezes route and prompts before cache await 1002ms
+     → expected "spy" to be called once, but got 0 times
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 139 passed (140)
+     Errors  1 error
+   Start at  17:49:42
+   Duration  2.52s (transform 421ms, setup 0ms, collect 662ms, tests 1.60s, environment 0ms, prepare 61ms)
+

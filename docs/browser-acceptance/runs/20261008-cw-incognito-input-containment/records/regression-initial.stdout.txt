@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoTranslationRoute.test.ts tests/incognitoNativeSource.test.ts tests/inputTranslationBackground.test.ts tests/inputTranslationContentFeature.test.ts tests/translationAvailability.test.ts tests/backgroundTranslationHandler.test.ts
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/inputTranslationContentFeature.test.ts (69 tests) 455ms
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 104ms
+ ✓ tests/backgroundTranslationHandler.test.ts (47 tests) 9ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 7ms
+ ✓ tests/translationAvailability.test.ts (8 tests) 106ms
+ ✓ tests/incognitoNativeSource.test.ts (39 tests) 4ms
+
+ Test Files  6 passed (6)
+      Tests  218 passed (218)
+   Start at  17:42:56
+   Duration  1.94s (transform 431ms, setup 0ms, collect 777ms, tests 685ms, environment 0ms, prepare 126ms)
+

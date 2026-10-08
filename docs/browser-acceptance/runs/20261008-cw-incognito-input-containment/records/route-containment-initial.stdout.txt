@@ -1,0 +1,15 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/incognitoInputRoute.test.ts tests/inputTranslationContentFeature.test.ts tests/contentRuntimeLifecycle.test.ts tests/incognitoRouteSettings.test.ts --cache false
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/inputTranslationContentFeature.test.ts (81 tests) 579ms
+ ✓ tests/contentRuntimeLifecycle.test.ts (39 tests) 464ms
+ ✓ tests/incognitoInputRoute.test.ts (29 tests) 111ms
+ ✓ tests/incognitoRouteSettings.test.ts (11 tests) 599ms
+   ✓ compiled incognito settings and settings-parent composition > uses the existing reactive UI language for all seven localized controls and scope descriptions 389ms
+
+ Test Files  4 passed (4)
+      Tests  160 passed (160)
+   Start at  18:04:02
+   Duration  3.12s (transform 527ms, setup 0ms, collect 1.01s, tests 1.75s, environment 0ms, prepare 90ms)
+

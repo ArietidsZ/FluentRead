@@ -1,0 +1,33 @@
+{
+  "label": "coverage-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--cache",
+    "false",
+    "--reporter",
+    "default",
+    "--reporter",
+    "json",
+    "--outputFile",
+    "<RAW>/coverage-initial.results.json",
+    "--coverage.reportsDirectory",
+    "<RAW>/coverage-initial",
+    "--coverage.reporter",
+    "json",
+    "--coverage.reporter",
+    "json-summary",
+    "--coverage.reporter",
+    "text"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:05:42.745141+00:00",
+  "duration_seconds": 183.494,
+  "exit_code": 0
+}

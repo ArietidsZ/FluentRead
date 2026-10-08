@@ -1,0 +1,17 @@
+{
+  "label": "firefox-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:08:16.624006+00:00",
+  "duration_seconds": 20.88,
+  "exit_code": 0
+}

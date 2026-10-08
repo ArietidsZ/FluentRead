@@ -1,0 +1,15 @@
+{
+  "label": "chrome-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:07:12.390607+00:00",
+  "duration_seconds": 19.984,
+  "exit_code": 0
+}

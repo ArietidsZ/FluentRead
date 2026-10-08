@@ -1,0 +1,18 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/helpers/incognitoInputRuntime.ts(39,80): error TS2322: Type '{ [k: string]: Mock<(request: TranslationProviderRequest<string>) => Promise<string>>; }' is not assignable to type 'TranslationProviderRegistry'.
+  'string' index signatures are incompatible.
+    Type 'Mock<(request: TranslationProviderRequest<string>) => Promise<string>>' is not assignable to type 'TranslationProvider'.
+      Types of parameters 'request' and 'message' are incompatible.
+        Type 'Record<string, unknown>' is not assignable to type 'TranslationProviderRequest<string>'.
+          Property 'origin' is missing in type 'Record<string, unknown>' but required in type '{ origin: string; summaryPrompt?: string | undefined; summarySystemPrompt?: string | undefined; }'.
+tests/incognitoInputRoute.test.ts(5,41): error TS6133: 'assertTranslationSourcePrivacy' is declared but its value is never read.
+tests/inputTranslationContentFeature.test.ts(1295,45): error TS2345: Argument of type '{ incognitoModel: string; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' is not assignable to parameter of type 'InputTranslationContentConfig'.
+  Property 'inputBoxTranslationTarget' is missing in type '{ incognitoModel: string; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' but required in type 'InputTranslationContentConfig'.
+tests/inputTranslationContentFeature.test.ts(1295,123): error TS2345: Argument of type '{ on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' is not assignable to parameter of type 'InputTranslationContentConfig'.
+  Property 'inputBoxTranslationTarget' is missing in type '{ on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' but required in type 'InputTranslationContentConfig'.
+tests/inputTranslationContentFeature.test.ts(1296,45): error TS2345: Argument of type '{ incognitoService: boolean; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' is not assignable to parameter of type 'InputTranslationContentConfig'.
+  Property 'inputBoxTranslationTarget' is missing in type '{ incognitoService: boolean; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' but required in type 'InputTranslationContentConfig'.
+tests/inputTranslationContentFeature.test.ts(1296,120): error TS2345: Argument of type '{ on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' is not assignable to parameter of type 'InputTranslationContentConfig'.
+  Property 'inputBoxTranslationTarget' is missing in type '{ on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' but required in type 'InputTranslationContentConfig'.
+tests/inputTranslationContentFeature.test.ts(1297,45): error TS2345: Argument of type '{ incognitoService: string; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' is not assignable to parameter of type 'InputTranslationContentConfig'.
+  Property 'inputBoxTranslationTarget' is missing in type '{ incognitoService: string; on: boolean; inputBoxTranslationTrigger: string; token: { openai: string; }; }' but required in type 'InputTranslationContentConfig'.

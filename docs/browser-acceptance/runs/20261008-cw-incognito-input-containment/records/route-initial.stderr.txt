@@ -1,0 +1,34 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > typed input native handler → availability → broker → captured provider > reads config once after hydration and source resolution, then freezes route and prompts before cache await
+AssertionError: expected "spy" to be called once, but got 0 times
+ ❯ tests/incognitoInputRoute.test.ts:73:51
+     71|         hydrated(); await Promise.resolve(); expect(f.getConfig).not.t…
+     72|         f.config.incognitoModel = 'gpt-5.4'; sourced('private');
+     73|         await vi.waitFor(() => expect(f.cacheGet).toHaveBeenCalledOnce…
+       |                                                   ^
+     74|         f.config.incognitoService = services.google; f.config.incognit…
+     75|         cached(null); await pending;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: 私密翻译服务或模型配置无效，请检查独立配置
+ ❯ fail src/core/config/incognitoRoute.ts:50:31
+     48| }
+     49|
+     50| function fail(): never {throw new Error('私密翻译服务或模型配置无效，…
+       |                               ^
+     51|
+     52| export function resolveIncognitoRoute(config: IncognitoRouteConfig): I…
+ ❯ Module.resolveIncognitoRoute src/core/config/incognitoRoute.ts:67:72
+ ❯ createInputBoxTranslationRequest src/features/input-translation/background/handler.ts:69:79
+ ❯ Object.handle src/features/input-translation/background/handler.ts:125:29
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+
+This error originated in "tests/incognitoInputRoute.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "reads config once after hydration and source resolution, then freezes route and prompts before cache await". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+
