@@ -203,8 +203,20 @@ export default defineConfig({
         name: 'fluent-read',
         // 默认等级 9 的压缩耗时明显更长；6 保留标准 DEFLATE 和全部文件，平衡打包速度与体积。
         compressionLevel: 6,
-        // 仅排除本地测试产物；Firefox 同样需要可复现的 OCR worker/core 资产。
-        excludeSources: ['coverage/**'],
+        // AMO 源码包保留扩展源码、锁文件、构建脚本及字体/OCR 资产，
+        // 排除网站素材、测试证据和其他发布出口，避免超过 200 MB 上传限制。
+        excludeSources: [
+            'coverage/**',
+            'docs/**',
+            'marketing/**',
+            'userscript/**',
+            'storybook/**',
+            'integrations/**',
+            'examples/**',
+            'scripts/testing/evidence/**',
+        ],
+        // 保留源码中的第三方来源说明；includeSources 会覆盖上述排除规则。
+        includeSources: ['docs/development/service-icons.md', 'docs/guide/deepseek-harness.md'],
     },
     hooks: {
         'build:done': async (wxt) => {
