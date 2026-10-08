@@ -1,0 +1,34 @@
+{
+  "baselineHead": "1d73d1ef084ac8f5de20f62695ffec1da931ef41",
+  "modules": {
+    "src/app/translation/client.ts": {
+      "baselineSha256": "970c2c20894de073585ea96aa4ba3783a5953a361a3339ba96de20a35e06d74d",
+      "workingSha256": "62be6072ddca3ed49030213b49564f9d2d9ba33e2df4a8e3fc0f64957a43ff0e"
+    },
+    "src/features/video-subtitle/content/runtime.ts": {
+      "baselineSha256": "51c8e6b6d9ea5b3751ac04a8d8e2f4e92cd463b32cc6045186c749c5993ea8f9",
+      "workingSha256": "98d34972f7e7d12ff5d44984d87f35e1886100311bcf213760f44e17c8c3b0fb"
+    },
+    "src/features/video-subtitle/content/platformRuntime.ts": {
+      "baselineSha256": "84cd9b103a94cde0888e4280b47f5c9c3499de86d2acabcccdb95596fae6f134",
+      "workingSha256": "f0f16b246a1329d7b3d18904fb8ded98f26ec981954432dd467696b5c11bf4c2"
+    },
+    "src/features/video-subtitle/content/subtitleLogic.ts": {
+      "baselineSha256": "792c1b4e9695b897cdaadba0ce560236bc11eb2d5651562c4035c14d51577c45",
+      "workingSha256": "e9cf660e32e4ebfad68386697163bd0fcb2de3f665cd9a8b67b836ef275e48f9"
+    },
+    "src/features/video-subtitle/content/pretranslationController.ts": {
+      "baselineSha256": "221a53a530e44d774ce9487db46f14db8394fe29026f7a29b0a937182386ad94",
+      "workingSha256": "e84600d607795f5e05776eb4f852173031e6120794973cf89777d3ae12d6f2bf"
+    },
+    "src/features/video-subtitle/content/downloads.ts": {
+      "baselineSha256": "077bf4e439deeb5c09b4e27a67ca3ea00b7cecb9f8bc6e8a8faa16e6357187b4",
+      "workingSha256": "f72d840dc879afd9e6a997987535e6fc4eddcd69e896cee1de1e71b14cf077fe"
+    }
+  },
+  "testSha256": "5b7457751dd956c38d2d2fe310c6ff4827ce980e4c5026d752b07e3aa9e3117b",
+  "selectedPattern": "effective model route|freezes dedicated prompt|private context capability|actual save model |actual bridge|changed media signal|export-only cancel|playback-only original",
+  "onlySixProductionFilesRestored": true,
+  "testTitleAuditFix": "Six Cartesian test tables keep the same 75 runtime controls with static format titles; final baseline negatives rerun against this exact test file.",
+  "restoredSourceBytesVerified": true
+}

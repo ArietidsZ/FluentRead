@@ -1,0 +1,25 @@
+{
+  "label": "video-green-controls",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "tests/videoSubtitleDownloads.test.ts",
+    "tests/videoTranslationCache.test.ts",
+    "tests/videoPretranslationController.test.ts",
+    "tests/videoCaptionPlatformRuntime.test.ts",
+    "tests/videoSubtitleLogic.test.ts",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-green-controls.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:57:47.073333+00:00",
+  "duration_seconds": 4.88,
+  "exit_code": 1
+}

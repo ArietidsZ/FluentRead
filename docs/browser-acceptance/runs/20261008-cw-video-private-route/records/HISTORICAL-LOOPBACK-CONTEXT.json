@@ -1,0 +1,46 @@
+{
+  "historicalRun": "existing-loopback-control",
+  "historicalPublishedEvidenceCommit": "37c12c63e9797aaced0ec35a5126324f051e98b0",
+  "commandRecordPath": "docs/browser-acceptance/runs/20261008-cw-document-private-route/records/existing-loopback-control.command.json",
+  "commandRecordSha256": "ed53d96714781141129f9cfb947ec54e1e9f9f63123c77aebdfad415eca25b28",
+  "executionContextVerifiedFromExistingRecord": {
+    "label": "existing-loopback-control",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "tests/webDavHttpIntegration.test.ts",
+      "--no-cache",
+      "--reporter=json",
+      "--outputFile=<CW-EVIDENCE>/existing-loopback-control.results.json"
+    ],
+    "cwd": "<CW-REPO>",
+    "started_at": "2026-10-08T19:20:58.969213+00:00",
+    "duration_seconds": 0.94,
+    "exit_code": 0
+  },
+  "existingResults": {
+    "success": true,
+    "numTotalTests": 5,
+    "numPassedTests": 5,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "historicalPurpose": "Existing synthetic WebDAV regression fixture requires a temporary loopback bind at 127.0.0.1; five prior failures were listen EPERM in the filesystem/network sandbox.",
+  "approvalMetadataRecovered": false,
+  "approvalMetadataUnavailableReason": "Existing published command/result files do not record sandbox_permissions, justification or automatic approval decision. Available local session file names were inspected and the one 2026-10-08 transcript was searched only for existing-loopback-control / matching EPERM+permission requests; no matching original tool execution record was present. No cloud/personal-history lookup was used.",
+  "historicalSummaryIsPrimaryApprovalEvidence": false,
+  "approvalGrantedClaimedFromTestSuccessAlone": false,
+  "rerunPerformedToProveHistoricalApproval": false,
+  "newNetworkAuthorizationCreatedOrInferred": false,
+  "scopeLimit": "Execution and 5/5 outcome are recoverable; exact historical sandbox request/approval metadata remain unavailable. This record does not authorize a current or future network change.",
+  "additionalReadOnlyLocalSearch": {
+    "directory": "~/.codex/sessions/2026/10",
+    "jsonlFileCount": 3,
+    "matchingOriginalEventCount": 0,
+    "outputsLimitedToMetadata": true
+  }
+}

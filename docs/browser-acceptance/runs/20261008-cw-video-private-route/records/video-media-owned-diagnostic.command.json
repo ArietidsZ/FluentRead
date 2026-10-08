@@ -1,0 +1,26 @@
+{
+  "label": "video-media-owned-diagnostic",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPretranslationController.test.ts",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage",
+    "--coverage.include=src/features/video-subtitle/content/pretranslationController.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<CW-EVIDENCE>/video-media-owned-diagnostic",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-media-owned-diagnostic.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:18:33.763829+00:00",
+  "duration_seconds": 0.453,
+  "exit_code": 0
+}

@@ -1,0 +1,157 @@
+{
+  "src/services/translation/requestRegistry.ts": {
+    "headBlob": "650a2a2953e20e09e0f610ffb82db772fad33471",
+    "sha256": "e083405f44a19c4013fd5705feef6b59b5567c4cac10956329b9aee67cab8bd6",
+    "unchanged": true
+  },
+  "src/services/translation/documentChannel.ts": {
+    "headBlob": "304ddd6d41457bac1aec0922fdcd543e83c8b472",
+    "sha256": "a3f4f8f8d50c9d9e1db9b1b6615bb3eba571e529aae90c2fbe854df6ff57ca08",
+    "unchanged": true
+  },
+  "src/services/translation/documentClient.ts": {
+    "headBlob": "327f16cb53f48a6ffce6aa64cafc592599415ab3",
+    "sha256": "15d0f82782238305ad162d5f1fb5301771d74222dc2e7f67e2135fb507f11aa5",
+    "unchanged": true
+  },
+  "src/app/background/handlers/translation.ts": {
+    "headBlob": "1a31f2bec49c1a67b05b49893e13f4214a249863",
+    "sha256": "8cc09b2c94690c494904981a279f7d51a6717a4b2cdeee13ef8173e6acc8472c",
+    "unchanged": true
+  },
+  "src/platform/browser/documentSession.ts": {
+    "headBlob": "8f43edea8c3bd0f1a530b266cf0dd76167304060",
+    "sha256": "478ce02d955ecaf64468cddfea92bd5a7b880e2f5685f2e32ee89c171f047adb",
+    "unchanged": true
+  },
+  "src/platform/browser/incognitoSource.ts": {
+    "headBlob": "59f6d0c77720d30305c256b712b1bd9837c30be6",
+    "sha256": "f0c75c3bec0084b4dcf505e7ee4b875c52f7b4c20d17d9bc01118a8e3d1c5adc",
+    "unchanged": true
+  },
+  "src/services/translation/broker.ts": {
+    "headBlob": "9e8112d52eb5b4b025cbcba8c8c7a6d5644a6049",
+    "sha256": "8faad303c5ff40795b81416fd561f2af49d10655feb686468eca394c0783de3c",
+    "unchanged": true
+  },
+  "wxt.config.ts": {
+    "headBlob": "e026e81114ec5defbdf478c5c7f38919b386431d",
+    "sha256": "4cecd1c6dee9258e224eaab2040cc51eb0edd05bd8f6aac00ea552d3f77c53df",
+    "unchanged": true
+  },
+  "scripts/verify-userscript-build.mjs": {
+    "headBlob": "fd265eb4055313f86cbce5854caecfd815bb590c",
+    "sha256": "deb2c564adf922d8e5cb39f1118b4cfb28417ab9e295330bfa8720343d09136d",
+    "unchanged": true
+  },
+  "package.json": {
+    "headBlob": "53705f2b8241f10bb370cdb659d89f1af903d525",
+    "sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9",
+    "unchanged": true
+  },
+  "pnpm-lock.yaml": {
+    "headBlob": "3dfe795b8092e7df45e1c854582c17b07f199b3e",
+    "sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "unchanged": true
+  },
+  "vitest.config.ts": {
+    "headBlob": "c70e18b079acdf0435e954369423890ba884e5f2",
+    "sha256": "7be25ef2c3a183d809d427bfac971dc1b77171029fa1ed31b0fea2a3b0bc1628",
+    "unchanged": true
+  },
+  "scripts/testing/run-resource-safe.mjs": {
+    "headBlob": "5037ce7d222b7ef93d604b57b39181efcc3ad196",
+    "sha256": "8c6807bd30db379fe31fc0bc073dbe071cd456b73fdcc5e61a34fc527dd6072b",
+    "unchanged": true
+  },
+  "scripts/testing/run-full-regression.mjs": {
+    "headBlob": "c050273f209876977a42f3ab347cccb9044101bb",
+    "sha256": "976fa7656297a76c0b0ab10cbb021bbbe69d931710e9b7b667c90110814baa17",
+    "unchanged": true
+  },
+  "src/features/selection-translation/background/wordLookupHandler.ts": {
+    "headBlob": "1949d6e35b29f389a1c3bf6d88f589a7a070ecaf",
+    "sha256": "acbc2907f985ecd122171b1824d39f55f41bb22b7e7d9f34cc5dc782e792d60c",
+    "unchanged": true
+  },
+  "src/features/selection-translation/services/wordDictionary.ts": {
+    "headBlob": "635e61e617a1c285e6e06352ca832acd9b9763f4",
+    "sha256": "2fe44781d90bbf2d8e4bcf22561d39b98b98ac66e38c84220759f9438102e303",
+    "unchanged": true
+  },
+  "userscript/platform.ts": {
+    "headBlob": "d96b8de1f3ff7c597c695039946927261b5f1e5e",
+    "sha256": "01d84b0e211c1b6e3b169a1a1fb159e6e811918ab97ab1859e71d39a95f8838b",
+    "unchanged": true
+  },
+  "userscript/platformFull.ts": {
+    "headBlob": "2456c8d07654f504667c7c4ace904309964ad6a6",
+    "sha256": "d050006a4933d3cde38fa76ccf4e60d9836715e54ccc06d96f7f967d7ca2a0ac",
+    "unchanged": true
+  },
+  "userscript/incognitoRoute.ts": {
+    "headBlob": "96a4f804c009267b07bd48ae676616f1fb95235a",
+    "sha256": "563870ee4e9ce539aa41c0a518dce246df1490659c624069a9f91f4a3c9b6e66",
+    "unchanged": true
+  },
+  "userscript/vite.config.ts": {
+    "headBlob": "ff36ae5baa90522a40450e11df09c6fea82339e5",
+    "sha256": "4aa245d10ff1f40c835e5b6c82885afdf5f5a1ec5c38d08d994f1842634419db",
+    "unchanged": true
+  },
+  "src/app/content/runtime.ts": {
+    "headBlob": "14092715fa4cc6eee2cf3efe3714dd60e3137e0d",
+    "sha256": "4940b1e500bcea504cf88527a804ea2658fa27e5322635555c9f86f6e43ee5c7",
+    "unchanged": true
+  },
+  "src/features/selection-translation/content/runtime.ts": {
+    "headBlob": "83b5946b9ce7fb29f25cf62dd09cd50d60d66457",
+    "sha256": "9f75197ba34051fddc5d08d2ddd32f1fed5fbf3f334f0d594259256f4d49a111",
+    "unchanged": true
+  },
+  "src/platform/shadow-ui/pageBridge.ts": {
+    "headBlob": "e07e843c480aa56581fcad303eeea0d4d4a246ce",
+    "sha256": "90adf58225009a86a4c65e189904d0007c6d8442bfde76874e3ba465c55fc3d2",
+    "unchanged": true
+  },
+  "src/platform/shadow-ui/pageBridgeCore.ts": {
+    "headBlob": "eddf5c4198b344a99e067086578c9c2098e75134",
+    "sha256": "dd56fda854d5f396237c700d2b9eae33ff06ef07717ee7235cb80b2e51b90910",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/content/translationCache.ts": {
+    "headBlob": "d07d213e884e239cf668db81c82f1456f801cc45",
+    "sha256": "239c0dee30cf3a814af1192da2bfd601986b39dcf34cc0f69a78037964ad9534",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/content/translationScheduler.ts": {
+    "headBlob": "f2999dbd83dfb1b6deec2084b88132e7cc7c4e3e",
+    "sha256": "d3bb4b6d32e0c4a59b6eae7baf41b55a34611f32625a88fbf0339defd909fd6f",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/content/transcriptionCacheClient.ts": {
+    "headBlob": "a5698aa712a73ef1fd233385429ca312f65186e9",
+    "sha256": "4576766c9100f28373106c6b6071cfd425451f69a576ce5940af71760cbc56d8",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/content/video-ai/fullCapture.ts": {
+    "headBlob": "87716005de0a31f98bc29b198323b793544291cd",
+    "sha256": "fb772928aad6867a37d94b981b6935cdb5fd45dc0d7d3d4aa082b695f38afce5",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/content/video-ai/capture.ts": {
+    "headBlob": "a234eee439e296a223c018bc26394ab7fd5f4516",
+    "sha256": "a0ef2b12540bc2b69d02b4d416c773f37f9e4c90688c113e662f0752aba026fa",
+    "unchanged": true
+  },
+  "src/services/translation/requestPrivacy.ts": {
+    "headBlob": "2e8ddba988e945873fe710831a261f00278101ec",
+    "sha256": "c3061ab4d6099e50b4b767f140a8e63b94a19dcaaa395e461bdbf7f4118ad94a",
+    "unchanged": true
+  },
+  "src/features/video-subtitle/background/transcriptionCache.ts": {
+    "headBlob": "c85cbeac6c6a68c50ccfe3305e64e938b6e41720",
+    "sha256": "5295ae402c51bc70ce381853f7b3a30385ab889a71b0ef86d8c7e546b31ffbf8",
+    "unchanged": true
+  }
+}

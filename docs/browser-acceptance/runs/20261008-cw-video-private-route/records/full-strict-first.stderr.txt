@@ -1,0 +1,3 @@
+(node:9406) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ERROR: Coverage for branches (99.99%) does not meet global threshold (100%)

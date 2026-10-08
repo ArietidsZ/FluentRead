@@ -1,0 +1,100 @@
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube frontend unknown closes before cache/SDK while original subtitle remains
+[FluentRead] 视频字幕翻译失败 TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Module.translateVideoText (<CW-REPO>/src/app/translation/client.ts:426:55)
+    at VideoTranslationScheduler.translate (<CW-REPO>/src/features/video-subtitle/content/runtime.ts:177:7)
+    at <CW-REPO>/src/features/video-subtitle/content/translationScheduler.ts:77:29
+    at <CW-REPO>/src/features/video-subtitle/content/runtime.ts:1394:32 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube native unknown refuses frontend true without cache/SDK
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:450:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'bad-request',
+  retryable: false,
+  statusCode: undefined,
+  code: 'TRANSLATION_SOURCE_UNKNOWN',
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube missing dedicated requirement blocks provider and preserves raw source
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: Synthetic private document 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:450:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'authentication',
+  retryable: false,
+  statusCode: undefined,
+  code: undefined,
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > video cache/source and compatibility controls > youtube wrong-typed native true refuses despite frontend true
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:450:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'bad-request',
+  retryable: false,
+  statusCode: undefined,
+  code: 'TRANSLATION_SOURCE_UNKNOWN',
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > video cache/source and compatibility controls > youtube wrong-typed native 1 refuses despite frontend true
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:450:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'bad-request',
+  retryable: false,
+  statusCode: undefined,
+  code: 'TRANSLATION_SOURCE_UNKNOWN',
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > video cache/source and compatibility controls > youtube wrong-typed frontend true refuses before message/cache
+[FluentRead] 视频字幕翻译失败 TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Module.translateVideoText (<CW-REPO>/src/app/translation/client.ts:426:55)
+    at VideoTranslationScheduler.translate (<CW-REPO>/src/features/video-subtitle/content/runtime.ts:177:7)
+    at <CW-REPO>/src/features/video-subtitle/content/translationScheduler.ts:77:29
+    at <CW-REPO>/src/features/video-subtitle/content/runtime.ts:1394:32 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > video cache/source and compatibility controls > youtube wrong-typed frontend 1 refuses before message/cache
+[FluentRead] 视频字幕翻译失败 TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Module.translateVideoText (<CW-REPO>/src/app/translation/client.ts:426:55)
+    at VideoTranslationScheduler.translate (<CW-REPO>/src/features/video-subtitle/content/runtime.ts:177:7)
+    at <CW-REPO>/src/features/video-subtitle/content/translationScheduler.ts:77:29
+    at <CW-REPO>/src/features/video-subtitle/content/runtime.ts:1394:32 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > video cache/source and compatibility controls > youtube actual regular/private/endpoint cache identity stays distinct without transport markers
+[FluentRead] 视频字幕翻译失败 Error [AbortError]: 翻译文档连接已失效或离开
+    at Module.nativeDocumentDisconnected (<CW-REPO>/src/platform/browser/documentSession.ts:28:75)
+    at close (<CW-REPO>/src/services/translation/documentClient.ts:17:102)
+    at onDisconnect (<CW-REPO>/src/services/translation/documentClient.ts:23:36)
+    at Object.emit (<CW-REPO>/tests/helpers/imageDocumentPorts.ts:6:83)
+    at Object.close (<CW-REPO>/tests/helpers/imageDocumentPorts.ts:11:74)
+    at <CW-REPO>/tests/videoPrivacyRoute.test.ts:209:28
+    at Array.forEach (<anonymous>)
+    at <CW-REPO>/tests/videoPrivacyRoute.test.ts:209:9
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at processImmediate (node:internal/timers:541:9)

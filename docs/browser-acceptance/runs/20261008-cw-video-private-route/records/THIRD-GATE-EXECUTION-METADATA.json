@@ -1,0 +1,37 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 2000,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "两次完整测试均通过，门禁因互补的媒体初始来源分支缺覆盖而退出；现已保留两个初始状态，专项163项与模块四项100%通过。对冻结源码完成一次最终门禁；既有WebDAV夹具仅临时127.0.0.1、源检查只读git子进程。不新增持久或产品权限，不调用真实API/ASR下载/GPU/GUI，不操作PR。"
+  },
+  "result": {
+    "chunk_id": "652cdc",
+    "wall_time_seconds": 1.001585368,
+    "session_id": 81329,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Third video gate execution after the lifecycle control jointly covers no-video and src-known initial states; first and second executions preserved separately; no persistent/product permission changes.",
+  "completionObservation": {
+    "waitCall": "write_stdin session_id=81329 yield_time_ms=30000 max_output_tokens=10000",
+    "toolOutcome": "aborted by user after 19.2s",
+    "subsequentPoll": "Unknown process id 81329",
+    "compositeExitCodeExposed": false,
+    "persistedFullStrictRecord": {
+      "duration_seconds": 222.152,
+      "exit_code": 0,
+      "testsPassed": 10285,
+      "fourDimensionsPct": 100
+    },
+    "remainingGateCompletionRecordsAtInspection": false,
+    "matchingRunnerOrRecorderProcessesAtInspection": 0,
+    "action": "Do not repeat full regression; independently resume only nine uncompleted gates."
+  }
+}

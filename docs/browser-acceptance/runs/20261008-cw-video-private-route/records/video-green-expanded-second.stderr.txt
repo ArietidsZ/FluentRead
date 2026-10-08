@@ -1,0 +1,67 @@
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube frontend unknown closes before cache/SDK while original subtitle remains
+[FluentRead] 视频字幕翻译失败 TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Module.translateVideoText (<CW-REPO>/src/app/translation/client.ts:421:55)
+    at VideoTranslationScheduler.translate (<CW-REPO>/src/features/video-subtitle/content/runtime.ts:177:7)
+    at <CW-REPO>/src/features/video-subtitle/content/translationScheduler.ts:77:29
+    at <CW-REPO>/src/features/video-subtitle/content/runtime.ts:1394:32 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube native unknown refuses frontend true without cache/SDK
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:445:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'bad-request',
+  retryable: false,
+  statusCode: undefined,
+  code: 'TRANSLATION_SOURCE_UNKNOWN',
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+stderr | tests/videoPrivacyRoute.test.ts > both actual video runtimes native lifetime and safety > youtube missing dedicated requirement blocks provider and preserves raw source
+[FluentRead] 视频字幕翻译失败 TranslationRequestError: Synthetic private document 需要 API Key（访问令牌），当前尚未配置；请先在设置中填写，再开始翻译。
+    at Module.unwrapTranslationResponse (<CW-REPO>/src/services/translation/errors.ts:129:50)
+    at translationTask (<CW-REPO>/src/app/translation/client.ts:445:16)
+    at Object.execute (<CW-REPO>/src/services/translation/queue.ts:236:19) {
+  kind: 'authentication',
+  retryable: false,
+  statusCode: undefined,
+  code: undefined,
+  retryAfterMs: undefined,
+  requestId: undefined
+}
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > actual false export uses dedicated pair and keeps captured original cues
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > actual true export uses dedicated pair and keeps captured original cues
+TypeError: Cannot read properties of null (reading 'dispatchEvent')
+ ❯ exportButton tests/videoPrivacyRoute.test.ts:143:242
+
+ ❯ tests/videoPrivacyRoute.test.ts:181:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > export-only cancel aborts its request identity while same-source playback continues
+TypeError: Cannot read properties of null (reading 'dispatchEvent')
+ ❯ exportButton tests/videoPrivacyRoute.test.ts:143:242
+
+ ❯ tests/videoPrivacyRoute.test.ts:184:65
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > save cancels playback and export identities before late save/cache
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > route cancels playback and export identities before late save/cache
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > media cancels playback and export identities before late save/cache
+ FAIL  tests/videoPrivacyRoute.test.ts > actual YouTube entry export request ownership > unmount cancels playback and export identities before late save/cache
+TypeError: Cannot read properties of null (reading 'dispatchEvent')
+ ❯ exportButton tests/videoPrivacyRoute.test.ts:143:242
+
+ ❯ tests/videoPrivacyRoute.test.ts:187:85
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯

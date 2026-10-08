@@ -1,0 +1,21 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video entry effective model route > platform chooses the frontend effective pair before context/thinking/cache planning
+AssertionError: expected { …(14) } to match object { …(2) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "modelOverride": "document-private",
+-   "serviceOverride": "custom:document-private",
++   "modelOverride": "document-public",
++   "serviceOverride": "custom:document-public",
+  }
+
+ ❯ tests/videoPrivacyRoute.test.ts:132:140
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯

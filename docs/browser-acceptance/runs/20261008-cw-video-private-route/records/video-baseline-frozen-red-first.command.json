@@ -1,0 +1,21 @@
+{
+  "label": "video-baseline-frozen-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "effective model route|freezes dedicated prompt|private context capability|actual save model |actual bridge|changed media signal|export-only cancel|playback-only original",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-baseline-frozen-red.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:05:25.189746+00:00",
+  "duration_seconds": 2.104,
+  "exit_code": 1
+}

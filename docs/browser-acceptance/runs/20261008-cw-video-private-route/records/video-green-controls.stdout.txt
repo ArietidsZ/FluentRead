@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts tests/videoSubtitleDownloads.test.ts tests/videoTranslationCache.test.ts tests/videoPretranslationController.test.ts tests/videoCaptionPlatformRuntime.test.ts tests/videoSubtitleLogic.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-controls.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ✓ tests/videoPrivacyRoute.test.ts (53 tests) 3451ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 738ms
+ ✓ tests/videoCaptionPlatformRuntime.test.ts (15 tests) 45ms
+ ❯ tests/videoSubtitleLogic.test.ts (21 tests | 1 failed) 35ms
+   × video subtitle logic > 继承默认的视频指纹随网页服务变更，独立服务不受影响 4ms
+     → expected '["[\"google\",{\"openai\":\"gpt-5.4-m…' to be '["[\"microsoft\",{\"openai\":\"gpt-5.…' // Object.is equality
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 18ms
+ ✓ tests/videoTranslationCache.test.ts (11 tests) 12ms
+ ❯ tests/videoPretranslationController.test.ts (4 tests | 1 failed) 6ms
+   × native video route/media lifetime owner > deduplicates href and selected media, ignores unrelated signals, clears pagehide and releases listeners twice 3ms
+     → expected "spy" to be called 7 times, but got 8 times
+
+ Test Files  2 failed | 4 passed (6)
+      Tests  2 failed | 109 passed (111)
+   Start at  05:57:47
+   Duration  4.70s (transform 699ms, setup 0ms, collect 594ms, tests 3.57s, environment 0ms, prepare 133ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-controls.results.json

@@ -1,0 +1,12 @@
+{
+  "onlyFrozenInputChanged": [
+    "tests/videoPrivacyRoute.test.ts"
+  ],
+  "beforeSha256": "5b9a9d84ba939b9bf69f470393c0d05146ed33a2dfcd4991e27a77c575b3ae10",
+  "afterSha256": "5b7457751dd956c38d2d2fe310c6ff4827ce980e4c5026d752b07e3aa9e3117b",
+  "targetRuntimeNamesOrderStatusIdentical": true,
+  "targetCaseCount": 163,
+  "videoCaseCount": 75,
+  "productionFilesChangedBetweenThirdFullAndFinalFreeze": false,
+  "auditCorrection": "Six source-interpolated it.each tables changed to static format strings over equivalent Cartesian tuples. No test removal, assertion change or production change. Runtime names/order/status independently compared against the previous targeted report."
+}

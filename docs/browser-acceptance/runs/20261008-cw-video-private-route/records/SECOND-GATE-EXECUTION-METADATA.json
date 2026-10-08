@@ -1,0 +1,32 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "首轮 10284 项测试全通过，但初始化 currentSrc 为空时的 src 分支未覆盖，现已补强原生命周期控制。对更新后冻结输入重新执行完整门禁；既有 WebDAV 夹具仅临时绑定 127.0.0.1，userscript 源检查只读本地 git 子进程。本次独立审核，不新增持久权限、不运行真实 API/ASR 下载/GPU/GUI、不操作 PR。"
+  },
+  "result": {
+    "chunk_id": "eedd22",
+    "wall_time_seconds": 1.001298882,
+    "session_id": 88215,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Second video gate execution after one meaningful src initialization fixture correction; first execution preserved separately; no persistent/product permission changes.",
+  "completionObserved": {
+    "source": "Actual tools.write_stdin final result chunk 9841ff",
+    "sessionId": 88215,
+    "gateRunnerExitCode": 1,
+    "testsPassed": 10284,
+    "branchCoverageCovered": 33844,
+    "branchCoverageTotal": 33845,
+    "missingBranch": "pretranslationController.ts initial empty source fallback",
+    "laterGatesNotStarted": true
+  }
+}

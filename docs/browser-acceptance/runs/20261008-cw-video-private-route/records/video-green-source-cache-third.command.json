@@ -1,0 +1,20 @@
+{
+  "label": "video-green-source-cache-third",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-green-source-cache-third.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:03:04.751407+00:00",
+  "duration_seconds": 5.271,
+  "exit_code": 0
+}

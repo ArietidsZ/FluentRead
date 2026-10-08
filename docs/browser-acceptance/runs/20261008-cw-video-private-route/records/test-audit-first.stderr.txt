@@ -1,0 +1,5 @@
+测试套件审计失败：
+- 重复测试名：both actual video runtimes native lifetime and safety > <dynamic>（tests/videoPrivacyRoute.test.ts:162 与 tests/videoPrivacyRoute.test.ts:165）
+- 重复测试名：both actual video runtimes native lifetime and safety > <dynamic>（tests/videoPrivacyRoute.test.ts:162 与 tests/videoPrivacyRoute.test.ts:171）
+- 重复测试名：video cache/source and compatibility controls > <dynamic>（tests/videoPrivacyRoute.test.ts:199 与 tests/videoPrivacyRoute.test.ts:202）
+- 重复测试名：video cache/source and compatibility controls > <dynamic>（tests/videoPrivacyRoute.test.ts:199 与 tests/videoPrivacyRoute.test.ts:205）

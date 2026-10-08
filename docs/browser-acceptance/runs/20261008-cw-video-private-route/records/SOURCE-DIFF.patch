@@ -1,0 +1,600 @@
+diff --git a/docs/testing.md b/docs/testing.md
+index 9884a1a4..6d10aee5 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -975,3 +975,9 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
+ 同文档 SPA 导航使用实际 `installShadowAndRouteBridge` 的 History 包装产生 document `fluentread-route-change`；组件仅在 URL 变化时复用关闭失效流程，随组件卸载移除监听。关闭卡片时保留已挂载组件的单一监听，供后续卡片使用。新增负控保持源 Text/选区有效，不触发 selectionchange、popstate 或 hashchange，延迟实际主/辅助 SDK，观察生产模板经 Vue 离线 renderer 得到的 DOM 与模型缓存；覆盖 pushState/replaceState、相同 URL、重复信号、新代次、关闭、重复卸载与重挂载，以及 native false 普通兼容。DOM/Range/History 平台边界是合成夹具，不代表实机浏览器验收。
+
+ 独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
++
++视频模型切片同时覆盖 `runtime.ts` 的 YouTube/X 与 `platformRuntime.ts` 的会议/Udemy/Disney+ 播放翻译；两个入口共用文本客户端，在 Thinking、上下文能力、模型请求与缓存决策前解析有效专用 pair，最终授权继续由 native sender/getContexts 三态、文本 Port/registry/handler 与 broker 完成。有效服务也用于 YouTube/X 的标签和预翻译窗口；无效 UI 提示可回退标签，但实际模型请求仍拒绝。原生配置键保守比较完整相关公开映射与视频服务/语言/人工轨/术语配置，因此普通模型或其他服务映射改变也撤销旧译文；计数/UI 保存不取消。
++
++已有译文/双语字幕导出只由 YouTube/X 运行时调用，platform runtime 没有导出入口，本切片不新增该功能。原生导出使用独立文本请求 ID 和 signal，不加入播放的前端等待任务；取消导出保持同源播放请求，切换仅原文取消播放而保持独立导出，可能增加同时未缓存请求的上游工作。相关保存、实际 route bridge 信号、媒体加载身份变化和卸载撤销旧翻译/导出，旧结果不能更新新视频 DOM、模型缓存或下载文件，旧导出反馈不能覆盖新代次。配置保存保留当前原字幕与已恢复 ASR 源时间轴；切换视频隔离当前源视图，现有持久 ASR 源缓存不被本切片删除。
++
++`videoPrivacyRoute` 从真实 root 进入两个运行时和实际导出菜单/控制器，执行真实配置保存、文本 Port/registry/handler、broker/cache/provider/AI SDK；仅浏览器/DOM/布局、合成 source cache、部分上下文捕获和 HTTP/文件保存使用离线边界。ASR 源控制从合成缓存恢复，不运行推理或模型下载；未验证 ASR 实机、GUI、GPU 或真实网络。原严格 owned 模块保持四维门禁，runtime 与 app client glue 不外推数值 100%。普通兼容由 native false 实际入口/导出及已有算法合同验证；userscript 继续通过既有平台 alias 关闭原生路径，预算与权限默认不改。独立设置页 probe 和在线 dictionary 仍是明确未迁移余项。
+diff --git a/src/app/translation/client.ts b/src/app/translation/client.ts
+index d99aed53..637cc464 100644
+--- a/src/app/translation/client.ts
++++ b/src/app/translation/client.ts
+@@ -1,7 +1,7 @@
+ /**
+  * @file src/app/translation/client.ts
+  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理（Firefox 由文档 Port 绑定生命周期），统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
+- * 主要内容：冻结服务/模型与语言参数，单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合及谷歌内部换线免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为原生文本的每次尝试及既有视频翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
++ * 主要内容：冻结服务/模型与语言参数，原生视频在 Thinking/上下文/缓存决策前解析有效 pair，前端提示不附加执行授权；单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合及谷歌内部换线免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为原生文本的每次尝试及既有视频翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
+  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
+  */
+ /**
+@@ -16,6 +16,7 @@ import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+ import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
+ import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+ import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
++import {resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
+ import {buildGlossaryRevision} from '@/src/core/glossary';
+ import {getMissingCredentialMessage} from '@/src/core/config/validation';
+ import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
+@@ -406,6 +407,11 @@ export async function translateTextBatch(
+  * 翻译视频字幕。视频字幕可继承网页默认或独立选择服务，通过 background
+  * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
+  */
++/** 只供视频标签/预取窗口选择；无效提示不授予请求权限，实际请求仍严格解析并拒绝。 */
++export function getNativeVideoServiceHint(): string | undefined {
++  if (!NATIVE_PRIVATE_ROUTE_SUPPORTED) return undefined;
++  try { return resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext)?.service; } catch { return undefined; }
++}
+ export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
+   if (signal?.aborted) throw createAbortError();
+   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
+@@ -415,8 +421,9 @@ export async function translateVideoText(origin: string, signal?: AbortSignal, s
+     glossaryIds: config.videoGlossaryIds,
+   });
+
+-  const service = config.videoService || config.service;
+-  const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
++  let service = config.videoService || config.service;
++  let model = resolveConfiguredModel(config.model[service], config.customModel[service]);
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext); if (route) { service = route.service; model = route.model; } }
+   const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
+   const languages = getTranslationLanguages({sourceLanguage});
+   const useCache = config.useCache;
+diff --git a/src/features/video-subtitle/content/downloads.ts b/src/features/video-subtitle/content/downloads.ts
+index 4b75d22b..f39b2d6e 100644
+--- a/src/features/video-subtitle/content/downloads.ts
++++ b/src/features/video-subtitle/content/downloads.ts
+@@ -1,10 +1,11 @@
+ /**
+  * @file src/features/video-subtitle/content/downloads.ts
+  * 文件职责：协调原文、译文与双语字幕导出，避免播放器运行时继续承载下载与人工轨回退细节。
+- * 主要内容：选择 X 原生或 AI、YouTube 捕获或初始化轨道，优先人工目标时间轴，仅翻译缺失区间，并管理取消和按钮反馈。
++ * 主要内容：选择 X 原生或 AI、YouTube 捕获或初始化轨道，优先人工目标时间轴，仅翻译缺失区间；原生模型导出传递独立 signal，在保存前再次检查代次，旧导出不覆盖当前反馈；源字幕不被译文替换。
+  * 模块边界：网络、配置、界面文案、状态提示和文件下载由注入端口提供，不直接访问全局页面或存储。
+  */
+ import type {Config} from '@/src/core/config/model';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+ import {buildYoutubeTimedTextUrl, chooseYoutubeCaptionTrackForLocation, finalizeVideoSubtitleCues, parseYoutubeTimedTextResponse, type VideoSubtitleCue} from './youtubeSubtitleData';
+ import {createVideoSubtitleAbortError, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, translateVideoSubtitleCues} from './subtitleLogic';
+
+@@ -23,7 +24,7 @@ interface VideoDownloadPorts {
+     captured(): CapturedTrack[];
+     remember(track: CapturedTrack): void;
+     human: {ready(): Promise<void>; at(time: number): string};
+-    translate(source: string): Promise<string>;
++    translate(source: string, signal?: AbortSignal): Promise<string>;
+     ui(key: string, params?: Record<string, string | number>): string;
+     status(menu: HTMLElement, message: string, delay?: number): void;
+     save(cues: VideoSubtitleCue[], language: string): void;
+@@ -31,6 +32,7 @@ interface VideoDownloadPorts {
+
+ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
+     let controller: AbortController | undefined;
++    let generation = 0;
+     const timers = new Set<ReturnType<typeof setTimeout>>();
+     const restoreButton = (button: HTMLButtonElement) => {
+         const timer = setTimeout(() => { timers.delete(timer); button.disabled = false; }, 2200);
+@@ -69,6 +71,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
+         }
+         controller?.abort();
+         const current = new AbortController(); controller = current;
++        const version = NATIVE_PRIVATE_ROUTE_SUPPORTED ? ++generation : 0;
+         const language = ports.config.to || 'translated';
+         button.setAttribute('aria-busy', 'true');
+         ports.status(menu, ports.ui('video.fetching'));
+@@ -79,7 +82,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
+             const manualAt = (cue: VideoSubtitleCue) => ports.config.videoPreferHumanSubtitles
+                 ? ports.human.at(cue.startMs + cue.durationMs / 2) : '';
+             const fallback = result.cues.filter(cue => !manualAt(cue));
+-            const translations = await translateVideoSubtitleCues(fallback, ports.translate, {concurrency: 3, signal: current.signal,
++            const translations = await translateVideoSubtitleCues(fallback, NATIVE_PRIVATE_ROUTE_SUPPORTED ? source => ports.translate(source, current.signal) : ports.translate, {concurrency: 3, signal: current.signal,
+                 onProgress: (completed, total) => ports.status(menu, ports.ui('video.translating', {completed, total})),
+             });
+             const byText = new Map(fallback.map((cue, index) => [normalizeVideoCaptionText(cue.text), translations[index]!.text]));
+@@ -95,7 +98,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
+         } finally {
+             if (controller === current) controller = undefined;
+             button.removeAttribute('aria-busy');
+-            if (!ports.isDisposed()) { ports.status(menu, feedback, 2200); restoreButton(button); }
++            if (!ports.isDisposed()) { if (!NATIVE_PRIVATE_ROUTE_SUPPORTED || version === generation) ports.status(menu, feedback, 2200); restoreButton(button); }
+         }
+     };
+     return {resolve, translated, cancel: () => controller?.abort(), destroy: () => {
+diff --git a/src/features/video-subtitle/content/platformRuntime.ts b/src/features/video-subtitle/content/platformRuntime.ts
+index 160b5155..9827ebc8 100644
+--- a/src/features/video-subtitle/content/platformRuntime.ts
++++ b/src/features/video-subtitle/content/platformRuntime.ts
+@@ -1,13 +1,15 @@
+ /**
+  * @file src/features/video-subtitle/content/platformRuntime.ts
+  * 文件职责：在会议、Udemy 与 Disney+ 网页中挂载隔离的双语字幕，复用现有视频配置及翻译缓存。
+- * 主要内容：观察原生字幕、读取浏览器字幕轨、自动开启明确的会议字幕按钮、优先目标语言人工轨；处理显示切换、失败重试、全屏、动态页面与所有权恢复。
++ * 主要内容：观察原生字幕、读取浏览器字幕轨、自动开启明确的会议字幕按钮、优先目标语言人工轨；处理显示切换、失败重试、全屏、动态页面与所有权恢复；原生配置/路由/媒体切换立即撤销旧翻译，保留源字幕文本与轨道。
+  * 模块边界：只通过注入端口读取配置、翻译和保存设置，不采集音频、不访问账号接口，不修改网站播放器实现。
+  */
+ import type {Config} from '@/src/core/config/model';
+ import {getVideoSubtitleAppearanceCssVars} from '@/src/core/config/videoSubtitleAppearance';
+ import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText} from './subtitleLogic';
+ import {VideoTranslationCache} from './translationCache';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
++import {installVideoTranslationLifetime} from './pretranslationController';
+ import {isVideoSubtitleInTargetLanguage} from './subtitleLanguage';
+ import {chooseTargetHumanCaptionTrack, getCaptionPlatform, isMeetingCaptionPlatform, PLATFORM_CAPTION_SELECTORS, findCaptionEnableButton, findTeamsCaptionMenuStep, captionLanguageMatch} from './platforms';
+
+@@ -249,11 +251,12 @@ export function mountPlatformCaptions(ports: PlatformCaptionPorts): () => void {
+     });
+     observer.observe(document.documentElement, {childList: true, subtree: true, characterData: true});
+     const timer = setInterval(sync, 250);
+-    const unsubscribe = ports.subscribe(() => {
++    let unsubscribe = ports.subscribe(() => {
+         const next = getVideoTranslationConfigFingerprint(config);
+         if (next !== fingerprint) { fingerprint = next; cache.clear(); clear(); }
+         sync();
+     });
++    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const stop = unsubscribe, release = installVideoTranslationLifetime(document, window, refresh => { cache.clear(); clear(); if (refresh) sync(); }, selectVideo); unsubscribe = () => { release(); stop(); }; }
+     document.addEventListener('fullscreenchange', schedule);
+     document.addEventListener('seeking', schedule, true);
+     document.addEventListener('click', releaseUserControls, true);
+diff --git a/src/features/video-subtitle/content/pretranslationController.ts b/src/features/video-subtitle/content/pretranslationController.ts
+index 8b618ee0..26e61d0f 100644
+--- a/src/features/video-subtitle/content/pretranslationController.ts
++++ b/src/features/video-subtitle/content/pretranslationController.ts
+@@ -1,9 +1,22 @@
+ /**
+  * @file src/features/video-subtitle/content/pretranslationController.ts
+  * 文件职责：管理视频字幕预取的有界计时器和原生轨道就绪监听。
+- * 主要内容：普通播放事件合并为 120ms 一次预取，轨道加载、加入或换句时立即通知运行时并预取；更换视频和卸载时释放轨道、媒体监听器与计时器。
++ * 主要内容：普通播放事件合并为 120ms 一次预取，轨道加载、加入或换句时立即通知运行时并预取；更换视频和卸载时释放轨道、媒体监听器与计时器；原生路由信号与页面离开立即通知翻译所有者撤销代次。
+  * 模块边界：只观察注入的 video 并调用回调，不读取全局配置、不选择字幕文本，也不调用翻译服务。
+  */
++/** 原生运行时调用；同 URL 重复信号不撤销新代次，返回函数精确释放当前监听。 */
++export function installVideoTranslationLifetime(document: EventTarget, window: Pick<Window, 'location' | 'addEventListener' | 'removeEventListener'>, invalidate: (refresh: boolean) => void, getVideo: () => Pick<HTMLVideoElement, 'currentSrc' | 'src'> | null): () => void {
++  let href = window.location.href;
++  let video = getVideo(), source = video?.currentSrc || video?.src || '';
++  const route = () => { if (href === window.location.href) return; href = window.location.href; invalidate(true); };
++  const leave = () => invalidate(false);
++  const media = () => { const next = getVideo(), src = next?.currentSrc || next?.src || ''; if (next === video && src === source) return; video = next; source = src; invalidate(true); };
++  const capture = {capture: true};
++  document.addEventListener('fluentread-route-change', route); window.addEventListener('pagehide', leave);
++  for (const event of ['loadstart', 'loadedmetadata', 'emptied']) document.addEventListener(event, media, capture);
++  return () => { document.removeEventListener('fluentread-route-change', route); window.removeEventListener('pagehide', leave); for (const event of ['loadstart', 'loadedmetadata', 'emptied']) document.removeEventListener(event, media, capture); };
++}
++
+ export class VideoPretranslationController {
+   private timer: ReturnType<typeof setTimeout> | undefined;
+   private video: HTMLVideoElement | null = null;
+diff --git a/src/features/video-subtitle/content/runtime.ts b/src/features/video-subtitle/content/runtime.ts
+index 94d97d69..d1be11d8 100644
+--- a/src/features/video-subtitle/content/runtime.ts
++++ b/src/features/video-subtitle/content/runtime.ts
+@@ -1,7 +1,7 @@
+ /**
+  * @file src/features/video-subtitle/content/runtime.ts
+  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
+- * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
++ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和有效服务的预翻译窗口；原生路由/媒体/配置变更撤销旧译文与译文导出，导出使用独立请求取消身份，配置保存保留原字幕和 ASR 源数据；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
+  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
+  */
+ import {hasDistinctTranslation} from '@/src/core/translation/result';
+@@ -52,7 +52,8 @@ import {XCaptionSource} from './xCaptionSource';
+ import {XHlsAudioReader} from './hlsAudioRuntime';
+ import {XSubtitleLoader} from './xSubtitleLoader';
+ import {VideoTranslationCache} from './translationCache';
+-import {VideoPretranslationController} from './pretranslationController';
++import {VideoPretranslationController, installVideoTranslationLifetime} from './pretranslationController';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+ import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
+ export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation} from './subtitleLogic';
+ export {getVideoSubtitleDownloadErrorMessage} from './ui';
+@@ -62,7 +63,7 @@ import {
+   type Config,
+   normalizeVideoSubtitleOffsetMs,
+ } from '@/src/core/config/model';
+-import { translateVideoText } from '@/src/app/translation/client';
++import { translateVideoText, getNativeVideoServiceHint } from '@/src/app/translation/client';
+ import {
+   buildYoutubeTimedTextUrl,
+   chooseYoutubeCaptionTrackForLocation,
+@@ -507,7 +508,7 @@ export function mountVideoSubtitleTranslation(): () => void {
+   const primeUpcomingVideoCaptions = () => {
+     if (destroyed || !canTranslateVideo() || !observedVideo || pretranslationCues.length === 0) return;
+     videoTranslator.primeUpcoming(pretranslationCues, observedVideo.currentTime * 1000 - subtitleOffsetMs,
+-      getVideoPretranslationWindowMs(config.videoService || config.service), observedVideo.playbackRate, getCachedVideoTranslation);
++      getVideoPretranslationWindowMs((NATIVE_PRIVATE_ROUTE_SUPPORTED ? getNativeVideoServiceHint() : undefined) || config.videoService || config.service), observedVideo.playbackRate, getCachedVideoTranslation);
+   };
+
+   const pretranslationController = new VideoPretranslationController(primeUpcomingVideoCaptions, () => {
+@@ -1046,7 +1047,7 @@ export function mountVideoSubtitleTranslation(): () => void {
+     const selectedMode: VideoMenuMode = enabled && visible ? normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) : 'off';
+     renderVideoMenuMode(menu, selectedMode, !config.on, status);
+     const service = menu.querySelector<HTMLElement>('[data-service-label]');
+-    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel(config.videoService || config.service), language);
++    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel((NATIVE_PRIVATE_ROUTE_SUPPORTED ? getNativeVideoServiceHint() : undefined) || config.videoService || config.service), language);
+     refreshVideoUiText(menu, language);
+     refreshVideoUiAccessibility(menu, button, document, language, status);
+     renderVideoSubtitleTiming(menu, subtitleOffsetMs, enabled && pretranslationCues.length > 0, language);
+@@ -1111,7 +1112,7 @@ export function mountVideoSubtitleTranslation(): () => void {
+     config, document, location: window.location, request: (input, init) => fetch(input, init), isX: isXVideoPage, isDisposed: () => destroyed,
+     isAiActive: isAiCaptureActive, nativeX: () => xCaptionSource.readNativeTrack(), aiCues: () => aiCues,
+     captured: () => Array.from(capturedSubtitleTracks.values()).reverse(), human: humanCaptions,
+-    translate: source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
++    translate: NATIVE_PRIVATE_ROUTE_SUPPORTED ? (source, signal) => isVideoSubtitleInTargetLanguage(source, config.to) ? Promise.resolve(source) : translateVideoText(source, signal, isXVideoPage() ? config.videoSourceLanguage : undefined) : source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
+     remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.delete(key); capturedSubtitleTracks.set(key, entry);
+       if (canTranslateVideo()) setPretranslationTrack(key, entry); },
+   });
+@@ -1777,8 +1778,7 @@ export function mountVideoSubtitleTranslation(): () => void {
+   window.addEventListener('message', handleXSubtitleResourceMessage);
+   syncPlayerUi();
+   uiSyncTimer = window.setInterval(syncPlayerUi, 1000);
+-
+-  const unsubscribeConfig = subscribeConfig((nextConfig) => {
++  let unsubscribeConfig = subscribeConfig((nextConfig) => {
+     const nextOffset = normalizeVideoSubtitleOffsetMs(nextConfig.videoSubtitleOffsetMs);
+     if (nextOffset !== subtitleOffsetMs) {
+       subtitleOffsetMs = nextOffset;
+@@ -1840,7 +1840,7 @@ export function mountVideoSubtitleTranslation(): () => void {
+     observeCaptionContainer();
+     scheduleUpdate();
+   });
+-
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const unsubscribe = unsubscribeConfig, release = installVideoTranslationLifetime(document, window, refresh => { downloads.cancel(); clearPretranslationState(false); if (refresh) syncPlayerUi(); }, () => observedVideo); unsubscribeConfig = () => { release(); unsubscribe(); }; }
+   return () => {
+     destroyed = true;
+     humanCaptions.clear();
+diff --git a/src/features/video-subtitle/content/subtitleLogic.ts b/src/features/video-subtitle/content/subtitleLogic.ts
+index 06127858..643d0b96 100644
+--- a/src/features/video-subtitle/content/subtitleLogic.ts
++++ b/src/features/video-subtitle/content/subtitleLogic.ts
+@@ -1,7 +1,7 @@
+ /**
+  * @file src/features/video-subtitle/content/subtitleLogic.ts
+  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
+- * 主要内容：相同译文保留原文且不重复展示；合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
++ * 主要内容：相同译文保留原文且不重复展示；合成双语导出文本、去重并限制批译并发，原生比较完整相关公开配置以撤销旧代次，其他平台保留原服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
+  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
+  */
+ import {hasDistinctTranslation} from '@/src/core/translation/result';
+@@ -9,6 +9,8 @@ import {buildGlossaryRevision} from '@/src/core/glossary';
+ import type {Config} from '@/src/core/config/model';
+ import {resolveConfiguredModel} from '@/src/core/config/catalog';
+ import type {VideoSubtitleCue} from './youtubeSubtitleData';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
++import {fullPageTranslationConfigKey} from '@/src/services/translation/requestPrivacy';
+
+ /** 根据原文前缀和播放时间选择渐进字幕，支持重复句与短时单词片段。 */
+ export function findProgressiveVideoCaptionCue(cues: readonly VideoSubtitleCue[], source: string, currentMs: number): VideoSubtitleCue | null {
+@@ -255,6 +257,7 @@ export function mergeBilingualVideoSubtitleCues(
+
+ /** 与后台翻译 cache key 对齐的配置指纹；配置变化时旧译文不能写回视频。 */
+ export function getVideoTranslationConfigFingerprint(value: Config): string {
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) return JSON.stringify([fullPageTranslationConfigKey(value), value.videoService, value.videoSourceLanguage, value.videoPreferHumanSubtitles, value.videoGlossaryIds]);
+   const service = value.videoService || value.service;
+   const endpoint = value.proxy[service]
+     || (service === 'custom' ? value.custom : '')
+diff --git a/tests/test-matrix.json b/tests/test-matrix.json
+index da61eee6..bbfed4a8 100644
+--- a/tests/test-matrix.json
++++ b/tests/test-matrix.json
+@@ -484,6 +484,7 @@
+       "tests/fullPageVisibilityScheduling.test.ts",
+       "tests/fullPagePrivacyRoute.test.ts",
+       "tests/wordCardPrivacyRoute.test.ts",
++      "tests/videoPrivacyRoute.test.ts",
+       "tests/fullPageHostClassPreservation.test.ts",
+       "tests/pageTranslationAdvanced.test.ts",
+       "tests/mainWorldBridgeCore.test.ts",
+diff --git a/tests/videoPretranslationController.test.ts b/tests/videoPretranslationController.test.ts
+index 09a336e0..21672afb 100644
+--- a/tests/videoPretranslationController.test.ts
++++ b/tests/videoPretranslationController.test.ts
+@@ -1,5 +1,5 @@
+ import {afterEach, describe, expect, it, vi} from 'vitest';
+-import {VideoPretranslationController} from '@/src/features/video-subtitle/content/pretranslationController';
++import {VideoPretranslationController, installVideoTranslationLifetime} from '@/src/features/video-subtitle/content/pretranslationController';
+
+ const track = (kind = 'captions') => Object.assign(new EventTarget(), {kind}) as unknown as TextTrack;
+ const video = (tracks: TextTrack[]) => {
+@@ -63,3 +63,19 @@ describe('VideoPretranslationController', () => {
+     controller.destroy();
+   });
+ });
++
++
++describe('native video route/media lifetime owner',()=>{
++ it.each([null,{currentSrc:'',src:'preload-source'}])('initial %s deduplicates href/media, ignores unrelated signals and releases listeners twice',initial=>{
++  const document=new EventTarget(),events=new EventTarget(),invalidate=vi.fn();const location={href:'https://video.synthetic.test/first'};
++  let selected:{currentSrc:string;src:string}|null=initial;const window={location,addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events)} as unknown as Window;
++  const release=installVideoTranslationLifetime(document,window,invalidate,()=>selected);
++  document.dispatchEvent(new Event('fluentread-route-change'));document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).not.toHaveBeenCalled();
++  selected={currentSrc:'',src:'first'};document.dispatchEvent(new Event('loadstart'));expect(invalidate).toHaveBeenLastCalledWith(true);document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(1);
++  selected.currentSrc='second';document.dispatchEvent(new Event('emptied'));expect(invalidate).toHaveBeenCalledTimes(2);
++  selected={currentSrc:'second',src:''};document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(3);
++  selected={currentSrc:'',src:''};document.dispatchEvent(new Event('loadedmetadata'));selected=null;document.dispatchEvent(new Event('emptied'));expect(invalidate).toHaveBeenCalledTimes(5);
++  location.href='https://video.synthetic.test/second';document.dispatchEvent(new Event('fluentread-route-change'));document.dispatchEvent(new Event('fluentread-route-change'));expect(invalidate).toHaveBeenCalledTimes(6);
++  events.dispatchEvent(new Event('pagehide'));expect(invalidate).toHaveBeenLastCalledWith(false);release();release();location.href='https://video.synthetic.test/third';document.dispatchEvent(new Event('fluentread-route-change'));events.dispatchEvent(new Event('pagehide'));selected={currentSrc:'third',src:''};document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(7);
++ });
++});
+diff --git a/tests/videoPrivacyRoute.test.ts b/tests/videoPrivacyRoute.test.ts
+new file mode 100644
+index 00000000..fec7af1a
+--- /dev/null
++++ b/tests/videoPrivacyRoute.test.ts
+@@ -0,0 +1,224 @@
++/** 实际视频 root→YouTube/X 与 platform runtime→文本 client/原生 Port/handler/registry→broker/cache/provider SDK；DOM/布局、源字幕与 HTTP 使用离线边界。 */
++import 'fake-indexeddb/auto';
++import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
++import {parseHTML} from 'linkedom';
++import {Config} from '@/src/core/config/model';
++import * as catalog from '@/src/core/config/catalog';
++import {documentPortPair} from './helpers/imageDocumentPorts';
++const m=vi.hoisted(()=>({values:new Map<string,unknown>(),contexts:vi.fn(),record:vi.fn(),target:'firefox',native:true,cachedAiCues:[] as Array<{startMs:number;durationMs:number;text:string}>,nativeAPI:{} as Record<string,any>}));
++vi.mock('@/src/platform/storage/configStorageRuntime',()=>({configStorage:{writeOwner:true,getItem:async(key:string)=>m.values.get(key)??null,setItem:async(key:string,value:unknown)=>{m.values.set(key,structuredClone(value));},removeItem:async(key:string)=>{m.values.delete(key);},watch:()=>()=>{}}}));
++vi.mock('webextension-polyfill',()=>({default:new Proxy({},{get:(_t,k)=>Reflect.get(m.nativeAPI,k)})}));
++vi.mock('@/src/platform/browser/capabilities',async original=>({...await original<object>(),browserCapabilities:{get browser(){return m.target;},manifestVersion:2}}));
++vi.mock('@/src/core/config/incognitoRoute',async original=>({...await original<object>(),get NATIVE_PRIVATE_ROUTE_SUPPORTED(){return m.native;}}));
++vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository:{captureGeneration:()=>1,recordMany:m.record}}));
++vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
++class BoundaryObserver {observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} }
++const publicService='custom:document-public',privateService='custom:document-private';
++const publicURL='https://public-document.synthetic.test/v1/chat/completions',privateURL='https://private-document.synthetic.test/v1/chat/completions';
++const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
++const settle=async()=>{await tick();await tick();};
++function response(model='document-private',content=`合成译文 ${model}`){return new Response(JSON.stringify({id:'synthetic',object:'chat.completion',model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});}
++function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};}
++let store:typeof import('@/src/services/config/store'),cache:typeof import('@/src/services/translation/cache');
++let cacheRead:MockInstance,cacheWrite:MockInstance,cacheIdentity:MockInstance,transport:ReturnType<typeof vi.fn>,resetFetch:()=>void;
++let calls:Array<{url:string;body:any;signal?:AbortSignal|null}>,dispatch:ReturnType<typeof vi.fn>,nativeSender:any,browserBoundary:any;
++let server:ReturnType<typeof import('@/src/services/translation/documentChannel').createTranslationDocumentPortHandler>,pairs:ReturnType<typeof documentPortPair>[],pendingResponses:Array<(value:Response)=>void>;
++let dispose:(()=>void)|undefined,restoreBridge:(()=>void)|undefined,save:MockInstance;
++let runtime:typeof import('@/src/features/video-subtitle/content/runtime');
++let downloads:ReturnType<typeof import('@/src/features/video-subtitle/content/downloads').createVideoSubtitleDownloads>|undefined;
++const sentence='A complete original video sentence.';
++let video:HTMLVideoElement,source:HTMLElement,mode:'youtube'|'platform'|'x'='youtube';
++async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
++async function mountVideo(kind:'youtube'|'platform'|'x'='youtube'){
++ dispose?.();dispose=undefined;mode=kind;
++ Object.assign(location,new URL(kind==='youtube'?'https://www.youtube.com/watch?v=synthetic':kind==='x'?'https://x.com/synthetic/status/123':'https://www.udemy.com/course/synthetic/learn/lecture/1'));
++ location.href=kind==='youtube'?'https://www.youtube.com/watch?v=synthetic':kind==='x'?'https://x.com/synthetic/status/123':'https://www.udemy.com/course/synthetic/learn/lecture/1';
++ // URL accessors are explicit browser-boundary fields, not real page navigation.
++ for(const key of ['hostname','pathname','search','origin'])Object.assign(location,{[key]:new URL(location.href)[key as 'hostname']});
++ document.body.innerHTML=kind!=='platform'?'<div id="movie_player" class="html5-video-player"><video class="html5-main-video"></video><div class="ytp-caption-window-container"><span class="ytp-caption-segment"></span></div><div class="ytp-right-controls"><button class="ytp-fullscreen-button" aria-label="Full screen"></button></div></div>':'<div><video></video><span data-purpose="captions-cue-text"></span></div>';
++ video=document.querySelector('video')!;source=document.querySelector(kind!=='platform'?'.ytp-caption-segment':'[data-purpose="captions-cue-text"]')!;source.textContent=sentence;
++ for(const [key,value] of Object.entries({currentTime:1,duration:60,paused:false,ended:false,seeking:false,readyState:4,playbackRate:1,currentSrc:'https://media.synthetic.test/first.mp4',src:'https://media.synthetic.test/first.mp4',textTracks:Object.assign([],{addEventListener:vi.fn(),removeEventListener:vi.fn()})}))Object.defineProperty(video,key,{configurable:true,writable:true,value});
++ const downloadModule=await import('@/src/features/video-subtitle/content/downloads');if(!vi.isMockFunction(downloadModule.createVideoSubtitleDownloads)){const original=downloadModule.createVideoSubtitleDownloads;vi.spyOn(downloadModule,'createVideoSubtitleDownloads').mockImplementation(ports=>{downloads=original(ports);return downloads;});}
++ runtime=await import('@/src/features/video-subtitle/content/runtime');const ui=await import('@/src/features/video-subtitle/content/ui');save=vi.spyOn(ui,'downloadSubtitleSrt').mockImplementation(()=>{});dispose=runtime.mountVideoSubtitleTranslation();await settle();
++}
++function translatedDOM(){return (mode==='platform'?document.getElementById('fluent-read-platform-captions')?.shadowRoot?.querySelector('.translation')?.textContent:document.getElementById('fluent-read-video-subtitle')?.textContent)??'';}
++const requests=()=>dispatch.mock.calls.map(([message])=>message).filter(message=>'origin' in message);
++beforeEach(async()=>{
++ dispose=undefined;restoreBridge=undefined;
++
++    vi.resetModules(); vi.clearAllMocks(); m.values.clear(); m.target = 'firefox';m.native=true;m.cachedAiCues=[]; m.record.mockResolvedValue(undefined);
++    calls = []; pairs = []; pendingResponses = [];  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']});
++    const dom = parseHTML('<html><head><title>Synthetic page source title</title></head><body><main><p id="source">Readable synthetic source paragraph.</p></main></body></html>');
++    for (const key of ['window','document','Node','Element','HTMLElement','Text','ShadowRoot','DOMParser','HTMLStyleElement','HTMLVideoElement','HTMLButtonElement','HTMLSelectElement','Event','CustomEvent'] as const) vi.stubGlobal(key, dom.window[key]);
++    vi.stubGlobal('fetch',vi.fn(async()=>{throw new Error('Unexpected external source fetch in offline video fixture');}));
++    const stylePrototype=Object.getPrototypeOf(document.body.style);if(!stylePrototype.getPropertyPriority)stylePrototype.getPropertyPriority=()=>'';
++    const selectedValues=new WeakMap<object,string>();Object.defineProperty(HTMLSelectElement.prototype,'value',{configurable:true,get(){return selectedValues.get(this)||'';},set(value){selectedValues.set(this,value);}});
++    vi.stubGlobal('MutationObserver', BoundaryObserver); vi.stubGlobal('IntersectionObserver', BoundaryObserver);
++    vi.stubGlobal('getComputedStyle', () => ({display: 'block', visibility: 'visible', opacity: '1', position: 'static', whiteSpace: 'normal', overflowY: 'visible', getPropertyValue: () => ''}));
++    vi.stubGlobal('innerHeight', 800); vi.stubGlobal('scrollY', 0); vi.stubGlobal('scrollX', 0); vi.stubGlobal('scrollBy', vi.fn());
++    const win=window;
++    Object.assign(win,{innerWidth:1000,innerHeight:800,setTimeout,clearTimeout,setInterval,clearInterval,requestAnimationFrame:(fn:()=>void)=>setTimeout(fn,16),cancelAnimationFrame:clearTimeout,getComputedStyle,matchMedia:()=>({matches:false,addEventListener:vi.fn(),removeEventListener:vi.fn()})});
++    const location = {protocol: 'https:', href: 'https://page.synthetic.test/article'};
++    vi.stubGlobal('location', location);Object.defineProperty(window,'location',{configurable:true,value:location});
++    Object.defineProperty(document, 'location', {configurable: true, value: location});
++    Object.defineProperty(document, 'URL', {configurable: true, value: location.href});
++    Object.defineProperty(document, 'contentType', {configurable: true, value: 'text/html'});
++    if(!HTMLElement.prototype.focus)HTMLElement.prototype.focus=()=>{};
++    Object.defineProperty(HTMLElement.prototype, 'getClientRects', {configurable: true, value: () => Object.assign([{width: 600, height: 60, top: 0, left: 0, bottom: 60, right: 600}], {item: () => null})});
++    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {configurable: true, value: () => ({width: 600, height: 60, top: 0, left: 0, bottom: 60, right: 600})});
++    nativeSender = {id: 'ext', documentId: 'native-page-document', frameId: 0, url: location.href, tab: {id: 4, incognito: true}};
++    browserBoundary = {extension: {inIncognitoContext: true}, runtime: {
++        id: 'ext', getURL: (path: string) => `moz-extension://ext/${path.replace(/^\//u, '')}`, getContexts: m.contexts,
++        connect: vi.fn(() => {
++            const pair = documentPortPair(nativeSender);
++            const client = {...pair.client, name: 'fluentReadTranslationDocument:v1'};
++            const background = {...pair.background, name: 'fluentReadTranslationDocument:v1'};
++            pairs.push(pair); expect(server.connect(background)).toBe(true); return client;
++        }), sendMessage: vi.fn(async (message: any) => message.type==='fluentReadGetVideoAiSubtitleCache'?{success:true,hit:m.cachedAiCues.length>0,cues:m.cachedAiCues}:message.type === 'incrementConfigCount'
++            ? {success: true, count: await store.incrementConfigCount(message.delta, message.operationId)}
++            : 'origin' in message || message.type === 'fluentReadTranslationCancel' || message.type === 'selectionWordLookup' ? (await dispatch(message, {sender: nativeSender})).response : {success: true}),
++        onMessage: {addListener: vi.fn(), removeListener: vi.fn()},
++    }, tabs: {create: vi.fn().mockResolvedValue({})}};
++    m.nativeAPI=browserBoundary;vi.stubGlobal('browser', browserBoundary);
++    const initial = new Config();
++    initial.service = initial.selectionTranslationService = publicService;
++    initial.customOpenAIProviders = [
++        {id: publicService, name: 'Synthetic public document', endpoint: publicURL, models: ['document-public']},
++        {id: privateService, name: 'Synthetic private document', endpoint: privateURL, models: ['document-private', 'document-next', 'private-ordinary']},
++    ];
++    initial.model = {[publicService]: 'document-public', [privateService]: 'private-ordinary'};
++    initial.documentModel = {[publicService]: 'document-public', [privateService]: 'private-ordinary'};
++    initial.incognitoService = privateService; initial.incognitoModel = 'document-private';
++    initial.requireApiKey = Object.fromEntries([[publicService, 'document-public'], ...['document-private', 'document-next', 'private-ordinary'].map(model => [privateService, model])]
++        .map(pair => [`v2:${JSON.stringify(pair)}`, false]));
++    initial.selectionTranslatorMode = 'bilingual'; initial.theme = 'light'; initial.display = 1; initial.fullPageTranslationMode = 'all'; initial.pageTitleTranslationEnabled = false;
++    initial.disableFloatingBall = true; initial.disableSelectionTranslator = false; initial.disableImageTranslator = true; initial.selectionAreaEnabled = false;
++    initial.translationProgressPanelEnabled = false; initial.vocabularyReencounterEnabled = false; initial.alwaysTranslateDomains = []; initial.enableAIMultiSegment = false;
++    initial.videoService=publicService;initial.videoTranslationEnabled=true;initial.videoSubtitleVisible=true;initial.videoSubtitleDisplayMode='bilingual';initial.videoPreferHumanSubtitles=false;initial.videoMeetingAutoEnabled=false;initial.from = 'en'; initial.to = 'zh-Hans'; initial.enableAIContext = false; initial.translationMaxRetries = 0;
++    m.values.set('local:config', initial); m.contexts.mockResolvedValue([]);
++    store = await import('@/src/services/config/store'); await store.configReady;
++    const http = await import('@/src/platform/http/runtime'); resetFetch = () => http.setRuntimeFetch();
++    transport = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
++        const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal});
++        const userText = String(body.messages?.findLast((message: any) => message.role === 'user')?.content ?? '');
++        const packets = [...userText.matchAll(/(___FLUENTREAD_([a-z0-9_-]+)_(\d+)_BEGIN___)[\s\S]*?(___FLUENTREAD_\2_\3_END___)/giu)];
++        return Array.isArray(body) ? new Response(JSON.stringify(body.map(() => ({translations: [{text: '合成批量译文'}]}))), {headers: {'content-type': 'application/json'}})
++            : response(body.model, packets.length ? packets.map(match => `${match[1]}\n合成分段译文 ${match[3]}\n${match[4]}`).join('\n') : `合成译文 ${body.model}`);
++    }); http.setRuntimeFetch(transport);
++    cache = await import('@/src/services/translation/cache'); await cache.translationCache.clear();
++    cacheRead = vi.spyOn(cache.translationCache, 'get'); cacheWrite = vi.spyOn(cache.translationCache, 'set'); cacheIdentity = vi.spyOn(cache, 'buildTranslationCacheKey');
++    const handlers = await import('@/src/app/background/handlers/translation');
++    const {createBackgroundMessageRouter} = await import('@/src/app/background/messageRouter');
++    const backend = await import('@/src/app/translation/runtime');
++    const registry = handlers.createTranslationRequestRegistry(true);
++    const {serializeTranslationError} = await import('@/src/services/translation/errors');
++    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry)],
++        handlers.createNativeTranslationRequestFallback(browserBoundary.runtime, {ready: store.configReady,
++            translate: backend.translateWithCache, serializeError: serializeTranslationError, requestRegistry: registry, requireDocumentOwner: true}));
++    dispatch = vi.fn((message, context) => router.dispatch(message, context));
++    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry]});
++    await mountVideo();
++});
++afterEach(async()=>{
++ dispose?.();restoreBridge?.();pairs.forEach(pair=>pair.close());pendingResponses.forEach(finish=>finish(response('document-private','迟到合成译文')));
++ (await import('@/src/app/translation/client')).cancelAllTranslations();await settle();resetFetch?.();if(cache){await cache.translationCache.clear();cache.translationCacheDb.close();}
++ vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();
++});
++
++
++describe('actual video entry effective model route',()=>{
++ it.each(['youtube','platform'] as const)('%s chooses the frontend effective pair before context/thinking/cache planning',async kind=>{
++  if(kind==='platform')await mountVideo(kind);await pump(()=>calls.length>0);expect(calls.length).toBeGreaterThan(0);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private'});expect(calls.every(call=>call.url===privateURL&&call.body.model==='document-private')).toBe(true);expect(source.textContent).toBe(sentence);
++ });
++});
++
++function holdSDK(){
++ const gates:Array<ReturnType<typeof deferred<Response>>>=[];let released=false;
++ transport.mockImplementation(async(url:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(url),body:JSON.parse(String(init?.body)),signal:init?.signal});if(released)return response();const gate=deferred<Response>();gates.push(gate);pendingResponses.push(gate.resolve);return gate.promise;});
++ return {gates,release:()=>{released=true;gates.forEach(gate=>gate.resolve(response()));}};
++}
++async function startHeld(kind:'youtube'|'platform'='youtube'){const held=holdSDK();if(kind==='platform')await mountVideo(kind);await pump(()=>calls.length>0);expect(calls.length).toBeGreaterThan(0);return held;}
++function capture(cues=[{startMs:0,durationMs:5000,text:sentence}]){
++ const event=new Event('message');Object.defineProperties(event,{source:{value:window},origin:{value:location.origin},data:{value:{source:'fluent-read',type:'fluent-read-youtube-timedtext',url:'https://www.youtube.com/api/timedtext?v=synthetic&lang=en',responseText:JSON.stringify({events:cues.map(cue=>({tStartMs:cue.startMs,dDurationMs:cue.durationMs,segs:[{utf8:cue.text}]}))})}}});window.dispatchEvent(event);
++}
++function exportButton(bilingual=false){const eventOpen=new Event('click',{bubbles:true,cancelable:true});Object.defineProperty(eventOpen,'isTrusted',{value:true});document.querySelector<HTMLButtonElement>('#fluent-read-video-subtitle-button')!.dispatchEvent(eventOpen);const button=document.querySelector<HTMLButtonElement>(`[data-action="download-${bilingual?'bilingual':'translated'}-subtitles"]`);expect(button).not.toBeNull();const event=new Event('click',{bubbles:true,cancelable:true});Object.defineProperty(event,'isTrusted',{value:true});button!.dispatchEvent(event);return button!;}
++async function routeBridge(){vi.stubGlobal('history',{pushState:(_state:unknown,_unused:string,url?:string|URL|null)=>changeURL(new URL(String(url),location.href).href),replaceState:(_state:unknown,_unused:string,url?:string|URL|null)=>changeURL(new URL(String(url),location.href).href)});restoreBridge=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();}
++function changeURL(href:string){const next=new URL(href);for(const key of ['href','hostname','pathname','search','origin'] as const)Object.assign(location,{[key]:next[key]});nativeSender.url=href;}
++
++describe('both actual video runtimes native lifetime and safety',()=>{
++ it.each(['youtube','platform'] as const)('%s freezes dedicated prompt/thinking and ignores missing ordinary model credentials',async kind=>{
++  await store.requestConfigPatch({service:catalog.services.openai,videoService:catalog.services.openai,model:{},customModel:{},system_role:{openai:'ORDINARY_VIDEO_PROMPT',[privateService]:'PRIVATE_VIDEO_PROMPT'},modelThinking:{[privateService]:{'document-private':true}}});if(kind==='platform')await mountVideo(kind);await pump(()=>calls.length>0);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private',thinkingOverride:true});expect(JSON.stringify(calls.map(call=>call.body))).toContain('PRIVATE_VIDEO_PROMPT');expect(JSON.stringify(calls.map(call=>call.body))).not.toContain('ORDINARY_VIDEO_PROMPT');expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s frontend unknown closes before cache/SDK while original subtitle remains',async kind=>{
++  browserBoundary.extension.inIncognitoContext=undefined;if(kind==='platform')await mountVideo(kind);await pump();expect(requests()).toEqual([]);expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s native unknown refuses frontend true without cache/SDK',async kind=>{
++  nativeSender.tab.incognito=undefined;if(kind==='platform')await mountVideo(kind);await pump();expect(requests().length).toBeGreaterThan(0);expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s missing dedicated requirement blocks provider and preserves raw source',async kind=>{
++  await store.requestConfigPatch({requireApiKey:{[`v2:${JSON.stringify([privateService,'document-private'])}`]:true}});if(kind==='platform')await mountVideo(kind);await pump();expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ const patches={model:()=>({incognitoModel:'document-next'}),endpoint:()=>({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://saved-video.synthetic.test/v1/chat/completions'}:p)}),videoService:()=>({videoService:catalog.services.microsoft}),ordinaryModel:()=>({model:{...store.config.model,[publicService]:'ordinary-changed'}}),prompt:()=>({system_role:{[privateService]:'UPDATED_VIDEO_PROMPT'}}),thinking:()=>({modelThinking:{[privateService]:{'document-private':true}}}),context:()=>({enableAIContext:true}),cache:()=>({useCache:false}),from:()=>({from:'auto'}),to:()=>({to:'de'}),multiSegment:()=>({enableAIMultiSegment:true})};
++ it.each((['youtube','platform'] as const).flatMap(kind=>(Object.keys(patches) as Array<keyof typeof patches>).map(patch=>[kind,patch] as const)))('%s actual save %s cancels old SDK/DOM/cache and retains source',async(kind,patch)=>{
++  const held=await startHeld(kind),old=calls[0];await store.requestConfigPatch(patches[patch]());await settle();expect(old.signal?.aborted).toBe(true);held.gates[0].resolve(response('document-private','迟到旧视频译文'));await settle();expect(translatedDOM()).not.toContain('迟到旧视频译文');expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each((['youtube','platform'] as const).flatMap(kind=>(['pushState','replaceState'] as const).map(method=>[kind,method] as const)))('%s actual bridge %s cancels old SDK before poll and prevents late result',async(kind,method)=>{
++  await routeBridge();const held=await startHeld(kind),old=calls[0];history[method]({},'',kind==='youtube'?'/watch?v=second':'/course/synthetic/learn/lecture/2');await settle();expect(old.signal?.aborted).toBe(true);held.gates[0].resolve(response('document-private','迟到导航译文'));await settle();expect(translatedDOM()).not.toContain('迟到导航译文');expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s changed media signal cancels without waiting for polling',async kind=>{
++  const held=await startHeld(kind),old=calls[0];Object.defineProperty(video,'currentSrc',{configurable:true,writable:true,value:'https://media.synthetic.test/second.mp4'});video.dispatchEvent(new Event('loadedmetadata',{bubbles:true}));await settle();expect(old.signal?.aborted).toBe(true);held.gates[0].resolve(response('document-private','迟到旧媒体译文'));await settle();expect(translatedDOM()).not.toContain('迟到旧媒体译文');expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each((['youtube','platform'] as const).flatMap(kind=>(['pagehide','unmount'] as const).map(action=>[kind,action] as const)))('%s %s cancels requests and rejects late source generation',async(kind,action)=>{
++  const held=await startHeld(kind),old=calls[0];if(action==='pagehide')window.dispatchEvent(new Event('pagehide'));else{dispose?.();dispose=undefined;}await settle();expect(old.signal?.aborted).toBe(true);held.gates[0].resolve(response('document-private','迟到卸载译文'));await settle();expect(translatedDOM()).not.toContain('迟到卸载译文');expect(cacheWrite).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s count/UI saves preserve current request',async kind=>{const held=await startHeld(kind),old=calls[0];await store.requestConfigPatch({count:5,uiLanguage:'en'});expect(old.signal?.aborted).toBe(false);held.release();await pump(()=>translatedDOM().includes('合成译文'));expect(cacheWrite).toHaveBeenCalled();expect(translatedDOM()).toContain('合成译文');});
++ it.each(['youtube','platform'] as const)('%s native false keeps ordinary pair and installs no lifetime route handler',async kind=>{
++  dispose?.();dispose=undefined;m.native=false;delete browserBoundary.extension;nativeSender.tab.incognito=undefined;const add=vi.spyOn(document,'addEventListener');await mountVideo(kind);await pump(()=>calls.length>0);expect(calls[0]).toMatchObject({url:publicURL,body:{model:'document-public'}});expect(requests()[0]).toMatchObject({serviceOverride:publicService,modelOverride:'document-public'});expect(add.mock.calls.filter(([name])=>name==='fluentread-route-change')).toEqual([]);
++ });
++});
++
++describe('actual YouTube entry export request ownership',()=>{
++ it.each([false,true])('actual %s export uses dedicated pair and keeps captured original cues',async bilingual=>{
++  capture();exportButton(bilingual);await pump(()=>save.mock.calls.length>0);expect(save).toHaveBeenCalledOnce();expect(requests().every(request=>request.serviceOverride===privateService&&request.modelOverride==='document-private')).toBe(true);expect(save.mock.calls[0][0][0].text).toContain('合成译文');if(bilingual)expect(save.mock.calls[0][0][0].text).toContain(sentence);expect((await downloads!.resolve()).cues[0].text).toBe(sentence);expect(source.textContent).toBe(sentence);
++ });
++ it('export-only cancel aborts its request identity while same-source playback continues',async()=>{
++  const held=holdSDK();capture();await pump(()=>calls.length>0);exportButton();await pump(()=>calls.length>=2);expect(requests()).toHaveLength(2);expect(new Set(requests().map(request=>request.clientRequestId)).size).toBe(2);downloads!.cancel();await settle();expect(calls[0].signal?.aborted).toBe(false);expect(calls[1].signal?.aborted).toBe(true);held.release();await pump(()=>translatedDOM().includes('合成译文'));expect(save).not.toHaveBeenCalled();expect(translatedDOM()).toContain('合成译文');expect((await downloads!.resolve()).cues[0].text).toBe(sentence);
++ });
++ it('playback-only original mode aborts its request while same-source export keeps its own identity',async()=>{
++  const held=holdSDK();capture();await pump(()=>calls.length>0);exportButton();await pump(()=>calls.length>=2);await store.requestConfigPatch({videoSubtitleDisplayMode:'original-only'});await settle();expect(calls[0].signal?.aborted).toBe(true);expect(calls[1].signal?.aborted).toBe(false);held.release();await pump(()=>save.mock.calls.length>0);expect(save).toHaveBeenCalledOnce();expect(save.mock.calls[0][0][0].text).toContain('合成译文');expect((await downloads!.resolve()).cues[0].text).toBe(sentence);
++ });
++ it.each(['save','route','media','unmount'] as const)('%s cancels playback and export identities before late save/cache',async action=>{
++  await routeBridge();const held=holdSDK();capture();await pump(()=>calls.length>0);exportButton(true);await pump(()=>calls.length>=2);const old=[...calls];if(action==='save')await store.requestConfigPatch({incognitoModel:'document-next'});else if(action==='route')history.pushState({},'','/watch?v=second');else if(action==='media'){Object.defineProperty(video,'currentSrc',{configurable:true,writable:true,value:'https://media.synthetic.test/second.mp4'});video.dispatchEvent(new Event('loadedmetadata',{bubbles:true}));}else{dispose?.();dispose=undefined;}await settle();expect(old.every(call=>call.signal?.aborted)).toBe(true);held.gates.slice(0,2).forEach(gate=>gate.resolve(response('document-private','迟到导出译文')));await settle();expect(save).not.toHaveBeenCalled();expect(cacheWrite).not.toHaveBeenCalled();expect(translatedDOM()).not.toContain('迟到导出译文');expect(source.textContent).toBe(sentence);
++ });
++});
++
++describe('video cache/source and compatibility controls',()=>{
++ it.each(['youtube','platform'] as const)('%s resolves private context capability before ordinary machine path',async kind=>{
++  const context=await import('@/src/services/translation/context');const captureContext=vi.spyOn(context,'getPageTranslationContext').mockResolvedValue('SYNTHETIC_PRIVATE_VIDEO_CONTEXT');await store.requestConfigPatch({service:catalog.services.microsoft,videoService:catalog.services.microsoft,enableAIContext:true});if(kind==='platform')await mountVideo(kind);await pump(()=>calls.length>0);expect(captureContext).toHaveBeenCalled();expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private',pageContext:'SYNTHETIC_PRIVATE_VIDEO_CONTEXT'});expect(calls[0]).toMatchObject({url:privateURL,body:{model:'document-private'}});
++ });
++ it.each((['youtube','platform'] as const).flatMap(kind=>['true',1].map(hint=>[kind,hint] as const)))('%s wrong-typed native %s refuses despite frontend true',async(kind,hint)=>{
++  nativeSender.tab.incognito=hint;if(kind==='platform')await mountVideo(kind);await pump();expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each((['youtube','platform'] as const).flatMap(kind=>['true',1].map(hint=>[kind,hint] as const)))('%s wrong-typed frontend %s refuses before message/cache',async(kind,hint)=>{
++  browserBoundary.extension.inIncognitoContext=hint;if(kind==='platform')await mountVideo(kind);await pump();expect(requests()).toEqual([]);expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(source.textContent).toBe(sentence);
++ });
++ it.each((['youtube','platform'] as const).flatMap(kind=>(['regular-invalid','private-empty','unknown-empty'] as const).map(variant=>[kind,variant] as const)))('%s %s uses ordinary model path',async(kind,variant)=>{
++  browserBoundary.extension.inIncognitoContext=variant==='regular-invalid'?false:variant==='unknown-empty'?undefined:true;nativeSender.tab.incognito=browserBoundary.extension.inIncognitoContext;
++  await store.requestConfigPatch({incognitoService:variant==='regular-invalid'?'custom:missing':'',incognitoModel:variant==='regular-invalid'?'missing':''});if(kind==='platform')await mountVideo(kind);await pump(()=>calls.length>0);expect(calls[0]).toMatchObject({url:publicURL,body:{model:'document-public'}});expect(source.textContent).toBe(sentence);
++ });
++ it.each(['youtube','platform'] as const)('%s actual regular/private/endpoint cache identity stays distinct without transport markers',async kind=>{
++  if(kind==='platform')await mountVideo(kind);await pump(()=>translatedDOM().includes('合成译文'));expect(calls).toHaveLength(1);await mountVideo(kind);await pump(()=>translatedDOM().includes('合成译文'));expect(calls).toHaveLength(1);expect(cacheRead.mock.calls.length).toBeGreaterThan(1);
++  pairs.forEach(pair=>pair.close());await settle();browserBoundary.extension.inIncognitoContext=false;nativeSender={...nativeSender,documentId:'native-regular-video-document',tab:{id:5,incognito:false}};await store.requestConfigPatch({incognitoModel:'document-next'});await pump(()=>calls.length>=2);expect(calls[1]).toMatchObject({url:publicURL,body:{model:'document-public'}});
++  pairs.forEach(pair=>pair.close());await settle();browserBoundary.extension.inIncognitoContext=true;nativeSender={...nativeSender,documentId:'native-next-private-video-document',tab:{id:6,incognito:true}};await store.requestConfigPatch({videoService:publicService,customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://next-video.synthetic.test/v1/chat/completions'}:p)});await pump(()=>calls.some(call=>call.url==='https://next-video.synthetic.test/v1/chat/completions'));expect(cacheIdentity.mock.calls.length).toBeGreaterThan(1);expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
++ });
++ it('a cancelled previous export cannot replace a newer completed export feedback or file',async()=>{
++  const held=holdSDK();capture();exportButton(false);await pump(()=>calls.length>=2);const menu=document.getElementById('fluent-read-video-subtitle-menu')!,button=menu.querySelector<HTMLButtonElement>('[data-action="download-bilingual-subtitles"]')!;
++  const latest=downloads!.translated(menu,button,true);await settle();expect(calls[1].signal?.aborted).toBe(true);held.release();let done=false;void latest.finally(()=>{done=true;});await pump(()=>done);await latest;expect(save).toHaveBeenCalledOnce();expect(save.mock.calls[0][1]).toBe('zh-Hans-bilingual');expect(menu.querySelector('[data-download-status]')?.textContent).not.toContain('取消');
++ });
++ it('native false export keeps legacy shared frontend request and succeeds with ordinary model',async()=>{
++  dispose?.();dispose=undefined;m.native=false;await mountVideo();const held=holdSDK();capture();await pump(()=>calls.length>0);exportButton();await settle();expect(requests()).toHaveLength(1);held.release();await pump(()=>save.mock.calls.length>0);expect(save).toHaveBeenCalledOnce();expect(calls[0].url).toBe(publicURL);
++ });
++ it('X restores synthetic cached ASR source without inference/download and retains it across model save/export',async()=>{
++  m.cachedAiCues=[{startMs:0,durationMs:5000,text:'An original cached ASR sentence.'}];const raw=structuredClone(m.cachedAiCues);await mountVideo('x');await pump(()=>calls.length>0);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private'});const sourceCues=(await downloads!.resolve()).cues;expect(sourceCues).toMatchObject(raw);await store.requestConfigPatch({incognitoModel:'document-next'});expect((await downloads!.resolve()).cues).toEqual(sourceCues);expect(m.cachedAiCues).toEqual(raw);exportButton(true);await pump(()=>save.mock.calls.length>0);expect(save).toHaveBeenCalledOnce();expect(save.mock.calls[0][0][0].text).toContain(raw[0].text);expect(browserBoundary.runtime.sendMessage.mock.calls.map(([message]:any)=>message.type)).not.toContain('fluentReadTranscribeLocalVideoAudio');
++ });
++});
+diff --git a/tests/videoSubtitleDownloads.test.ts b/tests/videoSubtitleDownloads.test.ts
+index d828a980..cfbbf09b 100644
+--- a/tests/videoSubtitleDownloads.test.ts
++++ b/tests/videoSubtitleDownloads.test.ts
+@@ -1,6 +1,8 @@
+ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+ import {parseHTML} from 'linkedom';
+ import {Config} from '@/src/core/config/model';
++// 显式保留旧适配器的参数与反馈合同；新增原生 signal/代次通过 videoPrivacyRoute 的真实调用验证。
++vi.mock('@/src/core/config/incognitoRoute', async original => ({...await original<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
+ import {createVideoSubtitleDownloads} from '@/src/features/video-subtitle/content/downloads';
+
+ type Ports = Parameters<typeof createVideoSubtitleDownloads>[0];
+diff --git a/tests/videoSubtitleLogic.test.ts b/tests/videoSubtitleLogic.test.ts
+index 80548adb..32b9f43b 100644
+--- a/tests/videoSubtitleLogic.test.ts
++++ b/tests/videoSubtitleLogic.test.ts
+@@ -1,4 +1,6 @@
+-import {describe, expect, it} from 'vitest';
++import {describe, expect, it, vi} from 'vitest';
++// 原油猴/旧平台指纹合同；原生完整公开映射的保守撤销由 videoPrivacyRoute 实际保存验证。
++vi.mock('@/src/core/config/incognitoRoute', async original => ({...await original<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
+ import {Config} from '@/src/core/config/model';
+ import {createGlossaryLibrary} from '@/src/core/glossary';
+ import {getVideoTranslationConfigFingerprint, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, selectVideoSubtitlePretranslationCues, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';
+diff --git a/vitest.coverage.config.ts b/vitest.coverage.config.ts
+index 0173336b..8b1a59e7 100644
+--- a/vitest.coverage.config.ts
++++ b/vitest.coverage.config.ts
+@@ -191,6 +191,7 @@ export default defineConfig({
+             'tests/fullPagePriority.test.ts',
+             'tests/fullPageVisibilityScheduling.test.ts',
+             'tests/wordCardPrivacyRoute.test.ts',
++            'tests/videoPrivacyRoute.test.ts',
+             'tests/fullPagePrivacyRoute.test.ts',
+             'tests/fullPageTranslationIndicators.test.ts',
+             'tests/liveTextRender.test.ts',

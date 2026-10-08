@@ -1,0 +1,26 @@
+{
+  "label": "video-target-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "tests/videoSubtitleDownloads.test.ts",
+    "tests/videoTranslationCache.test.ts",
+    "tests/videoPretranslationController.test.ts",
+    "tests/videoCaptionPlatformRuntime.test.ts",
+    "tests/videoSubtitleLogic.test.ts",
+    "tests/videoTranslationScheduler.test.ts",
+    "tests/mainWorldBridgeCore.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-target-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:12:02.771340+00:00",
+  "duration_seconds": 6.27,
+  "exit_code": 0
+}

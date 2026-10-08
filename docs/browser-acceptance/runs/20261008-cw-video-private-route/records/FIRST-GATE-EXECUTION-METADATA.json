@@ -1,0 +1,32 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "执行已授权视频隐私最小完整切片的冻结全量门禁。既有 WebDAV 合成测试临时绑定 127.0.0.1，既有 userscript 源检查需要本地只读 git 子进程；仅本次独立执行审核，不新增持久网络、产品权限或远程控制端口，不运行真实 API、ASR 模型下载、GPU/GUI 或 PR 操作。"
+  },
+  "result": {
+    "chunk_id": "10a2bf",
+    "wall_time_seconds": 1.00119717,
+    "session_id": 82549,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Current video gates only; existing temporary local fixture requirements independently requested; no persistent/product permission changes.",
+  "completionObserved": {
+    "source": "Actual tools.write_stdin result chunk 046496 for same session",
+    "sessionId": 82549,
+    "gateRunnerExitCode": 1,
+    "testsPassed": 10284,
+    "branchCoverageCovered": 33846,
+    "branchCoverageTotal": 33847,
+    "missingBranch": "pretranslationController.ts initial source fallback video?.src",
+    "laterGatesNotStarted": true
+  }
+}

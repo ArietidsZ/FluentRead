@@ -1,0 +1,20 @@
+{
+  "label": "video-baseline-fixture-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-baseline-fixture-second.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:49:22.645726+00:00",
+  "duration_seconds": 1.376,
+  "exit_code": 1
+}

@@ -1,0 +1,15 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-expanded-third.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ❯ tests/videoPrivacyRoute.test.ts (53 tests | 1 failed) 3924ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 820ms
+   × actual YouTube entry export request ownership > export-only cancel aborts its request identity while same-source playback continues 67ms
+     → expected '' to contain '合成译文'
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 52 passed (53)
+   Start at  05:55:27
+   Duration  4.44s (transform 753ms, setup 0ms, collect 369ms, tests 3.92s, environment 0ms, prepare 28ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-expanded-third.results.json

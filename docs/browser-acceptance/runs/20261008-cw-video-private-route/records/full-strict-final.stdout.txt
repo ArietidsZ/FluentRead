@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --no-cache --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final --reporter=json --outputFile=<CW-EVIDENCE>/full-strict-final.results.json
+JSON report written to <CW-EVIDENCE>/full-strict-final.results.json

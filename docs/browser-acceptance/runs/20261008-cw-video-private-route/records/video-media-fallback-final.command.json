@@ -1,0 +1,19 @@
+{
+  "label": "video-media-fallback-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPretranslationController.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/video-media-fallback-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:11:35.118308+00:00",
+  "duration_seconds": 0.27,
+  "exit_code": 0
+}

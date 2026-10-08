@@ -1,0 +1,38 @@
+{
+  "source": "Actual final exec_command request and immediate tool result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 2500,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "静态审计发现动态标题重名，已把六组表改为字面量参数标题，保持75控制与全部生产字节；审计及专项163通过、最终夹具基线负控16预期失败。对新测试SHA冻结输入完成十项门禁，拒绝重复已完成final记录。既有临时127.0.0.1夹具/只读git子进程限本次，不改持久/产品权限，不调用真实API/ASR/GPU/GUI，不操作PR。"
+  },
+  "result": {
+    "chunk_id": "c28a00",
+    "wall_time_seconds": 1.001452998,
+    "session_id": 18180,
+    "original_token_count": 83,
+    "output": "{\"label\": \"test-audit-complete\", \"cwd\": \"<CW-REPO>\", \"duration_seconds\": 0.801, \"exit_code\": 0}\n{\n  \"status\": \"ok\",\n  \"groups\": {\n    \"architecture\": 32,\n    \"unit\": 308,\n    \"functional\": 122,\n    \"regression\": 38\n  },\n  \"files\": 500,\n  \"cases\": 6924\n}\n\n\n"
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Fourth complete video gate execution bound to final static Cartesian test titles; prior coverage failures, third full pass/interruption and failed static audit are preserved. Production bytes unchanged. No persistent/product permission changes.",
+  "completionToolObservation": {
+    "tool": "write_stdin",
+    "request": {
+      "session_id": 18180,
+      "chars": "",
+      "yield_time_ms": 30000,
+      "max_output_tokens": 5000
+    },
+    "returnedFields": {
+      "chunk_id": "a67649",
+      "wall_time_seconds": 25.140272016,
+      "exit_code": 0
+    },
+    "outputFinalLine": "All final gates completed against the same frozen source inputs.",
+    "signedApprovalDecisionExposed": false
+  }
+}

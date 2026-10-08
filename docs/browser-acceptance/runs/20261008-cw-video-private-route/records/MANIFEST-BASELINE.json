@@ -1,0 +1,314 @@
+{
+  "chrome-mv3": {
+    "manifest_version": 3,
+    "name": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+    "description": "Closer languages. A bigger world. \u8ba9\u8bed\u8a00\u66f4\u8fd1\uff0c\u8ba9\u4e16\u754c\u66f4\u5927\u3002",
+    "version": "0.0.35",
+    "icons": {
+      "16": "icon/16.png",
+      "32": "icon/32.png",
+      "48": "icon/48.png",
+      "64": "icon/64.png",
+      "128": "icon/128.png"
+    },
+    "permissions": [
+      "storage",
+      "unlimitedStorage",
+      "alarms",
+      "contextMenus",
+      "declarativeNetRequestWithHostAccess",
+      "identity",
+      "offscreen"
+    ],
+    "content_security_policy": {
+      "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    },
+    "host_permissions": [
+      "<all_urls>",
+      "https://translate.google.com/*",
+      "https://translate.google.co.uk/*",
+      "https://translate.googleapis.com/*",
+      "https://dev.microsofttranslator.com/*",
+      "https://*.tts.speech.microsoft.com/*",
+      "https://deeplx.1stg.me/*",
+      "https://freeapi.fanyimao.cn/*",
+      "https://api.deeplx.org/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+      "http://*/*",
+      "https://*/*"
+    ],
+    "web_accessible_resources": [
+      {
+        "resources": [
+          "icon/32.png",
+          "icon/48.png",
+          "icon/128.png",
+          "i18n/*.json"
+        ],
+        "matches": [
+          "<all_urls>"
+        ],
+        "use_dynamic_url": true
+      },
+      {
+        "resources": [
+          "content-scripts/content.css"
+        ],
+        "use_dynamic_url": true,
+        "matches": [
+          "<all_urls>"
+        ]
+      },
+      {
+        "resources": [
+          "content-scripts/neteaseMailFrame.css"
+        ],
+        "use_dynamic_url": true,
+        "matches": [
+          "https://*.mail.126.com/*",
+          "https://*.mail.163.com/*",
+          "https://*.mail.yeah.net/*"
+        ]
+      },
+      {
+        "resources": [
+          "content-scripts/supportedFrame.css"
+        ],
+        "use_dynamic_url": true,
+        "matches": [
+          "https://disqus.com/*",
+          "https://mail.qq.com/*",
+          "https://www.kaggleusercontent.com/*"
+        ]
+      }
+    ],
+    "oauth2": {
+      "client_id": "474699705334-7fua4hnkq1nmfu92cof0kdnmqsk5kth8.apps.googleusercontent.com",
+      "scopes": [
+        "https://www.googleapis.com/auth/drive.appdata"
+      ]
+    },
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzyYQdG/K1kp2h+orQITmCJYrUP3FkUgay+KYlUMO74J0uaOBJ0A2lz0kooci0epVm3DKIqiFMQs8g5pGxKfwieLYju4/v6jK4X3AnRH+3Wj0WhnY0yMD61IN/HissrFnmBTfApW7BoVfjUUwhsHJ7pYJHMhgpbidJ15SA7X82iRpu+WxE413BKSi2q6TwNSgi7D1Vq6W9Iuaz1tPQW9CGgfir3P5enUqUasLv6icLVXq5xduFISrsJxZW0dJyGxpwOqEBGbg2g9i73M/iFao7N7pZdBvZJh63ZzlZTNM7FshCzkZpM0MJhuJhrLmR1AYCWQ1kiTfwCX+6EvAgBQyrQIDAQAB",
+    "background": {
+      "service_worker": "background.js"
+    },
+    "action": {
+      "default_title": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+      "default_popup": "popup.html"
+    },
+    "options_ui": {
+      "open_in_tab": true,
+      "page": "options.html"
+    },
+    "content_scripts": [
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/content.js"
+        ]
+      },
+      {
+        "matches": [
+          "https://*.mail.126.com/*",
+          "https://*.mail.163.com/*",
+          "https://*.mail.yeah.net/*"
+        ],
+        "all_frames": true,
+        "match_about_blank": true,
+        "run_at": "document_end",
+        "js": [
+          "content-scripts/neteaseMailFrame.js"
+        ]
+      },
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/shadowBridge.js"
+        ],
+        "world": "MAIN"
+      },
+      {
+        "matches": [
+          "https://disqus.com/embed/comments/*",
+          "https://mail.qq.com/cgi-bin/readmail*",
+          "https://www.kaggleusercontent.com/kf/*/__results__.html*"
+        ],
+        "all_frames": true,
+        "run_at": "document_end",
+        "js": [
+          "content-scripts/supportedFrame.js"
+        ]
+      },
+      {
+        "matches": [
+          "*://*.twitter.com/*",
+          "*://*.x.com/*",
+          "*://twitter.com/*",
+          "*://x.com/*"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/xVideoBridge.js"
+        ],
+        "world": "MAIN"
+      },
+      {
+        "matches": [
+          "*://*.youtube.com/*",
+          "*://youtube.com/*"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/youtubeBridge.js"
+        ],
+        "world": "MAIN"
+      }
+    ]
+  },
+  "firefox-mv2": {
+    "manifest_version": 2,
+    "name": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+    "description": "Closer languages. A bigger world. \u8ba9\u8bed\u8a00\u66f4\u8fd1\uff0c\u8ba9\u4e16\u754c\u66f4\u5927\u3002",
+    "version": "0.0.35",
+    "icons": {
+      "16": "icon/16.png",
+      "32": "icon/32.png",
+      "48": "icon/48.png",
+      "64": "icon/64.png",
+      "128": "icon/128.png"
+    },
+    "permissions": [
+      "storage",
+      "unlimitedStorage",
+      "alarms",
+      "contextMenus",
+      "declarativeNetRequestWithHostAccess",
+      "<all_urls>",
+      "https://translate.google.com/*",
+      "https://translate.google.co.uk/*",
+      "https://translate.googleapis.com/*",
+      "https://dev.microsofttranslator.com/*",
+      "https://*.tts.speech.microsoft.com/*",
+      "https://deeplx.1stg.me/*",
+      "https://freeapi.fanyimao.cn/*",
+      "https://api.deeplx.org/*",
+      "http://localhost/*",
+      "http://127.0.0.1/*",
+      "http://*/*",
+      "https://*/*"
+    ],
+    "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+    "web_accessible_resources": [
+      "icon/32.png",
+      "icon/48.png",
+      "icon/128.png",
+      "i18n/*.json",
+      "content-scripts/content.css",
+      "content-scripts/neteaseMailFrame.css",
+      "content-scripts/supportedFrame.css"
+    ],
+    "browser_specific_settings": {
+      "gecko": {
+        "id": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+        "strict_min_version": "140.0",
+        "data_collection_permissions": {
+          "required": [
+            "websiteContent",
+            "authenticationInfo",
+            "personalCommunications"
+          ]
+        }
+      }
+    },
+    "background": {
+      "scripts": [
+        "background.js"
+      ]
+    },
+    "browser_action": {
+      "default_title": "FluentRead-\u6d41\u7545\u9605\u8bfb",
+      "default_popup": "popup.html"
+    },
+    "options_ui": {
+      "open_in_tab": true,
+      "page": "options.html"
+    },
+    "content_scripts": [
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/content.js"
+        ]
+      },
+      {
+        "matches": [
+          "https://*.mail.126.com/*",
+          "https://*.mail.163.com/*",
+          "https://*.mail.yeah.net/*"
+        ],
+        "all_frames": true,
+        "match_about_blank": true,
+        "run_at": "document_end",
+        "js": [
+          "content-scripts/neteaseMailFrame.js"
+        ]
+      },
+      {
+        "matches": [
+          "<all_urls>"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/shadowBridge.js"
+        ],
+        "world": "MAIN"
+      },
+      {
+        "matches": [
+          "https://disqus.com/embed/comments/*",
+          "https://mail.qq.com/cgi-bin/readmail*",
+          "https://www.kaggleusercontent.com/kf/*/__results__.html*"
+        ],
+        "all_frames": true,
+        "run_at": "document_end",
+        "js": [
+          "content-scripts/supportedFrame.js"
+        ]
+      },
+      {
+        "matches": [
+          "*://*.twitter.com/*",
+          "*://*.x.com/*",
+          "*://twitter.com/*",
+          "*://x.com/*"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/xVideoBridge.js"
+        ],
+        "world": "MAIN"
+      },
+      {
+        "matches": [
+          "*://*.youtube.com/*",
+          "*://youtube.com/*"
+        ],
+        "run_at": "document_start",
+        "js": [
+          "content-scripts/youtubeBridge.js"
+        ],
+        "world": "MAIN"
+      }
+    ]
+  }
+}

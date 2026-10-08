@@ -1,0 +1,27 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-expanded-second.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ❯ tests/videoPrivacyRoute.test.ts (53 tests | 7 failed) 3802ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 788ms
+   × actual YouTube entry export request ownership > actual false export uses dedicated pair and keeps captured original cues 59ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > actual true export uses dedicated pair and keeps captured original cues 57ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > export-only cancel aborts its request identity while same-source playback continues 46ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > save cancels playback and export identities before late save/cache 52ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > route cancels playback and export identities before late save/cache 52ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > media cancels playback and export identities before late save/cache 49ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+   × actual YouTube entry export request ownership > unmount cancels playback and export identities before late save/cache 46ms
+     → Cannot read properties of null (reading 'dispatchEvent')
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 46 passed (53)
+   Start at  05:55:13
+   Duration  4.27s (transform 711ms, setup 0ms, collect 333ms, tests 3.80s, environment 0ms, prepare 24ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-expanded-second.results.json

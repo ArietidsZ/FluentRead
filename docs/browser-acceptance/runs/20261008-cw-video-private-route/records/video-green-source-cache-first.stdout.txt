@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts tests/videoPretranslationController.test.ts tests/videoSubtitleLogic.test.ts tests/videoSubtitleDownloads.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-source-cache-first.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ❯ tests/videoPrivacyRoute.test.ts (64 tests | 3 failed) 4048ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 749ms
+   × video cache/source and compatibility controls > youtube actual regular/private/endpoint cache identity stays distinct without transport markers 61ms
+     → Cannot read properties of undefined (reading 'url')
+   × video cache/source and compatibility controls > platform actual regular/private/endpoint cache identity stays distinct without transport markers 61ms
+     → Cannot read properties of undefined (reading 'url')
+   × video cache/source and compatibility controls > X restores synthetic cached ASR source without inference/download and retains it across model save/export 58ms
+     → expected [ { startMs: +0, …(5) } ] to deeply equal [ { startMs: +0, …(2) } ]
+ ✓ tests/videoSubtitleLogic.test.ts (21 tests) 32ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 17ms
+ ✓ tests/videoPretranslationController.test.ts (4 tests) 4ms
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  3 failed | 93 passed (96)
+   Start at  06:00:20
+   Duration  4.94s (transform 695ms, setup 0ms, collect 463ms, tests 4.10s, environment 0ms, prepare 84ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-source-cache-first.results.json

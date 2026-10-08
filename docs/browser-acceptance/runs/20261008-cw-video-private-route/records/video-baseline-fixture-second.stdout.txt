@@ -1,0 +1,18 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-baseline-fixture-second.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ❯ tests/videoPrivacyRoute.test.ts (2 tests | 2 failed) 803ms
+   × actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 735ms
+     → expected { …(14) } to match object { …(2) }
+(12 matching properties omitted from actual)
+   × actual video entry effective model route > platform chooses the frontend effective pair before context/thinking/cache planning 67ms
+     → expected { …(14) } to match object { …(2) }
+(12 matching properties omitted from actual)
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  05:49:22
+   Duration  1.20s (transform 655ms, setup 0ms, collect 291ms, tests 803ms, environment 0ms, prepare 22ms)
+
+JSON report written to <CW-EVIDENCE>/video-baseline-fixture-second.results.json

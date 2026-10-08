@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache -t effective model route|freezes dedicated prompt|private context capability|actual save model |actual bridge|changed media signal|export-only cancel|playback-only original --reporter=json --outputFile=<CW-EVIDENCE>/video-baseline-frozen-red.results.json
+JSON report written to <CW-EVIDENCE>/video-baseline-frozen-red.results.json

@@ -1,0 +1,22 @@
+{
+  "source": "Actual continuation exec_command request and immediate tool result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-remaining-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 2500,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "冻结源码的严格回归10285项与四项100%已退出0；随后等待工具中断，无后续门禁记录或存活runner。仅续跑剩余九项审计/架构/类型/三构建/核验/文档，脚本拒绝重复已完成项。既有夹具临时loopback与只读git子进程按本次审核；不改持久/产品权限，不调用真实API/GPU/GUI，不操作PR。"
+  },
+  "result": {
+    "chunk_id": "e7614e",
+    "wall_time_seconds": 0.825415329,
+    "exit_code": 1,
+    "original_token_count": 213,
+    "output": "{\"label\": \"test-audit-complete\", \"cwd\": \"<CW-REPO>\", \"duration_seconds\": 0.759, \"exit_code\": 1}\n\n测试套件审计失败：\n- 重复测试名：both actual video runtimes native lifetime and safety > <dynamic>（tests/videoPrivacyRoute.test.ts:162 与 tests/videoPrivacyRoute.test.ts:165）\n- 重复测试名：both actual video runtimes native lifetime and safety > <dynamic>（tests/videoPrivacyRoute.test.ts:162 与 tests/videoPrivacyRoute.test.ts:171）\n- 重复测试名：video cache/source and compatibility controls > <dynamic>（tests/videoPrivacyRoute.test.ts:199 与 tests/videoPrivacyRoute.test.ts:202）\n- 重复测试名：video cache/source and compatibility controls > <dynamic>（tests/videoPrivacyRoute.test.ts:199 与 tests/videoPrivacyRoute.test.ts:205）\n\n"
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Resume only nine uncompleted gates after full strict recorded exit 0 and the waiting tool was interrupted; frozen production inputs unchanged."
+}

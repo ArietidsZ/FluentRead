@@ -1,0 +1,13 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-source-cache-third.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ✓ tests/videoPrivacyRoute.test.ts (74 tests) 4667ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 739ms
+
+ Test Files  1 passed (1)
+      Tests  74 passed (74)
+   Start at  06:03:04
+   Duration  5.11s (transform 672ms, setup 0ms, collect 302ms, tests 4.67s, environment 0ms, prepare 22ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-source-cache-third.results.json

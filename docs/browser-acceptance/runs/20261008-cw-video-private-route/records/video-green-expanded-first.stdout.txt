@@ -1,0 +1,65 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/video-green-expanded-first.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ❯ tests/videoPrivacyRoute.test.ts (53 tests | 26 failed) 3665ms
+   ✓ actual video entry effective model route > youtube chooses the frontend effective pair before context/thinking/cache planning 786ms
+   × both actual video runtimes native lifetime and safety > youtube actual save model cancels old SDK/DOM/cache and retains source 58ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save endpoint cancels old SDK/DOM/cache and retains source 54ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save videoService cancels old SDK/DOM/cache and retains source 70ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save ordinaryModel cancels old SDK/DOM/cache and retains source 58ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save prompt cancels old SDK/DOM/cache and retains source 65ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save thinking cancels old SDK/DOM/cache and retains source 57ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save context cancels old SDK/DOM/cache and retains source 59ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save cache cancels old SDK/DOM/cache and retains source 64ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save from cancels old SDK/DOM/cache and retains source 65ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save to cancels old SDK/DOM/cache and retains source 58ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual save multiSegment cancels old SDK/DOM/cache and retains source 53ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual bridge pushState cancels old SDK before poll and prevents late result 75ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube actual bridge replaceState cancels old SDK before poll and prevents late result 57ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube changed media signal cancels without waiting for polling 62ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube pagehide cancels requests and rejects late source generation 61ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube unmount cancels requests and rejects late source generation 53ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > platform unmount cancels requests and rejects late source generation 44ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > youtube count/UI saves preserve current request 48ms
+     → the given combination of arguments (undefined and string) is invalid for this assertion. You can use an array, a map, an object, a set, a string, or a weakset instead of a string
+   × both actual video runtimes native lifetime and safety > platform count/UI saves preserve current request 50ms
+     → expected '' to contain '合成译文'
+   × actual YouTube entry export request ownership > actual false export uses dedicated pair and keeps captured original cues 43ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > actual true export uses dedicated pair and keeps captured original cues 45ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > export-only cancel aborts its request identity while same-source playback continues 44ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > save cancels playback and export identities before late save/cache 46ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > route cancels playback and export identities before late save/cache 48ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > media cancels playback and export identities before late save/cache 47ms
+     → expected null not to be null
+   × actual YouTube entry export request ownership > unmount cancels playback and export identities before late save/cache 49ms
+     → expected null not to be null
+
+ Test Files  1 failed (1)
+      Tests  26 failed | 27 passed (53)
+   Start at  05:54:35
+   Duration  4.13s (transform 705ms, setup 0ms, collect 323ms, tests 3.66s, environment 0ms, prepare 27ms)
+
+JSON report written to <CW-EVIDENCE>/video-green-expanded-first.results.json

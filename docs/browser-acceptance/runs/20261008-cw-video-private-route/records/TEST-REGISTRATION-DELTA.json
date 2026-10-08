@@ -1,0 +1,16 @@
+{
+  "addedSuite": "tests/videoPrivacyRoute.test.ts",
+  "newVideoCases": 75,
+  "strictExecutionListDelta": "Add one existing-regression native privacy suite",
+  "testMatrixDelta": "Add one regression suite",
+  "coverageOwnershipThresholdsIgnoresUnchanged": true,
+  "ordinaryLegacyControls": "videoSubtitleLogic and videoSubtitleDownloads explicitly native false; new real video controls native true and false",
+  "addedLifecycleCases": {
+    "file": "tests/videoPretranslationController.test.ts",
+    "count": 2,
+    "initialStates": [
+      "no selected video",
+      "src known with empty currentSrc"
+    ]
+  }
+}
