@@ -108,6 +108,21 @@ describe('实时文本翻译快照', () => {
         expect(runtime.translateTextSlots).not.toHaveBeenCalled();
     });
 
+    it('marks an oversized provider response incomplete without inventing a DOM slot', async () => {
+        const {document} = parseHTML('<html><body><p>source</p></body></html>');
+        const owner = document.querySelector('p')!;
+        const node = owner.firstChild as Text;
+        runtime.slots = [{node, prefix: '', source: 'source', suffix: ''}];
+        runtime.translations = ['source', 'extra translation'];
+        const result = await translateLiveText(owner, snapshot);
+        expect(result).toMatchObject({complete: false, changed: true, sources: ['source'], translations: ['source', 'extra translation']});
+        expect(result.nodes).toEqual([node]);
+        expect(result.slots).toHaveLength(1);
+        expect(result.slots[0]?.text).toBe('source');
+        expect(owner.textContent).toBe('source');
+        expect(runtime.translateTextSlots).toHaveBeenCalledWith(['source'], snapshot, undefined, undefined, undefined, false);
+    });
+
     it('保留槽位前后缀，并区分 unchanged、changed 与不完整响应', async () => {
         const {document} = parseHTML('<html><body></body></html>');
         const node = document.createTextNode('source');

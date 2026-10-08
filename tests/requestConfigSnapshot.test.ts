@@ -16,6 +16,7 @@ import {
     reportTranslationModelUsageFailure,
     reportTranslationRoute,
     TRANSLATION_ROUTE_OBSERVER,
+    getTranslationImageInput,
     getTranslationGlossaryTerms,
     getTranslationGlossarySourceText,
 } from '@/src/services/translation/requestSnapshot';
@@ -376,4 +377,25 @@ describe('translation provider request config snapshot', () => {
         expect(observer.mock.calls[2][0]).not.toHaveProperty('statusCode');
         expect(observer.mock.calls[3][0]).not.toHaveProperty('actualModel');
     });
+});
+
+
+it.each(['data:image/png;base64,AAAA', 1, true, Symbol('untrusted payload')])(
+    'primitive image payloads never acquire trusted process-local image context (%s)', message => {
+        expect(getTranslationImageInput(message)).toBeUndefined();
+    },
+);
+
+
+it('batch glossary requests expose only protected tokens present in their own source texts', () => {
+    const tokens = Object.freeze(['___GLOSSARY_FIRST___', '___GLOSSARY_SECOND___', '___GLOSSARY_UNUSED___']);
+    const snapshot = {...createTranslationProviderConfigSnapshot(configSource()), glossaryProtectedTokens: tokens};
+    const origins = ['before ___GLOSSARY_SECOND___ after', 'contains ___GLOSSARY_FIRST___ here'];
+    expect(getTranslationGlossaryTerms(snapshot, origins)).toEqual([
+        {source: '___GLOSSARY_FIRST___', target: '___GLOSSARY_FIRST___'},
+        {source: '___GLOSSARY_SECOND___', target: '___GLOSSARY_SECOND___'},
+    ]);
+    expect(origins).toEqual(['before ___GLOSSARY_SECOND___ after', 'contains ___GLOSSARY_FIRST___ here']);
+    expect(snapshot.glossaryProtectedTokens).toBe(tokens);
+    expect(getTranslationGlossaryTerms(snapshot, ['no protected term'])).toEqual([]);
 });
