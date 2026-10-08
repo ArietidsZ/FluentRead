@@ -1,7 +1,7 @@
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createTranslationLayoutMeasurements} from '@/src/core/translation/layoutMeasurements';
-import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow, isTranslationHeightBoundary, translationHeightStyleOverrides} from '@/src/core/translation/serialization';
+import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow, isTranslationHeightBoundary, translationHeightStyleOverrides, translationTruncationStyleOverrides} from '@/src/core/translation/serialization';
 import {acquireTranslationLayoutOverride, beginTranslation, createTranslationTruncationLayoutBatch, ensureTranslationTruncationLayout,
     markTranslationComplete, restoreAllTranslations, restoreTranslation, setBilingualContent} from '@/src/features/full-page-translation/content/state';
 
@@ -119,6 +119,66 @@ describe('synchronous translation layout measurements', () => {
         const reconcile = createTranslationTruncationLayoutBatch();
         owners.forEach(owner => expect(reconcile(owner)).toBe(true));
         expect(mainTransformReads).toBe(1);
+    });
+
+    it('500 段加入已生效共享租约时复用读数，宿主新增定位仍撤销高度并保留原文', () => {
+        const {document, window} = parseHTML('<html><body><main style="height:20px;max-height:20px;overflow:hidden"></main></body></html>');
+        const main = document.querySelector('main')!;
+        const originalStyle = main.getAttribute('style');
+        const transform = vi.fn(() => 'none');
+        const restore = installStyle(window, element => {
+            const inline = (element as HTMLElement).style;
+            return {...style({
+                position: inline.position || 'static',
+                height: inline.height || '100px',
+                maxHeight: inline.getPropertyValue('max-height') || 'none',
+                overflowY: inline.overflow || 'visible',
+                getPropertyValue: (name: string) => inline.getPropertyValue(name) || '',
+            }), get transform() {return element === main ? transform() : 'none';}};
+        });
+        const owners = Array.from({length: 500}, (_, index) => {
+            const owner = document.createElement('p');
+            owner.textContent = `Source ${index}.`;
+            owner.getBoundingClientRect = () => rect();
+            main.append(owner);
+            const source = owner.firstChild;
+            const attempt = beginTranslation(owner, 'bilingual', 'content', false, owner.textContent, [])!;
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '译文';
+            owner.append(wrapper);
+            setBilingualContent(owner, wrapper);
+            return {owner, source};
+        });
+        main.getBoundingClientRect = () => rect();
+        try {
+            expect(acquireTranslationLayoutOverride(owners[0].owner, main,
+                [...translationTruncationStyleOverrides, ...translationHeightStyleOverrides])).toBe(true);
+            transform.mockClear();
+            const reconcile = createTranslationTruncationLayoutBatch();
+            owners.forEach(({owner}) => expect(reconcile(owner)).toBe(true));
+            expect(transform).toHaveBeenCalledTimes(1);
+            expect(main.style.height).toBe('auto');
+            // 已缓存祖先随后被宿主改为定位边界；加入租约不能掩盖这个写入。
+            main.style.position = 'fixed';
+            main.style.color = 'red';
+            expect(reconcile(owners[1].owner)).toBe(true);
+            expect(main.style.height).toBe('20px');
+            expect(main.style.getPropertyValue('max-height')).toBe('unset');
+            owners.forEach(({owner, source}, index) => {
+                expect(owner.firstChild).toBe(source);
+                expect(restoreTranslation(owner)).toBe(true);
+                expect(owner.textContent).toBe(`Source ${index}.`);
+            });
+            expect(main.style.position).toBe('fixed');
+            expect(main.style.color).toBe('red');
+            expect(main.style.height).toBe('20px');
+            expect(main.style.getPropertyValue('max-height')).toBe('20px');
+            expect(main.style.overflow).toBe('hidden');
+            expect(originalStyle).toContain('height:20px');
+        } finally {restore();}
     });
 
     it('同批解除共享裁剪后立即废弃旧样式，恢复兄弟段落仍沿用首个租约基线', () => {

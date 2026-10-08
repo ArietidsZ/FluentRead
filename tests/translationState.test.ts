@@ -1725,3 +1725,277 @@ describe('state 克隆、重挂与能力缺失的公共契约', () => {
         } finally { restoreTranslation(owner); }
     });
 });
+
+
+describe('公共 state 入口的跨 document 与 manager 根交还边界', () => {
+    async function checkpoint() {
+        await Promise.resolve(); await Promise.resolve();
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+        await Promise.resolve();
+    }
+
+    function commit(owner: HTMLElement) {
+        const source = owner.firstChild as Text;
+        const attempt = beginTranslation(owner, 'bilingual', 'content', false, source.data, [source])!;
+        const wrapper = owner.ownerDocument.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '译文';
+        owner.append(wrapper); setBilingualContent(owner, wrapper);
+        expect(markTranslationComplete(owner, attempt.state, attempt.generation, false)).toBe(true);
+        expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+        return {source, attempt, wrapper};
+    }
+
+    // linkedom 0.18.12 没有 adoptNode，append 也不会递归更新 ownerDocument。
+    // 只适配 DOM adoption 的身份和文档归属；不模拟 state、观察回调或原生 iframe realm。
+    function adoptForLinkedom(document: Document, owner: HTMLElement) {
+        owner.remove();
+        const pending: Node[] = [owner];
+        while (pending.length) {
+            const node = pending.pop()!;
+            Object.defineProperty(node, 'ownerDocument', {configurable: true, writable: true, value: document});
+            pending.push(...Array.from(node.childNodes));
+        }
+        return owner;
+    }
+
+    function instrumentWindow({document, window}: ReturnType<typeof parseHTML>) {
+        const descriptor = Object.getOwnPropertyDescriptor(document, 'defaultView');
+        // window 是 Proxy，vi.spyOn 无法枚举其虚拟成员；只包装真实事件方法来记录监听归属。
+        const add = vi.fn(window.addEventListener.bind(window));
+        const remove = vi.fn(window.removeEventListener.bind(window));
+        Object.defineProperty(document, 'defaultView', {configurable: true, value: {
+            HTMLElement: window.HTMLElement, MutationObserver: window.MutationObserver,
+            addEventListener: add, removeEventListener: remove,
+        }});
+        return {add, remove, restore: () => {
+            if (descriptor) Object.defineProperty(document, 'defaultView', descriptor);
+            else Reflect.deleteProperty(document, 'defaultView');
+        }};
+    }
+
+    it.each([false, true])('跨 document adoption 模型迁移释放旧窗口监听并保留来源身份（旧根共享=%s）', async shared => {
+        const oldRealm = parseHTML('<html><body><article style="height:24px"><p>Source</p><p>Sibling</p></article></body></html>');
+        const newRealm = parseHTML('<html><body><section style="color:blue"></section></body></html>');
+        const owner = oldRealm.document.querySelector<HTMLElement>('p')!;
+        const sibling = oldRealm.document.querySelectorAll<HTMLElement>('p')[1]!;
+        const oldAncestor = oldRealm.document.querySelector<HTMLElement>('article')!;
+        const destination = newRealm.document.querySelector<HTMLElement>('section')!;
+        const oldView = instrumentWindow(oldRealm);
+        const newView = instrumentWindow(newRealm);
+        const {add: oldAdd, remove: oldRemove} = oldView;
+        const {add: newAdd, remove: newRemove} = newView;
+        const oldDisconnect = vi.spyOn(oldRealm.window.MutationObserver.prototype, 'disconnect');
+        const newDisconnect = vi.spyOn(newRealm.window.MutationObserver.prototype, 'disconnect');
+        const oldResize = () => oldAdd.mock.calls.filter(([type]) => type === 'resize');
+        const newResize = () => newAdd.mock.calls.filter(([type]) => type === 'resize');
+        try {
+            const {source, attempt, wrapper} = commit(owner);
+            if (shared) commit(sibling);
+            acquireTranslationLayoutOverride(owner, oldAncestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+            await checkpoint();
+            expect(oldResize()).toHaveLength(1);
+            destination.append(adoptForLinkedom(newRealm.document, owner));
+            await checkpoint();
+            expect(owner.ownerDocument).toBe(newRealm.document);
+            expect(source.ownerDocument).toBe(newRealm.document);
+            expect(owner.firstChild).toBe(source);
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(isCurrentTranslation(owner, attempt.state, attempt.generation, false)).toBe(true);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            expect(wrapper.parentNode).toBe(owner);
+            expect(attempt.state.layoutObserverRoots).toEqual(new Set([newRealm.document]));
+            expect(oldAncestor.style.height).toBe('24px');
+            expect(getTranslationOwnersForIndexedNode(oldAncestor)).not.toContain(owner);
+            expect(newResize()).toHaveLength(1);
+            expect(oldDisconnect).toHaveBeenCalledTimes(shared ? 0 : 1);
+            expect(oldRemove.mock.calls.filter(([type]) => type === 'resize')).toHaveLength(shared ? 0 : 1);
+            restoreTranslation(sibling);
+            expect(oldRemove).toHaveBeenCalledWith('resize', oldResize()[0][1]);
+            expect(oldDisconnect).toHaveBeenCalledTimes(1);
+            // 旧窗口已释放：仅改 Text（linkedom 不准确报告 characterData），旧 resize 不应清理新根。
+            source.data = 'Host changed in destination';
+            oldRealm.window.dispatchEvent(new oldRealm.window.Event('resize'));
+            await checkpoint();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            newRealm.window.dispatchEvent(new newRealm.window.Event('resize'));
+            await checkpoint();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(isCurrentTranslation(owner, attempt.state, attempt.generation, false)).toBe(false);
+            expect(wrapper.parentNode).toBeNull();
+            expect(owner.firstChild).toBe(source);
+            expect(source.data).toBe('Host changed in destination');
+            expect(destination.style.color).toBe('blue');
+            expect(newRemove).toHaveBeenCalledWith('resize', newResize()[0][1]);
+            expect(newDisconnect).toHaveBeenCalledTimes(1);
+        } finally {
+            restoreTranslation(owner); restoreTranslation(sibling);
+            oldView.restore(); newView.restore();
+            oldDisconnect.mockRestore(); newDisconnect.mockRestore();
+        }
+    });
+
+    it('manager 接管期间 resize 不能独立恢复或中止当前代控制器', async () => {
+        const {document, window} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const {source, attempt, wrapper} = commit(owner);
+        await checkpoint();
+        let managed = true;
+        setBilingualLifecycleExternalManager(() => managed);
+        try {
+            source.data = 'Host update while managed';
+            owner.setAttribute('title', 'host update');
+            await checkpoint();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            window.dispatchEvent(new window.Event('resize'));
+            await checkpoint();
+            expect({active: getTranslationState(owner) === attempt.state, aborted: attempt.state.controller.signal.aborted,
+                artifactAttached: wrapper.parentNode === owner, sameText: owner.firstChild === source, value: source.data})
+                .toEqual({active: true, aborted: false, artifactAttached: true, sameText: true, value: 'Host update while managed'});
+            managed = false;
+            window.dispatchEvent(new window.Event('resize'));
+            await checkpoint();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(owner.firstChild).toBe(source);
+        } finally { setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner); }
+    });
+
+    it('manager 管理来源时 resize 仍复核纯计算布局边界，保留控制器与原 Text', async () => {
+        const {document, window} = parseHTML('<html><body><article style="height:24px"><p>Source</p></article></body></html>');
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const previous = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+        let position = 'static';
+        Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: (element: HTMLElement) => ({
+            position: element === ancestor ? position : 'static', transform: 'none',
+            overflow: 'visible', overflowY: 'visible', display: 'block', height: element.style.height || '100px',
+            maxHeight: 'none', webkitLineClamp: 'none', getPropertyValue: () => '',
+        })});
+        const {source, attempt, wrapper} = commit(owner);
+        acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+        await checkpoint();
+        setBilingualLifecycleExternalManager(() => true);
+        try {
+            position = 'fixed'; // 媒体查询只改变计算样式，不改 style/class，不产生 DOM record。
+            window.dispatchEvent(new window.Event('resize'));
+            await checkpoint();
+            expect(ancestor.style.height).toBe('24px');
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            expect(attempt.state.generation).toBe(attempt.generation);
+            expect(owner.firstChild).toBe(source);
+            expect(source.data).toBe('Source');
+            expect(wrapper.parentNode).toBe(owner);
+        } finally {
+            setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner);
+            if (previous) Object.defineProperty(window, 'getComputedStyle', previous);
+            else Reflect.deleteProperty(window, 'getComputedStyle');
+        }
+    });
+
+    it('resize 已排队后 manager 接管，延迟 flush 不越权且明确交还后重新校验', async () => {
+        const {document, window} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const {source, attempt, wrapper} = commit(owner);
+        await checkpoint();
+        let managed = false;
+        setBilingualLifecycleExternalManager(() => managed);
+        try {
+            source.data = 'Host source changed before takeover';
+            window.dispatchEvent(new window.Event('resize'));
+            managed = true; // resize 已排队，flush 尚未进入当前代次的恢复路径。
+            await checkpoint();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            expect(wrapper.parentNode).toBe(owner);
+            managed = false;
+            setBilingualLifecycleExternalManager(undefined);
+            await checkpoint();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(owner.firstChild).toBe(source);
+            expect(source.data).toBe('Host source changed before takeover');
+        } finally {setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner);}
+    });
+
+    it('manager 移动到新 shadow 根后交还，新根来源事件应恢复而不依赖旧窗口 resize', async () => {
+        const realm = parseHTML('<html><body><article style="height:24px"><p>Source</p></article><div></div></body></html>');
+        const {document, window} = realm;
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const root = document.querySelector('div')!.attachShadow({mode: 'open'});
+        const disconnect = vi.spyOn(window.MutationObserver.prototype, 'disconnect');
+        const {source, attempt, wrapper} = commit(owner);
+        acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+        await checkpoint();
+        let managed = true;
+        setBilingualLifecycleExternalManager(() => managed);
+        try {
+            root.append(owner);
+            await checkpoint();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            managed = false;
+            setBilingualLifecycleExternalManager(undefined);
+            await checkpoint();
+            expect(attempt.state.layoutObserverRoots).toEqual(new Set([root, document]));
+            expect(ancestor.style.height).toBe('24px');
+            source.data = 'Host changed after root handoff';
+            owner.setAttribute('title', 'host writes in new root');
+            await checkpoint();
+            expect({active: getTranslationState(owner) === attempt.state, aborted: attempt.state.controller.signal.aborted,
+                artifactAttached: wrapper.parentNode === owner, sameText: owner.firstChild === source, value: source.data,
+                oldHeight: ancestor.style.height, disconnects: disconnect.mock.calls.length})
+                .toEqual({active: false, aborted: true, artifactAttached: false, sameText: true,
+                    value: 'Host changed after root handoff', oldHeight: '24px', disconnects: 2});
+        } finally { setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner); disconnect.mockRestore(); }
+    });
+
+    it('manager 交还后公共 layout 入口显式接管新根，恢复保留宿主写入并释放全部监听', async () => {
+        const realm = parseHTML('<html><body><article style="height:24px"><p>Source</p></article><div></div></body></html>');
+        const {document, window} = realm;
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const root = document.querySelector('div')!.attachShadow({mode: 'open'});
+        const destination = document.createElement('section'); root.append(destination);
+        const view = instrumentWindow(realm);
+        const {add, remove} = view;
+        const disconnect = vi.spyOn(window.MutationObserver.prototype, 'disconnect');
+        const {source, attempt, wrapper} = commit(owner);
+        acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+        await checkpoint();
+        let managed = true;
+        setBilingualLifecycleExternalManager(() => managed);
+        try {
+            destination.append(owner);
+            ancestor.setAttribute('style', 'height:73px;color:green');
+            await checkpoint();
+            managed = false; setBilingualLifecycleExternalManager(undefined);
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            await checkpoint();
+            expect(attempt.state.layoutObserverRoots).toEqual(new Set([root, document]));
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(isCurrentTranslation(owner, attempt.state, attempt.generation, false)).toBe(true);
+            expect(ancestor.style.height).toBe('73px');
+            source.data = 'Host update after explicit handoff';
+            owner.setAttribute('title', 'changed'); destination.style.color = 'blue';
+            await checkpoint();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(wrapper.parentNode).toBeNull(); expect(owner.firstChild).toBe(source);
+            expect(source.data).toBe('Host update after explicit handoff');
+            expect(ancestor.style.height).toBe('73px'); expect(ancestor.style.color).toBe('green');
+            expect(destination.style.color).toBe('blue');
+            const listeners = add.mock.calls.filter(([type]) => type === 'resize');
+            expect(listeners).toHaveLength(2);
+            listeners.forEach(([, listener]) => expect(remove).toHaveBeenCalledWith('resize', listener));
+            expect(disconnect).toHaveBeenCalledTimes(2);
+        } finally {
+            setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner);
+            view.restore(); disconnect.mockRestore();
+        }
+    });
+});

@@ -172,6 +172,15 @@ const activeRefsByNode = new WeakMap<HTMLElement, WeakRef<HTMLElement>>();
 const ownersByIndexedNode = new WeakMap<Node, Set<WeakRef<HTMLElement>>>();
 const indexedNodesByOwner = new WeakMap<HTMLElement, Set<Node>>();
 const sharedLayoutOverrides = new WeakMap<HTMLElement, SharedTranslationLayoutOverride>();
+// 同步布局批次只在真实样式写入或发现宿主改写后失效；共享租约新增 owner 不改布局。
+let layoutStyleVersion = 0;
+const layoutMeasurementVersions = new WeakMap<TranslationLayoutMeasurements, number>();
+
+function synchronizeTranslationLayoutMeasurements(measurements: TranslationLayoutMeasurements): void {
+    if (layoutMeasurementVersions.get(measurements) === layoutStyleVersion) return;
+    measurements.invalidate();
+    layoutMeasurementVersions.set(measurements, layoutStyleVersion);
+}
 const layoutObserversByRoot = new WeakMap<TranslationLayoutObserverRoot, TranslationLayoutRootObserver>();
 const pendingLayoutRefreshes = new WeakMap<HTMLElement, {removedNodes: Set<Node>}>();
 let bilingualOwnerRemountHandler: ((mutations: readonly MutationRecord[]) => void) | undefined;
@@ -223,7 +232,15 @@ export function setBilingualArtifactCapitulationHandler(
 }
 
 export function setBilingualLifecycleExternalManager(handler: (() => boolean) | undefined): void {
+    const hadManager = bilingualLifecycleExternallyManaged !== undefined;
     bilingualLifecycleExternallyManaged = handler;
+    // 接管期间旧根的 records 不属于独立管理器；明确交还时重登记当前根并释放旧租约。
+    if (hadManager && !handler?.()) {
+        activeNodeRefs.forEach((ref) => {
+            const owner = ref.deref();
+            if (owner) scheduleTranslationLayoutRefresh(owner);
+        });
+    }
 }
 
 export function setBilingualSkeletonRefreshHandler(
@@ -1226,6 +1243,15 @@ function scheduleTranslationLayoutRefresh(owner: HTMLElement, removedNodes: read
         pendingLayoutRefreshes.delete(owner);
         const state = states.get(owner);
         if (!state) return;
+        // 外部管理器拥有来源/工件生命周期；独立状态仍拥有布局租约。resize 可只
+        // 改变媒体查询而不产生 mutation，此时只复核在位的已提交工件，不恢复/中止。
+        if (bilingualLifecycleExternallyManaged?.()) {
+            if (owner.isConnected && state.phase === 'translated' && state.mode === 'bilingual' &&
+                state.kind === 'content' && state.bilingualContent?.parentNode === owner) {
+                ensureTranslationTruncationLayout(owner);
+            }
+            return;
+        }
 
         // 从当前检查点起，在所有 MutationObserver 回调之后执行；这样全文观察器可以先
         // 注销自己的索引，再由独立悬浮翻译释放共享状态。
@@ -1345,10 +1371,12 @@ function createTranslationLayoutRootObserver(root: TranslationLayoutObserverRoot
     });
     // 只在有活动译文时响应真实窗口尺寸变化；不轮询、不观察尺寸写入，避免布局反馈循环。
     const view = document.defaultView;
-    const handleResize = () => owners.forEach((ref) => {
-        const owner = ref.deref();
-        if (owner) scheduleTranslationLayoutRefresh(owner);
-    });
+    const handleResize = () => {
+        owners.forEach((ref) => {
+            const owner = ref.deref();
+            if (owner) scheduleTranslationLayoutRefresh(owner);
+        });
+    };
     view?.addEventListener("resize", handleResize);
     return {observer, owners, releaseResizeListener: () => view?.removeEventListener("resize", handleResize)};
 }
@@ -1383,6 +1411,7 @@ function restoreSharedTranslationLayoutOverride(
     element: HTMLElement,
     override: SharedTranslationLayoutOverride,
 ): void {
+    layoutStyleVersion += 1;
     if (override.canRestoreExactStyleAttribute &&
         element.getAttribute("style") === override.renderedStyleAttribute) {
         if (override.originalStyleAttribute === null) element.removeAttribute("style");
@@ -1483,7 +1512,7 @@ function releaseTranslationLayoutOverride(
     owner: HTMLElement,
     state: TranslationState,
     element: HTMLElement,
-): boolean {
+): void {
     const override = sharedLayoutOverrides.get(element);
     const ownerRef = activeRefsByNode.get(owner);
     if (override && ownerRef) override.owners.delete(ownerRef);
@@ -1499,7 +1528,6 @@ function releaseTranslationLayoutOverride(
     const restored = override?.owners.size === 0;
     if (restored) restoreSharedTranslationLayoutOverride(element, override!);
     state.layoutOverrideElements?.delete(element);
-    return restored;
 }
 
 /**
@@ -1521,11 +1549,13 @@ export function acquireTranslationLayoutOverride(
         // 保留首个所有者的快照，不能把扩展已写入的样式重新当成宿主原样式。
         if (element.getAttribute("style") !== existing.renderedStyleAttribute) {
             existing.canRestoreExactStyleAttribute = false;
+            layoutStyleVersion += 1;
         }
         overrides.filter(({property}) => !existing.properties.some((item) => item.property === property))
             .forEach(({property, value, priority}) => {
                 const originalValue = getStylePropertyValue(element.style, property);
                 const originalPriority = getStylePropertyPriority(element.style, property);
+                layoutStyleVersion += 1;
                 element.style.setProperty(property, value, priority);
                 existing.properties.push({
                     property, overrideValue: value, overridePriority: priority, originalValue, originalPriority,
@@ -1544,6 +1574,7 @@ export function acquireTranslationLayoutOverride(
     const properties = overrides.map(({property, value, priority}) => {
         const originalValue = getStylePropertyValue(element.style, property);
         const originalPriority = getStylePropertyPriority(element.style, property);
+        layoutStyleVersion += 1;
         element.style.setProperty(property, value, priority);
         return {
             property,
@@ -1586,6 +1617,7 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
 
         if (element.getAttribute("style") !== override.renderedStyleAttribute) {
             override.canRestoreExactStyleAttribute = false;
+            layoutStyleVersion += 1;
         }
         override.properties.forEach((property) => {
             const currentValue = getStylePropertyValue(element.style, property.property);
@@ -1593,6 +1625,7 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
             if (currentValue === property.appliedValue && currentPriority === property.appliedPriority) return;
             property.originalValue = currentValue;
             property.originalPriority = currentPriority;
+            layoutStyleVersion += 1;
             element.style.setProperty(
                 property.property,
                 property.overrideValue,
@@ -1611,6 +1644,7 @@ function releaseTranslationHeightOverride(element: HTMLElement): void {
     const override = sharedLayoutOverrides.get(element);
     const property = override?.properties.find((item) => item.property === "height");
     if (!override || !property) return;
+    layoutStyleVersion += 1;
     if (element.getAttribute("style") !== override.renderedStyleAttribute) {
         override.canRestoreExactStyleAttribute = false;
     }
@@ -1640,6 +1674,7 @@ export function ensureTranslationTruncationLayout(
 ): boolean {
     const state = states.get(owner);
     if (!state || !owner.isConnected) return false;
+    synchronizeTranslationLayoutMeasurements(measurements);
 
     const ancestors = translationLayoutAncestorChain(owner);
     const watchElements = new Set(ancestors);
@@ -1649,13 +1684,11 @@ export function ensureTranslationTruncationLayout(
 
     const chain = [owner, ...ancestors];
     for (const element of Array.from(state.layoutOverrideElements ?? [])) {
-        if (!chain.includes(element) && releaseTranslationLayoutOverride(owner, state, element)) {
-            measurements.invalidate();
-        }
+        if (!chain.includes(element)) releaseTranslationLayoutOverride(owner, state, element);
     }
     // 先吸收宿主对已租用属性的改写；新增属性不能掩盖这些新的恢复基线。
     if (!reconcileTranslationLayoutOverrides(owner)) return false;
-    if (state.layoutOverrideElements?.size) measurements.invalidate();
+    synchronizeTranslationLayoutMeasurements(measurements);
     const hasBilingualContent = state.mode === "bilingual" && state.kind === "content" &&
         Boolean(owner.querySelector(BILINGUAL_ARTIFACT_SELECTOR));
     let heightBoundary = !hasBilingualContent;
@@ -1664,13 +1697,12 @@ export function ensureTranslationTruncationLayout(
         // 接管可能清理断开的最后旧租户并恢复裁剪；必须先收敛租约，再读取当前布局。
         if (sharedLayoutOverrides.has(element)) {
             acquireTranslationLayoutOverride(owner, element, []);
-            measurements.invalidate();
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         const elementIsBoundary = isTranslationHeightBoundary(element, measurements);
         if (elementIsBoundary) {
-            const hadHeightOverride = sharedLayoutOverrides.get(element)?.properties.some(({property}) => property === 'height');
             releaseTranslationHeightOverride(element);
-            if (hadHeightOverride) measurements.invalidate();
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         const truncation = hasActiveTranslationTruncation(element, measurements);
         if (truncation) {
@@ -1680,19 +1712,19 @@ export function ensureTranslationTruncationLayout(
                 ? [...translationTruncationStyleOverrides, ...translationHeightStyleOverrides]
                 : translationTruncationStyleOverrides;
             acquireTranslationLayoutOverride(owner, element, overrides);
-            measurements.invalidate();
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         heightBoundary ||= elementIsBoundary;
         // 必须在解除当前内层 clamp 后读外层几何；先收集全部祖先会读到尚未展开的旧高度。
         if (!heightBoundary && hasTranslationHeightOverflow(element, branch, measurements)) {
             acquireTranslationLayoutOverride(owner, element, translationHeightStyleOverrides);
-            measurements.invalidate();
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         branch = element;
     }
     refreshOwnershipIndex(owner, state);
     const reconciled = reconcileTranslationLayoutOverrides(owner);
-    if (state.layoutOverrideElements?.size) measurements.invalidate();
+    synchronizeTranslationLayoutMeasurements(measurements);
     return reconciled;
 }
 
@@ -1732,7 +1764,9 @@ function unwrapSyntheticSegment(node: HTMLElement, state: TranslationState): voi
 
 function restoreOriginalStyle(node: HTMLElement, state: TranslationState): void {
     if (state.renderedStyleAttribute === undefined) return;
-    if (node.getAttribute("style") !== state.renderedStyleAttribute) return;
+    if (node.getAttribute("style") !== state.renderedStyleAttribute ||
+        state.originalStyleAttribute === state.renderedStyleAttribute) return;
+    layoutStyleVersion += 1;
 
     if (state.originalStyleAttribute === null) {
         node.removeAttribute("style");
