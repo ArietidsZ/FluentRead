@@ -538,5 +538,35 @@
     "raw_sha256": "30dbb57a9bf010c18e875076a3f75f2ed7cbd763654d746ecf4d5c2cac074cea",
     "published_sha256": "30dbb57a9bf010c18e875076a3f75f2ed7cbd763654d746ecf4d5c2cac074cea",
     "redacted": false
+  },
+  {
+    "path": "records/publication/docs-corrected.stderr.txt",
+    "raw_sha256": "f2055471be410a36848b72e28af7c90a87ea38c16232fbad41e7e552c22492d9",
+    "published_sha256": "f2055471be410a36848b72e28af7c90a87ea38c16232fbad41e7e552c22492d9",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/docs-corrected.command.json",
+    "raw_sha256": "196be80022dcc301ba055617e0b96d508ba35e1eb7f56cb77e3e6a9387676834",
+    "published_sha256": "196be80022dcc301ba055617e0b96d508ba35e1eb7f56cb77e3e6a9387676834",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/docs-corrected.stdout.txt",
+    "raw_sha256": "850859c35109a1934d946e9a271fff5d14c7043c7c9fc87eb92ebd018e25769c",
+    "published_sha256": "850859c35109a1934d946e9a271fff5d14c7043c7c9fc87eb92ebd018e25769c",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/docs-first-reported-failure.json",
+    "raw_sha256": "d48f0028803f6f0ef1e47d1e45bcf39371b75d17d215811f7fd1ca390a54c84d",
+    "published_sha256": "d48f0028803f6f0ef1e47d1e45bcf39371b75d17d215811f7fd1ca390a54c84d",
+    "redacted": false
+  },
+  {
+    "path": "records/publication/run-recorded.py",
+    "raw_sha256": "c3c948a5a2d97788c423f23da2c958b838982eea29fdc3ea74309351a06f0042",
+    "published_sha256": "c3c948a5a2d97788c423f23da2c958b838982eea29fdc3ea74309351a06f0042",
+    "redacted": false
   }
 ]

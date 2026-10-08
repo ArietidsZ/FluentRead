@@ -8,9 +8,27 @@
     "build",
     "docs"
   ],
-  "status": "passed",
+  "status": "passed after correction",
   "note": "Fresh evidence-only checkout warns .wxt/tsconfig.json absent; documentation build completes. No application build or source change performed here.",
   "driver_syntax_checks": "both passed",
   "published_json_parse_checks": 68,
-  "evidence_hashes_verified": 90
+  "evidence_hashes_verified": 90,
+  "first_attempt": {
+    "exit_code": 1,
+    "failure": "Found dead link ./driver/index in README.md",
+    "note": "The initial validation metadata was incorrectly marked passed before checking the returned exit code; corrected explicitly, no browser test results changed."
+  },
+  "final_attempt": {
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "duration_seconds": 2.492,
+    "exit_code": 0
+  }
 }

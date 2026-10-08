@@ -1,0 +1,5 @@
+{
+  "exit_code": 1,
+  "failure": "Found dead link ./driver/index in README.md",
+  "note": "The initial validation metadata was incorrectly marked passed before checking the returned exit code; corrected explicitly, no browser test results changed."
+}

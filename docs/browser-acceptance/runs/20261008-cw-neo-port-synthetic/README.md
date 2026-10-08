@@ -10,6 +10,6 @@
 
 [最终报告](./records/final/browser-report.json)、[原生内容上下文](./records/final/native-content-context.json)、[窗口与控制前归属](./records/final/ownership-before-control.json)、[控制后归属](./records/final/ownership-after-cases.json)、[实际截图](./records/final/production-area-capture.png)、[清理](./records/final/cleanup.json) 均保留。测试后剩余拥有 PID、TCP listener、X socket 为 0，HTTP fixture 已关闭；临时 profile 留在受控目录供复核，未发布 profile、认证或 cookies。前三輪记录/引用 PID 的额外复核均无残留。
 
-驱动在 [driver/](./driver/)；执行时要求上述固定 clean 应用工作树与精确 manifest/background SHA，先验证实际 PID/display/bus/profile/listener 归属，再控制本地夹具。最终驱动文件 SHA 与运行时快照逐项相符。运行只创建隔离 profile，不连接日常浏览器，正常结束或错误均按归属清理。
+驱动为 [会话 helper](./driver/neo-owned-session.mjs) 与 [合成测试驱动](./driver/run-neo-port-fixture.mjs)；执行时要求上述固定 clean 应用工作树与精确 manifest/background SHA，先验证实际 PID/display/bus/profile/listener 归属，再控制本地夹具。最终驱动文件 SHA 与运行时快照逐项相符。运行只创建隔离 profile，不连接日常浏览器，正常结束或错误均按归属清理。
 
 取消工作已另存 clean 检查点 `9da3fd9f01f912268cc7c919db4a804c250f62ca`：232/232 针对性测试、注册表/传输/输入 handler 四项 100% 覆盖与类型检查通过；全量冻结回归和三目标构建尚未运行，不能宣称取消批次完成。本 Neo 记录不混用该应用版本。
