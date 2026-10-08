@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
 import {parseHTML} from 'linkedom';
-import {compileScript,parse} from 'vue/compiler-sfc';
+import {compileScript,compileTemplate,parse} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import * as vue from 'vue';
 import {Config} from '@/src/core/config/model';
@@ -18,7 +18,10 @@ vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository
 vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
 const require=createRequire(import.meta.url),filename='src/features/selection-translation/ui/SelectionTranslator.vue';
 const {descriptor}=parse(readFileSync(filename,'utf8'),{filename});
-const compiled=ts.transpileModule(compileScript(descriptor,{id:'word-card-privacy'}).content,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+const script=compileScript(descriptor,{id:'word-card-privacy'});
+const toCommonJS=(source:string)=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
+const compiled=toCommonJS(script.content);
+const template=toCommonJS(compileTemplate({source:descriptor.template!.content,filename,id:'word-card-privacy',compilerOptions:{bindingMetadata:script.bindings}}).code);
 class BoundaryObserver {observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} }
 const publicService='custom:document-public',privateService='custom:document-private';
 const publicURL='https://public-document.synthetic.test/v1/chat/completions',privateURL='https://private-document.synthetic.test/v1/chat/completions';
@@ -33,9 +36,11 @@ let calls:Array<{url:string;body:any;signal?:AbortSignal|null}>,dispatch:ReturnT
 let server:ReturnType<typeof import('@/src/services/translation/documentChannel').createTranslationDocumentPortHandler>,pairs:ReturnType<typeof documentPortPair>[],pendingResponses:Array<(value:Response)=>void>;
 let lookup:ReturnType<typeof import('@/src/features/selection-translation/services/wordDictionary').createWordDictionaryLookup>,lookupBoundary:ReturnType<typeof vi.fn>;
 let state:Record<string,any>,scope:vue.EffectScope,mounted:Array<()=>void>,unmounted:Array<()=>void>,windowEvents:Map<string,Set<(event:any)=>void>>;
+let domApp:vue.App|undefined,domHost:HTMLElement|undefined,bridgeDispose:(()=>void)|undefined;
+const routeEvent='fluentread-route-change';
 async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
 async function mountPage(nativeCapability=true){
- unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
+ domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
  const modules:Record<string,unknown>={
   vue:{...vue,useTemplateRef:()=>vue.ref(null),onMounted:(fn:()=>void)=>mounted.push(fn),onBeforeUnmount:(fn:()=>void)=>unmounted.push(fn)},
   'webextension-polyfill':browserBoundary,'@/src/services/config/store':store,
@@ -49,7 +54,7 @@ async function mountPage(nativeCapability=true){
   '@/src/ui/i18n':{useUiI18n:()=>({t:(key:string)=>key,translateLegacy:(value:string)=>value})},
  };
  for(const path of ['@/src/platform/browser/runtimeMessages','@/src/core/language/detect','@/src/core/hotkey','@/src/core/language/partOfSpeech','@/src/features/selection-translation/services/wordNormalization','@/src/features/selection-translation/core','@/src/features/selection-translation/protocol','@/src/features/selection-translation/content/selectionTtsContentController','@/src/features/selection-translation/pageZoom','@/src/features/vocabulary/protocol','@/src/core/config/harness','@/src/core/tts/speechProgress','@/src/core/translation/result']) modules[path]=await vi.importActual(path);
- const exports:Record<string,any>={};new Function('require','exports',compiled)((id:string)=>id in modules?modules[id]:id.endsWith('.vue')?{}:require(id),exports);
+ const exports:Record<string,any>={};new Function('require','exports',compiled)((id:string)=>id in modules?modules[id]:id.endsWith('.vue')?vue.defineComponent({props:['text'],setup:props=>()=>vue.h('span',props.text)}):require(id),exports);
  scope=vue.effectScope();state=scope.run(()=>vue.proxyRefs(exports.default.setup({}, {expose:()=>{}})))!;await vue.nextTick();mounted.forEach(fn=>fn());await settle();
 }
 function begin(){state.snapshot={text:'fixture',parts:[{kind:'text',text:'fixture'}]};state.selectedText='fixture';return state.beginSelectionContentRequest('fixture');}
@@ -131,9 +136,68 @@ beforeEach(async()=>{
     await mountPage();
 });
 afterEach(async()=>{
+ domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;bridgeDispose?.();bridgeDispose=undefined;
  unmounted?.forEach(fn=>fn());scope?.stop();pairs.forEach(pair=>pair.close());pendingResponses.forEach(finish=>finish(response('document-private','迟到合成译文')));
  (await import('@/src/app/translation/client')).cancelAllTranslations();await settle();resetFetch?.();if(cache){await cache.translationCache.clear();cache.translationCacheDb.close();}
  vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();
+});
+
+/** 生产模板交给 Vue renderer；仅 DOM/Range/History 与 HTTP 是离线边界，路由桥和请求链均为实际模块。 */
+function renderCardDOM(){
+ const exports:Record<string,any>={};new Function('require','exports',template)((id:string)=>id==='vue'?vue:require(id),exports);
+ const renderer=vue.createRenderer<Node,HTMLElement>({
+  insert:(child,parent,anchor)=>parent.insertBefore(child,anchor??null),remove:node=>node.parentNode?.removeChild(node),
+  createElement:tag=>document.createElement(tag),createText:text=>document.createTextNode(text),createComment:text=>document.createComment(text),
+  setText:(node,text)=>{node.nodeValue=text;},setElementText:(node,text)=>{node.textContent=text;},parentNode:node=>node.parentNode as HTMLElement|null,nextSibling:node=>node.nextSibling,
+  patchProp:(node,key,_previous,value)=>{if(key==='style'){Object.assign(node.style,value??{});}else if(/^on[A-Z]/u.test(key)){}else if(value==null)node.removeAttribute(key);else node.setAttribute(key,String(value));},
+ });
+ domHost=document.createElement('div');domHost.id='fluent-read-selection-translator-container';document.body.append(domHost);
+ domApp=renderer.createApp({setup:()=>state,render:exports.render});domApp.directive('ui-i18n',{});domApp.mount(domHost);
+}
+function persistentSelection(){
+ const source=document.getElementById('source')!;source.textContent='fixture';const text=source.firstChild!;
+ const rect={top:20,right:80,bottom:40,left:20,width:60,height:20};
+ const range={startContainer:text,endContainer:text,commonAncestorContainer:text,startOffset:0,endOffset:7,cloneRange:()=>range,getClientRects:()=>[rect],getBoundingClientRect:()=>rect,intersectsNode:()=>false};
+ const selection={rangeCount:1,isCollapsed:false,anchorNode:text,anchorOffset:0,getRangeAt:()=>range,containsNode:()=>false,toString:()=>text.textContent};
+ Object.assign(window,{getSelection:()=>selection,location});vi.stubGlobal('CustomEvent',document.defaultView!.CustomEvent);
+ const historyBoundary={pushState:vi.fn((_state:unknown,_unused:string,url?:string|URL|null)=>{if(url!=null)location.href=new URL(String(url),location.href).href;}),replaceState:vi.fn((_state:unknown,_unused:string,url?:string|URL|null)=>{if(url!=null)location.href=new URL(String(url),location.href).href;})};
+ vi.stubGlobal('history',historyBoundary);return {source,text,selection,range,historyBoundary};
+}
+async function startDelayedBoth(){
+ let released=false;const gates:Array<ReturnType<typeof deferred<Response>>>=[];transport.mockImplementation(async(url:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(url),body:JSON.parse(String(init?.body)),signal:init?.signal});if(released)return response();const gate=deferred<Response>();gates.push(gate);pendingResponses.push(gate.resolve);return gate.promise;});
+ state.snapshot=state.readSelectionSnapshot();state.selectedText='fixture';state.showTooltip=true;
+ const request=state.beginSelectionContentRequest('fixture'),main=state.requestTranslation(request),support=state.requestWordCard(request);await pump(()=>calls.length>=2);expect(calls.length).toBeGreaterThanOrEqual(2);await vue.nextTick();expect(domHost!.querySelector('.fr-word-definition-en')?.textContent).toBe('A readable dictionary definition.');
+ return {request,release:()=>{released=true;gates.forEach(gate=>gate.resolve(response()));},pending:Promise.all([main,support])};
+}
+describe('actual SPA route bridge with a persistent selection',()=>{
+ it.each(['pushState','replaceState'] as const)('%s invalidates both delayed SDK requests without selectionchange/popstate/hashchange and rejects late DOM/cache',async method=>{
+  const selected=persistentSelection();renderCardDOM();const bridge=await import('@/src/platform/shadow-ui/pageBridge');bridgeDispose=bridge.installShadowAndRouteBridge();const routed=vi.fn();document.addEventListener(routeEvent,routed);
+  const {release,pending}=await startDelayedBoth();expect(state.readSelectionSnapshot()?.text).toBe('fixture');history[method]({step:1},'','/next');expect(routed).toHaveBeenCalledOnce();expect(selected.text.isConnected).toBe(true);expect(state.readSelectionSnapshot()?.range.startContainer).toBe(selected.text);expect(state.readSelectionSnapshot()?.text).toBe('fixture');
+  await settle();const aborted=calls.every(call=>call.signal?.aborted);release();await complete(pending);await vue.nextTick();
+  // 所有负控断言在释放响应之后执行，旧源码会真实呈现迟到结果而不是测试挂起。
+  expect({aborted,main:state.translationResult,card:state.wordCard,lateMainDOM:domHost!.querySelector('.fr-word-translation pre')?.textContent??null,lateSupportDOM:domHost!.querySelector('.fr-word-definition-zh')?.textContent??null,cacheWrites:cacheWrite.mock.calls.length}).toEqual({aborted:true,main:'',card:null,lateMainDOM:null,lateSupportDOM:null,cacheWrites:0});
+  expect(selected.source.textContent).toBe('fixture');document.removeEventListener(routeEvent,routed);
+ });
+ it.each(['pushState','replaceState'] as const)('%s with unchanged href preserves current main/aux generation',async method=>{
+  persistentSelection();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();const routed=vi.fn();document.addEventListener(routeEvent,routed);
+  const {request,release,pending}=await startDelayedBoth();history[method]({step:1},'',location.href);expect(routed).not.toHaveBeenCalled();expect(state.activeContentRequest).toEqual(request);expect(calls.every(call=>!call.signal?.aborted)).toBe(true);release();await complete(pending);expect(domHost!.querySelector('.fr-word-translation pre')?.textContent).toBe('合成译文 document-private');expect(domHost!.querySelector('.fr-word-definition-zh')?.textContent).toBe('合成译文 document-private');expect(cacheWrite).toHaveBeenCalledTimes(3);document.removeEventListener(routeEvent,routed);
+ });
+ it('duplicate bridge events preserve a fresh generation after the first route invalidates the old one',async()=>{
+  persistentSelection();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();const old=await startDelayedBoth();history.pushState({},'','/next');await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);old.release();await complete(old.pending);expect(cacheWrite).not.toHaveBeenCalled();calls=[];
+  const fresh=await startDelayedBoth();document.dispatchEvent(new CustomEvent(routeEvent));document.dispatchEvent(new CustomEvent(routeEvent));expect(state.activeContentRequest).toEqual(fresh.request);expect(calls.every(call=>!call.signal?.aborted)).toBe(true);fresh.release();await complete(fresh.pending);expect(domHost!.querySelector('.fr-word-definition-zh')?.textContent).toBe('合成译文 document-private');
+ });
+ it.each(['close','unmount'] as const)('%s rejects delayed DOM/cache and has bounded listener lifetime across repeated cleanup/remount',async action=>{
+  persistentSelection();const listeners=new Set<EventListenerOrEventListenerObject>();const add=document.addEventListener.bind(document),remove=document.removeEventListener.bind(document);
+  vi.spyOn(document,'addEventListener').mockImplementation((name,fn,options)=>{if(name===routeEvent)listeners.add(fn);add(name,fn,options);});vi.spyOn(document,'removeEventListener').mockImplementation((name,fn,options)=>{if(name===routeEvent)listeners.delete(fn);remove(name,fn,options);});
+  await mountPage();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();expect(listeners.size).toBe(1);const old=await startDelayedBoth();
+  if(action==='close'){state.closeTooltip();state.closeTooltip();expect(listeners.size).toBe(1);}else{unmounted.forEach(fn=>fn());unmounted.forEach(fn=>fn());unmounted=[];scope.stop();domApp!.unmount();domApp=undefined;expect(listeners.size).toBe(0);}
+  await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);old.release();await complete(old.pending);expect(state.wordCard).toBeNull();expect(domHost!.querySelector('.fr-word-translation pre, .fr-word-definition-zh')).toBeNull();expect(cacheWrite).not.toHaveBeenCalled();
+  await mountPage();renderCardDOM();expect(listeners.size).toBe(1);calls=[];const fresh=await startDelayedBoth();history.replaceState({},'','/after-cleanup');await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);fresh.release();await complete(fresh.pending);expect(cacheWrite).not.toHaveBeenCalled();unmounted.forEach(fn=>fn());unmounted.forEach(fn=>fn());unmounted=[];scope.stop();expect(listeners.size).toBe(0);
+ });
+ it('native capability false installs no card route listener and preserves ordinary legacy translation after pushState',async()=>{
+  persistentSelection();const add=vi.spyOn(document,'addEventListener');await mountPage(false);renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();expect(add.mock.calls.filter(([name])=>name===routeEvent)).toEqual([]);
+  browserBoundary.extension.inIncognitoContext=false;nativeSender.tab.incognito=false;state.snapshot=state.readSelectionSnapshot();state.selectedText='fixture';state.showTooltip=true;const request=state.beginSelectionContentRequest('fixture'),gate=delaySDK(),pending=state.requestTranslation(request);await pump(()=>calls.length>0);history.pushState({},'','/legacy-next');expect(calls[0].signal?.aborted).toBe(false);expect(state.activeContentRequest).toEqual(request);gate.resolve(response('document-public'));await complete(pending);expect(calls[0]).toMatchObject({url:publicURL,body:{model:'document-public'}});expect(domHost!.querySelector('.fr-translation-result pre')?.textContent).toBe('合成译文 document-public');
+ });
 });
 describe('native word-card effective pair and lifetime',()=>{
  it('enriches actual visible dictionary fields through native text Port and SDK while preserving raw semantics',async()=>{

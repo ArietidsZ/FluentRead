@@ -972,4 +972,6 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 
 `wordCardPrivacyRoute` 编译真实 SelectionTranslator setup，并执行真实 store save/subscribe、词典 handler/查询缓存、文本 client、原生 Port/registry/handler、broker/cache/provider/SDK；仅非模型词典 provider、浏览器、持久存储、布局和 HTTP 使用合成边界。原 lifecycle 夹具明确使用非原生能力以保留旧消息语义，新用例验证原生三态、有效 prompt/Thinking、十一类保存、并发主/辅助请求取消、endpoint/cache 和迟到词典响应。SFC 不在既有严格数值归属中，不把这些用例称为真实 GUI 或 numeric SFC 四维覆盖。
 
+同文档 SPA 导航使用实际 `installShadowAndRouteBridge` 的 History 包装产生 document `fluentread-route-change`；组件仅在 URL 变化时复用关闭失效流程，随组件卸载移除监听。关闭卡片时保留已挂载组件的单一监听，供后续卡片使用。新增负控保持源 Text/选区有效，不触发 selectionchange、popstate 或 hashchange，延迟实际主/辅助 SDK，观察生产模板经 Vue 离线 renderer 得到的 DOM 与模型缓存；覆盖 pushState/replaceState、相同 URL、重复信号、新代次、关闭、重复卸载与重挂载，以及 native false 普通兼容。DOM/Range/History 平台边界是合成夹具，不代表实机浏览器验收。
+
 独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
