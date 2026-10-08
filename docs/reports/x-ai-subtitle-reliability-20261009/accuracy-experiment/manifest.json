@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "status": "prepared_not_executed",
-  "experiment": "Fixed q4 encoder; compare q4 and q8 decoder; no accuracy result",
+  "status": "webgpu_prepared_not_executed; separate CPU/WASM evidence completed",
+  "experiment": "Fixed q4 encoder with q4/q8 decoder: WebGPU inference not executed; completed CPU/WASM results in separate reports",
   "productionSourceWorkerSha256": "80bee67c596eb5cab68b551139ed687069a0089a1bf12d297c7229c03e5f4334",
   "libraries": {
     "transformers": "3.8.1",
@@ -74,8 +74,21 @@
   "localCachePath": "/private/tmp/fluentread-x-ai-decoder-q8-model-cache-20261009",
   "harnessValidated": "Node syntax only; no browser inference validation; prepared SHA differs from attempted SHA",
   "pendingSourceControl": {
-    "status": "not_checked",
-    "check": "Compare q4 encoder/config/decoder hashes at the pinned HF commits with the existing Modelscope q4 cache; confirm the same export snapshot before attributing differences solely to decoder precision",
-    "networkCheckPerformed": false
+    "status": "verified",
+    "report": "./snapshot-verification.json",
+    "all16FilesMatch": true,
+    "methods": "HF fixed-commit LFS SHA256 for ONNX; actual downloaded public config/tokenizer SHA256 for JSON",
+    "audioNetworkRequests": false
+  },
+  "cpuWasmEvidence": {
+    "report": "./node-wasm-report.json",
+    "naturalKnownReferenceReport": "./jfk-wasm-summary.json",
+    "publicXObservationReport": "./public-x-wasm-summary.json",
+    "backend": "wasm",
+    "libraries": {
+      "transformers": "3.8.1",
+      "onnxruntimeWeb": "1.23.2"
+    },
+    "productionDefaultsChanged": false
   }
 }
