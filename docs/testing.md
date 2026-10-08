@@ -954,3 +954,8 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 `tests/imagePreparationCancellation.test.ts` 经真实图片 wrapper、共享 registry、handler 和原生 Port，在 ready/source gate 尚未释放时检查配置取消、断连、显式取消和后台截止时间使 dispatch 结束、活动归属及配置控制器清理；两类正常完成作为对照，迟到 resolve/reject 不封入快照或派发 OCR。`imagePrivacyRoute` 的真实配置保存/getContexts 用例也在释放 gate 前检查后台 handler 完成。未标记的圈选快照由允许的 Offscreen 子请求恢复后仍被实际图片 broker adapter 拒绝，测试不会增加圈选来源路由。前端专项另覆盖专用自定义模型目录变更及缺失可选映射。此前额外三模块诊断的遗漏包含新增分支，不能统称为既有遗漏；此诊断与既有严格覆盖归属分别报告，不修改覆盖清单、阈值或 ignore。
 
 该准备专项还在 run 返回与 cancel/releaseOwner、或真实 Port 收包与配置取消/断连之间不执行 await/drain，随后立即拒绝准备 gate；监听真实 Node unhandledRejection 并在通知阶段后检查零异常、零 operation 及归属清理。prepared 在 execute 的活动核验前同步附加拒绝消费，原 Promise 仍由原 await 返回错误；未取消控制核对同一 Error 实例，不将准备消费扩展为 provider race。
+
+
+圈选私密来源使用图片事务同一条可取消 ready/source 准备链，在模型能力规则、探测缓存、vision 或 OCR 文本翻译之前冻结有效专用 provider/model。未知原生来源遇到专用配置时在副作用前拒绝；普通来源和两字段均空保留兼容。`imagePrivacyRoute` 使用真实保存订阅、原生文档 Port、handler、broker 和 SDK，以离线存储、OCR/裁剪及 HTTP 边界验证实际模型/端点、普通与能力缓存隔离、私密手动识图覆盖、原 OCR fallback，以及 probe/vision/text 的模型和端点保存取消与迟到结果。`imagePreparationCancellation` 验证圈选 ready/source gate 的原 deadline、文档断连及真正同轮 preparation rejection 消费；registry 不另行改写。`visionProbe` 的平台关闭能力负控配合实际 userscript 构建确认扩展来源代码可摇树隔离。
+
+本切片只覆盖原生圈选翻译入口及其必要自动 probe/vision/OCR 文本依赖；独立设置页 probe、文档、视频及其他独立入口不纳入，未证明它们完成三态来源接线。实际 API、下载、GPU、RTX5090 WebGPU 与浏览器实机 UI 验证均不包含在这些离线用例中；严格覆盖归属与额外 app glue 诊断分别报告，不能把局部未归属模块诊断当成严格四维全绿。

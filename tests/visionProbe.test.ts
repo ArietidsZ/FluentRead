@@ -162,3 +162,19 @@ describe('共享识图探测服务', () => {
         await expect(retry.resolve(base(),'deepseek','future-vision',{force:true})).resolves.toMatchObject({capability:'unknown'});
     });
 });
+
+
+describe('userscript capability isolation for probe provenance', () => {
+    it('does not copy native provenance into probe requests when the platform adapter disables it', async () => {
+        vi.resetModules();
+        vi.doMock('@/src/core/config/incognitoRoute', async importOriginal => ({...await importOriginal<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
+        try {
+            const {createModelVisionProbe: create} = await import('@/src/services/translation/visionProbe');
+            const {attachTranslationSourcePrivacy, getTranslationSourcePrivacy} = await import('@/src/services/translation/requestPrivacy');
+            const source = attachTranslationSourcePrivacy(base(), 'private');
+            const translate = vi.fn(async (request: object) => {expect(getTranslationSourcePrivacy(request)).toBeUndefined(); return 'ABCDEF';});
+            await expect(create({storage: store(), translate, random}).resolve(source, 'deepseek', 'future-vision', {force: true})).resolves.toMatchObject({capability: 'supported'});
+            expect(translate).toHaveBeenCalledOnce();
+        } finally {vi.doUnmock('@/src/core/config/incognitoRoute'); vi.resetModules();}
+    });
+});

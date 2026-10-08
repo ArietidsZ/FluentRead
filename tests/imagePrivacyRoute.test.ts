@@ -1,15 +1,16 @@
-/** 原生图片 Port／sender、真实 normalize/save/subscriber、图片 handler／broker／SDK → 合成 fetch；OCR 和存储为隔离本地边界。 */
+/** 原生图片/圈选 Port 与三态 sender、真实 normalize/save/subscriber、handler→能力 probe/broker/SDK→合成 fetch；OCR/裁剪与存储为隔离边界，覆盖冻结有效专用 pair、普通/能力缓存隔离及真实保存取消迟到结果。 */
 import 'fake-indexeddb/auto';
 import {afterEach, beforeEach, describe, expect, it, vi, type MockInstance} from 'vitest';
 import {documentPortPair} from './helpers/imageDocumentPorts';
 import type {ImageGlossarySenderContext} from '@/src/app/background/imageGlossaryContext';
-const m = vi.hoisted(() => ({values: new Map<string, unknown>(), send: vi.fn(), contexts: vi.fn(), record: vi.fn(), source: vi.fn()}));
+const m = vi.hoisted(() => ({values: new Map<string, unknown>(), send: vi.fn(), contexts: vi.fn(), record: vi.fn(), source: vi.fn(), probeLoad: vi.fn(), probeSave: vi.fn()}));
 vi.mock('@/src/platform/storage/configStorageRuntime', () => ({configStorage: {
     writeOwner: true, getItem: async (key: string) => m.values.get(key) ?? null,
     setItem: async (key: string, value: unknown) => {m.values.set(key, structuredClone(value));},
     removeItem: async (key: string) => {m.values.delete(key);}, watch: () => () => undefined,
 }}));
 vi.mock('@/src/platform/offscreen/extensionClient', () => ({extensionDomClient: {send: m.send}}));
+vi.mock('@/src/platform/storage/visionProbeStorage', () => ({visionProbeStorage: {load: m.probeLoad, save: m.probeSave}}));
 vi.mock('webextension-polyfill', () => ({default: globalThis.browser}));
 vi.mock('@/src/platform/storage/modelUsageRepository', () => ({modelUsageRepository: {captureGeneration: () => 1, recordMany: m.record}}));
 vi.mock('@/src/platform/storage/translationStatsRepository', () => ({translationStatsRepository: {captureGeneration: () => 1, record: m.record}}));
@@ -19,8 +20,8 @@ const image = 'data:image/png;base64,AQ==';
 const native = (incognito: unknown = true): ImageGlossarySenderContext => ({sender: {id: 'ext', documentId: 'image-document', frameId: 0,
     url: 'https://example.test/same?incognito=true', tab: {id: 1, incognito: incognito as boolean}}});
 const request = {type: 'fluentReadImageTranslate', requestId: 'image-fixture', image, sourceLanguage: 'en', title: 'Synthetic title'};
-function response(model: string) {return new Response(JSON.stringify({id: 'synthetic', object: 'chat.completion', model,
-    choices: [{index: 0, message: {role: 'assistant', content: '合成译文。'}, finish_reason: 'stop'}]}), {headers: {'content-type': 'application/json'}});}
+function response(model: string, content = '合成译文。') {return new Response(JSON.stringify({id: 'synthetic', object: 'chat.completion', model,
+    choices: [{index: 0, message: {role: 'assistant', content}, finish_reason: 'stop'}]}), {headers: {'content-type': 'application/json'}});}
 let store: typeof import('@/src/services/config/store');
 let app: ReturnType<typeof import('@/src/app/background/areaRuntime').createImageAreaTranslationRuntime>;
 let transport: ReturnType<typeof vi.fn>, resetFetch: () => void;
@@ -43,6 +44,7 @@ beforeEach(async () => {
     vi.stubGlobal('browser', {runtime: {id: 'ext', getURL: (path: string) => `chrome-extension://ext/${path.replace(/^\//u, '')}`, getContexts: m.contexts}, tabs: {sendMessage: m.source}});
     const {Config} = await import('@/src/core/config/model'); const initial = new Config();
     initial.service = publicService; initial.imageTranslationService = publicService;
+    initial.areaTranslationService = publicService; initial.areaTranslationMode = 'standard'; initial.areaRecognitionMode = 'ocr';
     initial.customOpenAIProviders = [{id: publicService, name: 'Synthetic public image', endpoint: publicURL, models: ['image-public']},
         {id: privateService, name: 'Synthetic private image', endpoint: privateURL, models: ['image-private', 'image-next', 'private-ordinary']}];
     initial.model = {[publicService]: 'image-public', [privateService]: 'private-ordinary'};
@@ -50,7 +52,7 @@ beforeEach(async () => {
     initial.requireApiKey = Object.fromEntries([[publicService, 'image-public'], ...['image-private', 'image-next', 'private-ordinary'].map(model => [privateService, model])]
         .map(pair => [`v2:${JSON.stringify(pair)}`, false]));
     initial.translationMaxRetries = 0; initial.imageTranslationOcrEngine = 'tesseract';
-    m.values.set('local:config', initial); m.record.mockResolvedValue(undefined); m.contexts.mockResolvedValue([]); m.source.mockResolvedValue({valid: true});
+    m.values.set('local:config', initial); m.probeLoad.mockImplementation(async () => m.values.get('vision-probe') ?? []); m.probeSave.mockImplementation(async records => {m.values.set('vision-probe', structuredClone(records));}); m.record.mockResolvedValue(undefined); m.contexts.mockResolvedValue([]); m.source.mockResolvedValue({valid: true});
     store = await import('@/src/services/config/store'); await store.configReady;
     const http = await import('@/src/platform/http/runtime'); resetFetch = () => http.setRuntimeFetch();
     transport = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal}); return response(body.model);});
@@ -62,11 +64,162 @@ beforeEach(async () => {
         return {success: true, image, lines: result.translations};
     };
     m.send.mockImplementation(async (message, options) => message.type === 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN' ? ocr(message, options)
-        : message.type === 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN' ? {success: true, image} : {success: true});
+        : message.type === 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN' ? {success: true, image}
+        : /^FLUENT_READ_AREA_(?:TRANSLATE|CROP)_OFFSCREEN$/u.test(message.type) ? {success: true, image: 'data:image/png;base64,Ag==', lines: [{text: 'Synthetic source phrase.'}]} : {success: true});
     languages = vi.fn(async () => {});
     const {resolveBrowserCapabilities} = await import('@/src/platform/browser/capabilities');
     app = (await import('@/src/app/background/areaRuntime')).createImageAreaTranslationRuntime({assertDownloaded: languages, getDownloaded: async () => [],
         markDownloaded: async () => [], markRemoved: async () => []} as any, resolveBrowserCapabilities({browser: 'chrome', manifestVersion: 3}));
+});
+
+const areaRequest = {...request, type: 'fluentReadAreaTranslateCapture', selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}};
+async function visionMode(overrides: Record<string, Record<string, boolean>> = {}) {
+    await store.requestConfigPatch({areaRecognitionMode: 'prefer-vision', modelVision: overrides});
+    const random = crypto.getRandomValues.bind(crypto);
+    vi.spyOn(crypto, 'getRandomValues').mockImplementation((array: any) => {
+        if (array.byteLength === 3) {array.set([0xab, 0xcd, 0xef]); return array;}
+        return random(array);
+    });
+    transport.mockImplementation(async (url: RequestInfo | URL, init?: RequestInit) => {
+        const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal});
+        const probe = JSON.stringify(body).includes('six hexadecimal');
+        const vision = JSON.stringify(body).includes('image_url');
+        return response(body.model, probe ? 'ABCDEF' : vision ? 'Synthetic source phrase.' : '合成译文。');
+    });
+}
+const phase = (body: any) => JSON.stringify(body).includes('six hexadecimal') ? 'probe' : JSON.stringify(body).includes('image_url') ? 'vision' : 'text';
+describe('native area frozen private route through real capability probe, broker and SDK', () => {
+    it('OCR stays selected and the actual text SDK/cache identity uses the dedicated pair', async () => {
+        expect(await (await portRequest(native(), areaRequest)).pending).toMatchObject({success: true, service: privateService, model: 'image-private', recognitionMethod: 'ocr'});
+        expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({url: privateURL, body: {model: 'image-private'}});
+        expect(m.send.mock.calls[0][0].type).toBe('FLUENT_READ_AREA_TRANSLATE_OFFSCREEN'); expect(languages).toHaveBeenCalledOnce();
+        expect(m.probeSave).not.toHaveBeenCalled(); expect(store.config.areaTranslationService).toBe(publicService); expect(store.config.model[privateService]).toBe('private-ordinary');
+    });
+    it('the unknown dedicated model is probed before crop using its real endpoint/model, then reused for vision and text', async () => {
+        await visionMode();
+        const {createVisionProbeIdentity} = await import('@/src/core/config/visionProbe');
+        m.values.set('vision-probe', [{identity: createVisionProbeIdentity(store.config, publicService, 'image-public'), capability: 'supported', checkedAt: Date.now()}]);
+        const result = await (await portRequest(native(), areaRequest)).pending;
+        expect(result).toMatchObject({success: true, service: privateService, model: 'image-private', recognitionMethod: 'vision'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'vision', 'text']);
+        expect(calls.every(c => c.url === privateURL && c.body.model === 'image-private')).toBe(true);
+        expect(m.send.mock.calls.map(([message]) => message.type)).toEqual(['FLUENT_READ_AREA_CROP_OFFSCREEN']); expect(languages).not.toHaveBeenCalled();
+        const saved = m.values.get('vision-probe') as any[];
+        const effective = {...store.config, model: {...store.config.model, [privateService]: 'image-private'}, customModel: {...store.config.customModel, [privateService]: 'image-private'}};
+        expect(saved.some(r => r.identity === createVisionProbeIdentity(effective, privateService, 'image-private'))).toBe(true);
+        expect(JSON.stringify(saved)).not.toMatch(/image-private|base64|ABCDEF/u);
+        expect(await call({...areaRequest, requestId: 'area-repeat'})).toMatchObject({success: true, recognitionMethod: 'vision'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'vision', 'text', 'vision']);
+    });
+    it.each([true, false])('manual dedicated vision=%s is respected without probing or using the ordinary override', async supported => {
+        await visionMode({[privateService]: {'image-private': supported}, [publicService]: {'image-public': !supported}});
+        expect(await call(areaRequest)).toMatchObject({success: true, recognitionMethod: supported ? 'vision' : 'ocr'});
+        expect(calls.map(c => phase(c.body))).toEqual(supported ? ['vision', 'text'] : ['text']);
+        expect(calls.every(c => c.url === privateURL && c.body.model === 'image-private')).toBe(true);
+        expect(languages).toHaveBeenCalledTimes(supported ? 0 : 1); expect(m.probeSave).not.toHaveBeenCalled();
+    });
+    it('explicit dedicated image rejection retains the original OCR fallback and translates with the same private model', async () => {
+        await visionMode(); transport.mockImplementationOnce(async (url: RequestInfo | URL, init?: RequestInit) => {
+            calls.push({url: String(url), body: JSON.parse(String(init?.body)), signal: init?.signal});
+            return new Response(JSON.stringify({error: {message: 'This model does not support image input'}}), {status: 400});
+        });
+        expect(await call(areaRequest)).toMatchObject({success: true, recognitionMethod: 'ocr', recognitionFallback: 'unsupported', service: privateService, model: 'image-private'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'text']); expect(calls.every(c => c.body.model === 'image-private')).toBe(true);
+        expect(m.send.mock.calls[0][0].type).toBe('FLUENT_READ_AREA_TRANSLATE_OFFSCREEN'); expect(languages).toHaveBeenCalledOnce();
+    });
+    it('regular sender ignores forged privacy and an invalid dedicated pair, including before the probe', async () => {
+        await visionMode(); await store.requestConfigPatch({incognitoModel: 'missing-model'});
+        expect(await call({...areaRequest, privateContext: true, serviceOverride: privateService, modelOverride: 'image-private'}, native(false))).toMatchObject({success: true, service: publicService, model: 'image-public'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'vision', 'text']); expect(calls.every(c => c.url === publicURL && c.body.model === 'image-public')).toBe(true);
+    });
+    it.each([undefined, 'true', 1])('unknown native source=%s rejects before capability/cache/OCR/SDK', async value => {
+        await visionMode(); const sender = native(); (sender.sender!.tab as any).incognito = value;
+        expect(await (await portRequest(sender, areaRequest)).pending).toMatchObject({success: false, error: expect.stringContaining('来源')});
+        expect(m.send).not.toHaveBeenCalled(); expect(readCache).not.toHaveBeenCalled(); expect(m.probeSave).not.toHaveBeenCalled(); expect(m.probeLoad).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
+    });
+    it('both-empty dedicated pair retains unknown-source probe and normal area compatibility', async () => {
+        await visionMode(); await store.requestConfigPatch({incognitoService: '', incognitoModel: ''}); const sender = native(); delete (sender.sender!.tab as any).incognito;
+        expect(await call(areaRequest, sender)).toMatchObject({success: true, service: publicService, model: 'image-public'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'vision', 'text']); expect(calls.every(c => c.body.model === 'image-public')).toBe(true);
+    });
+    it.each([{incognitoModel: 'missing-model'}, {incognitoService: ''}, {customBody: {[privateService]: '{"model":"private-ordinary"}'}}])('invalid private area configuration stops before probe/cache/OCR: %j', async patch => {
+        await visionMode(); await store.requestConfigPatch(patch); await expect(call(areaRequest)).rejects.toThrow(/无效|冲突/u);
+        expect(m.send).not.toHaveBeenCalled(); expect(readCache).not.toHaveBeenCalled(); expect(m.probeSave).not.toHaveBeenCalled(); expect(m.probeLoad).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
+    });
+    it('ordinary area text cache is not reused by the dedicated model', async () => {
+        expect(await call(areaRequest, native(false))).toMatchObject({success: true}); expect(await call(areaRequest)).toMatchObject({success: true});
+        expect(calls.map(c => c.body.model)).toEqual(['image-public', 'image-private']); expect(await call(areaRequest)).toMatchObject({success: true}); expect(calls).toHaveLength(2);
+    });
+    it.each(['probe', 'vision', 'text'].flatMap(stage => ['model', 'endpoint'].map(field => [stage, field] as const)))('real normalized %s-phase %s patch cancels SDK and rejects late output/cache', async (stage, field) => {
+        await visionMode(stage === 'vision' ? {[privateService]: {'image-private': true}} : stage === 'text' ? {[privateService]: {'image-private': false}} : {});
+        const finish = delayNext(), {pending, pair} = await portRequest(native(), areaRequest); await vi.waitFor(() => expect(calls).toHaveLength(1));
+        expect(phase(calls[0].body)).toBe(stage); const rejected = expect(pending).rejects.toMatchObject({name: 'AbortError'});
+        await store.requestConfigPatch(field === 'model' ? {incognitoModel: 'image-next'} : {customOpenAIProviders: store.config.customOpenAIProviders.map(p => ({...p, endpoint: p.id === privateService ? 'https://changed-area.synthetic.test/v1' : p.endpoint}))}); await rejected; expect(calls[0].signal?.aborted).toBe(true);
+        const before = vi.mocked(pair.background.postMessage).mock.calls.filter(([p]) => (p as any).kind === 'result').length;
+        finish(); await settle(); expect(vi.mocked(pair.background.postMessage).mock.calls.filter(([p]) => (p as any).kind === 'result')).toHaveLength(before);
+        expect((m.values.get('vision-probe') as any[] | undefined)?.some(r => r.capability === 'supported')).not.toBe(true);
+        expect(await cache.translationCache.getStats()).toMatchObject({entries: 0});
+    });
+    it.each(['areaTranslationService', 'areaTranslationMode', 'areaRecognitionMode', 'areaVisionPrompt', 'modelVision'] as const)('actual save subscription cancels active area work after %s changes', async field => {
+        let finish!: (value: unknown) => void; m.send.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+        const {pending} = await portRequest(native(), areaRequest); await vi.waitFor(() => expect(m.send).toHaveBeenCalledOnce());
+        const patch = {areaTranslationService: 'google', areaTranslationMode: 'ai', areaRecognitionMode: 'prefer-vision', areaVisionPrompt: 'Synthetic changed prompt', modelVision: {[privateService]: {'image-private': true}}};
+        const rejected = expect(pending).rejects.toMatchObject({name: 'AbortError'}); await store.requestConfigPatch({[field]: patch[field]}); await rejected;
+        finish({success: true, image, lines: [{text: 'late synthetic text'}]}); await settle(); expect(calls).toHaveLength(0);
+    });
+    it('closing the native area document cancels a delayed probe and denies a same-URL replacement its late result', async () => {
+        await visionMode(); const finish = delayNext(), old = await portRequest(native(), areaRequest); await vi.waitFor(() => expect(calls).toHaveLength(1)); old.pair.close(); await expect(old.pending).rejects.toThrow('port closed');
+        expect(calls[0].signal?.aborted).toBe(true); finish(); await settle();
+        expect(vi.mocked(old.pair.background.postMessage).mock.calls.filter(([p]) => (p as any).kind === 'result')).toHaveLength(0);
+        expect((m.values.get('vision-probe') as any[]).some(r => r.capability === 'supported')).toBe(false);
+        expect(await (await portRequest(native(), areaRequest)).pending).toMatchObject({success: true, recognitionMethod: 'vision'});
+        expect(calls.filter(c => phase(c.body) === 'probe')).toHaveLength(2);
+    });
+    it('an inconclusive dedicated probe retains OCR fallback and never probes an ordinary model', async () => {
+        await visionMode(); transport.mockImplementationOnce(async (url: RequestInfo | URL, init?: RequestInit) => {
+            const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal}); return response(body.model, 'UNKNOWN');
+        });
+        expect(await call(areaRequest)).toMatchObject({success: true, recognitionMethod: 'ocr', recognitionFallback: 'unknown', model: 'image-private'});
+        expect(calls.map(c => phase(c.body))).toEqual(['probe', 'text']); expect(calls.every(c => c.url === privateURL && c.body.model === 'image-private')).toBe(true);
+        expect((m.values.get('vision-probe') as any[]).some(r => r.capability === 'supported')).toBe(false); expect(languages).toHaveBeenCalledOnce();
+    });
+    it.each(['authentication', 'network'] as const)('a dedicated probe %s error does not fall back to OCR or ordinary routing', async kind => {
+        await visionMode(); transport.mockImplementationOnce(async (url: RequestInfo | URL, init?: RequestInit) => {
+            const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal});
+            if (kind === 'network') throw new TypeError('synthetic network failure');
+            return new Response(JSON.stringify({error: {message: 'synthetic authentication failure'}}), {status: 401});
+        });
+        expect(await (await portRequest(native(), areaRequest)).pending).toMatchObject({success: false});
+        expect(calls).toHaveLength(1); expect(calls[0]).toMatchObject({url: privateURL, body: {model: 'image-private'}});
+        expect(m.send).not.toHaveBeenCalled(); expect(languages).not.toHaveBeenCalled(); expect(readCache).not.toHaveBeenCalled();
+    });
+    it('exact native context preparation freezes area model and endpoint before the source gate returns', async () => {
+        let finish!: (value: unknown) => void; m.contexts.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
+        const context = {sender: {id: 'ext', documentId: 'area-native-ui', frameId: 0, url: 'chrome-extension://ext/options.html'}};
+        const started = await portRequest(context, areaRequest); await vi.waitFor(() => expect(m.contexts).toHaveBeenCalledOnce());
+        // Deliberate in-memory mutation without publishing a save tests the frozen snapshot, independently of cancellation subscription.
+        store.config.incognitoModel = 'image-next'; store.config.model[privateService] = 'image-next';
+        store.config.customOpenAIProviders.find(p => p.id === privateService)!.endpoint = 'https://late.synthetic.test/v1';
+        finish([{documentId: 'area-native-ui', contextId: 'area-exact', contextType: 'TAB', incognito: true, frameId: 0,
+            documentOrigin: 'chrome-extension://ext', documentUrl: context.sender.url}]);
+        expect(await started.pending).toMatchObject({success: true, model: 'image-private'});
+        expect(calls[0]).toMatchObject({url: privateURL, body: {model: 'image-private'}});
+    });
+    it('the internal area factory keeps the unmarked both-empty compatibility path on a real connected owner', async () => {
+        await store.requestConfigPatch({incognitoService: '', incognitoModel: ''});
+        const sender = native(false); (sender.sender!.tab as any).windowId = 2;
+        const handler = app.handlers.find(h => h.type === areaRequest.type)!; const handle = vi.spyOn(handler, 'handle');
+        expect(await (await portRequest(sender, areaRequest)).pending).toMatchObject({success: true});
+        const context = handle.mock.calls[0][1];
+        const bare = (await import('@/src/app/background/areaRuntime')).createAreaTranslationRuntime(languages);
+        expect(await bare[1].handle({...areaRequest, type: 'fluentReadAreaTranslateCapture', requestId: 'bare-compatible'}, context)).toMatchObject({success: true, model: 'image-public'});
+        (globalThis.browser.tabs as any).get = vi.fn(async (id: number) => ({id, windowId: 2, active: true}));
+        (globalThis.browser.tabs as any).captureVisibleTab = vi.fn(async () => image);
+        expect(await bare[0].handle({type: 'fluentReadAreaCapture', requestId: 'bare-capture'}, context)).toMatchObject({success: true, image});
+        expect(globalThis.browser.tabs.captureVisibleTab).toHaveBeenCalledWith(2, {format: 'png'});
+        app.releaseTab(1);
+        await expect(bare[1].handle({...areaRequest, type: 'fluentReadAreaTranslateCapture', requestId: 'released'}, context)).rejects.toThrow(/文档|连接/u);
+    });
 });
 afterEach(async () => {
     for (const port of ports) port.close(); resetFetch?.(); await cache?.translationCache.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals();
@@ -203,20 +356,20 @@ describe('native image private route through OCR transaction, actual broker and 
         m.source.mockResolvedValueOnce({valid: false}); await expect(call({type: 'fluentReadImageFetch', requestId: 'fetch-again', url: 'https://cdn.example.com/image.png'})).rejects.toThrow('来源已失效');
         expect(m.send.mock.calls.filter(([message]) => message.type === 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN')).toHaveLength(1); expect(calls).toHaveLength(0);
     });
-    it('a permitted Offscreen child of an unmarked area snapshot still fails closed in the actual image broker adapter', async () => {
+    it('a permitted Offscreen child restores the native area snapshot provenance in the actual broker adapter', async () => {
         await store.requestConfigPatch({areaRecognitionMode: 'ocr'});
         let restored: any;
         m.send.mockImplementationOnce(async message => {
             expect(message.type).toBe('FLUENT_READ_AREA_TRANSLATE_OFFSCREEN');
-            try {await call({type: 'fluentReadImageTranslateTexts', requestId: message.requestId,
-                texts: ['Synthetic unmarked source.']}, offscreen());} catch (error) {restored = error;}
-            // OCR 边界在恢复检查后停止；本例不新增圈选来源路由或视觉调用。
+            restored = await call({type: 'fluentReadImageTranslateTexts', requestId: message.requestId,
+                texts: ['Synthetic restored source.']}, offscreen());
+            // 只验证已归属的 Offscreen 子调用恢复同一圈选来源；外层在 OCR 边界停止。
             return {success: false, error: 'synthetic stop after restoration'};
         });
         const {pending} = await portRequest(native(), {...request, type: 'fluentReadAreaTranslateCapture',
             selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}} as any);
         expect(await pending).toMatchObject({success: false, error: 'synthetic stop after restoration'});
-        expect(restored).toBeInstanceOf(Error); expect(restored.message).toContain('来源');
-        expect(readCache).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
+        expect(restored).toMatchObject({success: true}); expect(calls).toHaveLength(1);
+        expect(calls[0]).toMatchObject({url: privateURL, body: {model: 'image-private'}});
     });
 });

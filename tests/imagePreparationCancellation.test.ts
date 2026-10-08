@@ -5,6 +5,7 @@ import {createImageGlossaryContext, type ImageGlossarySenderContext} from '@/src
 import {createImageOperationRegistry, createImageTranslationBackgroundHandlers} from '@/src/features/image-translation/background/handlers';
 import {createImageDocumentPortHandler} from '@/src/features/image-translation/background/documentSession';
 import {createImageDocumentClient} from '@/src/features/image-translation/services/documentClient';
+import {createAreaTranslationBackgroundHandlers} from '@/src/features/area-translation/background/handlers';
 import {IMAGE_DOCUMENT_VERSION} from '@/src/features/image-translation/documentChannel';
 import {documentPortPair} from './helpers/imageDocumentPorts';
 function deferred<T>() {let resolve!: (value: T) => void, reject!: (error: Error) => void; const promise = new Promise<T>((a, b) => {resolve = a; reject = b;}); return {promise, resolve, reject};}
@@ -16,7 +17,8 @@ function observeUnhandled() {
     return {errors, stop: () => process.off('unhandledRejection', listener)};
 }
 const message = {type: 'fluentReadImageTranslate', requestId: 'preparation', image: 'data:image/png;base64,AQ==', sourceLanguage: 'en'};
-function fixture(phase: 'ready' | 'source') {
+function fixture(phase: 'ready' | 'source', kind: 'image' | 'area' = 'image') {
+    const startMessage = kind === 'image' ? message : {...message, type: 'fluentReadAreaTranslateCapture', selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}};
     const gate = deferred<any>(), config = new Config();
     config.incognitoService = 'custom:preparation'; config.incognitoModel = 'private';
     config.customOpenAIProviders = [{id: 'custom:preparation', name: 'Synthetic preparation', endpoint: 'https://preparation.synthetic.test/v1', models: ['private']}];
@@ -26,9 +28,11 @@ function fixture(phase: 'ready' | 'source') {
     const adapter = createImageGlossaryContext<ImageGlossarySenderContext>({ready: phase === 'ready' ? gate.promise : Promise.resolve(),
         operationRegistry: registry, requireDocumentOwner: true, getConfig: () => config, offscreenUrl: 'chrome-extension://extension/offscreen.html',
         getSourceLanguage: () => 'en', getGlossaryRevision: () => 'unused', resolveImageSourcePrivacy: source});
-    const handlers = adapter.wrap(createImageTranslationBackgroundHandlers({operationRegistry: registry, assertLanguagesDownloaded: async () => {},
+    const handlers = adapter.wrap([...createImageTranslationBackgroundHandlers({operationRegistry: registry, assertLanguagesDownloaded: async () => {},
         translateImage, fetchImage: async () => '', getTranslationService: () => 'google', supportsBatchTranslation: () => true,
-        translateTexts: async () => [], downloadLanguages: async () => {}, markLanguagesDownloaded: async () => []}) as any);
+        translateTexts: async () => [], downloadLanguages: async () => {}, markLanguagesDownloaded: async () => []}),
+        ...createAreaTranslationBackgroundHandlers({operationRegistry: registry, requireDocumentOwner: true, captureVisibleTab: async () => '',
+            getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: async () => {}, translateArea: translateImage})] as any);
     const active = new Set<Promise<unknown>>(); let owner: ImageGlossarySenderContext | undefined;
     const server = createImageDocumentPortHandler({runtimeId: 'extension', releaseOwner: registry.releaseOwner, dispatch: (packet, context) => {
         owner = context; const pending = Promise.resolve(handlers.find(h => h.type === packet.type)!.handle(packet, context)); active.add(pending);
@@ -36,9 +40,9 @@ function fixture(phase: 'ready' | 'source') {
     }});
     const pair = documentPortPair({id: 'extension', url: 'https://example.test/document', tab: {id: 1, incognito: true}}); server.connect(pair.background);
     const client = createImageDocumentClient(() => pair.client);
-    const start = () => {const pending = client.request(message, {requestId: message.requestId, timeoutMs: 5000}, 'client timeout'); void pending.catch(() => {}); return pending;};
+    const start = () => {const pending = client.request(startMessage, {requestId: message.requestId, timeoutMs: 5000}, 'client timeout'); void pending.catch(() => {}); return pending;};
     const cleanup = async () => {pair.close(); gate.resolve(phase === 'ready' ? undefined : 'private'); await drain();};
-    return {gate, registry, source, translateImage, adapter, active, pair, client, start, cleanup, owner: () => owner!};
+    return {gate, registry, source, translateImage, adapter, active, pair, client, start, message: startMessage, cleanup, owner: () => owner!};
 }
 afterEach(() => {vi.restoreAllMocks(); vi.useRealTimers();});
 describe('image preparation cancellation before any gate settlement', () => {
@@ -147,5 +151,62 @@ describe('image preparation cancellation before any gate settlement', () => {
             expect(await returned).toBe(error); await rejectionCheckpoint(); expect(observed.errors).toEqual([]);
             expect(operation).not.toHaveBeenCalled(); expect(registry.cancel('error', context).cancelled).toBe(false);
         } finally {observed.stop();}
+    });
+});
+
+
+describe('area preparation uses the existing deadline and same-turn rejection protection', () => {
+    describe.each(['ready', 'source'] as const)('%s gate', phase => {
+        it.each(['configuration', 'disconnect'] as const)('ends %s dispatch before a never-returning gate', async reason => {
+            const h = fixture(phase, 'area'), pending = h.start(); const failure = expect(pending).rejects.toThrow(reason === 'configuration' ? '取消' : 'port closed');
+            try {
+                await drain(); expect(h.active.size).toBe(1); expect(h.translateImage).not.toHaveBeenCalled();
+                if (reason === 'configuration') h.adapter.cancelImages(); else h.pair.close();
+                await drain(); expect(h.active.size).toBe(0); await failure; expect(h.translateImage).not.toHaveBeenCalled();
+                h.gate.reject(new Error('synthetic late area gate rejection')); await rejectionCheckpoint(); expect(h.translateImage).not.toHaveBeenCalled();
+            } finally {await h.cleanup();}
+        });
+        it('expires the original preparation deadline while the gate never returns', async () => {
+            vi.useFakeTimers(); const h = fixture(phase, 'area');
+            try {
+                h.pair.backgroundMessages.emit({kind: 'request', version: IMAGE_DOCUMENT_VERSION, rpcId: 'area-deadline', message: {...h.message, timeoutMs: 25}});
+                await drain(); expect(h.active.size).toBe(1); await vi.advanceTimersByTimeAsync(26); expect(h.active.size).toBe(0);
+                const results = vi.mocked(h.pair.background.postMessage).mock.calls.map(([p]) => p as any).filter(p => p.kind === 'result');
+                expect(results).toHaveLength(1); expect(results[0].response).toMatchObject({success: false, errorName: 'TimeoutError'}); expect(h.translateImage).not.toHaveBeenCalled();
+            } finally {await h.cleanup();}
+        });
+        it('seals the private area service and model before actual OCR dispatch', async () => {
+            const h = fixture(phase, 'area'), pending = h.start();
+            try {
+                await drain(); h.gate.resolve(phase === 'ready' ? undefined : 'private'); expect(await pending).toMatchObject({success: true});
+                const options = (h.translateImage.mock.calls as any)[0][4];
+                expect(options.snapshot.config.areaTranslationService).toBe('custom:preparation'); expect(options.snapshot.config.model['custom:preparation']).toBe('private');
+                expect(Object.isFrozen(options.snapshot.config)).toBe(true); expect(h.active.size).toBe(0);
+            } finally {await h.cleanup();}
+        });
+    });
+    it.each(['configuration', 'disconnect'] as const)('same-turn area receipt then %s then ready reject emits no unhandled rejection', async reason => {
+        const observed = observeUnhandled(), h = fixture('ready', 'area');
+        try {
+            h.pair.backgroundMessages.emit({kind: 'request', version: IMAGE_DOCUMENT_VERSION, rpcId: 'area-immediate', message: h.message});
+            expect(h.active.size).toBe(1); if (reason === 'configuration') h.adapter.cancelImages(); else h.pair.close();
+            h.gate.reject(new Error('synthetic same-turn area preparation rejection')); await rejectionCheckpoint(); expect(observed.errors).toEqual([]);
+            expect(h.active.size).toBe(0); expect(h.translateImage).not.toHaveBeenCalled(); expect(h.source).not.toHaveBeenCalled();
+        } finally {await h.cleanup(); observed.stop();}
+    });
+});
+
+describe('existing synchronous snapshot callback compatibility', () => {
+    it('seals the fourth-argument snapshot once and revokes offscreen restoration when the original operation finishes', async () => {
+        const offscreen = {sender: {id: 'extension', url: 'chrome-extension://extension/offscreen.html'}};
+        const registry = createImageOperationRegistry('sync-snapshot', context => context.sender?.url === offscreen.sender.url);
+        const context = {sender: {id: 'extension', documentId: 'sync-document', tab: {id: 1}}};
+        const entered = deferred<void>(), gate = deferred<string>(); let options: any;
+        const frozen = Object.freeze({sourceLanguage: 'en', glossaryRevision: 'sync-revision'}), snapshot = vi.fn(() => frozen);
+        const pending = registry.run({requestId: 'sync'}, async value => {options = value; entered.resolve(); return gate.promise;}, context, snapshot);
+        await entered.promise; expect(snapshot).toHaveBeenCalledOnce(); expect(options.snapshot).toBe(frozen);
+        expect(registry.restore(options.requestId, offscreen).snapshot).toBe(frozen);
+        gate.resolve('done'); expect(await pending).toBe('done');
+        expect(() => registry.restore(options.requestId, offscreen)).toThrow('上下文已失效'); expect(snapshot).toHaveBeenCalledOnce();
     });
 });

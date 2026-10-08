@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/imageGlossaryContext.ts
  * 文件职责：在图片与圈选 OCR 跨越 Offscreen 后恢复原页面与开始时的配置快照。
- * 主要内容：与 feature 共用事务表，在 ready/source 等待前登记图片归属、控制器和截止时间；冻结原生 sender 与三态来源，准备完成封入专用 provider/model 快照；取消可结束未返回的准备等待，只有精确的无标签页 Offscreen sender 可以恢复未终止事务。
+ * 主要内容：与 feature 共用事务表，在 ready/source 等待前登记图片与圈选归属、控制器和截止时间；冻结原生 sender 与三态来源，准备完成封入专用 provider/model 快照；取消可结束未返回的准备等待，只有精确的无标签页 Offscreen sender 可以恢复未终止事务。
  * 模块边界：只装配可信 sender、术语和配置快照，不访问浏览器、不传输凭据、不执行 OCR，也不接受消息体自报归属。
  */
 import type {BackgroundMessage, BackgroundMessageHandler} from './messageRouter';
@@ -74,9 +74,8 @@ export function createImageGlossaryContext<TContext extends ImageGlossarySenderC
                 throwIfTranslationRequestAborted(record.options.signal);
                 return invoke(record.snapshot!, registry.bind(context, record.options) as TContext);
             }
-            const imageRequest = handler.type !== AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE;
             let controller: AbortController | undefined;
-            const prepare = imageRequest ? async (options: ImageOperationOptions) => {
+            const prepare = async (options: ImageOperationOptions) => {
                 controller = options.controller!; imageControllers.add(controller);
                 await waitForTranslationRequestPreparation(dependencies.ready, options.signal);
                 throwIfTranslationRequestAborted(options.signal);
@@ -89,23 +88,19 @@ export function createImageGlossaryContext<TContext extends ImageGlossarySenderC
                     const trusted = attachTranslationSourcePrivacy(frozen.config, privacy);
                     assertTranslationSourcePrivacy(trusted, dependencies.getConfig!(), frozen.config);
                     const route = privacy === 'private' ? resolveIncognitoRoute(frozen.config) : undefined;
-                    const effective = route ? lockIncognitoRoute({...trusted, imageTranslationService: route.service,
+                    const effective = route ? lockIncognitoRoute({...trusted, imageTranslationService: route.service, areaTranslationService: route.service,
                         model: Object.freeze({...trusted.model, [route.service]: route.model}),
                         customModel: Object.freeze({...trusted.customModel, [route.service]: route.model}),
                     }, route) : Object.freeze(trusted);
                     frozen = Object.freeze({...frozen, config: effective});
                 }
                 return frozen;
-            } : undefined;
-            if (!imageRequest) {
-                await dependencies.ready;
-                assertImageDocumentContext(context, dependencies.requireDocumentOwner);
-            }
+            };
             try {
                 return await registry.run(message, options => {
                     const bound = registry.bind(context, options) as TContext;
                     return Promise.resolve(starts ? handler.handle({...message, requestId: options.requestId} as BackgroundMessage, bound) : invoke(options.snapshot!, bound));
-                }, context, imageRequest ? undefined : () => snapshot(context, message.sourceLanguage), prepare);
+                }, context, undefined, prepare);
             } finally {if (controller) imageControllers.delete(controller);}
         }};
     })};

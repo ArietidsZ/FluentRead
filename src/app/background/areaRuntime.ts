@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/areaRuntime.ts
  * 文件职责：为图片与圈选翻译装配浏览器、离屏计算、识别配置与共享事务表。
- * 主要内容：静态组装能力门控、OCR 语言包、图片来源校验及区域模型路由；图片从原生 sender 核验三态来源并把有效快照交给 broker，配置变更取消图片事务；图片与圈选共用文档连接、身份和断连／标签页释放。
+ * 主要内容：静态组装能力门控、OCR 语言包、图片来源校验及区域模型路由；图片与圈选从原生 sender 核验三态来源并在能力探测前冻结有效专用线路，内部请求向 broker 保留来源；相关配置变更取消两类事务；图片与圈选共用文档连接、身份和断连／标签页释放。
  * 模块边界：本文件仅注入依赖，不实现模型能力、截图裁剪、OCR 或翻译算法；消息安装由 messageRuntime 统一负责。
  */
 import type {ImageOperationRegistry} from '@/src/features/image-translation/protocol';
@@ -27,6 +27,12 @@ import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/pla
 import {attachTranslationSourcePrivacy, getTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {getTranslationProviderConfig} from '@/src/services/translation/requestSnapshot';
 
+/** 内部来源附在原请求上，保留不可枚举的取消所有权及剩余预算。 */
+function translateImageArea(request: Parameters<typeof translateWithCache>[0]) {
+    const privacy = getTranslationSourcePrivacy(getTranslationProviderConfig(request, config));
+    return translateWithCache(privacy ? Object.assign(request, attachTranslationSourcePrivacy({}, privacy)) : request);
+}
+
 export function createAreaTranslationRuntime(assertLanguagesDownloaded: (language: string) => Promise<void>, operationRegistry?: ImageOperationRegistry) {
     return createAreaTranslationBackgroundHandlers({
         requireDocumentOwner: true,
@@ -39,9 +45,9 @@ export function createAreaTranslationRuntime(assertLanguagesDownloaded: (languag
         getVisionRoute: (frozen) => resolveAreaRecognitionRoute(frozen ?? config),
         prepareVisionRoute: (frozen) => prepareModelVisionRoute(frozen ?? config, modelVisionProbe.resolve),
         prepareVisionTranslation: (language, title, _context, frozen) => prepareAreaVisionRecognition(frozen ?? config, language, title,
-            areaTranslationOffscreenAdapter.cropArea, translateWithCache),
+            areaTranslationOffscreenAdapter.cropArea, translateImageArea),
         prepareTextTranslation: (language, title, context, frozen) => prepareAreaTextTranslation(frozen ?? config, language, title,
-            {pageUrl: context.sender?.url, context: 'page'}, translateWithCache),
+            {pageUrl: context.sender?.url, context: 'page'}, translateImageArea),
         sendProgress: imageTranslationProgressTransport.sendProgress,
     });
 }
@@ -61,11 +67,7 @@ export function createImageAreaTranslationRuntime<TContext extends ImageGlossary
         areaTranslation: () => createAreaTranslationRuntime(repository.assertDownloaded, registry),
         imageTranslation: () => createImageTranslationBackgroundHandlers({operationRegistry: registry,
             assertLanguagesDownloaded: repository.assertDownloaded, getDownloadedLanguages: repository.getDownloaded,
-            ...imageTranslationOffscreenAdapter, ...imageTranslationSourceTransport, translateTexts: request => {
-                const privacy = getTranslationSourcePrivacy(getTranslationProviderConfig(request, config));
-                // 在原对象附着内部来源，保留不可枚举的取消所有权和剩余预算。
-                return translateWithCache(privacy ? Object.assign(request, attachTranslationSourcePrivacy({}, privacy)) : request);
-            },
+            ...imageTranslationOffscreenAdapter, ...imageTranslationSourceTransport, translateTexts: translateImageArea,
             getTranslationService: () => config.imageTranslationService || config.service, getGlossaryConfig: () => config,
             getImageOcrEngine: () => config.imageTranslationOcrEngine, supportsBatchTranslation: supportsTranslationBatch,
             markLanguagesDownloaded: repository.markDownloaded, markLanguagesRemoved: repository.markRemoved,
@@ -74,6 +76,7 @@ export function createImageAreaTranslationRuntime<TContext extends ImageGlossary
     }));
     const configurationKey = (next: typeof config) => JSON.stringify([next.on, next.disabledExtensionDomains,
         next.disableImageTranslator, next.imageTranslationMangaEnabled, next.imageTranslationOcrEngine, next.imageTranslationService,
+        next.areaTranslationService, next.areaTranslationMode, next.areaRecognitionMode, next.areaVisionPrompt, next.modelVision,
         next.service, next.model, next.customModel, next.incognitoService, next.incognitoModel, next.customModels, next.customOpenAIProviders,
         next.proxy, next.token, next.secret, next.apiKeys, next.apiKeyRotationEnabled, next.apiKeyRecoveryMs, next.requireApiKey,
         next.customBody, next.customHeaders, next.modelThinking, next.system_role, next.user_role, next.from, next.to, next.enableAIContext,

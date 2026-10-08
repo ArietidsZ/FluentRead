@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/visionProbe.ts
  * 文件职责：结合手动设置、有效探测缓存与内置规则决定当前模型识图能力，并复用共享翻译链路探测未知模型。
- * 主要内容：冻结配置与严格测试提示词，生成随机 PNG，发送受信图片请求；取消和超时不写能力结论，只有匹配答案或明确图片输入拒绝落盘，缓存仅保存身份摘要与时间。
+ * 主要内容：冻结配置与严格测试提示词，生成随机 PNG，发送受信图片请求；取消和超时不写能力结论，冻结快照的可信来源在扩展平台传入 broker，只有匹配答案或明确图片输入拒绝落盘，缓存仅保存身份摘要与时间。
  * 模块边界：通过注入的翻译和存储端口执行副作用，不实现厂商协议、不读取页面图片、不改写用户配置或提示词。
  */
 import {resolveAreaRecognitionRoute, resolveModelVisionCapability, supportsVisionTransport, type AreaRecognitionRouteInput} from '@/src/core/config/vision';
@@ -11,6 +11,8 @@ import {createVisionProbeImage} from '@/src/core/translation/visionProbeImage';
 import {attachTranslationImageInput, attachTranslationProviderConfig, attachTranslationRequestControl,
     createTranslationProviderConfigSnapshot, markTranslationRemainingBudget} from './requestSnapshot';
 import type {TranslationConfigSource, TranslationRequestMessage} from './types';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {attachTranslationSourcePrivacy, getTranslationSourcePrivacy} from './requestPrivacy';
 
 export interface VisionProbeConfig extends TranslationConfigSource {modelVision?: Record<string, Record<string, boolean>>;}
 export const VISION_PROBE_MESSAGE = 'fluentReadModelVisionProbe';
@@ -116,6 +118,10 @@ export function createModelVisionProbe(deps: {
             thinkingOverride: false, enableAIContext: false, pageContext: '', context: '', glossaryIds: [], useCache: false,
             requestTimeoutMs: VISION_PROBE_TIMEOUT_MS,
         }), {signal, ownershipKey: `vision-probe:${identity}`}), snapshot), challenge.image);
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+            const privacy = getTranslationSourcePrivacy(source);
+            if (privacy) Object.assign(request, attachTranslationSourcePrivacy({}, privacy));
+        }
         let capability: VisionProbeResult['capability'];
         try {
             const text = await deps.translate(request);
