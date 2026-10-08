@@ -1,0 +1,1246 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=../pdf-race-nine-coverage-20261008/integration-full-strict-coverage --reporter=default --reporter=json --outputFile=../pdf-race-nine-coverage-20261008/integration-full-strict.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-pdf-race-nine-integration
+      Coverage enabled with v8
+
+ ✓ tests/fullPageVisibilityScheduling.test.ts (213 tests) 756ms
+ ✓ tests/translationBroker.test.ts (144 tests) 1417ms
+ ✓ tests/translationCore.test.ts (136 tests) 2096ms
+   ✓ translation candidate core > bounds one readability probe on an extremely wide subtree 505ms
+   ✓ translation candidate core > shares text ancestor protection across one adversarially deep discovery 370ms
+ ✓ tests/config.test.ts (135 tests) 6680ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1400ms
+ ✓ tests/imageTranslationRuntime.test.ts (182 tests) 495ms
+ ✓ tests/translationTruncation.test.ts (59 tests) 180ms
+ ✓ tests/mangaSites.test.ts (285 tests) 67ms
+ ✓ tests/model.test.ts (113 tests) 107ms
+ ✓ tests/mangaReader.test.ts (144 tests) 199ms
+ ✓ tests/sectionTranslationPicker.test.ts (49 tests) 549ms
+ ✓ tests/bilingualRemount.test.ts (58 tests) 121ms
+ ✓ tests/i18n.test.ts (57 tests) 2227ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 1146ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 458ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 370ms
+ ✓ tests/backgroundFeatureHandlers.test.ts (52 tests) 2088ms
+   ✓ 后台 feature handlers > 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口 1203ms
+   ✓ 后台 feature handlers > 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对 602ms
+ ✓ tests/inputTranslationContentFeature.test.ts (69 tests) 458ms
+ ✓ tests/configDiff.test.ts (50 tests) 17ms
+ ✓ tests/videoAiFullCapture.test.ts (30 tests) 253ms
+ ✓ tests/googleDriveSync.test.ts (45 tests) 18370ms
+   ✓ Google Drive 同步事务 > 只读备份仍展示差异并可在后台重启后恢复，伪造保存请求也不能写入云端 659ms
+   ✓ Google Drive 同步事务 > 配置一致或合并结果等于云端时只更新基线，不重复写入备份 580ms
+   ✓ Google Drive 同步事务 > MV3 后台重启后仍可用口令恢复一次性预览，暂存中没有明文凭据 681ms
+   ✓ Google Drive 同步事务 > 每次点击只授权一次，结束后清理缓存且保留密文基线与同步时间 319ms
+   ✓ Google Drive 同步事务 > 基于共同基线合并独立设置变化，私密连接冲突必须整组选择 580ms
+   ✓ Google Drive 同步事务 > 云端新增、删除和修改均使旧预览失效，上传失败保留本机和基线 843ms
+   ✓ Google Drive 同步事务 > 本机写入失败先恢复原设置，不把失败记录为同步成功 479ms
+   ✓ Google Drive 同步事务 > 旧基线无法解密和换账号时不隐含合并；再次同步同账号保留基线 471ms
+   ✓ Google Drive 同步事务 > 升级为 Drive 账号标识时不能按同邮箱复用旧 OAuth 基线，确认前保留两端配置 476ms
+   ✓ Google Drive 同步事务 > 删除自定义服务和另一端选择它形成整组冲突，确认后备份可再次读取 681ms
+   ✓ Google Drive 同步事务 > 6MiB 合法请求体首次上传后可再次预览，后台重启后可合并及跨设备恢复 4220ms
+   ✓ Google Drive 同步事务 > 成功同步记录账号，重开不授权；换号取消或失败仍保留上次成功记录 311ms
+   ✓ 云备份删除确认事务 > 损坏、未知格式与旧完整备份可删除，重启后仅删除确认的文件并清除基线，本机凭据保持不变 515ms
+   ✓ 单次敏感范围事务 > 旧 v1 的默认 merge 保护本机连接和私密字段；download 保留云端秘密 367ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 download 当作完整连接删除 310ms
+   ✓ 单次敏感范围事务 > 同意敏感信息也不能把普通远端 merge 当作完整连接删除 363ms
+   ✓ 单次敏感范围事务 > 范围切换投影基线，普通设置完全一致时仍覆盖旧云秘密，重新同意才能上传完整快照 1247ms
+   ✓ 单次敏感范围事务 > 普通基线遇到完整云端时不对敏感字段给出错误自动建议 415ms
+   ✓ 单次敏感范围事务 > 旧 pending、篡改 scope 以及重启后的范围字段缺失均拒绝且不写云 1179ms
+   ✓ 单次敏感范围事务 > 完整原始本机快照检测投影外变化，并在保存失败后精确回滚 366ms
+ ✓ tests/translationState.test.ts (53 tests) 434ms
+   ✓ 指定节点翻译状态机 > removed subtree 查询不会读取大批无关 active owner 的状态 324ms
+ ✓ tests/imageTranslationFlow.test.ts (34 tests) 508ms
+ ✓ tests/selectionTranslatorCore.test.ts (58 tests) 93ms
+ ✓ tests/videoAiStreaming.test.ts (58 tests) 521ms
+   ✓ 本地 AI 字幕音频窗口 > 以不规则小块连续重采样五分钟仍不累计采样数漂移 385ms
+ ✓ tests/configStorage.test.ts (28 tests) 275ms
+ ✓ tests/offscreenMessageRouter.test.ts (35 tests) 437ms
+ ✓ tests/quickTranslationContentFeature.test.ts (40 tests) 19ms
+ ✓ tests/translationStability.test.ts (41 tests) 106ms
+ ✓ tests/glossarySettingsComponent.test.ts (41 tests) 17176ms
+   ✓ GlossarySettings compiled component > renders separate script choices from the shared translation catalog and persists traditional scope 670ms
+   ✓ GlossarySettings compiled component > starts empty and disabled without saving defaults, and explains service support and local preview 418ms
+   ✓ GlossarySettings compiled component > creates libraries and preserves blank translations, case options, search, and order 404ms
+   ✓ GlossarySettings compiled component > adds a real bundled word list, persists it without enabling the master switch, and opens rather than overwrites an edited copy 386ms
+   ✓ GlossarySettings compiled component > does not add builtins before readiness or while saving, and reports capacity and storage failures without losing existing libraries 381ms
+   ✓ GlossarySettings compiled component > retains saved state and displays failure instead of claiming a failed change was saved 383ms
+   ✓ GlossarySettings compiled component > clears an older success indicator when the later queued save fails 387ms
+   ✓ GlossarySettings compiled component > persists master and library enablement and updates an entry without creating a duplicate 398ms
+   ✓ GlossarySettings compiled component > serializes nearby field edits and applies both patches to the original selected library 376ms
+   ✓ GlossarySettings compiled component > keeps uncommitted name input through an older receipt in the actual template 478ms
+   ✓ GlossarySettings compiled component > keeps uncommitted domains input through an older receipt in the actual template 474ms
+   ✓ GlossarySettings compiled component > syncs external metadata without overwriting an edited name field 463ms
+   ✓ GlossarySettings compiled component > syncs external metadata without overwriting an edited domains field 467ms
+   ✓ GlossarySettings compiled component > reconciles failed 'name' saves without losing a later edit: false 469ms
+   ✓ GlossarySettings compiled component > reconciles failed 'name' saves without losing a later edit: true 490ms
+   ✓ GlossarySettings compiled component > reconciles failed 'domains' saves without losing a later edit: false 472ms
+   ✓ GlossarySettings compiled component > reconciles failed 'domains' saves without losing a later edit: true 474ms
+   ✓ GlossarySettings compiled component > isolates 'name' drafts after switching or deleting the old library: false 476ms
+   ✓ GlossarySettings compiled component > isolates 'name' drafts after switching or deleting the old library: true 458ms
+   ✓ GlossarySettings compiled component > isolates 'domains' drafts after switching or deleting the old library: false 452ms
+   ✓ GlossarySettings compiled component > isolates 'domains' drafts after switching or deleting the old library: true 494ms
+   ✓ GlossarySettings compiled component > keeps a new draft when an older entry save finishes after switching libraries 379ms
+   ✓ GlossarySettings compiled component > preserves same-draft source edits during a save and updates the saved entry on retry 370ms
+   ✓ GlossarySettings compiled component > preserves same-draft target edits during a save and updates the saved entry on retry 387ms
+   ✓ GlossarySettings compiled component > preserves same-draft caseSensitive edits during a save and updates the saved entry on retry 371ms
+   ✓ GlossarySettings compiled component > deletes the originally selected entry when selection changes during confirmation 384ms
+   ✓ GlossarySettings compiled component > rejects invalid domains and previews website filtering, conflicts, and a disabled master switch 378ms
+   ✓ GlossarySettings compiled component > blocks malformed imports, requires warning review, and appends rather than replaces 399ms
+   ✓ GlossarySettings compiled component > ignores stale file completions after a newer file or a closed import dialog 377ms
+   ✓ GlossarySettings compiled component > preserves pasted text during a pending file read and clears file errors for a paste retry 365ms
+   ✓ GlossarySettings compiled component > starts new libraries in the current target language with unique names and guards library capacity 371ms
+   ✓ GlossarySettings compiled component > preserves per-library entry drafts on navigation, including switching during a pending save 381ms
+   ✓ GlossarySettings compiled component > blocks shadowed duplicates with Unicode and case semantics but allows distinct case-sensitive spellings 370ms
+   ✓ GlossarySettings compiled component > confirms replacing unsaved entries and keeps the draft when cancelled 380ms
+   ✓ GlossarySettings compiled component > merges entry changes with the latest list and never restores an externally deleted entry 374ms
+   ✓ GlossarySettings compiled component > keeps a dirty draft when clicking its own edit action and rejects an entry deleted before Save 379ms
+   ✓ GlossarySettings compiled component > starts the first entry directly, hides advanced controls and saves a matchable term 378ms
+   ✓ GlossarySettings compiled component > requires confirmation before deletion and unsubscribes when unmounted 374ms
+   ✓ Glossary integration and user-content boundaries > gives every branded select and pagination control an exact accessible name 380ms
+   ✓ Glossary integration and user-content boundaries > distinguishes glossary-only profile overrides in the real collapsed summary and keeps inheritance unchanged 528ms
+   ✓ Glossary integration and user-content boundaries > reuses the branded three-state selector across profiles, documents, and subtitle settings 378ms
+ ✓ tests/videoPlayerLocator.test.ts (35 tests) 34ms
+ ✓ tests/glossary.test.ts (53 tests) 243ms
+ ✓ tests/offscreenTranslation.test.ts (45 tests) 225ms
+ ✓ tests/siteAdaptationCore.test.ts (36 tests) 93ms
+ ✓ tests/free-translation.test.ts (65 tests) 790ms
+ ✓ tests/wordDictionaryEdge.test.ts (36 tests) 287ms
+ ✓ tests/mainWorldBridgeCore.test.ts (25 tests) 12ms
+ ✓ tests/selectionTtsBackgroundHandler.test.ts (38 tests) 371ms
+ ✓ tests/videoPlayerBinding.test.ts (36 tests) 30ms
+ ✓ tests/videoAiFullCaptureFailures.test.ts (29 tests) 119ms
+ ✓ tests/harnessRuntime.test.ts (38 tests) 30ms
+ ✓ tests/offscreenClient.test.ts (22 tests) 244ms
+ ✓ tests/vocabularyBook.test.ts (28 tests) 507ms
+   ✓ vocabulary identity and upsert > allows updates at the five-thousand-entry limit but rejects a new identity 388ms
+ ✓ tests/imageTranslationOffscreenRuntime.test.ts (55 tests) 91ms
+ ✓ tests/translationCache.test.ts (46 tests) 943ms
+   ✓ translation cache persistence policy > bounds persistent entries by LRU count 309ms
+ ✓ tests/backgroundConfigPersistenceHandler.test.ts (81 tests) 372ms
+ ✓ tests/writingEditors.test.ts (34 tests) 44ms
+ ✓ tests/videoAiBackendCoverage.test.ts (24 tests) 25ms
+ ✓ tests/hoverTranslationContentFeature.test.ts (35 tests) 20ms
+ ✓ tests/writingRuntime.test.ts (130 tests) 173ms
+ ✓ tests/configTransfer.test.ts (28 tests) 90ms
+ ✓ tests/ocrWorkerRuntime.test.ts (30 tests) 868ms
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 低置信度首窗不锁定错误语言，两个中文窗确认后复用；显式中文跳过检测
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：false）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：true）
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 总文本正常但 timestamp chunk 出现重复时也重新识别
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 硬件 WebGPU 可用时优先创建 q4 session，并回传 GPU 诊断
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Apple / MTL / GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 语言检测失败时释放旧 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > GPU 上的语言配置错误直接返回，不误判为 GPU 故障或重建 session
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 显式源语言的 GPU 推理失败后释放 session 并回传 fresh CPU 重试提示
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > WASM 推理失败时直接返回错误，不再次创建或重试 session
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+stdout | tests/videoAiWorker.test.ts > 视频 AI Worker timestamp parser > 收到 device wasm 时释放 GPU session 并锁定本 Worker 使用 WASM
+[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理 Discrete GPU
+[FluentRead] 本地视频 Worker 使用 WASM/q4 推理（1 线程）
+
+ ✓ tests/videoAiWorker.test.ts (22 tests) 78ms
+ ✓ tests/mangaInferenceClient.test.ts (31 tests) 43ms
+ ✓ tests/modalDialogHost.test.ts (17 tests) 71ms
+ ✓ tests/videoUiI18n.test.ts (16 tests) 31ms
+ ✓ tests/videoAiCapture.test.ts (27 tests) 503ms
+   ✓ VideoAiCaptureController 公共边界路径 > 连续窗口更新自适应步长、处理缺少分段时间并淘汰过期 cue 身份 434ms
+ ✓ tests/chromeTranslationPreparation.test.ts (25 tests) 30ms
+ ✓ tests/template.test.ts (74 tests) 15ms
+ ✓ tests/imageOcrRuntime.test.ts (34 tests) 172ms
+ ✓ tests/modelUsageRepository.test.ts (15 tests) 256ms
+ ✓ tests/contentRuntimeLifecycle.test.ts (37 tests) 389ms
+ ✓ tests/freeFallback.test.ts (48 tests) 26ms
+ ✓ tests/mangaOcr.test.ts (19 tests) 43ms
+ ✓ tests/translationDocumentCorpus.test.ts (9 tests) 467ms
+   ✓ GitHub release source-line ownership > places every release line under its own paragraph instead of its outer list item 334ms
+ ✓ tests/bilingualSentenceHighlight.test.ts (19 tests) 38ms
+ ✓ tests/contextMenu.test.ts (31 tests) 20ms
+ ✓ tests/translationGlossaryIntegration.test.ts (26 tests) 45ms
+ ✓ tests/offscreenAdapters.test.ts (21 tests) 18ms
+ ✓ tests/viewportStability.test.ts (17 tests) 12ms
+ ✓ tests/connection-test.test.ts (28 tests) 72ms
+ ✓ tests/syntheticRemount.test.ts (19 tests) 32ms
+ ✓ tests/imageGlossaryContext.test.ts (14 tests) 27ms
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=false)
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=true)
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > preserves blank pages in a bilingual PDF without failing to embed them
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in bilingual mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in translated mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > cancels between PDF pages and retries without changing translations
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > releases decoded PNG pixels before rendering the next PDF page
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > 按 PDF 页解析版面文本块、坐标和页码上下文
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF partial export uses source for an empty reviewed block
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF 双语导出将每张原页和保留版式的译页并排放在同一页
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > 全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > a PDF with lost source metadata preserves the real original page and reports completed progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > a PDF with lost source metadata preserves the real original page and reports completed progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationBinary.test.ts (26 tests) 2107ms
+   ✓ binary document translation formats > 拒绝解压后单项过大的 ePub/DOCX 压缩包 1365ms
+ ✓ tests/cloudVendorProviders.test.ts (36 tests) 27ms
+ ✓ tests/localTranslationRuntime.test.ts (26 tests) 302ms
+ ✓ tests/videoSubtitle.test.ts (29 tests) 24ms
+ ✓ tests/webDavApi.test.ts (15 tests) 32ms
+ ✓ tests/mangaInferenceWorker.test.ts (21 tests) 24ms
+ ✓ tests/bilingualReplay.test.ts (16 tests) 61ms
+ ✓ tests/siteAdaptationSettings.test.ts (21 tests) 33ms
+ ✓ tests/offscreenTtsPlayback.test.ts (22 tests) 18ms
+ ✓ tests/vocabularyBackgroundHandler.test.ts (13 tests) 12ms
+ ✓ tests/videoAiOffscreen.test.ts (19 tests) 12ms
+ ✓ tests/contentMessageRuntime.test.ts (11 tests) 229ms
+ ✓ tests/requestConfigSnapshot.test.ts (16 tests) 9ms
+ ✓ tests/backgroundTranslationHandler.test.ts (47 tests) 10ms
+ ✓ tests/allNodesTranslationCore.test.ts (16 tests) 67ms
+ ✓ tests/inputEditableHost.test.ts (20 tests) 18ms
+ ✓ tests/configHistoryDomain.test.ts (18 tests) 157ms
+ ✓ tests/translationStatsRepository.test.ts (14 tests) 146ms
+ ✓ tests/languageIdentification.test.ts (94 tests) 85ms
+stdout | tests/harnessModelGateway.test.ts > harness model gateway > uses native Claude Messages API and honors configured proxy
+AI SDK Warning System: To turn off warning logging, set the AI_SDK_LOG_WARNINGS global to false.
+
+ ✓ tests/harnessModelGateway.test.ts (16 tests) 69ms
+ ✓ tests/fullPageTranslationProgress.test.ts (23 tests) 11ms
+ ✓ tests/freeBalancedRouting.test.ts (39 tests) 1061ms
+   ✓ balanced free fallback routing > does not let a delayed persisted record overwrite a service that already succeeded 1001ms
+ ✓ tests/translationRequestScheduler.test.ts (19 tests) 611ms
+   ✓ translation request scheduler > 大量等待请求经过内部压缩后仍保持结果顺序 600ms
+ ✓ tests/pageTranslationAdvanced.test.ts (16 tests) 25ms
+ ✓ tests/sectionTranslationRegion.test.ts (16 tests) 7ms
+ ✓ tests/mangaOcrAssets.test.ts (24 tests) 31ms
+ ✓ tests/cloudVendorCatalog.test.ts (15 tests) 39ms
+ ✓ tests/localTtsBackground.test.ts (21 tests) 24ms
+ ✓ tests/aiSdkEndpoints.test.ts (73 tests) 8ms
+ ✓ tests/googleDriveConfig.test.ts (15 tests) 80ms
+ ✓ tests/mangaInpainting.test.ts (14 tests) 535ms
+   ✓ 漫画局部神经修补 > 默认 Worker 只修补复杂背景，转发补丁和进度，复用端口并空闲释放 309ms
+ ✓ tests/documentTranslationApi.test.ts (28 tests) 60ms
+ ✓ tests/modelUsageAggregation.test.ts (12 tests) 10ms
+ ✓ tests/vocabularyRepositoryEdges.test.ts (8 tests) 407ms
+   ✓ vocabulary repository untrusted imports > rolls back an import that would exceed the five-thousand-entry cap 366ms
+ ✓ tests/translationStatsAggregation.test.ts (16 tests) 11ms
+ ✓ tests/readingAssistantPresentation.test.ts (29 tests) 41ms
+ ✓ tests/contentFeatureMounting.test.ts (17 tests) 71ms
+ ✓ tests/videoSubtitleLogic.test.ts (21 tests) 33ms
+ ✓ tests/localTts.test.ts (20 tests) 30ms
+ ✓ tests/translationControlOwnership.test.ts (19 tests) 149ms
+ ✓ tests/fullPagePriority.test.ts (13 tests) 7ms
+ ✓ tests/contentFeatureRegistry.test.ts (17 tests) 7ms
+ ✓ tests/apiKeyRotation.test.ts (42 tests) 64ms
+ ✓ tests/imageTranslationPresentation.test.ts (34 tests) 12ms
+ ✓ tests/webDavBackup.test.ts (10 tests) 4250ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 upload，worker 重启后仍可提交且保护本机密钥 534ms
+   ✓ WebDAV 配置云备份事务 > 无 ETag 兼容预览允许 merge，worker 重启后仍可提交且保护本机密钥 521ms
+   ✓ WebDAV 配置云备份事务 > 后台重启后恢复一次性预览，完整凭据可在第二设备恢复；连接密码不进入备份 316ms
+   ✓ WebDAV 配置云备份事务 > 相同连接保留基线，换连接使预览失效；另一页面不能更改连接或取消事务 574ms
+   ✓ WebDAV 配置云备份事务 > 合并单边修改，云端和本机变化使预览失效；失败不更新成功记录 938ms
+   ✓ WebDAV 默认普通范围经 worker 休眠仍去密，单次同意完整备份可明确删除凭据 1153ms
+ ✓ tests/imageSourceAuthorization.test.ts (12 tests) 10ms
+ ✓ tests/configDomainBoundaries.test.ts (23 tests) 32ms
+ ✓ tests/interfaceFonts.test.ts (31 tests) 1399ms
+   ✓ 字体下载、缓存和切换生命周期 > 阻塞的下载超时后切换下一个源 1012ms
+ ✓ tests/googleDriveApi.test.ts (16 tests) 1794ms
+   ✓ Google Drive appDataFolder HTTP 边界 > 持续版本变化或读回鉴权失败时明确已上传待核验，不再次创建也不误报同步成功 653ms
+ ✓ tests/remoteImage.test.ts (10 tests) 11ms
+ ✓ tests/fullPageModalPriority.test.ts (14 tests) 12ms
+ ✓ tests/youtubeSubtitleData.test.ts (14 tests) 6ms
+ ✓ tests/harnessConversation.test.ts (14 tests) 10ms
+ ✓ tests/siteAdaptationCatalog.test.ts (235 tests) 1130ms
+ ✓ tests/mangaCanvas.test.ts (26 tests) 19ms
+ ✓ tests/chineseLanguage.test.ts (171 tests) 24ms
+ ✓ tests/writingCore.test.ts (11 tests) 68ms
+ ✓ tests/documentTranslationBinaryEdge.test.ts (12 tests) 150ms
+ ✓ tests/sectionTranslationCore.test.ts (19 tests) 19ms
+ ✓ tests/visionProbe.test.ts (13 tests) 128ms
+ ✓ tests/dataBackup.test.ts (14 tests) 23ms
+ ✓ tests/translationSnapshotProtection.test.ts (26 tests) 132ms
+ ✓ tests/harnessBackground.test.ts (17 tests) 10ms
+ ✓ tests/credentialBinding.test.ts (12 tests) 37ms
+ ✓ tests/chromeTranslationPreparationRequest.test.ts (11 tests) 7ms
+ ✓ tests/localTranslationDownloads.test.ts (18 tests) 1082ms
+ ✓ tests/freeTranslationSettings.test.ts (11 tests) 961ms
+   ✓ free translation settings compiled component > 所有服务直接展示逐项结果与测试耗时，停用服务也保留本轮检查 582ms
+ ✓ tests/configHarness.test.ts (25 tests) 19ms
+ ✓ tests/mangaEntry.test.ts (19 tests) 11ms
+ ✓ tests/liveTextTranslation.test.ts (14 tests) 18ms
+ ✓ tests/interfaceAppearance.test.ts (9 tests) 14ms
+ ✓ tests/optionsNavigation.test.ts (24 tests) 5ms
+ ✓ tests/backgroundImageServices.test.ts (11 tests) 158ms
+ ✓ tests/liveTextRender.test.ts (10 tests) 18ms
+ ✓ tests/configRepository.test.ts (13 tests) 30ms
+ ✓ tests/translationAppearance.test.ts (13 tests) 12ms
+ ✓ tests/fullPageTitleTranslation.test.ts (21 tests) 8ms
+ ✓ tests/documentTranslation.test.ts (19 tests) 9ms
+ ✓ tests/videoAiAlgorithmsCoverage.test.ts (7 tests) 11ms
+ ✓ tests/harnessSessionRepository.test.ts (10 tests) 28ms
+ ✓ tests/translationBrokerStats.test.ts (8 tests) 120ms
+ ✓ tests/videoAiModelSetup.test.ts (13 tests) 7ms
+ ✓ tests/providerUsageNormalization.test.ts (15 tests) 4ms
+ ✓ tests/modelThinking.test.ts (26 tests) 5ms
+ ✓ tests/modelUsageHandler.test.ts (13 tests) 7ms
+ ✓ tests/commonUtilities.test.ts (51 tests) 24ms
+ ✓ tests/paragraphCopyRuntime.test.ts (14 tests) 15ms
+ ✓ tests/freeExtraWebProviders.test.ts (20 tests) 11ms
+ ✓ tests/imageTranslation.test.ts (11 tests) 5ms
+ ✓ tests/qqMailFrameHandlers.test.ts (8 tests) 6ms
+ ✓ tests/contentFeatureLifecycle.test.ts (10 tests) 157ms
+ ✓ tests/firefoxDocumentRuntime.test.ts (8 tests) 113ms
+ ✓ tests/localInferenceResources.test.ts (15 tests) 11ms
+ ✓ tests/featureTranslationClients.test.ts (36 tests) 14ms
+ ✓ tests/imageOcrNormalization.test.ts (25 tests) 11ms
+ ✓ tests/freeChineseWebProviders.test.ts (14 tests) 25ms
+ ✓ tests/videoCaptionPlatforms.test.ts (25 tests) 21ms
+ ✓ tests/myMemoryProvider.test.ts (31 tests) 28ms
+ ✓ tests/quickTranslation.test.ts (13 tests) 5ms
+ ✓ tests/imageTranslationClientRecovery.test.ts (12 tests) 60ms
+ ✓ tests/doubaoSeedTranslation.test.ts (13 tests) 37ms
+ ✓ tests/translateQueue.test.ts (20 tests) 366ms
+ ✓ tests/hlsAudio.test.ts (12 tests) 34ms
+ ✓ tests/translationFont.test.ts (12 tests) 17ms
+ ✓ tests/hotkey.test.ts (12 tests) 5ms
+ ✓ tests/translationPrompts.test.ts (19 tests) 4ms
+ ✓ tests/translationHeightLayout.test.ts (12 tests) 36ms
+ ✓ tests/sectionTranslationRuntime.test.ts (8 tests) 15ms
+ ✓ tests/mangaImageSegments.test.ts (29 tests) 21ms
+ ✓ tests/areaTextTranslation.test.ts (26 tests) 24ms
+ ✓ tests/fullPageTranslationIndicators.test.ts (14 tests) 18ms
+ ✓ tests/languageCodes.test.ts (335 tests) 31ms
+ ✓ tests/siteRules.test.ts (20 tests) 28ms
+ ✓ tests/mangaBackground.test.ts (36 tests) 21ms
+ ✓ tests/apiKeyPool.test.ts (15 tests) 5ms
+ ✓ tests/freeOfficialWebProviders.test.ts (46 tests) 18ms
+ ✓ tests/aiSdkErrors.test.ts (49 tests) 7ms
+ ✓ tests/serviceCatalog.test.ts (16 tests) 11ms
+ ✓ tests/deeplx.test.ts (22 tests) 60ms
+ ✓ tests/localTranslationArtifacts.test.ts (15 tests) 1259ms
+   ✓ verified resumable model downloads > restarts a partial file if the mirror ignores Range 493ms
+   ✓ verified resumable model downloads > keeps completed chunks on pause and resumes at their byte offset after a new caller attaches 501ms
+ ✓ tests/configCount.test.ts (11 tests) 8ms
+ ✓ tests/modelDownloads.test.ts (8 tests) 16ms
+ ✓ tests/inputBox.test.ts (12 tests) 3ms
+ ✓ tests/serializationPerformance.test.ts (5 tests) 394ms
+   ✓ translation snapshot mapping performance > maps a large flat candidate with linear tree-walker work and no sibling path scans 335ms
+ ✓ tests/imageTranslationRendering.test.ts (19 tests) 24ms
+ ✓ tests/chineseTechnicalParagraphs.test.ts (439 tests) 55ms
+ ✓ tests/downloadProgress.test.ts (11 tests) 5ms
+ ✓ tests/translationStatsPresentation.test.ts (7 tests) 10ms
+ ✓ tests/wordDictionary.test.ts (11 tests) 6ms
+ ✓ tests/translationLoadingIndicator.test.ts (10 tests) 8ms
+ ✓ tests/uiLanguageBundles.test.ts (15 tests) 492ms
+ ✓ tests/languageStatistical.test.ts (28 tests) 49ms
+ ✓ tests/videoSubtitleDownloads.test.ts (7 tests) 18ms
+ ✓ tests/onnxWasmBinary.test.ts (9 tests) 18ms
+ ✓ tests/chromeTranslatorLanguageRegression.test.ts (9 tests) 6ms
+ ✓ tests/browserCapabilities.test.ts (11 tests) 3ms
+ ✓ tests/imageTranslationPageRead.test.ts (9 tests) 17ms
+ ✓ tests/googleDriveAuth.test.ts (7 tests) 11ms
+ ✓ tests/harnessAppRuntime.test.ts (3 tests) 4ms
+ ✓ tests/imageTranslationInpainting.test.ts (14 tests) 237ms
+ ✓ tests/requestLimits.test.ts (5 tests) 7ms
+ ✓ tests/freeWebProviders.test.ts (16 tests) 23ms
+ ✓ tests/learningMemoryRepository.test.ts (10 tests) 98ms
+ ✓ tests/languageTechnicalTokens.test.ts (114 tests) 15ms
+ ✓ tests/videoTranscriptionCacheClient.test.ts (9 tests) 9ms
+ ✓ tests/documentTranslationEdge.test.ts (11 tests) 10ms
+ ✓ tests/backgroundConfigAutoBackup.test.ts (7 tests) 119ms
+ ✓ tests/settingsCompositionAutosave.test.ts (4 tests) 134ms
+ ✓ tests/mangaQuality.test.ts (14 tests) 10ms
+ ✓ tests/areaTranslationCore.test.ts (8 tests) 4ms
+ ✓ tests/xVideoSubtitleData.test.ts (9 tests) 5ms
+ ✓ tests/configAutoBackupStore.test.ts (6 tests) 401ms
+ ✓ tests/visionConfig.test.ts (8 tests) 9ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 8ms
+ ✓ tests/harnessConversationPersistence.test.ts (7 tests) 587ms
+   ✓ Harness streaming with real IndexedDB persistence > checkpoints partial output and retains it as stopped when the user cancels 557ms
+ ✓ tests/harnessCore.test.ts (11 tests) 8ms
+ ✓ tests/learningMemoryHandler.test.ts (6 tests) 6ms
+ ✓ tests/backgroundConfigStorage.test.ts (6 tests) 108ms
+ ✓ tests/videoAiBackground.test.ts (11 tests) 5ms
+ ✓ tests/writingIntegration.test.ts (4 tests) 7ms
+ ✓ tests/modelUsageInsights.test.ts (10 tests) 3ms
+ ✓ tests/backgroundGoogleDriveSync.test.ts (8 tests) 11ms
+ ✓ tests/videoAiSubtitleCache.test.ts (5 tests) 35ms
+ ✓ tests/translationVisionProviders.test.ts (14 tests) 39ms
+ ✓ tests/paragraphCopyCore.test.ts (17 tests) 8ms
+ ✓ tests/builtinGlossaries.test.ts (19 tests) 33ms
+ ✓ tests/chineseTranslationProviders.test.ts (79 tests) 40ms
+ ✓ tests/mangaTypography.test.ts (13 tests) 26ms
+ ✓ tests/requestHeaderRules.test.ts (6 tests) 66ms
+ ✓ tests/optionalContentFeatures.test.ts (7 tests) 4ms
+ ✓ tests/writingBackground.test.ts (7 tests) 25ms
+ ✓ tests/vocabularyLearningModel.test.ts (11 tests) 7ms
+ ✓ tests/harnessMemorySearch.test.ts (10 tests) 5ms
+ ✓ tests/deepl.test.ts (59 tests) 14ms
+ ✓ tests/ocrModelDownload.test.ts (5 tests) 16ms
+ ✓ tests/customOpenAI.test.ts (6 tests) 5ms
+ ✓ tests/webDavHttpIntegration.test.ts (5 tests) 653ms
+ ✓ tests/translationAvailability.test.ts (8 tests) 105ms
+ ✓ tests/videoTranslationCache.test.ts (11 tests) 12ms
+ ✓ tests/runtimeMessages.test.ts (13 tests) 6ms
+ ✓ tests/freeTranslationConfig.test.ts (6 tests) 17ms
+ ✓ tests/glossaryConfig.test.ts (7 tests) 24ms
+ ✓ tests/downloadProgressTransport.test.ts (5 tests) 4ms
+ ✓ tests/selectionTtsContentController.test.ts (5 tests) 3ms
+ ✓ tests/translationSourceStability.test.ts (45 tests) 19ms
+ ✓ tests/readingAssistantClient.test.ts (5 tests) 4ms
+ ✓ tests/backgroundVisionProbe.test.ts (5 tests) 60ms
+ ✓ tests/translationOwnershipBoundaries.test.ts (12 tests) 192ms
+ ✓ tests/translationCenterSession.test.ts (10 tests) 4ms
+ ✓ tests/documentTranslationPresentation.test.ts (8 tests) 8ms
+ ✓ tests/writingReference.test.ts (15 tests) 5ms
+ ✓ tests/qqMailFrameSession.test.ts (22 tests) 5ms
+ ✓ tests/translationCacheManagement.test.ts (35 tests) 10ms
+ ✓ tests/imageTextReader.test.ts (9 tests) 10ms
+ ✓ tests/backgroundConnectionTestHandler.test.ts (10 tests) 4ms
+ ✓ tests/sameTargetLanguageRegression.test.ts (27 tests) 18ms
+ ✓ tests/credentialPreview.test.ts (6 tests) 3ms
+ ✓ tests/modelCacheRemoval.test.ts (5 tests) 12ms
+ ✓ tests/translationSourceStabilityGate.test.ts (17 tests) 11ms
+ ✓ tests/imageTranslationSecurityContract.test.ts (6 tests) 23ms
+ ✓ tests/languageIdentificationCorpus.test.ts (380 tests) 649ms
+ ✓ tests/selectionTtsProtocol.test.ts (33 tests) 10ms
+ ✓ tests/translationGitHubTaskList.test.ts (11 tests) 246ms
+ ✓ tests/backgroundWebDavBackup.test.ts (5 tests) 12ms
+ ✓ tests/translationCachePolicyBinding.test.ts (6 tests) 8ms
+ ✓ tests/issue146EmbeddedFrames.test.ts (3 tests) 5ms
+ ✓ tests/edgeTtsPolicy.test.ts (7 tests) 5ms
+ ✓ tests/fullPageStateNotification.test.ts (6 tests) 4ms
+ ✓ tests/translationStatsHandler.test.ts (3 tests) 4ms
+ ✓ tests/featureTranslationServices.test.ts (6 tests) 11ms
+ ✓ tests/speechProgress.test.ts (7 tests) 6ms
+ ✓ tests/languageScripts.test.ts (41 tests) 7ms
+ ✓ tests/siteAdaptationSession.test.ts (5 tests) 12ms
+ ✓ tests/inputTranslationConfig.test.ts (5 tests) 8ms
+ ✓ tests/backgroundCoreHandlers.test.ts (9 tests) 5ms
+ ✓ tests/mangaBubbles.test.ts (8 tests) 59ms
+ ✓ tests/backgroundProviderRuntime.test.ts (3 tests) 5ms
+ ✓ tests/syntheticCandidateFreshness.test.ts (10 tests) 40ms
+ ✓ tests/modalProgressHint.test.ts (6 tests) 6ms
+ ✓ tests/mangaPatchResult.test.ts (37 tests) 57ms
+ ✓ tests/areaVisionRecognition.test.ts (9 tests) 14ms
+ ✓ tests/freeWeights.test.ts (6 tests) 3ms
+ ✓ tests/videoSpeechAlignment.test.ts (8 tests) 29ms
+ ✓ tests/upstreamTranslationBoundaries.test.ts (3 tests) 39ms
+ ✓ tests/backgroundMessageRouter.test.ts (6 tests) 4ms
+ ✓ tests/videoAiModelCache.test.ts (6 tests) 13ms
+ ✓ tests/translationVisionBroker.test.ts (5 tests) 8ms
+ ✓ tests/translationVisionPayload.test.ts (5 tests) 4ms
+ ✓ tests/configEncryption.test.ts (5 tests) 6ms
+ ✓ tests/videoSubtitleAppearance.test.ts (5 tests) 9ms
+ ✓ tests/googleDriveEncryption.test.ts (6 tests) 5417ms
+   ✓ Google Drive 本机认证加密 > 20 MiB 配置边界及预览独立预算，超过配置上限的暂存不能冒充云端配置 4882ms
+ ✓ tests/harnessUsage.test.ts (3 tests) 10ms
+ ✓ tests/configValidation.test.ts (10 tests) 2ms
+ ✓ tests/harnessStreamPort.test.ts (3 tests) 4ms
+ ✓ tests/usePopupLayoutReorder.test.ts (8 tests) 3ms
+ ✓ tests/localTranslationInference.test.ts (6 tests) 84ms
+ ✓ tests/aiContextPresentation.test.ts (16 tests) 2ms
+ ✓ tests/actionIcon.test.ts (15 tests) 6ms
+ ✓ tests/translationError.test.ts (12 tests) 3ms
+stdout | tests/documentTranslationExamplesApi.test.ts > document translation examples API regression > 'sample.pdf' passes through binary parse, translation, and same-format export
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationExamplesApi.test.ts (12 tests) 290ms
+ ✓ tests/webDavConnection.test.ts (4 tests) 4ms
+ ✓ tests/configAutoBackupDomain.test.ts (3 tests) 28ms
+ ✓ tests/translationLanguage.test.ts (7 tests) 24ms
+ ✓ tests/xSubtitleLoader.test.ts (5 tests) 19ms
+ ✓ tests/freeRoutingPolicy.test.ts (5 tests) 3ms
+ ✓ tests/translationVisualProtection.test.ts (18 tests) 19ms
+ ✓ tests/mangaEncoding.test.ts (11 tests) 8ms
+ ✓ tests/writingMarkdown.test.ts (8 tests) 4ms
+ ✓ tests/writingPreview.test.ts (8 tests) 3ms
+ ✓ tests/pageStyles.test.ts (4 tests) 9ms
+ ✓ tests/tongyi.test.ts (4 tests) 6ms
+ ✓ tests/mangaCompositor.test.ts (13 tests) 7ms
+ ✓ tests/identicalTranslation.test.ts (26 tests) 11ms
+ ✓ tests/paragraphCopyConfig.test.ts (6 tests) 3ms
+ ✓ tests/writingEntryPlacement.test.ts (6 tests) 27ms
+ ✓ tests/requestHeaderRuntime.test.ts (2 tests) 57ms
+ ✓ tests/apiKeyCheckIdentity.test.ts (3 tests) 3ms
+ ✓ tests/localTranslation.test.ts (4 tests) 8ms
+ ✓ tests/sectionTranslationConfig.test.ts (5 tests) 3ms
+ ✓ tests/videoPretranslationController.test.ts (3 tests) 4ms
+ ✓ tests/googleDrivePreview.test.ts (4 tests) 3ms
+ ✓ tests/translationAppearanceStyles.test.ts (3 tests) 5ms
+ ✓ tests/translationStatsI18n.test.ts (2 tests) 38ms
+ ✓ tests/serviceLibrary.test.ts (4 tests) 10ms
+ ✓ tests/harnessSessionHandler.test.ts (3 tests) 4ms
+ ✓ tests/siteAdaptationRuntime.test.ts (3 tests) 2ms
+ ✓ tests/backgroundCapabilityRegistry.test.ts (5 tests) 3ms
+ ✓ tests/myMemoryConnectionTest.test.ts (6 tests) 8ms
+ ✓ tests/modelOptions.test.ts (3 tests) 5ms
+ ✓ tests/httpError.test.ts (6 tests) 4ms
+ ✓ tests/googleDriveSyncClient.test.ts (4 tests) 4ms
+ ✓ tests/apiKeyTypes.test.ts (5 tests) 2ms
+ ✓ tests/promptTemplateSync.test.ts (3 tests) 3ms
+ ✓ tests/videoTranslationScheduler.test.ts (4 tests) 9ms
+ ✓ tests/mangaSessionFallback.test.ts (3 tests) 5ms
+ ✓ tests/localTranslationProvider.test.ts (5 tests) 4ms
+ ✓ tests/selectionPageZoom.test.ts (5 tests) 4ms
+ ✓ tests/legacyPageCache.test.ts (5 tests) 2ms
+ ✓ tests/http.test.ts (5 tests) 7ms
+ ✓ tests/localModelReadiness.test.ts (14 tests) 4ms
+ ✓ tests/configApiKeys.test.ts (4 tests) 8ms
+ ✓ tests/translationConfigCheck.test.ts (6 tests) 3ms
+ ✓ tests/fullPageTranslationErrorMessage.test.ts (33 tests) 4ms
+ ✓ tests/documentArchive.test.ts (5 tests) 137ms
+ ✓ tests/microsoftTransport.test.ts (3 tests) 6ms
+ ✓ tests/webDavBackupClient.test.ts (3 tests) 3ms
+ ✓ tests/pageContextPolicy.test.ts (4 tests) 2ms
+ ✓ tests/modelUsageTokenFormat.test.ts (4 tests) 3ms
+ ✓ tests/onnxWebGpu.test.ts (15 tests) 6ms
+ ✓ tests/mangaOcrAssetManifest.test.ts (3 tests) 2ms
+ ✓ tests/tabTranslationState.test.ts (4 tests) 2ms
+ ✓ tests/videoSubtitleLanguage.test.ts (3 tests) 12ms
+ ✓ tests/backgroundRetiredContentScripts.test.ts (3 tests) 4ms
+ ✓ tests/harnessMemoryRecall.test.ts (3 tests) 4ms
+ ✓ tests/backgroundCacheCleanup.test.ts (2 tests) 5ms
+ ✓ tests/imageLoads.test.ts (5 tests) 1ms
+ ✓ tests/videoTranscription.test.ts (4 tests) 2ms
+ ✓ tests/documentTranslationRegression.test.ts (10 tests) 6ms
+ ✓ tests/translationCachePolicy.test.ts (12 tests) 2ms
+ ✓ tests/localInsightsHandlers.test.ts (1 test) 2ms
+ ✓ tests/freeTranslationWeightsHandler.test.ts (2 tests) 3ms
+ ✓ tests/fullPageHostMarkers.test.ts (5 tests) 4ms
+ ✓ tests/floatingBallPosition.test.ts (3 tests) 10ms
+ ✓ tests/translationToolbarStatus.test.ts (3 tests) 2ms
+ ✓ tests/translationStatsMeasure.test.ts (3 tests) 2ms
+ ✓ tests/popupCache.test.ts (2 tests) 3ms
+ ✓ tests/mangaOnnxBuild.test.ts (1 test) 7ms
+ ✓ tests/mangaGpu.test.ts (3 tests) 2ms
+ ✓ tests/sha256.test.ts (10 tests) 51ms
+ ✓ tests/freeTranslationHealthStorage.test.ts (1 test) 2ms
+ ✓ tests/mainWorldBridgeLifecycle.test.ts (1 test) 1ms
+ ✓ tests/visionProbeStorage.test.ts (1 test) 2ms
+ ✓ tests/auth.test.ts (3 tests) 2ms
+ ✓ tests/credentialStorageContext.test.ts (8 tests) 1ms
+
+ Test Files  383 passed (383)
+      Tests  9428 passed (9428)
+   Start at  08:49:26
+   Duration  167.48s (transform 4.32s, setup 0ms, collect 18.81s, tests 97.04s, environment 36ms, prepare 10.21s)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/integration-full-strict.results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |    99.99 |     100 |     100 |                   
+ app/background    |     100 |      100 |     100 |     100 |                   
+  cacheCleanup.ts  |     100 |      100 |     100 |     100 |                   
+  ...tyRegistry.ts |     100 |      100 |     100 |     100 |                   
+  ...kupRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...eBroadcast.ts |     100 |      100 |     100 |     100 |                   
+  ...enuActions.ts |     100 |      100 |     100 |     100 |                   
+  ...references.ts |     100 |      100 |     100 |     100 |                   
+  ...essRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...ontextMenu.ts |     100 |      100 |     100 |     100 |                   
+  ...aryContext.ts |     100 |      100 |     100 |     100 |                   
+  ...tsHandlers.ts |     100 |      100 |     100 |     100 |                   
+  messageRouter.ts |     100 |      100 |     100 |     100 |                   
+  ...derRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...derRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...entScripts.ts |     100 |      100 |     100 |     100 |                   
+  ...ationState.ts |     100 |      100 |     100 |     100 |                   
+  ...ingRuntime.ts |     100 |      100 |     100 |     100 |                   
+ ...round/handlers |     100 |      100 |     100 |     100 |                   
+  ...AutoBackup.ts |     100 |      100 |     100 |     100 |                   
+  configCount.ts   |     100 |      100 |     100 |     100 |                   
+  configHistory.ts |     100 |      100 |     100 |     100 |                   
+  ...ersistence.ts |     100 |      100 |     100 |     100 |                   
+  configStorage.ts |     100 |      100 |     100 |     100 |                   
+  ...ectionTest.ts |     100 |      100 |     100 |     100 |                   
+  ...adProgress.ts |     100 |      100 |     100 |     100 |                   
+  ...ionWeights.ts |     100 |      100 |     100 |     100 |                   
+  ...eDriveSync.ts |     100 |      100 |     100 |     100 |                   
+  modelUsage.ts    |     100 |      100 |     100 |     100 |                   
+  translation.ts   |     100 |      100 |     100 |     100 |                   
+  ...ationCache.ts |     100 |      100 |     100 |     100 |                   
+  ...ationStats.ts |     100 |      100 |     100 |     100 |                   
+  visionProbe.ts   |     100 |      100 |     100 |     100 |                   
+  webDavBackup.ts  |     100 |      100 |     100 |     100 |                   
+ app/content       |     100 |      100 |     100 |     100 |                   
+  ...nuResponse.ts |     100 |      100 |     100 |     100 |                   
+  ...eHighlight.ts |     100 |      100 |     100 |     100 |                   
+  cacheMessage.ts  |     100 |      100 |     100 |     100 |                   
+  ...eLifecycle.ts |     100 |      100 |     100 |     100 |                   
+  ...reRegistry.ts |     100 |      100 |     100 |     100 |                   
+  ...eLifecycle.ts |     100 |      100 |     100 |     100 |                   
+  ...alFeatures.ts |     100 |      100 |     100 |     100 |                   
+  ...ailability.ts |     100 |      100 |     100 |     100 |                   
+  pageLifecycle.ts |     100 |      100 |     100 |     100 |                   
+  pageStyles.ts    |     100 |      100 |     100 |     100 |                   
+  ...ionRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...Appearance.ts |     100 |      100 |     100 |     100 |                   
+ app/offscreen     |     100 |      100 |     100 |     100 |                   
+  messageRouter.ts |     100 |      100 |     100 |     100 |                   
+  translation.ts   |     100 |      100 |     100 |     100 |                   
+  ttsPlayback.ts   |     100 |      100 |     100 |     100 |                   
+ app/popup         |     100 |      100 |     100 |     100 |                   
+  cache.ts         |     100 |      100 |     100 |     100 |                   
+ app/translation   |     100 |      100 |     100 |     100 |                   
+  check.ts         |     100 |      100 |     100 |     100 |                   
+ core/config       |     100 |      100 |     100 |     100 |                   
+  ...ckIdentity.ts |     100 |      100 |     100 |     100 |                   
+  apiKeys.ts       |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  azure.ts         |     100 |      100 |     100 |     100 |                   
+  catalog.ts       |     100 |      100 |     100 |     100 |                   
+  cloudSync.ts     |     100 |      100 |     100 |     100 |                   
+  constants.ts     |     100 |      100 |     100 |     100 |                   
+  ...ialBinding.ts |     100 |      100 |     100 |     100 |                   
+  credentials.ts   |     100 |      100 |     100 |     100 |                   
+  customBody.ts    |     100 |      100 |     100 |     100 |                   
+  customHeaders.ts |     100 |      100 |     100 |     100 |                   
+  customOpenAI.ts  |     100 |      100 |     100 |     100 |                   
+  deepl.ts         |     100 |      100 |     100 |     100 |                   
+  deeplx.ts        |     100 |      100 |     100 |     100 |                   
+  diff.ts          |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  driveSync.ts     |     100 |      100 |     100 |     100 |                   
+  ...reServices.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  harness.ts       |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...Appearance.ts |     100 |      100 |     100 |     100 |                   
+  ...FontAssets.ts |     100 |      100 |     100 |     100 |                   
+  localTts.ts      |     100 |      100 |     100 |     100 |                   
+  manga.ts         |     100 |      100 |     100 |     100 |                   
+  ...erProfiles.ts |     100 |      100 |     100 |     100 |                   
+  ...iteCatalog.ts |     100 |      100 |     100 |     100 |                   
+  model.ts         |     100 |      100 |     100 |     100 |                   
+  modelThinking.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  paragraphCopy.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...estHeaders.ts |     100 |      100 |     100 |     100 |                   
+  requestLimits.ts |     100 |      100 |     100 |     100 |                   
+  scheduling.ts    |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...ionPreview.ts |     100 |      100 |     100 |     100 |                   
+  selectionTts.ts  |     100 |      100 |     100 |     100 |                   
+  sensitiveKeys.ts |     100 |      100 |     100 |     100 |                   
+  ...eHighlight.ts |     100 |      100 |     100 |     100 |                   
+  transfer.ts      |     100 |      100 |     100 |     100 |                   
+  ...Appearance.ts |     100 |      100 |     100 |     100 |                   
+  ...ationCache.ts |     100 |      100 |     100 |     100 |                   
+  ...adingStyle.ts |     100 |      100 |     100 |     100 |                   
+  validation.ts    |     100 |      100 |     100 |     100 |                   
+  ...Appearance.ts |     100 |      100 |     100 |     100 |                   
+  vision.ts        |     100 |      100 |     100 |     100 |                   
+  visionProbe.ts   |     100 |      100 |     100 |     100 |                   
+  writing.ts       |     100 |      100 |     100 |     100 |                   
+  ...ingPreview.ts |     100 |      100 |     100 |     100 |                   
+  ...gReadiness.ts |     100 |      100 |     100 |     100 |                   
+ core/context-menu |     100 |      100 |     100 |     100 |                   
+  domain.ts        |     100 |      100 |     100 |     100 |                   
+  presentation.ts  |     100 |      100 |     100 |     100 |                   
+ core/download     |     100 |      100 |     100 |     100 |                   
+  progress.ts      |     100 |      100 |     100 |     100 |                   
+ core/glossary     |     100 |      100 |     100 |     100 |                   
+  builtins.ts      |     100 |      100 |     100 |     100 |                   
+  match.ts         |     100 |      100 |     100 |     100 |                   
+  model.ts         |     100 |      100 |     100 |     100 |                   
+  protection.ts    |     100 |      100 |     100 |     100 |                   
+  transfer.ts      |     100 |      100 |     100 |     100 |                   
+ core/harness      |     100 |      100 |     100 |     100 |                   
+  loop.ts          |     100 |      100 |     100 |     100 |                   
+  memorySearch.ts  |     100 |      100 |     100 |     100 |                   
+  promptLocales.ts |     100 |      100 |     100 |     100 |                   
+  prompts.ts       |     100 |      100 |     100 |     100 |                   
+  surface.ts       |     100 |      100 |     100 |     100 |                   
+ core/hotkey       |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ core/i18n         |     100 |      100 |     100 |     100 |                   
+  bundles.ts       |     100 |      100 |     100 |     100 |                   
+ .../i18n/messages |     100 |      100 |     100 |     100 |                   
+  ...orrections.ts |     100 |      100 |     100 |     100 |                   
+  ...-overrides.ts |     100 |      100 |     100 |     100 |                   
+  ...y-patterns.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  localTts.ts      |     100 |      100 |     100 |     100 |                   
+  manga.ts         |     100 |      100 |     100 |     100 |                   
+  ...k-patterns.ts |     100 |      100 |     100 |     100 |                   
+  ...e-feedback.ts |     100 |      100 |     100 |     100 |                   
+  ...ationStats.ts |     100 |      100 |     100 |     100 |                   
+ core/language     |     100 |      100 |     100 |     100 |                   
+  catalog.ts       |     100 |      100 |     100 |     100 |                   
+  chinese.ts       |     100 |      100 |     100 |     100 |                   
+  ...seVariants.ts |     100 |      100 |     100 |     100 |                   
+  codes.ts         |     100 |      100 |     100 |     100 |                   
+  detect.ts        |     100 |      100 |     100 |     100 |                   
+  identify.ts      |     100 |      100 |     100 |     100 |                   
+  lexicon.ts       |     100 |      100 |     100 |     100 |                   
+  partOfSpeech.ts  |     100 |      100 |     100 |     100 |                   
+  scripts.ts       |     100 |      100 |     100 |     100 |                   
+  statistical.ts   |     100 |      100 |     100 |     100 |                   
+  ...icalTokens.ts |     100 |      100 |     100 |     100 |                   
+ ...ite-adaptation |     100 |      100 |     100 |     100 |                   
+  catalog.ts       |     100 |      100 |     100 |     100 |                   
+  compiler.ts      |     100 |      100 |     100 |     100 |                   
+  literalLabel.ts  |     100 |      100 |     100 |     100 |                   
+  schema.ts        |     100 |      100 |     100 |     100 |                   
+  session.ts       |     100 |      100 |     100 |     100 |                   
+ core/site-rules   |     100 |      100 |     100 |     100 |                   
+  domain.ts        |     100 |      100 |     100 |     100 |                   
+ core/translation  |     100 |      100 |     100 |     100 |                   
+  apiKeyPool.ts    |     100 |      100 |     100 |     100 |                   
+  current.ts       |     100 |      100 |     100 |     100 |                   
+  dom.ts           |     100 |      100 |     100 |     100 |                   
+  engine.ts        |     100 |      100 |     100 |     100 |                   
+  font.ts          |     100 |      100 |     100 |     100 |                   
+  internal.ts      |     100 |      100 |     100 |     100 |                   
+  languages.ts     |     100 |      100 |     100 |     100 |                   
+  layout.ts        |     100 |      100 |     100 |     100 |                   
+  lineBreak.ts     |     100 |      100 |     100 |     100 |                   
+  liveData.ts      |     100 |      100 |     100 |     100 |                   
+  ...lInference.ts |     100 |      100 |     100 |     100 |                   
+  prompts.ts       |     100 |      100 |     100 |     100 |                   
+  public.ts        |     100 |      100 |     100 |     100 |                   
+  registry.ts      |     100 |      100 |     100 |     100 |                   
+  result.ts        |     100 |      100 |     100 |     100 |                   
+  ...Validation.ts |     100 |      100 |     100 |     100 |                   
+  ...eAlignment.ts |     100 |      100 |     100 |     100 |                   
+  serialization.ts |     100 |      100 |     100 |     100 |                   
+  text.ts          |     100 |      100 |     100 |     100 |                   
+  ...ProbeImage.ts |     100 |      100 |     100 |     100 |                   
+  visual.ts        |     100 |      100 |     100 |     100 |                   
+ ...ation/adapters |     100 |      100 |     100 |     100 |                   
+  declarative.ts   |     100 |      100 |     100 |     100 |                   
+ core/tts          |     100 |      100 |     100 |     100 |                   
+  ...chProgress.ts |     100 |      100 |     100 |     100 |                   
+ ...ea-translation |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+ ...ion/background |     100 |      100 |     100 |     100 |                   
+  handlers.ts      |     100 |      100 |     100 |     100 |                   
+  ...eenAdapter.ts |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  areaHotkey.ts    |     100 |      100 |     100 |     100 |                   
+  ...MenuBridge.ts |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+ ...ation/services |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+ ...anslation/core |     100 |      100 |     100 |     100 |                   
+  document.ts      |     100 |      100 |     100 |     100 |                   
+  preview.ts       |     100 |      100 |     100 |     100 |                   
+ ...ation/services |     100 |      100 |     100 |     100 |                   
+  archive.ts       |     100 |      100 |     100 |     100 |                   
+  binary.ts        |     100 |      100 |     100 |     100 |                   
+  translation.ts   |     100 |      100 |     100 |     100 |                   
+ ...translation/ui |     100 |      100 |     100 |     100 |                   
+  presentation.ts  |     100 |      100 |     100 |     100 |                   
+ .../floating-ball |     100 |      100 |     100 |     100 |                   
+  position.ts      |     100 |      100 |     100 |     100 |                   
+ ...ge-translation |     100 |      100 |     100 |     100 |                   
+  ...ddedFrames.ts |     100 |      100 |     100 |     100 |                   
+  ...MailFrames.ts |     100 |      100 |     100 |     100 |                   
+  progress.ts      |     100 |      100 |     100 |     100 |                   
+  qqMailFrames.ts  |     100 |      100 |     100 |     100 |                   
+  toolbarStatus.ts |     100 |      100 |     100 |     100 |                   
+ ...ion/background |     100 |      100 |     100 |     100 |                   
+  ...meHandlers.ts |     100 |      100 |     100 |     100 |                   
+  ...meHandlers.ts |     100 |      100 |     100 |     100 |                   
+  ...meHandlers.ts |     100 |      100 |     100 |     100 |                   
+  stateHandlers.ts |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  ...ualRemount.ts |     100 |      100 |     100 |     100 |                   
+  ...gualReplay.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  frameSession.ts  |     100 |      100 |     100 |     100 |                   
+  ...gePriority.ts |     100 |      100 |     100 |     100 |                   
+  fullPageQueue.ts |     100 |      100 |     100 |     100 |                   
+  layout.ts        |     100 |      100 |     100 |     100 |                   
+  ...TextRender.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...gIndicator.ts |     100 |      100 |     100 |     100 |                   
+  modalPriority.ts |     100 |      100 |     100 |     100 |                   
+  modalSession.ts  |     100 |      100 |     100 |     100 |                   
+  ...bservation.ts |     100 |      100 |     100 |     100 |                   
+  ...nArtifacts.ts |     100 |      100 |     100 |     100 |                   
+  renderer.ts      |     100 |      100 |     100 |     100 |                   
+  ...estSession.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...eHighlight.ts |     100 |      100 |     100 |     100 |                   
+  ...eStability.ts |     100 |      100 |     100 |     100 |                   
+  ...bilityGate.ts |     100 |      100 |     100 |     100 |                   
+  ...tification.ts |     100 |      100 |     100 |     100 |                   
+  ...ticRemount.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...ionRequest.ts |     100 |      100 |     100 |     100 |                   
+  ...nStability.ts |     100 |      100 |     100 |     100 |                   
+  ...tStability.ts |     100 |      100 |     100 |     100 |                   
+ ...anslation/core |     100 |      100 |     100 |     100 |                   
+  errorMessage.ts  |     100 |      100 |     100 |     100 |                   
+  hostMarkers.ts   |     100 |      100 |     100 |     100 |                   
+ ...translation/ui |     100 |      100 |     100 |     100 |                   
+  ...ogressHint.ts |     100 |      100 |     100 |     100 |                   
+  ...Visibility.ts |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ ...ge-translation |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+  failure.ts       |     100 |      100 |     100 |     100 |                   
+  ...atchResult.ts |     100 |      100 |     100 |     100 |                   
+  ocrLanguages.ts  |     100 |      100 |     100 |     100 |                   
+  paragraphs.ts    |     100 |      100 |     100 |     100 |                   
+  progress.ts      |     100 |      100 |     100 |     100 |                   
+ ...ion/background |     100 |      100 |     100 |     100 |                   
+  handlers.ts      |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...eenAdapter.ts |     100 |      100 |     100 |     100 |                   
+  ...geReferrer.ts |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  controls.ts      |     100 |      100 |     100 |     100 |                   
+  ...ligibility.ts |     100 |      100 |     100 |     100 |                   
+  imageLoads.ts    |     100 |      100 |     100 |     100 |                   
+  ...Background.ts |     100 |      100 |     100 |     100 |                   
+  mangaCanvas.ts   |     100 |      100 |     100 |     100 |                   
+  ...Compositor.ts |     100 |      100 |     100 |     100 |                   
+  mangaEntry.ts    |     100 |      100 |     100 |     100 |                   
+  ...geSegments.ts |     100 |      100 |     100 |     100 |                   
+  mangaReader.ts   |     100 |      100 |     100 |     100 |                   
+  mangaSession.ts  |     100 |      100 |     100 |     100 |                   
+  presentation.ts  |     100 |      100 |     100 |     100 |                   
+  ...horization.ts |     100 |      100 |     100 |     100 |                   
+  textReader.ts    |     100 |      100 |     100 |     100 |                   
+ ...ation/services |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  inpainting.ts    |     100 |      100 |     100 |     100 |                   
+  mangaBubbles.ts  |     100 |      100 |     100 |     100 |                   
+  mangaEncoding.ts |     100 |      100 |     100 |     100 |                   
+  mangaGpu.ts      |     100 |      100 |     100 |     100 |                   
+  ...nce.worker.ts |     100 |      100 |     100 |     100 |                   
+  ...enceClient.ts |     100 |      100 |     100 |     100 |                   
+  ...Inpainting.ts |     100 |      100 |     100 |     100 |                   
+  mangaOcr.ts      |     100 |      100 |     100 |     100 |                   
+  ...etManifest.ts |     100 |      100 |     100 |     100 |                   
+  ...aOcrAssets.ts |     100 |      100 |     100 |     100 |                   
+  mangaRegions.ts  |     100 |      100 |     100 |     100 |                   
+  ...aRendering.ts |     100 |      100 |     100 |     100 |                   
+  ...onFallback.ts |     100 |      100 |     100 |     100 |                   
+  ...Typography.ts |     100 |      100 |     100 |     100 |                   
+  ocrModelCache.ts |     100 |      100 |     100 |     100 |                   
+  ...elDownload.ts |     100 |      100 |     100 |     100 |                   
+  ocrRuntime.ts    |     100 |      100 |     100 |     100 |                   
+  ...kerRuntime.ts |     100 |      100 |     100 |     100 |                   
+  ...eenRuntime.ts |     100 |      100 |     100 |     100 |                   
+  remoteImage.ts   |     100 |      100 |     100 |     100 |                   
+  rendering.ts     |     100 |      100 |     100 |     100 |                   
+  ...edOcrTasks.ts |     100 |      100 |     100 |     100 |                   
+ ...ion/background |     100 |      100 |     100 |     100 |                   
+  handler.ts       |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  editableHost.ts  |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  inputBox.ts      |     100 |      100 |     100 |     100 |                   
+ ...tion/offscreen |     100 |      100 |     100 |     100 |                   
+  artifactStore.ts |     100 |      100 |     100 |     100 |                   
+  downloads.ts     |     100 |      100 |     100 |     100 |                   
+ ...ures/local-tts |     100 |      100 |     100 |     100 |                   
+  protocol.ts      |     100 |      100 |     100 |     100 |                   
+ ...tts/background |     100 |      100 |     100 |     100 |                   
+  handlers.ts      |     100 |      100 |     100 |     100 |                   
+  ...eenAdapter.ts |     100 |      100 |     100 |     100 |                   
+ ...el-usage/model |     100 |      100 |     100 |     100 |                   
+  insights.ts      |     100 |      100 |     100 |     100 |                   
+  tokenFormat.ts   |     100 |      100 |     100 |     100 |                   
+ ...paragraph-copy |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+ ...h-copy/content |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ ...ck-translation |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+ ...ding-assistant |     100 |      100 |     100 |     100 |                   
+  answerFormat.ts  |     100 |      100 |     100 |     100 |                   
+  background.ts    |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  memoryHandler.ts |     100 |      100 |     100 |     100 |                   
+  ...ionContext.ts |     100 |      100 |     100 |     100 |                   
+  ...ceAnalysis.ts |     100 |      100 |     100 |     100 |                   
+  ...ionHandler.ts |     100 |      100 |     100 |     100 |                   
+  streamPort.ts    |     100 |      100 |     100 |     100 |                   
+ ...on-translation |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  index.ts         |     100 |      100 |     100 |     100 |                   
+  picker.ts        |     100 |      100 |     100 |     100 |                   
+ ...on-translation |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+  pageZoom.ts      |     100 |      100 |     100 |     100 |                   
+  protocol.ts      |     100 |      100 |     100 |     100 |                   
+ ...ion/background |     100 |      100 |     100 |     100 |                   
+  ...eenAdapter.ts |     100 |      100 |     100 |     100 |                   
+  ...oomHandler.ts |     100 |      100 |     100 |     100 |                   
+  ...sSynthesis.ts |     100 |      100 |     100 |     100 |                   
+  ttsHandler.ts    |     100 |      100 |     100 |     100 |                   
+  ...kupHandler.ts |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  ...MenuBridge.ts |     100 |      100 |     100 |     100 |                   
+  ...DialogHost.ts |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+  ...Controller.ts |     100 |      100 |     100 |     100 |                   
+ ...ation/services |     100 |      100 |     100 |     100 |                   
+  edgeTtsPolicy.ts |     100 |      100 |     100 |     100 |                   
+  ...Dictionary.ts |     100 |      100 |     100 |     100 |                   
+  ...malization.ts |     100 |      100 |     100 |     100 |                   
+ ...ngs/background |     100 |      100 |     100 |     100 |                   
+  ...onsHandler.ts |     100 |      100 |     100 |     100 |                   
+ ...settings/model |     100 |      100 |     100 |     100 |                   
+  ...reparation.ts |     100 |      100 |     100 |     100 |                   
+  configHistory.ts |     100 |      100 |     100 |     100 |                   
+  ...ialPreview.ts |     100 |      100 |     100 |     100 |                   
+  dataBackup.ts    |     100 |      100 |     100 |     100 |                   
+  ...ivePreview.ts |     100 |      100 |     100 |     100 |                   
+  navigation.ts    |     100 |      100 |     100 |     100 |                   
+  ...tionEditor.ts |     100 |      100 |     100 |     100 |                   
+  ...references.ts |     100 |      100 |     100 |     100 |                   
+ ...es/settings/ui |     100 |      100 |     100 |     100 |                   
+  ...outReorder.ts |     100 |      100 |     100 |     100 |                   
+ ...gs/ui/services |     100 |      100 |     100 |     100 |                   
+  apiKeyTypes.ts   |     100 |      100 |     100 |     100 |                   
+  ...tionChecks.ts |     100 |      100 |     100 |     100 |                   
+  modelOptions.ts  |     100 |      100 |     100 |     100 |                   
+  ...mplateSync.ts |     100 |      100 |     100 |     100 |                   
+ ...n-center/model |     100 |      100 |     100 |     100 |                   
+  comparison.ts    |     100 |      100 |     100 |     100 |                   
+ ...on-stats/model |     100 |      100 |     100 |     100 |                   
+  presentation.ts  |     100 |      100 |     100 |     100 |                   
+ ...video-subtitle |     100 |      100 |     100 |     100 |                   
+  transcription.ts |     100 |      100 |     100 |     100 |                   
+  ...ptionCache.ts |     100 |      100 |     100 |     100 |                   
+ ...tle/background |     100 |      100 |     100 |     100 |                   
+  cacheHandlers.ts |     100 |      100 |     100 |     100 |                   
+  handlers.ts      |     100 |      100 |     100 |     100 |                   
+  ...ptionCache.ts |     100 |      100 |     100 |     100 |                   
+ ...btitle/content |     100 |      100 |     100 |     100 |                   
+  downloads.ts     |     100 |      100 |     100 |     100 |                   
+  hlsAudio.ts      |     100 |      100 |     100 |     100 |                   
+  ...lReadiness.ts |     100 |      100 |     100 |     100 |                   
+  platforms.ts     |     100 |      100 |     100 |     100 |                   
+  playerMenu.ts    |     100 |      100 |     100 |     100 |                   
+  ...Controller.ts |     100 |      100 |     100 |     100 |                   
+  ...iceProfile.ts |     100 |      100 |     100 |     100 |                   
+  ...leLanguage.ts |     100 |      100 |     100 |     100 |                   
+  subtitleLogic.ts |     100 |      100 |     100 |     100 |                   
+  ...acheClient.ts |     100 |      100 |     100 |     100 |                   
+  ...ationCache.ts |     100 |      100 |     100 |     100 |                   
+  ...nScheduler.ts |     100 |      100 |     100 |     100 |                   
+  ...yerBinding.ts |     100 |      100 |     100 |     100 |                   
+  ...yerLocator.ts |     100 |      100 |     100 |     100 |                   
+  ...itleLoader.ts |     100 |      100 |     100 |     100 |                   
+  ...btitleData.ts |     100 |      100 |     100 |     100 |                   
+  ...anCaptions.ts |     100 |      100 |     100 |     100 |                   
+  ...btitleData.ts |     100 |      100 |     100 |     100 |                   
+  ...BridgeCore.ts |     100 |      100 |     100 |     100 |                   
+  ...extMessage.ts |     100 |      100 |     100 |     100 |                   
+ ...ntent/video-ai |     100 |      100 |     100 |     100 |                   
+  audioWindow.ts   |     100 |      100 |     100 |     100 |                   
+  capture.ts       |     100 |      100 |     100 |     100 |                   
+  cueTimeline.ts   |     100 |      100 |     100 |     100 |                   
+  fullCapture.ts   |     100 |      100 |     100 |     100 |                   
+  ...onRegistry.ts |     100 |      100 |     100 |     100 |                   
+  modelSetup.ts    |     100 |      100 |     100 |     100 |                   
+  ...hAlignment.ts |     100 |      100 |     100 |     100 |                   
+  ...Transcript.ts |     100 |      100 |     100 |     100 |                   
+ ...itle/offscreen |     100 |      100 |     100 |     100 |                   
+  modelCache.ts    |     100 |      100 |     100 |     100 |                   
+  ...tampParser.ts |     100 |      100 |     100 |     100 |                   
+  transcription.ts |     100 |      100 |     100 |     100 |                   
+  ...ionOptions.ts |     100 |      100 |     100 |     100 |                   
+ ...res/vocabulary |     100 |      100 |     100 |     100 |                   
+  learningModel.ts |     100 |      100 |     100 |     100 |                   
+  protocol.ts      |     100 |      100 |     100 |     100 |                   
+  repository.ts    |     100 |      100 |     100 |     100 |                   
+ ...ary/background |     100 |      100 |     100 |     100 |                   
+  handler.ts       |     100 |      100 |     100 |     100 |                   
+ ...ting-assistant |     100 |      100 |     100 |     100 |                   
+  background.ts    |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  content.ts       |     100 |      100 |     100 |     100 |                   
+  editors.ts       |     100 |      100 |     100 |     100 |                   
+  ...yPlacement.ts |     100 |      100 |     100 |     100 |                   
+  entrySession.ts  |     100 |      100 |     100 |     100 |                   
+  markdown.ts      |     100 |      100 |     100 |     100 |                   
+  reference.ts     |     100 |      100 |     100 |     100 |                   
+ platform/browser  |     100 |      100 |     100 |     100 |                   
+  actionIcon.ts    |     100 |      100 |     100 |     100 |                   
+  capabilities.ts  |     100 |      100 |     100 |     100 |                   
+  ...ionRequest.ts |     100 |      100 |     100 |     100 |                   
+  ids.ts           |     100 |      100 |     100 |     100 |                   
+  ...ionSupport.ts |     100 |      100 |     100 |     100 |                   
+  ...eaderRules.ts |     100 |      100 |     100 |     100 |                   
+  ...meMessages.ts |     100 |      100 |     100 |     100 |                   
+ ...m/google-drive |     100 |      100 |     100 |     100 |                   
+  api.ts           |     100 |      100 |     100 |     100 |                   
+  auth.ts          |     100 |      100 |     100 |     100 |                   
+  constants.ts     |     100 |      100 |     100 |     100 |                   
+  encryption.ts    |     100 |      100 |     100 |     100 |                   
+ platform/http     |     100 |      100 |     100 |     100 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+  ...lDownloads.ts |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+ platform/i18n     |     100 |      100 |     100 |     100 |                   
+  ...ageBundles.ts |     100 |      100 |     100 |     100 |                   
+ ...form/offscreen |     100 |      100 |     100 |     100 |                   
+  client.ts        |     100 |      100 |     100 |     100 |                   
+  ...sionClient.ts |     100 |      100 |     100 |     100 |                   
+  ...oxDocument.ts |     100 |      100 |     100 |     100 |                   
+ ...form/shadow-ui |     100 |      100 |     100 |     100 |                   
+  ...BridgeCore.ts |     100 |      100 |     100 |     100 |                   
+ platform/storage  |     100 |      100 |     100 |     100 |                   
+  ...Encryption.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  configStorage.ts |     100 |      100 |     100 |     100 |                   
+  ...ialContext.ts |     100 |      100 |     100 |     100 |                   
+  ...adProgress.ts |     100 |      100 |     100 |     100 |                   
+  ...lthStorage.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...Repository.ts |     100 |      100 |     100 |     100 |                   
+  ...obeStorage.ts |     100 |      100 |     100 |     100 |                   
+ platform/webdav   |     100 |      100 |     100 |     100 |                   
+  api.ts           |     100 |      100 |     100 |     100 |                   
+  connection.ts    |     100 |      100 |     100 |     100 |                   
+ ...rs/translation |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  auth.ts          |     100 |      100 |     100 |     100 |                   
+  ...translator.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...torRequest.ts |     100 |      100 |     100 |     100 |                   
+  ...ectionTest.ts |     100 |      100 |     100 |     100 |                   
+  ...hinese-web.ts |     100 |      100 |     100 |     100 |                   
+  ...-extra-web.ts |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  free-web.ts      |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+  ...tTransport.ts |     100 |      100 |     100 |     100 |                   
+  mymemory.ts      |     100 |      100 |     100 |     100 |                   
+  responses-api.ts |     100 |      100 |     100 |     100 |                   
+  usage.ts         |     100 |      100 |     100 |     100 |                   
+  ...ranslation.ts |     100 |      100 |     100 |     100 |                   
+ ...slation/ai-sdk |     100 |      100 |     100 |     100 |                   
+  endpoints.ts     |     100 |      100 |     100 |     100 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+ ...nslation/cloud |     100 |      100 |     100 |     100 |                   
+  languages.ts     |     100 |      100 |     100 |     100 |                   
+  signature.ts     |     100 |      100 |     100 |     100 |                   
+ services          |     100 |      100 |     100 |     100 |                   
+  ...rfaceFonts.ts |     100 |      100 |     100 |     100 |                   
+ services/config   |     100 |      100 |     100 |     100 |                   
+  autoBackup.ts    |     100 |      100 |     100 |     100 |                   
+  ...ckupClient.ts |     100 |      100 |     100 |     100 |                   
+  count.ts         |     100 |      100 |     100 |     100 |                   
+  ...eDriveSync.ts |     100 |      100 |     100 |     100 |                   
+  ...SyncClient.ts |     100 |      100 |     100 |     100 |                   
+  history.ts       |     100 |      100 |     100 |     100 |                   
+  ...ConfigSync.ts |     100 |      100 |     100 |     100 |                   
+  schema.ts        |     100 |      100 |     100 |     100 |                   
+  webDavBackup.ts  |     100 |      100 |     100 |     100 |                   
+  ...ckupClient.ts |     100 |      100 |     100 |     100 |                   
+ services/harness  |     100 |      100 |     100 |     100 |                   
+  conversation.ts  |     100 |      100 |     100 |     100 |                   
+  ...ningMemory.ts |     100 |      100 |     100 |     100 |                   
+  memoryRecall.ts  |     100 |      100 |     100 |     100 |                   
+  modelGateway.ts  |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+  sessionTypes.ts  |       0 |        0 |       0 |       0 |                   
+  sessions.ts      |     100 |      100 |     100 |     100 |                   
+  usage.ts         |     100 |      100 |     100 |     100 |                   
+ ...es/model-usage |     100 |      100 |     100 |     100 |                   
+  aggregation.ts   |     100 |      100 |     100 |     100 |                   
+ ...es/translation |     100 |    99.95 |     100 |     100 |                   
+  ...eyRotation.ts |     100 |      100 |     100 |     100 |                   
+  availability.ts  |     100 |      100 |     100 |     100 |                   
+  broker.ts        |     100 |      100 |     100 |     100 |                   
+  cache.ts         |     100 |      100 |     100 |     100 |                   
+  ...Management.ts |     100 |      100 |     100 |     100 |                   
+  ...icyBinding.ts |     100 |      100 |     100 |     100 |                   
+  capabilities.ts  |     100 |      100 |     100 |     100 |                   
+  errors.ts        |     100 |      100 |     100 |     100 |                   
+  freeFallback.ts  |     100 |      100 |     100 |     100 |                   
+  ...tingPolicy.ts |     100 |      100 |     100 |     100 |                   
+  freeWeights.ts   |     100 |      100 |     100 |     100 |                   
+  ...Protection.ts |     100 |      100 |     100 |     100 |                   
+  languages.ts     |     100 |      100 |     100 |     100 |                   
+  ...yPageCache.ts |     100 |      100 |     100 |     100 |                   
+  modelThinking.ts |     100 |      100 |     100 |     100 |                   
+  ...nceBarrier.ts |     100 |      100 |     100 |     100 |                   
+  queue.ts         |     100 |      100 |     100 |     100 |                   
+  ...tScheduler.ts |     100 |      100 |     100 |     100 |                   
+  ...stSnapshot.ts |     100 |    99.31 |     100 |     100 | 100               
+  serviceErrors.ts |     100 |      100 |     100 |     100 |                   
+  templates.ts     |     100 |      100 |     100 |     100 |                   
+  visionProbe.ts   |     100 |      100 |     100 |     100 |                   
+ ...nslation-stats |     100 |      100 |     100 |     100 |                   
+  aggregation.ts   |     100 |      100 |     100 |     100 |                   
+  measure.ts       |     100 |      100 |     100 |     100 |                   
+ ...lation/context |     100 |      100 |     100 |     100 |                   
+  policy.ts        |     100 |      100 |     100 |     100 |                   
+ services/writing  |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+ shared/dom        |     100 |      100 |     100 |     100 |                   
+  documentType.ts  |     100 |      100 |     100 |     100 |                   
+  editingTarget.ts |     100 |      100 |     100 |     100 |                   
+ shared/function   |     100 |      100 |     100 |     100 |                   
+  sha256.ts        |     100 |      100 |     100 |     100 |                   
+  throttle.ts      |     100 |      100 |     100 |     100 |                   
+ shared/geometry   |     100 |      100 |     100 |     100 |                   
+  touch.ts         |     100 |      100 |     100 |     100 |                   
+ shared/onnx       |     100 |      100 |     100 |     100 |                   
+  resources.ts     |     100 |      100 |     100 |     100 |                   
+  wasmBinary.ts    |     100 |      100 |     100 |     100 |                   
+  webgpu.ts        |     100 |      100 |     100 |     100 |                   
+ ui                |     100 |      100 |     100 |     100 |                   
+  ...atureIcons.ts |     100 |      100 |     100 |     100 |                   
+  ...gIndicator.ts |     100 |      100 |     100 |     100 |                   
+ ui/view-model     |     100 |      100 |     100 |     100 |                   
+  aiContext.ts     |     100 |      100 |     100 |     100 |                   
+  ...iceCatalog.ts |     100 |      100 |     100 |     100 |                   
+  ...iceLibrary.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

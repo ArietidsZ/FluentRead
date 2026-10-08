@@ -1,0 +1,587 @@
+{
+  "numTotalTestSuites": 7,
+  "numPassedTestSuites": 5,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 53,
+  "numPassedTests": 2,
+  "numFailedTests": 1,
+  "numPendingTests": 50,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791420253916,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime wires real provider handlers and restricts vision probes to the exact settings page",
+          "status": "passed",
+          "title": "wires real provider handlers and restricts vision probes to the exact settings page",
+          "duration": 3.5858399999999904,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime captures reset generation before connection test and injects model usage persistence",
+          "status": "skipped",
+          "title": "captures reset generation before connection test and injects model usage persistence",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime exposes the provider-owned free translation weight snapshot through the composition root",
+          "status": "skipped",
+          "title": "exposes the provider-owned free translation weight snapshot through the composition root",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420254906,
+      "endTime": 1791420254909.586,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/backgroundProviderRuntime.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub can cancel active compression and retry while preserving contents",
+          "status": "skipped",
+          "title": "sample.epub can cancel active compression and retry while preserving contents",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx can cancel active compression and retry while preserving contents",
+          "status": "skipped",
+          "title": "sample.docx can cancel active compression and retry while preserving contents",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats preserves blank pages in a bilingual PDF without failing to embed them",
+          "status": "skipped",
+          "title": "preserves blank pages in a bilingual PDF without failing to embed them",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in bilingual mode with ordered progress",
+          "status": "skipped",
+          "title": "exports 40 PDF pages in bilingual mode with ordered progress",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in translated mode with ordered progress",
+          "status": "skipped",
+          "title": "exports 40 PDF pages in translated mode with ordered progress",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats cancels between PDF pages and retries without changing translations",
+          "status": "skipped",
+          "title": "cancels between PDF pages and retries without changing translations",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats releases decoded PNG pixels before rendering the next PDF page",
+          "status": "skipped",
+          "title": "releases decoded PNG pixels before rendering the next PDF page",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "status": "skipped",
+          "title": "识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 PDF 页解析版面文本块、坐标和页码上下文",
+          "status": "skipped",
+          "title": "按 PDF 页解析版面文本块、坐标和页码上下文",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub partial export retains blank reviewed segments and translates the rest",
+          "status": "skipped",
+          "title": "sample.epub partial export retains blank reviewed segments and translates the rest",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx partial export retains blank reviewed segments and translates the rest",
+          "status": "skipped",
+          "title": "sample.docx partial export retains blank reviewed segments and translates the rest",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF partial export uses source for an empty reviewed block",
+          "status": "skipped",
+          "title": "PDF partial export uses source for an empty reviewed block",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "status": "skipped",
+          "title": "按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "status": "skipped",
+          "title": "ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "status": "skipped",
+          "title": "提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "status": "skipped",
+          "title": "DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "status": "skipped",
+          "title": "PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 统一文件入口根据扩展名选择文本或二进制解析器",
+          "status": "skipped",
+          "title": "统一文件入口根据扩展名选择文本或二进制解析器",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝扩展名伪装或损坏的二进制文件",
+          "status": "skipped",
+          "title": "拒绝扩展名伪装或损坏的二进制文件",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "status": "skipped",
+          "title": "扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "status": "skipped",
+          "title": "拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "status": "skipped",
+          "title": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "status": "skipped",
+          "title": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "a PDF with lost source metadata preserves the real original page and reports completed progress",
+          "status": "passed",
+          "title": "a PDF with lost source metadata preserves the real original page and reports completed progress",
+          "duration": 174.75555699999998,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420254554,
+      "endTime": 1791420254728.7556,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/documentTranslationBinary.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 accepts a glossary-only recovery after the first restored result has the wrong target language",
+          "status": "failed",
+          "title": "accepts a glossary-only recovery after the first restored result has the wrong target language",
+          "duration": 10.753402000000051,
+          "failureMessages": [
+            "AssertionError: expected 'This English response still needs a C…' to be 'RetainedName' // Object.is equality\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1772:31\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at [CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/translationGlossaryIntegration.test.ts:88:9\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "status": "skipped",
+          "title": "只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "status": "skipped",
+          "title": "机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "status": "skipped",
+          "title": "服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "status": "skipped",
+          "title": "批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "status": "skipped",
+          "title": "未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 同一原词的大小写规则改变后不复用旧缓存",
+          "status": "skipped",
+          "title": "同一原词的大小写规则改变后不复用旧缓存",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "status": "skipped",
+          "title": "用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "status": "skipped",
+          "title": "缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "status": "skipped",
+          "title": "网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 显式空选择和关闭总开关不干预原来的翻译结果",
+          "status": "skipped",
+          "title": "显式空选择和关闭总开关不干预原来的翻译结果",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 文档和视频继承各自默认选择，显式空数组仍关闭",
+          "status": "skipped",
+          "title": "文档和视频继承各自默认选择，显式空数组仍关闭",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "status": "skipped",
+          "title": "编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "status": "skipped",
+          "title": "慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "status": "skipped",
+          "title": "长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "status": "skipped",
+          "title": "批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "status": "skipped",
+          "title": "AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "status": "skipped",
+          "title": "入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 页面摘要不加术语，正文仍获得原文命中的约束",
+          "status": "skipped",
+          "title": "页面摘要不加术语，正文仍获得原文命中的约束",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "status": "skipped",
+          "title": "上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 Qwen-MT模型同样经过broker的命中和版本检查",
+          "status": "skipped",
+          "title": "Qwen-MT模型同样经过broker的命中和版本检查",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "status": "skipped",
+          "title": "高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "status": "skipped",
+          "title": "Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "status": "skipped",
+          "title": "机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "status": "skipped",
+          "title": "全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "status": "skipped",
+          "title": "Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420254394,
+      "endTime": 1791420254404.7534,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/translationGlossaryIntegration.test.ts"
+    }
+  ]
+}

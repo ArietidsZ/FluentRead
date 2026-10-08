@@ -1,0 +1,21 @@
+{
+  "label": "pdf-source-race-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentTranslationBinary.test.ts",
+    "-t",
+    "PDF loading keeps the original source snapshot",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../pdf-race-nine-coverage-20261008/pdf-source-race-red.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-pdf-export-source-snapshot",
+  "started_at": "2026-10-08T00:12:31.878321+00:00",
+  "duration_seconds": 0.538,
+  "exit_code": 1
+}

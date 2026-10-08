@@ -1,0 +1,21 @@
+{
+  "base": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "integration_head": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "production_changed_files": [
+    "src/features/document-translation/services/binary.ts"
+  ],
+  "pure_test_commit": "0af5c7c594dabc0dc201bf42c02e6e4638f125ae",
+  "pure_test_changed_files": [
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/backgroundProviderRuntime.test.ts",
+    "tests/config.test.ts",
+    "tests/documentTranslationBinary.test.ts",
+    "tests/documentTranslationEdge.test.ts",
+    "tests/liveTextTranslation.test.ts",
+    "tests/mangaBubbles.test.ts",
+    "tests/requestConfigSnapshot.test.ts",
+    "tests/translationGlossaryIntegration.test.ts"
+  ],
+  "added_pdf_cases": 2,
+  "added_coverage_cases": 18
+}

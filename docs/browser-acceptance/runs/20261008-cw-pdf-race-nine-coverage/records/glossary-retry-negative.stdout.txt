@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationGlossaryIntegration.test.ts -t exact glossary-only recovery --no-cache --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/pdf-race-nine-coverage-20261008/glossary-retry-negative.results.json
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-nine-module-coverage
+
+ ❯ tests/translationGlossaryIntegration.test.ts (26 tests | 1 failed | 25 skipped) 16ms
+   × 术语库与真实翻译编排协作 > accepts exact glossary-only recovery after a padded untranslated response 16ms
+     → promise rejected "UntranslatedResponseError: 翻译服务连续返回未翻译的原文… { …(3) }" instead of resolving
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 25 skipped (26)
+   Start at  08:45:58
+   Duration  509ms (transform 290ms, setup 0ms, collect 384ms, tests 16ms, environment 0ms, prepare 21ms)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/glossary-retry-negative.results.json

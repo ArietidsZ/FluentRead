@@ -1,0 +1,11 @@
+{
+  "label": "integration-test-audit",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration",
+  "started_at": "2026-10-08T00:47:18.484341+00:00",
+  "duration_seconds": 0.841,
+  "exit_code": 0
+}

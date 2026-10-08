@@ -1,0 +1,187 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/config.test.ts tests/model.test.ts tests/configDomainBoundaries.test.ts tests/backgroundProviderRuntime.test.ts tests/backgroundFeatureHandlers.test.ts tests/imageGlossaryContext.test.ts tests/documentTranslation.test.ts tests/documentTranslationEdge.test.ts tests/documentTranslationRegression.test.ts tests/documentTranslationPresentation.test.ts tests/documentTranslationBinary.test.ts tests/documentTranslationBinaryEdge.test.ts tests/documentTranslationExamplesApi.test.ts tests/identicalTranslation.test.ts tests/liveTextTranslation.test.ts tests/liveTextRender.test.ts tests/mangaBubbles.test.ts tests/translationBroker.test.ts tests/translationBrokerStats.test.ts tests/translationVisionBroker.test.ts tests/requestConfigSnapshot.test.ts --config vitest.coverage.config.ts --coverage --coverage.include=src/app/background/providerRuntime.ts --coverage.include=src/core/config/model.ts --coverage.include=src/features/area-translation/background/handlers.ts --coverage.include=src/features/document-translation/core/document.ts --coverage.include=src/features/document-translation/services/binary.ts --coverage.include=src/features/full-page-translation/content/liveTextTranslation.ts --coverage.include=src/features/image-translation/services/mangaBubbles.ts --coverage.include=src/services/translation/broker.ts --coverage.include=src/services/translation/requestSnapshot.ts --coverage.reportsDirectory=[CW_WORKSPACE]/pdf-race-nine-coverage-20261008/baseline-nine-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/pdf-race-nine-coverage-20261008/baseline-nine-coverage.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-nine-module-coverage
+      Coverage enabled with v8
+
+ ✓ tests/translationBroker.test.ts (144 tests) 1412ms
+ ✓ tests/config.test.ts (129 tests) 6613ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1396ms
+ ✓ tests/model.test.ts (113 tests) 108ms
+ ✓ tests/backgroundFeatureHandlers.test.ts (51 tests) 2086ms
+   ✓ 后台 feature handlers > 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口 1202ms
+   ✓ 后台 feature handlers > 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对 601ms
+ ✓ tests/imageGlossaryContext.test.ts (14 tests) 27ms
+ ✓ tests/requestConfigSnapshot.test.ts (12 tests) 8ms
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > preserves blank pages in a bilingual PDF without failing to embed them
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in bilingual mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > exports 40 PDF pages in translated mode with ordered progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > cancels between PDF pages and retries without changing translations
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > releases decoded PNG pixels before rendering the next PDF page
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > 按 PDF 页解析版面文本块、坐标和页码上下文
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF partial export uses source for an empty reviewed block
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > binary document translation formats > PDF 双语导出将每张原页和保留版式的译页并排放在同一页
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > 全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationBinary.test.ts (23 tests) 2029ms
+   ✓ binary document translation formats > 拒绝解压后单项过大的 ePub/DOCX 压缩包 1328ms
+ ✓ tests/configDomainBoundaries.test.ts (23 tests) 36ms
+ ✓ tests/documentTranslationBinaryEdge.test.ts (12 tests) 159ms
+ ✓ tests/liveTextRender.test.ts (10 tests) 19ms
+ ✓ tests/documentTranslation.test.ts (19 tests) 10ms
+ ✓ tests/translationBrokerStats.test.ts (8 tests) 121ms
+ ✓ tests/liveTextTranslation.test.ts (13 tests) 17ms
+ ✓ tests/documentTranslationEdge.test.ts (10 tests) 8ms
+ ✓ tests/documentTranslationPresentation.test.ts (8 tests) 7ms
+ ✓ tests/translationVisionBroker.test.ts (5 tests) 8ms
+ ✓ tests/mangaBubbles.test.ts (7 tests) 61ms
+stdout | tests/documentTranslationExamplesApi.test.ts > document translation examples API regression > 'sample.pdf' passes through binary parse, translation, and same-format export
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationExamplesApi.test.ts (12 tests) 282ms
+ ✓ tests/identicalTranslation.test.ts (26 tests) 12ms
+ ✓ tests/backgroundProviderRuntime.test.ts (2 tests) 3ms
+ ✓ tests/documentTranslationRegression.test.ts (10 tests) 6ms
+
+ Test Files  21 passed (21)
+      Tests  651 passed (651)
+   Start at  08:16:48
+   Duration  17.65s (transform 708ms, setup 0ms, collect 2.11s, tests 13.03s, environment 2ms, prepare 565ms)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/baseline-nine-coverage.results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |    99.5 |    98.14 |    99.6 |    99.5 |                   
+ app/background    |   76.92 |      100 |      75 |   76.92 |                   
+  ...derRuntime.ts |   76.92 |      100 |      75 |   76.92 | 27-32             
+ core/config       |      99 |     95.1 |     100 |      99 |                   
+  model.ts         |      99 |     95.1 |     100 |      99 | ...1306,1347-1351 
+ ...ion/background |     100 |    97.05 |     100 |     100 |                   
+  handlers.ts      |     100 |    97.05 |     100 |     100 | 202,205-206       
+ ...anslation/core |     100 |    99.71 |     100 |     100 |                   
+  document.ts      |     100 |    99.71 |     100 |     100 | 687               
+ ...ation/services |     100 |    99.23 |     100 |     100 |                   
+  binary.ts        |     100 |    99.23 |     100 |     100 | 686,690,695       
+ ...lation/content |     100 |    97.61 |     100 |     100 |                   
+  ...ranslation.ts |     100 |    97.61 |     100 |     100 | 156               
+ ...ation/services |     100 |    98.36 |     100 |     100 |                   
+  mangaBubbles.ts  |     100 |    98.36 |     100 |     100 | 45                
+ ...es/translation |   99.77 |    98.71 |     100 |   99.77 |                   
+  broker.ts        |     100 |    99.06 |     100 |     100 | ...1615,1622,1629 
+  ...stSnapshot.ts |   98.51 |    97.05 |     100 |   98.51 | 39-40,43-44       
+-------------------|---------|----------|---------|---------|-------------------

@@ -1,0 +1,151 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 1,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 11,
+  "numPassedTests": 0,
+  "numFailedTests": 1,
+  "numPendingTests": 10,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791420357926,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"\")",
+          "status": "skipped",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"\")",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"   \")",
+          "status": "skipped",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"   \")",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"\\n\\t\")",
+          "status": "skipped",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"\\n\\t\")",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 覆盖无扩展名、CR 换行、非常规 JSON 路径和无扩展名下载名",
+          "status": "skipped",
+          "title": "覆盖无扩展名、CR 换行、非常规 JSON 路径和无扩展名下载名",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 浏览器 DOM 可用时使用 textarea 解码 HTML 实体",
+          "status": "skipped",
+          "title": "浏览器 DOM 可用时使用 textarea 解码 HTML 实体",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 容忍未知或无效实体、HTML 注释、伪标签和未闭合保护标签",
+          "status": "skipped",
+          "title": "容忍未知或无效实体、HTML 注释、伪标签和未闭合保护标签",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 把空字幕、损坏 ASS 行和无时间 LRC 行保留为字面量",
+          "status": "skipped",
+          "title": "把空字幕、损坏 ASS 行和无时间 LRC 行保留为字面量",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 保留字幕标签、空译文以及非分组 Markdown 的双语结构",
+          "status": "skipped",
+          "title": "保留字幕标签、空译文以及非分组 Markdown 的双语结构",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts JSON 渲染跳过失效路径并支持根路径替换",
+          "status": "skipped",
+          "title": "JSON 渲染跳过失效路径并支持根路径替换",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 富预览覆盖完整 HTML 壳、Markdown 结构和不支持格式",
+          "status": "skipped",
+          "title": "富预览覆盖完整 HTML 壳、Markdown 结构和不支持格式",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "bilingual formatting rechecks a source invalidated while reading reviewed raw text",
+          "status": "failed",
+          "title": "bilingual formatting rechecks a source invalidated while reading reviewed raw text",
+          "duration": 4.087372000000002,
+          "failureMessages": [
+            "AssertionError: expected '  Source text  \\nReviewed text\\r\\n' to be '  Source text  \\r\\n' // Object.is equality\n    at [CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/documentTranslationEdge.test.ts:173:70\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11"
+          ],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420358058,
+      "endTime": 1791420358062.0874,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/documentTranslationEdge.test.ts"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "checked_at": "2026-10-08T01:01:59.929867+00:00",
+  "remote": "https://github.com/ArietidsZ/FluentRead.git",
+  "method": "ordinary push; git ls-remote --heads exact comparison",
+  "force_push": false,
+  "expected": {
+    "fix/pdf-export-source-snapshot-20261008": "ff144f5795e7eef440610a9873b804f20f6ac976",
+    "test/nine-module-coverage-20261008": "0af5c7c594dabc0dc201bf42c02e6e4638f125ae",
+    "fix/pdf-race-nine-coverage-integration-20261008": "22116a9caabf42add4ca20063389fc9bd1e6aa7b"
+  },
+  "observed": {
+    "fix/pdf-export-source-snapshot-20261008": "ff144f5795e7eef440610a9873b804f20f6ac976",
+    "fix/pdf-race-nine-coverage-integration-20261008": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "test/nine-module-coverage-20261008": "0af5c7c594dabc0dc201bf42c02e6e4638f125ae"
+  },
+  "all_exact": true
+}

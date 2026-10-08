@@ -1,0 +1,9 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/backgroundProviderRuntime.test.ts(74,36): error TS2345: Argument of type '{ type: string; service: string; model: string; identity: string; requestId: string; }' is not assignable to parameter of type 'ConnectionTestMessage & VisionProbeMessage'.
+  Type '{ type: string; service: string; model: string; identity: string; requestId: string; }' is not assignable to type 'ConnectionTestMessage'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type '"testTranslationService"'.
+tests/backgroundProviderRuntime.test.ts(78,36): error TS2345: Argument of type '{ type: string; service: string; model: string; identity: string; requestId: string; }' is not assignable to parameter of type 'ConnectionTestMessage & VisionProbeMessage'.
+  Type '{ type: string; service: string; model: string; identity: string; requestId: string; }' is not assignable to type 'ConnectionTestMessage'.
+    Types of property 'type' are incompatible.
+      Type 'string' is not assignable to type '"testTranslationService"'.

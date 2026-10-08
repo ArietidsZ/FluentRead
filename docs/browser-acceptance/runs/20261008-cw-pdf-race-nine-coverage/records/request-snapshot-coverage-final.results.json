@@ -1,0 +1,576 @@
+{
+  "numTotalTestSuites": 7,
+  "numPassedTestSuites": 7,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 48,
+  "numPassedTests": 48,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791420894355,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "trusted translation image payload"
+          ],
+          "fullName": "trusted translation image payload keeps the image out of JSON and rejects URLs, SVG, and oversized values",
+          "status": "passed",
+          "title": "keeps the image out of JSON and rejects URLs, SVG, and oversized values",
+          "duration": 1.267124000000024,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "trusted translation image payload"
+          ],
+          "fullName": "trusted translation image payload rejects unsupported image formats at the template boundary",
+          "status": "passed",
+          "title": "rejects unsupported image formats at the template boundary",
+          "duration": 0.6120020000000181,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "trusted translation image payload"
+          ],
+          "fullName": "trusted translation image payload keeps thinking disabled for visual transcription unless explicitly enabled",
+          "status": "passed",
+          "title": "keeps thinking disabled for visual transcription unless explicitly enabled",
+          "duration": 0.5268420000000162,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "trusted translation image payload"
+          ],
+          "fullName": "trusted translation image payload keeps thinking disabled for visual transcription unless explicitly enabled",
+          "status": "passed",
+          "title": "keeps thinking disabled for visual transcription unless explicitly enabled",
+          "duration": 0.11090999999998985,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "trusted translation image payload"
+          ],
+          "fullName": "trusted translation image payload serializes native image parts and ignores custom body replacement",
+          "status": "passed",
+          "title": "serializes native image parts and ignores custom body replacement",
+          "duration": 0.8420919999999796,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420895340,
+      "endTime": 1791420895343.842,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/translationVisionPayload.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 accepts exact glossary-only recovery after a padded untranslated response",
+          "status": "passed",
+          "title": "accepts exact glossary-only recovery after a padded untranslated response",
+          "duration": 15.25117499999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "status": "passed",
+          "title": "只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "duration": 2.3225270000000364,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "status": "passed",
+          "title": "机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "duration": 2.7714980000000082,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "status": "passed",
+          "title": "服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "duration": 1.4700050000000147,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "status": "passed",
+          "title": "批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "duration": 3.400009999999952,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "status": "passed",
+          "title": "未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "duration": 0.8287119999999959,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 同一原词的大小写规则改变后不复用旧缓存",
+          "status": "passed",
+          "title": "同一原词的大小写规则改变后不复用旧缓存",
+          "duration": 2.3255369999999402,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "status": "passed",
+          "title": "用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "duration": 1.0721529999999575,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "status": "passed",
+          "title": "缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "duration": 0.27381099999990965,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "status": "passed",
+          "title": "网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "duration": 1.2934639999999717,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 显式空选择和关闭总开关不干预原来的翻译结果",
+          "status": "passed",
+          "title": "显式空选择和关闭总开关不干预原来的翻译结果",
+          "duration": 0.7433220000000347,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 文档和视频继承各自默认选择，显式空数组仍关闭",
+          "status": "passed",
+          "title": "文档和视频继承各自默认选择，显式空数组仍关闭",
+          "duration": 1.7324649999999338,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "status": "passed",
+          "title": "编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "duration": 1.224333999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "status": "passed",
+          "title": "慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "duration": 1.1999529999999368,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "status": "passed",
+          "title": "长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "duration": 1.1285840000000462,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "status": "passed",
+          "title": "批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "duration": 1.1164929999999913,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "status": "passed",
+          "title": "AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "duration": 5.212144999999964,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "status": "passed",
+          "title": "入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "duration": 1.3474939999999833,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 页面摘要不加术语，正文仍获得原文命中的约束",
+          "status": "passed",
+          "title": "页面摘要不加术语，正文仍获得原文命中的约束",
+          "duration": 1.54850399999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "status": "passed",
+          "title": "上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "duration": 1.4260439999999335,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 Qwen-MT模型同样经过broker的命中和版本检查",
+          "status": "passed",
+          "title": "Qwen-MT模型同样经过broker的命中和版本检查",
+          "duration": 0.9375329999999167,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "status": "passed",
+          "title": "高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "duration": 0.32407100000000355,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "status": "passed",
+          "title": "Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "duration": 0.23771099999999024,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "status": "passed",
+          "title": "机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "duration": 0.23760999999990418,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "status": "passed",
+          "title": "全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "duration": 1.333693999999923,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "status": "passed",
+          "title": "Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "duration": 0.359431000000086,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420894888,
+      "endTime": 1791420894939.3594,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/translationGlossaryIntegration.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps service and model limit snapshots stable after settings are edited",
+          "status": "passed",
+          "title": "keeps service and model limit snapshots stable after settings are edited",
+          "duration": 1.271004000000005,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps the scheduler and immutable request identity inside trusted process-local context",
+          "status": "passed",
+          "title": "keeps the scheduler and immutable request identity inside trusted process-local context",
+          "duration": 0.38317099999999016,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot freezes fallback order and official-provider options before asynchronous work",
+          "status": "passed",
+          "title": "freezes fallback order and official-provider options before asynchronous work",
+          "duration": 0.16398000000000934,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot freezes the selected DeepL API plan and normalizes missing legacy values",
+          "status": "passed",
+          "title": "freezes the selected DeepL API plan and normalizes missing legacy values",
+          "duration": 0.12044099999999958,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot matches pure source slots without protocol boundaries and leaves malformed or literal markers intact",
+          "status": "passed",
+          "title": "matches pure source slots without protocol boundaries and leaves malformed or literal markers intact",
+          "duration": 0.5300909999999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays",
+          "status": "passed",
+          "title": "deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays",
+          "duration": 1.8950959999999952,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot clones and freezes every provider-visible nested map and credential",
+          "status": "passed",
+          "title": "clones and freezes every provider-visible nested map and credential",
+          "duration": 0.7608919999999841,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot uses safe credential defaults and resolves attached context without trusting message JSON",
+          "status": "passed",
+          "title": "uses safe credential defaults and resolves attached context without trusting message JSON",
+          "duration": 0.2590509999999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps abort ownership process-local and out of runtime JSON",
+          "status": "passed",
+          "title": "keeps abort ownership process-local and out of runtime JSON",
+          "duration": 0.5789519999999868,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps route observers process-local and isolates observer failures",
+          "status": "passed",
+          "title": "keeps route observers process-local and isolates observer failures",
+          "duration": 1.0000429999999767,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps model usage observers process-local and isolates observer failures",
+          "status": "passed",
+          "title": "keeps model usage observers process-local and isolates observer failures",
+          "duration": 0.2842409999999802,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot reports only safe transport failure metadata and classifies aborted attempts",
+          "status": "passed",
+          "title": "reports only safe transport failure metadata and classifies aborted attempts",
+          "duration": 0.6705720000000213,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (data:image/png;base64,AAAA)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (data:image/png;base64,AAAA)",
+          "duration": 0.07277000000001976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (1)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (1)",
+          "duration": 0.03416000000001418,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (true)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (true)",
+          "duration": 0.02432999999999197,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (Symbol(untrusted payload))",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (Symbol(untrusted payload))",
+          "duration": 0.020639999999986003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "batch glossary requests expose only protected tokens present in their own source texts",
+          "status": "passed",
+          "title": "batch glossary requests expose only protected tokens present in their own source texts",
+          "duration": 0.16695100000001162,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420895097,
+      "endTime": 1791420895106.167,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/requestConfigSnapshot.test.ts"
+    }
+  ]
+}

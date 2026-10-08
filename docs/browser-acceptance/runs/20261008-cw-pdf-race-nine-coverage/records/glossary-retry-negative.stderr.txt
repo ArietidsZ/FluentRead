@@ -1,0 +1,19 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/translationGlossaryIntegration.test.ts > 术语库与真实翻译编排协作 > accepts exact glossary-only recovery after a padded untranslated response
+AssertionError: promise rejected "UntranslatedResponseError: 翻译服务连续返回未翻译的原文… { …(3) }" instead of resolving
+ ❯ tests/translationGlossaryIntegration.test.ts:88:58
+     86|             .mockImplementationOnce(async message => `  ${message.orig…
+     87|             .mockImplementationOnce(async message => String(message.or…
+     88|         await expect(h.request({origin, useCache: false})).resolves.to…
+       |                                                          ^
+     89|         expect(h.provider).toHaveBeenCalledTimes(2);
+     90|         expect(h.provider.mock.calls[1][0]).toMatchObject({context: ''…
+
+Caused by: UntranslatedResponseError: 翻译服务连续返回未翻译的原文，请尝试切换服务；使用 AI 时也可调整提示词
+ ❯ recoverInvalidResult src/services/translation/broker.ts:762:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { kind: 'response', retryable: false, code: 'UNTRANSLATED_RESPONSE' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

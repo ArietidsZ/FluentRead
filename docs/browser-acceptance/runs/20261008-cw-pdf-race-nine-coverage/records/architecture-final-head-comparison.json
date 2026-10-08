@@ -1,0 +1,56 @@
+{
+  "baseline_commit": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "final_commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "baseline_scope": "the three known failing architecture files",
+  "final_scope": "complete 32-file architecture matrix",
+  "final_counts": {
+    "assertions": 1334,
+    "passed_assertions": 1330,
+    "failed_assertions": 4,
+    "files": 32,
+    "failed_files": 3,
+    "collection_errors": 0,
+    "unhandled_errors": 0,
+    "unhandled_error_banner": false,
+    "exit_code": 1
+  },
+  "baseline_failed_assertions": [
+    [
+      "moduleBoundaries.test.ts",
+      "architecture module boundaries 历史巨型文件不得继续增长，后续迁移只降低债务上限"
+    ],
+    [
+      "sourceFileHeaders.test.ts",
+      "src file header documentation 源码提供文件头，声明式 JSON 数据使用标准 JSON 语法"
+    ],
+    [
+      "verificationOwnership.test.ts",
+      "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界"
+    ],
+    [
+      "verificationOwnership.test.ts",
+      "repository verification ownership 每个产品、构建和测试基础设施文件都有明确验证归属"
+    ]
+  ],
+  "final_failed_assertions": [
+    [
+      "moduleBoundaries.test.ts",
+      "architecture module boundaries 历史巨型文件不得继续增长，后续迁移只降低债务上限"
+    ],
+    [
+      "sourceFileHeaders.test.ts",
+      "src file header documentation 源码提供文件头，声明式 JSON 数据使用标准 JSON 语法"
+    ],
+    [
+      "verificationOwnership.test.ts",
+      "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界"
+    ],
+    [
+      "verificationOwnership.test.ts",
+      "repository verification ownership 每个产品、构建和测试基础设施文件都有明确验证归属"
+    ]
+  ],
+  "new_failed_assertions": [],
+  "raw_failure_stderr_byte_identical": true,
+  "failure_stderr_sha256": "9ca63478ebca1e4505a5c72daa3da2fde66a816632927bc47222044b2fa7eae4"
+}

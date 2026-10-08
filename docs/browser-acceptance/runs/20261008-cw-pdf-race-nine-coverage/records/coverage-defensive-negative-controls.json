@@ -1,0 +1,26 @@
+[
+  {
+    "label": "document-recheck-negative",
+    "exit_code": 1,
+    "failed_tests": 1,
+    "failed_assertions": [
+      "bilingual formatting rechecks a source invalidated while reading reviewed raw text"
+    ],
+    "unhandled_errors": 0,
+    "source_before_sha256": "16c7cc03aafb1e274a2211b20cdc39e43caf9e565d4f01c7c626f3ca122b634d",
+    "source_after_sha256": "16c7cc03aafb1e274a2211b20cdc39e43caf9e565d4f01c7c626f3ca122b634d",
+    "restored": true
+  },
+  {
+    "label": "glossary-retry-negative",
+    "exit_code": 1,
+    "failed_tests": 1,
+    "failed_assertions": [
+      "术语库与真实翻译编排协作 accepts exact glossary-only recovery after a padded untranslated response"
+    ],
+    "unhandled_errors": 0,
+    "source_before_sha256": "1c3791bf900d3e4234d124ab49c7e693e1c551717ba5b13c9ff0d7ee00271f88",
+    "source_after_sha256": "1c3791bf900d3e4234d124ab49c7e693e1c551717ba5b13c9ff0d7ee00271f88",
+    "restored": true
+  }
+]

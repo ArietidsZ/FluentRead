@@ -1,0 +1,22 @@
+{
+  "label": "c7-architecture-failures-baseline",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/architecture/moduleBoundaries.test.ts",
+    "tests/architecture/sourceFileHeaders.test.ts",
+    "tests/architecture/verificationOwnership.test.ts",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../pdf-race-nine-coverage-20261008/c7-architecture-failures-baseline.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-quality-six-integration",
+  "started_at": "2026-10-08T00:49:37.507286+00:00",
+  "duration_seconds": 3.302,
+  "exit_code": 1
+}

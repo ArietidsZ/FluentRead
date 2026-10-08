@@ -1,0 +1,12 @@
+{
+  "command": [
+    "/usr/bin/gh",
+    "api",
+    "repos/FluentRead/FluentRead/pulls?state=all&head=ArietidsZ:codex/popup-effective-model-unverified-20261007&per_page=100",
+    "--jq",
+    "map({number,url:.html_url,state,draft,title,head:{ref:.head.ref,sha:.head.sha,repo:.head.repo.full_name},base:{ref:.base.ref,sha:.base.sha},merged_at})"
+  ],
+  "exit_code": 0,
+  "response": [],
+  "error": ""
+}

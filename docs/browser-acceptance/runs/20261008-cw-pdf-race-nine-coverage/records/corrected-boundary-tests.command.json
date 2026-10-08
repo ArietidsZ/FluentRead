@@ -1,0 +1,23 @@
+{
+  "label": "corrected-boundary-tests",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundProviderRuntime.test.ts",
+    "tests/documentTranslationBinary.test.ts",
+    "tests/translationGlossaryIntegration.test.ts",
+    "-t",
+    "wires real provider|lost source metadata|glossary-only recovery",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../pdf-race-nine-coverage-20261008/corrected-boundary-tests.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-nine-module-coverage",
+  "started_at": "2026-10-08T00:44:13.777873+00:00",
+  "duration_seconds": 1.168,
+  "exit_code": 1
+}

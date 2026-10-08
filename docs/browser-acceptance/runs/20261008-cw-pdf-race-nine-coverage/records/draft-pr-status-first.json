@@ -1,0 +1,26 @@
+{
+  "wxt": {
+    "baseRefName": "main",
+    "headRefName": "codex/wxt-worker-metadata-20261007",
+    "headRefOid": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+    "isDraft": true,
+    "mergeable": "MERGEABLE",
+    "number": 882,
+    "state": "OPEN",
+    "statusCheckRollup": [],
+    "title": "fix: keep TTS runtime imports out of WXT metadata evaluation",
+    "url": "https://github.com/FluentRead/FluentRead/pull/882"
+  },
+  "popup": {
+    "baseRefName": "main",
+    "headRefName": "codex/popup-effective-model-unverified-20261007",
+    "headRefOid": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+    "isDraft": true,
+    "mergeable": "MERGEABLE",
+    "number": 883,
+    "state": "OPEN",
+    "statusCheckRollup": [],
+    "title": "fix: display effective models in popup service overview",
+    "url": "https://github.com/FluentRead/FluentRead/pull/883"
+  }
+}

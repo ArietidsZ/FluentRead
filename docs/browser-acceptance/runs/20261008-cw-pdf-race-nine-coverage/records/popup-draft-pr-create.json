@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-10-08T00:13:24.531798+00:00",
+  "command": [
+    "/usr/bin/gh",
+    "pr",
+    "create",
+    "--repo",
+    "FluentRead/FluentRead",
+    "--base",
+    "main",
+    "--head",
+    "ArietidsZ:codex/popup-effective-model-unverified-20261007",
+    "--draft",
+    "--title",
+    "fix: display effective models in popup service overview",
+    "--body-file",
+    "[CW_WORKSPACE]/pdf-race-nine-coverage-20261008/popup-draft-body.md"
+  ],
+  "head_sha_verified": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+  "exit_code": 0,
+  "stdout": "https://github.com/FluentRead/FluentRead/pull/883\n",
+  "stderr": ""
+}

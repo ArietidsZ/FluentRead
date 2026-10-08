@@ -1,0 +1,24 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/architecture/moduleBoundaries.test.ts tests/architecture/sourceFileHeaders.test.ts tests/architecture/verificationOwnership.test.ts --no-cache --reporter=default --reporter=json --outputFile=../pdf-race-nine-coverage-20261008/c7-architecture-failures-baseline.results.json
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-quality-six-integration
+
+ ❯ tests/architecture/verificationOwnership.test.ts (13 tests | 2 failed) 516ms
+   × repository verification ownership > 每个产品、构建和测试基础设施文件都有明确验证归属 4ms
+     → expected [ { …(2) } ] to deeply equal []
+   × repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 311ms
+     → expected [ …(18) ] to deeply equal []
+ ❯ tests/architecture/moduleBoundaries.test.ts (13 tests | 1 failed) 1931ms
+   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 674ms
+   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 554ms
+   × architecture module boundaries > 历史巨型文件不得继续增长，后续迁移只降低债务上限 4ms
+     → expected [ { …(3) } ] to deeply equal []
+ ❯ tests/architecture/sourceFileHeaders.test.ts (820 tests | 1 failed) 107ms
+   × src file header documentation > 源码提供文件头，声明式 JSON 数据使用标准 JSON 语法 6ms
+     → expected [ Array(1) ] to deeply equal []
+
+ Test Files  3 failed (3)
+      Tests  4 failed | 842 passed (846)
+   Start at  08:49:37
+   Duration  3.13s (transform 33ms, setup 0ms, collect 300ms, tests 2.55s, environment 0ms, prepare 65ms)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/c7-architecture-failures-baseline.results.json

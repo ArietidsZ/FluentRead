@@ -1,0 +1,465 @@
+{
+  "pdf-source-race-red": {
+    "commit": "c7e14e63877985e240ba16c8262cb2227243d177",
+    "state": "temporary regression addition; original production source",
+    "outcome": {
+      "assertions": 24,
+      "passed_assertions": 0,
+      "failed_assertions": 1,
+      "files": 1,
+      "failed_files": 1,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 1
+    }
+  },
+  "pdf-race-two-outcomes-green": {
+    "commit": "ff144f5795e7eef440610a9873b804f20f6ac976",
+    "outcome": {
+      "assertions": 25,
+      "passed_assertions": 25,
+      "failed_assertions": 0,
+      "files": 1,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 0
+    }
+  },
+  "integration-targeted-final": {
+    "commit": "c687de1536c7c8cfbc9085baa85410a793cae2c8",
+    "outcome": {
+      "assertions": 291,
+      "passed_assertions": 291,
+      "failed_assertions": 0,
+      "files": 9,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 0
+    },
+    "note": "291-case run predates the TypeScript-only handler narrowing and the last glossary-array test; the final complete strict run covers both final changes."
+  },
+  "integration-full-strict": {
+    "commit": "80d310e4e3f0d34294fb865da5e7f68959f21bcd",
+    "outcome": {
+      "assertions": 9428,
+      "passed_assertions": 9428,
+      "failed_assertions": 0,
+      "files": 383,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 1
+    }
+  },
+  "request-snapshot-coverage-final": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "outcome": {
+      "assertions": 48,
+      "passed_assertions": 48,
+      "failed_assertions": 0,
+      "files": 3,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 1
+    },
+    "note": "Diagnostic three-file subset; the previously missing line-100 branch is hit, but unrelated subset gaps leave this diagnostic command at exit 1."
+  },
+  "integration-full-strict-final": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "outcome": {
+      "assertions": 9429,
+      "passed_assertions": 9429,
+      "failed_assertions": 0,
+      "files": 383,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 0,
+      "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+      "global_coverage": {
+        "lines": {
+          "total": 64117,
+          "covered": 64117,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 64117,
+          "covered": 64117,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 4402,
+          "covered": 4402,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 32107,
+          "covered": 32107,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "nine_modules": [
+        {
+          "file": "src/app/background/providerRuntime.ts",
+          "baseline_uncovered": {
+            "statements": 6,
+            "branches": 0,
+            "functions": 1,
+            "lines": 6
+          },
+          "final": {
+            "lines": {
+              "total": 26,
+              "covered": 26,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 6,
+              "covered": 6,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 26,
+              "covered": 26,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 6,
+              "covered": 6,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/core/config/model.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 3,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 1412,
+              "covered": 1412,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 50,
+              "covered": 50,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1412,
+              "covered": 1412,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 470,
+              "covered": 470,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/features/area-translation/background/handlers.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 129,
+              "covered": 129,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 12,
+              "covered": 12,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 129,
+              "covered": 129,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 109,
+              "covered": 109,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/features/document-translation/core/document.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 609,
+              "covered": 609,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 35,
+              "covered": 35,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 609,
+              "covered": 609,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 354,
+              "covered": 354,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/features/document-translation/services/binary.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 3,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 695,
+              "covered": 695,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 35,
+              "covered": 35,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 695,
+              "covered": 695,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 394,
+              "covered": 394,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/features/full-page-translation/content/liveTextTranslation.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 142,
+              "covered": 142,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 5,
+              "covered": 5,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 142,
+              "covered": 142,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 47,
+              "covered": 47,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/features/image-translation/services/mangaBubbles.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 43,
+              "covered": 43,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 3,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 43,
+              "covered": 43,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 62,
+              "covered": 62,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/services/translation/broker.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 1475,
+              "covered": 1475,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 79,
+              "covered": 79,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1475,
+              "covered": 1475,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 648,
+              "covered": 648,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "file": "src/services/translation/requestSnapshot.ts",
+          "baseline_uncovered": {
+            "statements": 0,
+            "branches": 1,
+            "functions": 0,
+            "lines": 0
+          },
+          "final": {
+            "lines": {
+              "total": 270,
+              "covered": 270,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 27,
+              "covered": 27,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 270,
+              "covered": 270,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 148,
+              "covered": 148,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        }
+      ]
+    }
+  },
+  "final-head-architecture": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "outcome": {
+      "assertions": 1334,
+      "passed_assertions": 1330,
+      "failed_assertions": 4,
+      "files": 32,
+      "failed_files": 3,
+      "collection_errors": 0,
+      "unhandled_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 1
+    }
+  },
+  "final-head-typecheck": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "exit_code": 0
+  },
+  "final-head-test-audit": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "exit_code": 0
+  },
+  "final-head-diff-check": {
+    "commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "exit_code": 0
+  }
+}

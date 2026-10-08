@@ -1,0 +1,27 @@
+{
+  "label": "nine-added-tests",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundProviderRuntime.test.ts",
+    "tests/config.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/documentTranslationBinary.test.ts",
+    "tests/documentTranslationEdge.test.ts",
+    "tests/liveTextTranslation.test.ts",
+    "tests/mangaBubbles.test.ts",
+    "tests/requestConfigSnapshot.test.ts",
+    "tests/translationGlossaryIntegration.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../pdf-race-nine-coverage-20261008/nine-added-tests.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-nine-module-coverage",
+  "started_at": "2026-10-08T00:42:56.091112+00:00",
+  "duration_seconds": 10.421,
+  "exit_code": 1
+}

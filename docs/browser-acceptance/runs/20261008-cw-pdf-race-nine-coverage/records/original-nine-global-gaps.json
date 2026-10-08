@@ -1,0 +1,101 @@
+{
+  "baseline_commit": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "source_record": "manga-ocr-real-bytes-20261007/integration-full-strict-coverage/coverage-summary.json",
+  "total": {
+    "lines": {
+      "total": 64116,
+      "covered": 64110,
+      "skipped": 0,
+      "pct": 99.99
+    },
+    "statements": {
+      "total": 64116,
+      "covered": 64110,
+      "skipped": 0,
+      "pct": 99.99
+    },
+    "functions": {
+      "total": 4400,
+      "covered": 4399,
+      "skipped": 0,
+      "pct": 99.97
+    },
+    "branches": {
+      "total": 32092,
+      "covered": 32080,
+      "skipped": 0,
+      "pct": 99.96
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "nine_uncovered": [
+    {
+      "file": "src/app/background/providerRuntime.ts",
+      "statements": 6,
+      "lines": 6,
+      "functions": 1,
+      "branches": 0
+    },
+    {
+      "file": "src/core/config/model.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 3
+    },
+    {
+      "file": "src/features/area-translation/background/handlers.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    },
+    {
+      "file": "src/features/document-translation/core/document.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    },
+    {
+      "file": "src/features/document-translation/services/binary.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 3
+    },
+    {
+      "file": "src/features/full-page-translation/content/liveTextTranslation.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    },
+    {
+      "file": "src/features/image-translation/services/mangaBubbles.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    },
+    {
+      "file": "src/services/translation/broker.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    },
+    {
+      "file": "src/services/translation/requestSnapshot.ts",
+      "statements": 0,
+      "lines": 0,
+      "functions": 0,
+      "branches": 1
+    }
+  ]
+}

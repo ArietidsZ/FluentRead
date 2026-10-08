@@ -1,0 +1,9 @@
+{
+  "branch": "fix/pdf-race-nine-coverage-integration-20261008",
+  "head": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "pdf_fix_commit": "ff144f5795e7eef440610a9873b804f20f6ac976",
+  "pure_coverage_commit": "0af5c7c594dabc0dc201bf42c02e6e4638f125ae",
+  "path": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration",
+  "status": "",
+  "previous_unpublished_head": "80d310e4e3f0d34294fb865da5e7f68959f21bcd"
+}

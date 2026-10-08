@@ -1,0 +1,303 @@
+{
+  "numTotalTestSuites": 3,
+  "numPassedTestSuites": 1,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 26,
+  "numPassedTests": 0,
+  "numFailedTests": 1,
+  "numPendingTests": 25,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791420358257,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 accepts exact glossary-only recovery after a padded untranslated response",
+          "status": "failed",
+          "title": "accepts exact glossary-only recovery after a padded untranslated response",
+          "duration": 15.716967000000011,
+          "failureMessages": [
+            "Error: promise rejected \"UntranslatedResponseError: 翻译服务连续返回未翻译的原文… { …(3) }\" instead of resolving\n    at Assertion.__VITEST_RESOLVES__ (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1746:21)\n    at Assertion.propertyGetter (file://[CW_DEPENDENCIES]/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1557:27)\n    at Reflect.get (<anonymous>)\n    at Object.proxyGetter [as get] (file://[CW_DEPENDENCIES]/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1645:22)\n    at [CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/translationGlossaryIntegration.test.ts:88:58\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "status": "skipped",
+          "title": "只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "status": "skipped",
+          "title": "机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "status": "skipped",
+          "title": "服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "status": "skipped",
+          "title": "批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "status": "skipped",
+          "title": "未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 同一原词的大小写规则改变后不复用旧缓存",
+          "status": "skipped",
+          "title": "同一原词的大小写规则改变后不复用旧缓存",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "status": "skipped",
+          "title": "用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "status": "skipped",
+          "title": "缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "status": "skipped",
+          "title": "网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 显式空选择和关闭总开关不干预原来的翻译结果",
+          "status": "skipped",
+          "title": "显式空选择和关闭总开关不干预原来的翻译结果",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 文档和视频继承各自默认选择，显式空数组仍关闭",
+          "status": "skipped",
+          "title": "文档和视频继承各自默认选择，显式空数组仍关闭",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "status": "skipped",
+          "title": "编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "status": "skipped",
+          "title": "慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "status": "skipped",
+          "title": "长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "status": "skipped",
+          "title": "批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "status": "skipped",
+          "title": "AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "status": "skipped",
+          "title": "入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 页面摘要不加术语，正文仍获得原文命中的约束",
+          "status": "skipped",
+          "title": "页面摘要不加术语，正文仍获得原文命中的约束",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "status": "skipped",
+          "title": "上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 Qwen-MT模型同样经过broker的命中和版本检查",
+          "status": "skipped",
+          "title": "Qwen-MT模型同样经过broker的命中和版本检查",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "status": "skipped",
+          "title": "高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "status": "skipped",
+          "title": "Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "status": "skipped",
+          "title": "机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "status": "skipped",
+          "title": "全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "status": "skipped",
+          "title": "Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420358740,
+      "endTime": 1791420358755.717,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-nine-module-coverage/tests/translationGlossaryIntegration.test.ts"
+    }
+  ]
+}

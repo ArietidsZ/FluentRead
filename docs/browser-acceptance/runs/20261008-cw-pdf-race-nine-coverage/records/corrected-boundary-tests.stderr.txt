@@ -1,0 +1,18 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/translationGlossaryIntegration.test.ts > 术语库与真实翻译编排协作 > accepts a glossary-only recovery after the first restored result has the wrong target language
+AssertionError: expected 'This English response still needs a C…' to be 'RetainedName' // Object.is equality
+
+Expected: "RetainedName"
+Received: "This English response still needs a Chinese translation. RetainedName"
+
+ ❯ tests/translationGlossaryIntegration.test.ts:88:9
+     86|             .mockImplementationOnce(async message => `This English res…
+     87|             .mockImplementationOnce(async message => String(message.or…
+     88|         await expect(h.request({origin, useCache: false})).resolves.to…
+       |         ^
+     89|         expect(h.provider).toHaveBeenCalledTimes(2);
+     90|         expect(h.provider.mock.calls[1][0]).toMatchObject({context: ''…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

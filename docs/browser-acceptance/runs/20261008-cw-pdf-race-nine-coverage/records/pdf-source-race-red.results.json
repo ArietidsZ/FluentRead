@@ -1,0 +1,279 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 24,
+  "numPassedTests": 0,
+  "numFailedTests": 1,
+  "numPendingTests": 23,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791418352015,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub can cancel active compression and retry while preserving contents",
+          "status": "skipped",
+          "title": "sample.epub can cancel active compression and retry while preserving contents",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx can cancel active compression and retry while preserving contents",
+          "status": "skipped",
+          "title": "sample.docx can cancel active compression and retry while preserving contents",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF loading keeps the original source snapshot when segments are replaced asynchronously",
+          "status": "failed",
+          "title": "PDF loading keeps the original source snapshot when segments are replaced asynchronously",
+          "duration": 179.67186999999998,
+          "failureMessages": [
+            "AssertionError: expected \"testRasterizer\" to not be called at all, but actually been called 1 times\n\nReceived: \n\n  1st testRasterizer call:\n\n    Array [\n      Object {\n        \"blocks\": Array [\n          Object {\n            \"fontFamily\": \"sans-serif\",\n            \"fontSize\": 24,\n            \"fontWeight\": 600,\n            \"height\": 24,\n            \"lineCount\": 1,\n            \"lineHeight\": 24,\n            \"segmentIndex\": 0,\n            \"source\": \"Unchanged source page\",\n            \"textAlign\": \"left\",\n            \"width\": 261.47999999999996,\n            \"x\": 0,\n            \"y\": 582.768,\n          },\n        ],\n        \"height\": 600,\n        \"pageNumber\": 1,\n        \"segmentIndexes\": Array [\n          0,\n        ],\n        \"signal\": undefined,\n        \"sourceBytes\": Uint8Array [\n          37,\n          80,\n          68,\n          70,\n          45,\n          49,\n          46,\n          55,\n          10,\n          37,\n          129,\n          129,\n          129,\n          129,\n          10,\n          10,\n          54,\n          32,\n          48,\n          32,\n          111,\n          98,\n          106,\n          10,\n          60,\n          60,\n          10,\n          47,\n          70,\n          105,\n          108,\n          116,\n          101,\n          114,\n          32,\n          47,\n          70,\n          108,\n          97,\n          116,\n          101,\n          68,\n          101,\n          99,\n          111,\n          100,\n          101,\n          10,\n          47,\n          76,\n          101,\n          110,\n          103,\n          116,\n          104,\n          32,\n          49,\n          48,\n          56,\n          10,\n          62,\n          62,\n          10,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          120,\n          156,\n          43,\n          228,\n          114,\n          10,\n          225,\n          50,\n          80,\n          0,\n          193,\n          162,\n          116,\n          46,\n          125,\n          143,\n          212,\n          156,\n          178,\n          212,\n          146,\n          204,\n          228,\n          68,\n          93,\n          115,\n          3,\n          75,\n          11,\n          19,\n          11,\n          3,\n          115,\n          11,\n          75,\n          5,\n          35,\n          19,\n          133,\n          144,\n          52,\n          46,\n          16,\n          233,\n          195,\n          101,\n          8,\n          86,\n          10,\n          33,\n          67,\n          114,\n          185,\n          108,\n          76,\n          77,\n          205,\n          92,\n          205,\n          140,\n          205,\n          44,\n          204,\n          12,\n          129,\n          180,\n          185,\n          153,\n          169,\n          153,\n          137,\n          145,\n          129,\n          185,\n          177,\n          153,\n          155,\n          185,\n          169,\n          185,\n          17,\n          80,\n          220,\n          20,\n          200,\n          51,\n          0,\n          202,\n          1,\n          101,\n          236,\n          20,\n          66,\n          178,\n          184,\n          66,\n          180,\n          184,\n          92,\n          67,\n          184,\n          2,\n          185,\n          0,\n          90,\n          153,\n          26,\n          4,\n          10,\n          101,\n          110,\n          100,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          101,\n          110,\n          100,\n          111,\n          98,\n          106,\n          10,\n          10,\n          55,\n          32,\n          48,\n          32,\n          111,\n          98,\n          106,\n          10,\n          60,\n          60,\n          10,\n          47,\n          70,\n          105,\n          108,\n          116,\n          101,\n          114,\n          32,\n          47,\n          70,\n          108,\n          97,\n          116,\n          101,\n          68,\n          101,\n          99,\n          111,\n          100,\n          101,\n          10,\n          47,\n          84,\n          121,\n          112,\n          101,\n          32,\n          47,\n          79,\n          98,\n          106,\n          83,\n          116,\n          109,\n          10,\n          47,\n          78,\n          32,\n          53,\n          10,\n          47,\n          70,\n          105,\n          114,\n          115,\n          116,\n          32,\n          50,\n          54,\n          10,\n          47,\n          76,\n          101,\n          110,\n          103,\n          116,\n          104,\n          32,\n          51,\n          54,\n          49,\n          10,\n          62,\n          62,\n          10,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          120,\n          156,\n          213,\n          82,\n          77,\n          75,\n          195,\n          64,\n          16,\n          189,\n          239,\n          175,\n          152,\n          163,\n          30,\n          100,\n          63,\n          146,\n          102,\n          19,\n          41,\n          133,\n          182,\n          73,\n          20,\n          164,\n          40,\n          173,\n          160,\n          40,\n          30,\n          210,\n          100,\n          41,\n          145,\n          178,\n          43,\n          201,\n          70,\n          234,\n          191,\n          119,\n          38,\n          73,\n          45,\n          61,\n          136,\n          103,\n          9,\n          195,\n          238,\n          204,\n          188,\n          153,\n          125,\n          147,\n          121,\n          18,\n          4,\n          40,\n          8,\n          67,\n          8,\n          64,\n          199,\n          16,\n          194,\n          36,\n          80,\n          48,\n          1,\n          45,\n          37,\n          76,\n          167,\n          140,\n          63,\n          126,\n          125,\n          24,\n          224,\n          15,\n          197,\n          206,\n          180,\n          140,\n          223,\n          213,\n          85,\n          11,\n          175,\n          136,\n          17,\n          176,\n          134,\n          55,\n          198,\n          151,\n          174,\n          179,\n          30,\n          36,\n          155,\n          205,\n          216,\n          9,\n          187,\n          44,\n          124,\n          177,\n          119,\n          59,\n          54,\n          20,\n          129,\n          36,\n          240,\n          17,\n          241,\n          208,\n          184,\n          170,\n          43,\n          77,\n          3,\n          211,\n          60,\n          203,\n          115,\n          33,\n          180,\n          16,\n          34,\n          10,\n          209,\n          34,\n          33,\n          84,\n          138,\n          231,\n          18,\n          45,\n          65,\n          83,\n          232,\n          99,\n          78,\n          197,\n          120,\n          71,\n          211,\n          225,\n          104,\n          24,\n          211,\n          129,\n          16,\n          193,\n          28,\n          115,\n          249,\n          96,\n          145,\n          30,\n          106,\n          40,\n          223,\n          99,\n          39,\n          99,\n          125,\n          134,\n          39,\n          98,\n          35,\n          194,\n          164,\n          3,\n          54,\n          140,\n          7,\n          255,\n          231,\n          93,\n          122,\n          43,\n          27,\n          122,\n          168,\n          191,\n          248,\n          36,\n          51,\n          198,\n          87,\n          174,\n          74,\n          11,\n          111,\n          224,\n          34,\n          189,\n          86,\n          66,\n          69,\n          82,\n          8,\n          236,\n          40,\n          85,\n          160,\n          94,\n          46,\n          241,\n          119,\n          52,\n          166,\n          240,\n          238,\n          255,\n          14,\n          215,\n          243,\n          175,\n          157,\n          253,\n          117,\n          194,\n          179,\n          61,\n          211,\n          122,\n          105,\n          201,\n          141,\n          33,\n          13,\n          244,\n          91,\n          230,\n          107,\n          211,\n          186,\n          174,\n          41,\n          113,\n          237,\n          132,\n          203,\n          29,\n          102,\n          232,\n          114,\n          107,\n          246,\n          159,\n          198,\n          215,\n          101,\n          113,\n          165,\n          69,\n          18,\n          35,\n          79,\n          29,\n          39,\n          168,\n          177,\n          81,\n          24,\n          252,\n          249,\n          126,\n          251,\n          110,\n          202,\n          30,\n          74,\n          110,\n          118,\n          240,\n          55,\n          27,\n          79,\n          28,\n          134,\n          0,\n          197,\n          86,\n          166,\n          170,\n          139,\n          133,\n          59,\n          160,\n          250,\n          4,\n          126,\n          56,\n          5,\n          224,\n          20,\n          164,\n          193,\n          185,\n          181,\n          206,\n          147,\n          42,\n          123,\n          61,\n          90,\n          143,\n          108,\n          200,\n          139,\n          70,\n          141,\n          158,\n          81,\n          38,\n          66,\n          140,\n          111,\n          186,\n          173,\n          239,\n          93,\n          10,\n          74,\n          198,\n          23,\n          69,\n          107,\n          122,\n          170,\n          39,\n          158,\n          72,\n          194,\n          150,\n          174,\n          170,\n          237,\n          14,\n          248,\n          83,\n          109,\n          231,\n          182,\n          173,\n          143,\n          1,\n          234,\n          248,\n          13,\n          246,\n          156,\n          197,\n          197,\n          10,\n          101,\n          110,\n          100,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          101,\n          110,\n          100,\n          111,\n          98,\n          106,\n          10,\n          10,\n          56,\n          32,\n          48,\n          32,\n          111,\n          98,\n          106,\n          10,\n          60,\n          60,\n          10,\n          47,\n          83,\n          105,\n          122,\n          101,\n          32,\n          57,\n          10,\n          47,\n          82,\n          111,\n          111,\n          116,\n          32,\n          50,\n          32,\n          48,\n          32,\n          82,\n          10,\n          47,\n          73,\n          110,\n          102,\n          111,\n          32,\n          51,\n          32,\n          48,\n          32,\n          82,\n          10,\n          47,\n          70,\n          105,\n          108,\n          116,\n          101,\n          114,\n          32,\n          47,\n          70,\n          108,\n          97,\n          116,\n          101,\n          68,\n          101,\n          99,\n          111,\n          100,\n          101,\n          10,\n          47,\n          84,\n          121,\n          112,\n          101,\n          32,\n          47,\n          88,\n          82,\n          101,\n          102,\n          10,\n          47,\n          76,\n          101,\n          110,\n          103,\n          116,\n          104,\n          32,\n          52,\n          48,\n          10,\n          47,\n          87,\n          32,\n          91,\n          32,\n          49,\n          32,\n          50,\n          32,\n          50,\n          32,\n          93,\n          10,\n          47,\n          73,\n          110,\n          100,\n          101,\n          120,\n          32,\n          91,\n          32,\n          48,\n          32,\n          57,\n          32,\n          93,\n          10,\n          62,\n          62,\n          10,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          120,\n          156,\n          21,\n          196,\n          177,\n          17,\n          0,\n          32,\n          12,\n          3,\n          177,\n          183,\n          195,\n          29,\n          45,\n          195,\n          179,\n          18,\n          115,\n          37,\n          88,\n          133,\n          128,\n          110,\n          179,\n          33,\n          41,\n          57,\n          85,\n          90,\n          226,\n          128,\n          120,\n          63,\n          95,\n          24,\n          97,\n          134,\n          3,\n          164,\n          10,\n          101,\n          110,\n          100,\n          115,\n          116,\n          114,\n          101,\n          97,\n          109,\n          10,\n          101,\n          110,\n          100,\n          111,\n          98,\n          106,\n          10,\n          10,\n          115,\n          116,\n          97,\n          114,\n          116,\n          120,\n          114,\n          101,\n          102,\n          10,\n          54,\n          54,\n          48,\n          10,\n          37,\n          37,\n          69,\n          79,\n          70,\n        ],\n        \"translations\": Array [\n          \"Unchanged source page\",\n        ],\n        \"width\": 400,\n      },\n    ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1448:13)\n    at Proxy.<anonymous> (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:972:17)\n    at Proxy.methodWrapper (file://[CW_DEPENDENCIES]/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1686:25)\n    at [CW_WORKSPACE]/FluentRead-pdf-export-source-snapshot/tests/documentTranslationBinary.test.ts:77:36\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats preserves blank pages in a bilingual PDF without failing to embed them",
+          "status": "skipped",
+          "title": "preserves blank pages in a bilingual PDF without failing to embed them",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in bilingual mode with ordered progress",
+          "status": "skipped",
+          "title": "exports 40 PDF pages in bilingual mode with ordered progress",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in translated mode with ordered progress",
+          "status": "skipped",
+          "title": "exports 40 PDF pages in translated mode with ordered progress",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats cancels between PDF pages and retries without changing translations",
+          "status": "skipped",
+          "title": "cancels between PDF pages and retries without changing translations",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats releases decoded PNG pixels before rendering the next PDF page",
+          "status": "skipped",
+          "title": "releases decoded PNG pixels before rendering the next PDF page",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "status": "skipped",
+          "title": "识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 PDF 页解析版面文本块、坐标和页码上下文",
+          "status": "skipped",
+          "title": "按 PDF 页解析版面文本块、坐标和页码上下文",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub partial export retains blank reviewed segments and translates the rest",
+          "status": "skipped",
+          "title": "sample.epub partial export retains blank reviewed segments and translates the rest",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx partial export retains blank reviewed segments and translates the rest",
+          "status": "skipped",
+          "title": "sample.docx partial export retains blank reviewed segments and translates the rest",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF partial export uses source for an empty reviewed block",
+          "status": "skipped",
+          "title": "PDF partial export uses source for an empty reviewed block",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "status": "skipped",
+          "title": "按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "status": "skipped",
+          "title": "ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "status": "skipped",
+          "title": "提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "status": "skipped",
+          "title": "DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "status": "skipped",
+          "title": "PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 统一文件入口根据扩展名选择文本或二进制解析器",
+          "status": "skipped",
+          "title": "统一文件入口根据扩展名选择文本或二进制解析器",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝扩展名伪装或损坏的二进制文件",
+          "status": "skipped",
+          "title": "拒绝扩展名伪装或损坏的二进制文件",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "status": "skipped",
+          "title": "扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "status": "skipped",
+          "title": "拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "status": "skipped",
+          "title": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "status": "skipped",
+          "title": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791418352199,
+      "endTime": 1791418352378.6719,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-export-source-snapshot/tests/documentTranslationBinary.test.ts"
+    }
+  ]
+}

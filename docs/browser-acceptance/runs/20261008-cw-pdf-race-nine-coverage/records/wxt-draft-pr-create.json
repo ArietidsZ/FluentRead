@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-10-08T00:11:50.654534+00:00",
+  "command": [
+    "/usr/bin/gh",
+    "pr",
+    "create",
+    "--repo",
+    "FluentRead/FluentRead",
+    "--base",
+    "main",
+    "--head",
+    "ArietidsZ:codex/wxt-worker-metadata-20261007",
+    "--draft",
+    "--title",
+    "fix: keep TTS runtime imports out of WXT metadata evaluation",
+    "--body-file",
+    "[CW_WORKSPACE]/pdf-race-nine-coverage-20261008/wxt-draft-body.md"
+  ],
+  "head_sha_verified": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "exit_code": 0,
+  "stdout": "https://github.com/FluentRead/FluentRead/pull/882\n",
+  "stderr": ""
+}

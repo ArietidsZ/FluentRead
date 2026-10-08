@@ -1,0 +1,3293 @@
+{
+  "numTotalTestSuites": 26,
+  "numPassedTestSuites": 26,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 291,
+  "numPassedTests": 291,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791420428797,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 输入框翻译严格验证 payload，并保留原文本与 provider 结果",
+          "status": "passed",
+          "title": "输入框翻译严格验证 payload，并保留原文本与 provider 结果",
+          "duration": 4.166612999999984,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 设置页 handler 区分默认入口与白名单 section",
+          "status": "passed",
+          "title": "设置页 handler 区分默认入口与白名单 section",
+          "duration": 0.6603319999999826,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 所有真实导航分区与兼容别名均能从页面打开，未知目标没有导航副作用",
+          "status": "passed",
+          "title": "所有真实导航分区与兼容别名均能从页面打开，未知目标没有导航副作用",
+          "duration": 1.2106729999999857,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 全文状态 handler 复用状态仓库且不丢失 tabId=0",
+          "status": "passed",
+          "title": "全文状态 handler 复用状态仓库且不丢失 tabId=0",
+          "duration": 0.3841719999999782,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 全文状态 handler 拒绝非布尔值，并对非标签页发送者保持兼容 no-op",
+          "status": "passed",
+          "title": "全文状态 handler 拒绝非布尔值，并对非标签页发送者保持兼容 no-op",
+          "duration": 0.21420000000000528,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 全文状态 handler 忽略 legacy QQ 子 frame，避免覆盖 top frame 状态",
+          "status": "passed",
+          "title": "全文状态 handler 忽略 legacy QQ 子 frame，避免覆盖 top frame 状态",
+          "duration": 0.15145100000000866,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 区域选区守卫覆盖尺寸、视口和数值边界",
+          "status": "passed",
+          "title": "区域选区守卫覆盖尺寸、视口和数值边界",
+          "duration": 0.1874199999999746,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口",
+          "status": "passed",
+          "title": "区域截图 handler 接受 windowId=0 并拒绝空截图与非法窗口",
+          "duration": 1201.946775,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对",
+          "status": "passed",
+          "title": "圈选截图必须属于sender的当前活动标签页，并在捕获完成后再次核对",
+          "duration": 601.4681680000001,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 连续圈选截图跨窗口共享600ms启动间隔，首次立即且空闲后不补偿突发额度",
+          "status": "passed",
+          "title": "连续圈选截图跨窗口共享600ms启动间隔，首次立即且空闲后不补偿突发额度",
+          "duration": 0.403791000000183,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 截图本身严格串行，失败也保持启动间隔且释放后续队列",
+          "status": "passed",
+          "title": "截图本身严格串行，失败也保持启动间隔且释放后续队列",
+          "duration": 0.32323100000030536,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 截图节流等待结束后重新核验标签页，已切换则不截图且不消耗下一次额度",
+          "status": "passed",
+          "title": "截图节流等待结束后重新核验标签页，已切换则不截图且不消耗下一次额度",
+          "duration": 0.3814009999996415,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 圈选截图所有权拒绝伪造或失效tabId、错误窗口及已关闭标签页",
+          "status": "passed",
+          "title": "圈选截图所有权拒绝伪造或失效tabId、错误窗口及已关闭标签页",
+          "duration": 0.38067099999989296,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 区域翻译 handler 校验协议、默认语言并依序调用语言包与 offscreen",
+          "status": "passed",
+          "title": "区域翻译 handler 校验协议、默认语言并依序调用语言包与 offscreen",
+          "duration": 1.0005929999997534,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 圈选开始前冻结文本事务，OCR结束后发送独立翻译阶段并返回文字结果",
+          "status": "passed",
+          "title": "圈选开始前冻结文本事务，OCR结束后发送独立翻译阶段并返回文字结果",
+          "duration": 0.9142430000001696,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 区域翻译取消会把 signal 传播给 Offscreen adapter",
+          "status": "passed",
+          "title": "区域翻译取消会把 signal 传播给 Offscreen adapter",
+          "duration": 51.011121,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 区域翻译在语言包等待期间取消后不会进入 Offscreen",
+          "status": "passed",
+          "title": "区域翻译在语言包等待期间取消后不会进入 Offscreen",
+          "duration": 51.073361000000205,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 划词词典 handler 使用默认/显式目标语言并处理无条目",
+          "status": "passed",
+          "title": "划词词典 handler 使用默认/显式目标语言并处理无条目",
+          "duration": 0.793992999999773,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 词典卡翻译去重、深拷贝并只写入有效译文",
+          "status": "passed",
+          "title": "词典卡翻译去重、深拷贝并只写入有效译文",
+          "duration": 0.5608910000000833,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 词典卡翻译在 provider 结果不匹配或失败时保留原卡",
+          "status": "passed",
+          "title": "词典卡翻译在 provider 结果不匹配或失败时保留原卡",
+          "duration": 0.38794100000041,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片 handlers 完成图片翻译、文字翻译和语言包下载",
+          "status": "passed",
+          "title": "图片 handlers 完成图片翻译、文字翻译和语言包下载",
+          "duration": 3.4537999999997737,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片取消消息会中止同 requestId 的后台操作并忽略迟到结果",
+          "status": "passed",
+          "title": "图片取消消息会中止同 requestId 的后台操作并忽略迟到结果",
+          "duration": 51.063580999999886,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片操作注册表覆盖非法协议、重复 ID、超时和有界取消墓碑",
+          "status": "passed",
+          "title": "图片操作注册表覆盖非法协议、重复 ID、超时和有界取消墓碑",
+          "duration": 2.0639759999999114,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 整图翻译在语言包等待期间取消后不进入 Offscreen",
+          "status": "passed",
+          "title": "整图翻译在语言包等待期间取消后不进入 Offscreen",
+          "duration": 50.1129890000002,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers Offscreen 文字翻译取消会中止同所有权的 broker 请求并忽略迟到结果",
+          "status": "passed",
+          "title": "Offscreen 文字翻译取消会中止同所有权的 broker 请求并忽略迟到结果",
+          "duration": 49.92494800000031,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 取消先于 Offscreen 文字消息到达时，后到请求 fail closed 且不启动 broker",
+          "status": "passed",
+          "title": "取消先于 Offscreen 文字消息到达时，后到请求 fail closed 且不启动 broker",
+          "duration": 0.25306000000000495,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片 handlers 严格拒绝非法页面 payload 和 provider 结果",
+          "status": "passed",
+          "title": "图片 handlers 严格拒绝非法页面 payload 和 provider 结果",
+          "duration": 0.8193630000000667,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片文字对不支持 batch 的 provider 并发保序，并标明失败段号",
+          "status": "passed",
+          "title": "图片文字对不支持 batch 的 provider 并发保序，并标明失败段号",
+          "duration": 0.7872619999998278,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片 legacy 并发窗口共享绝对预算，超时后不再启动后续段",
+          "status": "passed",
+          "title": "图片 legacy 并发窗口共享绝对预算，超时后不再启动后续段",
+          "duration": 1.3797340000000986,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "后台 feature handlers"
+          ],
+          "fullName": "后台 feature handlers 图片文字事务在首个 provider 调用前预算耗尽时立即停止",
+          "status": "passed",
+          "title": "图片文字事务在首个 provider 调用前预算耗尽时立即停止",
+          "duration": 0.30428100000017366,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 首阶段立即返回词卡，不等待释义翻译，并隔离非简体目标的旧辅助内容",
+          "status": "passed",
+          "title": "首阶段立即返回词卡，不等待释义翻译，并隔离非简体目标的旧辅助内容",
+          "duration": 0.2365799999997762,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 已有简体辅助释义无需重复翻译，只补充缺失字段",
+          "status": "passed",
+          "title": "已有简体辅助释义无需重复翻译，只补充缺失字段",
+          "duration": 0.39591199999995297,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 辅助释义翻译超时后保留词典原文，迟到结果不能改写已返回词卡",
+          "status": "passed",
+          "title": "辅助释义翻译超时后保留词典原文，迟到结果不能改写已返回词卡",
+          "duration": 0.28254000000015367,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 同步失败的辅助翻译也保留词卡并清理等待",
+          "status": "passed",
+          "title": "同步失败的辅助翻译也保留词卡并清理等待",
+          "duration": 0.10108100000024933,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 辅助翻译错误上报失败也会清理截止时间",
+          "status": "passed",
+          "title": "辅助翻译错误上报失败也会清理截止时间",
+          "duration": 0.19767999999976382,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 繁体目标无效批量结果 \"single\" 清除旧辅助内容且不改词典缓存",
+          "status": "passed",
+          "title": "繁体目标无效批量结果 \"single\" 清除旧辅助内容且不改词典缓存",
+          "duration": 0.19673099999999977,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 繁体目标无效批量结果 \"only-one\" 清除旧辅助内容且不改词典缓存",
+          "status": "passed",
+          "title": "繁体目标无效批量结果 \"only-one\" 清除旧辅助内容且不改词典缓存",
+          "duration": 0.10806000000002314,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 繁体目标无效批量结果 null 清除旧辅助内容且不改词典缓存",
+          "status": "passed",
+          "title": "繁体目标无效批量结果 null 清除旧辅助内容且不改词典缓存",
+          "duration": 0.07758999999987282,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 繁体目标翻译异常仍保留词典原文，但不能回退旧简体辅助内容",
+          "status": "passed",
+          "title": "繁体目标翻译异常仍保留词典原文，但不能回退旧简体辅助内容",
+          "duration": 0.1184610000000248,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 零可翻译槽位也清除旧辅助字段，不触发请求且不修改原卡",
+          "status": "passed",
+          "title": "零可翻译槽位也清除旧辅助字段，不触发请求且不修改原卡",
+          "duration": 0.10541000000011991,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 空值、非字符串、原样返回都不能保留简体旧辅助，只填成功槽位",
+          "status": "passed",
+          "title": "空值、非字符串、原样返回都不能保留简体旧辅助，只填成功槽位",
+          "duration": 0.10444000000006781,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 规范化繁体别名，成功翻译回填目标译文并保持所有原始卡片字段独立",
+          "status": "passed",
+          "title": "规范化繁体别名，成功翻译回填目标译文并保持所有原始卡片字段独立",
+          "duration": 0.19549099999994723,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "繁体词典辅助内容只采用本次成功翻译"
+          ],
+          "fullName": "繁体词典辅助内容只采用本次成功翻译 简体目标继续保留原卡中的可用简体失败回退",
+          "status": "passed",
+          "title": "简体目标继续保留原卡中的可用简体失败回退",
+          "duration": 0.10522000000037224,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 reports recognizing before awaiting the prepared vision route and never starts OCR",
+          "status": "passed",
+          "title": "reports recognizing before awaiting the prepared vision route and never starts OCR",
+          "duration": 0.3312810000002173,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 prefer-vision capability={ mode: 'ocr', fallback: 'unsupported' } 保留回退元数据并走 OCR",
+          "status": "passed",
+          "title": "prefer-vision capability={ mode: 'ocr', fallback: 'unsupported' } 保留回退元数据并走 OCR",
+          "duration": 0.25521100000014485,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 prefer-vision capability={ mode: 'ocr', fallback: 'unknown' } 保留回退元数据并走 OCR",
+          "status": "passed",
+          "title": "prefer-vision capability={ mode: 'ocr', fallback: 'unknown' } 保留回退元数据并走 OCR",
+          "duration": 0.11473000000023603,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 vision 分支只调用 prepareVision，vision 失败不触发 OCR",
+          "status": "passed",
+          "title": "vision 分支只调用 prepareVision，vision 失败不触发 OCR",
+          "duration": 0.24277099999972052,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 vision prepareVision 成功时返回视觉结果",
+          "status": "passed",
+          "title": "vision prepareVision 成功时返回视觉结果",
+          "duration": 0.20073100000035993,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 OCR 路由没有 fallback 时不附加回退字段",
+          "status": "passed",
+          "title": "OCR 路由没有 fallback 时不附加回退字段",
+          "duration": 0.13970999999992273,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 vision 路由在没有任何视觉实现时明确失败",
+          "status": "passed",
+          "title": "vision 路由在没有任何视觉实现时明确失败",
+          "duration": 0.1498910000000251,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "圈选视觉识别路由"
+          ],
+          "fullName": "圈选视觉识别路由 vision 路由可直接调用 translateAreaVision，并保留无回退元数据分支",
+          "status": "passed",
+          "title": "vision 路由可直接调用 translateAreaVision，并保留无回退元数据分支",
+          "duration": 0.16786000000001877,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "opens a validated learning-memory tab without accepting arbitrary navigation data",
+          "status": "passed",
+          "title": "opens a validated learning-memory tab without accepting arbitrary navigation data",
+          "duration": 0.2780910000001313,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420435241,
+      "endTime": 1791420437323.278,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/backgroundFeatureHandlers.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime wires real provider handlers and restricts vision probes to the exact settings page",
+          "status": "passed",
+          "title": "wires real provider handlers and restricts vision probes to the exact settings page",
+          "duration": 3.9315009999999972,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime captures reset generation before connection test and injects model usage persistence",
+          "status": "passed",
+          "title": "captures reset generation before connection test and injects model usage persistence",
+          "duration": 0.591321999999991,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background provider runtime"
+          ],
+          "fullName": "background provider runtime exposes the provider-owned free translation weight snapshot through the composition root",
+          "status": "passed",
+          "title": "exposes the provider-owned free translation weight snapshot through the composition root",
+          "duration": 0.1323799999999835,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420439215,
+      "endTime": 1791420439219.5913,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/backgroundProviderRuntime.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "单图本地识别方式配置"
+          ],
+          "fullName": "单图本地识别方式配置 新配置、缺失和非法值默认 PaddleOCR，显式引擎选择可往返且不改变漫画开关",
+          "status": "passed",
+          "title": "新配置、缺失和非法值默认 PaddleOCR，显式引擎选择可往返且不改变漫画开关",
+          "duration": 9.221987000000013,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 兼容旧 JSON 字符串，并只迁移成一次对象存储",
+          "status": "passed",
+          "title": "兼容旧 JSON 字符串，并只迁移成一次对象存储",
+          "duration": 55.96164599999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 读取已经去凭据且带版本的规范化对象时不产生初始化回写",
+          "status": "passed",
+          "title": "读取已经去凭据且带版本的规范化对象时不产生初始化回写",
+          "duration": 17.985412999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 IndexedDB 已有相同持久凭据时直接水合，不在启动时重复写回",
+          "status": "passed",
+          "title": "IndexedDB 已有相同持久凭据时直接水合，不在启动时重复写回",
+          "duration": 20.885811999999987,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 页面立即请求完整导出时等待公开配置与凭据完成同一轮水合",
+          "status": "passed",
+          "title": "页面立即请求完整导出时等待公开配置与凭据完成同一轮水合",
+          "duration": 18.236354000000006,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 完整导出等待乐观补丁结束，并在 revision 冲突回滚后读取权威快照",
+          "status": "passed",
+          "title": "完整导出等待乐观补丁结束，并在 revision 冲突回滚后读取权威快照",
+          "duration": 74.824071,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 可信扩展页面只从后台水合凭据，不重复执行迁移或直接写 IndexedDB",
+          "status": "passed",
+          "title": "可信扩展页面只从后台水合凭据，不重复执行迁移或直接写 IndexedDB",
+          "duration": 16.20459799999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 可信页面水合凭据期间收到更高配置 revision 时整轮重读，不用旧快照回滚",
+          "status": "passed",
+          "title": "可信页面水合凭据期间收到更高配置 revision 时整轮重读，不用旧快照回滚",
+          "duration": 15.621256000000017,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 popup 首次凭据回读的旧值 晚于广播时采用新 Key，延迟主配置广播不会保留旧凭据",
+          "status": "passed",
+          "title": "popup 首次凭据回读的旧值 晚于广播时采用新 Key，延迟主配置广播不会保留旧凭据",
+          "duration": 64.30522999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 popup 首次凭据回读的读取失败 晚于广播时采用新 Key，延迟主配置广播不会保留旧凭据",
+          "status": "passed",
+          "title": "popup 首次凭据回读的读取失败 晚于广播时采用新 Key，延迟主配置广播不会保留旧凭据",
+          "duration": 65.769995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 凭据水合失败前收到更高 revision 时 fallback 也采用最新公开配置",
+          "status": "passed",
+          "title": "凭据水合失败前收到更高 revision 时 fallback 也采用最新公开配置",
+          "duration": 19.452526999999918,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 可信远程页迁移旧策略时无法读取 session 凭据会拒绝发送可能清空 API Key 的保存请求",
+          "status": "passed",
+          "title": "可信远程页迁移旧策略时无法读取 session 凭据会拒绝发送可能清空 API Key 的保存请求",
+          "duration": 12.49515699999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 为旧配置补齐空的始终翻译域名列表，并只迁移回写一次",
+          "status": "passed",
+          "title": "为旧配置补齐空的始终翻译域名列表，并只迁移回写一次",
+          "duration": 15.360515999999961,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 识别范围通过统一配置保存、水合与外部变更持久同步",
+          "status": "passed",
+          "title": "识别范围通过统一配置保存、水合与外部变更持久同步",
+          "duration": 31.616573000000017,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 缓存双上限随配置保存、重新加载和外部通知同步",
+          "status": "passed",
+          "title": "缓存双上限随配置保存、重新加载和外部通知同步",
+          "duration": 28.41797399999996,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 内部 storage revision 不进入运行时配置或历史快照",
+          "status": "passed",
+          "title": "内部 storage revision 不进入运行时配置或历史快照",
+          "duration": 21.46306299999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 旧配置保持图片和圈选开关，并为圈选补齐标准翻译和跟随服务",
+          "status": "passed",
+          "title": "旧配置保持图片和圈选开关，并为圈选补齐标准翻译和跟随服务",
+          "duration": 12.760428000000047,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 翻译卡片提示词经过保存与重载保持，占位符和用户空白不被改写",
+          "status": "passed",
+          "title": "翻译卡片提示词经过保存与重载保持，占位符和用户空白不被改写",
+          "duration": 25.91283599999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 保留用户关闭视频、图片和圈选的选择，保存后重新加载仍关闭",
+          "status": "passed",
+          "title": "保留用户关闭视频、图片和圈选的选择，保存后重新加载仍关闭",
+          "duration": 25.13159500000006,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 保留用户已开启的图片翻译，保存后重新加载仍开启",
+          "status": "passed",
+          "title": "保留用户已开启的图片翻译，保存后重新加载仍开启",
+          "duration": 24.409282000000076,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 独立圈选服务接受机器翻译和已配置AI，拒绝畸形模式或孤立服务",
+          "status": "passed",
+          "title": "独立圈选服务接受机器翻译和已配置AI，拒绝畸形模式或孤立服务",
+          "duration": 3.100029000000177,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 为旧配置默认关闭图片、开启视频和圈选，并补齐视频服务和字号",
+          "status": "passed",
+          "title": "为旧配置默认关闭图片、开启视频和圈选，并补齐视频服务和字号",
+          "duration": 12.40350699999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 为文档翻译补齐独立服务和模型，并保留网页模型选择",
+          "status": "passed",
+          "title": "为文档翻译补齐独立服务和模型，并保留网页模型选择",
+          "duration": 11.088852999999972,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 文档翻译遇到未知服务时回退到跟随默认",
+          "status": "passed",
+          "title": "文档翻译遇到未知服务时回退到跟随默认",
+          "duration": 12.41796700000009,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 保留用户选择的视频 AI 服务，并将未知服务回退到跟随默认",
+          "status": "passed",
+          "title": "保留用户选择的视频 AI 服务，并将未知服务回退到跟随默认",
+          "duration": 24.39514199999985,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 把早期 Beta 写入的 DeepLX 默认值一次迁移为跟随默认",
+          "status": "passed",
+          "title": "把早期 Beta 写入的 DeepLX 默认值一次迁移为跟随默认",
+          "duration": 12.513746999999967,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 非法的视频字幕显示配置回退到双语和显示状态",
+          "status": "passed",
+          "title": "非法的视频字幕显示配置回退到双语和显示状态",
+          "duration": 12.819177999999965,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 非法的本地视频 Whisper 模型回退到 Tiny",
+          "status": "passed",
+          "title": "非法的本地视频 Whisper 模型回退到 Tiny",
+          "duration": 11.278903000000128,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 存储内容损坏时回退到默认配置，并保持初始化 Promise 可用",
+          "status": "passed",
+          "title": "存储内容损坏时回退到默认配置，并保持初始化 Promise 可用",
+          "duration": 11.922465000000102,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 保存相同快照时去重，并让连续保存只保留最新快照",
+          "status": "passed",
+          "title": "保存相同快照时去重，并让连续保存只保留最新快照",
+          "duration": 16.888730000000123,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 收到外部对象更新时立即同步运行时状态，并通知订阅者",
+          "status": "passed",
+          "title": "收到外部对象更新时立即同步运行时状态，并通知订阅者",
+          "duration": 12.881798000000117,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 外部更新不会被本地 watcher 再次写回，取消订阅后也不再通知",
+          "status": "passed",
+          "title": "外部更新不会被本地 watcher 再次写回，取消订阅后也不再通知",
+          "duration": 15.257485000000088,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 短生命周期页面通过后台提交规范化快照，而不是自行承担落盘",
+          "status": "passed",
+          "title": "短生命周期页面通过后台提交规范化快照，而不是自行承担落盘",
+          "duration": 15.332274999999981,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 设置页嵌套草稿与运行时基线隔离，编辑 user_role 后产生非空 patch 并落盘",
+          "status": "passed",
+          "title": "设置页嵌套草稿与运行时基线隔离，编辑 user_role 后产生非空 patch 并落盘",
+          "duration": 21.26855300000011,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 远程整份凭据轮换成功后不依赖凭据通知即可同步导出与后续整份保存",
+          "status": "passed",
+          "title": "远程整份凭据轮换成功后不依赖凭据通知即可同步导出与后续整份保存",
+          "duration": 20.001009000000067,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 远程整份凭据清除成功后不依赖凭据通知即可同步导出与后续整份保存",
+          "status": "passed",
+          "title": "远程整份凭据清除成功后不依赖凭据通知即可同步导出与后续整份保存",
+          "duration": 22.22849599999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 远程整份凭据轮换响应前排入的普通 replace 继承前驱已提交凭据",
+          "status": "passed",
+          "title": "远程整份凭据轮换响应前排入的普通 replace 继承前驱已提交凭据",
+          "duration": 67.79474000000005,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 远程整份凭据清除响应前排入的普通 replace 继承前驱已提交凭据",
+          "status": "passed",
+          "title": "远程整份凭据清除响应前排入的普通 replace 继承前驱已提交凭据",
+          "duration": 67.69010100000014,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 响应前排入且显式修改凭据的 replace 保持自身凭据意图",
+          "status": "passed",
+          "title": "响应前排入且显式修改凭据的 replace 保持自身凭据意图",
+          "duration": 68.14297099999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 远程凭据 replace 响应前排入的公开 patch 保留前驱凭据并继续提交公开字段",
+          "status": "passed",
+          "title": "远程凭据 replace 响应前排入的公开 patch 保留前驱凭据并继续提交公开字段",
+          "duration": 71.12771099999986,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 凭据 replace 后连续排入的多个公开 patch 都继承已提交凭据",
+          "status": "passed",
+          "title": "凭据 replace 后连续排入的多个公开 patch 都继承已提交凭据",
+          "duration": 76.57119599999987,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 中间公开 patch 失败后队尾 patch 仍使用最近已提交凭据",
+          "status": "passed",
+          "title": "中间公开 patch 失败后队尾 patch 仍使用最近已提交凭据",
+          "duration": 84.01883900000007,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 旧凭据广播保留在途 ID 和 Secret 编辑，同时接收未编辑服务的新 Key",
+          "status": "passed",
+          "title": "旧凭据广播保留在途 ID 和 Secret 编辑，同时接收未编辑服务的新 Key",
+          "duration": 79.08067400000004,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 凭据保存失败后释放编辑所有权并允许后续广播更新",
+          "status": "passed",
+          "title": "凭据保存失败后释放编辑所有权并允许后续广播更新",
+          "duration": 74.46219999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 请求途中到达的更新凭据通知会刷新后续队列基线",
+          "status": "passed",
+          "title": "请求途中到达的更新凭据通知会刷新后续队列基线",
+          "duration": 73.65317800000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 排队 replace 只重改自己显式修改的凭据字段",
+          "status": "passed",
+          "title": "排队 replace 只重改自己显式修改的凭据字段",
+          "duration": 68.9753840000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 显式 exact replace 在排队后仍完整拥有入队时凭据快照",
+          "status": "passed",
+          "title": "显式 exact replace 在排队后仍完整拥有入队时凭据快照",
+          "duration": 68.22207200000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 旧 replace 响应不覆盖后续已乐观应用的显式凭据 patch",
+          "status": "passed",
+          "title": "旧 replace 响应不覆盖后续已乐观应用的显式凭据 patch",
+          "duration": 119.43490299999985,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 replace 后的公开 patch 即使配置回读失败也不回滚前驱凭据",
+          "status": "passed",
+          "title": "replace 后的公开 patch 即使配置回读失败也不回滚前驱凭据",
+          "duration": 71.79388300000028,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 失败前驱的乐观字段不会被后继成功 patch 的回读失败 fallback 复活",
+          "status": "passed",
+          "title": "失败前驱的乐观字段不会被后继成功 patch 的回读失败 fallback 复活",
+          "duration": 75.35486200000014,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后继成功 patch 读到旧 revision 时保留前驱已提交字段",
+          "status": "passed",
+          "title": "后继成功 patch 读到旧 revision 时保留前驱已提交字段",
+          "duration": 73.89121899999964,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 前驱与队尾 patch 都失败且队尾回读失败时不复活前驱乐观字段",
+          "status": "passed",
+          "title": "前驱与队尾 patch 都失败且队尾回读失败时不复活前驱乐观字段",
+          "duration": 74.46644000000015,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 相同快照的第一次成功不清除第二次请求所有权",
+          "status": "passed",
+          "title": "相同快照的第一次成功不清除第二次请求所有权",
+          "duration": 118.25277000000006,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 相同快照的第一次网络失败不清除第二次请求所有权",
+          "status": "passed",
+          "title": "相同快照的第一次网络失败不清除第二次请求所有权",
+          "duration": 116.77693499999987,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 翻译计数使用同 revision 的原子增量，不生成用户配置历史版本",
+          "status": "passed",
+          "title": "翻译计数使用同 revision 的原子增量，不生成用户配置历史版本",
+          "duration": 36.019456999999875,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后台重启后旧 session 读取失败仍先水合计数操作日志",
+          "status": "passed",
+          "title": "后台重启后旧 session 读取失败仍先水合计数操作日志",
+          "duration": 22.01300500000025,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后台重启后local 检查点写入失败仍先水合计数操作日志",
+          "status": "passed",
+          "title": "后台重启后local 检查点写入失败仍先水合计数操作日志",
+          "duration": 13.923080999999911,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 凭据载体读取失败时保留已读取的公开配置并禁止覆盖旧存储",
+          "status": "passed",
+          "title": "凭据载体读取失败时保留已读取的公开配置并禁止覆盖旧存储",
+          "duration": 12.97718900000018,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 计数增量请求只发送 delta，并校验后台响应",
+          "status": "passed",
+          "title": "计数增量请求只发送 delta，并校验后台响应",
+          "duration": 13.133188000000246,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 计数累加拒绝运行时畸形值和安全整数溢出，失败时不写存储",
+          "status": "passed",
+          "title": "计数累加拒绝运行时畸形值和安全整数溢出，失败时不写存储",
+          "duration": 11.688935000000129,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后台拒绝旧 revision 时重新读取最新配置，而不是保留会再次覆盖的旧快照",
+          "status": "passed",
+          "title": "后台拒绝旧 revision 时重新读取最新配置，而不是保留会再次覆盖的旧快照",
+          "duration": 15.957816999999977,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 local config 写入失败不提前发布 revision，随后可以从原版本重试",
+          "status": "passed",
+          "title": "local config 写入失败不提前发布 revision，随后可以从原版本重试",
+          "duration": 16.714410000000044,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 发送响应式配置时先转换为 Firefox 可结构化克隆的纯对象",
+          "status": "passed",
+          "title": "发送响应式配置时先转换为 Firefox 可结构化克隆的纯对象",
+          "duration": 16.813120000000254,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后台不可用时失败关闭，不在短生命周期上下文降级落盘",
+          "status": "passed",
+          "title": "后台不可用时失败关闭，不在短生命周期上下文降级落盘",
+          "duration": 14.072711000000254,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 content 保存公开字段时保留后台运行时凭据并忽略旧持久化策略字段",
+          "status": "passed",
+          "title": "content 保存公开字段时保留后台运行时凭据并忽略旧持久化策略字段",
+          "duration": 15.166484999999739,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁只接受已知目标字段，并保留最新配置、统计、迁移状态与 content 凭据边界",
+          "status": "passed",
+          "title": "字段补丁只接受已知目标字段，并保留最新配置、统计、迁移状态与 content 凭据边界",
+          "duration": 19.123687000000245,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 endpoint/proxy patch 按真实目的地解绑旧 token，并让 proxy 遮蔽的 endpoint 编辑保留凭据",
+          "status": "passed",
+          "title": "endpoint/proxy patch 按真实目的地解绑旧 token，并让 proxy 遮蔽的 endpoint 编辑保留凭据",
+          "duration": 20.120668999999907,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 日常 destination patch 把派生 token 清理及其 CAS 基线发送给后台",
+          "status": "passed",
+          "title": "日常 destination patch 把派生 token 清理及其 CAS 基线发送给后台",
+          "duration": 19.67678799999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 日常腾讯 proxy patch 把共享密钥成对清理及其 CAS 基线发送给后台",
+          "status": "passed",
+          "title": "日常腾讯 proxy patch 把共享密钥成对清理及其 CAS 基线发送给后台",
+          "duration": 20.521970999999667,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 destination 派生解绑只拥有目标 service，不覆盖响应前 watch 更新的其他 token",
+          "status": "passed",
+          "title": "destination 派生解绑只拥有目标 service，不覆盖响应前 watch 更新的其他 token",
+          "duration": 22.245976000000155,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 changed-fields replace 只拥有发生变化的 token service，exact 语义仍单独保留",
+          "status": "passed",
+          "title": "changed-fields replace 只拥有发生变化的 token service，exact 语义仍单独保留",
+          "duration": 16.41561899999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 成功响应回读失败时消费等待期间 deferred 的更高 revision",
+          "status": "passed",
+          "title": "成功响应回读失败时消费等待期间 deferred 的更高 revision",
+          "duration": 17.571641999999883,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 失败请求回读失败时同样消费等待期间 deferred 的权威快照",
+          "status": "passed",
+          "title": "失败请求回读失败时同样消费等待期间 deferred 的权威快照",
+          "duration": 18.385113999999703,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁先乐观更新，后台失败后回读权威快照并自动回滚",
+          "status": "passed",
+          "title": "字段补丁先乐观更新，后台失败后回读权威快照并自动回滚",
+          "duration": 19.01860600000009,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁确认回声不重复 apply 或通知订阅者",
+          "status": "passed",
+          "title": "字段补丁确认回声不重复 apply 或通知订阅者",
+          "duration": 21.004852000000028,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁接受并持久化内置服务的自定义模型列表",
+          "status": "passed",
+          "title": "字段补丁接受并持久化内置服务的自定义模型列表",
+          "duration": 20.92186199999969,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁冲突后回读同字段的权威新值",
+          "status": "passed",
+          "title": "字段补丁冲突后回读同字段的权威新值",
+          "duration": 21.080942999999934,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 先写入并读回 local 凭据，再清理旧 config/history 明文",
+          "status": "passed",
+          "title": "先写入并读回 local 凭据，再清理旧 config/history 明文",
+          "duration": 21.137492000000293,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 损坏的旧历史字符串可能包含凭据时直接丢弃，不能把敏感片段原样写回",
+          "status": "passed",
+          "title": "损坏的旧历史字符串可能包含凭据时直接丢弃，不能把敏感片段原样写回",
+          "duration": 12.322856999999658,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 默认把新凭据加密持久保存到 local，公开配置与历史不含敏感 sentinel",
+          "status": "passed",
+          "title": "默认把新凭据加密持久保存到 local，公开配置与历史不含敏感 sentinel",
+          "duration": 22.82759699999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 扩展后台用一次原子提交写入持久凭据与公开配置，并清理旧 session",
+          "status": "passed",
+          "title": "扩展后台用一次原子提交写入持久凭据与公开配置，并清理旧 session",
+          "duration": 15.684187000000293,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 原子提交失败时不改变 IndexedDB 快照或推进持久 revision",
+          "status": "passed",
+          "title": "原子提交失败时不改变 IndexedDB 快照或推进持久 revision",
+          "duration": 13.160748999999669,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 旧策略双副本不一致时采用最新 session，验证 local 后删除 session 与旧字段",
+          "status": "passed",
+          "title": "旧策略双副本不一致时采用最新 session，验证 local 后删除 session 与旧字段",
+          "duration": 12.121964999999818,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 新配置以 local 凭据为权威，不被残留旧 session 回滚",
+          "status": "passed",
+          "title": "新配置以 local 凭据为权威，不被残留旧 session 回滚",
+          "duration": 17.62510300000031,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 恢复历史只恢复可恢复字段，并保留当前凭据、统计和迁移标记",
+          "status": "passed",
+          "title": "恢复历史只恢复可恢复字段，并保留当前凭据、统计和迁移标记",
+          "duration": 47.97692099999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 local 凭据写入失败时不删除或改写旧载体",
+          "status": "passed",
+          "title": "local 凭据写入失败时不删除或改写旧载体",
+          "duration": 14.330772999999681,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 local 凭据读回校验失败时不删除或改写旧载体",
+          "status": "passed",
+          "title": "local 凭据读回校验失败时不删除或改写旧载体",
+          "duration": 10.835242000000108,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 网页/content 上下文不访问 session，也不执行危险迁移",
+          "status": "passed",
+          "title": "网页/content 上下文不访问 session，也不执行危险迁移",
+          "duration": 10.165310000000318,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 连续请求按页面顺序串行发送，并让后一次使用前一次提交后的 revision",
+          "status": "passed",
+          "title": "连续请求按页面顺序串行发送，并让后一次使用前一次提交后的 revision",
+          "duration": 66.5356969999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 关闭页面前在首个 ACK 被阻塞时同步交接完整 patch 链，后台完成最后一次修改",
+          "status": "passed",
+          "title": "关闭页面前在首个 ACK 被阻塞时同步交接完整 patch 链，后台完成最后一次修改",
+          "duration": 85.21577200000002,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 设置页真实退出函数同步交接首 ACK 在途的 Harness 最后编辑，重复退出不重写",
+          "status": "passed",
+          "title": "设置页真实退出函数同步交接首 ACK 在途的 Harness 最后编辑，重复退出不重写",
+          "duration": 159.9283230000001,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 交接只包含同一 sender 的不可变 patch 信封",
+          "status": "passed",
+          "title": "交接只包含同一 sender 的不可变 patch 信封",
+          "duration": 27.11835000000019,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 整份替换尚未确认时拒绝把后继 patch 单独交接",
+          "status": "passed",
+          "title": "整份替换尚未确认时拒绝把后继 patch 单独交接",
+          "duration": 22.324145999999928,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 交接不得跨过其他 sender 的前驱而让全局序号吞掉其修改",
+          "status": "passed",
+          "title": "交接不得跨过其他 sender 的前驱而让全局序号吞掉其修改",
+          "duration": 25.84767699999975,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 拒绝不成功的后台交接响应 undefined",
+          "status": "passed",
+          "title": "拒绝不成功的后台交接响应 undefined",
+          "duration": 20.250880000000052,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 拒绝不成功的后台交接响应 {\"success\":false,\"error\":\"字段 CAS 冲突\"}",
+          "status": "passed",
+          "title": "拒绝不成功的后台交接响应 {\"success\":false,\"error\":\"字段 CAS 冲突\"}",
+          "duration": 19.626807999999983,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 拒绝不成功的后台交接响应 {\"success\":true}",
+          "status": "passed",
+          "title": "拒绝不成功的后台交接响应 {\"success\":true}",
+          "duration": 23.0770779999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 拒绝不成功的后台交接响应 {\"success\":true,\"revision\":-1}",
+          "status": "passed",
+          "title": "拒绝不成功的后台交接响应 {\"success\":true,\"revision\":-1}",
+          "duration": 20.850652000000082,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 拒绝不成功的后台交接响应 {\"success\":true,\"revision\":1.5}",
+          "status": "passed",
+          "title": "拒绝不成功的后台交接响应 {\"success\":true,\"revision\":1.5}",
+          "duration": 20.928972000000158,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 水合尚未完成时不交接排队的请求",
+          "status": "passed",
+          "title": "水合尚未完成时不交接排队的请求",
+          "duration": 14.97981400000026,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 凭据安全水合失败时不交接乐观补丁",
+          "status": "passed",
+          "title": "凭据安全水合失败时不交接乐观补丁",
+          "duration": 15.390036000000237,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 补丁链超过后台批次上限时不发出部分链",
+          "status": "passed",
+          "title": "补丁链超过后台批次上限时不发出部分链",
+          "duration": 951.5142740000001,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 配置持久化 barrier 等待已排队及等待期间追加的请求",
+          "status": "passed",
+          "title": "配置持久化 barrier 等待已排队及等待期间追加的请求",
+          "duration": 131.52654900000016,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 字段补丁与整份替换共用请求队列，replace 不继承 patch revision",
+          "status": "passed",
+          "title": "字段补丁与整份替换共用请求队列，replace 不继承 patch revision",
+          "duration": 76.71548699999948,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 排队 replace 不借用已吸收外部字段的 patch revision 覆盖新值",
+          "status": "passed",
+          "title": "排队 replace 不借用已吸收外部字段的 patch revision 覆盖新值",
+          "duration": 25.223753999999644,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 外部 revision 会取消混合队列中的旧 replace，但保留可做字段 CAS 的 patch",
+          "status": "passed",
+          "title": "外部 revision 会取消混合队列中的旧 replace，但保留可做字段 CAS 的 patch",
+          "duration": 22.119975000000522,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 active replace 期间 deferred 的外部更新会取消所有旧 replace，但后续 patch 仍可 CAS",
+          "status": "passed",
+          "title": "active replace 期间 deferred 的外部更新会取消所有旧 replace，但后续 patch 仍可 CAS",
+          "duration": 75.91609399999925,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 一次 revision 冲突会刷新当前配置并取消已经排队的旧快照",
+          "status": "passed",
+          "title": "一次 revision 冲突会刷新当前配置并取消已经排队的旧快照",
+          "duration": 28.371204000000034,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 把后台保留 count 后的 canonical storage 回声识别为本次保存并同步 UI",
+          "status": "passed",
+          "title": "把后台保留 count 后的 canonical storage 回声识别为本次保存并同步 UI",
+          "duration": 20.89788200000021,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 响应前收到更高 revision 的外部恢复时采用恢复结果并取消排队快照",
+          "status": "passed",
+          "title": "响应前收到更高 revision 的外部恢复时采用恢复结果并取消排队快照",
+          "duration": 69.5543660000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 外部仅更新 local 凭据并推进 revision 时也会取消携带旧凭据的排队快照",
+          "status": "passed",
+          "title": "外部仅更新 local 凭据并推进 revision 时也会取消携带旧凭据的排队快照",
+          "duration": 70.7691590000004,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 本地存在更新请求时忽略旧 storage 回声",
+          "status": "passed",
+          "title": "本地存在更新请求时忽略旧 storage 回声",
+          "duration": 16.568029000000024,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 迟到的旧版本 storage 快照不会回滚已同步的新版本",
+          "status": "passed",
+          "title": "迟到的旧版本 storage 快照不会回滚已同步的新版本",
+          "duration": 13.290970000000016,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 记录配置版本、时间，并限制为最近十条快照",
+          "status": "passed",
+          "title": "记录配置版本、时间，并限制为最近十条快照",
+          "duration": 146.60885299999973,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 支持撤销、重做和按版本恢复，并保持配置与历史游标一致",
+          "status": "passed",
+          "title": "支持撤销、重做和按版本恢复，并保持配置与历史游标一致",
+          "duration": 62.04444400000011,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 在配置历史中保存规范化域名，并能恢复旧配置的空名单",
+          "status": "passed",
+          "title": "在配置历史中保存规范化域名，并能恢复旧配置的空名单",
+          "duration": 31.04254200000014,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 配置历史操作优先通过后台消息传递，后台不可用时安全回退",
+          "status": "passed",
+          "title": "配置历史操作优先通过后台消息传递，后台不可用时安全回退",
+          "duration": 15.853486999999404,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 快速连续编辑只保留最后一个防抖历史快照",
+          "status": "passed",
+          "title": "快速连续编辑只保留最后一个防抖历史快照",
+          "duration": 24.389892000000145,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 仅翻译计数、旧策略字段或迁移标记变化时不新增最近修改快照",
+          "status": "passed",
+          "title": "仅翻译计数、旧策略字段或迁移标记变化时不新增最近修改快照",
+          "duration": 20.466849999999795,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 两个立即历史写入重叠时串行提交，不能丢失较新的快照或复用版本号",
+          "status": "passed",
+          "title": "两个立即历史写入重叠时串行提交，不能丢失较新的快照或复用版本号",
+          "duration": 78.8672630000001,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 配置历史 storage 外部更新会通知订阅者并保留版本结构",
+          "status": "passed",
+          "title": "配置历史 storage 外部更新会通知订阅者并保留版本结构",
+          "duration": 21.293032999999923,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 配置历史后台操作失败时回退到本地，并实际保存目标配置",
+          "status": "passed",
+          "title": "配置历史后台操作失败时回退到本地，并实际保存目标配置",
+          "duration": 39.50566700000036,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一配置存储"
+          ],
+          "fullName": "统一配置存储 后台明确返回历史操作失败时不绕过后台队列再次本地恢复",
+          "status": "passed",
+          "title": "后台明确返回历史操作失败时不绕过后台队列再次本地恢复",
+          "duration": 22.45876700000008,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "启动配置按需读取"
+          ],
+          "fullName": "启动配置按需读取 popup 首屏只读取主配置和持久凭据，历史消费者并发订阅只初始化一次",
+          "status": "passed",
+          "title": "popup 首屏只读取主配置和持久凭据，历史消费者并发订阅只初始化一次",
+          "duration": 14.927254000000175,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "启动配置按需读取"
+          ],
+          "fullName": "启动配置按需读取 普通网页启动和显式等待历史都不请求无权限记录或订阅历史",
+          "status": "passed",
+          "title": "普通网页启动和显式等待历史都不请求无权限记录或订阅历史",
+          "duration": 11.90489499999967,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "启动配置按需读取"
+          ],
+          "fullName": "启动配置按需读取 首次历史读取期间收到外部更新后，旧快照 不得回滚可撤销版本",
+          "status": "passed",
+          "title": "首次历史读取期间收到外部更新后，旧快照 不得回滚可撤销版本",
+          "duration": 69.88753699999961,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "启动配置按需读取"
+          ],
+          "fullName": "启动配置按需读取 首次历史读取期间收到外部更新后，读取失败 不得回滚可撤销版本",
+          "status": "passed",
+          "title": "首次历史读取期间收到外部更新后，读取失败 不得回滚可撤销版本",
+          "duration": 68.6161030000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "历史尚未打开时首次保存仍保留可撤销的原配置基线",
+          "status": "passed",
+          "title": "历史尚未打开时首次保存仍保留可撤销的原配置基线",
+          "duration": 28.617865000000165,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "排除语言持久化配置"
+          ],
+          "fullName": "排除语言持久化配置 旧配置默认不排除，配置往返保留语言选择且不污染输入",
+          "status": "passed",
+          "title": "旧配置默认不排除，配置往返保留语言选择且不污染输入",
+          "duration": 1.226394000000255,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery restores a valid remembered shortcut or the default (Alt)",
+          "status": "passed",
+          "title": "restores a valid remembered shortcut or the default (Alt)",
+          "duration": 0.2802910000000338,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery restores a valid remembered shortcut or the default (undefined)",
+          "status": "passed",
+          "title": "restores a valid remembered shortcut or the default (undefined)",
+          "duration": 0.19305999999960477,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery restores a valid remembered shortcut or the default (invalid)",
+          "status": "passed",
+          "title": "restores a valid remembered shortcut or the default (invalid)",
+          "duration": 0.1577709999992294,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery does not enable vocabulary reencounter for a malformed value (null)",
+          "status": "passed",
+          "title": "does not enable vocabulary reencounter for a malformed value (null)",
+          "duration": 0.29480100000000675,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery does not enable vocabulary reencounter for a malformed value (1)",
+          "status": "passed",
+          "title": "does not enable vocabulary reencounter for a malformed value (1)",
+          "duration": 0.2625099999995655,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "disabled hover shortcut and reencounter config recovery"
+          ],
+          "fullName": "disabled hover shortcut and reencounter config recovery does not enable vocabulary reencounter for a malformed value (true)",
+          "status": "passed",
+          "title": "does not enable vocabulary reencounter for a malformed value (true)",
+          "duration": 0.23159100000066246,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420429381,
+      "endTime": 1791420434951.2317,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/config.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub can cancel active compression and retry while preserving contents",
+          "status": "passed",
+          "title": "sample.epub can cancel active compression and retry while preserving contents",
+          "duration": 16.288357999999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx can cancel active compression and retry while preserving contents",
+          "status": "passed",
+          "title": "sample.docx can cancel active compression and retry while preserving contents",
+          "duration": 12.131076000000007,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=false)",
+          "status": "passed",
+          "title": "PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=false)",
+          "duration": 177.90273599999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=true)",
+          "status": "passed",
+          "title": "PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=true)",
+          "duration": 8.889757000000031,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats preserves blank pages in a bilingual PDF without failing to embed them",
+          "status": "passed",
+          "title": "preserves blank pages in a bilingual PDF without failing to embed them",
+          "duration": 12.116154999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in bilingual mode with ordered progress",
+          "status": "passed",
+          "title": "exports 40 PDF pages in bilingual mode with ordered progress",
+          "duration": 107.526838,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats exports 40 PDF pages in translated mode with ordered progress",
+          "status": "passed",
+          "title": "exports 40 PDF pages in translated mode with ordered progress",
+          "duration": 79.22842499999996,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats cancels between PDF pages and retries without changing translations",
+          "status": "passed",
+          "title": "cancels between PDF pages and retries without changing translations",
+          "duration": 17.040910000000054,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats releases decoded PNG pixels before rendering the next PDF page",
+          "status": "passed",
+          "title": "releases decoded PNG pixels before rendering the next PDF page",
+          "duration": 9.420678000000066,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "status": "passed",
+          "title": "识别 PDF、ePub、DOCX 并提供正确 MIME 与上传 accept",
+          "duration": 0.2011009999999942,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 PDF 页解析版面文本块、坐标和页码上下文",
+          "status": "passed",
+          "title": "按 PDF 页解析版面文本块、坐标和页码上下文",
+          "duration": 2.7335780000000796,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.epub partial export retains blank reviewed segments and translates the rest",
+          "status": "passed",
+          "title": "sample.epub partial export retains blank reviewed segments and translates the rest",
+          "duration": 5.849336999999991,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats sample.docx partial export retains blank reviewed segments and translates the rest",
+          "status": "passed",
+          "title": "sample.docx partial export retains blank reviewed segments and translates the rest",
+          "duration": 6.816419999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF partial export uses source for an empty reviewed block",
+          "status": "passed",
+          "title": "PDF partial export uses source for an empty reviewed block",
+          "duration": 8.552355999999918,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "status": "passed",
+          "title": "按 ePub spine 章节提取 XHTML，并导出仍可读取的双语 ePub",
+          "duration": 4.839424000000008,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "status": "passed",
+          "title": "ePub 章节的文本实体以可读文本翻译并保留原 XHTML 表达",
+          "duration": 3.63804099999993,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "status": "passed",
+          "title": "提取 DOCX 正文、页眉和页脚，并保持 OOXML 包可重新解析",
+          "duration": 6.689480000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "status": "passed",
+          "title": "DOCX 仅译文导出不会重复原段落的换行和制表符",
+          "duration": 3.411320000000046,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "status": "passed",
+          "title": "PDF 双语导出将每张原页和保留版式的译页并排放在同一页",
+          "duration": 13.212249000000043,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 统一文件入口根据扩展名选择文本或二进制解析器",
+          "status": "passed",
+          "title": "统一文件入口根据扩展名选择文本或二进制解析器",
+          "duration": 0.6540219999999408,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝扩展名伪装或损坏的二进制文件",
+          "status": "passed",
+          "title": "拒绝扩展名伪装或损坏的二进制文件",
+          "duration": 0.889122000000043,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "status": "passed",
+          "title": "扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR",
+          "duration": 0.9280629999999519,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "binary document translation formats"
+          ],
+          "fullName": "binary document translation formats 拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "status": "passed",
+          "title": "拒绝解压后单项过大的 ePub/DOCX 压缩包",
+          "duration": 207.851545,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "status": "passed",
+          "title": "全页译文相同的双语 PDF 保留一张原页并跳过光栅重绘",
+          "duration": 9.890768999999977,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "status": "passed",
+          "title": "相同 DOCX 译文在双语和仅译文导出均保留原有结构",
+          "duration": 14.028610999999955,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "a PDF with lost source metadata preserves the real original page and reports completed progress",
+          "status": "passed",
+          "title": "a PDF with lost source metadata preserves the real original page and reports completed progress",
+          "duration": 9.97987999999998,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420437731,
+      "endTime": 1791420438472.98,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/documentTranslationBinary.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"\")",
+          "status": "passed",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"\")",
+          "duration": 2.4826480000000117,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"   \")",
+          "status": "passed",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"   \")",
+          "duration": 0.27083100000000115,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts empty reviewed subtitle falls back to source for partial export (\"\\n\\t\")",
+          "status": "passed",
+          "title": "empty reviewed subtitle falls back to source for partial export (\"\\n\\t\")",
+          "duration": 0.13876000000000488,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 覆盖无扩展名、CR 换行、非常规 JSON 路径和无扩展名下载名",
+          "status": "passed",
+          "title": "覆盖无扩展名、CR 换行、非常规 JSON 路径和无扩展名下载名",
+          "duration": 0.7685620000000029,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 浏览器 DOM 可用时使用 textarea 解码 HTML 实体",
+          "status": "passed",
+          "title": "浏览器 DOM 可用时使用 textarea 解码 HTML 实体",
+          "duration": 0.3001210000000043,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 容忍未知或无效实体、HTML 注释、伪标签和未闭合保护标签",
+          "status": "passed",
+          "title": "容忍未知或无效实体、HTML 注释、伪标签和未闭合保护标签",
+          "duration": 0.3175809999999899,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 把空字幕、损坏 ASS 行和无时间 LRC 行保留为字面量",
+          "status": "passed",
+          "title": "把空字幕、损坏 ASS 行和无时间 LRC 行保留为字面量",
+          "duration": 0.4435220000000015,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 保留字幕标签、空译文以及非分组 Markdown 的双语结构",
+          "status": "passed",
+          "title": "保留字幕标签、空译文以及非分组 Markdown 的双语结构",
+          "duration": 0.15349999999999397,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts JSON 渲染跳过失效路径并支持根路径替换",
+          "status": "passed",
+          "title": "JSON 渲染跳过失效路径并支持根路径替换",
+          "duration": 0.19822100000000376,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "document translation edge contracts"
+          ],
+          "fullName": "document translation edge contracts 富预览覆盖完整 HTML 壳、Markdown 结构和不支持格式",
+          "status": "passed",
+          "title": "富预览覆盖完整 HTML 壳、Markdown 结构和不支持格式",
+          "duration": 2.4010669999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "bilingual formatting rechecks a source invalidated while reading reviewed raw text",
+          "status": "passed",
+          "title": "bilingual formatting rechecks a source invalidated while reading reviewed raw text",
+          "duration": 0.1256699999999995,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420438917,
+      "endTime": 1791420438925.1257,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/documentTranslationEdge.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 正文双语请求只提交可译文本槽，空内容不调用服务",
+          "status": "passed",
+          "title": "正文双语请求只提交可译文本槽，空内容不调用服务",
+          "duration": 2.6892780000000016,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 'content' / 'single' 请求返回原位 Text 槽并保留 all 范围",
+          "status": "passed",
+          "title": "'content' / 'single' 请求返回原位 Text 槽并保留 all 范围",
+          "duration": 0.6821219999999926,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 'control' / 'bilingual' 请求返回原位 Text 槽并保留 all 范围",
+          "status": "passed",
+          "title": "'control' / 'bilingual' 请求返回原位 Text 槽并保留 all 范围",
+          "duration": 0.25128100000000586,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 按钮型 input 走属性替换请求，不再尝试寻找不存在的文本槽",
+          "status": "passed",
+          "title": "按钮型 input 走属性替换请求，不再尝试寻找不存在的文本槽",
+          "duration": 0.447322000000014,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 按钮标签缺失或译文与原文相同时结果标记为未完成或无变化",
+          "status": "passed",
+          "title": "按钮标签缺失或译文与原文相同时结果标记为未完成或无变化",
+          "duration": 0.30966000000000804,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 空槽位返回未完成的空结果",
+          "status": "passed",
+          "title": "空槽位返回未完成的空结果",
+          "duration": 0.37943200000000843,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 marks an oversized provider response incomplete without inventing a DOM slot",
+          "status": "passed",
+          "title": "marks an oversized provider response incomplete without inventing a DOM slot",
+          "duration": 0.7972019999999986,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "实时文本翻译快照"
+          ],
+          "fullName": "实时文本翻译快照 保留槽位前后缀，并区分 unchanged、changed 与不完整响应",
+          "status": "passed",
+          "title": "保留槽位前后缀，并区分 unchanged、changed 与不完整响应",
+          "duration": 0.27575100000001385,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 多槽候选整块请求，整段译文只回填首个槽位",
+          "status": "passed",
+          "title": "多槽候选整块请求，整段译文只回填首个槽位",
+          "duration": 3.6605710000000045,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 整块请求没有有效译文时回退逐槽请求",
+          "status": "passed",
+          "title": "整块请求没有有效译文时回退逐槽请求",
+          "duration": 2.320666999999986,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 整块译文与原文一致时按未变化上报，不再逐槽请求",
+          "status": "passed",
+          "title": "整块译文与原文一致时按未变化上报，不再逐槽请求",
+          "duration": 0.6925919999999905,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 含行内代码等无法拍平内容的段落直接逐槽请求，不发整块请求",
+          "status": "passed",
+          "title": "含行内代码等无法拍平内容的段落直接逐槽请求，不发整块请求",
+          "duration": 0.9194129999999916,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 请求槽与渲染骨架不一致时放弃整块请求",
+          "status": "passed",
+          "title": "请求槽与渲染骨架不一致时放弃整块请求",
+          "duration": 0.6570420000000183,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语正文整块翻译"
+          ],
+          "fullName": "双语正文整块翻译 宿主保留换行时整段原文保留文本换行，样式读取失败时按普通空白处理",
+          "status": "passed",
+          "title": "宿主保留换行时整段原文保留文本换行，样式读取失败时按普通空白处理",
+          "duration": 2.0145760000000053,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420438800,
+      "endTime": 1791420438816.0146,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/liveTextTranslation.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 普通截图同高 OCR 行按横坐标从左到右排序，保留独立行与输入顺序",
+          "status": "passed",
+          "title": "普通截图同高 OCR 行按横坐标从左到右排序，保留独立行与输入顺序",
+          "duration": 1.9171960000000041,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 普通截图 Paddle 保留源行供严格段落分组，局部放大结果替换重复检测",
+          "status": "passed",
+          "title": "普通截图 Paddle 保留源行供严格段落分组，局部放大结果替换重复检测",
+          "duration": 0.2514809999999983,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 拒绝无效尺寸和像素预算，定位封闭浅色气泡而非页面背景",
+          "status": "passed",
+          "title": "拒绝无效尺寸和像素预算，定位封闭浅色气泡而非页面背景",
+          "duration": 4.0358520000000055,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 排除四条页面边界、过小、过大、透明和稀疏区域",
+          "status": "passed",
+          "title": "排除四条页面边界、过小、过大、透明和稀疏区域",
+          "duration": 11.229602999999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 像素相邻且只使用四邻域，候选最多二十四个",
+          "status": "passed",
+          "title": "像素相邻且只使用四邻域，候选最多二十四个",
+          "duration": 10.686430999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 局部识别替换整页重复结果，不跨气泡拼句",
+          "status": "passed",
+          "title": "局部识别替换整页重复结果，不跨气泡拼句",
+          "duration": 0.45763100000000634,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 独立气泡中略宽行距的英文保持整句，原始修补框不扩张，整页仍不跨框合并",
+          "status": "passed",
+          "title": "独立气泡中略宽行距的英文保持整句，原始修补框不扩张，整页仍不跨框合并",
+          "duration": 0.6073619999999949,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "漫画局部气泡识别边界"
+          ],
+          "fullName": "漫画局部气泡识别边界 对白较多时只保留外部完整旁白，空气泡和拟声碎片不进入翻译",
+          "status": "passed",
+          "title": "对白较多时只保留外部完整旁白，空气泡和拟声碎片不进入翻译",
+          "duration": 0.1584800000000115,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420439026,
+      "endTime": 1791420439055.1584,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/mangaBubbles.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps service and model limit snapshots stable after settings are edited",
+          "status": "passed",
+          "title": "keeps service and model limit snapshots stable after settings are edited",
+          "duration": 1.1777140000000088,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps the scheduler and immutable request identity inside trusted process-local context",
+          "status": "passed",
+          "title": "keeps the scheduler and immutable request identity inside trusted process-local context",
+          "duration": 0.37646100000000615,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot freezes fallback order and official-provider options before asynchronous work",
+          "status": "passed",
+          "title": "freezes fallback order and official-provider options before asynchronous work",
+          "duration": 0.13717099999999505,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot freezes the selected DeepL API plan and normalizes missing legacy values",
+          "status": "passed",
+          "title": "freezes the selected DeepL API plan and normalizes missing legacy values",
+          "duration": 0.1424299999999903,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot matches pure source slots without protocol boundaries and leaves malformed or literal markers intact",
+          "status": "passed",
+          "title": "matches pure source slots without protocol boundaries and leaves malformed or literal markers intact",
+          "duration": 0.48435100000000375,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays",
+          "status": "passed",
+          "title": "deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays",
+          "duration": 1.8729449999999872,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot clones and freezes every provider-visible nested map and credential",
+          "status": "passed",
+          "title": "clones and freezes every provider-visible nested map and credential",
+          "duration": 0.6787820000000124,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot uses safe credential defaults and resolves attached context without trusting message JSON",
+          "status": "passed",
+          "title": "uses safe credential defaults and resolves attached context without trusting message JSON",
+          "duration": 0.24839099999999803,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps abort ownership process-local and out of runtime JSON",
+          "status": "passed",
+          "title": "keeps abort ownership process-local and out of runtime JSON",
+          "duration": 0.4858609999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps route observers process-local and isolates observer failures",
+          "status": "passed",
+          "title": "keeps route observers process-local and isolates observer failures",
+          "duration": 0.8267829999999776,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot keeps model usage observers process-local and isolates observer failures",
+          "status": "passed",
+          "title": "keeps model usage observers process-local and isolates observer failures",
+          "duration": 0.24481000000000108,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "translation provider request config snapshot"
+          ],
+          "fullName": "translation provider request config snapshot reports only safe transport failure metadata and classifies aborted attempts",
+          "status": "passed",
+          "title": "reports only safe transport failure metadata and classifies aborted attempts",
+          "duration": 0.5641219999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (data:image/png;base64,AAAA)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (data:image/png;base64,AAAA)",
+          "duration": 0.07526099999998337,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (1)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (1)",
+          "duration": 0.02594999999999459,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (true)",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (true)",
+          "duration": 0.021639999999990778,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "primitive image payloads never acquire trusted process-local image context (Symbol(untrusted payload))",
+          "status": "passed",
+          "title": "primitive image payloads never acquire trusted process-local image context (Symbol(untrusted payload))",
+          "duration": 0.01900999999998021,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420438617,
+      "endTime": 1791420438625.0752,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/requestConfigSnapshot.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 accepts exact glossary-only recovery after a padded untranslated response",
+          "status": "passed",
+          "title": "accepts exact glossary-only recovery after a padded untranslated response",
+          "duration": 12.587748000000005,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "status": "passed",
+          "title": "只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发",
+          "duration": 2.1050260000000094,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "status": "passed",
+          "title": "机器翻译通过同一保护链：保留重复术语、批量条目和原始语言检测样本",
+          "duration": 2.3974269999999933,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "status": "passed",
+          "title": "服务损坏或重复标记时不显示或缓存残缺译文，重新翻译能恢复",
+          "duration": 1.3628840000000082,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "status": "passed",
+          "title": "批量结果不能把另一个片段的标记串入本条或返回错误形状",
+          "duration": 2.9455090000000155,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "status": "passed",
+          "title": "未命中片段不能混入相邻片段的标记，原片段即使保留标记也拒绝整包",
+          "duration": 0.7814419999999984,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 同一原词的大小写规则改变后不复用旧缓存",
+          "status": "passed",
+          "title": "同一原词的大小写规则改变后不复用旧缓存",
+          "duration": 1.161923999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "status": "passed",
+          "title": "用户指定整句保留原文不会被回显校验拒绝，缓存仍可复用",
+          "duration": 1.689185000000009,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "status": "passed",
+          "title": "缺失词库或当前片段无实际词条时不能豁免回显检查",
+          "duration": 0.22643999999999664,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "status": "passed",
+          "title": "网站范围只采用内部真实来源，原文上下文和同名payload不能冒充网站",
+          "duration": 1.1272739999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 显式空选择和关闭总开关不干预原来的翻译结果",
+          "status": "passed",
+          "title": "显式空选择和关闭总开关不干预原来的翻译结果",
+          "duration": 0.6501320000000135,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 文档和视频继承各自默认选择，显式空数组仍关闭",
+          "status": "passed",
+          "title": "文档和视频继承各自默认选择，显式空数组仍关闭",
+          "duration": 1.4213640000000112,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "status": "passed",
+          "title": "编辑命中词后隔离缓存；编辑未命中词仍可复用相同译文",
+          "duration": 1.0476130000000126,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "status": "passed",
+          "title": "慢缓存读取期间编辑配置不会改变旧请求词对，且并发新版本不会复用旧pending",
+          "duration": 0.9536329999999964,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "status": "passed",
+          "title": "长任务携带的旧revision报不可重试错误，新任务使用新词库正常完成",
+          "duration": 0.9135830000000169,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "status": "passed",
+          "title": "批量provider逐条发上游时不会把另一个片段才命中的词一起发送",
+          "duration": 0.9287029999999845,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "status": "passed",
+          "title": "AI多段真实broker协议保留首尾英文术语，哨兵本身不作为词条外发",
+          "duration": 2.014524999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "status": "passed",
+          "title": "入口已经序列化的文本槽仍以纯原文建立术语缓存身份和Qwen原生terms",
+          "duration": 1.0348439999999925,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 页面摘要不加术语，正文仍获得原文命中的约束",
+          "status": "passed",
+          "title": "页面摘要不加术语，正文仍获得原文命中的约束",
+          "duration": 1.3038430000000005,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "status": "passed",
+          "title": "上下文泄漏后的无上下文恢复仍保留原请求冻结术语，不吸收中途编辑",
+          "duration": 1.197654,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语库与真实翻译编排协作"
+          ],
+          "fullName": "术语库与真实翻译编排协作 Qwen-MT模型同样经过broker的命中和版本检查",
+          "status": "passed",
+          "title": "Qwen-MT模型同样经过broker的命中和版本检查",
+          "duration": 0.7901220000000251,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "status": "passed",
+          "title": "高级请求体保留普通字段的覆盖语义，Qwen-MT 的 translation_options 保留未覆盖字段",
+          "duration": 0.2973910000000046,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "status": "passed",
+          "title": "Qwen-MT 自定义 terms 不覆盖自动生成的语言参数，并优先于词库术语",
+          "duration": 0.18218000000001666,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "status": "passed",
+          "title": "机器翻译、提示词AI和专用翻译模型共用保护，未知服务不启用",
+          "duration": 0.13840100000001598,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "status": "passed",
+          "title": "全部通用AI模板附加同一JSON术语约束，控制字符和标签不会成为结构",
+          "duration": 0.7898220000000151,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "术语模板与服务协议"
+          ],
+          "fullName": "术语模板与服务协议 Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "status": "passed",
+          "title": "Qwen-MT使用官方translation_options.terms且原始message不混入提示词",
+          "duration": 0.21691099999998187,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791420437533,
+      "endTime": 1791420437573.7898,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/tests/translationGlossaryIntegration.test.ts"
+    }
+  ]
+}

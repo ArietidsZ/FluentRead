@@ -1,0 +1,23 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/documentTranslationEdge.test.ts > bilingual formatting rechecks a source invalidated while reading reviewed raw text
+AssertionError: expected '  Source text  \nReviewed text\r\n' to be '  Source text  \r\n' // Object.is equality
+
+- Expected
++ Received
+
+-   Source text  
++   Source text  
++ Reviewed text
+
+
+ ❯ tests/documentTranslationEdge.test.ts:173:70
+    171|     // A raw-source accessor commits a reviewed source after the outer…
+    172|     Object.defineProperty(part, 'rawSource', {get() {reads += 1; part.…
+    173|     expect(renderDocument(document, ['Reviewed text'], 'bilingual')).t…
+       |                                                                      ^
+    174|     expect(reads).toBe(1);
+    175|     expect(part.source).toBe('Reviewed text');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

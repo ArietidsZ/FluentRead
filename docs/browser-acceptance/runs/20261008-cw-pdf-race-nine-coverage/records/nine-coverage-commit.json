@@ -1,0 +1,18 @@
+{
+  "base": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "commit": "0af5c7c594dabc0dc201bf42c02e6e4638f125ae",
+  "branch": "test/nine-module-coverage-20261008",
+  "files": [
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/backgroundProviderRuntime.test.ts",
+    "tests/config.test.ts",
+    "tests/documentTranslationBinary.test.ts",
+    "tests/documentTranslationEdge.test.ts",
+    "tests/liveTextTranslation.test.ts",
+    "tests/mangaBubbles.test.ts",
+    "tests/requestConfigSnapshot.test.ts",
+    "tests/translationGlossaryIntegration.test.ts"
+  ],
+  "production_changes": false,
+  "previous_unpublished_commit": "4fdffe7a2a90fc6e3b0b03668afb73abdbe267f1"
+}

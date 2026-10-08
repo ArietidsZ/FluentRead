@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/requestConfigSnapshot.test.ts tests/translationVisionPayload.test.ts tests/translationGlossaryIntegration.test.ts --config vitest.coverage.config.ts --coverage --coverage.include=src/services/translation/requestSnapshot.ts --coverage.reportsDirectory=../pdf-race-nine-coverage-20261008/request-snapshot-final-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --reporter=default --reporter=json --outputFile=../pdf-race-nine-coverage-20261008/request-snapshot-coverage-final.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-pdf-race-nine-integration
+      Coverage enabled with v8
+
+ ✓ tests/translationGlossaryIntegration.test.ts (26 tests) 52ms
+ ✓ tests/requestConfigSnapshot.test.ts (17 tests) 9ms
+ ✓ tests/translationVisionPayload.test.ts (5 tests) 4ms
+
+ Test Files  3 passed (3)
+      Tests  48 passed (48)
+   Start at  08:54:54
+   Duration  1.09s (transform 355ms, setup 0ms, collect 606ms, tests 65ms, environment 0ms, prepare 83ms)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/request-snapshot-coverage-final.results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   98.14 |    98.57 |   96.29 |   98.14 |                   
+ ...estSnapshot.ts |   98.14 |    98.57 |   96.29 |   98.14 | 263-267           
+-------------------|---------|----------|---------|---------|-------------------

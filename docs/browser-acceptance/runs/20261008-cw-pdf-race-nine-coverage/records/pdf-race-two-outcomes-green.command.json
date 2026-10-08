@@ -1,0 +1,19 @@
+{
+  "label": "pdf-race-two-outcomes-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentTranslationBinary.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=../pdf-race-nine-coverage-20261008/pdf-race-two-outcomes-green.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-pdf-export-source-snapshot",
+  "started_at": "2026-10-08T00:15:02.182945+00:00",
+  "duration_seconds": 1.083,
+  "exit_code": 0
+}

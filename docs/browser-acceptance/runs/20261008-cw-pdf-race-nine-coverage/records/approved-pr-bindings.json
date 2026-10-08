@@ -1,0 +1,31 @@
+[
+  {
+    "name": "wxt",
+    "approved_branch": "codex/wxt-worker-metadata-20261007",
+    "approved_commit": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+    "baseline": "5420bbc819264a7415d8a7d213dff569191356b6",
+    "upstream_now": "83deca40091415666fc8fe5a45579b6b80487dcb",
+    "exact_patch_applies_to_upstream": true,
+    "changed_upstream_paths_among_existing_patch_files": [],
+    "files": [
+      "entrypoints/localTtsWorker.ts",
+      "tests/extensionManifestContract.test.ts"
+    ],
+    "patch_sha256": "5ce9316fa2b78f5d729d3926716569a8d7742aa6da987a5bb01334e30c5eb43e"
+  },
+  {
+    "name": "popup",
+    "approved_branch": "codex/popup-effective-model-unverified-20261007",
+    "approved_commit": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+    "baseline": "5420bbc819264a7415d8a7d213dff569191356b6",
+    "upstream_now": "83deca40091415666fc8fe5a45579b6b80487dcb",
+    "exact_patch_applies_to_upstream": true,
+    "changed_upstream_paths_among_existing_patch_files": [],
+    "files": [
+      "src/app/popup/PopupServices.vue",
+      "tests/popupServiceModelClarity.test.ts",
+      "tests/test-matrix.json"
+    ],
+    "patch_sha256": "029c7827e105008d8f75c4e728c1175a8af20a9c03f729d9cd64ad9b574a7db9"
+  }
+]

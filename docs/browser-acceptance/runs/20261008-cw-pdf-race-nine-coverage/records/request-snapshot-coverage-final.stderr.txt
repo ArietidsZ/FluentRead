@@ -1,0 +1,17 @@
+stderr | tests/translationVisionPayload.test.ts
+[FluentRead] 配置读取或安全迁移失败，保留已读取的公开配置 Error: 配置存储运行时不可用
+    at Object.getItem ([CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/src/platform/storage/configStorageRuntime.ts:36:29)
+    at initializeConfig ([CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/src/services/config/store.ts:595:41)
+    at [CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/src/services/config/store.ts:750:28
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at VitestExecutor.runModule (file://[CW_DEPENDENCIES]/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+    at VitestExecutor.directRequest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:381:5)
+    at VitestExecutor.cachedRequest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:206:14)
+    at VitestExecutor.dependencyRequest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:259:12)
+    at [CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/src/services/translation/templates.ts:5:31
+    at VitestExecutor.runModule (file://[CW_DEPENDENCIES]/node_modules/.pnpm/vite-node@2.1.9_@types+node@22.10.7/node_modules/vite-node/dist/client.mjs:399:5)
+
+ERROR: Coverage for lines (98.14%) does not meet global threshold (100%)
+ERROR: Coverage for functions (96.29%) does not meet global threshold (100%)
+ERROR: Coverage for statements (98.14%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.57%) does not meet global threshold (100%)

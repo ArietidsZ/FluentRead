@@ -1,0 +1,30 @@
+{
+  "base": "c7e14e63877985e240ba16c8262cb2227243d177",
+  "head": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "gates": [
+    {
+      "path": "vitest.coverage.config.ts",
+      "baseline_blob": "d8fb478ae2f2a17dbe0db2991f752dff8388b377",
+      "final_blob": "d8fb478ae2f2a17dbe0db2991f752dff8388b377",
+      "unchanged": true
+    },
+    {
+      "path": "tests/test-matrix.json",
+      "baseline_blob": "bfd437cf223c8057cf506f3ae1ca8d63058fd2cc",
+      "final_blob": "bfd437cf223c8057cf506f3ae1ca8d63058fd2cc",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/testing/audit-test-suite.mjs",
+      "baseline_blob": "d46d5021f3f08cc214e6e5380e1c03a400552806",
+      "final_blob": "d46d5021f3f08cc214e6e5380e1c03a400552806",
+      "unchanged": true
+    },
+    {
+      "path": "scripts/testing/run-resource-safe.mjs",
+      "baseline_blob": "5037ce7d222b7ef93d604b57b39181efcc3ad196",
+      "final_blob": "5037ce7d222b7ef93d604b57b39181efcc3ad196",
+      "unchanged": true
+    }
+  ]
+}

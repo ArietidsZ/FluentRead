@@ -1,0 +1,13 @@
+{
+  "label": "integration-diff-check",
+  "command": [
+    "git",
+    "diff",
+    "--check",
+    "c7e14e63877985e240ba16c8262cb2227243d177..HEAD"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration",
+  "started_at": "2026-10-08T00:47:18.482910+00:00",
+  "duration_seconds": 0.004,
+  "exit_code": 0
+}

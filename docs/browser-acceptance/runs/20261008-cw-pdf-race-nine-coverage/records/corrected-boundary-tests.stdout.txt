@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundProviderRuntime.test.ts tests/documentTranslationBinary.test.ts tests/translationGlossaryIntegration.test.ts -t wires real provider|lost source metadata|glossary-only recovery --reporter=default --reporter=json --outputFile=../pdf-race-nine-coverage-20261008/corrected-boundary-tests.results.json
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-nine-module-coverage
+
+ ❯ tests/translationGlossaryIntegration.test.ts (26 tests | 1 failed | 25 skipped) 11ms
+   × 术语库与真实翻译编排协作 > accepts a glossary-only recovery after the first restored result has the wrong target language 11ms
+     → expected 'This English response still needs a C…' to be 'RetainedName' // Object.is equality
+stdout | tests/documentTranslationBinary.test.ts > a PDF with lost source metadata preserves the real original page and reports completed progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+stdout | tests/documentTranslationBinary.test.ts > a PDF with lost source metadata preserves the real original page and reports completed progress
+Warning: UnknownErrorException: Ensure that the `standardFontDataUrl` API parameter is provided.
+
+ ✓ tests/documentTranslationBinary.test.ts (24 tests | 23 skipped) 175ms
+ ✓ tests/backgroundProviderRuntime.test.ts (3 tests | 2 skipped) 4ms
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 2 passed | 50 skipped (53)
+   Start at  08:44:13
+   Duration  1.00s (transform 350ms, setup 0ms, collect 545ms, tests 190ms, environment 0ms, prepare 64ms)
+
+JSON report written to [CW_WORKSPACE]/pdf-race-nine-coverage-20261008/corrected-boundary-tests.results.json

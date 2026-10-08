@@ -1,0 +1,60 @@
+{
+  "total": {
+    "lines": {
+      "total": 270,
+      "covered": 265,
+      "skipped": 0,
+      "pct": 98.14
+    },
+    "statements": {
+      "total": 270,
+      "covered": 265,
+      "skipped": 0,
+      "pct": 98.14
+    },
+    "functions": {
+      "total": 27,
+      "covered": 26,
+      "skipped": 0,
+      "pct": 96.29
+    },
+    "branches": {
+      "total": 140,
+      "covered": 138,
+      "skipped": 0,
+      "pct": 98.57
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": "Unknown"
+    }
+  },
+  "[CW_WORKSPACE]/FluentRead-pdf-race-nine-integration/src/services/translation/requestSnapshot.ts": {
+    "lines": {
+      "total": 270,
+      "covered": 265,
+      "skipped": 0,
+      "pct": 98.14
+    },
+    "functions": {
+      "total": 27,
+      "covered": 26,
+      "skipped": 0,
+      "pct": 96.29
+    },
+    "statements": {
+      "total": 270,
+      "covered": 265,
+      "skipped": 0,
+      "pct": 98.14
+    },
+    "branches": {
+      "total": 140,
+      "covered": 138,
+      "skipped": 0,
+      "pct": 98.57
+    }
+  }
+}
