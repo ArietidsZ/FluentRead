@@ -3,7 +3,7 @@ import {FREE_TRANSLATION_PROVIDERS} from '@/src/core/config/freeTranslation';
 import {calculateFreeTranslationWeightSnapshot} from '@/src/services/translation/freeWeights';
 
 type FreeProviderId = typeof FREE_TRANSLATION_PROVIDERS[number]['id'];
-const enabledProviderIds: FreeProviderId[] = FREE_TRANSLATION_PROVIDERS.slice(0, 8).map(provider => provider.id);
+const enabledProviderIds: FreeProviderId[] = ['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory'];
 const enabledProviderSet = new Set<string>(enabledProviderIds);
 const entry = (providerId: string, snapshot: ReturnType<typeof calculateFreeTranslationWeightSnapshot>) => {
     const result = snapshot.entries.find(item => item.providerId === providerId);
