@@ -1,0 +1,195 @@
+{
+  "ports": [
+    {
+      "id": "content-peer-1",
+      "createdAt": 1791462392177,
+      "name": "fluentReadImageDocument:v1",
+      "disconnected": false
+    }
+  ],
+  "events": [
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462392177,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-1",
+        "message": {
+          "type": "fluentReadAreaCapture",
+          "requestId": "image-fa4f9061-387e-4a17-af1e-a7dacaa0464f",
+          "timeoutMs": 180000
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392178,
+      "packet": {
+        "kind": "ready",
+        "version": 1
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392202,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-1",
+        "response": {
+          "success": true,
+          "imageDataUrlLength": 30162,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462392203,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-2",
+        "message": {
+          "type": "fluentReadAreaTranslateCapture",
+          "selection": {
+            "left": 60,
+            "top": 55,
+            "width": 550,
+            "height": 90,
+            "viewportWidth": 1040,
+            "viewportHeight": 819
+          },
+          "sourceLanguage": "auto",
+          "title": "FluentRead isolated production UI fixture",
+          "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+          "timeoutMs": 180000,
+          "imageDataUrlLength": 30162,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392210,
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+          "stage": "recognizing"
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392210,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-2",
+        "response": {
+          "success": false,
+          "error": "图片文字识别需要先下载简体中文、繁體中文、English、日本語语言包，请前往设置 > 图片翻译下载",
+          "errorName": "Error"
+        }
+      }
+    },
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462394561,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-3",
+        "message": {
+          "type": "fluentReadImageFetch",
+          "url": "https://fluentread-fixture.example.com/source-a.png",
+          "requestId": "image-source-bfc0e15a-5074-45cd-b73a-c1b8660258d1",
+          "timeoutMs": 14985
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462394562,
+      "packet": {
+        "kind": "sourceChallenge",
+        "rpcId": "source-1",
+        "message": {
+          "type": "fluentReadImageValidateSource",
+          "requestId": "image-source-bfc0e15a-5074-45cd-b73a-c1b8660258d1",
+          "url": "https://fluentread-fixture.example.com/source-a.png",
+          "documentUrl": "http://127.0.0.1:45569/"
+        }
+      }
+    },
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462394562,
+      "packet": {
+        "kind": "sourceReply",
+        "rpcId": "source-1",
+        "response": {
+          "valid": true
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462394564,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-3",
+        "response": {
+          "success": true,
+          "imageDataUrlLength": 1370,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462394565,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-4",
+        "message": {
+          "type": "fluentReadImageTranslate",
+          "sourceLanguage": "auto",
+          "title": "FluentRead isolated production UI fixture",
+          "requestId": "image-cead5c28-562c-4373-a723-e664e3e09dfc",
+          "timeoutMs": 180000,
+          "imageDataUrlLength": 1370,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462394565,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-4",
+        "response": {
+          "success": false,
+          "error": "图片文字识别需要先下载简体中文、繁體中文、English、日本語语言包，请前往设置 > 图片翻译下载",
+          "errorName": "Error"
+        }
+      }
+    }
+  ],
+  "faultCount": 0
+}

@@ -1,0 +1,41 @@
+{
+  "before": [],
+  "after": [],
+  "worker": {
+    "events": [
+      {
+        "kind": "incoming",
+        "peer": "worker-peer-1",
+        "at": 1791462392178,
+        "rpcId": "request-1",
+        "packetKind": "request",
+        "messageType": "fluentReadAreaCapture",
+        "requestId": "image-fa4f9061-387e-4a17-af1e-a7dacaa0464f",
+        "timeoutMs": 180000
+      },
+      {
+        "kind": "incoming",
+        "peer": "worker-peer-1",
+        "at": 1791462392203,
+        "rpcId": "request-2",
+        "packetKind": "request",
+        "messageType": "fluentReadAreaTranslateCapture",
+        "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+        "timeoutMs": 180000
+      }
+    ],
+    "peers": [
+      {
+        "id": "worker-peer-1",
+        "at": 1791462392178,
+        "sender": {
+          "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+          "url": "http://127.0.0.1:45569/",
+          "documentId": "5974D57F0518D0F29774329C7D79856F",
+          "frameId": 0,
+          "tabId": 1261629423
+        }
+      }
+    ]
+  }
+}

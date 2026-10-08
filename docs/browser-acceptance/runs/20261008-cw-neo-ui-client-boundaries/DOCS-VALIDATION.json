@@ -1,0 +1,30 @@
+{
+  "docs_build": {
+    "label": "docs-ui-boundaries-final",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-neo-isolated-port-evidence-20261008",
+    "started_at": "2026-10-08T12:40:36.620770+00:00",
+    "duration_seconds": 3.032,
+    "exit_code": 0
+  },
+  "driver_syntax_checks": "passed for actual helper and latest UI driver",
+  "validation_scope": "docs build validates final README; subsequently added JSON/log records verified by SHA256 and JSON parsing separately; application not rebuilt",
+  "fresh_docs_only_checkout_warning": ".wxt/tsconfig.json absent; build succeeds",
+  "hash_scope": "all files in this evidence directory except EVIDENCE-SHA256.json itself, includes publication records and metadata; Git tree binds manifest",
+  "initial_payload": {
+    "files": 82,
+    "hashed_files_with_metadata": 87,
+    "json_files_in_initial_hashed_set": 57
+  },
+  "final_payload_files": 88,
+  "final_hashed_entries": 94,
+  "final_json_files_in_hashed_set": 60
+}

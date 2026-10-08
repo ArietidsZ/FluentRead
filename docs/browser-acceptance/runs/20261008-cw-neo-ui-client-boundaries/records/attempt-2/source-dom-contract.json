@@ -1,0 +1,16 @@
+[
+  {
+    "id": "source-a",
+    "currentSrc": "https://fluentread-fixture.example.com/source-a.png",
+    "crossorigin": null,
+    "naturalWidth": 400,
+    "naturalHeight": 180
+  },
+  {
+    "id": "source-b",
+    "currentSrc": "https://fluentread-fixture.example.com/source-b.png",
+    "crossorigin": null,
+    "naturalWidth": 400,
+    "naturalHeight": 180
+  }
+]

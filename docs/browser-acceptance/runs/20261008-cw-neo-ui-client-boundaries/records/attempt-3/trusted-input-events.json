@@ -1,0 +1,14 @@
+[
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 500,
+    "y": 402
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 500,
+    "y": 402
+  }
+]

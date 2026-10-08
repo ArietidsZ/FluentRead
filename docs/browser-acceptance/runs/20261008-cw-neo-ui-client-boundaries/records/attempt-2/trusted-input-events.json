@@ -1,0 +1,60 @@
+[
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "keydown",
+    "isTrusted": true,
+    "key": "Z"
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 60,
+    "y": 55
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 610,
+    "y": 145
+  },
+  {
+    "type": "keydown",
+    "isTrusted": true,
+    "key": "Escape"
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 65,
+    "y": 402
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 65,
+    "y": 402
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 500,
+    "y": 402
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 500,
+    "y": 402
+  }
+]

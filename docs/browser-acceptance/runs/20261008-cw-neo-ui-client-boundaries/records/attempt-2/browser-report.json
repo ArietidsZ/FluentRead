@@ -1,0 +1,163 @@
+{
+  "status": "failed",
+  "applicationCommit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "scope": "production UI and production native document client; observation-only source challenge; one explicit real peer disconnect fault; synthetic HTTP only",
+  "cases": [
+    {
+      "name": "cold production area UI with trusted Shift+Z and drag",
+      "status": "partial-blocked",
+      "durationMs": 269,
+      "trustedUiTriggered": true,
+      "realProductionAreaCapture": true,
+      "preparationError": "图片文字识别需要先下载简体中文、繁體中文、English、日本語语言包，请前往设置 > 图片翻译下载",
+      "offscreenPresentBefore": false,
+      "offscreenCreatedByArea": false,
+      "offscreenFirstCreationBlockedReason": "production OCR language preflight fails before any offscreen call; no pack download or bypass performed",
+      "captureBytes": 22603,
+      "captureSha256": "241bf6f3239e9887f6fc969554ca80b19d29f9a1fc9e0afb62d21d73a95ebcb8"
+    },
+    {
+      "name": "production image button authorizes a tainted no-ACAO cross-origin image",
+      "status": "passed",
+      "durationMs": 753,
+      "productionImageButton": true,
+      "driverSourceReplies": 0,
+      "sourceAuthorizationReplyValid": true,
+      "samePeerChallenge": true,
+      "actualOffscreenFetch": true,
+      "noACAO": true,
+      "noCrossoriginAttribute": true,
+      "endpoint": "production missing-pack preparation error; translation not completed"
+    },
+    {
+      "name": "real translateImageInExtension reconnects once after an explicit captured peer disconnect",
+      "status": "failed",
+      "durationMs": 20722,
+      "error": "Timed out: reconnected production translation preparation error",
+      "stack": "Error: Timed out: reconnected production translation preparation error\n    at until (file:///home/arietids/Documents/Codex/2026-10-06/task/neo-ui-client-boundaries-20261008/execution/neo-owned-session.mjs:18:11)\n    at async file:///home/arietids/Documents/Codex/2026-10-06/task/neo-ui-client-boundaries-20261008/execution/run-neo-ui-boundaries.mjs:179:21\n    at async caseRun (file:///home/arietids/Documents/Codex/2026-10-06/task/neo-ui-client-boundaries-20261008/execution/run-neo-ui-boundaries.mjs:106:83)\n    at async file:///home/arietids/Documents/Codex/2026-10-06/task/neo-ui-client-boundaries-20261008/execution/run-neo-ui-boundaries.mjs:177:5"
+    }
+  ],
+  "http": [
+    {
+      "path": "/",
+      "method": "GET"
+    },
+    {
+      "path": "/favicon.ico",
+      "method": "GET"
+    }
+  ],
+  "network": [
+    {
+      "at": 1791462391811,
+      "kind": "fixture-page",
+      "url": "http://127.0.0.1:45569/",
+      "method": "GET",
+      "resourceType": "Document",
+      "networkId": "5E644813EF2A97A38738AB40C5A9ECA5"
+    },
+    {
+      "at": 1791462391824,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-a.png",
+      "method": "GET",
+      "resourceType": "Image",
+      "networkId": "2832666.2",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462391825,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "Image",
+      "networkId": "2832666.3",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462391993,
+      "kind": "fixture-page",
+      "url": "http://127.0.0.1:45569/favicon.ico",
+      "method": "GET",
+      "resourceType": "Other",
+      "networkId": "2832666.6"
+    },
+    {
+      "at": 1791462394547,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-a.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2832666.9",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462394563,
+      "kind": "offscreen",
+      "url": "https://fluentread-fixture.example.com/source-a.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2832740.91",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462395303,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2832666.10",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462395312,
+      "kind": "offscreen",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2832740.92",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    }
+  ],
+  "faultInjection": "one content-side real image document peer disconnect after production translate start is posted",
+  "notTested": [
+    "complete translation",
+    "OCR/model execution",
+    "real provider API",
+    "new cancellation source",
+    "Firefox without documentId",
+    "RTX5090 WebGPU",
+    "daily desktop Cua/Wayland input"
+  ],
+  "fixtureListenerClosed": true
+}

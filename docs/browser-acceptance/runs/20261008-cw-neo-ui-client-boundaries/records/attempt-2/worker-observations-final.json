@@ -1,0 +1,111 @@
+{
+  "events": [
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462392178,
+      "rpcId": "request-1",
+      "packetKind": "request",
+      "messageType": "fluentReadAreaCapture",
+      "requestId": "image-fa4f9061-387e-4a17-af1e-a7dacaa0464f",
+      "timeoutMs": 180000
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462392203,
+      "rpcId": "request-2",
+      "packetKind": "request",
+      "messageType": "fluentReadAreaTranslateCapture",
+      "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+      "timeoutMs": 180000
+    },
+    {
+      "kind": "production-createDocument",
+      "at": 1791462392497,
+      "options": {
+        "url": "offscreen.html",
+        "reasons": [
+          "DOM_SCRAPING",
+          "AUDIO_PLAYBACK",
+          "WORKERS"
+        ],
+        "justification": "FluentRead needs an extension-owned DOM for Translation API, OCR, local video transcription workers, and CSP-independent TTS playback"
+      }
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462394561,
+      "rpcId": "request-3",
+      "packetKind": "request",
+      "messageType": "fluentReadImageFetch",
+      "requestId": "image-source-bfc0e15a-5074-45cd-b73a-c1b8660258d1",
+      "timeoutMs": 14985
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462394562,
+      "rpcId": "source-1",
+      "packetKind": "sourceReply",
+      "sourceReplyValid": true
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462394565,
+      "rpcId": "request-4",
+      "packetKind": "request",
+      "messageType": "fluentReadImageTranslate",
+      "requestId": "image-cead5c28-562c-4373-a723-e664e3e09dfc",
+      "timeoutMs": 180000
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462395311,
+      "rpcId": "request-5",
+      "packetKind": "request",
+      "messageType": "fluentReadImageFetch",
+      "requestId": "image-source-035ea63b-e0c9-4689-b1a4-1c014a018e36",
+      "timeoutMs": 14992
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462395311,
+      "rpcId": "source-2",
+      "packetKind": "sourceReply",
+      "sourceReplyValid": true
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462395313,
+      "rpcId": "request-6",
+      "packetKind": "request",
+      "messageType": "fluentReadImageTranslate",
+      "requestId": "image-a2aa4e1e-0bc2-47a0-a3e3-4de9e537e456",
+      "timeoutMs": 180000
+    },
+    {
+      "kind": "disconnect",
+      "peer": "worker-peer-1",
+      "at": 1791462395314
+    }
+  ],
+  "peers": [
+    {
+      "id": "worker-peer-1",
+      "at": 1791462392178,
+      "sender": {
+        "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+        "url": "http://127.0.0.1:45569/",
+        "documentId": "5974D57F0518D0F29774329C7D79856F",
+        "frameId": 0,
+        "tabId": 1261629423
+      }
+    }
+  ]
+}

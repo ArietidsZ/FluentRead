@@ -1,0 +1,32 @@
+[
+  {
+    "targetId": "127A90A59E6A59EB55944C8DAC494947",
+    "type": "service_worker",
+    "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js"
+  },
+  {
+    "targetId": "1E8843A2614210A9F2F42A604E00319D",
+    "type": "service_worker",
+    "url": "chrome-extension://adlpneommgkgeanpaekgoaolcpncohkf/background.js"
+  },
+  {
+    "targetId": "6DA41CA05F6FA14CDDCFCC15B909CDA7",
+    "type": "service_worker",
+    "url": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc/background.js"
+  },
+  {
+    "targetId": "E95F863F57CB06450387D1D6832928D5",
+    "type": "page",
+    "url": "about:blank"
+  },
+  {
+    "targetId": "A5FC9D43163F20010904079AFABBF39C",
+    "type": "browser_ui",
+    "url": "chrome://omnibox-popup.top-chrome/omnibox_popup_aim.html"
+  },
+  {
+    "targetId": "873745C3C9C4310F829D10978B8AF530",
+    "type": "browser_ui",
+    "url": "chrome://omnibox-popup.top-chrome/"
+  }
+]

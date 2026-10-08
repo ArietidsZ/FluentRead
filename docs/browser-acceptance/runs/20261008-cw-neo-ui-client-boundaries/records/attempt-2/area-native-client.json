@@ -1,0 +1,105 @@
+{
+  "ports": [
+    {
+      "id": "content-peer-1",
+      "createdAt": 1791462392177,
+      "name": "fluentReadImageDocument:v1",
+      "disconnected": false
+    }
+  ],
+  "events": [
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462392177,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-1",
+        "message": {
+          "type": "fluentReadAreaCapture",
+          "requestId": "image-fa4f9061-387e-4a17-af1e-a7dacaa0464f",
+          "timeoutMs": 180000
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392178,
+      "packet": {
+        "kind": "ready",
+        "version": 1
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392202,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-1",
+        "response": {
+          "success": true,
+          "imageDataUrlLength": 30162,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "out",
+      "peer": "content-peer-1",
+      "at": 1791462392203,
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-2",
+        "message": {
+          "type": "fluentReadAreaTranslateCapture",
+          "selection": {
+            "left": 60,
+            "top": 55,
+            "width": 550,
+            "height": 90,
+            "viewportWidth": 1040,
+            "viewportHeight": 819
+          },
+          "sourceLanguage": "auto",
+          "title": "FluentRead isolated production UI fixture",
+          "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+          "timeoutMs": 180000,
+          "imageDataUrlLength": 30162,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392210,
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-2a345eec-76d2-446c-a4ee-5c5595a3a8f1",
+          "stage": "recognizing"
+        }
+      }
+    },
+    {
+      "direction": "in",
+      "peer": "content-peer-1",
+      "at": 1791462392210,
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-2",
+        "response": {
+          "success": false,
+          "error": "图片文字识别需要先下载简体中文、繁體中文、English、日本語语言包，请前往设置 > 图片翻译下载",
+          "errorName": "Error"
+        }
+      }
+    }
+  ],
+  "faultCount": 0
+}

@@ -1,0 +1,83 @@
+{
+  "status": "two boundaries passed; area cold offscreen creation remains blocked by production language preflight",
+  "application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "application_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "accepted_cases": [
+    {
+      "record": "records/attempt-2/browser-report.json",
+      "index": 0,
+      "name": "cold production area UI with trusted Shift+Z and drag",
+      "status": "partial-blocked",
+      "durationMs": 269,
+      "trustedUiTriggered": true,
+      "realProductionAreaCapture": true,
+      "preparationError": "图片文字识别需要先下载简体中文、繁體中文、English、日本語语言包，请前往设置 > 图片翻译下载",
+      "offscreenPresentBefore": false,
+      "offscreenCreatedByArea": false,
+      "offscreenFirstCreationBlockedReason": "production OCR language preflight fails before any offscreen call; no pack download or bypass performed",
+      "captureBytes": 22603,
+      "captureSha256": "241bf6f3239e9887f6fc969554ca80b19d29f9a1fc9e0afb62d21d73a95ebcb8"
+    },
+    {
+      "record": "records/attempt-2/browser-report.json",
+      "index": 1,
+      "name": "production image button authorizes a tainted no-ACAO cross-origin image",
+      "status": "passed",
+      "durationMs": 753,
+      "productionImageButton": true,
+      "driverSourceReplies": 0,
+      "sourceAuthorizationReplyValid": true,
+      "samePeerChallenge": true,
+      "actualOffscreenFetch": true,
+      "noACAO": true,
+      "noCrossoriginAttribute": true,
+      "endpoint": "production missing-pack preparation error; translation not completed"
+    },
+    {
+      "record": "records/attempt-3/browser-report.json",
+      "index": 0,
+      "name": "real translateImageInExtension reconnects once after an explicit captured peer disconnect",
+      "status": "passed",
+      "durationMs": 785,
+      "explicitFaults": 1,
+      "translationStarts": 2,
+      "reconnects": 1,
+      "oldPeer": "content-peer-1",
+      "newPeer": "content-peer-2",
+      "oldRequestId": "image-6e656648-531c-4de8-b82b-fae313d0c31c",
+      "newRequestId": "image-937907a5-1247-4285-85de-7eca7cb75116",
+      "firstRemainingTimeoutMs": 180000,
+      "retryRemainingTimeoutMs": 179999,
+      "fetchImageAutomaticRetries": 0,
+      "endpoint": "production missing-pack preparation error; translation not completed"
+    }
+  ],
+  "runtime": {
+    "node": "v26.7.0",
+    "browserclaw_package": "155.0.8309.26",
+    "official_neo_release": "browserclaw/v0.51.0",
+    "installed_binary_sha256": "0994937730e362e40653610fd40e38d62d4160152b590f90e99971005c2e0881",
+    "approved_deb_sha256": "caebdfd1d105ee4fc69886361cd42a1f7c6bffaba50fd9da6c68c7977aae4d15",
+    "deb_verified_in_previous_install_batch_not_downloaded_here": true,
+    "xvfb_package": "2:21.1.22-1ubuntu1.2",
+    "new_dependency_install": false,
+    "control_mode": "official --disable-browseros-server + --browseros-cdp-port; verified owned loopback only; authenticated Xvfb and independent HOME/XDG/profile/D-Bus"
+  },
+  "artifact_files": 797,
+  "driver_offscreen_creation_calls": 0,
+  "driver_source_challenge_replies": 0,
+  "final_valid_disconnect_faults": 1,
+  "earlier_diagnostic_content_disconnect_faults": 1,
+  "only_reconnect_rerun_after_area_and_authorization_records_saved": true,
+  "complete_translation": false,
+  "real_model_search_api_calls": false,
+  "ocr_or_language_model_downloads": false,
+  "new_cancel_source_tested": false,
+  "remaining": [
+    "area first offscreen creation after language preparation",
+    "complete OCR/translation",
+    "real RTX5090 WebGPU",
+    "native Wayland/Cua desktop path",
+    "GUI of newer cancellation source"
+  ]
+}

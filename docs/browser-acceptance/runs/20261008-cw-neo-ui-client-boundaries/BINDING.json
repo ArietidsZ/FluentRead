@@ -1,0 +1,43 @@
+{
+  "application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "application_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "application_worktree_clean": true,
+  "attempts": {
+    "attempt-1": {
+      "cleanup_passed": true,
+      "remaining_owned_pids": 0,
+      "remaining_owned_listeners": 0,
+      "x_socket_present": false,
+      "fixture_closed": true,
+      "artifacts_797_still_match": 797
+    },
+    "attempt-2": {
+      "cleanup_passed": true,
+      "remaining_owned_pids": 0,
+      "remaining_owned_listeners": 0,
+      "x_socket_present": false,
+      "fixture_closed": true,
+      "daily_rect_snapshot_equal": true,
+      "cua_policy_unchanged": true,
+      "artifacts_797_still_match": 797
+    },
+    "attempt-3": {
+      "cleanup_passed": true,
+      "remaining_owned_pids": 0,
+      "remaining_owned_listeners": 0,
+      "x_socket_present": false,
+      "fixture_closed": true,
+      "daily_rect_snapshot_equal": true,
+      "cua_policy_unchanged": true,
+      "artifacts_797_still_match": 797
+    }
+  },
+  "attempt_statuses": {
+    "attempt-1": "failed",
+    "attempt-2": "failed",
+    "attempt-3": "passed"
+  },
+  "no_original_five_bare_port_scenarios_repeated": true,
+  "remaining_blocker": "area OCR language preflight stops before offscreen; language/model downloads and preflight bypass prohibited",
+  "cancel_source_gui_tested": false
+}

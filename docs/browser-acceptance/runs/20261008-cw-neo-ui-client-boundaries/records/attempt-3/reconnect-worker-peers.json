@@ -1,0 +1,87 @@
+{
+  "events": [
+    {
+      "kind": "production-createDocument",
+      "at": 1791462571584,
+      "options": {
+        "url": "offscreen.html",
+        "reasons": [
+          "DOM_SCRAPING",
+          "AUDIO_PLAYBACK",
+          "WORKERS"
+        ],
+        "justification": "FluentRead needs an extension-owned DOM for Translation API, OCR, local video transcription workers, and CSP-independent TTS playback"
+      }
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462573704,
+      "rpcId": "request-1",
+      "packetKind": "request",
+      "messageType": "fluentReadImageFetch",
+      "requestId": "image-source-9d3ddad4-4764-41d5-93b5-57205bf29d6f",
+      "timeoutMs": 14986
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462573705,
+      "rpcId": "source-1",
+      "packetKind": "sourceReply",
+      "sourceReplyValid": true
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-1",
+      "at": 1791462573712,
+      "rpcId": "request-2",
+      "packetKind": "request",
+      "messageType": "fluentReadImageTranslate",
+      "requestId": "image-6e656648-531c-4de8-b82b-fae313d0c31c",
+      "timeoutMs": 180000
+    },
+    {
+      "kind": "explicit-real-background-peer-disconnect",
+      "peer": "worker-peer-1",
+      "at": 1791462573712,
+      "rpcId": "request-2",
+      "requestId": "image-6e656648-531c-4de8-b82b-fae313d0c31c"
+    },
+    {
+      "kind": "incoming",
+      "peer": "worker-peer-2",
+      "at": 1791462573712,
+      "rpcId": "request-3",
+      "packetKind": "request",
+      "messageType": "fluentReadImageTranslate",
+      "requestId": "image-937907a5-1247-4285-85de-7eca7cb75116",
+      "timeoutMs": 179999
+    }
+  ],
+  "peers": [
+    {
+      "id": "worker-peer-1",
+      "at": 1791462573704,
+      "sender": {
+        "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+        "url": "http://127.0.0.1:37013/",
+        "documentId": "18A3FDC98ED667B6F841DEC12E317585",
+        "frameId": 0,
+        "tabId": 1527073791
+      }
+    },
+    {
+      "id": "worker-peer-2",
+      "at": 1791462573712,
+      "sender": {
+        "id": "djnlaiohfaaifbibleebjggkghlmcpcj",
+        "url": "http://127.0.0.1:37013/",
+        "documentId": "18A3FDC98ED667B6F841DEC12E317585",
+        "frameId": 0,
+        "tabId": 1527073791
+      }
+    }
+  ],
+  "faultCount": 1
+}

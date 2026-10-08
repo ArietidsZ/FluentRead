@@ -1,0 +1,38 @@
+{
+  "scope": "already captured owned processes only; no fresh broad process or environ scan",
+  "argument_classification": "match a bounded --type=renderer flag within recorded commandline strings, which may be space-separated process titles",
+  "diagnostic": "initial exact-array and NUL-only classification assumptions found no renderers; corrected parsing of captured records only, approved helper unchanged",
+  "attempts": {
+    "attempt-2": {
+      "renderers_checked": 7,
+      "renderer_pids": [
+        2832650,
+        2832666,
+        2832667,
+        2832740,
+        2832746,
+        2832750,
+        2832910
+      ],
+      "seccomp": 2,
+      "no_new_privs": 1,
+      "effective_capabilities": 0
+    },
+    "attempt-3": {
+      "renderers_checked": 7,
+      "renderer_pids": [
+        2837791,
+        2837808,
+        2837809,
+        2837874,
+        2837888,
+        2837894,
+        2837942
+      ],
+      "seccomp": 2,
+      "no_new_privs": 1,
+      "effective_capabilities": 0
+    }
+  },
+  "sandbox_disable_flag_passed": false
+}

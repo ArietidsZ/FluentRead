@@ -1,0 +1,10 @@
+{
+  "driver_sha256": {
+    "neo-owned-session.mjs": "82e751c6fb2c38b4c0ece6e6d32a62d18dea1c6f0da3245f59f95060d70d236c",
+    "run-neo-ui-boundaries.mjs": "3de98372d855f8bd5dda8143699af8fdbb832526a84c160773ebe3beb06d7474"
+  },
+  "application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "application_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "production_code_modified": false,
+  "approved_official_cdp_helper_reused_unchanged": true
+}

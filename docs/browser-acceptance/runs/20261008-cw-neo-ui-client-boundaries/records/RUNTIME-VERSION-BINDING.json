@@ -1,0 +1,11 @@
+{
+  "node": "v26.7.0",
+  "browserclaw_package": "155.0.8309.26",
+  "official_neo_release": "browserclaw/v0.51.0",
+  "installed_binary_sha256": "0994937730e362e40653610fd40e38d62d4160152b590f90e99971005c2e0881",
+  "approved_deb_sha256": "caebdfd1d105ee4fc69886361cd42a1f7c6bffaba50fd9da6c68c7977aae4d15",
+  "deb_verified_in_previous_install_batch_not_downloaded_here": true,
+  "xvfb_package": "2:21.1.22-1ubuntu1.2",
+  "new_dependency_install": false,
+  "control_mode": "official --disable-browseros-server + --browseros-cdp-port; verified owned loopback only; authenticated Xvfb and independent HOME/XDG/profile/D-Bus"
+}

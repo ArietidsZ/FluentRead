@@ -1,0 +1,119 @@
+{
+  "status": "passed",
+  "applicationCommit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "scope": "production UI and production native document client; observation-only source challenge; one explicit real peer disconnect fault; synthetic HTTP only",
+  "cases": [
+    {
+      "name": "real translateImageInExtension reconnects once after an explicit captured peer disconnect",
+      "status": "passed",
+      "durationMs": 785,
+      "explicitFaults": 1,
+      "translationStarts": 2,
+      "reconnects": 1,
+      "oldPeer": "content-peer-1",
+      "newPeer": "content-peer-2",
+      "oldRequestId": "image-6e656648-531c-4de8-b82b-fae313d0c31c",
+      "newRequestId": "image-937907a5-1247-4285-85de-7eca7cb75116",
+      "firstRemainingTimeoutMs": 180000,
+      "retryRemainingTimeoutMs": 179999,
+      "fetchImageAutomaticRetries": 0,
+      "endpoint": "production missing-pack preparation error; translation not completed"
+    }
+  ],
+  "http": [
+    {
+      "path": "/",
+      "method": "GET"
+    },
+    {
+      "path": "/favicon.ico",
+      "method": "GET"
+    }
+  ],
+  "network": [
+    {
+      "at": 1791462571184,
+      "kind": "fixture-page",
+      "url": "http://127.0.0.1:37013/",
+      "method": "GET",
+      "resourceType": "Document",
+      "networkId": "324C67203110B31D5F73ED9B6B285499"
+    },
+    {
+      "at": 1791462571197,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-a.png",
+      "method": "GET",
+      "resourceType": "Image",
+      "networkId": "2837808.2",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462571198,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "Image",
+      "networkId": "2837808.3",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462571374,
+      "kind": "fixture-page",
+      "url": "http://127.0.0.1:37013/favicon.ico",
+      "method": "GET",
+      "resourceType": "Other",
+      "networkId": "2837808.6"
+    },
+    {
+      "at": 1791462573690,
+      "kind": "fixture-page",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2837808.8",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    },
+    {
+      "at": 1791462573707,
+      "kind": "offscreen",
+      "url": "https://fluentread-fixture.example.com/source-b.png",
+      "method": "GET",
+      "resourceType": "XHR",
+      "networkId": "2837874.91",
+      "responseHeaders": [
+        "content-type:image/png",
+        "cache-control:no-store"
+      ],
+      "hasACAO": false,
+      "fulfilled": true
+    }
+  ],
+  "executionSelection": "reconnect only; retain prior area/auth evidence",
+  "faultInjection": "one captured background-side real image document peer disconnect after the production translate start arrives",
+  "notTested": [
+    "complete translation",
+    "OCR/model execution",
+    "real provider API",
+    "new cancellation source",
+    "Firefox without documentId",
+    "RTX5090 WebGPU",
+    "daily desktop Cua/Wayland input"
+  ],
+  "fixtureListenerClosed": true
+}

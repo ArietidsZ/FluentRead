@@ -1,0 +1,12 @@
+{
+  "driver_sha256": {
+    "neo-owned-session.mjs": "82e751c6fb2c38b4c0ece6e6d32a62d18dea1c6f0da3245f59f95060d70d236c",
+    "run-neo-ui-boundaries.mjs": "fed076f5cf803bee83abfd144a6275f47faf84942ddddadf3f8fd80e71a618fa"
+  },
+  "application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "application_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "production_code_modified": false,
+  "selection": "only reconnect",
+  "prior_area_auth_records": "attempt-2",
+  "fault_correction": "background-side real native peer disconnect sends actual onDisconnect to content; previous content-side local disconnect did not notify its own endpoint"
+}

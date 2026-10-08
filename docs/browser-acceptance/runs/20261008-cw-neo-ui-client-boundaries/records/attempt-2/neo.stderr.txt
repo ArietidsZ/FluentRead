@@ -1,0 +1,8 @@
+[2832520:2832520:1008/122631.554761:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2832520:2832520:1008/122631.554806:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2832520:2832520:1008/122631.554821:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2832520:2832520:1008/122631.554836:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+
+DevTools listening on ws://127.0.0.1:41451/devtools/browser/542f92d1-3f7d-4267-a06e-3b4ee2c084e1
+[2832667:7:1008/122631.611885:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:277] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+[2832520:2832540:1008/122655.580863:FATAL:dbus/bus.cc:1245] D-Bus connection was disconnected. Aborting.
