@@ -12,6 +12,7 @@ import {translateFreeChineseWebText} from './free-chinese-web';
 import {translateExtraFreeWebText, isKnownUnsupportedApertiumDirection} from './free-extra-web';
 import {translateOfficialFreeWebProvider} from './free-official-web';
 import myMemory from './mymemory';
+import {translateBilibiliFree} from './bilibili-free';
 import {services} from '@/src/core/config/catalog';
 import {urls} from '@/src/core/config/constants';
 import {DEFAULT_DEEPLX_ENDPOINT} from '@/src/core/config/deeplx';
@@ -56,6 +57,7 @@ const providerTranslators: Record<FreeProviderId, (request: TranslationProviderR
     },
     google: request => translateGoogleText(request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     myMemory,
+    bilibiliFree: translateBilibiliFree,
     transmart: request => translateFreeWebText('transmart', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     yandexFree: request => translateFreeWebText('yandexFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
     volcengineFree: request => translateFreeWebText('volcengineFree', request.origin, request.sourceLanguage!, request.targetLanguage!, request.abortSignal),
