@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/operationRegistry.ts
  * 文件职责：管理图片与区域翻译共享的后台事务身份、发送者归属与取消生命周期。
- * 主要内容：以公开 ID 和可信文档 session／浏览器 sender 键索引不可复用的内部事务，冻结配置和来源，继承绝对截止时间；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
+ * 主要内容：以公开 ID 和可信文档 session／浏览器 sender 键索引不可复用的内部事务；可在配置准备前登记归属、控制器与截止时间，准备完成一次封入只读快照，再分派原操作；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
  * 模块边界：只管理本地事务和信号，不访问浏览器、OCR、供应商、配置存储或消息传输，也不信任消息体自报归属。
  */
 import {requestOwnerKey, type BrowserRequestContext} from '@/src/platform/browser/requestOwner';
@@ -50,7 +50,8 @@ export interface ImageTransactionRecord {
 }
 export interface ImageOperationRegistry {
     run<T>(message: ImageOperationMessage, operation: (options: ImageOperationOptions) => Promise<T>,
-        context?: ImageProgressContext, snapshot?: () => ImageTransactionSnapshot): Promise<T>;
+        context?: ImageProgressContext, snapshot?: () => ImageTransactionSnapshot,
+        preparation?: (options: ImageOperationOptions) => Promise<ImageTransactionSnapshot>): Promise<T>;
     cancel(requestId: unknown, context?: ImageProgressContext): {success: true; cancelled: boolean; requestId: string};
     restore(requestId: unknown, context: ImageProgressContext): ImageTransactionRecord;
     bind(context: ImageProgressContext, options: ImageOperationOptions): ImageProgressContext;
@@ -90,6 +91,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
     const namespace = crypto.randomUUID();
     let sequence = 0;
     const key = (owner: string, id: string) => `${owner.length}:${owner}:${id}`;
+    const ownerFor = (context: ImageProgressContext) => getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
     const fromOffscreen = (context: ImageProgressContext) => context.sender?.tab === undefined && isOffscreenSender(context);
     const revoke = (record: ImageTransactionRecord) => {
         if (active.get(record.transactionId) === record) active.delete(record.transactionId);
@@ -108,6 +110,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
     };
     const execute = <T>(record: ImageTransactionRecord, operation: (options: ImageOperationOptions) => Promise<T>,
         terminate: (failed: boolean) => void): Promise<T> => new Promise<T>((resolve, reject) => {
+        const signal = record.controller.signal;
         executions.set(record, (executions.get(record) ?? 0) + 1);
         let settled = false;
         const finish = (callback: () => void, failed: boolean) => {
@@ -116,18 +119,19 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             const remaining = executions.get(record)! - 1;
             if (remaining) executions.set(record, remaining); else executions.delete(record);
             terminate(failed);
-            record.controller.signal.removeEventListener('abort', handleAbort);
+            signal.removeEventListener('abort', handleAbort);
             callback();
         };
-        const handleAbort = () => finish(() => reject(record.controller.signal.reason instanceof Error
-            ? record.controller.signal.reason : imageAbortError(false)), true);
-        record.controller.signal.addEventListener('abort', handleAbort, {once: true});
+        const handleAbort = () => finish(() => reject(signal.reason instanceof Error
+            ? signal.reason : imageAbortError(false)), true);
+        signal.addEventListener('abort', handleAbort, {once: true});
         const pending = Promise.resolve().then(() => operation(assertActive(record).options));
         void pending.then(result => finish(() => resolve(result), false), error => finish(() => reject(error), true));
     });
     return {
         async run<T>(message: ImageOperationMessage, operation: (options: ImageOperationOptions) => Promise<T>,
-            context: ImageProgressContext = {}, snapshot?: () => ImageTransactionSnapshot): Promise<T> {
+            context: ImageProgressContext = {}, snapshot?: () => ImageTransactionSnapshot,
+            preparation?: (options: ImageOperationOptions) => Promise<ImageTransactionSnapshot>): Promise<T> {
             const borrowed = (context as ImageProgressContext & {[transactionContext]?: ImageTransactionRecord})[transactionContext];
             if (borrowed || fromOffscreen(context)) {
                 const record = assertActive(borrowed ?? active.get(parseRequestId(message.requestId)));
@@ -135,7 +139,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             }
             const callerRequestId = message.requestId === undefined ? `legacy-${legacyPrefix}-${++sequence}` : parseRequestId(message.requestId);
             assertImageDocumentContext(context, requireDocumentOwner);
-            const ownerKey = getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
+            const ownerKey = ownerFor(context);
             const ownerId = key(ownerKey, callerRequestId);
             if (preCancelled.delete(ownerId)) throw imageAbortError(false);
             if (byOwner.has(ownerId)) throw new Error('图片 OCR requestId 正在执行');
@@ -147,15 +151,22 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             const sender = context.sender;
             const ownerContext = Object.freeze(copyImageDocumentSession(context, {...(sender ? {sender: Object.freeze({...sender,
                 ...(sender.tab ? {tab: Object.freeze({...sender.tab})} : {})})} : {})}));
-            const frozen = snapshot?.();
+            let frozen = snapshot?.();
             const options = Object.freeze({requestId: transactionId, callerRequestId, signal: controller.signal, controller,
-                deadlineAt, ...(frozen ? {snapshot: frozen} : {}), get timeoutMs() {return Math.max(0, Math.floor(deadlineAt - now()));}});
+                deadlineAt, get snapshot() {return frozen;}, get timeoutMs() {return Math.max(0, Math.floor(deadlineAt - now()));}});
             const record: ImageTransactionRecord = Object.freeze({callerRequestId, ownerKey, transactionId, ownerContext,
-                snapshot: frozen, deadlineAt, controller, options, get terminal() {return terminal;}});
+                get snapshot() {return frozen;}, deadlineAt, controller, options, get terminal() {return terminal;}});
             active.set(transactionId, record); byOwner.set(ownerId, record);
             const timer = setTimeout(() => {revoke(record); controller.abort(imageAbortError(true));}, timeoutMs);
             try {
-                return await execute(record, operation, failed => {
+                // 同步开始准备，让组合层在首个 await 前持有此控制器；只在原操作前等待快照。
+                const prepared = preparation?.(options);
+                return await execute(record, prepared ? async value => {
+                    const result = await prepared;
+                    assertActive(record);
+                    frozen = result;
+                    return operation(value);
+                } : operation, failed => {
                     terminal = true; revoke(record);
                     if (failed || executions.has(record)) controller.abort(imageAbortError(false));
                 });
@@ -165,7 +176,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             const requestId = parseRequestId(value);
             const offscreen = fromOffscreen(context);
             if (!offscreen) assertImageDocumentContext(context, requireDocumentOwner);
-            const ownerId = key(getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context), requestId);
+            const ownerId = key(ownerFor(context), requestId);
             const record = offscreen ? active.get(requestId) : byOwner.get(ownerId);
             if (record) {revoke(record); record.controller.abort(imageAbortError(false));}
             else if (!offscreen) {
@@ -188,7 +199,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             }
         },
         releaseOwner(context) {
-            const owner = getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
+            const owner = ownerFor(context);
             for (const id of preCancelled.keys()) if (id.startsWith(`${owner.length}:${owner}:`)) preCancelled.delete(id);
             const records = [...active.values()].filter(record => record.ownerKey === owner);
             for (const record of records) revoke(record);

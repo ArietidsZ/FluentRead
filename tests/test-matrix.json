@@ -365,6 +365,7 @@
       "tests/translationGlossaryIntegration.test.ts",
       "tests/imageGlossaryContext.test.ts",
       "tests/imagePrivacyRoute.test.ts",
+      "tests/imagePreparationCancellation.test.ts",
       "tests/glossarySettingsComponent.test.ts",
       "tests/deepl.test.ts",
       "tests/deeplx.test.ts",

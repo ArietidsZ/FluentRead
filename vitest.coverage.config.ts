@@ -212,6 +212,7 @@ export default defineConfig({
             'tests/translationGlossaryIntegration.test.ts',
             'tests/imageGlossaryContext.test.ts',
             'tests/imagePrivacyRoute.test.ts',
+            'tests/imagePreparationCancellation.test.ts',
             'tests/imageTransactionIdentity.test.ts',
             'tests/imageDocumentChannel.test.ts',
             'tests/translationDocumentLifetime.test.ts',

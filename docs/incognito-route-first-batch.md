@@ -45,6 +45,6 @@ manifest 保持 spanning。Chrome spanning 下私密窗口是否能打开扩展�
 
 图片切片复用已有 ImageTransactionSnapshot、registry、文档 Port 和图片来源授权。从冻结的原生 sender 派生三态来源，在 OCR 前验证专用 provider/model 并将内部来源及锁附着在本次快照；Offscreen 只按已有事务 ID 恢复配置，OCR 文本经过实际 broker 和 provider SDK，先确定专用缓存身份再查询译文缓存。regular 不采用前端私密布尔或专用选模字段；unknown 配置了专用对时在 OCR、缓存和 provider 前失败关闭；两字段均空保留原图片选模。专用路线不改变单图 Tesseract/Paddle 或漫画现有 OCR 选择，不自动下载语言包或翻译模型。
 
-真实 normalize/save/patch/subscriber 中的线路、端点、请求体、凭据策略、语言、提示词或 OCR 选择变化取消图片事务。异步来源解析后重验原文档连接和配置代次，旧连接与同 URL 新文档仍由既有 owner 隔离；provider 忽略 abort 时，原 broker 的 lease 保留至实际 provider Promise settle。前端已完成译图和在途结果也观察专用服务、模型、端点、请求体、提示词与 thinking 变化，避免复用旧位图。
+真实 normalize/save/patch/subscriber 中的线路、端点、请求体、凭据策略、语言、提示词或 OCR 选择变化取消图片事务。共享 registry 在图片 ready/source 准备前登记原归属和控制器，沿用原截止时间；取消 helper 可结束永不返回的准备等待并消费迟到结果，准备完成后才一次封入有效快照。异步来源解析后重验信号及原文档连接，旧连接与同 URL 新文档仍由既有 owner 隔离；provider 忽略 abort 时，原 broker 的 lease 保留至实际 provider Promise settle。前端已完成译图和在途结果也观察专用服务、模型、端点、请求体、提示词与 thinking 变化，避免复用旧位图。
 
 本批仅闭合图片／漫画的 OCR 文本翻译入口及其缓存，不宣称独立漫画每个展示模式均完成真实浏览器验收。圈选 OCR/vision 转录和 capability probe 尚未接入可信来源，保留此前未标来源的拒绝边界，不能因本批图片接线而放宽。验证仅使用 CW 本地离线浏览器／OCR／存储夹具与合成 fetch，不调用真实 API、GUI、GPU 或模型下载。

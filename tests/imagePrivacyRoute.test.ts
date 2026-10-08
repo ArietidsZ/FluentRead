@@ -174,15 +174,21 @@ describe('native image private route through OCR transaction, actual broker and 
         const sender = native(); const started = await portRequest(sender); (sender.sender!.tab as any).incognito = false;
         expect(await started.pending).toMatchObject({success: true}); expect(calls[0].body.model).toBe('image-private'); expect(m.contexts).not.toHaveBeenCalled();
     });
-    it.each(['disconnect', 'configuration'] as const)('async exact-context privacy resolution rechecks %s before starting OCR', async kind => {
+    it.each(['disconnect', 'configuration'] as const)('async exact-context privacy resolution ends %s dispatch before getContexts returns', async kind => {
         let finish!: (value: unknown) => void; m.contexts.mockImplementationOnce(() => new Promise(resolve => {finish = resolve;}));
         const context = {sender: {id: 'ext', documentId: 'native-ui', frameId: 0, url: 'chrome-extension://ext/options.html'}};
+        const handler = app.handlers.find(h => h.type === request.type)!; const handle = vi.spyOn(handler, 'handle');
         const {pair, pending} = await portRequest(context); await vi.waitFor(() => expect(m.contexts).toHaveBeenCalledOnce());
+        let ended = false; void Promise.resolve(handle.mock.results[0].value).then(() => {ended = true;}, () => {ended = true;});
         const rejected = expect(pending).rejects.toThrow(kind === 'disconnect' ? 'port closed' : '取消');
-        if (kind === 'disconnect') pair.close(); else await store.requestConfigPatch({incognitoModel: 'image-next'});
-        finish([{documentId: 'native-ui', contextId: 'native-context', contextType: 'TAB', incognito: true, frameId: 0,
-            documentOrigin: 'chrome-extension://ext', documentUrl: context.sender.url}]);
-        await rejected; await settle(); expect(m.send).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
+        try {
+            if (kind === 'disconnect') pair.close(); else await store.requestConfigPatch({incognitoModel: 'image-next'});
+            await vi.waitFor(() => expect(ended).toBe(true)); await rejected;
+            expect(m.send).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
+        } finally {
+            finish([{documentId: 'native-ui', contextId: 'native-context', contextType: 'TAB', incognito: true, frameId: 0,
+                documentOrigin: 'chrome-extension://ext', documentUrl: context.sender.url}]); await settle();
+        }
     });
     it('a trusted exact native extension context routes the image and malformed/ambiguous contexts remain unknown', async () => {
         const context = {sender: {id: 'ext', documentId: 'native-ui', frameId: 0, url: 'chrome-extension://ext/options.html'}};
@@ -196,5 +202,21 @@ describe('native image private route through OCR transaction, actual broker and 
         expect(m.source).toHaveBeenCalledWith(1, expect.objectContaining({type: 'fluentReadImageValidateSource'}), {frameId: 0, documentId: 'image-document'});
         m.source.mockResolvedValueOnce({valid: false}); await expect(call({type: 'fluentReadImageFetch', requestId: 'fetch-again', url: 'https://cdn.example.com/image.png'})).rejects.toThrow('来源已失效');
         expect(m.send.mock.calls.filter(([message]) => message.type === 'FLUENT_READ_IMAGE_FETCH_OFFSCREEN')).toHaveLength(1); expect(calls).toHaveLength(0);
+    });
+    it('a permitted Offscreen child of an unmarked area snapshot still fails closed in the actual image broker adapter', async () => {
+        await store.requestConfigPatch({areaRecognitionMode: 'ocr'});
+        let restored: any;
+        m.send.mockImplementationOnce(async message => {
+            expect(message.type).toBe('FLUENT_READ_AREA_TRANSLATE_OFFSCREEN');
+            try {await call({type: 'fluentReadImageTranslateTexts', requestId: message.requestId,
+                texts: ['Synthetic unmarked source.']}, offscreen());} catch (error) {restored = error;}
+            // OCR 边界在恢复检查后停止；本例不新增圈选来源路由或视觉调用。
+            return {success: false, error: 'synthetic stop after restoration'};
+        });
+        const {pending} = await portRequest(native(), {...request, type: 'fluentReadAreaTranslateCapture',
+            selection: {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100}} as any);
+        expect(await pending).toMatchObject({success: false, error: 'synthetic stop after restoration'});
+        expect(restored).toBeInstanceOf(Error); expect(restored.message).toContain('来源');
+        expect(readCache).not.toHaveBeenCalled(); expect(calls).toHaveLength(0);
     });
 });

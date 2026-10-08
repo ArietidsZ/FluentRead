@@ -187,6 +187,7 @@ beforeEach(() => {
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
     settings.incognitoService = ''; settings.incognitoModel = '';
+    settings.customModels = {}; settings.modelThinking = {}; settings.system_role = {}; settings.user_role = {};
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
     client.translate.mockReset().mockResolvedValue(result);
     client.prepare.mockReset().mockResolvedValue(undefined);
@@ -567,6 +568,20 @@ describe('图片翻译前台交互与生命周期', () => {
         const pending = deferred<typeof result>(); client.translate.mockReturnValueOnce(pending.promise);
         const env = setup(); env.hover(); env.click(); await flush();
         settings.incognitoModel = 'private-next'; settings.incognitoModel = 'private-first'; pending.resolve(result); await flush();
+        expect(env.bitmap()).toBeNull(); expect(env.button().dataset.phase).toBe('error');
+    });
+
+    it('内建服务的专用自定义模型目录变化撤销缓存和在途译图，缺失可选映射可安全观察', async () => {
+        settings.incognitoService = 'openai'; settings.incognitoModel = 'synthetic-private';
+        settings.customModels = {openai: ['synthetic-private']};
+        settings.modelThinking = undefined as any; settings.system_role = undefined as any; settings.user_role = undefined as any;
+        const env = setup(); env.hover(); env.click(); await flush(); env.click();
+        settings.customModels.openai.splice(0, 1); env.click(); await flush();
+        expect(client.translate).toHaveBeenCalledTimes(2); env.click();
+        settings.useCache = false;
+        const pending = deferred<typeof result>(); client.translate.mockReturnValueOnce(pending.promise);
+        env.click(); await flush(); settings.customModels.openai.push('synthetic-private');
+        pending.resolve(result); await flush();
         expect(env.bitmap()).toBeNull(); expect(env.button().dataset.phase).toBe('error');
     });
 
