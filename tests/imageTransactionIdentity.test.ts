@@ -9,8 +9,9 @@ import {createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, 
 const owner = (tabId: number, documentId = 'document-a') => ({sender: {id: 'extension', tab: {id: tabId}, frameId: 0, documentId, url: 'https://example.test/page'}});
 const deferred = () => {
     let resolve!: (value: string) => void;
-    const promise = new Promise<string>(done => {resolve = done;});
-    return {promise, resolve};
+    let reject!: (error: Error) => void;
+    const promise = new Promise<string>((done, fail) => {resolve = done; reject = fail;});
+    return {promise, resolve, reject};
 };
 afterEach(() => {vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks();});
 
@@ -326,6 +327,70 @@ describe('实际应用装配共用事务', () => {
         } finally {
             work.resolve('late'); await settled; adapter.mockRestore();
             vi.doUnmock('@/src/services/config/store'); vi.doUnmock('@/src/app/translation/runtime'); vi.doUnmock('@/src/app/translation/visionProbeRuntime');
+        }
+    });
+});
+
+
+describe('父事务结束撤销剩余子工作', () => {
+    for (const completion of ['failure', 'success'] as const) {
+        it(`父${completion}保留原结果并先撤销恢复权限再中止悬挂子调用`, async () => {
+            const registry = createImageOperationRegistry('parent', context => context.sender?.id === 'extension' && context.sender.url === OFFSCREEN_URL);
+            const parentWork = deferred(); const provider = deferred(); let options: any;
+            const parent = registry.run({requestId: 'parent'}, value => {options = value; return parentWork.promise;}, owner(1));
+            const parentObserved = Promise.allSettled([parent]);
+            await Promise.resolve();
+            const child = registry.run({requestId: options.requestId}, async value => {
+                expect(value.signal).toBe(options.signal); return provider.promise;
+            }, offscreenOwner);
+            let childOutcome: unknown;
+            const childObserved = child.then(value => {childOutcome = {value};}, error => {childOutcome = {error};});
+            let restorationDeniedDuringAbort = false;
+            options.signal.addEventListener('abort', () => {
+                try {registry.restore(options.requestId, offscreenOwner);} catch {restorationDeniedDuringAbort = true;}
+            }, {once: true});
+            await Promise.resolve();
+            const originalError = new Error('offscreen port closed');
+            try {
+                if (completion === 'failure') parentWork.reject(originalError); else parentWork.resolve('parent-result');
+                const outcome = (await parentObserved)[0];
+                expect(outcome).toEqual(completion === 'failure' ? {status: 'rejected', reason: originalError} : {status: 'fulfilled', value: 'parent-result'});
+                for (let i = 0; i < 8; i += 1) await Promise.resolve();
+                expect(options.signal.aborted).toBe(true);
+                expect(childOutcome).toMatchObject({error: {name: 'AbortError'}});
+                expect(restorationDeniedDuringAbort).toBe(true);
+            } finally {
+                parentWork.resolve('cleanup'); provider.resolve('late'); await Promise.allSettled([parentObserved, childObserved]);
+            }
+        });
+    }
+
+    it('真实handler链在离屏父失败后拒绝第四段non-batch供应商调用', async () => {
+        const h = transactionFixture(); const providers = Array.from({length: 4}, deferred);
+        h.supportsBatchTranslation.mockReturnValue(false);
+        let index = 0;
+        h.translateTexts.mockImplementation(() => providers[index++].promise);
+        const parent = h.start('parent-chunks'); const parentObserved = Promise.allSettled([parent]); await h.enter();
+        const child = h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+            {requestId: h.options[0].requestId, texts: ['first phrase', 'second phrase', 'third phrase', 'fourth phrase']}, offscreenOwner);
+        let childOutcome: unknown;
+        const childObserved = child.then(value => {childOutcome = {value};}, error => {childOutcome = {error};});
+        await h.enter();
+        expect(h.translateTexts).toHaveBeenCalledTimes(3);
+        const originalError = new Error('offscreen port closed');
+        try {
+            h.works[0].reject(originalError);
+            expect((await parentObserved)[0]).toEqual({status: 'rejected', reason: originalError});
+            await h.enter();
+            const childAfterFailure = childOutcome;
+            for (const provider of providers.slice(0, 3)) provider.resolve('translated');
+            await h.enter();
+            expect(h.translateTexts).toHaveBeenCalledTimes(3);
+            expect(childAfterFailure).toMatchObject({error: {name: 'AbortError'}});
+            expect(h.options[0].signal.aborted).toBe(true);
+        } finally {
+            for (const provider of providers) provider.resolve('late');
+            await h.cleanup(parentObserved, childObserved);
         }
     });
 });

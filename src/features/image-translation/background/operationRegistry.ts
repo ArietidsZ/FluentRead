@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/operationRegistry.ts
  * 文件职责：管理图片与区域翻译共享的后台事务身份、发送者归属与取消生命周期。
- * 主要内容：以公开 ID 和浏览器 sender 键索引不可复用的内部事务，冻结配置和来源，继承绝对截止时间；终止前撤销恢复权限，限定离屏回传并有界保存归属内预取消。
+ * 主要内容：以公开 ID 和浏览器 sender 键索引不可复用的内部事务，冻结配置和来源，继承绝对截止时间；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
  * 模块边界：只管理本地事务和信号，不访问浏览器、OCR、供应商、配置存储或消息传输，也不信任消息体自报归属。
  */
 import {requestOwnerKey, type BrowserRequestContext} from '@/src/platform/browser/requestOwner';
@@ -81,6 +81,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
     isOffscreenSender: (context: ImageProgressContext) => boolean = () => false, now: () => number = Date.now): ImageOperationRegistry {
     const active = new Map<string, ImageTransactionRecord>();
     const byOwner = new Map<string, ImageTransactionRecord>();
+    const executions = new WeakMap<ImageTransactionRecord, number>();
     const preCancelled = new Map<string, true>();
     const transactionContext = Symbol('image-transaction');
     const namespace = crypto.randomUUID();
@@ -102,19 +103,23 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
         return record;
     };
     const execute = <T>(record: ImageTransactionRecord, operation: (options: ImageOperationOptions) => Promise<T>,
-        terminate: () => void): Promise<T> => new Promise<T>((resolve, reject) => {
+        terminate: (failed: boolean) => void): Promise<T> => new Promise<T>((resolve, reject) => {
+        executions.set(record, (executions.get(record) ?? 0) + 1);
         let settled = false;
-        const finish = (callback: () => void) => {
+        const finish = (callback: () => void, failed: boolean) => {
             if (settled) return;
-            settled = true; terminate();
+            settled = true;
+            const remaining = executions.get(record)! - 1;
+            if (remaining) executions.set(record, remaining); else executions.delete(record);
+            terminate(failed);
             record.controller.signal.removeEventListener('abort', handleAbort);
             callback();
         };
         const handleAbort = () => finish(() => reject(record.controller.signal.reason instanceof Error
-            ? record.controller.signal.reason : imageAbortError(false)));
+            ? record.controller.signal.reason : imageAbortError(false)), true);
         record.controller.signal.addEventListener('abort', handleAbort, {once: true});
         const pending = Promise.resolve().then(() => operation(assertActive(record).options));
-        void pending.then(result => finish(() => resolve(result)), error => finish(() => reject(error)));
+        void pending.then(result => finish(() => resolve(result), false), error => finish(() => reject(error), true));
     });
     return {
         async run<T>(message: ImageOperationMessage, operation: (options: ImageOperationOptions) => Promise<T>,
@@ -145,7 +150,10 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             active.set(transactionId, record); byOwner.set(ownerId, record);
             const timer = setTimeout(() => {revoke(record); controller.abort(imageAbortError(true));}, timeoutMs);
             try {
-                return await execute(record, operation, () => {terminal = true; revoke(record);});
+                return await execute(record, operation, failed => {
+                    terminal = true; revoke(record);
+                    if (failed || executions.has(record)) controller.abort(imageAbortError(false));
+                });
             } finally {clearTimeout(timer); revoke(record);}
         },
         cancel(value, context = {}) {
