@@ -959,3 +959,7 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 圈选私密来源使用图片事务同一条可取消 ready/source 准备链，在模型能力规则、探测缓存、vision 或 OCR 文本翻译之前冻结有效专用 provider/model。未知原生来源遇到专用配置时在副作用前拒绝；普通来源和两字段均空保留兼容。`imagePrivacyRoute` 使用真实保存订阅、原生文档 Port、handler、broker 和 SDK，以离线存储、OCR/裁剪及 HTTP 边界验证实际模型/端点、普通与能力缓存隔离、私密手动识图覆盖、原 OCR fallback，以及 probe/vision/text 的模型和端点保存取消与迟到结果。`imagePreparationCancellation` 验证圈选 ready/source gate 的原 deadline、文档断连及真正同轮 preparation rejection 消费；registry 不另行改写。`visionProbe` 的平台关闭能力负控配合实际 userscript 构建确认扩展来源代码可摇树隔离。
 
 本切片只覆盖原生圈选翻译入口及其必要自动 probe/vision/OCR 文本依赖；独立设置页 probe、文档、视频及其他独立入口不纳入，未证明它们完成三态来源接线。实际 API、下载、GPU、RTX5090 WebGPU 与浏览器实机 UI 验证均不包含在这些离线用例中；严格覆盖归属与额外 app glue 诊断分别报告，不能把局部未归属模块诊断当成严格四维全绿。
+
+文档页通过原生扩展上下文提示统一有效服务/模型显示、模型选项和凭据预检，并在原有分段编排选择 batch、上下文及客户端请求之前解析专用 pair；前端不附加可信来源，最终执行授权仍由既有文本 Port/registry/handler 的原生三态和 broker 完成。`documentPrivacyRoute` 编译真实 DocumentApp setup，运行实际文档 runtime、解析/分段编排、翻译客户端、原生文本通道、后台 handler、broker、fake-indexeddb 缓存及 provider/AI SDK；仅配置持久端口、浏览器边界、导出延迟和 HTTP 使用合成夹具。覆盖私密有效模型的凭据/上下文能力、AI 与机器服务的实际拆批、普通/专用缓存隔离及 endpoint 身份、unknown 拒绝与 regular/both-empty 兼容、模型/连接/prompt/cache 保存取消，以及关闭/导航/禁用后的迟到文本、缓存与单文件/ZIP 导出。公开传输 ID 和来源标记不进入 provider JSON 或缓存身份。
+
+服务/连接配置摘要保守比较整份相关映射，普通模型或其他服务连接变化也会清除当前私密文档的翻译结果与下载代次；保留已解析源文件、导入失败信息和在途解析所有权。语言/术语变化取消在途代次，已校订结果仍按既有重译确认流程保留。计数和 UI 语言保存不会作废结果。原 PDF 页面预览保留源 URL，只释放译文 URL。原严格覆盖归属不含 DocumentApp SFC 或文档 app runtime；页面行为由真实 setup 离线控制验证，runtime 可单独增加诊断，不能把编译 setup 的用例称为浏览器 UI 实测。本批不扩展全页翻译、设置页独立 probe、字典单词卡或视频，也不证明真实 API、GUI、下载或 RTX5090/GPU 验收。

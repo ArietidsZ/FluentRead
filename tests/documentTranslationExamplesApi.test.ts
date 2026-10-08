@@ -13,14 +13,11 @@ vi.mock('@/src/services/config/store', () => ({
     configReady: Promise.resolve(),
 }));
 
-vi.mock('@/src/core/config/catalog', () => ({
-    services: {microsoft: 'microsoft', freeTranslation: 'freeTranslation'},
-}));
-
 vi.mock('@/src/app/translation/client', () => ({
     translateText: mocks.translateText,
     translateTextBatch: mocks.translateTextBatch,
 }));
+vi.mock('webextension-polyfill', () => ({default: {extension: {inIncognitoContext: false}}}));
 
 import {getDocumentFormat, parseDocument, renderDocument} from '@/src/features/document-translation/core/document';
 import {createDocumentDownload, parseBinaryDocument, type PdfPageRasterizer} from '@/src/features/document-translation/services/binary';

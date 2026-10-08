@@ -372,6 +372,7 @@
       "tests/documentTranslationBinaryEdge.test.ts",
       "tests/documentTranslation.test.ts",
       "tests/documentBatchComponent.test.ts",
+      "tests/documentPrivacyRoute.test.ts",
       "tests/documentTranslationApi.test.ts",
       "tests/documentTranslationBinary.test.ts",
       "tests/documentPdfRasterizer.test.ts",

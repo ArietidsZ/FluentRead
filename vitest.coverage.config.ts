@@ -238,6 +238,7 @@ export default defineConfig({
             'tests/deepl.test.ts',
             'tests/documentTranslation.test.ts',
             'tests/documentTranslationApi.test.ts',
+            'tests/documentPrivacyRoute.test.ts',
             'tests/documentTranslationBinary.test.ts',
             'tests/documentArchive.test.ts',
             'tests/documentTranslationBinaryEdge.test.ts',

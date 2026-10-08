@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译任务，增量统计完成段落，维护校订和未下载保护；PDF 逐页导出与 ePub/DOCX/ZIP 打包显示进度，支持取消、重试和离开时中止，保留异步提交所有权。
+ 主要内容：有效专用路由统一显示、凭据预检与文档编排；服务设置变化撤销旧译文和导出但保留解析原文件，其他翻译设置变化取消在途代次；维护阅读/校订/进度及 PDF/ePub/DOCX/ZIP 的异步提交所有权。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -316,7 +316,7 @@
           </label>
           <label class="service-control">
             <span>翻译服务</span>
-            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="config.documentService" :empty-values="[null, undefined]" :disabled="queueBusy" aria-label="文档翻译服务" filterable>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="selectedDocumentService" :empty-values="[null, undefined]" :disabled="queueBusy || Boolean(documentPrivateRoute.route)" aria-label="文档翻译服务" filterable>
               <ElOption :label="t('featureServices.followDefault')" value="" />
               <ElOption v-if="config.documentService && documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
               <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
@@ -324,7 +324,7 @@
           </label>
           <label v-if="documentUsesModel" class="model-control">
             <span class="model-control-heading">模型<button v-if="!documentIsCustomOpenAIProvider" type="button" @click.prevent="openSettings">管理模型 ↗</button></span>
-            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="文档翻译模型" filterable>
+            <ElSelect class="document-select" :wrap-label="false" :show-search-icon="false" append-to=".document-settings-dialog" v-model="selectedDocumentModel" :disabled="queueBusy || Boolean(documentPrivateRoute.route)" aria-label="文档翻译模型" filterable>
               <ElOption v-for="model in documentModelOptions" :key="model" :value="model" data-i18n-ignore :label="model" />
             </ElSelect>
           </label>
@@ -345,6 +345,7 @@
             </ElSelect>
           </template>
         </GlossaryLibrarySelect>
+        <p v-if="documentPrivateRoute.route" class="notice">{{ privateRouteCopy.title }} · <button type="button" @click="openSettings">{{ privateRouteCopy.connection }} ↗</button></p>
         <p v-if="credentialWarning" class="notice warning" role="alert">{{ credentialWarning }} <button type="button" @click="openSettings">去配置</button></p>
         <p v-if="settingsChanged" class="notice warning">设置已更改。现有译文和下载内容仍使用之前的结果，按新设置翻译会从头开始。</p>
         <p class="setup-privacy">文件在本地解析，文字发送至所选服务。</p>
@@ -431,6 +432,9 @@ import {
   servicesType,
   subscribeConfig,
   translateDocumentSegments,
+  resolveDocumentPrivateRoute,
+  documentTranslationRouteKey,
+  getIncognitoRouteCopy,
   withCustomOpenAIServiceOptions,
   GlossaryLibrarySelect,
   supportsTranslationGlossary,
@@ -659,12 +663,13 @@ async function downloadBatch(): Promise<void> {
   const mode = outputMode.value;
   try {
     const {default: JSZip} = await import('jszip');
+    controller.signal.throwIfAborted();
     const zip = new JSZip();
     for (const [index, item] of items.entries()) {
       const download = await createDocumentDownload(item.document!, item.translations, mode, {
         signal: controller.signal,
-        onPdfProgress: progress => { batchNotice.value = `${item.name} · ${pdfExportProgress(progress)}`; },
-        onArchiveProgress: percent => { batchNotice.value = `${item.name} · ${archiveExportProgress(percent)}`; },
+        onPdfProgress: progress => { if (generation === batchGeneration && !controller.signal.aborted) batchNotice.value = `${item.name} · ${pdfExportProgress(progress)}`; },
+        onArchiveProgress: percent => { if (generation === batchGeneration && !controller.signal.aborted) batchNotice.value = `${item.name} · ${archiveExportProgress(percent)}`; },
       });
       controller.signal.throwIfAborted();
       if (generation !== batchGeneration) return;
@@ -675,7 +680,7 @@ async function downloadBatch(): Promise<void> {
     batchNotice.value = t('document.export.saving');
     const bytes = await generateDocumentArchive(zip, {streamFiles: true}, {
       signal: controller.signal,
-      onProgress: percent => { batchNotice.value = archiveExportProgress(percent); },
+      onProgress: percent => { if (generation === batchGeneration && !controller.signal.aborted) batchNotice.value = archiveExportProgress(percent); },
     });
     const blob = new Blob([bytes], {type: 'application/zip'});
     controller.signal.throwIfAborted();
@@ -733,7 +738,16 @@ const serviceOptions = computed(() => filterAvailableTranslationServices(withCus
   label: translateLegacy(item.label),
   description: item.description ? translateLegacy(item.description) : item.description,
 })));
-const effectiveDocumentService = computed(() => config.documentService || config.service);
+const documentPrivateRoute = computed(() => {
+  try { return {route: resolveDocumentPrivateRoute(config), error: ''}; }
+  catch (error) { return {route: undefined, error: error instanceof Error ? error.message : String(error)}; }
+});
+const privateRouteCopy = computed(() => getIncognitoRouteCopy(language.value));
+const effectiveDocumentService = computed(() => documentPrivateRoute.value.route?.service || config.documentService || config.service);
+const selectedDocumentService = computed({
+  get: () => documentPrivateRoute.value.route?.service || config.documentService,
+  set: (value: string) => { if (!documentPrivateRoute.value.route) config.documentService = value; },
+});
 const activeDocumentModels = computed(() => config.documentService ? config.documentModel : config.model);
 const activeDocumentCustomModels = computed(() => config.documentService ? config.documentCustomModel : config.customModel);
 const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(effectiveDocumentService.value));
@@ -747,6 +761,7 @@ const documentUsesModel = computed(() => documentIsCustomOpenAIProvider.value
 const builtInDocumentModels = computed(() => (models.get(effectiveDocumentService.value) || [])
   .filter((model) => model !== customModelString));
 const documentModelOptions = computed(() => {
+  if (documentPrivateRoute.value.route) return [documentPrivateRoute.value.route.model];
   if (selectedCustomOpenAIProvider.value) return selectedCustomOpenAIProvider.value.models;
   return Array.from(new Set([
     ...builtInDocumentModels.value,
@@ -757,13 +772,14 @@ const documentModelOptions = computed(() => {
   ].filter(Boolean)));
 });
 const selectedDocumentModel = computed({
-  get: () => documentIsCustomOpenAIProvider.value
+  get: () => documentPrivateRoute.value.route?.model ?? (documentIsCustomOpenAIProvider.value
     ? activeDocumentModels.value[effectiveDocumentService.value] || documentModelOptions.value[0] || ''
     : resolveConfiguredModel(
       activeDocumentModels.value[effectiveDocumentService.value],
       activeDocumentCustomModels.value[effectiveDocumentService.value],
-    ) || documentModelOptions.value[0] || '',
+    ) || documentModelOptions.value[0] || ''),
   set: (value: string) => {
+    if (documentPrivateRoute.value.route) return;
     const service = effectiveDocumentService.value;
     config.documentService = service;
     if (documentIsCustomOpenAIProvider.value || builtInDocumentModels.value.includes(value)) {
@@ -778,6 +794,7 @@ const selectedDocumentModel = computed({
 });
 const documentModelValue = computed(() => selectedDocumentModel.value);
 const credentialWarning = computed(() => {
+  if (documentPrivateRoute.value.error) return documentPrivateRoute.value.error;
   if (documentServiceUnavailableMessage.value) return documentServiceUnavailableMessage.value;
   if (documentUsesModel.value && !documentModelValue.value.trim()) {
     return documentIsCustomOpenAIProvider.value
@@ -787,8 +804,8 @@ const credentialWarning = computed(() => {
 
   const credentialConfig = {
     ...config,
-    model: {...config.model, [effectiveDocumentService.value]: activeDocumentModels.value[effectiveDocumentService.value]},
-    customModel: {...config.customModel, [effectiveDocumentService.value]: activeDocumentCustomModels.value[effectiveDocumentService.value]},
+    model: {...config.model, [effectiveDocumentService.value]: selectedDocumentModel.value},
+    customModel: {...config.customModel, [effectiveDocumentService.value]: selectedDocumentModel.value},
   };
   return getMissingCredentialMessage(effectiveDocumentService.value, credentialConfig);
 });
@@ -803,10 +820,18 @@ const completedSegments = computed(() => translating.value ? liveCompletedSegmen
 const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
 const progress = computed(() => parsedDocument.value ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
+const documentRouteConfigurationKey = computed(() => documentTranslationRouteKey(config));
 const currentFingerprint = computed(() => JSON.stringify({
   from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
   glossaryIds: config.documentGlossaryIds, glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
+  routeConfiguration: documentRouteConfigurationKey.value,
 }));
+// 同步撤销，早于配置保存后的微任务、旧片段回调和迟到下载；导入解析与原文件不属于翻译代次。
+watch([documentRouteConfigurationKey, currentFingerprint, () => config.on], (next, previous) => {
+  if (!hydrated.value) return;
+  invalidateDocumentGeneration();
+  if (next[0] !== previous[0]) clearDocumentTranslationResults();
+}, {flush: 'sync'});
 const settingsChanged = computed(() => Boolean(taskFingerprint.value && taskFingerprint.value !== currentFingerprint.value));
 const translationActionLabel = computed(() => settingsChanged.value ? '按新设置翻译' : translationComplete.value ? '重新翻译' : hasTranslation.value || runState.value === 'paused' ? '继续翻译' : runState.value === 'failed' ? '重试翻译' : '开始翻译');
 const statusLabel = computed(() => translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
@@ -974,7 +999,6 @@ unsubscribeConfig = subscribeConfig((nextConfig) => {
   applyingExternalConfig = true;
   try {
     Object.assign(config, nextConfig);
-    if (!config.on && (translating.value || batchRunning.value)) pauseTranslation();
   } finally {
     applyingExternalConfig = false;
   }
@@ -1172,6 +1196,40 @@ function pauseTranslation(): void {
   runState.value = 'paused';
 }
 
+function invalidateDocumentGeneration(): void {
+  if (batchRunning.value) batchNotice.value = t('document.batch.externalSettings');
+  pauseTranslation();
+  downloadController?.abort();
+  downloadController = null;
+  preparingDownload.value = false;
+  cancelingDownload.value = false;
+  downloadProgress.value = '';
+  downloadDialog.value?.close();
+  downloadOpen.value = false;
+}
+
+function clearDocumentTranslationResults(): void {
+  translatedSegments.value = [];
+  settledTranslations.value = [];
+  taskFingerprint.value = '';
+  liveCompletedSegments.value = 0;
+  runState.value = 'ready';
+  editRevision.value = downloadedRevision.value = 0;
+  errorMessage.value = downloadError.value = downloadNotice.value = '';
+  partialExportAcknowledged.value = false;
+  documentQueue.value.forEach(item => {
+    if (item.document) Object.assign(item, {translations: [], fingerprint: '', state: 'ready', revision: 0, downloaded: 0, error: ''});
+  });
+  pdfPreviewRequest += 1;
+  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
+  pdfPreviewLoading.value = false;
+  pdfPreviewPageStates.value.forEach(page => {
+    if (page.translatedUrl) URL.revokeObjectURL(page.translatedUrl);
+    page.translatedUrl = '';
+    page.loading = false;
+  });
+}
+
 async function startTranslation(restart = false): Promise<void> {
   const document = parsedDocument.value;
   if (!config.on || !document || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
@@ -1270,8 +1328,8 @@ async function downloadDocument(): Promise<void> {
   try {
     const download = await createDocumentDownload(document, [...translatedSegments.value], outputMode.value, {
       signal: controller.signal,
-      onPdfProgress: progress => { downloadProgress.value = pdfExportProgress(progress); },
-      onArchiveProgress: percent => { downloadProgress.value = archiveExportProgress(percent); },
+      onPdfProgress: progress => { if (requestId === translationRequestId && !controller.signal.aborted) downloadProgress.value = pdfExportProgress(progress); },
+      onArchiveProgress: percent => { if (requestId === translationRequestId && !controller.signal.aborted) downloadProgress.value = archiveExportProgress(percent); },
     });
     controller.signal.throwIfAborted();
     if (document !== parsedDocument.value || requestId !== translationRequestId) return;
@@ -1286,7 +1344,7 @@ async function downloadDocument(): Promise<void> {
     downloadProgress.value = '';
     downloadDialog.value?.close();
   } catch (error) {
-    if (document === parsedDocument.value) {
+    if (document === parsedDocument.value && requestId === translationRequestId) {
       downloadProgress.value = controller.signal.aborted ? t('document.export.canceled') : '';
       if (!controller.signal.aborted) downloadError.value = error instanceof Error ? error.message : String(error);
     }
