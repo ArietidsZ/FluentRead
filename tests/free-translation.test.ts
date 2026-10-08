@@ -1,10 +1,11 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const {mockConfig, storedHealth, microsoftMock, officialMock, googleMock, googleOwnerMock, myMemoryMock, webMock, chineseMock, extraMock, unsupportedApertiumMock} = vi.hoisted(() => ({
+const {mockConfig, storedHealth, microsoftMock, officialMock, bilibiliMock, googleMock, googleOwnerMock, myMemoryMock, webMock, chineseMock, extraMock, unsupportedApertiumMock} = vi.hoisted(() => ({
     mockConfig: {} as Record<string, any>,
     storedHealth: {records: null as unknown},
     microsoftMock: vi.fn(),
     officialMock: vi.fn(),
+    bilibiliMock: vi.fn(),
     googleMock: vi.fn(),
     googleOwnerMock: vi.fn(),
     myMemoryMock: vi.fn(),
@@ -16,6 +17,7 @@ const {mockConfig, storedHealth, microsoftMock, officialMock, googleMock, google
 vi.mock('@/src/platform/storage/freeTranslationHealthStorage', () => ({freeTranslationHealthStorage: {load: async () => storedHealth.records, save: async () => undefined}}));
 vi.mock('@/src/services/config/store', () => ({config: mockConfig}));
 vi.mock('@/src/providers/translation/microsoft', () => ({translateMicrosoftTexts: microsoftMock}));
+vi.mock('@/src/providers/translation/bilibili-free', () => ({translateBilibiliFree: bilibiliMock}));
 vi.mock('@/src/providers/translation/free-official-web', () => ({translateOfficialFreeWebProvider: officialMock}));
 vi.mock('@/src/providers/translation/google', () => ({translateGoogleText: googleMock, translateGoogleOwnerTexts: googleOwnerMock}));
 vi.mock('@/src/providers/translation/mymemory', () => ({default: myMemoryMock}));
@@ -66,7 +68,7 @@ beforeEach(async () => {
         freeTranslationOrder: ['microsoft', 'alibabaFree', 'google', 'myMemory'],
         myMemoryEmail: '', deeplx: 'https://deeplx.example/translate',
     });
-    for (const mock of [microsoftMock, officialMock, googleMock, googleOwnerMock, myMemoryMock, chineseMock, extraMock]) {
+    for (const mock of [microsoftMock, officialMock, bilibiliMock, googleMock, googleOwnerMock, myMemoryMock, chineseMock, extraMock]) {
         mock.mockRejectedValue(httpFailure());
     }
     ({default: freeTranslation, FREE_TRANSLATION_BATCH_CONCURRENCY, getFreeTranslationWeightSnapshot, translateFreeTranslationProvider}
@@ -115,15 +117,31 @@ describe('免费翻译服务', () => {
     it.each(FREE_TRANSLATION_PROVIDERS)('单服务检查直接使用 $id 匿名适配器，即使没有开启', async ({id}) => {
         mockConfig.freeTranslationOrder = ['microsoft'];
         microsoftMock.mockResolvedValue(['有效译文']);
-        for (const mock of [officialMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock]) mock.mockResolvedValue('有效译文');
+        for (const mock of [officialMock, bilibiliMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock]) mock.mockResolvedValue('有效译文');
         await expect(translateFreeTranslationProvider(id, {origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'})).resolves.toBe('有效译文');
-        const calls = [microsoftMock, officialMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock].reduce((total, mock) => total + mock.mock.calls.length, 0);
+        const calls = [microsoftMock, officialMock, bilibiliMock, googleMock, myMemoryMock, webMock, chineseMock, extraMock].reduce((total, mock) => total + mock.mock.calls.length, 0);
         expect(calls).toBe(1);
         const families = {transmart: webMock, yandexFree: webMock, volcengineFree: webMock, youdaoFree: chineseMock, icibaFree: chineseMock,
             sogouFree: extraMock, reversoFree: extraMock, apertiumFree: extraMock};
         if (id in families) expect(families[id as keyof typeof families]).toHaveBeenCalledWith(id, 'Hello from FluentRead.', 'en', 'zh-Hans', undefined);
         if (['alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree'].includes(id)) expect(officialMock).toHaveBeenCalledWith(id, expect.objectContaining({origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'}));
+        if (id === 'bilibiliFree') expect(bilibiliMock).toHaveBeenCalledWith(expect.objectContaining({origin: 'Hello from FluentRead.', sourceLanguage: 'en', targetLanguage: 'zh-Hans'}));
         expect(mockConfig.freeTranslationOrder).toEqual(['microsoft']);
+    });
+
+    it('B站限流后按原顺序换线；连接检查不换线且无需凭据', async () => {
+        mockConfig.freeTranslationOrder = ['bilibiliFree', 'google'];
+        mockConfig.freeTranslationMode = 'sequential';
+        bilibiliMock.mockRejectedValue(Object.assign(new Error('rate limited'), {statusCode: 429, retryAfterMs: 12000}));
+        googleMock.mockResolvedValue('有效译文');
+        await expect(settle(translateFreeText('Hello from FluentRead.'))).resolves.toBe('有效译文');
+        expect(bilibiliMock).toHaveBeenCalledOnce();
+        expect(googleMock).toHaveBeenCalledOnce();
+        const snapshot = getTranslationProviderConfig(bilibiliMock.mock.calls[0][0], mockConfig as any);
+        expect(snapshot.token).toEqual({});
+        expect(snapshot.proxy).toEqual({});
+        await expect(translateFreeTranslationProvider('bilibiliFree', {origin: 'Hello', sourceLanguage: 'en', targetLanguage: 'zh-Hans'})).rejects.toMatchObject({statusCode: 429});
+        expect(googleMock).toHaveBeenCalledOnce();
     });
 
     it('单服务检查保留匿名边界和结果验证，失败或原文回显不会自动换线', async () => {
@@ -289,7 +307,7 @@ describe('免费翻译服务', () => {
         mockConfig.token = {azureTranslator: 'configured-key', deepL: 'free-key:fx'};
         myMemoryMock.mockResolvedValue('备用');
         await expect(settle(translateFreeText('Hello'))).resolves.toBe('备用');
-        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree']);
+        expect(readSnapshot(myMemoryMock.mock.calls[0][0]).freeTranslationOrder).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'bilibiliFree', 'lingvanexFree']);
     });
 
     it('上游挂起时局部超时继续降级，下一段跳过正在冷却的上游', async () => {
@@ -978,6 +996,7 @@ describe('owner-local bounded high-slot free batches', () => {
         googleMock.mockImplementation(async (text: string) => `译:${text}`);
         for (const mock of [webMock, chineseMock, extraMock]) mock.mockImplementation(async (_id, text: string) => `译:${text}`);
         myMemoryMock.mockImplementation(async (request: {origin: string}) => `译:${request.origin}`);
+        bilibiliMock.mockImplementation(async (request: {origin: string}) => `译:${request.origin}`);
         officialMock.mockImplementation(async (_id, request: {origin: string}) => `译:${request.origin}`);
         const {attachTranslationRouteObserver} = await import('@/src/services/translation/requestSnapshot');
         const observations: Array<{route: string; outcome: string; chars: number}> = [];
@@ -991,6 +1010,7 @@ describe('owner-local bounded high-slot free batches', () => {
             ...googleMock.mock.calls.map(call => call[0]),
             ...[webMock, chineseMock, extraMock].flatMap(mock => mock.mock.calls.map(call => call[1])),
             ...myMemoryMock.mock.calls.map(call => call[0].origin),
+            ...bilibiliMock.mock.calls.map(call => call[0].origin),
             ...officialMock.mock.calls.map(call => call[1].origin),
         ];
         expect(submitted).toHaveLength(63);

@@ -3012,4 +3012,6 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "前进 5 秒": "Avanzar 5 segundos",
     "当前语音不支持按秒跳转": "Esta voz no permite saltar en la reproducción",
     "语音跳转失败，请重试": "No se pudo saltar en el audio. Inténtalo de nuevo.",
+    "B站翻译": "Traducción Bilibili",
+    "官方免费文本 API，Index-Translate-35B-A3B，无需密钥": "API oficial gratuita de traducción de texto, Index-Translate-35B-A3B, sin clave API",
 };

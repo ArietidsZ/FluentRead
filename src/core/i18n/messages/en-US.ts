@@ -3013,4 +3013,6 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "前进 5 秒": "Forward 5 seconds",
     "当前语音不支持按秒跳转": "This voice does not support seeking",
     "语音跳转失败，请重试": "Could not seek audio. Please retry.",
+    "B站翻译": "Bilibili Translate",
+    "官方免费文本 API，Index-Translate-35B-A3B，无需密钥": "Official free text API, Index-Translate-35B-A3B, no API key required",
 };

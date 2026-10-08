@@ -3010,4 +3010,6 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "前进 5 秒": "5秒進む",
     "当前语音不支持按秒跳转": "この音声は秒単位の移動に対応していません",
     "语音跳转失败，请重试": "音声の移動に失敗しました。再試行してください",
+    "B站翻译": "Bilibili 翻訳",
+    "官方免费文本 API，Index-Translate-35B-A3B，无需密钥": "公式無料テキスト API、Index-Translate-35B-A3B、API キー不要",
 };

@@ -205,7 +205,7 @@ describe('free translation settings compiled component', () => {
     const details = elements.find(element => element.props['data-testid'] === 'free-routing-details');
     expect(details).toBeUndefined();
     expect(elements.some(element => element.tag === 'details')).toBe(false);
-    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('13.9%');
+    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('13.1%');
     expect(control('启用 阿里翻译').props['model-value']).toBe(true);
     state.toggle('alibabaFree', false);
     await runtime.nextTick();

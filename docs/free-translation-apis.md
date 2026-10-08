@@ -29,6 +29,16 @@
 
 [调研与验证记录](./reports/official-free-translation-nodes-20261006.md)列出了开源软件线索、未采用候选、实测边界与并发设计。
 
+## B站 Index-Translate 免费文本 API
+
+免费池新增「B站翻译」，固定调用 `https://index-translate.bilibili.com/v1/chat/completions`，模型为 `Index-Translate-35B-A3B`。无需 API Key、账号或本地模型；请求不携带 Cookie、用户凭据、自定义请求头或代理。只接入文本翻译，不调用语音识别或配音模型。
+
+新配置默认包含该节点；已有明确的启用列表保持原样，可在免费翻译设置中开启。节点复用启停、顺序、智能加速权重、连接检查、取消和失败换线；现有并发与超时预算保持不变。长文本按 2,000 Unicode 码点分块，保留换行、边缘空白和全文文本槽。思考模式固定关闭；截断或无效译文视为失败。
+
+扩展后台自动移除本扩展发往 `index-translate.bilibili.com` 精确域名的 Origin 请求头，避免官方网关拒绝扩展来源；规则不影响宿主网页或其他域名。需要浏览器的 declarativeNetRequest 能力，其他运行环境取决于自身网络 transport；连接失败仍由免费池尝试其他已启用节点。无需手动配置该请求头规则。
+
+官方公开免费接口并不意味着无限额度或长期可用保证；实际限流按照 HTTP 状态与 Retry-After 进入已有冷却逻辑。接口来源：[官方项目说明](https://github.com/bilibili/Index-Translate)、[官方调用示例](https://github.com/bilibili/Index-Translate/blob/main/inference/llm/call_api.py)。
+
 ## MyMemory 官方匿名接口
 
 匿名每天可查询 **5,000 字符**。联系邮箱是可选项，留空也能使用；自愿提供有效联系邮箱后，官方限额为每天 **50,000 字符**。[官方使用限制](https://mymemory.translated.net/doc/usagelimits.php)

@@ -374,7 +374,8 @@
       "tests/translationBrokerRecoverySharingStats.test.ts",
       "tests/translationBrokerSharedDeadlineRecovery.test.ts",
       "tests/bilingualRemountPerformanceBoundaries.test.ts",
-      "tests/chineseUiNamesRegression.test.ts"
+      "tests/chineseUiNamesRegression.test.ts",
+      "tests/bilibiliFreeTranslation.test.ts"
     ],
     "functional": [
       "tests/finalCoveragePublicBoundariesA.test.ts",
