@@ -21,7 +21,7 @@ describe('按域名请求头移除名单', () => {
         for (const domain of ['api.example.com', 'localhost', '127.0.0.1', '[::1]']) expect(normalizeRequestHeaderDomain(domain)).toBe(domain);
         expect(normalizeRequestHeaderDomain(' API.EXAMPLE.COM ')).toBe('api.example.com');
         expect(normalizeRequestHeaderDomain('例子.测试')).toBe('xn--fsqu00a.xn--0zwm56d');
-        for (const value of [null, 42, '', 'x'.repeat(254), 'https://api.example.com', 'api.example.com:443',
+        for (const value of [Array(6).fill('é'.repeat(40)).join('.'), null, 42, '', 'x'.repeat(254), 'https://api.example.com', 'api.example.com:443',
             '例子.测试:443', 'api.example.com/path', '*.example.com', 'user@example.com', 'api.example.com?x',
             'api.example.com#x', 'api.example.com%2f', 'api.example.com\\path', 'api. example.com', '[:::]',
             '127.1', 'api..example.com', '-bad.example', 'api.example.com.', 'a'.repeat(64)+'.example']) {
@@ -49,7 +49,7 @@ describe('按域名请求头移除名单', () => {
 
     it('规则只修改本扩展对精确域名的 XHR，分别移除所选头，保留其他规则', async () => {
         const port = api();
-        port.getDynamicRules.mockResolvedValue([{id: 1}, {id: 2_001_460}, {id: REQUEST_HEADER_RULE_START + 99}, {id: REQUEST_HEADER_RULE_START + 100}]);
+        port.getDynamicRules.mockResolvedValue([{id: 1}, {id: 2_001_460}, {id: REQUEST_HEADER_RULE_START + 99}, {id: REQUEST_HEADER_RULE_START + 101}]);
         const sync = createRequestHeaderRulesSynchronizer(port, 'own-extension-id');
         await sync.sync([origin, referer, {domain: 'disabled.example', removeOrigin: false, removeReferer: false}]);
         const update = port.updateDynamicRules.mock.calls[0][0];
