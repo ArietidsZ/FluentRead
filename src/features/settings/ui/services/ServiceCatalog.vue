@@ -2,7 +2,7 @@
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：以服务目录和清晰分层的配置工作区呈现翻译服务，窄屏按需展开目录，保持配置与默认使用分离。
  * 主要内容：侧栏展示全部内置及自定义服务，分组可单独收起，选中服务或回到本页时展开正在配置的服务所在分组；顶部分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索过滤目录时展开全部匹配分组，此时点击分组导航会清空搜索并回到完整目录；自定义按钮直接打开创建表单；右侧集中展示服务名称及接口性质徽章、模型、官网帮助和连接配置；目录搜索文本按需缓存，活跃上下文限定操作并取消过期焦点与滚动。
- * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏承载当前服务的检查连接操作，不编辑凭据、不测试连接也不保存配置；分组收起状态只保存在本次页面会话，不写入配置，停用或切换上下文时断开并重建目录尺寸观察，卸载时清理观察器；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
+ * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏在检查连接左侧提供显式设为默认操作，通过独立事件交给外层 SettingsSections 持久化，不编辑凭据、不测试连接也不保存配置；分组收起状态只保存在本次页面会话，不写入配置，停用或切换上下文时断开并重建目录尺寸观察，卸载时清理观察器；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config。
  -->
 <template>
   <section
@@ -92,7 +92,19 @@
               </a>
             </div>
           </div>
-          <div ref="connectionActionTarget" class="hero-connection-action" />
+          <div class="hero-service-actions">
+            <button
+              type="button"
+              class="service-default-button"
+              data-set-default-service-button
+              :disabled="!active || service === defaultService || !selectedService || selectedService.disabled"
+              :onClick="actions.setDefaultService"
+            >
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6" /></svg>
+              {{ t(service === defaultService ? 'settings.services.library.default' : 'settings.services.library.setDefault') }}
+            </button>
+            <div ref="connectionActionTarget" class="hero-connection-action" />
+          </div>
         </div>
 
         <p v-if="selectedService?.description && !credentialGuide && service !== 'freeTranslation' && !isCustomOpenAIProviderId(service)" class="service-description">{{ selectedService.description }}</p>
@@ -211,6 +223,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:service': [value: string]
+  'update:default-service': [value: string]
   'update:model': [value: string]
   'add:service': []
   'add:model': [value: string]
@@ -368,10 +381,15 @@ function selectService(service: string): void {
   }
   emit('update:service', service)
 }
+function setDefaultService(): void {
+  if (!active.value || props.service === props.defaultService || !selectedService.value || selectedService.value.disabled) return
+  emit('update:default-service', props.service)
+}
 const actions = computed(() => {
   const current = capture()
   return {
     selectService: (value: string) => {if (current()) selectService(value)},
+    setDefaultService: () => {if (current()) setDefaultService()},
     revealGroup: (id: string) => {if (current()) return revealGroup(id)},
     toggleGroup: (id: string) => {if (current()) toggleGroup(id)},
     syncActiveGroup: () => {if (current()) syncActiveGroup()},
@@ -419,10 +437,15 @@ watch(() => props.service, (service) => {
 .service-groups { overflow-y: auto; min-height: 0; flex: 1; margin-top: 12px; overscroll-behavior: contain; }
 .directory-items { display: grid; gap: 1px; }
 .service-detail { display: flex; flex-direction: column; min-width: 0; min-height: 0; margin: 14px; padding: 24px; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); }
-.detail-hero { display: flex; align-items: center; gap: 14px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.detail-hero { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding-bottom: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .detail-hero > :deep(.service-icon) { margin-top: 2px; }
-.detail-heading { flex: 1; min-width: 0; }
-.hero-connection-action { flex: none; margin-left: auto; }
+.detail-heading { flex: 1 1 160px; min-width: 0; }
+.hero-service-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 100%; margin-left: auto; }
+.hero-connection-action { flex: none; }
+.service-default-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; max-width: 100%; min-height: 36px; padding: 7px 12px; border: 1px solid var(--brand-border, #f3c0ce); border-radius: 9px; color: var(--brand-strong, #bd2853); background: var(--surface, #fff); font-size: 12px; font-weight: 600; cursor: pointer; }
+.service-default-button > svg { flex: none; }
+.service-default-button:hover:not(:disabled) { border-color: var(--brand); background: var(--brand-soft); }
+.service-default-button:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
 .detail-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
 .detail-title-row h4 { margin: 0; font-size: 20px; line-height: 1.4; overflow-wrap: anywhere; }
 .detail-hero p { margin: 5px 0 0; color: var(--muted, #737c8f); font-size: 12px; line-height: 1.6; }
@@ -511,7 +534,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brand-strong, #
   .service-rail:not(.is-expanded) .service-directory-content { display: none; }
   .service-rail.is-expanded .service-directory-content { height: 280px; max-height: 40dvh; padding-top: 12px; flex: none; }
   .service-groups { max-height: 240px; }
-  .hero-connection-action { margin-left: 0; }
+  .hero-service-actions { margin-left: 0; }
   .detail-hero { margin-bottom: 16px; padding-bottom: 16px; }
 }
 </style>
