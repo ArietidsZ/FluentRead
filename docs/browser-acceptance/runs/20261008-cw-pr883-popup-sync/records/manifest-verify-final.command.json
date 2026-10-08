@@ -1,0 +1,11 @@
+{
+  "label": "manifest-verify-final",
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs"
+  ],
+  "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-pr883-popup-sync-20261008",
+  "started_at": "2026-10-08T17:46:03.907884+00:00",
+  "duration_seconds": 0.106,
+  "exit_code": 0
+}

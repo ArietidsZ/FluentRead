@@ -1,0 +1,12 @@
+{
+  "label": "neo-toolbar-popup",
+  "command": [
+    "node",
+    "../pr883-popup-sync-20261008/driver/run-popup-model-clarity.mjs",
+    "../pr883-popup-sync-20261008/gui"
+  ],
+  "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-pr883-popup-sync-20261008",
+  "started_at": "2026-10-08T17:50:08.963202+00:00",
+  "duration_seconds": 3.417,
+  "exit_code": 0
+}

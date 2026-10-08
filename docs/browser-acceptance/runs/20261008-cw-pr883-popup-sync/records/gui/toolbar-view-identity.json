@@ -1,0 +1,15 @@
+{
+  "target": {
+    "targetId": "257EEDB9AA44435C6C98CC29CB0FD92F",
+    "type": "page",
+    "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html"
+  },
+  "viewIdentity": [
+    {
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/popup.html",
+      "width": 320,
+      "height": 438
+    }
+  ],
+  "ordinaryPopupTabOpened": false
+}

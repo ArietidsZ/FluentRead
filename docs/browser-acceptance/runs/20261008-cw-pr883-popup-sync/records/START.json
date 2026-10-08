@@ -1,0 +1,9 @@
+{
+  "worktree": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-pr883-popup-sync-20261008",
+  "branch": "codex/popup-effective-model-unverified-20261007",
+  "original_pr_head": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+  "fetched_main": "f6aa756a78ce5813552bc32036cfd21997f575c1",
+  "privacy_head": "3714c1fb1fed58d53fd2ce3ec42943bbb7853a3a",
+  "draft": true,
+  "no_privacy_branch_merge": true
+}

@@ -1,0 +1,16 @@
+{
+  "label": "evidence-docs-build",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-pr883-popup-evidence-20261008",
+  "started_at": "2026-10-08T17:56:27.433394+00:00",
+  "duration_seconds": 2.437,
+  "exit_code": 0
+}

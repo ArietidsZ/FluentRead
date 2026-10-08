@@ -1,0 +1,20 @@
+{
+  "label": "architecture-main-baseline",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/extensionManifestContract.test.ts",
+    "tests/userscriptViteConfig.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=/home/arietids/Documents/Codex/2026-10-06/task/pr883-popup-sync-20261008/architecture-main-baseline.results.json"
+  ],
+  "cwd": "/tmp/fluentread-pr883-main-f6aa-baseline",
+  "started_at": "2026-10-08T17:45:27.866538+00:00",
+  "duration_seconds": 0.413,
+  "exit_code": 1
+}

@@ -1,0 +1,12 @@
+{
+  "label": "baseline-wxt-prepare",
+  "command": [
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "prepare"
+  ],
+  "cwd": "/tmp/fluentread-pr883-main-f6aa-baseline",
+  "started_at": "2026-10-08T17:45:38.438732+00:00",
+  "duration_seconds": 1.185,
+  "exit_code": 0
+}

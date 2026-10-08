@@ -1,0 +1,16 @@
+{
+  "label": "docs-main-baseline-build",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "/tmp/fluentread-pr883-main-f6aa-baseline",
+  "started_at": "2026-10-08T17:47:00.253191+00:00",
+  "duration_seconds": 2.495,
+  "exit_code": 0
+}

@@ -1,0 +1,68 @@
+{
+  "applicationCommit": "1d196af45b5e15ae9261790e40204f17c16b49bc",
+  "tree": "4d960e7d91ccc3c2dd2ebf15061f583037d9a6bb",
+  "syncedMain": "9ce9d7b5b4bf9b29617b847c49a1c441d986ee12",
+  "parents": [
+    "d6b3a203e03bb3b1ee5c8796ee7153d7b40e561d",
+    "9ce9d7b5b4bf9b29617b847c49a1c441d986ee12"
+  ],
+  "own_changed_files": [
+    "docs/testing.md",
+    "src/app/popup/PopupServices.vue",
+    "tests/popupServiceModelClarity.test.ts",
+    "tests/popupServicesLifecycle.test.ts",
+    "tests/test-matrix.json"
+  ],
+  "unchanged_main_guard_tail_sha256": "7b2b82d58365a9b284e56b20f5365cfcd0ae651ec5a8ada0ac191f2b8e37e969",
+  "unchanged_selection_warning_sha256": "52cc83d52dcf7acf37c154b2fab85fdaa0b6ea089ed81b312f8b5f6be79f3512",
+  "main_rows_open_ownership_guard_retained": true,
+  "main_matrix_entries_preserved": true,
+  "dependency_lock_build_manifest_version_defaults_changed_by_PR": false,
+  "privacy_branch_merged": false,
+  "old_head": "6268b171bdbef73986f5e0427051e1f9ee0fedf0",
+  "validation": {
+    "relatedTests": {
+      "numTotalTests": 224,
+      "numPassedTests": 224,
+      "numFailedTests": 0,
+      "numPendingTests": 0
+    },
+    "architecture": {
+      "numTotalTests": 1509,
+      "numPassedTests": 1507,
+      "numFailedTests": 2,
+      "numPendingTests": 0
+    },
+    "architectureFailuresExactlyMatchLatestMainBaseline": true,
+    "architectureFailures": [
+      [
+        "extension manifest capability contract 固定发布包英文名称，并为 Firefox 保留共享 OCR 资产",
+        "AssertionError: expected 'import {sharedOnnxBuildPlugin, shared…' to contain 'excludeSources: [\\'coverage/**\\']'"
+      ],
+      [
+        "userscript browser shim injection pins each remote language file to a commit containing exactly its built contents",
+        "Error: Command failed: git show 5bcae50072cfa779957d2f50431a90e23bfa48eb:userscript/languages/ja-JP.bfa2d165e762499e.json"
+      ]
+    ],
+    "docsVerifierFailureMatchesLatestMainBaseline": true,
+    "docsVerifierFailure": "Missing link /storybook/?path=/docs/foundations-colors--docs in en/guide/design-system.html",
+    "toolbarPopup": {
+      "verified": true,
+      "casesPassed": 4,
+      "browser": "Chrome/155.0.8309.26",
+      "sourceCommit": "1d196af45b5e15ae9261790e40204f17c16b49bc",
+      "remainingPids": 0,
+      "remainingListeners": 0
+    }
+  },
+  "frozenInputs": 2617,
+  "artifactFilesHashed": 804,
+  "fullRegressionRunForThisPR": false,
+  "strictCoverageClaimedForPopupSFC": false,
+  "noActualApiOrModelGpuCalls": true,
+  "notes": [
+    "SFC app composition root is not a strict-owned executable coverage module; no threshold or ignore changed.",
+    "Upstream main advances during validation: d6b3a203 records retained separately; final result bound to 1d196af4 + 9ce9d7b5.",
+    "Baseline first run lacked generated WXT tsconfig and is retained; prepared baseline rerun provides actual comparison."
+  ]
+}

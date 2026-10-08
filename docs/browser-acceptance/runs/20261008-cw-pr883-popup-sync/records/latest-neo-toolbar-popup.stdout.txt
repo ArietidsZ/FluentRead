@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "toolbarPopupVerified": true,
+  "cases": [
+    {
+      "name": "actual toolbar opens the production services drawer",
+      "status": "passed"
+    },
+    {
+      "name": "default inherited custom and feature overrides resolve with full titles and labels",
+      "status": "passed"
+    },
+    {
+      "name": "provider search preserves saved default and feature model choices",
+      "status": "passed"
+    },
+    {
+      "name": "machine selection removes only its model text and preserves default title",
+      "status": "passed"
+    }
+  ],
+  "networkRequestsBlocked": 0
+}

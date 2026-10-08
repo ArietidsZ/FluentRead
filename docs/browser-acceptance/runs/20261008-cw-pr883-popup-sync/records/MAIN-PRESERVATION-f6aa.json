@@ -1,0 +1,17 @@
+{
+  "main": "f6aa756a78ce5813552bc32036cfd21997f575c1",
+  "own_changed_files": [
+    "docs/testing.md",
+    "src/app/popup/PopupServices.vue",
+    "tests/popupServiceModelClarity.test.ts",
+    "tests/popupServicesLifecycle.test.ts",
+    "tests/test-matrix.json"
+  ],
+  "unchanged_main_guard_tail_sha256": "7b2b82d58365a9b284e56b20f5365cfcd0ae651ec5a8ada0ac191f2b8e37e969",
+  "unchanged_selection_warning_sha256": "52cc83d52dcf7acf37c154b2fab85fdaa0b6ea089ed81b312f8b5f6be79f3512",
+  "overview_ownership_selection_check_exactly_preserved": true,
+  "all_main_matrix_entries_preserved": true,
+  "model_test_exactly_once": true,
+  "dependency_lock_build_config_manifest_version_defaults_touched_by_PR": false,
+  "privacy_branch_merged": false
+}

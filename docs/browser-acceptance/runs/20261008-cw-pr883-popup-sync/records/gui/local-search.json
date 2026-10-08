@@ -1,0 +1,10 @@
+{
+  "query": "cw-ui/search-only-model",
+  "choices": [
+    {
+      "service": "ollama",
+      "text": "Ollama\ncw-ui/search-only-model",
+      "disabled": false
+    }
+  ]
+}

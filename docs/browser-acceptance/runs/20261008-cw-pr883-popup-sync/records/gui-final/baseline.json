@@ -1,0 +1,34 @@
+{
+  "binarySha256": "0994937730e362e40653610fd40e38d62d4160152b590f90e99971005c2e0881",
+  "policySha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "desktop": [
+    {
+      "id": 3,
+      "pid": 10304,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 11,
+      "pid": 68168,
+      "x": 664,
+      "y": 47,
+      "focused": false
+    },
+    {
+      "id": 4,
+      "pid": 11841,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 19,
+      "pid": 1785675,
+      "x": 0,
+      "y": 32,
+      "focused": true
+    }
+  ]
+}

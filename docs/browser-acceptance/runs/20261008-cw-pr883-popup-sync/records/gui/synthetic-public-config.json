@@ -1,0 +1,35 @@
+{
+  "service": "ollama",
+  "uiLanguage": "zh-CN",
+  "uiLanguageSetupCompleted": true,
+  "model": {
+    "ollama": "自定义模型"
+  },
+  "customModel": {
+    "ollama": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification"
+  },
+  "customModels": {
+    "ollama": [
+      "cw-ui/search-only-model"
+    ]
+  },
+  "selectionTranslationService": "microsoft",
+  "hoverTranslationService": "",
+  "inputBoxTranslationService": "ollama",
+  "inputBoxTranslationModel": "cw-ui/input-override",
+  "documentService": "ollama",
+  "documentModel": {
+    "ollama": "自定义模型"
+  },
+  "documentCustomModel": {
+    "ollama": "cw-ui/document-custom"
+  },
+  "harness": {
+    "service": "",
+    "model": "cw-ui/reading-override"
+  },
+  "writing": {
+    "service": "ollama",
+    "model": "cw-ui/writing-override"
+  }
+}

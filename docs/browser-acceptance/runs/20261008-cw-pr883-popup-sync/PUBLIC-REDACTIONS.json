@@ -1,0 +1,14 @@
+{
+  "queryTokenRedactions": [
+    {
+      "file": "gui/ownership-before-control.json",
+      "count": 1
+    },
+    {
+      "file": "gui-final/ownership-before-control.json",
+      "count": 1
+    }
+  ],
+  "authProfileFilesIncluded": false,
+  "temporaryXauthorityCookieOrDatabaseFilesIncluded": false
+}

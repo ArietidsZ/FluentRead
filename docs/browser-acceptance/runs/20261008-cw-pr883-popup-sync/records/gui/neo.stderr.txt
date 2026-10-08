@@ -1,0 +1,7 @@
+[3672634:3672634:1008/175009.676583:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[3672634:3672634:1008/175009.676624:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[3672634:3672634:1008/175009.676639:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[3672634:3672634:1008/175009.676654:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+
+DevTools listening on ws://127.0.0.1:37449/devtools/browser/d5c114af-3816-4563-afa2-a2fd5f0157f0
+[3672782:7:1008/175009.726466:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:277] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.

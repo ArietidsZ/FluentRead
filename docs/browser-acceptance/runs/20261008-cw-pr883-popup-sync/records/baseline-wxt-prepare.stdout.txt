@@ -1,0 +1,4 @@
+
+WXT 0.20.18
+ℹ Generating types...
+✔ Finished in 974 ms

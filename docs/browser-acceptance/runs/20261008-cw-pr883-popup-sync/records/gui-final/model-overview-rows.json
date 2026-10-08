@@ -1,0 +1,102 @@
+[
+  {
+    "id": "default",
+    "ariaLabel": "网页默认服务 · Ollama · 当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "service": "Ollama",
+    "model": "当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "title": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "smallWidth": 117,
+    "smallScrollWidth": 393,
+    "warning": false
+  },
+  {
+    "id": "hover",
+    "ariaLabel": "鼠标悬浮 · 跟随默认 · Ollama · 当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "service": "跟随默认",
+    "model": "当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "title": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "smallWidth": 118,
+    "smallScrollWidth": 393,
+    "warning": false
+  },
+  {
+    "id": "selection",
+    "ariaLabel": "划词翻译 · 微软翻译",
+    "service": "微软翻译",
+    "model": "",
+    "title": "",
+    "smallWidth": 0,
+    "smallScrollWidth": 0,
+    "warning": false
+  },
+  {
+    "id": "input",
+    "ariaLabel": "输入框翻译 · Ollama · 当前模型：cw-ui/input-override",
+    "service": "Ollama",
+    "model": "当前模型：cw-ui/input-override",
+    "title": "cw-ui/input-override",
+    "smallWidth": 118,
+    "smallScrollWidth": 131,
+    "warning": false
+  },
+  {
+    "id": "video",
+    "ariaLabel": "视频字幕 · 跟随默认 · Ollama · 当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "service": "跟随默认",
+    "model": "当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "title": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "smallWidth": 118,
+    "smallScrollWidth": 393,
+    "warning": false
+  },
+  {
+    "id": "document",
+    "ariaLabel": "文档翻译 · Ollama · 当前模型：cw-ui/document-custom",
+    "service": "Ollama",
+    "model": "当前模型：cw-ui/document-custom",
+    "title": "cw-ui/document-custom",
+    "smallWidth": 118,
+    "smallScrollWidth": 148,
+    "warning": false
+  },
+  {
+    "id": "image",
+    "ariaLabel": "图片翻译 · 跟随默认 · Ollama · 当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "service": "跟随默认",
+    "model": "当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "title": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "smallWidth": 118,
+    "smallScrollWidth": 393,
+    "warning": false
+  },
+  {
+    "id": "area",
+    "ariaLabel": "圈选翻译 · 跟随默认 · Ollama · 当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "service": "跟随默认",
+    "model": "当前模型：cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "title": "cw-ui/default-custom-model-with-a-long-name-for-full-title-and-ellipsis-verification",
+    "smallWidth": 118,
+    "smallScrollWidth": 393,
+    "warning": false
+  },
+  {
+    "id": "reading",
+    "ariaLabel": "划词 AI 讲解 · 跟随默认 · Ollama · 当前模型：cw-ui/reading-override",
+    "service": "跟随默认",
+    "model": "当前模型：cw-ui/reading-override",
+    "title": "cw-ui/reading-override",
+    "smallWidth": 118,
+    "smallScrollWidth": 141,
+    "warning": false
+  },
+  {
+    "id": "writing",
+    "ariaLabel": "写作助手 · Ollama · 当前模型：cw-ui/writing-override",
+    "service": "Ollama",
+    "model": "当前模型：cw-ui/writing-override",
+    "title": "cw-ui/writing-override",
+    "smallWidth": 118,
+    "smallScrollWidth": 138,
+    "warning": false
+  }
+]

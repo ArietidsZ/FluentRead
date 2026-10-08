@@ -1,0 +1,23 @@
+{
+  "applicationCommit": "1d196af45b5e15ae9261790e40204f17c16b49bc",
+  "tree": "4d960e7d91ccc3c2dd2ebf15061f583037d9a6bb",
+  "syncedMain": "9ce9d7b5b4bf9b29617b847c49a1c441d986ee12",
+  "parents": [
+    "d6b3a203e03bb3b1ee5c8796ee7153d7b40e561d",
+    "9ce9d7b5b4bf9b29617b847c49a1c441d986ee12"
+  ],
+  "own_changed_files": [
+    "docs/testing.md",
+    "src/app/popup/PopupServices.vue",
+    "tests/popupServiceModelClarity.test.ts",
+    "tests/popupServicesLifecycle.test.ts",
+    "tests/test-matrix.json"
+  ],
+  "unchanged_main_guard_tail_sha256": "7b2b82d58365a9b284e56b20f5365cfcd0ae651ec5a8ada0ac191f2b8e37e969",
+  "unchanged_selection_warning_sha256": "52cc83d52dcf7acf37c154b2fab85fdaa0b6ea089ed81b312f8b5f6be79f3512",
+  "main_rows_open_ownership_guard_retained": true,
+  "main_matrix_entries_preserved": true,
+  "dependency_lock_build_manifest_version_defaults_changed_by_PR": false,
+  "privacy_branch_merged": false,
+  "old_head": "6268b171bdbef73986f5e0427051e1f9ee0fedf0"
+}

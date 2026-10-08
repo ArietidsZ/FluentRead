@@ -1,0 +1,20 @@
+{
+  "originalHelperPath": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-neo-isolated-port-evidence-20261008/docs/browser-acceptance/runs/20261008-cw-neo-ui-client-boundaries/driver/neo-owned-session.mjs",
+  "originalHelperSha256": "82e751c6fb2c38b4c0ece6e6d32a62d18dea1c6f0da3245f59f95060d70d236c",
+  "finalHelperSha256": "0f2128ea003acda8c886c4111b00b4e1056a112170562b16f530d0b1926e58bb",
+  "changedOnlyLiteralApplicationAndTwoArtifactPins": true,
+  "pins": [
+    {
+      "old": "89fd05806c4c41778e8a47817988130ef09ca583",
+      "new": "1d196af45b5e15ae9261790e40204f17c16b49bc"
+    },
+    {
+      "old": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "new": "cc92950ad08ed2e2f02bd55a0756048e6569ec51c9341d9e678b65fb3d8d03f7"
+    },
+    {
+      "old": "c8b6b7e784b7cba0ad0b00f72cacda852610c0dd280568084d64e0b25e705e9c",
+      "new": "7a222e70f6e294681feff959856cb47cc0f7191a861e0f700dc01d4b1dfc6984"
+    }
+  ]
+}
