@@ -67,6 +67,14 @@ afterAll(async () => server?.close());
 function control(ariaLabel: string): Node { const element = [...elements].reverse().find(node => node.props['aria-label'] === ariaLabel); expect(element, ariaLabel).toBeDefined(); return element!; }
 
 describe('free translation settings compiled component', () => {
+  it('B站在智能加速列表首位展示推荐标记，手动顺序仍可调整', async () => {
+    expect(state.providers[0].id).toBe('bilibiliFree');
+    expect(elements.filter(node => node.props['data-provider-recommended']).map(node => node.text)).toEqual(['推荐']);
+    state.setMode('sequential');
+    config.freeTranslationOrder = ['google', 'bilibiliFree'];
+    await runtime.nextTick();
+    expect(state.providers.map((provider: {id: string}) => provider.id).slice(0, 2)).toEqual(['google', 'bilibiliFree']);
+  });
   it('已失效的检查不发布排队状态或发起请求', async () => {
     let updates = 0, requests = 0;
     await checkAllFreeTranslationProviders({isCurrent: () => false, failureMessage: 'failed',
@@ -140,7 +148,7 @@ describe('free translation settings compiled component', () => {
     let clock = 100;
     const pending: Array<{resolve: (value: {success: boolean; durationMs?: number; error?: string}) => void; reject: (error: Error) => void}> = [];
     const run = checkAllFreeTranslationProviders({
-      check: id => ['microsoft', 'transmart', 'volcengineFree'].includes(id)
+      check: id => ['bilibiliFree', 'microsoft', 'transmart'].includes(id)
         ? new Promise((resolve, reject) => pending.push({resolve, reject}))
         : Promise.resolve({success: true, durationMs: Number.NaN}),
       update: (id, value) => {checks[id] = value;},
@@ -151,9 +159,9 @@ describe('free translation settings compiled component', () => {
     pending[1].resolve({success: false, error: '超时'});
     pending[2].reject(new Error('断开'));
     await run;
-    expect(checks.microsoft?.durationMs).toBe(7);
+    expect(checks.bilibiliFree?.durationMs).toBe(7);
+    expect(checks.microsoft?.durationMs).toBe(25);
     expect(checks.transmart?.durationMs).toBe(25);
-    expect(checks.volcengineFree?.durationMs).toBe(25);
     expect(checks.apertiumFree?.durationMs).toBe(0);
     checks.microsoft = {status: 'checking', durationMs: 7};
     await runtime.nextTick();
