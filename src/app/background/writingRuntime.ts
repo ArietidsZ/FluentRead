@@ -1,9 +1,12 @@
 /**
  * @file src/app/background/writingRuntime.ts
  * 文件职责：将写作后台接入已有配置、模型用量与浏览器生命周期。
- * 主要内容：装配端口、服务和只读学习记忆，按可信发送者隔离隐私窗口；生成配置变更、网站停用、标签关闭或导航时取消生成；阅读对照偏好由面板管理，不中断回复生成。
+ * 主要内容：装配端口、服务和只读学习记忆，按原生 sender 精确解析 private/regular/unknown 并附着内部来源；生成配置变更、网站停用、标签关闭或导航时取消生成；阅读对照偏好由面板管理，不中断回复生成。
  * 模块边界：只负责组合，不读取网页，不实现提示词和编辑器写回。
  */
+import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
+import {captureTranslationRequestContext, waitForTranslationRequestPreparation, throwIfTranslationRequestAborted} from '@/src/services/translation/requestRegistry';
+import {attachTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import type {Config} from '@/src/core/config/model';
 import {isWritingPage} from '@/src/core/config/writing';
 import browser from 'webextension-polyfill';
@@ -25,15 +28,18 @@ export function installWritingBackgroundRuntime(): () => void {
             if (isExtensionDisabledOnSite(sender.url!, domains) || isExtensionDisabledOnSite(sender.tab?.url || '', domains)) return '当前网站已禁用写作助手';
             return undefined;
         },
-        run: (request, signal, progress, sender) => {
+        run: async (request, signal, progress, sender) => {
+            const captured = captureTranslationRequestContext({sender});
+            const privacy = await waitForTranslationRequestPreparation(resolveNativeSourcePrivacy(captured.sender, browser.runtime as unknown as IncognitoSourceRuntime), signal);
+            throwIfTranslationRequestAborted(signal);
             const generation = modelUsageRepository.captureGeneration();
             return createWritingRuntime(() => config, event => {
                 void modelUsageRepository.recordMany([event], generation).catch(() => undefined);
-            }, {recall: createLearningMemoryRecall(learningMemoryRepository)})(request, signal, progress, Boolean(sender.tab?.incognito || browser.extension.inIncognitoContext));
+            }, {recall: createLearningMemoryRecall(learningMemoryRepository)})(attachTranslationSourcePrivacy(request, privacy), signal, progress, privacy === 'private' || browser.extension.inIncognitoContext);
         },
     });
     browser.runtime.onConnect.addListener(port => handler.connect(port));
-    const configurationKey = (next: Config) => JSON.stringify([next.on, next.harness.memoryEnabled, {...next.writing, referenceLanguage: undefined}, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders]);
+    const configurationKey = (next: Config) => JSON.stringify([next.on, next.harness.memoryEnabled, {...next.writing, referenceLanguage: undefined}, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders, next.incognitoService, next.incognitoModel, next.customModels, next.customBody, next.customHeaders, next.apiKeys, next.apiKeyRotationEnabled, next.modelThinking, next.azureOpenaiEndpoint, next.newApiUrl, next.deepseekApiType, next.minimaxRegion, next.minimaxBillingPlan, next.mimoRegion, next.mimoBillingPlan]);
     let previous = configurationKey(config);
     subscribeConfig(next => {
         const key = configurationKey(next);

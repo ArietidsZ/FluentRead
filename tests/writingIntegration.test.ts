@@ -1,6 +1,6 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-const m = vi.hoisted(() => ({config: {} as any, subscribe: vi.fn(), connect: vi.fn(), onConnect: vi.fn(), removed: vi.fn(), updated: vi.fn(), handlerFactory: vi.fn(), handler: {connect: vi.fn(), cancelAll: vi.fn(), cancelTab: vi.fn()}, runtimeFactory: vi.fn(), record: vi.fn(), shadow: vi.fn(), extension: {inIncognitoContext: false}, recall: vi.fn(), memoryList: vi.fn()}));
-vi.mock('webextension-polyfill', () => ({default: {extension: m.extension, runtime: {id: 'ext', getURL: (path: string) => `chrome-extension://ext/${path}`, connect: m.connect, onConnect: {addListener: m.onConnect}}, tabs: {onRemoved: {addListener: m.removed}, onUpdated: {addListener: m.updated}}}}));
+const m = vi.hoisted(() => ({config: {} as any, subscribe: vi.fn(), connect: vi.fn(), onConnect: vi.fn(), removed: vi.fn(), updated: vi.fn(), handlerFactory: vi.fn(), handler: {connect: vi.fn(), cancelAll: vi.fn(), cancelTab: vi.fn()}, runtimeFactory: vi.fn(), record: vi.fn(), shadow: vi.fn(), extension: {inIncognitoContext: false}, recall: vi.fn(), memoryList: vi.fn(), contexts: vi.fn()}));
+vi.mock('webextension-polyfill', () => ({default: {extension: m.extension, runtime: {id: 'ext', getContexts: m.contexts, getURL: (path: string) => `chrome-extension://ext/${path}`, connect: m.connect, onConnect: {addListener: m.onConnect}}, tabs: {onRemoved: {addListener: m.removed}, onUpdated: {addListener: m.updated}}}}));
 vi.mock('@/src/services/config/store', () => ({config: m.config, configReady: Promise.resolve(), subscribeConfig: m.subscribe}));
 vi.mock('@/src/features/writing-assistant/background', () => ({createWritingHandler: m.handlerFactory}));
 vi.mock('@/src/services/writing/runtime', () => ({createWritingRuntime: m.runtimeFactory}));
@@ -40,7 +40,7 @@ describe('Writing mounting and background composition', () => {
     const run = vi.fn(async () => ({success: true})); m.runtimeFactory.mockReturnValue(run); const cancel = installWritingBackgroundRuntime();
     const deps = m.handlerFactory.mock.calls[0][0];
     expect(deps.eligibility({})).toContain('仅支持'); expect(deps.eligibility({url:'https://example.com'})).toContain('仅支持');
-    const sender = {url:'https://github.com/a/b/issues/1',tab:{url:'https://github.com/a/b/issues/1'}};
+    const sender = {id:'ext',url:'https://github.com/a/b/issues/1',tab:{incognito:false,url:'https://github.com/a/b/issues/1'}};
     expect(deps.eligibility(sender)).toBeUndefined(); m.config.on = false; expect(deps.eligibility(sender)).toContain('停用'); m.config.on = true; m.config.writing.enabled = false; expect(deps.eligibility(sender)).toContain('停用'); m.config.writing.enabled = true;
     m.config.disabledExtensionDomains = ['github.com']; expect(deps.eligibility(sender)).toContain('禁用'); m.config.disabledExtensionDomains = ['example.com']; expect(deps.eligibility({...sender,tab:{url:'https://example.com'}})).toContain('禁用'); expect(deps.eligibility({url:sender.url})).toBeUndefined();
     m.config.writing.disabledDomains = ['github.com']; expect(deps.eligibility(sender)).toContain('禁用');
@@ -50,9 +50,24 @@ describe('Writing mounting and background composition', () => {
     await deps.run(request,new AbortController().signal,vi.fn(), sender); expect(m.runtimeFactory.mock.calls[0][0]()).toBe(m.config);
     m.record.mockRejectedValue(new Error('storage')); m.runtimeFactory.mock.calls[0][1]({purpose:'writing'}); await Promise.resolve(); expect(m.record).toHaveBeenCalledWith([{purpose:'writing'}],3);
     expect(m.runtimeFactory.mock.calls[0][2].recall).toBe(m.recall); expect((run.mock.calls.at(-1)! as unknown[])[3]).toBe(false);
-    await deps.run(request, new AbortController().signal, vi.fn(), {tab: {incognito: true}}); expect((run.mock.calls.at(-1)! as unknown[])[3]).toBe(true);
+    await deps.run(request, new AbortController().signal, vi.fn(), {id: 'ext',tab: {incognito: true}}); expect((run.mock.calls.at(-1)! as unknown[])[3]).toBe(true);
     m.extension.inIncognitoContext = true; await deps.run(request, new AbortController().signal, vi.fn(), {}); expect((run.mock.calls.at(-1)! as unknown[])[3]).toBe(true);
     m.config.harness.memoryEnabled = true; changed(m.config); expect(m.handler.cancelAll).toHaveBeenCalledTimes(4);
     cancel(); expect(m.handler.cancelAll).toHaveBeenCalledTimes(5);
+  });
+});
+
+describe('Writing source preparation cancellation', () => {
+  it('an exact native extension document is queried with only its documentId; abort consumes late context resolution', async () => {
+    let settle!: (value: unknown[]) => void;
+    m.contexts.mockReturnValueOnce(new Promise(resolve => {settle = resolve;}));
+    const run = vi.fn(async () => ({success: true})); m.runtimeFactory.mockReturnValue(run);
+    installWritingBackgroundRuntime(); const deps = m.handlerFactory.mock.calls.at(-1)![0];
+    const controller = new AbortController();
+    const pending = deps.run(request, controller.signal, vi.fn(), {id: 'ext', url: 'chrome-extension://ext/options.html', documentId: 'native-options', frameId: 0});
+    expect(m.contexts).toHaveBeenCalledWith({documentIds: ['native-options']}); controller.abort();
+    await expect(pending).rejects.toMatchObject({name: 'AbortError'});
+    settle([{documentId: 'native-options', contextId: 'native-context', contextType: 'TAB', documentOrigin: 'chrome-extension://ext', documentUrl: 'chrome-extension://ext/options.html', frameId: 0, incognito: true}]);
+    await Promise.resolve(); expect(run).not.toHaveBeenCalled();
   });
 });

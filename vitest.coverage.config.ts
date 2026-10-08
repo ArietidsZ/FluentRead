@@ -83,6 +83,7 @@ export default defineConfig({
             'tests/writingMarkdown.test.ts',
             'tests/writingBackground.test.ts',
             'tests/writingRuntime.test.ts',
+            'tests/writingPrivacyRoute.test.ts',
             'tests/contentRuntimeLifecycle.test.ts',
             'tests/issue146EmbeddedFrames.test.ts',
             'tests/selectionPageZoom.test.ts',

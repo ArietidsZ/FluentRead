@@ -940,3 +940,5 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ```
 
 使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
+
+`writingPrivacyRoute` 使用实际写作 handler、runtime、modelGateway、AI SDK provider 和合成 fetch，检查 wire model、原写作 prompt/工具语义、原生三态来源、unknown 与伪造字段拒绝、both-empty 兼容、无效或不支持的专用对、锁冲突、多 Key 冻结、专用配置变更取消和关闭/导航后的迟到结果。`writingBackground` 另覆盖 ready 已 resolve 而原生关闭先于 continuation 的窗口，`writingIntegration` 覆盖精确 getContexts 等待的取消及迟到结果消费。全部为离线确定性证据，不证明真实模型或 GUI 验收；阅读入口另行处理。

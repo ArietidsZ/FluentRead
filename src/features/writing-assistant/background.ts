@@ -1,14 +1,15 @@
 /**
  * @file src/features/writing-assistant/background.ts
  * 文件职责：为写作流建立来源校验、请求限额与取消所有权。
- * 主要内容：每个端口只接收一个有界请求，向后台传递可信发送者以隔离隐私窗口，配置、导航、断连、超时后阻止迟到输出。
+ * 主要内容：每个端口只接收一个有界请求，同步复制原生 sender 后向后台传递，以隔离隐私窗口和避免迟到身份替换，配置、导航、断连、超时后阻止迟到输出。
  * 模块边界：不读密钥或浏览器全局；由应用层注入配置就绪、资格和生成函数。
  */
 import {z} from 'zod';
+import {waitForTranslationRequestPreparation} from '@/src/services/translation/requestRegistry';
 import {WRITING_ACTIONS, WRITING_LENGTHS, WRITING_STYLES, WRITING_ROLE_MAX_LENGTH, WRITING_TONE_MAX_LENGTH, isWritingLanguage, normalizeWritingLanguage, normalizeWritingLength} from '@/src/core/config/writing';
 import type {WritingRequest, WritingResponse, WritingProgress, WritingStreamMessage} from './types';
 
-export interface WritingSender {id?: string; url?: string; documentId?: string; tab?: {id?: number; url?: string; incognito?: boolean}; frameId?: number}
+export interface WritingSender {id?: string; url?: string; origin?: string; documentId?: string; tab?: {id?: number; url?: string; incognito?: boolean}; frameId?: number}
 export interface WritingPort {
     name: string; sender?: WritingSender;
     onMessage: {addListener(fn: (message: unknown) => void): void; removeListener(fn: (message: unknown) => void): void};
@@ -41,7 +42,8 @@ export function createWritingHandler(deps: {
         cancelTab(tabId: number) { for (const entry of [...active]) if (entry.sender.tab?.id === tabId) entry.cancel(); },
         connect(port: WritingPort) {
             if (port.name !== 'fluentReadWritingStream') return;
-            const sender = port.sender ?? {};
+            const nativeSender = port.sender;
+            const sender: WritingSender = Object.freeze({...nativeSender, ...(nativeSender?.tab ? {tab: Object.freeze({...nativeSender.tab})} : {})});
             const trusted = sender.id === deps.extensionId && (
                 sender.url?.split(/[?#]/u)[0] === deps.optionsUrl
                 || (Number.isSafeInteger(sender.tab?.id) && sender.tab!.id! >= 0 && /^https?:\/\//u.test(sender.url ?? '')));
@@ -74,7 +76,7 @@ export function createWritingHandler(deps: {
                 timer = setTimeout(() => { controller.abort(); finish({success: false, error: '生成超时，请重试'}); }, 60000);
                 void (async () => {
                     try {
-                        await deps.ready;
+                        await waitForTranslationRequestPreparation(deps.ready, controller.signal);
                         if (finished) return;
                         const blocked = deps.eligibility(sender);
                         if (blocked) { finish({success: false, error: blocked}); return; }

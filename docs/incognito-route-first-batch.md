@@ -35,3 +35,5 @@ manifest 保持 spanning。Chrome spanning 下私密窗口是否能打开扩展�
 测试使用固定夹具和 mock 传输；不读取真实配置或认证文件、不调用真实模型或搜索 API。浏览器加载、开发者模式和真实 RTX5090 WebGPU 验证仍未执行。
 
 文本取消的旧 Firefox 文档范围现由原生文本 Port 租约补齐：每次真实连接由后台生成独立身份，断连释放该连接的普通文本、批量与输入请求，同 URL/frame 重连和迟到 cancel 不能复用旧授权。Chrome 的 documentId 直连与 userscript 旧协议保留。Port 只提供文档生命周期所有权；无 tab 扩展页的 getContexts 私密来源限制仍存在，不将租约当作私密状态或伪造 documentId。本批仅做确定性测试和产物验证，既有 `89fd0580` 的 Neo GUI 结果不属于这批源码。
+
+写作助手现从浏览器原生 sender 解析 private/regular/unknown，再进入原写作 runtime/modelGateway。private 使用经过目录与能力校验的专用对，冻结模型锁贯穿 AI SDK 及多 Key 调用；unknown 且任一专用字段已设置时拒绝调用，两字段都为空时保留原写作路线与记忆策略。普通来源继续使用独立写作设置。前端自报布尔或 service/model 被严格消息 parser 拒绝；配置、导航、关闭中止在途生成并阻止迟到输出。写作草稿、回复、润色、忠实翻译及工具语义保留，不套用普通翻译 prompt；机器翻译、本地翻译及不支持上下文的翻译专用模型拒绝进入会话 gateway。本批只完成写作入口，阅读 Harness/conversation 入口仍待单独接入；没有真实浏览器或供应商验收。

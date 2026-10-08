@@ -17,7 +17,7 @@ afterEach(() => vi.useRealTimers());
 describe('Writing request leases', () => {
   it('streams a single request and cleans both listeners after completion', async () => {
     const {handler, deps} = setup(); const p = port(); handler.connect(p); p.onMessage.fire(request); p.onMessage.fire(request); await flush();
-    expect(deps.run).toHaveBeenCalledOnce(); expect((deps.run.mock.calls[0] as unknown[])[3]).toBe(p.sender); expect(p.postMessage).toHaveBeenCalledWith({type: 'result', requestId: 'write-1', response: success}); expect(p.onMessage.listeners.size).toBe(0); expect(p.onDisconnect.listeners.size).toBe(0);
+    expect(deps.run).toHaveBeenCalledOnce(); expect((deps.run.mock.calls[0] as unknown[])[3]).toEqual(p.sender); expect(p.postMessage).toHaveBeenCalledWith({type: 'result', requestId: 'write-1', response: success}); expect(p.onMessage.listeners.size).toBe(0); expect(p.onDisconnect.listeners.size).toBe(0);
     expect(deps.run.mock.calls[0][0]).toEqual({...request, length: 'short', style: 'auto', role: 'auto'});
   });
   it('allows only own content documents and the exact options page', async () => {
@@ -39,6 +39,11 @@ describe('Writing request leases', () => {
     deps.run.mockImplementation(async (_r, _s, progress) => { publish = progress; return new Promise(resolve => {finish = resolve;}); });
     const active = port(); handler.connect(active); active.onMessage.fire(request); await flush(); handler.cancelTab(9); expect(active.postMessage).not.toHaveBeenCalled(); handler.cancelTab(1); publish({kind: 'text', text: 'late'}); finish(success); await flush();
     expect(active.postMessage).toHaveBeenCalledTimes(1); expect(active.postMessage.mock.calls[0][0].response.cancelled).toBe(true);
+  });
+  it('a ready resolution followed by native close before its continuation cannot start late generation', async () => {
+    const {handler, deps} = setup(); const p = port(); handler.connect(p); p.onMessage.fire(request);
+    queueMicrotask(() => p.onDisconnect.fire()); await flush();
+    expect(deps.run).not.toHaveBeenCalled(); expect(p.postMessage).not.toHaveBeenCalled();
   });
   it('replaces same-document work, bounds parallel pages and cancels all owners', async () => {
     const {handler, deps} = setup(); deps.run.mockImplementation(() => new Promise(() => {}));

@@ -1,7 +1,7 @@
 /**
  * @file src/services/harness/modelGateway.ts
  * 文件职责：把已配置的 FluentRead AI 服务适配为 Harness 可消费的 LanguageModel。
- * 主要内容：解析 OpenAI 兼容端点、注入凭据与供应商头、保留 tools/messages/system
+ * 主要内容：核验已有私密模型锁与调用对，解析 OpenAI 兼容端点、注入凭据与供应商头、保留 tools/messages/system
  * 语义，并对 DeepSeek Responses 配置和机器翻译服务给出明确错误。
  * 模块边界：本文件只负责模型 transport，不管理会话、UI、提示词、缓存或配置持久化；
  * 请求由 AI SDK 执行，网络统一经过 runtimeFetch。
@@ -13,6 +13,7 @@ import type {LanguageModel} from 'ai';
 import hmacSha256 from 'crypto-js/hmac-sha256';
 import base64 from 'crypto-js/enc-base64';
 import type {Config} from '@/src/core/config/model';
+import {getLockedIncognitoRoute} from '@/src/core/config/incognitoRoute';
 import {currentModelIds, services} from '@/src/core/config/catalog';
 import {tongyiTokenPlanUrl, urls} from '@/src/core/config/constants';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
@@ -155,6 +156,8 @@ function snapshotHarnessConfig(config: Config): Config {
  * 重新创建底层 provider，避免某次调用中途读取到 UI 正在编辑的凭据。
  */
 export function createHarnessLanguageModel(config: Config, service: string, model: string): LanguageModel {
+  const route = getLockedIncognitoRoute(config);
+  if (route && (route.service !== service || route.model !== model)) throw new Error('私密来源锁定的服务或模型与 Harness 调用冲突');
   const keys = getServiceApiKeys(config, service);
   if (keys.length < 2) return createSingleHarnessLanguageModel(withServiceApiKey(config, service, keys[0] ?? ''), service, model);
 

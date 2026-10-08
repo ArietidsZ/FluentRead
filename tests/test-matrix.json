@@ -461,7 +461,8 @@
       "tests/mangaInferenceWorker.test.ts",
       "tests/popupMount.test.ts",
       "tests/translationDocumentLifetime.test.ts",
-      "tests/translationDocumentPort.test.ts"
+      "tests/translationDocumentPort.test.ts",
+      "tests/writingPrivacyRoute.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

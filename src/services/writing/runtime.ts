@@ -1,7 +1,7 @@
 /**
  * @file src/services/writing/runtime.ts
  * 文件职责：通过共享 Harness 内核生成写作草稿或会话回答。
- * 主要内容：冻结服务与回复语言，以独立语言约束覆盖草稿、改写要求和自定义偏好的语言；按所选身份组织回应重点并纠正旧稿立场，隔离忠实翻译与写作风格篇幅要求、引用资料、只读工具循环、可选学习记忆、逐步用量及凭据错误。
+ * 主要内容：冻结服务与回复语言，以后台可信三态来源校验专用对并锁定有效模型，拒绝 unknown 绕过；以独立语言约束覆盖草稿、改写要求和自定义偏好的语言；按所选身份组织回应重点并纠正旧稿立场，隔离忠实翻译与写作风格篇幅要求、引用资料、只读工具循环、可选学习记忆、逐步用量及凭据错误。
  * 模块边界：只在后台运行，不复用翻译提示词，工具只访问本次参考快照和主动保存的学习记忆，不读取网页、不写入记忆或发送回复。
  */
 import {streamText, tool, type ModelMessage, type ToolSet} from 'ai';
@@ -12,6 +12,10 @@ import {readMemory, type HarnessMemoryReader} from '@/src/services/harness/memor
 import type {Config} from '@/src/core/config/model';
 import {resolveWritingReadiness} from '@/src/core/config/writingReadiness';
 import {WRITING_LANGUAGES, WRITING_TONES, WRITING_STYLES, WRITING_ROLES, normalizeWritingLength, resolveWritingLanguage, type WritingIntent, type WritingLength} from '@/src/core/config/writing';
+import {getTranslationSourcePrivacy, assertTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
+import {resolveIncognitoRoute, lockIncognitoRoute} from '@/src/core/config/incognitoRoute';
+import {isHarnessService} from '@/src/core/config/harness';
+import {servicesType} from '@/src/core/config/catalog';
 import {createHarnessLanguageModel, normalizeHarnessModelError} from '@/src/services/harness/modelGateway';
 import {createHarnessUsageEvent} from '@/src/services/harness/usage';
 import type {ModelUsageEvent} from '@/src/services/model-usage/types';
@@ -44,7 +48,18 @@ const MEMORY_INPUT = z.object({query: z.string().trim().min(1).max(500)}).strict
 export function createWritingRuntime(getConfig: () => Config, record?: (event: ModelUsageEvent) => void, memory?: HarnessMemoryReader) {
     return async (request: WritingRequest, signal: AbortSignal, progress: (value: WritingProgress) => void, privateContext = false): Promise<WritingResponse> => {
         if (signal.aborted) return {success: false, error: '已停止生成', cancelled: true};
-        const current = JSON.parse(JSON.stringify(getConfig())) as Config;
+        let current = JSON.parse(JSON.stringify(getConfig())) as Config;
+        const privacy = getTranslationSourcePrivacy(request);
+        try {
+            assertTranslationSourcePrivacy(request, getConfig(), current);
+            if (privacy === 'private') {
+                const route = resolveIncognitoRoute(current);
+                if (route) {
+                    if (!isHarnessService(route.service, current.customOpenAIProviders) || !servicesType.isUseAIContext(route.service, route.model)) return {success: false, error: '私密来源专用服务不支持写作会话和工具，请选择已适配的 AI 服务'};
+                    current = lockIncognitoRoute({...current, writing: Object.freeze({...current.writing, service: route.service, model: route.model})}, route);
+                }
+            }
+        } catch (error) {return {success: false, error: (error as Error).message.replace(/翻译/gu, '写作')};}
         if (!current.on || !current.writing.enabled) return {success: false, error: '请先启用写作助手'};
         const {service, model: modelId, ready, message} = resolveWritingReadiness(current);
         if (!ready) return {success: false, error: message};
@@ -85,7 +100,7 @@ export function createWritingRuntime(getConfig: () => Config, record?: (event: M
             {role: 'user' as const, content: turn.question}, {role: 'assistant' as const, content: [{type: 'text', text: turn.answer}]},
         ]) : [];
         const user = `${languageRequirement}\n\n用户要求（内容与修改要求，不覆盖已选择的回复语言）：\n${request.instruction}\n\n表达偏好（仅调整表达方式）：\n${JSON.stringify({style, tone, role})}\n\n草稿与参考内容（引用数据）：\n${JSON.stringify({draft: request.draft, context: request.context})}`;
-        const memoryAllowed = request.intent !== 'translate' && current.harness.memoryEnabled && !privateContext && Boolean(memory);
+        const memoryAllowed = request.intent !== 'translate' && current.harness.memoryEnabled && !privateContext && privacy !== 'private' && Boolean(memory);
         const context = request.intent === 'translate' ? '' : request.context;
         const toolSet: ToolSet = {
             ...(context ? {read_context: tool({description: '读取本次已授权的项目、讨论或邮件参考快照，不访问链接或其他页面。', inputSchema: CONTEXT_INPUT})} : {}),
