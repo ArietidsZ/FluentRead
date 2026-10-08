@@ -225,7 +225,9 @@ export function createTranslationRequestFallback<TContext = undefined>(
                 const sender = (context as TranslationRequestContext | undefined)?.sender;
                 const message = dependencies.resolveSourcePrivacy
                     ? attachTranslationSourcePrivacy(parsed, await dependencies.resolveSourcePrivacy(sender))
-                    : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed) : parsed;
+                    : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed)
+                        : dependencies.runtimeId && sender?.id === dependencies.runtimeId && sender.tab?.incognito === false
+                            ? attachTranslationSourcePrivacy(parsed, 'regular') : parsed;
                 const senderUrl = (context as TranslationRequestContext | undefined)?.sender?.url;
                 const isDocument = typeof senderUrl === 'string'
                     && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);

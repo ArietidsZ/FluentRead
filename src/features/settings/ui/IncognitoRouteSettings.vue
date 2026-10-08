@@ -24,6 +24,7 @@
       <p v-if="credentialWarning" role="status">{{ translateLegacy(credentialWarning) }}</p>
       <p>{{ copy.rules }}</p>
       <p>{{ copy.scope }}</p>
+      <p>{{ copy.containment }}</p>
       <p>{{ copy.source }}</p>
       <p>{{ copy.spanning }}</p>
       <div class="incognito-route-actions">

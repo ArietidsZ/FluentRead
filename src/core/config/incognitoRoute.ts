@@ -25,6 +25,12 @@ export interface IncognitoRouteConfig {
 
 export interface IncognitoRoute {readonly service: string; readonly model: string}
 
+/** 只有 undefined/空字符串是未设置；null、错误类型和失效占位符仍要求可信来源。 */
+export function hasConfiguredIncognitoRoute(config: IncognitoRouteConfig): boolean {
+    return (config.incognitoService !== undefined && config.incognitoService !== '')
+        || (config.incognitoModel !== undefined && config.incognitoModel !== '');
+}
+
 /** 缺省仍为空；错误类型不能被归一化为空并意外恢复普通线路。 */
 export function normalizeIncognitoRouteField(value: unknown): string {
     if (value === undefined) return '';

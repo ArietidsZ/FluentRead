@@ -48,7 +48,7 @@ import {
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {customModelString, services} from '@/src/core/config/catalog';
 import {getLockedIncognitoRoute, lockIncognitoRoute, resolveIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
-import {getTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
+import {assertTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {currentConfiguredModel, getCurrentModel} from './templates';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {supportsVisionTransport} from '@/src/core/config/vision';
@@ -1589,12 +1589,9 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         throwIfRequestAborted(requestControl?.signal);
 
         // 步骤 1：圈选等受信后台事务沿用开始时的 symbol 快照；公开请求在 cache/provider await 前复制配置。
-        let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
-        if (NATIVE_PRIVATE_ROUTE_SUPPORTED && getTranslationSourcePrivacy(message) === 'unknown'
-            && ((current.incognitoService !== undefined && current.incognitoService !== '')
-                || (current.incognitoModel !== undefined && current.incognitoModel !== ''))) {
-            throw new Error('无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。');
-        }
+        const live = createTranslationProviderConfigSnapshot(config());
+        let current = getTranslationProviderConfig(message, live);
+        assertTranslationSourcePrivacy(message, live, current);
         if (NATIVE_PRIVATE_ROUTE_SUPPORTED && hasTrustedPrivateSource(message)) {
             const route = getLockedIncognitoRoute(current) ?? resolveIncognitoRoute(current);
             if (route) {

@@ -341,7 +341,8 @@
       "tests/freeOfficialWebProviders.test.ts",
       "tests/incognitoTranslationRoute.test.ts",
       "tests/incognitoNativeSource.test.ts",
-      "tests/incognitoRouteSettings.test.ts"
+      "tests/incognitoRouteSettings.test.ts",
+      "tests/incognitoInputRoute.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",

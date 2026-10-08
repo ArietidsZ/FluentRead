@@ -57,7 +57,7 @@ vi.mock('@/src/app/content/features', () => ({
     isFloatingBallAllowedOnPage: () => mocks.floatingBallAllowed,
     restoreOriginalContent: mocks.restoreOriginal,
     resetFullPageTranslationRouteState: mocks.resetRouteState,
-    createInputTranslationContentFeature: () => ({mount: mocks.mountInput, invalidate: mocks.invalidateInput}),
+    createInputTranslationContentFeature: vi.fn(() => ({mount: mocks.mountInput, invalidate: mocks.invalidateInput})),
     mountHoverTranslationContentFeature: () => vi.fn(),
 }));
 vi.mock('@/src/app/translation/client', () => ({cancelAllTranslations: vi.fn()}));
@@ -554,4 +554,28 @@ describe('content composition root 冷启动与暂停恢复', () => {
         document.dispatchEvent(new Event('fluentread-route-change'));
         expect(mocks.resetRouteState).toHaveBeenCalledOnce();
     });
+    it('实际配置键在私密策略和候选连接变更时推进输入 generation 并失效在途请求', async () => {
+        const features = await import('@/src/app/content/features');
+        const {inputBoxTranslationConfigKey} = await import('@/src/features/input-translation/content');
+        const key = vi.mocked(features.inputBoxTranslationConfigKey);
+        key.mockImplementation(inputBoxTranslationConfigKey);
+        Object.assign(mocks.config, {incognitoService: '', incognitoModel: '', token: {openai: 'fixture-old'}});
+        try {
+            const {startContentApp} = await import('@/src/app/content/runtime');
+            const starting = startContentApp(context as never); ready(); await starting;
+            const options = vi.mocked(features.createInputTranslationContentFeature).mock.calls[0][0];
+            const onConfig = mocks.subscribeConfig.mock.calls[0][0];
+            expect(options.readConfigGeneration()).toBe(0);
+            Object.assign(mocks.config, {incognitoService: 'openai', incognitoModel: 'gpt-5.4-mini'});
+            onConfig(mocks.config); expect(options.readConfigGeneration()).toBe(1);
+            const previous = mocks.invalidateInput.mock.calls.length;
+            Object.assign(mocks.config, {token: {openai: 'fixture-new'}});
+            onConfig(mocks.config); expect(options.readConfigGeneration()).toBe(2);
+            expect(mocks.invalidateInput.mock.calls.length).toBeGreaterThan(previous);
+            onConfig(mocks.config); expect(options.readConfigGeneration()).toBe(2);
+        } finally {
+            key.mockReset(); Object.assign(mocks.config, {incognitoService: '', incognitoModel: '', token: undefined});
+        }
+    });
+
 });

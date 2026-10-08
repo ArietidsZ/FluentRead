@@ -79,7 +79,11 @@ describe('compiled incognito settings and settings-parent composition', () => {
       expect(element(copy.service)).toBeDefined(); expect(element(copy.model)).toBeDefined(); expect(element(copy.clear)).toBeDefined();
       expect(state.status.description).toBe(copy.disabled);
       expect(Object.values(copy).every(value => value.length > 0)).toBe(true);
-      if (locale !== 'zh-CN') expect(copy.scope).not.toBe(getIncognitoRouteCopy('zh-CN').scope);
+      expect(copy.containment.length).toBeGreaterThan(0);
+      if (locale !== 'zh-CN') {
+        expect(copy.scope).not.toBe(getIncognitoRouteCopy('zh-CN').scope);
+        expect(copy.containment).not.toBe(getIncognitoRouteCopy('zh-CN').containment);
+      }
     }
   });
   it('starts disabled and is composed in the existing service-assignment page', async () => {

@@ -19,6 +19,9 @@ import {
     type InputTranslationContentConfig,
 } from '@/src/features/input-translation/content';
 
+vi.mock('@/src/services/config/store', () => ({config: {}}));
+import {incognitoInputRuntime, nativeInputSender} from './helpers/incognitoInputRuntime';
+
 type Listener = (event: any) => unknown;
 
 class FakeDocument {
@@ -1265,5 +1268,48 @@ describe('input translation content feature', () => {
         vi.advanceTimersByTime(600);
 
         expect(input.classList.remove).toHaveBeenCalledWith('fluent-input-error');
+    });
+});
+
+
+describe('private input config identity and late content result', () => {
+    it.each([
+        {incognitoService: 'google'}, {incognitoModel: 'other-model'},
+        {token: {openai: 'fixture-key-changed'}}, {modelThinking: {openai: 'high'}},
+        {proxy: {openai: 'https://new.invalid/v1/chat/completions'}},
+        {customHeaders: {openai: '{"X-Fixture":"changed"}'}},
+        {customBody: {openai: '{"temperature":0.2}'}},
+        {customModels: {openai: ['another-registered-model']}},
+        {customOpenAIProviders: [{id: 'custom:private', name: 'fixture', models: ['a'], endpoint: 'https://new.invalid'}]},
+    ])('private pair or actual candidate connection changes the generation key %#', change => {
+        const f = incognitoInputRuntime();
+        if ('customOpenAIProviders' in change) {
+            Object.assign(f.config, {incognitoService: 'custom:private', customOpenAIProviders: [{id: 'custom:private', name: 'fixture', models: ['a'], endpoint: 'https://old.invalid'}]});
+        }
+        const before = inputBoxTranslationConfigKey(f.config);
+        Object.assign(f.config, change);
+        expect(inputBoxTranslationConfigKey(f.config)).not.toBe(before);
+    });
+    it('malformed or dangling pair participates without interpreting source or emitting credentials', () => {
+        const base = {on: true, inputBoxTranslationTrigger: 'ctrl_enter', inputBoxTranslationTarget: 'zh', token: {openai: 'fixture-secret'}};
+        expect(inputBoxTranslationConfigKey({...base, incognitoModel: 'dangling'})).not.toBe(inputBoxTranslationConfigKey(base));
+        expect(inputBoxTranslationConfigKey({...base, incognitoService: false})).not.toBe(inputBoxTranslationConfigKey(base));
+        expect(inputBoxTranslationConfigKey({...base, incognitoService: 'openai'})).not.toContain('fixture-secret');
+    });
+    it.each(['pair', 'connection'])('actual handler → availability → broker late reply cannot write after %s config changes', async change => {
+        const f = incognitoInputRuntime(); let release!: (value: string) => void, generation = 0;
+        f.setProviderResponse(new Promise(resolve => {release = resolve;}));
+        const h = mountHarness({config: {...f.config, inputBoxTranslationTrigger: 'ctrl_enter', inputBoxTranslationTarget: 'zh'},
+            generation: () => generation, sendMessage: message => f.listener(message, nativeInputSender) as Promise<unknown>});
+        const input = fakeElement('textarea'); input.value = 'A complete input sentence.'; h.fakeDocument.activeElement = input;
+        const pending = h.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(f.provider).toHaveBeenCalledOnce());
+        const before = inputBoxTranslationConfigKey(h.config);
+        const update = change === 'pair' ? {incognitoService: 'google', incognitoModel: ''} : {proxy: {openai: 'https://changed.invalid/v1/chat/completions'}};
+        Object.assign(f.config, update); Object.assign(h.config, update);
+        expect(inputBoxTranslationConfigKey(h.config)).not.toBe(before);
+        generation++; h.feature.invalidate(); release('晚到的翻译'); await pending;
+        expect(input.value).toBe('A complete input sentence.'); expect(editable.replaceEditableText).not.toHaveBeenCalled();
+        expect(f.payloads[0].model).toBe('gpt-5.4-mini'); expect(h.logger.error).not.toHaveBeenCalled();
     });
 });

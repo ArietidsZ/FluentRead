@@ -34,7 +34,7 @@ import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
-import type {IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
+import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
 import {createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
@@ -96,6 +96,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             ready: configReady,
             getConfig: () => config,
             translate: translateWithCache,
+            resolveSourcePrivacy: sender => resolveNativeSourcePrivacy(sender, browser.runtime as unknown as IncognitoSourceRuntime),
         }),
         createOpenOptionsPageHandler({
             openDefaultPage: () => browser.runtime.openOptionsPage(),

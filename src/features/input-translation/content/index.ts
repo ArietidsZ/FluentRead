@@ -6,6 +6,8 @@
  * 模块边界：本文件拥有内容页事件与临时 UI，不直接调用 provider 或全局 browser API；sendMessage、Shadow UI、站点禁用和 generation 均由 composition root 注入，输入纯算法来自 inputBox.ts，编辑宿主度量与写回来自 editableHost.ts。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {incognitoInputConfigKey} from '@/src/features/input-translation/content/incognitoConfigKey';
 import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import {services as translationServices} from '@/src/core/config/catalog';
@@ -39,6 +41,8 @@ export interface InputTranslationContentConfig {
     on?: boolean;
     uiLanguage?: string;
     service?: string;
+    incognitoService?: unknown;
+    incognitoModel?: unknown;
     inputBoxTranslationTrigger: string;
     inputBoxTranslationTarget: string;
     inputBoxTranslationOutputMode?: string;
@@ -164,6 +168,10 @@ export function inputBoxTranslationConfigKey(value: InputTranslationContentConfi
     ];
     const connectionKey = inputBoxTranslationConnectionKey(value);
     if (connectionKey) key.push(connectionKey);
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        const privateKey = incognitoInputConfigKey(value, inputBoxTranslationConnectionKey);
+        if (privateKey) key.push(privateKey);
+    }
     return JSON.stringify(key);
 }
 

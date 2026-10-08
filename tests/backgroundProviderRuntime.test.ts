@@ -34,10 +34,11 @@ vi.mock('@/src/services/config/store', () => ({
         customModel: {moonshot: ''},
     },
 }));
-vi.mock('@/src/core/config/catalog', () => ({
-    resolveConfiguredModel: mocks.resolveConfiguredModel,
-    servicesType: {isAiSdk: vi.fn(() => false)},
-}));
+vi.mock('@/src/core/config/catalog', async importOriginal => {
+    const actual = await importOriginal<typeof import('@/src/core/config/catalog')>();
+    return {...actual, resolveConfiguredModel: mocks.resolveConfiguredModel,
+        servicesType: {...actual.servicesType, isAiSdk: vi.fn(() => false)}};
+});
 vi.mock('@/src/platform/storage/modelUsageRepository', () => ({
     modelUsageRepository: {
         captureGeneration: mocks.captureGeneration,
