@@ -1,0 +1,27 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundTranslationHandler.test.ts tests/incognitoInputRoute.test.ts tests/translateApiPerformance.test.ts tests/inputTranslationBackground.test.ts --config vitest.coverage.config.ts --cache false --coverage --coverage.include=src/services/translation/requestRegistry.ts --coverage.include=src/services/translation/runtimeTransport.ts --coverage.include=src/features/input-translation/background/handler.ts --coverage.include=src/app/background/handlers/translation.ts --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=<RAW>/targeted-coverage
+
+ RUN  v2.1.9 <WORKTREE>
+      Coverage enabled with v8
+
+ ✓ tests/incognitoInputRoute.test.ts (41 tests) 444ms
+ ✓ tests/backgroundTranslationHandler.test.ts (49 tests) 12ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 8ms
+
+ Test Files  3 passed (3)
+      Tests  96 passed (96)
+   Start at  19:04:55
+   Duration  1.63s (transform 418ms, setup 0ms, collect 624ms, tests 464ms, environment 0ms, prepare 84ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   78.43 |    95.89 |   82.75 |   78.43 |
+ ...round/handlers |    93.1 |    93.45 |      90 |    93.1 |
+  translation.ts   |    93.1 |    93.45 |      90 |    93.1 | 64-65,187-195
+ ...ion/background |     100 |      100 |     100 |     100 |
+  handler.ts       |     100 |      100 |     100 |     100 |
+ ...es/translation |   49.35 |    97.36 |   66.66 |   49.35 |
+  ...stRegistry.ts |     100 |      100 |     100 |     100 |
+  ...eTransport.ts |   12.35 |    66.66 |       0 |   12.35 | ...0,33-34,37-105
+-------------------|---------|----------|---------|---------|-------------------

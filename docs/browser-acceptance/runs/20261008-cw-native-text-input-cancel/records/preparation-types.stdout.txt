@@ -1,0 +1,7 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/incognitoInputRoute.test.ts(62,14): error TS18046: 'pending' is of type 'unknown'.
+tests/incognitoInputRoute.test.ts(62,27): error TS7006: Parameter 'value' implicitly has an 'any' type.
+tests/incognitoInputRoute.test.ts(68,101): error TS2345: Argument of type '{ sender: { tab: { id: number; incognito: boolean; }; frameId: number; documentId: string; id?: string; url?: string; origin?: string; }; }' is not assignable to parameter of type '{ sender: { id: string | undefined; url: string; documentId: string; }; }'.
+  Types of property 'sender' are incompatible.
+    Type '{ tab: { id: number; incognito: boolean; }; frameId: number; documentId: string; id?: string; url?: string; origin?: string; }' is not assignable to type '{ id: string | undefined; url: string; documentId: string; }'.
+      Property 'id' is optional in type '{ tab: { id: number; incognito: boolean; }; frameId: number; documentId: string; id?: string | undefined; url?: string | undefined; origin?: string | undefined; }' but required in type '{ id: string | undefined; url: string; documentId: string; }'.

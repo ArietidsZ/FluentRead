@@ -1,0 +1,23 @@
+{
+  "label": "red-fixed",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "--cache",
+    "false",
+    "--reporter=json",
+    "--outputFile=<RAW>/red-fixed.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:56:22.503928+00:00",
+  "duration_seconds": 2.515,
+  "exit_code": 1
+}

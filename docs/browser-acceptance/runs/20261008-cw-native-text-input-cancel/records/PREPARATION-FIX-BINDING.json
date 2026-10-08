@@ -1,0 +1,34 @@
+{
+  "previous_runtime_checkpoint": "9da3fd9f01f912268cc7c919db4a804c250f62ca",
+  "production_before_sha256": {
+    "src/services/translation/requestRegistry.ts": "b19dca688bdd245e93b0fffe3a7f04f3be19117700f6bc175c352dcd1b0bb024",
+    "src/app/background/handlers/translation.ts": "87ce3a60e270f4ae4d15e707c414d313f6f756300b06fb7ab5009a3ec06ea218",
+    "src/features/input-translation/background/handler.ts": "985ffd9581dfe1ab08724eabdf856e0138779e63a517ac50b8b5532abc5629fc"
+  },
+  "production_final_sha256": {
+    "src/services/translation/requestRegistry.ts": "f067480da400191f6064ac388dc5d8b2274aae5f3d9809d36fa887848e28915f",
+    "src/app/background/handlers/translation.ts": "cae36d3a2256af3978a6d7e2ec8a410a6fc89befc3c203b0a90f10ea7efb75d1",
+    "src/features/input-translation/background/handler.ts": "120f7c5a9eb33d510c88458d0dcae2c2a6f71ae36556561792758cc35480854d"
+  },
+  "red_tests_sha256": {
+    "tests/incognitoInputRoute.test.ts": "10dcdc96732e9d109d106e699a64749c68a41fa5bcc9848d39fd521b75e2ac63",
+    "tests/inputTranslationContentFeature.test.ts": "03408ff60c42a27dcd5de384bef5ce0b631f9b1074c4da9005d4926e177e1590"
+  },
+  "red_counts": {
+    "total": 140,
+    "passed": 130,
+    "failed": 10
+  },
+  "red_status": "expected preparation cancellation failures before helper implementation",
+  "post_red_test_adjustments": [
+    "wait for input source resolver to begin before cancellation, because the new helper adds a microtask",
+    "use Promise.resolve for unknown fallback response and broader typed context"
+  ],
+  "green_counts": {
+    "total": 239,
+    "passed": 239,
+    "failed": 0
+  },
+  "dispatched_operation_not_raced": true,
+  "old_transport_lease_checks_retained": true
+}

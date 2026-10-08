@@ -1,0 +1,30 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundTranslationHandler.test.ts tests/incognitoInputRoute.test.ts tests/translateApiPerformance.test.ts tests/inputTranslationContentFeature.test.ts --cache false --reporter default --reporter json --outputFile <RAW>/preparation-green.results.json
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ✓ tests/inputTranslationContentFeature.test.ts (85 tests) 748ms
+ ✓ tests/translateApiPerformance.test.ts (50 tests) 297ms
+ ❯ tests/incognitoInputRoute.test.ts (55 tests | 1 failed) 1100ms
+   × native generic and typed input backend cancellation > input source cancellation settles before gate release; late reject cannot affect another request 55ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      [Error: late preparation failure],
+      Promise {},
+    ]
+
+
+Number of calls: 1
+
+ ✓ tests/backgroundTranslationHandler.test.ts (49 tests) 10ms
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 238 passed (239)
+   Start at  19:52:48
+   Duration  3.37s (transform 504ms, setup 0ms, collect 866ms, tests 2.16s, environment 0ms, prepare 91ms)
+
+JSON report written to <RAW>/preparation-green.results.json

@@ -1,0 +1,17 @@
+{
+  "recorded_at": "2026-10-08T11:46:47.586236+00:00",
+  "scope": "CW local existing dependency tree; deterministic fixtures only",
+  "kernel": "7.0.0-38-generic",
+  "architecture": "x86_64",
+  "node": "v26.7.0",
+  "packages": {
+    "wxt": "0.20.18",
+    "vite": "5.4.19",
+    "vitest": "2.1.9",
+    "vue-tsc": "2.2.0",
+    "vitepress": "1.6.3"
+  },
+  "dependency_install_performed": false,
+  "real_model_search_api_called": false,
+  "browser_gui_run_for_cancel_source": false
+}

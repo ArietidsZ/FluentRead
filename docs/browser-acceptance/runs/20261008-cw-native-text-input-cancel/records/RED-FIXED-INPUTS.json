@@ -1,0 +1,9 @@
+{
+  "base_commit": "2307c5013aaf64b681eccc1caec6fc4f470f2fe5",
+  "test_sha256": {
+    "tests/backgroundTranslationHandler.test.ts": "33efdc462e2d09a2a037ef9ba3c918f72a99e24c006c9672e9b0030c0e1fe16e",
+    "tests/incognitoInputRoute.test.ts": "144f654e5255069a6c0cb2093501994a89a72857ab94f05cf6e1ebc8a4a4f9ef",
+    "tests/translateApiPerformance.test.ts": "4588b84fce57441bef7546e6c3eb470b71d828c5536efd74049d1f3715f27889",
+    "tests/inputTranslationContentFeature.test.ts": "d1e1163d0cb0efa701a633a7733857b0baa0a8cf756342312df74e35b0f48270"
+  }
+}

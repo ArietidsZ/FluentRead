@@ -1,0 +1,11 @@
+{
+  "label": "userscript-verify-second",
+  "command": [
+    "node",
+    "scripts/verify-userscript-build.mjs"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T11:00:32.389710+00:00",
+  "duration_seconds": 0.026,
+  "exit_code": 1
+}

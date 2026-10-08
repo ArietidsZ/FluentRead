@@ -1,0 +1,32 @@
+{
+  "label": "targeted-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "tests/inputTranslationBackground.test.ts",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--cache",
+    "false",
+    "--coverage",
+    "--coverage.include=src/services/translation/requestRegistry.ts",
+    "--coverage.include=src/services/translation/runtimeTransport.ts",
+    "--coverage.include=src/features/input-translation/background/handler.ts",
+    "--coverage.include=src/app/background/handlers/translation.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--coverage.reportsDirectory=<RAW>/targeted-coverage"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T11:04:55.159851+00:00",
+  "duration_seconds": 1.837,
+  "exit_code": 1
+}

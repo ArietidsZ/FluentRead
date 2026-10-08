@@ -1,0 +1,92 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input ready cancellation settles before gate release; late pending cannot affect another request
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input ready cancellation settles before gate release; late resolve cannot affect another request
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input ready cancellation settles before gate release; late reject cannot affect another request
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input source cancellation settles before gate release; late pending cannot affect another request
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input source cancellation settles before gate release; late resolve cannot affect another request
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input source cancellation settles before gate release; late reject cannot affect another request
+AssertionError: expected undefined to match object { name: 'AbortError' }
+
+- Expected:
+Object {
+  "name": "AbortError",
+}
+
++ Received:
+undefined
+
+ ❯ vi.waitFor.timeout tests/incognitoInputRoute.test.ts:37:47
+     35|         expect(registry.cancel('never-settling', owner).cancelled).toB…
+     36|         // The gate remains unresolved: cancellation must complete the…
+     37|         await vi.waitFor(() => expect(result).toMatchObject({name: 'Ab…
+       |                                               ^
+     38|         expect(registry.cancel('never-settling', owner).cancelled).toB…
+     39|         expect(f.getConfig).not.toHaveBeenCalled(); expect(f.provider)…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late pending
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late resolve
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late reject
+AssertionError: expected undefined to match object { name: 'AbortError' }
+
+- Expected:
+Object {
+  "name": "AbortError",
+}
+
++ Received:
+undefined
+
+ ❯ vi.waitFor.timeout tests/incognitoInputRoute.test.ts:65:47
+     63|         await vi.waitFor(() => expect(f.nativeRuntime.getContexts).toH…
+     64|         expect(registry.cancel('never-contexts', context).cancelled).t…
+     65|         await vi.waitFor(() => expect(result).toMatchObject({name: 'Ab…
+       |                                               ^
+     66|         expect(registry.cancel('never-contexts', context).cancelled).t…
+     67|         expect(f.provider).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/12]⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input consumes a rejected source promise when its resolver synchronously cancels
+AssertionError: expected Error: late source error to match object { name: 'AbortError' }
+
+- Expected
++ Received
+
+- Object {
+-   "name": "AbortError",
+- }
++ [Error: late source error]
+
+ ❯ tests/incognitoInputRoute.test.ts:82:9
+     80|             requestRegistry: registry, translate: f.availability.trans…
+     81|             resolveSourcePrivacy: () => {registry.cancel('sync-source'…
+     82|         await expect(handler.handle({...input, clientRequestId: 'sync-…
+       |         ^
+     83|         await new Promise<void>(done => setImmediate(done));
+     84|         expect(registry.cancel('sync-source', owner).cancelled).toBe(f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/12]⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > generic cancellation reaches the actual private-routed provider signal
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input cancellation reaches the actual private-routed provider signal
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/incognitoInputRoute.test.ts:106:25
+    104|         let settled = false; void outcome.then(() => {settled = true;}…
+    105|         await new Promise<void>(done => setImmediate(done));
+    106|         expect(settled).toBe(false);
+       |                         ^
+    107|         expect(registry.cancel('provider-abort', owner).cancelled).toB…
+    108|         release('late result');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/12]⎯
+

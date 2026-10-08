@@ -1,0 +1,17 @@
+{
+  "label": "userscript-first",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "vite.userscript.config.ts"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:59:30.853757+00:00",
+  "duration_seconds": 0.087,
+  "exit_code": 1
+}

@@ -1,0 +1,10 @@
+{
+  "prior_source_checkpoint": "9da3fd9f01f912268cc7c919db4a804c250f62ca",
+  "prior_tests": 9814,
+  "all_tests_passed": true,
+  "coverage_gate_passed": false,
+  "uncovered_branch": "input content userscript sendMessage branch",
+  "review_defect": "pre-provider input ready/source or generic source wait did not independently settle on cancellation",
+  "prior_records": "pre-preparation-fix",
+  "final_source_refreeze_required": true
+}

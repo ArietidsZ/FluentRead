@@ -1,0 +1,25 @@
+{
+  "label": "preparation-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "--cache",
+    "false",
+    "--reporter",
+    "default",
+    "--reporter",
+    "json",
+    "--outputFile",
+    "<RAW>/preparation-red.results.json"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-08T11:51:07.738746+00:00",
+  "duration_seconds": 4.317,
+  "exit_code": 1
+}

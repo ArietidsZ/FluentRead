@@ -1,0 +1,26 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundTranslationHandler.test.ts tests/incognitoInputRoute.test.ts tests/translateApiPerformance.test.ts tests/inputTranslationBackground.test.ts --config vitest.coverage.config.ts --cache false --coverage --coverage.include=src/services/translation/requestRegistry.ts --coverage.include=src/services/translation/runtimeTransport.ts --coverage.include=src/features/input-translation/background/handler.ts --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=<RAW>/targeted-coverage-second
+
+ RUN  v2.1.9 <WORKTREE>
+      Coverage enabled with v8
+
+ ✓ tests/translateApiPerformance.test.ts (50 tests) 298ms
+ ✓ tests/incognitoInputRoute.test.ts (43 tests) 599ms
+ ✓ tests/backgroundTranslationHandler.test.ts (49 tests) 11ms
+ ✓ tests/inputTranslationBackground.test.ts (6 tests) 8ms
+
+ Test Files  4 passed (4)
+      Tests  148 passed (148)
+   Start at  19:06:44
+   Duration  2.25s (transform 456ms, setup 0ms, collect 740ms, tests 915ms, environment 0ms, prepare 112ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |
+ ...ion/background |     100 |      100 |     100 |     100 |
+  handler.ts       |     100 |      100 |     100 |     100 |
+ ...es/translation |     100 |      100 |     100 |     100 |
+  ...stRegistry.ts |     100 |      100 |     100 |     100 |
+  ...eTransport.ts |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|-------------------

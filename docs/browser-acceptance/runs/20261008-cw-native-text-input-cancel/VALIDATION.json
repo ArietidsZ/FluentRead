@@ -1,0 +1,83 @@
+{
+  "source_commit": "ed89ab895fbb0a8a1bf0d6204f1aa603d6b2d74e",
+  "source_tree": "f99e852889d56fe8709527b90cdfade3a1079587",
+  "input_files": 4559,
+  "all_git_tree_paths_and_blob_sha256_match_frozen_inputs": true,
+  "checkpoint_parent": "9da3fd9f01f912268cc7c919db4a804c250f62ca",
+  "frozen_inputs_sha256": "8076132b387eaaa1786664ab08c0b5cd33e9de707c1f7ca0459d1a2285f87a30",
+  "artifact_hash_manifest_sha256": "f7b36ad016503baa9b7204a360f1267fa025c7f5e0a151bb7114568e8ec6090b",
+  "tests": {
+    "numTotalTests": 9827,
+    "numPassedTests": 9827,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 400,
+  "coverage": {
+    "lines": {
+      "total": 65844,
+      "covered": 65844,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 65844,
+      "covered": 65844,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4568,
+      "covered": 4568,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33419,
+      "covered": 33419,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "architecture_tests": 1375,
+  "architecture_files": 32,
+  "userscript_bytes": 1954988,
+  "userscript_budget": 1955000,
+  "artifact_files": 797,
+  "checks": {
+    "coverage-final": 0,
+    "types-final": 0,
+    "audit-final": 0,
+    "architecture-final": 0,
+    "chrome-final": 0,
+    "firefox-final": 0,
+    "userscript-final": 0,
+    "userscript-verify-final": 0,
+    "docs-final": 0,
+    "manifests-final": 0,
+    "bindings-final": 0
+  },
+  "permissions_match_89fd0580": true,
+  "firefox_minimum": "140.0",
+  "effective_chrome_incognito": "spanning",
+  "real_browsers_or_providers_run_for_this_source": false,
+  "separate_neo_application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "bounded_cancel_before_start_history": 512,
+  "bounded_completed_history": 512,
+  "pending": [
+    "document-lifetime Port lease for old Firefox without documentId",
+    "reader/writer and dictionary route wiring",
+    "remaining feature source wiring",
+    "real browser/GUI acceptance of this cancellation source",
+    "real RTX5090 WebGPU acceptance"
+  ],
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 196,
+  "final_binding": "records/FINAL-BINDING.json"
+}

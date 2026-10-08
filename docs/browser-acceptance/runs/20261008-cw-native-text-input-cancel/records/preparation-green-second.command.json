@@ -1,0 +1,27 @@
+{
+  "label": "preparation-green-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "--cache",
+    "false",
+    "--reporter",
+    "default",
+    "--reporter",
+    "json",
+    "--outputFile",
+    "<RAW>/preparation-green-second.results.json"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-08T11:53:59.345191+00:00",
+  "duration_seconds": 3.741,
+  "exit_code": 0
+}

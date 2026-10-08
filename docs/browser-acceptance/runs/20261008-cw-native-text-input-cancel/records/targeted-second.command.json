@@ -1,0 +1,24 @@
+{
+  "label": "targeted-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "tests/inputTranslationContentFeature.test.ts",
+    "tests/inputTranslationBackground.test.ts",
+    "--cache",
+    "false",
+    "--reporter=json",
+    "--outputFile=<RAW>/targeted-second.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T10:59:31.426973+00:00",
+  "duration_seconds": 2.701,
+  "exit_code": 0
+}

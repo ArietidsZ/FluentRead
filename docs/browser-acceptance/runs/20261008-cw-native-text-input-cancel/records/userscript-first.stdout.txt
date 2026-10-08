@@ -1,0 +1,1 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vite/bin/vite.js build --config vite.userscript.config.ts

@@ -1,0 +1,142 @@
+{
+  "baseline_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "targets": {
+    "chrome-mv3": {
+      "permissions": {
+        "baseline": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "current": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "equal": true
+      },
+      "optional_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "host_permissions": {
+        "baseline": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "current": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "equal": true
+      },
+      "optional_host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "incognito": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      }
+    },
+    "firefox-mv2": {
+      "permissions": {
+        "baseline": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "current": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "equal": true
+      },
+      "optional_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "optional_host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "incognito": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "strict_min_version": "140.0"
+    }
+  }
+}

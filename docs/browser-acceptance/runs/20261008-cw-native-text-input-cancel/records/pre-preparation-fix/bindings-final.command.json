@@ -1,0 +1,12 @@
+{
+  "label": "bindings-final",
+  "command": [
+    "python3",
+    "../native-text-input-cancel-20261008/bind-inputs.py",
+    "<WORKTREE>"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T11:47:26.444666+00:00",
+  "duration_seconds": 0.385,
+  "exit_code": 0
+}

@@ -1,0 +1,27 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/incognitoInputRoute.test.ts > native generic and typed input backend cancellation > input source cancellation settles before gate release; late reject cannot affect another request
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st spy call:
+
+    Array [
+      [Error: late preparation failure],
+      Promise {},
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/incognitoInputRoute.test.ts:48:35
+     46|             if (late === 'reject') reject(new Error('late preparation …
+     47|             await new Promise<void>(done => setImmediate(done));
+     48|             expect(unhandled).not.toHaveBeenCalled(); expect(f.provide…
+       |                                   ^
+     49|             expect(registry.cancel('independent', owner).cancelled).to…
+     50|         } finally {process.off('unhandledRejection', unhandled);}
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

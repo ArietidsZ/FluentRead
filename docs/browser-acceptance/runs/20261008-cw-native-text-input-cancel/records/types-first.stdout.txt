@@ -1,0 +1,10 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+src/app/translation/client.ts(33,8): error TS6133: 'TranslationQueueLease' is declared but its value is never read.
+src/app/translation/client.ts(43,8): error TS6133: 'TranslationRequestMessage' is declared but its value is never read.
+src/app/translation/client.ts(452,35): error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'string'.
+tests/backgroundTranslationHandler.test.ts(46,69): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+tests/backgroundTranslationHandler.test.ts(47,46): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'object'.
+tests/backgroundTranslationHandler.test.ts(47,70): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+tests/incognitoInputRoute.test.ts(31,87): error TS2345: Argument of type '{ sender: { tab: { id: number; incognito: boolean; }; frameId: number; documentId: string; id?: string; url?: string; origin?: string; }; }' is not assignable to parameter of type 'undefined'.
+tests/incognitoInputRoute.test.ts(32,25): error TS18046: 'pending' is of type 'unknown'.
+tests/incognitoInputRoute.test.ts(32,39): error TS7006: Parameter 'error' implicitly has an 'any' type.

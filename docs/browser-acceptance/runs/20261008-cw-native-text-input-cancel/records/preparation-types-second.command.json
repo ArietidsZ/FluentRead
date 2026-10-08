@@ -1,0 +1,15 @@
+{
+  "label": "preparation-types-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-08T11:53:59.346595+00:00",
+  "duration_seconds": 13.062,
+  "exit_code": 0
+}

@@ -1,0 +1,11 @@
+{
+  "label": "audit-final",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T11:55:03.743604+00:00",
+  "duration_seconds": 0.95,
+  "exit_code": 0
+}

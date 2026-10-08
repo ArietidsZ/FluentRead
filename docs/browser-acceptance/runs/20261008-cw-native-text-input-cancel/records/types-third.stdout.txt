@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/translateApiPerformance.test.ts(138,29): error TS7006: Parameter 'message' implicitly has an 'any' type.
+tests/translateApiPerformance.test.ts(138,29): error TS2345: Argument of type '(message: any) => Promise<string>' is not assignable to parameter of type 'NormalizedPrecedure<() => Promise<string>>'.
+  Target signature provides too few arguments. Expected 1 or more, but got 0.
+tests/translateApiPerformance.test.ts(170,41): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.

@@ -1,0 +1,4 @@
+{
+  "relative_dot_cwd": "<WORKTREE>",
+  "note": "Commands recorded with cwd=. ran in this worktree; failed binding script used an unresolved relative Path before correction. Application inputs remained unchanged."
+}

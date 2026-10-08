@@ -1,0 +1,35 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/incognitoInputRoute.test.ts tests/inputTranslationContentFeature.test.ts --cache false --reporter default --reporter json --outputFile <RAW>/preparation-red.results.json
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ❯ tests/inputTranslationContentFeature.test.ts (85 tests | 1 failed) 759ms
+   × input translation content feature > userscript content sends the legacy input protocol without an ID or cancellation message 23ms
+     → Invalid Chai property: toHaveBeenCalledExactlyOnceWith
+ ❯ tests/incognitoInputRoute.test.ts (55 tests | 10 failed) 2447ms
+   × native generic and typed input backend cancellation > input ready cancellation settles before gate release; late pending cannot affect another request 207ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input ready cancellation settles before gate release; late resolve cannot affect another request 201ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input ready cancellation settles before gate release; late reject cannot affect another request 202ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input source cancellation settles before gate release; late pending cannot affect another request 200ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input source cancellation settles before gate release; late resolve cannot affect another request 201ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input source cancellation settles before gate release; late reject cannot affect another request 200ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late pending 202ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late resolve 202ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > real generic getContexts cancellation settles independently of late reject 201ms
+     → expected undefined to match object { name: 'AbortError' }
+   × native generic and typed input backend cancellation > input consumes a rejected source promise when its resolver synchronously cancels 2ms
+     → expected Error: late source error to match object { name: 'AbortError' }
+
+ Test Files  2 failed (2)
+      Tests  11 failed | 129 passed (140)
+   Start at  19:51:07
+   Duration  4.13s (transform 478ms, setup 0ms, collect 713ms, tests 3.21s, environment 0ms, prepare 45ms)
+
+JSON report written to <RAW>/preparation-red.results.json

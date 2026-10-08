@@ -1,0 +1,12 @@
+{
+  "label": "bindings-final",
+  "command": [
+    "python3",
+    "../native-text-input-cancel-20261008/bind-inputs.py",
+    "."
+  ],
+  "cwd": ".",
+  "started_at": "2026-10-08T11:46:58.154732+00:00",
+  "duration_seconds": 0.442,
+  "exit_code": 1
+}

@@ -1,0 +1,9 @@
+{
+  "source_commit": "ed89ab895fbb0a8a1bf0d6204f1aa603d6b2d74e",
+  "source_tree": "f99e852889d56fe8709527b90cdfade3a1079587",
+  "input_files": 4559,
+  "all_git_tree_paths_and_blob_sha256_match_frozen_inputs": true,
+  "checkpoint_parent": "9da3fd9f01f912268cc7c919db4a804c250f62ca",
+  "frozen_inputs_sha256": "8076132b387eaaa1786664ab08c0b5cd33e9de707c1f7ca0459d1a2285f87a30",
+  "artifact_hash_manifest_sha256": "f7b36ad016503baa9b7204a360f1267fa025c7f5e0a151bb7114568e8ec6090b"
+}

@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/backgroundTranslationHandler.test.ts tests/incognitoInputRoute.test.ts tests/translateApiPerformance.test.ts tests/inputTranslationContentFeature.test.ts --cache false --reporter=json --outputFile=<RAW>/red-first.results.json
+JSON report written to <RAW>/red-first.results.json
