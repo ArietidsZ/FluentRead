@@ -1,0 +1,70 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/shareCardCore.test.ts tests/shareCardRender.test.ts tests/shareCardExport.test.ts tests/shareCardExcerpt.test.ts tests/shareCardRuntime.test.ts tests/vocabularyReencounter.test.ts tests/vocabularyReencounterLifecycle.test.ts tests/webDavProperties.test.ts tests/sentenceActionsMount.test.ts tests/popupMount.test.ts tests/freeOfficialWebProviders.test.ts tests/siteRules.test.ts tests/i18n.test.ts tests/modelUsageHandler.test.ts tests/translationStatsAggregation.test.ts tests/backgroundTranslationHandler.test.ts --config vitest.coverage.config.ts --coverage --coverage.include=src/core/config/shareCard.ts --coverage.include=src/core/i18n/messages/siteRules.ts --coverage.include=src/features/full-page-translation/content/excerpt.ts --coverage.include=src/features/share-card/core.ts --coverage.include=src/features/share-card/export.ts --coverage.include=src/features/share-card/render.ts --coverage.include=src/features/share-card/themes.ts --coverage.include=src/features/vocabulary/content/readingText.ts --coverage.include=src/features/vocabulary/content/scanner.ts --coverage.include=src/features/vocabulary/domain/reencounter.ts --coverage.include=src/platform/webdav/properties.ts --coverage.include=src/providers/translation/free-official-web.ts --coverage.include=src/app/popup/mount.ts --coverage.include=src/app/content/learningFeatures.ts --coverage.include=src/features/share-card/content/runtime.ts --coverage.include=src/features/vocabulary/content/reencounter.ts --coverage.include=src/services/translation-stats/types.ts --coverage.include=src/services/model-usage/types.ts --coverage.include=src/services/translation/types.ts --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=[CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-third-coverage --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-third.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-architecture-coverage-completion
+      Coverage enabled with v8
+
+ ✓ tests/i18n.test.ts (58 tests) 2291ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 1210ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 460ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 362ms
+ ✓ tests/backgroundTranslationHandler.test.ts (47 tests) 10ms
+ ✓ tests/translationStatsAggregation.test.ts (16 tests) 11ms
+ ✓ tests/vocabularyReencounter.test.ts (17 tests) 46ms
+ ✓ tests/modelUsageHandler.test.ts (13 tests) 8ms
+ ✓ tests/siteRules.test.ts (20 tests) 24ms
+ ✓ tests/freeOfficialWebProviders.test.ts (46 tests) 19ms
+ ✓ tests/vocabularyReencounterLifecycle.test.ts (9 tests) 6ms
+ ✓ tests/shareCardRender.test.ts (34 tests) 31ms
+ ✓ tests/shareCardRuntime.test.ts (5 tests) 3ms
+ ✓ tests/webDavProperties.test.ts (5 tests) 9ms
+ ✓ tests/shareCardCore.test.ts (11 tests) 16ms
+ ✓ tests/popupMount.test.ts (4 tests) 9ms
+ ✓ tests/sentenceActionsMount.test.ts (8 tests) 6ms
+ ✓ tests/shareCardExcerpt.test.ts (4 tests) 5ms
+ ✓ tests/shareCardExport.test.ts (2 tests) 3ms
+
+ Test Files  16 passed (16)
+      Tests  299 passed (299)
+   Start at  10:43:42
+   Duration  5.93s (transform 785ms, setup 0ms, collect 1.39s, tests 2.50s, environment 2ms, prepare 439ms)
+
+JSON report written to [CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-third.results.json
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |                   
+ app/content       |     100 |      100 |     100 |     100 |                   
+  ...ngFeatures.ts |     100 |      100 |     100 |     100 |                   
+ app/popup         |     100 |      100 |     100 |     100 |                   
+  mount.ts         |     100 |      100 |     100 |     100 |                   
+ core/config       |     100 |      100 |     100 |     100 |                   
+  shareCard.ts     |     100 |      100 |     100 |     100 |                   
+ .../i18n/messages |     100 |      100 |     100 |     100 |                   
+  siteRules.ts     |     100 |      100 |     100 |     100 |                   
+ ...lation/content |     100 |      100 |     100 |     100 |                   
+  excerpt.ts       |     100 |      100 |     100 |     100 |                   
+ ...res/share-card |     100 |      100 |     100 |     100 |                   
+  core.ts          |     100 |      100 |     100 |     100 |                   
+  export.ts        |     100 |      100 |     100 |     100 |                   
+  render.ts        |     100 |      100 |     100 |     100 |                   
+  themes.ts        |     100 |      100 |     100 |     100 |                   
+ ...e-card/content |     100 |      100 |     100 |     100 |                   
+  runtime.ts       |     100 |      100 |     100 |     100 |                   
+ ...bulary/content |     100 |      100 |     100 |     100 |                   
+  readingText.ts   |     100 |      100 |     100 |     100 |                   
+  reencounter.ts   |     100 |      100 |     100 |     100 |                   
+  scanner.ts       |     100 |      100 |     100 |     100 |                   
+ ...abulary/domain |     100 |      100 |     100 |     100 |                   
+  reencounter.ts   |     100 |      100 |     100 |     100 |                   
+ platform/webdav   |     100 |      100 |     100 |     100 |                   
+  properties.ts    |     100 |      100 |     100 |     100 |                   
+ ...rs/translation |     100 |      100 |     100 |     100 |                   
+  ...ficial-web.ts |     100 |      100 |     100 |     100 |                   
+ ...es/model-usage |     100 |      100 |     100 |     100 |                   
+  types.ts         |     100 |      100 |     100 |     100 |                   
+ ...es/translation |     100 |      100 |     100 |     100 |                   
+  types.ts         |     100 |      100 |     100 |     100 |                   
+ ...nslation-stats |     100 |      100 |     100 |     100 |                   
+  types.ts         |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

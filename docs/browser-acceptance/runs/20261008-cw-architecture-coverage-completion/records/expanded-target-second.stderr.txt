@@ -1,0 +1,4 @@
+ERROR: Coverage for lines (97.42%) does not meet global threshold (100%)
+ERROR: Coverage for functions (98.83%) does not meet global threshold (100%)
+ERROR: Coverage for statements (97.42%) does not meet global threshold (100%)
+ERROR: Coverage for branches (98.32%) does not meet global threshold (100%)

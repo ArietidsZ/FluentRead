@@ -1,0 +1,15 @@
+{
+  "base": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "branch": "fix/architecture-coverage-completion-20261008",
+  "architecture_contract_commit": "7d49235b5394b4e5f5e7675f796c8d9b2642be41",
+  "expanded_coverage_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8",
+  "final_tree": "3ab4c19f688c471f7c7e78190d550b35caa8b816",
+  "typecheck_input_hashes_match_final_tree": true,
+  "typecheck_label": "typecheck-precommit-final",
+  "typecheck_during_uncommitted_tree": true,
+  "production_changed_files": [
+    "src/features/video-subtitle/content/runtime.ts"
+  ],
+  "source_code_change": "comment line wrap only; TypeScript emitted executable output identical",
+  "final_worktree_clean": true
+}

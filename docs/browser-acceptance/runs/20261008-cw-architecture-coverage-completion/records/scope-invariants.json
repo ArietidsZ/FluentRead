@@ -1,0 +1,87 @@
+{
+  "base": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "only_runtime_change": "comment line wrap; emitted executable code identical",
+  "runtime_emitted_sha256": "9c3b28c40628188c0e38a03ab1d059583929abe6a2ad38cb73902d9e2f36099b",
+  "unchanged_blob_bindings": [
+    {
+      "path": "src/app/options/assets/wechat-contact.jpg",
+      "baseline_blob": "103b49a8bd3831687948445be8e947e151c9e242",
+      "working_sha256": "1360e8cca225506208c153b6c5143912e048d5df08d506df2eb84ed3914cfd62"
+    },
+    {
+      "path": "src/platform/webdav/properties.ts",
+      "baseline_blob": "9d44cd829fba31ee3cc7fca75faeced1e560f607",
+      "working_sha256": "7f6deebf9c1205361eabeec4d0700e5f9b11f96b8ad04de6f309f227ab693148"
+    },
+    {
+      "path": "src/providers/translation/free-official-web.ts",
+      "baseline_blob": "cd5619bbc21875602331701f7004e05d5429c294",
+      "working_sha256": "f245c476eef2dd9432198ff3be63055c10167c1b1aa90edf32cf687c85b5937e"
+    },
+    {
+      "path": "scripts/verify-storybook-build.mjs",
+      "baseline_blob": "6075c2b21a8d0de4835f3a61ce0a218d5e996e8e",
+      "working_sha256": "4fafeb53f1567596be51338b61e0e61a9add8170c25919f1f4de96ff83074552"
+    },
+    {
+      "path": "tests/architecture/moduleBoundaries.test.ts",
+      "baseline_blob": "0a599344e1954b0ce2076746e06cb83595b0bd58",
+      "working_sha256": "25037077384bdb35317bf92a442e92a119f6e115e875d053c1a84f06b8aecc6b"
+    },
+    {
+      "path": "pnpm-lock.yaml",
+      "baseline_blob": "3dfe795b8092e7df45e1c854582c17b07f199b3e",
+      "working_sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a"
+    },
+    {
+      "path": "package.json",
+      "baseline_blob": "53705f2b8241f10bb370cdb659d89f1af903d525",
+      "working_sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9"
+    }
+  ],
+  "coverage_prior_includes_retained": true,
+  "new_coverage_sources": [
+    "src/core/config/shareCard.ts",
+    "src/core/i18n/messages/siteRules.ts",
+    "src/features/full-page-translation/content/excerpt.ts",
+    "src/features/share-card/core.ts",
+    "src/features/share-card/export.ts",
+    "src/features/share-card/render.ts",
+    "src/features/share-card/themes.ts",
+    "src/features/vocabulary/content/readingText.ts",
+    "src/features/vocabulary/content/scanner.ts",
+    "src/features/vocabulary/domain/reencounter.ts",
+    "src/platform/webdav/properties.ts",
+    "src/providers/translation/free-official-web.ts",
+    "src/app/popup/mount.ts",
+    "src/app/content/learningFeatures.ts",
+    "src/features/share-card/content/runtime.ts",
+    "src/features/vocabulary/content/reencounter.ts",
+    "src/services/translation-stats/types.ts",
+    "src/services/model-usage/types.ts",
+    "src/services/translation/types.ts"
+  ],
+  "new_coverage_suites": [
+    "tests/shareCardCore.test.ts",
+    "tests/shareCardRender.test.ts",
+    "tests/shareCardExport.test.ts",
+    "tests/shareCardExcerpt.test.ts",
+    "tests/shareCardRuntime.test.ts",
+    "tests/vocabularyReencounter.test.ts",
+    "tests/vocabularyReencounterLifecycle.test.ts",
+    "tests/webDavProperties.test.ts",
+    "tests/sentenceActionsMount.test.ts",
+    "tests/popupMount.test.ts"
+  ],
+  "thresholds_unchanged": true,
+  "thresholds": {
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100
+  },
+  "workflow_files_changed": "",
+  "raw_source_split_line_count_before": 1895,
+  "raw_source_split_line_count_after": 1894,
+  "line_count_note": "These counts include the source documentation header and trailing newline. The architecture budget uses its existing count function, unchanged at 1887; the final budget assertion passes after one comment line is removed."
+}

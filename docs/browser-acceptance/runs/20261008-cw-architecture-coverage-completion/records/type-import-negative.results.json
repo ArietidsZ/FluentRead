@@ -1,0 +1,407 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 35,
+  "numPassedTests": 11,
+  "numFailedTests": 2,
+  "numPendingTests": 22,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791427517193,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：export interface State {ready: boolean}",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：export interface State {ready: boolean}",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：import type {Entry} from \"./entries\"; export interface State {entry: Entry}",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：import type {Entry} from \"./entries\"; export interface State {entry: Entry}",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：import {type Entry} from \"./entries\"; export type State = Entry;",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：import {type Entry} from \"./entries\"; export type State = Entry;",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：import type Entry from \"./entries\"; export type State = Entry;",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：import type Entry from \"./entries\"; export type State = Entry;",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：import type * as Entries from \"./entries\"; export type State = Entries.Entry;",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：import type * as Entries from \"./entries\"; export type State = Entries.Entry;",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：export type {Entry} from \"./entries\";",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：export type {Entry} from \"./entries\";",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 只有类型声明与显式类型导入/导出才能豁免：export {type Entry} from \"./entries\";",
+          "status": "skipped",
+          "title": "只有类型声明与显式类型导入/导出才能豁免：export {type Entry} from \"./entries\";",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：",
+          "duration": 1.5636439999999823,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：/* no declaration */",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：/* no declaration */",
+          "duration": 0.29980000000000473,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：import \"./side-effect\"; export interface State {}",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：import \"./side-effect\"; export interface State {}",
+          "duration": 0.8300830000000019,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：import {Entry} from \"./entries\"; export type State = Entry;",
+          "status": "failed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：import {Entry} from \"./entries\"; export type State = Entry;",
+          "duration": 14.707621999999986,
+          "failureMessages": [
+            "AssertionError: expected true to be false // Object.is equality\n    at [CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/architecture/verificationOwnership.test.ts:361:42\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：import {type Entry, value} from \"./entries\"; export type State = Entry;",
+          "status": "failed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：import {type Entry, value} from \"./entries\"; export type State = Entry;",
+          "duration": 1.2056529999999839,
+          "failureMessages": [
+            "AssertionError: expected true to be false // Object.is equality\n    at [CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/architecture/verificationOwnership.test.ts:361:42\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:633:57\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:146:14\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:11\n    at runWithTimeout (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:39:7)\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:17)\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export const state = initialize();",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export const state = initialize();",
+          "duration": 0.27952099999998836,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export const VERSION = 1;",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export const VERSION = 1;",
+          "duration": 0.2722409999999513,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export class State {}",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export class State {}",
+          "duration": 0.16347999999999274,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export enum State {Ready}",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export enum State {Ready}",
+          "duration": 0.15275099999996655,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export function initialize() {}",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export function initialize() {}",
+          "duration": 0.2551809999999932,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export {value} from \"./values\";",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export {value} from \"./values\";",
+          "duration": 0.16277999999999793,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：console.log(\"effect\"); export interface State {}",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：console.log(\"effect\"); export interface State {}",
+          "duration": 0.2729009999999903,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：export interface State {",
+          "status": "passed",
+          "title": "运行时值、执行、错误语法和空文件不能冒充 type-only：export interface State {",
+          "duration": 0.8143019999999979,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 类型归属按源码判定，不能靠 types.ts 文件名藏匿运行时常量",
+          "status": "skipped",
+          "title": "类型归属按源码判定，不能靠 types.ts 文件名藏匿运行时常量",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "status": "skipped",
+          "title": "产品工具 scripts/build-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "status": "skipped",
+          "title": "产品工具 scripts/capture-product-assets.cjs 保持可解析的 CommonJS 入口",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口",
+          "status": "skipped",
+          "title": "产品工具 scripts/package-product-kit.cjs 保持可解析的 CommonJS 入口",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口",
+          "status": "skipped",
+          "title": "产品工具 scripts/verify-product-site.cjs 保持可解析的 CommonJS 入口",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口",
+          "status": "skipped",
+          "title": "产品工具 scripts/verify-support-ui.cjs 保持可解析的 CommonJS 入口",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "skipped",
+          "title": "文档工具 scripts/capture-docs-ui.cjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "skipped",
+          "title": "文档工具 scripts/verify-brand-copy.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "skipped",
+          "title": "文档工具 scripts/verify-docs-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档工具 scripts/verify-storybook-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "status": "skipped",
+          "title": "文档工具 scripts/verify-storybook-build.mjs 保持可解析的 Node 入口且不执行浏览器或校验流程",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约",
+          "status": "skipped",
+          "title": "文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 每个产品、构建和测试基础设施文件都有明确验证归属",
+          "status": "skipped",
+          "title": "每个产品、构建和测试基础设施文件都有明确验证归属",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+          "status": "skipped",
+          "title": "src 中每个可执行非组装模块都进入四维 100% 覆盖率边界",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖",
+          "status": "skipped",
+          "title": "覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "repository verification ownership"
+          ],
+          "fullName": "repository verification ownership 验证归属覆盖所有审计文件且路径不重复",
+          "status": "skipped",
+          "title": "验证归属覆盖所有审计文件且路径不重复",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427517463,
+      "endTime": 1791427517483.8142,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/architecture/verificationOwnership.test.ts"
+    }
+  ]
+}

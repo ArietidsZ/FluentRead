@@ -1,0 +1,730 @@
+{
+  "completed_at": "2026-10-08T03:00:19.338875+00:00",
+  "host": "arietids-cw",
+  "A": {
+    "checked_at": "2026-10-08T02:33:42.924294+00:00",
+    "scope": "minimal read-only policy difference check; no new session, settings writes, credential reads or external API calls",
+    "config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+    "previous_applied_config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+    "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+    "previous_applied_policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+    "hashes_identical": true,
+    "cua_command": "/usr/bin/env",
+    "cua_args": [
+      "-u",
+      "CUA_DRIVER_CAPABILITY_MANIFEST_FILE",
+      "-u",
+      "CUA_DRIVER_CAPABILITY_MANIFEST_APPROVED",
+      "-u",
+      "CUA_DRIVER_SESSION_POLICY_FILE",
+      "-u",
+      "CUA_DRIVER_SESSION_POLICY_APPROVED",
+      "-u",
+      "CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS",
+      "-u",
+      "CUA_DRIVER_ENVELOPE_PERMISSION_MODE",
+      "-u",
+      "CUA_DRIVER_EMBEDDED",
+      "[CW_HOME]/.local/bin/cua-driver",
+      "mcp",
+      "--direct"
+    ],
+    "policy_binding": {
+      "CUA_DRIVER_PERMISSION_MODE": "standard",
+      "CUA_DRIVER_POLICY_FILE": "[CW_HOME]/.config/cua-driver/policies/pi-gui-only.rego",
+      "CUA_DRIVER_DISABLE_UNRESTRICTED": "1",
+      "CUA_DRIVER_RS_ENABLE_WAYLAND": "1",
+      "CUA_DRIVER_RS_TELEMETRY_ENABLED": "0",
+      "CUA_TELEMETRY_ENABLED": "0"
+    },
+    "binary_target": "[CW_HOME]/.cua-driver/packages/releases/0.34.0-linux-x86_64/cua-driver",
+    "binary_sha256": "5fa60c7ab35194e0e050a337521ca0e0b0ae0a8fe898813b340f65c94e15264c",
+    "explanation": "The applied 20261007 design is direct stdio plus a fixed default-deny GUI Rego loaded by the policy-file environment variable. Unsetting old manifest/session/bypass variables is intentional and is not a rollback. Manifest v3 and user socket were a separate future objective.",
+    "active_cua_process_observed": false,
+    "neo_pi_url": "http://127.0.0.1:9010/mcp",
+    "neo_existing_evidence_allow_remote_in_mcp": false,
+    "neo_existing_evidence": "cw-audit/20261007-pi-apply/FINAL-STATE.json and REPORT.txt; official proxy wildcard bind with loopback peer guard",
+    "neo_boundary": "0.0.0.0 bind does not by itself mean remote access is allowed; existing guard evidence rejects non-loopback peers. No current external reachability or fresh guard session tested.",
+    "missing_current_observations": [
+      "No active Cua process, so no fresh active-session policy evaluation.",
+      "No new Neo remote-network reachability/guard probe performed; this check uses the existing guard evidence."
+    ],
+    "security_changes_performed": false,
+    "safety_approval_needed_for_this_read_only_check": false,
+    "historical_hash_source": "local APPLIED.json and RESULT.json; no claim of independently recovered historical published hash",
+    "parent_recovered_original_contract": "Oct7 args mcp --direct, standard mode, fixed CUA_DRIVER_POLICY_FILE, known old authorization variables deleted rather than empty; original missing/invalid-policy exit1 and denied-tool negative checks already recorded",
+    "current_rego_contract": {
+      "default_allow": false,
+      "allowed_tool_count": 19,
+      "allowed_tools": [
+        "start_session",
+        "end_session",
+        "list_apps",
+        "list_windows",
+        "get_accessibility_tree",
+        "get_window_state",
+        "get_desktop_state",
+        "get_screen_size",
+        "get_cursor_position",
+        "zoom",
+        "move_cursor",
+        "click",
+        "drag",
+        "scroll",
+        "type_text",
+        "press_key",
+        "hotkey",
+        "set_value",
+        "bring_to_front"
+      ],
+      "additional_condition": "input.arguments.screenshot_out_file must be null/missing",
+      "rule_content_matches_original_gui_only_contract": true
+    },
+    "configuration_file": "[CW_HOME]/.pi/agent/mcp.json",
+    "policy_file": "[CW_HOME]/.config/cua-driver/policies/pi-gui-only.rego",
+    "historical_binding_files": [
+      "cw-audit/20261007-pi-apply/APPLIED.json",
+      "cw-audit/20261007-pi-apply/RESULT.json"
+    ],
+    "end_of_round_hashes": {
+      "config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+      "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a"
+    },
+    "end_of_round_hashes_still_identical": true
+  },
+  "B": {
+    "base": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+    "commits": {
+      "base": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+      "branch": "fix/architecture-coverage-completion-20261008",
+      "architecture_contract_commit": "7d49235b5394b4e5f5e7675f796c8d9b2642be41",
+      "expanded_coverage_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8",
+      "final_tree": "3ab4c19f688c471f7c7e78190d550b35caa8b816",
+      "typecheck_input_hashes_match_final_tree": true,
+      "typecheck_label": "typecheck-precommit-final",
+      "typecheck_during_uncommitted_tree": true,
+      "production_changed_files": [
+        "src/features/video-subtitle/content/runtime.ts"
+      ],
+      "source_code_change": "comment line wrap only; TypeScript emitted executable output identical",
+      "final_worktree_clean": true
+    },
+    "strict": {
+      "files": 393,
+      "assertions": 9529,
+      "passed_assertions": 9529,
+      "failed_assertions": 0,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 0,
+      "validated_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8",
+      "global_coverage": {
+        "lines": {
+          "total": 65128,
+          "covered": 65128,
+          "skipped": 0,
+          "pct": 100
+        },
+        "statements": {
+          "total": 65128,
+          "covered": 65128,
+          "skipped": 0,
+          "pct": 100
+        },
+        "functions": {
+          "total": 4485,
+          "covered": 4485,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branches": {
+          "total": 32778,
+          "covered": 32778,
+          "skipped": 0,
+          "pct": 100
+        },
+        "branchesTrue": {
+          "total": 0,
+          "covered": 0,
+          "skipped": 0,
+          "pct": 100
+        }
+      },
+      "new_modules": [
+        {
+          "path": "src/core/config/shareCard.ts",
+          "coverage": {
+            "lines": {
+              "total": 14,
+              "covered": 14,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 14,
+              "covered": 14,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 14,
+              "covered": 14,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/core/i18n/messages/siteRules.ts",
+          "coverage": {
+            "lines": {
+              "total": 154,
+              "covered": 154,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 2,
+              "covered": 2,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 154,
+              "covered": 154,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 4,
+              "covered": 4,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/full-page-translation/content/excerpt.ts",
+          "coverage": {
+            "lines": {
+              "total": 11,
+              "covered": 11,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 11,
+              "covered": 11,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 16,
+              "covered": 16,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/share-card/core.ts",
+          "coverage": {
+            "lines": {
+              "total": 39,
+              "covered": 39,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 5,
+              "covered": 5,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 39,
+              "covered": 39,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 29,
+              "covered": 29,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/share-card/export.ts",
+          "coverage": {
+            "lines": {
+              "total": 8,
+              "covered": 8,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 3,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 8,
+              "covered": 8,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 5,
+              "covered": 5,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/share-card/render.ts",
+          "coverage": {
+            "lines": {
+              "total": 85,
+              "covered": 85,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 7,
+              "covered": 7,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 85,
+              "covered": 85,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 88,
+              "covered": 88,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/share-card/themes.ts",
+          "coverage": {
+            "lines": {
+              "total": 81,
+              "covered": 81,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 3,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 81,
+              "covered": 81,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 23,
+              "covered": 23,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/vocabulary/content/readingText.ts",
+          "coverage": {
+            "lines": {
+              "total": 70,
+              "covered": 70,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 3,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 70,
+              "covered": 70,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 51,
+              "covered": 51,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/vocabulary/content/scanner.ts",
+          "coverage": {
+            "lines": {
+              "total": 100,
+              "covered": 100,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 10,
+              "covered": 10,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 100,
+              "covered": 100,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 70,
+              "covered": 70,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/vocabulary/domain/reencounter.ts",
+          "coverage": {
+            "lines": {
+              "total": 96,
+              "covered": 96,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 8,
+              "covered": 8,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 96,
+              "covered": 96,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 66,
+              "covered": 66,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/platform/webdav/properties.ts",
+          "coverage": {
+            "lines": {
+              "total": 46,
+              "covered": 46,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 4,
+              "covered": 4,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 46,
+              "covered": 46,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 51,
+              "covered": 51,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/providers/translation/free-official-web.ts",
+          "coverage": {
+            "lines": {
+              "total": 131,
+              "covered": 131,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 10,
+              "covered": 10,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 131,
+              "covered": 131,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 126,
+              "covered": 126,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/app/popup/mount.ts",
+          "coverage": {
+            "lines": {
+              "total": 16,
+              "covered": 16,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 16,
+              "covered": 16,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 6,
+              "covered": 6,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/app/content/learningFeatures.ts",
+          "coverage": {
+            "lines": {
+              "total": 7,
+              "covered": 7,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 3,
+              "covered": 3,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 7,
+              "covered": 7,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 6,
+              "covered": 6,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/share-card/content/runtime.ts",
+          "coverage": {
+            "lines": {
+              "total": 45,
+              "covered": 45,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 7,
+              "covered": 7,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 45,
+              "covered": 45,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 36,
+              "covered": 36,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/features/vocabulary/content/reencounter.ts",
+          "coverage": {
+            "lines": {
+              "total": 84,
+              "covered": 84,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 15,
+              "covered": 15,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 84,
+              "covered": 84,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 79,
+              "covered": 79,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/services/translation-stats/types.ts",
+          "coverage": {
+            "lines": {
+              "total": 15,
+              "covered": 15,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 15,
+              "covered": 15,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/services/model-usage/types.ts",
+          "coverage": {
+            "lines": {
+              "total": 8,
+              "covered": 8,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 8,
+              "covered": 8,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        },
+        {
+          "path": "src/services/translation/types.ts",
+          "coverage": {
+            "lines": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "functions": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            },
+            "statements": {
+              "total": 1,
+              "covered": 1,
+              "skipped": 0,
+              "pct": 100
+            },
+            "branches": {
+              "total": 0,
+              "covered": 0,
+              "skipped": 0,
+              "pct": 100
+            }
+          }
+        }
+      ]
+    },
+    "architecture": {
+      "files": 32,
+      "assertions": 1357,
+      "passed_assertions": 1357,
+      "failed_assertions": 0,
+      "failed_files": 0,
+      "collection_errors": 0,
+      "unhandled_error_banner": false,
+      "exit_code": 0,
+      "validated_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8"
+    },
+    "typecheck_exit_code": 0,
+    "audit_exit_code": 0,
+    "diff_exit_code": 0,
+    "new_strict_modules": 19,
+    "resolved_original_failures": 4,
+    "api_calls_to_real_search_or_model_services": false,
+    "new_codex_or_work_tasks": false,
+    "new_prs_or_merges": false,
+    "security_settings_changed": false,
+    "remaining_blockers": []
+  }
+}

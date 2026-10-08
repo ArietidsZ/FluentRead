@@ -1,0 +1,29 @@
+[
+  {
+    "label": "popup-ready-negative",
+    "mutation": "src/app/popup/mount.ts",
+    "failed_assertions": [
+      "popup mount composition waits for configuration before choosing and preparing the root"
+    ],
+    "exit_code": 1,
+    "unhandled_errors": 0,
+    "source_before_sha256": "a08615987b5a989ca91a4fbafbb1674ed3e8abaa6873034176f5c0af3faac149",
+    "mutated_sha256": "3b6669ca6255e05086de784071b8ce5cb4ff29be472ceaf8fac825f76d48008f",
+    "source_restored_sha256": "a08615987b5a989ca91a4fbafbb1674ed3e8abaa6873034176f5c0af3faac149",
+    "restored": true
+  },
+  {
+    "label": "type-import-negative",
+    "mutation": "tests/architecture/verificationOwnership.test.ts",
+    "failed_assertions": [
+      "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：import {Entry} from \"./entries\"; export type State = Entry;",
+      "repository verification ownership 运行时值、执行、错误语法和空文件不能冒充 type-only：import {type Entry, value} from \"./entries\"; export type State = Entry;"
+    ],
+    "exit_code": 1,
+    "unhandled_errors": 0,
+    "source_before_sha256": "0835123346e1b601f19ecfa89da0ceca1ae93074e52bc78f97a7c6460aa5e141",
+    "mutated_sha256": "0e99b8c81465b556c513746f75a691e39bd3be218f7f68e43d408d6e9a00f30e",
+    "source_restored_sha256": "0835123346e1b601f19ecfa89da0ceca1ae93074e52bc78f97a7c6460aa5e141",
+    "restored": true
+  }
+]

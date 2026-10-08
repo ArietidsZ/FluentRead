@@ -1,0 +1,27 @@
+{
+  "baseline_commit": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "baseline": {
+    "files": 32,
+    "assertions": 1334,
+    "passed_assertions": 1330,
+    "failed_assertions": 4,
+    "failed_files": 3,
+    "collection_errors": 0,
+    "unhandled_error_banner": false,
+    "exit_code": 1
+  },
+  "final_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8",
+  "final": {
+    "files": 32,
+    "assertions": 1357,
+    "passed_assertions": 1357,
+    "failed_assertions": 0,
+    "failed_files": 0,
+    "collection_errors": 0,
+    "unhandled_error_banner": false,
+    "exit_code": 0,
+    "validated_commit": "e12faf5e0875297ae970a0de947c9763b5ac21e8"
+  },
+  "resolved_failed_assertions": 4,
+  "new_failed_assertions": 0
+}

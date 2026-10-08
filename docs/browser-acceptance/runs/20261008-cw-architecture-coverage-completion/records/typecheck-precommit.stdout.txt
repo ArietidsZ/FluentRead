@@ -1,0 +1,4 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/sentenceActionsMount.test.ts(33,17): error TS2554: Expected 1 arguments, but got 0.
+tests/sentenceActionsMount.test.ts(34,9): error TS2722: Cannot invoke an object which is possibly 'undefined'.
+tests/sentenceActionsMount.test.ts(35,16): error TS2722: Cannot invoke an object which is possibly 'undefined'.

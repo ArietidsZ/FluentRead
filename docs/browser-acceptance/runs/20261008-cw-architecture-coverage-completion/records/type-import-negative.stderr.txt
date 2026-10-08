@@ -1,0 +1,22 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 运行时值、执行、错误语法和空文件不能冒充 type-only：import {Entry} from "./entries"; export type State = Entry;
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 运行时值、执行、错误语法和空文件不能冒充 type-only：import {type Entry, value} from "./entries"; export type State = Entry;
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ tests/architecture/verificationOwnership.test.ts:361:42
+    359|         'export interface State {',
+    360|     ])('运行时值、执行、错误语法和空文件不能冒充 type-only：%s', sourc…
+    361|         expect(isTypeOnlySource(source)).toBe(false);
+       |                                          ^
+    362|     });
+    363|     it('类型归属按源码判定，不能靠 types.ts 文件名藏匿运行时常量', () …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+

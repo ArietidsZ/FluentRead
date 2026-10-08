@@ -1,0 +1,22 @@
+{
+  "label": "architecture-repaired-first",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/architecture/moduleBoundaries.test.ts",
+    "tests/architecture/sourceFileHeaders.test.ts",
+    "tests/architecture/verificationOwnership.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/architecture-repaired-first.results.json",
+    "--no-cache"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion",
+  "started_at": "2026-10-08T02:38:30.188732+00:00",
+  "duration_seconds": 3.581,
+  "exit_code": 1
+}

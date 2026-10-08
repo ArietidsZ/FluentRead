@@ -1,0 +1,110 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/architecture/moduleBoundaries.test.ts > architecture module boundaries > 历史巨型文件不得继续增长，后续迁移只降低债务上限
+AssertionError: expected [ { …(3) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "ceiling": 1887,
++     "lines": 1888,
++     "path": "src/features/video-subtitle/content/runtime.ts",
++   },
++ ]
+
+ ❯ tests/architecture/moduleBoundaries.test.ts:430:24
+    428|             .filter(({lines, ceiling}) => lines > ceiling);
+    429| 
+    430|         expect(growth).toEqual([]);
+       |                        ^
+    431|     });
+    432| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  tests/architecture/sourceFileHeaders.test.ts > src file header documentation > 源码提供文件头，声明式 JSON 数据使用标准 JSON 语法
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "src/app/options/assets/wechat-contact.jpg",
++ ]
+
+ ❯ tests/architecture/sourceFileHeaders.test.ts:66:29
+     64|         }
+     65|         const unsupported = allSourceFiles.filter((path) => !DOCUMENTE…
+     66|         expect(unsupported).toEqual([]);
+       |                             ^
+     67|         expect(sourceFiles.length).toBeGreaterThan(0);
+     68|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 每个产品、构建和测试基础设施文件都有明确验证归属
+AssertionError: expected [ { …(2) } ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   Object {
++     "owners": Array [],
++     "path": "scripts/verify-storybook-build.mjs",
++   },
++ ]
+
+ ❯ tests/architecture/verificationOwnership.test.ts:346:25
+    344|     it('每个产品、构建和测试基础设施文件都有明确验证归属', () => {
+    345|         const unowned = ownership.filter(({owners}) => owners.length =…
+    346|         expect(unowned).toEqual([]);
+       |                         ^
+    347|     });
+    348| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界
+AssertionError: expected [ …(18) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "src/app/content/learningFeatures.ts",
++   "src/app/popup/mount.ts",
++   "src/core/config/shareCard.ts",
++   "src/core/i18n/messages/onboarding.ts",
++   "src/core/i18n/messages/siteRules.ts",
++   "src/features/full-page-translation/content/excerpt.ts",
++   "src/features/share-card/content/runtime.ts",
++   "src/features/share-card/core.ts",
++   "src/features/share-card/export.ts",
++   "src/features/share-card/render.ts",
++   "src/features/share-card/themes.ts",
++   "src/features/vocabulary/content/readingText.ts",
++   "src/features/vocabulary/content/reencounter.ts",
++   "src/features/vocabulary/content/reencounterState.ts",
++   "src/features/vocabulary/content/scanner.ts",
++   "src/features/vocabulary/domain/reencounter.ts",
++   "src/platform/webdav/properties.ts",
++   "src/providers/translation/free-official-web.ts",
++ ]
+
+ ❯ tests/architecture/verificationOwnership.test.ts:355:27
+    353|             && !strictCoverage.has(path));
+    354| 
+    355|         expect(uncovered).toEqual([]);
+       |                           ^
+    356|     });
+    357| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+

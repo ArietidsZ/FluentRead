@@ -1,0 +1,26 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/popupMount.test.ts > popup mount composition > waits for configuration before choosing and preparing the root
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      "system",
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/popupMount.test.ts:47:81
+     45|         try {
+     46|             await Promise.resolve();
+     47|             expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.…
+       |                                                                                 ^
+     48|             mocks.config.uiLanguageSetupCompleted = true;
+     49|         } finally {resolve(); await pending;}
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

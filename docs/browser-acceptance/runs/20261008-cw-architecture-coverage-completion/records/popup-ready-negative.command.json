@@ -1,0 +1,22 @@
+{
+  "label": "popup-ready-negative",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/popupMount.test.ts",
+    "-t",
+    "waits for configuration before choosing and preparing the root",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/popup-ready-negative.results.json",
+    "--no-cache"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion",
+  "started_at": "2026-10-08T02:45:16.742919+00:00",
+  "duration_seconds": 0.294,
+  "exit_code": 1
+}

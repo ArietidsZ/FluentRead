@@ -1,0 +1,3 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/sentenceActionsMount.test.ts(33,23): error TS2345: Argument of type 'AbortSignal' is not assignable to parameter of type 'ContentFeatureRuntime'.
+  Type 'AbortSignal' is missing the following properties from type 'ContentFeatureRuntime': ctx, signal, isCurrent

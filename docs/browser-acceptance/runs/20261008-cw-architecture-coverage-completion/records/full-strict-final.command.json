@@ -1,0 +1,26 @@
+{
+  "label": "full-strict-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--coverage.reportsDirectory=[CW_WORKSPACE]/architecture-coverage-completion-20261008/full-strict-final-coverage",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/full-strict-final.results.json"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion",
+  "started_at": "2026-10-08T02:49:56.088533+00:00",
+  "duration_seconds": 169.853,
+  "exit_code": 0
+}

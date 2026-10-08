@@ -1,0 +1,50 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/shareCardCore.test.ts tests/shareCardRender.test.ts tests/shareCardExport.test.ts tests/shareCardExcerpt.test.ts tests/shareCardRuntime.test.ts tests/vocabularyReencounter.test.ts tests/vocabularyReencounterLifecycle.test.ts tests/webDavProperties.test.ts tests/sentenceActionsMount.test.ts tests/popupMount.test.ts tests/freeOfficialWebProviders.test.ts tests/siteRules.test.ts tests/i18n.test.ts --config vitest.coverage.config.ts --coverage --coverage.include=src/core/config/shareCard.ts --coverage.include=src/core/i18n/messages/siteRules.ts --coverage.include=src/features/full-page-translation/content/excerpt.ts --coverage.include=src/features/share-card/core.ts --coverage.include=src/features/share-card/export.ts --coverage.include=src/features/share-card/render.ts --coverage.include=src/features/share-card/themes.ts --coverage.include=src/features/vocabulary/content/readingText.ts --coverage.include=src/features/vocabulary/content/scanner.ts --coverage.include=src/features/vocabulary/domain/reencounter.ts --coverage.include=src/platform/webdav/properties.ts --coverage.include=src/providers/translation/free-official-web.ts --coverage.include=src/app/popup/mount.ts --coverage.include=src/app/content/learningFeatures.ts --coverage.include=src/features/share-card/content/runtime.ts --coverage.include=src/features/vocabulary/content/reencounter.ts --coverage.include=src/services/translation-stats/types.ts --coverage.include=src/services/model-usage/types.ts --coverage.include=src/services/translation/types.ts --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --coverage.reportsDirectory=[CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-first-coverage --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-first.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-architecture-coverage-completion
+      Coverage enabled with v8
+
+ ✓ tests/i18n.test.ts (58 tests) 2272ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 1195ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 458ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 362ms
+ ✓ tests/vocabularyReencounter.test.ts (17 tests) 51ms
+ ✓ tests/siteRules.test.ts (20 tests) 25ms
+ ✓ tests/freeOfficialWebProviders.test.ts (46 tests) 21ms
+ ✓ tests/vocabularyReencounterLifecycle.test.ts (9 tests) 7ms
+ ✓ tests/shareCardRender.test.ts (30 tests) 25ms
+ ✓ tests/shareCardRuntime.test.ts (4 tests) 3ms
+ ✓ tests/webDavProperties.test.ts (5 tests) 9ms
+ ✓ tests/shareCardCore.test.ts (8 tests) 16ms
+ ❯ tests/popupMount.test.ts (4 tests | 1 failed) 13ms
+   × popup mount composition > waits for configuration before choosing and preparing the root 4ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      "system",
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/sentenceActionsMount.test.ts (8 tests | 1 failed) 8ms
+   × sentence entry ownership > writing entry eligibility follows 'chrome'/true/true/'https://mail.google.com/' 3ms
+     → expected false to be true // Object.is equality
+ ✓ tests/shareCardExcerpt.test.ts (3 tests) 4ms
+ ✓ tests/shareCardExport.test.ts (1 test) 2ms
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+ Test Files  2 failed | 11 passed (13)
+      Tests  2 failed | 211 passed (213)
+     Errors  1 error
+   Start at  10:38:24
+   Duration  5.54s (transform 785ms, setup 0ms, collect 1.34s, tests 2.46s, environment 1ms, prepare 348ms)
+
+JSON report written to [CW_WORKSPACE]/architecture-coverage-completion-20261008/expanded-target-first.results.json

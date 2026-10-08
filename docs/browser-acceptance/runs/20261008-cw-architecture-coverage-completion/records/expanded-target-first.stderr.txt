@@ -1,0 +1,62 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/sentenceActionsMount.test.ts > sentence entry ownership > writing entry eligibility follows 'chrome'/true/true/'https://mail.google.com/'
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/sentenceActionsMount.test.ts:32:37
+     30|         const [feature] = createLearningContentFeatures(ctx, config,
+     31|             resolveBrowserCapabilities({browser, manifestVersion: 3}));
+     32|         expect(feature.isEnabled()).toBe(enabled);
+       |                                     ^
+     33|         feature.mount(); expect(mountWritingAssistant).toHaveBeenCalle…
+     34|         feature.unmount(); expect(unmountWritingAssistant).toHaveBeenC…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/popupMount.test.ts > popup mount composition > waits for configuration before choosing and preparing the root
+AssertionError: expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      "system",
+    ]
+
+
+Number of calls: 1
+
+ ❯ tests/popupMount.test.ts:46:77
+     44|         const pending = mountPreparedPopupApp('#app');
+     45|         await Promise.resolve();
+     46|         expect(mocks.create).not.toHaveBeenCalled(); expect(mocks.font…
+       |                                                                             ^
+     47|         mocks.config.uiLanguageSetupCompleted = true; resolve(); await…
+     48|         expect(mocks.create).toHaveBeenCalledWith({name: 'MainMenu'});
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+ReferenceError: document is not defined
+ ❯ mountPreparedPopupApp src/app/popup/mount.ts:26:45
+     24|   ])
+     25|   const app = createApp(App)
+     26|   app.use(createUiI18nPlugin({documentRoot: document.body, documentTit…
+       |                                             ^
+     27|   app.component('Coffee', Coffee);
+     28|   // 由唯一的 WXT 启动入口提供挂载目标，避免 app 层假定页面结构。
+ ❯ processTicksAndRejections node:internal/process/task_queues:104:5
+
+This error originated in "tests/popupMount.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "does not create or mount a partially prepared menu when language loading fails". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+

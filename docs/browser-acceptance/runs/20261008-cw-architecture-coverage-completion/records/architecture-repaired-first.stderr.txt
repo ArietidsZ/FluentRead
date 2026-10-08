@@ -1,0 +1,46 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/architecture/sourceFileHeaders.test.ts > src file header documentation > 精确登记的联系图片保持非空 JPEG，其他未知二进制文件仍拒绝
+AssertionError: expected [ 21, 83 ] to deeply equal [ 255, 217 ]
+
+- Expected
++ Received
+
+  Array [
+-   255,
+-   217,
++   21,
++   83,
+  ]
+
+ ❯ tests/architecture/sourceFileHeaders.test.ts:84:45
+     82|             expect(bytes.length).toBeGreaterThan(5);
+     83|             expect([...bytes.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xf…
+     84|             expect([...bytes.subarray(-2)]).toEqual([0xff, 0xd9]);
+       |                                             ^
+     85|             expect(sourceFileKind(path)).toBe('jpeg');
+     86|         }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/architecture/verificationOwnership.test.ts > repository verification ownership > 覆盖率清单不能引用不存在的源码或把组装根伪装成业务覆盖
+AssertionError: expected [ Array(1) ] to deeply equal []
+
+- Expected
++ Received
+
+- Array []
++ Array [
++   "src/services/harness/sessionTypes.ts",
++ ]
+
+ ❯ tests/architecture/verificationOwnership.test.ts:418:25
+    416|             || isCoverageExemptSrcModule(path));
+    417| 
+    418|         expect(invalid).toEqual([]);
+       |                         ^
+    419|     });
+    420| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+

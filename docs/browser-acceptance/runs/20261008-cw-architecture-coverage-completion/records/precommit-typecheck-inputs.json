@@ -1,0 +1,21 @@
+{
+  "label": "typecheck-precommit-final",
+  "head_at_run_start": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "uncommitted_during_run": true,
+  "changed_input_sha256": {
+    "src/features/video-subtitle/content/runtime.ts": "51c8e6b6d9ea5b3751ac04a8d8e2f4e92cd463b32cc6045186c749c5993ea8f9",
+    "tests/architecture/sourceFileHeaders.test.ts": "c71db36b3e2384d052dfe38772cb8364caddb23f2bec9b61d3f723d532fd9877",
+    "tests/architecture/verificationOwnership.test.ts": "0835123346e1b601f19ecfa89da0ceca1ae93074e52bc78f97a7c6460aa5e141",
+    "tests/i18n.test.ts": "b56da3eb6f10788277f2ca74b5a628faeeb72a17ee2cc62d85dda91e6d83aaed",
+    "tests/popupMount.test.ts": "116e561c82f03a32df53773b2fd5697c0a46e0077f60c3b8ede7a956552e59b8",
+    "tests/sentenceActionsMount.test.ts": "02c2d68df2987e1aa64c606d90c88f73ad305e1743603a5ae011eb12a43ca398",
+    "tests/shareCardCore.test.ts": "077f4808024910410a625bb8f4e9308ecf507e246ecc19ae73c9d243f1a3d5c2",
+    "tests/shareCardExcerpt.test.ts": "cd98173bf9788459deec54c98db50fa92123729fe851d46ebbec2e03335f0783",
+    "tests/shareCardExport.test.ts": "6a8b7b320a5b092a37024f7818abad15eaead6ed30251836f6259cff53b847fe",
+    "tests/shareCardRender.test.ts": "529389c8c30c2ffca3b32fb25e8d056826ee13f640e9d3237efd274d64b3b83e",
+    "tests/shareCardRuntime.test.ts": "b4e573f7b2e3b2fb49003d565995c0171f0f9a1586be1d053d2ddeeac6dab095",
+    "tests/test-matrix.json": "fab3a0835b08d89d665dbe81af3e9444e1f1b0e6941f05adfa5f2f0dff97245b",
+    "vitest.coverage.config.ts": "ce7efec87cf31979c97f57efa033096c0fc45adb583f116a70e1e8f9dd540e77"
+  },
+  "note": "No source/input changes after the final typecheck start; commit operations only update Git metadata. The final tree binding is checked at commit time."
+}

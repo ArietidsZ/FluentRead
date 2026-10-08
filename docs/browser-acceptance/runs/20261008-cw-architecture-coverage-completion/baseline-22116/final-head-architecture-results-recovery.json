@@ -1,0 +1,11 @@
+{
+  "source": "final-head-architecture.stdout.txt",
+  "reporter": "Vitest JSON reporter",
+  "extraction": "one complete JSON reporter line parsed and saved without modifying results",
+  "reason": "output path argument was supplied as a positional filter, so JSON reporter used stdout; all 32 intended test files ran and match the previous complete matrix",
+  "source_sha256": "d66c25758551ef872e6b7eb58e481887d1fd4aae58c6d509bdffb9d5fffaa150",
+  "results_sha256": "06b7d4e7a85cf3aba52997feecc9a42ee583af725d13e2beb7167baa4e6d4015",
+  "files": 32,
+  "passed_assertions": 1330,
+  "failed_assertions": 4
+}

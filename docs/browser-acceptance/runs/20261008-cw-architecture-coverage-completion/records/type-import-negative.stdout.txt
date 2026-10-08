@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/architecture/verificationOwnership.test.ts -t 运行时值、执行、错误语法和空文件不能冒充 type-only --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/type-import-negative.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-architecture-coverage-completion
+
+ ❯ tests/architecture/verificationOwnership.test.ts (35 tests | 2 failed | 22 skipped) 22ms
+   × repository verification ownership > 运行时值、执行、错误语法和空文件不能冒充 type-only：import {Entry} from "./entries"; export type State = Entry; 15ms
+     → expected true to be false // Object.is equality
+   × repository verification ownership > 运行时值、执行、错误语法和空文件不能冒充 type-only：import {type Entry, value} from "./entries"; export type State = Entry; 1ms
+     → expected true to be false // Object.is equality
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 11 passed | 22 skipped (35)
+   Start at  10:45:17
+   Duration  301ms (transform 23ms, setup 0ms, collect 171ms, tests 22ms, environment 0ms, prepare 21ms)
+
+JSON report written to [CW_WORKSPACE]/architecture-coverage-completion-20261008/type-import-negative.results.json

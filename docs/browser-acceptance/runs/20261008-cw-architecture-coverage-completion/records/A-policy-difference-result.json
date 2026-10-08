@@ -1,0 +1,91 @@
+{
+  "checked_at": "2026-10-08T02:33:42.924294+00:00",
+  "scope": "minimal read-only policy difference check; no new session, settings writes, credential reads or external API calls",
+  "config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+  "previous_applied_config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+  "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "previous_applied_policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "hashes_identical": true,
+  "cua_command": "/usr/bin/env",
+  "cua_args": [
+    "-u",
+    "CUA_DRIVER_CAPABILITY_MANIFEST_FILE",
+    "-u",
+    "CUA_DRIVER_CAPABILITY_MANIFEST_APPROVED",
+    "-u",
+    "CUA_DRIVER_SESSION_POLICY_FILE",
+    "-u",
+    "CUA_DRIVER_SESSION_POLICY_APPROVED",
+    "-u",
+    "CUA_DRIVER_DANGEROUSLY_BYPASS_APPROVALS",
+    "-u",
+    "CUA_DRIVER_ENVELOPE_PERMISSION_MODE",
+    "-u",
+    "CUA_DRIVER_EMBEDDED",
+    "[CW_HOME]/.local/bin/cua-driver",
+    "mcp",
+    "--direct"
+  ],
+  "policy_binding": {
+    "CUA_DRIVER_PERMISSION_MODE": "standard",
+    "CUA_DRIVER_POLICY_FILE": "[CW_HOME]/.config/cua-driver/policies/pi-gui-only.rego",
+    "CUA_DRIVER_DISABLE_UNRESTRICTED": "1",
+    "CUA_DRIVER_RS_ENABLE_WAYLAND": "1",
+    "CUA_DRIVER_RS_TELEMETRY_ENABLED": "0",
+    "CUA_TELEMETRY_ENABLED": "0"
+  },
+  "binary_target": "[CW_HOME]/.cua-driver/packages/releases/0.34.0-linux-x86_64/cua-driver",
+  "binary_sha256": "5fa60c7ab35194e0e050a337521ca0e0b0ae0a8fe898813b340f65c94e15264c",
+  "explanation": "The applied 20261007 design is direct stdio plus a fixed default-deny GUI Rego loaded by the policy-file environment variable. Unsetting old manifest/session/bypass variables is intentional and is not a rollback. Manifest v3 and user socket were a separate future objective.",
+  "active_cua_process_observed": false,
+  "neo_pi_url": "http://127.0.0.1:9010/mcp",
+  "neo_existing_evidence_allow_remote_in_mcp": false,
+  "neo_existing_evidence": "cw-audit/20261007-pi-apply/FINAL-STATE.json and REPORT.txt; official proxy wildcard bind with loopback peer guard",
+  "neo_boundary": "0.0.0.0 bind does not by itself mean remote access is allowed; existing guard evidence rejects non-loopback peers. No current external reachability or fresh guard session tested.",
+  "missing_current_observations": [
+    "No active Cua process, so no fresh active-session policy evaluation.",
+    "No new Neo remote-network reachability/guard probe performed; this check uses the existing guard evidence."
+  ],
+  "security_changes_performed": false,
+  "safety_approval_needed_for_this_read_only_check": false,
+  "historical_hash_source": "local APPLIED.json and RESULT.json; no claim of independently recovered historical published hash",
+  "parent_recovered_original_contract": "Oct7 args mcp --direct, standard mode, fixed CUA_DRIVER_POLICY_FILE, known old authorization variables deleted rather than empty; original missing/invalid-policy exit1 and denied-tool negative checks already recorded",
+  "current_rego_contract": {
+    "default_allow": false,
+    "allowed_tool_count": 19,
+    "allowed_tools": [
+      "start_session",
+      "end_session",
+      "list_apps",
+      "list_windows",
+      "get_accessibility_tree",
+      "get_window_state",
+      "get_desktop_state",
+      "get_screen_size",
+      "get_cursor_position",
+      "zoom",
+      "move_cursor",
+      "click",
+      "drag",
+      "scroll",
+      "type_text",
+      "press_key",
+      "hotkey",
+      "set_value",
+      "bring_to_front"
+    ],
+    "additional_condition": "input.arguments.screenshot_out_file must be null/missing",
+    "rule_content_matches_original_gui_only_contract": true
+  },
+  "configuration_file": "[CW_HOME]/.pi/agent/mcp.json",
+  "policy_file": "[CW_HOME]/.config/cua-driver/policies/pi-gui-only.rego",
+  "historical_binding_files": [
+    "cw-audit/20261007-pi-apply/APPLIED.json",
+    "cw-audit/20261007-pi-apply/RESULT.json"
+  ],
+  "end_of_round_hashes": {
+    "config_sha256": "9a5725517f5a32b11a19402d798c0787b229476e9afdf7326bd353f749dfa84c",
+    "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a"
+  },
+  "end_of_round_hashes_still_identical": true
+}

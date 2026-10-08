@@ -1,0 +1,3444 @@
+{
+  "numTotalTestSuites": 45,
+  "numPassedTestSuites": 45,
+  "numFailedTestSuites": 0,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 299,
+  "numPassedTests": 299,
+  "numFailedTests": 0,
+  "numPendingTests": 0,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791427422475,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 保留用户选择的 small 正文字号",
+          "status": "passed",
+          "title": "保留用户选择的 small 正文字号",
+          "duration": 0.6102220000000074,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 保留用户选择的 large 正文字号",
+          "status": "passed",
+          "title": "保留用户选择的 large 正文字号",
+          "duration": 0.07775100000000634,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 旧环境没有 Segmenter 时仍保留完整 Unicode 码点，换行不保留溢出的空白",
+          "status": "passed",
+          "title": "旧环境没有 Segmenter 时仍保留完整 Unicode 码点，换行不保留溢出的空白",
+          "duration": 0.5541709999999966,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 八套样式稳定且新增样式通过持久化归一化往返",
+          "status": "passed",
+          "title": "八套样式稳定且新增样式通过持久化归一化往返",
+          "duration": 6.032726999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 旧配置得到珊瑚默认样式且只持久化白名单外观字段",
+          "status": "passed",
+          "title": "旧配置得到珊瑚默认样式且只持久化白名单外观字段",
+          "duration": 1.7941050000000018,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 旧版风格对应新视觉身份，保留已有选择",
+          "status": "passed",
+          "title": "旧版风格对应新视觉身份，保留已有选择",
+          "duration": 0.16195099999998774,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 非法偏好回退，显式关闭署名和译文在前保留",
+          "status": "passed",
+          "title": "非法偏好回退，显式关闭署名和译文在前保留",
+          "duration": 0.07168000000001484,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 来源只默认包含公开域名，不带路径、查询、账号、fragment或本地文件名",
+          "status": "passed",
+          "title": "来源只默认包含公开域名，不带路径、查询、账号、fragment或本地文件名",
+          "duration": 0.18935099999998783,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 保留 HTML 字面量、组合字符和换行，去掉控制字符",
+          "status": "passed",
+          "title": "保留 HTML 字面量、组合字符和换行，去掉控制字符",
+          "duration": 5.372395000000012,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 英文尽量整词换行，长 URL 和 CJK 无空格文本仍可完整换行",
+          "status": "passed",
+          "title": "英文尽量整词换行，长 URL 和 CJK 无空格文本仍可完整换行",
+          "duration": 0.450540999999987,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "双语分享卡片内容与外观"
+          ],
+          "fullName": "双语分享卡片内容与外观 拒绝空白和超长双语，不用截断伪装成功",
+          "status": "passed",
+          "title": "拒绝空白和超长双语，不用截断伪装成功",
+          "duration": 0.13529099999999517,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427357,
+      "endTime": 1791427427372.4504,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/shareCardCore.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 非法摘录 'empty' 在申请 Canvas 前明确拒绝",
+          "status": "passed",
+          "title": "非法摘录 'empty' 在申请 Canvas 前明确拒绝",
+          "duration": 2.361346999999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 非法摘录 'long' 在申请 Canvas 前明确拒绝",
+          "status": "passed",
+          "title": "非法摘录 'long' 在申请 Canvas 前明确拒绝",
+          "duration": 0.4705119999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 数字前缀后的阿拉伯正文仍从右向左，第二列英文保留独立方向",
+          "status": "passed",
+          "title": "数字前缀后的阿拉伯正文仍从右向左，第二列英文保留独立方向",
+          "duration": 1.5823239999999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 隐藏品牌时来源可使用全部页脚宽度，换行后仍完整保留",
+          "status": "passed",
+          "title": "隐藏品牌时来源可使用全部页脚宽度，换行后仍完整保留",
+          "duration": 5.8875170000000026,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 coral 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "coral 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.604141999999996,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 sky 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "sky 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.5736009999999965,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 prism 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "prism 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.5502419999999972,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 pearl 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "pearl 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.4741409999999888,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 moss 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "moss 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.4937319999999943,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 linen 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "linen 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.48876099999999667,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 sunset 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "sunset 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.5143419999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 blueprint 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "status": "passed",
+          "title": "blueprint 支持方形和隐藏页脚，超长摘录不会裁切导出",
+          "duration": 0.5864109999999982,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 coral 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "coral 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.5148019999999889,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 sky 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "sky 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.4849010000000078,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 prism 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "prism 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.38741200000001186,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 pearl 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "pearl 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.4606809999999939,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 moss 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "moss 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.3482410000000016,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 linen 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "linen 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.3916010000000085,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 sunset 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "sunset 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.3756309999999985,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 blueprint 原译文完整保留，高清导出且正文位于画面内",
+          "status": "passed",
+          "title": "blueprint 原译文完整保留，高清导出且正文位于画面内",
+          "duration": 0.41245100000000434,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 没有 roundRect 的浏览器仍能生成月白图片",
+          "status": "passed",
+          "title": "没有 roundRect 的浏览器仍能生成月白图片",
+          "duration": 0.39629100000000506,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 pearl 双栏各自换行，译文在前时左右互换且来源不进入正文区",
+          "status": "passed",
+          "title": "pearl 双栏各自换行，译文在前时左右互换且来源不进入正文区",
+          "duration": 0.4416119999999921,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 blueprint 双栏各自换行，译文在前时左右互换且来源不进入正文区",
+          "status": "passed",
+          "title": "blueprint 双栏各自换行，译文在前时左右互换且来源不进入正文区",
+          "duration": 0.33630099999999175,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 方形缩字后仍放不下明确失败，自适应过高也不能裁切",
+          "status": "passed",
+          "title": "方形缩字后仍放不下明确失败，自适应过高也不能裁切",
+          "duration": 7.640991,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 译文在前且来源和署名关闭时不绘制隐藏内容",
+          "status": "passed",
+          "title": "译文在前且来源和署名关闭时不绘制隐藏内容",
+          "duration": 0.46143200000000206,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片排版边界"
+          ],
+          "fullName": "卡片排版边界 Canvas 不可用或 PNG 生成失败时返回错误",
+          "status": "passed",
+          "title": "Canvas 不可用或 PNG 生成失败时返回错误",
+          "duration": 0.46335100000000295,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 coral 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 coral 分享预览与导出只绘制一次",
+          "duration": 0.4248010000000022,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 sky 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 sky 分享预览与导出只绘制一次",
+          "duration": 0.34408099999998853,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 prism 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 prism 分享预览与导出只绘制一次",
+          "duration": 0.3601109999999892,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 pearl 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 pearl 分享预览与导出只绘制一次",
+          "duration": 0.2651300000000134,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 moss 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 moss 分享预览与导出只绘制一次",
+          "duration": 0.28494099999998923,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 linen 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 linen 分享预览与导出只绘制一次",
+          "duration": 0.2284609999999958,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 sunset 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 sunset 分享预览与导出只绘制一次",
+          "duration": 0.3670110000000051,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "相同译文在 blueprint 分享预览与导出只绘制一次",
+          "status": "passed",
+          "title": "相同译文在 blueprint 分享预览与导出只绘制一次",
+          "duration": 0.29356099999999685,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426963,
+      "endTime": 1791427426993.367,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/shareCardRender.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "卡片图片导出能力回退"
+          ],
+          "fullName": "卡片图片导出能力回退 下载名称使用 UTC 日期，在跨日时更新且不包含摘录内容",
+          "status": "passed",
+          "title": "下载名称使用 UTC 日期，在跨日时更新且不包含摘录内容",
+          "duration": 1.4804040000000072,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "卡片图片导出能力回退"
+          ],
+          "fullName": "卡片图片导出能力回退 缺失图片剪贴板不尝试写入，存在时直接写入 PNG",
+          "status": "passed",
+          "title": "缺失图片剪贴板不尝试写入，存在时直接写入 PNG",
+          "duration": 1.1445829999999972,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427884,
+      "endTime": 1791427427886.1445,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/shareCardExport.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "精确双语摘录所有权"
+          ],
+          "fullName": "精确双语摘录所有权 从子节点命中本段，使用可信译文且不带相邻段落",
+          "status": "passed",
+          "title": "从子节点命中本段，使用可信译文且不带相邻段落",
+          "duration": 3.4908999999999963,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "精确双语摘录所有权"
+          ],
+          "fullName": "精确双语摘录所有权 拒绝伪造、断开的、加载中的和已恢复的工件",
+          "status": "passed",
+          "title": "拒绝伪造、断开的、加载中的和已恢复的工件",
+          "duration": 0.41365200000001323,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "精确双语摘录所有权"
+          ],
+          "fullName": "精确双语摘录所有权 普通正文和空译文不产生可分享快照",
+          "status": "passed",
+          "title": "普通正文和空译文不产生可分享快照",
+          "duration": 0.2389999999999901,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "精确双语摘录所有权"
+          ],
+          "fullName": "精确双语摘录所有权 兼容没有译文模板的已绑定工件，并拒绝失效的 DOM 文本 getter",
+          "status": "passed",
+          "title": "兼容没有译文模板的已绑定工件，并拒绝失效的 DOM 文本 getter",
+          "duration": 0.24028099999999597,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427782,
+      "endTime": 1791427427786.2402,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/shareCardExcerpt.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "分享卡片按需挂载所有权"
+          ],
+          "fullName": "分享卡片按需挂载所有权 调用边界丢失 context 时安全退出，不创建或打开工作台",
+          "status": "passed",
+          "title": "调用边界丢失 context 时安全退出，不创建或打开工作台",
+          "duration": 0.9935720000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "分享卡片按需挂载所有权"
+          ],
+          "fullName": "分享卡片按需挂载所有权 启动不监听宿主页面或创建 UI，两个主动入口复用单个闭合 Shadow UI",
+          "status": "passed",
+          "title": "启动不监听宿主页面或创建 UI，两个主动入口复用单个闭合 Shadow UI",
+          "duration": 0.9991930000000053,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "分享卡片按需挂载所有权"
+          ],
+          "fullName": "分享卡片按需挂载所有权 异步挂载迟到时不能重建已停用 UI，重新启用可重新打开",
+          "status": "passed",
+          "title": "异步挂载迟到时不能重建已停用 UI，重新启用可重新打开",
+          "duration": 0.30424999999999613,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "分享卡片按需挂载所有权"
+          ],
+          "fullName": "分享卡片按需挂载所有权 旧挂载失败不向新页面报告错误，缺少实例时不打开",
+          "status": "passed",
+          "title": "旧挂载失败不向新页面报告错误，缺少实例时不打开",
+          "duration": 0.2687310000000025,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "分享卡片按需挂载所有权"
+          ],
+          "fullName": "分享卡片按需挂载所有权 停用、空内容和创建失败不会留下可操作工作台",
+          "status": "passed",
+          "title": "停用、空内容和创建失败不会留下可操作工作台",
+          "duration": 0.2913510000000059,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427109,
+      "endTime": 1791427427112.2913,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/shareCardRuntime.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text requires opt-in and preserves the independent collection preference",
+          "status": "passed",
+          "title": "requires opt-in and preserves the independent collection preference",
+          "duration": 7.131079999999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text matches whole words, keeps original coordinates and treats apostrophes and hyphens as word continuations",
+          "status": "passed",
+          "title": "matches whole words, keeps original coordinates and treats apostrophes and hyphens as word continuations",
+          "duration": 1.6560249999999996,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text matches flexible whitespace, case and typography while preserving all UTF-16 offsets",
+          "status": "passed",
+          "title": "matches flexible whitespace, case and typography while preserving all UTF-16 offsets",
+          "duration": 0.9009920000000022,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text keeps the longest overlap, deduplicates equivalent entries, and supports literal punctuation and continuous CJK",
+          "status": "passed",
+          "title": "keeps the longest overlap, deduplicates equivalent entries, and supports literal punctuation and continuous CJK",
+          "duration": 1.2140830000000165,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text uses suffix links for shared prefixes without matching embedded Latin words",
+          "status": "passed",
+          "title": "uses suffix links for shared prefixes without matching embedded Latin words",
+          "duration": 0.20831100000000902,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text supports a full 5000-entry book and bounds only returned occurrences",
+          "status": "passed",
+          "title": "supports a full 5000-entry book and bounds only returned occurrences",
+          "duration": 17.506069999999994,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text extracts the real surrounding sentence and limits long context",
+          "status": "passed",
+          "title": "extracts the real surrounding sentence and limits long context",
+          "duration": 0.7092820000000017,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "saved expressions match real reading text"
+          ],
+          "fullName": "saved expressions match real reading text keeps saved context and references separate and leaves the original review data intact",
+          "status": "passed",
+          "title": "keeps saved context and references separate and leaves the original review data intact",
+          "duration": 0.532701000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle joins inline text, separates blocks and protected regions and leaves native nodes and markup unchanged",
+          "status": "passed",
+          "title": "joins inline text, separates blocks and protected regions and leaves native nodes and markup unchanged",
+          "duration": 5.153493999999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle collects open shadow roots and ignores plugin roots",
+          "status": "passed",
+          "title": "collects open shadow roots and ignores plugin roots",
+          "duration": 0.846383000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle handles direct shadow text, slot projection and fallback text without losing native ownership",
+          "status": "passed",
+          "title": "handles direct shadow text, slot projection and fallback text without losing native ownership",
+          "duration": 0.8234719999999811,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle returns no ranges without a body, and limits nearby occurrences to 300",
+          "status": "passed",
+          "title": "returns no ranges without a body, and limits nearby occurrences to 300",
+          "duration": 1.6160449999999855,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle adds only owned drawing styles, keeps other highlights and cancels pending work on disposal",
+          "status": "passed",
+          "title": "adds only owned drawing styles, keeps other highlights and cancels pending work on disposal",
+          "duration": 2.621967000000012,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle updates changed text, cleans disconnected shadow roots and cannot mistake its own UI for new reading content",
+          "status": "passed",
+          "title": "updates changed text, cleans disconnected shadow roots and cannot mistake its own UI for new reading content",
+          "duration": 1.4353639999999928,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle opens only plain-text hits with collapsed selection and never prevents host clicks",
+          "status": "passed",
+          "title": "opens only plain-text hits with collapsed selection and never prevents host clicks",
+          "duration": 1.1745039999999847,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle provides readable occurrences in browsers without native painting and leaves replaced highlights owned by the site",
+          "status": "passed",
+          "title": "provides readable occurrences in browsers without native painting and leaves replaced highlights owned by the site",
+          "duration": 0.6859919999999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "paint-only reading text and lifecycle"
+          ],
+          "fullName": "paint-only reading text and lifecycle supports a document without a head and rejects a queued scan after disposal",
+          "status": "passed",
+          "title": "supports a document without a head and rejects a queued scan after disposal",
+          "duration": 0.5836410000000001,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426247,
+      "endTime": 1791427426292.5837,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/vocabularyReencounter.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads does not mount in private, invalid, aborted or disabled contexts, and mounts only once",
+          "status": "passed",
+          "title": "does not mount in private, invalid, aborted or disabled contexts, and mounts only once",
+          "duration": 1.5387139999999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads loads minimal terms without a UI or AI request and reads one saved sentence only after opening",
+          "status": "passed",
+          "title": "loads minimal terms without a UI or AI request and reads one saved sentence only after opening",
+          "duration": 1.305373000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads prevents a late UI and pending term fetch from reviving a disposed activation",
+          "status": "passed",
+          "title": "prevents a late UI and pending term fetch from reviving a disposed activation",
+          "duration": 0.21414100000001213,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads handles list failures and refreshes across pages without allowing old responses to replace the newest terms",
+          "status": "passed",
+          "title": "handles list failures and refreshes across pages without allowing old responses to replace the newest terms",
+          "duration": 0.31604099999999846,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads retains errors for explicit retry, discards old reads on close or a newer selection, and rejects malformed responses",
+          "status": "passed",
+          "title": "retains errors for explicit retry, discards old reads on close or a newer selection, and rejects malformed responses",
+          "duration": 0.31534100000000365,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads clears stale cards on DOM removal and stops all processing for this visit without modifying a saved entry",
+          "status": "passed",
+          "title": "clears stale cards on DOM removal and stops all processing for this visit without modifying a saved entry",
+          "duration": 0.2341199999999901,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads persists only the marking flag when permanently closing, and reports persistence failures",
+          "status": "passed",
+          "title": "persists only the marking flag when permanently closing, and reports persistence failures",
+          "duration": 0.7467720000000071,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads copes with revoked message ports and rejected UI creation while still freeing host resources",
+          "status": "passed",
+          "title": "copes with revoked message ports and rejected UI creation while still freeing host resources",
+          "duration": 0.5353120000000047,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "reencounter content ownership and selective reads"
+          ],
+          "fullName": "reencounter content ownership and selective reads limits repairs when a hostile page repeatedly deletes the owned overlay",
+          "status": "passed",
+          "title": "limits repairs when a hostile page repeatedly deletes the owned overlay",
+          "duration": 0.1989409999999907,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426849,
+      "endTime": 1791427426855.199,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/vocabularyReencounterLifecycle.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "WebDAV Depth:0 XML 属性识别"
+          ],
+          "fullName": "WebDAV Depth:0 XML 属性识别 默认、局部及重新绑定的命名空间按元素作用域解释，支持字符引用与 CDATA",
+          "status": "passed",
+          "title": "默认、局部及重新绑定的命名空间按元素作用域解释，支持字符引用与 CDATA",
+          "duration": 2.88815799999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "WebDAV Depth:0 XML 属性识别"
+          ],
+          "fullName": "WebDAV Depth:0 XML 属性识别 只接受正确目标和单一成功属性；错误目录、重复资源、嵌套或歧义值不能授权覆盖",
+          "status": "passed",
+          "title": "只接受正确目标和单一成功属性；错误目录、重复资源、嵌套或歧义值不能授权覆盖",
+          "duration": 0.8425929999999937,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "WebDAV Depth:0 XML 属性识别"
+          ],
+          "fullName": "WebDAV Depth:0 XML 属性识别 拒绝损坏 XML、实体声明、异常根节点及过深过大的属性文档",
+          "status": "passed",
+          "title": "拒绝损坏 XML、实体声明、异常根节点及过深过大的属性文档",
+          "duration": 4.741062999999997,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "WebDAV Depth:0 XML 属性识别"
+          ],
+          "fullName": "WebDAV Depth:0 XML 属性识别 强版本规则明确拒绝弱值、未加引号、换行和过长值",
+          "status": "passed",
+          "title": "强版本规则明确拒绝弱值、未加引号、换行和过长值",
+          "duration": 0.15701099999999713,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "WebDAV Depth:0 XML 属性识别"
+          ],
+          "fullName": "WebDAV Depth:0 XML 属性识别 内容核验须由供应商显式声明并携带真实摘要，不能绕过只读能力",
+          "status": "passed",
+          "title": "内容核验须由供应商显式声明并携带真实摘要，不能绕过只读能力",
+          "duration": 0.2638199999999955,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427210,
+      "endTime": 1791427427219.264,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/webDavProperties.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership writing entry eligibility follows 'userscript'/true/true/'https://mail.google.com/mail/u/0/'",
+          "status": "passed",
+          "title": "writing entry eligibility follows 'userscript'/true/true/'https://mail.google.com/mail/u/0/'",
+          "duration": 3.274608999999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership writing entry eligibility follows 'chrome'/false/true/'https://mail.google.com/mail/u/0/'",
+          "status": "passed",
+          "title": "writing entry eligibility follows 'chrome'/false/true/'https://mail.google.com/mail/u/0/'",
+          "duration": 0.2631800000000055,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership writing entry eligibility follows 'chrome'/true/false/'https://mail.google.com/mail/u/0/'",
+          "status": "passed",
+          "title": "writing entry eligibility follows 'chrome'/true/false/'https://mail.google.com/mail/u/0/'",
+          "duration": 0.15776100000002202,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership writing entry eligibility follows 'chrome'/true/true/'https://example.com/'",
+          "status": "passed",
+          "title": "writing entry eligibility follows 'chrome'/true/true/'https://example.com/'",
+          "duration": 0.21340000000000714,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership writing entry eligibility follows 'chrome'/true/true/'https://mail.google.com/mail/u/0/'",
+          "status": "passed",
+          "title": "writing entry eligibility follows 'chrome'/true/true/'https://mail.google.com/mail/u/0/'",
+          "duration": 0.17483100000001173,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership does not add a hover entry on chrome regardless of highlight or selection preferences",
+          "status": "passed",
+          "title": "does not add a hover entry on chrome regardless of highlight or selection preferences",
+          "duration": 0.4380010000000141,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership does not add a hover entry on firefox regardless of highlight or selection preferences",
+          "status": "passed",
+          "title": "does not add a hover entry on firefox regardless of highlight or selection preferences",
+          "duration": 0.2562110000000075,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "sentence entry ownership"
+          ],
+          "fullName": "sentence entry ownership does not add a hover entry on userscript regardless of highlight or selection preferences",
+          "status": "passed",
+          "title": "does not add a hover entry on userscript regardless of highlight or selection preferences",
+          "duration": 0.20731000000000677,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427639,
+      "endTime": 1791427427644.438,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/sentenceActionsMount.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition mounts the prepared root for setupCompleted=false",
+          "status": "passed",
+          "title": "mounts the prepared root for setupCompleted=false",
+          "duration": 5.382525999999999,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition mounts the prepared root for setupCompleted=true",
+          "status": "passed",
+          "title": "mounts the prepared root for setupCompleted=true",
+          "duration": 0.7350619999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition waits for configuration before choosing and preparing the root",
+          "status": "passed",
+          "title": "waits for configuration before choosing and preparing the root",
+          "duration": 0.6197420000000022,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition does not create or mount a partially prepared menu when language loading fails",
+          "status": "passed",
+          "title": "does not create or mount a partially prepared menu when language loading fails",
+          "duration": 1.2510039999999947,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427427476,
+      "endTime": 1791427427484.251,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/popupMount.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 只认无 type 且自有 origin 的历史翻译消息",
+          "status": "passed",
+          "title": "只认无 type 且自有 origin 的历史翻译消息",
+          "duration": 1.0119230000000243,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 只把协议允许的字段传给 broker",
+          "status": "passed",
+          "title": "只把协议允许的字段传给 broker",
+          "duration": 1.783155999999991,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 外部 runtime parser 不复制进程内取消 symbol 或同名伪造字段",
+          "status": "passed",
+          "title": "外部 runtime parser 不复制进程内取消 symbol 或同名伪造字段",
+          "duration": 0.15521000000001095,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 保留字符串数组并忽略未提供的可选字段",
+          "status": "passed",
+          "title": "保留字符串数组并忽略未提供的可选字段",
+          "duration": 0.0984499999999855,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语协议保留显式空选择和revision，复制数组但剥离伪造词表及来源",
+          "status": "passed",
+          "title": "术语协议保留显式空选择和revision，复制数组但剥离伪造词表及来源",
+          "duration": 0.2530209999999897,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 https://docs.example.com/a / document",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 https://docs.example.com/a / document",
+          "duration": 0.29621099999999956,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 https://youtube.com/watch?v=x / video",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 https://youtube.com/watch?v=x / video",
+          "duration": 0.12435000000002105,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 chrome-extension://id/document.html#file / document",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 chrome-extension://id/document.html#file / document",
+          "duration": 0.09655100000000516,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 moz-extension://id/document.html?file=1 / document",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 moz-extension://id/document.html?file=1 / document",
+          "duration": 0.09528999999997723,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 chrome-extension://id/options.html / document",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 chrome-extension://id/options.html / document",
+          "duration": 0.08732999999998015,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 术语范围绑定浏览器发送者 https://fake.example/document.html / document",
+          "status": "passed",
+          "title": "术语范围绑定浏览器发送者 https://fake.example/document.html / document",
+          "duration": 0.07952000000000226,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 无 clientRequestId 的兼容请求不附加取消所有权，保留 broker pending 去重",
+          "status": "passed",
+          "title": "无 clientRequestId 的兼容请求不附加取消所有权，保留 broker pending 去重",
+          "duration": 0.15893100000002391,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝数量正确但包含稀疏空槽的 origin 数组",
+          "status": "passed",
+          "title": "拒绝数量正确但包含稀疏空槽的 origin 数组",
+          "duration": 0.48782100000002515,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 0",
+          "status": "passed",
+          "title": "拒绝非法协议字段 0",
+          "duration": 0.09894099999999639,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 1",
+          "status": "passed",
+          "title": "拒绝非法协议字段 1",
+          "duration": 0.050170000000008486,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 2",
+          "status": "passed",
+          "title": "拒绝非法协议字段 2",
+          "duration": 0.049760000000020455,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 3",
+          "status": "passed",
+          "title": "拒绝非法协议字段 3",
+          "duration": 0.047910000000001673,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 4",
+          "status": "passed",
+          "title": "拒绝非法协议字段 4",
+          "duration": 0.04623000000000843,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 5",
+          "status": "passed",
+          "title": "拒绝非法协议字段 5",
+          "duration": 0.05486999999999398,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 6",
+          "status": "passed",
+          "title": "拒绝非法协议字段 6",
+          "duration": 0.06365000000002397,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 7",
+          "status": "passed",
+          "title": "拒绝非法协议字段 7",
+          "duration": 0.07172099999999659,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 8",
+          "status": "passed",
+          "title": "拒绝非法协议字段 8",
+          "duration": 0.057870000000008304,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 9",
+          "status": "passed",
+          "title": "拒绝非法协议字段 9",
+          "duration": 0.04696999999998752,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 10",
+          "status": "passed",
+          "title": "拒绝非法协议字段 10",
+          "duration": 0.046879999999987376,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 11",
+          "status": "passed",
+          "title": "拒绝非法协议字段 11",
+          "duration": 0.047509999999988395,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 12",
+          "status": "passed",
+          "title": "拒绝非法协议字段 12",
+          "duration": 0.05494999999999095,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 13",
+          "status": "passed",
+          "title": "拒绝非法协议字段 13",
+          "duration": 0.046280999999993355,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 14",
+          "status": "passed",
+          "title": "拒绝非法协议字段 14",
+          "duration": 0.04269999999999641,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 15",
+          "status": "passed",
+          "title": "拒绝非法协议字段 15",
+          "duration": 0.040210000000001855,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 16",
+          "status": "passed",
+          "title": "拒绝非法协议字段 16",
+          "duration": 0.048060000000020864,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 17",
+          "status": "passed",
+          "title": "拒绝非法协议字段 17",
+          "duration": 0.062409999999999854,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 18",
+          "status": "passed",
+          "title": "拒绝非法协议字段 18",
+          "duration": 0.056199999999989814,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 19",
+          "status": "passed",
+          "title": "拒绝非法协议字段 19",
+          "duration": 0.04982100000000855,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 20",
+          "status": "passed",
+          "title": "拒绝非法协议字段 20",
+          "duration": 0.05656999999999357,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 21",
+          "status": "passed",
+          "title": "拒绝非法协议字段 21",
+          "duration": 0.049740000000014106,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 22",
+          "status": "passed",
+          "title": "拒绝非法协议字段 22",
+          "duration": 0.055290000000013606,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 23",
+          "status": "passed",
+          "title": "拒绝非法协议字段 23",
+          "duration": 0.07294000000001688,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 24",
+          "status": "passed",
+          "title": "拒绝非法协议字段 24",
+          "duration": 0.05504999999999427,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 25",
+          "status": "passed",
+          "title": "拒绝非法协议字段 25",
+          "duration": 0.039119999999996935,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 拒绝非法协议字段 26",
+          "status": "passed",
+          "title": "拒绝非法协议字段 26",
+          "duration": 0.042880999999994174,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 把校验失败与 broker 失败都交给版本化错误序列化器",
+          "status": "passed",
+          "title": "把校验失败与 broker 失败都交给版本化错误序列化器",
+          "duration": 0.3863110000000063,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 以同一 sender + clientRequestId 精确取消在途 broker，不取消其他 ID",
+          "status": "passed",
+          "title": "以同一 sender + clientRequestId 精确取消在途 broker，不取消其他 ID",
+          "duration": 0.8320720000000108,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 相同 ID 的其他页面无权取消，并拒绝在途或已完成的重复 ID",
+          "status": "passed",
+          "title": "相同 ID 的其他页面无权取消，并拒绝在途或已完成的重复 ID",
+          "duration": 0.36440099999998665,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 无 tab 的扩展页按 documentId 隔离相同 URL、frame 与请求 ID",
+          "status": "passed",
+          "title": "无 tab 的扩展页按 documentId 隔离相同 URL、frame 与请求 ID",
+          "duration": 0.22233099999999695,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 处理 cancel-before-start 竞态，并严格校验 typed cancel ID",
+          "status": "passed",
+          "title": "处理 cancel-before-start 竞态，并严格校验 typed cancel ID",
+          "duration": 0.3488410000000215,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 有界保存扩展页 cancel-before-start：最旧记录淘汰后可启动，最新记录仍阻止启动",
+          "status": "passed",
+          "title": "有界保存扩展页 cancel-before-start：最旧记录淘汰后可启动，最新记录仍阻止启动",
+          "duration": 0.7373120000000029,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "background translation fallback handler"
+          ],
+          "fullName": "background translation fallback handler 重复 cancel 不占用 cancel-before-start 历史容量",
+          "status": "passed",
+          "title": "重复 cancel 不占用 cancel-before-start 历史容量",
+          "duration": 0.6411520000000053,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427425931,
+      "endTime": 1791427425941.641,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/backgroundTranslationHandler.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 直连官方节点且保留换行、空白和完整文本槽",
+          "status": "passed",
+          "title": "alibabaFree 直连官方节点且保留换行、空白和完整文本槽",
+          "duration": 3.7308610000000044,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 直连官方节点且保留换行、空白和完整文本槽",
+          "status": "passed",
+          "title": "modernMtFree 直连官方节点且保留换行、空白和完整文本槽",
+          "duration": 0.7995420000000024,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 直连官方节点且保留换行、空白和完整文本槽",
+          "status": "passed",
+          "title": "laraFree 直连官方节点且保留换行、空白和完整文本槽",
+          "duration": 0.35956100000001356,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 直连官方节点且保留换行、空白和完整文本槽",
+          "status": "passed",
+          "title": "lingvanexFree 直连官方节点且保留换行、空白和完整文本槽",
+          "duration": 0.5231119999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 阿里只接受固定 CSRF 头并用 multipart 正确发送文本和语言",
+          "status": "passed",
+          "title": "阿里只接受固定 CSRF 头并用 multipart 正确发送文本和语言",
+          "duration": 0.3621909999999957,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers ModernMT 使用官方网页校验且 Lara 拼接完整句子结果",
+          "status": "passed",
+          "title": "ModernMT 使用官方网页校验且 Lara 拼接完整句子结果",
+          "duration": 0.9849519999999927,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lingvanex 从官网读取本次网页参数，自动识别来源并映射地区代码",
+          "status": "passed",
+          "title": "Lingvanex 从官网读取本次网页参数，自动识别来源并映射地区代码",
+          "duration": 0.3164910000000134,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 按 Unicode 码点分块并处理普通语言方向",
+          "status": "passed",
+          "title": "alibabaFree 按 Unicode 码点分块并处理普通语言方向",
+          "duration": 0.7730530000000044,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 按 Unicode 码点分块并处理普通语言方向",
+          "status": "passed",
+          "title": "modernMtFree 按 Unicode 码点分块并处理普通语言方向",
+          "duration": 0.6891720000000134,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 按 Unicode 码点分块并处理普通语言方向",
+          "status": "passed",
+          "title": "laraFree 按 Unicode 码点分块并处理普通语言方向",
+          "duration": 0.24605999999999995,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 按 Unicode 码点分块并处理普通语言方向",
+          "status": "passed",
+          "title": "lingvanexFree 按 Unicode 码点分块并处理普通语言方向",
+          "duration": 0.2408709999999985,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 不请求空白、相同语言或非法输入",
+          "status": "passed",
+          "title": "alibabaFree 不请求空白、相同语言或非法输入",
+          "duration": 0.5500820000000033,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 不请求空白、相同语言或非法输入",
+          "status": "passed",
+          "title": "modernMtFree 不请求空白、相同语言或非法输入",
+          "duration": 0.1846400000000017,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 不请求空白、相同语言或非法输入",
+          "status": "passed",
+          "title": "laraFree 不请求空白、相同语言或非法输入",
+          "duration": 0.15724099999999908,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 不请求空白、相同语言或非法输入",
+          "status": "passed",
+          "title": "lingvanexFree 不请求空白、相同语言或非法输入",
+          "duration": 0.15573999999998023,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lingvanex 未映射的语言由免费池换线，不发送错误代码",
+          "status": "passed",
+          "title": "Lingvanex 未映射的语言由免费池换线，不发送错误代码",
+          "duration": 0.12310999999999694,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 显式保留繁体目标语言",
+          "status": "passed",
+          "title": "modernMtFree 显式保留繁体目标语言",
+          "duration": 0.16532100000000582,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 显式保留繁体目标语言",
+          "status": "passed",
+          "title": "laraFree 显式保留繁体目标语言",
+          "duration": 0.11409000000000447,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 拒绝空译文及 malformed 响应",
+          "status": "passed",
+          "title": "alibabaFree 拒绝空译文及 malformed 响应",
+          "duration": 0.5217920000000049,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 拒绝空译文及 malformed 响应",
+          "status": "passed",
+          "title": "modernMtFree 拒绝空译文及 malformed 响应",
+          "duration": 0.4516309999999919,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 拒绝空译文及 malformed 响应",
+          "status": "passed",
+          "title": "laraFree 拒绝空译文及 malformed 响应",
+          "duration": 0.3054109999999923,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 拒绝空译文及 malformed 响应",
+          "status": "passed",
+          "title": "lingvanexFree 拒绝空译文及 malformed 响应",
+          "duration": 0.3260310000000004,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 阿里拒绝错误的网页参数 0",
+          "status": "passed",
+          "title": "阿里拒绝错误的网页参数 0",
+          "duration": 0.2082409999999868,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 阿里拒绝错误的网页参数 1",
+          "status": "passed",
+          "title": "阿里拒绝错误的网页参数 1",
+          "duration": 0.12590000000000146,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 阿里拒绝错误的网页参数 2",
+          "status": "passed",
+          "title": "阿里拒绝错误的网页参数 2",
+          "duration": 0.11249999999998295,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 阿里拒绝错误的网页参数 3",
+          "status": "passed",
+          "title": "阿里拒绝错误的网页参数 3",
+          "duration": 0.13193099999998026,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lara 拒绝不完整结果 0",
+          "status": "passed",
+          "title": "Lara 拒绝不完整结果 0",
+          "duration": 0.1973299999999938,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lara 拒绝不完整结果 1",
+          "status": "passed",
+          "title": "Lara 拒绝不完整结果 1",
+          "duration": 0.13444099999998116,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lara 拒绝不完整结果 2",
+          "status": "passed",
+          "title": "Lara 拒绝不完整结果 2",
+          "duration": 0.1044300000000078,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lara 拒绝不完整结果 3",
+          "status": "passed",
+          "title": "Lara 拒绝不完整结果 3",
+          "duration": 0.10896999999999935,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers Lara 拒绝不完整结果 4",
+          "status": "passed",
+          "title": "Lara 拒绝不完整结果 4",
+          "duration": 0.09425100000001407,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 400 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 400 正确分类且不泄漏正文",
+          "duration": 0.5636109999999803,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 401 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 401 正确分类且不泄漏正文",
+          "duration": 0.3422809999999856,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 402 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 402 正确分类且不泄漏正文",
+          "duration": 0.32049099999997566,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 429 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 429 正确分类且不泄漏正文",
+          "duration": 0.3282509999999945,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 456 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 456 正确分类且不泄漏正文",
+          "duration": 0.3116709999999898,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers 业务状态 503 正确分类且不泄漏正文",
+          "status": "passed",
+          "title": "业务状态 503 正确分类且不泄漏正文",
+          "duration": 0.27542099999999436,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "status": "passed",
+          "title": "alibabaFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "duration": 0.9368929999999978,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "status": "passed",
+          "title": "modernMtFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "duration": 0.33431999999999107,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "status": "passed",
+          "title": "laraFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "duration": 0.23130100000000198,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "status": "passed",
+          "title": "lingvanexFree 保留 HTTP Retry-After 和 JSON 安全错误",
+          "duration": 0.21511100000000738,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers alibabaFree 取消后不请求下一块或读取迟到结果",
+          "status": "passed",
+          "title": "alibabaFree 取消后不请求下一块或读取迟到结果",
+          "duration": 0.4530210000000068,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers modernMtFree 取消后不请求下一块或读取迟到结果",
+          "status": "passed",
+          "title": "modernMtFree 取消后不请求下一块或读取迟到结果",
+          "duration": 0.20084099999999694,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers laraFree 取消后不请求下一块或读取迟到结果",
+          "status": "passed",
+          "title": "laraFree 取消后不请求下一块或读取迟到结果",
+          "duration": 0.14150999999998248,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers lingvanexFree 取消后不请求下一块或读取迟到结果",
+          "status": "passed",
+          "title": "lingvanexFree 取消后不请求下一块或读取迟到结果",
+          "duration": 0.1359499999999798,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "official anonymous web translation providers"
+          ],
+          "fullName": "official anonymous web translation providers provider 请求边界传递冻结语言与取消信号",
+          "status": "passed",
+          "title": "provider 请求边界传递冻结语言与取消信号",
+          "duration": 0.21650100000002226,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426696,
+      "endTime": 1791427426714.2166,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/freeOfficialWebProviders.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 首启静态资源的中英文键一致、值非空，并与完整目录共享同一文案",
+          "status": "passed",
+          "title": "首启静态资源的中英文键一致、值非空，并与完整目录共享同一文案",
+          "duration": 1.5632839999999533,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 配置云备份和 WebDAV 七种语言的键与插值一致，供应商可互换",
+          "status": "passed",
+          "title": "配置云备份和 WebDAV 七种语言的键与插值一致，供应商可互换",
+          "duration": 30.448536999999988,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 issue #626：自定义地址提示与嵌套 HTML 错误覆盖全部界面语言",
+          "status": "passed",
+          "title": "issue #626：自定义地址提示与嵌套 HTML 错误覆盖全部界面语言",
+          "duration": 1.2525140000000192,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 完整本地化写作连接、配置与生成失败状态",
+          "status": "passed",
+          "title": "完整本地化写作连接、配置与生成失败状态",
+          "duration": 0.8214420000000473,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 Google Drive 同步完整翻译账号状态、差异数量与隐藏凭据预览",
+          "status": "passed",
+          "title": "Google Drive 同步完整翻译账号状态、差异数量与隐藏凭据预览",
+          "duration": 2.3447669999999334,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 Google Drive 全部固定反馈和设置名称覆盖六种非中文界面语言",
+          "status": "passed",
+          "title": "Google Drive 全部固定反馈和设置名称覆盖六种非中文界面语言",
+          "duration": 0.7158820000000787,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 Google Drive 操作选择、冲突处理和成功账号记录在七种语言中保留参数",
+          "status": "passed",
+          "title": "Google Drive 操作选择、冲突处理和成功账号记录在七种语言中保留参数",
+          "duration": 1.3957239999999729,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 使用操作按钮文案表达西班牙语的停止生成",
+          "status": "passed",
+          "title": "使用操作按钮文案表达西班牙语的停止生成",
+          "duration": 0.04502999999999702,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 保留中文默认值，并只接受受支持的界面语言",
+          "status": "passed",
+          "title": "保留中文默认值，并只接受受支持的界面语言",
+          "duration": 5.10319400000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 在七种界面语言的高级设置提供全部节点选项，并删除旧操作入口文案",
+          "status": "passed",
+          "title": "在七种界面语言的高级设置提供全部节点选项，并删除旧操作入口文案",
+          "duration": 2.8430779999999913,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 按浏览器 locale 选择首次界面语言，并为目标语言保留原生名称",
+          "status": "passed",
+          "title": "按浏览器 locale 选择首次界面语言，并为目标语言保留原生名称",
+          "duration": 0.21698000000003503,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 为目标语言选择器提供中文、英文和原生名称的组合标签",
+          "status": "passed",
+          "title": "为目标语言选择器提供中文、英文和原生名称的组合标签",
+          "duration": 0.3265110000000959,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 所有界面语言均独立显示中文简繁译文名称，并识别历史别名",
+          "status": "passed",
+          "title": "所有界面语言均独立显示中文简繁译文名称，并识别历史别名",
+          "duration": 0.7981220000000349,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 完整本地化 Chrome 具体语言对准备流程及参数化状态",
+          "status": "passed",
+          "title": "完整本地化 Chrome 具体语言对准备流程及参数化状态",
+          "duration": 1.0188229999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 en-US 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 en-US 中完整本地化",
+          "duration": 0.7411530000000539,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 ja-JP 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 ja-JP 中完整本地化",
+          "duration": 0.4147410000000491,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 ko-KR 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 ko-KR 中完整本地化",
+          "duration": 0.25755100000003495,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 fr-FR 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 fr-FR 中完整本地化",
+          "duration": 0.2337200000000621,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 ru-RU 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 ru-RU 中完整本地化",
+          "duration": 0.22169100000007802,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 图片翻译的准备与各阶段说明在 es-ES 中完整本地化",
+          "status": "passed",
+          "title": "图片翻译的准备与各阶段说明在 es-ES 中完整本地化",
+          "duration": 0.22541000000001077,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 en-US 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 en-US 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.36579199999994216,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 ja-JP 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 ja-JP 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.1563899999999876,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 ko-KR 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 ko-KR 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.22818100000006325,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 fr-FR 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 fr-FR 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.2130099999999402,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 ru-RU 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 ru-RU 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.27959099999998216,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 OCR 简繁语言包在 es-ES 界面中具有独立名称、说明和四包下载提示",
+          "status": "passed",
+          "title": "OCR 简繁语言包在 es-ES 界面中具有独立名称、说明和四包下载提示",
+          "duration": 0.22855100000003858,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 提供可继续扩展的语言选择器和参数插值",
+          "status": "passed",
+          "title": "提供可继续扩展的语言选择器和参数插值",
+          "duration": 8.136992999999961,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 每种正式语言目录都完整，并保留相同的插值参数",
+          "status": "passed",
+          "title": "每种正式语言目录都完整，并保留相同的插值参数",
+          "duration": 89.56456500000002,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 用稳定 key 为七种语言提供完整的翻译加载动画文案",
+          "status": "passed",
+          "title": "用稳定 key 为七种语言提供完整的翻译加载动画文案",
+          "duration": 1.4772950000000264,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 译文样式分组、外观微调与全部预设名称覆盖每种界面语言",
+          "status": "passed",
+          "title": "译文样式分组、外观微调与全部预设名称覆盖每种界面语言",
+          "duration": 8.133972999999969,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 用稳定 key 完整本地化快捷翻译方案及其动态提示",
+          "status": "passed",
+          "title": "用稳定 key 完整本地化快捷翻译方案及其动态提示",
+          "duration": 10.517769999999928,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 本地化快捷键冲突检测返回的系统操作名称",
+          "status": "passed",
+          "title": "本地化快捷键冲突检测返回的系统操作名称",
+          "duration": 4.870394000000033,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 本地化动态凭据缺失提示并保留服务名称",
+          "status": "passed",
+          "title": "本地化动态凭据缺失提示并保留服务名称",
+          "duration": 1.2363929999999073,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 翻译动画导航关键词和配置差异文案在非中文 legacy 界面中不回显中文源文案",
+          "status": "passed",
+          "title": "翻译动画导航关键词和配置差异文案在非中文 legacy 界面中不回显中文源文案",
+          "duration": 1.9274460000001454,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 圈选设置和结果说明提供明确的 English 文案与其他语言回退",
+          "status": "passed",
+          "title": "圈选设置和结果说明提供明确的 English 文案与其他语言回退",
+          "duration": 2.0823259999999664,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 段落复制的设置与页内提示覆盖每种界面语言，并保留相同的插值参数",
+          "status": "passed",
+          "title": "段落复制的设置与页内提示覆盖每种界面语言，并保留相同的插值参数",
+          "duration": 2.477666999999883,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 独立界面布局导航、皮肤风格和通用设置文案覆盖每种界面语言",
+          "status": "passed",
+          "title": "独立界面布局导航、皮肤风格和通用设置文案覆盖每种界面语言",
+          "duration": 4.630143000000089,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 学习中心的新导航、栏目和保存期限覆盖全部界面语言",
+          "status": "passed",
+          "title": "学习中心的新导航、栏目和保存期限覆盖全部界面语言",
+          "duration": 4.610912999999982,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 完整本地化菜单栏布局编辑器与布局差异顺序",
+          "status": "passed",
+          "title": "完整本地化菜单栏布局编辑器与布局差异顺序",
+          "duration": 2.3032670000000053,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 每种旧界面词典都覆盖 English 基线，且 English 界面不夹杂中文",
+          "status": "passed",
+          "title": "每种旧界面词典都覆盖 English 基线，且 English 界面不夹杂中文",
+          "duration": 2.8053180000001703,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 逐段翻译复合状态，不把整行回退成 English",
+          "status": "passed",
+          "title": "逐段翻译复合状态，不把整行回退成 English",
+          "duration": 0.3137610000001132,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 翻译 AI 服务展开态中的动态字符上限",
+          "status": "passed",
+          "title": "翻译 AI 服务展开态中的动态字符上限",
+          "duration": 0.15869999999995343,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 人工校正容易发生语义误判的高频设置文案",
+          "status": "passed",
+          "title": "人工校正容易发生语义误判的高频设置文案",
+          "duration": 0.0824809999999161,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 为高级调度摘要按语言插值，不残留中文模板",
+          "status": "passed",
+          "title": "为高级调度摘要按语言插值，不残留中文模板",
+          "duration": 0.06076999999982036,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 只把显式登记的旧 UI 文案翻译为当前界面语言",
+          "status": "passed",
+          "title": "只把显式登记的旧 UI 文案翻译为当前界面语言",
+          "duration": 1.076612999999952,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "界面 i18n 契约"
+          ],
+          "fullName": "界面 i18n 契约 把界面语言作为普通可迁移配置保留，并不触碰凭据边界",
+          "status": "passed",
+          "title": "把界面语言作为普通可迁移配置保留，并不触碰凭据边界",
+          "duration": 5.498326000000134,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "i18n 全量界面扫描"
+          ],
+          "fullName": "i18n 全量界面扫描 Vue 文案和展示注册表在非中文界面有本地化结果",
+          "status": "passed",
+          "title": "Vue 文案和展示注册表在非中文界面有本地化结果",
+          "duration": 1209.9138199999998,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "i18n 全量界面扫描"
+          ],
+          "fullName": "i18n 全量界面扫描 新增稳定资源必须提供实际译文，不能继承 English 掩盖遗漏",
+          "status": "passed",
+          "title": "新增稳定资源必须提供实际译文，不能继承 English 掩盖遗漏",
+          "duration": 3.205269000000044,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "i18n 全量界面扫描"
+          ],
+          "fullName": "i18n 全量界面扫描 动态模板本地化并保留用户词条、数字及空格",
+          "status": "passed",
+          "title": "动态模板本地化并保留用户词条、数字及空格",
+          "duration": 0.5205019999998513,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "动态旧文案资源契约"
+          ],
+          "fullName": "动态旧文案资源契约 每个模板的全部语言都保留捕获参数，未登记正文不被改写",
+          "status": "passed",
+          "title": "每个模板的全部语言都保留捕获参数，未登记正文不被改写",
+          "duration": 14.729401999999936,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "动态旧文案资源契约"
+          ],
+          "fullName": "动态旧文案资源契约 按语言展开模板：早期模板只收录该语言译文，非 English 的兜底模板追加 English",
+          "status": "passed",
+          "title": "按语言展开模板：早期模板只收录该语言译文，非 English 的兜底模板追加 English",
+          "duration": 6.117576999999983,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "动态旧文案资源契约"
+          ],
+          "fullName": "动态旧文案资源契约 资源包中的损坏模板被跳过，重新注册资源包后重新编译",
+          "status": "passed",
+          "title": "资源包中的损坏模板被跳过，重新注册资源包后重新编译",
+          "duration": 3.9954720000000634,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "动态界面片段"
+          ],
+          "fullName": "动态界面片段 翻译嵌套进度和按钮标签，保留自定义模型名称",
+          "status": "passed",
+          "title": "翻译嵌套进度和按钮标签，保留自定义模型名称",
+          "duration": 2.9614180000003216,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "运行期反馈文案资源"
+          ],
+          "fullName": "运行期反馈文案资源 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化",
+          "status": "passed",
+          "title": "每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化",
+          "duration": 459.673761,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "运行期反馈文案资源"
+          ],
+          "fullName": "运行期反馈文案资源 参数化反馈模板保留捕获参数、优先于宽泛模板命中，并继续翻译嵌套原因",
+          "status": "passed",
+          "title": "参数化反馈模板保留捕获参数、优先于宽泛模板命中，并继续翻译嵌套原因",
+          "duration": 20.668629000000237,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "旧界面译文人工校正"
+          ],
+          "fullName": "旧界面译文人工校正 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文",
+          "status": "passed",
+          "title": "校正原文仍在界面源码中使用，不重复，并覆盖此前的译文",
+          "duration": 361.81566200000043,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "共享图片识别选择与下载提示在六种非中文界面有本地化文案",
+          "status": "passed",
+          "title": "共享图片识别选择与下载提示在六种非中文界面有本地化文案",
+          "duration": 0.7938220000000911,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [],
+          "fullName": "localizes word-class labels and learning explanations from the shared registry",
+          "status": "passed",
+          "title": "localizes word-class labels and learning explanations from the shared registry",
+          "duration": 1.3579640000002655,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427423386,
+      "endTime": 1791427425677.358,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/i18n.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler query 默认查询三十日，并返回类型化 dashboard 数据",
+          "status": "passed",
+          "title": "query 默认查询三十日，并返回类型化 dashboard 数据",
+          "duration": 2.0955359999999956,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler query 收窄并清理服务、模型筛选文本",
+          "status": "passed",
+          "title": "query 收窄并清理服务、模型筛选文本",
+          "duration": 0.4473210000000023,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler reset 只委托仓库 clear 并返回明确确认",
+          "status": "passed",
+          "title": "reset 只委托仓库 clear 并返回明确确认",
+          "duration": 0.23675099999999816,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 指定页查询接收写作与阅读场景，并严格校验偏移与固定时间",
+          "status": "passed",
+          "title": "指定页查询接收写作与阅读场景，并严格校验偏移与固定时间",
+          "duration": 1.4195739999999972,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler list 校验用途、状态、缓存和游标后委托稳定分页查询",
+          "status": "passed",
+          "title": "list 校验用途、状态、缓存和游标后委托稳定分页查询",
+          "duration": 0.4466809999999981,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler list 在省略 query、游标和页大小时使用默认查询",
+          "status": "passed",
+          "title": "list 在省略 query、游标和页大小时使用默认查询",
+          "duration": 0.6215420000000051,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 拒绝非对象请求查询、非对象游标和所有非法 startedAt 边界",
+          "status": "passed",
+          "title": "拒绝非对象请求查询、非对象游标和所有非法 startedAt 边界",
+          "duration": 0.40075099999999964,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 拒绝游标 id 与页大小的其余非法形态",
+          "status": "passed",
+          "title": "拒绝游标 id 与页大小的其余非法形态",
+          "duration": 0.235880999999992,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler export/import 返回版本化迁移结果且不经过 dashboard",
+          "status": "passed",
+          "title": "export/import 返回版本化迁移结果且不经过 dashboard",
+          "duration": 0.3418709999999976,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 只允许 Options 扩展页读取或修改模型用量",
+          "status": "passed",
+          "title": "只允许 Options 扩展页读取或修改模型用量",
+          "duration": 0.27543000000000006,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 拒绝未知动作、非法 range、空筛选值与非普通对象",
+          "status": "passed",
+          "title": "拒绝未知动作、非法 range、空筛选值与非普通对象",
+          "duration": 0.412280999999993,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 把仓库查询与清理失败转换为可传输错误响应",
+          "status": "passed",
+          "title": "把仓库查询与清理失败转换为可传输错误响应",
+          "duration": 0.26671000000000333,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "模型用量后台 handler"
+          ],
+          "fullName": "模型用量后台 handler 公开筛选解析器保留 null prototype 对象并拒绝超长文本",
+          "status": "passed",
+          "title": "公开筛选解析器保留 null prototype 对象并拒绝超长文本",
+          "duration": 0.12119100000001026,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426412,
+      "endTime": 1791427426419.2666,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/modelUsageHandler.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "翻译统计本地时间与筛选"
+          ],
+          "fullName": "翻译统计本地时间与筛选 按本地零点切日与小时桶，并计算三种时间范围的起点",
+          "status": "passed",
+          "title": "按本地零点切日与小时桶，并计算三种时间范围的起点",
+          "duration": 0.7327920000000034,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计本地时间与筛选"
+          ],
+          "fullName": "翻译统计本地时间与筛选 筛选归一化回落到 7 天，模型筛选只在指定服务时保留（含机器翻译空模型）",
+          "status": "passed",
+          "title": "筛选归一化回落到 7 天，模型筛选只在指定服务时保留（含机器翻译空模型）",
+          "duration": 0.46738200000000063,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计分桶与分位数"
+          ],
+          "fullName": "翻译统计分桶与分位数 分桶上界不含本身，超过全部上界落入最后一个桶",
+          "status": "passed",
+          "title": "分桶上界不含本身，超过全部上界落入最后一个桶",
+          "duration": 0.09148000000000422,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计分桶与分位数"
+          ],
+          "fullName": "翻译统计分桶与分位数 按分桶线性插值估算中位数和 P95，并以最大值封顶",
+          "status": "passed",
+          "title": "按分桶线性插值估算中位数和 P95，并以最大值封顶",
+          "duration": 0.20139100000000099,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计事件折叠与汇总"
+          ],
+          "fullName": "翻译统计事件折叠与汇总 只有成功且实际请求服务的请求进入耗时样本",
+          "status": "passed",
+          "title": "只有成功且实际请求服务的请求进入耗时样本",
+          "duration": 0.09956000000001097,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计事件折叠与汇总"
+          ],
+          "fullName": "翻译统计事件折叠与汇总 折叠返回新汇总行，累计结果、来源、失败原因、规模和耗时分布",
+          "status": "passed",
+          "title": "折叠返回新汇总行，累计结果、来源、失败原因、规模和耗时分布",
+          "duration": 0.5029310000000038,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计事件折叠与汇总"
+          ],
+          "fullName": "翻译统计事件折叠与汇总 空汇总返回缺失指标，非空汇总计算成功率、复用率、平均规模、耗时分位与速度",
+          "status": "passed",
+          "title": "空汇总返回缺失指标，非空汇总计算成功率、复用率、平均规模、耗时分位与速度",
+          "duration": 0.43488199999998756,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计事件折叠与汇总"
+          ],
+          "fullName": "翻译统计事件折叠与汇总 耗时总和为 0 时不计算处理速度，缺失的历史字段按 0 合并",
+          "status": "passed",
+          "title": "耗时总和为 0 时不计算处理速度，缺失的历史字段按 0 合并",
+          "duration": 0.1684100000000086,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计事件折叠与汇总"
+          ],
+          "fullName": "翻译统计事件折叠与汇总 维度按服务与模型去重排序",
+          "status": "passed",
+          "title": "维度按服务与模型去重排序",
+          "duration": 3.695951000000008,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "免费线路尝试聚合"
+          ],
+          "fullName": "免费线路尝试聚合 折叠尝试时只有成功计入耗时，失败与取消仍计入尝试和成功率分母",
+          "status": "passed",
+          "title": "折叠尝试时只有成功计入耗时，失败与取消仍计入尝试和成功率分母",
+          "duration": 0.22619100000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "免费线路尝试聚合"
+          ],
+          "fullName": "免费线路尝试聚合 线路汇总计算成功率、平均文本量与耗时分位，空输入返回缺失指标",
+          "status": "passed",
+          "title": "线路汇总计算成功率、平均文本量与耗时分位，空输入返回缺失指标",
+          "duration": 0.3029909999999916,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "免费线路尝试聚合"
+          ],
+          "fullName": "免费线路尝试聚合 线路排行按尝试次数降序，并在次数相同时按服务与线路标识稳定排序",
+          "status": "passed",
+          "title": "线路排行按尝试次数降序，并在次数相同时按服务与线路标识稳定排序",
+          "duration": 0.1865399999999937,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计快照"
+          ],
+          "fullName": "翻译统计快照 今日范围逐小时生成趋势，并按请求量、服务与模型排序服务表现",
+          "status": "passed",
+          "title": "今日范围逐小时生成趋势，并按请求量、服务与模型排序服务表现",
+          "duration": 0.9045330000000007,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计快照"
+          ],
+          "fullName": "翻译统计快照 7 天与 30 天范围逐日生成趋势，并支持服务与模型筛选和外部维度",
+          "status": "passed",
+          "title": "7 天与 30 天范围逐日生成趋势，并支持服务与模型筛选和外部维度",
+          "duration": 0.5991609999999952,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计快照"
+          ],
+          "fullName": "翻译统计快照 线路表现随范围与服务筛选，未提供线路汇总时为空数组",
+          "status": "passed",
+          "title": "线路表现随范围与服务筛选，未提供线路汇总时为空数组",
+          "duration": 0.5326120000000003,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "翻译统计快照"
+          ],
+          "fullName": "翻译统计快照 未传入当前时间时使用系统时间，空数据没有最早记录",
+          "status": "passed",
+          "title": "未传入当前时间时使用系统时间，空数据没有最早记录",
+          "duration": 0.7156420000000026,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426049,
+      "endTime": 1791427426058.7156,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/translationStatsAggregation.test.ts"
+    },
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "网站规则工作区文案"
+          ],
+          "fullName": "网站规则工作区文案 为全部六种非中文界面提供独立、无重复且非空的完整文案",
+          "status": "passed",
+          "title": "为全部六种非中文界面提供独立、无重复且非空的完整文案",
+          "duration": 13.523119000000008,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 使用 Public Suffix List 统一为可注册域名，并覆盖私有后缀",
+          "status": "passed",
+          "title": "使用 Public Suffix List 统一为可注册域名，并覆盖私有后缀",
+          "duration": 2.4628370000000075,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 为 localhost、单标签主机和 IP 保留精确 hostname",
+          "status": "passed",
+          "title": "为 localhost、单标签主机和 IP 保留精确 hostname",
+          "duration": 0.17192099999999755,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 拒绝 public suffix、非法主机及非网页协议",
+          "status": "passed",
+          "title": "拒绝 public suffix、非法主机及非网页协议",
+          "duration": 0.34277099999999905,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 规范化导入列表时保持顺序、按 base domain 去重并忽略非法项",
+          "status": "passed",
+          "title": "规范化导入列表时保持顺序、按 base domain 去重并忽略非法项",
+          "duration": 0.17928000000000566,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 复用相同的主域名规则规范化禁用扩展名单",
+          "status": "passed",
+          "title": "复用相同的主域名规则规范化禁用扩展名单",
+          "duration": 0.09462099999998941,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 只按规范化后的 base domain 匹配，不产生字符串后缀误判",
+          "status": "passed",
+          "title": "只按规范化后的 base domain 匹配，不产生字符串后缀误判",
+          "duration": 0.14512999999999465,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 按主域名匹配禁用扩展，并由自动翻译规则优先避让",
+          "status": "passed",
+          "title": "按主域名匹配禁用扩展，并由自动翻译规则优先避让",
+          "duration": 0.11382000000000403,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "始终翻译网站规则"
+          ],
+          "fullName": "始终翻译网站规则 同时保留旧全局自动翻译开关，并只对网站名单限制网页协议",
+          "status": "passed",
+          "title": "同时保留旧全局自动翻译开关，并只对网站名单限制网页协议",
+          "duration": 0.11788099999999702,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "悬浮球禁用网站规则"
+          ],
+          "fullName": "悬浮球禁用网站规则 按主域名匹配子域，并忽略非法或非数组输入",
+          "status": "passed",
+          "title": "按主域名匹配子域，并忽略非法或非数组输入",
+          "duration": 0.14230000000000587,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "悬浮球禁用网站规则"
+          ],
+          "fullName": "悬浮球禁用网站规则 只影响悬浮球，不改变扩展禁用与自动翻译判定",
+          "status": "passed",
+          "title": "只影响悬浮球，不改变扩展禁用与自动翻译判定",
+          "duration": 0.08896000000000015,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 将旧数组按主域归并为一行，保留重叠偏好并支持搜索",
+          "status": "passed",
+          "title": "将旧数组按主域归并为一行，保留重叠偏好并支持搜索",
+          "duration": 4.294942000000006,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 编辑与删除只影响目标域名，不突变源名单，撤销可以完整补回",
+          "status": "passed",
+          "title": "编辑与删除只影响目标域名，不突变源名单，撤销可以完整补回",
+          "duration": 0.34475100000000225,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释暂停并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释暂停并与运行时自动翻译判定保持一致",
+          "duration": 0.1910299999999978,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释网站禁用并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释网站禁用并与运行时自动翻译判定保持一致",
+          "duration": 0.09320099999999343,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释全局自动并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释全局自动并与运行时自动翻译判定保持一致",
+          "duration": 0.09102000000000032,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释网站自动并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释网站自动并与运行时自动翻译判定保持一致",
+          "duration": 0.09327999999999292,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释全局隐藏并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释全局隐藏并与运行时自动翻译判定保持一致",
+          "duration": 0.09398000000000195,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 解释手动翻译并与运行时自动翻译判定保持一致",
+          "status": "passed",
+          "title": "解释手动翻译并与运行时自动翻译判定保持一致",
+          "duration": 0.07848099999999647,
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "统一网站偏好与生效解释"
+          ],
+          "fullName": "统一网站偏好与生效解释 拒绝不完整网址及非网页协议，支持无注册域与 IP 的全局行为",
+          "status": "passed",
+          "title": "拒绝不完整网址及非网页协议，支持无注册域与 IP 的全局行为",
+          "duration": 0.5154310000000066,
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427426521,
+      "endTime": 1791427426544.5154,
+      "status": "passed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/siteRules.test.ts"
+    }
+  ]
+}

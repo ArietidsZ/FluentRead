@@ -1,0 +1,26 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/popupMount.test.ts -t waits for configuration before choosing and preparing the root --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/popup-ready-negative.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-architecture-coverage-completion
+
+ ❯ tests/popupMount.test.ts (4 tests | 1 failed | 3 skipped) 8ms
+   × popup mount composition > waits for configuration before choosing and preparing the root 8ms
+     → expected "spy" to not be called at all, but actually been called 1 times
+
+Received: 
+
+  1st spy call:
+
+    Array [
+      "system",
+    ]
+
+
+Number of calls: 1
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 skipped (4)
+   Start at  10:45:16
+   Duration  130ms (transform 26ms, setup 0ms, collect 15ms, tests 8ms, environment 0ms, prepare 22ms)
+
+JSON report written to [CW_WORKSPACE]/architecture-coverage-completion-20261008/popup-ready-negative.results.json

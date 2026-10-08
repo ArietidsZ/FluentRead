@@ -1,0 +1,10 @@
+{
+  "path": "src/app/options/assets/wechat-contact.jpg",
+  "sha256": "1360e8cca225506208c153b6c5143912e048d5df08d506df2eb84ed3914cfd62",
+  "size_bytes": 100720,
+  "jpeg_prefix_hex": "ffd8ff",
+  "end_of_image_marker_offset": 100694,
+  "trailing_data_bytes": 24,
+  "read_only_pillow_verify_observation": "PIL Image.open reported JPEG 888x1131 and Image.verify succeeded; no asset bytes modified",
+  "fixture_correction": "A valid JPEG may have trailing bytes after its EOI marker. The initial overstrict last-two-bytes assertion was corrected to marker presence while retaining signature/nonempty/unknown-extension checks."
+}

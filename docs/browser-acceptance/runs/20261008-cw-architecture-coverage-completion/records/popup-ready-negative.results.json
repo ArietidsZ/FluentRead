@@ -1,0 +1,83 @@
+{
+  "numTotalTestSuites": 2,
+  "numPassedTestSuites": 0,
+  "numFailedTestSuites": 2,
+  "numPendingTestSuites": 0,
+  "numTotalTests": 4,
+  "numPassedTests": 0,
+  "numFailedTests": 1,
+  "numPendingTests": 3,
+  "numTodoTests": 0,
+  "snapshot": {
+    "added": 0,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0,
+    "didUpdate": false
+  },
+  "startTime": 1791427516885,
+  "success": false,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition mounts the prepared root for setupCompleted=false",
+          "status": "skipped",
+          "title": "mounts the prepared root for setupCompleted=false",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition mounts the prepared root for setupCompleted=true",
+          "status": "skipped",
+          "title": "mounts the prepared root for setupCompleted=true",
+          "failureMessages": [],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition waits for configuration before choosing and preparing the root",
+          "status": "failed",
+          "title": "waits for configuration before choosing and preparing the root",
+          "duration": 7.651551999999995,
+          "failureMessages": [
+            "AssertionError: expected \"spy\" to not be called at all, but actually been called 1 times\n\nReceived: \n\n  1st spy call:\n\n    Array [\n      \"system\",\n    ]\n\n\nNumber of calls: 1\n\n    at Proxy.<anonymous> (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:1448:13)\n    at Proxy.<anonymous> (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+expect@2.1.9/node_modules/@vitest/expect/dist/index.js:972:17)\n    at Proxy.methodWrapper (file://[CW_DEPENDENCIES]/node_modules/.pnpm/chai@5.3.3/node_modules/chai/index.js:1686:25)\n    at [CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/popupMount.test.ts:47:81\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://[CW_DEPENDENCIES]/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)"
+          ],
+          "meta": {}
+        },
+        {
+          "ancestorTitles": [
+            "popup mount composition"
+          ],
+          "fullName": "popup mount composition does not create or mount a partially prepared menu when language loading fails",
+          "status": "skipped",
+          "title": "does not create or mount a partially prepared menu when language loading fails",
+          "failureMessages": [],
+          "meta": {}
+        }
+      ],
+      "startTime": 1791427517000,
+      "endTime": 1791427517007.6516,
+      "status": "failed",
+      "message": "",
+      "name": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion/tests/popupMount.test.ts"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/architecture/moduleBoundaries.test.ts tests/architecture/sourceFileHeaders.test.ts tests/architecture/verificationOwnership.test.ts --reporter=default --reporter=json --outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/architecture-repaired-second.results.json --no-cache
+
+ RUN  v2.1.9 [CW_WORKSPACE]/FluentRead-architecture-coverage-completion
+
+ ✓ tests/architecture/verificationOwnership.test.ts (35 tests) 768ms
+   ✓ repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 523ms
+ ✓ tests/architecture/moduleBoundaries.test.ts (13 tests) 1881ms
+   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 638ms
+   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 541ms
+ ✓ tests/architecture/sourceFileHeaders.test.ts (821 tests) 101ms
+
+ Test Files  3 passed (3)
+      Tests  869 passed (869)
+   Start at  10:40:15
+   Duration  3.34s (transform 33ms, setup 0ms, collect 294ms, tests 2.75s, environment 0ms, prepare 66ms)
+
+JSON report written to [CW_WORKSPACE]/architecture-coverage-completion-20261008/architecture-repaired-second.results.json

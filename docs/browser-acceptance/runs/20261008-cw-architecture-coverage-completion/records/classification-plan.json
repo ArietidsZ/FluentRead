@@ -1,0 +1,43 @@
+{
+  "base": "22116a9caabf42add4ca20063389fc9bd1e6aa7b",
+  "new_strict_sources": [
+    "src/core/config/shareCard.ts",
+    "src/core/i18n/messages/siteRules.ts",
+    "src/features/full-page-translation/content/excerpt.ts",
+    "src/features/share-card/core.ts",
+    "src/features/share-card/export.ts",
+    "src/features/share-card/render.ts",
+    "src/features/share-card/themes.ts",
+    "src/features/vocabulary/content/readingText.ts",
+    "src/features/vocabulary/content/scanner.ts",
+    "src/features/vocabulary/domain/reencounter.ts",
+    "src/platform/webdav/properties.ts",
+    "src/providers/translation/free-official-web.ts",
+    "src/app/popup/mount.ts",
+    "src/app/content/learningFeatures.ts",
+    "src/features/share-card/content/runtime.ts",
+    "src/features/vocabulary/content/reencounter.ts",
+    "src/services/translation-stats/types.ts",
+    "src/services/model-usage/types.ts",
+    "src/services/translation/types.ts"
+  ],
+  "new_strict_suites": [
+    "tests/shareCardCore.test.ts",
+    "tests/shareCardRender.test.ts",
+    "tests/shareCardExport.test.ts",
+    "tests/shareCardExcerpt.test.ts",
+    "tests/shareCardRuntime.test.ts",
+    "tests/vocabularyReencounter.test.ts",
+    "tests/vocabularyReencounterLifecycle.test.ts",
+    "tests/webDavProperties.test.ts",
+    "tests/sentenceActionsMount.test.ts",
+    "tests/popupMount.test.ts"
+  ],
+  "static_resource": "src/core/i18n/messages/onboarding.ts",
+  "type_only": "src/features/vocabulary/content/reencounterState.ts",
+  "extra_discovered_value_types": [
+    "src/services/translation-stats/types.ts",
+    "src/services/model-usage/types.ts",
+    "src/services/translation/types.ts"
+  ]
+}

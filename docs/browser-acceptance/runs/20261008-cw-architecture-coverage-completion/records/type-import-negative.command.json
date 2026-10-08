@@ -1,0 +1,22 @@
+{
+  "label": "type-import-negative",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/architecture/verificationOwnership.test.ts",
+    "-t",
+    "运行时值、执行、错误语法和空文件不能冒充 type-only",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=[CW_WORKSPACE]/architecture-coverage-completion-20261008/type-import-negative.results.json",
+    "--no-cache"
+  ],
+  "cwd": "[CW_WORKSPACE]/FluentRead-architecture-coverage-completion",
+  "started_at": "2026-10-08T02:45:17.051932+00:00",
+  "duration_seconds": 0.465,
+  "exit_code": 1
+}
