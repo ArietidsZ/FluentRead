@@ -1,0 +1,8 @@
+{
+  "implementation_commit": "ae168d323bc555d545c6f89c3cd691ca24450558",
+  "final_source_commit": "ab1d5ddaa8b6d53bc4fcf72eef233a8a7d0e77df",
+  "final_source_tree": "7821e5ca5135dbff2773a0c574ef0dee86b2ddc0",
+  "test_only_change": "tests/imageDocumentChannel.test.ts",
+  "source_input_count": 2249,
+  "acceptance": "Final extended-suite and exact final-SHA build binding pending"
+}

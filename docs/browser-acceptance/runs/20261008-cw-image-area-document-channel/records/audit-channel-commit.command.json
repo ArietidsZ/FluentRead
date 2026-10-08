@@ -1,0 +1,11 @@
+{
+  "label": "audit-channel-commit",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T05:53:20.962547+00:00",
+  "duration_seconds": 0.741,
+  "exit_code": 0
+}

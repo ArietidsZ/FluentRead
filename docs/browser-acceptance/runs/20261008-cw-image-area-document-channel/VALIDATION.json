@@ -1,0 +1,118 @@
+{
+  "updated_at": "2026-10-08T06:40:10.679423+00:00",
+  "source_commit": "27a1f191680c421451fb762a833a95c3d47a0188",
+  "source_tree": "fb7fad93f0814912ca63e33e27a143a74269cecf",
+  "source_inputs": 2249,
+  "combination": {
+    "source_commit": "27a1f191680c421451fb762a833a95c3d47a0188",
+    "source_tree": "fb7fad93f0814912ca63e33e27a143a74269cecf",
+    "approved_wxt_patch": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+    "combination_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+    "combination_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+    "changed_files": [
+      "entrypoints/localTtsWorker.ts",
+      "tests/extensionManifestContract.test.ts"
+    ],
+    "preserved_previous_combination": "76f4e7993659d76c280ed413baa9af8a2be4cf68",
+    "dependencies": "existing symlink; no reinstall",
+    "build_status": "All required exact-combination builds and verifiers passed"
+  },
+  "artifact_count": 797,
+  "full_tests": {
+    "passed": 9603,
+    "failed": 0,
+    "skipped": 0,
+    "files": 395
+  },
+  "coverage": {
+    "lines": {
+      "total": 65380,
+      "covered": 65380,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 65380,
+      "covered": 65380,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4530,
+      "covered": 4530,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33063,
+      "covered": 33063,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "architecture": {
+    "passed": 1362,
+    "files": 32
+  },
+  "required_commands": {
+    "strict-capability-final": {
+      "exit_code": 0,
+      "duration_seconds": 176.286
+    },
+    "type-capability-final": {
+      "exit_code": 0,
+      "duration_seconds": 13.797
+    },
+    "audit-capability-final": {
+      "exit_code": 0,
+      "duration_seconds": 0.745
+    },
+    "architecture-capability-final": {
+      "exit_code": 0,
+      "duration_seconds": 11.844
+    },
+    "combo-capability-chrome": {
+      "exit_code": 0,
+      "duration_seconds": 19.582
+    },
+    "combo-capability-firefox": {
+      "exit_code": 0,
+      "duration_seconds": 19.81
+    },
+    "combo-capability-userscript": {
+      "exit_code": 0,
+      "duration_seconds": 3.557
+    },
+    "combo-capability-userscript-verify": {
+      "exit_code": 0,
+      "duration_seconds": 0.03
+    },
+    "combo-capability-manifests": {
+      "exit_code": 0,
+      "duration_seconds": 0.099
+    },
+    "combo-capability-wxt-contract": {
+      "exit_code": 0,
+      "duration_seconds": 1.163
+    },
+    "docs-port-final": {
+      "exit_code": 0,
+      "duration_seconds": 2.55
+    }
+  },
+  "acceptance": "Deterministic offline tests and exact SHA-bound build validation passed; real-browser acceptance remains open",
+  "not_run": [
+    "real Firefox/Chrome navigation, iframe replacement and BFCache",
+    "browser extension install/load",
+    "daily browser profile operations",
+    "real GPU/provider/model API"
+  ],
+  "source_fetch_retry": "Not implemented. No source authorization migration. A new manual UI attempt remints selected-image authorization and rechecks DOM/currentSrc.",
+  "publication_normalization": "Local paths replaced with documented aliases; trailing whitespace stripped in text logs only. Original logs remain on CW."
+}

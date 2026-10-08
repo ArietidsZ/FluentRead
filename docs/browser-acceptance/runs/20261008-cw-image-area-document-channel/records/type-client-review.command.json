@@ -1,0 +1,14 @@
+{
+  "label": "type-client-review",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:18:29.724600+00:00",
+  "duration_seconds": 13.213,
+  "exit_code": 0
+}

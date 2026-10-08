@@ -1,0 +1,19 @@
+
+ RUN  v2.1.9 CW_WORKTREE
+
+ ❯ ../image-area-parent-termination-20261008/document-fallback.red.test.ts (5 tests | 4 failed) 8ms
+   × missing-documentId existing fallback boundary (offline actual registry/adapter) > old and replacement same-URL document cannot cancel each other 4ms
+     → expected true to be false // Object.is equality
+   × missing-documentId existing fallback boundary (offline actual registry/adapter) > old and replacement same-URL document can start the same public ID independently 1ms
+     → expected [ { status: 'fulfilled', …(1) }, …(1) ] to deeply equal [ { status: 'fulfilled', …(1) }, …(1) ]
+   × missing-documentId existing fallback boundary (offline actual registry/adapter) > navigation replaces the frame slot before disconnect: old progress must not reach replacement 1ms
+     → expected [ { …(3) } ] to have a length of +0 but got 1
+   × missing-documentId existing fallback boundary (offline actual registry/adapter) > navigation replaces the frame slot: old source challenge must not validate through replacement 0ms
+     → expected [ { …(4) } ] to have a length of +0 but got 1
+
+ Test Files  1 failed (1)
+      Tests  4 failed | 1 passed (5)
+   Start at  13:18:26
+   Duration  149ms (transform 49ms, setup 0ms, collect 54ms, tests 8ms, environment 0ms, prepare 26ms)
+
+JSON report written to CW_TASK_ROOT/image-area-document-channel-20261008/document-baseline-red.results.json

@@ -1,0 +1,11 @@
+{
+  "label": "combo-channel-userscript-verify",
+  "command": [
+    "node",
+    "scripts/verify-userscript-build.mjs"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T05:56:49.250483+00:00",
+  "duration_seconds": 0.034,
+  "exit_code": 0
+}

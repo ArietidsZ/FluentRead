@@ -1,0 +1,11 @@
+{
+  "label": "combo-channel-manifests",
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T05:56:49.300070+00:00",
+  "duration_seconds": 0.11,
+  "exit_code": 0
+}

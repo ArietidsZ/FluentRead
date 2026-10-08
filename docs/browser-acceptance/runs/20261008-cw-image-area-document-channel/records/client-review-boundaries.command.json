@@ -1,0 +1,20 @@
+{
+  "label": "client-review-boundaries",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageDocumentChannel.test.ts",
+    "tests/imageTranslationClientRecovery.test.ts",
+    "tests/areaTranslationTrigger.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/client-review-boundaries.results.json"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:22:08.649040+00:00",
+  "duration_seconds": 2.085,
+  "exit_code": 0
+}

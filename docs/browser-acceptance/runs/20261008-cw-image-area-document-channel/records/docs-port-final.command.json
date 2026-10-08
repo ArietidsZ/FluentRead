@@ -1,0 +1,15 @@
+{
+  "label": "docs-port-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:38:07.638171+00:00",
+  "duration_seconds": 2.55,
+  "exit_code": 0
+}

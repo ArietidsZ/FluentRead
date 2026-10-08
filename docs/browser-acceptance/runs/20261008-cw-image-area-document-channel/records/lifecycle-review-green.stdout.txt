@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/vitest/vitest.mjs run tests/contentRuntimeLifecycle.test.ts tests/imageDocumentChannel.test.ts tests/imageTranslationClientRecovery.test.ts tests/featureTranslationClients.test.ts tests/areaTranslationTrigger.test.ts --reporter=json --outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/lifecycle-review-green.results.json
+JSON report written to CW_TASK_ROOT/image-area-document-channel-20261008/lifecycle-review-green.results.json

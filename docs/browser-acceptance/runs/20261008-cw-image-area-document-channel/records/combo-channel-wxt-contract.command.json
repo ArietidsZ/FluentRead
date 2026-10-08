@@ -1,0 +1,15 @@
+{
+  "label": "combo-channel-wxt-contract",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/extensionManifestContract.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/combo-channel-wxt-contract.results.json"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T05:56:49.426581+00:00",
+  "duration_seconds": 1.131,
+  "exit_code": 0
+}

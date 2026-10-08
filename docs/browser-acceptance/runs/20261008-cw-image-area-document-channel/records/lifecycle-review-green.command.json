@@ -1,0 +1,21 @@
+{
+  "label": "lifecycle-review-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/imageDocumentChannel.test.ts",
+    "tests/imageTranslationClientRecovery.test.ts",
+    "tests/featureTranslationClients.test.ts",
+    "tests/areaTranslationTrigger.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/lifecycle-review-green.results.json"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:17:04.151249+00:00",
+  "duration_seconds": 2.216,
+  "exit_code": 0
+}

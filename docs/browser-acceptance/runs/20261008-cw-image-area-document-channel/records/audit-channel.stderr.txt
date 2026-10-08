@@ -1,0 +1,3 @@
+测试套件审计失败：
+- 重复测试名：同Port来源核验与截图生命周期 > <dynamic>（tests/imageDocumentChannel.test.ts:99 与 tests/imageDocumentChannel.test.ts:123）
+- 重复测试名：后台异常与重复调用 > <dynamic>（tests/imageDocumentChannel.test.ts:201 与 tests/imageDocumentChannel.test.ts:211）

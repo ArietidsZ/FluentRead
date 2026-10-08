@@ -1,0 +1,22 @@
+{
+  "label": "strict-proof-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/strict-proof-final.results.json",
+    "--coverage.reportsDirectory=CW_TASK_ROOT/image-area-document-channel-20261008/strict-proof-final-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:06:39.759007+00:00",
+  "duration_seconds": 175.368,
+  "exit_code": 0
+}

@@ -1,0 +1,33 @@
+{
+  "source_commit": "ae168d323bc555d545c6f89c3cd691ca24450558",
+  "source_tree": "9a33243794559c7222b5a96eefbe345d0dafcf36",
+  "baseline": "3e7c5e45d3bcb029ad0aa1a6f65e390f8f079568",
+  "files": [
+    "src/app/background/areaRuntime.ts",
+    "src/app/background/imageGlossaryContext.ts",
+    "src/app/background/messageRuntime.ts",
+    "src/features/area-translation/background/handlers.ts",
+    "src/features/area-translation/services/client.ts",
+    "src/features/image-translation/background/documentSession.ts",
+    "src/features/image-translation/background/offscreenAdapter.ts",
+    "src/features/image-translation/background/operationRegistry.ts",
+    "src/features/image-translation/content/sourceAuthorization.ts",
+    "src/features/image-translation/documentChannel.ts",
+    "src/features/image-translation/protocol.ts",
+    "src/features/image-translation/services/client.ts",
+    "src/features/image-translation/services/documentClient.ts",
+    "tests/featureTranslationClients.test.ts",
+    "tests/helpers/imageDocumentPorts.ts",
+    "tests/imageDocumentChannel.test.ts",
+    "tests/imageSourceAuthorization.test.ts",
+    "tests/imageTransactionIdentity.test.ts",
+    "tests/imageTranslationClientRecovery.test.ts",
+    "tests/imageTranslationFlow.test.ts",
+    "tests/imageTranslationSecurityContract.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "input_count": 2249,
+  "input_mismatches": [],
+  "acceptance": "Full offline strict/architecture/type/audit and approved WXT-combination builds passed; no live browser acceptance"
+}

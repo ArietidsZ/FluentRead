@@ -1,0 +1,82 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  ../image-area-parent-termination-20261008/document-fallback.red.test.ts > missing-documentId existing fallback boundary (offline actual registry/adapter) > old and replacement same-URL document cannot cancel each other
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ ../image-area-parent-termination-20261008/document-fallback.red.test.ts:16:37
+     14|         work.resolve('old-result');
+     15|         const outcome = await observed;
+     16|         expect(cancelled.cancelled).toBe(false);
+       |                                     ^
+     17|         expect(outcome).toEqual([{status: 'fulfilled', value: 'old-res…
+     18|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+ FAIL  ../image-area-parent-termination-20261008/document-fallback.red.test.ts > missing-documentId existing fallback boundary (offline actual registry/adapter) > old and replacement same-URL document can start the same public ID independently
+AssertionError: expected [ { status: 'fulfilled', …(1) }, …(1) ] to deeply equal [ { status: 'fulfilled', …(1) }, …(1) ]
+
+- Expected
++ Received
+
+  Array [
+    Object {
+      "status": "fulfilled",
+      "value": "a",
+    },
+    Object {
+-     "status": "fulfilled",
+-     "value": "b",
++     "reason": [Error: 图片 OCR requestId 正在执行],
++     "status": "rejected",
+    },
+  ]
+
+ ❯ ../image-area-parent-termination-20261008/document-fallback.red.test.ts:24:32
+     22|         const second = registry.run({requestId: 'same'}, () => b.promi…
+     23|         const observed = Promise.allSettled([first, second]); a.resolv…
+     24|         expect(await observed).toEqual([{status: 'fulfilled', value: '…
+       |                                ^
+     25|     });
+     26|     it('navigation replaces the frame slot before disconnect: old prog…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  ../image-area-parent-termination-20261008/document-fallback.red.test.ts > missing-documentId existing fallback boundary (offline actual registry/adapter) > navigation replaces the frame slot before disconnect: old progress must not reach replacement
+AssertionError: expected [ { …(3) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ ../image-area-parent-termination-20261008/document-fallback.red.test.ts:33:37
+     31|         const owner = context(); current = replacementDocument;
+     32|         await imageTranslationProgressTransport.sendProgress(owner, {t…
+     33|         expect(replacementDocument).toHaveLength(0);
+       |                                     ^
+     34|     });
+     35|     it('navigation replaces the frame slot: old source challenge must …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  ../image-area-parent-termination-20261008/document-fallback.red.test.ts > missing-documentId existing fallback boundary (offline actual registry/adapter) > navigation replaces the frame slot: old source challenge must not validate through replacement
+AssertionError: expected [ { …(4) } ] to have a length of +0 but got 1
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ ../image-area-parent-termination-20261008/document-fallback.red.test.ts:40:37
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯

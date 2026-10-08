@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/vitest/vitest.mjs run tests/imageDocumentChannel.test.ts tests/imageTranslationClientRecovery.test.ts tests/areaTranslationTrigger.test.ts tests/contentRuntimeLifecycle.test.ts --reporter=json --outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/client-review-boundaries.results.json
+JSON report written to CW_TASK_ROOT/image-area-document-channel-20261008/client-review-boundaries.results.json

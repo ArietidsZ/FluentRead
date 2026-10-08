@@ -1,0 +1,19 @@
+{
+  "label": "userscript-boundary-fixture",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/userscriptUnsupportedCapabilities.test.ts",
+    "tests/userscriptViteConfig.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/userscript-boundary-fixture.results.json"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:30:40.358352+00:00",
+  "duration_seconds": 1.774,
+  "exit_code": 0
+}

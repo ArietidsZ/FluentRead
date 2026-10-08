@@ -1,0 +1,22 @@
+{
+  "label": "strict-capability-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/strict-capability-final.results.json",
+    "--coverage.reportsDirectory=CW_TASK_ROOT/image-area-document-channel-20261008/strict-capability-final-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:32:39.075272+00:00",
+  "duration_seconds": 176.286,
+  "exit_code": 0
+}

@@ -1,0 +1,11 @@
+{
+  "label": "audit-client-final",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:23:26.088002+00:00",
+  "duration_seconds": 0.787,
+  "exit_code": 0
+}

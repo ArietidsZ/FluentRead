@@ -1,0 +1,59 @@
+{
+  "source_commit": "ae168d323bc555d545c6f89c3cd691ca24450558",
+  "source_tree": "9a33243794559c7222b5a96eefbe345d0dafcf36",
+  "combination_commit": "2ca38c8c4cd098559886f6514abd10ba92048364",
+  "tests": {
+    "passed": 9596,
+    "total": 9596,
+    "files": 395,
+    "skipped": 0
+  },
+  "coverage": {
+    "lines": {
+      "total": 65373,
+      "covered": 65373,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 65373,
+      "covered": 65373,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4526,
+      "covered": 4526,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33048,
+      "covered": 33048,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "architecture": {
+    "passed": 1362,
+    "total": 1362,
+    "files": 32
+  },
+  "type": "exit0",
+  "audit": "exit0,485files6605 staticcases",
+  "wxt_contract": 20,
+  "chrome": "exit0,19.593s",
+  "firefox": "exit0,19.311s",
+  "userscript": "exit0,1954745bytes; verifier exit0",
+  "manifest": "exit0,Firefox140.0; no new permissions",
+  "live_browser": "not run",
+  "gpu": "not run",
+  "source_input_count": 2249,
+  "source_mismatches": []
+}

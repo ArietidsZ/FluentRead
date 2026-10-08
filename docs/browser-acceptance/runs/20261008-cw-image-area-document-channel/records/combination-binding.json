@@ -1,0 +1,14 @@
+{
+  "source_commit": "ae168d323bc555d545c6f89c3cd691ca24450558",
+  "approved_wxt_patch": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "combination_commit": "2ca38c8c4cd098559886f6514abd10ba92048364",
+  "combination_tree": "cb6dcc558cc986226d3d616f3dcac34a4ec3c3fb",
+  "changed_files": [
+    "entrypoints/localTtsWorker.ts",
+    "tests/extensionManifestContract.test.ts"
+  ],
+  "previous_combination_commit": "b25e372731a6feb2aa1bf4bbd7992b37a0e19cb8",
+  "preserved_local_ref": "validation/transaction-wxt-before-document-channel-20261008",
+  "dependencies": "existing symlink, no reinstall",
+  "build_status": "Chrome/Firefox/userscript/manifest/userscript verifier/WXT contract all exit0"
+}

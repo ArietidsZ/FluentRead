@@ -1,0 +1,17 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/imageDocumentChannel.test.ts > 真实client→Port→source challenge断连重建授权，换图拒绝；dataURL翻译重试ID独立
+AssertionError: expected [Function] to throw error including 'closed' but got '不支持本地或内网图片地址'
+
+Expected: "closed"
+Received: "不支持本地或内网图片地址"
+
+ ❯ tests/imageDocumentChannel.test.ts:274:5
+    272|     const sourceIds:string[]=[];
+    273|     const capture=()=>withImageSourceAuthorization(image,source,undefi…
+    274|     await expect(capture()).rejects.toThrow('closed');expect(fetchByte…
+       |     ^
+    275|     image.currentSrc='https://cdn.test/changed.png';await expect(captu…
+    276|     image.currentSrc=source;await expect(capture()).resolves.toBe(byte…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

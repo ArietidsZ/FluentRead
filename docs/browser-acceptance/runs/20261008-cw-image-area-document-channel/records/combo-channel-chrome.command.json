@@ -1,0 +1,14 @@
+{
+  "label": "combo-channel-chrome",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T05:56:06.699233+00:00",
+  "duration_seconds": 19.593,
+  "exit_code": 0
+}

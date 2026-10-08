@@ -1,0 +1,16 @@
+{
+  "label": "combo-client-firefox",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T06:25:06.617858+00:00",
+  "duration_seconds": 19.344,
+  "exit_code": 0
+}

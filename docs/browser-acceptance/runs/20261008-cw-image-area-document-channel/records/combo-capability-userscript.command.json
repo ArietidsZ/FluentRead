@@ -1,0 +1,16 @@
+{
+  "label": "combo-capability-userscript",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "CW_COMBINATION_WORKTREE",
+  "started_at": "2026-10-08T06:31:41.984744+00:00",
+  "duration_seconds": 3.557,
+  "exit_code": 0
+}

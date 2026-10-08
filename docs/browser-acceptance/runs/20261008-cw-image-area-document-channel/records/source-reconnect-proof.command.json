@@ -1,0 +1,16 @@
+{
+  "label": "source-reconnect-proof",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageDocumentChannel.test.ts",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-document-channel-20261008/source-reconnect-proof.results.json"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T06:03:18.233148+00:00",
+  "duration_seconds": 0.547,
+  "exit_code": 1
+}

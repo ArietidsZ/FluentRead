@@ -1,0 +1,17 @@
+{
+  "label": "document-fallback-red",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "CW_TASK_ROOT/image-area-parent-termination-20261008/document-fallback.config.mjs",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=CW_TASK_ROOT/image-area-parent-termination-20261008/document-fallback-red.results.json"
+  ],
+  "cwd": "CW_WORKTREE",
+  "started_at": "2026-10-08T05:00:11.287949+00:00",
+  "duration_seconds": 0.299,
+  "exit_code": 1
+}

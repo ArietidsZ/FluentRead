@@ -1,0 +1,14 @@
+{
+  "source_commit": "6526afcbbe4edc2f3d32cea7bd392a8879ce3ec6",
+  "source_tree": "b8457e5d436578e83c8daac84e603f3e7c5b5d03",
+  "approved_wxt_patch": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "combination_commit": "76f4e7993659d76c280ed413baa9af8a2be4cf68",
+  "combination_tree": "940c3379fcc431e94318a8c4385a43237e1c7ece",
+  "changed_files": [
+    "entrypoints/localTtsWorker.ts",
+    "tests/extensionManifestContract.test.ts"
+  ],
+  "preserved_previous_combination": "05037b5e514492f4d6d4bdb5470469fb1ab376cb",
+  "dependencies": "existing symlink; no reinstall",
+  "build_status": "pending"
+}
