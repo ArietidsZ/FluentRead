@@ -345,6 +345,61 @@ describe('全文翻译候选队列', () => {
         expect(plan.next()).toBeUndefined();
     });
 
+    it.each(['forward', 'backward'] as const)('公平配额补偿超时后台候选，不被年轻的顺向后台候选抢占（%s）', (direction) => {
+        const {document} = parseHTML('<html><body><p id="visible"></p><p id="aged"></p><p id="young"></p></body></html>');
+        const [visible, aged, young] = [...document.querySelectorAll<HTMLElement>('p')];
+        setRect(visible!, 100);
+        setRect(aged!, direction === 'forward' ? -3_000 : 3_000);
+        setRect(young!, direction === 'forward' ? 2_000 : -2_000);
+        const queue = state();
+        queue.scrollDirection = direction;
+        const visibleCandidate = candidate(visible!);
+        const agedCandidate = candidate(aged!);
+        const youngCandidate = candidate(young!);
+        queueFullPageCandidate(queue, visible!, visibleCandidate, 'visible', 8_999);
+        queueFullPageCandidate(queue, aged!, agedCandidate, 'aged', 0);
+        queueFullPageCandidate(queue, young!, youngCandidate, 'young', 8_999);
+        queue.foregroundDispatchesSinceBackground = 8;
+        const plan = createFullPageDispatchPlan(queue, {
+            now: 9_000, viewportHeight: 600, isEligible: () => true, resolveSource: () => 'unused',
+        });
+        expect(plan.next()?.candidate).toBe(agedCandidate);
+        removeFullPagePending(queue, aged!, agedCandidate);
+        queue.foregroundDispatchesSinceBackground = 0;
+        expect(plan.next()?.candidate).toBe(visibleCandidate);
+    });
+
+    it.each(['remove', 'invalid', 'inflight'] as const)('超时后台候选在计划创建后失效时跳过，并继续补偿或回到前景（%s）', (invalidation) => {
+        const {document} = parseHTML('<html><body><p id="visible"></p><p id="stale"></p><p id="aged"></p></body></html>');
+        const [visible, stale, aged] = [...document.querySelectorAll<HTMLElement>('p')];
+        setRect(visible!, 100);
+        setRect(stale!, 2_000);
+        setRect(aged!, 3_000);
+        const queue = state();
+        const visibleCandidate = candidate(visible!);
+        const staleCandidate = candidate(stale!);
+        const agedCandidate = candidate(aged!);
+        queueFullPageCandidate(queue, visible!, visibleCandidate, 'visible', 8_999);
+        queueFullPageCandidate(queue, stale!, staleCandidate, 'stale', 0);
+        queueFullPageCandidate(queue, aged!, agedCandidate, 'aged', 1);
+        queue.foregroundDispatchesSinceBackground = 8;
+        let staleEligible = true;
+        const plan = createFullPageDispatchPlan(queue, {
+            now: 9_000, viewportHeight: 600,
+            isEligible: (item) => item !== staleCandidate || staleEligible,
+            resolveSource: () => 'unused',
+        });
+        if (invalidation === 'remove') removeFullPagePending(queue, stale!, staleCandidate);
+        else if (invalidation === 'invalid') staleEligible = false;
+        else queue.inFlightCandidates.set(stale!, staleCandidate);
+        expect(plan.next()?.candidate).toBe(agedCandidate);
+        removeFullPagePending(queue, aged!, agedCandidate);
+        // 保持配额已用满：超时项全部失效时也必须回到仍有效的前景。
+        expect(plan.next()?.candidate).toBe(visibleCandidate);
+        removeFullPagePending(queue, visible!, visibleCandidate);
+        expect(plan.next()).toBeUndefined();
+    });
+
     it('后台候选耗尽时退回最佳前景候选，不让 drain 空转', () => {
         const {document} = parseHTML('<html><body><p id="visible"></p><p id="stale"></p></body></html>');
         const visible = document.querySelector<HTMLElement>('#visible')!;

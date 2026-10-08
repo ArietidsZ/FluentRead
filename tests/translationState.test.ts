@@ -19,6 +19,7 @@ import {
     restoreAllTranslations,
     restoreTranslation,
     setBilingualContent,
+    setBilingualLifecycleExternalManager,
     setRenderedStyleAttribute,
     setRetryWrapper,
     setSingleTextSlotHosts,
@@ -987,6 +988,180 @@ describe("指定节点翻译状态机", () => {
 
         expect(restoreTranslation(target as unknown as HTMLElement)).toBe(true);
         expect(target.getAttribute("class")).toBeNull();
+    });
+});
+
+describe('state 观察根迁移、宿主边界与 overflow 交接', () => {
+    async function flushObservers() {
+        await Promise.resolve(); await Promise.resolve();
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        await Promise.resolve();
+    }
+
+    function commit(owner: HTMLElement) {
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        const wrapper = owner.ownerDocument.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content';
+        wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '译文';
+        owner.append(wrapper); setBilingualContent(owner, wrapper);
+        expect(markTranslationComplete(owner, attempt.state, attempt.generation, false)).toBe(true);
+        expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+        return {attempt, wrapper};
+    }
+
+    it.each(['document-shadow', 'shadow-document', 'shadow-shadow'] as const)(
+        '%s 迁移后新根继续观察来源，旧祖先租约释放且恢复不覆盖宿主写入', async (direction) => {
+            const {document, window} = parseHTML('<html><body><article style="height:24px"><p>Source</p></article><div id="a"></div><div id="b"></div></body></html>');
+            const oldAncestor = document.querySelector<HTMLElement>('article')!;
+            const owner = document.querySelector<HTMLElement>('p')!;
+            const source = owner.firstChild as Text;
+            const firstRoot = document.querySelector('#a')!.attachShadow({mode: 'open'});
+            const secondRoot = document.querySelector('#b')!.attachShadow({mode: 'open'});
+            if (direction !== 'document-shadow') firstRoot.append(oldAncestor);
+            const destination = document.createElement('section');
+            if (direction === 'shadow-document') document.body.append(destination);
+            else secondRoot.append(destination);
+            const observe = vi.spyOn(window.MutationObserver.prototype, 'observe');
+            const disconnect = vi.spyOn(window.MutationObserver.prototype, 'disconnect');
+            try {
+                const {attempt, wrapper} = commit(owner);
+                acquireTranslationLayoutOverride(owner, oldAncestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+                await flushObservers();
+                destination.append(owner);
+                await flushObservers();
+                expect(getTranslationState(owner)).toBe(attempt.state);
+                expect(wrapper.parentNode).toBe(owner);
+                expect(oldAncestor.style.height).toBe('24px');
+                expect(getTranslationOwnersForIndexedNode(oldAncestor)).not.toContain(owner);
+                // linkedom 把 Text 写入报告为根 childList；使用真实 title 属性通知确认新根观察。
+                source.data = 'Host changed source';
+                owner.setAttribute('title', 'host changed title');
+                destination.setAttribute('style', 'color:blue');
+                await flushObservers();
+                expect(getTranslationState(owner)).toBeUndefined();
+                expect(attempt.state.controller.signal.aborted).toBe(true);
+                expect(wrapper.parentNode).toBeNull();
+                expect(owner.firstChild).toBe(source);
+                expect(owner.textContent).toBe('Host changed source');
+                expect(destination.style.color).toBe('blue');
+                expect(observe).toHaveBeenCalledTimes(direction === 'shadow-shadow' ? 3 : 2);
+                expect(disconnect).toHaveBeenCalledTimes(observe.mock.calls.length);
+            } finally {
+                restoreTranslation(owner); observe.mockRestore(); disconnect.mockRestore();
+            }
+        },
+    );
+
+    it.each(['scroll', 'position'] as const)(
+        '共享 height 租约变为 %s 边界时保留宿主新高度与剩余截断租约', async (boundary) => {
+            const {document, window} = parseHTML('<html><body><article style="height:24px;-webkit-line-clamp:2"><p>First source</p><p>Second source</p></article></body></html>');
+            const ancestor = document.querySelector<HTMLElement>('article')!;
+            const owners = Array.from(document.querySelectorAll<HTMLElement>('p'));
+            const descriptor = Object.getOwnPropertyDescriptor(document, 'defaultView');
+            // 只替代 linkedom 缺失的布局样式读数，值随宿主 style 实时变化。
+            Object.defineProperty(document, 'defaultView', {configurable: true, value: {
+                HTMLElement: window.HTMLElement, MutationObserver: window.MutationObserver,
+                addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window),
+                getComputedStyle: (element: HTMLElement) => ({
+                    height: element.style.height || 'auto', display: 'block',
+                    position: element.style.position || 'static', transform: 'none',
+                    overflowY: element.style.overflow || 'visible',
+                    webkitLineClamp: element.style.getPropertyValue('-webkit-line-clamp') || 'none',
+                    getPropertyValue: (property: string) => element.style.getPropertyValue(property),
+                }),
+            }});
+            try {
+                owners.forEach(commit);
+                await flushObservers();
+                expect(ancestor.style.height).toBe('auto');
+                // 同批重新引入 clamp，检验撤销 height 后追加截断属性是否又误接管高度。
+                ancestor.setAttribute('style', `height:72px;color:green;-webkit-line-clamp:3;${boundary === 'scroll' ? 'overflow:auto' : 'position:fixed'}`);
+                await flushObservers();
+                expect(ancestor.style.height).toBe('72px');
+                expect(ancestor.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
+                restoreTranslation(owners[0]);
+                expect(getTranslationState(owners[1])?.phase).toBe('translated');
+                expect(ancestor.style.height).toBe('72px');
+                expect(ancestor.style.getPropertyValue('-webkit-line-clamp')).toBe('unset');
+                restoreTranslation(owners[1]);
+                expect(ancestor.style.getPropertyValue('-webkit-line-clamp')).toBe('3');
+                expect(ancestor.style.height).toBe('72px');
+                expect(ancestor.style.color).toBe('green');
+                expect(ancestor.style.overflow || ancestor.style.position).toBe(boundary === 'scroll' ? 'auto' : 'fixed');
+                expect(owners.map((owner) => owner.textContent)).toEqual(['First source', 'Second source']);
+            } finally {
+                owners.forEach((owner) => restoreTranslation(owner));
+                if (descriptor) Object.defineProperty(document, 'defaultView', descriptor);
+                else Reflect.deleteProperty(document, 'defaultView');
+            }
+        },
+    );
+
+    it.each(['decoration', 'source'] as const)(
+        '超出祖先快速查找深度的 overflow %s mutation 仍按来源语义收敛', async (change) => {
+            const {document} = parseHTML('<html><body><p></p></body></html>');
+            const owner = document.querySelector<HTMLElement>('p')!;
+            let deepest = owner;
+            for (let depth = 0; depth < 540; depth += 1) {
+                const child = document.createElement('span'); deepest.append(child); deepest = child;
+            }
+            deepest.textContent = 'Deep source';
+            const source = deepest.firstChild as Text;
+            const {attempt, wrapper} = commit(owner);
+            try {
+                expect(isTranslationSourceStructureOverflow(attempt.state.sourceStructureSignature)).toBe(true);
+                await flushObservers();
+                if (change === 'decoration') deepest.setAttribute('class', 'host-hover');
+                else {
+                    source.data = 'Host deep update';
+                    deepest.setAttribute('title', 'host source title');
+                }
+                await flushObservers();
+                if (change === 'decoration') {
+                    expect(getTranslationState(owner)).toBe(attempt.state);
+                    expect(wrapper.parentNode).toBe(owner);
+                    expect(attempt.state.controller.signal.aborted).toBe(false);
+                } else {
+                    expect(getTranslationState(owner)).toBeUndefined();
+                    expect(wrapper.parentNode).toBeNull();
+                    expect(attempt.state.controller.signal.aborted).toBe(true);
+                }
+                expect(deepest.firstChild).toBe(source);
+                expect(source.data).toBe(change === 'decoration' ? 'Deep source' : 'Host deep update');
+                restoreTranslation(owner);
+                expect(deepest.getAttribute(change === 'decoration' ? 'class' : 'title'))
+                    .toBe(change === 'decoration' ? 'host-hover' : 'host source title');
+            } finally { restoreTranslation(owner); }
+        },
+    );
+
+    it('外部 manager 接管期间不重复处理 overflow，交还后的来源事件恢复且保留宿主 Text', async () => {
+        const {document} = parseHTML('<html><body><p></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        owner.textContent = 'Readable source. '.repeat(9000);
+        const source = owner.firstChild as Text;
+        const {attempt, wrapper} = commit(owner);
+        let externallyManaged = true;
+        setBilingualLifecycleExternalManager(() => externallyManaged);
+        try {
+            expect(isTranslationSourceStructureOverflow(attempt.state.sourceStructureSignature)).toBe(true);
+            source.data += 'Host update';
+            owner.setAttribute('title', 'host source title while externally managed');
+            await flushObservers();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(wrapper.parentNode).toBe(owner);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            externallyManaged = false;
+            source.data += ' after handoff';
+            owner.setAttribute('title', 'host source title after handoff');
+            await flushObservers();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(wrapper.parentNode).toBeNull();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(owner.firstChild).toBe(source);
+            expect(source.data.endsWith('Host update after handoff')).toBe(true);
+        } finally { setBilingualLifecycleExternalManager(undefined); restoreTranslation(owner); }
     });
 });
 

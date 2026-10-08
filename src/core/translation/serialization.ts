@@ -78,9 +78,13 @@ function getLayoutStyle(element: HTMLElement, measurements?: TranslationLayoutMe
 
 function isPositionedStyle(style: TranslationLayoutStyle): boolean {
     const position = String(style.position || '').trim().toLowerCase();
-    const transform = String(style.transform || '').trim().toLowerCase();
-    return ['absolute', 'fixed', 'sticky'].includes(position) ||
-        (transform !== '' && transform !== 'none');
+    if (['absolute', 'fixed', 'sticky'].includes(position)) return true;
+    // 独立变换不合并进 computed transform；视觉位移不能作为自然流扩高的依据。
+    for (const property of ['transform', 'translate', 'rotate', 'scale'] as const) {
+        const value = String(style[property] || '').trim().toLowerCase();
+        if (value !== '' && value !== 'none') return true;
+    }
+    return false;
 }
 
 function isHeightBoundaryStyle(element: HTMLElement, style: TranslationLayoutStyle): boolean {
