@@ -30,6 +30,18 @@
         "content-scripts/content.js": "89154f46e4143389fa15695937d588b96489390e8bcca3b1736fa8ad6570b465",
         "content-scripts/xVideoBridge.js": "f22318b71931cfc573c8aae63086438e4d186f4f654616a85ebd0c6178c50331"
       }
+    },
+    "quietSpeechAndWordPreservationFinal": {
+      "sourceCommit": "56aab82ae82a47ab009f05500bb140fbf7caea22",
+      "directory": "/private/tmp/fluentread-x-ai-followup-final-build-20261009/chrome-mv3",
+      "browserAcceptance": "not run; macOS pasteboard initialization block documented separately",
+      "files": {
+        "manifest.json": "cc92950ad08ed2e2f02bd55a0756048e6569ec51c9341d9e678b65fb3d8d03f7",
+        "background.js": "607478f85dd7d6870e40a3ca31579bc2262e976eaea8a4d40a4c1674acb3b03f",
+        "videoTranscriptionWorker.js": "ddcb25ca54475475a88c3cc0d27f90d0672a9de43e58af5d6c02d8ad50e33beb",
+        "content-scripts/content.js": "5b1d4699f37722cd311ea5795345130a8c44fb73067f10f23a798c64121cfd5c",
+        "content-scripts/xVideoBridge.js": "f22318b71931cfc573c8aae63086438e4d186f4f654616a85ebd0c6178c50331"
+      }
     }
   }
 }

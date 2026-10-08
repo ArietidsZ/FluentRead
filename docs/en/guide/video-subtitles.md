@@ -50,7 +50,7 @@ Moving the pointer away and back, rebuilding playback controls, temporarily hidi
 
 You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. It prefers the master playlist’s audio rendition and checks the initialization segment for an audio track before downloading media segments. Reading or decoding failures try alternate audio renditions and a lower bitrate complete MP4 belonging to the same video. Candidates come from loaded media and video metadata; the extension extracts only media URLs and bitrates. It requires a confirmed media identity before using metadata candidates. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying. Switching videos clears the previous video’s error, progress and model prompt.
 
-Recognition skips digital silence and keeps short spoken tails. Trimming long silent edges preserves the original subtitle timing. This does not filter all music or noise, or guarantee accuracy across accents, mixed languages, and specialist vocabulary.
+Recognition skips digital silence and keeps quiet speech and short spoken tails. Long pauses do not cause the whole speech track to be skipped. Full recognition preserves recognized short phrases and continuations across windows. Trimming long silent edges preserves the original subtitle timing. This does not filter all music or noise, or guarantee accuracy across accents, mixed languages, and specialist vocabulary.
 
 </details>
 
@@ -72,7 +72,7 @@ Use the menu to show or hide subtitles and download them. Completed X transcript
 
 Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and try specifying the spoken language.
 
-An empty transcription is a speech recognition result, separate from a translation failure. Try Base if you are using Tiny. If Base is already selected, check for clear speech and the correct spoken language before retrying. Videos without speech cannot produce AI subtitles.
+An empty transcription is a speech recognition result, separate from a translation failure. Try Base if you are using Tiny. If Base is already selected, check for clear speech and the correct spoken language before retrying. Audio without speech usually produces no readable subtitles.
 
 Recognition can mishear names or background audio, and translations can be wrong. Check important details against the original subtitles and audio.
 
