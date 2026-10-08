@@ -3010,6 +3010,7 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "前进 5 秒": "5초 앞으로",
     "当前语音不支持按秒跳转": "이 음성은 초 단위 이동을 지원하지 않습니다",
     "语音跳转失败，请重试": "음성 위치를 이동하지 못했습니다. 다시 시도하세요",
+    "免费": "무료",
     "B站翻译": "Bilibili 번역",
     "官方免费文本 API，Index-Translate-35B-A3B，无需密钥": "공식 무료 텍스트 API, Index-Translate-35B-A3B, API 키 불필요",
 };
