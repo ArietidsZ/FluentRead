@@ -948,3 +948,5 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 
 
 `harnessPrivacyRoute` 执行原生阅读应用入口（流式 Port 和 typed message）→ 实际 handler/conversation/runtime/modelGateway/AI SDK → 合成 fetch。配置使用实际 config store 的初始化、归一化、save/patch 与订阅，存储端口是内存夹具；会话使用实际 HarnessSessionRepository 和隔离 fake-indexeddb。覆盖四种学习动作的私密 wire model、原 prompt/授权段落、实际 read_context 工具循环与未保存追问、regular 和 both-empty 兼容、unknown 及前端布尔/URL无授权、无效或非聊天专用对、内部模型锁、多 Key 429 重试，以及真实配置 patch、关闭、导航、移除标签后的迟到内容隔离。普通会话保留已接收部分和 stopped 状态，迟到 SSE 不更新旧会话。legacy custom 控制通过真实保存确认兼容字段单改不变更有效端点，空 profile 与新 custom 一起保存则经已覆盖 provider 字段取消。未替换 config store、conversation、模型 runtime/gateway 或 AI SDK；只替换浏览器、配置存储、长期记忆/用量边界和网络传输，不证明真实 API/GUI/GPU 验收。
+
+图片私密路线专项 `tests/imagePrivacyRoute.test.ts` 使用真实配置归一化、保存、订阅、图片 Port、handler、broker、provider registry 和 AI SDK，仅将浏览器、Offscreen OCR、配置存储及 HTTP fetch 替换为离线边界。覆盖原生三态、专用模型锁、普通／私密译文缓存隔离、OCR 选择不变、配置取消、异步来源重验和同 URL 新连接。一个 provider 忽略 abort 的用例单独替换 provider Promise 验证真实 broker lease；不把 SDK 已响应取消后的迟到合成 fetch 当作 provider 仍未 settle。`imageTranslationRuntime.test.ts` 检查专用线路变更使已完成位图缓存失效以及改回旧值仍拒绝在途译图。圈选 vision/probe 与真实浏览器／供应商／RTX5090 验收不包含在此图片切片内。

@@ -2,7 +2,7 @@
  * @file src/features/image-translation/content/runtime.ts
  * 文件职责：实现网页图片翻译的独立悬浮/右键入口、可信目标快照、异步请求所有权和图片、长图分段、可读画布及公开背景图的漫画连续模式，保持宿主资源与翻页交互不变。
  * 显示约束：宿主大图查看器或浮层遮住原图时撤下译层与文字面板，归还原图显示权；遮挡解除后复用已解码结果，不取消仍属于当前图片的请求。
- * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包，准备语言包时操作条显示真实下载百分比；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；识别方式和漫画有效源语言纳入缓存身份，自动模式使用已确认的路径提示、手动语言优先，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、独立服务及模型变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
+ * 主要内容：漫画俄语和韩语仅在已确认下载后准备既有语言包，准备语言包时操作条显示真实下载百分比；单图失败提供模型与服务导航，译图操作条随指针隐藏并保留键盘入口；识别方式和漫画有效源语言纳入缓存身份，自动模式使用已确认的路径提示、手动语言优先，切换后不复用旧结果；在封闭 Shadow DOM 中挂载原生译图，跟随图片盒模型与祖先裁切；合并布局更新，默认 12 张可配置的快速缓存和 100 页/16 MiB 二进制局部结果，靠近视口时直接预合成画布，无文字页只保留轻量完成标记；图片重载、普通及专用服务、模型和端点变化使结果失效，漫画返页复用结果不等待其他页推理；预合成不得撤下当前译图，单页反馈展示真实阶段与进度，隐藏漫画操作条，换图、取消与卸载时释放资源。
  * 模块边界：本运行时先读取页面允许访问的 Canvas/CORS 像素，失败时授权后台读取当前任务图片并调用既有图片客户端；识别、文本翻译、图像修复与语言包管理位于 background/services，控件交互由 controls 模块提供。
  */
 import {imageTranslationFailureCode, imageLocalFailureMessage, type ImageLocalFailure} from '../failure';
@@ -317,6 +317,18 @@ function watchTranslationConfiguration(): () => void {
         void config.customBody?.[service];
         void config.proxy?.[service];
         void config.customOpenAIProviders?.find(provider => provider.id === service)?.endpoint;
+        // 原生来源只在后台确定；任何专用线路变化都使已完成位图缓存失效。
+        const privateService = config.incognitoService;
+        const privateModel = config.incognitoModel;
+        void config.modelThinking?.[privateService]?.[privateModel];
+        void config.system_role?.[privateService];
+        void config.user_role?.[privateService];
+        void config.customBody?.[privateService];
+        void config.proxy?.[privateService];
+        void config.customModels?.[privateService]?.includes(privateModel);
+        const privateProvider = config.customOpenAIProviders?.find(provider => provider.id === privateService);
+        void privateProvider?.endpoint;
+        void privateProvider?.models.includes(privateModel);
         void config.enableAIContext;
         void config.custom;
         void config.newApiUrl;

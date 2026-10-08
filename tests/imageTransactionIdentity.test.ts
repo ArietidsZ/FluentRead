@@ -300,7 +300,7 @@ describe('实际应用装配共用事务', () => {
     it('装配的身份校验与标签页释放贯通真实包装器和feature handlers', async () => {
         const config = Object.assign(new Config(), {service: 'openai', imageTranslationService: 'openai'});
         const translate = vi.fn(async () => ['translated']);
-        vi.doMock('@/src/services/config/store', () => ({config, configReady: Promise.resolve()}));
+        vi.doMock('@/src/services/config/store', () => ({config, configReady: Promise.resolve(), subscribeConfig: () => () => undefined}));
         vi.doMock('@/src/app/translation/runtime', () => ({translateWithCache: translate}));
         vi.doMock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {resolve: vi.fn()}}));
         vi.stubGlobal('browser', {runtime: {id: 'extension', getURL: (path: string) => `chrome-extension://extension${path}`}});
@@ -399,7 +399,7 @@ describe('实际应用装配文档Port入口', () => {
     it('无documentId旧脚本被拒绝，同sender双Port真实图片handler独立且tabclose贯通', async () => {
         vi.resetModules();
         const config = Object.assign(new Config(), {service: 'openai', imageTranslationService: 'openai'});
-        vi.doMock('@/src/services/config/store', () => ({config, configReady: Promise.resolve()}));
+        vi.doMock('@/src/services/config/store', () => ({config, configReady: Promise.resolve(), subscribeConfig: () => () => undefined}));
         vi.doMock('@/src/app/translation/runtime', () => ({translateWithCache: vi.fn(async () => ['translated'])}));
         vi.doMock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {resolve: vi.fn()}}));
         vi.stubGlobal('browser', {runtime: {id: 'extension', getURL: (path: string) => `chrome-extension://extension${path}`}});

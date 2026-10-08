@@ -438,3 +438,5 @@ pnpm test:regression:all -- --browser  # 追加屏幕外隔离浏览器 fixtures
 
 
 阅读入口的后续切片复用相同内部三态来源和模型锁，不改已有流式 Port 或 conversation：handler 在准备等待前固定原生 sender，应用层在持久会话操作前拒绝 unknown，来源 symbol 随原会话重建的对象展开保留；runtime 在 modelGateway 构造前选择并冻结具备会话能力的私密对。原阅读 prompt、上下文裁剪、追问历史与 read_context 工具不变。真实保存订阅中的有效 provider、模型、凭据、请求头/体与轮询策略变化取消旧请求；已有取消信号和仓库代次继续隔离迟到正文。两字段为空及原生 regular 保持原选模。该切片不代表字典或其余图像、视频、文档的私密路由接线完成。
+
+图片后台的原生三态来源在 app 的术语／配置包装边界接线；ImageTransactionSnapshot 内保留有效图片 provider/model、内部来源及模型锁，Offscreen 恢复不读取新配置。app 将内部来源附着到原 OCR 文本请求对象，保留不可枚举的 request control 与剩余预算。配置订阅取消图片准备及执行，前端专用线路依赖变更使已有译图缓存失效；registry、文档 Port、图片来源授权及 broker/provider lease 不重写。圈选及 vision capability probe 的来源接线仍未完成，原拒绝边界继续保留。

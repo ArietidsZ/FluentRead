@@ -186,6 +186,7 @@ beforeEach(() => {
     settings.from = 'auto';
     settings.uiLanguage = 'zh-CN';
     settings.on = true; settings.disableImageTranslator = false; settings.to = 'zh-Hans'; settings.useCache = true;
+    settings.incognitoService = ''; settings.incognitoModel = '';
     settings.imageTranslationService = ''; settings.service = 'google'; settings.model = {}; settings.customModel = {}; settings.customBody = {}; settings.proxy = {}; settings.customOpenAIProviders = []; settings.token = {};
     client.translate.mockReset().mockResolvedValue(result);
     client.prepare.mockReset().mockResolvedValue(undefined);
@@ -541,6 +542,32 @@ describe('图片翻译前台交互与生命周期', () => {
         }
         expect(client.translate).toHaveBeenCalledTimes(4);
         expect(env.button().dataset.phase).toBe('translated');
+    });
+
+    it('专用服务、模型、端点和请求体变化使已恢复的位图缓存失效', async () => {
+        settings.incognitoService = 'custom:private-image'; settings.incognitoModel = 'private-first';
+        settings.modelThinking = {[settings.incognitoService]: {'private-first': false, 'private-next': false}}; settings.system_role = {}; settings.user_role = {};
+        settings.customOpenAIProviders = [{id: settings.incognitoService, name: 'Private fixture', endpoint: 'https://private.synthetic.test/v1', models: ['private-first', 'private-next']}];
+        const env = setup(); env.hover(); env.click(); await flush(); env.click();
+        for (const mutate of [
+            () => {settings.incognitoModel = 'private-next';},
+            () => {settings.customOpenAIProviders[0].endpoint = 'https://next-private.synthetic.test/v1';},
+            () => {settings.customBody[settings.incognitoService] = '{"temperature":0.1}';},
+            () => {settings.system_role[settings.incognitoService] = 'Synthetic private instruction';},
+            () => {settings.user_role[settings.incognitoService] = 'Synthetic private translation';},
+            () => {settings.modelThinking[settings.incognitoService]['private-next'] = true;},
+            () => {settings.customOpenAIProviders[0].models.splice(1, 1);},
+            () => {settings.incognitoService = '';},
+        ]) {mutate(); env.click(); await flush(); env.click();}
+        expect(client.translate).toHaveBeenCalledTimes(9);
+    });
+
+    it('专用线路配置在等待期间改回原值仍拒绝旧译图', async () => {
+        settings.incognitoService = 'custom:private-image'; settings.incognitoModel = 'private-first';
+        const pending = deferred<typeof result>(); client.translate.mockReturnValueOnce(pending.promise);
+        const env = setup(); env.hover(); env.click(); await flush();
+        settings.incognitoModel = 'private-next'; settings.incognitoModel = 'private-first'; pending.resolve(result); await flush();
+        expect(env.bitmap()).toBeNull(); expect(env.button().dataset.phase).toBe('error');
     });
 
     it('在途端点变更即使改回原值也拒绝旧结果，卸载后停止观察配置', async () => {
