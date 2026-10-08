@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/writingSavedConfig.test.ts tests/writingPrivacyRoute.test.ts tests/writingBackground.test.ts tests/writingRuntime.test.ts tests/writingIntegration.test.ts --no-cache --reporter=json --outputFile=<RAW>/saved-config-green.results.json
+JSON report written to <RAW>/saved-config-green.results.json

@@ -1,0 +1,70 @@
+{
+  "scope": "static actual writing readiness, private-route validation, gateway endpoint/body/key rotation configuration reads, plus five actual normalized save/patch integration cases; not a live browser or complete network-policy audit",
+  "custom_claim": "withdrawn: custom missing from configurationKey is not a demonstrated production endpoint-change defect under normalize/save/subscriber",
+  "custom_control_results": {
+    "custom_only_save": "provider endpoint remains old; pending real SDK request stays valid and succeeds",
+    "empty_endpoint_with_new_custom_save": "normalization changes customOpenAIProviders; existing cancellation key aborts old request and next request uses new endpoint",
+    "empty_endpoint_with_new_custom_patch": "same behavior using real patch path"
+  },
+  "fixed_reachable_omissions": {
+    "requireApiKey": "real normalized patch makes active private-model readiness false when no credential exists; old key omitted policy and did not cancel",
+    "apiKeyRecoveryMs": "actual enabled two-key SDK attempt with synthetic 429 and delayed second fetch; real normalized patch changes recovery instance selection; old key did not cancel"
+  },
+  "unchanged_or_excluded_dependencies": {
+    "custom": "not added; effective normalized endpoint already covered by customOpenAIProviders. Rotation scope also reads legacy compatibility custom, but changing it alone does not change effective endpoint; no endpoint blocker claimed",
+    "serviceRegion": "normalizeCloudRegionMapping retains only azureTranslator/aliyunTranslation/volcTranslation; all are machine translation services rejected by isHarnessService. Cannot construct live writer region change through normal save",
+    "requestHeaderRules": "not read by modelGateway or runtimeFetch; browser DNR handling is a separate network-policy boundary, not validated by this SDK fetch fixture",
+    "existing_endpoint_model_and_credential_fields": "proxy/provider profiles/model/customModel/incognito pair/customModels/customBody/customHeaders/token/apiKeys/rotation enabled/modelThinking/azure/newapi/deepseek/minimax/mimo controls already present"
+  },
+  "files": [
+    {
+      "path": "src/app/background/writingRuntime.ts",
+      "sha256": "95d04ef1170f1be292c04eb61c466aff8bf2d3e99997d4c87cb4b42ac19d8afd"
+    },
+    {
+      "path": "src/services/harness/modelGateway.ts",
+      "sha256": "680fbab582deac41d1482e241e6b8cf7c38572a01b38d375f60b86fd67675db7"
+    },
+    {
+      "path": "src/providers/translation/ai-sdk/endpoints.ts",
+      "sha256": "56e6f5eb47101d3e40ec7d5852823b165524ffa55af9c529ab8061c7eb52e682"
+    },
+    {
+      "path": "src/services/translation/apiKeyRotation.ts",
+      "sha256": "60973a3109e14cdaa33375ac4ae4a863353266390270cd471ae938f4e5479b3d"
+    },
+    {
+      "path": "src/services/writing/runtime.ts",
+      "sha256": "0c0d0b8dd8c5dcd1cdc9c04b7f70a3283b4c8edb91595b81da84a272a3adf28e"
+    },
+    {
+      "path": "src/core/config/writingReadiness.ts",
+      "sha256": "da55db8715be828ecf253d871c7573386a1c76d477e572e3a2eab6b2d2a8d0bc"
+    },
+    {
+      "path": "src/core/config/model.ts",
+      "sha256": "9748f94b0d5c510913de2ee455e55b641a8731acd693eeb0c7ebe3116b322755"
+    },
+    {
+      "path": "src/core/config/harness.ts",
+      "sha256": "b2932b8c756df298b1b1d612cf83dcbde4c87883f9574041fc0e20ae8bd37ee9"
+    },
+    {
+      "path": "src/core/config/catalog.ts",
+      "sha256": "ccfb454d0d083536fbffb01222f59e9f92dbb79aaf27a2f66c78b310e99a1094"
+    },
+    {
+      "path": "src/platform/http/runtime.ts",
+      "sha256": "4cafa29f4986870caaea3e4c66d820d3ca40515cadb04b55c7db88f62b5a1d83"
+    },
+    {
+      "path": "src/services/config/store.ts",
+      "sha256": "67fe2ec576501c2e6fa37ec7334b3238c2ca38fefb4db983d28fd83550cbf5ce"
+    }
+  ],
+  "source_config_store_mocked": false,
+  "bare_runtime_config_assignment_for_custom_controls": false,
+  "real_model_gateway_or_sdk_replaced": false,
+  "runtimeFetch": "synthetic transport only",
+  "credentials": "synthetic sentinels in in-memory storage; actual user credential files never accessed"
+}

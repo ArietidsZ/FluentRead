@@ -1,0 +1,11 @@
+{
+  "label": "source-commit",
+  "command": [
+    "python3",
+    "<RAW>/commit-source.py"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:44:06.316681+00:00",
+  "duration_seconds": 0.039,
+  "exit_code": 0
+}

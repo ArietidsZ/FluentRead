@@ -1,0 +1,11 @@
+{
+  "status": "ok",
+  "groups": {
+    "architecture": 32,
+    "unit": 307,
+    "functional": 119,
+    "regression": 35
+  },
+  "files": 493,
+  "cases": 6756
+}

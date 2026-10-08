@@ -1,0 +1,67 @@
+{
+  "base_head": "99d982b8539c76b2d50aeb10ee29f8abbc9c7677",
+  "production_blob": "src/app/background/writingRuntime.ts",
+  "production_sha256": "ad524ccf3ed4a6c54ee849e260a1982db53bb6ecb2dc1ecbd969f0c45e1e4d73",
+  "red_fixture_sha256": "6c67dcb7ccf285d0fd5442db2587e83bb87fc296c1e256dfaa1faf15048bbc83",
+  "final_red_tests": 5,
+  "passed_custom_controls": 3,
+  "failed_policy_cancellation_cases": 2,
+  "preliminary_runs": "saved-config-baseline and saved-config-red contain recovery fixture construction failures, not production failures",
+  "bare_config_mutation_used": false,
+  "real_config_store_mocked": false,
+  "storage_and_browser_boundary_mocked": true,
+  "actual_gateway_and_sdk_replaced": false,
+  "real_api_calls": false,
+  "other_relevant_production_blobs": [
+    {
+      "path": "src/services/harness/modelGateway.ts",
+      "sha256": "680fbab582deac41d1482e241e6b8cf7c38572a01b38d375f60b86fd67675db7",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/providers/translation/ai-sdk/endpoints.ts",
+      "sha256": "56e6f5eb47101d3e40ec7d5852823b165524ffa55af9c529ab8061c7eb52e682",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/services/translation/apiKeyRotation.ts",
+      "sha256": "60973a3109e14cdaa33375ac4ae4a863353266390270cd471ae938f4e5479b3d",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/services/writing/runtime.ts",
+      "sha256": "0c0d0b8dd8c5dcd1cdc9c04b7f70a3283b4c8edb91595b81da84a272a3adf28e",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/core/config/writingReadiness.ts",
+      "sha256": "da55db8715be828ecf253d871c7573386a1c76d477e572e3a2eab6b2d2a8d0bc",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/core/config/model.ts",
+      "sha256": "9748f94b0d5c510913de2ee455e55b641a8731acd693eeb0c7ebe3116b322755",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/core/config/harness.ts",
+      "sha256": "b2932b8c756df298b1b1d612cf83dcbde4c87883f9574041fc0e20ae8bd37ee9",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/core/config/catalog.ts",
+      "sha256": "ccfb454d0d083536fbffb01222f59e9f92dbb79aaf27a2f66c78b310e99a1094",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/platform/http/runtime.ts",
+      "sha256": "4cafa29f4986870caaea3e4c66d820d3ca40515cadb04b55c7db88f62b5a1d83",
+      "current_equals_red_base": true
+    },
+    {
+      "path": "src/services/config/store.ts",
+      "sha256": "67fe2ec576501c2e6fa37ec7334b3238c2ca38fefb4db983d28fd83550cbf5ce",
+      "current_equals_red_base": true
+    }
+  ]
+}

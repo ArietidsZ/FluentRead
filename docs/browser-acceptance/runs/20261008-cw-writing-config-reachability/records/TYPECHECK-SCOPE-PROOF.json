@@ -1,0 +1,19 @@
+{
+  "tsconfig_changed": false,
+  "archive_exclusion": "existing docs/browser-acceptance/runs/** only",
+  "archive_inputs_in_compiler": [],
+  "roots": {
+    "src": {
+      "files": 799,
+      "missing": []
+    },
+    "tests": {
+      "files": 497,
+      "missing": []
+    },
+    "entrypoints": {
+      "files": 15,
+      "missing": []
+    }
+  }
+}

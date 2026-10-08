@@ -1,0 +1,19 @@
+{
+  "source_commit": "7fb7fc44f5ebb36ffaf531b07a277c63caea3415",
+  "source_tree": "06ab162a6bbf0779b1339eb786a598ef440b4d15",
+  "base_head": "99d982b8539c76b2d50aeb10ee29f8abbc9c7677",
+  "accepted_base_application": "dd6f2bce476de15f1c6d0a8bfa447568d1c89798",
+  "input_scope": "all tracked and nonignored new repository source/test/config/docs files, excluding archived docs/browser-acceptance/runs/** evidence",
+  "input_files": 4007,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/testing.md",
+    "src/app/background/writingRuntime.ts",
+    "tests/test-matrix.json",
+    "tests/writingSavedConfig.test.ts",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "b3bf9e40a0b013b935c3d0192f449b2d2a6637fa71f683eaec5c46cc8487fb03",
+  "artifact_manifest_sha256": "9df6098ed7e394ab46b71066c46f1c3dfe0a2629af124453f7d72829bed39d29"
+}

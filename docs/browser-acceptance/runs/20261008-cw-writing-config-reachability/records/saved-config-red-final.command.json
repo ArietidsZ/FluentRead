@@ -1,0 +1,19 @@
+{
+  "label": "saved-config-red-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/writingSavedConfig.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/saved-config-red-final.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:35:56.011692+00:00",
+  "duration_seconds": 1.446,
+  "exit_code": 1
+}

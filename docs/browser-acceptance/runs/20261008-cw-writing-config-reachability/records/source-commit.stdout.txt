@@ -1,0 +1,10 @@
+[fix/incognito-model-route-20261008 7fb7fc44] fix(writing): cancel on saved credential and recovery policy changes
+ 5 files changed, 140 insertions(+), 2 deletions(-)
+ create mode 100644 tests/writingSavedConfig.test.ts
+7fb7fc44 fix(writing): cancel on saved credential and recovery policy changes
+ docs/testing.md                      |   3 +
+ src/app/background/writingRuntime.ts |   2 +-
+ tests/test-matrix.json               |   3 +-
+ tests/writingSavedConfig.test.ts     | 133 +++++++++++++++++++++++++++++++++++
+ vitest.coverage.config.ts            |   1 +
+ 5 files changed, 140 insertions(+), 2 deletions(-)

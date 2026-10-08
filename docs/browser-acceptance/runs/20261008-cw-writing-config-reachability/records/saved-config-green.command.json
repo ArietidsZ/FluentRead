@@ -1,0 +1,23 @@
+{
+  "label": "saved-config-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/writingSavedConfig.test.ts",
+    "tests/writingPrivacyRoute.test.ts",
+    "tests/writingBackground.test.ts",
+    "tests/writingRuntime.test.ts",
+    "tests/writingIntegration.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/saved-config-green.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:36:48.131577+00:00",
+  "duration_seconds": 3.667,
+  "exit_code": 0
+}
