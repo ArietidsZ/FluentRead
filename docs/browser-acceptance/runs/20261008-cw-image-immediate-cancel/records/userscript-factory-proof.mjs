@@ -1,0 +1,21 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import {createRequire} from 'node:module';
+const root = process.cwd(), raw = path.dirname(new URL(import.meta.url).pathname);
+const ts = createRequire(path.join(root, 'package.json'))('typescript');
+const sha = contents => crypto.createHash('sha256').update(contents).digest('hex');
+const extract = file => {
+ const text = fs.readFileSync(file, 'utf8'), ast = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS), candidates = [];
+ const visit = node => {if (ts.isFunctionDeclaration(node) && node.body?.getText(ast).includes('image-transaction:')) candidates.push(node.getText(ast)); ts.forEachChild(node, visit);};
+ visit(ast); candidates.sort((a,b) => a.length-b.length); if (!candidates.length) throw new Error('registry factory missing');
+ return {file,artifact_bytes:Buffer.byteLength(text),artifact_sha256:sha(text),factory_bytes:Buffer.byteLength(candidates[0]),factory_sha256:sha(candidates[0]),factory:candidates[0]};
+};
+const prior = extract('<CW_BASELINE_EXPORT>/.output/userscript/fluent-read.user.js');
+const accepted = extract(path.join(root,'.output/userscript/fluent-read.user.js'));
+if(prior.artifact_sha256!=='54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8') throw new Error('baseline artifact mismatch');
+if(accepted.artifact_sha256!=='d3ba6ae6614d29364823d9742a992b2880d7b571073b241057ff01f1ac653bec') throw new Error('accepted artifact mismatch');
+fs.writeFileSync(path.join(raw,'userscript-baseline-registry.js'),prior.factory+'\n');fs.writeFileSync(path.join(raw,'userscript-1fb8c697-registry.js'),accepted.factory+'\n');
+const clean = ({factory,...data})=>data;
+const proof = {prior:clean(prior),accepted_1fb8c697:clean(accepted),whole_artifact_delta:accepted.artifact_bytes-prior.artifact_bytes,registry_factory_delta:accepted.factory_bytes-prior.factory_bytes,remainder_delta:(accepted.artifact_bytes-accepted.factory_bytes)-(prior.artifact_bytes-prior.factory_bytes),source_changes:['one read-only options.snapshot getter replaces spread+conditional defineProperty+second freeze','same controller.signal reused in execute','existing assertActive(record) guards late snapshot sealing','three identical native owner expressions extracted to ownerFor, keeping owner semantics'],observed_intermediate_bytes:{initial_preparation:1955201,compact_snapshot_signal_guard:1955055,shared_owner_expression:1954962},build_config_and_size_budget_unchanged:true};
+fs.writeFileSync(path.join(raw,'USERSCRIPT-26-BYTE-PROOF.json'),JSON.stringify(proof,null,2)+'\n');process.stdout.write(JSON.stringify(proof,null,2)+'\n');

@@ -1,0 +1,11 @@
+{
+  "label": "bindings-complete",
+  "command": [
+    "python3",
+    "<RAW>/bind-inputs.py"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T17:19:53.229448+00:00",
+  "duration_seconds": 0.337,
+  "exit_code": 0
+}

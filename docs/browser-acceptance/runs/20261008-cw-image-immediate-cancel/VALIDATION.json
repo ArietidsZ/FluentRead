@@ -1,0 +1,241 @@
+{
+  "source_commit": "61d6641c3ef527de3ef6eeca753da3c18b7a1cef",
+  "source_tree": "f55b76078e2f58f9c5d9a3e2b1f801c1f2cd4c7b",
+  "base_head": "5faab19409097241618515ea5ecad4a026ce8c06",
+  "accepted_base_application": "1fb8c69773df0de8fd35ddf723d7c995ed760731",
+  "input_scope": "all non-archived tracked and candidate source/test/config/docs inputs",
+  "input_files": 4010,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/testing.md",
+    "src/features/image-translation/background/operationRegistry.ts",
+    "tests/imagePreparationCancellation.test.ts"
+  ],
+  "frozen_inputs_sha256": "502a653dabd08ecace0802f7a33a40cf8a4e3b87be302ec04fc55b7d06eecefe",
+  "artifact_manifest_sha256": "df5c58df6ead4fd6d4855463cd63c2011bdc3356da7f1003c067685391b0a8d2",
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "502a653dabd08ecace0802f7a33a40cf8a4e3b87be302ec04fc55b7d06eecefe",
+  "artifacts": 797,
+  "userscript_bytes": 1954981,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+  "userscript_identical_to_866a1258_baseline": false,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning",
+  "implemented_slice": "synchronous prepared rejection consumption before execute microtask may lose activity; original await error, ownership/deadline and provider lease preserved",
+  "baseline_red": {
+    "numTotalTests": 24,
+    "numPassedTests": 20,
+    "numFailedTests": 4,
+    "numPendingTests": 0
+  },
+  "baseline_boundaries": {
+    "new_same_turn_cases_failed": 4,
+    "prior_controls_passed": 19,
+    "new_uncancelled_original_error_control_passed": 1,
+    "no_await_or_drain_between_run_cancel_and_gate_reject": true,
+    "real_Node_unhandledRejection_listener": true
+  },
+  "green": {
+    "numTotalTests": 24,
+    "numPassedTests": 24,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "targeted_tests": {
+    "numTotalTests": 432,
+    "numPassedTests": 432,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "tests": {
+    "numTotalTests": 10015,
+    "numPassedTests": 10015,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 407,
+  "coverage": {
+    "lines": {
+      "total": 66091,
+      "covered": 66091,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 66091,
+      "covered": 66091,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4606,
+      "covered": 4606,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33690,
+      "covered": 33690,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "strict_owned_changed_module_coverage": {
+    "app/background/imageGlossaryContext.ts": {
+      "lines": {
+        "total": 80,
+        "covered": 80,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 9,
+        "covered": 9,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 80,
+        "covered": 80,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 72,
+        "covered": 72,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "features/image-translation/background/operationRegistry.ts": {
+      "lines": {
+        "total": 148,
+        "covered": 148,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 24,
+        "covered": 24,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 148,
+        "covered": 148,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 112,
+        "covered": 112,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architecture_tests": 1379,
+  "architecture_files": 32,
+  "checks": {
+    "immediate-green": 0,
+    "preparation-strict-final": 0,
+    "full-coverage-final": 0,
+    "architecture-final": 0,
+    "typecheck-complete": 0,
+    "typecheck-list": 0,
+    "audit-final": 0,
+    "final-build-chrome": 0,
+    "final-build-firefox": 0,
+    "final-build-userscript": 0,
+    "final-verify-extension-manifests": 0,
+    "final-verify-userscript": 0,
+    "final-docs-source-build": 0,
+    "bindings-complete": 0,
+    "proofs-complete": 0,
+    "bind-source-commit": 0
+  },
+  "typecheck_scope": {
+    "tsconfig_changed": false,
+    "archive_exclusion": "existing docs/browser-acceptance/runs/** only",
+    "archive_inputs_in_compiler": [],
+    "roots": {
+      "src": {
+        "files": 799,
+        "missing": []
+      },
+      "tests": {
+        "files": 500,
+        "missing": []
+      },
+      "entrypoints": {
+        "files": 15,
+        "missing": []
+      }
+    }
+  },
+  "coverage_include_exclude_thresholds_ignores_test_matrix_unchanged": true,
+  "production_diff": "one if(prepared) void prepared.catch(() => {}) plus header/comment; no provider-wide race; original prepared await retained",
+  "prior_userscript_26_byte_explanation": {
+    "prior": {
+      "file": "/tmp/fluentread-image-userscript-baseline-20261008/.output/userscript/fluent-read.user.js",
+      "artifact_bytes": 1954988,
+      "artifact_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+      "factory_bytes": 3081,
+      "factory_sha256": "6ba17482cf977a5053f0c3fdcb62280f6a663ed6e24847dfc2dde16c5033633f"
+    },
+    "accepted_1fb8c697": {
+      "file": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-incognito-route-20261008/.output/userscript/fluent-read.user.js",
+      "artifact_bytes": 1954962,
+      "artifact_sha256": "d3ba6ae6614d29364823d9742a992b2880d7b571073b241057ff01f1ac653bec",
+      "factory_bytes": 3055,
+      "factory_sha256": "17fb1f68eecb50a93bb600a67f1b911715b6235b432285d6fd5271112c337284"
+    },
+    "whole_artifact_delta": -26,
+    "registry_factory_delta": -26,
+    "remainder_delta": 0,
+    "source_changes": [
+      "one read-only options.snapshot getter replaces spread+conditional defineProperty+second freeze",
+      "same controller.signal reused in execute",
+      "existing assertActive(record) guards late snapshot sealing",
+      "three identical native owner expressions extracted to ownerFor, keeping owner semantics"
+    ],
+    "observed_intermediate_bytes": {
+      "initial_preparation": 1955201,
+      "compact_snapshot_signal_guard": 1955055,
+      "shared_owner_expression": 1954962
+    },
+    "build_config_and_size_budget_unchanged": true
+  },
+  "current_userscript_19_byte_explanation": {
+    "current": {
+      "file": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-incognito-route-20261008/.output/userscript/fluent-read.user.js",
+      "artifact_bytes": 1954981,
+      "artifact_sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+      "factory_bytes": 3074,
+      "factory_sha256": "f0a7770fc8004a16e41a91ca598f91100933b57a16c28f117d98e0d0a53c1488"
+    },
+    "artifact_delta_from_1fb8c697": 19,
+    "registry_factory_delta_from_1fb8c697": 19,
+    "remainder_byte_count_delta_from_1fb8c697": 0,
+    "budget": 1955000,
+    "headroom": 19
+  },
+  "fixture_boundaries": "actual registry, wrapper, handlers and native Port receive; pending synthetic ready/preparation gate; process unhandledRejection event observer, not a mock; existing actual app/broker/SDK controls retained",
+  "no_gui_or_real_api_gpu_or_model_download": true,
+  "privacy_feature_complete": false,
+  "remaining": [
+    "area/vision/probe and other private-route entry slices not expanded",
+    "real provider/browser/GPU acceptance not run in this batch"
+  ],
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 91
+}

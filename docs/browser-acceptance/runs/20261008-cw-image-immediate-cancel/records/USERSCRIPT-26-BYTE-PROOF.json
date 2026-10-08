@@ -1,0 +1,31 @@
+{
+  "prior": {
+    "file": "<CW_BASELINE_EXPORT>/.output/userscript/fluent-read.user.js",
+    "artifact_bytes": 1954988,
+    "artifact_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+    "factory_bytes": 3081,
+    "factory_sha256": "6ba17482cf977a5053f0c3fdcb62280f6a663ed6e24847dfc2dde16c5033633f"
+  },
+  "accepted_1fb8c697": {
+    "file": "<WORKTREE>/.output/userscript/fluent-read.user.js",
+    "artifact_bytes": 1954962,
+    "artifact_sha256": "d3ba6ae6614d29364823d9742a992b2880d7b571073b241057ff01f1ac653bec",
+    "factory_bytes": 3055,
+    "factory_sha256": "17fb1f68eecb50a93bb600a67f1b911715b6235b432285d6fd5271112c337284"
+  },
+  "whole_artifact_delta": -26,
+  "registry_factory_delta": -26,
+  "remainder_delta": 0,
+  "source_changes": [
+    "one read-only options.snapshot getter replaces spread+conditional defineProperty+second freeze",
+    "same controller.signal reused in execute",
+    "existing assertActive(record) guards late snapshot sealing",
+    "three identical native owner expressions extracted to ownerFor, keeping owner semantics"
+  ],
+  "observed_intermediate_bytes": {
+    "initial_preparation": 1955201,
+    "compact_snapshot_signal_guard": 1955055,
+    "shared_owner_expression": 1954962
+  },
+  "build_config_and_size_budget_unchanged": true
+}

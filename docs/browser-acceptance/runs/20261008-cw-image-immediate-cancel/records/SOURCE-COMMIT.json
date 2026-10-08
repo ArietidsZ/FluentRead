@@ -1,0 +1,17 @@
+{
+  "source_commit": "61d6641c3ef527de3ef6eeca753da3c18b7a1cef",
+  "source_tree": "f55b76078e2f58f9c5d9a3e2b1f801c1f2cd4c7b",
+  "base_head": "5faab19409097241618515ea5ecad4a026ce8c06",
+  "accepted_base_application": "1fb8c69773df0de8fd35ddf723d7c995ed760731",
+  "input_scope": "all non-archived tracked and candidate source/test/config/docs inputs",
+  "input_files": 4010,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/testing.md",
+    "src/features/image-translation/background/operationRegistry.ts",
+    "tests/imagePreparationCancellation.test.ts"
+  ],
+  "frozen_inputs_sha256": "502a653dabd08ecace0802f7a33a40cf8a4e3b87be302ec04fc55b7d06eecefe",
+  "artifact_manifest_sha256": "df5c58df6ead4fd6d4855463cd63c2011bdc3356da7f1003c067685391b0a8d2"
+}

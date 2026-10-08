@@ -1,0 +1,19 @@
+{
+  "label": "immediate-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePreparationCancellation.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/immediate-green.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T17:15:33.200112+00:00",
+  "duration_seconds": 0.668,
+  "exit_code": 0
+}

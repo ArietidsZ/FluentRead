@@ -1,0 +1,14 @@
+{
+  "current": {
+    "file": "<WORKTREE>/.output/userscript/fluent-read.user.js",
+    "artifact_bytes": 1954981,
+    "artifact_sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+    "factory_bytes": 3074,
+    "factory_sha256": "f0a7770fc8004a16e41a91ca598f91100933b57a16c28f117d98e0d0a53c1488"
+  },
+  "artifact_delta_from_1fb8c697": 19,
+  "registry_factory_delta_from_1fb8c697": 19,
+  "remainder_byte_count_delta_from_1fb8c697": 0,
+  "budget": 1955000,
+  "headroom": 19
+}

@@ -1,0 +1,7 @@
+[fix/incognito-model-route-20261008 61d6641c] fix(image): consume preparation rejection before same-turn cancellation
+ 3 files changed, 59 insertions(+), 1 deletion(-)
+61d6641c fix(image): consume preparation rejection before same-turn cancellation
+ docs/testing.md                                    |  2 +
+ .../background/operationRegistry.ts                |  4 +-
+ tests/imagePreparationCancellation.test.ts         | 54 ++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 1 deletion(-)

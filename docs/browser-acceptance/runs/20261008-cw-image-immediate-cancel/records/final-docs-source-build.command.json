@@ -1,0 +1,15 @@
+{
+  "label": "final-docs-source-build",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/.bin/vitepress",
+    "build",
+    "docs"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T17:17:44.251689+00:00",
+  "duration_seconds": 2.743,
+  "exit_code": 0
+}

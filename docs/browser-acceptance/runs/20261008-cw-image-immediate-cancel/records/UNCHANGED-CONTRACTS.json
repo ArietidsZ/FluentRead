@@ -1,0 +1,78 @@
+{
+  "src/app/background/imageGlossaryContext.ts": {
+    "sha256": "6ff2675b4b1037aaecf8c2f9aa106ea74483b03c83dfae96c3b07da24c27ecdc",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/app/background/areaRuntime.ts": {
+    "sha256": "ca4ab1dd807c3ae1520500e2836cf15aae3a9501425f0005bd3f6304be5e5024",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/features/image-translation/content/runtime.ts": {
+    "sha256": "d93d6fbf5356a9461b9f73998f9488b803b48222639c02821e74a2fd38b5e331",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/features/image-translation/background/documentSession.ts": {
+    "sha256": "bc8faf3f17a40c0e771841f0918ec45f6c4dbf4cd49eeb13e5564a0499eb7c17",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/features/image-translation/documentChannel.ts": {
+    "sha256": "557632d7f1f4cf8eb90abf6c7281eb486ba842f892359485c3b734ef85f47623",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/features/image-translation/background/handlers.ts": {
+    "sha256": "e9775a95288494d623c401c86b91e9f3224ab9336f516e432231e18f806ba826",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/platform/browser/incognitoSource.ts": {
+    "sha256": "f0c75c3bec0084b4dcf505e7ee4b875c52f7b4c20d17d9bc01118a8e3d1c5adc",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/services/translation/broker.ts": {
+    "sha256": "8faad303c5ff40795b81416fd561f2af49d10655feb686468eca394c0783de3c",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/services/translation/requestScheduler.ts": {
+    "sha256": "cadd21513c7bce96b7e73e03d86da2a122bf9d8efa1504a15e31cd8d7c6c022c",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/services/translation/requestRegistry.ts": {
+    "sha256": "e083405f44a19c4013fd5705feef6b59b5567c4cac10956329b9aee67cab8bd6",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/services/config/store.ts": {
+    "sha256": "67fe2ec576501c2e6fa37ec7334b3238c2ca38fefb4db983d28fd83550cbf5ce",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/core/config/model.ts": {
+    "sha256": "9748f94b0d5c510913de2ee455e55b641a8731acd693eeb0c7ebe3116b322755",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "src/core/translation/prompts.ts": {
+    "sha256": "710808d866c6790964d156c6fa596987ffa14ae90bb4d1c22c5202780e9dd109",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "package.json": {
+    "sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "pnpm-lock.yaml": {
+    "sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "wxt.config.ts": {
+    "sha256": "4cecd1c6dee9258e224eaab2040cc51eb0edd05bd8f6aac00ea552d3f77c53df",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "userscript/vite.config.ts": {
+    "sha256": "b80a7bd19773aeab977a26ce9b40c366dce6a3e8f13d3f9c3e45ed9453e8c23c",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "scripts/verify-userscript-build.mjs": {
+    "sha256": "deb2c564adf922d8e5cb39f1118b4cfb28417ab9e295330bfa8720343d09136d",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  },
+  "tsconfig.json": {
+    "sha256": "f1397c3b7f2d20a45ce39df71ea6dab777d4d1f1304cdd53ad5a395232ccd263",
+    "unchanged_from": "5faab19409097241618515ea5ecad4a026ce8c06"
+  }
+}
