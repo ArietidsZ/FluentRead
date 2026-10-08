@@ -180,11 +180,31 @@ describe('translation provider request config snapshot', () => {
         expect(packet.starts[0]).toBe('___FLUENTREAD_literal_0_BEGIN___');
         expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
     });
+    it('uses the final outer slot boundary when the last source contains the next index as a literal marker', () => {
+        const sources = ['An agent reads.', 'The final source contains ___FLUENTREAD_literal_2_BEGIN___example___FLUENTREAD_literal_2_END___ and continues.'];
+        const packet = serializeTranslationSlots(sources, 'literal');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_literal_0_BEGIN___');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
     it.each(['duplicate', 'gap', 'reversed'] as const)('rejects %s real slot markers instead of inferring a valid source packet', variant => {
         const packet = serializeTranslationSlots(['An agent reads.', 'The next source explains settings.'], 'invalid');
         const malformed = variant === 'duplicate' ? packet.payload.replace('An agent reads.', `${packet.starts[0]}An agent reads.`)
             : variant === 'gap' ? packet.payload.replaceAll('_1_', '_2_')
             : `${packet.starts[1]}The next source explains settings.${packet.ends[1]}\n${packet.starts[0]}An agent reads.${packet.ends[0]}`;
+        expect(getTranslationGlossarySourceText(malformed)).toBe(malformed);
+    });
+    it('preserves a different namespace literal BEGIN at the very start of the first source', () => {
+        const sources = ['___FLUENTREAD_literal_0_BEGIN___ The software reads the document and translates the language on this page.', 'The second paragraph explains the settings for the computer network.'];
+        const packet = serializeTranslationSlots(sources);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['Case_1-x', 'Case_0_BEGIN___tail'])('preserves serializer nonce compatibility for %s', nonce => {
+        const sources = ['___FLUENTREAD_literal_0_BEGIN___ An agent reads.', 'The settings explain the computer network.'];
+        const packet = serializeTranslationSlots(sources, nonce);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('does not allocate slots from an unsafe integer in a malformed final marker', () => {
+        const malformed = '___FLUENTREAD_invalid_0_BEGIN___source___FLUENTREAD_invalid_999999999999999999999_END___';
         expect(getTranslationGlossarySourceText(malformed)).toBe(malformed);
     });
     it('deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays', () => {

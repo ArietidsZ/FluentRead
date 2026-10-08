@@ -84,6 +84,44 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('真实 broker 的全文单条槽协议', () => {
+    it('首槽以异命名空间字面标记开头时仍修复其回显并复用完整缓存', async () => {
+        const h = createHarness({service: 'deepL'});
+        connectFrontend(h);
+        const literal = '___FLUENTREAD_literal_0_BEGIN___';
+        const sources = [`${literal} ${first}`, second];
+        const packet = serializeTranslationSlots(sources);
+        const outputs = [`${literal} ${translated[0]}`, translated[1]!];
+        const complete = renderPacket(packet, outputs);
+        expect(parseTranslationSlots(packet, complete)).toEqual(outputs);
+        h.provider.mockResolvedValueOnce(renderPacket(packet, [sources[0]!, outputs[1]!])).mockResolvedValueOnce(outputs[0]);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, sources[0]]);
+        expect(h.provider.mock.calls[1]![0]).toMatchObject({validateTranslationSlots: false});
+        expect([...h.store.values()]).toEqual([complete]);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+    });
+
+    it('最后一槽内序号等于槽数的字面标记不能掩盖该槽回显', async () => {
+        const h = createHarness({service: 'deepL'});
+        connectFrontend(h);
+        const literal = '___FLUENTREAD_abcdef_2_BEGIN___example___FLUENTREAD_abcdef_2_END___';
+        // 默认 FNV 来源摘要为 abcdef；私用区尾部字符不影响自然语言正文。
+        const sources = [first, `${second} Literal marker ${literal} eh\uea89\ue003`];
+        const packet = serializeTranslationSlots(sources);
+        expect(packet.starts[0]).toBe('___FLUENTREAD_abcdef_0_BEGIN___');
+        const outputs = [translated[0]!, `${translated[1]} 字面标记 ${literal} eh\uea89\ue003`];
+        const complete = renderPacket(packet, outputs);
+        h.provider.mockResolvedValueOnce(renderPacket(packet, [outputs[0]!, sources[1]!])).mockResolvedValueOnce(outputs[1]);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, sources[1]]);
+        expect(h.provider.mock.calls[1]![0]).toMatchObject({validateTranslationSlots: false});
+        expect(parseTranslationSlots(packet, complete)).toEqual(outputs);
+        expect([...h.store.values()]).toEqual([complete]);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+    });
+
     it('默认 serializer 生成的包含超范围字面标记时仍修复回显槽，并缓存完整结果', async () => {
         const h = createHarness({service: 'deepL'});
         connectFrontend(h);
