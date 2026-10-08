@@ -14,7 +14,7 @@
     <style>
       /* 工具栏先按文档内容定尺寸；关键样式必须早于后台唤醒及外部 CSS。 */
       html { width: var(--interface-popup-width, 320px); min-height: 460px; background: #fff; }
-      body, #app { width: 100%; margin: 0; }
+      body, #app { width: var(--fluentread-localized-popup-width, var(--interface-popup-width, 320px)); margin: 0; }
       .popup-startup { box-sizing: border-box; min-height: 460px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; }
       .popup-startup i { width: 12px; height: 12px; border: 1.5px solid #d4d8e1; border-top-color: #737c8f; border-radius: 50%; }
     </style>

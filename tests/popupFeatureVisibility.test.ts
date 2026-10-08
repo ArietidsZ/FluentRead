@@ -47,7 +47,11 @@ describe('popup feature visibility', () => {
         expect(criticalStyles).toContain('display: flex;');
         expect(html.indexOf('</style>')).toBeLessThan(html.indexOf('src="/popup-startup.js"'));
         expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
-        expect(styles).toContain('body, #app { width: 100%; }');
+        // Firefox 以内容固有宽度定 popup 尺寸，body 不能用百分比宽度。
+        const bodyWidth = 'body, #app { width: var(--fluentread-localized-popup-width, var(--interface-popup-width, 320px));';
+        expect(criticalStyles).toContain(bodyWidth);
+        expect(styles).toContain(bodyWidth);
+        expect(styles).not.toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
         expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
         expect(styles).not.toContain('max-height: min(560px, 100dvh)');
