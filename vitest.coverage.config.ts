@@ -71,6 +71,7 @@ export default defineConfig({
             'tests/visionProbe.test.ts',
             'tests/visionProbeStorage.test.ts',
             'tests/backgroundVisionProbe.test.ts',
+            'tests/settingsVisionPrivacyRoute.test.ts',
             'tests/translationVisionPayload.test.ts',
             'tests/translationVisionProviders.test.ts',
             'tests/translationVisionBroker.test.ts',

@@ -5,6 +5,9 @@ import {createVisionProbeIdentity} from '@/src/core/config/visionProbe';
 import {prepareModelVisionRoute, freezeVisionProbeConfig} from '@/src/services/translation/visionProbe';
 import {createAreaTranslationBackgroundHandlers, AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE} from '@/src/features/area-translation/background';
 
+// 旧 URL-only/油猴适配的兼容契约；原生来源、文档 Port 和 UI 由独立集成套件验证。
+vi.mock('@/src/core/config/incognitoRoute', async original => ({...await original<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
+
 const context = {sender:{url:'chrome-extension://fixture/options.html'}};
 const config = () => { const c=new Config();c.service='deepseek';c.model.deepseek='future-vision'; return c; };
 describe('识图测试后台契约与圈选路由',()=>{

@@ -1,18 +1,37 @@
 /**
  * @file src/core/config/visionProbe.ts
  * 文件职责：定义模型识图探测身份、缓存有效期与确定性结果校验。
- * 主要内容：绑定服务、模型、请求协议和既有凭据配置指纹，校验有界缓存记录；只接受严格匹配的图片答案或明确的图片输入拒绝。
+ * 主要内容：绑定服务、模型、请求协议、既有凭据配置指纹及原生来源缓存空间，校验有界缓存记录；只接受严格匹配的图片答案或明确的图片输入拒绝。
  * 模块边界：纯策略，不保存原始密钥、图片、模型回答或错误正文，不发网络请求；运行和持久化由 services/platform 负责。
  */
 import {createApiKeyCheckRevision, type ApiKeyCheckIdentitySource} from './apiKeyCheckIdentity';
 import {sha256Hex} from '@/src/shared/function/sha256';
 import {resolveModelVisionCapability, supportsVisionTransport, type ModelVisionCapability, type ModelVisionOverrides} from './vision';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED, type IncognitoRouteConfig} from '@/src/core/config/incognitoRoute';
+
+const PROBE_SCOPE = /* @__PURE__ */ Symbol('fluentread.vision-probe-scope');
+/** 仅区分缓存空间，不授予后台执行权限；普通和油猴身份保持 v1 兼容。 */
+export function scopeVisionProbeConfig<T extends object>(source: T, privacy: 'regular' | 'private' | 'unknown'): T {
+    return {...source, [PROBE_SCOPE]: privacy};
+}
+/** 明确测试目标必须与已解析路由或后台回复一致；不把替换目标显示为原选择。 */
+export function assertVisionProbeTarget(route: {service?: unknown; model?: unknown} | undefined, service: string, model: string): void {
+    if (route && (route.service !== service || route.model !== model)) throw new Error('识图检测目标与指定服务或模型不一致，请选择同一目标后重新检测');
+}
 
 export const VISION_PROBE_TTL_MS = 7 * 86_400_000;
 export const VISION_PROBE_TIMEOUT_MS = 30_000;
 export interface VisionProbeRecord {identity: string; capability: 'supported' | 'unsupported'; checkedAt: number;}
 export interface VisionProbeResult {capability: ModelVisionCapability; source: 'override' | 'rule' | 'probe' | 'unknown'; checkedAt?: number;}
 export function createVisionProbeIdentity(source: ApiKeyCheckIdentitySource, service: string, model: string): string {
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        const privacy = (source as {[PROBE_SCOPE]?: string})[PROBE_SCOPE];
+        if (privacy === 'private' || privacy === 'unknown') {
+            const route = source as ApiKeyCheckIdentitySource & IncognitoRouteConfig;
+            return sha256Hex(JSON.stringify(['vision-probe-native-v2', privacy, route.incognitoService, route.incognitoModel,
+                service, model, createApiKeyCheckRevision({...source, model: {[service]: model}, customModel: {[service]: model}}, service)]));
+        }
+    }
     return sha256Hex(JSON.stringify(['vision-probe-v1', service, model, createApiKeyCheckRevision(source, service)]));
 }
 export function normalizeVisionProbeRecords(value: unknown, now: number): VisionProbeRecord[] {

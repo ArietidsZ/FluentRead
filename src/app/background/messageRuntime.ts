@@ -64,6 +64,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const capabilities = options.capabilities ?? browserCapabilities;
     const translationRequestRegistry = createTranslationRequestRegistry(true);
     const inputTranslationRequestRegistry = createTranslationRequestRegistry(true);
+    const visionProbeRequestRegistry = createTranslationRequestRegistry(true);
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
@@ -93,7 +94,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             isOptionsUrl: (url) => url.startsWith(browser.runtime.getURL('/options.html')),
         }),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
-        ...createProviderTestRuntimeHandlers(),
+        ...createProviderTestRuntimeHandlers(visionProbeRequestRegistry),
         createInputBoxTranslationCancelHandler(inputTranslationRequestRegistry),
         createInputBoxTranslationHandler({
             requestRegistry: inputTranslationRequestRegistry,
@@ -162,7 +163,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
     const textPorts = createTranslationDocumentPortHandler({runtimeId: browser.runtime.id,
         dispatch: (message, context) => router.dispatch(message, context as BackgroundRuntimeContext),
-        registries: [translationRequestRegistry, inputTranslationRequestRegistry]});
+        registries: [translationRequestRegistry, inputTranslationRequestRegistry, visionProbeRequestRegistry]});
     browser.runtime.onConnect.addListener(textPorts.connect);
     browser.runtime.onConnect.addListener(imageAreaRuntime.connect);
     selectionPageZoom.installZoomChangeListener();

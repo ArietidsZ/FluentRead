@@ -29,6 +29,7 @@ vi.mock('@/src/services/translation/broker', () => ({
 }));
 vi.mock('@/src/services/config/store', () => ({
     configReady: Promise.resolve(),
+    subscribeConfig: vi.fn(() => () => undefined),
     config: {
         model: {moonshot: 'kimi-k2.6'},
         customModel: {moonshot: ''},
@@ -62,7 +63,7 @@ describe('background provider runtime', () => {
 
     it('wires real provider handlers and restricts vision probes to the exact settings page', async () => {
         const settingsUrl = 'chrome-extension://fixture/options.html';
-        vi.stubGlobal('browser', {runtime: {getURL: (path: string) => `chrome-extension://fixture${path}`}});
+        vi.stubGlobal('browser', {runtime: {id: 'fixture', getURL: (path: string) => `chrome-extension://fixture${path}`}});
         const handlers = createProviderTestRuntimeHandlers();
         expect(handlers.map(handler => handler.type)).toEqual(['testTranslationService', VISION_PROBE_MESSAGE, VISION_PROBE_CANCEL_MESSAGE]);
         const connection = handlers.find(handler => handler.type === 'testTranslationService')!;
@@ -72,8 +73,8 @@ describe('background provider runtime', () => {
         const vision = handlers.find(handler => handler.type === VISION_PROBE_MESSAGE)! as ReturnType<typeof createVisionProbeHandlers>[number];
         const message = {type: VISION_PROBE_MESSAGE, service: 'moonshot', model: 'kimi-k2.6',
             identity: createVisionProbeIdentity(freezeVisionProbeConfig(config), 'moonshot', 'kimi-k2.6'), requestId: 'composition-vision'};
-        await expect(vision.handle(message, {sender: {url: `${settingsUrl}?tab=models#vision`}}))
-            .resolves.toEqual({success: true, capability: 'supported', source: 'probe', checkedAt: 1});
+        await expect(vision.handle(message, {sender: {id: 'fixture', documentId: 'settings-document', tab: {incognito: false}, url: `${settingsUrl}?tab=models#vision`}}))
+            .resolves.toEqual({success: true, capability: 'supported', source: 'probe', checkedAt: 1, service: 'moonshot', model: 'kimi-k2.6'});
         expect(mocks.resolveVisionProbe).toHaveBeenCalledWith(expect.objectContaining({model: {moonshot: 'kimi-k2.6'}}),
             'moonshot', 'kimi-k2.6', expect.objectContaining({force: true, signal: expect.any(AbortSignal)}));
         await expect(vision.handle(message, {sender: {url: `${settingsUrl}/elsewhere`}})).rejects.toThrow('识图检测仅可从设置页执行');

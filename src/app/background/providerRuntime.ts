@@ -10,7 +10,7 @@ import {
     runTranslationServiceConnectionTest,
 } from '@/src/providers/translation/connectionTest';
 import {getFreeTranslationWeightSnapshot} from '@/src/providers/translation/free-translation';
-import {config, configReady} from '@/src/services/config/store';
+import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {createConnectionTestHandler} from './handlers/connectionTest';
 import {createVisionProbeHandlers} from './handlers/visionProbe';
 import {modelVisionProbe} from '@/src/app/translation/visionProbeRuntime';
@@ -20,13 +20,16 @@ import {translationRequestScheduler} from '@/src/app/translation/runtime';
 import {createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 import {resolveTranslationRequestModel} from '@/src/services/translation/broker';
 import type {FreeTranslationProviderId} from '@/src/core/config/freeTranslation';
+import type {TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
+import type {IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
 
 export {formatConnectionTestError, getFreeTranslationWeightSnapshot};
 
-export function createProviderTestRuntimeHandlers() {
+export function createProviderTestRuntimeHandlers(requestRegistry?: TranslationRequestRegistry) {
     return [createConnectionTestHandler({ready: configReady,
         runConnectionTest: runTranslationServiceConnectionTestWithUsage, formatError: formatConnectionTestError}),
         ...createVisionProbeHandlers({ready: configReady, getConfig: () => config,
+            runtime: browser.runtime as unknown as IncognitoSourceRuntime, requestRegistry, subscribeConfig,
             isSettingsUrl: url => url.split(/[?#]/u)[0] === browser.runtime.getURL('/options.html'),
             resolve: modelVisionProbe.resolve})];
 }

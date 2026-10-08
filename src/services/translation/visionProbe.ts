@@ -1,18 +1,19 @@
 /**
  * @file src/services/translation/visionProbe.ts
  * 文件职责：结合手动设置、有效探测缓存与内置规则决定当前模型识图能力，并复用共享翻译链路探测未知模型。
- * 主要内容：冻结配置与严格测试提示词，生成随机 PNG，发送受信图片请求；取消和超时不写能力结论，冻结快照的可信来源在扩展平台传入 broker，只有匹配答案或明确图片输入拒绝落盘，缓存仅保存身份摘要与时间。
+ * 主要内容：在规则和缓存前验证可信来源及明确测试目标，冻结配置与严格测试提示词，生成随机 PNG；原生缓存区分来源并串行提交，取消期间的迟到持久化恢复旧记录，只有匹配答案或明确图片输入拒绝落盘。
  * 模块边界：通过注入的翻译和存储端口执行副作用，不实现厂商协议、不读取页面图片、不改写用户配置或提示词。
  */
 import {resolveAreaRecognitionRoute, resolveModelVisionCapability, supportsVisionTransport, type AreaRecognitionRouteInput} from '@/src/core/config/vision';
-import {createVisionProbeIdentity, matchesVisionProbeAnswer, normalizeVisionProbeRecords, VISION_PROBE_TIMEOUT_MS,
+import {createVisionProbeIdentity, scopeVisionProbeConfig, assertVisionProbeTarget, matchesVisionProbeAnswer, normalizeVisionProbeRecords, VISION_PROBE_TIMEOUT_MS,
     type VisionProbeRecord, type VisionProbeResult} from '@/src/core/config/visionProbe';
 import {createVisionProbeImage} from '@/src/core/translation/visionProbeImage';
 import {attachTranslationImageInput, attachTranslationProviderConfig, attachTranslationRequestControl,
     createTranslationProviderConfigSnapshot, markTranslationRemainingBudget} from './requestSnapshot';
 import type {TranslationConfigSource, TranslationRequestMessage} from './types';
-import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
-import {attachTranslationSourcePrivacy, getTranslationSourcePrivacy} from './requestPrivacy';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED, lockIncognitoRoute, resolveIncognitoRoute} from '@/src/core/config/incognitoRoute';
+import {assertTranslationSourcePrivacy, attachTranslationSourcePrivacy, getTranslationSourcePrivacy, fullPageTranslationConfigKey} from './requestPrivacy';
+import type {Config} from '@/src/core/config/model';
 
 export interface VisionProbeConfig extends TranslationConfigSource {modelVision?: Record<string, Record<string, boolean>>;}
 export const VISION_PROBE_MESSAGE = 'fluentReadModelVisionProbe';
@@ -20,9 +21,28 @@ export const VISION_PROBE_CANCEL_MESSAGE = 'fluentReadModelVisionProbeCancel';
 export interface VisionProbePersistence {load(): Promise<unknown>; save(records: VisionProbeRecord[]): Promise<void>;}
 export interface VisionProbeOptions {force?: boolean; probeUnknown?: boolean; signal?: AbortSignal; timeoutMs?: number;}
 
+/** 仅在进程内比较；凭据只进入既有摘要，计数和 UI 偏好不撤销模型任务。 */
+export function visionProbeConfigKey(source: VisionProbeConfig, service: string, model: string): string {
+    return JSON.stringify([fullPageTranslationConfigKey(source as Config), source.modelVision, createVisionProbeIdentity(source, service, model)]);
+}
+
 export function freezeVisionProbeConfig(source: VisionProbeConfig): VisionProbeConfig {
     return {...createTranslationProviderConfigSnapshot(source), modelVision: Object.fromEntries(
         Object.entries(source.modelVision ?? {}).map(([service, models]) => [service, {...models}]))};
+}
+/** 手动与自动共用原生准入；明确选择不允许 broker 静默换成另一个私密模型。 */
+export function prepareVisionProbeSource(source: VisionProbeConfig, service: string, model: string): VisionProbeConfig {
+    assertTranslationSourcePrivacy(source, source, source);
+    const privacy = getTranslationSourcePrivacy(source);
+    let frozen = freezeVisionProbeConfig(source);
+    if (privacy === 'private') {
+        const route = resolveIncognitoRoute(frozen);
+        if (route) {
+            assertVisionProbeTarget(route, service, model);
+            frozen = lockIncognitoRoute(frozen, route);
+        }
+    }
+    return privacy ? scopeVisionProbeConfig(frozen, privacy) : frozen;
 }
 /** 在任何等待前冻结圈选身份，未知模型先测试，失败传播到原事务且不改用 OCR。 */
 export function prepareModelVisionRoute(source: VisionProbeConfig & AreaRecognitionRouteInput,
@@ -57,13 +77,24 @@ export function createModelVisionProbe(deps: {
         writes = write;
         return write;
     };
+    const saveNative = (change: (previous: VisionProbeRecord[]) => VisionProbeRecord[], signal: AbortSignal) => {
+        const write = writes.catch(() => undefined).then(async () => {
+            signal.throwIfAborted();
+            const snapshot = normalizeVisionProbeRecords(change(records), now());
+            await deps.storage.save(snapshot);
+            if (signal.aborted) {await deps.storage.save(normalizeVisionProbeRecords(records, now())); signal.throwIfAborted();}
+            records = snapshot;
+        });
+        writes = write;
+        return write;
+    };
     const cached = (identity: string): VisionProbeResult | undefined => {
         records = normalizeVisionProbeRecords(records, now());
         const record = records.find(item => item.identity === identity);
         return record ? {capability: record.capability, source: 'probe', checkedAt: record.checkedAt} : undefined;
     };
     async function resolve(source: VisionProbeConfig, service: string, model: string, options: VisionProbeOptions = {}): Promise<VisionProbeResult> {
-        const frozen = createTranslationProviderConfigSnapshot(source);
+        const frozen = NATIVE_PRIVATE_ROUTE_SUPPORTED ? prepareVisionProbeSource(source, service, model) : createTranslationProviderConfigSnapshot(source);
         const explicit = source.modelVision?.[service]?.[model];
         const identity = createVisionProbeIdentity(frozen, service, model);
         const rule = resolveModelVisionCapability(service, model, source.modelVision);
@@ -103,8 +134,8 @@ export function createModelVisionProbe(deps: {
         }
     }
     async function execute(source: TranslationConfigSource, service: string, model: string, identity: string, signal: AbortSignal): Promise<VisionProbeResult> {
-        records = records.filter(item => item.identity !== identity);
-        await save();
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) await saveNative(previous => previous.filter(item => item.identity !== identity), signal);
+        else {records = records.filter(item => item.identity !== identity); await save();}
         signal.throwIfAborted();
         const random = deps.random ? deps.random() : crypto.getRandomValues(new Uint8Array(3));
         const challenge = createVisionProbeImage(random);
@@ -134,8 +165,8 @@ export function createModelVisionProbe(deps: {
         }
         if (capability === 'unknown') return {capability, source: 'unknown'};
         const checkedAt = now();
-        records = [{identity, capability, checkedAt}, ...records];
-        await save();
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) await saveNative(previous => [{identity, capability, checkedAt}, ...previous], signal);
+        else {records = [{identity, capability, checkedAt}, ...records]; await save();}
         signal.throwIfAborted();
         return {capability, source: 'probe', checkedAt};
     }

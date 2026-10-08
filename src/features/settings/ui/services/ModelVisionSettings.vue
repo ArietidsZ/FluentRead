@@ -1,7 +1,7 @@
 <!--
  @file src/features/settings/ui/services/ModelVisionSettings.vue
  文件职责：展示当前模型的手动识图设置、规则或测试缓存结论，并提供真实图片检测与取消操作；检测说明由父级放在字段标签旁的提示里。
- 主要内容：用三选一分段按钮手动指定能力，先持久保存当前配置再发送带身份指纹的测试消息；只在已有结论或服务不支持时显示状态行（尚未确认属于默认状态，说明收在标签提示里），合并重复的能力结论与测试反馈，保留运行中、失败和取消信息；切换模型、凭据、服务或卸载时取消旧任务，忽略过期响应，订阅独立本地测试缓存。
+ 主要内容：先保存配置再测试明确选择的目标；原生私密提示要求选择与专用 pair 一致，并复用所属文档 Port；显示后台确认的真实目标，配置、模型切换或卸载时取消旧任务并忽略过期响应，订阅来源隔离的本地能力缓存。
  模块边界：UI 不发送模型 HTTP、不提供凭据或图片、不修改自动探测结论；请求由共享服务与后台实际适配器执行，手动选择保留用户优先级。
 -->
 <template>
@@ -28,8 +28,11 @@ import {computed, onBeforeUnmount, ref, watch} from 'vue'
 import browser from 'webextension-polyfill'
 import type {Config} from '@/src/core/config/model'
 import {supportsVisionTransport} from '@/src/core/config/vision'
-import {createVisionProbeIdentity, type VisionProbeResult} from '@/src/core/config/visionProbe'
-import {VISION_PROBE_MESSAGE, VISION_PROBE_CANCEL_MESSAGE} from '@/src/services/translation/visionProbe'
+import {assertVisionProbeTarget, createVisionProbeIdentity, type VisionProbeResult} from '@/src/core/config/visionProbe'
+import {VISION_PROBE_MESSAGE, VISION_PROBE_CANCEL_MESSAGE, visionProbeConfigKey} from '@/src/services/translation/visionProbe'
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute'
+import {resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy'
+import {translationDocumentClient} from '@/src/services/translation/documentClient'
 import {useVisionProbeStatus} from './useVisionProbeStatus'
 import {requestConfigSave, waitForConfigPersistenceQueue} from '@/src/services/config/store'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -77,7 +80,10 @@ let requestId = ''
 function cancel(): void {
   generation++
   busy.value = false
-  if (requestId) void browser.runtime.sendMessage({type: VISION_PROBE_CANCEL_MESSAGE, requestId}).catch(() => undefined)
+  if (requestId) {
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) void translationDocumentClient(browser.runtime).request({type: VISION_PROBE_CANCEL_MESSAGE, requestId, clientRequestId: requestId}).catch(() => undefined)
+    else void browser.runtime.sendMessage({type: VISION_PROBE_CANCEL_MESSAGE, requestId}).catch(() => undefined)
+  }
   requestId = ''
   feedback.value = t('settings.services.visionProbeCancelled')
 }
@@ -89,16 +95,24 @@ async function probe(): Promise<void> {
   busy.value = true
   feedback.value = t('settings.services.visionProbeRunning')
   try {
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+      const route = resolvePageTranslationRouteHint(props.config, browser.extension?.inIncognitoContext)
+      assertVisionProbeTarget(route, testedService, testedModel)
+    }
     await waitForConfigPersistenceQueue()
     if (current !== generation) return
     await requestConfigSave(props.config, browser.runtime.sendMessage.bind(browser.runtime))
     if (current !== generation) return
-    const result = await browser.runtime.sendMessage({type: VISION_PROBE_MESSAGE, service: testedService, model: testedModel,
-      identity: testedIdentity, requestId: id}) as VisionProbeResult & {success?: boolean; error?: string}
+    const result = (NATIVE_PRIVATE_ROUTE_SUPPORTED
+      ? await translationDocumentClient(browser.runtime).request({type: VISION_PROBE_MESSAGE, service: testedService, model: testedModel, identity: testedIdentity, requestId: id, clientRequestId: id})
+      : await browser.runtime.sendMessage({type: VISION_PROBE_MESSAGE, service: testedService, model: testedModel,
+        identity: testedIdentity, requestId: id})) as VisionProbeResult & {success?: boolean; error?: string; service?: string; model?: string}
     if (current !== generation) return
     if (!result?.success) throw new Error(result?.error || t('settings.services.visionProbeFailed'))
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) assertVisionProbeTarget(result, testedService, testedModel)
     feedback.value = t(result.capability === 'supported' ? 'settings.services.visionProbeSupported'
       : result.capability === 'unsupported' ? 'settings.services.visionProbeUnsupported' : 'settings.services.visionProbeUnknown')
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) feedback.value += ` (${result.service} / ${result.model})`
     await refresh()
   } catch (error) {
     if (current === generation) feedback.value = t('settings.services.visionProbeFailed') + (error instanceof Error ? ` ${error.message}` : '')
@@ -106,7 +120,7 @@ async function probe(): Promise<void> {
     if (current === generation) { busy.value = false; requestId = '' }
   }
 }
-watch(identity, () => { cancel(); feedback.value = '' })
+watch(NATIVE_PRIVATE_ROUTE_SUPPORTED ? () => visionProbeConfigKey(props.config, props.service, props.model) : identity, () => { cancel(); feedback.value = '' })
 onBeforeUnmount(cancel)
 </script>
 <style scoped>

@@ -97,7 +97,7 @@ describe('native area frozen private route through real capability probe, broker
     });
     it('the unknown dedicated model is probed before crop using its real endpoint/model, then reused for vision and text', async () => {
         await visionMode();
-        const {createVisionProbeIdentity} = await import('@/src/core/config/visionProbe');
+        const {createVisionProbeIdentity, scopeVisionProbeConfig} = await import('@/src/core/config/visionProbe');
         m.values.set('vision-probe', [{identity: createVisionProbeIdentity(store.config, publicService, 'image-public'), capability: 'supported', checkedAt: Date.now()}]);
         const result = await (await portRequest(native(), areaRequest)).pending;
         expect(result).toMatchObject({success: true, service: privateService, model: 'image-private', recognitionMethod: 'vision'});
@@ -106,7 +106,7 @@ describe('native area frozen private route through real capability probe, broker
         expect(m.send.mock.calls.map(([message]) => message.type)).toEqual(['FLUENT_READ_AREA_CROP_OFFSCREEN']); expect(languages).not.toHaveBeenCalled();
         const saved = m.values.get('vision-probe') as any[];
         const effective = {...store.config, model: {...store.config.model, [privateService]: 'image-private'}, customModel: {...store.config.customModel, [privateService]: 'image-private'}};
-        expect(saved.some(r => r.identity === createVisionProbeIdentity(effective, privateService, 'image-private'))).toBe(true);
+        expect(saved.some(r => r.identity === createVisionProbeIdentity(scopeVisionProbeConfig(effective, 'private'), privateService, 'image-private'))).toBe(true);
         expect(JSON.stringify(saved)).not.toMatch(/image-private|base64|ABCDEF/u);
         expect(await call({...areaRequest, requestId: 'area-repeat'})).toMatchObject({success: true, recognitionMethod: 'vision'});
         expect(calls.map(c => phase(c.body))).toEqual(['probe', 'vision', 'text', 'vision']);
