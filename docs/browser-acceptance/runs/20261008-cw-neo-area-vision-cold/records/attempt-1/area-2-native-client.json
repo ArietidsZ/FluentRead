@@ -1,0 +1,238 @@
+{
+  "events": [
+    {
+      "at": 1791464207555,
+      "direction": "out",
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-1",
+        "message": {
+          "type": "fluentReadAreaCapture",
+          "requestId": "image-e181f8c5-a783-45f7-a904-b24fc5292e02",
+          "timeoutMs": 180000
+        }
+      }
+    },
+    {
+      "at": 1791464207555,
+      "direction": "in",
+      "packet": {
+        "kind": "ready",
+        "version": 1
+      }
+    },
+    {
+      "at": 1791464207580,
+      "direction": "in",
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-1",
+        "response": {
+          "success": true,
+          "imageLength": 30726,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "at": 1791464207581,
+      "direction": "out",
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-2",
+        "message": {
+          "type": "fluentReadAreaTranslateCapture",
+          "selection": {
+            "left": 60,
+            "top": 55,
+            "width": 550,
+            "height": 90,
+            "viewportWidth": 1040,
+            "viewportHeight": 819
+          },
+          "sourceLanguage": "en",
+          "title": "CW synthetic area vision fixture",
+          "requestId": "image-75de4073-d648-434d-9cab-82875e2c10c8",
+          "timeoutMs": 180000,
+          "imageLength": 30726,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "at": 1791464207589,
+      "direction": "in",
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-75de4073-d648-434d-9cab-82875e2c10c8",
+          "stage": "recognizing"
+        }
+      }
+    },
+    {
+      "at": 1791464207629,
+      "direction": "in",
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-75de4073-d648-434d-9cab-82875e2c10c8",
+          "stage": "translating"
+        }
+      }
+    },
+    {
+      "at": 1791464207639,
+      "direction": "in",
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-2",
+        "response": {
+          "success": true,
+          "lines": [],
+          "sourceText": "SYNTHETIC SOURCE 1: ALPHA 123",
+          "translatedText": "合成译文 1：阿尔法 123",
+          "mode": "standard",
+          "service": "openai",
+          "serviceName": "OpenAI",
+          "model": "gpt-4.1-mini",
+          "recognitionMethod": "vision",
+          "warnings": [
+            "standard-quality"
+          ],
+          "imageLength": 20018,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "at": 1791464207904,
+      "direction": "out",
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-3",
+        "message": {
+          "type": "fluentReadAreaCapture",
+          "requestId": "image-93522a70-2f57-49d8-8041-e51bad75c3a4",
+          "timeoutMs": 180000
+        }
+      }
+    },
+    {
+      "at": 1791464208164,
+      "direction": "in",
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-3",
+        "response": {
+          "success": true,
+          "imageLength": 30726,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "at": 1791464208164,
+      "direction": "out",
+      "packet": {
+        "kind": "request",
+        "version": 1,
+        "rpcId": "request-4",
+        "message": {
+          "type": "fluentReadAreaTranslateCapture",
+          "selection": {
+            "left": 70,
+            "top": 150,
+            "width": 550,
+            "height": 90,
+            "viewportWidth": 1040,
+            "viewportHeight": 819
+          },
+          "sourceLanguage": "en",
+          "title": "CW synthetic area vision fixture",
+          "requestId": "image-9a8f2ac9-74b5-46e6-85ee-4ec8a663a51d",
+          "timeoutMs": 180000,
+          "imageLength": 30726,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    },
+    {
+      "at": 1791464208166,
+      "direction": "in",
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-9a8f2ac9-74b5-46e6-85ee-4ec8a663a51d",
+          "stage": "recognizing"
+        }
+      }
+    },
+    {
+      "at": 1791464208174,
+      "direction": "in",
+      "packet": {
+        "kind": "progress",
+        "message": {
+          "type": "fluentReadImageProgress",
+          "requestId": "image-9a8f2ac9-74b5-46e6-85ee-4ec8a663a51d",
+          "stage": "translating"
+        }
+      }
+    },
+    {
+      "at": 1791464208182,
+      "direction": "in",
+      "packet": {
+        "kind": "result",
+        "rpcId": "request-4",
+        "response": {
+          "success": true,
+          "lines": [],
+          "sourceText": "SYNTHETIC SOURCE 2: ALPHA 123",
+          "translatedText": "合成译文 2：阿尔法 123",
+          "mode": "standard",
+          "service": "openai",
+          "serviceName": "OpenAI",
+          "model": "gpt-4.1-mini",
+          "recognitionMethod": "vision",
+          "warnings": [
+            "standard-quality"
+          ],
+          "imageLength": 12414,
+          "imagePrefix": "data:image/png;base64,iVBORw0K"
+        }
+      }
+    }
+  ],
+  "result": {
+    "at": 1791464208182,
+    "direction": "in",
+    "packet": {
+      "kind": "result",
+      "rpcId": "request-4",
+      "response": {
+        "success": true,
+        "lines": [],
+        "sourceText": "SYNTHETIC SOURCE 2: ALPHA 123",
+        "translatedText": "合成译文 2：阿尔法 123",
+        "mode": "standard",
+        "service": "openai",
+        "serviceName": "OpenAI",
+        "model": "gpt-4.1-mini",
+        "recognitionMethod": "vision",
+        "warnings": [
+          "standard-quality"
+        ],
+        "imageLength": 12414,
+        "imagePrefix": "data:image/png;base64,iVBORw0K"
+      }
+    }
+  }
+}

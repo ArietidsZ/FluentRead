@@ -1,5 +1,5 @@
 {
-  "status": "two boundaries passed; area cold offscreen creation remains blocked by production language preflight",
+  "status": "historical run: two boundaries passed; area incomplete because capable vision provider/model and synthetic endpoint fixture configuration was not executed",
   "application_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
   "application_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
   "accepted_cases": [
@@ -74,10 +74,16 @@
   "ocr_or_language_model_downloads": false,
   "new_cancel_source_tested": false,
   "remaining": [
-    "area first offscreen creation after language preparation",
     "complete OCR/translation",
     "real RTX5090 WebGPU",
     "native Wayland/Cua desktop path",
     "GUI of newer cancellation source"
-  ]
+  ],
+  "area_conclusion_correction": "Default mode was prefer-vision. The prior test omitted capable provider/model, explicit capability and local endpoint fixture configuration, inherited freeTranslation and normally fell back to OCR. Its actual missing-pack response did not establish a production vision limitation.",
+  "area_followup": {
+    "status": "passed in a separate area-only run",
+    "evidence": "../20261008-cw-neo-area-vision-cold/README.md",
+    "historical_raw_records_unchanged": true,
+    "language_preparation_required": false
+  }
 }

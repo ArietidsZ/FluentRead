@@ -1,0 +1,98 @@
+{
+  "geometry": {
+    "left": 60,
+    "top": 55,
+    "right": 610,
+    "bottom": 145
+  },
+  "full": {
+    "file": "area-1-production-capture.png",
+    "mime": "image/png",
+    "width": 1040,
+    "height": 819,
+    "bytes": 23028,
+    "sha256": "229f5bc35e667cdad48ae35579df9979ffa61df4d461dbee84a15fc07090f9e1"
+  },
+  "cropped": {
+    "file": "area-1-production-crop.png",
+    "mime": "image/png",
+    "width": 550,
+    "height": 90,
+    "bytes": 14995,
+    "sha256": "792f16fc68c7ed3fd3747881c9622ef69179921418137ff1119e61dd777e24a0"
+  },
+  "offscreenTargets": [
+    {
+      "targetId": "5B95032D57AB0C0AADD2AD55F31D9C13",
+      "type": "background_page",
+      "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/offscreen.html"
+    }
+  ],
+  "worker": {
+    "events": [
+      {
+        "at": 1791464207125,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207135,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207146,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207148,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207148,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207506,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207583,
+        "kind": "production-createDocument",
+        "options": {
+          "url": "offscreen.html",
+          "reasons": [
+            "DOM_SCRAPING",
+            "AUDIO_PLAYBACK",
+            "WORKERS"
+          ],
+          "justification": "FluentRead needs an extension-owned DOM for Translation API, OCR, local video transcription workers, and CSP-independent TTS playback"
+        }
+      },
+      {
+        "at": 1791464207608,
+        "kind": "production-sendMessage",
+        "type": "FLUENT_READ_OFFSCREEN_READY"
+      },
+      {
+        "at": 1791464207609,
+        "kind": "production-sendMessage",
+        "type": "FLUENT_READ_AREA_CROP_OFFSCREEN",
+        "requestId": "image-transaction:2f7f17f1-5584-448b-85d4-7f7104d42a3b:2",
+        "selection": {
+          "left": 60,
+          "top": 55,
+          "width": 550,
+          "height": 90,
+          "viewportWidth": 1040,
+          "viewportHeight": 819
+        },
+        "imageLength": 30726
+      }
+    ]
+  }
+}

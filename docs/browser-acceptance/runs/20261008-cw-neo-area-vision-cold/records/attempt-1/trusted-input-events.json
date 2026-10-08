@@ -1,0 +1,84 @@
+[
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "keydown",
+    "isTrusted": true,
+    "key": "Z"
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 60,
+    "y": 55
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 610,
+    "y": 145
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 492.5703125,
+    "y": 181
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 492.5703125,
+    "y": 181
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 40,
+    "y": 40
+  },
+  {
+    "type": "keydown",
+    "isTrusted": true,
+    "key": "Z"
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 70,
+    "y": 150
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 620,
+    "y": 240
+  },
+  {
+    "type": "pointerdown",
+    "isTrusted": true,
+    "x": 502.5703125,
+    "y": 276
+  },
+  {
+    "type": "pointerup",
+    "isTrusted": true,
+    "x": 502.5703125,
+    "y": 276
+  }
+]

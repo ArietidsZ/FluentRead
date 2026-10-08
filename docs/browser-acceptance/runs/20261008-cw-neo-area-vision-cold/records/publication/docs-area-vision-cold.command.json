@@ -1,0 +1,16 @@
+{
+  "label": "docs-area-vision-cold",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-neo-isolated-port-evidence-20261008",
+  "started_at": "2026-10-08T13:00:21.312015+00:00",
+  "duration_seconds": 2.564,
+  "exit_code": 0
+}

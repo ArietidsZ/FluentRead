@@ -1,0 +1,87 @@
+{
+  "events": [
+    {
+      "at": 1791464207125,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207135,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207146,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207148,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207148,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207506,
+      "kind": "production-sendMessage",
+      "type": "configStorageChanged"
+    },
+    {
+      "at": 1791464207583,
+      "kind": "production-createDocument",
+      "options": {
+        "url": "offscreen.html",
+        "reasons": [
+          "DOM_SCRAPING",
+          "AUDIO_PLAYBACK",
+          "WORKERS"
+        ],
+        "justification": "FluentRead needs an extension-owned DOM for Translation API, OCR, local video transcription workers, and CSP-independent TTS playback"
+      }
+    },
+    {
+      "at": 1791464207608,
+      "kind": "production-sendMessage",
+      "type": "FLUENT_READ_OFFSCREEN_READY"
+    },
+    {
+      "at": 1791464207609,
+      "kind": "production-sendMessage",
+      "type": "FLUENT_READ_AREA_CROP_OFFSCREEN",
+      "requestId": "image-transaction:2f7f17f1-5584-448b-85d4-7f7104d42a3b:2",
+      "selection": {
+        "left": 60,
+        "top": 55,
+        "width": 550,
+        "height": 90,
+        "viewportWidth": 1040,
+        "viewportHeight": 819
+      },
+      "imageLength": 30726
+    },
+    {
+      "at": 1791464208165,
+      "kind": "production-sendMessage",
+      "type": "FLUENT_READ_OFFSCREEN_READY"
+    },
+    {
+      "at": 1791464208165,
+      "kind": "production-sendMessage",
+      "type": "FLUENT_READ_AREA_CROP_OFFSCREEN",
+      "requestId": "image-transaction:2f7f17f1-5584-448b-85d4-7f7104d42a3b:4",
+      "selection": {
+        "left": 70,
+        "top": 150,
+        "width": 550,
+        "height": 90,
+        "viewportWidth": 1040,
+        "viewportHeight": 819
+      },
+      "imageLength": 30726
+    }
+  ]
+}

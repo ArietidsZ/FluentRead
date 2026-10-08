@@ -1,0 +1,147 @@
+{
+  "status": "passed",
+  "applicationCommit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "applicationTree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "actualExecution": {
+    "label": "area-attempt-1",
+    "command": [
+      "node",
+      "execution/run-area-vision-cold.mjs",
+      "attempt-1"
+    ],
+    "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/neo-area-vision-cold-20261008",
+    "started_at": "2026-10-08T12:56:46.353752+00:00",
+    "duration_seconds": 2.749,
+    "exit_code": 0
+  },
+  "acceptedCases": [
+    {
+      "name": "cold area vision: trusted UI -> capture -> first production offscreen -> crop -> synthetic vision -> result",
+      "status": "passed",
+      "durationMs": 346,
+      "recognitionMethod": "vision",
+      "full": {
+        "file": "area-1-production-capture.png",
+        "mime": "image/png",
+        "width": 1040,
+        "height": 819,
+        "bytes": 23028,
+        "sha256": "229f5bc35e667cdad48ae35579df9979ffa61df4d461dbee84a15fc07090f9e1"
+      },
+      "cropped": {
+        "file": "area-1-production-crop.png",
+        "mime": "image/png",
+        "width": 550,
+        "height": 90,
+        "bytes": 14995,
+        "sha256": "792f16fc68c7ed3fd3747881c9622ef69179921418137ff1119e61dd777e24a0"
+      },
+      "syntheticEndpoint": "http://127.0.0.1:46013/v1/chat/completions",
+      "providerVisionOrdinal": 1
+    },
+    {
+      "name": "close/reopen -> no stale result -> second production area vision result",
+      "status": "passed",
+      "durationMs": 495,
+      "recognitionMethod": "vision",
+      "full": {
+        "file": "area-2-production-capture.png",
+        "mime": "image/png",
+        "width": 1040,
+        "height": 819,
+        "bytes": 23028,
+        "sha256": "229f5bc35e667cdad48ae35579df9979ffa61df4d461dbee84a15fc07090f9e1"
+      },
+      "cropped": {
+        "file": "area-2-production-crop.png",
+        "mime": "image/png",
+        "width": 550,
+        "height": 90,
+        "bytes": 9294,
+        "sha256": "f63ce00fb389bbce0da3a9eb81463f82d9ce9fee3e15b3f2e0439986e91d826c"
+      },
+      "syntheticEndpoint": "http://127.0.0.1:46013/v1/chat/completions",
+      "providerVisionOrdinal": 2
+    }
+  ],
+  "configuration": {
+    "pageUrl": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/manifest.json",
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "apiSequence": [
+      "configStorageRead local:config",
+      "persistConfig replace",
+      "configStorageRead local:config"
+    ],
+    "before": {
+      "revision": 1,
+      "areaRecognitionMode": "prefer-vision",
+      "areaTranslationService": "",
+      "service": "freeTranslation"
+    },
+    "saved": {
+      "success": true,
+      "revision": 2
+    },
+    "readback": {
+      "on": true,
+      "selectionAreaEnabled": true,
+      "selectionAreaHotkey": "Shift+Z",
+      "customSelectionAreaHotkey": "",
+      "areaRecognitionMode": "prefer-vision",
+      "areaTranslationService": "openai",
+      "areaTranslationMode": "standard",
+      "from": "en",
+      "to": "zh-Hans",
+      "translationMaxRetries": 0,
+      "model": {
+        "openai": "gpt-4.1-mini"
+      },
+      "modelVision": {
+        "openai": {
+          "gpt-4.1-mini": true
+        }
+      },
+      "proxy": {
+        "openai": "http://127.0.0.1:46013/v1/chat/completions"
+      },
+      "revision": 2
+    },
+    "fixtureTokenProvidedInPersist": true,
+    "credentialRecordsRead": false,
+    "tokenPublished": false,
+    "enabledFieldPresent": false
+  },
+  "coldBeforeGesture": {
+    "offscreenTargets": [],
+    "productionCreateDocumentCalls": 0,
+    "statusQueries": 0,
+    "driverCreateDocumentCalls": 0
+  },
+  "observedFirstRoundTimelineUnixMs": {
+    "productionCaptureResponse": 1791464207580,
+    "productionAreaTranslateStart": 1791464207581,
+    "productionCreateDocument": 1791464207583,
+    "productionCropSend": 1791464207609
+  },
+  "actualProductionCreateDocumentCallsTotal": 1,
+  "actualProductionCropMessagesTotal": 2,
+  "providerPosts": 4,
+  "syntheticVisionPosts": 2,
+  "syntheticTextTranslationPosts": 2,
+  "syntheticResponses": true,
+  "realProviderApiCalls": 0,
+  "languagePackDownloads": 0,
+  "handlerReplacements": 0,
+  "memoryConfigWrites": 0,
+  "credentialRecordsRead": false,
+  "rerunPriorImageAuthorizationOrReconnect": false,
+  "remaining": [
+    "real model quality",
+    "OCR packs",
+    "RTX5090 WebGPU",
+    "daily Wayland/Cua input",
+    "image authorization/reconnect rerun",
+    "ed89 cancellation GUI"
+  ],
+  "previousAreaConclusionCorrection": "Default mode was prefer-vision. The prior test omitted capable provider/model, explicit capability and local endpoint fixture configuration, inherited freeTranslation and normally fell back to OCR. Its actual missing-pack response did not establish a production vision limitation."
+}

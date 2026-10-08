@@ -1,0 +1,18 @@
+{
+  "pageTarget": "178A051711CBD8866B090A4EB25CAF99",
+  "context": {
+    "id": 3,
+    "origin": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj",
+    "name": "FluentRead-流畅阅读",
+    "uniqueId": "120818639864266762.-1960957996760242727",
+    "auxData": {
+      "isDefault": false,
+      "type": "isolated",
+      "frameId": "178A051711CBD8866B090A4EB25CAF99"
+    }
+  },
+  "observer": {
+    "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+    "observationOnly": true
+  }
+}

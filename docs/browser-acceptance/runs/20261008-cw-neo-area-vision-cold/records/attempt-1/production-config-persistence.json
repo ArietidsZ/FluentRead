@@ -1,0 +1,47 @@
+{
+  "pageUrl": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/manifest.json",
+  "extensionId": "djnlaiohfaaifbibleebjggkghlmcpcj",
+  "apiSequence": [
+    "configStorageRead local:config",
+    "persistConfig replace",
+    "configStorageRead local:config"
+  ],
+  "before": {
+    "revision": 1,
+    "areaRecognitionMode": "prefer-vision",
+    "areaTranslationService": "",
+    "service": "freeTranslation"
+  },
+  "saved": {
+    "success": true,
+    "revision": 2
+  },
+  "readback": {
+    "on": true,
+    "selectionAreaEnabled": true,
+    "selectionAreaHotkey": "Shift+Z",
+    "customSelectionAreaHotkey": "",
+    "areaRecognitionMode": "prefer-vision",
+    "areaTranslationService": "openai",
+    "areaTranslationMode": "standard",
+    "from": "en",
+    "to": "zh-Hans",
+    "translationMaxRetries": 0,
+    "model": {
+      "openai": "gpt-4.1-mini"
+    },
+    "modelVision": {
+      "openai": {
+        "gpt-4.1-mini": true
+      }
+    },
+    "proxy": {
+      "openai": "http://127.0.0.1:46013/v1/chat/completions"
+    },
+    "revision": 2
+  },
+  "fixtureTokenProvidedInPersist": true,
+  "credentialRecordsRead": false,
+  "tokenPublished": false,
+  "enabledFieldPresent": false
+}

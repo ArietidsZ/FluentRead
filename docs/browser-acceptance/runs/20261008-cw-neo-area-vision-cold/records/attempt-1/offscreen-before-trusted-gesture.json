@@ -1,0 +1,36 @@
+{
+  "at": 1791464207407,
+  "offscreenTargets": [],
+  "worker": {
+    "events": [
+      {
+        "at": 1791464207125,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207135,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207146,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207148,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      },
+      {
+        "at": 1791464207148,
+        "kind": "production-sendMessage",
+        "type": "configStorageChanged"
+      }
+    ]
+  },
+  "configPageClosed": true,
+  "statusQueries": 0,
+  "driverCreateDocumentCalls": 0
+}

@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "scope": "captured records only; no browser rerun",
+  "providerPayloadsReconstructed": 4,
+  "bodyBytesAndSha256Match": true,
+  "decodedCropHashesMatch": true,
+  "configRevisionAndReadbackMatch": true,
+  "preGestureColdTargetAndCreateCallsZero": true,
+  "postGestureProductionCreateCalls": 1,
+  "cropMessages": 2,
+  "noOcrMessages": true,
+  "firstCaptureTranslateCreateTimeOrder": true,
+  "reopenedHasNoPreviousResult": true,
+  "trustedRecordedInputs": 14,
+  "credentialRecordsRead": false
+}

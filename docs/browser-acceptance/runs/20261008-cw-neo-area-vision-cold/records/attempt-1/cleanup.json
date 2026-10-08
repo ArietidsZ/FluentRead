@@ -1,0 +1,38 @@
+{
+  "ownedPidsBefore": [
+    2886749,
+    2886754,
+    2886755,
+    2886756,
+    2886763,
+    2886765,
+    2886773,
+    2886774,
+    2886776,
+    2886802,
+    2886804,
+    2886816,
+    2886895,
+    2886911,
+    2886912,
+    2886983,
+    2886993,
+    2886994,
+    2887039
+  ],
+  "listenersBefore": [
+    {
+      "family": "tcp",
+      "address": "127.0.0.1",
+      "port": 35709,
+      "inode": "9026050",
+      "loopback": true
+    }
+  ],
+  "remainingPids": [],
+  "remainingOwnedListeners": [],
+  "xSocketExists": false,
+  "profileRetainedForEvidence": true,
+  "profileRoot": "/tmp/fluentread-neo-port-AEjkwz",
+  "noDailyBrowserClosed": true
+}
