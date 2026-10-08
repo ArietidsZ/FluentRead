@@ -145,6 +145,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const router = createBackgroundMessageRouter(
         handlers,
         createTranslationRequestFallback({
+            runtimeId: browser.runtime.id,
             translate: translateWithCache,
             serializeError: serializeTranslationError,
             requestRegistry: translationRequestRegistry,

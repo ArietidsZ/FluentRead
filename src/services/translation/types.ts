@@ -132,6 +132,9 @@ export interface TranslationConfigSnapshot {
         glossaryIds?: readonly string[] | null;
     }>;
     service: string;
+    incognitoService?: string;
+    incognitoModel?: string;
+    customModels?: Record<string, string[]>;
     from: string;
     to: string;
     useCache: boolean;

@@ -11,6 +11,7 @@ import {getChineseScript, normalizeChineseLanguageCode} from '@/src/core/languag
 import {currentModelIds, customModelString, defaultOption, services} from '@/src/core/config/catalog';
 import {mergeCustomBody, parseCustomBody} from '@/src/core/config/customBody';
 import {migrateModelIdentifier} from '@/src/core/config/model';
+import {getLockedIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {config} from '@/src/services/config/store';
 import type {TranslationProviderConfigSnapshot} from './types';
 import {
@@ -119,6 +120,10 @@ export function currentConfiguredModel(
     service: string,
     modelOverride?: string,
 ): string {
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        const locked = getLockedIncognitoRoute(current);
+        if (locked?.service === service) return locked.model;
+    }
     if (modelOverride?.trim()) return migrateModelIdentifier(service, modelOverride);
 
     const selectedModel = current.model[service];

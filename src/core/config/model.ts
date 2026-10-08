@@ -10,6 +10,7 @@ import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE,
 import {normalizeMangaSiteRules, normalizeMangaPrefetchPages, normalizeMangaCachePages, type MangaSiteRule} from './manga';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
+import {initializeIncognitoRouteConfig, normalizeIncognitoRouteConfig} from '@/src/core/config/incognitoRoute';
 import {
     currentModelIds,
     defaultModelIds,
@@ -353,6 +354,8 @@ export class Config {
     activeTranslationStyleProfileId: string; // 当前选中的样式快照；外观可继续编辑，保存时再更新快照
     display: number = 1;
     service: string;
+    declare incognitoService: string; // 私密来源专用服务；两字段均空时保持普通路由
+    declare incognitoModel: string; // 独立实际模型编号，错误配置必须关闭私密请求
     hoverTranslationService: string; // 悬浮翻译服务，空值跟随默认网页服务
     selectionTranslationService: string; // 普通划词翻译服务，空值跟随默认网页服务
     imageTranslationService: string; // 图片 OCR 后的文字翻译服务，空值跟随默认网页服务
@@ -550,6 +553,7 @@ export class Config {
         this.hotkey = defaultOption.hotkey;
         this.hoverShortcutBeforeDisable = defaultOption.hotkey;
         this.service = defaultOption.service;
+        initializeIncognitoRouteConfig(this);
         this.hoverTranslationService = '';
         this.selectionTranslationService = '';
         this.imageTranslationService = '';
@@ -1159,6 +1163,7 @@ export function normalizeConfig(value: unknown): Config {
     normalized.token = apiKeysToToken(normalized.apiKeys);
     normalized.secret = withoutRetiredServiceEntries(normalizeStringMapping(source.secret));
     normalized.serviceRegion = normalizeCloudRegionMapping(source.serviceRegion);
+    normalizeIncognitoRouteConfig(normalized, source);
     normalized.model = withoutRetiredServiceEntries(normalizeStringMapping(source.model));
     normalized.documentModel = withoutRetiredServiceEntries(normalizeStringMapping(source.documentModel));
     normalized.requireApiKey = isBooleanMapping(source.requireApiKey)

@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/broker.ts
  *
- * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
+ * 文件职责：编排翻译请求的配置快照、可信私密路由、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
  * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
@@ -24,6 +24,7 @@ import {
     attachTranslationRouteObserver,
     attachTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
+    hasTrustedPrivateSource,
     getTranslationGlossaryContext,
     getTranslationProviderConfig,
     getTranslationGlossarySourceText,
@@ -46,6 +47,7 @@ import {
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
 import {customModelString, services} from '@/src/core/config/catalog';
+import {getLockedIncognitoRoute, lockIncognitoRoute, resolveIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {currentConfiguredModel, getCurrentModel} from './templates';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {supportsVisionTransport} from '@/src/core/config/vision';
@@ -185,6 +187,10 @@ export function resolveTranslationRequestModel(
     isAiSdk: (service: string) => boolean,
     isAI: (service: string) => boolean,
 ): string {
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        const locked = getLockedIncognitoRoute(current);
+        if (locked?.service === service) return locked.model;
+    }
     const selected = service === services.gemini
         ? modelOverride || (current.model[service] === customModelString ? current.customModel[service] : current.model[service]) || ''
         : service === services.deepseek
@@ -1583,6 +1589,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
 
         // 步骤 1：圈选等受信后台事务沿用开始时的 symbol 快照；公开请求在 cache/provider await 前复制配置。
         let current = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config()));
+        if (hasTrustedPrivateSource(message)) {
+            const route = getLockedIncognitoRoute(current) ?? resolveIncognitoRoute(current);
+            if (route) {
+                current = lockIncognitoRoute({...current, service: route.service,
+                    model: Object.freeze({...current.model, [route.service]: route.model}),
+                    customModel: Object.freeze({...current.customModel, [route.service]: route.model}),
+                }, route);
+                message = {...message, serviceOverride: route.service, modelOverride: route.model};
+            }
+        }
         const serviceOverride = message.serviceOverride;
         const selectedService = serviceOverride || current.service;
         trace.serviceId = selectedService;

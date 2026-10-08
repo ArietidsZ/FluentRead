@@ -24,6 +24,24 @@ const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
 
 describe('userscript browser shim injection', () => {
+    it('excludes extension private routing when native sender identity is unavailable', async () => {
+        const alias = userscriptAliases.find(entry => entry.find === '@/src/core/config/incognitoRoute');
+        expect(alias?.replacement).toBe(resolve(process.cwd(), 'userscript/incognitoRoute.ts'));
+        const stub = await import('@/userscript/incognitoRoute');
+        expect(stub.NATIVE_PRIVATE_ROUTE_SUPPORTED).toBe(false);
+        const config = {incognitoService: 'openai', incognitoModel: 'gpt-5.4-mini'};
+        expect(stub.resolveIncognitoRoute(config)).toBeUndefined();
+        expect(stub.getLockedIncognitoRoute({incognito: true})).toBeUndefined();
+        expect(stub.lockIncognitoRoute(config, {service: 'openai', model: 'gpt-5.4-mini'})).toBe(config);
+        expect(stub.normalizeIncognitoRouteField(false)).not.toBe('');
+        expect(userscriptAliases.find(entry => entry.find === '@/src/services/translation/requestPrivacy')?.replacement).toBe(alias?.replacement);
+        expect(stub.hasTrustedPrivateSource({incognito: true})).toBe(false);
+        expect(stub.attachTrustedPrivateSource(config)).toBe(config);
+        const imported = {incognitoService: false};
+        stub.initializeIncognitoRouteConfig(imported);
+        stub.normalizeIncognitoRouteConfig(imported);
+        expect(imported.incognitoService).toBe(false);
+    });
     it('pins each remote language file to a commit containing exactly its built contents', () => {
         const defines = (userscriptConfig as {define: Record<string, string>}).define;
         const commit = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__);

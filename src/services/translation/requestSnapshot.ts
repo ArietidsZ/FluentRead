@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：在翻译消息上附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：定义配置快照、剩余预算、内部取消、线路观察与可信术语来源 symbol，冻结术语规则并从完整文本槽协议恢复纯匹配原文，供后台 broker 安全传递进程内状态。
+ * 主要内容：定义配置快照、剩余预算、内部取消、线路观察、可信私密来源与术语来源 symbol，冻结术语规则并从完整文本槽协议恢复纯匹配原文，供后台 broker 安全传递进程内状态。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -30,6 +30,7 @@ export const TRANSLATION_REQUEST_CONTROL = Symbol('fluentread.translation-reques
 export const TRANSLATION_REQUEST_SCHEDULER = Symbol('fluentread.translation-scheduler');
 export const TRANSLATION_GLOSSARY_CONTEXT = Symbol('fluentread.translation-glossary-context');
 export const TRANSLATION_IMAGE_INPUT = Symbol('fluentread.translation-image-input');
+export {attachTrustedPrivateSource, hasTrustedPrivateSource} from '@/src/services/translation/requestPrivacy';
 
 const MAX_TRANSLATION_IMAGE_INPUT_LENGTH = 20 * 1024 * 1024;
 const IMAGE_DATA_URL_RE = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/]+={0,2})$/u;
@@ -280,7 +281,7 @@ function frozenStringMap(value: Record<string, string> | undefined): Readonly<Re
     return Object.freeze({...value});
 }
 
-function frozenApiKeys(value: Record<string, readonly string[]> | undefined): Readonly<Record<string, readonly string[]>> {
+function frozenStringLists(value: Record<string, readonly string[]> | undefined): Readonly<Record<string, readonly string[]>> {
     return Object.freeze(Object.fromEntries(Object.entries(value ?? {}).map(([service, keys]) => [service, Object.freeze([...keys])]))) as Readonly<Record<string, readonly string[]>>;
 }
 
@@ -332,15 +333,14 @@ function frozenCustomOpenAIProviders(
 export function createTranslationProviderConfigSnapshot(
     source: TranslationConfigSource,
 ): TranslationProviderConfigSnapshot {
-    // 已保存模型列表只服务于设置 UI，不参与一次请求的模型身份；显式排除，避免
-    // Config 结构化兼容传入时把可变数组引用带进冻结快照。
+    // 已保存模型列表也是私密路由的实际模型白名单，逐项复制并冻结。
     // 免费服务权重只由后台性能统计决定，不接受导入配置或旧设置中的手动权重。
-    const {customModels: _savedCustomModels, freeTranslationWeights: _manualWeights, ...providerSource} = source as TranslationConfigSource & {
-        customModels?: unknown;
+    const {freeTranslationWeights: _manualWeights, ...providerSource} = source as TranslationConfigSource & {
         freeTranslationWeights?: unknown;
     };
     return Object.freeze({
         ...providerSource,
+        customModels: frozenStringLists(source.customModels),
         freeTranslationOrder: Object.freeze(normalizeFreeTranslationOrder(source.freeTranslationOrder)),
         freeTranslationMode: normalizeFreeTranslationMode(source.freeTranslationMode),
         deeplApiPlan: normalizeDeepLApiPlan(source.deeplApiPlan),
@@ -371,7 +371,7 @@ export function createTranslationProviderConfigSnapshot(
         system_role: frozenStringMap(source.system_role),
         user_role: frozenStringMap(source.user_role),
         token: frozenStringMap(source.token),
-        apiKeys: frozenApiKeys(source.apiKeys),
+        apiKeys: frozenStringLists(source.apiKeys),
         secret: frozenStringMap(source.secret),
         serviceRegion: frozenStringMap(source.serviceRegion),
         requireApiKey: frozenBooleanMap(source.requireApiKey),

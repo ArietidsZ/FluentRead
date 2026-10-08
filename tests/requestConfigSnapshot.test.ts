@@ -212,7 +212,9 @@ describe('translation provider request config snapshot', () => {
             tencentSecretId: 'tencent-id-a',
             tencentSecretKey: 'tencent-key-a',
         });
-        expect(snapshot).not.toHaveProperty('customModels');
+        expect(snapshot.customModels).toEqual({aiSdk: ['saved-ui-model']});
+        expect(Object.isFrozen(snapshot.customModels)).toBe(true);
+        expect(Object.isFrozen(snapshot.customModels!.aiSdk)).toBe(true);
         expect([
             snapshot,
             snapshot.model,
