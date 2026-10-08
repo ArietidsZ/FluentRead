@@ -1,0 +1,34 @@
+# Image/area document connection compatibility: unimplemented follow-up
+
+Status: read-only source/API review and offline red evidence only. Parent termination is fixed separately in `ed52037478b4040f236fb4cc210266d34c0730cb`. This plan has no production Port protocol implementation and no real Firefox/Chrome/BFCache acceptance.
+
+Firefox minimum remains 140. Mozilla BCD currently lists `runtime.MessageSender.documentId` starting at Firefox 153; `runtime.connect`/Port is available in the supported range. References: [Mozilla BCD runtime source](https://github.com/mdn/browser-compat-data/blob/main/webextensions/api/runtime.json), [Mozilla Port lifecycle](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/Port), [Chrome Port lifetime](https://developer.chrome.com/docs/extensions/develop/concepts/messaging#port-lifetime). Browser-owned Port peer binding provides context separation. Disconnect notification is asynchronous; do not claim zero work after navigation.
+
+## Evidence and current boundary
+
+`document-fallback-controlled-red.results.json` records four expected failures and one negative control. Identical extension/tab/frame/URL metadata with no documentId aliases cancellation and concurrent admission. Actual progress and source-verifier adapters select the replacement frame slot without a documentId. The negative control supplies browser document IDs, verifies foreign cancellation rejection/original cancellation and precise original-document transport, and retains the original image-source caller ID. This is an offline fixture using production registry/adapters, not two actual Firefox documents or a browser exploitation claim. The first four-case run is also retained.
+
+## Minimum separate implementation scope
+
+| Location | Required change and invariant |
+| --- | --- |
+| Image services client `sendCancellableImageOperation`; area services client | Lazily share one named/versioned content-origin `runtime.connect` Port per content context. Bind start/cancel/progress/result RPC to this peer. Reject a duplicate pending caller ID locally or use separate RPC correlation IDs so its rejection cannot settle the first call. Area capture currently bypasses the helper and must join this channel. |
+| Image language preparation in that same helper | Preserve background-owned language downloads on their existing path; page disconnect must not cancel these downloads. Limit channel routing to the affected image/area operations. |
+| A feature-local connection session helper and existing app `areaRuntime`/`messageRuntime` assembly | On the selected internal Port name, verify actual `port.sender.id === browser.runtime.id`; create a private, non-deserializable capability using the actual received Port object. No `onConnectExternal`, payload identity, URL-derived identity or latest tab/frame lookup. Other existing onConnect listeners must ignore unknown names rather than disconnect every Port. |
+| `operationRegistry.ts` | Prefer a trusted session owner only for admitted channel calls; leave the global weak `requestOwnerKey` unchanged. Preserve capability in immutable original owner context and bind/borrow operations. Add idempotent releaseOwner: revoke session, active/owner lookup and pre-cancel entries before abort; use identity-checked cleanup. Existing tab-removal remains a fallback. |
+| `imageGlossaryContext.ts` | Recheck session liveness after `await ready` and before admission/snapshot work; a disconnected request waiting for config must never create a new transaction. Preserve sender validation and trusted offscreen restoration rules. |
+| Image `offscreenAdapter.ts` progress and source verifier | Send progress/result and source challenge/reply through the retained original live Port. Never fall back to frame-only tab messaging. If retaining modern one-shot requests, require browser documentId and precise targeting with no unqualified retry. |
+| Image content `sourceAuthorization.ts` | Retain original image-source-* callerRequestId and selected image/currentSrc/document/attribute checks. Handle a source-validation challenge only on its owning Port. A response from B cannot satisfy A; cancellation, timeout and disconnect revoke pending challenges. Internal transaction/RPC/handshake IDs must not replace the original source authorization ID. |
+| Area background handlers and capture dependencies | Check session liveness around the existing capture queue delay, existing real tab/window/active ownership validation and capture completion. A disconnected session receives no screenshot. Preserve those existing browser checks; Port cannot make captureVisibleTab an atomic document capture. |
+
+New connection means new owner even before old onDisconnect arrives. It cannot restore or cancel the previous session. Retry uses a new public request ID with the original absolute deadline. Handshake confirms protocol only. All start/cancel/progress/result/source challenge messages stay on the owning Port rather than sending a channel token over one-shot runtime messages.
+
+If there is neither a trusted documentId nor an accepted live Port, refuse only the affected image/area transaction path with a retry/refresh message; do not manufacture an empty-document owner. Do not disable all Firefox features, raise minimum version or request webNavigation/new permissions. Stale pre-update content scripts may require refreshing to establish the new protocol; report this user-visible compatibility effect explicitly before deployment.
+
+## Separate acceptance scope
+
+Deterministic offline tests must cover two distinct actual mocked Port instances with the same sender/tab/frame/URL and no documentId: same callerID concurrent admission; cross-cancel rejection; original-owner duplicate rejection; old progress/result/source replies never reaching B before delayed disconnect; same-URL reload and iframe replacement; configReady/capture queue/source challenge/OCR/provider pending during disconnect; repeated disconnect/tabclose/late-finalizer idempotence; spoofed B reply; source public ID and changed-image checks; absent-doc/absent-port fail-close; trusted live offscreen internal ID; reconnect deadline preservation; background downloads surviving page disconnect.
+
+After those checks, real Firefox 140-compatible and Chrome temporary-profile navigation/iframe/BFCache and connection teardown tests are still required under the existing focus-safe rules. Use no daily profile, remote control port or permission/settings change without authorization. Offline mocked Port results cannot close real-browser acceptance.
+
+Parent termination can be reviewed and accepted now without this cross-layer migration. The protocol/client/source/capture changes form a separate coherent follow-up commit series so partial progress-only migration cannot be represented as complete document isolation.

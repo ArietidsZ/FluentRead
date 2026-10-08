@@ -1,0 +1,12 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/vitest/vitest.mjs run tests/featureTranslationClients.test.ts --reporter=default --reporter=json --outputFile=<CW_TASK_ROOT>/image-area-parent-termination-20261008/client-clock-isolation.results.json
+
+ RUN  v2.1.9 <CW_WORKTREE>
+
+ ✓ tests/featureTranslationClients.test.ts (36 tests) 14ms
+
+ Test Files  1 passed (1)
+      Tests  36 passed (36)
+   Start at  13:03:02
+   Duration  351ms (transform 174ms, setup 0ms, collect 231ms, tests 14ms, environment 0ms, prepare 22ms)
+
+JSON report written to <CW_TASK_ROOT>/image-area-parent-termination-20261008/client-clock-isolation.results.json

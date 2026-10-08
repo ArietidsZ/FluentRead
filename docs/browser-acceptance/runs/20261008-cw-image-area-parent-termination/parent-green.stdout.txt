@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 <CW_WORKTREE>
+
+ ✓ tests/imageTransactionIdentity.test.ts (23 tests) 47ms
+ ✓ tests/imageGlossaryContext.test.ts (14 tests) 30ms
+
+ Test Files  2 passed (2)
+      Tests  37 passed (37)
+   Start at  12:57:52
+   Duration  857ms (transform 400ms, setup 0ms, collect 588ms, tests 77ms, environment 0ms, prepare 43ms)
+
+JSON report written to <CW_TASK_ROOT>/image-area-parent-termination-20261008/parent-green.results.json

@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --reporter=json --outputFile=<CW_TASK_ROOT>/image-area-parent-termination-20261008/strict-parent.results.json --coverage.reportsDirectory=<CW_TASK_ROOT>/image-area-parent-termination-20261008/strict-parent-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text
+JSON report written to <CW_TASK_ROOT>/image-area-parent-termination-20261008/strict-parent.results.json

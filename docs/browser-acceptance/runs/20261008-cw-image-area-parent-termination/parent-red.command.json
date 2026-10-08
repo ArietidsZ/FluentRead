@@ -1,0 +1,18 @@
+{
+  "label": "parent-red",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageTransactionIdentity.test.ts",
+    "-t",
+    "父事务结束",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW_TASK_ROOT>/image-area-parent-termination-20261008/parent-red.results.json"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:57:24.187810+00:00",
+  "duration_seconds": 0.661,
+  "exit_code": 1
+}

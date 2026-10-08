@@ -1,0 +1,17 @@
+
+ RUN  v2.1.9 <CW_WORKTREE>
+
+ ❯ tests/imageTransactionIdentity.test.ts (23 tests | 3 failed | 20 skipped) 11ms
+   × 父事务结束撤销剩余子工作 > 父failure保留原结果并先撤销恢复权限再中止悬挂子调用 5ms
+     → expected false to be true // Object.is equality
+   × 父事务结束撤销剩余子工作 > 父success保留原结果并先撤销恢复权限再中止悬挂子调用 0ms
+     → expected false to be true // Object.is equality
+   × 父事务结束撤销剩余子工作 > 真实handler链在离屏父失败后拒绝第四段non-batch供应商调用 5ms
+     → expected "spy" to be called 3 times, but got 4 times
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 20 skipped (23)
+   Start at  12:57:24
+   Duration  513ms (transform 300ms, setup 0ms, collect 397ms, tests 11ms, environment 0ms, prepare 20ms)
+
+JSON report written to <CW_TASK_ROOT>/image-area-parent-termination-20261008/parent-red.results.json

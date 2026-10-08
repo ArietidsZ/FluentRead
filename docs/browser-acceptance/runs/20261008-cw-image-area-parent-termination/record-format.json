@@ -1,0 +1,5 @@
+{
+  "raw_logs": "Original command stdout/stderr remain on CW outside repository.",
+  "published_logs": "Local path aliases plus terminal trailing whitespace/extra final blank line normalization for Git whitespace checks; substantive lines, commands, counts and failure outcomes preserved.",
+  "whitespace_normalization_scope": "Only nonempty .txt evidence logs. JSON results/coverage and source fixtures are not whitespace-normalized."
+}

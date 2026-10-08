@@ -1,0 +1,6 @@
+{
+  "source": "architecture-parent.stdout.txt",
+  "offset": 1492,
+  "json_characters": 425763,
+  "reason": "The intended outputFile value was supplied as an extra positional test filter. All 32 explicitly listed matrix files ran; raw JSON was emitted on stdout and extracted without changing outcomes."
+}

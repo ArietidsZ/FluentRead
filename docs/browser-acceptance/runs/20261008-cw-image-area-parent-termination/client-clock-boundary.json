@@ -1,0 +1,19 @@
+{
+  "first_complete_run": "strict-parent.results.json",
+  "first_result": "9557 passed, one unchanged client timeout assertion failed: 2nd sendMessage call expected, zero calls observed",
+  "isolated_run": "client-clock-isolation.results.json",
+  "isolated_result": "36/36 passed without changes",
+  "source_evidence": {
+    "tests/featureTranslationClients.test.ts": {
+      "baseline_sha256": "b72146dbf4e3843821f144ce9b295c0537bef990a0cfe2fa85ee1c7905f2d1a4",
+      "current_sha256": "b72146dbf4e3843821f144ce9b295c0537bef990a0cfe2fa85ee1c7905f2d1a4",
+      "unchanged": true
+    },
+    "src/features/image-translation/services/client.ts": {
+      "baseline_sha256": "701f980314b28912596df781e867b0f7432ae5d244ce4c75cbe134410072d082",
+      "current_sha256": "701f980314b28912596df781e867b0f7432ae5d244ce4c75cbe134410072d082",
+      "unchanged": true
+    }
+  },
+  "inference": "The 1ms real-clock deadline can expire at translateImageInExtension remainingTimeout check before sending the business request. This is a timing interpretation supported by unchanged source and zero observed calls, not a measured clock trace. No test assertion, timeout, source client code or threshold changed."
+}

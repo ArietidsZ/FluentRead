@@ -1,0 +1,22 @@
+{
+  "label": "strict-parent",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=<CW_TASK_ROOT>/image-area-parent-termination-20261008/strict-parent.results.json",
+    "--coverage.reportsDirectory=<CW_TASK_ROOT>/image-area-parent-termination-20261008/strict-parent-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:58:23.309089+00:00",
+  "duration_seconds": 173.821,
+  "exit_code": 1
+}

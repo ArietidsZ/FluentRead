@@ -1,0 +1,33 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/imageTransactionIdentity.test.ts > 父事务结束撤销剩余子工作 > 父failure保留原结果并先撤销恢复权限再中止悬挂子调用
+ FAIL  tests/imageTransactionIdentity.test.ts > 父事务结束撤销剩余子工作 > 父success保留原结果并先撤销恢复权限再中止悬挂子调用
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/imageTransactionIdentity.test.ts:359:48
+    357|                 expect(outcome).toEqual(completion === 'failure' ? {st…
+    358|                 for (let i = 0; i < 8; i += 1) await Promise.resolve();
+    359|                 expect(options.signal.aborted).toBe(true);
+       |                                                ^
+    360|                 expect(childOutcome).toMatchObject({error: {name: 'Abo…
+    361|                 expect(restorationDeniedDuringAbort).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/imageTransactionIdentity.test.ts > 父事务结束撤销剩余子工作 > 真实handler链在离屏父失败后拒绝第四段non-batch供应商调用
+AssertionError: expected "spy" to be called 3 times, but got 4 times
+ ❯ tests/imageTransactionIdentity.test.ts:388:38
+    386|             for (const provider of providers.slice(0, 3)) provider.res…
+    387|             await h.enter();
+    388|             expect(h.translateTexts).toHaveBeenCalledTimes(3);
+       |                                      ^
+    389|             expect(childAfterFailure).toMatchObject({error: {name: 'Ab…
+    390|             expect(h.options[0].signal.aborted).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯

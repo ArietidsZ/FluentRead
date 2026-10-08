@@ -1,0 +1,12 @@
+{
+  "baseline": "9e3fc3eefd9c2499afc9458c3720e94d58a2b14d",
+  "source_commit": "ed52037478b4040f236fb4cc210266d34c0730cb",
+  "source_tree": "8a56bec1fc6460d76bf36324d1e2503e4f17d617",
+  "source_files": [
+    "src/features/image-translation/background/operationRegistry.ts",
+    "tests/imageTransactionIdentity.test.ts"
+  ],
+  "input_count": 2244,
+  "input_mismatches": [],
+  "scope": "CW-local parent termination only; missing-documentId compatibility remains unresolved"
+}

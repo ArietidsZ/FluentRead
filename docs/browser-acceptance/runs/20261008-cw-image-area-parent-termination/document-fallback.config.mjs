@@ -1,0 +1,1 @@
+export default {"resolve": {"alias": {"@": "<CW_WORKTREE>"}}, "test": {"environment": "node", "include": ["<CW_TASK_ROOT>/image-area-parent-termination-20261008/document-fallback.red.test.ts"], "maxWorkers": 1, "minWorkers": 1, "fileParallelism": false}};
