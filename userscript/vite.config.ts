@@ -442,6 +442,7 @@ function unwrapWxtEntrypoints(): Plugin {
 }
 
 export const userscriptAliases = [
+    {find: '@/src/features/settings/ui/IncognitoRouteSettings.vue', replacement: resolve(root, 'userscript/incognitoRouteSettings.ts')},
     // 无浏览器原生 sender，油猴不能确认私密来源，也不携带扩展专用路由验证器。
     {find: '@/src/core/config/incognitoRoute', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
     {find: '@/src/services/translation/requestPrivacy', replacement: resolve(root, 'userscript/incognitoRoute.ts')},

@@ -34,6 +34,8 @@ export interface TranslationRequestMessageBase {
     aiMultiSegment?: boolean;
     /** 视频字幕、文档等独立入口使用的翻译服务；普通网页请求不设置。 */
     serviceOverride?: string;
+    /** 对比卡片保留各自模型；私密专用路线启用时明确拒绝，不把所有卡片改成同一模型。 */
+    requestPurpose?: 'comparison';
     /** 文档、翻译中心等独立入口指定的实际模型；普通网页请求不设置。 */
     modelOverride?: string;
     /** 当前请求冻结的模型级 Thinking 状态；缺省时由后台配置快照解析。 */

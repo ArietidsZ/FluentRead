@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/FeatureServiceSettings.vue
  * 文件职责：在通用设置中集中分配各功能的翻译服务，沿用基础配置中的默认服务，显示继承关系和独立选择。
- * 主要内容：把翻译服务选择标题放进统一设置卡片，标题同行显示 AI 服务限制，下一行展示有效模型，使用相同的服务目录与图标展示各功能服务和缺失凭据提示；AI 功能仅提供兼容服务，配置连接定位到翻译服务页，默认选择保持独立。
+ * 主要内容：把翻译服务选择标题放进统一设置卡片，展示 AI 限制、有效模型和凭据提示，并在扩展构建中组合独立私密路线控件；配置连接定位到翻译服务页，默认选择保持独立。
  * 模块边界：仅修改父级传入的配置草稿，复用现有字段与自动保存；不保存第二份映射，不发起翻译或测试连接请求。
  -->
 <template>
@@ -28,6 +28,7 @@
         </div>
       </SettingsItem>
     </SettingsGroup>
+    <IncognitoRouteSettings v-if="NATIVE_PRIVATE_ROUTE_SUPPORTED" :config="config" :service-options="serviceOptions" @configure-service="emit('configure-service', $event)" />
   </div>
 </template>
 <script setup lang="ts">
@@ -35,6 +36,8 @@ import {type Config} from '@/src/core/config/model';
 import {featureServiceDefinitions, getFeatureService, setFeatureService, getFeatureModel, type FeatureServiceDefinition} from '@/src/core/config/featureServices';
 import {isHarnessService} from '@/src/core/config/harness';
 import {servicesType} from '@/src/core/config/catalog';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import IncognitoRouteSettings from '@/src/features/settings/ui/IncognitoRouteSettings.vue';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {useUiI18n} from '@/src/ui/i18n';
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue';

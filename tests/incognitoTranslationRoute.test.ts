@@ -3,7 +3,8 @@ import {Config, normalizeConfig} from '@/src/core/config/model';
 import {currentModelIds, customModelString, models, services, servicesType} from '@/src/core/config/catalog';
 import {getLockedIncognitoRoute, lockIncognitoRoute, normalizeIncognitoRouteField, resolveIncognitoRoute} from '@/src/core/config/incognitoRoute';
 import {isTrustedIncognitoSender} from '@/src/platform/browser/incognitoSource';
-import {createTranslationRequestFallback} from '@/src/app/background/handlers/translation';
+import {createNativeTranslationRequestFallback, createTranslationRequestFallback, type TranslationRequestContext} from '@/src/app/background/handlers/translation';
+import {createBackgroundMessageRouter, createBackgroundRuntimeMessageListener} from '@/src/app/background/messageRouter';
 import {createTranslationBroker, resolveTranslationRequestModel} from '@/src/services/translation/broker';
 import {attachTranslationProviderConfig, attachTrustedPrivateSource, createTranslationProviderConfigSnapshot, getTranslationProviderConfig, hasTrustedPrivateSource} from '@/src/services/translation/requestSnapshot';
 import {commonMsgTemplate, currentConfiguredModel, getCurrentModel, deepseekMsgTemplate, deepseekResponsesMsgTemplate, tongyiMsgTemplate} from '@/src/services/translation/templates';
@@ -302,5 +303,78 @@ describe('background to broker to request payload vertical route', () => {
             'zh-Hans', model, ordinary)).model).toBe(currentModelIds.deepseek);
         expect(JSON.parse(deepseekResponsesMsgTemplate('Text', undefined, undefined, undefined, services.deepseek,
             'zh-Hans', model, ordinary)).model).toBe(currentModelIds.deepseek);
+    });
+});
+
+
+describe('native runtime composition → broker → captured provider', () => {
+    function nativeFixture(records: unknown = []) {
+        const f = fixture();
+        const getContexts = vi.fn(async () => records);
+        const runtime = {id: 'fixture-extension', getURL: () => 'chrome-extension://fixture-extension/', getContexts};
+        const fallback = createNativeTranslationRequestFallback<TranslationRequestContext>(runtime, {
+            translate: f.broker.translateWithCache,
+            serializeError: error => ({error: (error as Error).message}),
+        });
+        const listener = createBackgroundRuntimeMessageListener(createBackgroundMessageRouter([], fallback), sender => ({sender: sender as TranslationRequestContext['sender']}));
+        return {...f, getContexts, runtime, listener};
+    }
+    const sender = {id: 'fixture-extension', documentId: 'original', url: 'chrome-extension://fixture-extension/options.html', origin: 'chrome-extension://fixture-extension'};
+    const context = {contextId: 'context', contextType: 'TAB', documentId: 'original', documentUrl: sender.url, documentOrigin: sender.origin, incognito: true};
+    it('routes exact tabless private context to the configured model in payload and cache', async () => {
+        const f = nativeFixture([context]);
+        expect(await f.listener({origin: 'A complete source sentence.', serviceOverride: services.tongyi, modelOverride: 'client-model'}, sender)).toBe('翻译完成');
+        expect(f.payloads[0]).toMatchObject({model: 'gpt-5.4-mini'});
+        expect(f.cacheKeys.mock.calls[0][0]).toMatchObject({service: services.openai, model: 'gpt-5.4-mini'});
+        expect(f.getContexts).toHaveBeenCalledWith({documentIds: ['original']});
+    });
+    it('native normal tab has priority and keeps ordinary overrides even with invalid private config', async () => {
+        const f = nativeFixture([context]); f.config.incognitoService = 'deleted';
+        expect(await f.listener({origin: 'A complete source sentence.', serviceOverride: services.openai, modelOverride: 'gpt-5.4'}, {...sender, tab: {incognito: false}})).toBe('翻译完成');
+        expect(f.payloads[0]).toMatchObject({model: 'gpt-5.4'}); expect(f.getContexts).not.toHaveBeenCalled();
+    });
+    it('tabless regular TAB keeps its ordinary provider', async () => {
+        const f = nativeFixture([{...context, incognito: false}]);
+        expect(await f.listener({origin: 'A complete source sentence.', serviceOverride: services.openai, modelOverride: 'gpt-5.4'}, sender)).toBe('翻译完成');
+        expect(f.payloads[0]).toMatchObject({model: 'gpt-5.4'});
+    });
+    it.each([[], [context, context], [{...context, documentId: 'new'}], [{...context, contextType: 'POPUP', incognito: false}], [{...context, contextType: 'SIDE_PANEL', incognito: false}]].map(records => ({records})))('unknown source fails before cache or provider %#', async ({records}) => {
+        const f = nativeFixture(records);
+        expect(await f.listener({origin: 'Source sentence.', incognito: true, privacy: 'regular'}, sender)).toMatchObject({error: expect.stringContaining('无法确认')});
+        expect(f.provider).not.toHaveBeenCalled(); expect(f.cacheGet).not.toHaveBeenCalled(); expect(f.cacheKeys).not.toHaveBeenCalled();
+    });
+    it('unsupported APIs/old Firefox documentId fail closed but typed UI messages bypass translation', async () => {
+        const f = nativeFixture([context]);
+        delete (f.runtime as {getContexts?: unknown}).getContexts;
+        expect(await f.listener({origin: 'Source sentence.'}, sender)).toMatchObject({error: expect.stringContaining('无法确认')});
+        expect(await f.listener({origin: 'Source sentence.'}, {id: sender.id, url: sender.url})).toMatchObject({error: expect.stringContaining('无法确认')});
+        expect(await f.listener({type: 'unknown-ui-message'}, sender)).toMatchObject({success: false});
+        expect(f.provider).not.toHaveBeenCalled();
+    });
+    it('both empty preserve ordinary behavior for unknown source, malformed route still closes', async () => {
+        const f = nativeFixture(); f.config.incognitoService = ''; f.config.incognitoModel = '';
+        expect(await f.listener({origin: 'A complete source sentence.', serviceOverride: services.openai, modelOverride: 'gpt-5.4'}, sender)).toBe('翻译完成');
+        f.config.incognitoService = undefined as unknown as string;
+        f.config.incognitoModel = undefined as unknown as string;
+        expect(await f.listener({origin: 'Another complete source sentence.', serviceOverride: services.openai, modelOverride: 'gpt-5.4'}, sender)).toBe('翻译完成');
+        f.config.incognitoService = ''; f.config.incognitoModel = undefined as unknown as string;
+        expect(await f.listener({origin: 'A third complete source sentence.', serviceOverride: services.openai, modelOverride: 'gpt-5.4'}, sender)).toBe('翻译完成');
+        f.config.incognitoModel = '';
+        f.config.incognitoService = null as unknown as string;
+        expect(await f.listener({origin: 'Source sentence.'}, sender)).toMatchObject({error: expect.stringContaining('无法确认')});
+        f.config.incognitoService = ''; f.config.incognitoModel = 'dangling';
+        expect(await f.listener({origin: 'Source sentence.'}, sender)).toMatchObject({error: expect.stringContaining('无法确认')});
+    });
+    it('preserves comparison model cards in regular/both-empty paths and explicitly rejects private route', async () => {
+        const f = nativeFixture([context]);
+        const request = {origin: 'A complete source sentence.', requestPurpose: 'comparison', serviceOverride: services.openai, modelOverride: 'gpt-5.4'};
+        expect(await f.listener(request, sender)).toMatchObject({error: expect.stringContaining('多模型对比')});
+        expect(f.provider).not.toHaveBeenCalled(); expect(f.cacheGet).not.toHaveBeenCalled();
+        expect(await f.listener(request, {...sender, tab: {incognito: false}})).toBe('翻译完成');
+        expect(f.payloads[0]).toMatchObject({model: 'gpt-5.4'});
+        f.config.incognitoService = ''; f.config.incognitoModel = '';
+        expect(await f.listener(request, sender)).toBe('翻译完成');
+        expect(f.payloads[1]).toMatchObject({model: 'gpt-5.4'});
+        expect(await f.listener({...request, requestPurpose: 'invented'}, sender)).toMatchObject({error: expect.stringContaining('requestPurpose')});
     });
 });

@@ -5,7 +5,9 @@
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
 import {requestOwnerKey} from '@/src/platform/browser/requestOwner';
-import {isTrustedIncognitoSender} from '@/src/platform/browser/incognitoSource';
+import {isTrustedIncognitoSender, resolveNativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
+import type {IncognitoSourceRuntime, NativeMessageSender, NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
+import {attachTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {BackgroundMessageHandler} from '../messageRouter';
 import {attachTranslationGlossaryContext, attachTranslationRequestControl, attachTrustedPrivateSource} from '@/src/services/translation/requestSnapshot';
@@ -23,6 +25,7 @@ interface TranslationRequestCandidate extends Record<string, unknown> {
 
 export interface TranslationRequestHandlerDependencies {
     runtimeId?: string;
+    resolveSourcePrivacy?: (sender: NativeMessageSender | undefined) => Promise<NativeSourcePrivacy>;
     translate(message: TranslationRequestMessage): Promise<string | string[]>;
     serializeError(error: unknown): unknown;
 }
@@ -33,6 +36,7 @@ export interface TranslationRequestContext {
         url?: string;
         frameId?: number;
         documentId?: string;
+        origin?: string;
         tab?: {id?: number; incognito?: boolean};
     };
 }
@@ -137,6 +141,9 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
 }
 
 export function parseTranslationRequest(candidate: TranslationRequestCandidate): TranslationRequestMessage {
+    if (candidate.requestPurpose !== undefined && candidate.requestPurpose !== 'comparison') {
+        throw new TypeError('翻译请求 requestPurpose 无效');
+    }
     // 步骤 1：origin 是无 type 翻译协议的判别字段；批量请求只能包含字符串。
     let origin: string | string[];
     if (typeof candidate.origin === 'string') {
@@ -186,6 +193,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
 
     // 步骤 3：只复制版本化协议允许的字段，不把页面注入的任意属性传给 provider。
     const base: TranslationRequestMessageBase = {};
+    if (candidate.requestPurpose === 'comparison') base.requestPurpose = 'comparison';
     for (const field of STRING_FIELDS) {
         const value = candidate[field];
         if (typeof value === 'string') base[field] = value;
@@ -214,8 +222,10 @@ export function createTranslationRequestFallback<TContext = undefined>(
         async handle(candidate, context) {
             try {
                 const parsed = parseTranslationRequest(candidate);
-                const message = isTrustedIncognitoSender((context as TranslationRequestContext | undefined)?.sender, dependencies.runtimeId)
-                    ? attachTrustedPrivateSource(parsed) : parsed;
+                const sender = (context as TranslationRequestContext | undefined)?.sender;
+                const message = dependencies.resolveSourcePrivacy
+                    ? attachTranslationSourcePrivacy(parsed, await dependencies.resolveSourcePrivacy(sender))
+                    : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed) : parsed;
                 const senderUrl = (context as TranslationRequestContext | undefined)?.sender?.url;
                 const isDocument = typeof senderUrl === 'string'
                     && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);
@@ -248,4 +258,16 @@ export function createTranslationCancelHandler<TContext extends TranslationReque
         type: TRANSLATION_CANCEL_MESSAGE_TYPE,
         handle: (message, context) => requestRegistry.cancel(message.clientRequestId, context),
     };
+}
+
+/** 生产入口与组合测试共用的装配边界，不接受页面提供的身份判断。 */
+export function createNativeTranslationRequestFallback<TContext = undefined>(
+    runtime: IncognitoSourceRuntime,
+    dependencies: Omit<TranslationRequestHandlerDependencies, 'runtimeId' | 'resolveSourcePrivacy'>
+        & {requestRegistry?: TranslationRequestRegistry},
+): BackgroundFallbackHandler<TContext, TranslationRequestCandidate> {
+    return createTranslationRequestFallback({
+        ...dependencies, runtimeId: runtime.id,
+        resolveSourcePrivacy: sender => resolveNativeSourcePrivacy(sender, runtime),
+    });
 }

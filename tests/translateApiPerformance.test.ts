@@ -88,6 +88,13 @@ async function flushMicrotasks(times = 8): Promise<void> {
 }
 
 describe('translation API request lifecycle performance', () => {
+  it('carries the comparison purpose to native background without replacing the chosen card model', async () => {
+    mocks.sendMessage.mockResolvedValue('fixture translation');
+    await expect(translateText('A complete readable sentence.', 'Comparison', {
+      maxRetries: 0, requestPurpose: 'comparison', serviceOverride: 'mock', modelOverride: 'card-model',
+    })).resolves.toBe('fixture translation');
+    expect(mocks.sendMessage.mock.calls[0][0]).toMatchObject({requestPurpose: 'comparison', serviceOverride: 'mock', modelOverride: 'card-model'});
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     mocks.sendMessage.mockReset();

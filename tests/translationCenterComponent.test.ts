@@ -60,6 +60,7 @@ describe('translation center product workflow', () => {
     expect(state.cardStatus(state.cards[0])).toBe('needsConfig');
     state.sourceText = 'Original'; state.runTranslation(); await vue.nextTick();
     expect(translateText).toHaveBeenCalledOnce(); expect(translateText.mock.calls[0][2].serviceOverride).toBe('google');
+    expect(translateText.mock.calls[0][2].requestPurpose).toBe('comparison');
   });
   it('does not treat missing custom endpoints or models as ready even without an API key requirement', () => {
     const service = 'custom:incomplete';

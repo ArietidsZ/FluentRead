@@ -13,6 +13,7 @@ import browser from 'webextension-polyfill';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
@@ -291,6 +292,7 @@ function flushVideoCountSave(): void {
  */
 export async function translateText(origin: string, context: string = document.title, options: TranslateOptions = {}): Promise<string> {
   const glossary = captureTranslationGlossaryOptions(options);
+  const requestPurpose = NATIVE_PRIVATE_ROUTE_SUPPORTED && options.requestPurpose;
   const selectedService = options.serviceOverride || config.service;
   const selectedModel = resolveConfiguredModel(
     options.modelOverride || config.model[selectedService],
@@ -351,6 +353,7 @@ export async function translateText(origin: string, context: string = document.t
             origin,
             useCache,
             serviceOverride: selectedService,
+            ...(requestPurpose ? {requestPurpose} : {}),
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
             ...((selectedService === services.chromeTranslator || selectedService === services.localTranslation)
@@ -570,6 +573,8 @@ export function cancelAllTranslations() {
  * 翻译参数接口
  */
 export interface TranslateOptions {
+  /** 扩展翻译中心的独立卡片语义；只用于阻止不支持的私密路线，不提供身份。 */
+  requestPurpose?: 'comparison';
   glossaryIds?: readonly string[] | null;
   glossaryRevision?: string;
   glossaryContext?: TranslationGlossaryContext;

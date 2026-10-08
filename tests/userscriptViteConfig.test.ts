@@ -36,6 +36,10 @@ describe('userscript browser shim injection', () => {
         expect(stub.normalizeIncognitoRouteField(false)).not.toBe('');
         expect(userscriptAliases.find(entry => entry.find === '@/src/services/translation/requestPrivacy')?.replacement).toBe(alias?.replacement);
         expect(stub.hasTrustedPrivateSource({incognito: true})).toBe(false);
+        expect(stub.getTranslationSourcePrivacy({privacy: 'private'})).toBeUndefined();
+        const componentAlias = userscriptAliases.find(entry => entry.find === '@/src/features/settings/ui/IncognitoRouteSettings.vue');
+        expect(componentAlias?.replacement).toMatch(/userscript\/incognitoRouteSettings\.ts$/u);
+        expect((await import('../userscript/incognitoRouteSettings')).default).toBeUndefined();
         expect(stub.attachTrustedPrivateSource(config)).toBe(config);
         const imported = {incognitoService: false};
         stub.initializeIncognitoRouteConfig(imported);

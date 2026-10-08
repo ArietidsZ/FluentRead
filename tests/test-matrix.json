@@ -339,7 +339,9 @@
       "tests/vocabularyReencounter.test.ts",
       "tests/sentenceActionsMount.test.ts",
       "tests/freeOfficialWebProviders.test.ts",
-      "tests/incognitoTranslationRoute.test.ts"
+      "tests/incognitoTranslationRoute.test.ts",
+      "tests/incognitoNativeSource.test.ts",
+      "tests/incognitoRouteSettings.test.ts"
     ],
     "functional": [
       "tests/translationCenterComponent.test.ts",

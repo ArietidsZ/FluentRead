@@ -130,6 +130,23 @@ async function loadConfigModule(value: unknown = null, options: LoadConfigOption
 }
 
 describe('统一配置存储', () => {
+    it('私密路线通过真实字段 patch 保存、重载与清空，保留自定义模型和凭据', async () => {
+        const store = await loadConfigModule({...storedConfig, customModels: {openai: ['saved-private-model']}}, {
+            localCredentials: {token: {openai: 'synthetic-route-fixture'}},
+        });
+        await store.configReady;
+        await store.requestConfigPatch({incognitoService: 'openai', incognitoModel: 'saved-private-model'});
+        expect(storageState.get('local:config')).toMatchObject({incognitoService: 'openai', incognitoModel: 'saved-private-model'});
+        const persisted = structuredClone(storageState.get('local:config'));
+        const credentials = structuredClone(storageState.get('local:credentials'));
+        const reopened = await loadConfigModule(persisted, {localCredentials: credentials});
+        await reopened.configReady;
+        expect(reopened.config).toMatchObject({incognitoService: 'openai', incognitoModel: 'saved-private-model'});
+        await reopened.requestConfigPatch({incognitoService: '', incognitoModel: ''});
+        expect(storageState.get('local:config')).toMatchObject({incognitoService: '', incognitoModel: '', customModels: {openai: ['saved-private-model']}});
+        expect(reopened.config.token.openai).toBe('synthetic-route-fixture');
+        expect(storageState.get('local:credentials')).toEqual(credentials);
+    });
     beforeEach(() => {
         vi.clearAllMocks();
     });

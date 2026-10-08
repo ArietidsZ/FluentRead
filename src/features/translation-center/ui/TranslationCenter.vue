@@ -141,6 +141,7 @@ const session = createComparisonSession(state, async (service, input, signal) =>
   try {
     return await translateText(input.text, 'FluentRead 翻译中心', {
   maxRetries: 0, timeout: 30_000, useCache: false, serviceOverride: service,
+  requestPurpose: 'comparison',
   sourceLanguage: input.sourceLanguage, targetLanguage: input.targetLanguage, modelOverride: input.model || undefined, signal,
     });
   } catch (error) {
