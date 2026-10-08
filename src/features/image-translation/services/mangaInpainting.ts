@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、取消边界和三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，按识别行及其有界描边余量建立局部蒙版，截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、滚动取消保留模型端口并由 owner 有界收尾，三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
@@ -80,6 +80,7 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
                         }
                         return result;
                     })().catch(async error => {
+                        if (signal?.aborted && (error as Error | undefined)?.name === 'AbortError') throw error;
                         const current=service;service=undefined;
                         await Promise.resolve().then(()=>current?.release()).catch(()=>undefined);
                         throw error;

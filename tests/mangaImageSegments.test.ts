@@ -2,10 +2,13 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {createMangaImageSegments} from '@/src/features/image-translation/content/mangaImageSegments';
 import {composeMangaPage} from '@/src/features/image-translation/content/mangaCompositor';
+import {encodeImageCanvas} from '@/src/features/image-translation/services/imageEncoding';
 vi.mock('@/src/features/image-translation/content/mangaCompositor', () => ({composeMangaPage: vi.fn()}));
+vi.mock('@/src/features/image-translation/services/imageEncoding', () => ({encodeImageCanvas: vi.fn()}));
 const flush = async () => {for (let i=0;i<20;i++) await Promise.resolve();};
 
 function fixture() {
+    vi.mocked(encodeImageCanvas).mockImplementation(async canvas=>`data:image/png;base64,${canvas.width}x${canvas.height}`);
     const {document}=parseHTML('<html><body><div id="reader"><img src="https://cdn.example/chapter.webp"></div></body></html>');
     const image=document.querySelector('img')! as {-readonly [K in keyof HTMLImageElement]: HTMLImageElement[K]};
     Object.defineProperties(image,{complete:{value:true,writable:true},naturalWidth:{value:800,writable:true},naturalHeight:{value:15744,writable:true}});
