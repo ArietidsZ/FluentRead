@@ -1,0 +1,1 @@
+[resource-safe] spawn vitest ENOENT

@@ -1,0 +1,21 @@
+{
+  "label": "spa-baseline-frozen-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "invalidates both delayed SDK",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/spa-baseline-frozen-red.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:29:41.503886+00:00",
+  "duration_seconds": 1.601,
+  "exit_code": 1
+}

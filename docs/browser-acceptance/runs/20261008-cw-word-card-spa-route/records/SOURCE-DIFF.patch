@@ -1,0 +1,154 @@
+diff --git a/docs/testing.md b/docs/testing.md
+index 57fc57a1..9884a1a4 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -972,4 +972,6 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
+
+ `wordCardPrivacyRoute` 编译真实 SelectionTranslator setup，并执行真实 store save/subscribe、词典 handler/查询缓存、文本 client、原生 Port/registry/handler、broker/cache/provider/SDK；仅非模型词典 provider、浏览器、持久存储、布局和 HTTP 使用合成边界。原 lifecycle 夹具明确使用非原生能力以保留旧消息语义，新用例验证原生三态、有效 prompt/Thinking、十一类保存、并发主/辅助请求取消、endpoint/cache 和迟到词典响应。SFC 不在既有严格数值归属中，不把这些用例称为真实 GUI 或 numeric SFC 四维覆盖。
+
++同文档 SPA 导航使用实际 `installShadowAndRouteBridge` 的 History 包装产生 document `fluentread-route-change`；组件仅在 URL 变化时复用关闭失效流程，随组件卸载移除监听。关闭卡片时保留已挂载组件的单一监听，供后续卡片使用。新增负控保持源 Text/选区有效，不触发 selectionchange、popstate 或 hashchange，延迟实际主/辅助 SDK，观察生产模板经 Vue 离线 renderer 得到的 DOM 与模型缓存；覆盖 pushState/replaceState、相同 URL、重复信号、新代次、关闭、重复卸载与重挂载，以及 native false 普通兼容。DOM/Range/History 平台边界是合成夹具，不代表实机浏览器验收。
++
+ 独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
+diff --git a/src/features/selection-translation/ui/SelectionTranslator.vue b/src/features/selection-translation/ui/SelectionTranslator.vue
+index 3b19df27..cade5bda 100644
+--- a/src/features/selection-translation/ui/SelectionTranslator.vue
++++ b/src/features/selection-translation/ui/SelectionTranslator.vue
+@@ -1,7 +1,7 @@
+ <!--
+  * @file src/features/selection-translation/ui/SelectionTranslator.vue
+  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
+- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
++ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/同文档 SPA 路由变更/关闭或更换选区取消等待并阻止旧响应覆盖新结果，路由监听随组件卸载清理；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
+  -->
+ <template>
+@@ -1795,6 +1795,12 @@ onMounted(() => {
+   document.addEventListener('keyup', handleKeyup, true);
+   window.addEventListener('blur', handleWindowBlur);
+   if (NATIVE_PRIVATE_ROUTE_SUPPORTED) for (const event of ['pagehide', 'popstate', 'hashchange']) window.addEventListener(event, hideAll);
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++    let href = location.href;
++    const routeChanged = () => { if (href === location.href) return; href = location.href; hideAll(); };
++    document.addEventListener('fluentread-route-change', routeChanged);
++    runtimeMessageUnsubscribers.push(() => document.removeEventListener('fluentread-route-change', routeChanged));
++  }
+   runtimeMessageUnsubscribers.push(addRuntimeMessageListener(browser.runtime, handleSelectionTtsState));
+   window.addEventListener('scroll', handleScroll, true);
+   window.addEventListener('resize', handleViewportResize);
+diff --git a/tests/wordCardPrivacyRoute.test.ts b/tests/wordCardPrivacyRoute.test.ts
+index ff862fc5..b644e5ea 100644
+--- a/tests/wordCardPrivacyRoute.test.ts
++++ b/tests/wordCardPrivacyRoute.test.ts
+@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
+ import {createRequire} from 'node:module';
+ import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
+ import {parseHTML} from 'linkedom';
+-import {compileScript,parse} from 'vue/compiler-sfc';
++import {compileScript,compileTemplate,parse} from 'vue/compiler-sfc';
+ import ts from 'typescript';
+ import * as vue from 'vue';
+ import {Config} from '@/src/core/config/model';
+@@ -18,7 +18,10 @@ vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository
+ vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
+ const require=createRequire(import.meta.url),filename='src/features/selection-translation/ui/SelectionTranslator.vue';
+ const {descriptor}=parse(readFileSync(filename,'utf8'),{filename});
+-const compiled=ts.transpileModule(compileScript(descriptor,{id:'word-card-privacy'}).content,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
++const script=compileScript(descriptor,{id:'word-card-privacy'});
++const toCommonJS=(source:string)=>ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
++const compiled=toCommonJS(script.content);
++const template=toCommonJS(compileTemplate({source:descriptor.template!.content,filename,id:'word-card-privacy',compilerOptions:{bindingMetadata:script.bindings}}).code);
+ class BoundaryObserver {observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} }
+ const publicService='custom:document-public',privateService='custom:document-private';
+ const publicURL='https://public-document.synthetic.test/v1/chat/completions',privateURL='https://private-document.synthetic.test/v1/chat/completions';
+@@ -33,9 +36,11 @@ let calls:Array<{url:string;body:any;signal?:AbortSignal|null}>,dispatch:ReturnT
+ let server:ReturnType<typeof import('@/src/services/translation/documentChannel').createTranslationDocumentPortHandler>,pairs:ReturnType<typeof documentPortPair>[],pendingResponses:Array<(value:Response)=>void>;
+ let lookup:ReturnType<typeof import('@/src/features/selection-translation/services/wordDictionary').createWordDictionaryLookup>,lookupBoundary:ReturnType<typeof vi.fn>;
+ let state:Record<string,any>,scope:vue.EffectScope,mounted:Array<()=>void>,unmounted:Array<()=>void>,windowEvents:Map<string,Set<(event:any)=>void>>;
++let domApp:vue.App|undefined,domHost:HTMLElement|undefined,bridgeDispose:(()=>void)|undefined;
++const routeEvent='fluentread-route-change';
+ async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
+ async function mountPage(nativeCapability=true){
+- unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
++ domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
+  const modules:Record<string,unknown>={
+   vue:{...vue,useTemplateRef:()=>vue.ref(null),onMounted:(fn:()=>void)=>mounted.push(fn),onBeforeUnmount:(fn:()=>void)=>unmounted.push(fn)},
+   'webextension-polyfill':browserBoundary,'@/src/services/config/store':store,
+@@ -49,7 +54,7 @@ async function mountPage(nativeCapability=true){
+   '@/src/ui/i18n':{useUiI18n:()=>({t:(key:string)=>key,translateLegacy:(value:string)=>value})},
+  };
+  for(const path of ['@/src/platform/browser/runtimeMessages','@/src/core/language/detect','@/src/core/hotkey','@/src/core/language/partOfSpeech','@/src/features/selection-translation/services/wordNormalization','@/src/features/selection-translation/core','@/src/features/selection-translation/protocol','@/src/features/selection-translation/content/selectionTtsContentController','@/src/features/selection-translation/pageZoom','@/src/features/vocabulary/protocol','@/src/core/config/harness','@/src/core/tts/speechProgress','@/src/core/translation/result']) modules[path]=await vi.importActual(path);
+- const exports:Record<string,any>={};new Function('require','exports',compiled)((id:string)=>id in modules?modules[id]:id.endsWith('.vue')?{}:require(id),exports);
++ const exports:Record<string,any>={};new Function('require','exports',compiled)((id:string)=>id in modules?modules[id]:id.endsWith('.vue')?vue.defineComponent({props:['text'],setup:props=>()=>vue.h('span',props.text)}):require(id),exports);
+  scope=vue.effectScope();state=scope.run(()=>vue.proxyRefs(exports.default.setup({}, {expose:()=>{}})))!;await vue.nextTick();mounted.forEach(fn=>fn());await settle();
+ }
+ function begin(){state.snapshot={text:'fixture',parts:[{kind:'text',text:'fixture'}]};state.selectedText='fixture';return state.beginSelectionContentRequest('fixture');}
+@@ -131,10 +136,69 @@ beforeEach(async()=>{
+     await mountPage();
+ });
+ afterEach(async()=>{
++ domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;bridgeDispose?.();bridgeDispose=undefined;
+  unmounted?.forEach(fn=>fn());scope?.stop();pairs.forEach(pair=>pair.close());pendingResponses.forEach(finish=>finish(response('document-private','迟到合成译文')));
+  (await import('@/src/app/translation/client')).cancelAllTranslations();await settle();resetFetch?.();if(cache){await cache.translationCache.clear();cache.translationCacheDb.close();}
+  vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();
+ });
++
++/** 生产模板交给 Vue renderer；仅 DOM/Range/History 与 HTTP 是离线边界，路由桥和请求链均为实际模块。 */
++function renderCardDOM(){
++ const exports:Record<string,any>={};new Function('require','exports',template)((id:string)=>id==='vue'?vue:require(id),exports);
++ const renderer=vue.createRenderer<Node,HTMLElement>({
++  insert:(child,parent,anchor)=>parent.insertBefore(child,anchor??null),remove:node=>node.parentNode?.removeChild(node),
++  createElement:tag=>document.createElement(tag),createText:text=>document.createTextNode(text),createComment:text=>document.createComment(text),
++  setText:(node,text)=>{node.nodeValue=text;},setElementText:(node,text)=>{node.textContent=text;},parentNode:node=>node.parentNode as HTMLElement|null,nextSibling:node=>node.nextSibling,
++  patchProp:(node,key,_previous,value)=>{if(key==='style'){Object.assign(node.style,value??{});}else if(/^on[A-Z]/u.test(key)){}else if(value==null)node.removeAttribute(key);else node.setAttribute(key,String(value));},
++ });
++ domHost=document.createElement('div');domHost.id='fluent-read-selection-translator-container';document.body.append(domHost);
++ domApp=renderer.createApp({setup:()=>state,render:exports.render});domApp.directive('ui-i18n',{});domApp.mount(domHost);
++}
++function persistentSelection(){
++ const source=document.getElementById('source')!;source.textContent='fixture';const text=source.firstChild!;
++ const rect={top:20,right:80,bottom:40,left:20,width:60,height:20};
++ const range={startContainer:text,endContainer:text,commonAncestorContainer:text,startOffset:0,endOffset:7,cloneRange:()=>range,getClientRects:()=>[rect],getBoundingClientRect:()=>rect,intersectsNode:()=>false};
++ const selection={rangeCount:1,isCollapsed:false,anchorNode:text,anchorOffset:0,getRangeAt:()=>range,containsNode:()=>false,toString:()=>text.textContent};
++ Object.assign(window,{getSelection:()=>selection,location});vi.stubGlobal('CustomEvent',document.defaultView!.CustomEvent);
++ const historyBoundary={pushState:vi.fn((_state:unknown,_unused:string,url?:string|URL|null)=>{if(url!=null)location.href=new URL(String(url),location.href).href;}),replaceState:vi.fn((_state:unknown,_unused:string,url?:string|URL|null)=>{if(url!=null)location.href=new URL(String(url),location.href).href;})};
++ vi.stubGlobal('history',historyBoundary);return {source,text,selection,range,historyBoundary};
++}
++async function startDelayedBoth(){
++ let released=false;const gates:Array<ReturnType<typeof deferred<Response>>>=[];transport.mockImplementation(async(url:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(url),body:JSON.parse(String(init?.body)),signal:init?.signal});if(released)return response();const gate=deferred<Response>();gates.push(gate);pendingResponses.push(gate.resolve);return gate.promise;});
++ state.snapshot=state.readSelectionSnapshot();state.selectedText='fixture';state.showTooltip=true;
++ const request=state.beginSelectionContentRequest('fixture'),main=state.requestTranslation(request),support=state.requestWordCard(request);await pump(()=>calls.length>=2);expect(calls.length).toBeGreaterThanOrEqual(2);await vue.nextTick();expect(domHost!.querySelector('.fr-word-definition-en')?.textContent).toBe('A readable dictionary definition.');
++ return {request,release:()=>{released=true;gates.forEach(gate=>gate.resolve(response()));},pending:Promise.all([main,support])};
++}
++describe('actual SPA route bridge with a persistent selection',()=>{
++ it.each(['pushState','replaceState'] as const)('%s invalidates both delayed SDK requests without selectionchange/popstate/hashchange and rejects late DOM/cache',async method=>{
++  const selected=persistentSelection();renderCardDOM();const bridge=await import('@/src/platform/shadow-ui/pageBridge');bridgeDispose=bridge.installShadowAndRouteBridge();const routed=vi.fn();document.addEventListener(routeEvent,routed);
++  const {release,pending}=await startDelayedBoth();expect(state.readSelectionSnapshot()?.text).toBe('fixture');history[method]({step:1},'','/next');expect(routed).toHaveBeenCalledOnce();expect(selected.text.isConnected).toBe(true);expect(state.readSelectionSnapshot()?.range.startContainer).toBe(selected.text);expect(state.readSelectionSnapshot()?.text).toBe('fixture');
++  await settle();const aborted=calls.every(call=>call.signal?.aborted);release();await complete(pending);await vue.nextTick();
++  // 所有负控断言在释放响应之后执行，旧源码会真实呈现迟到结果而不是测试挂起。
++  expect({aborted,main:state.translationResult,card:state.wordCard,lateMainDOM:domHost!.querySelector('.fr-word-translation pre')?.textContent??null,lateSupportDOM:domHost!.querySelector('.fr-word-definition-zh')?.textContent??null,cacheWrites:cacheWrite.mock.calls.length}).toEqual({aborted:true,main:'',card:null,lateMainDOM:null,lateSupportDOM:null,cacheWrites:0});
++  expect(selected.source.textContent).toBe('fixture');document.removeEventListener(routeEvent,routed);
++ });
++ it.each(['pushState','replaceState'] as const)('%s with unchanged href preserves current main/aux generation',async method=>{
++  persistentSelection();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();const routed=vi.fn();document.addEventListener(routeEvent,routed);
++  const {request,release,pending}=await startDelayedBoth();history[method]({step:1},'',location.href);expect(routed).not.toHaveBeenCalled();expect(state.activeContentRequest).toEqual(request);expect(calls.every(call=>!call.signal?.aborted)).toBe(true);release();await complete(pending);expect(domHost!.querySelector('.fr-word-translation pre')?.textContent).toBe('合成译文 document-private');expect(domHost!.querySelector('.fr-word-definition-zh')?.textContent).toBe('合成译文 document-private');expect(cacheWrite).toHaveBeenCalledTimes(3);document.removeEventListener(routeEvent,routed);
++ });
++ it('duplicate bridge events preserve a fresh generation after the first route invalidates the old one',async()=>{
++  persistentSelection();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();const old=await startDelayedBoth();history.pushState({},'','/next');await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);old.release();await complete(old.pending);expect(cacheWrite).not.toHaveBeenCalled();calls=[];
++  const fresh=await startDelayedBoth();document.dispatchEvent(new CustomEvent(routeEvent));document.dispatchEvent(new CustomEvent(routeEvent));expect(state.activeContentRequest).toEqual(fresh.request);expect(calls.every(call=>!call.signal?.aborted)).toBe(true);fresh.release();await complete(fresh.pending);expect(domHost!.querySelector('.fr-word-definition-zh')?.textContent).toBe('合成译文 document-private');
++ });
++ it.each(['close','unmount'] as const)('%s rejects delayed DOM/cache and has bounded listener lifetime across repeated cleanup/remount',async action=>{
++  persistentSelection();const listeners=new Set<EventListenerOrEventListenerObject>();const add=document.addEventListener.bind(document),remove=document.removeEventListener.bind(document);
++  vi.spyOn(document,'addEventListener').mockImplementation((name,fn,options)=>{if(name===routeEvent)listeners.add(fn);add(name,fn,options);});vi.spyOn(document,'removeEventListener').mockImplementation((name,fn,options)=>{if(name===routeEvent)listeners.delete(fn);remove(name,fn,options);});
++  await mountPage();renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();expect(listeners.size).toBe(1);const old=await startDelayedBoth();
++  if(action==='close'){state.closeTooltip();state.closeTooltip();expect(listeners.size).toBe(1);}else{unmounted.forEach(fn=>fn());unmounted.forEach(fn=>fn());unmounted=[];scope.stop();domApp!.unmount();domApp=undefined;expect(listeners.size).toBe(0);}
++  await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);old.release();await complete(old.pending);expect(state.wordCard).toBeNull();expect(domHost!.querySelector('.fr-word-translation pre, .fr-word-definition-zh')).toBeNull();expect(cacheWrite).not.toHaveBeenCalled();
++  await mountPage();renderCardDOM();expect(listeners.size).toBe(1);calls=[];const fresh=await startDelayedBoth();history.replaceState({},'','/after-cleanup');await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);fresh.release();await complete(fresh.pending);expect(cacheWrite).not.toHaveBeenCalled();unmounted.forEach(fn=>fn());unmounted.forEach(fn=>fn());unmounted=[];scope.stop();expect(listeners.size).toBe(0);
++ });
++ it('native capability false installs no card route listener and preserves ordinary legacy translation after pushState',async()=>{
++  persistentSelection();const add=vi.spyOn(document,'addEventListener');await mountPage(false);renderCardDOM();bridgeDispose=(await import('@/src/platform/shadow-ui/pageBridge')).installShadowAndRouteBridge();expect(add.mock.calls.filter(([name])=>name===routeEvent)).toEqual([]);
++  browserBoundary.extension.inIncognitoContext=false;nativeSender.tab.incognito=false;state.snapshot=state.readSelectionSnapshot();state.selectedText='fixture';state.showTooltip=true;const request=state.beginSelectionContentRequest('fixture'),gate=delaySDK(),pending=state.requestTranslation(request);await pump(()=>calls.length>0);history.pushState({},'','/legacy-next');expect(calls[0].signal?.aborted).toBe(false);expect(state.activeContentRequest).toEqual(request);gate.resolve(response('document-public'));await complete(pending);expect(calls[0]).toMatchObject({url:publicURL,body:{model:'document-public'}});expect(domHost!.querySelector('.fr-translation-result pre')?.textContent).toBe('合成译文 document-public');
++ });
++});
+ describe('native word-card effective pair and lifetime',()=>{
+  it('enriches actual visible dictionary fields through native text Port and SDK while preserving raw semantics',async()=>{
+   const pending=state.requestWordCard(begin());await pump(()=>Boolean(state.wordCard?.meanings[0].definitions[0].translatedDefinition));await pending;

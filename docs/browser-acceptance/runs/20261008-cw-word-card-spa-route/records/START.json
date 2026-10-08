@@ -1,0 +1,5 @@
+{
+  "started_at": "2026-10-08T21:26:15.749693+00:00",
+  "baseline": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+  "scope": "word-card SPA route; local offline only; no extra agents/tasks, no API, no PR"
+}

@@ -1,0 +1,18 @@
+{
+  "source": "95a4fdf1672185bd42c98bd2930f17611b8f6bda",
+  "evidenceHead": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+  "bytes": 1954998,
+  "sha256": "bbea978bf70327e940b69e532bc7093543b01d26367f5ee807265eaa73e649dd",
+  "budget": 1955000,
+  "headroom": 2,
+  "independentBaselineRebuildMatchesPreviousBoundArtifact": true,
+  "finalBytes": 1954998,
+  "finalSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+  "byteDelta": 0,
+  "identicalBytes": false,
+  "finalHeadroom": 2,
+  "budgetConfigurationUnchanged": true,
+  "platformTreeIsolation": true,
+  "ordinaryFrontendCapabilityFalseControl": "tests/wordCardPrivacyRoute.test.ts",
+  "realUserscriptGuiAcceptance": false
+}

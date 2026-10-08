@@ -1,0 +1,30 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; no signed approval decision is exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "运行本轮已授权 SPA 词卡修复的冻结完整门禁。既有 WebDAV 合成测试仅临时绑定 127.0.0.1，既有 userscript 源绑定检查需要本地只读 git 子进程；本次单次执行独立审核，不恢复或推导历史审批，不新增产品权限、持续访问或远程控制端口。"
+  },
+  "result": {
+    "chunk_id": "a547ae",
+    "wall_time_seconds": 1.001623289,
+    "session_id": 82471,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Current SPA card gates only; existing temporary local fixture requirements independently requested, no persistent capability changes.",
+  "completionObserved": {
+    "source": "Actual tools.write_stdin final result for same session and all ten command records",
+    "sessionId": 82471,
+    "chunkId": "2832e4",
+    "gateRunnerExitCode": 0,
+    "allTenGateCommandExitCodes": 0,
+    "explicitApprovalDecisionProvided": false
+  }
+}

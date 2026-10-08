@@ -1,0 +1,51 @@
+stderr | tests/wordCardPrivacyRoute.test.ts > word-card model safety and compatibility > frontend unknown undefined closes model requests while independent raw lookup remains
+Selection translation error: TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Proxy.requestTranslation (eval at mountPage (<CW-REPO>/tests/wordCardPrivacyRoute.test.ts:57:38), <anonymous>:901:88)
+    at <CW-REPO>/tests/wordCardPrivacyRoute.test.ts:220:90
+    at file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file://<CW-DEPS>/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/wordCardPrivacyRoute.test.ts > word-card model safety and compatibility > frontend unknown true closes model requests while independent raw lookup remains
+Selection translation error: TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Proxy.requestTranslation (eval at mountPage (<CW-REPO>/tests/wordCardPrivacyRoute.test.ts:57:38), <anonymous>:901:88)
+    at <CW-REPO>/tests/wordCardPrivacyRoute.test.ts:220:90
+    at file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file://<CW-DEPS>/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+
+stderr | tests/wordCardPrivacyRoute.test.ts > word-card model safety and compatibility > frontend unknown 1 closes model requests while independent raw lookup remains
+Selection translation error: TranslationSourceUnknownError: 无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。
+    at resolvePageTranslationRouteHint (<CW-REPO>/src/services/translation/requestPrivacy.ts:52:36)
+    at Proxy.requestTranslation (eval at mountPage (<CW-REPO>/tests/wordCardPrivacyRoute.test.ts:57:38), <anonymous>:901:88)
+    at <CW-REPO>/tests/wordCardPrivacyRoute.test.ts:220:90
+    at file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5
+    at runTest (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runSuite (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)
+    at runFiles (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)
+    at startTests (file://<CW-DEPS>/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)
+    at file://<CW-DEPS>/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11 {
+  retryable: false,
+  kind: 'bad-request',
+  code: 'TRANSLATION_SOURCE_UNKNOWN'
+}
+

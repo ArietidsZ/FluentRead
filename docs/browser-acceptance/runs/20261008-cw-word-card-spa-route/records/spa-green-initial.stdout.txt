@@ -1,0 +1,13 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/wordCardPrivacyRoute.test.ts --no-cache --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/spa-green-initial.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ✓ tests/wordCardPrivacyRoute.test.ts (48 tests) 2667ms
+   ✓ actual SPA route bridge with a persistent selection > pushState invalidates both delayed SDK requests without selectionchange/popstate/hashchange and rejects late DOM/cache 584ms
+
+ Test Files  1 passed (1)
+      Tests  48 passed (48)
+   Start at  05:28:24
+   Duration  3.45s (transform 556ms, setup 0ms, collect 648ms, tests 2.67s, environment 0ms, prepare 22ms)
+
+JSON report written to <CW-EVIDENCE>/spa-green-initial.results.json

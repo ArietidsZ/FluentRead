@@ -1,0 +1,22 @@
+{
+  "label": "spa-baseline-red-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "actual SPA route bridge",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/spa-baseline-red-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:27:04.738132+00:00",
+  "duration_seconds": 1.632,
+  "exit_code": 1
+}

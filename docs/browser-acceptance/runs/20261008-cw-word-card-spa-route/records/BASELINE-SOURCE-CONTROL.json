@@ -1,0 +1,9 @@
+{
+  "baselineHead": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+  "module": "src/features/selection-translation/ui/SelectionTranslator.vue",
+  "baselineSha256": "b6cf24974f54447bbf63f9abb84a176676bfedffaf3b4d9dc8b46b7c101a1343",
+  "workingSha256": "789a9edbfad14e3b2e38f59a00828cf977bad8d995e64717767d2a841e01c922",
+  "testSha256": "ac0978444d93fc4b80ab429e6a4c572cd01882f5ae769ad48a533ec2a67bff3e",
+  "selectedPattern": "invalidates both delayed SDK",
+  "onlySfcRestored": true
+}

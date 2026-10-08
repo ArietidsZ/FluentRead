@@ -1,0 +1,23 @@
+{
+  "label": "spa-baseline-fixture",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "./node_modules/.bin/vitest",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--maxWorkers=2",
+    "--minWorkers=1",
+    "--no-cache",
+    "-t",
+    "actual SPA route bridge",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/spa-baseline-fixture.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:26:25.387497+00:00",
+  "duration_seconds": 1.64,
+  "exit_code": 1
+}

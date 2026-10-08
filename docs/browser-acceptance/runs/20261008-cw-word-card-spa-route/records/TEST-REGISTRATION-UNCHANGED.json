@@ -1,0 +1,10 @@
+{
+  "existingFile": "tests/wordCardPrivacyRoute.test.ts",
+  "previousCases": 40,
+  "currentCases": 48,
+  "newSpaCases": 8,
+  "noNewFile": true,
+  "strictExecutionListUnchanged": true,
+  "testMatrixUnchanged": true,
+  "coverageOwnershipThresholdsIgnoresUnchanged": true
+}

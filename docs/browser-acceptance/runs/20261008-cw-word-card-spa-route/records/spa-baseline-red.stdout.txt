@@ -1,0 +1,1 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: vitest run tests/wordCardPrivacyRoute.test.ts --maxWorkers=2 --minWorkers=1 --no-cache -t actual SPA route bridge --reporter=default --reporter=json --outputFile=<CW-EVIDENCE>/spa-baseline-red.results.json

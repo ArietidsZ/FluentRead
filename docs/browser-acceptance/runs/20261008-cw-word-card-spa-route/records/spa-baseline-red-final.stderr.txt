@@ -1,0 +1,57 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/wordCardPrivacyRoute.test.ts > actual SPA route bridge with a persistent selection > pushState invalidates both delayed SDK requests without selectionchange/popstate/hashchange and rejects late DOM/cache
+ FAIL  tests/wordCardPrivacyRoute.test.ts > actual SPA route bridge with a persistent selection > replaceState invalidates both delayed SDK requests without selectionchange/popstate/hashchange and rejects late DOM/cache
+AssertionError: expected { aborted: false, …(5) } to deeply equal { aborted: true, main: '', …(4) }
+
+- Expected
++ Received
+
+  Object {
+-   "aborted": true,
+-   "cacheWrites": 0,
+-   "card": null,
+-   "lateMainDOM": null,
+-   "lateSupportDOM": null,
+-   "main": "",
++   "aborted": false,
++   "cacheWrites": 3,
++   "card": Object {
++     "meanings": Array [
++       Object {
++         "definitions": Array [
++           Object {
++             "definition": "A readable dictionary definition.",
++             "example": "A readable dictionary example.",
++             "translatedDefinition": "合成译文 document-private",
++             "translatedExample": "合成译文 document-private",
++           },
++           Object {
++             "definition": "A readable dictionary definition.",
++             "translatedDefinition": "合成译文 document-private",
++           },
++         ],
++         "partOfSpeech": "名词",
++       },
++     ],
++     "normalizedWord": "fixture",
++     "phonetics": Array [],
++     "sources": Array [
++       Object {
++         "id": "free-dictionary",
++         "label": "Synthetic non-model dictionary",
++         "url": "https://dictionary.synthetic.test",
++       },
++     ],
++     "word": "fixture",
++   },
++   "lateMainDOM": "合成译文 document-private",
++   "lateSupportDOM": "合成译文 document-private",
++   "main": "合成译文 document-private",
+  }
+
+ ❯ tests/wordCardPrivacyRoute.test.ts:178:276
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+

@@ -1,0 +1,673 @@
+{
+  "sourceCommit": "26b0e678d5738d52b1567c5d19cc5dff4fb450e5",
+  "baselineHead": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+  "scope": "Changed-URL document fluentread-route-change invalidates mounted native word-card primary and auxiliary generations via existing hideAll; unchanged href events are idempotent; disposer reuses existing component lifetime array.",
+  "productionFiles": [
+    "src/features/selection-translation/ui/SelectionTranslator.vue"
+  ],
+  "nativeSourceTransportRegistryBrokerUnchanged": true,
+  "contentCompositionAndRouteBridgeUnchanged": true,
+  "nonModelDictionaryAndVideoUnchanged": true,
+  "newSpaCaseCount": 8,
+  "wordCardCaseCount": 48,
+  "spaControlBoundary": "Actual SelectionTranslator setup, compiled production template rendered by Vue into linkedom; actual production route bridge wraps synthetic History; browser Selection/Range, layout, non-model lookup provider and HTTP are boundaries. Hooks are controlled lifecycle callbacks. Source Text and selection stay connected/valid without selectionchange/popstate/hashchange.",
+  "supportingRelatedTarget": {
+    "success": true,
+    "numTotalTests": 231,
+    "numPassedTests": 231,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 5,
+    "exitCode": 0
+  },
+  "initialAllWordCardControls": {
+    "success": true,
+    "numTotalTests": 48,
+    "numPassedTests": 48,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 0
+  },
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10208,
+      "numPassedTests": 10208,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 410,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66113,
+        "covered": 66113,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66113,
+        "covered": 66113,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4608,
+        "covered": 4608,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33766,
+        "covered": 33766,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architectureFinal": {
+    "success": true,
+    "numTotalTests": 1379,
+    "numPassedTests": 1379,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 32,
+    "exitCode": 0
+  },
+  "testAudit": {
+    "status": "ok",
+    "groups": {
+      "architecture": 32,
+      "unit": 308,
+      "functional": 122,
+      "regression": 37
+    },
+    "files": 499,
+    "cases": 6900
+  },
+  "baselineNegative": {
+    "success": false,
+    "numTotalTests": 48,
+    "numPassedTests": 0,
+    "numFailedTests": 2,
+    "numPendingTests": 46,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 1
+  },
+  "baselineObservation": "Both pushState and replaceState leave both SDK signals unaborted. After all delayed responses complete, old main translation and translated dictionary fields appear in production-template DOM, and three model cache entries commit.",
+  "baselineSourceRestoration": {
+    "baselineHead": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+    "module": "src/features/selection-translation/ui/SelectionTranslator.vue",
+    "baselineSha256": "b6cf24974f54447bbf63f9abb84a176676bfedffaf3b4d9dc8b46b7c101a1343",
+    "workingSha256": "789a9edbfad14e3b2e38f59a00828cf977bad8d995e64717767d2a841e01c922",
+    "testSha256": "ac0978444d93fc4b80ab429e6a4c572cd01882f5ae769ad48a533ec2a67bff3e",
+    "selectedPattern": "invalidates both delayed SDK",
+    "onlySfcRestored": true
+  },
+  "intermediateResults": {
+    "architecture-final": {
+      "success": true,
+      "numTotalTests": 1379,
+      "numPassedTests": 1379,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 32,
+      "exitCode": 0
+    },
+    "full-strict-final": {
+      "success": true,
+      "numTotalTests": 10208,
+      "numPassedTests": 10208,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 410,
+      "exitCode": 0
+    },
+    "spa-baseline-fixture": {
+      "success": false,
+      "numTotalTests": 42,
+      "numPassedTests": 0,
+      "numFailedTests": 2,
+      "numPendingTests": 40,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "spa-baseline-frozen-red": {
+      "success": false,
+      "numTotalTests": 48,
+      "numPassedTests": 0,
+      "numFailedTests": 2,
+      "numPendingTests": 46,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "spa-baseline-red-final": {
+      "success": false,
+      "numTotalTests": 42,
+      "numPassedTests": 0,
+      "numFailedTests": 2,
+      "numPendingTests": 40,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "spa-green-initial": {
+      "success": true,
+      "numTotalTests": 48,
+      "numPassedTests": 48,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 0
+    },
+    "spa-target-final": {
+      "success": true,
+      "numTotalTests": 231,
+      "numPassedTests": 231,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 5,
+      "exitCode": 0
+    }
+  },
+  "intermediateFailures": "First launch used a vitest executable outside PATH and failed ENOENT before tests. Initial red fixture released only existing gates, so later auxiliary work timed out; its main late DOM/cache observation remains recorded. Final fixture releases all subsequent SDK replies and supplies a working SpeechFollowText text-render boundary; final baseline has both main and auxiliary DOM/cache commits. Commentary incorrectly called the final userscript byte-identical before hashing; final artifact proof contradicts that statement and commentary corrected it immediately. Same size, different SHA256; no rename-only inference.",
+  "closeListenerPolicy": "close aborts requests and hides card but retains one listener while component is mounted for future cards; repeated unmount removes it once; remount installs one.",
+  "sameHrefAndRepeatedEventsPolicy": "History state-only no-op URL updates emit no bridge event; repeated same-href document event cannot invalidate a fresh generation after a route change.",
+  "sfcNumericStrictOwnership": false,
+  "realUiGuiAcceptance": false,
+  "gateCommands": {
+    "architecture-final": {
+      "label": "architecture-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:34:25.577622+00:00",
+      "duration_seconds": 12.241,
+      "exit_code": 0
+    },
+    "chrome-build-final": {
+      "label": "chrome-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:34:52.090341+00:00",
+      "duration_seconds": 20.541,
+      "exit_code": 0
+    },
+    "docs-build-final": {
+      "label": "docs-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:35:40.130999+00:00",
+      "duration_seconds": 2.792,
+      "exit_code": 0
+    },
+    "firefox-build-final": {
+      "label": "firefox-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:35:12.852218+00:00",
+      "duration_seconds": 22.362,
+      "exit_code": 0
+    },
+    "full-strict-final": {
+      "label": "full-strict-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:30:46.929563+00:00",
+      "duration_seconds": 217.393,
+      "exit_code": 0
+    },
+    "manifest-verify-final": {
+      "label": "manifest-verify-final",
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:35:35.431979+00:00",
+      "duration_seconds": 0.125,
+      "exit_code": 0
+    },
+    "spa-baseline-fixture": {
+      "label": "spa-baseline-fixture",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "./node_modules/.bin/vitest",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--maxWorkers=2",
+        "--minWorkers=1",
+        "--no-cache",
+        "-t",
+        "actual SPA route bridge",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-baseline-fixture.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:26:25.387497+00:00",
+      "duration_seconds": 1.64,
+      "exit_code": 1
+    },
+    "spa-baseline-frozen-red": {
+      "label": "spa-baseline-frozen-red",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "-t",
+        "invalidates both delayed SDK",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-baseline-frozen-red.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:29:41.503886+00:00",
+      "duration_seconds": 1.601,
+      "exit_code": 1
+    },
+    "spa-baseline-red-final": {
+      "label": "spa-baseline-red-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "-t",
+        "actual SPA route bridge",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-baseline-red-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:27:04.738132+00:00",
+      "duration_seconds": 1.632,
+      "exit_code": 1
+    },
+    "spa-baseline-red": {
+      "label": "spa-baseline-red",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "vitest",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--maxWorkers=2",
+        "--minWorkers=1",
+        "--no-cache",
+        "-t",
+        "actual SPA route bridge",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-baseline-red.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:26:15.765509+00:00",
+      "duration_seconds": 0.025,
+      "exit_code": 1
+    },
+    "spa-green-initial": {
+      "label": "spa-green-initial",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-green-initial.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:28:24.058941+00:00",
+      "duration_seconds": 3.619,
+      "exit_code": 0
+    },
+    "spa-target-final": {
+      "label": "spa-target-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "tests/incognitoInputRoute.test.ts",
+        "tests/backgroundFeatureHandlers.test.ts",
+        "tests/mainWorldBridgeCore.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/spa-target-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:30:21.193236+00:00",
+      "duration_seconds": 8.155,
+      "exit_code": 0
+    },
+    "test-audit-complete": {
+      "label": "test-audit-complete",
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:34:24.529509+00:00",
+      "duration_seconds": 0.843,
+      "exit_code": 0
+    },
+    "typecheck-final": {
+      "label": "typecheck-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:34:38.025181+00:00",
+      "duration_seconds": 13.859,
+      "exit_code": 0
+    },
+    "userscript-baseline-build": {
+      "label": "userscript-baseline-build",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:29:43.122898+00:00",
+      "duration_seconds": 3.516,
+      "exit_code": 0
+    },
+    "userscript-build-final": {
+      "label": "userscript-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:35:35.772667+00:00",
+      "duration_seconds": 3.917,
+      "exit_code": 0
+    },
+    "userscript-spa-preflight": {
+      "label": "userscript-spa-preflight",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:28:52.113757+00:00",
+      "duration_seconds": 3.599,
+      "exit_code": 0
+    },
+    "userscript-verify-final": {
+      "label": "userscript-verify-final",
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:35:39.892635+00:00",
+      "duration_seconds": 0.033,
+      "exit_code": 0
+    }
+  },
+  "userscriptProof": {
+    "source": "95a4fdf1672185bd42c98bd2930f17611b8f6bda",
+    "evidenceHead": "4e9c781d8b2f55c2cd0091be40db69ad39e9379f",
+    "bytes": 1954998,
+    "sha256": "bbea978bf70327e940b69e532bc7093543b01d26367f5ee807265eaa73e649dd",
+    "budget": 1955000,
+    "headroom": 2,
+    "independentBaselineRebuildMatchesPreviousBoundArtifact": true,
+    "finalBytes": 1954998,
+    "finalSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "byteDelta": 0,
+    "identicalBytes": false,
+    "finalHeadroom": 2,
+    "budgetConfigurationUnchanged": true,
+    "platformTreeIsolation": true,
+    "ordinaryFrontendCapabilityFalseControl": "tests/wordCardPrivacyRoute.test.ts",
+    "realUserscriptGuiAcceptance": false
+  },
+  "manifestProof": {
+    ".output/chrome-mv3/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "optional_permissions": null,
+        "host_permissions": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": {
+          "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        },
+        "browser_specific_settings": null
+      },
+      "finalSha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+    },
+    ".output/firefox-mv2/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_permissions": null,
+        "host_permissions": null,
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+        "browser_specific_settings": {
+          "gecko": {
+            "id": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+              "required": [
+                "websiteContent",
+                "authenticationInfo",
+                "personalCommunications"
+              ]
+            }
+          }
+        }
+      },
+      "finalSha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6"
+    }
+  },
+  "historicalLoopbackApprovalMetadataRecovered": false,
+  "currentExecutionMetadata": "Actual independently reviewed one-time command request and immediate/completion tool results; no signed decision is exposed. No persistent permission or product capability changes.",
+  "realApiBrowserGpuDownloadOrPermissionAcceptance": false,
+  "pr883QueriedModifiedOrReplied": false,
+  "extraAgentsOrWorkTasksStarted": false,
+  "docsBuildIncludingEvidence": {
+    "label": "docs-build-with-evidence",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "cwd": "<CW-REPO>",
+    "started_at": "2026-10-08T21:37:10.634284+00:00",
+    "duration_seconds": 2.68,
+    "exit_code": 0
+  }
+}

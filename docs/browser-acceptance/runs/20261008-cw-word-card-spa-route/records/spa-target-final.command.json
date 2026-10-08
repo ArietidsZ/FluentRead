@@ -1,0 +1,23 @@
+{
+  "label": "spa-target-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/selectionTranslatorLifecycle.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/mainWorldBridgeCore.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/spa-target-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:30:21.193236+00:00",
+  "duration_seconds": 8.155,
+  "exit_code": 0
+}

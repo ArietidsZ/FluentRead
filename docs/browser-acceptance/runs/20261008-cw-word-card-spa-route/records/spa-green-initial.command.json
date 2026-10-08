@@ -1,0 +1,20 @@
+{
+  "label": "spa-green-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=default",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/spa-green-initial.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:28:24.058941+00:00",
+  "duration_seconds": 3.619,
+  "exit_code": 0
+}
