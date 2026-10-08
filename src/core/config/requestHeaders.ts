@@ -30,10 +30,11 @@ export function normalizeRequestHeaderDomain(value: unknown): string | null {
     }
 }
 
-export function normalizeRequestHeaderRules(value: unknown): RequestHeaderRule[] {
+// 后台组合根可额外保留一个内置供应商规则；用户配置仍使用默认的一百项上限。
+export function normalizeRequestHeaderRules(value: unknown, maximum = MAX_REQUEST_HEADER_RULES): RequestHeaderRule[] {
     if (!Array.isArray(value)) return [];
     const rules = new Map<string, RequestHeaderRule>();
-    for (const item of value.slice(0, MAX_REQUEST_HEADER_RULES)) {
+    for (const item of value.slice(0, Math.min(MAX_REQUEST_HEADER_RULES + 1, maximum))) {
         if (!item || typeof item !== 'object') continue;
         const domain = normalizeRequestHeaderDomain(item.domain);
         if (!domain) continue;

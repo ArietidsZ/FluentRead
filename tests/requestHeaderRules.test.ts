@@ -110,3 +110,15 @@ describe('按域名请求头移除名单', () => {
         await sync.sync([]);
     });
 });
+
+it('内置 B站规则不挤掉用户的一百项配置，并清理额外规则编号', async () => {
+    const port = api();
+    port.getDynamicRules.mockResolvedValue([{id: REQUEST_HEADER_RULE_START + 100}]);
+    const entries = [{domain: 'index-translate.bilibili.com', removeOrigin: true, removeReferer: false},
+        ...Array.from({length: 100}, (_, i) => ({domain: `user-${i}.example`, removeOrigin: false, removeReferer: true}))];
+    await createRequestHeaderRulesSynchronizer(port, 'own').sync(entries);
+    const update = port.updateDynamicRules.mock.calls[0][0];
+    expect(update.addRules).toHaveLength(101);
+    expect(update.addRules[100].condition.regexFilter).toContain('user-99');
+    expect(update.removeRuleIds).toEqual([REQUEST_HEADER_RULE_START + 100]);
+});
