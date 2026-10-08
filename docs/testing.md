@@ -941,7 +941,10 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 
 使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
 
-`writingPrivacyRoute` 使用实际写作 handler、runtime、modelGateway、AI SDK provider 和合成 fetch，检查 wire model、原写作 prompt/工具语义、原生三态来源、unknown 与伪造字段拒绝、both-empty 兼容、无效或不支持的专用对、锁冲突、多 Key 冻结、专用配置变更取消和关闭/导航后的迟到结果。`writingBackground` 另覆盖 ready 已 resolve 而原生关闭先于 continuation 的窗口，`writingIntegration` 覆盖精确 getContexts 等待的取消及迟到结果消费。全部为离线确定性证据，不证明真实模型或 GUI 验收；阅读入口另行处理。
+`writingPrivacyRoute` 使用实际写作 handler、runtime、modelGateway、AI SDK provider 和合成 fetch，检查 wire model、原写作 prompt/工具语义、原生三态来源、unknown 与伪造字段拒绝、both-empty 兼容、无效或不支持的专用对、锁冲突、多 Key 冻结、专用配置变更取消和关闭/导航后的迟到结果。`writingBackground` 另覆盖 ready 已 resolve 而原生关闭先于 continuation 的窗口，`writingIntegration` 覆盖精确 getContexts 等待的取消及迟到结果消费。全部为离线确定性证据，不证明真实模型或 GUI 验收；后续阅读入口由下述 harnessPrivacyRoute 验证。
 
 
 写作配置取消的可达性另由 `tests/writingSavedConfig.test.ts` 通过真实 config store 的初始化、normalize、requestConfigSave/requestConfigPatch 和 subscriber 验证，再执行实际 handler → writing runtime → modelGateway → AI SDK → 合成延迟 fetch。legacy custom 空 endpoint 会由 normalize 补入 provider，因此只改兼容 custom 字段而保留已有 endpoint 不改变有效端点；将空 endpoint 与新 custom 一起保存或 patch 时，已有 provider 取消键会中止旧生成。缺少 custom 字段不是已证实的生产端点遗漏，不能用裸运行时 Object.assign 制造红测。真实 patch 复现的遗漏是 API Key 必填策略与多 Key 恢复时间；两项策略变更现在取消旧生成并抑制迟到正文。存储和浏览器边界是合成内存夹具，config store、配置归一化、写作及 SDK 链路未替换，不代表真实供应商、GUI 或 GPU 验收。
+
+
+`harnessPrivacyRoute` 执行原生阅读应用入口（流式 Port 和 typed message）→ 实际 handler/conversation/runtime/modelGateway/AI SDK → 合成 fetch。配置使用实际 config store 的初始化、归一化、save/patch 与订阅，存储端口是内存夹具；会话使用实际 HarnessSessionRepository 和隔离 fake-indexeddb。覆盖四种学习动作的私密 wire model、原 prompt/授权段落、实际 read_context 工具循环与未保存追问、regular 和 both-empty 兼容、unknown 及前端布尔/URL无授权、无效或非聊天专用对、内部模型锁、多 Key 429 重试，以及真实配置 patch、关闭、导航、移除标签后的迟到内容隔离。普通会话保留已接收部分和 stopped 状态，迟到 SSE 不更新旧会话。legacy custom 控制通过真实保存确认兼容字段单改不变更有效端点，空 profile 与新 custom 一起保存则经已覆盖 provider 字段取消。未替换 config store、conversation、模型 runtime/gateway 或 AI SDK；只替换浏览器、配置存储、长期记忆/用量边界和网络传输，不证明真实 API/GUI/GPU 验收。

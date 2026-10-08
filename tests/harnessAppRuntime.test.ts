@@ -21,6 +21,7 @@ vi.mock('@/src/features/reading-assistant/streamPort', () => ({attachReadingStre
 vi.mock('@/src/platform/storage/harnessSessionRepository', () => ({harnessSessionRepository: mocks.repository}));
 vi.mock('@/src/core/site-rules/domain', () => ({isExtensionDisabledOnSite: (url: string) => url.includes('blocked')}));
 vi.mock('@/src/platform/storage/modelUsageRepository', () => ({modelUsageRepository: {recordMany: mocks.record, captureGeneration: mocks.generation}}));
+import {getTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {installHarnessBackgroundRuntime} from '@/src/app/background/harnessRuntime';
 const tick = async () => {for (let i=0; i<5; i++) await Promise.resolve();};
 
@@ -51,12 +52,16 @@ describe('Harness background composition', () => {
         mocks.config.on = false; expect(dependencies.eligibility({})).toContain('停用');
         mocks.config.on = true; mocks.config.harness.enabled = false; expect(dependencies.eligibility({})).toContain('停用');
         const signal = new AbortController().signal; const progress = vi.fn();
-        dependencies.run('request', signal, progress);
-        expect(mocks.conversation.run).toHaveBeenLastCalledWith('request', signal, progress, false);
-        dependencies.run('private', signal, progress, {tab: {incognito: true}});
-        expect(mocks.conversation.run).toHaveBeenLastCalledWith('private', signal, progress, true);
-        mocks.extension.inIncognitoContext = true; dependencies.run('private-extension', signal, progress, {});
-        expect(mocks.conversation.run).toHaveBeenLastCalledWith('private-extension', signal, progress, true);
+        const message = {type: 'fluentReadHarness', action: 'run', requestId: 'composition'};
+        await dependencies.run(message, signal, progress, {id: 'extension', tab: {id: 1, incognito: false}});
+        expect(mocks.conversation.run).toHaveBeenLastCalledWith(expect.objectContaining(message), signal, progress, false);
+        expect(getTranslationSourcePrivacy(mocks.conversation.run.mock.calls.at(-1)![0])).toBe('regular');
+        await dependencies.run(message, signal, progress, {id: 'extension', tab: {id: 1, incognito: true}});
+        expect(mocks.conversation.run).toHaveBeenLastCalledWith(expect.objectContaining(message), signal, progress, true);
+        expect(getTranslationSourcePrivacy(mocks.conversation.run.mock.calls.at(-1)![0])).toBe('private');
+        mocks.extension.inIncognitoContext = true; await dependencies.run(message, signal, progress, {});
+        expect(mocks.conversation.run).toHaveBeenLastCalledWith(expect.objectContaining(message), signal, progress, true);
+        expect(getTranslationSourcePrivacy(mocks.conversation.run.mock.calls.at(-1)![0])).toBe('unknown');
         expect(mocks.createConversation.mock.calls[0][0].preferences()).toBe(mocks.config.harness);
         const memoryDeps = mocks.createMemories.mock.calls[0][0];
         expect(memoryDeps.optionsUrl).toBe('chrome-extension://extension/options.html');
@@ -71,8 +76,8 @@ describe('Harness background composition', () => {
         expect(memoryDeps.privateContext()).toBe(false);
         const port = {name: 'stream'}; mocks.connect.mock.calls[0][0](port); expect(mocks.attachPort).toHaveBeenCalledWith(port, mocks.handler);
         const changed = mocks.subscribe.mock.calls[0][0];
-        changed({harness: {enabled: true}}); expect(mocks.handler.cancelAll).not.toHaveBeenCalled();
-        changed({harness: {enabled: false}}); expect(mocks.handler.cancelAll).toHaveBeenCalledOnce();
+        changed({...mocks.config, harness: {enabled: true}}); expect(mocks.handler.cancelAll).not.toHaveBeenCalled();
+        changed({...mocks.config, harness: {enabled: false}}); expect(mocks.handler.cancelAll).toHaveBeenCalledOnce();
         expect(mocks.handler.cancelDisallowed).toHaveBeenCalledTimes(2);
         mocks.removed.mock.calls[0][0](7); const updated = mocks.updated.mock.calls[0][0];
         updated(8, {status: 'loading'}); updated(9, {url: 'https://new.test'}); updated(10, {status: 'complete'});

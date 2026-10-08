@@ -1,10 +1,14 @@
 /**
  * @file src/app/background/harnessRuntime.ts
  * 文件职责：把阅读卡后台处理器组装到扩展配置、Harness 服务和浏览器标签页生命周期。
- * 主要内容：绑定流式端口、本机三十天会话、长期记忆管理与清理闹钟；配置停用、记忆变更、网站禁用及标签导航时取消请求，记忆管理同时使在途写作失效。
+ * 主要内容：绑定原有流式端口、本机三十天会话、长期记忆与清理闹钟，在会话前核验原生三态来源并附着内部证据；生成配置、停用、记忆、网站与标签导航变化时取消请求，记忆管理同时使在途写作失效。
  * 模块边界：这是应用组合根，不实现选区、消息校验、会话或模型协议；对应规则和异步所有权由 reading-assistant/background 及 services/harness 验证。
  */
 import browser from 'webextension-polyfill';
+import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
+import {captureTranslationRequestContext, waitForTranslationRequestPreparation, throwIfTranslationRequestAborted} from '@/src/services/translation/requestRegistry';
+import {attachTranslationSourcePrivacy, assertTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
+import type {Config} from '@/src/core/config/model';
 import {config, configReady, subscribeConfig} from '@/src/services/config/store';
 import {createReadingAssistantHandler} from '@/src/features/reading-assistant/background';
 import {createHarnessRuntime} from '@/src/services/harness/runtime';
@@ -37,7 +41,16 @@ export function installHarnessBackgroundRuntime(cancelWriting?: () => void): Bac
         extensionId: browser.runtime.id,
         ready,
         eligibility,
-        run: (request, signal, progress, sender) => conversation.run(request, signal, progress, Boolean(sender?.tab?.incognito || browser.extension.inIncognitoContext)),
+        run: async (request, signal, progress, sender) => {
+            try {
+                const captured = captureTranslationRequestContext({sender});
+                const privacy = await waitForTranslationRequestPreparation(resolveNativeSourcePrivacy(captured.sender, browser.runtime as unknown as IncognitoSourceRuntime), signal);
+                throwIfTranslationRequestAborted(signal);
+                const trusted = attachTranslationSourcePrivacy(request, privacy);
+                assertTranslationSourcePrivacy(trusted, config, config);
+                return conversation.run(trusted, signal, progress, privacy === 'private' || Boolean(browser.extension.inIncognitoContext));
+            } catch (error) {return {success: false, error: (error as Error).message.replace(/翻译/gu, '阅读')};}
+        },
     });
     const sessions = createReadingSessionHandler({
         extensionId: browser.runtime.id, optionsUrl: browser.runtime.getURL('options.html'),
@@ -57,9 +70,10 @@ export function installHarnessBackgroundRuntime(cancelWriting?: () => void): Bac
     prune();
     browser.alarms.onAlarm.addListener(alarm => { if (alarm.name === 'fluentReadHarnessSessionCleanup') prune(); });
     void Promise.resolve(browser.alarms.create('fluentReadHarnessSessionCleanup', {periodInMinutes: 60})).catch(() => undefined);
-    let preferencesKey = JSON.stringify(config.harness);
+    const configurationKey = (next: Config) => JSON.stringify([next.on, next.harness, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders, next.incognitoService, next.incognitoModel, next.customModels, next.customBody, next.customHeaders, next.apiKeys, next.apiKeyRotationEnabled, next.apiKeyRecoveryMs, next.requireApiKey, next.modelThinking, next.azureOpenaiEndpoint, next.newApiUrl, next.deepseekApiType, next.minimaxRegion, next.minimaxBillingPlan, next.mimoRegion, next.mimoBillingPlan]);
+    let preferencesKey = configurationKey(config);
     subscribeConfig(next => {
-        const nextKey = JSON.stringify(next.harness);
+        const nextKey = configurationKey(next);
         if (nextKey !== preferencesKey) handler.cancelAll();
         preferencesKey = nextKey;
         handler.cancelDisallowed();

@@ -1,14 +1,16 @@
 /**
  * @file src/services/harness/runtime.ts
  * 文件职责：把 FluentRead 的阅读任务、配置快照和 AI SDK 模型接入供应商无关的 Harness 会话循环。
- * 主要内容：解析继承模型、限制选区与历史、直接提供已授权段落以兼容不主动调用工具的模型、根据提示词快照构建学习指令和只读段落工具，将原生模型消息转换为内核事件，并统一处理取消及供应商错误。
+ * 主要内容：核验后台三态来源，冻结能力有效的私密专用模型或保持原继承模型；限制选区与历史、直接提供已授权段落、按原提示词快照构建学习指令和只读工具，将模型消息转换为内核事件并处理取消及供应商错误。
  * 模块边界：只在后台执行，不读取网页 DOM、不使用翻译缓存，不接受页面指定密钥或服务；显示与长期收藏分别归阅读卡和单词本。
  */
 import {streamText, tool, type LanguageModel, type ModelMessage, type ToolSet} from 'ai';
 import {z} from 'zod';
 import type {Config} from '@/src/core/config/model';
 import {resolveHarnessPrompt, renderHarnessPrompt, isHarnessService, type HarnessActionId} from '@/src/core/config/harness';
-import {resolveConfiguredModel} from '@/src/core/config/catalog';
+import {resolveConfiguredModel, servicesType} from '@/src/core/config/catalog';
+import {getTranslationSourcePrivacy, assertTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
+import {resolveIncognitoRoute, lockIncognitoRoute} from '@/src/core/config/incognitoRoute';
 import {isApiKeyRequired} from '@/src/core/config/validation';
 import {createHarnessLanguageModel, normalizeHarnessModelError} from './modelGateway';
 import type {ReadingProgress, ReadingRequest, ReadingResponse} from '@/src/features/reading-assistant/types';
@@ -89,7 +91,18 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
     return {
         async run(request, signal, onProgress, privateContext = false) {
             if (signal.aborted) return {success: false, error: '阅读助手请求已取消', cancelled: true};
-            const current = cloneConfig(getConfig());
+            let current = cloneConfig(getConfig());
+            const privacy = getTranslationSourcePrivacy(request);
+            try {
+                assertTranslationSourcePrivacy(request, getConfig(), current);
+                if (privacy === 'private') {
+                    const route = resolveIncognitoRoute(current);
+                    if (route) {
+                        if (!isHarnessService(route.service, current.customOpenAIProviders) || !servicesType.isUseAIContext(route.service, route.model)) return {success: false, error: '私密来源专用服务不支持阅读会话和工具，请选择已适配的 AI 服务'};
+                        current = lockIncognitoRoute({...current, harness: Object.freeze({...current.harness, service: route.service, model: route.model})}, route);
+                    }
+                }
+            } catch (error) {return {success: false, error: (error as Error).message.replace(/翻译/gu, '阅读')};}
             const prefs = current.harness;
             if (!current.on || !prefs.enabled) return {success: false, error: '阅读助手已停用'};
             if (!prefs.actions.includes(request.intent)) return {success: false, error: '当前动作未启用'};
@@ -120,7 +133,7 @@ export function createHarnessRuntime(getConfig: () => Config, createUsageSink?: 
             };
             try {
                 let memoryCount = 0;
-                if (prefs.memoryEnabled && !privateContext && memory) {
+                if (prefs.memoryEnabled && !privateContext && privacy !== 'private' && memory) {
                     try {
                         const recalled = await readMemory(memory, `${text}\n${question}`, signal);
                         if (signal.aborted) return {success: false, error: '阅读助手请求已取消', cancelled: true};

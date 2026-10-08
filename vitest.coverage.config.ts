@@ -126,6 +126,7 @@ export default defineConfig({
             'tests/harnessCore.test.ts',
             'tests/harnessModelGateway.test.ts',
             'tests/harnessRuntime.test.ts',
+            'tests/harnessPrivacyRoute.test.ts',
             'tests/learningMemoryRepository.test.ts',
             'tests/learningMemoryHandler.test.ts',
             'tests/harnessMemorySearch.test.ts',

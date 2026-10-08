@@ -1,7 +1,7 @@
 /**
  * @file src/features/reading-assistant/background.ts
  * 文件职责：为阅读卡请求建立按标签页、frame 和 document 隔离的后台取消及并发边界。
- * 主要内容：校验消息、处理先取消后启动、替换同页旧请求、限制并发，并在关闭页面、停用配置或超时后丢弃迟到结果。
+ * 主要内容：校验消息，在首个 await 前复制并冻结原生 sender，处理先取消后启动、替换同页旧请求、限制并发，并在关闭页面、停用配置或超时后丢弃迟到结果。
  * 模块边界：不读取浏览器或密钥，不选择模型也不执行工具；配置就绪、站点资格和实际 Harness 调用均由应用组合根注入。
  */
 import {HARNESS_ACTIONS} from '@/src/core/config/harness';
@@ -10,6 +10,7 @@ import type {ReadingProgress, ReadingRequest, ReadingResponse} from './types';
 export interface ReadingSender {
     id?: string;
     url?: string;
+    origin?: string;
     tab?: {id?: number; url?: string; incognito?: boolean};
     frameId?: number;
     documentId?: string;
@@ -65,6 +66,7 @@ export function createReadingAssistantHandler(deps: ReadingHandlerDependencies) 
             if (disposed || sender.id !== deps.extensionId || !Number.isSafeInteger(sender.tab?.id)
                 || sender.tab!.id! < 0 || !isRecord(message) || message.type !== 'fluentReadHarness'
                 || typeof message.requestId !== 'string' || !/^[\w.:-]{1,128}$/u.test(message.requestId)) return INVALID;
+            sender = Object.freeze({...sender, tab: Object.freeze({...sender.tab!})});
             const owner = ownerOf(sender);
             const key = `${owner}:${message.requestId}`;
             if (message.action === 'cancel') {

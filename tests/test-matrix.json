@@ -256,6 +256,7 @@
       "tests/translationCachePolicy.test.ts",
       "tests/translationCacheManagement.test.ts",
       "tests/harnessConversation.test.ts",
+      "tests/harnessPrivacyRoute.test.ts",
       "tests/harnessStreamPort.test.ts",
       "tests/harnessSessionHandler.test.ts",
       "tests/readingAssistantClient.test.ts",
