@@ -28,7 +28,7 @@ import {
     isAreaTranslatorMounted,
     isFullPageTranslationActive, noteBilingualHostGesture,
     mountAreaTranslator, startAreaTranslationFromContextMenu, mountFloatingBall, isFloatingBallAllowedOnPage,
-    mountHoverTranslationContentFeature, mountImageTranslator, mountParagraphCopyContentFeature, mountSectionTranslationContentFeature,
+    mountHoverTranslationContentFeature, mountImageTranslator, imageDocumentClient, mountParagraphCopyContentFeature, mountSectionTranslationContentFeature,
     isImageTranslatorNeeded, isMangaReaderPage, mountMangaEntry, unmountMangaEntry,
     mountSelectionTranslator, mountTranslationProgressPanel, mountShareCard, unmountShareCard, isShareCardMounted,
     mountVideoSubtitleTranslation, mountVocabularyReencounter, unmountVocabularyReencounter,
@@ -53,7 +53,6 @@ import {installContentPageLifecycle, waitForContentDocument} from './pageLifecyc
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 import {createOptionalContentFeatureRuntime, type OptionalContentFeatureRuntime} from './optionalFeatures';
-import {imageDocumentClient} from '@/src/features/image-translation/protocol';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
     if (isRawXmlContentDocument(document) || ctx.isInvalid) return;

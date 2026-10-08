@@ -35,7 +35,8 @@ vi.mock('@/src/services/config/store', () => ({
     config: mocks.config, get configReady() { return mocks.configReady; }, subscribeConfig: mocks.subscribeConfig,
 }));
 vi.mock('wxt/utils/content-script-ui/shadow-root', () => ({createShadowRootUi: vi.fn()}));
-vi.mock('@/src/app/content/features', () => ({
+vi.mock('@/src/app/content/features', async () => ({
+    imageDocumentClient: (await import('@/src/features/image-translation/services/documentClient')).imageDocumentClient,
     ...Object.fromEntries([
         'autoTranslateEnglishPage', 'cancelPendingHoverTranslation', 'handleTranslation', 'noteBilingualHostGesture',
         'inputBoxTranslationConfigKey', 'isAreaTranslatorMounted', 'isFullPageTranslationActive',

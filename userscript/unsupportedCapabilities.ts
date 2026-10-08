@@ -13,6 +13,9 @@ export function mountImageTranslator(): void {}
 
 export function unmountImageTranslator(): void {}
 
+/** 油猴不建立扩展图片文档 Port；组合根沿既有 capability 分支跳过此入口。 */
+export function imageDocumentClient(): undefined {return undefined;}
+
 /** 再次遇见只在扩展中挂载，油猴构建不包含扫描器和浮层。 */
 export function mountVocabularyReencounter(): void {}
 export function unmountVocabularyReencounter(): void {}

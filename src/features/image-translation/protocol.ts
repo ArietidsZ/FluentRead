@@ -19,4 +19,3 @@ export {
     type ImageTranslationStage,
 } from './progress';
 export {assertImageDocumentContext} from './background/documentSession';
-export {imageDocumentClient} from './services/documentClient';

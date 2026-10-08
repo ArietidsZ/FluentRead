@@ -17,6 +17,7 @@ import {
     mountVideoSubtitleTranslation,
     unmountAreaTranslator,
     unmountImageTranslator,
+    imageDocumentClient,
 } from '@/userscript/unsupportedCapabilities';
 
 describe('userscript extension-only capability stubs', () => {
@@ -26,6 +27,7 @@ describe('userscript extension-only capability stubs', () => {
         expect(mountImageTranslator()).toBeUndefined();
         expect(unmountAreaTranslator()).toBeUndefined();
         expect(unmountImageTranslator()).toBeUndefined();
+        expect(imageDocumentClient()).toBeUndefined();
         expect(mountVideoSubtitleTranslation()()).toBeUndefined();
         expect(isSupportedVideoPage()).toBe(false);
     });
