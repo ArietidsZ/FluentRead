@@ -11,9 +11,90 @@ import {
   resolveResourceUrl,
   languageCodeFromUrl,
   selectXSubtitleLanguageResources,
+  isXVideoMetadataUrl,
+  isXVideoMediaVariantUrl,
+  parseXVideoMediaVariants,
+  createXVideoBridgeResourcePayload,
+  isXVideoBridgeResourceUrl,
+  X_VIDEO_MEDIA_RESOURCES_MESSAGE,
+  parseXVideoBridgeMessage,
 } from '@/src/features/video-subtitle/content/xVideoSubtitleData';
 
 describe('X 视频字幕资源', () => {
+  it('validates incoming media messages and forwards only sanitized URL/bitrate fields', () => {
+    const url = 'https://video.twimg.com/ext_tw_video/111/pu/vid/video.mp4';
+    const context = {matchesPage: (href: string) => href === 'https://x.com/home', mediaSource: '', videoCount: () => 2};
+    const message = {source: 'fluent-read', type: X_VIDEO_MEDIA_RESOURCES_MESSAGE, pageHref: 'https://x.com/home', responseText: JSON.stringify([
+      {url, bitrate: 256000, secret: 'discard'}, {url, bitrate: 'invalid'}, {url, bitrate: -1},
+      {url: 'https://example.com/unsafe.mp4'}, null, 1, 'invalid',
+    ])};
+    expect(parseXVideoBridgeMessage(message, context)).toEqual({kind: 'media', variants: [
+      {url, bitrate: 256000}, {url}, {url},
+    ]});
+    expect(parseXVideoBridgeMessage({...message, pageHref: undefined, responseText: '[]'}, context)).toEqual({kind: 'media', variants: []});
+    for (const input of [null, 'invalid', {source: 'other'}, {...message, pageHref: 'https://x.com/other'},
+      {...message, pageHref: 'x'.repeat(8193)}, {...message, responseText: undefined}, {...message, responseText: 'x'.repeat(100001)},
+      {...message, responseText: '{invalid'}, {...message, responseText: '{}'}, {...message, responseText: JSON.stringify(Array(97).fill({url}))},
+    ]) expect(parseXVideoBridgeMessage(input, context)).toBeNull();
+  });
+
+  it('preserves HLS discovery while loading captions only for the matching media or the single unidentified player', () => {
+    const url = 'https://video.twimg.com/ext_tw_video/111/pu/captions/en.vtt';
+    const message = {source: 'fluent-read', type: 'fluent-read-x-video-subtitle-resource', url, responseText: 'WEBVTT'};
+    const context = {matchesPage: () => true, mediaSource: 'blob:source https://pbs.twimg.com/ext_tw_video_thumb/111/pu/a.jpg', videoCount: () => 2};
+    expect(parseXVideoBridgeMessage(message, context)).toEqual({kind: 'subtitle', url, responseText: 'WEBVTT', loadCaptions: true});
+    expect(parseXVideoBridgeMessage({...message, url: url.replace('/111/', '/222/')}, context)?.kind).toBe('subtitle');
+    expect(parseXVideoBridgeMessage({...message, url: url.replace('/111/', '/222/')}, context)).toMatchObject({loadCaptions: false});
+    expect(parseXVideoBridgeMessage({...message, responseText: '#EXTM3U'}, context)).toMatchObject({loadCaptions: false});
+    expect(parseXVideoBridgeMessage(message, {...context, mediaSource: ''})).toMatchObject({loadCaptions: false});
+    expect(parseXVideoBridgeMessage(message, {...context, mediaSource: '', videoCount: () => 1})).toMatchObject({loadCaptions: true});
+    for (const input of [{...message, type: 'unknown'}, {...message, url: null}, {...message, responseText: null},
+      {...message, responseText: 'x'.repeat(1000001)}, {...message, url: 'https://example.com/unsafe.vtt'},
+    ]) expect(parseXVideoBridgeMessage(input, context)).toBeNull();
+  });
+
+  it('extracts only bounded media URLs from nested public video_info and strips the GraphQL query', () => {
+    const url = 'https://x.com/i/api/graphql/hash/TweetDetail?variables=private-cursor';
+    const hls = 'https://video.twimg.com/amplify_video/111/pl/master.m3u8?tag=1';
+    const mp4 = 'https://video.twimg.com/ext_tw_video/111/pu/vid/320x180/video.mp4';
+    const source = JSON.stringify({data: {text: 'private post text', token: 'not forwarded', media: [{video_info: {variants: [
+      {url: hls, content_type: 'application/x-mpegURL'},
+      {url: mp4, content_type: 'video/mp4', bitrate: 256000},
+      {url: mp4, content_type: 'video/mp4', bitrate: 256000},
+      {url: 'https://example.com/video.mp4', content_type: 'video/mp4'},
+      {url: mp4, content_type: 'invalid'}, null, 'invalid',
+    ]}}]}});
+    expect(parseXVideoMediaVariants(source)).toEqual([{url: hls}, {url: mp4, bitrate: 256000}]);
+    expect(createXVideoBridgeResourcePayload(url, source, 'https://x.com/u/status/123')).toEqual({
+      source: 'fluent-read', type: X_VIDEO_MEDIA_RESOURCES_MESSAGE, url: url.split('?')[0],
+      responseText: JSON.stringify([{url: hls}, {url: mp4, bitrate: 256000}]), pageHref: 'https://x.com/u/status/123',
+    });
+    expect(isXVideoBridgeResourceUrl(url, 'https://x.com/home')).toBe(true);
+    expect(isXVideoBridgeResourceUrl(hls, 'https://x.com/home')).toBe(true);
+    expect(createXVideoBridgeResourcePayload(hls, '#EXTM3U', 'https://x.com/home')?.type).toBe('fluent-read-x-video-subtitle-resource');
+  });
+
+  it('rejects metadata from other sites, malformed/unbounded data and media without a stable X identity', () => {
+    const metadata = '/i/api/graphql/hash/HomeTimeline';
+    expect(isXVideoMetadataUrl(metadata, 'https://www.twitter.com/home')).toBe(true);
+    for (const [url, page] of [
+      ['https://example.com/i/api/graphql/hash/TweetDetail', 'https://x.com/home'],
+      [metadata, 'https://example.com/home'], [metadata, 'http://x.com/home'],
+      ['/i/api/graphql/hash/AccountSettings', 'https://x.com/home'], ['https://[bad', 'https://x.com/home'],
+    ]) expect(isXVideoMetadataUrl(url, page)).toBe(false);
+    for (const url of [undefined, 1, 'https://[bad', 'https://video.twimg.com/video.mp4', 'http://video.twimg.com/ext_tw_video/1/a.mp4',
+      'https://video.twimg.com/ext_tw_video/1/a.m4s', 'x'.repeat(8193)]) expect(isXVideoMediaVariantUrl(url)).toBe(false);
+    for (const source of [undefined, '{}', 'null', '{invalid', 'x'.repeat(2_000_001), '[null, 1, "text"]']) expect(parseXVideoMediaVariants(source)).toEqual([]);
+    expect(createXVideoBridgeResourcePayload(metadata, '{}', 'https://x.com/home')).toBeNull();
+    expect(createXVideoBridgeResourcePayload(metadata, '{}', `https://x.com/${'x'.repeat(8193)}`)).toBeNull();
+    const variants = [{url: 'https://video.twimg.com/tweet_video/1/a.mp4', content_type: 'video/mp4', bitrate: -1}];
+    expect(parseXVideoMediaVariants(JSON.stringify({video_info: {variants}}))).toEqual([{url: variants[0].url}]);
+    const many = Array.from({length: 9}, (_, group) => ({video_info: {variants: Array.from({length: 11}, (_, index) => ({
+      url: `https://video.twimg.com/ext_tw_video/${group + 1}/pu/vid/${index}.mp4`, content_type: 'video/mp4',
+    }))}}));
+    expect(parseXVideoMediaVariants(JSON.stringify(many))).toHaveLength(96);
+  });
+
   it('清理逐词元数据及其实体形式，保留正文和 cue 原始时间', () => {
     const tagged = '<X-word-ms ms=419,60,340 index=1 character_ranges=0-7,8-10,11-13>Teleport to SF</X-word-ms>';
     const encoded = tagged.replace(/</g, '&lt;').replace(/>/g, '&gt;');

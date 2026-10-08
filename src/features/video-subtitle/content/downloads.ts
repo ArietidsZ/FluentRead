@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/downloads.ts
  * 文件职责：协调原文、译文与双语字幕导出，避免播放器运行时继续承载下载与人工轨回退细节。
- * 主要内容：选择 X 原生或 AI、YouTube 捕获或初始化轨道，优先人工目标时间轴，仅翻译缺失区间，并管理取消和按钮反馈。
+ * 主要内容：选择 X 原生或完整 AI、YouTube 捕获或初始化轨道，拒绝把识别中的预览导出为完整字幕，优先人工目标时间轴，仅翻译缺失区间，并管理取消和按钮反馈。
  * 模块边界：网络、配置、界面文案、状态提示和文件下载由注入端口提供，不直接访问全局页面或存储。
  */
 import type {Config} from '@/src/core/config/model';
@@ -18,6 +18,8 @@ interface VideoDownloadPorts {
     isX(): boolean;
     isDisposed(): boolean;
     isAiActive(): boolean;
+    /** 完整识别中的预览只供观看，不能冒充完整 SRT。实时字幕旧入口可省略。 */
+    isAiComplete?(): boolean;
     nativeX(): SubtitleTrack | null;
     aiCues(): VideoSubtitleCue[];
     captured(): CapturedTrack[];
@@ -41,6 +43,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
         const captured = ports.captured();
         const ai = ports.aiCues();
         if (ports.isX()) {
+            if (ports.isAiComplete?.() === false) throw new Error(ports.ui('video.sourcePreparing'));
             if (ports.isAiActive() && ai.length) return {languageCode: 'ai', cues: ai};
             const native = ports.nativeX();
             if (native?.cues.length) return native;

@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/youtubeTimedTextBridgeCore.ts
  * 文件职责：实现可注入、可测试的 YouTube timedtext 网络桥核心，安全包裹页面 fetch 与 XMLHttpRequest 并发布成功字幕响应，同时支持完整恢复。
- * 主要内容：定义环境端口、状态键和生命周期事件，识别目标 URL、构造 payload，保存原始方法，处理 XHR 复用/同步失败/迟到响应，并为显式开启的站点提供有界资源回放。
+ * 主要内容：定义环境端口、状态键和生命周期事件，识别目标 URL、构造 payload，保存原始方法，处理 XHR 复用/同步失败/迟到响应，并为显式开启的站点提供有界二进制文本适配与资源回放。
  * 模块边界：核心不直接引用全局 window、不解析字幕内容也不操作扩展 UI；页面适配器注入真实环境，video runtime 消费消息，所有猴补只属于 MAIN-world bridge 所有权。
  */
 export const YOUTUBE_TIMED_TEXT_MESSAGE = 'fluent-read-youtube-timedtext';
@@ -25,7 +25,7 @@ export interface YoutubeBridgeMethodSlot<T extends (...args: never[]) => unknown
 }
 
 export interface YoutubeFetchResponsePort {
-    clone(): {text(): Promise<string>};
+    clone(): {text(): Promise<string>; body?: ReadableStream<Uint8Array> | null; headers?: {get(name: string): string | null}};
 }
 
 export type YoutubeFetchPort = (
@@ -36,6 +36,8 @@ export type YoutubeFetchPort = (
 
 export interface YoutubeXhrPort {
     readonly responseText: unknown;
+    readonly response?: unknown;
+    readonly responseType?: string;
     addEventListener(type: string, listener: () => void, options?: {once?: boolean}): void;
 }
 
@@ -59,6 +61,10 @@ export interface YoutubeTimedTextBridgeEnvironment {
         payload(url: string, text: unknown, href: string): TimedTextPayload | null;
         /** 仅站点适配器可选择在消费方晚于网络响应时回放最近资源。 */
         replayLatest?: boolean;
+        /** X 的 HLS loader 常用 arraybuffer/blob，按站点显式允许后才转成有界文本。 */
+        binaryText?: boolean;
+        /** 在 clone 读取过程中限流，避免先复制整个时间线再按文本长度拒绝。 */
+        maxResponseBytes?: number;
     };
     readonly stateHost: Record<string, unknown>;
     readonly fetch: YoutubeBridgeMethodSlot<YoutubeFetchPort>;
@@ -159,6 +165,42 @@ export function installYoutubeTimedTextBridgeCore(
     const replayCache = new Map<string, {payload: TimedTextPayload; pageHref: string}>();
     let replayResponseChars = 0;
     const replayEnabled = environment.resourcePolicy?.replayLatest === true;
+    const responseScope = new AbortController();
+    const readResponseText = async (response: ReturnType<YoutubeFetchResponsePort['clone']>): Promise<string | null> => {
+        const limit = environment.resourcePolicy?.maxResponseBytes;
+        if (limit === undefined) return response.text();
+        if (Number(response.headers?.get('content-length')) > limit) {
+            void response.body?.cancel().catch(() => undefined);
+            return null;
+        }
+        if (!response.body) {
+            // 测试端口或不提供流的宿主保留 text 兼容；在发布前仍限制字符与 UTF-8 字节。
+            const text = await response.text();
+            return text.length <= limit && new TextEncoder().encode(text).length <= limit ? text : null;
+        }
+        const reader = response.body.getReader();
+        const cancel = () => { void reader.cancel().catch(() => undefined); };
+        responseScope.signal.addEventListener('abort', cancel, {once: true});
+        const decoder = new TextDecoder();
+        const parts: string[] = [];
+        let bytes = 0;
+        try {
+            while (!responseScope.signal.aborted) {
+                const part = await reader.read();
+                if (part.done) break;
+                bytes += part.value.byteLength;
+                if (bytes > limit) return null;
+                parts.push(decoder.decode(part.value, {stream: true}));
+            }
+            if (responseScope.signal.aborted) return null;
+            parts.push(decoder.decode());
+            return parts.join('');
+        } finally {
+            responseScope.signal.removeEventListener('abort', cancel);
+            cancel();
+            reader.releaseLock();
+        }
+    };
     const clearReplayCache = () => {
         replayCache.clear();
         replayResponseChars = 0;
@@ -214,7 +256,7 @@ export function installYoutubeTimedTextBridgeCore(
         const response = await Reflect.apply(originalFetch, this, [input, init]);
         if (matches(requestUrl, requestHref)) {
             try {
-                void response.clone().text()
+                void readResponseText(response.clone())
                     .then((responseText) => publish(requestUrl, responseText, requestHref))
                     .catch(() => undefined);
             } catch {
@@ -242,7 +284,22 @@ export function installYoutubeTimedTextBridgeCore(
                 try {
                     publish(requestUrl, this.responseText, requestHref);
                 } catch {
-                    // 非文本 responseType 的 responseText getter 会抛异常。
+                    // HLS loader 的 arraybuffer/blob responseText getter 会抛异常；
+                    // 只让显式启用此能力的站点按小型文本资源解码，不能读取媒体段。
+                    if (!environment.resourcePolicy?.binaryText) return;
+                    try {
+                        const response = this.response;
+                        const emit = (text: unknown) => {
+                            if (requestGenerations.get(this) === requestGeneration) publish(requestUrl, text, requestHref);
+                        };
+                        if (response instanceof ArrayBuffer && response.byteLength <= MAX_REPLAY_RESPONSE_CHARS) {
+                            emit(new TextDecoder().decode(response));
+                        } else if (typeof Blob !== 'undefined' && response instanceof Blob && response.size <= MAX_REPLAY_RESPONSE_CHARS) {
+                            void response.text().then(emit).catch(() => undefined);
+                        }
+                    } catch {
+                        // 不兼容、不可读或异常响应只跳过旁路，不影响页面播放器。
+                    }
                 }
             }, {once: true});
         }
@@ -258,6 +315,7 @@ export function installYoutubeTimedTextBridgeCore(
         const current = environment.stateHost[YOUTUBE_BRIDGE_STATE_KEY] as YoutubeBridgeState | undefined;
         if (current?.owner !== owner) return;
         active = false;
+        responseScope.abort();
         restoreMethod(environment.fetch, fetchWrapper, originalFetch);
         restoreMethod(environment.xhrOpen, openWrapper, originalOpen);
         restoreMethod(environment.xhrSend, sendWrapper, originalSend);

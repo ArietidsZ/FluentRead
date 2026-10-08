@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/playerMenu.ts
  * 文件职责：组装播放器字幕菜单，以紧凑行呈现显示方式、字幕时间、本地 AI 字幕与下载操作，并在同一弹层内提供模型下载确认。
- * 主要内容：X 首层聚焦显示方式和当前需要的操作，校时、导出和重新识别放在可返回的选项页；复用稳定节点呈现字幕来源、故障恢复、AI 进度、模型下载进度和模型确认。
+ * 主要内容：X 首层聚焦显示方式和当前需要的操作，校时、导出和重新识别放在可返回的选项页；复用稳定节点呈现字幕来源、故障恢复、实际音频读取及并行识别进度、模型下载进度和模型确认。
  * 模块边界：只操作 FluentRead 自己的菜单节点，不读取存储、不发起识别或绑定全局事件；运行时负责配置、请求与清理。
  */
 import type {VideoSubtitleDisplayMode} from '@/src/core/config/model';
@@ -440,7 +440,15 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     let detail = '';
     let percent: number | undefined;
     if (state.fullActive) {
-        if (state.phase === 'capturing') detail = translateVideoUi('video.aiReadingAudio', language);
+        if (state.phase === 'capturing') {
+            detail = translateVideoUi('video.aiReadingAudio', language);
+            if (state.progress.capturedMs > 0 && state.progress.durationMs > 0) {
+                percent = Math.round(state.progress.progress * 100);
+                detail = state.progress.transcribedMs > 0
+                    ? translateVideoUi('video.aiTranscribing', language, {percent})
+                    : `${detail} ${percent}%`;
+            }
+        }
         else if (state.phase === 'transcribing' || state.phase === 'translating') {
             percent = Math.round(state.progress.progress * 100);
             detail = translateVideoUi(state.phase === 'transcribing' ? 'video.aiTranscribing' : 'video.aiTranslating', language, {percent});
@@ -471,21 +479,22 @@ export function renderVideoAiMenu(menu: HTMLElement, state: VideoAiMenuState, la
     button.title = title;
 }
 
-const downloadStatusVersions = new WeakMap<HTMLElement, number>();
+const downloadStatusTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
 
 /**
- * 两个下载共用一行状态。每次写入都会作废之前安排的清理，避免较早完成的下载
- * 在延迟后清掉另一次下载刚写入的反馈。
+ * 两个下载共用一行状态。每次写入取消前一次清理，避免旧下载清掉新反馈；
+ * 卸载时写入空状态即可释放菜单拥有的计时器。
  */
 export function setVideoMenuDownloadStatus(menu: HTMLElement, text: string, clearAfterMs?: number): void {
-    const version = (downloadStatusVersions.get(menu) ?? 0) + 1;
-    downloadStatusVersions.set(menu, version);
+    clearTimeout(downloadStatusTimers.get(menu));
+    downloadStatusTimers.delete(menu);
     menu.querySelector<HTMLElement>('[data-download-status]')!.textContent = text;
     syncVideoPlayerMenuLayout(menu);
     if (clearAfterMs === undefined) return;
-    setTimeout(() => {
-        if (downloadStatusVersions.get(menu) === version) setVideoMenuDownloadStatus(menu, '');
-    }, clearAfterMs);
+    downloadStatusTimers.set(menu, setTimeout(() => {
+        downloadStatusTimers.delete(menu);
+        setVideoMenuDownloadStatus(menu, '');
+    }, clearAfterMs));
 }
 
 export interface VideoModelPromptOption {

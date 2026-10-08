@@ -38,7 +38,7 @@ The desktop Chrome / Edge extension can try local AI transcription:
 
 1. Download the Tiny or Base speech model in video settings. Initial downloads are about 100 MB and 150 MB respectively; extra runtime files may be needed later. The model card shows a progress bar, percentage and downloaded size while downloading.
 2. Return to the X player and choose to generate AI subtitles.
-3. Wait for recognition. You can stop the job. Once recognition finishes, the timeline is available immediately; translations are fetched near the playback position. Original-only mode does not request translations.
+3. Audio reading and recognition progress appear in the player menu. You can stop the job. Completed sentences appear while later windows are still being recognized, and translations are fetched near the playback position. The full timeline is cached and can be exported as SRT only after recognition succeeds; a later recognition failure clears the incomplete preview. Original-only mode does not request translations.
 
 Tiny and Base are multilingual models. For Chinese speech, choose **Video settings → Spoken language → Chinese**; Base is the available option that prioritizes recognition quality. Auto detection waits for two sufficiently long, confident audio windows to agree before fixing the language for the video. Repeated decoding output is retried once with stronger repetition controls; if it remains corrupt, the job reports an error rather than displaying or caching it.
 
@@ -46,9 +46,11 @@ Audio recognition runs locally; recognized subtitle text still goes to your tran
 
 Model downloads try ModelScope first, then Hugging Face and two mirrors after connection or transfer failures. Existing files are reused. Speech models are downloaded separately from the extension package.
 
-Moving the pointer away and back, rebuilding playback controls, temporarily hiding the video, or attaching its thumbnail does not discard the current AI timeline. A different media identity clears the previous video’s subtitles.
+Moving the pointer away and back, rebuilding playback controls, temporarily hiding the video, or attaching its thumbnail preserves the AI timeline and pending model request. A completed model download still starts recognition when the same video gains media metadata. A different media identity clears the previous video’s state.
 
-You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. It prefers the master playlist’s audio rendition and checks the initialization segment for an audio track before downloading media segments. Reading or decoding failures continue with other known playlists for the same video. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying. Switching videos clears the previous video’s error, progress and model prompt.
+You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. It prefers the master playlist’s audio rendition and checks the initialization segment for an audio track before downloading media segments. Reading or decoding failures try alternate audio renditions and a lower bitrate complete MP4 belonging to the same video. Candidates come from loaded media and video metadata; the extension extracts only media URLs and bitrates. It requires a confirmed media identity before using metadata candidates. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying. Switching videos clears the previous video’s error, progress and model prompt.
+
+Recognition skips digital silence and keeps short spoken tails. Trimming long silent edges preserves the original subtitle timing. This does not filter all music or noise, or guarantee accuracy across accents, mixed languages, and specialist vocabulary.
 
 </details>
 

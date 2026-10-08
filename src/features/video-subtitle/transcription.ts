@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，给出下载进度使用的预计体积，拦截识别退化的长串重复文本，并把多声道 PCM 按目标采样率混音和重采样。
+ * 主要内容：规范化模型配置与下载状态列表，给出下载进度使用的预计体积，拦截识别退化的长串重复文本，把多声道 PCM 按目标采样率混音和重采样，并保守移除 Whisper 输入外侧的数字静音。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -71,6 +71,49 @@ export function isDegenerateVideoTranscript(value: unknown): boolean {
   if (/([\p{L}\p{N}])\1{15,}/u.test(compact)) return true;
   const repeated = compact.match(/([\p{L}\p{N}]{2,24})\1{5,}/u);
   return Boolean(repeated && repeated[0].length >= 48);
+}
+
+export interface WhisperAudioWindow {
+  audio: Float32Array;
+  /** 裁剪后的首采样在原窗口中的位置；识别时间戳必须加回这个偏移。 */
+  offsetMs: number;
+  sourceDurationMs: number;
+}
+
+/**
+ * 只处理接近一个 PCM16 量化步长的数字静音，不把音乐、底噪或轻声当成
+ * 无语音。保留 160 ms 外侧余量，且仅裁剪至少 600 ms 的静音边缘；
+ * 不压缩句子间的停顿。静音窗直接返回空输入，避免模型编造片尾字幕。
+ */
+export function prepareWhisperAudioWindow(audio: Float32Array): WhisperAudioWindow {
+  const frameSamples = 320;
+  const contextSamples = 160 * 16;
+  const minimumSilenceSamples = 600 * 16;
+  const silencePeak = 1 / 32_768;
+  let firstActive = -1;
+  let lastActiveEnd = 0;
+  let hasInvalidSample = false;
+  for (let start = 0; start < audio.length; start += frameSamples) {
+    const end = Math.min(audio.length, start + frameSamples);
+    let active = false;
+    for (let index = start; index < end; index += 1) {
+      const sample = audio[index];
+      if (!Number.isFinite(sample)) hasInvalidSample = true;
+      else if (Math.abs(sample) > silencePeak) active = true;
+    }
+    if (!active) continue;
+    if (firstActive < 0) firstActive = start;
+    lastActiveEnd = end;
+  }
+  const sourceDurationMs = audio.length / 16;
+  if (firstActive < 0) return {audio: new Float32Array(), offsetMs: 0, sourceDurationMs};
+  const start = firstActive >= minimumSilenceSamples ? Math.max(0, firstActive - contextSamples) : 0;
+  const end = audio.length - lastActiveEnd >= minimumSilenceSamples
+    ? Math.min(audio.length, lastActiveEnd + contextSamples)
+    : audio.length;
+  let prepared = audio.subarray(start, end);
+  if (hasInvalidSample) prepared = prepared.map(sample => Number.isFinite(sample) ? sample : 0);
+  return {audio: prepared, offsetMs: start / 16, sourceDurationMs};
 }
 
 /** 将解码后的多声道音频重采样为 Whisper 使用的单声道 PCM。 */

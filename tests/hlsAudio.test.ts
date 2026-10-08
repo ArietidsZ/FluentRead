@@ -50,8 +50,62 @@ describe('HLS audio', () => {
     expect(isXMediaUrl('http://video.twimg.com/x')).toBe(false);
     expect(isXMediaUrl('https://example.com/x')).toBe(false);
     expect(isXMediaUrl('https://[bad')).toBe(false);
+    expect(isXMediaUrl('https://user:pass@video.twimg.com/x')).toBe(false);
     const parsed = parseHlsAudioManifest('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",DEFAULT=NO,URI="no.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="a",DEFAULT=YES,URI="yes.m3u8"', base);
-    expect(parsed).toEqual({next: 'https://video.twimg.com/ext/audio/yes.m3u8', durationMs: 0});
+    expect(parsed).toEqual({next: 'https://video.twimg.com/ext/audio/yes.m3u8', alternatives: ['https://video.twimg.com/ext/audio/no.m3u8'], durationMs: 0});
+  });
+
+  it('uses another rendition declared by the master when the default is expired or contains only video', async () => {
+    const audio = '#EXTM3U\n#EXT-X-MAP:URI="audio-init.mp4"\n#EXTINF:1,\naudio.m4s\n#EXT-X-ENDLIST';
+    const master = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,DEFAULT=YES,URI="expired.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,URI="picture.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,URI="good.m3u8"';
+    const fetchResource = vi.fn(async (url: string) => {
+      if (url.endsWith('expired.m3u8')) return response(new Uint8Array(), {status: 403});
+      if (url.endsWith('picture.m3u8')) return response(textBytes(audio.replace('audio-init', 'picture-init')));
+      if (url.endsWith('good.m3u8')) return response(textBytes(audio));
+      if (url.endsWith('picture-init.mp4')) return response(videoInit);
+      return response(url.endsWith('audio-init.mp4') ? audioInit : textBytes('A'));
+    });
+    expect(await readXHlsAudio(base, master, new AbortController().signal, fetchResource)).toMatchObject({durationMs: 1000, bytes: joinBytes(audioInit, textBytes('A'))});
+    expect(fetchResource.mock.calls.some(([url]) => url.endsWith('good.m3u8'))).toBe(true);
+  });
+
+  it('does not spend the complete media budget on a stalled default rendition header', async () => {
+    vi.useFakeTimers();
+    const child = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\na.m4s\n#EXT-X-ENDLIST';
+    const master = '#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,DEFAULT=YES,URI="stalled.m3u8"\n#EXT-X-MEDIA:TYPE=AUDIO,URI="good.m3u8"';
+    const fetcher = vi.fn((url: string, options: {signal: AbortSignal}) => url.endsWith('stalled.m3u8')
+      ? new Promise<Response>((_resolve, reject) => options.signal.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError'))))
+      : Promise.resolve(response(url.endsWith('.m3u8') ? textBytes(child) : url.endsWith('init.mp4') ? audioInit : textBytes('A'))));
+    try {
+      const reading = readXHlsAudio(base, master, new AbortController().signal, fetcher);
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(await reading).toMatchObject({durationMs: 1000});
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('bounds master nesting and returns the final error when all declared renditions fail', async () => {
+    const master = '#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nchild.m3u8';
+    const nested = vi.fn(async (url: string) => response(textBytes(master.replace('child.m3u8', `${url.split('/').pop()}-child.m3u8`))));
+    expect(await readXHlsAudio(base, master, new AbortController().signal, nested)).toBeNull();
+    expect(nested).toHaveBeenCalledTimes(3);
+    await expect(readXHlsAudio(base, master, new AbortController().signal, async () => {throw new Error('all expired');})).rejects.toThrow('all expired');
+    expect(parseHlsAudioManifest('#EXTM3U\n#EXT-X-MEDIA:TYPE=AUDIO,DEFAULT=YES\n#EXT-X-STREAM-INF:BANDWIDTH=1\nchild.m3u8', base)?.next).toContain('child.m3u8');
+    expect(await readXHlsAudio(base, '#EXTM3U', new AbortController().signal, nested)).toBeNull();
+    const wideMaster = '#EXTM3U\n' + Array.from({length: 6}, (_, index) => `#EXT-X-STREAM-INF:BANDWIDTH=${index + 1}\ngroup-${index}.m3u8`).join('\n');
+    const wide = vi.fn(async (url: string) => response(textBytes(url.includes('group-')
+      ? wideMaster.replaceAll('group-', 'leaf-') : '#EXTM3U')));
+    expect(await readXHlsAudio(base, wideMaster, new AbortController().signal, wide)).toBeNull();
+    expect(wide.mock.calls.length).toBeLessThanOrEqual(11);
+  });
+
+  it('cancels a pending initialization request and releases all scopes', async () => {
+    const controller = new AbortController();
+    const manifest = '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\n#EXTINF:1,\na.m4s\n#EXT-X-ENDLIST';
+    const reading = readXHlsAudio(base, manifest, controller.signal, (_url, options) => new Promise((_resolve, reject) => {
+      options.signal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')));
+    }));
+    controller.abort();
+    expect(await reading).toBeNull();
   });
 
   it('selects lowest bandwidth variant and parses complete fMP4 playlist in order', () => {

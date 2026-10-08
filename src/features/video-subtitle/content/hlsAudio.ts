@@ -1,10 +1,10 @@
 /**
  * @file src/features/video-subtitle/content/hlsAudio.ts
  * 文件职责：从 X 播放器已请求的 HLS 清单读取完整音轨，避免按视频时长实时扫描。
- * 主要内容：选择音频 rendition 或低码率变体，先校验 fMP4 初始化段中的音频轨，再按原顺序并发读取媒体段，并严格限制大小与取消范围。
+ * 主要内容：优先音频 rendition、保留同清单内的备用变体，先校验 fMP4 初始化段中的音频轨，再按原顺序并发读取媒体段，并严格限制大小与取消范围。
  * 模块边界：不解密媒体、不访问页面凭据、不操作播放器；fetch 由调用方注入，解码由独立浏览器音频适配器执行。
  */
-export interface HlsAudioManifest {next?: string; segments?: string[]; durationMs: number}
+export interface HlsAudioManifest {next?: string; alternatives?: string[]; segments?: string[]; durationMs: number}
 const MAX_AUDIO_BYTES = 64 * 1024 * 1024;
 
 /** 沿 moov/trak/mdia/hdlr 检查真实音频轨，避免下载只有画面的高清分片。 */
@@ -41,7 +41,7 @@ export interface ReadBoundedMediaResponseOptions {
 export function isXMediaUrl(value: string): boolean {
     try {
         const url = new URL(value);
-        return url.protocol === 'https:' && url.hostname === 'video.twimg.com';
+        return url.protocol === 'https:' && url.hostname === 'video.twimg.com' && !url.username && !url.password;
     } catch { return false; }
 }
 
@@ -58,16 +58,21 @@ export function parseHlsAudioManifest(text: string, base: string): HlsAudioManif
     if (lines.some(line => /^#EXT-X-(?:BYTERANGE|DISCONTINUITY)/.test(line)
         || (/^#EXT-X-KEY:/.test(line) && !/METHOD=NONE(?:,|$)/.test(line)))) return null;
     const audios = lines.filter(line => /^#EXT-X-MEDIA:/.test(line) && /(?:^|,)TYPE=AUDIO(?:,|$)/.test(line.replace('#EXT-X-MEDIA:', '')));
-    const audio = audios.find(line => /DEFAULT=YES/.test(line)) ?? audios[0];
-    const audioUri = audio?.match(/URI="([^"]+)"/)?.[1];
-    if (audioUri) return {next: resource(audioUri, base), durationMs: 0};
+    const audioUrls = audios.sort((a, b) => Number(/DEFAULT=YES/.test(b)) - Number(/DEFAULT=YES/.test(a)))
+        .flatMap(line => {
+            const uri = line.match(/URI="([^"]+)"/)?.[1];
+            return uri ? [resource(uri, base)] : [];
+        });
     const variants = lines.flatMap((line, index) => {
         if (!line.startsWith('#EXT-X-STREAM-INF:')) return [];
         const uri = lines[index + 1];
         if (!uri || uri.startsWith('#')) return [];
         return [{url: resource(uri, base), bandwidth: Number(line.match(/(?:^|[:,])BANDWIDTH=(\d+)/)?.[1]) || Infinity}];
     });
-    if (variants.length) return {next: variants.sort((a, b) => a.bandwidth - b.bandwidth)[0].url, durationMs: 0};
+    const nextUrls = [...new Set([...audioUrls, ...variants.sort((a, b) => a.bandwidth - b.bandwidth).map(variant => variant.url)])].slice(0, 6);
+    if (nextUrls.length) return {
+        next: nextUrls[0], ...(nextUrls.length > 1 ? {alternatives: nextUrls.slice(1)} : {}), durationMs: 0,
+    };
     if (!lines.includes('#EXT-X-ENDLIST')) return null;
     const init = lines.find(line => line.startsWith('#EXT-X-MAP:'))?.match(/URI="([^"]+)"/)?.[1];
     if (!init) return null;
@@ -130,64 +135,88 @@ export async function readXHlsAudio(
         signal.removeEventListener('abort', abort);
         scope.abort();
     };
+    const visited = new Set<string>();
+    let attempts = 0;
+    const readHeaderResource = async (resourceUrl: string, parent: AbortSignal, options: ReadBoundedMediaResponseOptions = {}) => {
+        const requestScope = new AbortController();
+        const cancelRequest = () => requestScope.abort();
+        parent.addEventListener('abort', cancelRequest, {once: true});
+        // 清单/初始化段应很小；某个地址卡住不应占满整段音轨的预算。
+        // 媒体分片仍共用完整 30 秒读取预算，不因这个阶段上限被缩短。
+        const requestTimer = setTimeout(cancelRequest, 5000);
+        try {
+            const response = await fetchResource(resourceUrl, {signal: requestScope.signal, credentials: 'omit'});
+            return await readBoundedMediaResponse(response, 1_000_000, requestScope.signal, options);
+        } finally {
+            clearTimeout(requestTimer);
+            parent.removeEventListener('abort', cancelRequest);
+            requestScope.abort();
+        }
+    };
+    const readManifest = async (manifestUrl: string, text: string, depth: number): Promise<{bytes: Uint8Array; durationMs: number} | null> => {
+        if (scope.signal.aborted || depth > 3 || visited.has(manifestUrl) || attempts >= 12) return null;
+        visited.add(manifestUrl);
+        attempts += 1;
+        const manifest = parseHlsAudioManifest(text, manifestUrl);
+        if (manifest?.next) {
+            if (depth >= 3) return null;
+            let lastError: unknown;
+            for (const next of [manifest.next, ...manifest.alternatives || []]) {
+                if (scope.signal.aborted || attempts >= 12) return null;
+                if (visited.has(next)) continue;
+                // 一个默认 rendition 过期或没有音轨时，仍可使用同主清单内
+                // 尚未被播放器请求的备用音轨；不能依赖 resource timing 恰好收录它。
+                try {
+                    const bytes = await readHeaderResource(next, scope.signal);
+                    const result = await readManifest(next, new TextDecoder().decode(bytes), depth + 1);
+                    if (result) return result;
+                } catch (error) { lastError = error; }
+            }
+            if (lastError && !scope.signal.aborted) throw lastError;
+            return null;
+        }
+        if (!manifest?.segments || scope.signal.aborted) return null;
+        const mediaScope = new AbortController();
+        const cancelMedia = () => mediaScope.abort();
+        scope.signal.addEventListener('abort', cancelMedia, {once: true});
+        try {
+            const segments = manifest.segments;
+            const results: Uint8Array[] = [];
+            let index = 1;
+            let total = 0;
+            const consumeBytes = (count: number): boolean => {
+                if (!Number.isSafeInteger(count) || count < 0 || total > MAX_AUDIO_BYTES - count) return false;
+                total += count;
+                return true;
+            };
+            // 清单时长匹配只能证明属于同一视频，不能证明包含音轨。
+            // 先读取小型初始化段；纯视频清单直接交回上层尝试其他候选。
+            results[0] = await readHeaderResource(segments[0], mediaScope.signal, {consumeBytes});
+            if (!hasMp4AudioTrack(results[0]) || mediaScope.signal.aborted) return null;
+            const worker = async () => {
+                while (index < segments.length && !mediaScope.signal.aborted) {
+                    const next = index++;
+                    const response = await fetchResource(segments[next], {signal: mediaScope.signal, credentials: 'omit'});
+                    const bytes = await readBoundedMediaResponse(response, MAX_AUDIO_BYTES, mediaScope.signal, {consumeBytes});
+                    results[next] = bytes;
+                }
+            };
+            try { await Promise.all([worker(), worker(), worker()]); }
+            catch (error) { mediaScope.abort(); throw error; }
+            if (mediaScope.signal.aborted) return null;
+            const bytes = new Uint8Array(total);
+            let offset = 0;
+            for (const segment of results) { bytes.set(segment, offset); offset += segment.length; }
+            return {bytes, durationMs: manifest.durationMs};
+        } finally {
+            scope.signal.removeEventListener('abort', cancelMedia);
+            mediaScope.abort();
+        }
+    };
     try {
-        let manifest = parseHlsAudioManifest(initialManifest, url);
-        const visited = new Set([url]);
-        for (let depth = 0; manifest?.next && depth < 3; depth += 1) {
-            url = manifest.next;
-            if (visited.has(url)) {
-                cleanup();
-                return null;
-            }
-            visited.add(url);
-            const response = await fetchResource(url, {signal: scope.signal, credentials: 'omit'});
-            const bytes = await readBoundedMediaResponse(response, 1_000_000, scope.signal);
-            manifest = parseHlsAudioManifest(new TextDecoder().decode(bytes), url);
-        }
-        if (!manifest?.segments || scope.signal.aborted) {
-            cleanup();
-            return null;
-        }
-        const segments = manifest.segments;
-        const results: Uint8Array[] = [];
-        let index = 1;
-        let total = 0;
-        const consumeBytes = (count: number): boolean => {
-            if (!Number.isSafeInteger(count) || count < 0 || total > MAX_AUDIO_BYTES - count) return false;
-            total += count;
-            return true;
-        };
-        // 清单时长匹配只能证明属于同一视频，不能证明包含音轨。
-        // 先读取小型初始化段；纯视频清单直接交回上层尝试其他候选。
-        const initResponse = await fetchResource(segments[0], {signal: scope.signal, credentials: 'omit'});
-        results[0] = await readBoundedMediaResponse(initResponse, 1_000_000, scope.signal, {consumeBytes});
-        if (!hasMp4AudioTrack(results[0]) || scope.signal.aborted) {
-            cleanup();
-            return null;
-        }
-        const worker = async () => {
-            while (index < segments.length && !scope.signal.aborted) {
-                const next = index++;
-                const response = await fetchResource(segments[next], {signal: scope.signal, credentials: 'omit'});
-                const bytes = await readBoundedMediaResponse(response, MAX_AUDIO_BYTES, scope.signal, {consumeBytes});
-                results[next] = bytes;
-            }
-        };
-        try { await Promise.all([worker(), worker(), worker()]); }
-        catch (error) { scope.abort(); throw error; }
-        if (scope.signal.aborted) {
-            cleanup();
-            return null;
-        }
-        const bytes = new Uint8Array(total);
-        let offset = 0;
-        for (const segment of results) { bytes.set(segment, offset); offset += segment.length; }
-        const result = {bytes, durationMs: manifest.durationMs};
-        cleanup();
-        return result;
-    } catch (error) {
-        cleanup();
-        if (signal.aborted) return null;
-        throw error;
-    }
+        return await readManifest(url, initialManifest, 0).catch(error => {
+            if (scope.signal.aborted) return null;
+            throw error;
+        });
+    } finally { cleanup(); }
 }

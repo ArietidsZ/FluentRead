@@ -23,8 +23,30 @@ import {
   mergeVideoAiSubtitleCues,
   normalizeVideoAiSubtitleTimeline,
   upsertVideoAiSubtitleCue,
+  finalizeVideoAiCuesForPlayback,
 } from '@/src/features/video-subtitle/content/video-ai/cueTimeline';
 import { VideoAiCanceledGenerationRegistry } from '@/src/features/video-subtitle/content/video-ai/generationRegistry';
+
+describe('完成识别字幕的原文回放', () => {
+  it('保留稳定身份、使用实际说话时长并清除识别和翻译等待时间', () => {
+    const input = [{startMs: 1000, durationMs: 9000, spokenEndMs: 2300, text: '  A\n complete\u3000sentence. ',
+      cueId: 'ai-1', partial: false, availableAtMs: 6000, translationAvailableAtMs: 8000}] as const;
+    expect(finalizeVideoAiCuesForPlayback(input)).toEqual([{
+      ...input[0], durationMs: 1300, text: 'A complete sentence.', availableAtMs: 0, translationAvailableAtMs: 0,
+    }]);
+    expect(input[0].text).toBe('  A\n complete\u3000sentence. ');
+    expect(input[0].availableAtMs).toBe(6000);
+  });
+
+  it('空时间轴或纯空白字幕不进入回放，边界时间至少可见一毫秒', () => {
+    expect(finalizeVideoAiCuesForPlayback([])).toEqual([]);
+    expect(finalizeVideoAiCuesForPlayback([
+      {startMs: -20, durationMs: 400, spokenEndMs: 0, text: 'Yes.', availableAtMs: 400},
+      {startMs: 800, durationMs: 400, spokenEndMs: 700, text: 'No.', availableAtMs: 900},
+      {startMs: 1000, durationMs: 400, spokenEndMs: 1200, text: ' \n\u3000 ', availableAtMs: 1400},
+    ])).toMatchObject([{startMs: 0, durationMs: 20, text: 'Yes.'}, {startMs: 800, durationMs: 1, text: 'No.'}]);
+  });
+});
 
 function decodePcm16Base64(value: string): Int16Array {
   const binary = atob(value);

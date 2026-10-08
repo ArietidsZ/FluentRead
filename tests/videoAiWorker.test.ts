@@ -56,6 +56,44 @@ async function waitForWorkerMessages(scope: Record<string, any>, count: number):
 }
 
 describe('视频 AI Worker timestamp parser', () => {
+    it('数字静音直接返回空字幕，不初始化模型或检测语言', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        workerMocks.pipeline.mockReset();
+        webGpuMocks.probeWebGpu.mockReset();
+        (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+        scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: 'auto', audio: new Float32Array(160_000)}});
+        await waitForWorkerMessages(scope, 1);
+        expect(workerMocks.pipeline).not.toHaveBeenCalled();
+        expect(webGpuMocks.probeWebGpu).not.toHaveBeenCalled();
+        expect(scope.postMessage).toHaveBeenCalledWith(expect.objectContaining({success: true, text: '', segments: [], inferenceMs: 0, audioDurationMs: 10_000}));
+        vi.unstubAllGlobals();
+    });
+
+    it.each([true, false])('裁剪长静音后恢复字幕绝对窗口位置（有 timestamp：%s）', async (withTimestamps) => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+        const transcriber = vi.fn(async (_audio: Float32Array, _options: Record<string, unknown>) => ({text: 'A complete sentence.', chunks: withTimestamps ? [{timestamp: [.16, 1.16], text: 'A complete sentence.'}] : []}));
+        workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
+        (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+        const audio = new Float32Array(5 * 16_000);
+        audio.fill(.04, 2 * 16_000, 3 * 16_000);
+        scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: 'en', audio}});
+        await waitForWorkerMessages(scope, 1);
+        expect(transcriber.mock.calls[0][0].length).toBe(1320 * 16);
+        expect(transcriber.mock.calls[0][1]).toMatchObject({max_new_tokens: 30, language: 'en'});
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+            success: true, audioDurationMs: 5000,
+            segments: [{startMs: withTimestamps ? 2000 : 1840, endMs: withTimestamps ? 3000 : 3160, text: 'A complete sentence.'}],
+        }));
+        vi.unstubAllGlobals();
+    });
+
     it('调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换', async () => {
         vi.resetModules();
         const scope: Record<string, any> = {
@@ -106,7 +144,7 @@ describe('视频 AI Worker timestamp parser', () => {
         );
         const send = (requestId: number, languageSessionKey: string) => scope.onmessage?.({data: {
             requestId, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', languageSessionKey,
-            audio: new Float32Array(48_000),
+            audio: new Float32Array(48_000).fill(0.04),
         }});
         send(1, 'stream-ko');
         for (let index = 0; index < 10 && scope.postMessage.mock.calls.length < 1; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
@@ -145,12 +183,12 @@ describe('视频 AI Worker timestamp parser', () => {
         workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
         (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
         for (let requestId = 1; requestId <= 4; requestId += 1) {
-            scope.onmessage({data: {requestId, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', languageSessionKey: 'chinese', audio: new Float32Array(64_000)}});
+            scope.onmessage({data: {requestId, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', languageSessionKey: 'chinese', audio: new Float32Array(64_000).fill(0.04)}});
             await waitForWorkerMessages(scope, requestId);
         }
         expect(transcriber.model).toHaveBeenCalledTimes(3);
         expect(transcriber.mock.calls.map((call: any[]) => call[1].language)).toEqual(['en', 'zh', 'zh', 'zh']);
-        scope.onmessage({data: {requestId: 5, type: 'transcribe', model: 'tiny', sourceLanguage: 'zh-Hans', audio: new Float32Array(64_000)}});
+        scope.onmessage({data: {requestId: 5, type: 'transcribe', model: 'tiny', sourceLanguage: 'zh-Hans', audio: new Float32Array(64_000).fill(0.04)}});
         await waitForWorkerMessages(scope, 5);
         expect(transcriber.model).toHaveBeenCalledTimes(3);
         expect(transcriber.mock.calls.at(-1)[1]).toMatchObject({language: 'zh', task: 'transcribe', no_repeat_ngram_size: 8});
@@ -170,7 +208,7 @@ describe('视频 AI Worker timestamp parser', () => {
             .mockResolvedValueOnce({text: stillRepeated ? repeated : '我挟天子以令诸侯。', chunks: []});
         workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
         (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
-        scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: 'zh-Hans', languageSessionKey: 'repeat', audio: new Float32Array(64_000)}});
+        scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: 'zh-Hans', languageSessionKey: 'repeat', audio: new Float32Array(64_000).fill(0.04)}});
         await waitForWorkerMessages(scope, 1);
         expect(transcriber).toHaveBeenCalledTimes(2);
         expect(transcriber.mock.calls[1][1]).toMatchObject({language: 'zh', no_repeat_ngram_size: 4, repetition_penalty: 1.15});
@@ -190,7 +228,7 @@ describe('视频 AI Worker timestamp parser', () => {
             .mockResolvedValueOnce({text: '恢复的字幕。', chunks: [{text: '恢复的字幕。', timestamp: [0, 1]}]});
         workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
         (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
-        scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'base', sourceLanguage: 'zh', audio: new Float32Array(64_000)}});
+        scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'base', sourceLanguage: 'zh', audio: new Float32Array(64_000).fill(0.04)}});
         await waitForWorkerMessages(scope, 1);
         expect(transcriber).toHaveBeenCalledTimes(2);
         expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, segments: [expect.objectContaining({text: '恢复的字幕。'})]}));
@@ -279,7 +317,7 @@ describe('视频 AI Worker timestamp parser', () => {
             model: 'tiny',
             sourceLanguage: 'auto',
             languageSessionKey: `stream-${requestId}`,
-            audio: new Float32Array([0, 0, 0, 0]),
+            audio: new Float32Array([0.04, 0.04, 0.04, 0.04]),
             device,
         }});
         send(1);
@@ -313,7 +351,7 @@ describe('视频 AI Worker timestamp parser', () => {
             type: 'transcribe',
             model: 'tiny',
             sourceLanguage: 'auto',
-            audio: new Float32Array([0, 0, 0, 0]),
+            audio: new Float32Array([0.04, 0.04, 0.04, 0.04]),
         }});
         await waitForWorkerMessages(scope, 1);
 
@@ -363,7 +401,7 @@ describe('视频 AI Worker timestamp parser', () => {
             type: 'transcribe',
             model: 'tiny',
             sourceLanguage: 'en-US',
-            audio: new Float32Array([0, 0, 0, 0]),
+            audio: new Float32Array([0.04, 0.04, 0.04, 0.04]),
         }});
         await waitForWorkerMessages(scope, 1);
 
@@ -390,7 +428,7 @@ describe('视频 AI Worker timestamp parser', () => {
             type: 'transcribe',
             model: 'tiny',
             sourceLanguage: 'en',
-            audio: new Float32Array([0, 0, 0, 0]),
+            audio: new Float32Array([0.04, 0.04, 0.04, 0.04]),
         }});
         await waitForWorkerMessages(scope, 1);
 

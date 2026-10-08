@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {VideoAiFullCaptureController, type VideoAiFullCaptureProgress} from '@/src/features/video-subtitle/content/video-ai/fullCapture';
 import type {VideoAiAudioChunk} from '@/src/features/video-subtitle/content/video-ai/capture';
+import type {VideoAiStabilizedCue} from '@/src/features/video-subtitle/content/video-ai/streamingTranscript';
 
 class FakeNode {
   constructor(private readonly shouldThrow = false) {}
@@ -180,6 +181,7 @@ function makeInjectedController(options: {
   onProgress?: (progress: VideoAiFullCaptureProgress) => void;
   onInvalidate?: (reason: 'cancel' | 'error' | 'destroy', session: number) => void;
   onSessionStart?: (session: number) => void;
+  onCuesProgress?: (cues: VideoAiStabilizedCue[], session: number) => void;
 } = {}): VideoAiFullCaptureController {
   const video = new FakeVideo();
   return new VideoAiFullCaptureController({
@@ -197,6 +199,7 @@ function makeInjectedController(options: {
     onProgress: options.onProgress,
     onInvalidate: options.onInvalidate,
     onSessionStart: options.onSessionStart,
+    onCuesProgress: options.onCuesProgress,
   });
 }
 
@@ -217,6 +220,56 @@ afterEach(() => {
 });
 
 describe('完整 AI 字幕失败与取消边界', () => {
+  it('后续窗口仍识别时先发布稳定字幕，回调修改不污染最终结果', async () => {
+    installCustomAudioWindow();
+    let resolveNext!: (value: Record<string, unknown>) => void;
+    const nextWindow = new Promise<Record<string, unknown>>(resolve => { resolveNext = resolve; });
+    const transcribe = vi.fn(async (chunk: VideoAiAudioChunk) => chunk.sequence === 1
+      ? {text: 'The first complete sentence.', segments: [{startMs: 0, endMs: 3000, text: 'The first complete sentence.'}]}
+      : nextWindow);
+    const onComplete = vi.fn(async () => undefined);
+    const onCuesProgress = vi.fn((cues: VideoAiStabilizedCue[], session: number) => {
+      expect(session).toBe(1);
+      expect(cues.every(cue => !cue.partial)).toBe(true);
+      cues[0].text = 'External mutation.';
+    });
+    const controller = makeInjectedController({audio: speechAudio(20_000), transcribe, onComplete, onCuesProgress});
+    expect(controller.start()).toBe(true);
+    await tick(60);
+    expect(onCuesProgress).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(controller.getPhase()).toBe('transcribing');
+    resolveNext({text: 'The following complete sentence.', segments: [{startMs: 2000, endMs: 4000, text: 'The following complete sentence.'}]});
+    await tick(80);
+    expect(controller.getPhase()).toBe('ready');
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(onComplete.mock.calls)).not.toContain('External mutation');
+  });
+
+  it('逐窗字幕回调取消时不提交完成结果，也不再发布旧会话字幕', async () => {
+    installCustomAudioWindow();
+    let controller!: VideoAiFullCaptureController;
+    const onComplete = vi.fn(async () => undefined);
+    const onCuesProgress = vi.fn(() => controller.cancel());
+    controller = makeInjectedController({audio: speechAudio(20_000), onComplete, onCuesProgress});
+    expect(controller.start()).toBe(true);
+    await tick(80);
+    expect(onCuesProgress).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(controller.getPhase()).toBe('idle');
+  });
+
+  it('未完成的无标点前缀不发布成稳定字幕', async () => {
+    installCustomAudioWindow();
+    const onCuesProgress = vi.fn();
+    const controller = makeInjectedController({audio: speechAudio(4000), onCuesProgress,
+      transcribe: async () => ({text: 'The still unfinished sentence', segments: [{startMs: 0, endMs: 3000, text: 'The still unfinished sentence'}]})});
+    expect(controller.start()).toBe(true);
+    await tick(60);
+    expect(controller.getPhase()).toBe('ready');
+    expect(onCuesProgress).not.toHaveBeenCalled();
+  });
+
   it('Base 识别空结果提示检查人声和原语言，不推荐已经使用的 Base', async () => {
     installCustomAudioWindow();
     const controller = makeInjectedController({model: 'base', transcribe: async () => ({text: '', segments: []})});
@@ -811,7 +864,50 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     });
   }
 
-  it('在窗口后半段发现长暂停时切断窗口，并跳过不足 900ms 的尾部', async () => {
+  it('扫描和识别并行时保持进度单调，扫描结束保留已完成窗口指标', async () => {
+    vi.useFakeTimers();
+    const sourceVideo = new FakeVideo();
+    const scanVideo = new FakeVideo();
+    sourceVideo.duration = scanVideo.duration = 20;
+    installScanDom(scanVideo);
+    let resolveFirst!: (result: Record<string, unknown>) => void;
+    const first = new Promise<Record<string, unknown>>(resolve => { resolveFirst = resolve; });
+    let resolveNext!: (result: Record<string, unknown>) => void;
+    const next = new Promise<Record<string, unknown>>(resolve => { resolveNext = resolve; });
+    const controller = new VideoAiFullCaptureController({
+      getVideo: () => sourceVideo as unknown as HTMLVideoElement,
+      getIsolatedVideo: async () => scanVideo as unknown as HTMLVideoElement,
+      getModel: () => 'tiny', isSupported: () => true,
+      transcribe: async chunk => chunk.sequence === 1 ? first : next,
+      onTranscriptionComplete: async () => undefined, onStateChange: vi.fn(),
+      onError: error => { throw error; },
+    });
+    expect(controller.start()).toBe(true);
+    await tick(20);
+    const processor = FakeAudioContext.instances.at(-1)!.processor;
+    scanVideo.currentTime = 12;
+    processor.emit(speechAudio(12_000));
+    await tick(20);
+    const readProgress = controller.getProgress().progress;
+    resolveFirst({text: 'The first scanned sentence.', segments: [{startMs: 0, endMs: 3000, text: 'The first scanned sentence.'}]});
+    await tick(30);
+    expect(controller.getProgress()).toMatchObject({phase: 'capturing', transcribedMs: 10_000, windowIndex: 1});
+    expect(controller.getProgress().progress).toBeGreaterThanOrEqual(readProgress);
+    scanVideo.currentTime = 20;
+    processor.emit(speechAudio(8_000));
+    scanVideo.ended = true;
+    scanVideo.emit('ended');
+    vi.advanceTimersByTime(420);
+    await tick(30);
+    expect(controller.getProgress()).toMatchObject({phase: 'transcribing', transcribedMs: 10_000, windowIndex: 1});
+    expect(controller.getProgress().progress).toBeGreaterThanOrEqual(.45);
+    resolveNext({text: 'The next scanned sentence.', segments: [{startMs: 0, endMs: 1000, text: 'The next scanned sentence.'}]});
+    await tick(80);
+    expect(controller.getPhase()).toBe('ready');
+    expect(controller.getProgress().progress).toBe(1);
+  });
+
+  it('在窗口后半段发现长暂停时切断窗口，并跳过不足 900ms 的静音尾部', async () => {
     vi.useFakeTimers();
     const scanVideo = new FakeVideo();
     scanVideo.duration = 10;
@@ -834,6 +930,28 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     expect(chunks).toHaveLength(1);
     expect(Math.round(chunks[0].startMs)).toBe(0);
     expect(Math.round(chunks[0].durationMs)).toBe(9_500);
+  });
+
+  it('自然停顿后不足 900ms 的最后人声仍会送入识别，不能直接丢弃', async () => {
+    vi.useFakeTimers();
+    const scanVideo = new FakeVideo();
+    scanVideo.duration = 10;
+    installScanDom(scanVideo);
+    const chunks: VideoAiAudioChunk[] = [];
+    const controller = makeScanController(scanVideo, chunks);
+    expect(controller.start()).toBe(true);
+    await tick(20);
+    scanVideo.currentTime = 10;
+    const audio = speechAudio(10_000);
+    audio.fill(0, 8800 * 16, 9600 * 16);
+    FakeAudioContext.instances.at(-1)!.processor.emit(audio);
+    scanVideo.ended = true;
+    scanVideo.emit('ended');
+    vi.advanceTimersByTime(420);
+    await tick(60);
+    expect(controller.getPhase()).toBe('ready');
+    expect(chunks.map(chunk => [chunk.startMs, chunk.durationMs])).toEqual([[0, 9200], [9200, 800]]);
+    expect(chunks[1].pcm.length).toBe(800 * 16);
   });
 
   it('暂停边界后保留后续完整尾窗，并按新的绝对时间起点识别', async () => {

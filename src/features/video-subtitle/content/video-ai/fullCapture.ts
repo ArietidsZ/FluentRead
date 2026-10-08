@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/fullCapture.ts
  * 文件职责：执行完整视频 AI 字幕的独立音频读取、分窗识别和最终 cue 整理。
- * 主要内容：支持 HLS PCM 注入、direct media 快速解码、隐藏扫描副本、串行 Whisper 窗口、完整缓存字幕恢复和取消清理。
+ * 主要内容：支持 HLS PCM 注入、direct media 快速解码、隐藏扫描副本、串行 Whisper 窗口、逐窗稳定字幕发布、完整缓存字幕恢复和取消清理。
  * 模块边界：不得接管用户可见 video 的播放状态；页面源隔离由调用方通过选项注入。
  */
 import {
@@ -58,6 +58,8 @@ export interface VideoAiFullCaptureOptions {
   isSupported: () => boolean;
   transcribe: (chunk: VideoAiAudioChunk) => Promise<VideoAiTranscriptionResult>;
   onTranscriptionComplete: (cues: VideoAiStabilizedCue[], sessionId: number) => Promise<void>;
+  /** 逐窗发布已经稳定的原文字幕；仍由完整回调声明成功并写入完整缓存。 */
+  onCuesProgress?: (cues: VideoAiStabilizedCue[], sessionId: number) => void;
   onError: (error: Error) => void;
   onStateChange: () => void;
   onProgress?: (progress: VideoAiFullCaptureProgress) => void;
@@ -193,7 +195,7 @@ export class VideoAiFullCaptureController {
   private audioHasSpeech = false;
   private captureStartOffsetMs = 0;
   private expectedDurationMs = 0;
-  // 完整模式仍然只在最后统一暴露 cue，但识别可以和隐藏扫描并行。
+  // 完整模式逐窗发布稳定 cue；识别可以和隐藏扫描并行。
   // 只维护一个串行 Promise 链，复用同一个 Whisper Worker，避免并发加载
   // 第二份模型导致内存峰值翻倍。
   private fullTranscriptionChain: Promise<void> | null = null;
@@ -912,8 +914,15 @@ export class VideoAiFullCaptureController {
 
     if (forceTail && capturedMs > this.fullNextWindowStartMs + 1) {
       const tailDurationMs = capturedMs - this.fullNextWindowStartMs;
-      if (this.fullWindowSequence === 0 || tailDurationMs >= FULL_MIN_WINDOW_MS) {
-        queueWindow(this.fullNextWindowStartMs, capturedMs);
+      const shortTail = tailDurationMs < FULL_MIN_WINDOW_MS
+        && this.fullWindowSequence > 0 && this.fullNextWindowOverlapMs === 0
+        ? this.createFullAudioWindowFromBlocks(this.fullNextWindowStartMs, capturedMs)
+        : undefined;
+      // 自然停顿之后的最后一个短词没有被任何重叠窗覆盖；有声时保留，
+      // 数字静音尾部仍跳过，不能只按时长丢掉整段可识别对白。
+      if (this.fullWindowSequence === 0 || tailDurationMs >= FULL_MIN_WINDOW_MS
+        || (shortTail && measureVideoAiSpeechActivity(shortTail.pcm).active)) {
+        queueWindow(this.fullNextWindowStartMs, capturedMs, shortTail);
       }
       this.fullNextWindowStartMs = capturedMs;
     }
@@ -957,6 +966,14 @@ export class VideoAiFullCaptureController {
           ? result.segments : [{startMs: 0, endMs: chunk.durationMs, text: result.text}]),
       });
       this.fullFallbackCues = this.absorbCues(cues, this.fullCuesById, this.fullFallbackCues);
+      if (this.options.onCuesProgress) {
+        const stableCues = normalizeVideoAiSubtitleTimeline(consolidateVideoAiFullCues((mergeVideoAiSubtitleCues([
+          ...this.fullCuesById.values(),
+          ...this.fullFallbackCues,
+        ]) as VideoAiStabilizedCue[]).filter(cue => !cue.partial).map(cue => ({...cue})))) as VideoAiStabilizedCue[];
+        if (stableCues.length > 0) this.options.onCuesProgress(stableCues, session);
+        if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
+      }
       const transcribedMs = window.endMs;
       const progressPhase = this.phase === 'capturing' ? 'capturing' : 'transcribing';
       const progress = progressPhase === 'capturing'
@@ -1070,7 +1087,18 @@ export class VideoAiFullCaptureController {
 
   private setProgress(patch: Partial<VideoAiFullCaptureProgress>): void {
     const previousPhase = this.progress.phase;
-    this.progress = { ...this.progress, ...patch };
+    const continuingRecognition = (previousPhase === 'capturing' || previousPhase === 'transcribing')
+      && (patch.phase === 'capturing' || patch.phase === 'transcribing');
+    const next = { ...this.progress, ...patch };
+    // 扫描与识别并行时，“较早窗口刚完成”不能把已读音频进度拉回去；
+    // 扫描结束也不能将已经完成的窗口数和时间重置为零。新会话从 idle/error
+    // 开始，不沿用旧会话的指标。
+    if (continuingRecognition) {
+      next.progress = Math.max(this.progress.progress, next.progress);
+      next.transcribedMs = Math.max(this.progress.transcribedMs, next.transcribedMs);
+      next.windowIndex = Math.max(this.progress.windowIndex, next.windowIndex);
+    }
+    this.progress = next;
     const now = performance.now();
     // ScriptProcessorNode 的回调频率会随浏览器实际 AudioContext 采样率变化。
     // 采集阶段只保留最新内部进度，限制 UI/播放器控件刷新到 4Hz；阶段切换
