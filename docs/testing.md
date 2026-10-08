@@ -967,3 +967,9 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 全页入口在原生平台复用文档的前端提示解析规则，在 checkConfig、modelThinking、prompt/context、文本槽分包、跨候选 AI batch 和会话缓存身份前冻结有效专用 pair；后台 native sender/getContexts、文本 Port、registry 与 broker 继续承担最终授权，前端提示不成为凭据。原生导航及相关公开配置保存恢复译文并停止标题/正文会话，保留宿主源 Text 和宿主编辑；清理通过实际 SDK signal 与迟到 DOM/持久缓存负控验证。配置摘要保守比较整个相关公开映射，所以普通服务映射变化也会结束私密全页代次；计数和 UI 保存不作废，content 不读取敏感凭据。
 
 `fullPagePrivacyRoute` 启动实际 content composition、真实配置保存/订阅、全页候选/请求/renderer/state 和既有原生通道/handler/broker/provider/SDK/cache，仅其他 feature、浏览器/存储/布局、上下文提取和合成 HTTP 使用夹具；覆盖模型预检、prompt summary/translation、保护槽拆批、跨候选合批、缓存隔离和 endpoint、十一类保存、导航/关闭/BFCache/禁用/Port 断连及标题正文迟到结果。模块 API 存在而 global browser 缺失的 Chrome 直连控制验证导入绑定；native capability false 的实际会话/原路由复位控制与 userscript 构建隔离分别证明普通行为及产物预算；不声明真实 userscript GUI 验收。DocumentApp 和既有文档编排不重做，仅将提示解析抽入既有 requestPrivacy 并委托；文档回归继续验证。
+
+原生单词卡主译文在客户端能力/模型配置决策前复用页面原生提示解析有效 pair，content 沿用既有公开配置边界、不读取敏感凭据，执行凭据校验仍在后台；辅助释义复用既有 visible-field 的前四组、去重、目标语言清洗、失败保留原文与 2.5 秒预算，通过文本 client/Port/registry 交给 native sender/getContexts 与 broker 最终授权。辅助保留空标题上下文，显式关闭网页 AI context；provider 的原有服务 prompt、Thinking 和缓存身份仍由有效模型计算。配置真实保存同步撤销旧内容代次，关闭/卸载/pagehide/popstate/hashchange 中止主译文与辅助 SDK，迟到结果不更新旧词卡或模型缓存；计数/UI 保存不取消。
+
+`wordCardPrivacyRoute` 编译真实 SelectionTranslator setup，并执行真实 store save/subscribe、词典 handler/查询缓存、文本 client、原生 Port/registry/handler、broker/cache/provider/SDK；仅非模型词典 provider、浏览器、持久存储、布局和 HTTP 使用合成边界。原 lifecycle 夹具明确使用非原生能力以保留旧消息语义，新用例验证原生三态、有效 prompt/Thinking、十一类保存、并发主/辅助请求取消、endpoint/cache 和迟到词典响应。SFC 不在既有严格数值归属中，不把这些用例称为真实 GUI 或 numeric SFC 四维覆盖。
+
+独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。

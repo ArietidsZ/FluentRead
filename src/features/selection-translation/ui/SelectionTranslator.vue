@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -187,6 +187,9 @@ import browser from 'webextension-polyfill';
 import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
 import {openShareCard, isShareCardMounted} from '@/src/features/share-card/public';
 import { config, subscribeConfig } from '@/src/services/config/store';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {fullPageTranslationConfigKey, resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
+import {translateVisibleWordCardFields} from '@/src/features/selection-translation/background/wordLookupHandler';
 import { translateText, translateTextBatch } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
@@ -315,6 +318,7 @@ let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
 let unsubscribeConfig: (() => void) | null = null;
+let previousWordCardConfigKey = NATIVE_PRIVATE_ROUTE_SUPPORTED && JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]);
 const runtimeMessageUnsubscribers: Array<() => void> = [];
 let releaseContextMenuHandler: (() => void) | null = null;
 let tooltipResizeObserver: ResizeObserver | null = null;
@@ -394,7 +398,7 @@ const effectiveSourceLanguage = computed(() => {
 const isWordSelection = computed(() => Boolean(selectedWord.value) && effectiveTargetLanguage.value !== 'en'
   && (effectiveSourceLanguage.value === 'auto' || /^en(?:-|$)/i.test(effectiveSourceLanguage.value)));
 const isWordCardVisible = computed(() => isWordSelection.value && wordCard.value !== null);
-const isPrivateContext = browser.extension.inIncognitoContext === true;
+const isPrivateContext = (NATIVE_PRIVATE_ROUTE_SUPPORTED ? browser.extension?.inIncognitoContext : browser.extension.inIncognitoContext) === true;
 const currentContentRequest = computed<SelectionContentRequest | null>(() => {
   const request = activeContentRequest.value;
   if (!request || snapshot.value?.text !== request.text || selectedText.value !== request.text
@@ -1021,6 +1025,7 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
   error.value = '';
   try {
     const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage, serviceOverride: selectionSettings.value.service};
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext); if (route) Object.assign(options, {serviceOverride: route.service, modelOverride: route.model});}
     const translated = parts.some(part => part.kind === 'code')
       ? await translateSelectionParts(parts, texts => translateTextBatch(texts, document.title, options))
       : [{kind: 'text' as const, text: await translateText(text, document.title, options)}];
@@ -1101,7 +1106,12 @@ async function requestWordCard(request: SelectionContentRequest): Promise<void> 
       schedulePositionUpdate();
       isWordCardSupportLoading.value = true;
       try {
-        const enriched = await sendWordCardRequest(word, request.targetLanguage, true, controller.signal);
+        let enriched: {success?: boolean; data?: WordCardData | null};
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+          const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext);
+          try { enriched = {success: true, data: await translateVisibleWordCardFields(response.data, request.targetLanguage, fields => translateTextBatch(fields.origin, '', {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: fields.targetLanguage, pageContext: '', enableAIContext: false, useCache: fields.useCache, serviceOverride: route?.service || selectionSettings.value.service, modelOverride: route?.model, timeout: fields.requestTimeoutMs + 1_000}), () => {})}; }
+          finally {controller.abort();}
+        } else enriched = await sendWordCardRequest(word, request.targetLanguage, true, controller.signal);
         if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
         if (enriched?.success && enriched.data) {
           wordCard.value = enriched.data;
@@ -1774,7 +1784,7 @@ onMounted(() => {
   );
   void requestPageZoom();
   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
-  unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
+  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
   document.addEventListener('pointercancel', handlePointerCancel, true);
@@ -1784,6 +1794,7 @@ onMounted(() => {
   document.addEventListener('keydown', handleKeydown, true);
   document.addEventListener('keyup', handleKeyup, true);
   window.addEventListener('blur', handleWindowBlur);
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) for (const event of ['pagehide', 'popstate', 'hashchange']) window.addEventListener(event, hideAll);
   runtimeMessageUnsubscribers.push(addRuntimeMessageListener(browser.runtime, handleSelectionTtsState));
   window.addEventListener('scroll', handleScroll, true);
   window.addEventListener('resize', handleViewportResize);
@@ -1887,6 +1898,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', handleKeydown, true);
   document.removeEventListener('keyup', handleKeyup, true);
   window.removeEventListener('blur', handleWindowBlur);
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) for (const event of ['pagehide', 'popstate', 'hashchange']) window.removeEventListener(event, hideAll);
   window.removeEventListener('scroll', handleScroll, true);
   window.removeEventListener('resize', handleViewportResize);
   resetSelectionContentState(true);

@@ -447,6 +447,7 @@ export const userscriptAliases = [
     // 无浏览器原生 sender，油猴不能确认私密来源，也不携带扩展专用路由验证器。
     {find: '@/src/core/config/incognitoRoute', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
     {find: '@/src/services/translation/requestPrivacy', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
+    {find: '@/src/features/selection-translation/background/wordLookupHandler', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
     ...(bundleLibraries ? [{find: '@/userscript/pakoRuntime', replacement: resolve(root, 'userscript/pakoBundled.ts')}] : []),
     // dexie 官方 ESM 入口把自身注册到跨 realm 共享的 globalThis[Symbol.for('Dexie')]，版本不一致时会在
     // 模块求值阶段直接抛错。脚本管理器（如 Safari 的 Userscripts）把脚本注入页面主 world，与宿主页面共享

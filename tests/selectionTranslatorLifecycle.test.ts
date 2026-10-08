@@ -73,6 +73,8 @@ function mountSelection(privateContext = false) {
         '@/src/core/translation/result': {hasDistinctTranslation},
         vue: {...Vue, useTemplateRef: () => Vue.ref(null)},
         'webextension-polyfill': browser,
+        // 本夹具覆盖既有非原生/legacy 消息语义；原生模型通道由 wordCardPrivacyRoute 验证。
+        '@/src/core/config/incognitoRoute': {NATIVE_PRIVATE_ROUTE_SUPPORTED: false},
         '@/src/platform/browser/runtimeMessages': runtimeMessages,
         '@/src/services/config/store': {config, subscribeConfig: () => unsubscribeConfig},
         '@/src/features/selection-translation/core': selectionCore,
