@@ -1,0 +1,7 @@
+{
+  "newFile": "tests/documentPrivacyRoute.test.ts",
+  "matrixGroup": "functional",
+  "strictExecutionListAddedOnce": true,
+  "coverageOwnershipIncludeExcludeThresholdsIgnoresUnchanged": true,
+  "existingEntriesRemovedOrReclassified": false
+}

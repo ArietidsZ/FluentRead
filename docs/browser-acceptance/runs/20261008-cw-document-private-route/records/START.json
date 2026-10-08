@@ -1,0 +1,12 @@
+{
+  "baselineHead": "d8e4091beb9113451cedf8052f54c22edc5ca80f",
+  "scope": "Complete document page slice; full-page architecture separate and deferred",
+  "excludedIndependentEntries": [
+    "full-page translation",
+    "settings standalone vision probe",
+    "dictionary word cards",
+    "video translation"
+  ],
+  "nativeTextTransportAndRegistrySourceChanged": false,
+  "extraTasksAgentsApiGpuGuiDownloadsPermissions": false
+}

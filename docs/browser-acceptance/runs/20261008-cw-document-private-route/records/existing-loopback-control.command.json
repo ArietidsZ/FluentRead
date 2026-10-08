@@ -1,0 +1,19 @@
+{
+  "label": "existing-loopback-control",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/webDavHttpIntegration.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/existing-loopback-control.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:20:58.969213+00:00",
+  "duration_seconds": 0.94,
+  "exit_code": 0
+}

@@ -1,0 +1,21 @@
+{
+  "baselineHead": "d8e4091beb9113451cedf8052f54c22edc5ca80f",
+  "files": {
+    "src/app/document-translation/DocumentApp.vue": {
+      "baselineGitBlob": "971e2552f4bf462472c313747db5f126b51399c0",
+      "baselineSha256": "d191595ff63c6217da56d30fb215fa3d1ad77a75d316637012c402b726a53aff",
+      "workingSha256": "70124ef71ab16a69022da79d321060e5560794d19ee24fd18a887431f6eb5667"
+    },
+    "src/app/document-translation/runtime.ts": {
+      "baselineGitBlob": "ab2820c9b23aee2cc972740895e17c5eb0a5592c",
+      "baselineSha256": "6f380d73febdd758c5322719f9c1242603fc339fa4ee6d32669395c7f593718e",
+      "workingSha256": "81030f83422ceff555dac009f4547a6817c3411ff5867a5e45ea8585cc583bfa"
+    },
+    "src/app/document-translation/index.ts": {
+      "baselineGitBlob": "b721def95745ccc0e468e341f2bbacd05fd5dea8",
+      "baselineSha256": "fdfacbd5ef528c9362100af4af838fc1f0919d4eeff3a8c3e49fe50aeb068e46",
+      "workingSha256": "558ca41a43ec2fceb74123f666537ad1dac307aee2de839fc6cff14047715932"
+    }
+  },
+  "scope": "Restore all three production document app files; new offline tests and registration remain. -t selects eleven behavior controls; filtered tests are not acceptance skips."
+}

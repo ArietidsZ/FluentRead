@@ -1,0 +1,15 @@
+{
+  "label": "chrome-build-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:28:33.105722+00:00",
+  "duration_seconds": 19.165,
+  "exit_code": 0
+}

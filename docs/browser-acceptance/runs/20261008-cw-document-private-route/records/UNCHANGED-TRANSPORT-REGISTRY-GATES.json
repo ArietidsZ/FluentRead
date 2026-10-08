@@ -1,0 +1,82 @@
+{
+  "src/services/translation/requestRegistry.ts": {
+    "headBlob": "650a2a2953e20e09e0f610ffb82db772fad33471",
+    "sha256": "e083405f44a19c4013fd5705feef6b59b5567c4cac10956329b9aee67cab8bd6",
+    "unchanged": true
+  },
+  "src/services/translation/documentChannel.ts": {
+    "headBlob": "304ddd6d41457bac1aec0922fdcd543e83c8b472",
+    "sha256": "a3f4f8f8d50c9d9e1db9b1b6615bb3eba571e529aae90c2fbe854df6ff57ca08",
+    "unchanged": true
+  },
+  "src/services/translation/documentClient.ts": {
+    "headBlob": "327f16cb53f48a6ffce6aa64cafc592599415ab3",
+    "sha256": "15d0f82782238305ad162d5f1fb5301771d74222dc2e7f67e2135fb507f11aa5",
+    "unchanged": true
+  },
+  "src/app/background/handlers/translation.ts": {
+    "headBlob": "1a31f2bec49c1a67b05b49893e13f4214a249863",
+    "sha256": "8cc09b2c94690c494904981a279f7d51a6717a4b2cdeee13ef8173e6acc8472c",
+    "unchanged": true
+  },
+  "src/platform/browser/documentSession.ts": {
+    "headBlob": "8f43edea8c3bd0f1a530b266cf0dd76167304060",
+    "sha256": "478ce02d955ecaf64468cddfea92bd5a7b880e2f5685f2e32ee89c171f047adb",
+    "unchanged": true
+  },
+  "src/platform/browser/incognitoSource.ts": {
+    "headBlob": "59f6d0c77720d30305c256b712b1bd9837c30be6",
+    "sha256": "f0c75c3bec0084b4dcf505e7ee4b875c52f7b4c20d17d9bc01118a8e3d1c5adc",
+    "unchanged": true
+  },
+  "src/services/translation/broker.ts": {
+    "headBlob": "9e8112d52eb5b4b025cbcba8c8c7a6d5644a6049",
+    "sha256": "8faad303c5ff40795b81416fd561f2af49d10655feb686468eca394c0783de3c",
+    "unchanged": true
+  },
+  "src/app/translation/client.ts": {
+    "headBlob": "d99aed5397fb57d4c4a47ecec993ac9510e5846c",
+    "sha256": "970c2c20894de073585ea96aa4ba3783a5953a361a3339ba96de20a35e06d74d",
+    "unchanged": true
+  },
+  "wxt.config.ts": {
+    "headBlob": "e026e81114ec5defbdf478c5c7f38919b386431d",
+    "sha256": "4cecd1c6dee9258e224eaab2040cc51eb0edd05bd8f6aac00ea552d3f77c53df",
+    "unchanged": true
+  },
+  "userscript/vite.config.ts": {
+    "headBlob": "fc0a33505e4969086dd636f0b7c4ae99801fcb73",
+    "sha256": "b80a7bd19773aeab977a26ce9b40c366dce6a3e8f13d3f9c3e45ed9453e8c23c",
+    "unchanged": true
+  },
+  "scripts/verify-userscript-build.mjs": {
+    "headBlob": "fd265eb4055313f86cbce5854caecfd815bb590c",
+    "sha256": "deb2c564adf922d8e5cb39f1118b4cfb28417ab9e295330bfa8720343d09136d",
+    "unchanged": true
+  },
+  "package.json": {
+    "headBlob": "53705f2b8241f10bb370cdb659d89f1af903d525",
+    "sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9",
+    "unchanged": true
+  },
+  "pnpm-lock.yaml": {
+    "headBlob": "3dfe795b8092e7df45e1c854582c17b07f199b3e",
+    "sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "unchanged": true
+  },
+  "vitest.config.ts": {
+    "headBlob": "c70e18b079acdf0435e954369423890ba884e5f2",
+    "sha256": "7be25ef2c3a183d809d427bfac971dc1b77171029fa1ed31b0fea2a3b0bc1628",
+    "unchanged": true
+  },
+  "scripts/testing/run-resource-safe.mjs": {
+    "headBlob": "5037ce7d222b7ef93d604b57b39181efcc3ad196",
+    "sha256": "8c6807bd30db379fe31fc0bc073dbe071cd456b73fdcc5e61a34fc527dd6072b",
+    "unchanged": true
+  },
+  "scripts/testing/run-full-regression.mjs": {
+    "headBlob": "c050273f209876977a42f3ab347cccb9044101bb",
+    "sha256": "976fa7656297a76c0b0ab10cbb021bbbe69d931710e9b7b667c90110814baa17",
+    "unchanged": true
+  }
+}

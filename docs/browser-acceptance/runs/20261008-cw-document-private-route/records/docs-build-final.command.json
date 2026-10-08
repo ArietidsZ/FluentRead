@@ -1,0 +1,16 @@
+{
+  "label": "docs-build-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:29:16.446142+00:00",
+  "duration_seconds": 2.723,
+  "exit_code": 0
+}

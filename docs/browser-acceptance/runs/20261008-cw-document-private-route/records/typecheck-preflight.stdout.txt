@@ -1,0 +1,3 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/documentPrivacyRoute.test.ts(101,70): error TS2540: Cannot assign to 'name' because it is a read-only property.
+tests/documentPrivacyRoute.test.ts(101,93): error TS2540: Cannot assign to 'name' because it is a read-only property.

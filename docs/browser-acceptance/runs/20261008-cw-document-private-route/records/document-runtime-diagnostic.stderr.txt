@@ -1,0 +1,1 @@
+ERROR: Coverage for functions (87.5%) does not meet global threshold (100%)

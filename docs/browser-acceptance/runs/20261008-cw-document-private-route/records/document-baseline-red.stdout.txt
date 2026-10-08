@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/documentPrivacyRoute.test.ts --no-cache -t shows and prechecks|dedicated AI routing|real normalized|export route save|saving the route --reporter=json --outputFile=<CW-EVIDENCE>/document-baseline-red.results.json
+JSON report written to <CW-EVIDENCE>/document-baseline-red.results.json

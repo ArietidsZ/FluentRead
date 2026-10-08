@@ -1,0 +1,21 @@
+{
+  "label": "document-green-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentPrivacyRoute.test.ts",
+    "tests/documentBatchComponent.test.ts",
+    "tests/documentTranslationApi.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/document-green-second.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T18:58:13.845563+00:00",
+  "duration_seconds": 5.796,
+  "exit_code": 0
+}

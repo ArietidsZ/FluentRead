@@ -1,0 +1,779 @@
+{
+  "sourceCommit": "0d955d590d5aa781a372c7e84e3c01aef8d5dc54",
+  "baselineHead": "d8e4091beb9113451cedf8052f54c22edc5ca80f",
+  "scope": "Document page effective dedicated route before frontend credential/context/chunk decisions; real saved configuration cancellation, result-only invalidation, late writeback/export guards.",
+  "productionFiles": [
+    "src/app/document-translation/DocumentApp.vue",
+    "src/app/document-translation/index.ts",
+    "src/app/document-translation/runtime.ts"
+  ],
+  "excludedIndependentEntries": [
+    "full-page translation",
+    "standalone settings vision probe",
+    "word cards",
+    "video translation"
+  ],
+  "frontendPrivacyHintIsExecutionAuthorization": false,
+  "finalAuthorization": "Existing native sender/getContexts tri-state, document Port/registry and broker; all unchanged.",
+  "conservativeRouteKeyInvalidation": "Whole related mappings are compared; ordinary model or other service connection changes also clear private document translations. Parsed source objects, import failures and pending parsers are retained.",
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10111,
+      "numPassedTests": 10111,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 408,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66090,
+        "covered": 66090,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66090,
+        "covered": 66090,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4606,
+        "covered": 4606,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33706,
+        "covered": 33706,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "additionalRuntimeDiagnostic": {
+    "partOfExistingStrictOwnership": false,
+    "module": "src/app/document-translation/runtime.ts",
+    "tests": {
+      "success": true,
+      "numTotalTests": 98,
+      "numPassedTests": 98,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 56,
+        "covered": 56,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 56,
+        "covered": 56,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 19,
+        "covered": 19,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    }
+  },
+  "sfcValidation": "Actual compiled DocumentApp setup and watchers run offline; no numeric strict SFC ownership or real browser GUI assertion.",
+  "negativeAndIntermediateRecords": {
+    "document-green-initial": {
+      "success": false,
+      "numTotalTests": 80,
+      "numPassedTests": 71,
+      "numFailedTests": 9,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 1
+    },
+    "document-green-second": {
+      "success": true,
+      "numTotalTests": 80,
+      "numPassedTests": 80,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 0
+    },
+    "document-green-expanded": {
+      "success": true,
+      "numTotalTests": 90,
+      "numPassedTests": 90,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 0
+    },
+    "document-baseline-red": {
+      "success": false,
+      "numTotalTests": 45,
+      "numPassedTests": 0,
+      "numFailedTests": 11,
+      "numPendingTests": 34,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "document-runtime-diagnostic": {
+      "success": true,
+      "numTotalTests": 93,
+      "numPassedTests": 93,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 1
+    },
+    "document-runtime-diagnostic-complete": {
+      "success": true,
+      "numTotalTests": 98,
+      "numPassedTests": 98,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 3,
+      "exitCode": 0
+    },
+    "full-strict-complete": {
+      "success": false,
+      "numTotalTests": 10099,
+      "numPassedTests": 10093,
+      "numFailedTests": 6,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 408,
+      "exitCode": 1
+    },
+    "existing-loopback-control": {
+      "success": true,
+      "numTotalTests": 5,
+      "numPassedTests": 5,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 0
+    },
+    "document-i18n-examples-repair": {
+      "success": false,
+      "numTotalTests": 156,
+      "numPassedTests": 156,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 5,
+      "exitCode": 1
+    },
+    "document-i18n-examples-final": {
+      "success": true,
+      "numTotalTests": 168,
+      "numPassedTests": 168,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 5,
+      "exitCode": 0
+    }
+  },
+  "gateCommands": {
+    "architecture-final": {
+      "label": "architecture-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:28:08.425387+00:00",
+      "duration_seconds": 11.435,
+      "exit_code": 0
+    },
+    "chrome-build-final": {
+      "label": "chrome-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:28:33.105722+00:00",
+      "duration_seconds": 19.165,
+      "exit_code": 0
+    },
+    "docs-build-final": {
+      "label": "docs-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:29:16.446142+00:00",
+      "duration_seconds": 2.723,
+      "exit_code": 0
+    },
+    "document-baseline-red": {
+      "label": "document-baseline-red",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "--no-cache",
+        "-t",
+        "shows and prechecks|dedicated AI routing|real normalized|export route save|saving the route",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-baseline-red.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:03:32.434951+00:00",
+      "duration_seconds": 9.398,
+      "exit_code": 1
+    },
+    "document-green-expanded": {
+      "label": "document-green-expanded",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-green-expanded.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:00:13.788511+00:00",
+      "duration_seconds": 6.534,
+      "exit_code": 0
+    },
+    "document-green-initial": {
+      "label": "document-green-initial",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-green-initial.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T18:56:38.433938+00:00",
+      "duration_seconds": 5.686,
+      "exit_code": 1
+    },
+    "document-green-second": {
+      "label": "document-green-second",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-green-second.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T18:58:13.845563+00:00",
+      "duration_seconds": 5.796,
+      "exit_code": 0
+    },
+    "document-i18n-examples-final": {
+      "label": "document-i18n-examples-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "tests/documentTranslationExamplesApi.test.ts",
+        "tests/i18n.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-i18n-examples-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:23:55.607290+00:00",
+      "duration_seconds": 9.929,
+      "exit_code": 0
+    },
+    "document-i18n-examples-repair": {
+      "label": "document-i18n-examples-repair",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "tests/documentTranslationExamplesApi.test.ts",
+        "tests/i18n.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-i18n-examples-repair.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:19:57.978457+00:00",
+      "duration_seconds": 9.578,
+      "exit_code": 1
+    },
+    "document-runtime-diagnostic-complete": {
+      "label": "document-runtime-diagnostic-complete",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.include=src/app/document-translation/runtime.ts",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.thresholds.statements=100",
+        "--coverage.thresholds.lines=100",
+        "--coverage.thresholds.functions=100",
+        "--coverage.thresholds.branches=100",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/document-runtime-diagnostic-complete",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-runtime-diagnostic-complete.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:08:40.386874+00:00",
+      "duration_seconds": 14.033,
+      "exit_code": 0
+    },
+    "document-runtime-diagnostic-final": {
+      "label": "document-runtime-diagnostic-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.include=src/app/document-translation/runtime.ts",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.thresholds.statements=100",
+        "--coverage.thresholds.lines=100",
+        "--coverage.thresholds.functions=100",
+        "--coverage.thresholds.branches=100",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/document-runtime-diagnostic-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-runtime-diagnostic-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:29:33.385743+00:00",
+      "duration_seconds": 13.832,
+      "exit_code": 0
+    },
+    "document-runtime-diagnostic": {
+      "label": "document-runtime-diagnostic",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/documentPrivacyRoute.test.ts",
+        "tests/documentBatchComponent.test.ts",
+        "tests/documentTranslationApi.test.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.include=src/app/document-translation/runtime.ts",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.thresholds.statements=100",
+        "--coverage.thresholds.lines=100",
+        "--coverage.thresholds.functions=100",
+        "--coverage.thresholds.branches=100",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/document-runtime-diagnostic",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/document-runtime-diagnostic.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:06:24.016983+00:00",
+      "duration_seconds": 12.52,
+      "exit_code": 1
+    },
+    "existing-loopback-control": {
+      "label": "existing-loopback-control",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/webDavHttpIntegration.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/existing-loopback-control.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:20:58.969213+00:00",
+      "duration_seconds": 0.94,
+      "exit_code": 0
+    },
+    "firefox-build-final": {
+      "label": "firefox-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:28:52.472393+00:00",
+      "duration_seconds": 19.41,
+      "exit_code": 0
+    },
+    "full-strict-complete": {
+      "label": "full-strict-complete",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-complete",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-complete.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:12:43.737401+00:00",
+      "duration_seconds": 223.728,
+      "exit_code": 1
+    },
+    "full-strict-final": {
+      "label": "full-strict-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:24:38.534001+00:00",
+      "duration_seconds": 208.692,
+      "exit_code": 0
+    },
+    "manifest-verify-final": {
+      "label": "manifest-verify-final",
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:29:12.085890+00:00",
+      "duration_seconds": 0.109,
+      "exit_code": 0
+    },
+    "test-audit-complete": {
+      "label": "test-audit-complete",
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:28:07.429501+00:00",
+      "duration_seconds": 0.795,
+      "exit_code": 0
+    },
+    "typecheck-final": {
+      "label": "typecheck-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:28:20.064139+00:00",
+      "duration_seconds": 12.839,
+      "exit_code": 0
+    },
+    "typecheck-preflight": {
+      "label": "typecheck-preflight",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:04:24.376472+00:00",
+      "duration_seconds": 13.044,
+      "exit_code": 2
+    },
+    "userscript-build-final": {
+      "label": "userscript-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:29:12.397701+00:00",
+      "duration_seconds": 3.607,
+      "exit_code": 0
+    },
+    "userscript-verify-final": {
+      "label": "userscript-verify-final",
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T19:29:16.209177+00:00",
+      "duration_seconds": 0.035,
+      "exit_code": 0
+    }
+  },
+  "userscriptProof": {
+    "source": "14812674bcbcf0b06dbcde0ecb1c8b4c365d44b3",
+    "evidenceHead": "d8e4091beb9113451cedf8052f54c22edc5ca80f",
+    "bytes": 1954981,
+    "sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+    "budget": 1955000,
+    "headroom": 19,
+    "finalBytes": 1954981,
+    "finalSha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+    "byteDelta": 0,
+    "identicalBytes": true,
+    "finalHeadroom": 19,
+    "budgetConfigurationUnchanged": true,
+    "platformTreeIsolation": true
+  },
+  "manifestProof": {
+    ".output/chrome-mv3/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "optional_permissions": null,
+        "host_permissions": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": {
+          "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        },
+        "browser_specific_settings": null
+      },
+      "finalSha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+    },
+    ".output/firefox-mv2/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_permissions": null,
+        "host_permissions": null,
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+        "browser_specific_settings": {
+          "gecko": {
+            "id": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+              "required": [
+                "websiteContent",
+                "authenticationInfo",
+                "personalCommunications"
+              ]
+            }
+          }
+        }
+      },
+      "finalSha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6"
+    }
+  },
+  "realApiBrowserGpuDownloadOrPermissionAcceptance": false,
+  "pr883ModifiedOrReplied": false
+}

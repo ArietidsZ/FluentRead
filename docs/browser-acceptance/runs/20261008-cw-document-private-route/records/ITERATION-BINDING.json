@@ -1,0 +1,30 @@
+{
+  "finalSourceCommit": "0d955d590d5aa781a372c7e84e3c01aef8d5dc54",
+  "finalGateInputMap": "FROZEN-INPUTS.json",
+  "firstFullFailedGateInputMap": "FROZEN-INPUTS-first.json",
+  "firstFullFailedGateLabel": "full-strict-complete",
+  "finalSourceGateLabels": [
+    "full-strict-final",
+    "document-i18n-examples-final",
+    "test-audit-complete",
+    "architecture-final",
+    "typecheck-final",
+    "chrome-build-final",
+    "firefox-build-final",
+    "manifest-verify-final",
+    "userscript-build-final",
+    "userscript-verify-final",
+    "docs-build-final",
+    "document-runtime-diagnostic-final"
+  ],
+  "postArchiveDocsLabel": "docs-build-with-archive",
+  "baselineNegativeScope": "Only three production files temporarily restored to d8e4091; new tests retained; 11 selected failing controls, 34 filtered assertions. Restoration verified before final freeze.",
+  "earlyIterationDisclaimer": "Other red/green/repair/preflight/diagnostic logs retain the source state at their own execution; do not bind their commands to the final source commit.",
+  "coverageDimensions": [
+    "statements",
+    "lines",
+    "functions",
+    "branches"
+  ],
+  "extraCoverageAuxiliary": "runtime branchesTrue total=0 and pct=Unknown is an auxiliary empty dimension, outside the four required and passing threshold gates."
+}

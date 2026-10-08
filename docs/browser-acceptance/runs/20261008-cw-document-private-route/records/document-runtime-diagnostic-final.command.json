@@ -1,0 +1,30 @@
+{
+  "label": "document-runtime-diagnostic-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentPrivacyRoute.test.ts",
+    "tests/documentBatchComponent.test.ts",
+    "tests/documentTranslationApi.test.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.include=src/app/document-translation/runtime.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.thresholds.statements=100",
+    "--coverage.thresholds.lines=100",
+    "--coverage.thresholds.functions=100",
+    "--coverage.thresholds.branches=100",
+    "--coverage.reportsDirectory=<CW-EVIDENCE>/document-runtime-diagnostic-final",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/document-runtime-diagnostic-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:29:33.385743+00:00",
+  "duration_seconds": 13.832,
+  "exit_code": 0
+}

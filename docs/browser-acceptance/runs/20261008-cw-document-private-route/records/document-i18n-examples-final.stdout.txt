@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/documentPrivacyRoute.test.ts tests/documentBatchComponent.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationExamplesApi.test.ts tests/i18n.test.ts --no-cache --reporter=json --outputFile=<CW-EVIDENCE>/document-i18n-examples-final.results.json
+JSON report written to <CW-EVIDENCE>/document-i18n-examples-final.results.json

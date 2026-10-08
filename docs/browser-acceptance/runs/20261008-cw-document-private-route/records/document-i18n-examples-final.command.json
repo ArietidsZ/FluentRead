@@ -1,0 +1,23 @@
+{
+  "label": "document-i18n-examples-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentPrivacyRoute.test.ts",
+    "tests/documentBatchComponent.test.ts",
+    "tests/documentTranslationApi.test.ts",
+    "tests/documentTranslationExamplesApi.test.ts",
+    "tests/i18n.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/document-i18n-examples-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:23:55.607290+00:00",
+  "duration_seconds": 9.929,
+  "exit_code": 0
+}

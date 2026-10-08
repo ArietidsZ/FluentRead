@@ -1,0 +1,21 @@
+{
+  "label": "document-baseline-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/documentPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "shows and prechecks|dedicated AI routing|real normalized|export route save|saving the route",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/document-baseline-red.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:03:32.434951+00:00",
+  "duration_seconds": 9.398,
+  "exit_code": 1
+}
