@@ -193,17 +193,17 @@ describe('issue #704 inline code in prose selections', () => {
         expect(readSelectionText(blocks.range, '')).toBe('Use x.\n\nContinue.');
     });
 
-    it('rejects code-only content even when the common ancestor is a wrapper', () => {
+    it('translates actively selected code-only content even inside a wrapper', () => {
         for (const html of ['<code>text</code>', ' <code>one</code>, <code>two</code> ']) {
             const {range} = fixture(html);
-            expect(readSelectionParts(range, 'text')).toEqual([]);
+            expect(readSelectionParts(range, 'text')).toEqual([{kind: 'text', text: 'text'}]);
+            expect(shouldIgnoreSelection(range)).toBe(false);
         }
         const {paragraph} = fixture('<code>word</code>');
-        expect(readSelectionParts({commonAncestorContainer: paragraph.firstChild} as unknown as Range, 'word')).toEqual([]);
+        expect(readSelectionParts({commonAncestorContainer: paragraph.firstChild} as unknown as Range, 'word')).toEqual([{kind: 'text', text: 'word'}]);
     });
 
     it.each([
-        '<pre><code>command</code></pre>',
         '<code translate="no">command</code>',
         '<code class="notranslate">command</code>',
         '<code contenteditable="">command</code>',
@@ -219,16 +219,46 @@ describe('issue #704 inline code in prose selections', () => {
         expect(shouldIgnoreSelection(range)).toBe(true);
     });
 
-    it('allows selection endpoints inside code but keeps block-styled code excluded', () => {
+    it('allows selection endpoints inside inline and block-styled code', () => {
         const {document, paragraph, range} = fixture('<code><span>part</span></code> of the sentence.');
         Object.assign(range, {startContainer: paragraph.querySelector('span')!.firstChild});
         expect(shouldIgnoreSelection(range)).toBe(false);
         const view = document.defaultView!;
         Object.defineProperty(view, 'getComputedStyle', {configurable: true, value: () => ({display: 'block'})});
-        expect(shouldIgnoreSelection(range)).toBe(true);
+        expect(shouldIgnoreSelection(range)).toBe(false);
         Object.defineProperty(view, 'getComputedStyle', {configurable: true, value: () => ({display: 'inline-block'})});
         expect(shouldIgnoreSelection(range)).toBe(false);
         delete (view as unknown as Record<string, unknown>).getComputedStyle;
+    });
+
+    it.each([
+        '<pre>hello world</pre>',
+        '<pre><code><span>hello</span> world</code></pre>',
+        '<code style="display:block">hello world</code>',
+    ])('issue #845 accepts code block words without modifying the host: %s', html => {
+        const {paragraph, range} = fixture(html);
+        const text = paragraph.querySelector('span')?.firstChild ?? paragraph.querySelector('code, pre')!.firstChild;
+        Object.assign(range, {startContainer: text, endContainer: text, commonAncestorContainer: text});
+        const before = paragraph.outerHTML;
+        expect(shouldIgnoreSelection(range)).toBe(false);
+        expect(readSelectionText(range, 'hello')).toBe('hello');
+        expect(paragraph.outerHTML).toBe(before);
+    });
+
+    it.each([
+        '<pre translate="no"><code>hello</code></pre>',
+        '<pre class="notranslate"><code>hello</code></pre>',
+        '<pre contenteditable=""><code>hello</code></pre>',
+        '<pre><code><button>hello</button></code></pre>',
+        '<pre aria-hidden="true"><code>hello</code></pre>',
+    ])('issue #845 keeps protected code blocks excluded: %s', html => {
+        const {range} = fixture('Read ' + html + ' now.');
+        expect(shouldIgnoreSelection(range)).toBe(true);
+    });
+
+    it('allows semantic roles that are not interactive controls', () => {
+        const {range} = fixture('Read <code role="note">command</code> now.');
+        expect(shouldIgnoreSelection(range)).toBe(false);
     });
 
     it('sends only prose through batch translation and preserves code and punctuation locally', async () => {
@@ -495,9 +525,11 @@ describe('selection translator text and speech language normalization', () => {
     });
 
     it('classifies atomic and interactive elements as non-text selections', () => {
-        for (const tagName of ['img', 'svg', 'video', 'canvas', 'button', 'input', 'textarea', 'select', 'code', 'pre']) {
+        for (const tagName of ['img', 'svg', 'video', 'canvas', 'button', 'input', 'textarea', 'select']) {
             expect(isSelectionExcludedTagName(tagName)).toBe(true);
         }
+        expect(isSelectionExcludedTagName('code')).toBe(false);
+        expect(isSelectionExcludedTagName('pre')).toBe(false);
         expect(isSelectionExcludedTagName('p')).toBe(false);
         expect(isSelectionExcludedTagName('span')).toBe(false);
     });
