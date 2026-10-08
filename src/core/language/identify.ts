@@ -2,7 +2,7 @@
  * @file src/core/language/identify.ts
  *
  * 文件职责：对一段待翻译文本给出与目标语言无关的语言识别结论，是全文、悬浮、标题、划词和共享翻译客户端同目标跳过判断的唯一证据来源。
- * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合；结合汉字及中文技术角色语境辨别少量嵌入名称/术语和枚举，保护外语句子、功能词和引述文本；把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重。中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。
+ * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合；结合汉字及中文技术角色语境辨别少量嵌入名称/术语和枚举，以完整中文操作句架识别短提示中的单个服务名称，保护外语句子、功能词和引述文本；把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重。中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。
  * 模块边界：本文件属于 core 纯算法，不比较目标语言、不读取配置或页面 lang、不修改原文与 DOM；配置语言匹配和各功能入口语义由 detect.ts 负责。
  */
 
@@ -40,6 +40,9 @@ const TECHNICAL_ROLE_BEFORE = /(?:降为|降為|设为|設為|设置为|設置�
 const TECHNICAL_ROLE_AFTER = /^(?:只|仅|僅)?(?:构建|構建|脚本|腳本|插件|扩展|擴展|浏览器|瀏覽器|模式|级别|級別|格式|版本|组件|組件|控件|缓存|緩存|配置|参数|參數|服务|服務|接口|模型|环境|環境|内核|內核|引擎|协议|協議|文件|资源|資源|平台|项目|項目|模块|模組|检测|檢測|测试|測試|校验|校驗|日志|日誌|错误|錯誤|异常|異常|提示|验证|驗證)/u;
 const EXPLICIT_FOREIGN_WORD_BEFORE = /(?:翻译|翻譯|解释|解釋|英文|外语|外語|单词|單詞|词语|詞語)(?:一下|为|為|是|的)?$/u;
 const FOREIGN_PROSE_MARKERS = new Set(['please', 'hello', 'welcome', 'goodbye', 'thanks', 'sorry', 'translate', 'click', 'retry']);
+// 短操作提示只有一个服务名称和完整中文句架；不能把任意短中文旁的英文词当作名称。
+const SHORT_UI_NAME_BEFORE = /^(?:继续使用|繼續使用|通过|通過|透过|透過)$/u;
+const SHORT_UI_NAME_AFTER = /^(?:继续操作|繼續操作)?$/u;
 
 const EMPTY: LanguageIdentification = Object.freeze({status: 'empty', languages: Object.freeze([])});
 const UNKNOWN: LanguageIdentification = Object.freeze({status: 'unknown', languages: Object.freeze([])});
@@ -94,12 +97,14 @@ function assessEmbeddedWords(words: readonly ScriptWord[], isMain: (word: Script
  * 中文技术说明常把未带版本的名称直接嵌入正文（例如 DeepSeek Harness）。逐词拒绝所有
  * 首字母大写词会让整段重复翻译。按连续 Latin 短语判断：接纳紧邻汉字的 1–3 词名称及
  * 有中文技术角色支撑的 1–2 词术语，支持顿号/斜杠枚举；功能词、引文、明确要求翻译的词、
- * 外语句子和跨句边界不能被吞掉，术语只在可信中文语境中生效，仍受母语字数门槛约束。
+ * 外语句子和跨句边界不能被吞掉，术语只在可信中文语境中生效；不足八字时只接纳
+ * 至少四字、一个名称且具有完整中文操作句架的提示，其他短文本仍保持未知。
  * 不依赖产品名单、页面 lang 或目标语言，也不改变送给供应商的原文。
  */
 function findEmbeddedNames(copy: string, words: readonly ScriptWord[]): ReadonlyMap<ScriptWord, number> {
     const names = new Map<ScriptWord, number>();
-    if (words.reduce((count, word) => count + (word.script === 'Han' ? word.letters : 0), 0) < 8) return names;
+    const hanCount = words.reduce((count, word) => count + (word.script === 'Han' ? word.letters : 0), 0);
+    if (hanCount < 4) return names;
     const chineseContext = classifyChineseHan(copy) !== undefined;
     for (let index = 0; index < words.length; index += 1) {
         if (words[index]!.script !== 'Latin') continue;
@@ -110,7 +115,12 @@ function findEmbeddedNames(copy: string, words: readonly ScriptWord[]): Readonly
         if (run.length > 3 || run.at(-1)!.end - run[0]!.start > 64) continue;
         const before = copy.slice(Math.max(0, run[0]!.start - 16), run[0]!.start).trimEnd();
         const after = copy.slice(run.at(-1)!.end, run.at(-1)!.end + 16).trimStart();
-        const technicalRole = chineseContext && (run.length <= 2 || copy.slice(run[0]!.start, run.at(-1)!.end).includes('/'))
+        const shortUiName = chineseContext && run.length === 1
+            && (isMixedCaseName(run[0]!.text) || /^[A-Z][a-z]{1,23}$/u.test(run[0]!.text))
+            && SHORT_UI_NAME_BEFORE.test(copy.slice(0, run[0]!.start).trim())
+            && SHORT_UI_NAME_AFTER.test(copy.slice(run[0]!.end).trim());
+        if (hanCount < 8 && !shortUiName) continue;
+        const technicalRole = shortUiName || chineseContext && (run.length <= 2 || copy.slice(run[0]!.start, run.at(-1)!.end).includes('/'))
             && (TECHNICAL_ROLE_BEFORE.test(before.replace(/[、,，]\s*$/u, '')) || TECHNICAL_ROLE_AFTER.test(after))
             && !EXPLICIT_FOREIGN_WORD_BEFORE.test(before);
         const hanBefore = /\p{Script=Han}$/u.test(before);

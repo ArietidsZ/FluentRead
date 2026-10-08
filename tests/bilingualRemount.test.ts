@@ -83,6 +83,31 @@ function createCommittedScenario(beforeSource = false) {
     };
 }
 
+function countElementGetterReads(element: HTMLElement, property: 'attributes' | 'innerHTML') {
+    const original = Object.getOwnPropertyDescriptor(element, property);
+    let prototype: object | null = element;
+    let descriptor: PropertyDescriptor | undefined;
+    while (prototype && !descriptor) {
+        descriptor = Object.getOwnPropertyDescriptor(prototype, property);
+        prototype = Object.getPrototypeOf(prototype);
+    }
+    const read = descriptor?.get;
+    if (!read) throw new Error(`Missing ${property} getter`);
+    let reads = 0;
+    Object.defineProperty(element, property, {
+        ...descriptor,
+        configurable: true,
+        get() { reads += 1; return read.call(element); },
+    });
+    return {
+        get reads() { return reads; },
+        restore() {
+            if (original) Object.defineProperty(element, property, original);
+            else Reflect.deleteProperty(element, property);
+        },
+    };
+}
+
 beforeEach(() => {
     vi.useFakeTimers();
 });
@@ -94,6 +119,50 @@ afterEach(() => {
 });
 
 describe('双语 owner 同源重挂交接', () => {
+    it('500 次离线模板公开复验不枚举自身属性，仍逐次核对内容与所有权', () => {
+        const scenario = createCommittedScenario();
+        const state = scenario.previousState;
+        const template = state.bilingualContentTemplate!;
+        const translatedHTML = state.bilingualHTML!;
+        const attributes = countElementGetterReads(template, 'attributes');
+        const content = countElementGetterReads(template, 'innerHTML');
+        const trusted = () => isTrustedBilingualArtifactWithHostClass(template, state);
+        try {
+            let accepted = 0;
+            for (let index = 0; index < 500; index += 1) if (trusted()) accepted += 1;
+            expect(accepted).toBe(500);
+            expect(content.reads).toBe(500);
+            expect(attributes.reads).toBe(0);
+
+            template.textContent = '篡改译文';
+            expect(trusted()).toBe(false);
+            template.textContent = translatedHTML;
+            expect(trusted()).toBe(true);
+            template.setAttribute('data-fr-translation-owned', 'false');
+            expect(trusted()).toBe(false);
+            template.removeAttribute('data-fr-translation-owned');
+            expect(trusted()).toBe(false);
+            template.setAttribute('data-fr-translation-owned', 'true');
+            expect(trusted()).toBe(true);
+            template.classList.remove('fluent-read-bilingual-content');
+            expect(trusted()).toBe(false);
+            template.classList.add('fluent-read-bilingual-content');
+            expect(trusted()).toBe(true);
+            state.bilingualHTML = undefined;
+            expect(trusted()).toBe(false);
+            state.bilingualHTML = translatedHTML;
+            state.bilingualContentTemplate = undefined;
+            expect(trusted()).toBe(false);
+            state.bilingualContentTemplate = template;
+            expect(trusted()).toBe(true);
+        } finally {
+            state.bilingualHTML = translatedHTML;
+            state.bilingualContentTemplate = template;
+            content.restore();
+            attributes.restore();
+        }
+    });
+
     it('离线模板自身复验仍逐次拒绝内容漂移和所有权标记丢失', () => {
         const scenario = createCommittedScenario();
         const template = scenario.previousState.bilingualContentTemplate!;
@@ -123,15 +192,27 @@ describe('双语 owner 同源重挂交接', () => {
         ['class', 'fluent-read-bilingual-content sr-only'],
     ] as const)('模板以外的工件仍拒绝 %s=%s 篡改', (attribute, value) => {
         const scenario = createCommittedScenario();
-        const copy = scenario.previousState.bilingualContentTemplate!.cloneNode(true) as HTMLElement;
+        const template = scenario.previousState.bilingualContentTemplate!;
+        const copy = template.cloneNode(true) as HTMLElement;
         const trusted = () => isTrustedBilingualArtifactWithHostClass(copy, scenario.previousState);
+        const templateAttributes = countElementGetterReads(template, 'attributes');
+        const copiedAttributes = countElementGetterReads(copy, 'attributes');
         scenario.replacementOwner.appendChild(copy);
-        expect(trusted()).toBe(true);
-        copy.classList.add('host-hover-decoration');
-        expect(trusted()).toBe(true);
-        copy.setAttribute(attribute, value);
-        expect(trusted()).toBe(false);
-        expect(scenario.replacementOwner.firstChild?.textContent).toBe('Same source.');
+        try {
+            expect(trusted()).toBe(true);
+            expect(templateAttributes.reads).toBe(1);
+            expect(copiedAttributes.reads).toBe(1);
+            copy.classList.add('host-hover-decoration');
+            expect(trusted()).toBe(true);
+            expect(templateAttributes.reads).toBe(2);
+            expect(copiedAttributes.reads).toBe(2);
+            copy.setAttribute(attribute, value);
+            expect(trusted()).toBe(false);
+            expect(scenario.replacementOwner.firstChild?.textContent).toBe('Same source.');
+        } finally {
+            copiedAttributes.restore();
+            templateAttributes.restore();
+        }
     });
 
     it.each([true, false])('模板复验后重挂、恢复和再翻译保留原 Text 与译文位置，前置 %s', beforeSource => {

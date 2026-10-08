@@ -2,7 +2,8 @@
  * @file tests/sameTargetLanguageClient.test.ts
  * 共享翻译客户端与页面标题翻译使用真实语言识别的协作验证：多语言同目标文本在发往后台前返回原文、零消息；
  * 其他目标、显式源语言、逐次覆盖的目标语言与 skipLanguageDetection 语义保持不变；标题会话读取冻结的排除语言，
- * 页面把标题改成外语后重新识别并翻译，恢复时写回原标题。只替换浏览器消息、配置存储和页面上下文边界。
+ * 页面把标题改成外语后重新识别并翻译，恢复时写回原标题；损坏整包专项经过真实 client/handler/broker，不以来源包替代空响应。
+ * 只替换浏览器消息、provider、配置存储与页面上下文边界。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import modelPost from './fixtures/chinese-language-model-post.json';
@@ -38,6 +39,13 @@ import {translateText, translateTextBatch} from '@/src/app/translation/client';
 import {clearTranslationQueue} from '@/src/services/translation/queue';
 import {startFullPageTitleTranslation, stopFullPageTitleTranslation} from '@/src/features/full-page-translation/content/titleTranslation';
 import type {FullPageTranslationConfigSnapshot} from '@/src/features/full-page-translation/content/translationRequest';
+import {translateTextSlots} from '@/src/features/full-page-translation/content/translationRequest';
+import {serializeTranslationSlots} from '@/src/core/translation/slotProtocol';
+import {createTranslationBroker} from '@/src/services/translation/broker';
+import {resolveTranslationLanguages} from '@/src/core/translation/languages';
+import {createTranslationRequestFallback} from '@/src/app/background/handlers/translation';
+import {serializeTranslationError} from '@/src/services/translation/errors';
+import type {TranslationConfigSource, TranslationProvider} from '@/src/services/translation/types';
 
 const sameTarget = [
     ['de', 'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.'],
@@ -71,6 +79,72 @@ afterEach(() => {
 });
 
 describe('共享翻译客户端', () => {
+    it.each([undefined, false, true])('空响应在槽标志 %j 下仅为普通请求回退原文', async validateTranslationSlots => {
+        const origin = 'Please translate this English paragraph for the reader.';
+        mocks.sendMessage.mockResolvedValueOnce('');
+        await expect(translateText(origin, '', {skipLanguageDetection: true, validateTranslationSlots}))
+            .resolves.toBe(validateTranslationSlots === true ? '' : origin);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+    });
+    it.each(['', ' \t', '\u200b'])('真实 client/handler/broker 的损坏整包 %j 逐槽回退，不以来源包替代', async raw => {
+        const first = 'The software reads the document and translates the language on this page.';
+        const second = 'The second paragraph explains the settings for the computer network.';
+        const outputs = ['软件读取文档并翻译页面上的语言。', '第二段说明计算机网络设置。'];
+        const packet = serializeTranslationSlots([first, second]);
+        const current: TranslationConfigSource = {
+            service: 'chromeTranslator', from: 'en', to: 'zh-Hans', useCache: true, enableAIContext: false,
+            model: {}, customModel: {}, proxy: {}, custom: '', deeplx: '', newApiUrl: '',
+            minimaxBillingPlan: 'payg', minimaxRegion: 'cn', mimoBillingPlan: 'payg', mimoRegion: 'cn',
+            azureOpenaiEndpoint: '', customBody: {}, system_role: {}, user_role: {},
+            deepseekApiType: 'auto', deepseekThinkingMode: 'disabled',
+        };
+        const provider = vi.fn<TranslationProvider>().mockImplementation(async message => {
+            if (message.origin === packet.payload) return raw;
+            if (message.origin === first) return outputs[0]!;
+            if (message.origin === second) return outputs[1]!;
+            throw new Error('unexpected slot provider request');
+        });
+        const store = new Map<string, string>();
+        const broker = createTranslationBroker({
+            ready: Promise.resolve(), getConfig: () => current, providers: {chromeTranslator: provider},
+            cache: {get: async key => store.get(key) ?? null,
+                set: async (key, value) => {store.set(key, value); return true;},
+                clear: async () => store.clear(), cleanup: async () => undefined},
+            serviceTypes: {machine: new Set(['chromeTranslator']), isAI: () => false,
+                isAiSdk: () => false, isUseAIContext: () => false},
+            endpointResolver: {resolveOpenAICompatibleEndpoint: () => ({endpoint: 'https://fixture.invalid/v1'}), aiSdkTransportProfile: 'fixture'},
+            promptBuilder: {buildPageSummaryPrompt: text => text, buildPageSummarySystemPrompt: () => ''},
+            getMissingCredentialMessage: () => null,
+            getTranslationLanguages: overrides => resolveTranslationLanguages(overrides,
+                {sourceLanguage: 'en', targetLanguage: 'zh-Hans'}),
+            resolveConfiguredModel: (selected, custom) => custom || selected || '',
+            buildTranslationCacheKey: identity => JSON.stringify(identity),
+        });
+        const handler = createTranslationRequestFallback({
+            translate: message => broker.translateWithCache(message), serializeError: serializeTranslationError,
+        });
+        mocks.sendMessage.mockImplementation(message => handler.handle(message, undefined));
+        const frozen: FullPageTranslationConfigSnapshot = {service: 'chromeTranslator', model: '', thinking: false,
+            sourceLanguage: 'en', targetLanguage: 'zh-Hans', useCache: true, enableAIContext: false,
+            enableAIMultiSegment: false, displayMode: 'bilingual', style: 0};
+        await expect(translateTextSlots([first, second], frozen)).resolves.toEqual(outputs);
+        expect(provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, first, second]);
+        expect(provider.mock.calls.map(([message]) => message.validateTranslationSlots)).toEqual([true, undefined, undefined]);
+        expect([...store.values()].sort()).toEqual([...outputs].sort());
+        // 再次调用只复用正确单槽；损坏整包仍需请求且不能被替换为原文假成功。
+        await expect(translateTextSlots([first, second], frozen)).resolves.toEqual(outputs);
+        expect(provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, first, second, packet.payload]);
+        expect([...store.values()].sort()).toEqual([...outputs].sort());
+    });
+    it('单条内部槽校验标志在等待前冻结，只有显式 true 才进入后台消息', async () => {
+        const options = {skipLanguageDetection: true, validateTranslationSlots: true};
+        const pending = translateText('Please translate this English paragraph for the reader.', 'Context', options);
+        options.validateTranslationSlots = false;
+        await pending;
+        expect(mocks.sendMessage.mock.calls[0]![0]).toMatchObject({validateTranslationSlots: true});
+        await translateText('Please translate another English paragraph for the reader.', 'Context', options);
+        expect(mocks.sendMessage.mock.calls[1]![0]).not.toHaveProperty('validateTranslationSlots');
+    });
     it.each(sameTarget)('%s 批量文本同目标零请求，跨目标仍请求', async (language, text) => {
         await expect(translateTextBatch([text], 'Context', {targetLanguage: language})).resolves.toEqual([text]);
         expect(mocks.sendMessage).not.toHaveBeenCalled();
