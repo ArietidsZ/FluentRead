@@ -476,6 +476,7 @@ export class Config {
     imageTranslationContextMenuEnabled: boolean; // 是否显示图片右键入口
     disableImageTranslator: boolean; // 是否禁用图片翻译
     freeTranslationOrder: string[]; // 免费服务的启用列表与回退顺序
+    freeTranslationBilibiliDefaultApplied: boolean; // B站默认开启的一次性迁移标记
     freeTranslationMode: FreeTranslationMode; // 默认按权重随机分配健康服务
     freeTranslationTimeoutMs: number; // 每路服务最长等待
     freeTranslationCooldownMs: number; // 失败服务的暂时跳过时间
@@ -677,6 +678,7 @@ export class Config {
         this.imageTranslationContextMenuEnabled = true;
         this.disableImageTranslator = true; // 默认关闭图片翻译，由用户按需开启
         this.freeTranslationOrder = [...DEFAULT_FREE_TRANSLATION_ORDER];
+        this.freeTranslationBilibiliDefaultApplied = true;
         this.freeTranslationMode = DEFAULT_FREE_TRANSLATION_MODE;
         this.freeTranslationTimeoutMs = DEFAULT_FREE_TRANSLATION_TIMEOUT_MS;
         this.freeTranslationCooldownMs = DEFAULT_FREE_TRANSLATION_COOLDOWN_MS;
@@ -1123,6 +1125,12 @@ export function normalizeConfig(value: unknown): Config {
     normalized.modelRequestLimits = withoutRetiredServiceEntries(normalizeModelRequestLimits(source.modelRequestLimits));
     normalized.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
+    // 旧配置首次升级默认开启 B站；标记写入后尊重用户后续的手动关闭。
+    if (source.freeTranslationBilibiliDefaultApplied !== true
+        && !normalized.freeTranslationOrder.includes('bilibiliFree')) {
+        normalized.freeTranslationOrder.push('bilibiliFree');
+    }
+    normalized.freeTranslationBilibiliDefaultApplied = true;
     normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
     // 权重归后台管理，不接受导入文件或旧配置中的人工权重。
     delete (normalized as Config & {freeTranslationWeights?: unknown}).freeTranslationWeights;

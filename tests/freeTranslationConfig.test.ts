@@ -19,7 +19,7 @@ describe('keyless free translation configuration', () => {
         }
         expect(normalizeFreeTranslationOrder(['myMemory', 'google', 'myMemory', {}, 'unknown']))
             .toEqual(['myMemory', 'google']);
-        expect(normalizeConfig({freeTranslationOrder: ['myMemory']}).freeTranslationOrder).toEqual(['myMemory']);
+        expect(normalizeConfig({freeTranslationOrder: ['myMemory']}).freeTranslationOrder).toEqual(['myMemory', 'bilibiliFree']);
         expect(FREE_TRANSLATION_PROVIDERS.find(item => item.id === 'myMemory')?.official).toBe(true);
         expect(FREE_TRANSLATION_PROVIDERS.map(item => item.id)).toEqual(['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'bilibiliFree', 'lingvanexFree']);
         expect(normalizeFreeTranslationOrder(['azureTranslator', 'myMemory', 'deepL', 'openai'])).toEqual(['myMemory']);
@@ -30,11 +30,32 @@ describe('keyless free translation configuration', () => {
         expect(FREE_TRANSLATION_PROVIDERS.every(provider => provider.official)).toBe(true);
         expect(normalizeFreeTranslationOrder(['deeplx', 'lingvaFree', 'google'])).toEqual(['google']);
         const enabled = normalizeConfig({freeTranslationOrder: ['deeplx', 'google'], deeplx: 'https://user.example/translate'});
-        expect(enabled.freeTranslationOrder).toEqual(['google']);
+        expect(enabled.freeTranslationOrder).toEqual(['google', 'bilibiliFree']);
         const imported = prepareConfigForImport(prepareConfigForExport(enabled), new Config());
-        expect(imported.freeTranslationOrder).toEqual(['google']);
+        expect(imported.freeTranslationOrder).toEqual(['google', 'bilibiliFree']);
         expect(imported.deeplx).toBe('https://user.example/translate');
         expect(normalizeFreeTranslationOrder(['alibabaFree'])).toEqual(['alibabaFree']);
+    });
+
+    it('旧配置只补一次 B站默认节点，并保留其他选择与顺序', () => {
+        const migrated = normalizeConfig({freeTranslationOrder: ['google', 'myMemory']});
+        expect(migrated.freeTranslationOrder).toEqual(['google', 'myMemory', 'bilibiliFree']);
+        expect(migrated.freeTranslationBilibiliDefaultApplied).toBe(true);
+        expect(normalizeConfig(migrated).freeTranslationOrder).toEqual(migrated.freeTranslationOrder);
+        expect(normalizeConfig({freeTranslationOrder: ['bilibiliFree', 'google']}).freeTranslationOrder)
+            .toEqual(['bilibiliFree', 'google']);
+    });
+
+    it('首次升级后手动关闭 B站，在重读、导出和恢复时保持关闭', () => {
+        const migrated = normalizeConfig({freeTranslationOrder: ['google']});
+        migrated.freeTranslationOrder = ['google'];
+        const reloaded = normalizeConfig(JSON.parse(JSON.stringify(migrated)));
+        expect(reloaded.freeTranslationOrder).toEqual(['google']);
+        const restored = prepareConfigForImport(prepareConfigForExport(reloaded), new Config());
+        expect(restored.freeTranslationOrder).toEqual(['google']);
+        expect(restored.freeTranslationBilibiliDefaultApplied).toBe(true);
+        expect(buildConfigDiff({freeTranslationBilibiliDefaultApplied: false},
+            {freeTranslationBilibiliDefaultApplied: true}).changeCount).toBe(0);
     });
 
     it('bounds timing and validates optional contact fields', () => {
