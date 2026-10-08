@@ -726,6 +726,72 @@ describe("指定节点翻译状态机", () => {
         expect(getTranslationOwnersForIndexedNode(owner)).toEqual([]);
     });
 
+    it("同一 artifact 同时属于 spinner 和 retry 时，完成阶段只移除失去全部用途的索引", () => {
+        const {document} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const source = owner.firstChild;
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        const sharedArtifact = document.createElement('span');
+        try {
+            setSpinner(owner, sharedArtifact);
+            setRetryWrapper(owner, sharedArtifact);
+            expect(getTranslationOwnersForIndexedNode(sharedArtifact)).toEqual([owner]);
+            expect(markTranslationError(owner, attempt.state, attempt.generation)).toBe(true);
+            expect(attempt.state.spinner).toBeUndefined();
+            expect(getTranslationOwnersForIndexedNode(sharedArtifact)).toEqual([owner]);
+            expect(detachFailedTranslationUi(owner, attempt.state)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(sharedArtifact)).toEqual([]);
+            for (let index = 0; index < 4; index += 1) {
+                const replacement = document.createElement('span');
+                setRetryWrapper(owner, replacement);
+                expect(getTranslationOwnersForIndexedNode(replacement)).toEqual([owner]);
+                expect(getTranslationOwnersForIndexedNode(sharedArtifact)).toEqual([]);
+                expect(detachFailedTranslationUi(owner, attempt.state)).toBe(true);
+                expect(getTranslationOwnersForIndexedNode(replacement)).toEqual([]);
+            }
+            expect(owner.firstChild).toBe(source);
+            expect(owner.textContent).toBe('Readable source.');
+        } finally {
+            discardTranslation(owner, attempt.state);
+        }
+        expect(getTranslationOwnersForIndexedNode(owner)).toEqual([]);
+    });
+
+    it("共享桶在 artifact 和 complete 阶段仍重排，过期代次不改变枚举顺序", () => {
+        const {document} = parseHTML('<html><body><main><p id="a">First source.</p><p id="b">Second source.</p><p id="c">Third source.</p></main></body></html>');
+        const root = document.querySelector<HTMLElement>('main')!;
+        const owners = Array.from(root.querySelectorAll<HTMLElement>('p'));
+        const attempts = owners.map(owner => beginTranslation(owner, 'bilingual')!);
+        const [first, second, third] = owners;
+        const firstSource = first.firstChild;
+        const spinner = document.createElement('span');
+        try {
+            owners.forEach(owner => expect(acquireTranslationLayoutOverride(owner, root, [])).toBe(true));
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([first, second, third]);
+            setSpinner(first, spinner);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([second, third, first]);
+            expect(markTranslationComplete(second, attempts[1].state, attempts[1].generation + 1)).toBe(false);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([second, third, first]);
+            expect(markTranslationComplete(second, attempts[1].state, attempts[1].generation)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([third, first, second]);
+            expect(markTranslationComplete(first, attempts[0].state, attempts[0].generation)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(spinner)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([third, second, first]);
+            const wrapper = document.createElement('span');
+            second.append(wrapper);
+            setBilingualContent(second, wrapper);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([third, first, second]);
+            expect(getTranslationOwnersForIndexedNode(wrapper)).toEqual([second]);
+            expect(discardTranslation(first, attempts[0].state)).toBe(true);
+            expect(getTranslationOwnersForIndexedNode(root)).toEqual([third, second]);
+            expect(first.firstChild).toBe(firstSource);
+            expect(first.textContent).toBe('First source.');
+        } finally {
+            owners.forEach((owner, index) => discardTranslation(owner, attempts[index].state));
+        }
+        expect(getTranslationOwnersForIndexedNode(root)).toEqual([]);
+    });
+
     it("共享祖先刷新保持 owner 枚举顺序，移走 owner 后仅删除过期关联", () => {
         const {document} = parseHTML('<html><body><main id="old"><p id="a">First source.</p><p id="b">Second source.</p></main><main id="new"></main></body></html>');
         const oldRoot = document.querySelector<HTMLElement>('#old')!;
@@ -1107,4 +1173,380 @@ it('tooltip 的插入、内容变化和移除不使外层按钮来源失效', ()
     expect(getTranslationSourceStructureSignature(node)).toBe(before);
     tooltip.remove();
     expect(getTranslationSourceStructureSignature(node)).toBe(before);
+});
+
+
+// 公共入口的故障能力与弱引用清理契约；WeakRef 桩只模拟 deref 失效，不证明真实 GC。
+describe('state 公共入口的降级与资源恢复边界', () => {
+    it.each([null, 'host-tooltip'])('失败 UI 分离恢复 tooltip 原属性 %s，并保留 error tombstone', (original) => {
+        const {document} = parseHTML('<html><body><div role="tooltip">Support monthly</div></body></html>');
+        const owner = document.querySelector<HTMLElement>('[role="tooltip"]')!;
+        if (original !== null) owner.setAttribute('data-fr-tooltip-translation-active', original);
+        const attempt = beginTranslation(owner, 'bilingual', 'control')!;
+        const retry = document.createElement('span');
+        owner.append(retry);
+        setRetryWrapper(owner, retry);
+        try {
+            expect(markTranslationError(owner, attempt.state, attempt.generation, false)).toBe(true);
+            expect(detachFailedTranslationUi(owner, attempt.state)).toBe(true);
+            expect(owner.getAttribute('data-fr-tooltip-translation-active')).toBe(original);
+            expect(retry.parentNode).toBeNull();
+            expect(getTranslationOwnersForIndexedNode(retry)).toEqual([]);
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.phase).toBe('error');
+            expect(detachFailedTranslationUi(owner, attempt.state)).toBe(true);
+            expect(owner.getAttribute('data-fr-tooltip-translation-active')).toBe(original);
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('失败 tooltip UI 分离保留宿主后来写入的属性', () => {
+        const {document} = parseHTML('<html><body><p role="tooltip">Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(owner, 'bilingual', 'control')!;
+        try {
+            markTranslationError(owner, attempt.state, attempt.generation, false);
+            owner.setAttribute('data-fr-tooltip-translation-active', 'host-new');
+            expect(detachFailedTranslationUi(owner, attempt.state)).toBe(true);
+            expect(owner.getAttribute('data-fr-tooltip-translation-active')).toBe('host-new');
+        } finally { restoreTranslation(owner); }
+        expect(owner.getAttribute('data-fr-tooltip-translation-active')).toBe('host-new');
+    });
+
+    it('索引读取清理模拟已回收 owner 的死引用，同时保留共享 artifact 的活 owner', () => {
+        const {document} = parseHTML('<html><body><p id="dead">First source</p><p id="live">Second source</p><span></span></body></html>');
+        const dead = document.querySelector<HTMLElement>('#dead')!;
+        const live = document.querySelector<HTMLElement>('#live')!;
+        const artifact = document.querySelector<HTMLElement>('span')!;
+        beginTranslation(dead, 'bilingual'); beginTranslation(live, 'bilingual');
+        setSpinner(dead, artifact); setSpinner(live, artifact);
+        const nativeDeref = WeakRef.prototype.deref;
+        const deref = vi.spyOn(WeakRef.prototype, 'deref').mockImplementation(function (this: WeakRef<object>) {
+            const value = nativeDeref.call(this);
+            return value === dead ? undefined : value;
+        });
+        try {
+            expect(getTranslationOwnersForIndexedNode(dead)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(artifact)).toEqual([live]);
+            // 恢复能力后再次读取，已清掉的死引用不会重新出现在索引中。
+            deref.mockRestore();
+            expect(getTranslationOwnersForIndexedNode(dead)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(artifact)).toEqual([live]);
+        } finally {
+            deref.mockRestore(); restoreTranslation(dead); restoreTranslation(live);
+        }
+    });
+
+    it('区域盘点清理模拟死 WeakRef，全局恢复仍能中止其余活请求', () => {
+        const {document} = parseHTML('<html><body><article><p id="dead">First</p><p id="live">Second</p></article></body></html>');
+        const dead = document.querySelector<HTMLElement>('#dead')!;
+        const live = document.querySelector<HTMLElement>('#live')!;
+        beginTranslation(dead, 'bilingual');
+        const attempt = beginTranslation(live, 'bilingual')!;
+        const nativeDeref = WeakRef.prototype.deref;
+        const deref = vi.spyOn(WeakRef.prototype, 'deref').mockImplementation(function (this: WeakRef<object>) {
+            const value = nativeDeref.call(this);
+            return value === dead ? undefined : value;
+        });
+        try {
+            expect(getTranslationOwnersWithin(document.querySelector('article')!)).toEqual([live]);
+            deref.mockRestore();
+            expect(getTranslationOwnersWithin(document.querySelector('article')!)).toEqual([live]);
+            restoreAllTranslations();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(live)).toBeUndefined();
+        } finally {
+            deref.mockRestore(); restoreTranslation(dead); restoreTranslation(live);
+        }
+    });
+
+    it('共享布局查询释放模拟已回收的最后租户，精确恢复宿主样式', async () => {
+        const {hasTranslationLayoutOverride} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><article style="height:24px"><p>Source</p></article></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const originalStyle = ancestor.getAttribute('style');
+        beginTranslation(owner, 'bilingual');
+        expect(acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}])).toBe(true);
+        expect(hasTranslationLayoutOverride(ancestor)).toBe(true);
+        const nativeDeref = WeakRef.prototype.deref;
+        const deref = vi.spyOn(WeakRef.prototype, 'deref').mockImplementation(function (this: WeakRef<object>) {
+            const value = nativeDeref.call(this);
+            return value === owner ? undefined : value;
+        });
+        try {
+            expect(hasTranslationLayoutOverride(ancestor)).toBe(false);
+            expect(ancestor.getAttribute('style')).toBe(originalStyle);
+            deref.mockRestore();
+            expect(hasTranslationLayoutOverride(ancestor)).toBe(false);
+        } finally { deref.mockRestore(); restoreTranslation(owner); }
+    });
+
+    it('恢复活租户时清理观察器及共享布局中的模拟死租户', () => {
+        const {document, window} = parseHTML('<html><body><article style="height:24px"><p id="dead">First</p><p id="live">Second</p></article></body></html>');
+        const dead = document.querySelector<HTMLElement>('#dead')!;
+        const live = document.querySelector<HTMLElement>('#live')!;
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const originalStyle = ancestor.getAttribute('style');
+        const disconnect = vi.spyOn(window.MutationObserver.prototype, 'disconnect');
+        beginTranslation(dead, 'bilingual'); beginTranslation(live, 'bilingual');
+        ensureTranslationTruncationLayout(dead); ensureTranslationTruncationLayout(live);
+        for (const owner of [dead, live]) acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}]);
+        const nativeDeref = WeakRef.prototype.deref;
+        const deref = vi.spyOn(WeakRef.prototype, 'deref').mockImplementation(function (this: WeakRef<object>) {
+            const value = nativeDeref.call(this);
+            return value === dead ? undefined : value;
+        });
+        try {
+            expect(restoreTranslation(live)).toBe(true);
+            expect(ancestor.getAttribute('style')).toBe(originalStyle);
+            expect(disconnect).toHaveBeenCalledTimes(1);
+        } finally {
+            deref.mockRestore(); restoreTranslation(dead); restoreTranslation(live);
+            disconnect.mockRestore();
+        }
+    });
+
+    it('MutationObserver 不可用时布局入口可降级，恢复仍释放样式租约', () => {
+        const {document, window} = parseHTML('<html><body><article style="height:24px"><p>Source</p></article></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const ancestor = document.querySelector<HTMLElement>('article')!;
+        const descriptor = Object.getOwnPropertyDescriptor(window, 'MutationObserver');
+        const originalStyle = ancestor.getAttribute('style');
+        try {
+            // linkedom 的 window 代理回退至 globalThis；同时隐藏两处能力，finally 精确恢复。
+            vi.stubGlobal('MutationObserver', undefined);
+            Object.defineProperty(window, 'MutationObserver', {configurable: true, value: undefined});
+            beginTranslation(owner, 'bilingual');
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            expect(acquireTranslationLayoutOverride(owner, ancestor, [{property: 'height', value: 'auto', priority: 'important'}])).toBe(true);
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(ancestor.getAttribute('style')).toBe(originalStyle);
+        } finally {
+            restoreTranslation(owner);
+            if (descriptor) Object.defineProperty(window, 'MutationObserver', descriptor);
+            else Reflect.deleteProperty(window, 'MutationObserver');
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('缺少 CSS priority API 时布局租约与宿主修改仍可协调恢复', async () => {
+        const {reconcileTranslationLayoutOverrides} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><p style="height:24px">Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const style = owner.style;
+        const descriptor = Object.getOwnPropertyDescriptor(style, 'getPropertyPriority');
+        try {
+            Object.defineProperty(style, 'getPropertyPriority', {configurable: true, value: undefined});
+            beginTranslation(owner, 'bilingual');
+            expect(acquireTranslationLayoutOverride(owner, owner, [{property: 'height', value: 'auto', priority: 'important'}])).toBe(true);
+            style.setProperty('height', '48px'); style.setProperty('color', 'red');
+            expect(reconcileTranslationLayoutOverrides(owner)).toBe(true);
+            expect(style.getPropertyValue('height')).toBe('auto');
+            restoreTranslation(owner);
+            expect(style.getPropertyValue('height')).toBe('48px');
+            expect(style.getPropertyValue('color')).toBe('red');
+        } finally {
+            restoreTranslation(owner);
+            if (descriptor) Object.defineProperty(style, 'getPropertyPriority', descriptor);
+            else Reflect.deleteProperty(style, 'getPropertyPriority');
+        }
+    });
+
+    it('queueMicrotask 不可用时 resize 仍用 Promise 检查点清理被宿主移走的加载工件', async () => {
+        const {document, window} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        const spinner = document.createElement('span'); owner.append(spinner); setSpinner(owner, spinner);
+        try {
+            ensureTranslationTruncationLayout(owner);
+            spinner.remove();
+            vi.stubGlobal('queueMicrotask', undefined);
+            window.dispatchEvent(new window.Event('resize'));
+            await Promise.resolve(); await Promise.resolve();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+            expect(owner.textContent).toBe('Source');
+        } finally { vi.unstubAllGlobals(); restoreTranslation(owner); }
+    });
+
+    it('来源结构签名忽略注释变化，超宽子树明确进入 overflow', () => {
+        const {document} = parseHTML('<html><body><p>Readable<!--host marker--></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const signature = getTranslationSourceStructureSignature(owner);
+        owner.lastChild!.nodeValue = 'updated host marker';
+        expect(getTranslationSourceStructureSignature(owner)).toBe(signature);
+        for (let index = 0; index < 4200; index += 1) owner.append(document.createElement('span'));
+        expect(isTranslationSourceStructureOverflow(getTranslationSourceStructureSignature(owner))).toBe(true);
+    });
+
+    it('已移走的原始 Text 在恢复时保持宿主当前位置和译值', () => {
+        const {document} = parseHTML('<html><body><p>Source</p><aside></aside></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const destination = document.querySelector<HTMLElement>('aside')!;
+        const source = owner.firstChild as Text;
+        beginTranslation(owner, 'single');
+        try {
+            source.nodeValue = '译文'; setTextSlotsApplied(owner);
+            destination.append(source);
+            expect(restoreTranslation(owner)).toBe(true);
+            expect(destination.firstChild).toBe(source);
+            expect(source.nodeValue).toBe('译文');
+            expect(owner.childNodes.length).toBe(0);
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('仅译文槽登记忽略没有来源 Text 的空槽，并恢复后安全忽略迟到写入', async () => {
+        const {setLiveTranslationSourceSnapshot, setControlValueApplied} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><p>Source<span><b>Nested</b></span><i></i></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const empty = document.querySelector<HTMLElement>('i')!;
+        const nested = document.querySelector<HTMLElement>('span')!;
+        beginTranslation(owner, 'single');
+        try {
+            setSingleTextSlotHosts(owner, [empty, nested]);
+            expect(getTranslationOwnersForIndexedNode(empty)).toEqual([]);
+            expect(getTranslationOwnersForIndexedNode(nested)).toEqual([]);
+            setControlValueApplied(owner, 'invalid control translation');
+            expect(getTranslationState(owner)?.textSlotsApplied).toBeUndefined();
+            restoreTranslation(owner);
+            const html = owner.innerHTML;
+            setLiveTranslationSourceSnapshot(owner, []); setSingleTextSlotHosts(owner, [empty]);
+            setTextSlotsApplied(owner); setControlValueApplied(owner, 'late translation');
+            expect(owner.innerHTML).toBe(html);
+            expect(getTranslationState(owner)).toBeUndefined();
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('坐标命中已登记 synthetic owner 时保留作用域和应用外壳许可', () => {
+        const {document} = parseHTML('<html><body><div><span data-fr-translation-segment="true">Source</span></div></body></html>');
+        const owner = document.querySelector<HTMLElement>('span')!;
+        const source = owner.firstChild as Text;
+        beginTranslation(owner, 'bilingual', 'content', true, 'Source', [source], true, undefined, 'all');
+        try {
+            const root = {elementsFromPoint: () => [owner]} as unknown as Document;
+            expect(getOwnedTranslationCandidateAtPoint(root, 3, 4)).toMatchObject({element: owner, scope: 'all', nodes: [source], allowTopLevelApplicationShell: true});
+        } finally { restoreTranslation(owner); }
+    });
+});
+
+
+// 这些回归只经过导出的状态与 DOM 入口，不访问或篡改模块私有集合。
+describe('state 克隆、重挂与能力缺失的公共契约', () => {
+    it('克隆展示回滚移除空 style，但过期 generation 不回滚新克隆', async () => {
+        const {restoreClonedTranslationOwnerPresentation} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        try {
+            acquireTranslationLayoutOverride(owner, owner, [{property: 'height', value: 'auto', priority: 'important'}]);
+            const clone = owner.cloneNode(true) as HTMLElement;
+            restoreClonedTranslationOwnerPresentation(owner, clone, attempt.state);
+            expect(clone.hasAttribute('style')).toBe(false);
+            expect(owner.style.height).toBe('auto');
+            const lateClone = owner.cloneNode(true) as HTMLElement;
+            restoreTranslation(owner);
+            const before = lateClone.outerHTML;
+            restoreClonedTranslationOwnerPresentation(owner, lateClone, attempt.state);
+            expect(lateClone.outerHTML).toBe(before);
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('布局能力不可用时保留原样式与请求，并安全拒绝无状态 owner 的租约', async () => {
+        const {reconcileTranslationLayoutOverrides} = await import('@/src/features/full-page-translation/content/state');
+        const {document, window} = parseHTML('<html><body><p style="height:24px">Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const descriptor = Object.getOwnPropertyDescriptor(document, 'defaultView');
+        const originalStyle = owner.getAttribute('style');
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        try {
+            Object.defineProperty(document, 'defaultView', {configurable: true, value: {
+                HTMLElement: window.HTMLElement, MutationObserver: window.MutationObserver,
+                addEventListener: window.addEventListener.bind(window), removeEventListener: window.removeEventListener.bind(window),
+                getComputedStyle: undefined,
+            }});
+            expect(ensureTranslationTruncationLayout(owner)).toBe(true);
+            expect(owner.getAttribute('style')).toBe(originalStyle);
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.controller.signal.aborted).toBe(false);
+            restoreTranslation(owner);
+            expect(acquireTranslationLayoutOverride(owner, owner, [{property: 'height', value: 'auto', priority: ''}])).toBe(false);
+            expect(reconcileTranslationLayoutOverrides(owner)).toBe(false);
+            expect(owner.getAttribute('style')).toBe(originalStyle);
+        } finally {
+            restoreTranslation(owner);
+            if (descriptor) Object.defineProperty(document, 'defaultView', descriptor);
+            else Reflect.deleteProperty(document, 'defaultView');
+        }
+    });
+
+    it('overflow 来源身份忽略装饰样式，保留可见性语义变化', async () => {
+        const {getTranslationOverflowGenerationIdentity} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><p><span style="visibility:hidden;color:red">Protected source</span></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const child = owner.querySelector<HTMLElement>('span')!;
+        const before = getTranslationOverflowGenerationIdentity(owner);
+        child.style.color = 'blue'; child.className = 'hover';
+        expect(getTranslationOverflowGenerationIdentity(owner)).toBe(before);
+        child.style.visibility = 'visible';
+        expect(getTranslationOverflowGenerationIdentity(owner)).not.toBe(before);
+        expect(child.style.color).toBe('blue');
+    });
+
+    it('可信译文 wrapper 接受 ShortPixel 扫描标记，但拒绝属性与 class 丢失', async () => {
+        const {isTrustedBilingualArtifactWithHostClass, isOwnedBilingualArtifactAttached} = await import('@/src/features/full-page-translation/content/state');
+        const {document} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content'; wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.setAttribute('lang', 'zh'); wrapper.textContent = '译文'; owner.append(wrapper); setBilingualContent(owner, wrapper);
+        try {
+            markTranslationComplete(owner, attempt.state, attempt.generation, false);
+            wrapper.setAttribute('data-spai-bg-prepared', '1');
+            expect(isTrustedBilingualArtifactWithHostClass(wrapper, attempt.state)).toBe(true);
+            wrapper.setAttribute('lang', 'en');
+            expect(isTrustedBilingualArtifactWithHostClass(wrapper, attempt.state)).toBe(false);
+            wrapper.setAttribute('lang', 'zh'); wrapper.classList.remove('fluent-read-bilingual-content');
+            expect(isTrustedBilingualArtifactWithHostClass(wrapper, attempt.state)).toBe(false);
+            expect(isOwnedBilingualArtifactAttached(owner, attempt.state)).toBe(false);
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('overflow 等价 Text 重挂在真实 observer 检查点绑定新节点并保留译文', async () => {
+        const {document} = parseHTML('<html><body><p></p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        owner.textContent = 'Readable source. '.repeat(9000);
+        const source = owner.firstChild as Text;
+        const attempt = beginTranslation(owner, 'bilingual', 'content', false, owner.textContent, [source], true)!;
+        const wrapper = document.createElement('span');
+        wrapper.className = 'fluent-read-bilingual-content'; wrapper.setAttribute('data-fr-translation-owned', 'true');
+        wrapper.textContent = '译文'; owner.append(wrapper); setBilingualContent(owner, wrapper);
+        try {
+            expect(isTranslationSourceStructureOverflow(attempt.state.sourceStructureSignature)).toBe(true);
+            markTranslationComplete(owner, attempt.state, attempt.generation, false);
+            ensureTranslationTruncationLayout(owner);
+            const replacement = document.createTextNode(source.data);
+            owner.replaceChild(replacement, source);
+            await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+            expect(getTranslationState(owner)).toBe(attempt.state);
+            expect(attempt.state.sourceTextNodes).toEqual([replacement]);
+            expect(wrapper.parentNode).toBe(owner);
+        } finally { restoreTranslation(owner); }
+    });
+
+    it('失败态 retry wrapper 被移走时 resize 检查点清理请求和索引', async () => {
+        const {document, window} = parseHTML('<html><body><p>Source</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const attempt = beginTranslation(owner, 'bilingual')!;
+        const wrapper = document.createElement('span'); owner.append(wrapper); setRetryWrapper(owner, wrapper);
+        try {
+            markTranslationError(owner, attempt.state, attempt.generation, false);
+            ensureTranslationTruncationLayout(owner);
+            wrapper.remove(); window.dispatchEvent(new window.Event('resize'));
+            await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+            expect(getTranslationState(owner)).toBeUndefined();
+            expect(getTranslationOwnersForIndexedNode(wrapper)).toEqual([]);
+            expect(attempt.state.controller.signal.aborted).toBe(true);
+        } finally { restoreTranslation(owner); }
+    });
 });

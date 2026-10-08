@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、离线模板仅省略外层属性自比较并保留内容与复制工件复验、已提交译文的前后位置及骨架重放换行快照、含固定高度 line-clamp 的共享样式租约、同批布局与来源保护读数复用及写入失效、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、逐父节点单次读取子列表的移除子树所有者枚举，以及沿用当前 owner 快照并保护各滚动面的全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、离线模板仅省略外层属性自比较并保留内容与复制工件复验、已提交译文的前后位置及骨架重放换行快照、含固定高度 line-clamp 的共享样式租约、同批布局与来源保护读数复用及写入失效（释放最后一个旧祖先租约也立即失效）、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、逐父节点单次读取子列表的移除子树所有者枚举，以及沿用当前 owner 快照并保护各滚动面的全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
@@ -1483,7 +1483,7 @@ function releaseTranslationLayoutOverride(
     owner: HTMLElement,
     state: TranslationState,
     element: HTMLElement,
-): void {
+): boolean {
     const override = sharedLayoutOverrides.get(element);
     const ownerRef = activeRefsByNode.get(owner);
     if (override && ownerRef) override.owners.delete(ownerRef);
@@ -1496,8 +1496,10 @@ function releaseTranslationLayoutOverride(
             override.owners.delete(ref);
         }
     }
-    if (override?.owners.size === 0) restoreSharedTranslationLayoutOverride(element, override);
+    const restored = override?.owners.size === 0;
+    if (restored) restoreSharedTranslationLayoutOverride(element, override!);
     state.layoutOverrideElements?.delete(element);
+    return restored;
 }
 
 /**
@@ -1647,7 +1649,9 @@ export function ensureTranslationTruncationLayout(
 
     const chain = [owner, ...ancestors];
     for (const element of Array.from(state.layoutOverrideElements ?? [])) {
-        if (!chain.includes(element)) releaseTranslationLayoutOverride(owner, state, element);
+        if (!chain.includes(element) && releaseTranslationLayoutOverride(owner, state, element)) {
+            measurements.invalidate();
+        }
     }
     // 先吸收宿主对已租用属性的改写；新增属性不能掩盖这些新的恢复基线。
     if (!reconcileTranslationLayoutOverrides(owner)) return false;
@@ -1657,6 +1661,11 @@ export function ensureTranslationTruncationLayout(
     let heightBoundary = !hasBilingualContent;
     let branch = owner;
     for (const element of chain) {
+        // 接管可能清理断开的最后旧租户并恢复裁剪；必须先收敛租约，再读取当前布局。
+        if (sharedLayoutOverrides.has(element)) {
+            acquireTranslationLayoutOverride(owner, element, []);
+            measurements.invalidate();
+        }
         const elementIsBoundary = isTranslationHeightBoundary(element, measurements);
         if (elementIsBoundary) {
             const hadHeightOverride = sharedLayoutOverrides.get(element)?.properties.some(({property}) => property === 'height');
@@ -1664,14 +1673,14 @@ export function ensureTranslationTruncationLayout(
             if (hadHeightOverride) measurements.invalidate();
         }
         const truncation = hasActiveTranslationTruncation(element, measurements);
-        if (sharedLayoutOverrides.has(element) || truncation) {
+        if (truncation) {
             // 有些站点把 line-clamp 与固定 height、overflow:hidden 同时设在译文 owner 上。
             // 只解除行数限制仍会把中文裁在盒子外；此处一并恢复自然高度，并由租约负责还原。
-            const overrides = !truncation ? [] : hasActiveTranslationLineClamp(element, measurements)
+            const overrides = hasActiveTranslationLineClamp(element, measurements)
                 ? [...translationTruncationStyleOverrides, ...translationHeightStyleOverrides]
                 : translationTruncationStyleOverrides;
             acquireTranslationLayoutOverride(owner, element, overrides);
-            if (overrides.length > 0) measurements.invalidate();
+            measurements.invalidate();
         }
         heightBoundary ||= elementIsBoundary;
         // 必须在解除当前内层 clamp 后读外层几何；先收集全部祖先会读到尚未展开的旧高度。
