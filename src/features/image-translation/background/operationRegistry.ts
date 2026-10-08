@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/operationRegistry.ts
  * 文件职责：管理图片与区域翻译共享的后台事务身份、发送者归属与取消生命周期。
- * 主要内容：以公开 ID 和可信文档 session／浏览器 sender 键索引不可复用的内部事务；可在配置准备前登记归属、控制器与截止时间，准备完成一次封入只读快照，再分派原操作；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
+ * 主要内容：以公开 ID 和可信文档 session／浏览器 sender 键索引不可复用的内部事务；可在配置准备前登记归属、控制器与截止时间，同轮撤销前已消费准备拒绝，准备完成一次封入只读快照再分派原操作；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
  * 模块边界：只管理本地事务和信号，不访问浏览器、OCR、供应商、配置存储或消息传输，也不信任消息体自报归属。
  */
 import {requestOwnerKey, type BrowserRequestContext} from '@/src/platform/browser/requestOwner';
@@ -161,6 +161,8 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             try {
                 // 同步开始准备，让组合层在首个 await 前持有此控制器；只在原操作前等待快照。
                 const prepared = preparation?.(options);
+                // execute 可能在下一微任务等待前已被撤销；消费原 Promise，保留下方 await 的错误。
+                if (prepared) void prepared.catch(() => {});
                 return await execute(record, prepared ? async value => {
                     const result = await prepared;
                     assertActive(record);

@@ -952,3 +952,5 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 图片私密路线专项 `tests/imagePrivacyRoute.test.ts` 使用真实配置归一化、保存、订阅、图片 Port、handler、broker、provider registry 和 AI SDK，仅将浏览器、Offscreen OCR、配置存储及 HTTP fetch 替换为离线边界。覆盖原生三态、专用模型锁、普通／私密译文缓存隔离、OCR 选择不变、配置取消、异步来源重验和同 URL 新连接。一个 provider 忽略 abort 的用例单独替换 provider Promise 验证真实 broker lease；不把 SDK 已响应取消后的迟到合成 fetch 当作 provider 仍未 settle。`imageTranslationRuntime.test.ts` 检查专用线路变更使已完成位图缓存失效以及改回旧值仍拒绝在途译图。圈选 vision/probe 与真实浏览器／供应商／RTX5090 验收不包含在此图片切片内。
 
 `tests/imagePreparationCancellation.test.ts` 经真实图片 wrapper、共享 registry、handler 和原生 Port，在 ready/source gate 尚未释放时检查配置取消、断连、显式取消和后台截止时间使 dispatch 结束、活动归属及配置控制器清理；两类正常完成作为对照，迟到 resolve/reject 不封入快照或派发 OCR。`imagePrivacyRoute` 的真实配置保存/getContexts 用例也在释放 gate 前检查后台 handler 完成。未标记的圈选快照由允许的 Offscreen 子请求恢复后仍被实际图片 broker adapter 拒绝，测试不会增加圈选来源路由。前端专项另覆盖专用自定义模型目录变更及缺失可选映射。此前额外三模块诊断的遗漏包含新增分支，不能统称为既有遗漏；此诊断与既有严格覆盖归属分别报告，不修改覆盖清单、阈值或 ignore。
+
+该准备专项还在 run 返回与 cancel/releaseOwner、或真实 Port 收包与配置取消/断连之间不执行 await/drain，随后立即拒绝准备 gate；监听真实 Node unhandledRejection 并在通知阶段后检查零异常、零 operation 及归属清理。prepared 在 execute 的活动核验前同步附加拒绝消费，原 Promise 仍由原 await 返回错误；未取消控制核对同一 Error 实例，不将准备消费扩展为 provider race。

@@ -9,6 +9,12 @@ import {IMAGE_DOCUMENT_VERSION} from '@/src/features/image-translation/documentC
 import {documentPortPair} from './helpers/imageDocumentPorts';
 function deferred<T>() {let resolve!: (value: T) => void, reject!: (error: Error) => void; const promise = new Promise<T>((a, b) => {resolve = a; reject = b;}); return {promise, resolve, reject};}
 const drain = async () => {for (let i = 0; i < 60; i++) await Promise.resolve();};
+const rejectionCheckpoint = async () => {await new Promise<void>(resolve => setImmediate(resolve)); await new Promise<void>(resolve => setImmediate(resolve));};
+function observeUnhandled() {
+    const errors: unknown[] = [], listener = (error: unknown) => {errors.push(error);};
+    process.on('unhandledRejection', listener);
+    return {errors, stop: () => process.off('unhandledRejection', listener)};
+}
 const message = {type: 'fluentReadImageTranslate', requestId: 'preparation', image: 'data:image/png;base64,AQ==', sourceLanguage: 'en'};
 function fixture(phase: 'ready' | 'source') {
     const gate = deferred<any>(), config = new Config();
@@ -93,5 +99,53 @@ describe('image preparation cancellation before any gate settlement', () => {
         const rejected = expect(pending).rejects.toMatchObject({name: 'AbortError'}); await drain(); registry.cancel('late', context); await rejected;
         if (late === 'resolve') gate.resolve(Object.freeze({sourceLanguage: 'en', glossaryRevision: 'unused'})); else gate.reject(new Error('synthetic late snapshot rejection'));
         await drain(); expect(operation).not.toHaveBeenCalled(); expect(options.snapshot).toBeUndefined(); expect(registry.cancel('late', context).cancelled).toBe(false);
+    });
+
+    it.each(['cancel', 'releaseOwner'] as const)('same-turn run then %s then preparation rejection has no unhandled rejection', async reason => {
+        const observed = observeUnhandled(), gate = deferred<any>();
+        const registry = createImageOperationRegistry('immediate', () => false, Date.now, true);
+        const context = {sender: {id: 'extension', documentId: 'native-document', tab: {id: 1}}};
+        const operation = vi.fn(async () => 'unexpected'); let options: any;
+        try {
+            const pending = registry.run({requestId: 'immediate'}, operation, context, undefined, value => {options = value; return gate.promise;});
+            const returned = pending.catch(error => error);
+            if (reason === 'cancel') registry.cancel('immediate', context); else registry.releaseOwner(context);
+            gate.reject(new Error('synthetic immediate preparation rejection'));
+            // run、取消、gate.reject 之间没有 await/drain；真实 Node 通知阶段后再断言。
+            expect(await returned).toMatchObject({name: 'AbortError'}); await rejectionCheckpoint();
+            expect(observed.errors).toEqual([]); expect(operation).not.toHaveBeenCalled();
+            expect(options.snapshot).toBeUndefined(); expect(registry.cancel('immediate', context).cancelled).toBe(false);
+        } finally {observed.stop();}
+    });
+
+    it.each(['configuration', 'disconnect'] as const)('same-turn native receipt then %s then ready rejection consumes the cancelled app preparation', async reason => {
+        const observed = observeUnhandled(), h = fixture('ready');
+        try {
+            // 同步投递到真实原生 Port 的 receive；排除离线传输 queueMicrotask 的额外延迟。
+            h.pair.backgroundMessages.emit({kind: 'request', version: IMAGE_DOCUMENT_VERSION, rpcId: 'immediate-receipt', message});
+            expect(h.active.size).toBe(1);
+            if (reason === 'configuration') h.adapter.cancelImages(); else h.pair.close();
+            h.gate.reject(new Error('synthetic immediate ready rejection'));
+            await rejectionCheckpoint(); expect(observed.errors).toEqual([]); expect(h.active.size).toBe(0);
+            expect(h.translateImage).not.toHaveBeenCalled(); expect(h.source).not.toHaveBeenCalled();
+            if (reason === 'configuration') {
+                const results = vi.mocked(h.pair.background.postMessage).mock.calls.map(([packet]) => packet as any).filter(packet => packet.kind === 'result');
+                expect(results).toHaveLength(1); expect(results[0].response).toMatchObject({success: false, errorName: 'AbortError'});
+                expect(h.registry.cancel(message.requestId, h.owner()).cancelled).toBe(false);
+            }
+            const abort = vi.spyOn(AbortController.prototype, 'abort'); h.adapter.cancelImages(); expect(abort).not.toHaveBeenCalled();
+        } finally {await h.cleanup(); observed.stop();}
+    });
+
+    it('an uncancelled same-turn preparation rejection still returns the original error', async () => {
+        const observed = observeUnhandled(), gate = deferred<any>(), error = new Error('synthetic preparation failure');
+        const registry = createImageOperationRegistry('immediate-error', () => false, Date.now, true);
+        const context = {sender: {id: 'extension', documentId: 'native-document', tab: {id: 1}}}, operation = vi.fn(async () => 'unexpected');
+        try {
+            const pending = registry.run({requestId: 'error'}, operation, context, undefined, () => gate.promise);
+            const returned = pending.catch(value => value); gate.reject(error);
+            expect(await returned).toBe(error); await rejectionCheckpoint(); expect(observed.errors).toEqual([]);
+            expect(operation).not.toHaveBeenCalled(); expect(registry.cancel('error', context).cancelled).toBe(false);
+        } finally {observed.stop();}
     });
 });
