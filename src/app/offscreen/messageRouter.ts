@@ -38,6 +38,7 @@ export interface OffscreenMessageDependencies {
         requestId: string,
         manga?: boolean,
         ocrEngine?: 'tesseract' | 'paddle',
+        deadlineAt?: number,
     ) => Promise<unknown>;
     readonly translateArea: (
         image: string,
@@ -519,6 +520,7 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
                             requestId,
                             message.manga === undefined ? false : requiredBoolean(message.manga,'manga'),
                             message.ocrEngine === 'paddle' ? 'paddle' : 'tesseract',
+                            typeof message.deadlineAt === 'number' && Number.isFinite(message.deadlineAt) ? message.deadlineAt : undefined,
                         );
                     },
                     (result) => ({...resultRecord(result, '图片翻译'), success: true}),

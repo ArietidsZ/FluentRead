@@ -55,10 +55,10 @@ export function prepareAreaVisionRecognition(
     });
     return async (image, selection, options) => {
         checkAbort(options.signal);
-        if (options.timeoutMs - (now() - startedAt) <= 0) throw new Error('圈选翻译总时间已耗尽，请重试');
+        if ((options.deadlineAt ?? startedAt + options.timeoutMs) - now() <= 0) throw new Error('圈选翻译总时间已耗尽，请重试');
         const cropped = await cropArea(image, selection, options);
         checkAbort(options.signal);
-        const requestTimeoutMs = Math.floor(options.timeoutMs - (now() - startedAt));
+        const requestTimeoutMs = Math.floor((options.deadlineAt ?? startedAt + options.timeoutMs) - now());
         if (requestTimeoutMs <= 0) throw new Error('圈选翻译总时间已耗尽，请重试');
         const visionRequest = attachTranslationImageInput(attachTranslationProviderConfig(attachTranslationRequestControl(
             markTranslationRemainingBudget({origin: 'Transcribe the cropped image.', glossaryIds: [], sourceLanguage, targetLanguage: visionSnapshot.to,
@@ -133,7 +133,7 @@ export function prepareAreaTextTranslation(
         const sourceText = (recognized.sourceText ?? recognized.lines.map(line => line.text).join('\n')).trim();
         if (!sourceText) throw new Error('没有识别到圈选区域文字');
         if (sourceText.length > MAX_AREA_TEXT_LENGTH) throw new Error('圈选文字过多，请缩小区域后重试');
-        const requestTimeoutMs = Math.floor(options.timeoutMs - (now() - startedAt));
+        const requestTimeoutMs = Math.floor((options.deadlineAt ?? startedAt + options.timeoutMs) - now());
         if (requestTimeoutMs <= 0) throw new Error('圈选翻译总时间已耗尽，请重试');
         const request = attachTranslationGlossaryContext(attachTranslationProviderConfig(attachTranslationRequestControl(
             markTranslationRemainingBudget({

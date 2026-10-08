@@ -96,6 +96,11 @@ describe('area translation Offscreen adapter', () => {
 });
 
 describe('image translation Offscreen adapter', () => {
+    it('passes the absolute backend deadline unchanged to image OCR', async () => {
+        send.mockResolvedValueOnce({success: true, image: 'translated', lines: []});
+        await createImageTranslationOffscreenAdapter(client).translateImage('source', 'en', '', {requestId: 'internal', signal: new AbortController().signal, timeoutMs: 70, deadlineAt: 1100});
+        expect(send).toHaveBeenCalledWith(expect.objectContaining({requestId: 'internal', deadlineAt: 1100}), expect.objectContaining({timeoutMs: 70}));
+    });
     const adapter = createImageTranslationOffscreenAdapter(client);
     it('单图识别选择透传到 Offscreen，不把普通图片变成漫画模式', async () => {
         send.mockResolvedValueOnce({success:true,image:'translated',lines:[]});

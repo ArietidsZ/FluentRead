@@ -7,6 +7,7 @@
 export {
     createImageOperationRegistry,
     type ImageOperationOptions,
+    type ImageOperationRegistry,
 } from './background/handlers';
 export type {ImageOffscreenOperationOptions} from './background/offscreenAdapter';
 export {

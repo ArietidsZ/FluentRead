@@ -106,7 +106,10 @@ export async function translateImageTextsInExtension(
     title: string,
     requestId: string | undefined,
     signal?: AbortSignal,
+    deadlineAt?: number,
 ): Promise<string[]> {
+    const remainingMs = Math.floor((deadlineAt ?? Date.now() + IMAGE_TEXT_TRANSLATION_TIMEOUT_MS) - Date.now());
+    if (remainingMs <= 0) throw new Error('图片文字翻译总时间已耗尽');
     const operationId = requestId || `legacy-image-text-${++legacyImageTextRequestSequence}`;
     const response = await new Promise<any>((resolve, reject) => {
         let settled = false;
@@ -140,14 +143,14 @@ export async function translateImageTextsInExtension(
         timeout = setTimeout(() => finish(() => {
             notifyCancellation();
             reject(new Error('图片文字翻译超时，请重试'));
-        }), IMAGE_TEXT_TRANSLATION_TIMEOUT_MS);
+        }), remainingMs);
         try {
             chrome.runtime.sendMessage({
                 type: 'fluentReadImageTranslateTexts',
                 texts,
                 title,
                 requestId: operationId,
-                timeoutMs: IMAGE_TEXT_TRANSLATION_TIMEOUT_MS,
+                timeoutMs: remainingMs,
             }, result => finish(() => {
                 if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
                 else resolve(result);
@@ -297,6 +300,7 @@ export async function translateImageInOffscreen(
     requestId?: string,
     manga = false,
     ocrEngine: 'tesseract' | 'paddle' = 'tesseract',
+    deadlineAt?: number,
 ): Promise<OffscreenImageTranslationResult> {
     // 提前验证输出预算，避免巨大输入完成 OCR 和付费翻译后才在生成译图时失败。
     const source = await loadImage(image, signal);
@@ -319,7 +323,7 @@ export async function translateImageInOffscreen(
         }
         reportProgress(requestId, 'translating');
         const translations = await translateImageTextsInExtension(
-            lines.map(line => line.text), title, requestId, signal,
+            lines.map(line => line.text), title, requestId, signal, deadlineAt,
         );
         throwIfImageOperationAborted(signal);
         reportProgress(requestId, manga ? 'cleaning' : 'rendering');

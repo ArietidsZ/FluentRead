@@ -35,6 +35,8 @@ export interface ImageOffscreenOperationOptions {
     readonly requestId: string;
     readonly signal: AbortSignal;
     readonly timeoutMs: number;
+    readonly callerRequestId?: string;
+    readonly deadlineAt?: number;
 }
 
 function sendOptions(options: ImageOffscreenOperationOptions) {
@@ -95,6 +97,7 @@ export function createImageTranslationOffscreenAdapter(client: OffscreenClient =
                 image,
                 sourceLanguage,
                 title,
+                ...(options?.deadlineAt === undefined ? {} : {deadlineAt: options.deadlineAt}),
                 ...(options?.manga ? {manga: true} : {}),
                 ...(options?.ocrEngine ? {ocrEngine: options.ocrEngine} : {}),
                 ...(options ? {requestId: options.requestId} : {}),
@@ -141,18 +144,18 @@ export const imageTranslationOffscreenAdapter = createImageTranslationOffscreenA
 /** 只把可信 Offscreen 阶段发送给发起任务的 frame，导航后的无接收端是正常清理。 */
 export const imageTranslationProgressTransport = {
     isOffscreenSender(context: ImageProgressContext): boolean {
-        return context.sender?.url === browser.runtime.getURL('/offscreen.html');
+        return context.sender?.url === browser.runtime.getURL('/offscreen.html') && context.sender?.tab === undefined;
     },
     async sendProgress(context: ImageProgressContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage; progress?: number}): Promise<void> {
         const tabId = context.sender?.tab?.id;
         if (typeof tabId !== 'number') return;
-        await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0}).catch(() => undefined);
+        await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0, ...(context.sender?.documentId ? {documentId: context.sender.documentId} : {})}).catch(() => undefined);
     },
 };
 
 /** 后台回查同一 frame 的短期请求授权，扩展 UI 或任意 URL 消息不能直接发起远程抓图。 */
 export function createImageSourceVerifier(
-    sendTabMessage: (tabId: number, message: object, options: {frameId: number}) => Promise<unknown>,
+    sendTabMessage: (tabId: number, message: object, options: {frameId: number; documentId?: string}) => Promise<unknown>,
 ) {
     return async (url: string, options: ImageOffscreenOperationOptions, context: ImageProgressContext): Promise<void> => {
         const sender = context.sender;
@@ -165,8 +168,8 @@ export function createImageSourceVerifier(
         let response: unknown;
         try {
             response = await sendTabMessage(tabId, {
-                type: 'fluentReadImageValidateSource', requestId: options.requestId, url, documentUrl: sender.url,
-            }, {frameId});
+                type: 'fluentReadImageValidateSource', requestId: options.callerRequestId ?? options.requestId, url, documentUrl: sender.url,
+            }, {frameId, ...(sender.documentId ? {documentId: sender.documentId} : {})});
         } catch { throw new Error('图片来源已失效，请重试'); }
         if (options.signal.aborted) throw new Error('图片读取已取消');
         if (!response || typeof response !== 'object' || (response as {valid?: unknown}).valid !== true) {

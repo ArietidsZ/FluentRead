@@ -490,7 +490,8 @@
       "tests/vocabularyStudyLifecycle.test.ts",
       "tests/allNodesTranslationCore.test.ts",
       "tests/sameTargetLanguageRegression.test.ts",
-      "tests/vocabularyReencounterLifecycle.test.ts"
+      "tests/vocabularyReencounterLifecycle.test.ts",
+      "tests/imageTransactionIdentity.test.ts"
     ]
   }
 }

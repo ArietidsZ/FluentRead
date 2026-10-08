@@ -4,6 +4,7 @@
  * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
+import {requestOwnerKey} from '@/src/platform/browser/requestOwner';
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {BackgroundMessageHandler} from '../messageRouter';
 import {attachTranslationGlossaryContext, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
@@ -80,16 +81,6 @@ function parseClientRequestId(value: unknown, optional = false): string | undefi
     return value;
 }
 
-function requestOwnerKey(context: TranslationRequestContext): string {
-    const sender = context?.sender;
-    const extensionId = typeof sender?.id === 'string' ? sender.id : '';
-    const tabId = Number.isSafeInteger(sender?.tab?.id) ? sender!.tab!.id : '-';
-    const frameId = Number.isSafeInteger(sender?.frameId) ? sender!.frameId : '-';
-    const documentId = typeof sender?.documentId === 'string' ? sender.documentId.slice(0, 128) : '';
-    if (tabId !== '-') return `extension:${extensionId}:tab:${tabId}:frame:${frameId}:document:${documentId}`;
-    const url = typeof sender?.url === 'string' ? sender.url.slice(0, 512) : '';
-    return `extension:${extensionId}:url:${url}:frame:${frameId}:document:${documentId}`;
-}
 
 function translationAbortError(): Error {
     const error = new Error('翻译请求已取消');

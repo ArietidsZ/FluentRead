@@ -303,10 +303,10 @@ describe('Offscreen 消息静态路由', () => {
     it('单图识别方式只能使用明确枚举，不接受任意引擎或隐式漫画模式', async () => {
         const message={type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'data:image/png,x',sourceLanguage:'en',ocrEngine:'paddle'};
         await dispatch(message);
-        expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.any(String),false,'paddle');
+        expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.any(String),false,'paddle',undefined);
         for(const ocrEngine of ['unknown',null,{},true])expect((await dispatch({...message,ocrEngine})).response).toMatchObject({success:false,error:'图片识别方式无效'});
         await dispatch({...message,ocrEngine:'tesseract'});
-        expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.any(String),false,'tesseract');
+        expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.any(String),false,'tesseract',undefined);
     });
 
     it('图片本地模型错误在 Offscreen 路由保留稳定原因', async () => {
@@ -321,14 +321,14 @@ describe('Offscreen 消息静态路由', () => {
             image: 'data:image/png,image', sourceLanguage: 'en',
         })).resolves.toEqual({handled: true, response: {success: true, image: 'translated', lines: []}});
         expect(mocks.translateImage).toHaveBeenCalledWith(
-            'data:image/png,image', 'en', '', expect.any(AbortSignal), 'image-translate-1', false, 'tesseract',
+            'data:image/png,image', 'en', '', expect.any(AbortSignal), 'image-translate-1', false, 'tesseract', undefined,
         );
         await dispatch({
             type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId: 'image-translate-2',
             image: 'data:image/png,image', sourceLanguage: 'en', title: 'Page',
         });
         expect(mocks.translateImage).toHaveBeenLastCalledWith(
-            'data:image/png,image', 'en', 'Page', expect.any(AbortSignal), 'image-translate-2', false, 'tesseract',
+            'data:image/png,image', 'en', 'Page', expect.any(AbortSignal), 'image-translate-2', false, 'tesseract', undefined,
         );
 
         expect((await dispatch({
@@ -375,7 +375,7 @@ describe('Offscreen 消息静态路由', () => {
         const handler=createOffscreenMessageListener({translate:mocks.translate,ttsPlayer:{play:mocks.play,stop:mocks.stop,seek:mocks.seek},fetchImage:mocks.fetchImage,
             translateImage:mocks.translateImage,translateArea:mocks.translateArea,downloadOcrLanguages:mocks.downloadOcrLanguages,mangaModelStatus:status,removeMangaModels:remove});
         const image={type:'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN',image:'data:image/png,x',sourceLanguage:'en',manga:true};
-        await dispatch(image,handler);expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.stringMatching(/^legacy-image-/),true,'tesseract');
+        await dispatch(image,handler);expect(mocks.translateImage).toHaveBeenLastCalledWith('data:image/png,x','en','',expect.any(AbortSignal),expect.stringMatching(/^legacy-image-/),true,'tesseract',undefined);
         expect((await dispatch({...image,manga:'true'},handler)).response).toMatchObject({success:false});
         expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'},handler)).response).toEqual({success:true,ready:true,bytes:123,inpaintingReady:false});
         expect((await dispatch({type:'FLUENT_READ_MANGA_MODEL_STATUS_OFFSCREEN'},listener)).response).toEqual({success:false,error:'漫画识别模型管理不可用'});
@@ -749,5 +749,12 @@ describe('Offscreen 本地模型可取消请求', () => {
         localTranslation.translate.mockRejectedValueOnce('worker gone');
         await expect(dispatch({...request, requestId: 'lt-3'}, handler))
             .resolves.toEqual({handled: true, response: {success: false, error: 'worker gone', requestId: 'lt-3'}});
+    });
+});
+
+describe('图像路由截止时间传递', () => {
+    it.each([123456, Number.POSITIVE_INFINITY, 'forged'])('deadline=%s只传递有限数字', async deadlineAt => {
+        await dispatch({type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', image: 'data:image/png,x', sourceLanguage: 'en', deadlineAt});
+        expect((mocks.translateImage.mock.calls as any).at(-1)[7]).toBe(typeof deadlineAt === 'number' && Number.isFinite(deadlineAt) ? deadlineAt : undefined);
     });
 });

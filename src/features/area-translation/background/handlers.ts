@@ -4,28 +4,22 @@
  * 主要内容：定义截图、圈选与取消协议，在 OCR 前冻结文本事务，依序执行本地裁剪识别及整块翻译并向原页面发送真实阶段；窗口、图像和选区在副作用前严格校验，截图请求全局串行并至少间隔 600ms，等待后及截图完成后均核对真实 sender 仍为活动标签页。
  * 模块边界：本文件只负责编排和输入防线，不直接访问 tabs、配置存储或 OCR 实现；这些副作用由 background composition root 注入，几何换算归 core，Offscreen 通信归 adapter。
  */
+import type {Config} from '@/src/core/config/model';
+import type {BrowserRequestContext} from '@/src/platform/browser/requestOwner';
 import type {AreaTranslationSelection} from '@/src/features/area-translation/core';
 import {
     createImageOperationRegistry,
     IMAGE_PROGRESS_MESSAGE_TYPE,
     type ImageTranslationStage,
     type ImageOperationOptions,
+    type ImageOperationRegistry,
 } from '@/src/features/image-translation/protocol';
 
 export const AREA_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaCapture' as const;
 export const AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaTranslateCapture' as const;
 export const AREA_CANCEL_MESSAGE_TYPE = 'fluentReadAreaCancel' as const;
 
-export interface AreaTranslationBackgroundContext {
-    sender?: {
-        url?: string;
-        frameId?: number;
-        tab?: {
-            id?: number;
-            windowId?: number;
-        };
-    };
-}
+export interface AreaTranslationBackgroundContext extends BrowserRequestContext {}
 
 export interface AreaCaptureMessage {
     type: typeof AREA_CAPTURE_MESSAGE_TYPE;
@@ -54,20 +48,21 @@ export interface AreaCaptureResponse {
 }
 
 export interface AreaTranslationBackgroundDependencies<TResult extends object> {
+    readonly operationRegistry?: ImageOperationRegistry;
     readonly captureVisibleTab: (windowId: number) => Promise<string | undefined>;
     readonly captureNow?: () => number;
     readonly waitForCapture?: (milliseconds: number) => Promise<void>;
     readonly getDefaultSourceLanguage: () => string;
     readonly assertCaptureOwner?: (windowId: number, tabId: unknown) => Promise<void>;
     readonly assertLanguagesDownloaded: (sourceLanguage: string) => Promise<void>;
-    readonly getVisionRoute?: () => {mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'};
-    readonly prepareVisionRoute?: () => (options: ImageOperationOptions) => Promise<{mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'}>;
+    readonly getVisionRoute?: (config?: Readonly<Config>) => {mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'};
+    readonly prepareVisionRoute?: (config?: Readonly<Config>) => (options: ImageOperationOptions) => Promise<{mode: 'ocr' | 'vision'; fallback?: 'unsupported' | 'unknown'}>;
     readonly translateAreaVision?: (
         image: string, sourceLanguage: string, title: string, selection: AreaTranslationSelection, options: ImageOperationOptions,
     ) => Promise<TResult>;
-    readonly prepareVisionTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext) =>
+    readonly prepareVisionTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext, config?: Readonly<Config>) =>
         (image: string, selection: AreaTranslationSelection, options: ImageOperationOptions) => Promise<TResult>;
-    readonly prepareTextTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext) =>
+    readonly prepareTextTranslation?: (sourceLanguage: string, title: string, context: AreaTranslationBackgroundContext, config?: Readonly<Config>) =>
         (recognized: TResult, options: ImageOperationOptions) => Promise<object>;
     readonly sendProgress?: (context: AreaTranslationBackgroundContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage}) => Promise<void>;
     readonly translateArea: (
@@ -155,7 +150,7 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
     AreaTranslationBackgroundHandler<AreaTranslateCaptureMessage, {success: true} & object>,
     AreaTranslationBackgroundHandler<AreaCancelMessage, {success: true; cancelled: boolean; requestId: string}>,
 ] {
-    const operationRegistry = createImageOperationRegistry('area');
+    const operationRegistry = dependencies.operationRegistry ?? createImageOperationRegistry('area');
     const captureNow = dependencies.captureNow ?? Date.now;
     const waitForCapture = dependencies.waitForCapture ?? (milliseconds => new Promise<void>(resolve => setTimeout(resolve, milliseconds)));
     // Chrome 每秒最多 2 次 captureVisibleTab；共享串行队列以实际启动时间间隔 600ms，失败仍释放后续任务。
@@ -189,25 +184,21 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
                 // 步骤 1：严格验证截图、视口选区和字符串字段，再进入 OCR/offscreen 边界。
                 const image = parseDataImage(message.image);
                 if (!isAreaTranslationSelection(message.selection)) throw new TypeError('圈选区域无效');
-                const sourceLanguage = parseSourceLanguage(
-                    message.sourceLanguage,
-                    dependencies.getDefaultSourceLanguage(),
-                );
                 const title = parseTitle(message.title);
-
-                // 在任何 OCR await 前冻结完整文本翻译事务，后续设置变更不改变当前任务。
-                const translateText = dependencies.prepareTextTranslation?.(sourceLanguage, title, context);
-                const translateVision = dependencies.prepareVisionTranslation?.(sourceLanguage, title, context);
-                const visionRoute = dependencies.getVisionRoute?.() ?? {mode: 'ocr' as const};
-                const resolveVisionRoute = dependencies.prepareVisionRoute?.();
-                // 步骤 2：先确认语言包，再复用同一个 offscreen 区域识别事务。
                 const result = await operationRegistry.run(message, async (options) => {
-                    if (resolveVisionRoute) await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'recognizing'});
+                    const frozen = options.snapshot?.config;
+                    const sourceLanguage = parseSourceLanguage(message.sourceLanguage,
+                        options.snapshot?.sourceLanguage ?? dependencies.getDefaultSourceLanguage());
+                    const translateText = dependencies.prepareTextTranslation?.(sourceLanguage, title, context, frozen);
+                    const translateVision = dependencies.prepareVisionTranslation?.(sourceLanguage, title, context, frozen);
+                    const visionRoute = dependencies.getVisionRoute?.(frozen) ?? {mode: 'ocr' as const};
+                    const resolveVisionRoute = dependencies.prepareVisionRoute?.(frozen);
+                    if (resolveVisionRoute) await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.callerRequestId!, stage: 'recognizing'});
                     const route = resolveVisionRoute ? await resolveVisionRoute(options) : visionRoute;
                     if (route.mode === 'vision' && !translateVision && !dependencies.translateAreaVision) throw new Error('视觉圈选翻译不可用');
                     if (route.mode === 'ocr') await dependencies.assertLanguagesDownloaded(sourceLanguage);
                     if (options.signal.aborted) throw areaAbortError();
-                    if (!resolveVisionRoute) await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'recognizing'});
+                    if (!resolveVisionRoute) await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.callerRequestId!, stage: 'recognizing'});
                     const recognized = route.mode === 'vision'
                         ? translateVision
                             ? await translateVision(image, message.selection as AreaTranslationSelection, options)
@@ -218,16 +209,16 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
                         ? {...recognized, recognitionMethod: 'ocr' as const, ...(route.fallback ? {recognitionFallback: route.fallback} : {})}
                         : recognized;
                     if (!translateText) return withRecognition;
-                    await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.requestId, stage: 'translating'});
+                    await dependencies.sendProgress?.(context, {type: IMAGE_PROGRESS_MESSAGE_TYPE, requestId: options.callerRequestId!, stage: 'translating'});
                     return translateText(withRecognition, options);
-                });
+                }, context);
                 return {success: true, ...result};
             },
         },
         {
             type: AREA_CANCEL_MESSAGE_TYPE,
-            async handle(message) {
-                return operationRegistry.cancel(message.requestId);
+            async handle(message, context) {
+                return operationRegistry.cancel(message.requestId, context);
             },
         },
     ];

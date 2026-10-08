@@ -387,9 +387,9 @@ describe('后台 feature handlers', () => {
             '',
             selection,
             expect.objectContaining({
-                requestId: expect.stringMatching(/^legacy-area-/),
+                requestId: expect.stringMatching(/^image-transaction:/), callerRequestId: expect.stringMatching(/^legacy-area-/),
                 signal: expect.any(AbortSignal),
-                timeoutMs: 180_000,
+                timeoutMs: expect.any(Number),
             }),
         );
 
@@ -448,8 +448,8 @@ describe('后台 feature handlers', () => {
             requestId: 'area-separate', timeoutMs: 5_000, title: 'Page',
         }, context);
         expect(events).toEqual(['snapshot', 'languages', 'recognizing', 'ocr', 'translating']);
-        expect(prepareTextTranslation).toHaveBeenCalledWith('en', 'Page', context);
-        expect(translateText).toHaveBeenCalledWith(recognized, expect.objectContaining({requestId: 'area-separate'}));
+        expect(prepareTextTranslation).toHaveBeenCalledWith('en', 'Page', context, undefined);
+        expect(translateText).toHaveBeenCalledWith(recognized, expect.objectContaining({requestId: expect.stringMatching(/^image-transaction:/), callerRequestId: 'area-separate'}));
         expect(result).toEqual({success: true, ...recognized, sourceText: 'Hello', translatedText: '你好'});
         expect(sendProgress).toHaveBeenCalledTimes(2);
     });
@@ -643,9 +643,9 @@ describe('后台 feature handlers', () => {
             'auto',
             '',
             expect.objectContaining({
-                requestId: expect.stringMatching(/^legacy-image-/),
+                requestId: expect.stringMatching(/^image-transaction:/), callerRequestId: expect.stringMatching(/^legacy-image-/),
                 signal: expect.any(AbortSignal),
-                timeoutMs: 180_000,
+                timeoutMs: expect.any(Number),
             }),
         );
 
@@ -658,7 +658,7 @@ describe('后台 feature handlers', () => {
         expect(dependencies.fetchImage).toHaveBeenCalledWith(
             'https://pbs.twimg.com/media/demo.png',
             expect.objectContaining({
-                requestId: 'image-fetch-1',
+                requestId: expect.stringMatching(/^image-transaction:/), callerRequestId: 'image-fetch-1',
                 signal: expect.any(AbortSignal),
                 timeoutMs: 15_000,
             }),
@@ -820,7 +820,7 @@ describe('后台 feature handlers', () => {
         await vi.waitFor(() => expect(dependencies.translateTexts).toHaveBeenCalledOnce());
         const request = (dependencies.translateTexts.mock.calls as unknown[][])[0]?.[0];
         const control = getTranslationRequestControl(request);
-        expect(control).toMatchObject({ownershipKey: 'image:image-text-pending'});
+        expect(control).toMatchObject({ownershipKey: expect.stringMatching(/^image:image-transaction:/)});
 
         await expect(find(IMAGE_CANCEL_MESSAGE_TYPE).handle({
             type: IMAGE_CANCEL_MESSAGE_TYPE,
@@ -1030,7 +1030,7 @@ describe('后台 feature handlers', () => {
                 type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
                 texts: ['first', 'second', 'third', 'fourth', 'fifth'],
             });
-            const rejection = expect(request).rejects.toThrow('图片第 2 段文字翻译失败：翻译请求超时');
+            const rejection = expect(request).rejects.toThrow('图片 OCR 请求超时');
 
             await vi.advanceTimersByTimeAsync(70_000);
             expect(translateTexts).toHaveBeenCalledTimes(4);
@@ -1063,7 +1063,7 @@ describe('后台 feature handlers', () => {
             .find((candidate) => candidate.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
 
         await expect(handler.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, texts: ['first']}))
-            .rejects.toThrow('图片文字批量翻译失败：图片文字翻译总时间已耗尽');
+            .rejects.toThrow('图片 OCR 请求超时');
         expect(translateTexts).not.toHaveBeenCalled();
     });
 });

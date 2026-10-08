@@ -2,7 +2,7 @@ import {describe, expect, it, vi} from 'vitest';
 import {createImageGlossaryContext, type ImageGlossarySenderContext} from '@/src/app/background/imageGlossaryContext';
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
 import {
-    createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
+    createImageOperationRegistry, createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE,
     IMAGE_CANCEL_MESSAGE_TYPE, type ImageTranslationBackgroundDependencies,
 } from '@/src/features/image-translation/background/handlers';
 import {AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, createAreaTranslationBackgroundHandlers} from '@/src/features/area-translation/background/handlers';
@@ -61,7 +61,7 @@ describe('图片及圈选术语的后台来源上下文', () => {
         ready.resolve();
         await entered.promise;
         h.change();
-        const result = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'image-1', glossaryRevision: 'forged'}, offscreen) as object;
+        const result = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: (h.start.mock.calls[0][0] as {requestId: string}).requestId, glossaryRevision: 'forged'}, offscreen) as object;
         expect(result).toMatchObject({sourceLanguage: 'en', glossaryRevision: 'ready-revision'});
         expect(getTranslationGlossaryContext(result)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
         expect(Object.isFrozen(getTranslationGlossaryContext(result))).toBe(true);
@@ -73,9 +73,9 @@ describe('图片及圈选术语的后台来源上下文', () => {
     it('圈选缺省源语在开始时冻结，普通取消handler保持原有实例', async () => {
         const h = simple();
         expect(h.handlers.find(({type}) => type === IMAGE_CANCEL_MESSAGE_TYPE)).toBe(h.plain);
-        h.start.mockImplementationOnce(async () => {
+        h.start.mockImplementationOnce(async (message) => {
             h.change();
-            const result = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'area-1'}, offscreen);
+            const result = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: (message as {requestId: string}).requestId}, offscreen);
             expect(result).toMatchObject({sourceLanguage: 'auto', glossaryRevision: 'revision-before'});
             return 'area-done';
         });
@@ -90,7 +90,7 @@ describe('图片及圈选术语的后台来源上下文', () => {
         const first = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, {requestId: 'same'});
         await entered.promise;
         await expect(h.call(AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, {requestId: 'same'}, page('https://other.example'))).rejects.toThrow('正在执行');
-        const callback = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: 'same'}, offscreen) as object;
+        const callback = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {requestId: (h.start.mock.calls[0][0] as {requestId: string}).requestId}, offscreen) as object;
         expect(getTranslationGlossaryContext(callback)?.pageUrl).toBe('https://docs.example.com/article');
         const rejected = expect(first).rejects.toThrow('取消');
         ocr.reject(new Error('已取消'));
@@ -107,7 +107,8 @@ describe('图片及圈选术语的后台来源上下文', () => {
         const first = h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, {requestId: 'legacy-image-glossary-1'});
         await entered.promise;
         await h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, {sourceLanguage: ''});
-        expect(h.start.mock.calls[1][0]).toMatchObject({requestId: 'legacy-image-glossary-2'});
+        expect(h.start.mock.calls[1][0]).toMatchObject({requestId: expect.stringMatching(/^image-transaction:/u)});
+        expect(h.start.mock.calls[1][0]).not.toEqual(h.start.mock.calls[0][0]);
         ocr.resolve('done');
         await first;
     });
@@ -130,7 +131,7 @@ describe('图片及圈选术语的后台来源上下文', () => {
         h.start.mockImplementationOnce(async () => {
             h.change('current-revision', 'fr');
             const result = await h.call(IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, {
-                requestId: 'known', pageUrl: 'https://docs.example.com', glossaryRevision: 'forged', sourceLanguage: 'en',
+                requestId: 'direct', pageUrl: 'https://docs.example.com', glossaryRevision: 'forged', sourceLanguage: 'en',
             }, page('http://reader.example')) as object;
             expect(result).toMatchObject({sourceLanguage: 'fr', glossaryRevision: 'current-revision'});
             expect(getTranslationGlossaryContext(result)).toEqual({pageUrl: 'http://reader.example/', context: 'page'});
@@ -160,10 +161,11 @@ function integration(batch: boolean, texts = ['API', 'other']) {
         glossaryLibraries: [{id: 'site', name: '页面库', enabled: true, sourceLanguage: '', targetLanguage: '',
             domains: ['docs.example.com'], entries: [{id: 'api', source: 'API', target: '专用接口', caseSensitive: false}]}],
     });
+    const registry = createImageOperationRegistry('image-area', context => context.sender?.url === OFFSCREEN_URL);
     const requests: object[] = [];
     const provider = vi.fn(async (message: Record<string, unknown>) => {
         const snapshot = getTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config));
-        const protectedApi = protectGlossaryText('API', config.glossaryLibraries[0].entries, '0').text;
+        const protectedApi = protectGlossaryText('API', snapshot.glossaryLibraries![0].entries, '0').text;
         const translate = (origin: string) => origin === protectedApi ? origin
             : getTranslationGlossaryTerms(snapshot, origin)[0]?.target ?? `译文:${origin}`;
         return Array.isArray(message.origin) ? message.origin.map(translate) : translate(String(message.origin));
@@ -189,6 +191,7 @@ function integration(batch: boolean, texts = ['API', 'other']) {
         return {image: 'data:image/png;base64,translated', lines: result.translations};
     };
     const dependencies: ImageTranslationBackgroundDependencies = {
+        operationRegistry: registry,
         assertLanguagesDownloaded: async () => {}, fetchImage: async () => '',
         translateImage: async (_image, _language, _title, options) => translatedImage(options),
         getTranslationService: () => 'openai', supportsBatchTranslation: () => batch,
@@ -196,12 +199,12 @@ function integration(batch: boolean, texts = ['API', 'other']) {
         downloadLanguages: async () => {}, markLanguagesDownloaded: async () => [],
     };
     wrapped = createImageGlossaryContext<ImageGlossarySenderContext>({
-        ready: Promise.resolve(), offscreenUrl: OFFSCREEN_URL, getSourceLanguage: () => config.from,
+        ready: Promise.resolve(), operationRegistry: registry, getConfig: () => config, offscreenUrl: OFFSCREEN_URL, getSourceLanguage: () => config.from,
         getGlossaryRevision: () => buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
     }).wrap([
         ...createImageTranslationBackgroundHandlers(dependencies),
         ...createAreaTranslationBackgroundHandlers({
-            captureVisibleTab: async () => '', getDefaultSourceLanguage: () => config.from,
+            operationRegistry: registry, captureVisibleTab: async () => '', getDefaultSourceLanguage: () => config.from,
             assertLanguagesDownloaded: async () => {},
             translateArea: async (_image, _source, _title, _selection, options) => translatedImage(options),
         }),
@@ -263,7 +266,7 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
             });
             expect(h.provider).toHaveBeenCalledTimes(4);
             const control = getTranslationRequestControl(h.requests[0])!;
-            expect(control.ownershipKey).toBe(`image:${imageRequest.requestId}`);
+            expect(control.ownershipKey).toMatch(/^image:image-transaction:/);
             for (const request of h.requests) {
                 expect(request).toMatchObject({sourceLanguage: 'en', glossaryRevision: revision});
                 expect(getTranslationGlossaryContext(request)).toEqual({pageUrl: 'https://docs.example.com/article', context: 'page'});
@@ -348,11 +351,11 @@ describe('图片、圈选OCR到真实术语broker的完整请求边界', () => {
         expect(h.requests[0]).toMatchObject({sourceLanguage: 'fr'});
     });
 
-    it('长OCR期间编辑术语后真实broker拒绝旧事务，重试才使用新译名', async () => {
+    it('长OCR期间编辑术语保持原事务快照，重试使用新译名', async () => {
         const h = integration(true);
         h.pause(async () => {h.config.glossaryLibraries[0].entries[0].target = '更新接口';});
-        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).rejects.toThrow('术语库已更新');
-        expect(h.provider).not.toHaveBeenCalled();
+        await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({lines: ['专用接口', '译文:other']});
+        expect(h.provider).toHaveBeenCalledOnce();
         h.pause(async () => {});
         await expect(h.call(IMAGE_TRANSLATE_MESSAGE_TYPE, imageRequest)).resolves.toMatchObject({lines: ['更新接口', '译文:other']});
     });

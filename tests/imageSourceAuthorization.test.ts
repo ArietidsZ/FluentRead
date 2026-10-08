@@ -183,7 +183,7 @@ describe('后台跨域图片来源复核', () => {
         const handler = handlers.find(item => item.type === IMAGE_FETCH_MESSAGE_TYPE)!;
         const forged = {...request, documentUrl: 'https://www.pixiv.net/artworks/123'};
         await expect(handler.handle(forged, owner)).resolves.toEqual({success: true, image: 'data:image/png,image'});
-        expect(verify).toHaveBeenCalledWith(url, expect.objectContaining({requestId: 'task'}), owner);
+        expect(verify).toHaveBeenCalledWith(url, expect.objectContaining({requestId: expect.stringMatching(/^image-transaction:/), callerRequestId: 'task'}), owner);
         expect(fetchImage).toHaveBeenCalledWith(url, expect.objectContaining({documentUrl}));
         fetchImage.mockClear(); verify.mockRejectedValueOnce(new Error('未授权'));
         await expect(handler.handle({...request, requestId: 'denied'}, owner)).rejects.toThrow('未授权');
@@ -191,7 +191,7 @@ describe('后台跨域图片来源复核', () => {
         const {assertImageSource: _verify, ...missing} = dependencies;
         const unverified = createImageTranslationBackgroundHandlers(missing).find(item => item.type === IMAGE_FETCH_MESSAGE_TYPE)!;
         await expect(unverified.handle(request)).rejects.toThrow('未授权');
-        verify.mockImplementationOnce(async () => {await handlers.find(item => item.type === IMAGE_CANCEL_MESSAGE_TYPE)!.handle({type: IMAGE_CANCEL_MESSAGE_TYPE, requestId: 'cancelled'});});
+        verify.mockImplementationOnce(async () => {await handlers.find(item => item.type === IMAGE_CANCEL_MESSAGE_TYPE)!.handle({type: IMAGE_CANCEL_MESSAGE_TYPE, requestId: 'cancelled'}, owner);});
         await expect(handler.handle({...request, requestId: 'cancelled'}, owner)).rejects.toThrow('取消');
         expect(fetchImage).not.toHaveBeenCalled();
     });

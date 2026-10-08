@@ -532,3 +532,23 @@ describe('Offscreen 图片文本 RPC 预算', () => {
         },
     );
 });
+
+describe('图片离屏继承后台截止时间', () => {
+    it('已过期事务不发送文字翻译消息，正常剩余预算不会重启120秒', async () => {
+        vi.useFakeTimers();
+        const deadline = Date.now() + 100;
+        await expect(translateImageTextsInExtension(['hello'], 'Page', 'expired', undefined, Date.now() - 1)).rejects.toThrow('总时间已耗尽');
+        expect(sendMessage).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(40);
+        await expect(translateImageTextsInExtension(['hello'], 'Page', 'remaining', undefined, deadline)).resolves.toEqual(['你好']);
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({type: 'fluentReadImageTranslateTexts', requestId: 'remaining', timeoutMs: 60}), expect.any(Function));
+    });
+    it('OCR完成后只把父事务剩余时间交给文字请求', async () => {
+        let clock = 1000;
+        vi.spyOn(Date, 'now').mockImplementation(() => clock);
+        const deadline = clock + 100;
+        mocks.recognize.mockImplementationOnce(async () => {clock += 30; return lines;});
+        await translateImageInOffscreen('data:image/png,x', 'en', 'Page', undefined, 'parent', false, 'tesseract', deadline);
+        expect(sendMessage).toHaveBeenCalledWith(expect.objectContaining({type: 'fluentReadImageTranslateTexts', requestId: 'parent', timeoutMs: 70}), expect.any(Function));
+    });;
+});

@@ -14,7 +14,7 @@ import {clearTranslationCache, getTranslationCacheStats, translateWithCache} fro
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {createBackgroundMessageRouter, createBackgroundRuntimeMessageListener, type BackgroundMessageHandler} from './messageRouter';
 import {type AreaTranslationBackgroundContext} from './handlers/areaTranslation';
-import {createAreaTranslationRuntime} from './areaRuntime';
+import {createImageAreaTranslationRuntime} from './areaRuntime';
 import {createTranslationCacheHandlers, createTranslationCacheInvalidationBroadcaster} from './handlers/translationCache';
 import {type ConfigPersistenceContext} from './handlers/configPersistence';
 import {
@@ -22,7 +22,7 @@ import {
     type FullPageBackgroundContext, type QQMailFrameBackgroundContext,
 } from './handlers/fullPageTranslationState';
 import {createNeteaseMailFrameBackgroundHandlers, type NeteaseMailFrameBackgroundContext} from '@/src/features/full-page-translation/background/neteaseMailFrameHandlers';
-import {createImageOcrLanguageRepository, createImageTranslationBackgroundHandlers} from './handlers/imageTranslation';
+import {createImageOcrLanguageRepository} from './handlers/imageTranslation';
 import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createLocalInsightsHandlers} from './localInsightsHandlers';
 import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWeights';
@@ -34,10 +34,8 @@ import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
-import {supportsTranslationBatch} from '@/src/services/translation/capabilities';
-import {imageTranslationOffscreenAdapter, imageTranslationProgressTransport, imageTranslationSourceTransport} from '@/src/features/image-translation/background/offscreenAdapter';
 import {selectionTtsOffscreenAdapter} from '@/src/features/selection-translation/background/offscreenAdapter';
-import {createCapabilityGatedBackgroundHandlers, createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
+import {createCapabilityGatedSelectionTtsTransport} from './capabilityRegistry';
 import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
@@ -48,10 +46,8 @@ import {localTtsOffscreenAdapter} from '@/src/features/local-tts/background/offs
 import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
 import {installWritingBackgroundRuntime} from './writingRuntime';
 import {installHarnessBackgroundRuntime} from './harnessRuntime';
-import {createImageGlossaryContext} from './imageGlossaryContext';
 import {createEmbeddedFrameBackgroundHandlers, type EmbeddedFrameBackgroundContext} from
     '@/src/features/full-page-translation/background/embeddedFrameHandlers';
-import {buildGlossaryRevision} from '@/src/core/glossary';
 type BackgroundRuntimeContext = QQMailFrameBackgroundContext & NeteaseMailFrameBackgroundContext
     & EmbeddedFrameBackgroundContext & ConfigPersistenceContext & VocabularyBackgroundContext & SelectionTtsContext
     & FullPageBackgroundContext & AreaTranslationBackgroundContext;
@@ -75,12 +71,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         synthesizeOnline: synthesizeEdgeTts,
         synthesizeLocal: (text, language, voice, signal) => localTtsOffscreenAdapter.synthesize(text, language, voice, signal),
     });
-    const imageGlossaryContext = createImageGlossaryContext<BackgroundRuntimeContext>({
-        ready: configReady,
-        offscreenUrl: browser.runtime.getURL('/offscreen.html'),
-        getSourceLanguage: () => config.from,
-        getGlossaryRevision: () => buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
-    });
+    const imageAreaRuntime = createImageAreaTranslationRuntime<BackgroundRuntimeContext>(imageOcrLanguageRepository, capabilities);
     const handlers: Array<BackgroundMessageHandler<BackgroundRuntimeContext>> = [
         createTranslationCancelHandler(translationRequestRegistry),
         installHarnessBackgroundRuntime(cancelWriting),
@@ -124,20 +115,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             warn: (message, error) => console.warn(message, error),
         }),
         createSelectionPageZoomHandler(selectionPageZoom.getZoom),
-        ...imageGlossaryContext.wrap(createCapabilityGatedBackgroundHandlers<BackgroundRuntimeContext>(capabilities, {
-            areaTranslation: () => createAreaTranslationRuntime(imageOcrLanguageRepository.assertDownloaded),
-            imageTranslation: () => createImageTranslationBackgroundHandlers({
-                assertLanguagesDownloaded: imageOcrLanguageRepository.assertDownloaded, getDownloadedLanguages: imageOcrLanguageRepository.getDownloaded,
-                ...imageTranslationOffscreenAdapter, ...imageTranslationSourceTransport,
-                translateTexts: translateWithCache,
-                getTranslationService: () => config.imageTranslationService || config.service, getGlossaryConfig: () => config,
-                getImageOcrEngine: () => config.imageTranslationOcrEngine,
-                supportsBatchTranslation: supportsTranslationBatch,
-                markLanguagesDownloaded: imageOcrLanguageRepository.markDownloaded,
-                markLanguagesRemoved: imageOcrLanguageRepository.markRemoved,
-                ...imageTranslationProgressTransport,
-            }),
-        })),
+        ...imageAreaRuntime.handlers,
         ...createSelectionTtsBackgroundHandlers({
             getPreferredVoices: () => config.selectionTtsVoices,
             synthesize: selectionTtsSynthesizer,
@@ -174,6 +152,9 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     );
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
     selectionPageZoom.installZoomChangeListener();
-    browser.tabs.onRemoved.addListener((tabId: number) => releaseVideoSubtitleOwnerForTab(Number(tabId)));
+    browser.tabs.onRemoved.addListener((tabId: number) => {
+        imageAreaRuntime.releaseTab(Number(tabId));
+        releaseVideoSubtitleOwnerForTab(Number(tabId));
+    });
     installBrowserConfigStorageBroadcast();
 }
