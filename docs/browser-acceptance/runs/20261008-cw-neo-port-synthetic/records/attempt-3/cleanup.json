@@ -1,0 +1,51 @@
+{
+  "ownedPidsBefore": [
+    2614061,
+    2614065,
+    2614066,
+    2614067,
+    2614074,
+    2614076,
+    2614078,
+    2614084,
+    2614085,
+    2614087,
+    2614115,
+    2614122,
+    2614147,
+    2614149,
+    2614167,
+    2614247,
+    2614261,
+    2614282,
+    2614283,
+    2614306,
+    2614322,
+    2614339,
+    2614351,
+    2614366,
+    2614370,
+    2614387,
+    2614402,
+    2614425,
+    2614427,
+    2614439,
+    2614523,
+    2614609
+  ],
+  "listenersBefore": [
+    {
+      "family": "tcp",
+      "address": "127.0.0.1",
+      "port": 34611,
+      "inode": "8264395",
+      "loopback": true
+    }
+  ],
+  "remainingPids": [],
+  "remainingOwnedListeners": [],
+  "xSocketExists": false,
+  "profileRetainedForEvidence": true,
+  "profileRoot": "/tmp/fluentread-neo-port-PlcadI",
+  "noDailyBrowserClosed": true
+}

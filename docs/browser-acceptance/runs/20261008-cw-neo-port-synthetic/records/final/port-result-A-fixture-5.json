@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error": "图片 OCR 请求已取消",
+  "errorName": "AbortError"
+}

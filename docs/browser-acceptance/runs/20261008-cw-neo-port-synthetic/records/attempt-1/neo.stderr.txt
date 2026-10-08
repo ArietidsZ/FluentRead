@@ -1,0 +1,65 @@
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.gtk.vfs.Daemon' requested by ':1.0' (uid=1000 pid=2606570 comm="/usr/lib/browserclaw/browserclaw --ozone-platform=" label="browserclaw (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.gtk.vfs.Daemon'
+[2606570:2606570:1008/111631.542713:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2606570:2606570:1008/111631.542756:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2606570:2606570:1008/111631.542778:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2606570:2606570:1008/111631.542795:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+
+DevTools listening on ws://127.0.0.1:41629/devtools/browser/b2fc5ff9-a32b-4415-b7b9-d2d21989bb17
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.a11y.Bus' requested by ':1.0' (uid=1000 pid=2606570 comm="/usr/lib/browserclaw/browserclaw --ozone-platform=" label="browserclaw (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.freedesktop.secrets' requested by ':1.3' (uid=1000 pid=2606570 comm="/usr/lib/browserclaw/browserclaw --ozone-platform=" label="browserclaw (unconfined)")
+** Message: 11:16:31.589: couldn't access control socket: /tmp/fluentread-neo-port-oUDR6X/run/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.freedesktop.secrets'
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.3' (uid=1000 pid=2606570 comm="/usr/lib/browserclaw/browserclaw --ozone-platform=" label="browserclaw (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.6' (uid=1000 pid=2606772 comm="/usr/libexec/xdg-desktop-portal" label="chatgpt (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.freedesktop.portal.Documents' requested by ':1.6' (uid=1000 pid=2606772 comm="/usr/libexec/xdg-desktop-portal" label="chatgpt (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.gnome.keyring.SystemPrompter' requested by ':1.5' (uid=1000 pid=2606753 comm="/usr/bin/gnome-keyring-daemon --start --foreground" label="chatgpt (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.freedesktop.portal.Documents'
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.605: Choosing gtk.portal for org.freedesktop.impl.portal.Lockdown as a last-resort fallback
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.6' (uid=1000 pid=2606772 comm="/usr/libexec/xdg-desktop-portal" label="chatgpt (unconfined)")
+dbus-daemon[2606869]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=2606819 comm="/usr/libexec/xdg-desktop-portal-gtk" label="chatgpt (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.gnome.keyring.SystemPrompter'
+dbus-daemon[2606869]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.641: Choosing gtk.portal for org.freedesktop.impl.portal.Access as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.646: Choosing gtk.portal for org.freedesktop.impl.portal.Settings as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.647: Choosing gtk.portal for org.freedesktop.impl.portal.FileChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.647: Choosing gtk.portal for org.freedesktop.impl.portal.AppChooser as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.647: Choosing gtk.portal for org.freedesktop.impl.portal.Print as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.647: Choosing gtk.portal for org.freedesktop.impl.portal.Notification as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.647: Choosing gtk.portal for org.freedesktop.impl.portal.Inhibit as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.649: Failed to connect to PipeWire: Couldn't connect to PipeWire
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.649: Choosing gtk.portal for org.freedesktop.impl.portal.Account as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.649: Choosing gtk.portal for org.freedesktop.impl.portal.Email as a last-resort fallback
+
+(/usr/libexec/xdg-desktop-portal:2606772): xdg-desktop-portal-WARNING **: 11:16:31.650: Choosing gtk.portal for org.freedesktop.impl.portal.DynamicLauncher as a last-resort fallback
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.freedesktop.portal.Desktop'
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Activating service name='org.gtk.vfs.Metadata' requested by ':1.12' (uid=1000 pid=2606799 comm="/usr/libexec/gcr-prompter" label="chatgpt (unconfined)")
+dbus-daemon[2606562]: [session uid=1000 pid=2606562 pidfd=5] Successfully activated service 'org.gtk.vfs.Metadata'
+[2606570:2606590:1008/111631.719860:FATAL:dbus/bus.cc:1245] D-Bus connection was disconnected. Aborting.
+
+** (gnome-keyring-daemon:2606753): WARNING **: 11:16:31.719: prompting failed: The operation was cancelled
+[1008/111631.721237:ERROR:third_party/crashpad/crashpad/util/file/file_io_posix.cc:145] open /proc/2606570/auxv: Permission denied (13)
+[1008/111631.721290:ERROR:third_party/crashpad/crashpad/util/linux/ptracer.cc:454] ptrace: No such process (3)
+[1008/111631.721295:ERROR:third_party/crashpad/crashpad/util/linux/ptracer.cc:480] Unexpected registers size 0 != 216
+[1008/111631.721298:WARNING:third_party/crashpad/crashpad/snapshot/linux/process_reader_linux.cc:400] Couldn't initialize main thread.
+[1008/111631.721617:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:37] process not stopped
+[1008/111631.721629:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:27] ptrace: No such process (3)
+[1008/111631.730034:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:37] process not stopped
+[1008/111631.730050:ERROR:third_party/crashpad/crashpad/util/linux/ptracer.cc:567] ptrace: No such process (3)
+[1008/111631.730056:ERROR:third_party/crashpad/crashpad/snapshot/linux/process_snapshot_linux.cc:78] Couldn't read exception info
+[1008/111631.730097:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:45] ptrace: No such process (3)

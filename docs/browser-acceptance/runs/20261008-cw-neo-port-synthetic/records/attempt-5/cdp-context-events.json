@@ -1,0 +1,171 @@
+[
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65",
+      "targetInfo": {
+        "targetId": "90A053F8FFBE8F161EDF4B10189A5D87",
+        "type": "page",
+        "title": "",
+        "url": "http://127.0.0.1:37883/",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "1E8A8063C86F91CA1C5C76701FC6727C",
+        "tabId": 1971737089,
+        "windowId": 1971737088
+      },
+      "waitingForDebugger": false
+    }
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 6,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-8995701905540822057.3981350095401880673",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "90A053F8FFBE8F161EDF4B10189A5D87"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 5,
+        "origin": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj",
+        "name": "FluentRead-流畅阅读",
+        "uniqueId": "1908655457822217554.5617192997337402269",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "90A053F8FFBE8F161EDF4B10189A5D87"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 4,
+        "origin": "http://127.0.0.1:37883",
+        "name": "",
+        "uniqueId": "-8527026352492120476.4640137139761019674",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "90A053F8FFBE8F161EDF4B10189A5D87"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 7,
+        "origin": "http://127.0.0.1:37883",
+        "name": "",
+        "uniqueId": "-1450464026025866088.840406655141073003",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "FFE2C02892140949E7253DA422D87404"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 8,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "3039443756506118950.3248582066317630134",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "FFE2C02892140949E7253DA422D87404"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 7,
+      "executionContextUniqueId": "-1450464026025866088.840406655141073003"
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 8,
+      "executionContextUniqueId": "3039443756506118950.3248582066317630134"
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 9,
+        "origin": "http://127.0.0.1:37883",
+        "name": "",
+        "uniqueId": "6152397529932326909.-5499575096698313046",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "797DBD0D207250362E882632153BC207"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 10,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-9125415772186264924.144518096726116253",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "797DBD0D207250362E882632153BC207"
+        }
+      }
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 9,
+      "executionContextUniqueId": "6152397529932326909.-5499575096698313046"
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 10,
+      "executionContextUniqueId": "-9125415772186264924.144518096726116253"
+    },
+    "sessionId": "C42C90819BB98D482EA6A3B09D6ACA65"
+  }
+]

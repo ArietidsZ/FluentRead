@@ -1,0 +1,20 @@
+[
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "575E642D4C718973A39FA2ACAFAEB2D4",
+      "targetInfo": {
+        "targetId": "3D94A28208C8EE3072F0D619B12083DC",
+        "type": "page",
+        "title": "",
+        "url": "http://127.0.0.1:36491/",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "568190A6F493F0200734E411915C647B",
+        "tabId": 1702397324,
+        "windowId": 1702397323
+      },
+      "waitingForDebugger": false
+    }
+  }
+]

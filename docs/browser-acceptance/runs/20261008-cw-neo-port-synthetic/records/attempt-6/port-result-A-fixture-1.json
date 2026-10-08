@@ -1,0 +1,5 @@
+{
+  "success": false,
+  "error": "跨域图片读取只支持 HTTPS",
+  "errorName": "Error"
+}

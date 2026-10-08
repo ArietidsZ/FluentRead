@@ -1,0 +1,234 @@
+{
+  "status": "passed",
+  "applicationCommit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "scope": "real Linux Neo headed browser + native extension content context + production document Port/source verifier/image fetch/area screenshot; synthetic PNG and HTTP only",
+  "cases": [
+    {
+      "name": "normal image source challenge and fetch over real production Port",
+      "status": "passed",
+      "durationMs": 104,
+      "nativePort": true,
+      "samePeerSourceChallenge": true,
+      "imageBytes": 70,
+      "imageSha256": "2640059609118b695c139804676372eca75c30d30e5906775902d13e44f5356c"
+    },
+    {
+      "name": "production area capture on the owned active headed tab",
+      "status": "passed",
+      "durationMs": 104,
+      "realCaptureVisibleTab": true,
+      "imageBytes": 22469,
+      "sha256": "15be35c20c64931dc565d093221c1e6ee44bc03dda06001d4582cad4b2582acc"
+    },
+    {
+      "name": "two real Ports with same public request ID remain independent",
+      "status": "passed",
+      "durationMs": 715,
+      "twoBrowserOwnedPorts": true,
+      "samePublicId": "shared-ID",
+      "resultsOnlyOnOriginalPeers": true
+    },
+    {
+      "name": "foreign peer cancel denied; original peer cancel aborts held browser fetch",
+      "status": "passed",
+      "durationMs": 312,
+      "foreignCancelled": false,
+      "ownerCancelled": true,
+      "errorName": "AbortError",
+      "heldBrowserFetchAborted": true,
+      "syntheticResponseBoundary": true
+    },
+    {
+      "name": "same URL navigation closes old work; new document accepts the same public ID",
+      "status": "passed",
+      "durationMs": 608,
+      "oldExecutionContext": 7,
+      "newExecutionContext": 14,
+      "sameUrlReload": true,
+      "oldBrowserFetchAborted": true,
+      "newPublicIdReused": true,
+      "noLateOldPacketOnNewPeer": true,
+      "syntheticResponseBoundary": true
+    }
+  ],
+  "http": [
+    {
+      "url": "/",
+      "method": "GET",
+      "destination": "document",
+      "receivedAt": 1791458834976,
+      "ended": true,
+      "closedEarly": false,
+      "closedAt": 1791458834977
+    },
+    {
+      "url": "/",
+      "method": "GET",
+      "destination": "document",
+      "receivedAt": 1791458835085,
+      "ended": true,
+      "closedEarly": false,
+      "closedAt": 1791458835085
+    },
+    {
+      "url": "/favicon.ico",
+      "method": "GET",
+      "destination": "image",
+      "receivedAt": 1791458835141,
+      "ended": true,
+      "closedEarly": false,
+      "closedAt": 1791458835141
+    },
+    {
+      "url": "/",
+      "method": "GET",
+      "destination": "document",
+      "receivedAt": 1791458836484,
+      "ended": true,
+      "closedEarly": false,
+      "closedAt": 1791458836484
+    },
+    {
+      "url": "/favicon.ico",
+      "method": "GET",
+      "destination": "image",
+      "receivedAt": 1791458836581,
+      "ended": true,
+      "closedEarly": false,
+      "closedAt": 1791458836582
+    }
+  ],
+  "syntheticFetch": [
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=normal",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-3.0",
+      "networkId": "2631534.4",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=normal",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-4.0",
+      "networkId": "2631495.31",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=concurrent-a&delay=1",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-5.0",
+      "networkId": "2631534.5",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=concurrent-b&delay=1",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-6.0",
+      "networkId": "2631534.6",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=concurrent-a&delay=1",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-7.0",
+      "networkId": "2631495.32",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=concurrent-b&delay=1",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-8.0",
+      "networkId": "2631495.33",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=cancel&hold=1",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-9.0",
+      "networkId": "2631534.7",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=cancel&hold=1",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-10.0",
+      "networkId": "2631495.34",
+      "fulfilled": false,
+      "aborted": true,
+      "loadingFailed": {
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      "fulfillRejected": "Fetch.fulfillRequest: Invalid InterceptionId."
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=navigation-old&hold=1",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-11.0",
+      "networkId": "2631534.8",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=navigation-old&hold=1",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-12.0",
+      "networkId": "2631495.35",
+      "fulfilled": false,
+      "aborted": true,
+      "loadingFailed": {
+        "errorText": "net::ERR_ABORTED",
+        "canceled": true
+      },
+      "fulfillRejected": "Fetch.fulfillRequest: Invalid InterceptionId."
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=navigation-new",
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "kind": "synthetic-page",
+      "requestId": "interception-job-14.0",
+      "networkId": "2631534.10",
+      "fulfilled": true,
+      "aborted": false
+    },
+    {
+      "url": "https://fluentread-fixture.example.com/sample.png?case=navigation-new",
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "kind": "offscreen",
+      "requestId": "interception-job-16.0",
+      "networkId": "2631495.41",
+      "fulfilled": true,
+      "aborted": false
+    }
+  ],
+  "errors": [],
+  "notTested": [
+    "real HTTPS/TLS/public network",
+    "macOS",
+    "Firefox without documentId",
+    "production client automatic reconnect UI",
+    "OCR model execution",
+    "real provider/model/search API",
+    "RTX5090 WebGPU",
+    "native Wayland desktop Cua acceptance"
+  ],
+  "caseCount": 5,
+  "fixtureListenerClosed": true
+}

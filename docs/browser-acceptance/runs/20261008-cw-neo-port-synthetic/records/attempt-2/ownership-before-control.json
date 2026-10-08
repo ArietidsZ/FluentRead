@@ -1,0 +1,411 @@
+{
+  "launchMode": "linux-isolated-x11-browseros-loopback-cdp",
+  "headed": true,
+  "focusPolicy": "separate authenticated Xvfb display; no test window on daily GNOME desktop",
+  "windowPlacement": "normal 1280x900 at 60,40 on 1440x1000 display",
+  "applicationCommit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "root": "/tmp/fluentread-neo-port-hgcGrA",
+  "display": ":80",
+  "browser": {
+    "pid": 2608086,
+    "innerPid": 2608079,
+    "display": ":80",
+    "bus": "unix:path=/tmp/dbus-sBNwdHPE1o,guid=784df9b5d8e1a7a78d8d0d5e6ac77bbd",
+    "home": "/tmp/fluentread-neo-port-hgcGrA/home",
+    "profile": "/tmp/fluentread-neo-port-hgcGrA/profile",
+    "xdgRuntime": "/tmp/fluentread-neo-port-hgcGrA/run",
+    "waylandInherited": false
+  },
+  "ownedProcesses": [
+    {
+      "pid": 2608070,
+      "uid": 1000,
+      "ppid": 2608036,
+      "pgid": 2608070,
+      "exe": "/usr/bin/Xvfb",
+      "args": [
+        "Xvfb",
+        ":80",
+        "-screen",
+        "0",
+        "1440x1000x24",
+        "-nolisten",
+        "tcp",
+        "-auth",
+        "/tmp/fluentread-neo-port-hgcGrA/Xauthority",
+        "-noreset"
+      ]
+    },
+    {
+      "pid": 2608077,
+      "uid": 1000,
+      "ppid": 2608036,
+      "pgid": 2608077,
+      "exe": "/usr/bin/dbus-run-session",
+      "args": [
+        "dbus-run-session",
+        "--",
+        "/home/arietids/.local/share/node-v26.7.0-linux-x64/bin/node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/neo-port-isolated-20261008/execution/neo-owned-session.mjs",
+        "--inner",
+        "/tmp/fluentread-neo-port-hgcGrA",
+        "[\"--ozone-platform=x11\",\"--user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile\",\"--browseros-cdp-port=44917\",\"--disable-browseros-server\",\"--no-first-run\",\"--no-default-browser-check\",\"--load-extension=/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-transaction-wxt-validation-20261008/.output/chrome-mv3\",\"--window-size=1280,900\",\"--window-position=60,40\",\"--disable-background-networking\",\"--disable-component-update\",\"--disable-sync\",\"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1\",\"about:blank\"]"
+      ]
+    },
+    {
+      "pid": 2608078,
+      "uid": 1000,
+      "ppid": 2608077,
+      "pgid": 2608077,
+      "exe": "/usr/bin/dbus-daemon",
+      "args": [
+        "dbus-daemon",
+        "--nofork",
+        "--print-address",
+        "4",
+        "--session"
+      ]
+    },
+    {
+      "pid": 2608079,
+      "uid": 1000,
+      "ppid": 2608077,
+      "pgid": 2608077,
+      "exe": "/home/arietids/.local/share/node-v26.7.0-linux-x64/bin/node",
+      "args": [
+        "/home/arietids/.local/share/node-v26.7.0-linux-x64/bin/node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/neo-port-isolated-20261008/execution/neo-owned-session.mjs",
+        "--inner",
+        "/tmp/fluentread-neo-port-hgcGrA",
+        "[\"--ozone-platform=x11\",\"--user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile\",\"--browseros-cdp-port=44917\",\"--disable-browseros-server\",\"--no-first-run\",\"--no-default-browser-check\",\"--load-extension=/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-transaction-wxt-validation-20261008/.output/chrome-mv3\",\"--window-size=1280,900\",\"--window-position=60,40\",\"--disable-background-networking\",\"--disable-component-update\",\"--disable-sync\",\"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1\",\"about:blank\"]"
+      ]
+    },
+    {
+      "pid": 2608086,
+      "uid": 1000,
+      "ppid": 2608079,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --ozone-platform=x11 --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --browseros-cdp-port=44917 --disable-browseros-server --no-first-run --no-default-browser-check --load-extension=/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-transaction-wxt-validation-20261008/.output/chrome-mv3 --window-size=1280,900 --window-position=60,40 --disable-background-networking --disable-component-update --disable-sync --host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1 about:blank"
+      ]
+    },
+    {
+      "pid": 2608101,
+      "uid": 1000,
+      "ppid": 2608086,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=zygote --no-zygote-sandbox --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable"
+      ]
+    },
+    {
+      "pid": 2608102,
+      "uid": 1000,
+      "ppid": 2608086,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=zygote --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable"
+      ]
+    },
+    {
+      "pid": 2608109,
+      "uid": 1000,
+      "ppid": 2608102,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=zygote --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable"
+      ]
+    },
+    {
+      "pid": 2608167,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/gvfsd",
+      "args": [
+        "/usr/libexec/gvfsd"
+      ]
+    },
+    {
+      "pid": 2608173,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/gvfsd-fuse",
+      "args": [
+        "/usr/libexec/gvfsd-fuse",
+        "/tmp/fluentread-neo-port-hgcGrA/run/gvfs",
+        "-f"
+      ]
+    },
+    {
+      "pid": 2608201,
+      "uid": 1000,
+      "ppid": 2608101,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=gpu-process --gpu-recent-crash-count=0 --ozone-platform=x11 --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --gpu-preferences=YAAAAAAAAAAgAQAEAAAAAAAAAAAAAGAASAAAAAAAAAABAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAACAAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAwAAAAAAAAAAEAAAAAAAAACAAAAAAAAAAMAAAAAQAAAAAAAAAAAAAACAAAAAAAAAAIAAAAAAAAAA== --shared-files --metrics-shmem-handle=4,i,11247212023148229099,1801633782121064616,262144 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708988185955192"
+      ]
+    },
+    {
+      "pid": 2608203,
+      "uid": 1000,
+      "ppid": 2608086,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=utility --utility-sub-type=network.mojom.NetworkService --lang=en-US --service-sandbox-type=none --host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1 --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14196837992508447269,11771880427846709530,524288 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708989122997041"
+      ]
+    },
+    {
+      "pid": 2608220,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=utility --utility-sub-type=storage.mojom.StorageService --lang=en-US --service-sandbox-type=utility --host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1 --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,14817361006529985899,7662047604288690314,524288 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708990060038890"
+      ]
+    },
+    {
+      "pid": 2608301,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/at-spi-bus-launcher",
+      "args": [
+        "/usr/libexec/at-spi-bus-launcher"
+      ]
+    },
+    {
+      "pid": 2608314,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --top-chrome-webui --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=5 --launch-time-ticks=119366335366 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,3868028932548293889,16047639137889988728,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708990997080739"
+      ]
+    },
+    {
+      "pid": 2608335,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=7 --launch-time-ticks=119366347885 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,6868024174046532301,8863916754866871080,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708992871164437"
+      ]
+    },
+    {
+      "pid": 2608336,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --change-stack-guard-on-fork=enable --ozone-platform=x11 --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=6 --launch-time-ticks=119366349331 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,4075645382020812958,18342921251174817383,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708991934122588"
+      ]
+    },
+    {
+      "pid": 2608358,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/bin/gnome-keyring-daemon",
+      "args": [
+        "/usr/bin/gnome-keyring-daemon",
+        "--start",
+        "--foreground",
+        "--components=secrets"
+      ]
+    },
+    {
+      "pid": 2608376,
+      "uid": 1000,
+      "ppid": 2608078,
+      "pgid": 2608077,
+      "exe": "/usr/bin/dbus-daemon",
+      "args": [
+        "dbus-daemon",
+        "--nofork",
+        "--print-address",
+        "4",
+        "--session"
+      ]
+    },
+    {
+      "pid": 2608378,
+      "uid": 1000,
+      "ppid": 2608376,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/xdg-desktop-portal",
+      "args": [
+        "/usr/libexec/xdg-desktop-portal"
+      ]
+    },
+    {
+      "pid": 2608389,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/xdg-permission-store",
+      "args": [
+        "/usr/libexec/xdg-permission-store"
+      ]
+    },
+    {
+      "pid": 2608402,
+      "uid": 1000,
+      "ppid": 2857,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/xdg-document-portal",
+      "args": [
+        "/usr/libexec/xdg-document-portal"
+      ]
+    },
+    {
+      "pid": 2608414,
+      "uid": 1000,
+      "ppid": 2608078,
+      "pgid": 2608077,
+      "exe": "/usr/bin/dbus-daemon",
+      "args": [
+        "dbus-daemon",
+        "--nofork",
+        "--print-address",
+        "4",
+        "--session"
+      ]
+    },
+    {
+      "pid": 2608415,
+      "uid": 1000,
+      "ppid": 2608414,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/xdg-desktop-portal-gtk",
+      "args": [
+        "/usr/libexec/xdg-desktop-portal-gtk"
+      ]
+    },
+    {
+      "pid": 2608423,
+      "uid": 1000,
+      "ppid": 2608078,
+      "pgid": 2608077,
+      "exe": "/usr/bin/dbus-daemon",
+      "args": [
+        "dbus-daemon",
+        "--nofork",
+        "--print-address",
+        "4",
+        "--session"
+      ]
+    },
+    {
+      "pid": 2608425,
+      "uid": 1000,
+      "ppid": 2608423,
+      "pgid": 2608077,
+      "exe": "/usr/libexec/gcr-prompter",
+      "args": [
+        "/usr/libexec/gcr-prompter"
+      ]
+    },
+    {
+      "pid": 2608436,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --extension-process --change-stack-guard-on-fork=enable --ozone-platform=x11 --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=13 --launch-time-ticks=119366394220 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,11256829146755556772,144218078856208367,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190708998493415531"
+      ]
+    },
+    {
+      "pid": 2608448,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --extension-process --change-stack-guard-on-fork=enable --ozone-platform=x11 --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=15 --launch-time-ticks=119366400727 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,10436609606446708157,2596545571288752592,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190709000367499229"
+      ]
+    },
+    {
+      "pid": 2608458,
+      "uid": 1000,
+      "ppid": 2608109,
+      "pgid": 2608077,
+      "exe": "/usr/lib/browserclaw/browserclaw",
+      "args": [
+        "/usr/lib/browserclaw/browserclaw --type=renderer --crashpad-handler-pid=2608093 --enable-crash-reporter=, --user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile --extension-process --change-stack-guard-on-fork=enable --ozone-platform=x11 --disable-gpu-compositing --lang=en-US --num-raster-threads=4 --enable-main-frame-before-activation --renderer-client-id=16 --launch-time-ticks=119366407391 --shared-files=v8_context_snapshot_data:100 --metrics-shmem-handle=4,i,11460885287219226172,8208838702291986163,1572864 --field-trial-handle=3,i,5409467851391349764,8530796566570769948,262144 --enable-features=SingleAxisScrollContainers --variations-seed-version --pseudonymization-salt-handle=7,i,17262405078568791764,5133231857062864168,4 --trace-process-track-uuid=3190709001304541078"
+      ]
+    }
+  ],
+  "ownedListeners": [
+    {
+      "family": "tcp",
+      "address": "127.0.0.1",
+      "port": 44917,
+      "inode": "8248600",
+      "loopback": true
+    }
+  ],
+  "dailyDesktopWindows": [
+    {
+      "id": 3,
+      "pid": 10304,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 11,
+      "pid": 68168,
+      "x": 664,
+      "y": 47,
+      "focused": false
+    },
+    {
+      "id": 4,
+      "pid": 11841,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 19,
+      "pid": 1785675,
+      "x": 0,
+      "y": 32,
+      "focused": true
+    }
+  ],
+  "windowTitlesRecorded": false,
+  "browserFlags": [
+    "--ozone-platform=x11",
+    "--user-data-dir=/tmp/fluentread-neo-port-hgcGrA/profile",
+    "--browseros-cdp-port=44917",
+    "--disable-browseros-server",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--load-extension=/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-transaction-wxt-validation-20261008/.output/chrome-mv3",
+    "--window-size=1280,900",
+    "--window-position=60,40",
+    "--disable-background-networking",
+    "--disable-component-update",
+    "--disable-sync",
+    "--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1",
+    "about:blank"
+  ],
+  "sandboxDisabled": false,
+  "managedBrowserosServerDisabledForOwnedProcessOnly": true,
+  "nativeDesktopCuaTested": false,
+  "rtx5090WebGpuTested": false
+}

@@ -1,0 +1,364 @@
+[
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "A30F3E8B40A09B904C9F81A5021AC5C6",
+      "targetInfo": {
+        "targetId": "9F2340B88B00D7B6401F8C1F8833ABA6",
+        "type": "service_worker",
+        "title": "Service Worker chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js",
+        "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/background.js",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "337BCBA734B15594BD37B38520E9D778"
+      },
+      "waitingForDebugger": false
+    }
+  },
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "39869BB3A285D9222345C48447D66521",
+      "targetInfo": {
+        "targetId": "5069E85FEC473A7BFAFBFF6AF8225447",
+        "type": "background_page",
+        "title": "FluentRead Background DOM Runtime",
+        "url": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj/offscreen.html",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "337BCBA734B15594BD37B38520E9D778"
+      },
+      "waitingForDebugger": false
+    }
+  },
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131",
+      "targetInfo": {
+        "targetId": "756F4FA33F2653FB742BFD175C0CFC96",
+        "type": "page",
+        "title": "",
+        "url": "http://127.0.0.1:36367/",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "337BCBA734B15594BD37B38520E9D778",
+        "tabId": 658084533,
+        "windowId": 658084532
+      },
+      "waitingForDebugger": false
+    }
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 8,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-9092687608882991125.-4701473711454013219",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 7,
+        "origin": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj",
+        "name": "FluentRead-流畅阅读",
+        "uniqueId": "-9137798471502563587.3330234721949357578",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 6,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "-8698740979428195249.-4255228706078924628",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 9,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "4717062639163357003.5195405191624186365",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "02664E0FB963EBCBCC1203DB50F7A167"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 10,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "5202091262126065657.-4206403136520273117",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "02664E0FB963EBCBCC1203DB50F7A167"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 9,
+      "executionContextUniqueId": "4717062639163357003.5195405191624186365"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 10,
+      "executionContextUniqueId": "5202091262126065657.-4206403136520273117"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 11,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "-4367795393404532512.-9085707738381156064",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "B3003EA2A2D96D41303F776DEDED55BA"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 12,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-1383570313651051712.5110604281230928532",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "B3003EA2A2D96D41303F776DEDED55BA"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 11,
+      "executionContextUniqueId": "-4367795393404532512.-9085707738381156064"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 12,
+      "executionContextUniqueId": "-1383570313651051712.5110604281230928532"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextsCleared",
+    "params": {},
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextsCleared",
+    "params": {},
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 13,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "-7494637039068480484.-3040159385398103161",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 14,
+        "origin": "chrome-extension://djnlaiohfaaifbibleebjggkghlmcpcj",
+        "name": "FluentRead-流畅阅读",
+        "uniqueId": "3235646034981642867.7721886836288904327",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 15,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-3308991851824193900.2035807022728876603",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "756F4FA33F2653FB742BFD175C0CFC96"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 16,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "7833919801992165465.240866119301138179",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "7CA2493460547FB9549AE339F7AFCF42"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 17,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-4102537029774472225.-1050636497144124611",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "7CA2493460547FB9549AE339F7AFCF42"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 16,
+      "executionContextUniqueId": "7833919801992165465.240866119301138179"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 17,
+      "executionContextUniqueId": "-4102537029774472225.-1050636497144124611"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 18,
+        "origin": "http://127.0.0.1:36367",
+        "name": "",
+        "uniqueId": "-20194281182048156.8105045430977405203",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "D1B696B38015439EB54D59A2FA05B0EE"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 19,
+        "origin": "chrome-extension://pjimfkbpehlcllblajnpfamdfjhhlgkc",
+        "name": "BrowserOS neo",
+        "uniqueId": "-3085699053080937015.-7870573113490886377",
+        "auxData": {
+          "isDefault": false,
+          "type": "isolated",
+          "frameId": "D1B696B38015439EB54D59A2FA05B0EE"
+        }
+      }
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 18,
+      "executionContextUniqueId": "-20194281182048156.8105045430977405203"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  },
+  {
+    "method": "Runtime.executionContextDestroyed",
+    "params": {
+      "executionContextId": 19,
+      "executionContextUniqueId": "-3085699053080937015.-7870573113490886377"
+    },
+    "sessionId": "73ACF22F54C9BF1524BDEB8FECC08131"
+  }
+]

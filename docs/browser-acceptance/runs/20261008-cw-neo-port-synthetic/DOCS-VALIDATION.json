@@ -1,0 +1,16 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "status": "passed",
+  "note": "Fresh evidence-only checkout warns .wxt/tsconfig.json absent; documentation build completes. No application build or source change performed here.",
+  "driver_syntax_checks": "both passed",
+  "published_json_parse_checks": 68,
+  "evidence_hashes_verified": 90
+}

@@ -1,0 +1,38 @@
+{
+  "ownedPidsBefore": [
+    2625869,
+    2625873,
+    2625874,
+    2625875,
+    2625882,
+    2625884,
+    2625892,
+    2625893,
+    2625895,
+    2625920,
+    2625922,
+    2625934,
+    2626014,
+    2626030,
+    2626031,
+    2626090,
+    2626108,
+    2626113,
+    2626138
+  ],
+  "listenersBefore": [
+    {
+      "family": "tcp",
+      "address": "127.0.0.1",
+      "port": 46177,
+      "inode": "8308414",
+      "loopback": true
+    }
+  ],
+  "remainingPids": [],
+  "remainingOwnedListeners": [],
+  "xSocketExists": false,
+  "profileRetainedForEvidence": true,
+  "profileRoot": "/tmp/fluentread-neo-port-6jy8ts",
+  "noDailyBrowserClosed": true
+}

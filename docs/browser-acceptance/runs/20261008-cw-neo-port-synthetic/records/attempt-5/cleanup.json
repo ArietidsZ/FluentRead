@@ -1,0 +1,38 @@
+{
+  "ownedPidsBefore": [
+    2625350,
+    2625355,
+    2625356,
+    2625357,
+    2625364,
+    2625366,
+    2625374,
+    2625375,
+    2625377,
+    2625403,
+    2625405,
+    2625416,
+    2625495,
+    2625511,
+    2625512,
+    2625580,
+    2625586,
+    2625591,
+    2625620
+  ],
+  "listenersBefore": [
+    {
+      "family": "tcp",
+      "address": "127.0.0.1",
+      "port": 34115,
+      "inode": "8315913",
+      "loopback": true
+    }
+  ],
+  "remainingPids": [],
+  "remainingOwnedListeners": [],
+  "xSocketExists": false,
+  "profileRetainedForEvidence": true,
+  "profileRoot": "/tmp/fluentread-neo-port-tuQLmF",
+  "noDailyBrowserClosed": true
+}

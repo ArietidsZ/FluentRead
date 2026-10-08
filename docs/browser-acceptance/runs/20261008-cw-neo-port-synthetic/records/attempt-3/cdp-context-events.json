@@ -1,0 +1,37 @@
+[
+  {
+    "method": "Target.attachedToTarget",
+    "params": {
+      "sessionId": "CC7902DF06BF83DBD40ADD3D52004BCD",
+      "targetInfo": {
+        "targetId": "95A6FB0F5C9F814588F198A72F7F6C35",
+        "type": "page",
+        "title": "",
+        "url": "http://127.0.0.1:42913/",
+        "attached": true,
+        "canAccessOpener": false,
+        "browserContextId": "12C81951D2CC489DCBF5462B2F1B0F00",
+        "tabId": 1335436035,
+        "windowId": 1335436034
+      },
+      "waitingForDebugger": false
+    }
+  },
+  {
+    "method": "Runtime.executionContextCreated",
+    "params": {
+      "context": {
+        "id": 1,
+        "origin": "://",
+        "name": "",
+        "uniqueId": "8180649485551713767.4068880312790898699",
+        "auxData": {
+          "isDefault": true,
+          "type": "default",
+          "frameId": "95A6FB0F5C9F814588F198A72F7F6C35"
+        }
+      }
+    },
+    "sessionId": "CC7902DF06BF83DBD40ADD3D52004BCD"
+  }
+]

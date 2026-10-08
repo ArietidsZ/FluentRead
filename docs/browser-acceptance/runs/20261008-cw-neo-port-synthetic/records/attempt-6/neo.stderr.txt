@@ -1,0 +1,9 @@
+[2625882:2625882:1008/112447.688063:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2625882:2625882:1008/112447.688108:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2625882:2625882:1008/112447.688124:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+[2625882:2625882:1008/112447.688139:ERROR:net/socket/socket_posix.cc:175] bind() failed: Address already in use (98)
+
+DevTools listening on ws://127.0.0.1:46177/devtools/browser/ce936270-a419-41a9-b1a9-023b22e0a6f4
+[2626031:7:1008/112447.735746:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:277] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+[2625882:2625902:1008/112448.225473:FATAL:dbus/bus.cc:1245] D-Bus connection was disconnected. Aborting.
+[1008/112448.225633:ERROR:third_party/crashpad/crashpad/util/linux/scoped_ptrace_attach.cc:27] ptrace: Operation not permitted (1)
