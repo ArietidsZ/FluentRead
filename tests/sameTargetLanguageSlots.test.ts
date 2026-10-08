@@ -5,6 +5,7 @@
  * 快照切换目标或排除语言后重新判断，不复用旧会话结果；取消与失败重试同样只涉及外语槽。只替换翻译客户端与配置存储。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {parseHTML} from 'linkedom';
 import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
 
 const runtime = vi.hoisted(() => ({
@@ -57,7 +58,7 @@ import {
     translateTextSlots,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {serializeTranslationSlots} from '@/src/core/translation/public';
+import {collectLiveTranslationTextSlots, extractTranslationText, serializeTranslationSlots} from '@/src/core/translation/public';
 
 const german = 'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.';
 const english = 'This English sentence still needs a German translation for the reader.';
@@ -93,6 +94,24 @@ describe('各请求路径共用逐槽判断', () => {
             .resolves.toEqual([technicalParagraphs[0], `T:${english}`, ...technicalParagraphs.slice(1)]);
         expect(submitted()).toEqual([english]);
     });
+    it.each(['microsoft', 'google', 'freeTranslation', 'localTranslation'])('%s：真实 DOM 中独立 X 日期不进入相邻正文的请求槽', async service => {
+        runtime.config.service = service;
+        runtime.config.to = 'zh-Hans';
+        const {document} = parseHTML(`<html><body><p>${english}<a href="/status/123">10月7日</a><span>3:19 · 2026年10月8日</span></p></body></html>`);
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const dateNodes = Array.from(owner.querySelectorAll('a,span')).map(element => ({element, source:element.firstChild, value:element.textContent}));
+        const slots = collectLiveTranslationTextSlots(owner);
+        expect(slots.map(slot => slot.source)).toEqual([english]);
+        expect(extractTranslationText(owner)).toBe(english);
+        await expect(translateTextSlots(slots.map(slot => slot.source), captureFullPageTranslationConfig()))
+            .resolves.toEqual([`T:${english}`]);
+        expect(submitted()).toEqual([english]);
+        dateNodes.forEach(({element, source, value}) => {
+            expect(element.firstChild).toBe(source);
+            expect(element.textContent).toBe(value);
+        });
+    });
+
     it('中文 README 中的英文名称不触发请求，旁边独立的英文段落照常翻译', async () => {
         runtime.config.to = 'zh-Hans';
         const source = 'FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 DeepSeek Harness 会话内核的浏览器适配，支持结合上下文解释选中文字并连续追问。';
