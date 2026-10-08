@@ -1,0 +1,22 @@
+{
+  "label": "lifetime-lifecycle-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/architecture/moduleBoundaries.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/lifetime-lifecycle-final.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:36:07.760236+00:00",
+  "duration_seconds": 3.776,
+  "exit_code": 0
+}

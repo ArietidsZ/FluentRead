@@ -1,0 +1,7 @@
+[fix/incognito-model-route-20261008 469ce199] fix: bind Firefox text cancellation to native document leases
+ 18 files changed, 516 insertions(+), 28 deletions(-)
+ create mode 100644 src/platform/browser/documentSession.ts
+ create mode 100644 src/services/translation/documentChannel.ts
+ create mode 100644 src/services/translation/documentClient.ts
+ create mode 100644 tests/translationDocumentLifetime.test.ts
+ create mode 100644 tests/translationDocumentPort.test.ts

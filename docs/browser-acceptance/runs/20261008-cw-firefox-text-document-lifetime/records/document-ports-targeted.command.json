@@ -1,0 +1,20 @@
+{
+  "label": "document-ports-targeted",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-ports-targeted.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:24:35.426087+00:00",
+  "duration_seconds": 0.923,
+  "exit_code": 1
+}

@@ -1,0 +1,19 @@
+{
+  "label": "document-lifetime-core",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-lifetime-core.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:21:36.966635+00:00",
+  "duration_seconds": 0.821,
+  "exit_code": 1
+}

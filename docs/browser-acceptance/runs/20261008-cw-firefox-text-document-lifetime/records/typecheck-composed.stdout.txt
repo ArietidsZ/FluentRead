@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/translationDocumentLifetime.test.ts(4,106): error TS6133: 'TRANSLATION_DOCUMENT_VERSION' is declared but its value is never read.

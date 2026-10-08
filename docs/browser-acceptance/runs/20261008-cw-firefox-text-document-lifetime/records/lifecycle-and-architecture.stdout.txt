@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/contentRuntimeLifecycle.test.ts tests/architecture/moduleBoundaries.test.ts --no-cache --reporter=json --outputFile=<RAW>/lifecycle-and-architecture.results.json
+JSON report written to <RAW>/lifecycle-and-architecture.results.json

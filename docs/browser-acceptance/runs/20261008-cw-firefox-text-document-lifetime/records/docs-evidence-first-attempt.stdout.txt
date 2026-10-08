@@ -1,0 +1,6 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/.bin/vitepress build docs
+
+  vitepress v1.6.3
+
+
+If this is expected, you can disable this check via config. Refer: https://vitepress.dev/reference/site-config#ignoredeadlinks

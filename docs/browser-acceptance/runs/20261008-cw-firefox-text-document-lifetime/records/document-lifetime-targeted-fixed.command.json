@@ -1,0 +1,23 @@
+{
+  "label": "document-lifetime-targeted-fixed",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-lifetime-targeted-fixed.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:22:34.069765+00:00",
+  "duration_seconds": 3.609,
+  "exit_code": 0
+}

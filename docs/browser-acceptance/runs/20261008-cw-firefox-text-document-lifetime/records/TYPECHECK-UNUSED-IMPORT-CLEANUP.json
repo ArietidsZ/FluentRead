@@ -1,0 +1,10 @@
+{
+  "changes": [
+    {
+      "path": "tests/translationDocumentLifetime.test.ts",
+      "before": "9ee88e8aba8980d0b1b9a203b5f0bc14c4a561f9b7d572109043ed0c47b0afb8",
+      "after": "0b56b80f992c05c51e03f727472a1f091278c1696515ae9e3d76b26f61491ec4"
+    }
+  ],
+  "reason": "remove unused imported protocol version from deterministic fixture after using specialized production port factory; no application runtime or build input changed"
+}

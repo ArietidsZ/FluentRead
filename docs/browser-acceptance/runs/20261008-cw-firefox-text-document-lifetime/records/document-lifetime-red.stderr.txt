@@ -1,0 +1,15 @@
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: EROFS: read-only file system, open '<WORKTREE>/node_modules/.vite/vitest/results.json'
+ ❯ open node:internal/fs/promises:1360:25
+ ❯ Object.writeFile node:internal/fs/promises:2104:14
+ ❯ ResultsCache.writeToCache ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/resolveConfig.rBxzbVsl.js:4280:5
+ ❯ ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10827:7
+ ❯ Vitest.runFiles ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10840:12
+ ❯ Vitest.start ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:10682:7
+ ❯ startVitest ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cli-api.DqsSTaIi.js:11848:7
+ ❯ start ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:1506:17
+ ❯ CAC.run ../../../2026-10-07/task/FluentRead/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/cac.CB_9Zo9Q.js:1486:3
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { errno: -30, code: 'EROFS', syscall: 'open', path: '<WORKTREE>/node_modules/.vite/vitest/results.json' }

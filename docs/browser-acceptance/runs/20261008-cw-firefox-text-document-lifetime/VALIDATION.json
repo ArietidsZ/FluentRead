@@ -1,0 +1,221 @@
+{
+  "source_commit": "469ce1991f00fd69b09faaac492d76e567171421",
+  "source_tree": "5fcda7cd61bda17c60cd27051b81fd96cc54ea04",
+  "base_head": "9f934d8f815332d350e043701bb27ce455c72796",
+  "accepted_base_application": "ed89ab895fbb0a8a1bf0d6204f1aa603d6b2d74e",
+  "input_scope": "tracked and new source/tests/config/docs excluding published browser acceptance run data",
+  "input_files": 4005,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/handlers/translation.ts",
+    "src/app/background/messageRuntime.ts",
+    "src/app/content/runtime.ts",
+    "src/app/translation/client.ts",
+    "src/features/input-translation/background/handler.ts",
+    "src/platform/browser/documentSession.ts",
+    "src/services/translation/documentChannel.ts",
+    "src/services/translation/documentClient.ts",
+    "src/services/translation/requestRegistry.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/test-matrix.json",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "tsconfig.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "620710de428aedec94b308ec81441aeb97facd2b0549598b75f4a1d97936d4fc",
+  "artifact_manifest_sha256": "c33e0aeccccd240e6aad4ad850ce27332c01ad4b42bc495f0fa6964d6ca1b34b",
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "620710de428aedec94b308ec81441aeb97facd2b0549598b75f4a1d97936d4fc",
+  "artifacts": 797,
+  "userscript_bytes": 1954988,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "userscript_identical_to_ed89": true,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning",
+  "tests": {
+    "numTotalTests": 9885,
+    "numPassedTests": 9885,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 402,
+  "coverage": {
+    "lines": {
+      "total": 66007,
+      "covered": 66007,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 66007,
+      "covered": 66007,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4599,
+      "covered": 4599,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33584,
+      "covered": 33584,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "new_native_modules_coverage": {
+    "platform/browser/documentSession.ts": {
+      "lines": {
+        "total": 60,
+        "covered": 60,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 60,
+        "covered": 60,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 54,
+        "covered": 54,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "services/translation/documentChannel.ts": {
+      "lines": {
+        "total": 26,
+        "covered": 26,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 6,
+        "covered": 6,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 26,
+        "covered": 26,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 27,
+        "covered": 27,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "services/translation/documentClient.ts": {
+      "lines": {
+        "total": 65,
+        "covered": 65,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 13,
+        "covered": 13,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 65,
+        "covered": 65,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 63,
+        "covered": 63,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architecture_tests": 1378,
+  "architecture_files": 32,
+  "checks": {
+    "full-strict-coverage-local": 0,
+    "architecture-local": 0,
+    "audit": 0,
+    "typecheck-complete": 0,
+    "typecheck-file-list": 0,
+    "build-chrome": 0,
+    "build-firefox": 0,
+    "build-userscript": 0,
+    "verify-extension-manifests": 0,
+    "verify-userscript": 0,
+    "docs-source-build": 0,
+    "bindings-final": 0,
+    "bind-source-commit": 0
+  },
+  "typecheck_scope": {
+    "command": "vue-tsc --noEmit --listFilesOnly",
+    "exit_code": 0,
+    "tsconfig_diff_sha256": "c7209dbaae6e55fbf84905256822f0fe21bd9f57d703a84a41fdfd7a168a4be6",
+    "only_added_exclusion": "docs/browser-acceptance/runs/**",
+    "unchanged_exclusions": [
+      "node_modules",
+      ".output",
+      "storybook",
+      ".storybook"
+    ],
+    "groups": {
+      "src": {
+        "expected": 799,
+        "listed": 799,
+        "missing": []
+      },
+      "tests": {
+        "expected": 495,
+        "listed": 495,
+        "missing": []
+      },
+      "entrypoints": {
+        "expected": 15,
+        "listed": 15,
+        "missing": []
+      }
+    },
+    "archive_files_listed": [],
+    "listed_total": 4250
+  },
+  "no_real_browser_or_provider_api_run": true,
+  "previous_neo_source_not_this_validation": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "unchanged_dependencies_permissions_and_firefox_minimum": true,
+  "pending": [
+    "real Firefox GUI acceptance of this source",
+    "native no-tab extension page getContexts privacy-source limitation",
+    "reader/writer and dictionary route wiring",
+    "remaining feature source wiring",
+    "real RTX5090 WebGPU acceptance"
+  ],
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 140
+}

@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "<RAW>/bind-inputs.py", line 17, in <module>
+    comparison['targets'][target]={k:{'baseline':v['current'],'current':manifest.get(k),'equal':v['current']==manifest.get(k)} for k,v in baseline['targets'][target].items()}
+                                                 ~^^^^^^^^^^^
+TypeError: string indices must be integers, not 'str'

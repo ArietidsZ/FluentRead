@@ -1,0 +1,31 @@
+{
+  "command": "vue-tsc --noEmit --listFilesOnly",
+  "exit_code": 0,
+  "tsconfig_diff_sha256": "c7209dbaae6e55fbf84905256822f0fe21bd9f57d703a84a41fdfd7a168a4be6",
+  "only_added_exclusion": "docs/browser-acceptance/runs/**",
+  "unchanged_exclusions": [
+    "node_modules",
+    ".output",
+    "storybook",
+    ".storybook"
+  ],
+  "groups": {
+    "src": {
+      "expected": 799,
+      "listed": 799,
+      "missing": []
+    },
+    "tests": {
+      "expected": 495,
+      "listed": 495,
+      "missing": []
+    },
+    "entrypoints": {
+      "expected": 15,
+      "listed": 15,
+      "missing": []
+    }
+  },
+  "archive_files_listed": [],
+  "listed_total": 4250
+}

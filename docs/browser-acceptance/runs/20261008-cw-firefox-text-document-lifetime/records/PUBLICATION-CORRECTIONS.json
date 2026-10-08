@@ -1,0 +1,14 @@
+{
+  "changes": [
+    "new_native_modules_coverage narrowed to the three exact new modules; mature image modules remain in full report",
+    "unsupported VitePress .diff asset hyperlink replaced by exact filename reference",
+    "public record copies also trim final empty lines for git diff --check; original raw bytes and raw hashes remain unchanged"
+  ],
+  "failures_preserved": [
+    "docs-evidence-first-attempt.command.json",
+    "docs-evidence-first-attempt.stderr.txt",
+    "docs-evidence-first-attempt.stdout.txt"
+  ],
+  "source_runtime_changed": false,
+  "ignore_dead_links_disabled": false
+}

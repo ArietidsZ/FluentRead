@@ -1,0 +1,14 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/preparation-red-inputs/tests/incognitoInputRoute.test.ts(8,56): error TS2307: Cannot find module './helpers/incognitoInputRuntime' or its corresponding type declarations.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/preparation-red-inputs/tests/incognitoInputRoute.test.ts(62,14): error TS18046: 'pending' is of type 'unknown'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/preparation-red-inputs/tests/incognitoInputRoute.test.ts(62,27): error TS7006: Parameter 'value' implicitly has an 'any' type.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/preparation-red-inputs/tests/incognitoInputRoute.test.ts(212,41): error TS7006: Parameter 'dependencies' implicitly has an 'any' type.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/preparation-red-inputs/tests/inputTranslationContentFeature.test.ts(23,56): error TS2307: Cannot find module './helpers/incognitoInputRuntime' or its corresponding type declarations.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/backgroundTranslationHandler.test.ts(46,69): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/backgroundTranslationHandler.test.ts(47,46): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'object'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/backgroundTranslationHandler.test.ts(47,70): error TS2493: Tuple type '[]' of length '0' has no element at index '0'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/incognitoInputRoute.test.ts(8,56): error TS2307: Cannot find module './helpers/incognitoInputRuntime' or its corresponding type declarations.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/incognitoInputRoute.test.ts(31,87): error TS2345: Argument of type '{ sender: any; }' is not assignable to parameter of type 'undefined'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/incognitoInputRoute.test.ts(32,25): error TS18046: 'pending' is of type 'unknown'.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/incognitoInputRoute.test.ts(32,39): error TS7006: Parameter 'error' implicitly has an 'any' type.
+docs/browser-acceptance/runs/20261008-cw-native-text-input-cancel/records/red-tests/tests/inputTranslationContentFeature.test.ts(23,56): error TS2307: Cannot find module './helpers/incognitoInputRuntime' or its corresponding type declarations.

@@ -1,0 +1,28 @@
+{
+  "label": "document-ports-targeted-fixed",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.include=src/platform/browser/documentSession.ts",
+    "--coverage.include=src/services/translation/documentChannel.ts",
+    "--coverage.include=src/services/translation/documentClient.ts",
+    "--coverage.include=src/services/translation/requestRegistry.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<RAW>/targeted-coverage",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-ports-targeted-fixed.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:25:50.301571+00:00",
+  "duration_seconds": 1.457,
+  "exit_code": 0
+}

@@ -1,0 +1,13 @@
+{
+  "label": "typecheck-file-list",
+  "command": [
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit",
+    "--listFilesOnly"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:36:06.188215+00:00",
+  "duration_seconds": 3.186,
+  "exit_code": 0
+}

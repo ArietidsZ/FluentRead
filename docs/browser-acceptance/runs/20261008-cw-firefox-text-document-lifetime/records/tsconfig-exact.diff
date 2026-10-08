@@ -1,0 +1,17 @@
+diff --git a/tsconfig.json b/tsconfig.json
+index ee045c47..1c96e8e6 100644
+--- a/tsconfig.json
++++ b/tsconfig.json
+@@ -4,5 +4,11 @@
+     "noUnusedLocals": true,
+     "noUnusedParameters": true
+   },
+-  "exclude": ["node_modules", ".output", "storybook", ".storybook"]
++  "exclude": [
++    "node_modules",
++    ".output",
++    "storybook",
++    ".storybook",
++    "docs/browser-acceptance/runs/**"
++  ]
+ }

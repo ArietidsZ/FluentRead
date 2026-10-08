@@ -1,0 +1,22 @@
+{
+  "label": "document-lifetime-green-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "tests/backgroundTranslationHandler.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-lifetime-green-initial.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:16:22.169547+00:00",
+  "duration_seconds": 2.896,
+  "exit_code": 0
+}

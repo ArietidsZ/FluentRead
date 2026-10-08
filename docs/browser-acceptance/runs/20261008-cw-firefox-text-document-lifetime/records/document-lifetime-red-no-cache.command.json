@@ -1,0 +1,19 @@
+{
+  "label": "document-lifetime-red-no-cache",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/translationDocumentLifetime.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/document-lifetime-red-no-cache.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T13:11:31.175022+00:00",
+  "duration_seconds": 0.275,
+  "exit_code": 1
+}

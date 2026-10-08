@@ -1,0 +1,16 @@
+- building client + server bundles...
+
+
+(!) Found dead link ./records/tsconfig-exact.diff in file browser-acceptance/runs/20261008-cw-firefox-text-document-lifetime/README.md
+x Build failed in 1.32s
+[31m✖[0m building client + server bundles...
+build error:
+[vitepress] 1 dead link(s) found.
+[vitepress] 1 dead link(s) found.
+    at Object.renderStart (file://<CW_DEPENDENCIES>/.pnpm/vitepress@1.6.3_@algolia+client-search@5.20.0_@types+node@22.10.7_async-validator@4.2.5_idb-k_wtiqics5chcuvrcl7wdf27tbna/node_modules/vitepress/dist/node/chunk-Zsoi3j4v.js:45027:15)
+    at file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:20936:40
+    at async Promise.all (index 0)
+    at async PluginDriver.hookParallel (file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:20864:9)
+    at async Bundle.generate (file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:19200:13)
+    at async file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:21900:27
+    at async catchUnfinishedHookActions (file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:21282:16)

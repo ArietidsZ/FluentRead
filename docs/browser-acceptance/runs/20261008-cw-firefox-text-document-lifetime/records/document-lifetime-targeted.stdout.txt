@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/translationDocumentLifetime.test.ts tests/backgroundTranslationHandler.test.ts tests/incognitoInputRoute.test.ts tests/contentRuntimeLifecycle.test.ts tests/translateApiPerformance.test.ts --no-cache --reporter=json --outputFile=<RAW>/document-lifetime-targeted.results.json
+JSON report written to <RAW>/document-lifetime-targeted.results.json
