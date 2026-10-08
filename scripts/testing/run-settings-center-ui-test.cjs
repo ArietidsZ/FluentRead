@@ -92,17 +92,17 @@ const expectedNavigationGroups = [
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
 const settingsNavigationSelector = 'nav[aria-label="设置分类"] button[data-section]';
-// settings-page.css 声明 min(148px, 100%)；本处在 1440px 桌面检查完整声明尺寸。
-const expectedAboutSupportQrSize = 148;
 // 默认四项；用例显式添加译文显示后，完整皮肤矩阵必须保留全部五项。
 const expectedExpandedQuickFeatureCount = 5;
 const modelUsageAverageSelector = '#settings-model-usage section.usage-average-card';
 const modelUsageRequestLogSelector = '#settings-model-usage section.usage-request-log-card';
 const expectedDefaultServiceDescription = '未单独指定方案时，全文、悬浮和划词翻译使用此服务';
-function matchesAboutSupportQrBounds(bounds) {
+function matchesAboutSupportQrBounds(bounds, availableWidth) {
+  // 赞赏图片应填满卡片内容宽度，桌面与窄屏都按实际可用空间判断。
   return Boolean(bounds && Number.isFinite(bounds.width) && Number.isFinite(bounds.height)
-    && Math.abs(bounds.width - expectedAboutSupportQrSize) <= 1
-    && Math.abs(bounds.height - expectedAboutSupportQrSize) <= 1
+    && Number.isFinite(availableWidth) && availableWidth > 0
+    && Math.abs(bounds.width - availableWidth) <= 1
+    && Math.abs(bounds.height - availableWidth) <= 1
     && Math.abs(bounds.width - bounds.height) <= 1);
 }
 function matchesPalettePopupSurfaces(metrics) {
@@ -1560,8 +1560,12 @@ async function main() {
           throw new Error(`关于页赞赏链接异常：${JSON.stringify(supportLinks)}`);
         }
         const qrBounds = await supportPanel.locator('.about-support-qr').boundingBox();
-        if (!matchesAboutSupportQrBounds(qrBounds)) {
-          throw new Error(`关于页二维码没有按当前声明呈现 148px 正方形：${JSON.stringify(qrBounds)}`);
+        const availableQrWidth = await supportPanel.locator('.about-support-wechat').evaluate(card => {
+          const style = getComputedStyle(card);
+          return card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        });
+        if (!matchesAboutSupportQrBounds(qrBounds, availableQrWidth)) {
+          throw new Error(`关于页赞赏图片未填满卡片内容宽度或不是正方形：${JSON.stringify({qrBounds, availableQrWidth})}`);
         }
         const pageCount = context.pages().length;
         const aboutUrl = page.url();
