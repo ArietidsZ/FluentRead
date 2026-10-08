@@ -47,7 +47,7 @@ Each entry has a visible learning button: **Listen & understand** for sentences 
 
 Use the search box and entry type selector to find saved items. **Filters** contains mastery and sorting options. **Clear filters** restores the full collection. Saving switches and file actions live in **Manage collection**. Browser storage details and **Backup & restore** share one footer across all three tabs.
 
-The original sentence helps you remember where the expression came from. Earlier definitions or AI responses remain available to expand. If no useful source sentence was saved, the page says so.
+The original sentence helps you remember where the expression came from. Matching supports expressions in continuous Chinese and Japanese text, plus differences in case, combining accents and whitespace, while preserving the original sentence. Earlier definitions or AI responses remain available to expand. If no useful source sentence was saved, the page says so.
 
 Choose to understand the expression for an AI explanation of meaning, usage, and an example. Then write your own sentence and ask whether it sounds natural. Feedback focuses on meaning and combinations; it does not automatically mark the expression as mastered.
 
@@ -72,6 +72,8 @@ Check your answer against the saved reference, then choose whether you remembere
 Collections and review records stay in this browser. Turning off saving or clearing the translation cache does not delete them. Private windows do not offer persistent collections.
 
 Use **Backup & restore** to move your data. The learning center also offers Anki export, with a choice about including source sentences and source information.
+
+Collection management actions stay busy while awaiting confirmation and become available again after cancellation. If a confirmation or export response arrives after you switch from Saved to another learning-center tab, the closed collection view does not continue the action or start a download. Operations already submitted to the background still finish normally.
 
 </details>
 

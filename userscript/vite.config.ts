@@ -2,10 +2,12 @@ import fs from 'node:fs';
 import {createHash} from 'node:crypto';
 import {basename, dirname, resolve} from 'node:path';
 import {gzipSync} from 'node:zlib';
+import {runInNewContext} from 'node:vm';
 import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
 import {defineConfig, normalizePath, transformWithEsbuild, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
+import {createUserscriptCharacterDataCompressionPlugin} from './characterDataPlugin';
 import {UI_LANGUAGE_BUNDLES} from '../src/core/i18n/bundles';
 import {zhCNMessages} from '../src/core/i18n/messages/zh-CN';
 
@@ -95,6 +97,10 @@ const siteCatalogFiles = new Set(['established.json', 'websites.json', 'profiles
     .map((name) => resolve(siteCatalogDir, name)));
 const siteCatalogData = Object.fromEntries([...siteCatalogFiles]
     .map((sourcePath) => [basename(sourcePath, '.json'), JSON.parse(fs.readFileSync(sourcePath, 'utf8'))]));
+// 构建目录提供权威规则；固定资源中未变的规则复用，新增或更新的规则随消费者补齐。
+const pinnedSiteCatalogs = greasyForkSource
+    ? (runInNewContext(fs.readFileSync(resolve(root, 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 1_000}) as {siteCatalogs: Record<string, unknown>}).siteCatalogs
+    : undefined;
 const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
 const externalChineseMessagesId = '\0fluentread-userscript-zh-cn.js';
 
@@ -127,7 +133,28 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
             const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);
             if (!siteCatalogFiles.has(sourcePath)) throw new Error(`Unexpected userscript site catalog: ${sourcePath}`);
             if (greasyForkSource) {
-                return `export default globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${basename(sourcePath, '.json')};`;
+                const name = basename(sourcePath, '.json');
+                const current = siteCatalogData[name];
+                const pinned = pinnedSiteCatalogs?.[name];
+                if (!Array.isArray(current) || !Array.isArray(pinned)) {
+                    return `export default globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${name};`;
+                }
+                const pinnedById = new Map(pinned.map((rule) => [rule.id, rule]));
+                const updates = current.filter((rule) => JSON.stringify(rule) !== JSON.stringify(pinnedById.get(rule.id)));
+                const order = current.map((rule) => rule.id);
+                if (!updates.length && JSON.stringify(order) === JSON.stringify(pinned.map((rule) => rule.id))) {
+                    return `export default globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${name};`;
+                }
+                return [
+                    `const catalog = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.${name};`,
+                    'const present = new Map(catalog.map((rule) => [rule.id, rule]));',
+                    `const updates = new Map(${JSON.stringify(updates)}.map((rule) => [rule.id, rule]));`,
+                    `export default ${JSON.stringify(order)}.map((id) => {`,
+                    '  const rule = updates.get(id) ?? present.get(id);',
+                    '  if (!rule) throw new Error("Missing pinned userscript site rule: " + id);',
+                    '  return rule;',
+                    '});',
+                ].join('\n');
             }
             const contents = JSON.stringify(JSON.parse(fs.readFileSync(sourcePath, 'utf8')));
             const compressed = gzipSync(Buffer.from(contents), {level: 9}).toString('base64');
@@ -268,6 +295,8 @@ type BrowserGlobal = 'browser' | 'chrome';
  * 不应触发注入，避免对普通业务对象产生误改写。
  */
 export function findFreeBrowserGlobals(code: string, id: string): BrowserGlobal[] {
+    // 没有候选时不建立编译器 program；反斜杠保留 Unicode 转义标识符的完整解析路径。
+    if (!code.includes('browser') && !code.includes('chrome') && !code.includes('\\')) return [];
     const sourceFile = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true);
     const options: ts.CompilerOptions = {
         allowJs: true,
@@ -469,7 +498,7 @@ export const userscriptAliases = [
 export default defineConfig({
     root,
     publicDir: false,
-    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
+    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), createUserscriptCharacterDataCompressionPlugin(root, !greasyForkSource), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
     resolve: {
         alias: userscriptAliases,
     },

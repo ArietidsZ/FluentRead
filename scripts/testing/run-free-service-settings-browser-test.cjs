@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 // 免费服务设置专项：统一目录、测试耗时/失败/重测、分流、邮箱、顺序与多尺寸；仅使用隔离后台 Chromium profile。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -17,9 +18,11 @@ const defaultIds = ids;
 const report = {ok: false, extensionDir, evidenceBoundary: live ? 'Real anonymous connection tests on a fixed synthetic sentence; one network and one run.' : 'Production extension UI with controlled connection-message results; provider behavior is tested separately.', caseCoverage: [], screenshots: [], consoleErrors: [], layouts: []};
 fs.mkdirSync(artifactsDir, {recursive: true});
 (async () => {
-  let launched;
+  let launched, profileDir;
+  let launchAttempted = false;
   try {
-    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-free-settings-'));
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-free-settings-'));
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000, browserArgs: [...(loadViaCdp ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`]), '--no-first-run', '--no-default-browser-check']});
     Object.assign(report, {browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
@@ -36,7 +39,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const create = async url => {const p = await newPageWithoutForeground(context, 30000); p.on('pageerror', e => report.consoleErrors.push(e.message)); await p.goto(url, {waitUntil: 'domcontentloaded'}); return p;};
     const popup = await create(`${origin}/popup.html`);
     const readConfig = () => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value) : r.value;});
-    await popup.waitForFunction(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;});
+    await waitForAsyncCondition(() => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;}), {timeoutMs: 30000, message: "免费服务测试默认服务配置尚未就绪"});
     const existing = await readConfig();
     assert.deepEqual(existing.freeTranslationOrder, defaultIds);
     report.caseCoverage.push('fresh configuration enables 15 official providers');
@@ -165,5 +168,22 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     assert.deepEqual(report.consoleErrors, []);
     report.ok = true;
   } catch (error) {report.error = error.stack || String(error); process.exitCode = 1;}
-  finally {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); await launched?.close(); console.log(JSON.stringify(report, null, 2));}
+  finally {
+    report.cleanupErrors = [];
+    let browserClosed = !launchAttempted;
+    if (launched) {
+      try {await launched.close(); browserClosed = true;}
+      catch (error) {report.cleanupErrors.push(`session close: ${error.message}`);}
+    }
+    if (profileDir) {
+      if (browserClosed) {
+        try {fs.rmSync(profileDir, {recursive: true, force: true}); report.profileRemoved = true;}
+        catch (error) {report.cleanupErrors.push(`profile removal: ${error.message}`); report.retainedProfile = profileDir;}
+      } else report.retainedProfile = profileDir;
+    }
+    if (report.cleanupErrors.length) {report.ok = false; process.exitCode = 1;}
+    try {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));}
+    catch (error) {console.error(`free settings report write: ${error.stack || error}`); process.exitCode = 1;}
+    console.log(JSON.stringify(report, null, 2));
+  }
 })();

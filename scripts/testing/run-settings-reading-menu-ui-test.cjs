@@ -1,4 +1,6 @@
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /**
  * @file scripts/testing/run-settings-reading-menu-ui-test.cjs
  * 文件职责：在生产扩展中专项验证阅读辅助、右键菜单、设置框标题和补齐后的页内导航。
@@ -13,11 +15,11 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-settings-refinement-production'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper'));
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-reading-menu-ui-'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 fs.mkdirSync(artifacts, {recursive: true});
+const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-reading-menu-ui-'));
 const report = {ok: false, artifact: 'production', extensionDir, caseCoverage: [], layouts: [], screenshots: [], consoleErrors: []};
-let session, page, base;
+let session, page, base, primaryError;
 const save = () => fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
 async function shot(locator, name) {
   const original = page.viewportSize();
@@ -40,11 +42,11 @@ async function patch(values) {
   const expected = Object.fromEntries(Object.keys(values).map(key => [key, current[key]]));
   const response = await page.evaluate(({values, expected}) => chrome.runtime.sendMessage({type: 'persistConfig', mode: 'patch', config: values, expected}), {values, expected});
   assert(response.success, response.error);
-  await page.waitForFunction(async values => {
+  await waitForAsyncCondition(() => page.evaluate(async values => {
     const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
     const current = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
     return Object.entries(values).every(([key, value]) => JSON.stringify(current[key]) === JSON.stringify(value));
-  }, values);
+  }, values), {timeoutMs: 30000, message: "阅读与菜单设置补丁尚未持久化"});
 }
 async function navigate(section) {
   if (await page.locator('.mobile-settings-navigation').isVisible()) await page.locator('.mobile-settings-navigation').selectOption(section);
@@ -75,13 +77,16 @@ async function layout(label) {
   report.layouts.push({label, ...metrics});
 }
 (async () => {
+  let launchAttempted = false;
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
     report.manifest = {options: manifest.options_page || manifest.options_ui?.page, popup: manifest.action?.default_popup};
     assert(report.manifest.options && report.manifest.popup);
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({chromium, profileDir, background: true, headless: false, displayTarget: 'secondary',
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1440, height: 960}, timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp'); assert.equal(report.windowPlacement.browserFrontmost, false);
     const worker = session.context.serviceWorkers()[0] || await session.context.waitForEvent('serviceworker', {timeout: 30000});
@@ -211,13 +216,35 @@ async function layout(label) {
     assert.deepEqual(report.consoleErrors, []);
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.failure = error.stack || String(error);
     if (page) await page.screenshot({path: path.join(artifacts, 'failure.png')}).catch(() => {});
     process.exitCode = 1;
   } finally {
-    save();
-    await session?.close().catch(() => {});
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { save(); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     console.log(JSON.stringify(report, null, 2));
   }
-})();
+})().catch(error => {console.error(error); process.exitCode = 1;});

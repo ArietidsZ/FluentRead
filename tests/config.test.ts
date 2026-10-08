@@ -1767,6 +1767,8 @@ describe('统一配置存储', () => {
         const contentSnapshot = normalizeConfig({
             ...current,
             to: 'ja',
+            // 完整规范化快照以 apiKeys 为凭据主数据，清空时同时清除旧 token 镜像。
+            apiKeys: {},
             token: {},
             extra: {},
             persistCredentials: false,
@@ -2633,12 +2635,12 @@ describe('统一配置存储', () => {
         const warnings = {warn: vi.fn()};
         const createExit = (hydrated: boolean) => new Function(
             'handoffPendingConfigPatches', 'sendConfigMessage', 'persistConfigPatch', 'persistConfigReplace', 'config', 'console', 'normalizeConfig',
-            `let hydrated = ${hydrated}; let pageExitSaveStarted = false; let applyingExternalConfig = false; let lastSerialized = JSON.stringify(config.value); ${exitBody}; ${autosaveBody}; return Object.assign(persistOnPageExit, {onDraftChange});`,
+            `let hydrated = ${hydrated}; let disposed = false; let pageExitSaveStarted = false; let applyingExternalConfig = false; let lastSerialized = JSON.stringify(config.value); ${exitBody}; ${autosaveBody}; return Object.assign(persistOnPageExit, {onDraftChange, dispose: () => {disposed = true;}});`,
         )(
             configStore.handoffPendingConfigPatches, sender,
             (value: unknown) => configStore.requestConfigPatch(value, sender),
             (value: unknown) => configStore.requestConfigSave(value, sender), draft, warnings, normalizeConfig,
-        ) as (() => void) & {onDraftChange(serialized: string): void};
+        ) as (() => void) & {onDraftChange(serialized: string): void; dispose(): void};
         createExit(false)();
         expect(sender).not.toHaveBeenCalled();
 
@@ -2680,6 +2682,12 @@ describe('统一配置存储', () => {
         createExit(true)();
         await configStore.waitForConfigPersistenceQueue();
         expect(sender).not.toHaveBeenCalled();
+        close.dispose();
+        draft.value.harness.contextMode = 'selection';
+        close.onDraftChange(JSON.stringify(draft.value));
+        await configStore.waitForConfigPersistenceQueue();
+        expect(sender).not.toHaveBeenCalled();
+        expect(writes).toBe(3);
     });
 
     it('交接只包含同一 sender 的不可变 patch 信封', async () => {

@@ -2,46 +2,56 @@ import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import {createServer, type Plugin, type ViteDevServer} from 'vite';
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
 const TEST_KEY = '__frOptionsNavigationLifecycle';
 const runtime = createRequire(import.meta.url)('vue') as typeof import('vue');
-let server: ViteDevServer | undefined;
+type FixtureScope = {active: boolean; server?: ViteDevServer; closing?: Promise<void>; unmount?: () => void};
+let current: FixtureScope | undefined;
 let unmount: (() => void) | undefined;
-
+const owns = (scope: FixtureScope) => scope.active && current === scope;
+const inactive = () => new Error('Options fixture scope is closed');
+function closeOwnedServer(scope: FixtureScope) {
+  return scope.server ? (scope.closing ??= scope.server.close()) : Promise.resolve();
+}
+async function closeFixture(scope: FixtureScope) {
+  scope.active = false;
+  try {
+    scope.unmount?.();
+  } finally {
+    if (current === scope) {
+      current = undefined;
+      unmount = undefined;
+      vi.unstubAllGlobals();
+      delete (globalThis as Record<string, unknown>)[TEST_KEY];
+    }
+    await closeOwnedServer(scope);
+  }
+}
+async function prepareFixture(scope: FixtureScope, factory = createFixtureServer) {
+  try {
+    const ownedServer = await factory();
+    scope.server = ownedServer;
+    if (!owns(scope)) throw inactive();
+    // Transform only: configReady and appearance mocks must be evaluated inside each mount.
+    await ownedServer.transformRequest('/src/app/options/OptionsApp.vue', {ssr: true});
+    if (!owns(scope)) throw inactive();
+  } catch (error) {
+    try { await closeOwnedServer(scope); } catch { /* Preserve the original bootstrap error. */ }
+    throw error;
+  }
+}
+beforeEach(async () => {
+  const scope: FixtureScope = {active: true};
+  current = scope;
+  await prepareFixture(scope);
+}, 5000);
 afterEach(async () => {
-  unmount?.();
-  unmount = undefined;
-  await server?.close();
-  server = undefined;
-  vi.unstubAllGlobals();
-  delete (globalThis as Record<string, unknown>)[TEST_KEY];
-});
+  const scope = current;
+  if (scope) await closeFixture(scope);
+}, 5000);
 
-async function mountOptions(hash = '#settings-selection') {
-  const location = {hash};
-  const windowEvents = new EventTarget();
-  const mediaAdd = vi.fn();
-  const mediaRemove = vi.fn();
-  const scrollTo = vi.fn();
-  const windowScrollTo = vi.fn();
-  const unsubscribeConfig = vi.fn();
-  const replaceState = vi.fn((_state: unknown, _unused: string, nextHash: string) => {
-    location.hash = nextHash;
-  });
-  const addEventListener = vi.spyOn(windowEvents, 'addEventListener');
-  const removeEventListener = vi.spyOn(windowEvents, 'removeEventListener');
-  vi.stubGlobal('window', Object.assign(windowEvents, {
-    location,
-    scrollTo: windowScrollTo,
-    matchMedia: () => ({matches: false, addEventListener: mediaAdd, removeEventListener: mediaRemove}),
-  }));
-  vi.stubGlobal('history', {replaceState});
-  (globalThis as Record<string, unknown>)[TEST_KEY] = {
-    config: {interfaceSkin: 'default'},
-    configReady: Promise.resolve(),
-    subscribeConfig: () => unsubscribeConfig,
-  };
+function createFixtureServer() {
   const mocks: Plugin = {
     name: 'options-navigation-lifecycle-mocks',
     enforce: 'pre',
@@ -56,16 +66,56 @@ async function mountOptions(hash = '#settings-selection') {
       if (id === '\0options-child-component') return 'export default {render: () => null};';
       if (id === '\0options-i18n') return 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});';
       if (id === '\0options-config') return `export const {config, configReady, subscribeConfig} = globalThis.${TEST_KEY};`;
-      if (id === '\0options-appearance') return 'export const applyInterfaceSkin = () => {}; export const applyInterfaceFont = () => {}; export const applyInterfaceTheme = () => {}; export const setInterfaceAppearanceRoot = () => {};';
+      if (id === '\0options-appearance') return `export const {theme: applyInterfaceTheme, skin: applyInterfaceSkin, font: applyInterfaceFont, registerAppearance: registerInterfaceAppearanceRoot} = globalThis.${TEST_KEY};`;
       return null;
     },
   };
-  server = await createServer({
+  return createServer({
     configFile: false, appType: 'custom', logLevel: 'silent', root: process.cwd(),
     plugins: [mocks, vue()], resolve: {alias: {'@': resolve(process.cwd())}},
     server: {hmr: false, middlewareMode: true},
   });
-  const {default: component} = await server.ssrLoadModule('/src/app/options/OptionsApp.vue');
+}
+
+async function mountOptions(hash = '#settings-selection', ready = Promise.resolve(), appearanceRoot?: HTMLElement, load?: (server: ViteDevServer) => Promise<Record<string, any>>) {
+  const scope = current;
+  if (!scope || !owns(scope) || !scope.server) throw inactive();
+  const ownedServer = scope.server;
+  const location = {hash};
+  const windowEvents = new EventTarget();
+  const mediaAdd = vi.fn();
+  const mediaRemove = vi.fn();
+  const scrollTo = vi.fn();
+  const windowScrollTo = vi.fn();
+  const unsubscribeConfig = vi.fn();
+  const theme = vi.fn(), skin = vi.fn(), font = vi.fn();
+  const releaseAppearance = vi.fn(), registerAppearance = vi.fn(() => releaseAppearance);
+  const replaceState = vi.fn((_state: unknown, _unused: string, nextHash: string) => {
+    location.hash = nextHash;
+  });
+  const addEventListener = vi.spyOn(windowEvents, 'addEventListener');
+  const removeEventListener = vi.spyOn(windowEvents, 'removeEventListener');
+  vi.stubGlobal('window', Object.assign(windowEvents, {
+    location,
+    scrollTo: windowScrollTo,
+    matchMedia: () => ({matches: false, addEventListener: mediaAdd, removeEventListener: mediaRemove}),
+  }));
+  vi.stubGlobal('history', {replaceState});
+  (globalThis as Record<string, unknown>)[TEST_KEY] = {
+    config: {interfaceSkin: 'default'},
+    configReady: ready,
+    subscribeConfig: () => unsubscribeConfig,
+    theme, skin, font, registerAppearance,
+  };
+  let loaded: Record<string, any>;
+  try {
+    loaded = await (load ? load(ownedServer) : ownedServer.ssrLoadModule('/src/app/options/OptionsApp.vue'));
+    if (!owns(scope)) throw inactive();
+  } catch (error) {
+    try { await closeOwnedServer(scope); } catch { /* Preserve the original loader error. */ }
+    throw error;
+  }
+  const {default: component} = loaded;
   component.ssrRender = undefined;
   component.render = () => null;
   const renderer = runtime.createRenderer<Record<string, never>, Record<string, unknown>>({
@@ -78,6 +128,7 @@ async function mountOptions(hash = '#settings-selection') {
   let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; activePanels: {id: string}[]; contentComponentProps: {activePanel?: string}; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
   const app = renderer.createApp({
     setup: () => () => runtime.h(component, {
+      appearanceRoot,
       ref: (instance: any) => { if (instance) state = instance.$.setupState; },
     }),
   });
@@ -85,17 +136,41 @@ async function mountOptions(hash = '#settings-selection') {
   app.config.warnHandler = () => undefined;
   app.mount({});
   state.settingsContentElement = {scrollTo};
-  unmount = () => app.unmount();
+  let mounted = true;
+  scope.unmount = () => { if (mounted) { mounted = false; app.unmount(); } };
+  unmount = scope.unmount;
   await runtime.nextTick();
+  if (!owns(scope)) throw inactive();
   const navigateHash = async (nextHash: string) => {
     location.hash = nextHash;
     windowEvents.dispatchEvent(new Event('hashchange'));
     await runtime.nextTick();
   };
-  return {state, location, navigateHash, replaceState, scrollTo, windowScrollTo, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig};
+  return {state, location, navigateHash, replaceState, scrollTo, windowScrollTo, addEventListener, removeEventListener, mediaAdd, mediaRemove, unsubscribeConfig, theme, skin, font, registerAppearance, releaseAppearance};
 }
 
 describe('OptionsApp mounted hash navigation', () => {
+  it('registers the explicit appearance root and releases only its returned handle once', async () => {
+    const root = {} as HTMLElement;
+    const {registerAppearance, releaseAppearance} = await mountOptions('#settings-interface', Promise.resolve(), root);
+    expect(registerAppearance).toHaveBeenCalledWith(root);expect(releaseAppearance).not.toHaveBeenCalled();
+    unmount?.();unmount = undefined;expect(releaseAppearance).toHaveBeenCalledTimes(1);
+  });
+  it.each(['resolve', 'reject'] as const)('ignores configReady %s after unmount instead of changing a subsequent appearance owner', async outcome => {
+    let resolveReady!: () => void, rejectReady!: (error: unknown) => void;
+    const ready = new Promise<void>((resolve, reject) => {resolveReady = resolve;rejectReady = reject;});
+    const {theme, skin, font} = await mountOptions('#settings-selection', ready);
+    unmount?.();unmount = undefined;
+    if (outcome === 'resolve') resolveReady();else rejectReady(new Error('closed config'));
+    await runtime.nextTick();await runtime.nextTick();
+    expect(theme).not.toHaveBeenCalled();expect(skin).not.toHaveBeenCalled();expect(font).not.toHaveBeenCalled();
+  });
+  it('cancels deferred scrolling and rejects stale navigation after unmount', async () => {
+    const {state, scrollTo, location} = await mountOptions();scrollTo.mockClear();
+    state.selectSection('settings-general');unmount?.();unmount = undefined;
+    await runtime.nextTick();expect(scrollTo).not.toHaveBeenCalled();
+    state.selectSection('settings-about');expect(location.hash).toBe('#settings-general');
+  });
   it('keeps website rules continuous and uses panel metadata only to locate destinations', async () => {
     const {state} = await mountOptions('#settings-sites');
     expect(state.activePanels).toEqual([]);
@@ -190,4 +265,70 @@ it('keeps model-usage deep links inside the statistics page and preserves the ta
   await navigateHash('#settings-general');
   await navigateHash('#settings-model-usage');
   expect(state.activePanel).toBe('usage');
+});
+
+function deferred<T>() {
+  let resolve!: (value: T) => void, reject!: (error: unknown) => void;
+  const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;});
+  return {promise, resolve, reject};
+}
+async function nextFixture() {
+  const scope: FixtureScope = {active: true};
+  current = scope;
+  await prepareFixture(scope);
+  return scope;
+}
+
+it('closes a late created server without taking the subsequent fixture ownership', async () => {
+  await closeFixture(current!);
+  const old: FixtureScope = {active: true};
+  current = old;
+  const gate = deferred<ViteDevServer>();
+  const lateServer = await createFixtureServer();
+  const closed = vi.spyOn(lateServer, 'close');
+  const pending = prepareFixture(old, () => gate.promise).catch(error => error);
+  await closeFixture(old);
+  const next = await nextFixture();
+  const mounted = await mountOptions();
+  const ownedUnmount = unmount, ownedGlobal = (globalThis as any)[TEST_KEY];
+  gate.resolve(lateServer);
+  expect(await pending).toEqual(inactive());
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(current).toBe(next);expect(unmount).toBe(ownedUnmount);
+  expect((globalThis as any)[TEST_KEY]).toBe(ownedGlobal);
+  expect(mounted.addEventListener.mock.calls.filter(([event]) => event === 'hashchange')).toHaveLength(1);
+  expect(mounted.releaseAppearance).not.toHaveBeenCalled();
+  const listener = mounted.addEventListener.mock.calls.find(([event]) => event === 'hashchange')?.[1];
+  unmount?.();unmount = undefined;
+  expect(mounted.removeEventListener).toHaveBeenCalledWith('hashchange', listener);
+  expect(mounted.unsubscribeConfig).toHaveBeenCalledOnce();
+});
+
+it.each(['resolve', 'reject'] as const)('rejects a late SSR loader %s without mounting or replacing the next fixture cleanup', async outcome => {
+  const old = current!;
+  const gate = deferred<Record<string, any>>(), loaded = deferred<Record<string, any>>();
+  const failure = new Error('original delayed loader failure');
+  const pending = mountOptions('#settings-learning-center', Promise.resolve(), undefined, async ownedServer => {
+    loaded.resolve(await ownedServer.ssrLoadModule('/src/app/options/OptionsApp.vue'));
+    return gate.promise;
+  }).catch(error => error);
+  const actualModule = await loaded.promise;
+  const oldGlobals = (globalThis as any)[TEST_KEY];
+  const closed = vi.spyOn(old.server!, 'close');
+  await closeFixture(old);
+  const next = await nextFixture();
+  const mounted = await mountOptions();
+  const ownedUnmount = unmount, ownedGlobal = (globalThis as any)[TEST_KEY];
+  if (outcome === 'resolve') gate.resolve(actualModule);else gate.reject(failure);
+  const error = await pending;
+  if (outcome === 'resolve') expect(error).toEqual(inactive());else expect(error).toBe(failure);
+  expect(closed).toHaveBeenCalledTimes(1);
+  expect(oldGlobals.theme).not.toHaveBeenCalled();expect(oldGlobals.registerAppearance).not.toHaveBeenCalled();
+  expect(current).toBe(next);expect(unmount).toBe(ownedUnmount);
+  expect((globalThis as any)[TEST_KEY]).toBe(ownedGlobal);
+  expect(mounted.addEventListener.mock.calls.filter(([event]) => event === 'hashchange')).toHaveLength(1);
+  const listener = mounted.addEventListener.mock.calls.find(([event]) => event === 'hashchange')?.[1];
+  unmount?.();unmount = undefined;
+  expect(mounted.removeEventListener).toHaveBeenCalledWith('hashchange', listener);
+  expect(mounted.unsubscribeConfig).toHaveBeenCalledOnce();
 });

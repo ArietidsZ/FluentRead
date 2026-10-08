@@ -6,6 +6,7 @@
 // 浏览器，也不会通过 page.evaluate 派发伪造的键盘事件。Control 和 Alt+T
 // 都由 Playwright keyboard API 发送真实的浏览器按键。
 
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -19,6 +20,11 @@ const {
 const PRODUCTION_SOURCE_ROOTS = ['src', 'entrypoints', 'components', 'public', 'styles'];
 const PRODUCTION_CONFIG_FILES = ['package.json', 'pnpm-lock.yaml', 'wxt.config.ts', 'tsconfig.json'];
 const INTERACTION_CLOSE_ATTEMPT_TIMEOUT = 1500;
+// 仅本进程从当前 tracker 读取的覆盖快照可以携带 unchanged credit；历史 JSON/裸计数不认证。
+const trustedCoverageSnapshots = new WeakMap();
+const ownedCompletionReaders = new WeakSet();
+const ownerCompletionLedgers = new WeakMap();
+const trustedCompletionStatuses = new WeakMap();
 const SINGLE_TOKEN_TECHNICAL_WORDS = new Set([
   'accept', 'api', 'authorization', 'cookie', 'css', 'etag', 'host', 'html', 'http', 'https', 'json',
   'referer', 'referrer', 'sql', 'tcp', 'tls', 'udp', 'uri', 'url', 'user-agent', 'xml',
@@ -99,6 +105,7 @@ function reportProgress(message) {
 
 function parseArgs(argv) {
   const args = {
+    focusSafeHelper: path.join(__dirname, 'testing/focus-safe-browser.cjs'),
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
     background: true,
     allowNetwork: false,
@@ -164,8 +171,20 @@ function assertCoverageReport(rules, report, phase) {
     if (state.seenCount < rule.minSeen) {
       errors.push(`${rule.name} 仅发现 ${state.seenCount}/${rule.minSeen} 个可译节点`);
     }
-    if (state.translatedCount !== state.seenCount) {
-      errors.push(`${rule.name} 仅翻译 ${state.translatedCount}/${state.seenCount} 个节点` +
+    const unchanged = state.verifiedUnchangedCount ?? 0;
+    const completed = state.completedCount ?? state.translatedCount;
+    const snapshot = trustedCoverageSnapshots.get(report);
+    const trusted = snapshot?.counts.get(rule.name);
+    const verified = unchanged === 0 || (trusted &&
+      snapshot.ledger && ownerCompletionLedgers.get(snapshot.page) === snapshot.ledger &&
+      ['translatedCount', 'verifiedUnchangedCount', 'completedCount', 'completionSessionId', 'completionPass']
+        .every((field) => trusted[field] === state[field]) &&
+      Number.isSafeInteger(state.completionSessionId) && state.completionSessionId > 0 &&
+      Number.isSafeInteger(state.completionPass) && state.completionPass > 0);
+    if (!verified || ![state.translatedCount, unchanged, completed].every((count) => Number.isSafeInteger(count) && count >= 0) ||
+        completed !== state.translatedCount + unchanged || completed !== state.seenCount) {
+      errors.push(`${rule.name} 仅翻译 ${state.translatedCount}/${state.seenCount} 个节点，` +
+        `已验证相同 ${unchanged}，完成 ${completed}/${state.seenCount}` +
         (state.missedSamples?.length ? `，漏译：${JSON.stringify(state.missedSamples)}` : ''));
     }
     for (const expectedText of rule.sourceIncludes) {
@@ -544,6 +563,16 @@ async function installCoverageTracker(page, rules) {
         }
       }
     };
+    // Receipt 只绑定本次 pass 的原 Node；不沿用动态 record 的重挂身份。
+    let completionPass = 0;
+    let completionSession = null;
+    let nextBinding = 0;
+    const completionBindings = new Map();
+    const unchangedCompletions = new Map();
+    const clearCompletions = () => {
+      completionBindings.clear();
+      unchangedCompletions.clear();
+    };
     const observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         if (isArtifactOnlyMutation(mutation)) {
@@ -560,6 +589,8 @@ async function installCoverageTracker(page, rules) {
           continue;
         }
         metrics.hostMutationCount += 1;
+        // 保守复用已有 host epoch：同文交换再返回也立即撤销 pending，不能恢复旧资格。
+        clearCompletions();
         processHostMutation(mutation);
       }
     });
@@ -568,7 +599,6 @@ async function installCoverageTracker(page, rules) {
       childList: true,
       characterData: true,
       attributes: true,
-      attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'inert'],
     });
     document.addEventListener('scroll', cheapRefresh, true);
     initialScan();
@@ -615,11 +645,119 @@ async function installCoverageTracker(page, rules) {
       return record ? {state, record, generationMatches: record.generation === generation} : null;
     };
 
+    // 只核对有限的 missing owner；真实 Text 身份和全部结构属性也覆盖尚未交付的 mutation。
+    const completionIdentity = (node) => {
+      const pending = [node];
+      const nodes = [];
+      const structure = [];
+      let bytes = 0;
+      while (pending.length) {
+        if (nodes.length >= 4096) return null;
+        const current = pending.pop();
+        if (current.nodeType === Node.ELEMENT_NODE && current.matches(ownedSelector)) continue;
+        const value = current.nodeType === Node.TEXT_NODE ? current.nodeValue
+          : current.nodeType === Node.ELEMENT_NODE
+            ? [current.tagName, [...current.attributes].map(attribute => [attribute.name, attribute.value]).sort()]
+            : current.nodeType;
+        const part = JSON.stringify(value);
+        bytes += part.length;
+        if (bytes > 32768) return null;
+        structure.push(part);
+        nodes.push(new WeakRef(current));
+        if (nodes.length + pending.length + current.childNodes.length > 4096) return null;
+        for (let index = current.childNodes.length - 1; index >= 0; index -= 1) pending.push(current.childNodes[index]);
+      }
+      return {nodes, structure: JSON.stringify(structure)};
+    };
+    const bindingCurrent = (binding) => {
+      if (!binding || binding.pass !== completionPass || binding.sessionId !== completionSession ||
+          binding.hostRevision !== metrics.hostMutationCount ||
+          (binding.deadline !== undefined && Date.now() >= binding.deadline)) return false;
+      const node = binding.nodeRef?.deref();
+      if (!node) return false;
+      const found = findToken(binding.token);
+      if (!found?.generationMatches || found.record.node !== node ||
+          found.record.sourceText !== binding.source ||
+          document.querySelectorAll(binding.selector)[binding.index] !== node) return false;
+      const current = completionIdentity(node);
+      if (!current || current.structure !== binding.identity.structure ||
+          current.nodes.length !== binding.identity.nodes.length ||
+          current.nodes.some((reference, index) => reference.deref() !== binding.identity.nodes[index].deref())) return false;
+      const status = statusFor(found.state, found.record);
+      return status.connected && status.eligible && status.source === binding.source &&
+        !status.loading && !status.retry &&
+        !node.querySelector(ownedSelector);
+    };
+    const recordVerifiedUnchanged = (state, record) =>
+      bindingCurrent(unchangedCompletions.get(recordToken(state, record)));
+    const validReceipt = (receipt, binding) => receipt?.status === 'available' &&
+      receipt.reason === 'accepted-result-identical' && receipt.sessionId === completionSession &&
+      receipt.source === binding.source && receipt.sourceCurrent === true &&
+      Array.isArray(receipt.sources) && receipt.sources.length === 1 && receipt.sources[0] === binding.source &&
+      Array.isArray(receipt.outputs) && receipt.outputs.length === 1 &&
+      typeof receipt.outputs[0] === 'string' && normalizeText(receipt.outputs[0]) !== '' &&
+      normalizeText(receipt.outputs[0]) === normalizeText(binding.source) &&
+      Number.isSafeInteger(receipt.generation) && receipt.generation >= 0 &&
+      typeof receipt.configuredService === 'string' && receipt.configuredService.trim() !== '' &&
+      typeof receipt.targetLanguage === 'string' && receipt.targetLanguage.trim() !== '' &&
+      Number.isFinite(receipt.completedAtUnixMs) && receipt.completedAtUnixMs > 0 &&
+      Number.isSafeInteger(receipt.renderCommitGeneration) && receipt.renderCommitGeneration >= 0 &&
+      receipt.requestBoundary === 'accepted-same-session-result-reuse' &&
+      receipt.upstreamDispatchAndRoute === 'unavailable';
+
     window[trackerKey] = {
       scan: cheapRefresh,
-      metrics: () => ({...metrics}),
+      metrics: () => ({...metrics, pendingCompletionBindings: completionBindings.size}),
       beginRevealRound() { activatedMissing.clear(); },
+      beginCompletionPass(sessionId) {
+        completionPass += 1;
+        completionSession = Number.isSafeInteger(sessionId) && sessionId > 0 ? sessionId : null;
+        clearCompletions();
+        return completionPass;
+      },
+      clearCompletionReceipts() { clearCompletions(); },
+      discardUnchangedQueries(batch) {
+        for (const item of batch) completionBindings.delete(item.bindingId);
+      },
+      prepareUnchangedQueries(tokens, sessionId, pass, deadline = Date.now() + 2000) {
+        completionBindings.clear(); // pending 只保存 WeakRef；忙碌 renderer 也不滞留强 Node 引用。
+        if (sessionId !== completionSession || pass !== completionPass || completionSession === null) return [];
+        return tokens.slice(0, 16).flatMap((token) => {
+          const found = findToken(token);
+          if (!found?.generationMatches) return [];
+          const {state, record} = found;
+          const index = [...document.querySelectorAll(state.rule.selector)].indexOf(record.node);
+          const identity = completionIdentity(record.node);
+          if (!identity) return [];
+          const binding = {token, selector: state.rule.selector, index, source: record.sourceText,
+            sessionId, pass, nodeRef: new WeakRef(record.node), identity, deadline, hostRevision: metrics.hostMutationCount};
+          if (index < 0 || !bindingCurrent(binding)) return [];
+          const bindingId = ++nextBinding;
+          completionBindings.set(bindingId, binding);
+          binding.bindingId = bindingId;
+          return [{bindingId, token, hostRevision: binding.hostRevision,
+            query: {selector: binding.selector, index, source: binding.source, sessionId}}];
+        });
+      },
+      acceptUnchangedQueries(batch, response, sessionId, pass) {
+        const validResponse = sessionId === completionSession && pass === completionPass &&
+          response?.status === 'success' && response.sessionId === sessionId &&
+          Array.isArray(response.outcomes) && response.outcomes.length === batch.length;
+        for (let index = 0; index < batch.length; index += 1) {
+          const binding = completionBindings.get(batch[index].bindingId);
+          completionBindings.delete(batch[index].bindingId);
+          const receipt = response?.outcomes?.[index];
+          if (!validResponse || !bindingCurrent(binding) || !validReceipt(receipt, binding)) continue;
+          const {deadline: _deadline, ...identity} = binding;
+          // API generation 是 owner 局部值，仅检查字段形状，不作为唯一身份或 tracker generation。
+          unchangedCompletions.set(binding.token, {...identity,
+            generation: receipt.generation, renderCommitGeneration: receipt.renderCommitGeneration});
+        }
+      },
       reset() {
+        completionPass += 1;
+        completionSession = null;
+        clearCompletions();
         activatedMissing.clear();
         for (const state of states) {
           state.recordsById.clear();
@@ -658,10 +796,13 @@ async function installCoverageTracker(page, rules) {
         return tokens.map((token) => {
           const found = findToken(token);
           if (found) {
-            const status = statusFor(found.state, found.record, token);
+            const status = {...statusFor(found.state, found.record, token),
+              verifiedUnchanged: recordVerifiedUnchanged(found.state, found.record),
+              completionBindingId: unchangedCompletions.get(token)?.bindingId,
+              completionPass, completionSessionId: completionSession};
             if (found.generationMatches ||
                 (!status.connected && found.state.rule.trackDynamic && found.record.translatedEver)) return status;
-            return {...status, translated: false, reason: 'stale-generation'};
+            return {...status, translated: false, verifiedUnchanged: false, reason: 'stale-generation'};
           }
           return {token, connected: false, eligible: false, translated: false, loading: false, retry: false,
             rule: '', source: '', reason: 'stale-token'};
@@ -697,15 +838,24 @@ async function installCoverageTracker(page, rules) {
           const values = [...recordsById.values()];
           // 对仍连接的节点必须看到“当前”归属于它的 wrapper；translatedEver
           // 只用于虚拟列表中已经移除的动态节点，不能让旧译文冒充重译成功。
-          const missed = values.filter((record) => record.node?.isConnected
-            ? !recordCurrentlyTranslated(state, record)
-            : !record.translatedEver);
+          const translated = values.filter((record) => record.node?.isConnected
+            ? recordCurrentlyTranslated(state, record) : record.translatedEver);
+          const translatedSet = new Set(translated);
+          const unchanged = values.filter((record) => !translatedSet.has(record) && recordVerifiedUnchanged(state, record));
+          const unchangedSet = new Set(unchanged);
+          const missed = values.filter((record) => !translatedSet.has(record) && !unchangedSet.has(record));
           return {
             name: rule.name,
             selector: rule.selector,
             seenCount: values.length,
             dynamicSeenCount: values.filter((record) => record.firstSeenAfterStart).length,
-            translatedCount: values.length - missed.length,
+            translatedCount: translated.length,
+            verifiedUnchangedCount: unchanged.length,
+            unchangedEvidence: unchanged.map(record => ({token: recordToken(state, record), source: record.sourceText,
+              bindingId: unchangedCompletions.get(recordToken(state, record))?.bindingId})),
+            completedCount: translated.length + unchanged.length,
+            completionSessionId: completionSession,
+            completionPass,
             sourceSamples: values.slice(0, 16).map((record) => record.sourceText),
             matchedSourceIncludes: rule.sourceIncludes.filter((fragment) =>
               values.some((record) => record.sourceText.includes(fragment))),
@@ -742,6 +892,8 @@ async function installCoverageTracker(page, rules) {
         });
       },
       stop() {
+        completionSession = null;
+        clearCompletions();
         observer.disconnect();
         document.removeEventListener('scroll', cheapRefresh, true);
       },
@@ -760,7 +912,39 @@ async function observeCoverage(page) {
 }
 
 async function readCoverageReport(page) {
-  return page.evaluate((trackerKey) => window[trackerKey]?.report?.() || [], COVERAGE_TRACKER_KEY);
+  const report = await page.evaluate((trackerKey) => window[trackerKey]?.report?.() || [], COVERAGE_TRACKER_KEY);
+  const ledger = ownerCompletionLedgers.get(page);
+  for (const state of report) {
+    const evidence = new Map((state.unchangedEvidence || []).map(item => [item.bindingId, item]));
+    state.verifiedUnchangedCount = ledger && state.completionPass === ledger.pass &&
+      state.completionSessionId === ledger.sessionId
+      ? [...evidence.values()].filter(item => {
+        const accepted = ledger.accepted.get(item.bindingId);
+        return accepted && accepted.token === item.token && accepted.query.source === item.source;
+      }).length : 0;
+    state.completedCount = state.translatedCount + state.verifiedUnchangedCount;
+  }
+  trustedCoverageSnapshots.set(report, {page, ledger, counts: new Map(report.map((state) => [state.name, {
+    translatedCount: state.translatedCount, verifiedUnchangedCount: state.verifiedUnchangedCount,
+    completedCount: state.completedCount, completionSessionId: state.completionSessionId,
+    completionPass: state.completionPass,
+  }]))});
+  return report;
+}
+
+async function readCoverageStatuses(page, tokens) {
+  const statuses = await page.evaluate(({trackerKey, requestedTokens}) =>
+    window[trackerKey]?.missingStatuses?.(requestedTokens) || [],
+  {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens});
+  const ledger = ownerCompletionLedgers.get(page);
+  for (const status of statuses) {
+    const accepted = ledger?.accepted.get(status.completionBindingId);
+    status.verifiedUnchanged = Boolean(status.verifiedUnchanged && accepted &&
+      ledger.pass === status.completionPass && ledger.sessionId === status.completionSessionId &&
+      accepted.token === status.token && accepted.query.source === status.source);
+    if (status.verifiedUnchanged) trustedCompletionStatuses.set(status, {page, ledger});
+  }
+  return statuses;
 }
 
 async function readCoverageRestoration(page) {
@@ -768,11 +952,172 @@ async function readCoverageRestoration(page) {
 }
 
 async function resetCoverageTracker(page) {
+  ownerCompletionLedgers.delete(page);
   await page.evaluate((trackerKey) => window[trackerKey]?.reset?.(), COVERAGE_TRACKER_KEY);
 }
 
+// 复用 owned profile 的现有 service worker -> frame 0 消息；只读，不打开/激活窗口。
+async function createUnchangedCompletionReader(context, page, timeout) {
+  const worker = context.serviceWorkers()[0];
+  const url = page.url();
+  if (!worker || !/^chrome-extension:\/\//u.test(worker.url())) return async () => null;
+  const evaluate = async (fn, argument, remainingMs = timeout) => {
+    let timer;
+    try {
+      return await Promise.race([
+        worker.evaluate(fn, argument),
+        new Promise((resolve) => {timer = setTimeout(() => resolve(null), Math.max(1, Math.min(remainingMs, timeout, 2000)));}),
+      ]);
+    } catch { return null; }
+    finally { clearTimeout(timer); }
+  };
+  const tabId = await evaluate(async (targetUrl) => {
+    const tabs = await chrome.tabs.query({active: true});
+    const matches = tabs.filter((tab) => tab.url === targetUrl && Number.isInteger(tab.id));
+    return matches.length === 1 ? matches[0].id : null;
+  }, url);
+  if (!Number.isInteger(tabId)) return async () => null;
+  const read = async (unchangedQueries, remainingMs = timeout) => {
+    if (page.url() !== url || remainingMs <= 0 || !Array.isArray(unchangedQueries) || unchangedQueries.length > 16) return null;
+    return evaluate(({tabId: ownedTabId, url: ownedUrl, queries}) => new Promise((resolve) => {
+      chrome.tabs.get(ownedTabId, (tab) => {
+        if (chrome.runtime.lastError || tab?.url !== ownedUrl) { resolve(null); return; }
+        chrome.tabs.sendMessage(ownedTabId, {type: 'getFullPageTranslationState', unchangedQueries: queries},
+          {frameId: 0}, (reply) => resolve(chrome.runtime.lastError ? null : reply));
+      });
+    }), {tabId, url, queries: unchangedQueries}, remainingMs);
+  };
+  ownedCompletionReaders.add(read);
+  return read;
+}
+
+// 一个共享截止时间包住新增消息和页面操作；迟到的 Promise 不取得 Node 侧 authority。
+async function completionOperation(deadline, operation) {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw new Error('owner-completion-budget');
+  let timer;
+  try {
+    const value = await Promise.race([Promise.resolve().then(operation), new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('owner-completion-budget')), remaining);
+    })]);
+    if (Date.now() >= deadline) throw new Error('owner-completion-budget');
+    return value;
+  } finally { clearTimeout(timer); }
+}
+
+async function clearCoverageCompletionPass(page) {
+  ownerCompletionLedgers.delete(page);
+  try {
+    await completionOperation(Date.now() + 2000, () =>
+      page.evaluate(key => window[key]?.beginCompletionPass?.(null), COVERAGE_TRACKER_KEY));
+  } catch { /* 无认证；迟到的页面清理只可能撤销证明。 */ }
+}
+
+async function beginCoverageCompletionPass(page, readCompletion, previousSessionId = null) {
+  const deadline = Date.now() + 2000;
+  ownerCompletionLedgers.delete(page);
+  // 先撤销上个 pass；不能等新 session 回读后才清除旧 credit。
+  try {
+    await completionOperation(deadline, () => page.evaluate((key) => window[key]?.beginCompletionPass?.(null), COVERAGE_TRACKER_KEY));
+    const response = ownedCompletionReaders.has(readCompletion)
+      ? await completionOperation(deadline, () => readCompletion([], deadline - Date.now())) : null;
+    const sessionId = response?.status === 'success' && Array.isArray(response.outcomes) && response.outcomes.length === 0 &&
+      Number.isSafeInteger(response.sessionId) && response.sessionId > 0 &&
+      response.sessionId !== previousSessionId ? response.sessionId : null;
+    const pass = await completionOperation(deadline, () => page.evaluate(({key, sessionId: current}) =>
+      window[key]?.beginCompletionPass?.(current), {key: COVERAGE_TRACKER_KEY, sessionId}));
+    const identity = {sessionId, pass};
+    if (sessionId && Number.isSafeInteger(pass) && pass > 0) ownerCompletionLedgers.set(page, {...identity, accepted: new Map()});
+    return identity;
+  } catch { return {sessionId: null, pass: null}; }
+}
+
+async function verifyCoverageUnchanged(page, readCompletion, identity, timeout) {
+  const deadline = Date.now() + Math.min(Math.max(0, timeout), 2000);
+  let ledger = ownerCompletionLedgers.get(page);
+  if (!ownedCompletionReaders.has(readCompletion) || !identity?.sessionId ||
+      !ledger || ledger.sessionId !== identity.sessionId || ledger.pass !== identity.pass) {
+    ownerCompletionLedgers.delete(page);
+    return;
+  }
+  // 每次重新核验都撤销旧快照/状态的 authority，即使 pass/session 尚未换代。
+  ledger = {sessionId: ledger.sessionId, pass: ledger.pass, accepted: new Map()};
+  ownerCompletionLedgers.set(page, ledger);
+  const pageOperation = (fn, argument) => completionOperation(deadline, () => page.evaluate(fn, argument));
+  const read = queries => completionOperation(deadline, () => readCompletion(queries, deadline - Date.now()));
+  const stillCurrent = (response) => response?.status === 'success' && response.sessionId === identity.sessionId &&
+    Array.isArray(response.outcomes) && response.outcomes.length === 0;
+  let complete = false;
+  try {
+    await pageOperation((key) => window[key]?.clearCompletionReceipts?.(), COVERAGE_TRACKER_KEY);
+    if (!stillCurrent(await read([]))) return;
+    const missing = await pageOperation((key) => window[key]?.snapshotMissing?.() || [], COVERAGE_TRACKER_KEY);
+    for (let offset = 0; offset < missing.length && Date.now() < deadline; offset += 16) {
+      const batch = await pageOperation(({key, tokens, sessionId, pass, deadline}) =>
+        window[key]?.prepareUnchangedQueries?.(tokens, sessionId, pass, deadline) || [],
+      {key: COVERAGE_TRACKER_KEY, tokens: missing.slice(offset, offset + 16).map((item) => item.token), ...identity, deadline});
+      if (!batch.length) continue;
+      try {
+        const response = await read(batch.map((item) => item.query));
+        // 只有 owned worker 回读、页面精确复验均在同一预算内结束后才记录 authority。
+        await pageOperation(({key, batch: requested, response: reply, sessionId, pass}) =>
+          window[key]?.acceptUnchangedQueries?.(requested, reply, sessionId, pass),
+        {key: COVERAGE_TRACKER_KEY, batch, response, ...identity});
+        const current = await pageOperation(({key, tokens}) => window[key]?.missingStatuses?.(tokens) || [],
+          {key: COVERAGE_TRACKER_KEY, tokens: batch.map(item => item.token)});
+        if (response?.status === 'success' && response.sessionId === identity.sessionId &&
+            Array.isArray(response.outcomes) && response.outcomes.length === batch.length) {
+          batch.forEach((item, index) => {
+            const status = current.find(value => value.token === item.token && value.completionBindingId === item.bindingId);
+            if (status?.verifiedUnchanged && status.source === item.query.source &&
+                acceptedOwnerCompletion(response.outcomes[index], item.query)) ledger.accepted.set(item.bindingId, item);
+          });
+        }
+      } finally {
+        await pageOperation(({key, batch: requested}) => window[key]?.discardUnchangedQueries?.(requested),
+          {key: COVERAGE_TRACKER_KEY, batch});
+      }
+    }
+    complete = stillCurrent(await read([]));
+  } catch (error) {
+    if (error.message !== 'owner-completion-budget') throw error;
+  } finally {
+    if (!complete) {
+      ownerCompletionLedgers.delete(page);
+      // pending/accepted 仅 WeakRef；零剩余预算不再启动可阻塞的 cleanup await。
+      if (Date.now() < deadline) {
+        try { await pageOperation((key) => window[key]?.clearCompletionReceipts?.(), COVERAGE_TRACKER_KEY); }
+        catch { /* Node authority 已撤销；页面迟到结果不能认证。 */ }
+      }
+    }
+  }
+}
+
+// 页面 tracker 的旗标只描述 DOM 状态；认证必须同时来自 owned worker 的实际响应。
+function acceptedOwnerCompletion(receipt, query) {
+  return receipt?.status === 'available' && receipt.reason === 'accepted-result-identical' &&
+    receipt.sessionId === query.sessionId && receipt.source === query.source && receipt.sourceCurrent === true &&
+    Array.isArray(receipt.sources) && receipt.sources.length === 1 && receipt.sources[0] === query.source &&
+    Array.isArray(receipt.outputs) && receipt.outputs.length === 1 && typeof receipt.outputs[0] === 'string' &&
+    receipt.outputs[0].replace(/[\s\u3000]+/gu, ' ').trim() !== '' &&
+    receipt.outputs[0].replace(/[\s\u3000]+/gu, ' ').trim() === query.source.replace(/[\s\u3000]+/gu, ' ').trim() &&
+    Number.isSafeInteger(receipt.generation) && receipt.generation >= 0 &&
+    Number.isSafeInteger(receipt.renderCommitGeneration) && receipt.renderCommitGeneration >= 0 &&
+    typeof receipt.configuredService === 'string' && receipt.configuredService.trim() !== '' &&
+    typeof receipt.targetLanguage === 'string' && receipt.targetLanguage.trim() !== '' &&
+    Number.isFinite(receipt.completedAtUnixMs) && receipt.completedAtUnixMs > 0 &&
+    receipt.requestBoundary === 'accepted-same-session-result-reuse' && receipt.upstreamDispatchAndRoute === 'unavailable';
+}
+
+function hasVerifiedUnchangedStatus(status) {
+  const trusted = trustedCompletionStatuses.get(status);
+  return trusted && ownerCompletionLedgers.get(trusted.page) === trusted.ledger &&
+    status.verifiedUnchanged === true && status.connected === true && status.eligible === true &&
+    status.loading === false && status.retry === false && !status.reason;
+}
+
 function validateCoverageRevealStatuses(statuses, phase) {
-  const unresolved = statuses.filter((status) => !status.translated);
+  const unresolved = statuses.filter((status) => !status.translated && !hasVerifiedUnchangedStatus(status));
   if (unresolved.length === 0) return;
   throw new Error(`${phase} 仍有正文节点未收敛：${JSON.stringify(unresolved.map((status) => ({
     token: status.token,
@@ -789,8 +1134,8 @@ function validateCoverageRevealStatuses(statuses, phase) {
 // 候选发现遍历会刻意分时执行。测试中的合成滚动可能在 IntersectionObserver 挂接前
 // 越过较晚发现的节点，而真实用户返回该区域时会触发它。这里冻结一批当前仍连接、
 // 尚未满足严格覆盖的节点，并各自给予一次可见机会。覆盖标准本身不会放宽：
-// 有界收敛后仍在重试、服务结果未变化、节点断开或缺少 wrapper，测试都会失败。
-async function settleCoverageByReveal(page, timeout, phase, round = 0) {
+// 有界收敛后每个 missing 必须有中文 wrapper 或当前 pass 精确 owner 完成 receipt。
+async function settleCoverageByReveal(page, timeout, phase, round = 0, verifyUnchanged) {
   const startedAt = Date.now();
   const maxAttempts = 256;
   const dwellMs = 2000;
@@ -859,21 +1204,19 @@ async function settleCoverageByReveal(page, timeout, phase, round = 0) {
   }
   await waitForTranslationIdle(page, remaining, `${phase}逐节点唤醒后`, 0);
   await observeCoverage(page);
-  const statuses = await page.evaluate(
-    ({trackerKey, requestedTokens}) => window[trackerKey]?.missingStatuses?.(requestedTokens) || [],
-    {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens},
-  );
-  const unresolved = statuses.filter((status) => !status.translated);
+  if (verifyUnchanged) await verifyUnchanged(Math.max(0, deadline - Date.now()));
+  const statuses = await readCoverageStatuses(page, tokens);
+  const unresolved = statuses.filter((status) => !status.translated && !hasVerifiedUnchangedStatus(status));
   if (unresolved.length > 0 && round < 2 && unresolved.length < batch.length) {
     // 免费服务慢请求占满并发槽时，先等已派发请求收敛，再为尚未派发的节点
     // 提供一次新的可见机会；不能让快速模拟滚动永久撤回它们的 pending。
-    return settleCoverageByReveal(page, timeout, phase, round + 1);
+    return settleCoverageByReveal(page, timeout, phase, round + 1, verifyUnchanged);
   }
   if (unresolved.length > 0) {
     const diagnostics = await page.evaluate(
       ({trackerKey, requestedTokens}) => window[trackerKey]?.diagnoseMissing?.(requestedTokens) || [],
       {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens.filter((token) =>
-        statuses.some((status) => status.token === token && !status.translated))},
+        statuses.some((status) => status.token === token && !status.translated && !hasVerifiedUnchangedStatus(status)))},
     );
     process.stderr.write(`${phase} 诊断：${JSON.stringify(diagnostics)}\n`);
     const runtimeState = await page.evaluate(() => {
@@ -948,6 +1291,7 @@ async function readConfig(context, timeout, createPage, activateTab) {
   const match = worker.url().match(/^chrome-extension:\/\/([^/]+)/);
   if (!match) throw new Error('没有找到扩展 service worker');
   const popup = await createPage(context, timeout);
+  let primaryError;
   try {
     await popup.goto(`chrome-extension://${match[1]}/popup.html`, {waitUntil: 'domcontentloaded', timeout: 30000});
     await activateTab(context, popup, timeout);
@@ -967,8 +1311,12 @@ async function readConfig(context, timeout, createPage, activateTab) {
       throw new Error(response?.error || '后台配置读取没有返回结果');
     }
     return {extensionId: match[1], config: normalizeConfig(response.value)};
-  } finally {
-    await popup.close();
+  } catch (error) {primaryError = error; throw error;}
+  finally {
+    try {await popup.close();} catch (error) {
+      if (!primaryError) throw error;
+      process.stderr.write(`Popup close failed: ${error.stack || error}\n`);
+    }
   }
 }
 
@@ -1052,6 +1400,19 @@ async function waitForStableTarget(page, selector, timeout) {
       selector: targetSelector,
       count: document.querySelectorAll(targetSelector).length,
       bodyText: (document.body?.innerText || '').replace(/\s+/gu, ' ').slice(0, 500),
+      // 标题节点未出现时保留真实 issue 链接和列表状态，不用泛化 selector 掩盖失败。
+      mainText: (document.querySelector('main')?.innerText || '').replace(/\s+/gu, ' ').slice(0, 6000),
+      issueLinks: [...document.querySelectorAll('a[href]')]
+        .filter((node) => /\/issues\/\d+(?:[?#]|$)/u.test(node.getAttribute('href') || ''))
+        .slice(0, 20).map((node) => ({
+          href: node.getAttribute('href'),
+          testId: node.getAttribute('data-testid'),
+          text: (node.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 240),
+          html: node.outerHTML.slice(0, 900),
+        })),
+      busyRegions: [...document.querySelectorAll('main [aria-busy="true"], main [role="alert"]')]
+        .slice(0, 8).map((node) => ({role: node.getAttribute('role'), busy: node.getAttribute('aria-busy'),
+          text: (node.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 300)})),
       samples: [...document.querySelectorAll('main p, article p, h1, h2, [itemprop="description"]')]
         .slice(0, 12).map((node) => ({tag: node.tagName, className: node.className, text: (node.textContent || '').trim().slice(0, 100)})),
     }), selector);
@@ -1505,42 +1866,46 @@ async function waitForTranslationIdle(page, timeout, phase, minimumRetryBudget =
       {timeout: maximumDurationMs + 1000, polling: 100},
     );
   } catch (error) {
-    const diagnostics = await page.evaluate(({loadingSelector, retrySelector}) => {
-      const describe = (node) => ({
+    // 失败时先传播原 wait 错误；owner 取证由 main 的共享两秒 collector 负责。
+    // 已失去响应的页面不能让无预算 evaluate 阻止错误传播或替换其 cause。
+    throw new Error(`${phase} 等待翻译请求结束超时：${error?.message || String(error)}`, {cause: error});
+  } finally {
+    // context finally 是最终清理边界；迟到或拒绝的 key 删除不阻塞失败传播。
+    void Promise.resolve().then(() => page.evaluate((key) => { delete window[key]; }, idleKey)).catch(() => {});
+  }
+
+  const retries = await page.evaluate((selector) => {
+    const notices = () => [...(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot
+      ?.querySelectorAll('.page-notice') || [])];
+    const text = (notice) => (notice.querySelector('.notice-detail')?.textContent || '').trim();
+    return [...document.querySelectorAll(selector)].map((node) => {
+      const before = new Map(notices().map((notice) => [notice, {
+        text: text(notice), leaving: notice.classList.contains('is-leaving'),
+      }]));
+      const action = node.querySelector('.fluent-read-reason');
+      action?.click();
+      const active = notices().filter((notice) => !notice.classList.contains('is-leaving'));
+      const changed = active.filter((notice) => !before.has(notice)
+        || before.get(notice).text !== text(notice) || before.get(notice).leaving);
+      // 仅凭唯一旧通知不能证明当前 action 的归属；无可观察更新时保留失败 owner，但不填原因。
+      const notice = action && changed.length === 1 ? changed[0] : undefined;
+      return {
         ownerTag: node.parentElement?.tagName || '',
         ownerId: node.parentElement?.id || '',
         ownerClass: typeof node.parentElement?.className === 'string' ? node.parentElement.className : '',
         ownerText: (node.parentElement?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 240),
-      });
-      return {
-        loading: [...document.querySelectorAll(loadingSelector)].map(describe),
-        retries: [...document.querySelectorAll(retrySelector)].map(describe),
+        errorReason: notice ? text(notice).slice(0, 400) : '',
+        errorReasonStatus: !action ? 'missing-action' : notice ? 'observed-update'
+          : active.length ? 'ambiguous' : 'missing-notice',
       };
-    }, {loadingSelector: ownedLoading, retrySelector: ownedRetry});
-    throw new Error(`${phase} 等待翻译请求结束超时：${error.message}\n${JSON.stringify(diagnostics)}`);
-  } finally {
-    await page.evaluate((key) => { delete window[key]; }, idleKey).catch(() => {});
-  }
-
-  const retries = await page.evaluate((selector) => [...document.querySelectorAll(selector)].map((node) => {
-    // 只有终态失败时读取用户可见的“错误原因”；不暴露服务层原始请求或凭据。
-    node.querySelector('.fluent-read-reason')?.click();
-    const notice = document.querySelector('#fluent-read-page-notice-host')?.shadowRoot
-      ?.querySelector('.page-notice:last-child .notice-detail');
-    return {
-      ownerTag: node.parentElement?.tagName || '',
-      ownerId: node.parentElement?.id || '',
-      ownerClass: typeof node.parentElement?.className === 'string' ? node.parentElement.className : '',
-      ownerText: (node.parentElement?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 240),
-      errorReason: (notice?.textContent || '').trim().slice(0, 400),
-    };
-  }), ownedRetry);
+    });
+  }, ownedRetry);
   if (retries.length > 0) throw new Error(`${phase} 存在终态翻译失败：${JSON.stringify(retries)}`);
 }
 
 // 全文翻译使用可视区懒加载。回归时主动滚过页面，触发所有长页面内容块，
 // 然后等待插件的进行中任务和 loading 节点都清空，避免只验证到首屏。
-async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, targetSelector) {
+async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, targetSelector, verifyUnchanged) {
   const maxSteps = 320;
   const readScrollState = () => page.evaluate((selector) => {
     const container = selector ? document.querySelector(selector) : null;
@@ -1637,7 +2002,7 @@ async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, tar
     throw new Error(`全文翻译后页面仍未覆盖到底部：${JSON.stringify(finalBottom)}`);
   }
 
-  await settleCoverageByReveal(page, timeout, '全文覆盖收敛');
+  await settleCoverageByReveal(page, timeout, '全文覆盖收敛', 0, verifyUnchanged);
 
   await page.waitForTimeout(800);
   await page.evaluate((selector) => {
@@ -1767,12 +2132,30 @@ function findHoverTextPointInPage({selector, index}) {
   return candidates[0] || null;
 }
 
-async function waitForHoverPointer(page, targetConfig, timeout) {
+async function waitForHoverPointer(page, targetConfig, timeout, prepareClickText) {
   const started = Date.now();
   let previous;
   let stableSince = started;
+  let prepared = false;
   while (Date.now() - started < timeout) {
     const point = await page.evaluate(findHoverTextPointInPage, targetConfig);
+    // Cookie 面板可能在首次页面准备结束后出现。只复核 case 已声明的准备按钮，
+    // 原文 Range 无法命中时用可信点击关闭；不点击可折叠标题，也不退回标题外框。
+    if (!point && prepareClickText && !prepared) {
+      const button = page.getByText(prepareClickText, {exact: true}).filter({visible: true}).last();
+      if (await button.isVisible()) {
+        const clickBudget = timeout - (Date.now() - started);
+        if (clickBudget <= 0) break;
+        prepared = true;
+        await button.click({timeout: clickBudget});
+        const hideBudget = timeout - (Date.now() - started);
+        if (hideBudget <= 0) break;
+        await button.waitFor({state: 'hidden', timeout: hideBudget});
+        previous = null;
+        stableSince = Date.now();
+        continue;
+      }
+    }
     const stable = point && previous && point.textIndex === previous.textIndex && point.text === previous.text &&
       ['left', 'top', 'width', 'height'].every((key) => Math.abs(point.rect[key] - previous.rect[key]) < 0.5) &&
       Math.abs(point.x - previous.x) < 0.5 && Math.abs(point.y - previous.y) < 0.5;
@@ -1797,23 +2180,54 @@ async function waitForHoverPointer(page, targetConfig, timeout) {
     const hitStack = document.elementsFromPoint(hitX, hitY).slice(0, 6).map(element => ({
       tag: element.tagName, id: element.id, className: String(element.className).slice(0, 140),
     }));
+    // 外框命中不能证明文字未被遮挡；失败时记录实际嵌套原文的 Range 与命中元素。
+    const textRangeSamples = [];
+    if (node) {
+      const excluded = '[data-fr-translation-owned="true"], .fluent-read-bilingual-content, ' +
+        '.fluent-read-loading, .fluent-read-retry-wrapper, [hidden], [aria-hidden="true"], [inert]';
+      const walker = document.createTreeWalker(node, 4);
+      let textNode;
+      while (textRangeSamples.length < 8 && (textNode = walker.nextNode())) {
+        const parent = textNode.parentElement;
+        if (!parent || !textNode.textContent?.trim()) continue;
+        const style = getComputedStyle(parent);
+        const range = document.createRange();
+        range.selectNodeContents(textNode);
+        textRangeSamples.push({
+          text: textNode.textContent.slice(0, 120), parentTag: parent.tagName,
+          excluded: Boolean(parent.closest(excluded)), display: style.display, visibility: style.visibility,
+          rects: [...range.getClientRects()].slice(0, 4).map(rect => {
+            const left = Math.max(0, rect.left), right = Math.min(innerWidth, rect.right);
+            const top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+            const x = left + (right - left) * 0.35, y = top + (bottom - top) / 2;
+            const hit = document.elementFromPoint(x, y);
+            return {left: rect.left, top: rect.top, width: rect.width, height: rect.height, x, y,
+              clippedWidth: right - left, clippedHeight: bottom - top,
+              hit: hit && {tag: hit.tagName, className: String(hit.className).slice(0, 140),
+                insideTarget: node.contains(hit), excluded: Boolean(hit.closest(excluded)),
+                containsTextParent: hit === parent || hit.contains(parent)}};
+          }),
+        });
+      }
+    }
     return {html: node?.outerHTML.slice(0, 900), rect: rect && {x: rect.x, y: rect.y, width: rect.width, height: rect.height},
-      viewport: {width: innerWidth, height: innerHeight}, sample, hitStack,
+      viewport: {width: innerWidth, height: innerHeight}, sample, hitStack, textRangeSamples,
       listSamples: [...document.querySelectorAll('main li')].slice(0, 40).map(item => ({
         text: item.textContent?.trim().replace(/\s+/gu, ' ').slice(0, 90),
         className: item.className,
         parentClass: item.parentElement?.className,
       }))};
   }, targetConfig);
-  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous, targetState})}`);
+  throw new Error(`悬浮原文没有稳定且可命中的位置：${JSON.stringify({targetConfig, lastPoint: previous, targetState,
+    preparation: {text: prepareClickText || '', clicked: prepared}})}`);
 }
 
-async function toggleHover(page, target, targetConfig, expectedCount, timeout, attempt) {
+async function toggleHover(page, target, targetConfig, expectedCount, timeout, attempt, prepareClickText) {
   const {selector, index} = targetConfig;
   await target.scrollIntoViewIfNeeded();
   // 还原译文会改变布局，宿主也可能继续滚动或播放入场动画。固定等待后取外框
   // 坐标会落到空白容器；按键前等待真实原文行稳定并保持命中，按键只发送一次。
-  const {x, y} = await waitForHoverPointer(page, targetConfig, timeout);
+  const {x, y} = await waitForHoverPointer(page, targetConfig, timeout, prepareClickText);
   await page.keyboard.down('Control');
   await page.keyboard.up('Control');
   try {
@@ -1918,30 +2332,135 @@ async function toggleFull(page) {
 
 async function closeInteractionDialog(page, scenario, timeout, phase) {
   const attemptTimeout = Math.min(timeout, INTERACTION_CLOSE_ATTEMPT_TIMEOUT);
-  let lastError;
-  for (let attempt = 1; attempt <= scenario.closeAttempts; attempt += 1) {
-    await page.keyboard.press(scenario.closeKey);
-    try {
-      await page.waitForSelector(scenario.dialogSelector, {state: 'hidden', timeout: attemptTimeout});
-      return attempt;
-    } catch (error) {
-      lastError = error;
-    }
+  const waitFailures = [];
+  const attemptTimings = [];
+  const nodeStamp = () => ({wallMs: Date.now(), monotonicMs: Number(process.hrtime.bigint()) / 1e6});
+  let diagnosticState;
+  let predicateState = {status: 'unavailable', category: 'state-create-unavailable'};
+  try {
+    // JSHandle 留在页面执行上下文中；不写宿主 DOM 或 window，也不捕获 Node 侧变量。
+    diagnosticState = await page.evaluateHandle(() => ({attempts: []}));
+  } catch {
+    // 取证不可用时仍执行原等待和全部重试，不把诊断变成关闭条件。
   }
-  const dialogState = await page.evaluate(selector => {
-    const dialog = document.querySelector(selector);
-    const active = document.activeElement;
-    return {dialogVisible: Boolean(dialog?.getBoundingClientRect().width && dialog?.getBoundingClientRect().height),
-      dialogText: dialog?.textContent?.trim().slice(0, 300),
-      activeElement: active?.outerHTML.slice(0, 400),
-      openDialogs: [...document.querySelectorAll('[role="dialog"],dialog')]
-        .filter(node => node.getBoundingClientRect().width && node.getBoundingClientRect().height)
-        .map(node => ({role: node.getAttribute('role'), label: node.getAttribute('aria-label')}))};
-  }, scenario.dialogSelector);
-  throw new Error(
-    `${phase}/${scenario.name} 对话框在 ${scenario.closeAttempts} 次 ${scenario.closeKey} 后仍未隐藏` +
-    (lastError?.message ? `：${lastError.message}` : '') + `；诊断：${JSON.stringify(dialogState)}`,
-  );
+  try {
+    for (let attempt = 1; attempt <= scenario.closeAttempts; attempt += 1) {
+      const timing = {attempt, start: nodeStamp()};
+      attemptTimings.push(timing);
+      await page.keyboard.press(scenario.closeKey);
+      timing.keyDone = nodeStamp();
+      try {
+        // 检查全部匹配的 dialog 与原 trigger；保留每次时限和真实 Escape 次数。
+        timing.beforeWait = nodeStamp();
+        await page.waitForFunction(({dialogSelector, triggerSelector, diagnosticState, attempt}) => {
+          const browserMono = () => typeof performance === 'object' && typeof performance.now === 'function'
+            ? performance.now() : null;
+          const sample = {attempt, capturedAt: Date.now(), capturedMonoMs: browserMono(), category: 'predicate-error', stage: 'trigger-query',
+            triggerState: null, matchingDialogCount: null, inspectedDialogs: 0, dialogs: []};
+          const record = () => {
+            sample.recordedAt = Date.now();
+            sample.recordedMonoMs = browserMono();
+            if (!diagnosticState) return;
+            const previous = diagnosticState.attempts[attempt - 1];
+            diagnosticState.attempts[attempt - 1] = {
+              pollCount: (previous?.pollCount || 0) + 1,
+              firstPollAt: previous?.firstPollAt ?? sample.capturedAt,
+              firstPollMonoMs: previous?.firstPollMonoMs ?? sample.capturedMonoMs,
+              lastPoll: sample,
+              lastFalse: sample.category !== 'closed' && sample.category !== 'predicate-error'
+                ? sample : previous?.lastFalse || null,
+              lastPredicateError: sample.category === 'predicate-error' ? sample : previous?.lastPredicateError || null,
+            };
+          };
+          try {
+            const trigger = document.querySelector(triggerSelector);
+            sample.stage = 'trigger-state';
+            sample.triggerState = {connected: Boolean(trigger?.isConnected),
+              ariaExpanded: trigger?.getAttribute('aria-expanded') ?? null};
+            if (!sample.triggerState.connected || sample.triggerState.ariaExpanded === 'true') {
+              sample.category = sample.triggerState.connected ? 'trigger-expanded' : 'trigger-missing';
+              record();
+              return false;
+            }
+            sample.stage = 'dialog-query';
+            const dialogs = [...document.querySelectorAll(dialogSelector)];
+            sample.matchingDialogCount = dialogs.length;
+            const isVisible = (node) => {
+              sample.stage = 'dialog-rect';
+              const rect = node.getBoundingClientRect();
+              sample.stage = 'dialog-style';
+              const style = getComputedStyle(node);
+              const visible = node.isConnected && rect.width > 0 && rect.height > 0 &&
+                style.display !== 'none' && style.visibility !== 'hidden' && style.visibility !== 'collapse';
+              sample.inspectedDialogs += 1;
+              // 只限制输出样本；some 仍检查到首个可见节点，不截断关闭断言。
+              if (sample.dialogs.length < 8 || visible) sample.dialogs.push({index: sample.inspectedDialogs - 1,
+                connected: node.isConnected, width: rect.width, height: rect.height,
+                display: style.display, visibility: style.visibility, visible});
+              return visible;
+            };
+            const closed = !dialogs.some(isVisible);
+            sample.stage = 'result';
+            sample.category = closed ? 'closed' : 'matching-dialog-visible';
+            record();
+            return closed;
+          } catch (error) {
+            sample.category = 'predicate-error';
+            record();
+            throw error;
+          }
+        }, {
+          dialogSelector: scenario.dialogSelector,
+          triggerSelector: scenario.triggerSelector,
+          diagnosticState: diagnosticState || null,
+          attempt,
+        }, {timeout: attemptTimeout, polling: 50});
+        timing.outcome = 'wait-resolved';
+        return attempt;
+      } catch (error) {
+        timing.outcome = error?.name === 'TimeoutError' ? 'wait-timeout' : 'wait-error';
+        waitFailures.push({attempt, category: timing.outcome});
+      } finally {
+        // 这是调用方收到结果/错误的时间，包含 Playwright 内部的 abort 清理；不是精确 deadline。
+        timing.afterWait = nodeStamp();
+      }
+    }
+    if (diagnosticState) {
+      try {
+        const state = await diagnosticState.evaluate(state => state);
+        predicateState = {status: 'available', attempts: waitFailures.map(({attempt}) =>
+          state.attempts[attempt - 1] || {pollCount: 0, category: 'no-predicate-sample'})};
+      } catch {
+        predicateState = {status: 'unavailable', category: 'state-read-unavailable'};
+      }
+    }
+    const dialogState = await page.evaluate(({dialogSelector, triggerSelector}) => {
+      const dialog = document.querySelector(dialogSelector);
+      const trigger = document.querySelector(triggerSelector);
+      const active = document.activeElement;
+      return {capturedAt: Date.now(), snapshotPhase: 'after-all-close-attempts',
+        triggerState: {connected: Boolean(trigger?.isConnected), ariaExpanded: trigger?.getAttribute('aria-expanded') ?? null},
+        dialogVisible: Boolean(dialog?.getBoundingClientRect().width && dialog?.getBoundingClientRect().height),
+        dialogText: dialog?.textContent?.trim().slice(0, 300),
+        activeElement: active?.outerHTML.slice(0, 400),
+        matchingDialogs: [...document.querySelectorAll(dialogSelector)].map(node => {
+          const rect = node.getBoundingClientRect();
+          const style = getComputedStyle(node);
+          return {html: node.outerHTML.slice(0, 900), connected: node.isConnected,
+            width: rect.width, height: rect.height, display: style.display, visibility: style.visibility};
+        }),
+        openDialogs: [...document.querySelectorAll('[role="dialog"],dialog')]
+          .filter(node => node.getBoundingClientRect().width && node.getBoundingClientRect().height)
+          .map(node => ({role: node.getAttribute('role'), label: node.getAttribute('aria-label')}))};
+    }, {dialogSelector: scenario.dialogSelector, triggerSelector: scenario.triggerSelector})
+      .catch(() => ({status: 'unavailable', category: 'final-snapshot-unavailable'}));
+    throw new Error(
+      `${phase}/${scenario.name} 对话框在 ${scenario.closeAttempts} 次 ${scenario.closeKey} 后仍未隐藏` +
+      `；诊断：${JSON.stringify({...dialogState, closeWait: {attemptTimeout, polling: 50, waitFailures, attemptTimings, predicateState}})}`,
+    );
+  } finally {
+    if (diagnosticState) await diagnosticState.dispose().catch(() => {});
+  }
 }
 
 async function runInteractionScenarios(page, scenarios, timeout, phase) {
@@ -2063,7 +2582,7 @@ async function captureEvidence(page, outputPath) {
   }
 }
 
-async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract, timeout, artifactsDir) {
+async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract, timeout, artifactsDir, prepareClickText) {
   const initialUrl = page.url();
   const results = [];
 
@@ -2080,7 +2599,7 @@ async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract,
     const neighborCounts = [];
 
     for (const expected of [1, 0, 1]) {
-      await toggleHover(page, target, runtimeTargetConfig, expected, timeout, counts.length + 1);
+      await toggleHover(page, target, runtimeTargetConfig, expected, timeout, counts.length + 1, prepareClickText);
       counts.push(await target.locator('.fluent-read-bilingual-content').count());
       const neighborCount = await targets.evaluateAll((nodes, activeIndex) => nodes.reduce((count, node, index) =>
         count + (index === activeIndex ? 0 : node.querySelectorAll('.fluent-read-bilingual-content').length), 0), runtimeTargetConfig.index);
@@ -2120,7 +2639,7 @@ async function runHoverCase(page, hoverTargets, requiredSelectors, pageContract,
     // 为下一个语义类型清场，避免前一个 H1 的译文让全局 wrapper 计数
     // 掩盖 H2/P/LI 的真实命中结果。最后一个目标保留最终 [1] 状态。
     if (targetNumber < hoverTargets.length - 1) {
-      await toggleHover(page, target, runtimeTargetConfig, 0, timeout, 4);
+      await toggleHover(page, target, runtimeTargetConfig, 0, timeout, 4, prepareClickText);
       await assertWrapperUniqueness(page, 0, `${targetConfig.name} 悬浮目标清场`);
       await assertRequiredRestored(page, pageContract, `${targetConfig.name} 悬浮目标清场`);
     }
@@ -2148,10 +2667,13 @@ async function runFullTranslationPass(context, pass) {
     timeout,
     artifactsDir,
     initialUrl,
+    readCompletion,
+    previousCompletionSessionId,
   } = context;
   const first = pass === 'first';
   const phase = first ? '全文首次翻译' : '全文再次翻译';
 
+  await clearCoverageCompletionPass(page);
   await toggleFull(page);
   reportProgress(first ? '已触发首次全文翻译' : '已触发第二次全文翻译');
   await revealFullPageTarget(page, selector);
@@ -2192,7 +2714,10 @@ async function runFullTranslationPass(context, pass) {
   if (target.bilingualCount < 1 || !target.translationTexts.every((text) => /[\u3400-\u9fff]/u.test(text))) {
     throw new Error(`${first ? '全文首次翻译状态异常' : '全文再次翻译状态异常'}：${JSON.stringify(target)}`);
   }
-  await scrollAndWaitFullPage(page, timeout, scrollContainer, selector);
+  const completionIdentity = await beginCoverageCompletionPass(page, readCompletion, previousCompletionSessionId);
+  const verifyUnchanged = (remaining = timeout) => verifyCoverageUnchanged(page, readCompletion, completionIdentity, remaining);
+  await scrollAndWaitFullPage(page, timeout, scrollContainer, selector, verifyUnchanged);
+  await verifyUnchanged();
   const pageState = await readFullPageState(
     page,
     selector,
@@ -2223,7 +2748,7 @@ async function runFullTranslationPass(context, pass) {
     await captureEvidence(page, path.join(artifactsDir,
       first ? 'full-first-translation.png' : 'full-final-translation.png'));
   }
-  return {target, pageState, coverage, interactions};
+  return {target, pageState, coverage, interactions, completionIdentity};
 }
 
 async function runFullCase(
@@ -2239,6 +2764,7 @@ async function runFullCase(
   skipUnscopedH1Coverage,
   timeout,
   artifactsDir,
+  readCompletion,
 ) {
   const initialUrl = page.url();
   const baselineInteractionScenarios = await runInteractionScenarios(
@@ -2264,9 +2790,12 @@ async function runFullCase(
     timeout,
     artifactsDir,
     initialUrl,
+    readCompletion,
   };
   const firstPass = await runFullTranslationPass(passContext, 'first');
+  passContext.previousCompletionSessionId = firstPass.completionIdentity.sessionId;
 
+  await clearCoverageCompletionPass(page);
   await toggleFull(page);
   reportProgress('已触发全文恢复');
   await page.waitForFunction(
@@ -2295,6 +2824,9 @@ async function runFullCase(
     translated: firstPass.target,
     translatedPage: firstPass.pageState,
     coverage: firstPass.coverage,
+    coverageCompletionContract: 'exact-owner-completion-v2',
+    firstCompletionIdentity: firstPass.completionIdentity,
+    secondCompletionIdentity: secondPass.completionIdentity,
     baselineInteractionScenarios,
     firstInteractionScenarios: firstPass.interactions,
     restored,
@@ -2314,8 +2846,6 @@ async function main() {
   assertFreshProductionExtension(extensionDir);
   if (!fs.existsSync(args.browserPath)) throw new Error(`浏览器不存在：${args.browserPath}`);
 
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-site-case-'));
-  assertDedicatedProfile(profileDir);
   const artifactsDir = args.artifactsDir ? path.resolve(args.artifactsDir) : null;
   if (artifactsDir) fs.mkdirSync(artifactsDir, {recursive: true});
   const {chromium} = loadPlaywright(args.playwrightRoot);
@@ -2333,10 +2863,20 @@ async function main() {
   const activateTab = focusSafeHelper
     ? focusSafeHelper.activateExtensionTabWithoutForeground
     : async () => undefined;
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-site-case-'));
   let context;
   let launched;
+  let primaryError;
+  let output;
+  let launchAttempted = false;
+  let page;
+  let extensionId;
+  let diagnosticService = args.service;
+  const attemptStartedAt = Date.now();
   try {
+    assertDedicatedProfile(profileDir);
     if (focusSafeHelper) {
+      launchAttempted = true;
       launched = await focusSafeHelper.launchFocusSafePersistentContext({
         chromium,
         profileDir,
@@ -2347,7 +2887,9 @@ async function main() {
         viewport,
         timeout: args.timeout,
       });
+      guardBrowserClose(launched, profileDir);
     } else {
+      launchAttempted = true;
       context = await chromium.launchPersistentContext(profileDir, {
         executablePath: args.browserPath,
         headless: false,
@@ -2368,7 +2910,7 @@ async function main() {
       };
     }
     context = launched.context;
-    const page = await createPage(context, args.timeout);
+    page = await createPage(context, args.timeout);
     await page.goto(args.url, {waitUntil: 'domcontentloaded', timeout: args.timeout});
     await activateTab(context, page, args.timeout);
     reportProgress(`${args.case}/${args.mode} 页面已加载`);
@@ -2377,7 +2919,7 @@ async function main() {
     await page.waitForTimeout(1000);
     if (args.prepareClickText) {
       // Cookie 同意框等真正阻塞页面的站点对话框需由可信 UI 操作关闭，随后再验证正文全文翻译。
-      const button = page.getByText(args.prepareClickText, {exact: true}).last();
+      const button = page.getByText(args.prepareClickText, {exact: true}).filter({visible: true}).last();
       const appeared = await button.waitFor({state: 'visible', timeout: Math.min(args.timeout, 10000)})
         .then(() => true, () => false);
       if (appeared) {
@@ -2415,6 +2957,8 @@ async function main() {
       args.mutableForbiddenSelectors,
     );
     const configResult = await readConfig(context, args.timeout, createPage, activateTab);
+    extensionId = configResult.extensionId;
+    diagnosticService = configResult.config?.service || args.service;
     // 读取配置时会临时激活 popup 页；关闭它后显式还原目标页，确保真实快捷键发给站点标签页。
     await activateTab(context, page, args.timeout);
     const config = configResult.config || {};
@@ -2433,6 +2977,7 @@ async function main() {
         pageContract,
         args.timeout,
         artifactsDir,
+        args.case === 'roadmap-frontend' ? args.prepareClickText : undefined,
       )
       : await runFullCase(
         page,
@@ -2447,8 +2992,9 @@ async function main() {
         args.skipUnscopedH1Coverage,
         args.timeout,
         artifactsDir,
+        await createUnchangedCompletionReader(context, page, args.timeout),
       );
-    process.stdout.write(`${JSON.stringify({
+    output = {
       ok: true,
       case: args.case,
       mode: args.mode,
@@ -2475,15 +3021,213 @@ async function main() {
       display: config.display,
       screenshots: artifactsDir ? fs.readdirSync(artifactsDir).map((name) => path.join(artifactsDir, name)) : [],
       ...result,
-    }, null, 2)}\n`);
-  } finally {
-    if (launched?.close) {
-      await launched.close().catch(() => {});
-    } else if (context) {
-      await context.close().catch(() => {});
-    }
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    };
+  } catch (error) {
+    primaryError = error;
+    // 只在失败后、既有清理前旁路取证；共用最多 2 秒，不修改测试/provider 预算或重试。
+    const budgetMs = Math.min(args.timeout, 2000);
+    const startedAt = Date.now();
+    const deadlineAt = startedAt + budgetMs;
+    const diagnostics = {
+      case: args.case, mode: args.mode, budgetMs, attemptStartedAt,
+      page: {status: 'unavailable', reason: 'page-not-read'},
+      provider: {
+        serviceId: diagnosticService, status: 'unavailable',
+        ownerCorrelation: 'unavailable', timeoutRouteAttribution: 'unavailable',
+        scope: 'today rollup in isolated profile; timeout list filtered by attempt start',
+        query: {status: 'unavailable', reason: 'not-read'},
+        list: {status: 'unavailable', reason: 'not-read'},
+      },
+    };
+    let expired = false;
+    let timer;
+    const collect = async () => {
+      let statsPage;
+      let optionsStage = 'page-selection';
+      try {
+        if (page && !page.isClosed()) {
+          try {
+            const snapshot = await page.evaluate(() => {
+              const owned = (name) => `.${name}[data-fr-translation-owned="true"]`;
+              const bilingualSelector = owned('fluent-read-bilingual-content');
+              const wrappers = [...document.querySelectorAll(bilingualSelector)];
+              const loading = [...document.querySelectorAll(owned('fluent-read-loading'))];
+              const retries = [...document.querySelectorAll(owned('fluent-read-retry-wrapper'))];
+              const owners = (nodes) => [...new Set(nodes.map(node => node.parentElement).filter(Boolean))];
+              const sample = (nodes) => owners(nodes).slice(0, 32).map(owner => ({
+                tag: owner.tagName, id: owner.id.slice(0, 160),
+                directOwned: [...owner.children].filter(child =>
+                  child.getAttribute('data-fr-translation-owned') === 'true').length,
+              }));
+              const panel = document.querySelector('#fluent-read-translation-status-container')?.shadowRoot
+                ?.querySelector('.fr-translation-progress');
+              const progress = panel ? {status: 'available'} : {status: 'unavailable', reason: 'panel-absent'};
+              if (panel) for (const field of ['session-id', 'running', 'remaining', 'queued', 'offscreen', 'deferred']) {
+                const raw = panel.getAttribute(`data-${field}`);
+                progress[field] = raw !== null && raw.trim() && Number.isFinite(Number(raw)) && Number(raw) >= 0
+                  ? Number(raw) : null;
+              }
+              const scrolling = document.scrollingElement;
+              return {
+                capturedAt: Date.now(), url: `${location.origin}${location.pathname}`.slice(0, 1000),
+                readyState: document.readyState, visibilityState: document.visibilityState,
+                scroll: {top: scrolling?.scrollTop ?? null, height: scrolling?.scrollHeight ?? null,
+                  viewportHeight: window.innerHeight},
+                owned: {wrappers: wrappers.length, uniqueWrapperParents: owners(wrappers).length,
+                  nestedWrappers: wrappers.filter(node => node.parentElement?.closest(bilingualSelector)).length,
+                  loading: loading.length, loadingOwners: owners(loading).length,
+                  retries: retries.length, retryOwners: owners(retries).length,
+                  loadingOwnerSamples: sample(loading), retryOwnerSamples: sample(retries),
+                  ownerSamplesTruncated: owners(loading).length > 32 || owners(retries).length > 32},
+                progress, requestSlotCounts: 'unavailable',
+              };
+            });
+            if (!expired) diagnostics.page = {status: 'available', ...snapshot};
+          } catch { if (!expired) diagnostics.page.reason = 'page-read-unavailable'; }
+        } else diagnostics.page.reason = 'page-unavailable';
+        if (expired) return;
+        if (!extensionId || !context) {
+          diagnostics.provider.query.reason = diagnostics.provider.list.reason = 'extension-unavailable';
+          return;
+        }
+        diagnostics.provider.query.reason = diagnostics.provider.list.reason = 'options-not-ready';
+        // 仅在失败且已保存宿主快照后，复用本次隔离 context 的失败页读取 options 统计。
+        // 不新建或激活标签页；context 的既有 finally 仍负责关闭此页。
+        if (diagnostics.page.status !== 'available' || !page || page.isClosed()
+          || !context.pages().includes(page)) {
+          diagnostics.provider.query.reason = diagnostics.provider.list.reason = 'owned-failure-page-unavailable';
+          return;
+        }
+        statsPage = page;
+        if (expired) return;
+        optionsStage = 'page-navigation';
+        await statsPage.goto(`chrome-extension://${extensionId}/options.html`, {
+          waitUntil: 'domcontentloaded', timeout: Math.max(1, deadlineAt - Date.now()),
+        });
+        if (expired) return;
+        await Promise.all(['query', 'list'].map(async (action) => {
+          diagnostics.provider[action].reason = 'read-pending';
+          try {
+            const result = await statsPage.evaluate(async ({action, serviceId, since, remainingMs}) => {
+              const reply = await new Promise((resolve) => {
+                let settled = false;
+                let timer;
+                const finish = (value) => { if (!settled) { settled = true; clearTimeout(timer); resolve(value); } };
+                timer = setTimeout(() => finish(null), remainingMs);
+                const filter = {range: 'today', serviceId};
+                const message = action === 'query' ? {type: 'translationStats', action, filter}
+                  : {type: 'translationStats', action, query: {
+                    filter: {...filter, outcome: 'timeout'}, sort: 'recent', offset: 0, limit: 100,
+                  }};
+                try {
+                  chrome.runtime.sendMessage(message, (response) => {
+                    const runtimeError = chrome.runtime.lastError;
+                    finish(runtimeError ? null : response);
+                  });
+                } catch { finish(null); }
+              });
+              const unavailable = (reason) => ({status: 'unavailable', reason});
+              if (reply?.success !== true || !reply.data) return unavailable('stats-api-unavailable');
+              const data = reply.data;
+              const numeric = (record, keys) => Object.fromEntries(keys.map(key => [key,
+                typeof record?.[key] === 'number' && Number.isFinite(record[key]) && record[key] >= 0
+                  ? record[key] : null]));
+              const outcomes = (record) => numeric(record, ['success', 'error', 'timeout', 'cancelled']);
+              const routes = (values) => Array.isArray(values)
+                ? values.filter(value => typeof value === 'string' && /^[A-Za-z][A-Za-z0-9_-]{0,63}$/u.test(value)).slice(0, 16)
+                : [];
+              if (action === 'query') {
+                if (data.selected?.filter?.serviceId !== serviceId || !data.selected.totals) return unavailable('stats-shape-unavailable');
+                const totals = data.selected.totals;
+                const hasRequests = typeof totals.requestCount === 'number'
+                  && Number.isFinite(totals.requestCount) && totals.requestCount > 0;
+                const routeRows = Array.isArray(data.routes) ? data.routes.filter(row =>
+                  row.serviceId === serviceId && routes([row.route]).length && row.totals).slice(0, 16).map(row => ({
+                    route: row.route, ...numeric(row.totals, ['attemptCount', 'averageDurationMs', 'maxDurationMs']),
+                    recordedOutcomes: outcomes(row.totals.outcomes),
+                  })) : [];
+                return {
+                  status: hasRequests ? 'available' : 'unavailable',
+                  reason: hasRequests ? null : 'no-recorded-requests', ...numeric(data, ['generatedAt']),
+                  totals: {...numeric(totals, ['requestCount', 'segmentCount', 'cachedSegments', 'upstreamCalls',
+                    'averageDurationMs', 'maxDurationMs', 'averageUpstreamMs']), recordedOutcomes: outcomes(totals.outcomes)},
+                  routeStats: {status: routeRows.length ? 'available' : 'unavailable',
+                    timeoutRouteAttribution: 'unavailable', rows: routeRows},
+                };
+              }
+              if (data.filter?.serviceId !== serviceId || !Array.isArray(data.items)) return unavailable('stats-shape-unavailable');
+              const items = data.items.slice(0, 100).filter(row => row.serviceId === serviceId
+                && typeof row.startedAt === 'number' && Number.isFinite(row.startedAt) && row.startedAt >= since && row.outcome === 'timeout').map(row => ({
+                  ...numeric(row, ['startedAt', 'durationMs', 'segmentCount', 'sourceChars', 'sourceBytes',
+                    'cachedSegments', 'upstreamCalls', 'upstreamMs', 'statusCode']), outcome: 'timeout',
+                  mode: ['single', 'batch', 'image'].includes(row.mode) ? row.mode : null,
+                  errorKind: ['authentication', 'rate-limit', 'timeout', 'network', 'bad-request', 'provider',
+                    'response', 'unknown'].includes(row.errorKind) ? row.errorKind : null,
+                  recordedRoutes: routes(row.routes), timeoutRouteAttribution: 'unavailable',
+                }));
+              return {status: items.length ? 'available' : 'unavailable',
+                reason: items.length ? null : 'no-timeout-records-in-attempt-window',
+                ...numeric(data, ['generatedAt', 'totalCount', 'limit', 'offset']),
+                truncated: data.totalCount > data.items.length || data.items.length > 100, items};
+            }, {action, serviceId: diagnosticService, since: attemptStartedAt,
+              remainingMs: Math.max(1, deadlineAt - Date.now())});
+            if (!expired) diagnostics.provider[action] = result;
+          } catch { if (!expired) diagnostics.provider[action].reason = 'stats-read-unavailable'; }
+        }));
+      } catch (diagnosticError) {
+        const detail = String(diagnosticError?.message || '');
+        const failureCode = detail.match(/\bnet::ERR_(?:ABORTED|FAILED|TIMED_OUT|CONNECTION_CLOSED|CONNECTION_REFUSED|CONNECTION_RESET|NAME_NOT_RESOLVED|INTERNET_DISCONNECTED)\b/u)?.[0]
+          || (diagnosticError?.name === 'TimeoutError' ? 'navigation-timeout'
+            : /macOS.*前台|无法读取.*前台/u.test(detail) ? 'foreground-query-unavailable'
+            : /成了.*前台|成为.*前台/u.test(detail) ? 'foreground-guard-rejected'
+            : /后台页签未/u.test(detail) ? 'page-attachment-unavailable' : 'unclassified');
+        if (!expired) for (const action of ['query', 'list']) {
+          if (diagnostics.provider[action].status === 'unavailable') diagnostics.provider[action] = {
+            status: 'unavailable', reason: 'options-read-unavailable', stage: optionsStage, failureCode,
+          };
+        }
+      }
+    };
+    try {
+      await Promise.race([collect().catch(() => {}), new Promise(resolve => {
+        timer = setTimeout(() => { expired = true; resolve(); }, budgetMs);
+      })]);
+      const budgetExhausted = expired || Date.now() >= deadlineAt;
+      expired = true;
+      if (budgetExhausted) {
+        if (diagnostics.page.status === 'unavailable') diagnostics.page.reason = 'diagnostic-budget-exhausted';
+        for (const action of ['query', 'list']) if (diagnostics.provider[action].status === 'unavailable'
+          && ['not-read', 'options-not-ready', 'read-pending'].includes(diagnostics.provider[action].reason)) {
+          diagnostics.provider[action].reason = 'diagnostic-budget-exhausted';
+        }
+      }
+      diagnostics.provider.status = ['query', 'list'].some(action => diagnostics.provider[action].status === 'available')
+        ? 'available' : 'unavailable';
+      reportProgress(`failure diagnostics ${JSON.stringify({...diagnostics,
+        budgetExhausted, elapsedMs: Date.now() - startedAt})}`);
+    } catch { /* 取证失败不能覆盖 original error 或推迟既有清理。 */ }
+    finally { expired = true; clearTimeout(timer); }
+    throw error;
   }
+  finally {
+    const cleanupErrors = [];
+    let browserClosed = false;
+    try {
+      if (launched?.close) {await launched.close(); browserClosed = true;}
+      else if (context) {await context.close(); browserClosed = true;}
+    } catch (error) {cleanupErrors.push(error);}
+    try {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    } catch (error) {cleanupErrors.push(error);}
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+  }
+  process.stdout.write(`${JSON.stringify(output, null, 2)}\n`);
 }
 
 if (require.main === module) {
@@ -2504,6 +3248,11 @@ module.exports = {
   capturePageContract,
   evaluateProductionBuildFreshness,
   installCoverageTracker,
+  createUnchangedCompletionReader,
+  readCoverageReport,
+  readCoverageStatuses,
+  beginCoverageCompletionPass,
+  verifyCoverageUnchanged,
   isNaturalLanguageText,
   newestFile,
   reconcileForbiddenContractState,

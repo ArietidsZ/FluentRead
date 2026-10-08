@@ -1,6 +1,7 @@
 'use strict';
 /**
- * 图片翻译生产产物回归：真实 Tesseract、可信点击、确定性翻译 transport。
+ * @file scripts/testing/run-image-translation-flow-test.cjs
+ * 图片翻译生产产物回归：真实 Tesseract、可信点击、与当前 Google 批量协议一致的确定性翻译 transport。
  * 所有用例复用同一自动临时配置，由 focus-safe helper 保持正常尺寸、后台且不抢焦点。
  */
 const fs = require('node:fs');
@@ -28,6 +29,10 @@ const liveTranslation = process.argv.includes('--live-translation');
 const multilingual = process.argv.includes('--multilingual');
 const harFixture = process.argv.includes('--har-fixture');
 const paragraphImage = arg('paragraph-image', null);
+const denseParagraphs = process.argv.includes('--dense-paragraphs');
+const manyLineTranslation = process.argv.includes('--many-line-translation');
+if (manyLineTranslation && (!denseParagraphs || liveTranslation))
+    throw new Error('--many-line-translation requires --dense-paragraphs and deterministic transport');
 if (!playwrightRoot || !focusHelper)
     throw new Error('必须提供 --playwright-root 与 --focus-safe-helper');
 const { chromium } = require(path.join(playwrightRoot, 'playwright'));
@@ -38,6 +43,18 @@ const report = {
     cases: [], errors: [], screenshots: [], geometry: [], cleanupErrors: [],
     profileMode: 'automatically-created-temporary-profile',
 };
+const javascriptFiles = [];
+function collectJavaScript(directory) {
+    for (const entry of fs.readdirSync(directory, {withFileTypes: true})) {
+        const file = path.join(directory, entry.name);
+        if (entry.isDirectory()) collectJavaScript(file);
+        else if (file.endsWith('.js')) javascriptFiles.push(file);
+    }
+}
+collectJavaScript(extensionDir);
+const javascriptHash = crypto.createHash('sha256');
+for (const file of javascriptFiles.sort()) javascriptHash.update(path.relative(extensionDir, file)).update('\0').update(fs.readFileSync(file));
+report.javascriptAssetsSha256 = javascriptHash.digest('hex');
 const temporaryRoot = fs.realpathSync(os.tmpdir());
 const profileDir = fs.mkdtempSync(path.join(temporaryRoot, 'fluentread-image-flow-'));
 const profileToken = crypto.randomUUID();
@@ -59,14 +76,14 @@ body>div {animation:none}
 <div style="height:1000px"></div>
 <script>
 const canvas = document.createElement('canvas');
-canvas.width = 1400; canvas.height = 700;
+canvas.width = ${denseParagraphs ? 860 : 1400}; canvas.height = ${denseParagraphs ? 3250 : 700};
 const context = canvas.getContext('2d');
-context.fillStyle = '#fff'; context.fillRect(0, 0, 1400, 700);
-context.fillStyle = '#19304b'; context.font = '48px Arial';
-${JSON.stringify(multilingual
+context.fillStyle = '#fff'; context.fillRect(0, 0, canvas.width, canvas.height);
+context.fillStyle = '#19304b'; context.font = '${denseParagraphs ? 28 : 48}px Arial';
+${JSON.stringify(denseParagraphs ? Array.from({length: 90}, () => 'Read every word in your language.') : multilingual
     ? ['简体中文阅读测试', '繁體中文閱讀測試', 'English OCR language test']
     : ['Welcome to FluentRead', 'Translate images with one click', 'Read every word in your language'])}
-    .forEach((text, index) => context.fillText(text, 70, 145 + index * 155));
+    .forEach((text, index) => context.fillText(text, 70, ${denseParagraphs ? 85 : 145} + index * ${denseParagraphs ? 35 : 155}));
 document.querySelector('#sample').src = canvas.toDataURL();
 ${xSurface ? `
 const image = document.querySelector('#sample');
@@ -405,7 +422,7 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         });
         if (!response.success) throw new Error(response.error);
     }, {xSurface, xLightbox});
-    await worker.evaluate(({liveTranslation, paragraphFixture, xLightbox}) => {
+    await worker.evaluate(({liveTranslation, paragraphFixture, xLightbox, manyLineTranslation}) => {
         const originalFetch = globalThis.fetch.bind(globalThis);
         // Keep the real OCR path intact while giving the loading controls enough time to sample.
         const fixture = globalThis.__imageFixture = {requests: [], endpointHosts: [], rejectPrimaryXsrf: false, operationIds: [], delay: 1800, replayProgress: false, progressTimer: null, progressRequestId: null};
@@ -446,44 +463,9 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
             clearProgress();
             chrome.runtime.onMessage.removeListener(fixtureListener);
         };
-        globalThis.fetch = async (input, options) => {
-            const url = String(typeof input === 'string' ? input : input.url || input);
-            if (xLightbox && url.includes('translate-pa.googleapis.com/v1/translateHtml')) {
-                const originals = JSON.parse(options.body)[0][0].map(html => html.replace(/^<pre>([\s\S]*)<\/pre>$/, '$1'));
-                fixture.requests.push(...originals);
-                fixture.endpointHosts.push(new URL(url).hostname);
-                if (liveTranslation) return originalFetch(input, options);
-                const translated = originals.map(origin => origin.toLowerCase().includes('welcome') ? '欢迎使用流畅阅读'
-                    : origin.toLowerCase().includes('click') ? '单击即可翻译图片' : '用自己的语言读懂每一个字');
-                return new Response(JSON.stringify([translated]), {status:200});
-            }
-            if (url.includes('/_/TranslateWebserverUi/data/batchexecute')) {
-                const body = new URLSearchParams(options.body);
-                const rpc = JSON.parse(body.get('f.req'))[0][0];
-                const origin = JSON.parse(rpc[1])[0][0];
-                if (typeof origin !== 'string') throw new Error('Unexpected Google batchexecute payload');
-                globalThis.__imageFixture.requests.push(origin);
-                if (liveTranslation) return originalFetch(input, options);
-                const hostname = new URL(url).hostname;
-                fixture.endpointHosts.push(hostname);
-                if (fixture.rejectPrimaryXsrf && hostname === 'translate.google.com') {
-                    return new Response('["xsrf"]', {status: 400});
-                }
-                await new Promise((resolve, reject) => {
-                    const signal = options.signal;
-                    const onAbort = () => {
-                        clearTimeout(timer);
-                        signal?.removeEventListener('abort', onAbort);
-                        reject(new DOMException('Aborted', 'AbortError'));
-                    };
-                    const timer = setTimeout(() => {
-                        signal?.removeEventListener('abort', onAbort);
-                        resolve();
-                    }, globalThis.__imageFixture.delay);
-                    if (signal?.aborted) onAbort();
-                    else signal?.addEventListener('abort', onAbort, {once: true});
-                });
-                const text = paragraphFixture ? (() => {
+        const translateOrigin = origin => {
+                if (manyLineTranslation) return Array(150_000).fill('a').join('\n');
+                return paragraphFixture ? (() => {
                     if (origin.startsWith('Calculate the best filament grouping')) {
                         assertParagraph(origin.includes('printer based on slicing results.'));
                         return '计算最佳耗材分组，尽量减少耗材浪费。需要根据切片结果，手动将耗材放到打印机上。';
@@ -501,16 +483,57 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
                     function assertParagraph(complete) {if (!complete) throw new Error('未收到完整说明段落');}
                 })() : origin.toLowerCase().includes('welcome') ? '欢迎使用流畅阅读'
                     : origin.toLowerCase().includes('click') ? '单击即可翻译图片' : '用自己的语言读懂每一个字';
-                const entry = [null, null, null, null, null, [[text]]];
-                return new Response(JSON.stringify([['wrb.fr', 'MkEWBc', JSON.stringify([null, [[entry]]])]]), {status: 200});
+        };
+        const decodeText = text => text.replace(/&(amp|lt|gt|quot|#39);/g,
+            (_entity, code) => ({amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'"})[code]);
+        globalThis.fetch = async (input, options) => {
+            const url = String(typeof input === 'string' ? input : input.url || input);
+            const hostname = new URL(url).hostname;
+            const html = hostname === 'translate-pa.googleapis.com';
+            const list = hostname === 'translate.googleapis.com';
+            const rpc = url.includes('/_/TranslateWebserverUi/data/batchexecute');
+            if (html || list || rpc) {
+                const records = rpc ? JSON.parse(new URLSearchParams(options.body).get('f.req'))[0] : null;
+                const origins = html ? JSON.parse(options.body)[0][0].map(text => decodeText(text.replace(/^<pre>([\s\S]*)<\/pre>$/, '$1')))
+                    : list ? new URLSearchParams(options.body).getAll('q')
+                    : records.map(record => JSON.parse(record[1])[0][0]);
+                if (!origins.length || origins.some(origin => typeof origin !== 'string')) throw new Error('Unexpected Google batch payload');
+                fixture.requests.push(...origins);
+                if (liveTranslation) return originalFetch(input, options);
+                fixture.endpointHosts.push(hostname);
+                // 同一夹具明确淘汰三个入口，验证后备 RPC 及后续冷却，而不是让新入口访问线上。
+                if (fixture.rejectPrimaryXsrf && hostname !== 'translate.google.co.uk') {
+                    return new Response('["xsrf"]', {status: 400});
+                }
+                await new Promise((resolve, reject) => {
+                    const signal = options.signal;
+                    const onAbort = () => {
+                        clearTimeout(timer);
+                        signal?.removeEventListener('abort', onAbort);
+                        reject(new DOMException('Aborted', 'AbortError'));
+                    };
+                    const timer = setTimeout(() => {
+                        signal?.removeEventListener('abort', onAbort);
+                        resolve();
+                    }, fixture.delay);
+                    if (signal?.aborted) onAbort();
+                    else signal?.addEventListener('abort', onAbort, {once: true});
+                });
+                const texts = origins.map(translateOrigin);
+                if (html) return new Response(JSON.stringify([texts]), {status: 200});
+                if (list) return new Response(JSON.stringify(texts), {status: 200});
+                const responses = texts.map((text, index) => ['wrb.fr', 'MkEWBc',
+                    JSON.stringify([null, [[[null, null, null, null, null, [[text]]]]]]),
+                    null, null, null, records[index][3]]);
+                return new Response(JSON.stringify(responses), {status: 200});
             }
-            if (url.includes('translate.googleapis.com') || url.includes('translate.google')) {
-                throw new Error('Unexpected translation fallback in deterministic fixture');
+            if (/^translate(?:-pa)?\.google(?:apis)?\./.test(hostname)) {
+                throw new Error('Unexpected translation endpoint in deterministic fixture');
             }
             // OCR worker、wasm 和语言包仍沿真实生产路径加载，不 mock Tesseract。
             return originalFetch(input, options);
         };
-    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage), xLightbox});
+    }, {liveTranslation, paragraphFixture: Boolean(paragraphImage), xLightbox, manyLineTranslation});
     if (harFixture) {
         if (liveTranslation) throw new Error('--har-fixture 只用于确定性响应验证');
         currentCase = 'HAR identifier filtering and Google XSRF cooldown';
@@ -526,8 +549,8 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         }));
         assert.equal(next.success, true);
         const requests = await worker.evaluate(() => ({texts: globalThis.__imageFixture.requests, hosts: globalThis.__imageFixture.endpointHosts}));
-        assert.deepEqual(requests.texts, ['Decisions API', 'Decisions API', 'New models']);
-        assert.deepEqual(requests.hosts, ['translate.google.com', 'translate.google.co.uk', 'translate.google.co.uk']);
+        assert.deepEqual(requests.texts, ['Decisions API', 'Decisions API', 'Decisions API', 'Decisions API', 'New models']);
+        assert.deepEqual(requests.hosts, ['translate-pa.googleapis.com', 'translate.googleapis.com', 'translate.google.com', 'translate.google.co.uk', 'translate.google.co.uk']);
         report.harFixture = {scope: 'synthetic recognized text and XSRF response through production runtime', result, requests};
         report.cases.push('HAR technical identifiers stay unchanged without requests; repeated primary XSRF failures are skipped');
         await worker.evaluate(() => {globalThis.__imageFixture.requests = []; globalThis.__imageFixture.endpointHosts = []; globalThis.__imageFixture.rejectPrimaryXsrf = false;});
@@ -697,8 +720,88 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
         await wait(()=>ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"));
         assert.equal(await worker.evaluate(()=>globalThis.__imageFixture.requests.length),requests);
         report.cases.push('text panel keeps controls available; restore and cached translation work');
+
+        currentCase = 'background consumed cancellation ownership';
+        const providerRequestsBefore = await worker.evaluate(() => globalThis.__imageFixture.requests.length);
+        const cancellation = await popup.evaluate(async () => {
+            const cancel = requestId => chrome.runtime.sendMessage({type:'fluentReadImageCancel',requestId});
+            const start = requestId => chrome.runtime.sendMessage({type:'fluentReadImageTranslate',requestId,
+                image:'data:image/png,x',sourceLanguage:'en',timeoutMs:5_000});
+            const responses = [];
+            const reused = 'image-background-reused-cancel';
+            await cancel(reused); responses.push(await start(reused));
+            await cancel(reused);
+            for (let index = 0; index < 511; index++) await cancel(`image-background-pending-${index}`);
+            responses.push(await start(reused));
+            // 独立新 ID 的已消费取消不能占窗口或驱逐更早仍待启动的取消。
+            const pending = 'image-background-still-pending';
+            await cancel(pending);
+            let consumed = 0;
+            for (let index = 0; index < 512; index++) {
+                const id = `image-background-consumed-${index}`;
+                await cancel(id); const response = await start(id);
+                if (response.success === false && /已取消/.test(response.error)) consumed++;
+            }
+            responses.push(await start(pending));
+            return {responses, consumed};
+        });
+        assert.equal(cancellation.consumed,512);
+        for (const response of cancellation.responses) {
+            assert.equal(response.success,false); assert.match(response.error,/已取消/);
+        }
+        assert.equal(await worker.evaluate(() => globalThis.__imageFixture.requests.length),providerRequestsBefore);
+        report.backgroundCancellation = {reusedStartsCancelled:true,consumedHistoryIgnored:true,
+            consumedStarts:512,pendingUniqueBound:512,newProviderRequests:0};
+        report.cases.push('background reused cancellation survives the pending ID boundary',
+            'background consumed IDs do not evict outstanding cancellation or start OCR/provider');
         assert.equal(report.errors.length,0);
         report.success = true;
+        return;
+    }
+    if (denseParagraphs) {
+        currentCase = 'dense real OCR paragraph';
+        const original = await image.getAttribute('src');
+        await image.hover();
+        await wait(() => ui("return !!this.querySelector('.fr-image-controls')"));
+        await click('翻译');
+        await wait(() => ui("return ['error','translated'].includes(this.querySelector('.fr-image-controls')?.dataset.phase)"));
+        if (await ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='error'")) {
+            await click('下载语言包并翻译');
+            await wait(() => ui("return ['error','translated'].includes(this.querySelector('.fr-image-controls')?.dataset.phase)"), 300_000);
+        }
+        assert.equal(await ui("return this.querySelector('.fr-image-controls')?.dataset.phase"), 'translated',
+            await ui("return this.querySelector('.fr-image-feedback')?.textContent?.slice(0, 1000) || '图片未完成翻译'"));
+        const requests = await worker.evaluate(() => ({texts: globalThis.__imageFixture.requests, hosts: globalThis.__imageFixture.endpointHosts}));
+        assert.equal(requests.texts.length, 1, 'Dense OCR must send one complete paragraph');
+        const recognizedRows = requests.texts[0].split('Read every word in your language').length - 1;
+        assert.equal(recognizedRows, 90, 'All separately drawn rows must survive OCR and grouping');
+        await shot('dense-paragraph-translated');
+        await click('文字');
+        if (manyLineTranslation) {
+            const translated = await ui("return this.querySelector('.fr-image-reader-body pre')?.textContent");
+            assert.equal(translated, Array(150_000).fill('a').join('\n'), 'Complete many-line response must survive rendering and reader IPC');
+            assert.equal(await ui("const image = this.querySelector('.fluent-read-image-translation-overlay img'); return !!image?.complete && image.naturalWidth > 0"), true);
+            report.manyLineTranslation = {lines: 150_000, bytes: Buffer.byteLength(translated), fullReaderMatches: true, bitmapDecoded: true,
+                scope: 'synthetic Google response through real production rendering/IPC; no live provider or visual readability guarantee'};
+            report.cases.push('many-line synthetic response renders without argument overflow and reader preserves complete text');
+        }
+        await click('原文对照');
+        const sourceParagraphs = await ui("return [...this.querySelectorAll('.fr-image-reader-source')].map(line=>line.textContent)");
+        assert.deepEqual(sourceParagraphs, requests.texts);
+        await shot('dense-paragraph-reader');
+        await click('文字'); await click('原图');
+        await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='idle'"));
+        assert.equal(await image.getAttribute('src'), original);
+        assert.equal(await ui("return this.querySelectorAll('.fluent-read-image-translation-overlay img').length"), 0);
+        await click('翻译');
+        await wait(() => ui("return this.querySelector('.fr-image-controls')?.dataset.phase==='translated'"));
+        assert.equal(await worker.evaluate(() => globalThis.__imageFixture.requests.length), 1);
+        report.denseParagraphs = {drawnRows: 90, recognizedRows, providerCalls: requests.hosts.length,
+            completeParagraphs: requests.texts.length, sourceMatchesRequest: true, originalPreserved: true, cachedRedisplayNoNewRequests: true};
+        report.cases.push('ninety individually drawn rows survive real OCR as a complete paragraph',
+            'dense reader matches complete grouped request and restore preserves source',
+            'dense cached redisplay sends no new translation request');
+        assert.equal(report.errors.length, 0); report.success = true;
         return;
     }
     if (paragraphImage) {
@@ -1077,6 +1180,26 @@ async function verifyGeometryCases({worker, ui, wait, shot}) {
     await page.evaluate(() => document.querySelector('#sample').remove());
     await wait(() => ui("return this.querySelectorAll('.fluent-read-image-translation-overlay').length===0"));
     report.cases.push('image removal cleans overlay');
+    currentCase = 'consumed cancellation ID reuse';
+    const reusedCancellation = await worker.evaluate(async () => {
+        const requestId = 'image-flow-reused-cancel';
+        const send = message => chrome.runtime.sendMessage({...message, target: 'offscreen'});
+        const cancel = id => send({type: 'CANCEL_IMAGE_OPERATION_OFFSCREEN', requestId: id});
+        const start = () => send({type: 'FLUENT_READ_IMAGE_TRANSLATE_OFFSCREEN', requestId,
+            image: 'data:image/png,x', sourceLanguage: 'en'});
+        const requestsBefore = globalThis.__imageFixture.requests.length;
+        await cancel(requestId);
+        const first = await start();
+        await cancel(requestId);
+        for (let index = 0; index < 511; index++) await cancel(`image-flow-pending-cancel-${index}`);
+        const reused = await start();
+        return {first, reused, newProviderRequests: globalThis.__imageFixture.requests.length - requestsBefore};
+    });
+    assert.equal(reusedCancellation.first.cancelled, true);
+    assert.equal(reusedCancellation.reused.cancelled, true);
+    assert.equal(reusedCancellation.newProviderRequests, 0);
+    report.reusedCancellation = {bothStartsCancelled: true, newProviderRequests: 0, queuedUniqueCancels: 512};
+    report.cases.push('consumed cancellation ID can be cancelled again across real Offscreen routing without starting OCR/provider');
     assert.equal(report.errors.length, 0);
     report.success = true;
 })().catch(async error => {

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Production-extension regression with controlled YouTube DOM/time and a mocked
 // translation service. Fullscreen and clicks use the real browser; no live media claim.
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,19 +14,20 @@ const arg = (name, fallback) => {
 };
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-youtube-sync'));
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 const playwrightRoot = arg('playwright-root');
 if (!helperPath || !playwrightRoot) throw new Error('Explicit focus-safe helper and Playwright runtime are required');
 const helper = require(path.resolve(helperPath));
 const {chromium} = createRequire(path.join(playwrightRoot, 'youtube-sync-proof.cjs'))('playwright');
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-profile-youtube-sync-'));
 fs.mkdirSync(artifacts, {recursive: true});
 const mediaFile = path.join(artifacts, 'fixture.mp4');
 const media = spawnSync(arg('ffmpeg', '/opt/homebrew/bin/ffmpeg'), ['-y', '-f', 'lavfi', '-i', 'color=c=0x123044:s=960x540:r=10',
   '-t', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaFile], {encoding: 'utf8'});
 assert.equal(media.status, 0, media.stderr);
+const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-profile-youtube-sync-'));
 const report = {success: false, evidence: 'Production extension; controlled YouTube DOM and video clock; mocked translations; real fullscreen/clicks', checks: [], errors: []};
 let session, page;
+let primaryError;
 const translations = {
   'Sea otters have strong teeth.': '海獭有强有力的牙齿。',
   'They open the shell.': '它们打开贝壳。',
@@ -46,12 +48,15 @@ const cues = [
   {tStartMs: 16000, dDurationMs: 3000, segs: [{utf8: "I thought I'd try out this beer."}]},
 ];
 const check = (name, pass, details) => report.checks.push({name, pass: Boolean(pass), details});
+let launchAttempted = false;
 (async () => {
+  launchAttempted = true;
   session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
     headless: false, background: true, displayTarget: 'secondary', viewport: {width: 1280, height: 900},
     browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'],
   });
+  guardBrowserClose(session, profileDir);
   const {context} = session;
   Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
   const worker = context.serviceWorkers().find(candidate => candidate.url().endsWith('/background.js'))
@@ -127,8 +132,15 @@ const check = (name, pass, details) => report.checks.push({name, pass: Boolean(p
   await page.evaluate(() => window.fixtureMenu = document.querySelector('#fluent-read-video-subtitle-menu'));
   // Enter fullscreen without an outside click, as with YouTube's F shortcut.
   const cdp = await context.newCDPSession(page);
-  await cdp.send('Runtime.evaluate', {expression: 'document.documentElement.requestFullscreen()', userGesture: true, awaitPromise: true});
-  await cdp.detach();
+  let cdpError;
+  try {await cdp.send('Runtime.evaluate', {expression: 'document.documentElement.requestFullscreen()', userGesture: true, awaitPromise: true});}
+  catch (error) {cdpError = error; throw error;}
+  finally {
+    try {await cdp.detach();} catch (error) {
+      if (!cdpError) throw error;
+      process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+    }
+  }
   await page.waitForFunction(() => Boolean(document.fullscreenElement));
   await page.waitForTimeout(250);
   const fullscreen = await page.evaluate(() => {
@@ -305,10 +317,31 @@ const check = (name, pass, details) => report.checks.push({name, pass: Boolean(p
   report.requests = await worker.evaluate(() => globalThis.fixtureRequests);
   report.success = report.checks.every(c => c.pass) && report.errors.length === 0;
   assert.equal(report.success, true, JSON.stringify(report.checks.filter(c => !c.pass)));
-})().catch(error => {report.failure = error.stack; process.exitCode = 1;}).finally(async () => {
-  if (page) fs.writeFileSync(path.join(artifacts, 'last.html'), await page.content().catch(() => ''));
-  fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
-  if (session) await session.close();
-  fs.rmSync(profileDir, {recursive: true, force: true});
+})().catch(error => {primaryError = error; report.failure = error.stack; process.exitCode = 1;}).finally(async () => {
+  const cleanupErrors = [];
+  const cleanup = async action => {
+    try {await action();} catch (error) {cleanupErrors.push(error);}
+  };
+  let browserClosed = false;
+  await cleanup(async () => {if (page) fs.writeFileSync(path.join(artifacts, 'last.html'), await page.content().catch(() => ''));});
+  await cleanup(async () => {
+    if (session) {await session.close(); browserClosed = true;}
+  });
+  await cleanup(() => {
+    if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+    else if (!launchAttempted) {
+      // No browser launch was attempted; only remove an empty initial profile.
+      try {fs.rmdirSync(profileDir);} catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+      }
+    }
+  });
+  if (cleanupErrors.length) {
+    report.success = false;
+    report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+  }
+  await cleanup(() => {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));});
+  for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+  if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   console.log(JSON.stringify(report, null, 2));
-});
+}).catch(error => {console.error(error.stack || error); process.exitCode = 1;});

@@ -1,5 +1,6 @@
 /** 验证本轮界面一致性：复用一个隔离后台页签，避免多次创建页签抢占前台。 */
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -13,8 +14,11 @@ fs.mkdirSync(artifacts, {recursive: true});
 const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], extensionDir};
 (async () => {
  let launched;
+ let launchAttempted = false;
+ const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-ui-consistency-'));
  try {
-  launched = await launchFocusSafePersistentContext({chromium, profileDir: fs.mkdtempSync(path.join(os.tmpdir(), 'fr-ui-consistency-')), browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false, browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run'], viewport: {width: 1440, height: 1000}, timeout: 30000});
+  launchAttempted = true;
+  launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false, browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run'], viewport: {width: 1440, height: 1000}, timeout: 30000});
   Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
   const context = launched.context;
   const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
@@ -107,7 +111,7 @@ const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], e
     return {tiny,base};
   });
   await page.reload(); await page.getByRole('button',{name:/清除 Whisper Tiny/}).click();
-  await page.waitForFunction(async () => !await (await caches.open('transformers-cache')).match('https://modelscope.cn/models/onnx-community/whisper-tiny/resolve/master/onnx/encoder_model_q4.onnx'));
+  await waitForAsyncCondition(() => page.evaluate(async () => !await (await caches.open('transformers-cache')).match('https://modelscope.cn/models/onnx-community/whisper-tiny/resolve/master/onnx/encoder_model_q4.onnx')), {timeoutMs: 30000, message: "清除 Whisper Tiny 后模型缓存仍存在"});
   check(await page.evaluate(async ({base}) => Boolean(await (await caches.open('transformers-cache')).match(base)),modelProof), 'Clearing Tiny through UI retains Base cache');
   check((await page.locator('.video-model-size').allTextContents()).join(' ').includes('100 MB'), 'Whisper cards show estimated download sizes');
   await shot('video-models');
@@ -149,5 +153,16 @@ const report = {ok: false, assertions: [], screenshots: [], consoleErrors: [], e
   check(report.consoleErrors.length === 0, 'No unhandled browser errors');
   report.ok = true;
  } catch(error) { report.error = error.stack || String(error); throw error; }
- finally { fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2)); await launched?.close(); }
+ finally {
+  let closed = !launchAttempted;
+  try {if (launched) {await launched.close(); closed = true;}}
+  catch(error) {report.cleanupError = error.stack || String(error); process.exitCode = 1;}
+  if (closed) {
+   try {fs.rmSync(profileDir, {recursive: true, force: true});}
+   catch(error) {report.profileCleanupError = error.stack || String(error); process.exitCode = 1;}
+  } else report.retainedProfile = profileDir;
+  if (process.exitCode) report.ok = false;
+  try {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));}
+  catch(error) {report.reportWriteError = error.stack || String(error); report.ok = false; console.error(error); process.exitCode = 1;}
+ }
 })().catch(error => {console.error(error);process.exitCode=1;});

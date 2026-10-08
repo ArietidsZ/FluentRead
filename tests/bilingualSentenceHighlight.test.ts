@@ -300,3 +300,196 @@ describe('paint-only bilingual hover lifecycle', () => {
         syncBilingualSentenceHighlight(f.document, false); expect(f.registry.has(BILINGUAL_HIGHLIGHT_NAME)).toBe(true);
     });
 });
+
+describe('large bilingual owners through the public hover lifecycle', () => {
+    afterEach(() => {vi.unstubAllGlobals(); vi.restoreAllMocks();});
+    function deepFixture(depth = 20_000) {
+        const f = fixture();
+        const owner = f.document.querySelector('#owner')!;
+        const text = owner.firstChild!;
+        const root = f.document.createElement('span');
+        let leaf = root;
+        for (let i = 0; i < depth; i++) {
+            const next = f.document.createElement('span'); leaf.append(next); leaf = next;
+        }
+        leaf.append(text); owner.prepend(root);
+        return f;
+    }
+    function finish(f: ReturnType<typeof fixture>) {
+        let frames = 0;
+        while (f.frames.size) {expect(++frames).toBeLessThan(1000); f.flush();}
+        return frames;
+    }
+    it('highlights 20,000 nested elements without recursion and yields before completing the owner', () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const f = deepFixture(); const dispose = installBilingualSentenceHighlight(f.document);
+        const text = f.document.querySelector('#owner')!.textContent;
+        expect(() => f.move()).not.toThrow();
+        expect(f.highlighted()).toEqual([]);
+        expect(f.frames.size).toBe(1);
+        expect(finish(f)).toBeGreaterThanOrEqual(1);
+        expect(f.highlighted()).toEqual(['First.', '一句。']);
+        expect(f.document.querySelector('#owner')!.textContent).toBe(text);
+        dispose();
+    });
+    it('yields over empty text nodes without creating zero-length ranges or losing readable text', () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const f = fixture(); const owner = f.document.querySelector('#owner')!;
+        const nodes = f.document.createDocumentFragment();
+        for (let i = 0; i < 20_000; i++) nodes.append(f.document.createTextNode(''));
+        owner.prepend(nodes);
+        const ranges = vi.spyOn(f.document, 'createRange');
+        const dispose = installBilingualSentenceHighlight(f.document);
+        f.move(); expect(f.frames.size).toBe(1);
+        finish(f); expect(f.highlighted()).toEqual(['First.', '一句。']);
+        expect(ranges).toHaveBeenCalledTimes(4);
+        f.move('.fluent-read-bilingual-content', 45, 35);
+        expect(f.highlighted()).toEqual(['Second.', '二句。']);
+        expect(ranges).toHaveBeenCalledTimes(4);
+        dispose();
+    });
+    it('stops oversized collection before visiting the tail or collecting the translation', () => {
+        const f = fixture('<p id="owner">' + 'x'.repeat(100_001) + '<b id="tail">Unvisited.</b><span class="fluent-read-bilingual-content" data-fr-translation-owned="true">译文。</span></p>');
+        const style = vi.mocked(f.window.getComputedStyle);
+        const read = vi.fn(style);
+        vi.stubGlobal('getComputedStyle', read);
+        const dispose = installBilingualSentenceHighlight(f.document);
+        f.move(); finish(f);
+        expect(f.highlighted()).toEqual([]);
+        expect(read.mock.calls.map(([element]) => (element as Element).id)).toEqual(['owner']);
+        dispose();
+    });
+    it('yields while collecting a sparse translation and invalidates both maps when it changes', () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const f = fixture(); const wrapper = f.document.querySelector('.fluent-read-bilingual-content')!;
+        const nodes = f.document.createDocumentFragment();
+        for (let i = 0; i < 20_000; i++) nodes.append(f.document.createTextNode(''));
+        wrapper.prepend(nodes);
+        const dispose = installBilingualSentenceHighlight(f.document);
+        f.move(); expect(f.frames.size).toBe(1); expect(f.highlighted()).toEqual([]);
+        f.mutate(wrapper); expect(f.frames.size).toBe(0);
+        f.move('.fluent-read-bilingual-content', 45, 35); finish(f);
+        expect(f.highlighted()).toEqual(['Second.', '二句。']); dispose();
+    });
+    it('counts line breaks against the shared limit and rejects excess translation text', () => {
+        for (const html of [
+            '<p id="owner">' + 'x'.repeat(100_000) + '<br><span class="fluent-read-bilingual-content" data-fr-translation-owned="true">译文。</span></p>',
+            '<p id="owner">' + 'x'.repeat(99_999) + '<span class="fluent-read-bilingual-content" data-fr-translation-owned="true">译文。</span></p>',
+        ]) {
+            const f = fixture(html); const dispose = installBilingualSentenceHighlight(f.document);
+            f.move(); finish(f); expect(f.highlighted()).toEqual([]); dispose();
+        }
+    });
+    it('cancels partial work on mutation, scroll and disable, then rebuilds from the latest source', () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const f = deepFixture();
+        syncBilingualSentenceHighlight(f.document, true);
+        for (const cancel of [() => f.mutate(), () => f.document.dispatchEvent(new f.window.Event('scroll'))]) {
+            f.move(); expect(f.frames.size).toBe(1); cancel(); expect(f.frames.size).toBe(0);
+        }
+        f.move(); syncBilingualSentenceHighlight(f.document, false);
+        expect(f.frames.size).toBe(0); expect(f.highlighted()).toEqual([]);
+        let leaf = f.document.querySelector('#owner > span')!;
+        while (leaf.firstElementChild) leaf = leaf.firstElementChild;
+        leaf.firstChild!.textContent = 'Changed. Second.';
+        syncBilingualSentenceHighlight(f.document, true); f.move(); finish(f);
+        expect(f.highlighted()).toEqual(['Changed.', '一句。']);
+        syncBilingualSentenceHighlight(f.document, false);
+    });
+    it('uses the latest side and pointer while collecting, and abandons work when the pointer leaves', () => {
+        vi.spyOn(performance, 'now').mockReturnValue(0);
+        const f = deepFixture();
+        const dispose = installBilingualSentenceHighlight(f.document);
+        f.move(); f.move('.fluent-read-bilingual-content', 45, 35); finish(f);
+        expect(f.highlighted()).toEqual(['Second.', '二句。']);
+        f.mutate(); f.move(); f.move('#outside');
+        expect(f.frames.size).toBe(0); expect(f.highlighted()).toEqual([]);
+        dispose();
+    });
+    it('yields when a style read uses the frame time budget and finishes both sides on later frames', () => {
+        let time = 0;
+        vi.spyOn(performance, 'now').mockImplementation(() => time += 5);
+        const f = deepFixture(256); const dispose = installBilingualSentenceHighlight(f.document);
+        f.move(); expect(f.frames.size).toBe(1); expect(f.highlighted()).toEqual([]);
+        expect(finish(f)).toBeGreaterThan(1);
+        expect(f.highlighted()).toEqual(['First.', '一句。']); dispose(); dispose();
+    });
+});
+
+
+describe('bounded sentence iteration before alignment', () => {
+    afterEach(() => vi.unstubAllGlobals());
+    function segmentFixture(chunks: Map<string, string[]>) {
+        const reads = new Map<string, number>();
+        const closed = new Set<string>();
+        class Segmenter {
+            segment(text: string) {
+                return {
+                    *[Symbol.iterator]() {
+                        try {
+                            for (const segment of chunks.get(text) ?? []) {
+                                reads.set(text, (reads.get(text) ?? 0) + 1);
+                                yield {segment};
+                            }
+                        } finally {closed.add(text);}
+                    },
+                };
+            }
+        }
+        vi.stubGlobal('Intl', {...Intl, Segmenter});
+        return {reads, closed};
+    }
+    it('stops an oversized source at the first rejected sentence and never segments its translation', () => {
+        const parts = Array<string>(5000).fill('Sentence. '); const source = parts.join('');
+        const f = segmentFixture(new Map([[source, parts], ['译文。', ['译文。']]]));
+        expect(alignBilingualSentences(source, '译文。')).toEqual([]);
+        expect(f.reads.get(source)).toBe(257); expect(f.closed.has(source)).toBe(true);
+        expect(f.reads.has('译文。')).toBe(false);
+    });
+    it('stops an oversized translation and releases its iterator after accepting a short source', () => {
+        const parts = Array<string>(5000).fill('句子。'); const translation = parts.join('');
+        const f = segmentFixture(new Map([['Source.', ['Source.']], [translation, parts]]));
+        expect(alignBilingualSentences('Source.', translation)).toEqual([]);
+        expect(f.reads.get('Source.')).toBe(1); expect(f.reads.get(translation)).toBe(257);
+        expect(f.closed.has(translation)).toBe(true);
+    });
+    it('keeps the unrestricted public span result and rejects rather than truncates a bounded result', () => {
+        const parts = Array<string>(300).fill('Sentence. '); const source = parts.join('');
+        segmentFixture(new Map([[source, parts]]));
+        expect(sentenceSpans(source)).toHaveLength(300);
+        expect(sentenceSpans(source, 256)).toEqual([]);
+        expect(sentenceSpans(source, 300)).toHaveLength(300);
+    });
+    it('counts trimmed sentences after abbreviation merging, not raw native segments', () => {
+        const parts = [...Array<string>(255).fill('Done. '), 'Dr. ', 'Smith left.  ', '  '];
+        const source = parts.join(''); const translation = '句子。'.repeat(256);
+        const f = segmentFixture(new Map([[source, parts], [translation, Array<string>(256).fill('句子。')]]));
+        const pairs = alignBilingualSentences(source, translation);
+        expect(pairs).toHaveLength(256);
+        expect(source.slice(pairs.at(-1)!.source.start, pairs.at(-1)!.source.end)).toBe('Dr. Smith left.');
+        expect(pairs.at(-1)!.translation.end).toBe(translation.length);
+        expect(f.reads.get(source)).toBe(parts.length);
+    });
+    it('rejects the next genuine sentence after an abbreviation merged at the cap', () => {
+        const parts = [...Array<string>(255).fill('Done. '), 'Dr. ', 'Smith left. ', ...Array<string>(500).fill('Extra. ')];
+        const source = parts.join(''); const f = segmentFixture(new Map([[source, parts]]));
+        expect(sentenceSpans(source, 256)).toEqual([]);
+        expect(f.reads.get(source)).toBe(258); expect(f.closed.has(source)).toBe(true);
+    });
+    it('preserves the exact native cap and UTF16 coordinates at both ends', () => {
+        const source = '  🧪 Sentence. '.repeat(256); const translation = '  句子。 '.repeat(256);
+        const pairs = alignBilingualSentences(source, translation);
+        expect(pairs).toHaveLength(256);
+        expect(source.slice(pairs[0].source.start, pairs[0].source.end)).toBe('🧪 Sentence.');
+        expect(pairs.at(-1)!.source.end).toBe(source.trimEnd().length);
+        expect(pairs.at(-1)!.translation.end).toBe(translation.trimEnd().length);
+    });
+    it('applies the same cap in the fallback and preserves short quoted sentence coordinates', () => {
+        vi.stubGlobal('Intl', {...Intl, Segmenter: undefined});
+        expect(alignBilingualSentences('Sentence. '.repeat(5000), '译文。')).toEqual([]);
+        expect(sentenceSpans('句子。'.repeat(5000), 256)).toEqual([]);
+        const text = '  🧪 Dr. Smith paid 3.14 dollars. “Ready?” Next!  ';
+        expect(sentenceSpans(text).map(span => text.slice(span.start, span.end)))
+            .toEqual(['🧪 Dr. Smith paid 3.14 dollars.', '“Ready?”', 'Next!']);
+    });
+});

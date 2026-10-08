@@ -63,6 +63,13 @@ function createSubject(overrides: Partial<SelectionTtsBackgroundDependencies> = 
 }
 
 describe('selection TTS background handlers', () => {
+    it('rejects Google playback when extension playback is disabled without touching transport', async () => {
+        const {router, dependencies} = createSubject({offscreenPlaybackEnabled: false});
+        await expect(router.dispatch({type: SELECTION_TTS_GOOGLE_MESSAGE_TYPE, text: 'hello', clientRequestId: 'disabled-google'},
+            {sender: {tab: {id: 0}}})).resolves.toMatchObject({handled: true, response: {success: false}});
+        expect(dependencies.playWithOffscreen).not.toHaveBeenCalled();
+    });
+
     it('routes 5 second seeks using sender tab and exact UUID even after worker restart', async () => {
         const {dependencies,router}=createSubject();
         const message={type:SELECTION_TTS_SEEK_MESSAGE_TYPE,clientRequestId:'seek',offsetSeconds:5};
@@ -198,7 +205,7 @@ describe('selection TTS background handlers', () => {
         expect(dependencies.playWithOffscreen).toHaveBeenCalledWith(expect.objectContaining({
             tabId: 0,
             clientRequestId: clientId('zero'),
-        }));
+        }), expect.any(AbortSignal));
     });
 
     it('拒绝空文本和非法 clientRequestId，且不进入合成或停止副作用', async () => {
@@ -266,7 +273,7 @@ describe('selection TTS background handlers', () => {
             contentType: 'audio/mpeg',
             tabId: 3,
             clientRequestId: clientId(77),
-        });
+        }, expect.any(AbortSignal));
 
         await expect(router.dispatch({
             type: SELECTION_TTS_PLAYBACK_STATE_MESSAGE_TYPE,
@@ -603,7 +610,7 @@ describe('selection TTS background handlers', () => {
             text: 'hello world',
             tabId: 8,
             clientRequestId: clientId(9),
-        });
+        }, expect.any(AbortSignal));
     });
 
     it('Google TTS 无 tab 返回错误，并且失败时返回 offscreen 错误', async () => {
@@ -723,7 +730,7 @@ describe('selection TTS metadata and progress routing', () => {
         expect(dependencies.playWithOffscreen).toHaveBeenCalledWith({
             audioBase64: 'AQID', text: 'hello', contentType: 'audio/wav', ...originalRoute,
             ...(cues === undefined ? {} : {timings: [...cues]}),
-        });
+        }, expect.any(AbortSignal));
         if (cues === undefined) expect(vi.mocked(dependencies.playWithOffscreen).mock.calls[0][0]).not.toHaveProperty('timings');
     });
 

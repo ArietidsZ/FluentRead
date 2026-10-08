@@ -1,4 +1,6 @@
 'use strict';
+const {waitForAsyncCondition} = require('./testing/wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 
 // 网站适配生产包回归：隔离 Edge、真实快捷键、局部合成网页和本地翻译响应。
 // 默认使用自建网页；--live 加载公开实站。两种模式均使用本地翻译响应。
@@ -15,13 +17,13 @@ const root = path.resolve(__dirname, '..');
 const extensionDir = path.resolve(argument('extension-dir', path.join(root, '.output/chrome-mv3')));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-site-adaptation-browser'));
 const packages = argument('playwright-root', '');
-const helperPath = argument('focus-safe-helper', '');
+const helperPath = argument('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 if (!packages || !helperPath) throw new Error('需要 --playwright-root 和 --focus-safe-helper');
 const {chromium} = require(path.join(packages, 'playwright'));
 const helper = require(path.resolve(helperPath));
 const timeout = 15000;
 const wrapper = '.fluent-read-bilingual-content';
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-site-adaptation-'));
+let profileDir;
 fs.mkdirSync(artifactsDir, {recursive: true});
 const isLive = process.argv.includes('--live');
 const cases = JSON.parse(fs.readFileSync(path.join(root, isLive ? 'scripts/site-translation/site-adaptation-live-cases.json' : 'scripts/site-translation/site-adaptation-fixtures.json'), 'utf8'));
@@ -260,10 +262,15 @@ async function openAdaptation() {
   return card;
 }
 async function main() {
+  let primaryError;
+  let launchAttempted = false;
   try {
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-site-adaptation-'));
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false,
       viewport: {width: 1280, height: 900}, browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     context = session.context;
     if (isLive) await context.setExtraHTTPHeaders({'Accept-Language': 'en-US,en;q=0.9'});
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
@@ -366,17 +373,17 @@ async function main() {
     await card.locator('input[type="search"]').fill('github.com');
     const github = card.locator('[data-adaptation-rule="github"]');
     await github.locator('.el-switch').click();
-    await options.waitForFunction(async () => {
+    await waitForAsyncCondition(() => options.evaluate(async () => {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       const config = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
       return config.siteAdaptation.disabledRuleIds.includes('github');
-    }, undefined, {timeout});
+    }, undefined), {timeoutMs: timeout, message: "GitHub 内置适配规则未持久化为禁用"});
     await github.locator('.el-switch').click();
-    await options.waitForFunction(async () => {
+    await waitForAsyncCondition(() => options.evaluate(async () => {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       const config = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
       return !config.siteAdaptation.disabledRuleIds.includes('github');
-    }, undefined, {timeout});
+    }, undefined), {timeoutMs: timeout, message: "GitHub 内置适配规则未持久化为启用"});
     await github.getByRole('button', {name: /GitHub/}).click();
     await card.getByRole('button', {name: '复制到自定义草稿', exact: true}).click();
     assert.ok(JSON.parse(await card.locator('textarea').inputValue()).rules.some(rule => rule.id === 'github'));
@@ -411,10 +418,35 @@ async function main() {
     report.translationRequests = await worker.evaluate(() => globalThis.__adaptationRequests.length);
     if (!isLive) assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
     report.success = report.fixtureCases.every(item => !item.error);
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.success = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 main().then(() => { console.log(JSON.stringify({success: report.success, passed: report.fixtureCases.filter(item => !item.error).length, total: report.fixtureCases.length, report: path.join(artifactsDir, 'report.json')})); if (!report.success) process.exitCode = 1; }).catch(error => {console.error(error.stack); process.exitCode = 1;});

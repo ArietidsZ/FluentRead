@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /**
  * @file scripts/testing/run-webdav-backup-ui-test.cjs
  * 文件职责：在不抢焦点的临时 Edge 中验证生产扩展的 WebDAV 配置云备份。
@@ -14,7 +15,7 @@ function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); r
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-webdav-ui'));
 const playwrightRoot = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'));
 if (!playwrightRoot || !helperPath) throw new Error('必须显式指定 Playwright 与 focus-safe helper');
 const {chromium} = require(path.join(playwrightRoot, 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
@@ -23,7 +24,12 @@ async function main() {
     const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-webdav-profile-'));
     const state = {content:null, version:0, folder:false, failPut:false, failDelete:false, etagMode:'prop', calls:[]};
     const expected = 'Basic '+Buffer.from('fixture-user:fixture-app-password').toString('base64');
-    const server = createServer(async (req,res) => {
+    const report = {ok:false,evidence:'real extension and fetch to a local WebDAV HTTP fixture',extensionDir,buildKind:extensionDir.endsWith('-dev')?'development':'production',launchMode:null,focusPolicy:null,windowPlacement:null,cases:[],consoleErrors:[],screenshots:[]};
+    let launched, server, primaryError;
+    const check = (condition,label) => {if (!condition) throw new Error(label); report.cases.push(label);};
+    let launchAttempted = false;
+    try {
+        server = createServer(async (req,res) => {
         state.calls.push({method:req.method,url:req.url,match:req.headers['if-match']});
         if (state.nextReadDelay && ['GET','PROPFIND','HEAD'].includes(req.method)) {const delay=state.nextReadDelay;state.nextReadDelay=0;await new Promise(resolve=>setTimeout(resolve,delay));}
         if (state.failRead) {res.writeHead(503).end();return;}
@@ -50,13 +56,11 @@ async function main() {
         }
         res.writeHead(405).end();
     });
-    const report = {ok:false,evidence:'real extension and fetch to a local WebDAV HTTP fixture',extensionDir,buildKind:extensionDir.endsWith('-dev')?'development':'production',launchMode:null,focusPolicy:null,windowPlacement:null,cases:[],consoleErrors:[],screenshots:[]};
-    let launched;
-    const check = (condition,label) => {if (!condition) throw new Error(label); report.cases.push(label);};
-    try {
         await new Promise((resolve,reject) => {server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
         const url=`http://127.0.0.1:${server.address().port}/dav/`;
+        launchAttempted = true;
         launched=await launchFocusSafePersistentContext({chromium,profileDir,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,displayTarget:'secondary',browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check'],viewport:{width:1440,height:1000},timeout:30000});
+        guardBrowserClose(launched, profileDir);
         report.launchMode=launched.launchMode; report.focusPolicy=launched.focusPolicy; report.windowPlacement=launched.windowPlacement;
         const {context}=launched;
         const worker=context.serviceWorkers().find(w => w.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker',{timeout:30000});
@@ -569,8 +573,37 @@ async function main() {
         check(await page.locator('[data-testid="webdav-sync-now"]').count()===0 && state.content===headBackup,'clearing connection keeps cloud file and disables backup until configured');
         const final=await page.evaluate(() => chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'}));check(final.value.to==='de','clearing connection preserves device settings');
         check(report.consoleErrors.length===0,'no unhandled options page errors');report.ok=true;
-    } catch (error) {report.failure=error.message;throw error;}
-    finally {if(launched)await launched.close();await new Promise(resolve => server.close(resolve));fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));fs.rmSync(profileDir,{recursive:true,force:true});}
+    } catch (error) {primaryError=error;report.failure=error.message;throw error;}
+    finally {
+        const cleanupErrors = [];
+        const cleanup = async (resource, release) => {
+          try { await release(); } catch (error) {
+            cleanupErrors.push(error);
+            (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+            report.ok = false;
+            process.exitCode = 1;
+            console.error(`Cleanup failed (${resource}):`, error);
+          }
+        };
+        let browserClosed = false;
+        await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+        await cleanup('WebDAV HTTP fixture', () => new Promise((resolve, reject) => {
+  if (!server) return resolve();
+  server.close(error => { if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve(); });
+}));
+        await cleanup('profile', () => {
+          if (!profileDir) return;
+          if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+          else if (!launchAttempted) {
+            try { fs.rmdirSync(profileDir); } catch (error) {
+              // 未尝试启动浏览器时，仅移除初始空目录。
+              if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+            }
+          }
+        });
+        await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+        if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+    }
     console.log(JSON.stringify(report,null,2));
 }
 main().catch(error => {console.error(error.message);process.exitCode=1;});

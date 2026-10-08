@@ -180,7 +180,7 @@ describe('Offscreen 划词 TTS 播放状态机', () => {
         expect(state.audios[1].pause).not.toHaveBeenCalled();
     });
 
-    it('当前播放的 error 事件和 play 拒绝只上报一次并释放资源', async () => {
+    it('已开始播放的 error 走通知，启动 play 拒绝只走失败响应并释放资源', async () => {
         const eventState = fixture();
         await eventState.player.play({audioBase64: 'event', ...route('request-4', 2)});
         const staleError = eventState.audios[0].onerror;
@@ -201,10 +201,28 @@ describe('Offscreen 划词 TTS 播放状态机', () => {
         });
         await expect(rejectionState.player.play({sourceUrl: 'https://audio', ...route('request-5', 2)}))
             .rejects.toBe(failure);
-        expect(rejectionState.notifications).toEqual([
-            expect.objectContaining({state: 'error', error: failure}),
-        ]);
+        expect(rejectionState.notifications).toEqual([]);
         expect(rejectionState.audios[0].pause).toHaveBeenCalledOnce();
+    });
+
+
+    it('同一次启动先触发媒体 error 再拒绝 play 仍只有 PLAY 失败响应', async () => {
+        const state = fixture();
+        const failure = new Error('media startup failed');
+        state.setCreateAudio(() => {
+            const audio = new FakeAudio();
+            audio.play.mockImplementation(async () => {
+                audio.onerror?.(new Event('error'));
+                throw failure;
+            });
+            state.audios.push(audio);
+            return audio;
+        });
+        await expect(state.player.play({audioBase64: 'pending', ...route('startup')})).rejects.toBe(failure);
+        expect(state.notifications).toEqual([]);
+        expect(state.audios[0].pause).toHaveBeenCalledOnce();
+        expect(state.revokeObjectUrl).toHaveBeenCalledOnce();
+        expect(state.player.stop(route('startup'))).toBe(false);
     });
 
     it('停止参数校验发生在状态变更前，factory 返回独立实例', async () => {

@@ -6,6 +6,7 @@
  * 并且 Alt+T 必须支持翻译、恢复和再次翻译。浏览器始终使用临时 profile 和 focus-safe helper。
  */
 const assert = require('node:assert/strict');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -17,7 +18,7 @@ const owned = '.fluent-read-bilingual-content';
 const sourceSelectors = ['.model-title', '.model-description', '.model-meta'];
 
 function parseArgs(argv) {
-  const args = {timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
+  const args = {helperPath: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
   const names = {'--extension-dir': 'extensionDir', '--playwright-root': 'playwrightRoot', '--focus-safe-helper': 'helperPath', '--artifacts-dir': 'artifactsDir', '--timeout': 'timeout', '--display': 'display', '--browser-path': 'browserPath'};
   for (let i = 0; i < argv.length; i += 1) {
     const key = argv[i];
@@ -32,6 +33,17 @@ function parseArgs(argv) {
   return args;
 }
 
+/** 实际页面完成条件：延迟 spinner 的空窗不等于三张卡片的九个文本槽已完成。 */
+function isFixedHeightTranslationSettled({owned, sourceSelectors}) {
+  if (document.querySelector('.fluent-read-loading, .fluent-read-retry-wrapper')) return false;
+  const cards = [...document.querySelectorAll('.model-card')];
+  return cards.length === 3 && document.querySelectorAll(owned).length === 9 && cards.every(card =>
+    card.querySelectorAll(owned).length >= 3 && sourceSelectors.every(selector => {
+      const sources = card.querySelectorAll(selector);
+      return sources.length === 1 && sources[0].querySelectorAll(owned).length === 1;
+    }));
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   assertFreshProductionExtension(args.extensionDir, root);
@@ -42,9 +54,10 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-fixed-height-'));
   const report = {scope: 'openrouter-fixed-height-local-fixture', provider: 'microsoft-local-deterministic-response', evidenceType: 'production-extension-equivalent-fixture', profileMode: 'new-temporary-profile', cases: [], errors: [], screenshots: []};
   const save = () => fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-  let session;
+  let session, primaryError;
   try {
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: args.browserPath, background: true, headless: false, displayTarget: args.display, timeout: args.timeout, viewport: {width: 1280, height: 900}, browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     const context = session.context;
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
@@ -94,7 +107,7 @@ async function main() {
     }, {label, owned, sourceSelectors});
     const screenshot = async label => { const target = path.join(args.artifactsDir, `${label}.png`); await page.screenshot({path: target, fullPage: true}); report.screenshots.push(target); };
     const toggle = async () => { await helper.activateExtensionTabWithoutForeground(context, page); await page.keyboard.down('Alt'); await page.keyboard.press('t'); await page.keyboard.up('Alt'); };
-    const waitSettled = () => page.waitForFunction(() => !document.querySelector('.fluent-read-loading, .fluent-read-retry-wrapper') && document.querySelectorAll('.fluent-read-bilingual-content').length > 0, undefined, {timeout: args.timeout});
+    const waitSettled = () => page.waitForFunction(isFixedHeightTranslationSettled, {owned, sourceSelectors}, {timeout: args.timeout});
     const result = {id: 'fixed-height-card-layout', counts: [], hostStylePreserved: false, scrollContainerPreserved: false}; report.cases.push(result);
     result.before = await snapshot('before'); await screenshot('fixed-height-before');
     await helper.activateExtensionTabWithoutForeground(context, page);
@@ -178,10 +191,31 @@ async function main() {
     result.passed = true; report.passed = true; save();
     process.stdout.write(`fixed-height-card-layout: passed; translated/restored/retranslated ${result.counts.join('/') }\n`);
   } catch (error) {
-    report.error = error.stack || String(error); save(); throw error;
+    primaryError = error;
+    report.error = error.stack || String(error); throw error;
   } finally {
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        if (resource === 'profile') report.retainedProfile = profileDir;
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup('profile', () => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else report.retainedProfile = profileDir;
+    });
+    await cleanup('report', () => {save();});
+    if (report.retainedProfile) process.stderr.write(`Unconfirmed browser/profile cleanup; retained profile: ${profileDir}\n`);
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
-main().catch(error => { process.stderr.write(`${error.stack || error}\n`); process.exitCode = 1; });
+if (require.main === module) main().catch(error => { process.stderr.write(`${error.stack || error}\n`); process.exitCode = 1; });
+module.exports = {isFixedHeightTranslationSettled};

@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /**
  * @file scripts/testing/run-google-drive-sync-ui-test.cjs
  * 文件职责：在临时 Edge 的后台可见窗口验证生产构建的加密同步页面与后台端口。
@@ -12,7 +13,7 @@ function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); r
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-drive-sync-ui'));
 const playwrightRoot = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'));
 if (!playwrightRoot || !helperPath) throw new Error('必须显式指定 Playwright 和 focus-safe helper');
 const {chromium} = require(path.join(playwrightRoot, 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
@@ -23,9 +24,13 @@ async function main() {
     const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-drive-sync-profile-'));
     const report = {ok: false, evidence: 'production extension, isolated Edge, synthetic Chrome identity and Drive responses', extensionDir, launchMode: null, focusPolicy: null, windowPlacement: null, cases: [], consoleErrors: [], screenshots: []};
     let launched;
+    let primaryError;
     function check(condition, label) {if (!condition) throw new Error(label); report.cases.push(label);}
+    let launchAttempted = false;
     try {
+        launchAttempted = true;
         launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true, displayTarget: 'secondary', browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1440, height: 1000}, timeout: 30_000});
+        guardBrowserClose(launched, profileDir);
         report.launchMode = launched.launchMode; report.focusPolicy = launched.focusPolicy; report.windowPlacement = launched.windowPlacement;
         const {context} = launched;
         const worker = context.serviceWorkers().find(worker => worker.url().startsWith('chrome-extension://')) || await context.waitForEvent('serviceworker', {timeout: 30_000, predicate: worker => worker.url().startsWith('chrome-extension://')});
@@ -303,10 +308,34 @@ async function main() {
         await page.screenshot({path: english}); report.screenshots.push(english);
         check(report.consoleErrors.length === 0, 'no settings console errors');
         report.ok = true;
+    } catch (error) {
+        primaryError = error;
+        throw error;
     } finally {
-        if (launched) await launched.close();
-        fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-        fs.rmSync(profileDir, {recursive: true, force: true});
+        const cleanupErrors = [];
+        const cleanup = async (resource, release) => {
+          try { await release(); } catch (error) {
+            cleanupErrors.push(error);
+            (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+            report.ok = false;
+            process.exitCode = 1;
+            console.error(`Cleanup failed (${resource}):`, error);
+          }
+        };
+        let browserClosed = false;
+        await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+        await cleanup('profile', () => {
+          if (!profileDir) return;
+          if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+          else if (!launchAttempted) {
+            try { fs.rmdirSync(profileDir); } catch (error) {
+              // 未尝试启动浏览器时，仅移除初始空目录。
+              if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+            }
+          }
+        });
+        await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+        if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     }
     console.log(JSON.stringify(report, null, 2));
 }

@@ -23,7 +23,9 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   const report = {ok: false, extensionDir, profileDir, evidenceBoundary: live ? 'Real enabled free providers on one synthetic English paragraph; the page is local, responses are live, and a single run does not prove general latency or availability.' : 'Production extension with synthetic HTTP responses. This verifies scheduling and UI, not external provider performance.', screenshots: [], pageErrors: []};
   let launched, currentPage;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000,
@@ -187,9 +189,19 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
     if (currentPage && !currentPage.isClosed()) await currentPage.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
     process.exitCode = 1;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    await launched?.close();
-    await new Promise(resolve => server.close(resolve));
+    try {
+      fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+    } finally {
+      try {
+        await launched?.close();
+        if (launched) fs.rmSync(profileDir, {recursive: true, force: true});
+        else if (!launchAttempted) {
+          try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
+        }
+      } finally {
+        await new Promise(resolve => server.close(resolve));
+      }
+    }
     console.log(JSON.stringify(report, null, 2));
   }
 })();

@@ -28,6 +28,7 @@ import {
 import {
     LONG_PARAGRAPH_LINE_BREAK_MIN_LENGTH,
     applyLongParagraphLineBreaks,
+    iterateTranslationSentences,
     splitTranslationSentences,
 } from '@/src/core/translation/lineBreak';
 import {
@@ -184,6 +185,30 @@ describe('长段落自动换行', () => {
         expect(splitTranslationSentences('句子结束。   ')).toEqual(['句子结束。   ']);
     });
 
+    it('按需读取兼容分句，两个迭代器及完整数组调用不会相互移动游标', () => {
+        const first = iterateTranslationSentences('First. \t　Second! Third?');
+        const second = iterateTranslationSentences('甲。乙。');
+        expect(first.next()).toEqual({done: false, value: 'First. \t　'});
+        expect(second.next()).toEqual({done: false, value: '甲。'});
+        expect(splitTranslationSentences('Other! Sentence?')).toEqual(['Other! ', 'Sentence?']);
+        expect(Array.from(first)).toEqual(['Second! ', 'Third?']);
+        expect(Array.from(second)).toEqual(['乙。']);
+        expect(Array.from(iterateTranslationSentences(''))).toEqual(['']);
+    });
+
+    it('提前关闭迭代器后仍保持后续分句、尾随空白和原文重组契约', () => {
+        const source = 'One! Two? Three。 \t　';
+        const iterator = iterateTranslationSentences(source);
+        expect(iterator.next().value).toBe('One! ');
+        iterator.return?.();
+        expect(iterator.next().done).toBe(true);
+        expect(splitTranslationSentences(source)).toEqual(['One! ', 'Two? ', 'Three。 \t　']);
+        for (const value of ['\t　', 'One。\r\nTwo。', 'One。\u00a0Two。', 'One。Two。 \t', 'Last。　', 'One。 \t　Two!']) {
+            expect(splitTranslationSentences(value).join('')).toBe(value);
+            expect(Array.from(iterateTranslationSentences(value))).toEqual(splitTranslationSentences(value));
+        }
+    });
+
     it('只改写超过长度门槛且确实多句的译文，短段落保持原样', () => {
         const {document} = page('<p id="target"></p>');
         const shortContainer = document.createElement('span');
@@ -197,6 +222,17 @@ describe('长段落自动换行', () => {
         expect(applyLongParagraphLineBreaks(container, 20)).toBe(true);
         expect(container.querySelectorAll('br')).toHaveLength(2);
         expect(container.textContent).toBe(long);
+    });
+
+    it('深层译文按句换行不会递归耗尽调用栈，也不丢失内联顺序', () => {
+        const depth = 16384;
+        const translated = '这是第一句长段落译文。这是第二句长段落译文。'.repeat(8);
+        const {document} = page('<span id="deep">' + '<span>'.repeat(depth) + translated + '</span>'.repeat(depth) + '</span>');
+        const container = document.querySelector<HTMLElement>('#deep')!;
+        expect(() => applyLongParagraphLineBreaks(container)).not.toThrow();
+        expect(container.querySelectorAll('span')).toHaveLength(depth);
+        expect(container.querySelectorAll('br').length).toBeGreaterThan(0);
+        expect(container.textContent).toBe(translated);
     });
 
     it('保留内联结构，只在文本节点内部插入换行', () => {

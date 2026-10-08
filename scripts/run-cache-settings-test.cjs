@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 
 // Production cache settings regression in a disposable, focus-safe Edge profile.
 // Provider responses and bulk cache records are explicitly labeled fixtures;
@@ -19,7 +20,7 @@ function argument(name, fallback) {
 }
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const playwrightRoot = argument('playwright-root', '');
-const helperPath = argument('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER || '');
+const helperPath = argument('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER || path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-cache-settings-production'));
 const timeout = Number(argument('timeout', '30000'));
 const MIB = 1024 * 1024;
@@ -37,8 +38,8 @@ assert.equal(path.basename(extensionDir), 'chrome-mv3', 'This delivery suite req
 const {chromium} = require(path.join(path.resolve(playwrightRoot), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(path.resolve(helperPath));
 const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-cache-settings-edge-'));
 fs.mkdirSync(artifactsDir, {recursive: true});
+let profileDir;
 const report = {
   ok: false, suite: 'cache-settings', artifact: 'production', extensionDir, profileDir,
   manifestVersion: manifest.version,
@@ -233,7 +234,12 @@ const translationRequest = {
 };
 
 (async () => {
+  let primaryError;
+  let launchAttempted = false;
   try {
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-cache-settings-edge-'));
+    report.profileDir = profileDir;
+    launchAttempted = true;
     browserSession = await launchFocusSafePersistentContext({
       chromium, profileDir, browserPath: argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
       background: true, headless: false, displayTarget: 'secondary', timeout,
@@ -242,14 +248,23 @@ const translationRequest = {
         '--no-first-run', '--no-default-browser-check',
       ],
     });
+    guardBrowserClose(browserSession, profileDir);
     context = browserSession.context;
     report.launchMode = browserSession.launchMode;
     report.focusPolicy = browserSession.focusPolicy;
     report.windowPlacement = browserSession.windowPlacement;
     const cdp = await context.browser().newBrowserCDPSession();
-    const {processInfo} = await cdp.send('SystemInfo.getProcessInfo');
-    browserPid = processInfo.find(item => item.type === 'browser').id;
-    await cdp.detach();
+    let cdpError;
+    try {
+      const {processInfo} = await cdp.send('SystemInfo.getProcessInfo');
+      browserPid = processInfo.find(item => item.type === 'browser').id;
+    } catch (error) {cdpError = error; throw error;}
+    finally {
+      try {await cdp.detach();} catch (error) {
+        if (!cdpError) throw error;
+        process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+      }
+    }
     worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout});
     captureErrors(worker, 'service-worker');
     const extensionId = worker.url().match(/^chrome-extension:\/\/([^/]+)/)[1];
@@ -399,15 +414,37 @@ const translationRequest = {
     assert.equal(report.windowPlacement.browserFrontmost, false);
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.errors.push({message: String(error), stack: error.stack});
     if (page && !page.isClosed()) await screenshot('cache-failure').catch(() => {});
     process.exitCode = 1;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'summary.json'), JSON.stringify(report, null, 2));
-    if (browserSession) await browserSession.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
-    report.cleanedTemporaryProfile = true;
-    fs.writeFileSync(path.join(artifactsDir, 'summary.json'), JSON.stringify(report, null, 2));
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (browserSession) {await browserSession.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+      report.cleanedTemporaryProfile = !fs.existsSync(profileDir);
+    });
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'summary.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     process.stdout.write(`${JSON.stringify({ok: report.ok, cases: report.caseCoverage.length, summary: path.join(artifactsDir, 'summary.json'), errors: report.errors}, null, 2)}\n`);
   }
-})();
+})().catch(error => {process.stderr.write(`${error.stack || error}\n`); process.exitCode = 1;});

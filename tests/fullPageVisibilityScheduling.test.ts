@@ -12,6 +12,7 @@ const runtime = vi.hoisted(() => ({
     adapters: [] as TranslationSiteAdapter[],
     candidateEligible: vi.fn<(element: Element) => boolean>(() => true),
     ignoreMutation: vi.fn<(element: Element) => boolean>(() => false),
+    sourceReads: vi.fn<(element: HTMLElement) => void>(),
     candidates: [] as Array<{
         element: HTMLElement;
         kind: "content" | "control";
@@ -50,6 +51,8 @@ const runtime = vi.hoisted(() => ({
         enableAIMultiSegment: false,
         display: 0,
         style: 0,
+        longParagraphLineBreakEnabled: false,
+        translationBeforeOriginal: false,
         fullPageTranslationMode: "viewport" as "viewport" | "all",
         translationScope: "content" as "content" | "all",
         // 这些用例验证纯视口门禁，关闭免滚动预翻译预算以隔离被测调度路径。
@@ -151,7 +154,8 @@ vi.mock("@/src/features/full-page-translation/content/renderer", async (importOr
         wrapper.setAttribute("data-fr-translation-owned", "true");
         wrapper.lang = typeof options.targetLanguage === 'string' ? options.targetLanguage : '';
         wrapper.textContent = text;
-        node.appendChild(wrapper);
+        if (options.translationBeforeOriginal) node.insertBefore(wrapper, node.firstChild);
+        else node.appendChild(wrapper);
         return wrapper;
     },
     refreshBilingualTranslation: (
@@ -168,6 +172,7 @@ vi.mock("@/src/features/full-page-translation/content/renderer", async (importOr
 }));
 vi.mock("@/src/features/full-page-translation/content/layout", () => ({
     ensureTranslationTruncationLayout: runtime.ensureTranslationTruncationLayout,
+    createTranslationTruncationLayoutBatch: () => runtime.ensureTranslationTruncationLayout,
 }));
 vi.mock("@/src/core/translation/public", async (importOriginal) => {
     const actual = await importOriginal<typeof import("@/src/core/translation/public")>();
@@ -202,13 +207,23 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         }
         return slots;
     };
+    const resolveCandidate = (scope: string) => (start: Node | null | undefined) =>
+        [...runtime.candidates].reverse().find((candidate) => {
+            if (!start || (candidate.scope === 'all' && scope !== 'all') || isProtected(candidate.element) || !runtime.candidateEligible(candidate.element)) return false;
+            const key = candidate.nodes?.[0] ?? candidate.element;
+            return key === start || candidate.element === start || candidate.element.contains(start);
+        }) ?? null;
 
     return {
         // 属性型按钮标签的安全边界由 core 唯一定义，测试替身不复制其判定规则。
         getTranslatableControlValueAttribute: actual.getTranslatableControlValueAttribute,
         normalizeTranslationText: actual.normalizeTranslationText,
-        extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) =>
-            textSlots(element, keepOriginal).map(({source}) => source).join(""),
+        createCurrentTranslationResolverBatch: () => (start: Node, scope = 'content') => runtime.realCore
+            ? runtime.realCore.resolve(start) : resolveCandidate(scope)(start),
+        extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) => {
+            runtime.sourceReads(element);
+            return textSlots(element, keepOriginal).map(({source}) => source).join("");
+        },
         extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
             nodes.map((node) => node.textContent ?? "").join(""),
         applyTranslationsToSnapshot: (_snapshot: unknown, translations: readonly string[]) => translations.join(""),
@@ -239,11 +254,8 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
                 candidate: [...runtime.candidates].reverse().find((candidate) =>
                     (candidate.scope !== "all" || scope === "all") && candidate.element === element && !isProtected(candidate.element) && runtime.candidateEligible(element)),
             }),
-            resolve: (start: Node | null | undefined) => [...runtime.candidates].reverse().find((candidate) => {
-                if (!start || (candidate.scope === "all" && scope !== "all") || isProtected(candidate.element) || !runtime.candidateEligible(candidate.element)) return false;
-                const key = candidate.nodes?.[0] ?? candidate.element;
-                return key === start || candidate.element === start || candidate.element.contains(start);
-            }),
+            resolve: resolveCandidate(scope),
+            createSynchronousResolver: () => resolveCandidate(scope),
             *discoverSteps() {
                 for (const segment of document.querySelectorAll<HTMLElement>(
                     '[data-fr-translation-segment="true"]',
@@ -292,6 +304,8 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
 import {
     autoTranslateEnglishPage,
     getFullPageTranslationFrameState,
+    readFullPageUnchangedCompletion,
+    translateTarget,
     cancelPendingHoverTranslation,
     handleBilingualTranslation,
     handleTranslation,
@@ -311,6 +325,7 @@ import {
     getTranslationInvocationIdentity,
     translateTextSlots,
     type FullPageTranslationConfigSnapshot,
+    type FullPageTranslationSessionCache,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {
     createFullPageRequestSessionState,
@@ -472,6 +487,8 @@ describe("全文翻译可见性锚点", () => {
         runtime.config.enableAIMultiSegment = false;
         runtime.config.display = 0;
         runtime.config.style = 0;
+        runtime.config.longParagraphLineBreakEnabled = false;
+        runtime.config.translationBeforeOriginal = false;
         runtime.config.fullPageTranslationMode = "viewport";
         runtime.config.eagerTranslationCharacters = 0;
         runtime.config.translationScope = "content";
@@ -485,6 +502,7 @@ describe("全文翻译可见性锚点", () => {
         runtime.realCore = null;
         runtime.candidateEligible.mockReset().mockReturnValue(true);
         runtime.ignoreMutation.mockReset().mockReturnValue(false);
+        runtime.sourceReads.mockClear();
 
         const {window, document} = parseHTML("<html><head><title>Fixture</title></head><body></body></html>");
         replaceGlobal("window", window);
@@ -511,6 +529,272 @@ describe("全文翻译可见性锚点", () => {
             else Reflect.deleteProperty(globalThis, name);
         }
         replacedGlobals.clear();
+    });
+
+    // 站点属性变化复用真实候选和规则，验证边界清理与异步提交。
+    // The source contract is a 500ms attribute debounce and a separate 50ms discovery flush.
+    function attributeBoundaryFixture(attributeName: 'class' | 'style') {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<aside id="flag"></aside><main>' +
+            '<p id="excluded">This published paragraph has a conditional site boundary.</p>' +
+            '<p id="neighbor">This neighboring paragraph remains in the site boundary.</p></main>';
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const excluded = document.querySelector<HTMLElement>('#excluded')!;
+        const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+        [excluded, neighbor].forEach(element => setLayoutBox(element, 600, 60));
+        const selector = attributeName === 'class'
+            ? 'body:has(#flag.blocked) #excluded'
+            : 'body:has(#flag[style="display: block;"]) #excluded';
+        const core = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'private-boundary', name: 'Private boundary',
+                match: {hosts: ['example.com']}, mode: 'augment', exclude: [selector]}],
+        })});
+        runtime.realCore = core;
+        expect(core.adapters[0]!.observedAttributes).toBeNull();
+        const exclude = () => {
+            flag.setAttribute(attributeName, attributeName === 'class' ? 'blocked' : 'display: block;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName,
+                oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        };
+        return {core, flag, excluded, neighbor, exclude};
+    }
+
+    it(
+        'ordinary class does not inspect all owners synchronously; timer removes excluded owner',
+        async () => {
+            const {core, excluded, neighbor, exclude} = attributeBoundaryFixture('class');
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            const previous = getTranslationState(excluded)!;
+            const neighborState = getTranslationState(neighbor)!;
+            expect(previous).toMatchObject({phase: 'translated', syntheticSegment: false});
+            expect(previous.allowTopLevelApplicationShell).not.toBe(true);
+            expect(runtime.requests).toHaveBeenCalledTimes(2);
+            const inspect = vi.spyOn(core, 'inspect'); // Call-through: retain the real boundary result/signature.
+            try {
+                exclude();
+                expect(inspect, 'ordinary wide attribute callback must defer broad candidate inspection').not.toHaveBeenCalled();
+                expect(getTranslationState(excluded)).toBe(previous);
+                // Time follows the existing contract, not a count of Promise checkpoints.
+                await vi.advanceTimersByTimeAsync(500);
+                expect(previous.controller.signal.aborted).toBe(true);
+                expect(getTranslationState(excluded)).toBeUndefined();
+                expect(excluded.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+                expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+                expect(inspect.mock.calls.some(([element]) => element === excluded)).toBe(true);
+                expect(getTranslationState(neighbor)).toBe(neighborState);
+                expect(runtime.requests).toHaveBeenCalledTimes(2);
+            } finally {inspect.mockRestore();}
+        },
+    );
+
+    it('site true then nonSite false reschedule retains boundary validation before the loading early return', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<main><i id="flag"></i>' +
+            '<p id="excluded">This published paragraph has a conditional site boundary.</p></main>';
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const excluded = document.querySelector<HTMLElement>('#excluded')!;
+        setLayoutBox(excluded, 600, 60);
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'class-only-boundary', name: 'Class only boundary',
+                match: {hosts: ['example.com']}, mode: 'augment', exclude: ['#flag.blocked + #excluded']}],
+        })});
+        expect(runtime.realCore.adapters[0]!.observedAttributes).toEqual(expect.arrayContaining(['class']));
+        expect(runtime.realCore.adapters[0]!.observedAttributes).not.toContain('style');
+        const pending = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(pending.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(1);
+        const previous = getTranslationState(excluded)!;
+        expect(previous.phase).toBe('loading');
+        try {
+            flag.className = 'blocked';
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName: 'class',
+                oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            expect(previous.controller.signal.aborted).toBe(false);
+            await vi.advanceTimersByTimeAsync(100);
+            const oldStyle = excluded.getAttribute('style');
+            excluded.setAttribute('style', 'opacity: 0.9;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: excluded, attributeName: 'style',
+                oldValue: oldStyle, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            // Layout remains trailing, but scope invalidation must occur at the first boundary deadline.
+            await vi.advanceTimersByTimeAsync(399);
+            expect(previous.controller.signal.aborted).toBe(false);
+            expect(getTranslationState(excluded)).toBe(previous);
+            await vi.advanceTimersByTimeAsync(1);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(excluded)).toBeUndefined();
+            expect(excluded.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        } finally {
+            pending.resolve(['A late fixture result must stay outside the boundary.']);
+            await finishScheduledWork();
+        }
+        expect(excluded.querySelector('.fluent-read-bilingual-content')).toBeNull();
+        expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('nonSite style reevaluation preserves a hover owner without additional scope inspection', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="owner">A hover translation must survive ordinary layout jitter.</p>';
+        const owner = document.querySelector<HTMLElement>('#owner')!;
+        setLayoutBox(owner, 600, 60);
+        const core = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: []});
+        runtime.realCore = core;
+        handleBilingualTranslation(owner, false);
+        await finishScheduledWork();
+        const previous = getTranslationState(owner)!;
+        expect(previous.phase).toBe('translated');
+        runtime.config.translationScope = 'all';
+        runtime.config.fullPageTranslationMode = 'all';
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        expect(getTranslationState(owner)).toBe(previous);
+        const inspect = vi.spyOn(core, 'inspect');
+        try {
+            const oldStyle = owner.getAttribute('style');
+            owner.setAttribute('style', 'opacity: 0.9;');
+            TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: owner, attributeName: 'style',
+                oldValue: oldStyle, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+            expect(inspect).not.toHaveBeenCalled();
+            await vi.advanceTimersByTimeAsync(500);
+            expect(inspect, 'nonSite timer must keep the original source/artifact checks without a new scope inspection').not.toHaveBeenCalled();
+            expect(getTranslationState(owner)).toBe(previous);
+            expect(previous.controller.signal.aborted).toBe(false);
+            expect(owner.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+        } finally {inspect.mockRestore();}
+    });
+
+    it('a provider result inside the 50ms discovery window cannot commit after scope exclusion', async () => {
+        const {excluded, neighbor, exclude} = attributeBoundaryFixture('class');
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(origins => origins.some(origin => origin.includes('conditional site boundary'))
+            ? pending.promise : Promise.resolve(origins.map(origin => `译:${origin}`)));
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(51);
+        await waitForRequestCount(2);
+        const previous = getTranslationState(excluded)!;
+        expect(previous.phase).toBe('loading');
+        try {
+            exclude();
+            pending.resolve(['This provider result must never cross the new site boundary.']);
+            // Drain provider completion and its existing zero-delay render task, before the 50ms rescan.
+            await vi.advanceTimersByTimeAsync(1);
+            expect(excluded.querySelector('.fluent-read-bilingual-content')).toBeNull();
+            expect(runtime.renderOptions, 'no excluded owner render was invoked').toHaveLength(1);
+            expect(previous.controller.signal.aborted).toBe(true);
+            expect(getTranslationState(excluded)).toBeUndefined();
+        } finally {
+            pending.resolve(['Fixture cleanup']);
+            await finishScheduledWork();
+        }
+        expect(getTranslationState(neighbor)?.phase).toBe('translated');
+        expect(excluded.textContent).toBe('This published paragraph has a conditional site boundary.');
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+    });
+
+    it('a synthetic owner still rejects a non-class site boundary change in the observer callback', async () => {
+        replaceGlobal('performance', {now: () => Date.now()});
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<aside id="guard"><i id="flag"></i></aside>' +
+            '<div id="mixed">Readable inline prefix <strong>with emphasized prose.</strong>' +
+            '<p id="neighbor">A separate paragraph remains readable.</p></div>';
+        const host = document.querySelector<HTMLElement>('#mixed')!;
+        const flag = document.querySelector<HTMLElement>('#flag')!;
+        const neighbor = document.querySelector<HTMLElement>('#neighbor')!;
+        [host, neighbor].forEach(element => setLayoutBox(element, 600, 100));
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: compileSiteRulePack({
+            version: 1, rules: [{id: 'synthetic-protection', name: 'Synthetic protection',
+                match: {hosts: ['example.com']}, mode: 'augment',
+                protect: ['#guard:has([data-block="yes"]) + #mixed']}],
+        })});
+        expect(runtime.realCore.adapters[0]!.observedAttributes).toBeNull();
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const segment = host.querySelector<HTMLElement>('[data-fr-translation-segment="true"]')!;
+        const previous = getTranslationState(segment)!;
+        expect(previous).toMatchObject({phase: 'translated', syntheticSegment: true});
+        const requestsBefore = runtime.requests.mock.calls.length;
+        flag.setAttribute('data-block', 'yes');
+        TestMutationObserver.instances.at(-1)!.emit([{type: 'attributes', target: flag, attributeName: 'data-block',
+            oldValue: null, addedNodes: [], removedNodes: []} as unknown as MutationRecord]);
+        expect(previous.controller.signal.aborted).toBe(true);
+        expect(getTranslationState(segment)).toBeUndefined();
+        expect(segment.isConnected).toBe(false);
+        await finishScheduledWork();
+        expect(host.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        expect(host.textContent).toBe('Readable inline prefix with emphasized prose.A separate paragraph remains readable.');
+        expect(runtime.requests).toHaveBeenCalledTimes(requestsBefore);
+    });
+
+    it('自有译文 mutation 风暴不反复遍历等待视口的候选，宿主删除仍会清理', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<p id="visible">A visible paragraph.</p>' +
+            Array.from({length: 200}, (_, index) => `<p id="waiting-${index}">Waiting paragraph ${index}.</p>`).join('');
+        const visible = document.querySelector<HTMLElement>('#visible')!;
+        const waiting = Array.from(document.querySelectorAll<HTMLElement>('p[id^="waiting-"]'));
+        setLayoutBox(visible, 600, 60);
+        waiting.forEach(element => setLayoutBox(element, 600, 60));
+        runtime.candidates = [visible, ...waiting].map(element => ({element, kind: 'content', reason: 'ownership-storm'}));
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(visible, true);
+        await finishScheduledWork();
+        const wrapper = visible.querySelector<HTMLElement>('.fluent-read-bilingual-content')!;
+        const connectedReads = vi.fn(() => true);
+        waiting.forEach(element => Object.defineProperty(element, 'isConnected', {configurable: true, get: connectedReads}));
+        const observer = TestMutationObserver.instances[0]!;
+        const ownRecord = {type: 'childList', target: visible, addedNodes: [wrapper], removedNodes: []} as unknown as MutationRecord;
+        for (let round = 0; round < 20; round += 1) {
+            observer.emit(Array.from({length: 100}, () => ownRecord));
+            await vi.advanceTimersByTimeAsync(16);
+        }
+        expect(connectedReads.mock.calls.length).toBe(0);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(getTranslationState(visible)?.bilingualContent).toBe(wrapper);
+        expect(visible.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+
+        const removed = waiting[0];
+        Object.defineProperty(removed, 'isConnected', {configurable: true, value: false});
+        removed.remove();
+        observer.emit([{type: 'childList', target: document.body, addedNodes: [], removedNodes: [removed]} as unknown as MutationRecord]);
+        await vi.advanceTimersByTimeAsync(20);
+        expect(connectedReads).toHaveBeenCalled();
+        expect(TestIntersectionObserver.instances[0]!.observed.has(removed)).toBe(false);
+    });
+
+    it('同批重复宿主属性变更只安排一次目标复验，保留译文并仍处理下一批变化', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<p>A paragraph that must remain stable during host layout updates.</p>';
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        setLayoutBox(paragraph, 600, 60);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'attribute-storm'}];
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const wrapper = paragraph.querySelector<HTMLElement>('.fluent-read-bilingual-content')!;
+        const timer = vi.spyOn(window, 'setTimeout');
+        const observer = TestMutationObserver.instances[0]!;
+        for (let batch = 0; batch < 3; batch += 1) {
+            const oldValue = document.body.className;
+            document.body.className = `host-theme-${batch}`;
+            timer.mockClear();
+            observer.emit(Array.from({length: 1000}, () => ({
+                type: 'attributes', target: document.body, attributeName: 'class', oldValue,
+                addedNodes: [], removedNodes: [],
+            } as unknown as MutationRecord)));
+            expect(timer.mock.calls.length).toBe(1);
+            await vi.advanceTimersByTimeAsync(600);
+            expect(runtime.requests).toHaveBeenCalledTimes(1);
+            expect(getTranslationState(paragraph)?.bilingualContent).toBe(wrapper);
+        }
+        timer.mockRestore();
     });
 
     it.each([0, 1])('模式 %s 的连续计数更新停止重译，邻段稳定且新正文可恢复', async display => {
@@ -834,6 +1118,8 @@ describe("全文翻译可见性锚点", () => {
     });
 
     it.each([false, true])('请求在途时公告从DOM移除（分槽=%s），立即释放旧owner并续译，迟到结果不重建已关闭公告', async (synthetic) => {
+        // 冷却调度与虚拟计时器使用同一时钟，避免真实 performance 时间不推进而反复排队。
+        replaceGlobal('performance', {now: () => Date.now()});
         const {notice, announcement, page} = announcementFixture();
         if (synthetic) runtime.candidates = runtime.candidates.map(candidate => candidate.element === announcement
             ? {...candidate, nodes: [announcement.firstChild!], reason: 'generic-inline-run'} : candidate);
@@ -1686,6 +1972,50 @@ describe("全文翻译可见性锚点", () => {
         expect(singleTranslationText(second)).toBe(`译:${sourceText}`);
     });
 
+    it.each([true, false])('provider 等待期间显示设置变化仍沿用会话换行与顺序 %s', async (frozen) => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        runtime.config.longParagraphLineBreakEnabled = frozen;
+        runtime.config.translationBeforeOriginal = frozen;
+        document.body.innerHTML = '<p id="display-snapshot">This paragraph keeps the display settings selected when translation started.</p>';
+        const paragraph = document.querySelector<HTMLElement>('p')!;
+        const source = paragraph.firstChild;
+        setLayoutBox(paragraph, 600, 80);
+        runtime.candidates = [{element: paragraph, kind: 'content', reason: 'paragraph'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(pending.promise);
+        autoTranslateEnglishPage();
+        await vi.advanceTimersByTimeAsync(50);
+        await waitForRequestCount(1);
+        runtime.config.longParagraphLineBreakEnabled = !frozen;
+        runtime.config.translationBeforeOriginal = !frozen;
+        pending.resolve(['保持开始翻译时选择的展示设置。']);
+        await finishScheduledWork();
+        expect(runtime.renderOptions.at(-1)).toMatchObject({
+            longParagraphLineBreak: frozen, translationBeforeOriginal: frozen,
+        });
+        const state = getTranslationState(paragraph)!;
+        expect(state.bilingualReplay).toMatchObject({longParagraphLineBreak: frozen});
+        expect(state.bilingualBeforeSource).toBe(frozen);
+        expect(paragraph.contains(source)).toBe(true);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('展示选项改变操作身份，但复用同一原文的 provider 结果', async () => {
+        const session = {active: true, translationSlotCache: new Map(), translationRequestCache: new Map()};
+        const original = captureFullPageTranslationConfig();
+        runtime.config.longParagraphLineBreakEnabled = true;
+        runtime.config.translationBeforeOriginal = true;
+        const changed = captureFullPageTranslationConfig();
+        expect(getTranslationInvocationIdentity(original)).not.toBe(getTranslationInvocationIdentity(changed));
+        await expect(translateTextSlots(['Display-only change'], original, undefined, undefined, session))
+            .resolves.toEqual(['译:Display-only change']);
+        await expect(translateTextSlots(['Display-only change'], changed, undefined, undefined, session))
+            .resolves.toEqual(['译:Display-only change']);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        clearFullPageTranslationRequestCache(session);
+    });
+
     it('请求配置快照解析自定义模型并冻结单/双语展示模式', () => {
         runtime.config.model.microsoft = 'custom';
         runtime.config.customModel.microsoft = 'session-model';
@@ -2225,6 +2555,68 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
     });
 
+    it('AI 微任务合批使用调用时的原文与配置，外部修改不污染旧请求或会话缓存', async () => {
+        const requestController = new AbortController();
+        const session: FullPageTranslationSessionCache = {active: true, translationSlotCache: new Map(), translationRequestCache: new Map(),
+            requestSignal: requestController.signal, requestControllers: new Set<AbortController>(), requestQueueSessions: new Set()};
+        const ids = ['library-a'];
+        const excluded = ['de'];
+        const firstSnapshot = translationSnapshot({service: 'ai', model: 'ai-model', enableAIMultiSegment: true,
+            glossaryIds: ids, excludedLanguages: excluded});
+        const originalSnapshot = {...firstSnapshot, glossaryIds: ['library-a'], excludedLanguages: ['de']};
+        const origins = ['First paragraph'];
+        const first = translateTextSlots(origins, firstSnapshot, undefined, undefined, session);
+        origins[0] = 'Edited paragraph';
+        origins.push('Injected paragraph');
+        firstSnapshot.targetLanguage = 'ja';
+        firstSnapshot.model = 'edited-model';
+        ids.push('library-b');
+        excluded.push('fr');
+        const second = translateTextSlots(['Neighbor paragraph'], originalSnapshot, undefined, undefined, session);
+        await expect(Promise.all([first, second])).resolves.toEqual([['译:First paragraph'], ['译:Neighbor paragraph']]);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(runtime.requests).toHaveBeenCalledWith(['First paragraph', 'Neighbor paragraph']);
+        expect(runtime.requestOptions[0]).toMatchObject({modelOverride: 'ai-model', targetLanguage: 'zh', glossaryIds: ['library-a']});
+        await expect(translateTextSlots(['First paragraph'], originalSnapshot, undefined, undefined, session))
+            .resolves.toEqual(['译:First paragraph']);
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        clearFullPageTranslationRequestCache(session);
+    });
+
+    it('逐槽语言过滤等待 provider 期间，修改外部数组不替换跳过槽或注入额外返回值', async () => {
+        runtime.clearlyTargetLanguage.mockImplementation((value) => value === '中文原文');
+        const response = deferred<string[]>();
+        runtime.requests.mockReturnValueOnce(response.promise);
+        const origins = ['中文原文', 'Foreign source'];
+        const request = translateTextSlots(origins, translationSnapshot());
+        origins[0] = 'Edited skipped source';
+        origins.push('Injected source');
+        response.resolve(['外语译文']);
+        await expect(request).resolves.toEqual(['中文原文', '外语译文']);
+        expect(runtime.requests).toHaveBeenCalledWith(['Foreign source']);
+    });
+
+    it('本地 auto 逐槽翻译只构造一次整段语言检测样本，所有工作者使用相同来源', async () => {
+        const origins = Array.from({length: 200}, (_, index) => `Local batch source ${index}.`);
+        const sample = origins.join('\n');
+        const originalJoin = Array.prototype.join;
+        let sampleBuilds = 0;
+        const join = vi.spyOn(Array.prototype, 'join').mockImplementation(function (this: string[], separator) {
+            if (this.length === origins.length && this[0] === origins[0]) sampleBuilds += 1;
+            return originalJoin.call(this, separator);
+        });
+        let translations: string[];
+        try {
+            translations = await translateTextSlots(origins, translationSnapshot({service: 'localTranslation', sourceLanguage: 'auto'}));
+        } finally {
+            join.mockRestore();
+        }
+        expect(translations).toEqual(origins.map(origin => `译:${origin}`));
+        expect(runtime.requestOptions).toHaveLength(200);
+        expect(runtime.requestOptions.every(option => option.sourceLanguageDetectionText === sample)).toBe(true);
+        expect(sampleBuilds).toBe(1);
+    });
+
     it('AI 多段按完整请求快照分批，并以四个文本槽为硬上限', async () => {
         const session = {active: true, translationSlotCache: new Map()};
         const firstModel = translationSnapshot({
@@ -2427,7 +2819,7 @@ describe("全文翻译可见性锚点", () => {
         await expect(result).rejects.toMatchObject({name: 'AbortError'});
     });
 
-    it('AI 多段单候选执行读取调用方提交时的可变槽列表', async () => {
+    it('AI 单候选排队后清空调用者数组仍使用原快照，取消由 AbortSignal 表达', async () => {
         const session = {active: true, translationSlotCache: new Map()};
         const enabled = translationSnapshot({
             service: 'ai',
@@ -2438,8 +2830,8 @@ describe("全文翻译可见性锚点", () => {
         const result = translateTextSlots(origins, enabled, undefined, undefined, session);
 
         origins.length = 0;
-        await expect(result).resolves.toEqual([]);
-        expect(runtime.requests).not.toHaveBeenCalled();
+        await expect(result).resolves.toEqual(['译:Removed before execution']);
+        expect(runtime.requests).toHaveBeenCalledWith(['Removed before execution']);
     });
 
     it('AI 多段共享请求在全部候选取消后终止底层批次', async () => {
@@ -3399,7 +3791,7 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests).toHaveBeenCalledTimes(2);
         expect(getTranslationState(paragraph)?.phase).toBe('translated');
         expect(paragraph.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
-        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2, sourceText: 'Same configuration slot source.'});
+        expect(runtime.renderOptions.at(-1)).toEqual({targetLanguage: 'ja', style: 2, sourceText: 'Same configuration slot source.', longParagraphLineBreak: false, translationBeforeOriginal: false});
     });
 
     it("取消已排队的延迟悬浮后，计时器到期也不会晚到翻译", async () => {
@@ -3756,8 +4148,8 @@ describe("全文翻译可见性锚点", () => {
             enableAIContext: true,
         }));
         expect(runtime.renderOptions).toEqual([
-            {targetLanguage: 'zh', style: 2, sourceText: 'First paragraph uses the session snapshot.'},
-            {targetLanguage: 'zh', style: 2, sourceText: 'Later paragraph must use the same snapshot.'},
+            {targetLanguage: 'zh', style: 2, sourceText: 'First paragraph uses the session snapshot.', longParagraphLineBreak: false, translationBeforeOriginal: false},
+            {targetLanguage: 'zh', style: 2, sourceText: 'Later paragraph must use the same snapshot.', longParagraphLineBreak: false, translationBeforeOriginal: false},
         ]);
         expect(first.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');
         expect(second.querySelector('.fluent-read-bilingual-content')?.getAttribute('lang')).toBe('zh');
@@ -4053,6 +4445,41 @@ describe("全文翻译可见性锚点", () => {
         expect(getTranslationState(replacement)?.phase).toBe("translated");
         expect(replacement.querySelectorAll(".fluent-read-bilingual-content")).toHaveLength(1);
         expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('已提交的整批候选重新发现时不重复提取原文，后续来源变化仍会翻译', async () => {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = 'all';
+        document.body.innerHTML = '<main>' + Array.from({length: 20}, (_, index) =>
+            `<p>Committed paragraph ${index} remains readable.</p>`).join('') + '</main>';
+        const paragraphs = [...document.querySelectorAll<HTMLElement>('p')];
+        paragraphs.forEach(paragraph => setLayoutBox(paragraph, 600, 80));
+        runtime.candidates = paragraphs.map(element => ({element, kind: 'content', reason: 'paragraph'}));
+        autoTranslateEnglishPage();
+        await finishScheduledWork();
+        const initialRequests = runtime.requests.mock.calls.length;
+        expect(initialRequests).toBe(20);
+        const wrappers = paragraphs.map(paragraph => paragraph.querySelector('.fluent-read-bilingual-content'));
+        runtime.sourceReads.mockClear();
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'childList', target: document.querySelector('main')!,
+            addedNodes: [], removedNodes: [],
+        } as unknown as MutationRecord]);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(runtime.sourceReads).not.toHaveBeenCalled();
+        expect(runtime.requests).toHaveBeenCalledTimes(initialRequests);
+        paragraphs.forEach((paragraph, index) =>
+            expect(paragraph.querySelector('.fluent-read-bilingual-content')).toBe(wrappers[index]));
+
+        const changedSource = paragraphs[0]!.firstChild as Text;
+        changedSource.data = 'The host has published a different paragraph.';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'characterData', target: changedSource, addedNodes: [], removedNodes: [],
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(initialRequests + 1);
+        expect(paragraphs[0]!.querySelector('.fluent-read-bilingual-content')?.textContent)
+            .toBe('译:The host has published a different paragraph.');
     });
 
     it("宿主把 remove/add 拆记录并连续拒绝整块 wrapper 时，三次后稳定降级且不重译", async () => {
@@ -5419,6 +5846,175 @@ describe("全文翻译可见性锚点", () => {
 
         await finishScheduledWork();
         expect(runtime.requests).toHaveBeenCalledTimes(3);
+    });
+
+    async function startUnchangedReceiptCase(output: string | null = ' Spec ', mode: 'viewport' | 'all' = 'viewport') {
+        runtime.config.display = 1;
+        runtime.config.fullPageTranslationMode = mode;
+        document.body.innerHTML = '<h2 id="receipt-owner">Spec</h2><h2 id="other-owner">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#receipt-owner')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        runtime.requests.mockImplementation(async () => output === null ? [] : [output]);
+        autoTranslateEnglishPage();
+        const sessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await finishScheduledWork();
+        return {owner, sessionId};
+    }
+
+    it('accepted identical result has exact owner/source/session evidence and no duplicate DOM', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toMatchObject({
+            status: 'available', reason: 'accepted-result-identical', sessionId,
+            source: 'Spec', sources: ['Spec'], outputs: [' Spec '], sourceCurrent: true,
+            requestBoundary: 'accepted-same-session-result-reuse', upstreamDispatchAndRoute: 'unavailable',
+        });
+        expect(owner.textContent).toBe('Spec');
+        expect(owner.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+        expect(getTranslationState(owner)).toBeUndefined();
+        expect(readFullPageUnchangedCompletion(document.querySelector<HTMLElement>('#other-owner')!, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId + 1, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+    });
+
+    it.each([null, '', '   '])('empty/incomplete result %s cannot certify unchanged completion', async output => {
+        const {owner, sessionId} = await startUnchangedReceiptCase(output);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('preflight language skip does not masquerade as a completed request', async () => {
+        runtime.clearlyTargetLanguage.mockReturnValue(true);
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(runtime.requests).not.toHaveBeenCalled();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('same-text Text replacement, route epoch and restore invalidate exact completion evidence', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        const original = owner.firstChild!;
+        owner.replaceChild(document.createTextNode('Spec'), original);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        owner.replaceChild(original, owner.firstChild!);
+        resetFullPageTranslationRouteState();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        restoreOriginalContent();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('same-session exact semantic source edit-and-return reuses historical acceptance without a new request', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        const text = owner.firstChild!;
+        text.nodeValue = 'Changed source';
+        text.nodeValue = 'Spec';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'characterData', target: text, addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toMatchObject({
+            status: 'available', requestBoundary: 'accepted-same-session-result-reuse', upstreamDispatchAndRoute: 'unavailable',
+        });
+        await finishScheduledWork();
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('cancellation before an identical late result cannot certify the old session', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<h2 id="cancelled-receipt">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#cancelled-receipt')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        autoTranslateEnglishPage();
+        const oldSessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await vi.advanceTimersByTimeAsync(100);
+        restoreOriginalContent();
+        pending.resolve(['Spec']);
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, oldSessionId, 'Spec').status).toBe('unavailable');
+        expect(owner.textContent).toBe('Spec');
+        expect(owner.querySelector('[data-fr-translation-owned="true"]')).toBeNull();
+    });
+
+    it('unrelated host mutations preserve exact owner completion evidence', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        const neighbor = document.querySelector<HTMLElement>('#other-owner')!;
+        neighbor.firstChild!.nodeValue = 'Different neighboring source';
+        TestMutationObserver.instances.at(-1)!.emit([{
+            type: 'characterData', target: neighbor.firstChild!, addedNodes: [] as unknown as NodeList,
+            removedNodes: [] as unknown as NodeList,
+        } as unknown as MutationRecord]);
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('available');
+        expect(runtime.requests).toHaveBeenCalledTimes(1);
+    });
+
+    it('new invocation revokes an earlier completion even when the new result fails', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        runtime.requests.mockRejectedValue(new Error('new invocation failed'));
+        const candidate = {element: owner, kind: 'content' as const, reason: 'heading'};
+        const attempt = translateTarget(candidate, 'bilingual', false);
+        await finishScheduledWork();
+        await attempt;
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+    });
+
+    it('current owner policy and structure must still match the accepted proof', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase();
+        const completion = readFullPageUnchangedCompletion(owner, sessionId, 'Spec');
+        expect(completion.status).toBe('available');
+        runtime.candidateEligible.mockReturnValue(false);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        runtime.candidateEligible.mockReturnValue(true);
+        owner.setAttribute('lang', 'fr');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        owner.removeAttribute('lang');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec')).toEqual(completion);
+    });
+
+    it('stability skip cannot inherit acceptance and settled changed-source work renders distinctly', async () => {
+        const {owner, sessionId} = await startUnchangedReceiptCase(' Spec ', 'all');
+        setViewportRect(owner, 0, 48);
+        owner.firstChild!.nodeValue = 'PUT';
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+        runtime.requests.mockImplementation(async () => ['卖权']);
+        const attempt = translateTarget({element: owner, kind: 'content', reason: 'heading'}, 'bilingual', false);
+        await finishScheduledWork();
+        expect(await attempt).toMatchObject({status: 'unchanged', source: 'PUT'});
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(runtime.requests).toHaveBeenCalledTimes(2);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'PUT').status).toBe('unavailable');
+        expect(owner.querySelector('.fluent-read-bilingual-content')?.textContent).toBe('卖权');
+    });
+
+    it('pending, failed or cancelled owner attempts never receive completion evidence', async () => {
+        runtime.config.display = 1;
+        document.body.innerHTML = '<h2 id="pending-receipt">Spec</h2>';
+        const owner = document.querySelector<HTMLElement>('#pending-receipt')!;
+        setLayoutBox(owner, 300, 48);
+        runtime.candidates = [{element: owner, kind: 'content', reason: 'heading'}];
+        const pending = deferred<string[]>();
+        runtime.requests.mockImplementation(() => pending.promise);
+        autoTranslateEnglishPage();
+        const sessionId = getFullPageTranslationFrameState().sessionId!;
+        await vi.advanceTimersByTimeAsync(50);
+        TestIntersectionObserver.instances[0]!.emit(owner, true);
+        await vi.advanceTimersByTimeAsync(100);
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        pending.reject(new Error('provider failed'));
+        await finishScheduledWork();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
+        restoreOriginalContent();
+        expect(readFullPageUnchangedCompletion(owner, sessionId, 'Spec').status).toBe('unavailable');
     });
 
     it("显式 unchanged 在同一全文会话形成 source 签名墓碑，普通 rescan 不重复请求", async () => {

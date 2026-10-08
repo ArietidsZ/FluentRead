@@ -1,7 +1,7 @@
 <!--
 @file src/features/settings/ui/ConfigManagement.vue
 文件职责：提供备份与恢复页面的配置云备份、完整数据备份和设置历史。
-主要内容：按页内分类切换完整备份入口与设置历史；列表每行只保留版本、一句概要和时间——单项修改给出“改前 → 改后”，多项修改只给数量，自动快照只给时间和与当前的差异数——具体修改在详情里区分当时的修改和恢复时的差异，并保留动态服务名称、多语言与安全恢复。
+主要内容：按页内分类切换完整备份入口与设置历史；列表每行只保留版本、一句概要和时间——单项修改给出“改前 → 改后”，多项修改只给数量，自动快照只给时间和与当前的差异数——具体修改在详情里区分当时的修改和恢复时的差异，并保留动态服务名称、多语言与安全恢复。恢复确认、取消后的焦点归还及回包保持页面和预览目标归属。
 模块边界：本组件拥有设置历史的预览与恢复；本机备份与导入由 LocalDataManagement 编排，配置云备份由独立 CloudConfigBackup 组件及后台服务负责。
 -->
 <template>
@@ -138,13 +138,34 @@
         >{{ previewActionLabel }}</el-button>
       </template>
     </el-dialog>
+    <el-dialog
+      v-for="operation in restoreConfirmations"
+      :key="operation.id"
+      :model-value="true"
+      class="config-restore-confirm-dialog"
+      title="确认恢复设置"
+      width="min(420px, calc(100vw - 32px))"
+      append-to-body
+      destroy-on-close
+      @open-auto-focus="rememberConfirmationOrigin(operation)"
+      @focusin="rememberConfirmationFocus(operation, $event)"
+      @close-auto-focus="returnConfirmationFocus(operation)"
+      @close="cancelConfirmation(operation)"
+      @update:model-value="(visible: boolean) => { if (!visible) cancelConfirmation(operation) }"
+    >
+      <p>将恢复 {{ operation.target.label }}，并生成一份新的最近修改记录。是否继续？</p>
+      <template #footer>
+        <el-button @click="cancelConfirmation(operation)">取消</el-button>
+        <el-button type="primary" @click="confirmRestore(operation)">恢复</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
 <script setup lang="ts">
-import {computed, onUnmounted, ref} from 'vue';
+import {computed, nextTick, onActivated, onDeactivated, onUnmounted, ref, shallowRef, watch} from 'vue';
 import CloudConfigBackup from './CloudConfigBackup.vue';
-import {ElMessage, ElMessageBox} from 'element-plus';
+import {ElMessage} from 'element-plus';
 import browser from 'webextension-polyfill';
 import {getMultilingualTargetLanguageLabel, options} from '@/src/core/config/catalog';
 import {getCustomOpenAIProviderLabel} from '@/src/core/config/customOpenAI';
@@ -165,7 +186,7 @@ import {
   type ConfigHistoryEntry,
   type ConfigHistoryState,
 } from '@/src/services/config';
-import {toRestorableConfig} from '@/src/services/config/history';
+import {restoreRestorableConfig, toRestorableConfig} from '@/src/services/config/history';
 import {useUiI18n} from '@/src/ui/i18n';
 import SettingsPanel from './components/SettingsPanel.vue';
 import LocalDataManagement from './LocalDataManagement.vue';
@@ -188,7 +209,16 @@ void configHistoryReady.then(() => { configHistory.value = getConfigHistorySnaps
 void configAutoBackupsReady.then(() => { configBackups.value = getConfigAutoBackupsSnapshot(); });
 const unsubscribeHistory = subscribeConfigHistory((history) => { configHistory.value = history; });
 const unsubscribeBackups = subscribeConfigAutoBackups((backups) => { configBackups.value = backups; });
+let active = true;
+const cachedActive = ref(true);
+onActivated(() => { cachedActive.value = true; });
+onDeactivated(() => {
+  cachedActive.value = false;
+  invalidatePreview();
+});
 onUnmounted(() => {
+  active = false;
+  invalidatePreview();
   unsubscribeHistory();
   unsubscribeBackups();
 });
@@ -255,7 +285,29 @@ interface PreviewTarget {
 
 const previewTarget = ref<PreviewTarget | null>(null);
 const previewVisible = ref(false);
-const applyBusy = ref(false);
+interface RestoreOperation {
+  id: number;
+  target: PreviewTarget;
+  config: Config;
+  configRevision: string | null;
+  expectedConfigRevision: string | null;
+  expectedConfigObserved: boolean;
+  trigger: HTMLButtonElement | null;
+  focusBeforeTrap: Element | null;
+  confirmationElement: HTMLElement | null;
+}
+let restoreSequence = 0;
+let pendingRestoreFocus: RestoreOperation | null = null;
+const restoreOperation = shallowRef<RestoreOperation | null>(null);
+const restoreStarted = ref(false);
+const applyBusy = computed(() => restoreOperation.value !== null);
+// 每个 Dialog 绑定自己的操作对象；旧实例的关闭事件不能取消后开的确认。
+const restoreConfirmations = computed(() => restoreOperation.value && !restoreStarted.value
+  ? [restoreOperation.value] : []);
+// 父页面通过 Object.assign 水合同一个配置对象；只比较对象身份不足以限定恢复。
+// 隐藏且无操作时不读取配置；computed 缓存投影，watch 按渲染批次合并水合的多字段写入。
+const restorableRevision = computed(() => previewIsActive() || restoreOperation.value
+  ? JSON.stringify(toRestorableConfig(props.config)) : null);
 const previewMode = ref<'changes' | 'current'>('changes');
 const resolvedPreviewConfig = computed(() => previewTarget.value?.config);
 const previewDiff = computed(() => buildConfigDiff(
@@ -280,7 +332,101 @@ const previewSourceLabel = computed(() => previewTarget.value?.kind === 'history
 const previewActionLabel = '恢复此版本';
 const previewBoundary = 'API 凭据和翻译次数不会随设置版本恢复';
 
+function previewIsActive() {
+  return active && cachedActive.value && props.active && (!props.activePanel || props.activePanel === 'history');
+}
+
+function cancelRestore(operation = restoreOperation.value) {
+  if (!operation) { pendingRestoreFocus = null; return; }
+  if (restoreOperation.value !== operation) return;
+  pendingRestoreFocus = null;
+  restoreOperation.value = null;
+  restoreStarted.value = false;
+}
+
+function invalidatePreview() {
+  cancelRestore();
+  previewVisible.value = false;
+}
+
+function cancelConfirmation(operation: RestoreOperation) {
+  if (restoreStarted.value || restoreOperation.value !== operation) return;
+  const canReturnFocus = isCurrentRestore(operation);
+  cancelRestore(operation);
+  if (canReturnFocus) pendingRestoreFocus = operation;
+}
+
+function rememberConfirmationOrigin(operation: RestoreOperation) {
+  operation.focusBeforeTrap = operation.trigger?.ownerDocument.activeElement ?? null;
+}
+
+function rememberConfirmationFocus(operation: RestoreOperation, event: FocusEvent) {
+  if (restoreOperation.value === operation && event.currentTarget instanceof HTMLElement) {
+    operation.confirmationElement = event.currentTarget;
+  }
+}
+
+async function returnConfirmationFocus(operation: RestoreOperation) {
+  // Escape 的焦点释放可先于 close；只有仍归属当前预览的未发送操作可以申请归还。
+  if (restoreOperation.value === operation) cancelConfirmation(operation);
+  if (pendingRestoreFocus !== operation) return;
+  const trigger = operation.trigger, confirmation = operation.confirmationElement;
+  if (!trigger || !confirmation) { pendingRestoreFocus = null; return; }
+  const document = trigger.ownerDocument, releasedFrom = document.activeElement;
+  if (!confirmation.contains(releasedFrom) && releasedFrom !== trigger) { pendingRestoreFocus = null; return; }
+
+  // EP 2.9.3 的公开 hook 不传 Event，并在 hook 后同步执行默认归还。
+  // 允许它返回捕获的原焦点；之后用户的任何新选择都撤销本次补偿。
+  let defaultPhase = true, focusMoved = false;
+  const onFocusIn = (event: FocusEvent) => {
+    if (!defaultPhase || (event.target !== trigger && event.target !== operation.focusBeforeTrap)) focusMoved = true;
+  };
+  const onVisibilityChange = () => { if (document.visibilityState === 'hidden' && pendingRestoreFocus === operation) pendingRestoreFocus = null; };
+  document.addEventListener('focusin', onFocusIn, true);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  try {
+    await Promise.resolve();
+    defaultPhase = false;
+    const defaultFocus = document.activeElement;
+    await nextTick();
+    if (pendingRestoreFocus !== operation) return;
+    pendingRestoreFocus = null;
+    if (focusMoved || document.activeElement !== defaultFocus || document.visibilityState === 'hidden'
+      || !previewIsActive() || !previewVisible.value || previewTarget.value !== operation.target
+      || props.config !== operation.config || restorableRevision.value !== operation.configRevision
+      || restoreOperation.value || restoreSequence !== operation.id || !trigger.isConnected || trigger.disabled) return;
+    // body 只可作为这一个已卸载确认的失焦结果，不能作为任意页面的归还许可。
+    if (defaultFocus !== releasedFrom && defaultFocus !== operation.focusBeforeTrap && defaultFocus !== trigger
+      && !(defaultFocus === document.body && releasedFrom && !releasedFrom.isConnected)) return;
+    if (document.activeElement !== trigger) trigger.focus({preventScroll: true});
+  } finally {
+    document.removeEventListener('focusin', onFocusIn, true);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    if (pendingRestoreFocus === operation) pendingRestoreFocus = null;
+  }
+}
+
+watch([() => props.active, () => props.activePanel, () => props.config], invalidatePreview, {flush: 'sync'});
+watch(previewVisible, visible => { if (!visible) cancelRestore(); }, {flush: 'sync'});
+watch(previewTarget, () => cancelRestore(), {flush: 'sync'});
+watch(restorableRevision, revision => {
+  if (pendingRestoreFocus && revision !== pendingRestoreFocus.configRevision) pendingRestoreFocus = null;
+  const operation = restoreOperation.value;
+  if (operation && !restoreConfigIsCurrent(operation, revision)) invalidatePreview();
+});
+
+function restoreConfigIsCurrent(operation: RestoreOperation, revision = restorableRevision.value) {
+  // 本次恢复的配置广播可能先于客户端回包；只有发送后才接受目标状态。
+  if (restoreStarted.value && revision === operation.expectedConfigRevision) {
+    operation.expectedConfigObserved = true;
+    return true;
+  }
+  // 目标状态已到达后又退回启动状态，也属于另一次修改，不能复活旧请求。
+  return !operation.expectedConfigObserved && revision === operation.configRevision;
+}
+
 function showPreview(target: PreviewTarget) {
+  if (!previewIsActive()) return;
   previewTarget.value = target;
   previewMode.value = target.kind === 'history' ? 'changes' : 'current';
   previewVisible.value = true;
@@ -295,38 +441,51 @@ function openBackupPreview(entry: ConfigAutoBackupEntry) {
 }
 
 function clearPreview() {
-  previewTarget.value = null;
-  applyBusy.value = false;
+  if (!previewVisible.value) previewTarget.value = null;
 }
 
-async function applyPreviewTarget() {
+function applyPreviewTarget(event: MouseEvent) {
   const target = previewTarget.value;
-  if (!target || previewChangeCount.value === 0 || applyBusy.value) return;
-  try {
-    await ElMessageBox.confirm(
-      `将恢复 ${target.label}，并生成一份新的最近修改记录。是否继续？`,
-      '确认恢复设置',
-      {confirmButtonText: '恢复', cancelButtonText: '取消', type: 'warning'},
-    );
-  } catch {
-    return;
-  }
+  if (!previewIsActive() || !previewVisible.value || !target || previewChangeCount.value === 0 || applyBusy.value) return;
+  pendingRestoreFocus = null;
+  restoreStarted.value = false;
+  restoreOperation.value = {
+    id: ++restoreSequence, target, config: props.config, configRevision: restorableRevision.value,
+    expectedConfigRevision: null, expectedConfigObserved: false,
+    trigger: event.currentTarget instanceof HTMLElement && event.currentTarget.tagName === 'BUTTON'
+      ? event.currentTarget as HTMLButtonElement : null,
+    focusBeforeTrap: null, confirmationElement: null,
+  };
+}
 
-  applyBusy.value = true;
+function isCurrentRestore(operation: RestoreOperation) {
+  return restoreOperation.value === operation && previewIsActive() && previewVisible.value
+    && previewTarget.value === operation.target && props.config === operation.config
+    && restoreConfigIsCurrent(operation);
+}
+
+async function confirmRestore(operation: RestoreOperation) {
+  if (!isCurrentRestore(operation) || restoreStarted.value) return;
+  const target = operation.target;
   try {
+    operation.expectedConfigRevision = JSON.stringify(toRestorableConfig(restoreRestorableConfig(target.config, props.config)));
+    restoreStarted.value = true;
     if (target.kind === 'history') {
-      configHistory.value = await requestConfigHistoryAction('restore', target.version, sendRuntimeMessage);
+      const history = await requestConfigHistoryAction('restore', target.version, sendRuntimeMessage);
+      if (!isCurrentRestore(operation)) return;
+      configHistory.value = history;
     } else if (target.kind === 'backup') {
       const result = await requestConfigAutoBackupRestore(target.version!, sendRuntimeMessage);
+      if (!isCurrentRestore(operation)) return;
       configBackups.value = result.backups;
       configHistory.value = result.history;
     }
     previewVisible.value = false;
     ElMessage.success('设置已恢复');
   } catch (error) {
-    ElMessage.error(`恢复失败：${error instanceof Error ? error.message : '请稍后重试'}`);
+    if (isCurrentRestore(operation)) ElMessage.error(`恢复失败：${error instanceof Error ? error.message : '请稍后重试'}`);
   } finally {
-    applyBusy.value = false;
+    cancelRestore(operation);
   }
 }
 </script>

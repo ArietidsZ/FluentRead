@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 句子操作生产专项：后台临时 Edge；普通悬停仅高亮，主动选中复用已有划词入口。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,7 +14,7 @@ const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 const source = 'Good ideas deserve attention.';
 const translated = '好想法值得关注。';
 const explanation = '这句话强调好想法值得关注。deserve attention 表示“值得关注”。';
-async function fixture() {
+async function fixture(own = () => {}) {
   const requests = [];
   const server = http.createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*'); response.setHeader('Access-Control-Allow-Headers', '*');
@@ -34,24 +36,34 @@ async function fixture() {
     response.setHeader('Content-Type','text/html');
     response.end(`<html lang="en"><head><title>Sentence listening fixture</title><style>body{margin:40px;font:21px/1.8 system-ui}p{max-width:720px}button{letter-spacing:7px!important}aside{height:1200px}</style></head><body><h1>Read and listen</h1><p id="primary">${source} Practice makes progress.</p><aside></aside></body></html>`);
   });
-  await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
-  return {url:`http://127.0.0.1:${server.address().port}`,requests,close:()=>new Promise(resolve=>server.close(resolve))};
+  const local = {requests, close: () => new Promise((resolve, reject) => server.close(error => {
+    if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve();
+  }))};
+  own(local);
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+  });
+  return {...local, url: `http://127.0.0.1:${server.address().port}`};
 }
 async function main() {
   const extensionDir = path.resolve(arg('extension-dir','.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir','/private/tmp/fluentread-sentence-listening'));
-  const packages = arg('playwright-root'); const helper = arg('focus-safe-helper');
+  const packages = arg('playwright-root'); const helper = arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'));
   assert(packages && helper); assert(fs.existsSync(path.join(extensionDir,'manifest.json')));
   const {chromium} = require(path.join(packages,'playwright'));
   const {launchFocusSafePersistentContext,newPageWithoutForeground,activateExtensionTabWithoutForeground} = require(helper);
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-sentence-listening-edge-'));
   fs.mkdirSync(artifactsDir,{recursive:true});
-  const local = await fixture();
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-sentence-listening-edge-'));
   const report = {ok:false,extensionDir,artifactsDir,checks:[],consoleErrors:[],screenshots:[],evidenceBoundary:'Real production extension and storage; local deterministic translation/explanation; collection voice mock validates text and stop lifecycle when the full suite is used; this does not establish audible voice quality or Firefox runtime.'};
-  let launched; let page; let options;
+  let launched, local, primaryError; let page; let options;
+  let launchAttempted = false;
   try {
+    local = await fixture(owned => { local = owned; });
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium,profileDir,background:true,headless:false,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',viewport:{width:1440,height:960},timeout:30000,
       browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report,{launchMode:launched.launchMode,focusPolicy:launched.focusPolicy,windowPlacement:launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost,false);
     const context = launched.context;
@@ -260,10 +272,10 @@ async function main() {
       await options.getByRole('button',{name:'撤销',exact:true}).click();await rows.nth(2).waitFor();
       report.checks.push('delete from compact row menu and toast undo preserve the saved content');
       await options.getByRole('switch',{name:'学习收藏',exact:true}).click();
-      await options.waitForFunction(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===false;});
+      await waitForAsyncCondition(() => options.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===false;}), {timeoutMs: 30000, message: "收藏词书开关未持久化为关闭"});
       await options.reload();await rows.nth(2).waitFor();assert.equal(await options.getByRole('switch',{name:'学习收藏',exact:true}).getAttribute('aria-checked'),'false');
       await options.getByRole('switch',{name:'学习收藏',exact:true}).click();
-      await options.waitForFunction(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===true;});
+      await waitForAsyncCondition(() => options.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return c.vocabularyBookEnabled===true;}), {timeoutMs: 30000, message: "收藏词书开关未持久化为开启"});
       await options.locator('.book-toast').waitFor({state:'hidden'});
       report.checks.push('compact saving switch persists on reload and disabling preserves existing collection');
       report.layout=[];
@@ -280,8 +292,36 @@ async function main() {
       report.checks.push('1440, 820 and 390px layouts retain full sentence translation, allocate full width to content and avoid overflow; dark layout captured');
     }
     assert.equal(report.consoleErrors.length,0);report.requests=local.requests;report.ok=true;
-  } catch(error){report.error=error.stack||String(error);if(options||page)try{await (options||page).screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
-  finally{if(launched)await launched.close();fs.rmSync(profileDir,{recursive:true,force:true});report.profileRemoved=!fs.existsSync(profileDir);await local.close();fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));if(report.ok)process.stdout.write(JSON.stringify(report,null,2)+'\n');}
+  } catch(error){primaryError=error;report.error=error.stack||String(error);if(options||page)try{await (options||page).screenshot({path:path.join(artifactsDir,'failure.png')});}catch{}throw error;}
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('HTTP fixture', async () => { if (local) await local.close(); });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    report.profileRemoved = !fs.existsSync(profileDir);
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+    if(report.ok)process.stdout.write(JSON.stringify(report,null,2)+'\n');
+  }
 }
 
 main().catch(error=>{process.stderr.write(error.stack+'\n');process.exitCode=1;});

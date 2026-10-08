@@ -1,4 +1,5 @@
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 
 // 生产 Popup 冷文档与重复打开性能探针；只使用临时 Edge profile，不接触日常浏览器。
 const fs = require('node:fs');
@@ -25,7 +26,7 @@ async function verifyLanguageMenus(page) {
   await page.locator('.el-select-dropdown:visible').getByRole('option', {name: /日本語/u}).waitFor({state: 'visible'});
   await target.locator('input').press('ArrowDown');
   await target.locator('input').press('Enter');
-  await page.waitForFunction(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))?.value?.to === 'ja');
+  await waitForAsyncCondition(() => page.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}))?.value?.to === 'ja'), {timeoutMs: 30000, message: "Popup 目标语言尚未持久化为日语"});
   if (!/日本語/u.test(await target.innerText())) throw new Error('键盘选择后标签未更新');
   await target.locator('.el-select__wrapper').click();
   await target.locator('input').press('Escape');
@@ -80,10 +81,10 @@ async function verifyProviders(page, context, base) {
   const before = await read();
   await choose('selection', '微软翻译');
   await choose('default', '谷歌翻译');
-  await page.waitForFunction(async () => {
+  await waitForAsyncCondition(() => page.evaluate(async () => {
     const c = (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value;
     return c.service === 'google' && c.selectionTranslationService === 'microsoft';
-  });
+  }), {timeoutMs: 30000, message: "Popup 默认与划词服务分配尚未持久化"});
   let saved = await read();
   if (saved.hoverTranslationService !== before.hoverTranslationService || saved.videoService !== before.videoService) throw new Error('Assigning a feature changed another feature');
   await choose('selection', '跟随默认 · 谷歌翻译');
@@ -163,7 +164,7 @@ async function verifyProviders(page, context, base) {
   }
   const preferencesBeforePause = await read();
   await master.click();
-  await settings.waitForFunction(async () => !(await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.on);
+  await waitForAsyncCondition(() => settings.evaluate(async () => !(await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.on), {timeoutMs: 30000, message: "Popup 全局暂停开关尚未持久化"});
   for (const fixture of fixtures) {
     await fixture.page.locator('.fluent-read-video-subtitle-button').waitFor({state: 'detached'});
     if (await fixture.page.locator('.fluent-read-video-ui').count()) throw new Error(`${fixture.site}: video UI remains after pause`);

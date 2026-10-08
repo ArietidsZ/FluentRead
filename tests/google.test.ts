@@ -315,3 +315,74 @@ describe('Google 合批取消所有权', () => {
         expect(hosts()).toEqual([HTML, HTML]);
     });
 });
+
+
+// 只在受控 HTTP 端口检验 owner 隔离；不访问真实服务，不把候选断言当作原生验证。
+describe('Google owner-local native array transport', () => {
+    it('overlapping equal groups send distinct HTTP requests immediately and cancellation remains with its owner', async () => {
+        const pending: Array<{url: RequestInfo | URL; texts: string[]; signal: AbortSignal; resolve: (value: Response) => void}> = [];
+        fetchMock.mockImplementation((url, init) => new Promise<Response>((resolve, reject) => {
+            const signal = init!.signal!;
+            pending.push({url, texts: requestData(url, init).texts, signal, resolve});
+            signal.addEventListener('abort', () => reject(signal.reason), {once: true});
+        }));
+        const sources = Array.from({length: 8}, (_, index) => `Equal owner prose ${index}`);
+        const firstOwner = new AbortController();
+        const secondOwner = new AbortController();
+        const first = api.translateGoogleOwnerTexts(sources, 'en', 'zh-Hans', firstOwner.signal);
+        const firstAssertion = expect(first).rejects.toMatchObject({name: 'AbortError'});
+        const second = api.translateGoogleOwnerTexts(sources, 'en', 'zh-Hans', secondOwner.signal);
+        expect(first).not.toBe(second);
+        // 未推进 10ms 合批窗口就有两个真实 HTTP，原有入口健康/负载排序仍可选不同端点。
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(pending.map(item => item.texts.length)).toEqual([8, 8]);
+        expect(pending[0]!.signal).not.toBe(pending[1]!.signal);
+        sources[0] = 'Caller mutation';
+        expect(pending.every(item => !item.texts.some(text => text.includes('Caller mutation')))).toBe(true);
+        firstOwner.abort();
+        await firstAssertion;
+        expect(pending[0]!.signal.aborted).toBe(true);
+        expect(pending[1]!.signal.aborted).toBe(false);
+        expect(secondOwner.signal.aborted).toBe(false);
+        const translated = Array.from({length: 8}, (_, index) => `第二 owner 第${index}槽译文`);
+        pending[1]!.resolve(successfulResponse(pending[1]!.url, translated));
+        await expect(second).resolves.toEqual(translated);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('native arrays preserve duplicate ordinal slots, HTML text, entities, newlines and language aliases', async () => {
+        const origins = ['Same prose', 'Same prose', '<b>& "quoted"</b>\n  Next\n\n&lt;'];
+        fetchMock.mockResolvedValue(response([['<pre>第一槽</pre>', '<pre>第二槽</pre>', '<pre>&lt;b&gt;&amp; &quot;译文&quot;&lt;/b&gt;\n  下一行\n\n&amp;lt;</pre>']]));
+        await expect(api.translateGoogleOwnerTexts(origins, 'nb', 'zh-Hant', new AbortController().signal))
+            .resolves.toEqual(['第一槽', '第二槽', '<b>& "译文"</b>\n  下一行\n\n&lt;']);
+        expect(hosts()).toEqual([HTML]);
+        expect(requestData(...fetchMock.mock.calls[0]!)).toEqual({
+            texts: ['<pre>Same prose</pre>', '<pre>Same prose</pre>', '<pre>&lt;b&gt;&amp; &quot;quoted&quot;&lt;/b&gt;\n  Next\n\n&amp;lt;</pre>'],
+            from: 'no', to: 'zh-TW',
+        });
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('an already-cancelled owner sends no HTTP and does not cool an endpoint for the next owner', async () => {
+        const cancelled = new AbortController(); cancelled.abort();
+        await expect(api.translateGoogleOwnerTexts(['First prose'], 'en', 'zh-Hans', cancelled.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(fetchMock).not.toHaveBeenCalled();
+        fetchMock.mockResolvedValue(response([['可用译文']]));
+        await expect(api.translateGoogleOwnerTexts(['Next prose'], 'en', 'zh-Hans', new AbortController().signal))
+            .resolves.toEqual(['可用译文']);
+        expect(hosts()).toEqual([HTML]);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('a malformed native response retains existing whole-array endpoint fallback', async () => {
+        fetchMock.mockResolvedValueOnce(response([['缺一槽']])).mockResolvedValueOnce(response(['第一槽', '第二槽']));
+        await expect(api.translateGoogleOwnerTexts(['First prose', 'Second prose'], 'en', 'zh-Hans', new AbortController().signal))
+            .resolves.toEqual(['第一槽', '第二槽']);
+        expect(hosts()).toEqual([HTML, LIST]);
+        expect(fetchMock.mock.calls.map(call => requestData(...call).texts.length)).toEqual([2, 2]);
+        expect(new URLSearchParams(String(fetchMock.mock.calls[1]![1]!.body)).getAll('q')).toEqual(['First prose', 'Second prose']);
+        expect(vi.getTimerCount()).toBe(0);
+    });
+});

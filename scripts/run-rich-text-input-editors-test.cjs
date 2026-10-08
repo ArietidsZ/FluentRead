@@ -97,7 +97,9 @@ const EDITORS = [
 
 let session;
 async function main() {
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true,
       headless: false, viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000,
@@ -192,8 +194,16 @@ async function main() {
     report.completed = report.editors.every(entry => entry.passed);
     assert.ok(report.completed, `all editors pass: ${JSON.stringify(report.editors)}`);
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) await session.close();
+    try {
+      fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+    } finally {
+      if (session) {
+        await session.close();
+        fs.rmSync(profileDir, {recursive: true, force: true});
+      } else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);} catch { /* No browser launch was attempted; only remove an empty initial profile. */ }
+      }
+    }
   }
 }
 main().catch(error => {

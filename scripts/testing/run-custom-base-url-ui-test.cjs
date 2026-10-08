@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /**
  * @file scripts/testing/run-custom-base-url-ui-test.cjs
  * 文件职责：在隔离 Edge 中验证 issue #626 的自定义 Base URL、连接检查与 HTML 错误提示。
@@ -14,11 +15,13 @@ const arg = (name, fallback) => { const index = process.argv.indexOf(`--${name}`
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-issue626-ui'));
 const {chromium} = require(path.join(arg('playwright-root', ''), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', ''));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 fs.mkdirSync(artifactsDir, {recursive: true});
 const report = {extensionDir, providerEvidence: 'local-http-fixture-with-real-extension-and-sdk', cases: [], requests: [], consoleErrors: []};
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-issue626-'));
+let launchAttempted = false;
 let launched;
+let primaryError;
 let page;
 let rejectRequest = false;
 let observeRequest;
@@ -44,13 +47,15 @@ const server = http.createServer((req, res) => {
 });
 
 async function main() {
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
   const host = `http://127.0.0.1:${server.address().port}`;
+  launchAttempted = true;
   launched = await launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', headless: false, background: true,
     browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'],
     viewport: {width: 1440, height: 1000}, timeout: 30000,
   });
+  guardBrowserClose(launched, profileDir);
   Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
   const context = launched.context;
   const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
@@ -167,12 +172,34 @@ async function main() {
   report.status = 'passed';
 }
 main().catch(async error => {
+  primaryError = error;
   report.status = 'failed'; report.error = error.stack; process.exitCode = 1;
   await page?.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
 }).finally(async () => {
-  fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-  await launched?.close();
-  await new Promise(resolve => server.close(resolve));
-  fs.rmSync(profileDir, {recursive: true, force: true});
+  const cleanupErrors = [];
+  const cleanup = async action => {
+    try {await action();} catch (error) {cleanupErrors.push(error);}
+  };
+  let browserClosed = false;
+  await cleanup(async () => {
+    if (launched) {await launched.close(); browserClosed = true;}
+  });
+  await cleanup(async () => {if (server.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));});
+  await cleanup(() => {
+    if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+    else if (!launchAttempted) {
+      // No browser launch was attempted; only remove an empty initial profile.
+      try {fs.rmdirSync(profileDir);} catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+      }
+    }
+  });
+  if (cleanupErrors.length) {
+    report.status = 'failed';
+    report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+  }
+  await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+  for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+  if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   console.log(JSON.stringify({status: report.status, cases: report.cases, error: report.error, artifactsDir}, null, 2));
-});
+}).catch(error => {console.error(error.stack || error); process.exitCode = 1;});

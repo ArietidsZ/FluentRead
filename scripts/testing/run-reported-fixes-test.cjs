@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // 使用生产扩展和隔离浏览器验证字幕、缓存、设置、圈选与导航；站点及翻译服务使用受控夹具。
 // 不下载 OCR/Whisper 模型；圈选下载续接由组件测试覆盖。
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -17,7 +18,7 @@ const mediaInput = arg('media-dir');
 if (!mediaInput) throw new Error('Pass --media-dir containing video-direct.mp4 from run-x-subtitle-sync-test.cjs');
 const mediaDir = path.resolve(mediaInput);
 const runtime = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'));
 const browserPath = arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 const extensionInstall = arg('extension-install', 'cdp');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
@@ -37,7 +38,11 @@ const report = {
   screenshots: [],
 };
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-reported-fixes-profile-'));
+let launchAttempted = false;
 let browser;
+let primaryError;
+let releaseNavigation, gateTimeout, navigationTask;
+const cdpSessions = new Set();
 let page;
 let control;
 
@@ -76,6 +81,7 @@ async function screenshot(pageRef, name) {
 
 async function main() {
   const videoBytes = fs.readFileSync(path.join(mediaDir, 'video-direct.mp4'));
+  launchAttempted = true;
   browser = await helper.launchFocusSafePersistentContext({
     chromium,
     profileDir,
@@ -91,6 +97,7 @@ async function main() {
     ],
     viewport: {width: 1280, height: 900},
   });
+  guardBrowserClose(browser, profileDir);
   const context = browser.context;
   context.setDefaultTimeout(15000);
   report.browserVersion = context.browser().version();
@@ -98,8 +105,10 @@ async function main() {
   let extensionId;
   if (extensionInstall === 'cdp') {
     const extensionSession = await context.browser().newBrowserCDPSession();
+    cdpSessions.add(extensionSession);
     extensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;
     await extensionSession.detach();
+    cdpSessions.delete(extensionSession);
   }
   report.extensionInstall = extensionInstall;
   context.on('page', candidate => {
@@ -300,8 +309,8 @@ async function main() {
   const html=`<!doctype html><html lang="en"><body style="font:20px Arial;max-width:800px;margin:40px"><h1>Understanding the tax process</h1><p>When you receive support, this article explains how the process works and where to find more information.</p><p>The research team reviewed the results before preparing a detailed report for the next meeting.</p><a id="navigate" href="/en/articles/next-fixture">Read the next article</a><button id="cancel">Cancel navigation</button><button id="spa">Open related article</button><script>document.querySelector('#cancel').onclick=e=>e.preventDefault();document.querySelector('#spa').onclick=()=>{history.pushState({},'', '?related=1');setTimeout(()=>{document.querySelector('p').textContent='A new related article replaces this paragraph after the navigation has completed.'},700)}</script></body></html>`;
   await context.route(articleUrl, route=>route.fulfill({status:200,contentType:'text/html',body:html}));
   let pendingNavigation=false;
-  let releaseNavigation; const navigationGate=new Promise(resolve=>{releaseNavigation=resolve;});
-  const gateTimeout=setTimeout(()=>releaseNavigation(),5000);
+  const navigationGate=new Promise(resolve=>{releaseNavigation=resolve;});
+  gateTimeout=setTimeout(()=>releaseNavigation(),5000);
   await context.route('**/en/articles/next-fixture',async route=>{pendingNavigation=true;await navigationGate;await route.fulfill({status:200,contentType:'text/html',body:'<h1>The next article</h1><p>Navigation completed.</p>'});});
   const navigationPage=await helper.newPageWithoutForeground(context);
   const navigationSamples=[];
@@ -314,6 +323,7 @@ async function main() {
   await navigationPage.mouse.move(80,110);await navigationPage.mouse.down();await navigationPage.mouse.move(500,230);await navigationPage.mouse.up();
   // 圈选结果使用 closed ShadowRoot，使用 CDP pierce 读取，保持生产隔离边界。
   const areaSession=await context.newCDPSession(navigationPage);
+  cdpSessions.add(areaSession);
   const findPrepare=node=>{
     const children=[...(node.children||[]),...(node.shadowRoots||[])];
     if(node.nodeName==='BUTTON' && children.some(child=>child.nodeValue==='下载语言包并重试')) return node;
@@ -330,6 +340,7 @@ async function main() {
   const prepareBox=await areaSession.send('DOM.getBoxModel',{backendNodeId:prepareNode.backendNodeId});
   assert.ok(prepareBox.model.width>0 && prepareBox.model.height>0);
   await areaSession.detach();
+  cdpSessions.delete(areaSession);
   report.areaRecoveryButton=true;
   await navigationPage.keyboard.press('Escape');
   await navigationPage.keyboard.press('Alt+t');
@@ -343,7 +354,7 @@ async function main() {
   await screenshot(navigationPage,'navigation-bilingual');
   await navigationPage.evaluate(()=>{setInterval(()=>console.log('fr-nav-sample:'+JSON.stringify({href:location.href,count:document.querySelectorAll('.fluent-read-bilingual-content').length})),40);});
   const navigationStarted=Date.now();
-  const navigation=navigationPage.locator('#navigate').click({noWaitAfter:true});
+  const navigation=navigationTask=navigationPage.locator('#navigate').click({noWaitAfter:true});
   await new Promise(resolve=>setTimeout(resolve,350));
   assert.equal(pendingNavigation,true);
   const pendingSamples=navigationSamples.filter(sample=>sample.at>=navigationStarted);
@@ -357,4 +368,38 @@ async function main() {
   assert.equal(report.windowPlacement.browserFrontmost,false);
   report.success=true;
 }
-main().catch(async error=>{report.failure=error.stack;process.exitCode=1;if(page)await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}).finally(async()=>{fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({success:report.success,failure:report.failure,artifacts},null,2));if(browser)await browser.close();fs.rmSync(profileDir,{recursive:true,force:true});});
+main().catch(async error => {
+    primaryError = error;
+    report.failure = error.stack;
+    process.exitCode = 1;
+    if (page) await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});
+}).finally(async () => {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.success = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    await cleanup('navigation gate', () => { clearTimeout(gateTimeout); releaseNavigation?.(); });
+    await cleanup('navigation task', async () => { if (navigationTask) await navigationTask; });
+    for (const session of cdpSessions) await cleanup('CDP session', () => session.detach());
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (browser) { await browser.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+    console.log(JSON.stringify({success:report.success,failure:report.failure,artifacts},null,2));
+}).catch(error => {console.error(error); process.exitCode = 1;});

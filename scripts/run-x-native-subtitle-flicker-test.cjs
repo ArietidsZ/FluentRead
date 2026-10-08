@@ -17,25 +17,36 @@ const helperPath = arg('focus-safe-helper');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'x-native-flicker.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
-fs.mkdirSync(artifacts, {recursive: true});
-const mediaFile = path.join(artifacts, 'fixture.mp4');
-const media = spawnSync('/opt/homebrew/bin/ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=0x123044:s=960x540:r=30',
-  '-t', '15', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaFile], {encoding: 'utf8'});
-assert.equal(media.status, 0, media.stderr);
-const mediaSource = `data:video/mp4;base64,${fs.readFileSync(mediaFile).toString('base64')}`;
-const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-native-flicker-profile-'));
-const report = {success: false, evidence: 'Production extension; real video and TextTrack; controlled HLS fragments and 250ms translation responses', checks: [], errors: []};
+const report = {success: false, evidence: 'Production extension; real video and TextTrack; controlled HLS fragments and 250ms translation responses', checks: [], errors: [], cleanupErrors: []};
 const check = (name, pass, details) => report.checks.push({name, pass: Boolean(pass), details});
-let session;
+let session, profileDir, profileIdentity;
+let launchAttempted = false;
 (async () => {
+  fs.mkdirSync(artifacts, {recursive: true});
+  const mediaFile = path.join(artifacts, 'fixture.mp4');
+  const media = spawnSync('/opt/homebrew/bin/ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=0x123044:s=960x540:r=30',
+    '-t', '15', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaFile],
+    {encoding: 'utf8', timeout: 30000, killSignal: 'SIGKILL'});
+  report.media = {status: media.status, signal: media.signal || null, error: media.error?.message};
+  if (media.error) throw media.error;
+  assert.equal(media.status, 0, media.stderr);
+  const mediaSource = `data:video/mp4;base64,${fs.readFileSync(mediaFile).toString('base64')}`;
+  profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-native-flicker-profile-'));
+  profileIdentity = fs.lstatSync(profileDir);
+  launchAttempted = true;
   session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
     headless: false, background: true, displayTarget: 'secondary', viewport: {width: 1280, height: 900},
     browserArgs: ['--enable-unsafe-extension-debugging', '--no-first-run', '--no-default-browser-check']});
   const {context} = session;
   const install = await context.browser().newBrowserCDPSession();
-  const {id: extensionId} = await install.send('Extensions.loadUnpacked', {path: extensionDir});
-  await install.detach();
+  let extensionId;
+  try {
+    ({id: extensionId} = await install.send('Extensions.loadUnpacked', {path: extensionDir}));
+  } finally {
+    try {await install.detach();}
+    catch (error) {report.cleanupErrors.push(`CDP detach: ${error?.stack || String(error)}`);}
+  }
   Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
   context.on('page', page => page.on('pageerror', error => report.errors.push(error.message)));
   const worker = context.serviceWorkers().find(candidate => new URL(candidate.url()).host === extensionId)
@@ -98,14 +109,15 @@ let session;
     };
     sample();
     const timer = setInterval(sample, 20);
-    for (let i = 0; i < 5; i += 1) {
-      window.postMessage({source: 'fluent-read', type: 'fluent-read-x-video-subtitle-resource', pageHref: location.href,
-        url: `https://video.twimg.com/ext_tw_video/424242/captions/fragment-${i}.vtt`,
-        responseText: 'WEBVTT\n\n00:00:00.000 --> 00:00:08.000\nA stable native sentence at five seconds.\n'}, location.origin);
-      await new Promise(resolve => setTimeout(resolve, 550));
-    }
-    await new Promise(resolve => setTimeout(resolve, 500));
-    clearInterval(timer);
+    try {
+      for (let i = 0; i < 5; i += 1) {
+        window.postMessage({source: 'fluent-read', type: 'fluent-read-x-video-subtitle-resource', pageHref: location.href,
+          url: `https://video.twimg.com/ext_tw_video/424242/captions/fragment-${i}.vtt`,
+          responseText: 'WEBVTT\n\n00:00:00.000 --> 00:00:08.000\nA stable native sentence at five seconds.\n'}, location.origin);
+        await new Promise(resolve => setTimeout(resolve, 550));
+      }
+      await new Promise(resolve => setTimeout(resolve, 500));
+    } finally {clearInterval(timer);}
   });
   report.samples = await page.evaluate(() => window.flickerSamples);
   report.afterFragments = await worker.evaluate(() => globalThis.flickerRequests);
@@ -122,10 +134,31 @@ let session;
   check('Seeking forward shows the matching next native pair', true);
   check('No page errors', report.errors.length === 0, report.errors);
   report.success = report.checks.every(result => result.pass);
-  console.log(JSON.stringify({success: report.success, checks: report.checks}));
   if (!report.success) process.exitCode = 1;
-})().catch(error => {report.failure = error.message; console.error(error); process.exitCode = 1;}).finally(async () => {
-  fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
-  await session?.close();
-  fs.rmSync(profileDir, {recursive: true, force: true});
-});
+})().catch(error => {report.failure = error?.stack || String(error); console.error(error); process.exitCode = 1;}).finally(async () => {
+  let closed = !launchAttempted;
+  if (session) {
+    try {await session.close(); closed = true;}
+    catch (error) {report.cleanupErrors.push(`session close: ${error?.stack || String(error)}`);}
+  }
+  if (profileDir) {
+    if (closed && profileIdentity) {
+      try {
+        const current = fs.lstatSync(profileDir);
+        assert.ok(!current.isSymbolicLink() && current.ino === profileIdentity.ino && current.dev === profileIdentity.dev,
+          'Temporary profile ownership changed');
+        fs.rmSync(profileDir, {recursive: true, force: true}); report.profileRemoved = true;
+      }
+      catch (error) {report.cleanupErrors.push(`profile removal: ${error?.stack || String(error)}`); report.retainedProfile = profileDir;}
+    } else report.retainedProfile = profileDir;
+  }
+  if (report.cleanupErrors.length) {report.success = false; process.exitCode = 1;}
+  try {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));}
+  catch (error) {
+    report.cleanupErrors.push(`report write: ${error?.stack || String(error)}`);
+    report.success = false;
+    console.error(error);
+    process.exitCode = 1;
+  }
+  console.log(JSON.stringify(report));
+}).catch(error => {console.error(error?.stack || String(error)); process.exitCode = 1;});

@@ -60,15 +60,28 @@ describe('full regression runner', () => {
             'vitest-unit',
             'vitest-functional',
             'vitest-regression',
+            'agent-bridge',
+            'focus-safe-browser-lifecycle',
             'chrome-build',
             'firefox-build',
             'firefox-zip',
             'extension-manifest-verifier',
             'userscript-build',
             'userscript-verifier',
+            'docs-typecheck',
+            'storybook-typecheck',
             'docs-build',
+            'storybook-build',
+            'storybook-verifier',
+            'docs-verifier',
         ]);
         const firefoxZip = plan.steps.find((step: {id: string}) => step.id === 'firefox-zip');
+        expect(plan.steps.find((step: {id: string}) => step.id === 'agent-bridge')).toMatchObject({
+            command: 'node', args: ['--test', 'tests/agentBridge.test.mjs'],
+        });
+        expect(plan.steps.find((step: {id: string}) => step.id === 'focus-safe-browser-lifecycle')).toMatchObject({
+            phase: 'local', command: 'node', args: ['--test', 'tests/focusSafeBrowserOrdinaryLifecycle.test.mjs'],
+        });
         const manifestVerifier = plan.steps.find(
             (step: {id: string}) => step.id === 'extension-manifest-verifier',
         );
@@ -120,6 +133,8 @@ describe('full regression runner', () => {
             expect(step.artifactsDir).toBe(`/tmp/fluentread-regression-artifacts/${step.id}`);
             expect(step.focusPolicy).toBe('launchservices-no-foreground');
             expect(step.windowPlacement.state).toBe('normal');
+            expect(step.launchMode).toBe('macos-background-cdp');
+            expect(step.windowPlacement.mode).toBe('background-visible-no-focus');
         }
 
         const userscriptSmoke = browserSteps.find((step: {id: string}) => step.id === 'userscript-smoke');
@@ -147,9 +162,9 @@ describe('full regression runner', () => {
             command: 'node',
             gates: ['--browser'],
             artifactsDir: '/tmp/fluentread-regression-artifacts/glossary',
-            launchMode: 'macos-hidden-cdp',
+            launchMode: 'macos-background-cdp',
             focusPolicy: 'launchservices-no-foreground',
-            windowPlacement: {state: 'normal', placement: 'screen-off'},
+            windowPlacement: {state: 'normal', mode: 'background-visible-no-focus'},
             args: [
                 'scripts/run-glossary-test.cjs',
                 '--playwright-root', '/tmp/fluentread-playwright-runtime',

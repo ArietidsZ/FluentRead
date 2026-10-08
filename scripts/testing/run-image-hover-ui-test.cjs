@@ -1,4 +1,5 @@
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 /**
  * 生产图片悬浮入口回归：真实 CDP 鼠标、封闭 Shadow DOM、原有淡色图标、图标解码与可信点击。
  * 只使用 focus-safe helper 的临时配置；夹具分别模拟 X 登录/未登录的两种媒体结构。
@@ -33,7 +34,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const {id} = await browserCdp.send('Extensions.loadUnpacked', {path: extensionDir});
     const popup = await newPageWithoutForeground(context);
     await popup.goto(`chrome-extension://${id}/popup.html`);
-    await popup.waitForFunction(async () => Boolean((await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value));
+    await waitForAsyncCondition(() => popup.evaluate(async () => Boolean((await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value)), {timeoutMs: 30000, message: "图片悬浮测试配置尚未就绪"});
     await popup.evaluate(async () => {
       const {value} = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
       // 未准备的 Tesseract 语言包提供实际失败反馈，点击测试不下载模型或调用翻译服务。

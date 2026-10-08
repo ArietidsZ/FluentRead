@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // 设置界面视觉审核：全部分区、亮暗与窄屏、快捷键录制及本地收藏复习；临时后台 Edge，不调用外部模型。
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
@@ -15,7 +16,7 @@ const runtime = createRequire(
   path.join(arg('playwright-root', process.env.PLAYWRIGHT_ROOT), 'style-audit.cjs')
 )
 const { chromium } = runtime('playwright')
-const helper = require(arg('focus-safe-helper'))
+const helper = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')))
 const output = arg('artifacts-dir', '/private/tmp/fluentread-style-audit')
 const report = {
   ok: false,
@@ -29,8 +30,10 @@ const report = {
 ;(async () => {
   fs.mkdirSync(output, { recursive: true })
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-style-audit-'))
-  let launched
+  let launched, primaryError
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     launched = await helper.launchFocusSafePersistentContext({
       chromium,
       profileDir: profile,
@@ -47,6 +50,7 @@ const report = {
       ],
       timeout: 30000,
     })
+    guardBrowserClose(launched, profile);
     Object.assign(report, {
       launchMode: launched.launchMode,
       focusPolicy: launched.focusPolicy,
@@ -171,21 +175,34 @@ const report = {
     assert.equal(report.consoleErrors.length,0,JSON.stringify(report.consoleErrors))
     report.ok=true
   } catch (error) {
+    primaryError = error
     report.error = error.stack
     process.exitCode = 1
   } finally {
-    report.screenshots=fs.readdirSync(output).filter(name=>name.endsWith('.png'))
-    fs.writeFileSync(
-      path.join(output, 'report.json'),
-      JSON.stringify(report, null, 2) + '\n'
-    )
-    if (launched) await launched.close()
-    fs.rmSync(profile, {
-      recursive: true,
-      force: true,
-      maxRetries: 5,
-      retryDelay: 200,
-    })
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profile); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { report.screenshots = fs.readdirSync(output).filter(name => name.endsWith('.png')); fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2) + '\n'); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     console.log(JSON.stringify(report, null, 2))
   }
-})()
+})().catch(error => {console.error(error); process.exitCode = 1;})

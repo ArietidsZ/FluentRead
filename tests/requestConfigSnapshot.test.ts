@@ -9,6 +9,7 @@ import {
     attachTranslationRequestScheduler,
     getTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
+    createTranslationRequestSnapshot,
     getTranslationProviderConfig,
     getTranslationRequestControl,
     attachTranslationRouteObserver,
@@ -60,6 +61,46 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('占位符约束按当前单条或批量片段筛选，不外发其他片段的标记', () => {
+        const snapshot = {...createTranslationProviderConfigSnapshot(configSource()),
+            glossaryProtectedTokens: ['__FRTERM_first__', '__FRTERM_second__']};
+        expect(getTranslationGlossaryTerms(snapshot, 'Only __FRTERM_first__ here'))
+            .toEqual([{source: '__FRTERM_first__', target: '__FRTERM_first__'}]);
+        expect(getTranslationGlossaryTerms(snapshot, ['__FRTERM_second__', 'plain']))
+            .toEqual([{source: '__FRTERM_second__', target: '__FRTERM_second__'}]);
+        expect(getTranslationGlossaryTerms(snapshot, 'plain')).toEqual([]);
+    });
+    it('消息快照复制数组与标量，保留全部内部 symbol 的属性描述符', () => {
+        const control = {signal: new AbortController().signal, ownershipKey: 'snapshot'};
+        const original = attachTranslationRequestControl({origin: ['Before'], glossaryIds: ['library-a'], targetLanguage: 'zh-Hans'}, control);
+        const snapshot = createTranslationRequestSnapshot(original);
+        original.origin[0] = 'After';
+        original.glossaryIds.push('library-b');
+        original.targetLanguage = 'ja';
+        expect(snapshot).toMatchObject({origin: ['Before'], glossaryIds: ['library-a'], targetLanguage: 'zh-Hans'});
+        expect(getTranslationRequestControl(snapshot)).toEqual(control);
+        expect(Object.getOwnPropertyDescriptor(snapshot, TRANSLATION_REQUEST_CONTROL)).toEqual(Object.getOwnPropertyDescriptor(original, TRANSLATION_REQUEST_CONTROL));
+        expect(createTranslationRequestSnapshot({origin: 'Scalar', glossaryIds: null})).toEqual({origin: 'Scalar', glossaryIds: null});
+        expect(createTranslationRequestSnapshot({origin: 'Scalar'})).toEqual({origin: 'Scalar'});
+    });
+    it('可读消息字段在入口只取值一次，getter 数组与标量不会继续读取外部状态', () => {
+        const origins = ['Before'];
+        const ids = ['library-a'];
+        let target = 'zh-Hans';
+        const reads = {origin: 0, glossaryIds: 0, targetLanguage: 0};
+        const snapshot = createTranslationRequestSnapshot({
+            get origin() { reads.origin += 1; return origins; },
+            get glossaryIds() { reads.glossaryIds += 1; return ids; },
+            get targetLanguage() { reads.targetLanguage += 1; return target; },
+        });
+        origins.push('After');
+        ids.push('library-b');
+        target = 'ja';
+        expect(snapshot.origin).toEqual(['Before']);
+        expect(snapshot.glossaryIds).toEqual(['library-a']);
+        expect(snapshot.targetLanguage).toBe('zh-Hans');
+        expect(reads).toEqual({origin: 1, glossaryIds: 1, targetLanguage: 1});
+    });
     it('keeps service and model limit snapshots stable after settings are edited', () => {
         const source = configSource({
             serviceRequestLimits: {aiSdk: {enabled: true, limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 2, translationRequestsPerMinute: 60}}},

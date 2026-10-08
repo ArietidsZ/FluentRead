@@ -5,13 +5,14 @@
  * 本地夹具保留 Codeforces 实际 MathJax v2 渲染结构；--live 追加 issue 中的真实站点。
  * 翻译响应固定在后台 fetch 边界，报告不代表真实供应商质量，不触碰用户浏览器配置。
  */
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {createRequire} = require('node:module');
 const {assertFreshProductionExtension} = require('../run-site-translation-test.cjs');
-const args = {timeout: 30000, live: false};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000, live: false};
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i];
   if (key === '--background') continue;
@@ -43,11 +44,16 @@ async function main() {
   assertFreshProductionExtension(args.extensionDir, root);
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-codeforces-'));
   let session, lastPage, lastWorker;
+  let primaryError;
+  const cdpSessions = new Set();
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true,
       headless: false, viewport: {width:1280,height:1000}, displayTarget:'secondary', timeout:args.timeout,
       browserArgs:[`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     const context = session.context;
     context.on('page', page => page.on('pageerror',error=>report.errors.push(error.message)));
     Object.assign(report, {launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement});
@@ -192,6 +198,8 @@ async function main() {
         result.countdown={textTargets:3,ticks:12,wrapperIdentityStable:true,extraRequests:0,heightChange:0,phaseChangeRetranslated:true,otherTextTargetsPreserved:true};
       }
       const cdp=await context.newCDPSession(page);
+      cdpSessions.add(cdp);
+      await cdp.send('DOM.enable',{includeWhitespace:'all'});
       const ui=async className=>{const {root}=await cdp.send('DOM.getDocument',{depth:-1,pierce:true});return find(root,hasClass(className));};
       const waitUi=async className=>{const end=Date.now()+args.timeout;do{const node=await ui(className);if(node)return node;await page.waitForTimeout(80);}while(Date.now()<end);throw new Error(`Missing selection UI: ${className}`);};
       const clickUi=async className=>{const node=await waitUi(className);const {model}=await cdp.send('DOM.getBoxModel',{nodeId:node.nodeId});const q=model.content;await page.mouse.click((q[0]+q[2])/2,(q[1]+q[5])/2);};
@@ -202,8 +210,21 @@ async function main() {
         result.selectionConfig=await popup.evaluate(async()=>{const r=await chrome.runtime.sendMessage({type:'configStorageRead',key:'local:config'});const c=typeof r.value==='string'?JSON.parse(r.value):r.value;return {mode:c.selectionTranslatorMode,trigger:c.selectionTranslatorTrigger,disabled:c.disableSelectionTranslator,delay:c.selectionTranslatorDelay};});
         await helper.activateExtensionTabWithoutForeground(context,page);
         await page.locator(selector).scrollIntoViewIfNeeded();
-        const box=await page.locator(selector).boundingBox();await page.mouse.click(box.x+3,box.y+8);
-        await page.evaluate(selector=>{const r=document.createRange();r.selectNodeContents(document.querySelector(selector));const s=getSelection();s.removeAllRanges();s.addRange(r);},selector);
+        const endpoints=await page.locator(selector).evaluate(element=>{
+          const range=document.createRange();range.selectNodeContents(element);
+          const rects=[...range.getClientRects()].filter(rect=>rect.width>0&&rect.height>0);
+          const first=rects[0],last=rects[rects.length-1];
+          if(!first||!last)throw new Error('Selection paragraph has no visible text');
+          return {start:{x:first.left+1,y:first.top+first.height/2},end:{x:last.right-1,y:last.top+last.height/2}};
+        });
+        // 原生拖选以 pointerup 结算，避免 CDP 延迟使点击后的程序化选区超过可信交互窗口。
+        // 先用真实点击清除上一张卡片保留的选区，避免浏览器把再次拖动解释为拖放已选文字。
+        await page.mouse.click(endpoints.start.x,endpoints.start.y);
+        await page.waitForFunction(()=>!getSelection()?.toString(),null,{timeout:args.timeout});
+        await page.mouse.move(endpoints.start.x,endpoints.start.y);
+        await page.mouse.down();
+        try {await page.mouse.move(endpoints.end.x,endpoints.end.y,{steps:8});}
+        finally {await page.mouse.up();}
         if(trigger==='dot')await clickUi('fr-selection-indicator');
         else {await page.keyboard.down('Control');await page.keyboard.up('Control');}
         await waitUi('fr-translation-tooltip');
@@ -215,7 +236,7 @@ async function main() {
         await page.screenshot({path:path.join(args.artifactsDir,`${result.scope}-selection-${trigger}.png`)});
         await clickUi('fr-close-btn');
       }
-      await cdp.detach();await page.close();
+      await cdp.detach();cdpSessions.delete(cdp);await page.close();
     }
     if (args.live) {
       console.error('[codeforces] live homepage countdown');
@@ -244,17 +265,52 @@ async function main() {
     }
     report.requests=await worker.evaluate(()=>globalThis.formulaRequests);
     assert.equal(report.errors.length,0,JSON.stringify(report.errors));report.passed=true;
-  } finally {
+  } catch (error) {primaryError = error; throw error;}
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {
+        cleanupErrors.push(error);
+        report.passed = false;
+        report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+      }
+    };
+    let browserClosed = false;
+    let diagnosticCdp;
+    await cleanup(async () => {
     if(lastPage && !lastPage.isClosed()){
-      const diagnosticCdp=await lastPage.context().newCDPSession(lastPage);
+      diagnosticCdp=await lastPage.context().newCDPSession(lastPage);
       const diagnosticTree=await diagnosticCdp.send('DOM.getDocument',{depth:-1,pierce:true});
       const diagnosticHost=find(diagnosticTree.root,n=>attr(n,'id')==='fluent-read-selection-translator-container');
       report.selectionUi=diagnosticHost;
-      await diagnosticCdp.detach();
       report.lastPage=await lastPage.evaluate(()=>({url:location.href,visibility:document.visibilityState,scrollY,selection:(()=>{const s=getSelection();if(!s?.rangeCount)return null;const r=s.getRangeAt(0);return {text:s.toString(),anchor:r.commonAncestorContainer.nodeName};})(),paragraphs:[...document.querySelectorAll('.problem-statement p')].map(e=>({html:e.outerHTML,rect:e.getBoundingClientRect().toJSON()})),loading:document.querySelectorAll('.fluent-read-loading').length})).catch(()=>null);
       await lastPage.screenshot({path:path.join(args.artifactsDir,'last-page.png')}).catch(()=>{});
     }
-    if(lastWorker)report.requests=await lastWorker.evaluate(()=>globalThis.formulaRequests).catch(()=>[]);
-    save();if(session)await session.close();fs.rmSync(profileDir,{recursive:true,force:true});}
+    });
+    await cleanup(async () => {if(lastWorker)report.requests=await lastWorker.evaluate(()=>globalThis.formulaRequests).catch(()=>[]);});
+    await cleanup(async () => {await diagnosticCdp?.detach();});
+    for (const cdp of cdpSessions) await cleanup(async () => {await cdp.detach();});
+
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup(() => {save();});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+  }
 }
-main().catch(error=>{report.errors.push(error.stack);save();console.error(error);process.exitCode=1;});
+main().catch(error=>{
+  report.passed = false;
+  report.errors.push(error.stack);
+  console.error(error);process.exitCode=1;
+  try {save();} catch (reportError) {console.error('Report write failed:',reportError);}
+});

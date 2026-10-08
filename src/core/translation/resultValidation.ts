@@ -1,7 +1,7 @@
 /**
  * @file src/core/translation/resultValidation.ts
  * 文件职责：识别翻译服务误返原文或明显错语种的响应，避免将其当成成功译文。
- * 主要内容：复用语言识别副本排除纯符号、数字和技术标识，比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表和整段日文结果的保守判定。
+ * 主要内容：复用语言识别副本排除纯符号、数字和技术标识，比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表、运算符标签丢词或大小写回显和整段日文结果的保守判定。
  * 模块边界：仅做保守的纯文本判定；不读取配置或缓存、不请求服务，也不改写原文与译文。
  */
 import {getChineseScript} from '@/src/core/language/chinese';
@@ -50,9 +50,22 @@ function isPossiblyProperName(value: string): boolean {
         && !isLatinShortHeading(value);
 }
 
+/** 运算符是普通可译概念；只补足完整标签及 code 前的开括号槽，不猜测任意英文短语。 */
+function isLatinOperatorLabel(value: string): boolean {
+    return /^(?:addition|subtraction|multiplication|division|remainder|(?:logical|bitwise) (?:not|and|or|xor))(?:\s+\(\s*\)?)?$/iu.test(value);
+}
+
 /** 拒绝外语正文及英文标题的原文回显；缩写、代码与部分专名保持保守判定。 */
 export function isLikelyUntranslatedResponse(origin: string, result: string, targetLanguage: string): boolean {
-    if (!origin.trim() || comparable(origin) !== comparable(result)) return false;
+    // 受保护的 inline code 不进入 provider 槽，标签经常以开括号结尾。
+    // 中文目标下只剩括号或只改英文大小写不算完成，交由既有免费线路降级；
+    // 不扩大 hasDistinctTranslation 的展示比较，也不把任意品牌当成漏译。
+    const source = comparable(origin);
+    const translated = comparable(result);
+    if (getChineseScript(targetLanguage) && isLatinOperatorLabel(source) && hasTranslatableText(origin) && (
+        source.toLowerCase() === translated.toLowerCase() || /^[\p{P}\p{S}\s]+$/u.test(translated)
+    )) return true;
+    if (!origin.trim() || source !== translated) return false;
     if (!hasTranslatableText(origin)) return false;
     if (getChineseScript(targetLanguage) && isPossiblyProperName(origin)) return false;
     const identification = identifyTextLanguage(origin);

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 阅读与样式生产专项：第二屏临时后台 Edge、本地译文、29 种多行样式、八种逐句高亮和字体首帧/切换/清理。
 // 运行时传入 --extension-dir、--artifacts-dir、--playwright-root、--focus-safe-helper；--page-only true 仅跑网页矩阵。
 const assert = require('node:assert/strict');
@@ -18,7 +19,7 @@ const TRANSLATION = '阅读应该轻松、自然。颜色和线条应当贴合�
 const DEFAULT_APPEARANCE = {textColor: '', backgroundColor: '', lineColor: '', fillColor: '', fontScale: 100, fontWeight: 'default', fontFamily: 'default', opacity: 100, customCss: ''};
 const EXPECTED_CATEGORY_COUNTS = {文字: 8, 线条: 10, 标记: 7, 卡片: 4};
 
-async function startFixture() {
+async function startFixture(own = () => {}) {
   const requests = [];
   const server = http.createServer(async (request, response) => {
     response.setHeader('Access-Control-Allow-Origin', '*'); response.setHeader('Access-Control-Allow-Headers', '*');
@@ -37,27 +38,37 @@ async function startFixture() {
     response.setHeader('Content-Type', 'text/html; charset=utf-8');
     response.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Translation style fixture</title><style>body{margin:0;padding:48px 8vw;font:18px/1.8 system-ui;color:#263044;background:#fff}main{max-width:620px}p{margin:28px 0}</style></head><body><main><h1 translate="no">Translation style fixture</h1><p id="primary">${Array(5).fill(SOURCE).join(" ")}</p><p id="rich">${SOURCE} <a href="#example">linked phrase</a>. ${SOURCE} <strong>bold words</strong>. ${SOURCE}</p></main></body></html>`);
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  return {url: `http://127.0.0.1:${server.address().port}`, requests, close: () => new Promise(resolve => server.close(resolve))};
+  const fixture = {requests, close: () => new Promise((resolve, reject) => server.close(error => {
+    if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve();
+  }))};
+  own(fixture);
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+  });
+  return {...fixture, url: `http://127.0.0.1:${server.address().port}`};
 }
 
 async function main() {
   const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-translation-style'));
-  const packages = argument('playwright-root'); const helperPath = argument('focus-safe-helper');
+  const packages = argument('playwright-root'); const helperPath = argument('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'));
   assert(packages && helperPath, '需要 --playwright-root 与 --focus-safe-helper'); assert(fs.existsSync(path.join(extensionDir, 'manifest.json')));
   const {chromium} = require(require.resolve('playwright', {paths: [packages]}));
   const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(helperPath);
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-translation-style-edge-'));
   fs.mkdirSync(artifactsDir, {recursive: true});
-  const fixture = await startFixture();
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-translation-style-edge-'));
   const report = {ok: false, extensionDir, profileDir, artifactsDir, checks: [], consoleErrors: [], screenshots: [], metrics: {},
     evidenceBoundary: 'Local deterministic HTML/provider in an isolated Edge profile; no Firefox runtime or external provider claim.'};
-  let launched;
+  let launched, fixture, primaryError;
+  let launchAttempted = false;
   try {
+    fixture = await startFixture(owned => { fixture = owned; });
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', viewport: {width: 1440, height: 960}, timeout: 30000,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp'); assert.equal(report.focusPolicy, 'launchservices-no-foreground');
     assert.equal(report.windowPlacement.browserFrontmost, false);
@@ -287,8 +298,35 @@ async function main() {
     report.checks.push('eight native CSS Highlight presets synchronize source/translation; disabling clears native ranges');
     assert.deepEqual(report.consoleErrors,[]);
     report.requests=fixture.requests.length;report.ok=true;
-  } catch(error){report.error=error.stack||String(error);throw error;}
-  finally {report.fixtureRequests=fixture.requests;fs.writeFileSync(path.join(artifactsDir,'report.json'),JSON.stringify(report,null,2));await launched?.close();await fixture.close();fs.rmSync(profileDir,{recursive:true,force:true});}
+  } catch(error){primaryError=error;report.error=error.stack||String(error);throw error;}
+  finally {
+    report.fixtureRequests = fixture?.requests || [];
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('HTTP fixture', async () => { if (fixture) await fixture.close(); });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+  }
   console.log(JSON.stringify({ok:report.ok,checks:report.checks,metrics:{styles:report.metrics.styleMatrix?.length},report:path.join(artifactsDir,'report.json')}));
 }
 main().catch(error=>{console.error(error);process.exitCode=1});

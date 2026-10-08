@@ -224,7 +224,75 @@ describe('image translation Offscreen adapter', () => {
 });
 
 describe('selection TTS Offscreen adapter', () => {
+    const preparePermit = () => {
+        send.mockResolvedValueOnce({success: true, revision: 'revision', receiverId: 'receiver'})
+            .mockResolvedValueOnce({success: true, playbackToken: 'permit'});
+    };
     const adapter = createSelectionTtsOffscreenAdapter(client);
+
+    it.each([
+        {errorCode: 'selection-tts-permit-invalid', receiverId: 'receiver'},
+        {errorCode: 'selection-tts-permit-invalid'},
+        {errorCode: 'selection-tts-permit-invalid', receiverId: 1},
+        {errorCode: 'different-error', receiverId: 'replacement'},
+    ])('does not retry same-instance revocation or unverified playback failure %j', async failure => {
+        preparePermit();
+        send.mockResolvedValueOnce({success: false, error: 'revoked', ...failure});
+        await expect(adapter.play({tabId: 7, clientRequestId: 'revoked', sourceUrl: 'https://example.test/audio'}))
+            .rejects.toThrow('revoked');
+        expect(send).toHaveBeenCalledTimes(3);
+    });
+
+    it('bounds repeated verified receiver replacement without accepting any old permit', async () => {
+        for (let i = 0; i < 3; i++) {
+            send.mockResolvedValueOnce({success: true, revision: `revision-${i}`, receiverId: `receiver-${i}`})
+                .mockResolvedValueOnce({success: true, playbackToken: `permit-${i}`})
+                .mockResolvedValueOnce({success: false, errorCode: 'selection-tts-permit-invalid', receiverId: `receiver-${i + 1}`});
+        }
+        await expect(adapter.play({tabId: 7, clientRequestId: 'replaced', sourceUrl: 'https://example.test/audio'}))
+            .rejects.toThrow('语音播放未能启动，请重试');
+        expect(send).toHaveBeenCalledTimes(9);
+    });
+
+    it.each([undefined, {success: false}, {success: false, error: 'read-error'},
+        {success: true}, {success: true, revision: 1}, {success: true, revision: 'v', receiverId: 1}])('rejects malformed snapshot %j before reserving or sending audio', async response => {
+        send.mockResolvedValueOnce(response);
+        await expect(adapter.play({tabId: 7, clientRequestId: 'invalid-snapshot', sourceUrl: 'https://example.test/audio'})).rejects.toThrow();
+        expect(send).toHaveBeenCalledOnce();
+    });
+
+    it.each([undefined, {success: false}, {success: false, error: 'reserve-error'},
+        {success: true}, {success: true, playbackToken: 1}])('rejects malformed reservation %j without sending PLAY', async response => {
+        send.mockResolvedValueOnce({success: true, revision: 'version', receiverId: 'receiver'}).mockResolvedValueOnce(response);
+        await expect(adapter.play({tabId: 7, clientRequestId: 'invalid-reserve', sourceUrl: 'https://example.test/audio'})).rejects.toThrow();
+        expect(send).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries a compare-and-swap conflict with the same local signal and stops after three conflicts', async () => {
+        const controller = new AbortController(), route = {tabId: 7, clientRequestId: 'conflict'};
+        send.mockResolvedValueOnce({success: true, revision: 'v1', receiverId: 'receiver'})
+            .mockResolvedValueOnce({success: false, conflict: true})
+            .mockResolvedValueOnce({success: true, revision: 'v2', receiverId: 'receiver'})
+            .mockResolvedValueOnce({success: true, playbackToken: 'permit'})
+            .mockResolvedValueOnce({success: true});
+        await adapter.play({...route, sourceUrl: 'https://example.test/audio'}, controller.signal);
+        for (const [message, options] of send.mock.calls) {
+            expect(options.signal).toBe(controller.signal); expect(message).not.toHaveProperty('signal');
+            expect(options.cancelMessage).toEqual({type: 'STOP_SELECTION_TTS', ...route});
+        }
+        send.mockClear();
+        for (let i = 0; i < 3; i++) send.mockResolvedValueOnce({success: true, revision: `v${i}`, receiverId: 'receiver'})
+            .mockResolvedValueOnce({success: false, conflict: true});
+        await expect(adapter.play({...route, sourceUrl: 'https://example.test/audio'}, controller.signal)).rejects.toThrow('语音播放未能启动，请重试');
+        expect(send).toHaveBeenCalledTimes(6);
+    });
+
+    it('does not start preparation or delivery for a pre-cancelled signal', async () => {
+        const controller = new AbortController(); controller.abort();
+        await expect(adapter.play({tabId: 0, clientRequestId: 'cancelled', sourceUrl: 'https://example.test/audio'}, controller.signal))
+            .rejects.toMatchObject({name: 'AbortError'});
+        expect(send).not.toHaveBeenCalled();
+    });
 
     it('seeks only an existing document and returns whether its current route accepted the jump', async () => {
         sendIfPresent.mockResolvedValueOnce({success:true,seeked:true});
@@ -240,17 +308,20 @@ describe('selection TTS Offscreen adapter', () => {
     const route = {tabId: 7, clientRequestId: 'request-1'};
 
     it('plays audio/source payloads and rejects unsuccessful playback', async () => {
+        preparePermit();
         send.mockResolvedValueOnce({success: true});
         await expect(adapter.play({...route, sourceUrl: 'https://example.test/audio'})).resolves.toBeUndefined();
         expect(send).toHaveBeenCalledWith({
             type: 'PLAY_SELECTION_TTS',
             ...route,
-            sourceUrl: 'https://example.test/audio',
-        });
+            sourceUrl: 'https://example.test/audio', playbackToken: 'permit',
+        }, {signal: undefined, cancelMessage: {type: 'STOP_SELECTION_TTS', ...route}});
 
+        preparePermit();
         send.mockResolvedValueOnce({success: false, error: 'play custom'});
         await expect(adapter.play({...route, audioBase64: 'AA==', contentType: 'audio/mpeg'}))
             .rejects.toThrow('play custom');
+        preparePermit();
         send.mockResolvedValueOnce(undefined);
         await expect(adapter.play({...route, audioBase64: 'AA==', contentType: 'audio/mpeg'}))
             .rejects.toThrow('Offscreen TTS 播放失败');
@@ -276,9 +347,10 @@ describe('selection TTS Offscreen adapter', () => {
             {...route, audioBase64: 'AA==', contentType: 'audio/wav', text: 'Hello', timings},
             {...route, sourceUrl: 'https://example.test/audio', text: 'Hello'},
         ]) {
-            send.mockResolvedValueOnce({success: true});
+            preparePermit(); send.mockResolvedValueOnce({success: true});
             await adapter.play(payload);
-            expect(send).toHaveBeenLastCalledWith({type: 'PLAY_SELECTION_TTS', ...payload});
+            expect(send).toHaveBeenLastCalledWith({type: 'PLAY_SELECTION_TTS', ...payload, playbackToken: 'permit'},
+                {signal: undefined, cancelMessage: {type: 'STOP_SELECTION_TTS', ...route}});
         }
         expect(timings).toEqual([{startChar: 0, endChar: 5, startTime: 0, endTime: 1}]);
     });
@@ -400,7 +472,7 @@ describe('TTS metadata across local synthesis, adapters and routed playback', ()
         expect(result.response).toEqual({success: true, transport: 'offscreen', voice: 'zf_001'});
         expect(controller.completeRemoteRequest(request, result.response as {success: boolean; transport: string})).toBe('offscreen');
         expect(messages.find(message => message.type === 'PLAY_SELECTION_TTS')).toEqual({
-            type: 'PLAY_SELECTION_TTS', audioBase64: 'UklGRg==', contentType: 'audio/wav', text: 'Hello world', tabId: 0, clientRequestId: request.clientRequestId,
+            type: 'PLAY_SELECTION_TTS', playbackToken: expect.any(String), audioBase64: 'UklGRg==', contentType: 'audio/wav', text: 'Hello world', tabId: 0, clientRequestId: request.clientRequestId,
             ...(expectedTimings === undefined ? {} : {timings: expectedTimings}),
         });
         expect(synthesizeLocal).toHaveBeenCalledWith(expect.objectContaining({text: 'Hello world', language: 'en-US', voice: 'zf_001'}), expect.any(AbortSignal));

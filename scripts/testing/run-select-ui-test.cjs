@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 生产扩展选择器回归：使用临时 profile、真实后台 Edge 和现有配置接口，不调用翻译服务。
 const fs = require('node:fs');
 const os = require('node:os');
@@ -7,17 +8,20 @@ const arg = (key, fallback) => { const i = process.argv.indexOf('--' + key); ret
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const output = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-select-ui-production'));
 const {chromium} = require(path.join(arg('playwright-root', ''), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', ''));
+const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 const report = {ok: false, extensionDir, caseCoverage: [], screenshots: [], consoleErrors: [], persistenceCases: [], responsive: []};
 const check = (condition, message) => { if (!condition) throw new Error(message); report.caseCoverage.push(message); };
 fs.mkdirSync(output, {recursive: true});
 (async () => {
-  let session, page;
+  let session, page, primaryError;
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fr-select-ui-'));
+  let launchAttempted = false;
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
     report.manifest = {popup: manifest.action.default_popup, options: manifest.options_ui?.page || manifest.options_page};
+    launchAttempted = true;
     session = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false, browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run'], viewport: {width: 1440, height: 1000}, timeout: 30000});
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     check(session.windowPlacement.browserFrontmost === false, '后台 Edge 没有成为前台应用');
     const context = session.context;
@@ -170,6 +174,7 @@ fs.mkdirSync(output, {recursive: true});
     check(report.consoleErrors.length === 0, '本轮选择器回归没有 console/page 错误');
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack || String(error);
     if (page && !page.isClosed()) {
       const file = path.join(output,'failure.png'); await page.screenshot({path:file}).catch(()=>{}); report.screenshots.push(file);
@@ -177,8 +182,30 @@ fs.mkdirSync(output, {recursive: true});
     }
     process.exitCode = 1;
   } finally {
-    fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(report,null,2));
-    await session?.close(); fs.rmSync(profileDir,{recursive:true,force:true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(output, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   process.stdout.write(JSON.stringify({ok:report.ok,cases:report.caseCoverage.length,error:report.error,screenshots:report.screenshots.length})+'\n');
-})();
+})().catch(error => {console.error(error); process.exitCode = 1;});

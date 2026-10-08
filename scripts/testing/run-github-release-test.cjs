@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // GitHub 发布页逐行对照：临时 profile、第二屏后台、真实快捷键；fixture 与 live 证据分别报告。
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -7,7 +8,7 @@ const path = require('node:path');
 const {createRequire} = require('node:module');
 const {assertFreshProductionExtension} = require('../run-site-translation-test.cjs');
 const root = path.resolve(__dirname, '../..');
-const args = {};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs')};
 for (let i = 2; i < process.argv.length; i++) {
   if (process.argv[i] === '--live') { args.live = true; continue; }
   if (process.argv[i] === '--background') continue;
@@ -27,11 +28,15 @@ const save = () => fs.writeFileSync(path.join(args.artifactsDir, 'report.json'),
   assertFreshProductionExtension(args.extensionDir, root);
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-profile-release-'));
   let session;
+  let primaryError;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false,
       viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: 30000,
       browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     const context = session.context;
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
@@ -171,6 +176,31 @@ const save = () => fs.writeFileSync(path.join(args.artifactsDir, 'report.json'),
       await page.close(); save();
     }
     report.passed = true;
-  } catch (error) { report.failure = error.stack; throw error; }
-  finally { save(); if (session) await session.close(); fs.rmSync(profileDir, {recursive: true, force: true}); }
+  } catch (error) { primaryError = error; report.failure = error.stack; throw error; }
+  finally {
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.passed = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {save();});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+  }
 })().catch(error => {console.error(error); process.exitCode = 1;});

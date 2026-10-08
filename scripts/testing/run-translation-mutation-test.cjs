@@ -7,6 +7,7 @@
  * 断言基于宿主 DOM 的完整 outerHTML，因此证据截图必须保持非侵入（caret: 'initial'），
  * 不得让 Playwright 自身的 caret 隐藏在宿主 input/textarea 上留下残留属性。
  */
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -26,7 +27,7 @@ const buttonFormsSelector = '#submit-anonymous, #button-input, #reset-input, #bu
 const untouchedFormsSelector = '#submit-named, #text-input';
 
 function parseArgs(argv) {
-  const result = {timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
+  const result = {helperPath: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000, display: 'secondary', browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'};
   const names = {'--extension-dir': 'extensionDir', '--playwright-root': 'playwrightRoot', '--focus-safe-helper': 'helperPath',
     '--artifacts-dir': 'artifactsDir', '--case': 'caseId', '--timeout': 'timeout', '--display': 'display', '--browser-path': 'browserPath'};
   for (let index = 0; index < argv.length; index++) {
@@ -113,12 +114,8 @@ async function main() {
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-translation-mutation-'));
   const report = {scope: 'production-extension-domain-fixtures', provider: 'microsoft-local-deterministic-response',
     profileMode: 'new-temporary-profile', extensionDir: args.extensionDir, cases: [], errors: []};
-  report.build = Object.fromEntries(['manifest.json', 'content-scripts/content.js'].map(name => {
-    const file = path.join(args.extensionDir, name);
-    return [name, {mtime: fs.statSync(file).mtime.toISOString(), sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')}];
-  }));
   const save = () => fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-  let session, context, worker, popup, sequence = 0;
+  let session, context, worker, popup, primaryError, sequence = 0;
   const installedWorkers = new WeakMap();
   const installWorker = current => {
     if (!installedWorkers.has(current)) installedWorkers.set(current, current.evaluate(() => {
@@ -161,11 +158,18 @@ async function main() {
   // caret-color 再以空值清除，在宿主控件上留下空 style 属性。DOM 所有权断言必须
   // 比对完整 outerHTML，因此证据截图一律使用 caret:'initial'，不改写被断言的页面。
   const capture = (page, name) => page.screenshot({path: path.join(args.artifactsDir, name), caret: 'initial'});
+  let launchAttempted = false;
   try {
+  report.build = Object.fromEntries(['manifest.json', 'content-scripts/content.js'].map(name => {
+    const file = path.join(args.extensionDir, name);
+    return [name, {mtime: fs.statSync(file).mtime.toISOString(), sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex')}];
+  }));
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: args.browserPath,
       background: true, headless: false, viewport: {width: 1280, height: 900}, displayTarget: args.display,
       timeout: args.timeout, browserArgs: [`--disable-extensions-except=${args.extensionDir}`,
         `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     context = session.context;
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp');
@@ -203,6 +207,7 @@ async function main() {
       await patchConfig({display: item.display});
       const page = await helper.newPageWithoutForeground(context, args.timeout);
       const result = {id: item.id, display: item.display};
+      let caseError;
       report.cases.push(result);
       page.on('pageerror', error => report.errors.push({case: item.id, error: error.message}));
       try {
@@ -338,26 +343,62 @@ async function main() {
         result.passed = true;
         process.stdout.write(`${item.id}: passed; translated/restored/retranslated ${result.first.owned.length}/0/${result.retranslated.owned.length}\n`);
       } catch (error) {
+        caseError = error;
         result.error = error.stack;
-        result.failure = await snapshot(page).catch(() => null);
-        result.events = await page.evaluate(() => window.translationMutationTest?.events || []).catch(() => []);
-        result.requests = await worker.evaluate(() => globalThis.translationMutationRequests).catch(() => []);
-        await capture(page, `${item.id}-failure.png`).catch(() => {});
+        try {
+          result.failure = await snapshot(page).catch(() => null);
+          result.events = await page.evaluate(() => window.translationMutationTest?.events || []).catch(() => []);
+          result.requests = await worker.evaluate(() => globalThis.translationMutationRequests).catch(() => []);
+          await capture(page, `${item.id}-failure.png`).catch(() => {});
+        } catch (diagnosticError) { console.error('Failure diagnostics failed:', diagnosticError); }
         throw error;
       } finally {
-        save();
-        await page.close();
+        const caseCleanupErrors = [];
+        const releaseCase = async (resource, release) => {
+          try { await release(); } catch (error) {
+            caseCleanupErrors.push(error);
+            (report.cleanupErrors ||= []).push({resource, case: item.id, error: String(error.stack || error)});
+            report.passed = false;
+            process.exitCode = 1;
+            console.error(`Cleanup failed (${resource}):`, error);
+          }
+        };
+        await releaseCase('case report', save);
+        await releaseCase('case page', () => page.close());
+        if (caseCleanupErrors.length && !caseError) throw caseCleanupErrors[0];
       }
     }
     assert.deepEqual(report.errors, []);
     report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack;
     throw error;
   } finally {
-    save();
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { save(); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 main().catch(error => { process.stderr.write(`${error.stack || error}\n`); process.exitCode = 1; });
