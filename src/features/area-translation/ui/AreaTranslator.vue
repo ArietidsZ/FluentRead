@@ -279,7 +279,7 @@ async function requestTranslation(rect: AreaRect, prepareLanguages = false): Pro
         if (controller.signal.aborted) finish();
       });
       if (stale()) return;
-      const screenshot = await captureVisibleAreaInExtension();
+      const screenshot = await captureVisibleAreaInExtension({signal: controller.signal});
       if (stale()) return;
       capturedImage = screenshot;
       capturedSelection = selection;

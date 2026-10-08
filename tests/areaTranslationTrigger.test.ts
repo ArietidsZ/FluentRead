@@ -81,6 +81,21 @@ function mountTranslator() {
 }
 
 describe('圈选翻译快捷键触发', () => {
+  it.each(['escape', 'unmount'] as const)('截图等待中 %s 取消同一controller并阻止后续翻译', async action => {
+    const f = mountTranslator();
+    let resolve!: (value: string) => void;
+    f.capture.mockImplementationOnce(() => new Promise<string>(done => {resolve = done;}));
+    f.state.phase = 'loading';
+    const pending = f.state.requestTranslation({left: 10, top: 20, width: 120, height: 90});
+    await vi.waitFor(() => expect(f.capture).toHaveBeenCalledOnce());
+    const signal = f.capture.mock.calls[0][0].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    if (action === 'escape') f.state.handleKeydown({isTrusted: true, key: 'Escape', preventDefault: vi.fn()});
+    else {app!.unmount(); app = undefined;}
+    expect(signal.aborted).toBe(true);
+    resolve('data:image/png,late'); await pending;
+    expect(f.translate).not.toHaveBeenCalled();
+  });
   it('默认 Shift+Z 在正文按下时进入选区模式，Esc 退出', () => {
     const f = mountTranslator();
     const event = f.press();

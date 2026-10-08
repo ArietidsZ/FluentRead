@@ -22,6 +22,50 @@ function fixture(invoke?: (message: any, context: any, registry: ReturnType<type
     return {registry,server,dispatch,contexts,add};
 }
 const request=(client:ReturnType<typeof createImageDocumentClient>,id='public',type='fluentReadImageTranslate',extra={})=>client.request({type,...extra},{requestId:id,timeoutMs:1000},'deadline');
+it('暂停时底层disconnect抛错仍以AbortError清理请求，销毁后不可恢复',async()=>{
+    const pair=documentPortPair();pairs.push(pair);const connect=vi.fn(()=>pair.client);const client=createImageDocumentClient(connect);
+    const pending=request(client);const observed=Promise.allSettled([pending]);vi.mocked(pair.client.disconnect).mockImplementationOnce(()=>{throw new Error('revoked');});
+    expect(()=>client.suspend()).not.toThrow();expect(await observed).toEqual([expect.objectContaining({status:'rejected',reason:expect.objectContaining({name:'AbortError'})})]);
+    client.suspend();client.resume();client.dispose();client.suspend();client.resume();
+    await expect(request(client,'new')).rejects.toMatchObject({name:'AbortError'});expect(connect).toHaveBeenCalledOnce();
+});
+it('同Port两项翻译断连后共用新Port，旧catch不能再关闭新peer',async()=>{
+    const {translateImageInExtension}=await import('@/src/features/image-translation/services/client');
+    const held=gates();let starts=0;const h=fixture((m,c,r)=>r.run(m,async()=>++starts<=2?held.promise:{success:true,image:m.image,lines:[]},c));
+    const connections:ReturnType<typeof h.add>[]=[];const connect=vi.fn(()=>{const x=h.add();connections.push(x);return x.pair.client;});
+    vi.stubGlobal('browser',{runtime:{connect}});
+    const results=Promise.allSettled([translateImageInExtension('one','en','Page',{requestId:'one',timeoutMs:1000}),translateImageInExtension('two','en','Page',{requestId:'two',timeoutMs:1000})]);
+    await tick();expect(starts).toBe(2);connections[0].pair.close();
+    expect(await results).toEqual([{status:'fulfilled',value:{image:'one',lines:[]}},{status:'fulfilled',value:{image:'two',lines:[]}}]);
+    expect(connect).toHaveBeenCalledTimes(2);expect(connections[1].pair.client.disconnect).not.toHaveBeenCalled();held.resolve('late');
+});
+it('嵌套offscreen断线重试保留共享Port上的其他截图工作',async()=>{
+    const {translateImageInExtension}=await import('@/src/features/image-translation/services/client');
+    const area=gates();let starts=0;const h=fixture((m,c,r)=>r.run(m,async()=>{
+        if(m.type==='fluentReadAreaCapture')return area.promise;
+        if(++starts===1)throw new Error('offscreen message channel closed');
+        return {success:true,image:'translated',lines:[]};
+    },c));
+    const connections:ReturnType<typeof h.add>[]=[];const connect=vi.fn(()=>{const x=h.add();connections.push(x);return x.pair.client;});vi.stubGlobal('browser',{runtime:{connect}});
+    const capture=request(imageDocumentClient(),'area','fluentReadAreaCapture');const observed=Promise.allSettled([capture]);
+    await expect(translateImageInExtension('source','en','Page',{requestId:'translate',timeoutMs:1000})).resolves.toEqual({image:'translated',lines:[]});
+    area.resolve({success:true,image:'capture'});expect(await observed).toEqual([{status:'fulfilled',value:{success:true,image:'capture'}}]);
+    expect(connect).toHaveBeenCalledOnce();expect(connections[0].pair.client.disconnect).not.toHaveBeenCalled();
+});
+it('真实截图helper取消排队工作，经原peer后台取消且不执行第二次capture',async()=>{
+    const {captureVisibleAreaInExtension}=await import('@/src/features/area-translation/services/client');
+    const wait=gates();const capture=vi.fn(async()=> 'data:image/png,x');const owner=vi.fn(async()=>{});let handlers:ReturnType<typeof createAreaTranslationBackgroundHandlers>;
+    const h=fixture((m,c)=>Promise.resolve(handlers.find(x=>x.type===m.type)!.handle(m,c)));
+    handlers=createAreaTranslationBackgroundHandlers({operationRegistry:h.registry,captureNow:()=>0,waitForCapture:()=>wait.promise as Promise<void>,
+        captureVisibleTab:capture,assertCaptureOwner:owner,getDefaultSourceLanguage:()=> 'en',assertLanguagesDownloaded:async()=>{},translateArea:async()=>({})});
+    const A=h.add();vi.stubGlobal('browser',{runtime:{connect:()=>A.pair.client}});await captureVisibleAreaInExtension();
+    const controller=new AbortController();const queued=captureVisibleAreaInExtension({requestId:'helper-queued',signal:controller.signal});
+    const observed=Promise.allSettled([queued]);await tick();controller.abort();wait.resolve(undefined);
+    expect(await observed).toEqual([expect.objectContaining({status:'rejected',reason:expect.objectContaining({name:'AbortError'})})]);await tick();
+    expect(capture).toHaveBeenCalledOnce();expect(owner).toHaveBeenCalledTimes(2);
+    expect(h.dispatch.mock.calls.some(([m])=>m.type==='fluentReadAreaCancel'&&m.requestId==='helper-queued')).toBe(true);
+    expect(()=>getImageDocumentSession(h.contexts[0])!.assertLive()).not.toThrow();
+});
 describe('浏览器拥有的图片文档Port',()=>{
     it('无documentId的同URL旧新文档相同ID可并发，进度与结果仍只达原peer',async()=>{
         const a=gates();const b=gates();const opts:any[]=[];
@@ -279,7 +323,7 @@ it('真实client→Port→source challenge断连重建授权，换图拒绝；da
     expect(challenges.map(packet=>packet.message.requestId)).toEqual(sourceIds);expect(frameFallback).not.toHaveBeenCalled();
     const challengeCount=challenges.length;
     await expect(translateImageInExtension(bytes,'en','Page',{requestId:'translation-public',timeoutMs:1000})).resolves.toEqual({image:bytes,lines:[]});
-    expect(translate).toHaveBeenCalledTimes(2);expect(connect).toHaveBeenCalledTimes(3);
+    expect(translate).toHaveBeenCalledTimes(2);expect(connect).toHaveBeenCalledTimes(2);
     const starts=connections.flatMap(c=>vi.mocked(c.pair.client.postMessage).mock.calls.map(([packet])=>packet as any).filter(packet=>packet.kind==='request'&&packet.message.type==='fluentReadImageTranslate'));
     expect(starts).toHaveLength(2);expect(starts[0].message.requestId).toBe('translation-public');expect(starts[1].message.requestId).not.toBe('translation-public');
     expect(starts.every(packet=>packet.message.image===bytes&&!sourceIds.includes(packet.message.requestId))).toBe(true);

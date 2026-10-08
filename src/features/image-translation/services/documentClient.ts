@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/documentClient.ts
  * 文件职责：在每个内容上下文共享图片文档 Port，隔离取消、进度、结果和短期来源挑战。
- * 主要内容：懒建版本化连接、区分公开任务与 RPC 标识、拒绝重复 pending、断连清理和同 peer 来源回复。
+ * 主要内容：懒建版本化连接、区分公开任务与 RPC 标识、拒绝重复 pending、按实际 peer 断连清理、同 peer 来源回复及页面暂停恢复。
  * 模块边界：只访问注入 runtime 的连接，不读取图片、不外发网络；重连归属由浏览器新 Port 决定。
  */
 import {IMAGE_DOCUMENT_PORT, IMAGE_DOCUMENT_VERSION, type DocumentPort} from '../documentChannel';
@@ -14,15 +14,20 @@ function failure(message: string, name = 'AbortError'): Error {return Object.ass
 export function createImageDocumentClient(connect: () => DocumentPort) {
     let current: DocumentPort | undefined;
     let sequence = 0;
+    let phase: 'active' | 'suspended' | 'disposed' = 'active';
     const detach = new WeakMap<DocumentPort, () => void>();
     const pending = new Map<string, {port: DocumentPort; callerId: string; finish(value?: unknown, error?: unknown): void;
         progress?: (stage: ImageTranslationStage, progress?: number) => void}>();
-    const close = (port: DocumentPort) => {
+    const close = (port: DocumentPort, error?: Error) => {
         detach.get(port)?.(); detach.delete(port);
         if (current === port) current = undefined;
-        for (const request of pending.values()) if (request.port === port) request.finish(undefined, new Error('图片文档 message port closed'));
+        for (const request of pending.values()) if (request.port === port) request.finish(undefined, error ?? new Error('图片文档 message port closed'));
     };
     const disconnectPort = (port: DocumentPort) => {close(port); try {port.disconnect();} catch { /* 原 peer 已关闭。 */ }};
+    const suspend = () => {
+        const port = current;
+        if (port) {close(port, failure('图片文档已暂停或离开')); try {port.disconnect();} catch { /* 离开的 peer 已关闭。 */ }}
+    };
     const ensurePort = () => {
         if (current) {for (const entry of validators) entry.port ??= current; return current;}
         const port = connect(); current = port;
@@ -64,6 +69,7 @@ export function createImageDocumentClient(connect: () => DocumentPort) {
             onProgress?: (stage: ImageTranslationStage, progress?: number) => void}, timeoutMessage: string,
             cancelType = 'fluentReadImageCancel'): Promise<unknown> {
             options = {...options};
+            if (phase !== 'active') return Promise.reject(failure('图片文档已暂停或离开'));
             if (options.signal?.aborted) return Promise.reject(failure('图片 OCR 请求已取消'));
             for (const request of pending.values()) if (request.callerId === options.requestId) {
                 return Promise.reject(new Error('图片 OCR requestId 正在执行'));
@@ -88,7 +94,10 @@ export function createImageDocumentClient(connect: () => DocumentPort) {
                     message: {...message, requestId: options.requestId, timeoutMs: options.timeoutMs}});} catch (error) {finish(undefined, error); disconnectPort(port);}
             });
         },
-        reset() {const port = current; if (port) disconnectPort(port);}
+        reset() {const port = current; if (port) disconnectPort(port);},
+        suspend() {if (phase !== 'disposed') phase = 'suspended'; suspend();},
+        resume() {if (phase !== 'disposed') phase = 'active';},
+        dispose() {phase = 'disposed'; suspend();}
     };
 }
 const clients = new WeakMap<object, ReturnType<typeof createImageDocumentClient>>();

@@ -7,6 +7,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {installContentPageLifecycle, waitForContentDocument} from '@/src/app/content/pageLifecycle';
 import {isRawXmlContentDocument} from '@/src/shared/dom/documentType';
+import {documentPortPair} from './helpers/imageDocumentPorts';
 
 const mocks = vi.hoisted(() => ({
     config: {
@@ -388,6 +389,30 @@ describe('content composition root 冷启动与暂停恢复', () => {
         expect(unsubscribe).toHaveBeenCalledOnce();
     });
 
+    it('组合根先释放页面功能再关闭图片Port，暂停阻止重试而恢复建立新peer', async () => {
+        const connections:ReturnType<typeof documentPortPair>[]=[];
+        const runtime=browser.runtime as any;
+        runtime.connect=vi.fn(()=>{const pair=documentPortPair();connections.push(pair);
+            pair.background.onMessage.addListener(packet=>{if(packet.kind==='request'&&packet.message.type==='fluentReadImageTranslate'&&connections.length>1)
+                pair.background.postMessage({kind:'result',rpcId:packet.rpcId,response:{success:true,image:'restored',lines:[]}});});
+            return pair.client;});
+        const {startContentApp}=await import('@/src/app/content/runtime');
+        const {translateImageInExtension}=await import('@/src/features/image-translation/services/client');
+        const starting=startContentApp(context as never);ready();await starting;
+        const first=translateImageInExtension('source','en','Page',{requestId:'lifecycle',timeoutMs:1000});const observed=Promise.allSettled([first]);
+        connections[0].background.onDisconnect.addListener(()=>expect(mocks.restoreOriginal).toHaveBeenCalled());
+        transition(page,'pagehide',true);
+        expect(connections[0].client.disconnect).toHaveBeenCalledOnce();
+        expect(await observed).toEqual([expect.objectContaining({status:'rejected',reason:expect.objectContaining({name:'AbortError'})})]);
+        await expect(translateImageInExtension('source','en','Page')).rejects.toMatchObject({name:'AbortError'});
+        expect(runtime.connect).toHaveBeenCalledOnce();
+        transition(page,'pageshow',true);
+        await expect(translateImageInExtension('source','en','Page')).resolves.toEqual({image:'restored',lines:[]});
+        expect(runtime.connect).toHaveBeenCalledTimes(2);
+        invalidated();expect(connections[1].client.disconnect).toHaveBeenCalledOnce();
+        transition(page,'pageshow',true);await expect(translateImageInExtension('source','en','Page')).rejects.toMatchObject({name:'AbortError'});
+        expect(runtime.connect).toHaveBeenCalledTimes(2);
+    });
     it('写作和分享卡片遵循同一启停和 BFCache 恢复生命周期', async () => {
         Object.assign(page, {location: {href: 'https://github.com/FluentRead/FluentRead/issues/1'}});
         mocks.config.writing.enabled = true;

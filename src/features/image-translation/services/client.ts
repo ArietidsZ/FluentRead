@@ -198,7 +198,6 @@ export async function translateImageInExtension(
     const deadlineAt = Date.now() + timeoutMs;
     let requestId = options.requestId || createImageRequestId();
     const attempt = async (retried: boolean): ReturnType<typeof translateImageInExtension> => {
-        if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
         const remainingMs = remainingTimeout(deadlineAt);
         if (remainingMs <= 0) throw createImageClientError('图片翻译超时', 'TimeoutError');
         try {
@@ -216,8 +215,7 @@ export async function translateImageInExtension(
             if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
             if (remainingTimeout(deadlineAt) <= 0) throw createImageClientError('图片翻译超时', 'TimeoutError');
             if (retried) throw normalizeTranslationTransportError(error);
-            // 新 Port 是新文档归属；仅关闭原 peer，不在新连接上取消旧 ID，截止时间保持不变。
-            imageDocumentClient().reset();
+            // 实际断连由 documentClient 按原 Port 清理；后台错误回复不关闭共享连接，旧 catch 也不能关闭新 peer。
             requestId = createImageRequestId();
             return attempt(true);
         }

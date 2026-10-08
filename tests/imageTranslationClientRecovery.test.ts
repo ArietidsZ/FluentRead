@@ -39,6 +39,7 @@ describe('图片翻译客户端断线恢复', () => {
     afterEach(() => {
         vi.useRealTimers();
         vi.unstubAllGlobals();
+        vi.restoreAllMocks();
     });
 
     it('漫画局部结果通过既有消息通道，普通图片不能误接受仅图块响应',async()=>{
@@ -61,8 +62,8 @@ describe('图片翻译客户端断线恢复', () => {
 
         expect(sendMessage).toHaveBeenCalledTimes(2);
         expect(sendMessage.mock.calls[0][0]).toMatchObject({type: 'fluentReadImageTranslate', requestId: 'image-original'});
-        expect(ports.connect).toHaveBeenCalledTimes(2);
-        expect(ports.pairs[0].client.disconnect).toHaveBeenCalledOnce();
+        expect(ports.connect).toHaveBeenCalledOnce();
+        expect(ports.pairs[0].client.disconnect).not.toHaveBeenCalled();
         expect(sendMessage.mock.calls[1][0]).toMatchObject({type: 'fluentReadImageTranslate'});
         expect(sendMessage.mock.calls[1][0].requestId).not.toBe('image-original');
     });
@@ -136,11 +137,11 @@ describe('图片翻译客户端断线恢复', () => {
 
     it('旧Port关闭同步触发用户取消时不再启动重试', async () => {
         const controller = new AbortController();
-        sendMessage
-            .mockResolvedValueOnce({success: false, error: 'Receiving end does not exist'})
-            .mockResolvedValueOnce({success: false, error: 'unused'});
+        sendMessage.mockReturnValueOnce(new Promise(()=>{}));
         const pending = translateImageInExtension('source', 'en', 'Page', {requestId: 'sync-cancel', signal: controller.signal});
         ports.pairs[0].client.onDisconnect.addListener(() => controller.abort());
+        await vi.waitFor(()=>expect(sendMessage).toHaveBeenCalledOnce());
+        ports.pairs[0].close();
         await expect(pending).rejects.toMatchObject({name: 'AbortError'});
         expect(sendMessage).toHaveBeenCalledOnce();
     });
@@ -157,6 +158,16 @@ describe('图片翻译客户端断线恢复', () => {
         expect(sendMessage).toHaveBeenCalledOnce();
     });
 
+    it('生成重试ID耗尽绝对截止时间时不发送新业务请求', async () => {
+        vi.useFakeTimers();
+        sendMessage.mockRejectedValueOnce(new Error('message channel closed'));
+        vi.spyOn(crypto,'randomUUID').mockImplementationOnce(()=>{
+            vi.setSystemTime(Date.now()+20);
+            return '11111111-1111-1111-1111-111111111111';
+        });
+        await expect(translateImageInExtension('source','en','Page',{requestId:'original',timeoutMs:10})).rejects.toMatchObject({name:'TimeoutError'});
+        expect(sendMessage).toHaveBeenCalledOnce();expect(ports.connect).toHaveBeenCalledOnce();
+    });
     it('TimeoutError 即使错误文本包含 channel closed 也不重试', async () => {
         sendMessage.mockRejectedValueOnce(Object.assign(new Error('message channel closed'), {name: 'TimeoutError'}));
         await expect(translateImageInExtension('source', 'en', 'Page', {requestId: 'timeout-name'}))
@@ -166,9 +177,11 @@ describe('图片翻译客户端断线恢复', () => {
 
     it('旧任务清理消耗完剩余预算后不再启动恢复请求', async () => {
         vi.useFakeTimers();
-        sendMessage.mockRejectedValueOnce(new Error('The message channel closed'));
+        sendMessage.mockReturnValueOnce(new Promise(()=>{}));
         const pending = translateImageInExtension('source', 'en', 'Page', {timeoutMs: 10});
         ports.pairs[0].background.onDisconnect.addListener(() => {vi.setSystemTime(Date.now() + 20);});
+        await Promise.resolve();
+        ports.pairs[0].close();
         await expect(pending)
             .rejects.toMatchObject({name: 'TimeoutError'});
         expect(sendMessage.mock.calls.map(([message]) => message.type))
