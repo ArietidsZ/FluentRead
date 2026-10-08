@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/fullCapture.ts
  * 文件职责：执行完整视频 AI 字幕的独立音频读取、分窗识别和最终 cue 整理。
- * 主要内容：支持 HLS PCM 注入、direct media 快速解码、隐藏扫描副本、串行 Whisper 窗口、逐窗稳定字幕发布、完整缓存字幕恢复和取消清理。
+ * 主要内容：支持 HLS PCM 注入、限额流式媒体读取与可取消的 16 kHz 原生解码、隐藏扫描副本、串行 Whisper 窗口、完整模式字幕整理和取消清理。
  * 模块边界：不得接管用户可见 video 的播放状态；页面源隔离由调用方通过选项注入。
  */
 import {
@@ -23,6 +23,7 @@ import {
   type VideoAiStabilizedCue,
 } from './streamingTranscript';
 import {alignVideoAiSegmentsToSpeech, findVideoAiPauseBoundary} from './speechAlignment';
+import {readBoundedMediaResponse} from '../hlsAudio';
 import type {VideoSubtitleCue} from '../youtubeSubtitleData';
 import type {
   VideoAiAudioChunk,
@@ -199,7 +200,7 @@ export class VideoAiFullCaptureController {
   // 只维护一个串行 Promise 链，复用同一个 Whisper Worker，避免并发加载
   // 第二份模型导致内存峰值翻倍。
   private fullTranscriptionChain: Promise<void> | null = null;
-  private readonly fullTranscriptionStabilizer = new VideoAiTranscriptStabilizer();
+  private readonly fullTranscriptionStabilizer = new VideoAiTranscriptStabilizer({mode: 'complete'});
   private readonly fullCuesById = new Map<string, VideoAiStabilizedCue>();
   private fullFallbackCues: VideoAiStabilizedCue[] = [];
   private fullTranscriptionError: Error | null = null;
@@ -595,6 +596,7 @@ export class VideoAiFullCaptureController {
     let fetchTimeout: number | undefined;
     let decodeContext: AudioContext | null = null;
     let timeout: number | undefined;
+    let abortDecode: (() => void) | undefined;
     try {
       fetchTimeout = window.setTimeout(
         () => fetchController.abort(),
@@ -605,22 +607,23 @@ export class VideoAiFullCaptureController {
         credentials: 'same-origin',
         signal: fetchController.signal,
       });
-      if (!response.ok) return null;
-      const contentLength = Number(response.headers.get('content-length') || 0);
-      if (contentLength > FULL_FAST_DECODE_MAX_BYTES) return null;
-      const encoded = await response.arrayBuffer();
-      if (encoded.byteLength === 0 || encoded.byteLength > FULL_FAST_DECODE_MAX_BYTES) return null;
+      const encoded = await readBoundedMediaResponse(response, FULL_FAST_DECODE_MAX_BYTES, fetchController.signal);
+      if (encoded.byteLength === 0) return null;
       if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
 
-      decodeContext = new AudioContextClass();
+      const interrupted = new Promise<never>((_, reject) => {
+        abortDecode = () => reject(new Error(FULL_CANCELLED_ERROR));
+        signal?.addEventListener('abort', abortDecode, {once: true});
+        timeout = window.setTimeout(
+          () => reject(new Error('本地视频音频快速解码超时')),
+          FULL_FAST_DECODE_TIMEOUT_MS,
+        );
+      });
+      // 原生解码按 context 的采样率重采样，避免先以设备采样率解码再线性降采样。
+      decodeContext = new AudioContextClass({sampleRate: VIDEO_AI_SAMPLE_RATE});
       const decoded = await Promise.race([
-        decodeContext.decodeAudioData(encoded.slice(0)),
-        new Promise<never>((_, reject) => {
-          timeout = window.setTimeout(
-            () => reject(new Error('本地视频音频快速解码超时')),
-            FULL_FAST_DECODE_TIMEOUT_MS,
-          );
-        }),
+        decodeContext.decodeAudioData(encoded.buffer as ArrayBuffer),
+        interrupted,
       ]);
       const channels = Array.from(
         { length: decoded.numberOfChannels },
@@ -642,8 +645,10 @@ export class VideoAiFullCaptureController {
     } catch (error) {
       if (error instanceof Error && error.message === FULL_CANCELLED_ERROR) throw error;
     } finally {
+      abortFetch();
       if (fetchTimeout !== undefined) window.clearTimeout(fetchTimeout);
       signal?.removeEventListener('abort', abortFetch);
+      if (abortDecode) signal?.removeEventListener('abort', abortDecode);
       if (timeout !== undefined) window.clearTimeout(timeout);
       if (decodeContext && decodeContext.state !== 'closed') {
         await decodeContext.close().catch(() => undefined);

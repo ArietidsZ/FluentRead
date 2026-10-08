@@ -4,7 +4,7 @@
  * 主要内容：保证跨 AudioContext 回调的采样相位连续，并为实时/完整识别提供统一音频契约。
  * 模块边界：只处理音频数值与窗口策略，不创建播放器节点，也不发起识别请求。
  */
-import { normalizeVideoLocalTranscriptionModel } from '@/src/features/video-subtitle/transcription';
+import { normalizeVideoLocalTranscriptionModel, WHISPER_DIGITAL_SILENCE_PEAK } from '@/src/features/video-subtitle/transcription';
 
 export const VIDEO_AI_SAMPLE_RATE = 16_000;
 
@@ -139,8 +139,8 @@ export class VideoAiStreamingResampler {
 }
 
 /**
- * 一个保守的能量门：只跳过接近数字静音的窗口。它不是语言模型，也不会
- * 因背景音乐稍弱就删除音频；目标只是避免静音时仍持续占满 CPU。
+ * 与 Worker 输入共用数字静音门；非零声音交由模型识别，不能以固定音量
+ * 推断没有人声。RMS 与活动帧比例仅作统计，不因长停顿稀释整片语音。
  */
 export function measureVideoAiSpeechActivity(
   audio: Float32Array,
@@ -166,14 +166,14 @@ export function measureVideoAiSpeechActivity(
       energy += squared;
     }
     const frameRms = Math.sqrt(frameEnergy / Math.max(1, frameEnd - frameStart));
-    if (frameRms >= 0.0025) activeFrames += 1;
+    if (frameRms > WHISPER_DIGITAL_SILENCE_PEAK) activeFrames += 1;
     frameCount += 1;
   }
 
   const rms = Math.sqrt(energy / audio.length);
   const activeFrameRatio = activeFrames / frameCount;
   return {
-    active: peak >= 0.006 && (rms >= 0.0012 || activeFrameRatio >= 0.035),
+    active: peak > WHISPER_DIGITAL_SILENCE_PEAK,
     peak,
     rms,
     activeFrameRatio,

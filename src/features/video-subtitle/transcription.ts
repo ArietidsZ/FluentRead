@@ -80,6 +80,9 @@ export interface WhisperAudioWindow {
   sourceDurationMs: number;
 }
 
+/** PCM16 一个量化步长内的采样仅视为数字静音；采集门与 Worker 输入共用此契约。 */
+export const WHISPER_DIGITAL_SILENCE_PEAK = 1 / 32_768;
+
 /**
  * 只处理接近一个 PCM16 量化步长的数字静音，不把音乐、底噪或轻声当成
  * 无语音。保留 160 ms 外侧余量，且仅裁剪至少 600 ms 的静音边缘；
@@ -89,7 +92,6 @@ export function prepareWhisperAudioWindow(audio: Float32Array): WhisperAudioWind
   const frameSamples = 320;
   const contextSamples = 160 * 16;
   const minimumSilenceSamples = 600 * 16;
-  const silencePeak = 1 / 32_768;
   let firstActive = -1;
   let lastActiveEnd = 0;
   let hasInvalidSample = false;
@@ -99,7 +101,7 @@ export function prepareWhisperAudioWindow(audio: Float32Array): WhisperAudioWind
     for (let index = start; index < end; index += 1) {
       const sample = audio[index];
       if (!Number.isFinite(sample)) hasInvalidSample = true;
-      else if (Math.abs(sample) > silencePeak) active = true;
+      else if (Math.abs(sample) > WHISPER_DIGITAL_SILENCE_PEAK) active = true;
     }
     if (!active) continue;
     if (firstActive < 0) firstActive = start;

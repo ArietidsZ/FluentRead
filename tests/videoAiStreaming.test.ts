@@ -153,7 +153,7 @@ describe('本地 AI 字幕音频窗口', () => {
     expect(encodeVideoAiPcm16Base64(new Float32Array())).toBe('');
   });
 
-  it('跳过数字静音和极低底噪，但保留正常语音能量', () => {
+  it('只跳过数字静音，低音量非零声音与正常语音都保留给模型', () => {
     const silence = new Float32Array(VIDEO_AI_SAMPLE_RATE * 2);
     const lowNoise = Float32Array.from(
       { length: VIDEO_AI_SAMPLE_RATE },
@@ -170,11 +170,27 @@ describe('本地 AI 字幕音频窗口', () => {
       rms: 0,
       activeFrameRatio: 0,
     });
-    expect(measureVideoAiSpeechActivity(lowNoise).active).toBe(false);
+    expect(measureVideoAiSpeechActivity(lowNoise).active).toBe(true);
     expect(measureVideoAiSpeechActivity(speech)).toMatchObject({
       active: true,
       activeFrameRatio: 1,
     });
+  });
+
+  it('低音量声音、孤立采样和长静音不被固定能量门删除', () => {
+    const audio = new Float32Array(VIDEO_AI_SAMPLE_RATE * 12);
+    for (let index = 0; index < VIDEO_AI_SAMPLE_RATE; index += 1) {
+      audio[index] = 0.0008 * Math.sin(2 * Math.PI * 317 * index / VIDEO_AI_SAMPLE_RATE);
+    }
+    expect(measureVideoAiSpeechActivity(audio).active).toBe(true);
+    expect(measureVideoAiSpeechActivity(audio).rms).toBeLessThan(0.0012);
+    const sparse = new Float32Array(320);
+    sparse[0] = 2 / 32_768;
+    expect(measureVideoAiSpeechActivity(sparse)).toMatchObject({active: true, activeFrameRatio: 0});
+    const digitalSilence = new Float32Array(320).fill(1 / 32_768);
+    digitalSilence[0] = NaN;
+    digitalSilence[1] = Infinity;
+    expect(measureVideoAiSpeechActivity(digitalSilence).active).toBe(false);
   });
 
   it('跨任意输入块保持重采样相位，长时间不累计时长漂移', () => {
@@ -760,6 +776,64 @@ describe('本地 AI 字幕滑窗文本合并', () => {
     expect(output).toHaveLength(1);
     expect(output[0].text).toBe('This is a complete sentence.');
     expect(output[0].text.toLocaleLowerCase()).not.toContain('you');
+  });
+
+  it('完整音频段保留无句末的两词短句，availableAt 为零的实时输入仍等待确认', () => {
+    const window = {
+      startMs: 0,
+      durationMs: 10_000,
+      availableAtMs: 0,
+      segments: [
+        {startMs: 280, endMs: 2_180, text: 'Merry old friends gather now'},
+        {startMs: 3_120, endMs: 4_360, text: 'Stay calm'},
+        {startMs: 5_360, endMs: 9_840, text: 'The garden can do great things for us and we care for the'},
+      ],
+    };
+    const realtime = new VideoAiTranscriptStabilizer();
+    const explicitRealtime = new VideoAiTranscriptStabilizer({mode: 'realtime'});
+    const realtimeOutput = realtime.ingest(window);
+    expect(explicitRealtime.ingest(window)).toEqual(realtimeOutput);
+    expect(realtimeOutput.map(cue => cue.text)).not.toContain('Stay calm');
+
+    const complete = new VideoAiTranscriptStabilizer({mode: 'complete'});
+    const output = complete.ingest(window);
+    expect(output.map(cue => cue.text)).toEqual(window.segments.map(segment => segment.text));
+    expect(output[1]).toMatchObject({startMs: 3_120, spokenEndMs: 4_360, partial: false});
+    expect(complete.flush(0, true)).toEqual([]);
+  });
+
+  it('已剥离的新句尾词可以在前文出现过，完整和实时模式都不会再次吞掉', () => {
+    for (const mode of ['realtime', 'complete'] as const) {
+      const stabilizer = new VideoAiTranscriptStabilizer({mode});
+      const first = stabilizer.ingest({
+        startMs: 5_360, durationMs: 4_640, availableAtMs: 10_000,
+        segments: [{startMs: 0, endMs: 4_480, text: 'The garden can do great things for us and we care for the'}],
+      });
+      const tail = stabilizer.ingest({
+        startMs: 8_800, durationMs: 2_200, availableAtMs: 11_000,
+        segments: [{startMs: 0, endMs: 1_840, text: 'We care for the garden.'}],
+      });
+      expect(tail).toMatchObject([{
+        cueId: first[0].cueId,
+        text: 'The garden can do great things for us and we care for the garden.',
+        spokenEndMs: 10_640,
+        partial: false,
+      }]);
+      expect(tail[0].text.match(/garden/g)).toHaveLength(2);
+      expect(stabilizer.ingest({
+        startMs: 8_800, durationMs: 2_200, availableAtMs: 11_200,
+        segments: [{startMs: 0, endMs: 1_840, text: 'We care for the garden.'}],
+      })).toEqual([]);
+    }
+  });
+
+  it('完整模式仍拒绝单词噪声和不足三百毫秒的短片段，并保留中文短句', () => {
+    const complete = new VideoAiTranscriptStabilizer({mode: 'complete'});
+    expect(complete.ingest({startMs: 0, durationMs: 500, availableAtMs: 0, text: 'uh.'})).toEqual([]);
+    expect(complete.ingest({startMs: 2_000, durationMs: 200, availableAtMs: 0, text: 'Stay calm'})).toEqual([]);
+    expect(complete.ingest({startMs: 4_000, durationMs: 600, availableAtMs: 0, text: '稍等'}))
+      .toMatchObject([{text: '稍等', partial: false, startMs: 4_000, spokenEndMs: 4_600}]);
+    expect(complete.flush(0, true)).toEqual([]);
   });
 
   it('按短停顿合成长句，并按强标点或长停顿切成独立 cue', () => {
