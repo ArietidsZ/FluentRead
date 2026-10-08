@@ -240,6 +240,11 @@ export function getCurrentModel(
     current: TranslationProviderConfigSnapshot = config,
 ): string {
     const service = serviceOverride || current.service;
+    // 已保存的专用实际 ID 可能恰好是旧 alias；冻结后保持精确身份，不能再作普通迁移。
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        const locked = getLockedIncognitoRoute(current);
+        if (locked?.service === service) return locked.model;
+    }
     const selectedModel = currentConfiguredModel(current, service, modelOverride);
     const normalizedModel = (selectedModel || '').replace(/（.*）/g, "");
 

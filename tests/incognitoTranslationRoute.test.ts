@@ -1,17 +1,18 @@
 import {describe, expect, it, vi} from 'vitest';
 import {Config, normalizeConfig} from '@/src/core/config/model';
-import {customModelString, models, services, servicesType} from '@/src/core/config/catalog';
+import {currentModelIds, customModelString, models, services, servicesType} from '@/src/core/config/catalog';
 import {getLockedIncognitoRoute, lockIncognitoRoute, normalizeIncognitoRouteField, resolveIncognitoRoute} from '@/src/core/config/incognitoRoute';
 import {isTrustedIncognitoSender} from '@/src/platform/browser/incognitoSource';
 import {createTranslationRequestFallback} from '@/src/app/background/handlers/translation';
 import {createTranslationBroker, resolveTranslationRequestModel} from '@/src/services/translation/broker';
 import {attachTranslationProviderConfig, attachTrustedPrivateSource, createTranslationProviderConfigSnapshot, getTranslationProviderConfig, hasTrustedPrivateSource} from '@/src/services/translation/requestSnapshot';
-import {commonMsgTemplate, currentConfiguredModel, tongyiMsgTemplate} from '@/src/services/translation/templates';
+import {commonMsgTemplate, currentConfiguredModel, getCurrentModel, deepseekMsgTemplate, deepseekResponsesMsgTemplate, tongyiMsgTemplate} from '@/src/services/translation/templates';
 import {resolveTranslationLanguages} from '@/src/core/translation/languages';
 import type {TranslationProviderRequest} from '@/src/services/translation/requestSnapshot';
 import {buildHunyuanTranslationRequestBody} from '@/src/providers/translation/hunyuan-translation';
 import {buildDoubaoSeedTranslationRequestBody} from '@/src/providers/translation/doubao-seed-translation';
 import gemini from '@/src/providers/translation/gemini';
+import deepseek from '@/src/providers/translation/deepseek';
 
 const {transport} = vi.hoisted(() => ({transport: vi.fn()}));
 vi.mock('@/src/platform/http/runtime', () => ({runtimeFetch: transport}));
@@ -211,6 +212,7 @@ describe('background to broker to request payload vertical route', () => {
         expect(await f.broker.translateWithCache(request)).toBe('翻译完成');
         expect(f.payloads[0]).toMatchObject({model: route.model});
         expect(currentConfiguredModel(snapshot, services.google, 'ordinary-override')).toBe('ordinary-override');
+        expect(getCurrentModel(services.google, 'ordinary-override', snapshot)).toBe('ordinary-override');
         expect(resolveTranslationRequestModel(snapshot, services.google, 'ordinary-override', () => false, () => false)).toBe('ordinary-override');
         expect(Object.isFrozen(getLockedIncognitoRoute(snapshot))).toBe(true);
     });
@@ -234,6 +236,7 @@ describe('background to broker to request payload vertical route', () => {
             const f = fixture(); f.config.customBody[services.openai] = '{"model":"ordinary-body"}';
             const snapshot = core.lockIncognitoRoute(createTranslationProviderConfigSnapshot(f.config), {service: services.openai, model: 'private-model'});
             expect(templates.currentConfiguredModel(snapshot, services.openai, 'ordinary-feature')).toBe('ordinary-feature');
+            expect(templates.getCurrentModel(services.openai, 'ordinary-feature', snapshot)).toBe('ordinary-feature');
             expect(broker.resolveTranslationRequestModel(snapshot, services.openai, 'ordinary-feature', () => true, () => true)).toBe('ordinary-body');
         } finally {
             vi.doUnmock('@/src/core/config/incognitoRoute'); vi.resetModules();
@@ -266,5 +269,38 @@ describe('background to broker to request payload vertical route', () => {
         expect(await f.handler.handle({origin: 'Another complete sentence.'},
             {sender: {id: 'fixture-extension', tab: {incognito: true}}})).toEqual({error: expect.stringContaining('端点绑定冲突')});
         expect(transport).not.toHaveBeenCalled(); expect(f.cacheGet).not.toHaveBeenCalled();
+    });
+    it.each([
+        ['deepseek-chat', 'chat'], ['deepseek-chat', 'responses'],
+        ['deepseek-reasoner', 'chat'], ['deepseek-reasoner', 'responses'],
+    ] as const)('keeps saved private model %s identical in cache and actual %s transport', async (model, apiType) => {
+        const normalized = normalizeConfig({incognitoService: services.deepseek, incognitoModel: model,
+            customModels: {[services.deepseek]: [model]}, deepseekApiType: apiType});
+        expect(normalized.customModels[services.deepseek]).toContain(model);
+        expect(normalized.incognitoModel).toBe(model);
+        const f = fixture(); Object.assign(f.config, normalized, {useCache: true, enableAIContext: false});
+        Object.assign(f.providers, {[services.deepseek]: (input: Record<string, unknown>) => deepseek(input as unknown as TranslationProviderRequest<string>)});
+        transport.mockClear();
+        transport.mockImplementation(async () => new Response(JSON.stringify(apiType === 'responses'
+            ? {output: [{type: 'message', content: [{type: 'output_text', text: '翻译完成'}]}]}
+            : {choices: [{message: {content: '翻译完成'}}]})));
+        expect(await f.handler.handle({origin: 'A complete sentence for translation.', modelOverride: 'late-feature-override'},
+            {sender: {id: 'fixture-extension', tab: {incognito: true}}})).toBe('翻译完成');
+        expect(transport).toHaveBeenCalledOnce();
+        const actualBody = JSON.parse(transport.mock.calls[0][1].body as string);
+        const cacheIdentity = f.cacheKeys.mock.calls[0][0];
+        expect(cacheIdentity).toMatchObject({service: services.deepseek, model});
+        expect(actualBody.model).toBe(model);
+        expect(actualBody.model).toBe(cacheIdentity.model);
+        const ordinaryConfig = new Config();
+        ordinaryConfig.model[services.deepseek] = customModelString;
+        ordinaryConfig.customModel[services.deepseek] = model;
+        const ordinary = createTranslationProviderConfigSnapshot(ordinaryConfig);
+        expect(getCurrentModel(services.deepseek, model, ordinary)).toBe(currentModelIds.deepseek);
+        expect(getCurrentModel(services.deepseek, undefined, ordinary)).toBe(currentModelIds.deepseek);
+        expect(JSON.parse(deepseekMsgTemplate('Text', undefined, undefined, undefined, services.deepseek,
+            'zh-Hans', model, ordinary)).model).toBe(currentModelIds.deepseek);
+        expect(JSON.parse(deepseekResponsesMsgTemplate('Text', undefined, undefined, undefined, services.deepseek,
+            'zh-Hans', model, ordinary)).model).toBe(currentModelIds.deepseek);
     });
 });
