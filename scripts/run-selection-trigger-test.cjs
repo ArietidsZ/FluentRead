@@ -1122,9 +1122,6 @@ async function main() {
       assert((await readCodes()).every(code => code.text === 'mmand'), '部分选区读取了未选中的代码');
       result.cases.push({id: 'inline-code.partial-range', status: 'passed'});
       for (const [id, html] of [
-        ['code-only', '<code>npm install</code>'],
-        ['pre', 'Read <pre><code>npm install</code></pre> now.'],
-        ['block-code', 'Read <code style="display:block">npm install</code> now.'],
         ['opt-out', 'Read <code translate="no">npm install</code> now.'],
         ['button', 'Read <code><button>npm install</button></code> now.'],
       ]) {
@@ -1150,6 +1147,30 @@ async function main() {
       result.cases.push({id: 'inline-code.reselection-cancels-old-result', status: 'passed'});
       assert(inlineCodeRequests.length > 0 && inlineCodeRequests.every(text => !/npm|Widget|command|mmand|old_code|new_code/.test(text)),
         `代码被发送给翻译服务：${JSON.stringify(inlineCodeRequests)}`);
+      const codeRequestsStart = inlineCodeRequests.length;
+      for (const [id, html] of [
+        ['code-only', '<code>Explain the selected command</code>'],
+        ['pre', '<pre>Explain the selected command</pre>'],
+        ['highlighted', '<pre><code><span>Explain</span> the selected command</code></pre>'],
+        ['block-code', '<code style="display:block">Explain the selected command</code>'],
+      ]) {
+        for (const trigger of ['icon', 'direct', 'Control']) {
+          await patchStoredConfig(popup, {selectionTranslatorTrigger: trigger});
+          await page.waitForTimeout(300);
+          const before = await select(html);
+          if (trigger === 'icon') {
+            await waitForSelectionUi(page, {indicator: true}, '代码选区图标');
+            await clickSelectionIndicator(page);
+          } else if (trigger === 'Control') {
+            await page.waitForTimeout(250);
+            await page.keyboard.press('Control');
+          }
+          await waitForSelectionUi(page, {tooltip: true, translation: true, resultPrefix: '测试译文：'}, '代码选区翻译');
+          assert(await page.locator('#target').evaluate(target => target.innerHTML) === before, '代码划词修改了宿主 DOM');
+          result.cases.push({id: `code-selection.${id}.${trigger}`, status: 'passed'});
+        }
+      }
+      assert(inlineCodeRequests.slice(codeRequestsStart).includes('Explain the selected command'), '主动代码选区未进入翻译请求');
       await closeSelectionUi(page);
       await waitForSelectionUi(page, {tooltip: false, indicator: false}, '关闭后清理卡片');
       assert(result.consoleErrors.length === 0, `浏览器控制台异常：${JSON.stringify(result.consoleErrors)}`);
