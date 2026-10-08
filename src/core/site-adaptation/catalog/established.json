@@ -250,7 +250,8 @@
       },
       {
         "css": [
-          "[data-testid=\"UserDescription\"]"
+          "[data-testid=\"UserDescription\"]",
+          "aside section > div > div > div > div.items-center.justify-between + div.line-clamp-4:not([role])"
         ],
         "key": "x-user-description",
         "resolve": "closest"

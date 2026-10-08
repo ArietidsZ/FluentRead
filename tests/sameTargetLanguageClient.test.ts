@@ -71,6 +71,15 @@ afterEach(() => {
 });
 
 describe('共享翻译客户端', () => {
+    it('单条内部槽校验标志在等待前冻结，只有显式 true 才进入后台消息', async () => {
+        const options = {skipLanguageDetection: true, validateTranslationSlots: true};
+        const pending = translateText('Please translate this English paragraph for the reader.', 'Context', options);
+        options.validateTranslationSlots = false;
+        await pending;
+        expect(mocks.sendMessage.mock.calls[0]![0]).toMatchObject({validateTranslationSlots: true});
+        await translateText('Please translate another English paragraph for the reader.', 'Context', options);
+        expect(mocks.sendMessage.mock.calls[1]![0]).not.toHaveProperty('validateTranslationSlots');
+    });
     it.each(sameTarget)('%s 批量文本同目标零请求，跨目标仍请求', async (language, text) => {
         await expect(translateTextBatch([text], 'Context', {targetLanguage: language})).resolves.toEqual([text]);
         expect(mocks.sendMessage).not.toHaveBeenCalled();

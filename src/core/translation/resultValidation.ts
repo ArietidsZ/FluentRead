@@ -1,7 +1,7 @@
 /**
  * @file src/core/translation/resultValidation.ts
  * 文件职责：识别翻译服务误返原文或明显错语种的响应，避免将其当成成功译文。
- * 主要内容：复用语言识别副本排除纯符号、数字和技术标识，比较规范化原文与结果，用可信语言识别判断外语正文，补足中文目标下短标签列表、运算符标签丢词或大小写回显和整段日文结果的保守判定。
+ * 主要内容：复用语言识别副本排除纯符号、数字和技术标识，仅在既有外语证据下识别标点边界或 U+200B 包装的原文回显，保留字词、大小写和符号差异，补足中文目标下短标签列表、运算符标签丢词或大小写回显和整段日文结果的保守判定。
  * 模块边界：仅做保守的纯文本判定；不读取配置或缓存、不请求服务，也不改写原文与译文。
  */
 import {getChineseScript} from '@/src/core/language/chinese';
@@ -17,6 +17,15 @@ export function hasTranslatableText(text: string): boolean {
 function comparable(value: string): string {
     // 免费服务有时只把英文标题的冒号换成全角并删去后面的空格。
     return value.normalize('NFKC').replace(/\s*:\s*/gu, ':').replace(/\s+/gu, ' ').trim();
+}
+
+/** 标点只作为分词边界，不能把 a-b 与 ab 合并；U+200B 不改变字词内容。
+ * 保留大小写、组合音标、运算符及可能改变字形的 ZWJ/ZWNJ，最终仍由原文的既有外语证据决定是否拒绝。
+ */
+function echoComparable(value: string): string {
+    return value.normalize('NFKC').replace(/\u200b/gu, '')
+        .replace(/(?:(?![-*/\\_%&#@:]|!(?=[\p{L}\p{N}_=!(])|\?(?=\s*[\p{L}\p{N}_?.=]))\p{P})+/gu, ' ')
+        .replace(/\s+/gu, ' ').trim();
 }
 
 /** 标签列表缺少功能词，统计语言识别通常只能给出不可信的猜测。 */
@@ -65,7 +74,7 @@ export function isLikelyUntranslatedResponse(origin: string, result: string, tar
     if (getChineseScript(targetLanguage) && isLatinOperatorLabel(source) && hasTranslatableText(origin) && (
         source.toLowerCase() === translated.toLowerCase() || /^[\p{P}\p{S}\s]+$/u.test(translated)
     )) return true;
-    if (!origin.trim() || source !== translated) return false;
+    if (!origin.trim() || (source !== translated && echoComparable(origin) !== echoComparable(result))) return false;
     if (!hasTranslatableText(origin)) return false;
     if (getChineseScript(targetLanguage) && isPossiblyProperName(origin)) return false;
     const identification = identifyTextLanguage(origin);

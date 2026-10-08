@@ -129,6 +129,14 @@ Popup 赞赏窗口内的微信二维码点击后原位从 164px 放大到 200px�
 
 生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --multilingual-same-target --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。专项复用临时 Edge、后台可见且不抢焦点的窗口，对 de/pt/it/fr/en/ru/ja/ko/zh-Hans 分别验证同目标段落和标题在悬浮与全文中零请求、相邻外语悬浮 `[1,0,1,0]` 与全文 `[1,0,1]`、GitHub `li > a` 提交链接保持、宿主 `lang="en"` 不影响判断、全文会话中动态改写为外语后重新请求、恢复原文，以及同一页面从德文目标切到英文目标、以简体为目标并排除德文时的结论。页面与译文来自本地回环夹具，只证明扩展判断链与请求计数，不代表真实供应商质量，也不替代 Firefox 实机验证。
 
+## 原文回显与逐槽恢复
+
+`tests/chineseUiNamesRegression.test.ts` 验证“继续使用 Apple”“通过 Google 继续操作”等短中文界面文字在中文目标下保持原样；引号内的外语、英文提示与中外文混合正文继续参与翻译。`tests/identicalTranslation.test.ts` 只在展示比较副本中忽略 U+200B，保留大小写、可见字词间隔、简繁转换、ZWJ 与 ZWNJ 的差异。
+
+`tests/translationEchoValidationRegression.test.ts` 验证有外语证据的正文仅增加句末标点或 U+200B 时，后台恢复一次并拒绝连续回显，异常结果不能缓存；真实词字、数字和运算符变化不能被折叠为相同。`tests/translationSlotEchoRegression.test.ts` 验证内部单条协议逐槽恢复：保留成功槽和顺序，沿用冻结术语的“保持原文”规则、Chrome 长检测样本和同一请求截止时间；取消、损坏协议与部分回显缓存不能被当作完整成功。普通用户文本不因含有相似标记而自动进入内部槽协议。
+
+生产 Chrome 扩展构建后，运行 `node scripts/testing/run-identical-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper scripts/testing/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台窗口和本地供应商夹具，验证悬浮、全文、恢复、重复翻译与相同结果展示。其计数观察供应商 fetch；不能把零 fetch 推导成零 runtime 消息，也不代表在线供应商质量或 Firefox 实机行为。
+
 ## 双语链接悬停提示与属性边界
 
 `tests/bilingualReplay.test.ts` 和 `tests/translationStability.test.ts` 覆盖链接 `title` 的增删改与焦点/字体标记组合、跨手势零修复预算，以及译文副本单独改写 `href`、事件、隐藏样式、ARIA、class 或无效 tabindex 时恢复可信属性。源文属性变化继续复用已提交译文；原文链接保持不变。

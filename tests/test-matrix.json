@@ -372,7 +372,9 @@
       "tests/freeDeadlineAdmission.test.ts",
       "tests/translationBrokerOuterBudget.test.ts",
       "tests/translationBrokerRecoverySharingStats.test.ts",
-      "tests/translationBrokerSharedDeadlineRecovery.test.ts"
+      "tests/translationBrokerSharedDeadlineRecovery.test.ts",
+      "tests/bilingualRemountPerformanceBoundaries.test.ts",
+      "tests/chineseUiNamesRegression.test.ts"
     ],
     "functional": [
       "tests/finalCoveragePublicBoundariesA.test.ts",
@@ -559,7 +561,10 @@
       "tests/selectionTtsPageOwnershipRuntime.test.ts",
       "tests/configRestoreOwnership.test.ts",
       "tests/selectionTtsSenderFrameRuntime.test.ts",
-      "tests/selectionTtsReceiverRecovery.test.ts"
+      "tests/selectionTtsReceiverRecovery.test.ts",
+      "tests/translationEchoValidationRegression.test.ts",
+      "tests/translationSlotEchoRegression.test.ts",
+      "tests/xModernSiteAdaptationRegression.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",
@@ -597,7 +602,8 @@
       "tests/allNodesTranslationCore.test.ts",
       "tests/sameTargetLanguageRegression.test.ts",
       "tests/vocabularyReencounterLifecycle.test.ts",
-      "tests/fullPageAttributeBoundary.test.ts"
+      "tests/fullPageAttributeBoundary.test.ts",
+      "tests/hnFirstTargetReadiness.test.ts"
     ]
   }
 }

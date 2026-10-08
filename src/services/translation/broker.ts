@@ -84,7 +84,7 @@ export type {
     TranslationSingleRequestMessage,
 } from './types';
 
-type CacheRequestMode = 'single' | 'batch' | 'ai-multi-segment';
+type CacheRequestMode = 'single' | 'slot-protocol' | 'batch' | 'ai-multi-segment';
 
 /** 单次公开翻译请求的观测累加器，只记录服务标识与数值，随 execution 传入缓存和 provider 路径。 */
 interface TranslationRequestTrace {
@@ -133,6 +133,17 @@ class AIMultiSegmentResponseError extends Error {
     constructor() {
         super('AI 多段翻译返回格式异常，已切换为逐段翻译');
         this.name = 'AIMultiSegmentResponseError';
+    }
+}
+
+class TranslationSlotResponseError extends Error {
+    readonly kind = 'response';
+    readonly retryable = false;
+    readonly code = 'TRANSLATION_SLOT_RESPONSE_INVALID';
+
+    constructor() {
+        super('多段翻译连续返回空译文，请尝试切换服务');
+        this.name = 'TranslationSlotResponseError';
     }
 }
 
@@ -395,6 +406,29 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             && Boolean(result.trim())
             && (isGlossaryOnlyResult(current, origin, result) || (!isLikelyUntranslatedResponse(origin, result, targetLanguage)
             && !isClearlyWrongLanguageResponse(origin, result, targetLanguage)));
+    }
+
+    /** 标记与原始载荷必须同时符合内部协议；普通原文中的相似标记没有逐槽语义。 */
+    function getSingleSlotProtocol(message: TranslationSingleRequestMessage) {
+        if (message.validateTranslationSlots !== true) return null;
+        const sources = getTranslationGlossarySourceText(message.origin);
+        if (!Array.isArray(sources)) return null;
+        const packet = serializeTranslationSlots(sources);
+        return packet.payload === message.origin ? {sources, packet} : null;
+    }
+
+    function isCacheableSingleResult(
+        execution: TranslationRequestExecution,
+        message: TranslationSingleRequestMessage,
+        result: string,
+    ): boolean {
+        if (message.validateTranslationSlots !== true) {
+            return isCacheableResult(message.origin, result, execution.targetLanguage, execution.config);
+        }
+        const protocol = getSingleSlotProtocol(message);
+        const parsed = protocol && parseTranslationSlots(protocol.packet, result);
+        return Boolean(parsed && parsed.every((translation, index) =>
+            isCacheableResult(protocol!.sources[index]!, translation, execution.targetLanguage, execution.config)));
     }
 
     function requireSingleResult(result: unknown): string {
@@ -782,6 +816,25 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         context = '',
         validationPageContext = '',
     ): Promise<string> {
+        const protocol = getSingleSlotProtocol(message);
+        if (protocol) {
+            const parsed = parseTranslationSlots(protocol.packet, result);
+            // 保留前端既有的协议失败回退，但绝不能把损坏包写入缓存。
+            if (!parsed) return result;
+            for (let index = 0; index < parsed.length; index++) {
+                const slotMessage = {...message, origin: protocol.sources[index]!, validateTranslationSlots: false};
+                const translation = parsed[index]!;
+                if (isGlossaryOnlyResult(execution.config, slotMessage.origin, translation)) continue;
+                parsed[index] = !translation.trim() || shouldRecoverPageContextLeak(
+                    execution, slotMessage.origin, translation, validationPageContext, message.modelOverride,
+                )
+                    ? await callSingleProviderWithoutPageContext(execution, slotMessage, requestDeadline, validationPageContext)
+                    : await recoverInvalidResult(execution, slotMessage, translation, requestDeadline, context, validationPageContext);
+                if (!parsed[index]!.trim()) throw new TranslationSlotResponseError();
+            }
+            return parsed.map((translation, index) =>
+                `${protocol.packet.starts[index]}${translation}${protocol.packet.ends[index]}`).join('\n');
+        }
         if (isGlossaryOnlyResult(execution.config, message.origin, result)) return result;
         if (!isLikelyUntranslatedResponse(message.origin, result, execution.targetLanguage)
             && !isClearlyWrongLanguageResponse(message.origin, result, execution.targetLanguage)) return result;
@@ -833,7 +886,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             execution,
             applyRemainingDeadline({...message, context, pageContext}, requestDeadline),
         ));
-        if (!shouldRecoverPageContextLeak(
+        if (getSingleSlotProtocol(message) || !shouldRecoverPageContextLeak(
             execution,
             message.origin,
             result,
@@ -1234,7 +1287,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             message.origin,
             context,
             pageContext,
-            'single',
+            message.validateTranslationSlots === true ? 'slot-protocol' : 'single',
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
@@ -1275,7 +1328,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     pageContext,
                     message.modelOverride,
                 );
-                if (isCacheableResult(message.origin, cached, execution.targetLanguage, execution.config) && !leakedPageContext) {
+                if (isCacheableSingleResult(execution, message, cached) && !leakedPageContext) {
                     execution.trace.cachedSegments = 1;
                     return cached;
                 }
@@ -1294,7 +1347,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         pageContext,
                         requestDeadline,
                     );
-                if (isCacheableResult(message.origin, recovered, execution.targetLanguage, execution.config)) {
+                if (isCacheableSingleResult(execution, message, recovered)) {
                     await persistCacheWrite(requestGeneration, key, recovered);
                 }
                 return recovered;
@@ -1307,7 +1360,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
                 requestDeadline,
             );
-            if (isCacheableResult(message.origin, result, execution.targetLanguage, execution.config)) {
+            if (isCacheableSingleResult(execution, message, result)) {
                 await persistCacheWrite(requestGeneration, key, result);
             }
             return result;

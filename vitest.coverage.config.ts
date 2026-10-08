@@ -83,6 +83,12 @@ export default defineConfig({
         // 按真实规则内容验证共享词书样式，与普通测试配置一致。
         css: {include: [/(?:src\/app\/content\/page|src\/ui\/styles\/(?:translation-display|bilingual-sentence-highlight|vocabulary-reencounter))\.css(?:\?|$)/]},
         include: [
+            'tests/bilingualRemountPerformanceBoundaries.test.ts',
+            'tests/chineseUiNamesRegression.test.ts',
+            'tests/hnFirstTargetReadiness.test.ts',
+            'tests/translationEchoValidationRegression.test.ts',
+            'tests/translationSlotEchoRegression.test.ts',
+            'tests/xModernSiteAdaptationRegression.test.ts',
             'tests/finalCoveragePublicBoundariesA.test.ts',
             'tests/finalCoveragePublicBoundariesB.test.ts',
             'tests/imageOcrStatusCancellation.test.ts',

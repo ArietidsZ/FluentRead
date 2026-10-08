@@ -351,6 +351,7 @@ export async function translateText(origin: string, context: string = document.t
             ...(options.enableAIContext !== undefined ? {enableAIContext: options.enableAIContext} : {}),
             origin,
             useCache,
+            ...(options.validateTranslationSlots === true ? {validateTranslationSlots: true} : {}),
             serviceOverride: selectedService,
             sourceLanguage: selectedLanguages.sourceLanguage,
             targetLanguage: selectedLanguages.targetLanguage,
@@ -602,6 +603,8 @@ export interface TranslateOptions {
   sourceLanguageDetectionText?: string;
   /** 仅全文翻译内部使用：要求 broker 将多个 AI 段落合并为一次上游请求。 */
   aiMultiSegment?: boolean;
+  /** 仅全文内部的单条槽协议；保留供应商的 string 请求形状，在后台逐槽校验。 */
+  validateTranslationSlots?: boolean;
   /** DOM 尝试恢复后，取消重试等待并忽略迟到的 runtime 响应。 */
   signal?: AbortSignal;
   /** 一次 DOM 尝试取消时，用于拒绝尚未开始任务的队列作用域。 */

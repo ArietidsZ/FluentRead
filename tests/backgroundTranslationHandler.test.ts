@@ -38,6 +38,7 @@ describe('background translation fallback handler', () => {
             pageContext: 'article',
             enableAIContext: true,
             aiMultiSegment: true,
+            validateTranslationSlots: true,
             useCache: false,
             serviceOverride: 'google',
             modelOverride: 'model',
@@ -58,6 +59,7 @@ describe('background translation fallback handler', () => {
             pageContext: 'article',
             enableAIContext: true,
             aiMultiSegment: true,
+            validateTranslationSlots: true,
             useCache: false,
             serviceOverride: 'google',
             modelOverride: 'model',
@@ -97,6 +99,15 @@ describe('background translation fallback handler', () => {
     it('保留字符串数组并忽略未提供的可选字段', () => {
         expect(parseTranslationRequest({origin: ['a', 'b']})).toEqual({origin: ['a', 'b']});
         expect(parseTranslationRequest({origin: '', context: undefined})).toEqual({origin: ''});
+    });
+
+    it('内部槽校验仅接受布尔标志，false 和缺省仍保留原单条协议', () => {
+        expect(parseTranslationRequest({origin: 'literal text', validateTranslationSlots: false}))
+            .toEqual({origin: 'literal text', validateTranslationSlots: false});
+        for (const value of ['true', 1, null, [], {}]) {
+            expect(() => parseTranslationRequest({origin: 'literal text', validateTranslationSlots: value}))
+                .toThrow('validateTranslationSlots 必须是布尔值');
+        }
     });
 
     it('术语协议保留显式空选择和revision，复制数组但剥离伪造词表及来源', () => {

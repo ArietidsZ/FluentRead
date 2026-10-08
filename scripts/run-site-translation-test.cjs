@@ -808,6 +808,18 @@ async function installCoverageTracker(page, rules) {
             rule: '', source: '', reason: 'stale-token'};
         });
       },
+      targetStatuses(selector, index) {
+        const node = document.querySelectorAll(selector)[index];
+        return states.flatMap((state) => {
+          const record = node && state.recordsByNode.get(node);
+          if (!record) return [];
+          const token = recordToken(state, record);
+          return [{...statusFor(state, record, token),
+            verifiedUnchanged: recordVerifiedUnchanged(state, record),
+            completionBindingId: unchangedCompletions.get(token)?.bindingId,
+            completionPass, completionSessionId: completionSession}];
+        });
+      },
       diagnoseMissing(tokens) {
         return tokens.slice(0, 8).map((token) => {
           const found = findToken(token);
@@ -936,6 +948,10 @@ async function readCoverageStatuses(page, tokens) {
   const statuses = await page.evaluate(({trackerKey, requestedTokens}) =>
     window[trackerKey]?.missingStatuses?.(requestedTokens) || [],
   {trackerKey: COVERAGE_TRACKER_KEY, requestedTokens: tokens});
+  return authenticateCoverageStatuses(page, statuses);
+}
+
+function authenticateCoverageStatuses(page, statuses) {
   const ledger = ownerCompletionLedgers.get(page);
   for (const status of statuses) {
     const accepted = ledger?.accepted.get(status.completionBindingId);
@@ -1013,8 +1029,8 @@ async function clearCoverageCompletionPass(page) {
   } catch { /* 无认证；迟到的页面清理只可能撤销证明。 */ }
 }
 
-async function beginCoverageCompletionPass(page, readCompletion, previousSessionId = null) {
-  const deadline = Date.now() + 2000;
+async function beginCoverageCompletionPass(page, readCompletion, previousSessionId = null, timeout = 2000) {
+  const deadline = Date.now() + Math.min(2000, Math.max(0, timeout));
   ownerCompletionLedgers.delete(page);
   // 先撤销上个 pass；不能等新 session 回读后才清除旧 credit。
   try {
@@ -1032,13 +1048,15 @@ async function beginCoverageCompletionPass(page, readCompletion, previousSession
   } catch { return {sessionId: null, pass: null}; }
 }
 
-async function verifyCoverageUnchanged(page, readCompletion, identity, timeout) {
+async function verifyCoverageUnchanged(page, readCompletion, identity, timeout, tokens = null) {
   const deadline = Date.now() + Math.min(Math.max(0, timeout), 2000);
+  const diagnostic = {status: 'unavailable', reason: 'no-current-authority',
+    sessionId: identity?.sessionId ?? null, pass: identity?.pass ?? null, queriedOwners: []};
   let ledger = ownerCompletionLedgers.get(page);
   if (!ownedCompletionReaders.has(readCompletion) || !identity?.sessionId ||
       !ledger || ledger.sessionId !== identity.sessionId || ledger.pass !== identity.pass) {
     ownerCompletionLedgers.delete(page);
-    return;
+    return diagnostic;
   }
   // 每次重新核验都撤销旧快照/状态的 authority，即使 pass/session 尚未换代。
   ledger = {sessionId: ledger.sessionId, pass: ledger.pass, accepted: new Map()};
@@ -1050,8 +1068,13 @@ async function verifyCoverageUnchanged(page, readCompletion, identity, timeout) 
   let complete = false;
   try {
     await pageOperation((key) => window[key]?.clearCompletionReceipts?.(), COVERAGE_TRACKER_KEY);
-    if (!stillCurrent(await read([]))) return;
-    const missing = await pageOperation((key) => window[key]?.snapshotMissing?.() || [], COVERAGE_TRACKER_KEY);
+    diagnostic.reason = 'session-query-unavailable';
+    if (!stillCurrent(await read([]))) return diagnostic;
+    const missing = await pageOperation(({key, tokens}) => {
+      const missing = window[key]?.snapshotMissing?.() || [];
+      return tokens ? missing.filter(item => tokens.includes(item.token)) : missing;
+    }, {key: COVERAGE_TRACKER_KEY, tokens});
+    diagnostic.reason = 'verification-incomplete';
     for (let offset = 0; offset < missing.length && Date.now() < deadline; offset += 16) {
       const batch = await pageOperation(({key, tokens, sessionId, pass, deadline}) =>
         window[key]?.prepareUnchangedQueries?.(tokens, sessionId, pass, deadline) || [],
@@ -1073,12 +1096,21 @@ async function verifyCoverageUnchanged(page, readCompletion, identity, timeout) 
                 acceptedOwnerCompletion(response.outcomes[index], item.query)) ledger.accepted.set(item.bindingId, item);
           });
         }
+        for (let index = 0; index < batch.length && diagnostic.queriedOwners.length < 16; index += 1) {
+          const item = batch[index];
+          const outcome = response?.outcomes?.[index];
+          diagnostic.queriedOwners.push({token: item.token, ...item.query,
+            status: outcome?.status === 'available' ? 'available' : 'unavailable',
+            reason: typeof outcome?.reason === 'string' ? outcome.reason.slice(0, 96) : 'outcome-unavailable',
+            exactOwnerAccepted: ledger.accepted.has(item.bindingId)});
+        }
       } finally {
         await pageOperation(({key, batch: requested}) => window[key]?.discardUnchangedQueries?.(requested),
           {key: COVERAGE_TRACKER_KEY, batch});
       }
     }
     complete = stillCurrent(await read([]));
+    if (complete) { diagnostic.status = 'available'; diagnostic.reason = null; }
   } catch (error) {
     if (error.message !== 'owner-completion-budget') throw error;
   } finally {
@@ -1091,6 +1123,8 @@ async function verifyCoverageUnchanged(page, readCompletion, identity, timeout) 
       }
     }
   }
+  diagnostic.authorityRetained = complete && ownerCompletionLedgers.get(page) === ledger;
+  return diagnostic;
 }
 
 // 页面 tracker 的旗标只描述 DOM 状态；认证必须同时来自 owned worker 的实际响应。
@@ -1114,6 +1148,57 @@ function hasVerifiedUnchangedStatus(status) {
   return trusted && ownerCompletionLedgers.get(trusted.page) === trusted.ledger &&
     status.verifiedUnchanged === true && status.connected === true && status.eligible === true &&
     status.loading === false && status.retry === false && !status.reason;
+}
+
+// 首目标和 required selector 使用与整页覆盖相同的精确 owner 认证。零 wrapper 本身
+// 不算完成；只有当前 pass/session、原 Node/Text 身份和 owned worker 回读同时成立才放行。
+async function readFullTargetReadiness(page, selector, index = 0) {
+  const state = await page.evaluate(({key, selector, index}) => {
+    const target = document.querySelectorAll(selector)[index];
+    const wrappers = [...(target?.querySelectorAll('.fluent-read-bilingual-content') || [])];
+    return {capturedAt: Date.now(), selector, index,
+      target: {exists: Boolean(target?.isConnected), text: target?.textContent?.trim() || '',
+        bilingualCount: wrappers.length, translationTexts: wrappers.map(node => node.textContent?.trim() || '')},
+      loading: target?.querySelectorAll('.fluent-read-loading').length || 0,
+      retry: target?.querySelectorAll('.fluent-read-retry-wrapper').length || 0,
+      statuses: window[key]?.targetStatuses?.(selector, index) || []};
+  }, {key: COVERAGE_TRACKER_KEY, selector, index});
+  authenticateCoverageStatuses(page, state.statuses);
+  const translated = state.target.exists && state.target.bilingualCount > 0 &&
+    state.target.translationTexts.every(text => /[\u3400-\u9fff]/u.test(text));
+  const unchanged = state.target.exists && state.target.bilingualCount === 0 &&
+    state.loading === 0 && state.retry === 0 && state.statuses.some(status => {
+      const accepted = ownerCompletionLedgers.get(page)?.accepted.get(status.completionBindingId);
+      return hasVerifiedUnchangedStatus(status) && accepted?.query.selector === selector && accepted.query.index === index;
+    });
+  return {...state, ready: translated || unchanged,
+    completion: translated ? 'translated' : unchanged ? 'verified-unchanged' : 'unresolved'};
+}
+
+// 消息查询和 DOM 轮询共用原有首目标 deadline；不启动翻译、不重试 provider、不延长预算。
+async function waitForFullTargetReadiness(page, selector, timeout, verifyUnchanged, deadline = Date.now() + timeout) {
+  let lastObservation = null;
+  let lastVerification = null;
+  try {
+    while (Date.now() < deadline) {
+      lastObservation = await completionOperation(deadline, () => readFullTargetReadiness(page, selector));
+      if (lastObservation.ready) return lastObservation;
+      if (lastObservation.loading === 0 && lastObservation.retry === 0 &&
+          lastObservation.statuses.length > 0 && verifyUnchanged) {
+        lastVerification = await completionOperation(deadline, () => verifyUnchanged(deadline - Date.now(), lastObservation));
+        lastObservation = await completionOperation(deadline, () => readFullTargetReadiness(page, selector));
+        if (lastObservation.ready) return lastObservation;
+      }
+      await completionOperation(deadline, () => page.waitForTimeout(Math.min(100, deadline - Date.now())));
+    }
+  } catch (error) {
+    if (error.message !== 'owner-completion-budget') throw error;
+  }
+  const error = new Error(`first-target-readiness: Timeout ${timeout}ms exceeded.`, {cause: lastObservation});
+  error.name = 'TimeoutError';
+  error.readinessDiagnostic = {budgetMs: timeout, deadline, lastObservation, lastVerification,
+    observationStatus: lastObservation ? 'available-before-deadline' : 'unavailable'};
+  throw error;
 }
 
 function validateCoverageRevealStatuses(statuses, phase) {
@@ -1905,7 +1990,7 @@ async function waitForTranslationIdle(page, timeout, phase, minimumRetryBudget =
 
 // 全文翻译使用可视区懒加载。回归时主动滚过页面，触发所有长页面内容块，
 // 然后等待插件的进行中任务和 loading 节点都清空，避免只验证到首屏。
-async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, targetSelector, verifyUnchanged) {
+async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, targetSelector, verifyUnchanged, waitForTarget) {
   const maxSteps = 320;
   const readScrollState = () => page.evaluate((selector) => {
     const container = selector ? document.querySelector(selector) : null;
@@ -2014,11 +2099,7 @@ async function scrollAndWaitFullPage(page, timeout, scrollContainerSelector, tar
   // 返回首屏会启动新一轮 IntersectionObserver。读取状态前重新暴露目标并等待新的
   // 延迟任务，否则有效的中间状态会被误判为译文丢失。
   await revealFullPageTarget(page, targetSelector);
-  await page.waitForFunction(
-    (selector) => (document.querySelector(selector)?.querySelectorAll('.fluent-read-bilingual-content').length || 0) >= 1,
-    targetSelector,
-    {timeout},
-  );
+  await waitForTarget();
   await waitForTranslationIdle(page, timeout, '回到目标后');
   await observeCoverage(page);
   await page.waitForTimeout(300);
@@ -2053,6 +2134,7 @@ async function readFullPageState(page, selector, requiredSelectors, fullCoverage
       const translations = [...(node?.querySelectorAll('.fluent-read-bilingual-content') || [])];
       return {
         selector: requiredSelector,
+        index: node ? [...document.querySelectorAll(requiredSelector)].indexOf(node) : -1,
         exists: Boolean(node),
         bilingualCount: translations.length,
         translationTexts: translations.map((translation) => translation.textContent?.trim() || ''),
@@ -2677,46 +2759,56 @@ async function runFullTranslationPass(context, pass) {
   await toggleFull(page);
   reportProgress(first ? '已触发首次全文翻译' : '已触发第二次全文翻译');
   await revealFullPageTarget(page, selector);
+  const readinessDeadline = Date.now() + timeout;
+  let completionIdentity;
+  let targetReadiness;
+  const verifyUnchanged = (remaining = timeout) => verifyCoverageUnchanged(page, readCompletion, completionIdentity, remaining);
+  const verifyTarget = async (remaining, observation) => {
+    const deadline = Date.now() + remaining;
+    if (!completionIdentity?.sessionId || !ownerCompletionLedgers.has(page)) {
+      completionIdentity = await beginCoverageCompletionPass(page, readCompletion, previousCompletionSessionId, remaining);
+    }
+    return verifyCoverageUnchanged(page, readCompletion, completionIdentity, Math.max(0, deadline - Date.now()),
+      observation.statuses.map(item => item.token));
+  };
+  const waitForTarget = (deadline = Date.now() + timeout) =>
+    waitForFullTargetReadiness(page, selector, timeout, verifyTarget, deadline);
   try {
-    await page.waitForFunction(
-      (targetSelector) => (document.querySelector(targetSelector)
-        ?.querySelectorAll('.fluent-read-bilingual-content').length || 0) >= 1,
-      selector,
-      {timeout},
-    );
+    completionIdentity = await beginCoverageCompletionPass(page, readCompletion, previousCompletionSessionId,
+      Math.max(0, readinessDeadline - Date.now()));
+    targetReadiness = await waitForTarget(readinessDeadline);
   } catch (error) {
-    if (!first) throw error;
-    const diagnostics = await page.evaluate((targetSelector) => {
-      const targetNode = document.querySelector(targetSelector);
-      return {
-        totalBilingual: document.querySelectorAll('.fluent-read-bilingual-content').length,
-        targetText: targetNode?.textContent?.trim() || '',
-        targetBilingual: targetNode?.querySelectorAll('.fluent-read-bilingual-content').length || 0,
-        targetLoading: targetNode?.querySelectorAll('.fluent-read-loading').length || 0,
-        targetRetry: targetNode?.querySelectorAll('.fluent-read-retry-wrapper').length || 0,
-        translatedNodes: [...document.querySelectorAll('.fluent-read-bilingual-content')].map((node) => ({
-          text: node.textContent?.trim() || '',
-          parent: node.parentElement?.outerHTML.slice(0, 500) || '',
-        })),
-        bodyText: (document.body?.innerText || '').slice(0, 1000),
-        activeElement: document.activeElement?.outerHTML.slice(0, 500),
-        targetAncestors: (() => {const values = []; let node = targetNode; while (node && values.length < 8) {
-          values.push({tag: node.tagName, className: node.className, translate: node.getAttribute('translate'),
-            contenteditable: node.getAttribute('contenteditable')}); node = node.parentElement;
-        } return values;})(),
-      };
-    }, selector);
-    throw new Error(`${error.message}\n全文 case 诊断：${JSON.stringify(diagnostics)}`);
+    let diagnostics = {status: 'unavailable', reason: 'target-snapshot-unavailable'};
+    try {
+      diagnostics = await completionOperation(Date.now() + 2000, () => page.evaluate((targetSelector) => {
+        const targetNode = document.querySelector(targetSelector);
+        return {
+          status: 'available', capturedAt: Date.now(), snapshotPhase: 'after-readiness-failure',
+          totalBilingual: document.querySelectorAll('.fluent-read-bilingual-content').length,
+          targetText: targetNode?.textContent?.trim() || '',
+          targetBilingual: targetNode?.querySelectorAll('.fluent-read-bilingual-content').length || 0,
+          targetLoading: targetNode?.querySelectorAll('.fluent-read-loading').length || 0,
+          targetRetry: targetNode?.querySelectorAll('.fluent-read-retry-wrapper').length || 0,
+          translatedNodes: [...document.querySelectorAll('.fluent-read-bilingual-content')].map((node) => ({
+            text: node.textContent?.trim() || '',
+            parent: node.parentElement?.outerHTML.slice(0, 500) || '',
+          })),
+          bodyText: (document.body?.innerText || '').slice(0, 1000),
+          activeElement: document.activeElement?.outerHTML.slice(0, 500),
+          targetAncestors: (() => {const values = []; let node = targetNode; while (node && values.length < 8) {
+            values.push({tag: node.tagName, className: node.className, translate: node.getAttribute('translate'),
+              contenteditable: node.getAttribute('contenteditable')}); node = node.parentElement;
+          } return values;})(),
+        };
+      }, selector));
+    } catch { /* 保存原始 deadline 失败；无响应 renderer 不能阻止错误传播。 */ }
+    throw new Error(`${error.message}\n全文 case 诊断：${JSON.stringify({phase, completionIdentity,
+      readiness: error.readinessDiagnostic || {observationStatus: 'unavailable'}, ...diagnostics})}`, {cause: error});
   }
 
-  const target = await readTargetState(page, selector);
-  if (first) reportProgress('首次目标已翻译，开始滚动页面主滚动面');
-  if (target.bilingualCount < 1 || !target.translationTexts.every((text) => /[\u3400-\u9fff]/u.test(text))) {
-    throw new Error(`${first ? '全文首次翻译状态异常' : '全文再次翻译状态异常'}：${JSON.stringify(target)}`);
-  }
-  const completionIdentity = await beginCoverageCompletionPass(page, readCompletion, previousCompletionSessionId);
-  const verifyUnchanged = (remaining = timeout) => verifyCoverageUnchanged(page, readCompletion, completionIdentity, remaining);
-  await scrollAndWaitFullPage(page, timeout, scrollContainer, selector, verifyUnchanged);
+  const target = targetReadiness.target;
+  if (first) reportProgress(`首次目标已完成 (${targetReadiness.completion})，开始滚动页面主滚动面`);
+  await scrollAndWaitFullPage(page, timeout, scrollContainer, selector, verifyUnchanged, waitForTarget);
   await verifyUnchanged();
   const pageState = await readFullPageState(
     page,
@@ -2727,13 +2819,20 @@ async function runFullTranslationPass(context, pass) {
   );
   const coverage = await readCoverageReport(page);
   reportProgress(`${first ? '首次全文稳定' : '第二次全文稳定'}：${pageState.totalBilingual} 个 wrapper`);
-  if (pageState.targetBilingual < 1 || pageState.totalBilingual < 1 ||
+  const finalTargetReadiness = await readFullTargetReadiness(page, selector);
+  const requiredReadiness = [];
+  for (const item of pageState.requiredBilingual) {
+    if (item.bilingualCount < 1) requiredReadiness.push(await readFullTargetReadiness(page, item.selector, item.index));
+  }
+  if (!finalTargetReadiness.ready ||
+      (pageState.totalBilingual < 1 && !coverage.some(item => item.verifiedUnchangedCount > 0)) ||
       pageState.uniqueWrapperParents !== pageState.totalBilingual ||
-      pageState.requiredBilingual.some((item) => item.bilingualCount < 1 ||
+      requiredReadiness.some(item => !item.ready) ||
+      pageState.requiredBilingual.some((item) => !item.exists ||
         item.translationTexts.some((text) => !/[\u3400-\u9fff]/u.test(text))) ||
       pageState.fullCoverage.some((item) => item.visibleCount < 1 || item.translatedCount !== item.visibleCount)) {
     const message = first ? '全文滚动后状态异常' : '全文再次滚动后状态异常';
-    throw new Error(`${message}：${JSON.stringify(pageState)}`);
+    throw new Error(`${message}：${JSON.stringify({pageState, finalTargetReadiness, requiredReadiness})}`);
   }
   assertCoverageReport(runtimeCoverageRules, coverage, phase);
   await assertWrapperUniqueness(page, null, phase);
@@ -2748,7 +2847,7 @@ async function runFullTranslationPass(context, pass) {
     await captureEvidence(page, path.join(artifactsDir,
       first ? 'full-first-translation.png' : 'full-final-translation.png'));
   }
-  return {target, pageState, coverage, interactions, completionIdentity};
+  return {target, pageState, coverage, interactions, completionIdentity, targetReadiness, finalTargetReadiness};
 }
 
 async function runFullCase(
@@ -2827,6 +2926,8 @@ async function runFullCase(
     coverageCompletionContract: 'exact-owner-completion-v2',
     firstCompletionIdentity: firstPass.completionIdentity,
     secondCompletionIdentity: secondPass.completionIdentity,
+    firstTargetReadiness: firstPass.targetReadiness,
+    secondTargetReadiness: secondPass.targetReadiness,
     baselineInteractionScenarios,
     firstInteractionScenarios: firstPass.interactions,
     restored,
@@ -3251,6 +3352,9 @@ module.exports = {
   createUnchangedCompletionReader,
   readCoverageReport,
   readCoverageStatuses,
+  readFullTargetReadiness,
+  waitForFullTargetReadiness,
+  runFullCase,
   beginCoverageCompletionPass,
   verifyCoverageUnchanged,
   isNaturalLanguageText,
