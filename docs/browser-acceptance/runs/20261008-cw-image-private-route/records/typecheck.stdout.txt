@@ -1,0 +1,17 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/imagePrivacyRoute.test.ts(58,101): error TS2322: Type 'MockInstance<(key: string, now?: number) => Promise<string | null>>' is not assignable to type 'MockInstance<(this: unknown, ...args: unknown[]) => unknown>'.
+  Types of property 'mock' are incompatible.
+    Type 'MockContext<(key: string, now?: number) => Promise<string | null>>' is not assignable to type 'MockContext<(this: unknown, ...args: unknown[]) => unknown>'.
+      Type '(key: string, now?: number) => Promise<string | null>' is not assignable to type '(this: unknown, ...args: unknown[]) => unknown'.
+        Types of parameters 'key' and 'args' are incompatible.
+          Type 'unknown' is not assignable to type 'string'.
+tests/imagePrivacyRoute.test.ts(131,98): error TS2339: Property 'mock' does not exist on type '(message: unknown) => void'.
+tests/imagePrivacyRoute.test.ts(131,118): error TS7031: Binding element 'message' implicitly has an 'any' type.
+tests/imagePrivacyRoute.test.ts(132,70): error TS2339: Property 'mock' does not exist on type '(message: unknown) => void'.
+tests/imagePrivacyRoute.test.ts(132,90): error TS7031: Binding element 'message' implicitly has an 'any' type.
+tests/imagePrivacyRoute.test.ts(140,48): error TS2339: Property 'mock' does not exist on type '(message: unknown) => void'.
+tests/imagePrivacyRoute.test.ts(140,68): error TS7031: Binding element 'packet' implicitly has an 'any' type.
+tests/imagePrivacyRoute.test.ts(141,56): error TS2339: Property 'mock' does not exist on type '(message: unknown) => void'.
+tests/imagePrivacyRoute.test.ts(141,76): error TS7031: Binding element 'packet' implicitly has an 'any' type.
+tests/imagePrivacyRoute.test.ts(153,48): error TS2339: Property 'mock' does not exist on type '(message: unknown) => void'.
+tests/imagePrivacyRoute.test.ts(153,68): error TS7031: Binding element 'packet' implicitly has an 'any' type.

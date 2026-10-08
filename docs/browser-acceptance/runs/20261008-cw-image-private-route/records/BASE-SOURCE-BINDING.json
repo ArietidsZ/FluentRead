@@ -1,0 +1,29 @@
+{
+  "base_head": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+  "base_tree": "110fb4cc3ae4176a5bb79b9048cced92974da463",
+  "baseline_blob_sha256": {
+    "src/app/background/areaRuntime.ts": "89b0ec9830513a64d49443543dca9d99ba7dd076814d015a90fd4a18778a2082",
+    "src/app/background/imageGlossaryContext.ts": "457888c262933e34171c366e27b06f7f93b716218139f2529c9e94303e1b3c27",
+    "src/features/image-translation/content/runtime.ts": "804674bac62adf500089cb317d6428bcb52d8fe0f9efb0ea2556277c131efb03"
+  },
+  "red_fixture_sha256": {
+    "red-imagePrivacyRoute.ts": "24798ec7ed6d0a4b50cbd7163e7e1e154e5af2c8f7a7208d333c12b6803cf805",
+    "red-imageTranslationRuntime.ts": "b6c9fd1a524bdcb66daa0112cca241a6cb3b8ae2a6cbed3166f19313b614176e"
+  },
+  "baseline_result": {
+    "numTotalTests": 205,
+    "numPassedTests": 184,
+    "numFailedTests": 21
+  },
+  "baseline_route_cases": 21,
+  "route_controls_passed": 2,
+  "route_expected_failures": 19,
+  "bitmap_cache_expected_failures": 2,
+  "supplemental_cases_not_claimed_red": 8,
+  "earlier_fixture_failures_retained": [
+    "missing browser-polyfill boundary mock",
+    "reserved .test URL rejected by real image URL normalization",
+    "1000 ms recovery patch normalized to unchanged one-minute policy",
+    "lease check conflated cancelled SDK provider Promise with its late raw synthetic fetch"
+  ]
+}

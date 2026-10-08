@@ -1,0 +1,25 @@
+{
+  "source_commit": "f2381f3cdfe17ddaa33afaadcd0b88657013edd7",
+  "source_tree": "0a2a9febf4b99aee837a220e3b21e8aa819f63e9",
+  "base_head": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+  "accepted_base_application": "866a1258c645ade6d836ec917a7e549c2028b0d4",
+  "input_scope": "all tracked and nonignored new source/test/config/docs files; existing archived docs/browser-acceptance/runs/** excluded",
+  "input_files": 4009,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/areaRuntime.ts",
+    "src/app/background/imageGlossaryContext.ts",
+    "src/features/image-translation/content/runtime.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageTransactionIdentity.test.ts",
+    "tests/imageTranslationRuntime.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "63ca3fc09f988216aba0c742374f9816d699f5a7f57fd88cea0d53bd9b57c3b6",
+  "artifact_manifest_sha256": "e655e6abef3ceafbe823fce431770fa09d495a5018c923a0981147164778d0a6"
+}

@@ -1,0 +1,198 @@
+{
+  "source_commit": "f2381f3cdfe17ddaa33afaadcd0b88657013edd7",
+  "source_tree": "0a2a9febf4b99aee837a220e3b21e8aa819f63e9",
+  "base_head": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+  "accepted_base_application": "866a1258c645ade6d836ec917a7e549c2028b0d4",
+  "input_scope": "all tracked and nonignored new source/test/config/docs files; existing archived docs/browser-acceptance/runs/** excluded",
+  "input_files": 4009,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/areaRuntime.ts",
+    "src/app/background/imageGlossaryContext.ts",
+    "src/features/image-translation/content/runtime.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageTransactionIdentity.test.ts",
+    "tests/imageTranslationRuntime.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "63ca3fc09f988216aba0c742374f9816d699f5a7f57fd88cea0d53bd9b57c3b6",
+  "artifact_manifest_sha256": "e655e6abef3ceafbe823fce431770fa09d495a5018c923a0981147164778d0a6",
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "63ca3fc09f988216aba0c742374f9816d699f5a7f57fd88cea0d53bd9b57c3b6",
+  "artifacts": 797,
+  "userscript_bytes": 1954988,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "userscript_identical_to_866a1258": true,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning",
+  "implemented_slice": "shared image/manga OCR-text transaction: native sender/Port -> actual app/handler/broker/provider registry/AI SDK",
+  "private_entry_cases": 29,
+  "baseline_red": {
+    "numTotalTests": 205,
+    "numPassedTests": 184,
+    "numFailedTests": 21
+  },
+  "baseline_image_route": {
+    "cases": 21,
+    "controls_passed": 2,
+    "expected_failed": 19
+  },
+  "baseline_frontend_cache_expected_failures": 2,
+  "targeted_tests": {
+    "numTotalTests": 354,
+    "numPassedTests": 354,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "tests": {
+    "numTotalTests": 9989,
+    "numPassedTests": 9989,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 406,
+  "coverage": {
+    "lines": {
+      "total": 66074,
+      "covered": 66074,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 66074,
+      "covered": 66074,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4601,
+      "covered": 4601,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33680,
+      "covered": 33680,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "strict_owned_changed_module_coverage": {
+    "app/background/imageGlossaryContext.ts": {
+      "lines": {
+        "total": 73,
+        "covered": 73,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 8,
+        "covered": 8,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 73,
+        "covered": 73,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 72,
+        "covered": 72,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "coverage_scope": "original ownership include/exclude and 100-percent thresholds unchanged; full strict coverage and owned imageGlossaryContext only claimed; additional three-module diagnostic retains pre-existing unowned area/content gaps",
+  "architecture_tests": 1379,
+  "architecture_files": 32,
+  "checks": {
+    "image-route-complete": 0,
+    "full-coverage-final": 0,
+    "architecture-final": 0,
+    "typecheck-complete": 0,
+    "typecheck-list": 0,
+    "audit-final": 0,
+    "final-build-chrome": 0,
+    "final-build-firefox": 0,
+    "final-build-userscript": 0,
+    "final-verify-extension-manifests": 0,
+    "final-verify-userscript": 0,
+    "final-docs-source-build": 0,
+    "bindings-complete": 0,
+    "bind-source-commit": 0,
+    "userscript-baseline-complete": 0
+  },
+  "typecheck_scope": {
+    "tsconfig_changed": false,
+    "archive_exclusion": "existing docs/browser-acceptance/runs/** only",
+    "archive_inputs_in_compiler": [],
+    "roots": {
+      "src": {
+        "files": 799,
+        "missing": []
+      },
+      "tests": {
+        "files": 499,
+        "missing": []
+      },
+      "entrypoints": {
+        "files": 15,
+        "missing": []
+      }
+    }
+  },
+  "unchanged_ocr_port_registry_source_authorization_broker_provider_lease_prompts": true,
+  "actual_config_normalization_save_patch_subscription": true,
+  "fixture_boundaries": {
+    "browser_config_storage_and_offscreen_ocr": "synthetic in-memory ports",
+    "translation_and_cache": "actual app/broker/AI SDK and isolated fake-indexeddb",
+    "fetch": "synthetic endpoint responses; no network API",
+    "ignoring_abort_provider_case": "one synthetic provider Promise through actual app/handler/broker/scheduler; other wire cases actual SDK"
+  },
+  "earlier_failures_retained": [
+    "missing browser-polyfill fixture",
+    "reserved .test image host",
+    "recovery patch rounded to unchanged minute",
+    "SDK settle mistaken for raw fetch settle",
+    "typed mock/Port spy repair",
+    "additional unowned modules diagnostic not 100 percent"
+  ],
+  "initial_full_gate_repeated_reason": "final cancellation-set lifetime cleanup and one regression, then final source/input/artifact binding",
+  "userscript_baseline_comparison": {
+    "baseline_commit": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+    "baseline_bytes": 1954988,
+    "baseline_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+    "baseline_matches_accepted_866a_artifact": true,
+    "final_bytes": 1954988,
+    "final_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+    "final_byte_identical_to_baseline": true,
+    "initial_pre_cleanup_artifact_bytes": 1954944,
+    "initial_pre_cleanup_artifact_sha256": "e673942f34a40c677a03360e1c1a2d18388e3999edee175899e37dbbb2d9aa0c",
+    "temporary_export": "tracked baseline source on same CW, reused installed dependencies and generated WXT tsconfig; no package installation or extra Codex task"
+  },
+  "no_gui_or_real_api_gpu_or_model_download": true,
+  "remaining": [
+    "area OCR/vision transcription and capability probe native-source routing",
+    "dictionary/word-card and remaining video/document route/cache audit",
+    "real browser/provider API and RTX5090 acceptance"
+  ],
+  "privacy_feature_complete": false,
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 174
+}

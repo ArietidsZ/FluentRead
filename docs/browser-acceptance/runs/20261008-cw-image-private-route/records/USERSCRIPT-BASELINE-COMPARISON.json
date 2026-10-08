@@ -1,0 +1,12 @@
+{
+  "baseline_commit": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+  "baseline_bytes": 1954988,
+  "baseline_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "baseline_matches_accepted_866a_artifact": true,
+  "final_bytes": 1954988,
+  "final_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "final_byte_identical_to_baseline": true,
+  "initial_pre_cleanup_artifact_bytes": 1954944,
+  "initial_pre_cleanup_artifact_sha256": "e673942f34a40c677a03360e1c1a2d18388e3999edee175899e37dbbb2d9aa0c",
+  "temporary_export": "tracked baseline source on same CW, reused installed dependencies and generated WXT tsconfig; no package installation or extra Codex task"
+}

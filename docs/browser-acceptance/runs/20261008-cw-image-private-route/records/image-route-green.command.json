@@ -1,0 +1,22 @@
+{
+  "label": "image-route-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageGlossaryContext.test.ts",
+    "tests/imageTransactionIdentity.test.ts",
+    "tests/imageTranslationRuntime.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/image-route-green.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T15:55:28.517869+00:00",
+  "duration_seconds": 6.399,
+  "exit_code": 1
+}

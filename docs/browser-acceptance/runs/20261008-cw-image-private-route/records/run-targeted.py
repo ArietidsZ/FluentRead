@@ -1,0 +1,5 @@
+import pathlib,subprocess,sys
+raw=pathlib.Path(__file__).resolve().parent;root=sys.argv[1]
+files=['tests/imagePrivacyRoute.test.ts','tests/imageGlossaryContext.test.ts','tests/imageTransactionIdentity.test.ts','tests/imageTranslationRuntime.test.ts','tests/areaVisionRecognition.test.ts','tests/areaTextTranslation.test.ts','tests/imageSourceAuthorization.test.ts','tests/imageDocumentChannel.test.ts','tests/imageTranslationPageRead.test.ts','tests/imageTranslationSecurityContract.test.ts']
+command=['node','scripts/testing/run-resource-safe.mjs','--','node','node_modules/vitest/vitest.mjs','run',*files,'--config','vitest.coverage.config.ts','--coverage.include=src/app/background/imageGlossaryContext.ts','--no-cache','--reporter=json','--outputFile='+str(raw/'image-route-final.results.json'),'--coverage.reporter=json','--coverage.reporter=json-summary','--coverage.reportsDirectory='+str(raw/'strict-targeted-final')]
+sys.exit(subprocess.run([sys.executable,str(raw/'run-recorded.py'),'image-route-final',root,*command]).returncode)

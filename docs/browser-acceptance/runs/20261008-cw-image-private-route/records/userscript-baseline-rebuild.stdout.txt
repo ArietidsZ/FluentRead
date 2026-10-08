@@ -1,0 +1,3 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node_modules/.bin/vite build --config userscript/vite.config.ts
+vite v5.4.19 building for production...
+✓ 0 modules transformed.

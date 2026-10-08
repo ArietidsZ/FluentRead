@@ -1,0 +1,10 @@
+{
+  "execution": "CW local selected checkout only",
+  "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.43",
+  "node": "v26.7.0",
+  "git_branch": "fix/incognito-model-route-20261008",
+  "base_head": "20e10b095e1b37bea62ac02e6d2a1aafadc34131",
+  "wxt_locked": "0.20.18",
+  "network_and_execution": "no browser, real provider/search API, GPU, model download, cloud/MII, child task/model call, dependency install; existing local test fixtures only",
+  "escalation_reason": "existing Node spawnSync and temporary 127.0.0.1 WebDAV test fixtures require same-machine execution outside shell sandbox; no system security change"
+}

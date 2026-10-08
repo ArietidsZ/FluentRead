@@ -1,0 +1,18 @@
+▲ [WARNING] Cannot find base config file "./.wxt/tsconfig.json" [tsconfig.json]
+
+    tsconfig.json:2:13:
+      2 │   "extends": "./.wxt/tsconfig.json",
+        ╵              ~~~~~~~~~~~~~~~~~~~~~~
+
+x Build failed in 39ms
+error during build:
+[vite:esbuild] failed to resolve "extends":"./.wxt/tsconfig.json" in <CW_BASELINE_EXPORT>/tsconfig.json
+file: <CW_BASELINE_EXPORT>/userscript/main.ts
+    at resolveExtends (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18845:8)
+    at parseExtends (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18780:24)
+    at parse$e (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:18638:23)
+    at async loadTsconfigJsonForFile (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19433:20)
+    at async transformWithEsbuild (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19194:30)
+    at async Object.transform (file://<CW_DEPENDENCIES>/.pnpm/vite@5.4.19_@types+node@22.10.7/node_modules/vite/dist/node/chunks/dep-C6uTJdX2.js:19297:24)
+    at async transform (file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:19787:16)
+    at async ModuleLoader.addModuleSource (file://<CW_DEPENDENCIES>/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:20003:36)

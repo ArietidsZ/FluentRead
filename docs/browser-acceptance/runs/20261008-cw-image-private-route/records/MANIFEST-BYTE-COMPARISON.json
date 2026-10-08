@@ -1,0 +1,10 @@
+{
+  "chrome-mv3": {
+    "sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+    "byte_identical_to_866a1258": true
+  },
+  "firefox-mv2": {
+    "sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+    "byte_identical_to_866a1258": true
+  }
+}

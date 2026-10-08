@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/imagePrivacyRoute.test.ts tests/imageTranslationRuntime.test.ts --no-cache --reporter=json --outputFile=<RAW>/image-route-red-corrected.results.json
+JSON report written to <RAW>/image-route-red-corrected.results.json

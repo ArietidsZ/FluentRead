@@ -1,0 +1,16 @@
+{
+  "label": "userscript-baseline-rebuild",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/.bin/vite",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "<CW_BASELINE_EXPORT>",
+  "started_at": "2026-10-08T16:14:07.486023+00:00",
+  "duration_seconds": 0.442,
+  "exit_code": 1
+}

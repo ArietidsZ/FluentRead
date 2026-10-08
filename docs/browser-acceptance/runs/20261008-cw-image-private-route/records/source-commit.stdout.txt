@@ -1,0 +1,16 @@
+[fix/incognito-model-route-20261008 f2381f3c] fix(image): freeze native private route across OCR translation and caches
+ 11 files changed, 321 insertions(+), 16 deletions(-)
+ create mode 100644 tests/imagePrivacyRoute.test.ts
+f2381f3c fix(image): freeze native private route across OCR translation and caches
+ docs/architecture.md                              |   2 +
+ docs/incognito-route-first-batch.md               |  10 +-
+ docs/testing.md                                   |   2 +
+ src/app/background/areaRuntime.ts                 |  28 ++-
+ src/app/background/imageGlossaryContext.ts        |  48 +++++-
+ src/features/image-translation/content/runtime.ts |  14 +-
+ tests/imagePrivacyRoute.test.ts                   | 200 ++++++++++++++++++++++
+ tests/imageTransactionIdentity.test.ts            |   4 +-
+ tests/imageTranslationRuntime.test.ts             |  27 +++
+ tests/test-matrix.json                            |   1 +
+ vitest.coverage.config.ts                         |   1 +
+ 11 files changed, 321 insertions(+), 16 deletions(-)

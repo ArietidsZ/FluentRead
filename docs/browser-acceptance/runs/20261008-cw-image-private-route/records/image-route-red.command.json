@@ -1,0 +1,19 @@
+{
+  "label": "image-route-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/image-route-red.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T15:52:33.240507+00:00",
+  "duration_seconds": 1.415,
+  "exit_code": 1
+}
