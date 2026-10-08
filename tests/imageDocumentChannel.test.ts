@@ -252,3 +252,36 @@ it('现代document owner释放清除预取消及活跃工作，不影响其他do
     expect(await observed).toEqual([expect.objectContaining({status:'rejected'}),{status:'fulfilled',value:'other'}]);
     const send=vi.fn();vi.stubGlobal('browser',{tabs:{sendMessage:send}});await imageTranslationProgressTransport.sendProgress({sender:{documentId:'no-tab'}},{type:'fluentReadImageProgress',requestId:'pre',stage:'recognizing'});expect(send).not.toHaveBeenCalled();
 });
+
+it('真实client→Port→source challenge断连重建授权，换图拒绝；dataURL翻译重试ID独立',async()=>{
+    const source='https://cdn.example.com/selected.png';const bytes='data:image/png,verified';const doc={URL:'https://example.test/same'};
+    const attributes={src:source,srcset:null,sizes:null};const image={ownerDocument:doc,isConnected:true,currentSrc:source,src:source,getAttribute:(name:string)=>(attributes as any)[name]} as any;
+    const {createImageTranslationBackgroundHandlers}=await import('@/src/features/image-translation/background/handlers');
+    const {fetchImageInExtension,translateImageInExtension}=await import('@/src/features/image-translation/services/client');
+    const frameFallback=vi.fn(()=>{throw new Error('frame fallback prohibited');});const verify=createImageSourceVerifier(frameFallback);
+    const fetchBytes=vi.fn(async()=>bytes);let translationCalls=0;const translate=vi.fn(async()=>{if(++translationCalls===1)throw new Error('offscreen message port closed');return {image:bytes,lines:[]};});
+    let handlers:ReturnType<typeof createImageTranslationBackgroundHandlers>;
+    const h=fixture((message,context)=>Promise.resolve(handlers.find(handler=>handler.type===message.type)!.handle(message,context)));
+    handlers=createImageTranslationBackgroundHandlers({operationRegistry:h.registry,assertImageSource:verify,fetchImage:fetchBytes,translateImage:translate,
+        assertLanguagesDownloaded:async()=>{},getTranslationService:()=> 'google',supportsBatchTranslation:()=>false,translateTexts:async()=>'',downloadLanguages:async()=>{},markLanguagesDownloaded:async()=>[]});
+    const connections:ReturnType<typeof h.add>[]=[];
+    const connect=vi.fn(()=>{const connection=h.add();connections.push(connection);
+        if(connections.length===1) connection.pair.client.onMessage.addListener(packet=>{if(packet.kind==='sourceChallenge')connection.pair.close();});
+        return connection.pair.client;});
+    vi.stubGlobal('document',doc);vi.stubGlobal('browser',{runtime:{id:'extension',connect,onMessage:{addListener:vi.fn(),removeListener:vi.fn()}}});
+    const sourceIds:string[]=[];
+    const capture=()=>withImageSourceAuthorization(image,source,undefined,requestId=>{sourceIds.push(requestId);return fetchImageInExtension(source,{requestId,timeoutMs:1000});});
+    await expect(capture()).rejects.toThrow('closed');expect(fetchBytes).not.toHaveBeenCalled();
+    image.currentSrc='https://cdn.test/changed.png';await expect(capture()).rejects.toThrow('失效');expect(fetchBytes).not.toHaveBeenCalled();
+    image.currentSrc=source;await expect(capture()).resolves.toBe(bytes);expect(fetchBytes).toHaveBeenCalledOnce();
+    expect(new Set(sourceIds).size).toBe(3);
+    const challenges=connections.flatMap(c=>vi.mocked(c.pair.background.postMessage).mock.calls.map(([packet])=>packet as any).filter(packet=>packet.kind==='sourceChallenge'));
+    expect(challenges.map(packet=>packet.message.requestId)).toEqual(sourceIds);expect(frameFallback).not.toHaveBeenCalled();
+    const challengeCount=challenges.length;
+    await expect(translateImageInExtension(bytes,'en','Page',{requestId:'translation-public',timeoutMs:1000})).resolves.toEqual({image:bytes,lines:[]});
+    expect(translate).toHaveBeenCalledTimes(2);expect(connect).toHaveBeenCalledTimes(3);
+    const starts=connections.flatMap(c=>vi.mocked(c.pair.client.postMessage).mock.calls.map(([packet])=>packet as any).filter(packet=>packet.kind==='request'&&packet.message.type==='fluentReadImageTranslate'));
+    expect(starts).toHaveLength(2);expect(starts[0].message.requestId).toBe('translation-public');expect(starts[1].message.requestId).not.toBe('translation-public');
+    expect(starts.every(packet=>packet.message.image===bytes&&!sourceIds.includes(packet.message.requestId))).toBe(true);
+    expect(connections.flatMap(c=>vi.mocked(c.pair.background.postMessage).mock.calls.map(([packet])=>packet as any).filter(packet=>packet.kind==='sourceChallenge'))).toHaveLength(challengeCount);
+});
