@@ -30,6 +30,7 @@ const DOCS_TOOL_SCRIPTS = [
     'scripts/capture-docs-ui.cjs',
     'scripts/verify-brand-copy.mjs',
     'scripts/verify-docs-build.mjs',
+    'scripts/verify-storybook-build.mjs',
 ];
 
 type VerificationOwner =
@@ -321,6 +322,7 @@ describe('repository verification ownership', () => {
     it('文档与品牌校验入口连接实际 npm 命令，截图工具遵循隔离后台浏览器契约', () => {
         const {scripts} = JSON.parse(readFileSync(projectPath('package.json'), 'utf8'));
         expect(scripts['docs:check']).toBe('node scripts/verify-docs-build.mjs');
+        expect(scripts['storybook:check']).toBe('node scripts/verify-storybook-build.mjs');
         expect(scripts['verify:brand']).toBe('node scripts/verify-brand-copy.mjs');
         const captureSource = readFileSync(projectPath('scripts/capture-docs-ui.cjs'), 'utf8');
         expect(captureSource).toContain('helper.launchFocusSafePersistentContext');

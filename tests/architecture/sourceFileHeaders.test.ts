@@ -5,6 +5,7 @@ import {describe, expect, it} from 'vitest';
 const PROJECT_ROOT = resolve(__dirname, '../..');
 const SRC_ROOT = resolve(PROJECT_ROOT, 'src');
 const DOCUMENTED_EXTENSIONS = new Set(['.css', '.cts', '.md', '.mts', '.ts', '.tsx', '.vue']);
+const JPEG_ASSETS = new Set(['src/app/options/assets/wechat-contact.jpg']);
 const REQUIRED_SECTIONS = ['文件职责：', '主要内容：', '模块边界：'] as const;
 
 function relativePath(path: string): string {
@@ -14,6 +15,13 @@ function relativePath(path: string): string {
 function extensionOf(path: string): string {
     const dotIndex = path.lastIndexOf('.');
     return dotIndex >= 0 ? path.slice(dotIndex) : '';
+}
+
+function sourceFileKind(path: string): 'documented' | 'json' | 'jpeg' | undefined {
+    if (DOCUMENTED_EXTENSIONS.has(extensionOf(path))) return 'documented';
+    if (extensionOf(path) === '.json') return 'json';
+    if (JPEG_ASSETS.has(path)) return 'jpeg';
+    return undefined;
 }
 
 function listSourceFiles(): string[] {
@@ -62,9 +70,24 @@ describe('src file header documentation', () => {
         for (const path of dataFiles) {
             expect(() => JSON.parse(readFileSync(resolve(PROJECT_ROOT, path), 'utf8')), path).not.toThrow();
         }
-        const unsupported = allSourceFiles.filter((path) => !DOCUMENTED_EXTENSIONS.has(extensionOf(path)) && extensionOf(path) !== '.json');
+        const unsupported = allSourceFiles.filter((path) => sourceFileKind(path) === undefined);
         expect(unsupported).toEqual([]);
         expect(sourceFiles.length).toBeGreaterThan(0);
+    });
+
+    it('精确登记的联系图片保持非空 JPEG，其他未知二进制文件仍拒绝', () => {
+        for (const path of JPEG_ASSETS) {
+            expect(allSourceFiles).toContain(path);
+            const bytes = readFileSync(resolve(PROJECT_ROOT, path));
+            expect(bytes.length).toBeGreaterThan(5);
+            expect([...bytes.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]);
+            // JPEG 可携带尾随数据；终止标记不能被错误限定为文件最后两个字节。
+            expect(bytes.lastIndexOf(Buffer.from([0xff, 0xd9]))).toBeGreaterThan(3);
+            expect(sourceFileKind(path)).toBe('jpeg');
+        }
+        for (const path of ['src/app/options/assets/other.jpg', 'src/app/options/assets/wechat-contact.png', 'src/features/unknown.bin']) {
+            expect(sourceFileKind(path)).toBeUndefined();
+        }
     });
 
     it.each(sourceFiles)('%s 以语义化长注释说明职责、内容与边界', (path) => {

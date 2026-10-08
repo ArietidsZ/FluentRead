@@ -548,9 +548,8 @@ export function mountVideoSubtitleTranslation(): () => void {
     const entry = { url, cues: xSubtitleCues };
     capturedSubtitleTracks.set(xSubtitleTrackKey, entry);
     if (canReadVideo() && !isAiCaptureActive()) {
-      // 分片到达只补全捕获轨道；与播放器同步共用原生优先的选择入口。
-      // 否则每个分片会把 x:native 切成 x:captions，随后 cuechange/定时
-      // 同步又切回原生轨道，两次清空译文导致视频开头反复闪烁。
+      // 分片只补全捕获轨道，并共用原生优先入口；否则分片与 cuechange/定时同步
+      // 会使 x:native/x:captions 来回切换，两次清空译文导致视频开头反复闪烁。
       ensurePretranslationTrack();
       scheduleUpdate();
     }
