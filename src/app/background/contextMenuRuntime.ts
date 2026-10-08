@@ -1,14 +1,10 @@
 /**
  * @file src/app/background/contextMenuRuntime.ts
  * 文件职责：管理后台右键菜单的安装、状态同步和点击路由，让菜单结构随设置重建，让标题随当前标签页的翻译与网站状态更新。
- * 主要内容：等待配置就绪后按菜单结构创建条目，串行执行原生菜单写入与重建，以配置、结构及活动页查询归属屏蔽迟到回复，并把仍有效的点击交给动作模块执行。
+ * 主要内容：等待配置就绪后按菜单结构创建条目，串行执行原生菜单写入与重建，以配置、结构及活动页查询归属屏蔽迟到回复，冷启动点击等待菜单就绪后交给动作模块执行。
  * 模块边界：这里只编排 browser.contextMenus、tabs 与 app 层状态，不推导菜单结构、不渲染文案、不执行翻译；结构归 core/context-menu，文案归 core/context-menu/presentation，动作归 contextMenuActions。
  */
-import {
-    buildContextMenuPlan,
-    resolveContextMenuPresentation,
-    type ContextMenuPlanItem,
-} from '@/src/core/context-menu/domain';
+import {buildContextMenuPlan, resolveContextMenuPresentation, type ContextMenuPlanItem} from '@/src/core/context-menu/domain';
 import {configReady, subscribeConfig} from '@/src/services/config/store';
 import {runContextMenuAction, type ContextMenuClickInfo, type ContextMenuClickTab} from './contextMenuActions';
 import {readContextMenuSettings, type ContextMenuSettingsSnapshot} from './contextMenuPreferences';
@@ -43,7 +39,7 @@ export function installBackgroundContextMenus(
         && typeof menus.onClicked?.addListener === 'function';
     let settings: ContextMenuSettingsSnapshot = readContextMenuSettings();
     let plan: readonly ContextMenuPlanItem[] = [];
-    let syncQueue: Promise<void> = Promise.resolve();
+    let syncQueue: Promise<void> = Promise.resolve(), initialized: Promise<void> = Promise.resolve();
     let mutationQueue: Promise<void> = Promise.resolve();
     const readTabTranslationState = createTabTranslationStateReader(tabTranslationStates);
 
@@ -97,18 +93,21 @@ export function installBackgroundContextMenus(
                 if (active?.id !== undefined) await update(active.id);
             })
             .catch((error) => {
-                plan = [];
+                // 结构写入前已清空 plan；活动页查询失败则保留已创建的有效路由。
                 console.error('Error syncing context menu:', error);
             });
         return syncQueue;
     };
 
     const handleClick = async (info: ContextMenuClickInfo, tab: ContextMenuClickTab): Promise<void> => {
-        const snapshot = settings, items = plan;
-        const item = items.find((entry) => entry.menuItemId === info.menuItemId);
-        if (!item || !isBrowserTabId(tab.id)) return;
+        if (!isBrowserTabId(tab.id)) return;
         const currentDocument = tabTranslationStates.captureDocument(tab.id);
         try {
+            // 原生菜单在 MV3 worker 休眠后仍存在，唤醒它的首个点击不能被空 plan 丢弃。
+            await initialized; await syncQueue;
+            const snapshot = settings, items = plan;
+            const item = items.find((entry) => entry.menuItemId === info.menuItemId);
+            if (!item || !currentDocument()) return;
             const state = await readTabTranslationState(tab.id, true);
             if (!currentDocument() || snapshot !== settings || items !== plan) return;
             const [presentation] = resolveContextMenuPresentation([item], state, snapshot.display);
@@ -126,15 +125,16 @@ export function installBackgroundContextMenus(
     if (!isSupported) {
         console.log('不支持右键菜单');
     } else {
-        void configReady.then(() => {
+        initialized = configReady.then(() => {
             settings = readContextMenuSettings();
-            void sync();
+            const initialSync = sync();
             subscribeConfig(() => {
                 const next = readContextMenuSettings();
                 if (next.signature === settings.signature) return;
                 settings = next;
                 void sync();
             });
+            return initialSync;
         }).catch(error => console.error('Error initializing context menu:', error));
 
         browser.contextMenus.onClicked.addListener((info: any, tab: any) => void handleClick(info as ContextMenuClickInfo, (tab ?? {}) as ContextMenuClickTab));

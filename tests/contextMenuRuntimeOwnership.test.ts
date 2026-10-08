@@ -32,6 +32,48 @@ beforeEach(() => {
 });
 afterEach(() => {vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('右键菜单原生写入的异步归属', () => {
+    it('后台冷启动时到达的原生点击等待配置和菜单初始化后执行', async () => {
+        const ready = deferred<void>();state.ready = ready.promise;await install();
+        const click = api.contextMenus.onClicked.addListener.mock.calls[0][0];
+        click({menuItemId:pageId},{id:9});await settle();expect(state.action).not.toHaveBeenCalled();
+        ready.resolve(undefined);await settle();expect(state.action).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['loading', 'removed'])('冷启动等待期间目标页 %s 后丢弃旧点击', async event => {
+        const ready = deferred<void>();state.ready = ready.promise;await install();
+        api.contextMenus.onClicked.addListener.mock.calls[0][0]({menuItemId:pageId},{id:9});
+        if (event === 'loading') api.tabs.onUpdated.addListener.mock.calls[0][0](9,{status:'loading'});
+        else api.tabs.onRemoved.addListener.mock.calls[0][0](9);
+        ready.resolve(undefined);await settle();expect(state.action).not.toHaveBeenCalled();
+    });
+    it('冷启动等待期间关闭菜单不执行排队点击', async () => {
+        const ready = deferred<void>();state.ready = ready.promise;await install();
+        api.contextMenus.onClicked.addListener.mock.calls[0][0]({menuItemId:pageId},{id:9});
+        state.config.contextMenuEnabled = false;ready.resolve(undefined);await settle();
+        expect(state.action).not.toHaveBeenCalled();
+    });
+    it('冷启动首击失败后可重试并继续执行恢复与再次翻译', async () => {
+        const ready = deferred<void>();state.ready = ready.promise;await install();
+        const error = vi.spyOn(console,'error').mockImplementation(() => {});
+        const click = api.contextMenus.onClicked.addListener.mock.calls[0][0];
+        state.action.mockRejectedValueOnce(new Error('temporary action failure'));
+        click({menuItemId:pageId},{id:9});ready.resolve(undefined);await settle();expect(error).toHaveBeenCalled();
+        for (const translated of [true, false, true]) {
+            state.action.mockResolvedValueOnce({handled:true,isTranslated:translated});
+            click({menuItemId:pageId},{id:9});await settle();
+            api.tabs.sendMessage.mockResolvedValue({...neutral,isTranslated:translated});
+        }
+        expect(state.action.mock.calls.map(([action, , , , translated]) => [action, translated]))
+            .toEqual([['translatePage',false],['translatePage',false],['translatePage',true],['translatePage',false]]);
+    });
+    it('启动菜单创建完成后的活动页查询失败不清空点击路由', async () => {
+        const error = vi.spyOn(console,'error').mockImplementation(() => {});
+        api.tabs.query.mockRejectedValueOnce(new Error('active tab temporarily unavailable'));
+        await start();expect(error).toHaveBeenCalled();
+        api.contextMenus.onClicked.addListener.mock.calls[0][0]({menuItemId:pageId},{id:9});
+        await settle();expect(state.action).toHaveBeenCalledTimes(1);
+    });
+
     it('回复期间活动页改变时旧页面不写全局标题', async () => {
         const runtime = await start(), reply = deferred();api.tabs.sendMessage.mockReturnValueOnce(reply.promise);
         const old = runtime.update(9);await settle();active = 10;reply.resolve({...neutral, isTranslated: true});await old;
