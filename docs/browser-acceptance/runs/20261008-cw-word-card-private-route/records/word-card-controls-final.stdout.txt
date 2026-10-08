@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/wordCardPrivacyRoute.test.ts --no-cache --reporter=json --outputFile=<CW-EVIDENCE>/word-card-controls-final.results.json
+JSON report written to <CW-EVIDENCE>/word-card-controls-final.results.json

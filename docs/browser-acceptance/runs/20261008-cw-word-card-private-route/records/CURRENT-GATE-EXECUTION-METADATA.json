@@ -1,0 +1,29 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result. No signed approval decision is exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "运行当前授权词卡最小切片的冻结完整测试与构建门禁；既有 WebDAV 合成测试临时绑定 127.0.0.1，既有 userscript 源绑定检查需要本地只读 git 子进程。本次执行独立沙箱审核，不从历史缺失审批推导授权，不变更持久权限、产品设置或远程控制端口。"
+  },
+  "result": {
+    "chunk_id": "38c139",
+    "wall_time_seconds": 1.000250872,
+    "session_id": 4482,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Current word-card gates only; temporary existing fixture requirements independently requested, not recovery of historical approval.",
+  "completionObserved": {
+    "source": "Actual tools.write_stdin final result for same session and all ten command records",
+    "sessionId": 4482,
+    "gateRunnerExitCode": 0,
+    "allTenGateCommandExitCodes": 0,
+    "explicitApprovalDecisionProvided": false
+  }
+}

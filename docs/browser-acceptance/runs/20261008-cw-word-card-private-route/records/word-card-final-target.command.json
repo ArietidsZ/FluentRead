@@ -1,0 +1,23 @@
+{
+  "label": "word-card-final-target",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/selectionTranslatorLifecycle.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/userscriptViteConfig.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/word-card-final-target.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T20:59:28.109181+00:00",
+  "duration_seconds": 8.426,
+  "exit_code": 1
+}

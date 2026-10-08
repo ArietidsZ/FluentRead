@@ -1,0 +1,22 @@
+{
+  "label": "word-card-green-expanded",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/selectionTranslatorLifecycle.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/word-card-green-expanded.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T20:56:49.283352+00:00",
+  "duration_seconds": 7.225,
+  "exit_code": 1
+}

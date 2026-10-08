@@ -1,0 +1,11 @@
+{
+  "baselineHead": "6320ebe17e3e0cde43286c11793a74f9194d5907",
+  "scope": "Native word-card main and optional visible field translation via existing text client; independent non-model dictionary and legacy typed enrichment not migrated",
+  "excludes": [
+    "PR883",
+    "settings standalone probe",
+    "video",
+    "realAPI/GUI/GPU/download",
+    "extra tasks/subagents"
+  ]
+}

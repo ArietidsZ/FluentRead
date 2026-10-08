@@ -1,0 +1,22 @@
+{
+  "label": "word-card-source-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/selectionTranslatorLifecycle.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/word-card-source-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:01:54.587545+00:00",
+  "duration_seconds": 7.951,
+  "exit_code": 0
+}

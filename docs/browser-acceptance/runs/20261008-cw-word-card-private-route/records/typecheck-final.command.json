@@ -1,0 +1,15 @@
+{
+  "label": "typecheck-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:11:08.268512+00:00",
+  "duration_seconds": 12.993,
+  "exit_code": 0
+}

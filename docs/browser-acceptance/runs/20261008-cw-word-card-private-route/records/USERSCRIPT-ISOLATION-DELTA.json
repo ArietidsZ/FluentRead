@@ -1,0 +1,9 @@
+{
+  "nativeHelperAliasAdded": "{find: '@/src/features/selection-translation/background/wordLookupHandler', replacement: resolve(root, 'userscript/incognitoRoute.ts')},",
+  "allOtherViteConfigurationByteIdenticalToBaseline": true,
+  "budgetUnchanged": 1955000,
+  "initialWithoutAliasBytes": 1956427,
+  "firstWithAliasBytes": 1954998,
+  "headroomAfterPreflight": 2,
+  "sameByteSizeDoesNotProveOnlyRename": true
+}

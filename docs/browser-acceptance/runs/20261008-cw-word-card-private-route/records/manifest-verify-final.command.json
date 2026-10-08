@@ -1,0 +1,11 @@
+{
+  "label": "manifest-verify-final",
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:12:00.470602+00:00",
+  "duration_seconds": 0.106,
+  "exit_code": 0
+}

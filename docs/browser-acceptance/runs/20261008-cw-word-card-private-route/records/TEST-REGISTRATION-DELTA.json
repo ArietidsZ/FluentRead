@@ -1,0 +1,9 @@
+{
+  "newFile": "tests/wordCardPrivacyRoute.test.ts",
+  "matrixGroup": "regression",
+  "strictExecutionListAddedOnce": true,
+  "coverageOwnershipIncludeExcludeThresholdsIgnoresUnchanged": true,
+  "existingCasesRemovedOrReclassified": false,
+  "existingLifecycleFixture": "Explicit native capability false to retain prior typed lookup semantics; actual native path covered by new compiled setup tests",
+  "userscriptConfigurationChange": "One platform alias for native-only visible-field helper; budget settings unchanged"
+}

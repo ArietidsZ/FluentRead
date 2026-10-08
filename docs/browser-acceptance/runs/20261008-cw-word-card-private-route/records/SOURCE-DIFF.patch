@@ -1,0 +1,391 @@
+diff --git a/docs/testing.md b/docs/testing.md
+index 281ce220..57fc57a1 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -967,3 +967,9 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
+ 全页入口在原生平台复用文档的前端提示解析规则，在 checkConfig、modelThinking、prompt/context、文本槽分包、跨候选 AI batch 和会话缓存身份前冻结有效专用 pair；后台 native sender/getContexts、文本 Port、registry 与 broker 继续承担最终授权，前端提示不成为凭据。原生导航及相关公开配置保存恢复译文并停止标题/正文会话，保留宿主源 Text 和宿主编辑；清理通过实际 SDK signal 与迟到 DOM/持久缓存负控验证。配置摘要保守比较整个相关公开映射，所以普通服务映射变化也会结束私密全页代次；计数和 UI 保存不作废，content 不读取敏感凭据。
+
+ `fullPagePrivacyRoute` 启动实际 content composition、真实配置保存/订阅、全页候选/请求/renderer/state 和既有原生通道/handler/broker/provider/SDK/cache，仅其他 feature、浏览器/存储/布局、上下文提取和合成 HTTP 使用夹具；覆盖模型预检、prompt summary/translation、保护槽拆批、跨候选合批、缓存隔离和 endpoint、十一类保存、导航/关闭/BFCache/禁用/Port 断连及标题正文迟到结果。模块 API 存在而 global browser 缺失的 Chrome 直连控制验证导入绑定；native capability false 的实际会话/原路由复位控制与 userscript 构建隔离分别证明普通行为及产物预算；不声明真实 userscript GUI 验收。DocumentApp 和既有文档编排不重做，仅将提示解析抽入既有 requestPrivacy 并委托；文档回归继续验证。
++
++原生单词卡主译文在客户端能力/模型配置决策前复用页面原生提示解析有效 pair，content 沿用既有公开配置边界、不读取敏感凭据，执行凭据校验仍在后台；辅助释义复用既有 visible-field 的前四组、去重、目标语言清洗、失败保留原文与 2.5 秒预算，通过文本 client/Port/registry 交给 native sender/getContexts 与 broker 最终授权。辅助保留空标题上下文，显式关闭网页 AI context；provider 的原有服务 prompt、Thinking 和缓存身份仍由有效模型计算。配置真实保存同步撤销旧内容代次，关闭/卸载/pagehide/popstate/hashchange 中止主译文与辅助 SDK，迟到结果不更新旧词卡或模型缓存；计数/UI 保存不取消。
++
++`wordCardPrivacyRoute` 编译真实 SelectionTranslator setup，并执行真实 store save/subscribe、词典 handler/查询缓存、文本 client、原生 Port/registry/handler、broker/cache/provider/SDK；仅非模型词典 provider、浏览器、持久存储、布局和 HTTP 使用合成边界。原 lifecycle 夹具明确使用非原生能力以保留旧消息语义，新用例验证原生三态、有效 prompt/Thinking、十一类保存、并发主/辅助请求取消、endpoint/cache 和迟到词典响应。SFC 不在既有严格数值归属中，不把这些用例称为真实 GUI 或 numeric SFC 四维覆盖。
++
++独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
+diff --git a/src/features/selection-translation/ui/SelectionTranslator.vue b/src/features/selection-translation/ui/SelectionTranslator.vue
+index b1be6d9d..3b19df27 100644
+--- a/src/features/selection-translation/ui/SelectionTranslator.vue
++++ b/src/features/selection-translation/ui/SelectionTranslator.vue
+@@ -1,7 +1,7 @@
+ <!--
+  * @file src/features/selection-translation/ui/SelectionTranslator.vue
+  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
+- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
++ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
+  -->
+ <template>
+@@ -187,6 +187,9 @@ import browser from 'webextension-polyfill';
+ import {addRuntimeMessageListener} from '@/src/platform/browser/runtimeMessages';
+ import {openShareCard, isShareCardMounted} from '@/src/features/share-card/public';
+ import { config, subscribeConfig } from '@/src/services/config/store';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
++import {fullPageTranslationConfigKey, resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
++import {translateVisibleWordCardFields} from '@/src/features/selection-translation/background/wordLookupHandler';
+ import { translateText, translateTextBatch } from '@/src/app/translation/client';
+ import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+ import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
+@@ -315,6 +318,7 @@ let uiPointerInteraction = false;
+ let suppressSelectionUntil = 0;
+ let systemThemeMedia: MediaQueryList | null = null;
+ let unsubscribeConfig: (() => void) | null = null;
++let previousWordCardConfigKey = NATIVE_PRIVATE_ROUTE_SUPPORTED && JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]);
+ const runtimeMessageUnsubscribers: Array<() => void> = [];
+ let releaseContextMenuHandler: (() => void) | null = null;
+ let tooltipResizeObserver: ResizeObserver | null = null;
+@@ -394,7 +398,7 @@ const effectiveSourceLanguage = computed(() => {
+ const isWordSelection = computed(() => Boolean(selectedWord.value) && effectiveTargetLanguage.value !== 'en'
+   && (effectiveSourceLanguage.value === 'auto' || /^en(?:-|$)/i.test(effectiveSourceLanguage.value)));
+ const isWordCardVisible = computed(() => isWordSelection.value && wordCard.value !== null);
+-const isPrivateContext = browser.extension.inIncognitoContext === true;
++const isPrivateContext = (NATIVE_PRIVATE_ROUTE_SUPPORTED ? browser.extension?.inIncognitoContext : browser.extension.inIncognitoContext) === true;
+ const currentContentRequest = computed<SelectionContentRequest | null>(() => {
+   const request = activeContentRequest.value;
+   if (!request || snapshot.value?.text !== request.text || selectedText.value !== request.text
+@@ -1021,6 +1025,7 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
+   error.value = '';
+   try {
+     const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage, serviceOverride: selectionSettings.value.service};
++    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext); if (route) Object.assign(options, {serviceOverride: route.service, modelOverride: route.model});}
+     const translated = parts.some(part => part.kind === 'code')
+       ? await translateSelectionParts(parts, texts => translateTextBatch(texts, document.title, options))
+       : [{kind: 'text' as const, text: await translateText(text, document.title, options)}];
+@@ -1101,7 +1106,12 @@ async function requestWordCard(request: SelectionContentRequest): Promise<void>
+       schedulePositionUpdate();
+       isWordCardSupportLoading.value = true;
+       try {
+-        const enriched = await sendWordCardRequest(word, request.targetLanguage, true, controller.signal);
++        let enriched: {success?: boolean; data?: WordCardData | null};
++        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++          const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext);
++          try { enriched = {success: true, data: await translateVisibleWordCardFields(response.data, request.targetLanguage, fields => translateTextBatch(fields.origin, '', {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: fields.targetLanguage, pageContext: '', enableAIContext: false, useCache: fields.useCache, serviceOverride: route?.service || selectionSettings.value.service, modelOverride: route?.model, timeout: fields.requestTimeoutMs + 1_000}), () => {})}; }
++          finally {controller.abort();}
++        } else enriched = await sendWordCardRequest(word, request.targetLanguage, true, controller.signal);
+         if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
+         if (enriched?.success && enriched.data) {
+           wordCard.value = enriched.data;
+@@ -1774,7 +1784,7 @@ onMounted(() => {
+   );
+   void requestPageZoom();
+   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
+-  unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
++  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
+   document.addEventListener('pointerdown', handlePointerDown, true);
+   document.addEventListener('pointerup', handlePointerUp, true);
+   document.addEventListener('pointercancel', handlePointerCancel, true);
+@@ -1784,6 +1794,7 @@ onMounted(() => {
+   document.addEventListener('keydown', handleKeydown, true);
+   document.addEventListener('keyup', handleKeyup, true);
+   window.addEventListener('blur', handleWindowBlur);
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) for (const event of ['pagehide', 'popstate', 'hashchange']) window.addEventListener(event, hideAll);
+   runtimeMessageUnsubscribers.push(addRuntimeMessageListener(browser.runtime, handleSelectionTtsState));
+   window.addEventListener('scroll', handleScroll, true);
+   window.addEventListener('resize', handleViewportResize);
+@@ -1887,6 +1898,7 @@ onBeforeUnmount(() => {
+   document.removeEventListener('keydown', handleKeydown, true);
+   document.removeEventListener('keyup', handleKeyup, true);
+   window.removeEventListener('blur', handleWindowBlur);
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) for (const event of ['pagehide', 'popstate', 'hashchange']) window.removeEventListener(event, hideAll);
+   window.removeEventListener('scroll', handleScroll, true);
+   window.removeEventListener('resize', handleViewportResize);
+   resetSelectionContentState(true);
+diff --git a/tests/selectionTranslatorLifecycle.test.ts b/tests/selectionTranslatorLifecycle.test.ts
+index 2b6664ec..ed5745a0 100644
+--- a/tests/selectionTranslatorLifecycle.test.ts
++++ b/tests/selectionTranslatorLifecycle.test.ts
+@@ -73,6 +73,8 @@ function mountSelection(privateContext = false) {
+         '@/src/core/translation/result': {hasDistinctTranslation},
+         vue: {...Vue, useTemplateRef: () => Vue.ref(null)},
+         'webextension-polyfill': browser,
++        // 本夹具覆盖既有非原生/legacy 消息语义；原生模型通道由 wordCardPrivacyRoute 验证。
++        '@/src/core/config/incognitoRoute': {NATIVE_PRIVATE_ROUTE_SUPPORTED: false},
+         '@/src/platform/browser/runtimeMessages': runtimeMessages,
+         '@/src/services/config/store': {config, subscribeConfig: () => unsubscribeConfig},
+         '@/src/features/selection-translation/core': selectionCore,
+diff --git a/tests/test-matrix.json b/tests/test-matrix.json
+index 76c57b39..da61eee6 100644
+--- a/tests/test-matrix.json
++++ b/tests/test-matrix.json
+@@ -483,6 +483,7 @@
+       "tests/featureVerticalSliceRegression.test.ts",
+       "tests/fullPageVisibilityScheduling.test.ts",
+       "tests/fullPagePrivacyRoute.test.ts",
++      "tests/wordCardPrivacyRoute.test.ts",
+       "tests/fullPageHostClassPreservation.test.ts",
+       "tests/pageTranslationAdvanced.test.ts",
+       "tests/mainWorldBridgeCore.test.ts",
+diff --git a/tests/wordCardPrivacyRoute.test.ts b/tests/wordCardPrivacyRoute.test.ts
+new file mode 100644
+index 00000000..ff862fc5
+--- /dev/null
++++ b/tests/wordCardPrivacyRoute.test.ts
+@@ -0,0 +1,221 @@
++/** 真实 SelectionTranslator setup→词典原文/辅助编排→文本 client/原生 Port/handler/registry→broker/IndexedDB/SDK；仅布局、非模型 lookup provider、浏览器和合成 HTTP 使用边界。 */
++import 'fake-indexeddb/auto';
++import {readFileSync} from 'node:fs';
++import {createRequire} from 'node:module';
++import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
++import {parseHTML} from 'linkedom';
++import {compileScript,parse} from 'vue/compiler-sfc';
++import ts from 'typescript';
++import * as vue from 'vue';
++import {Config} from '@/src/core/config/model';
++import * as catalog from '@/src/core/config/catalog';
++import {documentPortPair} from './helpers/imageDocumentPorts';
++const m=vi.hoisted(()=>({values:new Map<string,unknown>(),contexts:vi.fn(),record:vi.fn(),target:'firefox',nativeAPI:{} as Record<string,any>}));
++vi.mock('@/src/platform/storage/configStorageRuntime',()=>({configStorage:{writeOwner:true,getItem:async(key:string)=>m.values.get(key)??null,setItem:async(key:string,value:unknown)=>{m.values.set(key,structuredClone(value));},removeItem:async(key:string)=>{m.values.delete(key);},watch:()=>()=>{}}}));
++vi.mock('webextension-polyfill',()=>({default:new Proxy({},{get:(_t,k)=>Reflect.get(m.nativeAPI,k)})}));
++vi.mock('@/src/platform/browser/capabilities',async original=>({...await original<object>(),browserCapabilities:{get browser(){return m.target;},manifestVersion:2}}));
++vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository:{captureGeneration:()=>1,recordMany:m.record}}));
++vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
++const require=createRequire(import.meta.url),filename='src/features/selection-translation/ui/SelectionTranslator.vue';
++const {descriptor}=parse(readFileSync(filename,'utf8'),{filename});
++const compiled=ts.transpileModule(compileScript(descriptor,{id:'word-card-privacy'}).content,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,esModuleInterop:true}}).outputText;
++class BoundaryObserver {observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} }
++const publicService='custom:document-public',privateService='custom:document-private';
++const publicURL='https://public-document.synthetic.test/v1/chat/completions',privateURL='https://private-document.synthetic.test/v1/chat/completions';
++const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
++const settle=async()=>{await tick();await tick();await vue.nextTick();};
++function response(model='document-private',content=`合成译文 ${model}`){return new Response(JSON.stringify({id:'synthetic',object:'chat.completion',model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});}
++function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};}
++const card=()=>({word:'fixture',normalizedWord:'fixture',phonetics:[],sources:[{id:'free-dictionary' as const,label:'Synthetic non-model dictionary',url:'https://dictionary.synthetic.test'}],meanings:[{partOfSpeech:'noun',definitions:[{definition:'A readable dictionary definition.',example:'A readable dictionary example.'},{definition:'A readable dictionary definition.'}]}]});
++let store:typeof import('@/src/services/config/store'),cache:typeof import('@/src/services/translation/cache');
++let cacheRead:MockInstance,cacheWrite:MockInstance,cacheIdentity:MockInstance,transport:ReturnType<typeof vi.fn>,resetFetch:()=>void;
++let calls:Array<{url:string;body:any;signal?:AbortSignal|null}>,dispatch:ReturnType<typeof vi.fn>,nativeSender:any,browserBoundary:any;
++let server:ReturnType<typeof import('@/src/services/translation/documentChannel').createTranslationDocumentPortHandler>,pairs:ReturnType<typeof documentPortPair>[],pendingResponses:Array<(value:Response)=>void>;
++let lookup:ReturnType<typeof import('@/src/features/selection-translation/services/wordDictionary').createWordDictionaryLookup>,lookupBoundary:ReturnType<typeof vi.fn>;
++let state:Record<string,any>,scope:vue.EffectScope,mounted:Array<()=>void>,unmounted:Array<()=>void>,windowEvents:Map<string,Set<(event:any)=>void>>;
++async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
++async function mountPage(nativeCapability=true){
++ unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
++ const modules:Record<string,unknown>={
++  vue:{...vue,useTemplateRef:()=>vue.ref(null),onMounted:(fn:()=>void)=>mounted.push(fn),onBeforeUnmount:(fn:()=>void)=>unmounted.push(fn)},
++  'webextension-polyfill':browserBoundary,'@/src/services/config/store':store,
++  '@/src/app/translation/client':await import('@/src/app/translation/client'),
++  '@/src/core/config/incognitoRoute':{...await import('@/src/core/config/incognitoRoute'),NATIVE_PRIVATE_ROUTE_SUPPORTED:nativeCapability},
++  '@/src/services/translation/requestPrivacy':await import('@/src/services/translation/requestPrivacy'),
++  '@/src/features/selection-translation/background/wordLookupHandler':await import('@/src/features/selection-translation/background/wordLookupHandler'),
++  '@/src/features/share-card/public':{isShareCardMounted:()=>false},
++  '@/src/features/reading-assistant/public':{ReadingPanel:{}},
++  '@/src/features/selection-translation/content/contextMenuBridge':{setSelectionContextMenuHandler:()=>()=>{}},
++  '@/src/ui/i18n':{useUiI18n:()=>({t:(key:string)=>key,translateLegacy:(value:string)=>value})},
++ };
++ for(const path of ['@/src/platform/browser/runtimeMessages','@/src/core/language/detect','@/src/core/hotkey','@/src/core/language/partOfSpeech','@/src/features/selection-translation/services/wordNormalization','@/src/features/selection-translation/core','@/src/features/selection-translation/protocol','@/src/features/selection-translation/content/selectionTtsContentController','@/src/features/selection-translation/pageZoom','@/src/features/vocabulary/protocol','@/src/core/config/harness','@/src/core/tts/speechProgress','@/src/core/translation/result']) modules[path]=await vi.importActual(path);
++ const exports:Record<string,any>={};new Function('require','exports',compiled)((id:string)=>id in modules?modules[id]:id.endsWith('.vue')?{}:require(id),exports);
++ scope=vue.effectScope();state=scope.run(()=>vue.proxyRefs(exports.default.setup({}, {expose:()=>{}})))!;await vue.nextTick();mounted.forEach(fn=>fn());await settle();
++}
++function begin(){state.snapshot={text:'fixture',parts:[{kind:'text',text:'fixture'}]};state.selectedText='fixture';return state.beginSelectionContentRequest('fixture');}
++function delaySDK(){const gate=deferred<Response>();pendingResponses.push(gate.resolve);transport.mockImplementationOnce(async(url:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(url),body:JSON.parse(String(init?.body)),signal:init?.signal});return gate.promise;});return gate;}
++const requests=()=>dispatch.mock.calls.map(([message])=>message).filter(message=>'origin' in message);
++beforeEach(async()=>{
++ mounted=[];unmounted=[];windowEvents=new Map();lookupBoundary=vi.fn(async()=>card());
++
++    vi.resetModules(); vi.clearAllMocks(); m.values.clear(); m.target = 'firefox'; m.record.mockResolvedValue(undefined);
++    calls = []; pairs = []; pendingResponses = [];  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']});
++    const dom = parseHTML('<html><head><title>Synthetic page source title</title></head><body><main><p id="source">Readable synthetic source paragraph.</p></main></body></html>');
++    for (const key of ['window','document','Node','Element','HTMLElement','Text','ShadowRoot','DOMParser'] as const) vi.stubGlobal(key, dom.window[key]);
++    vi.stubGlobal('MutationObserver', BoundaryObserver); vi.stubGlobal('IntersectionObserver', BoundaryObserver);
++    vi.stubGlobal('getComputedStyle', () => ({display: 'block', visibility: 'visible', opacity: '1', position: 'static', whiteSpace: 'normal', overflowY: 'visible', getPropertyValue: () => ''}));
++    vi.stubGlobal('innerHeight', 800); vi.stubGlobal('scrollY', 0); vi.stubGlobal('scrollX', 0); vi.stubGlobal('scrollBy', vi.fn());
++    const win=window;
++    vi.stubGlobal('window',{innerWidth:1000,innerHeight:800,setTimeout,clearTimeout,setInterval,clearInterval,requestAnimationFrame:(fn:()=>void)=>setTimeout(fn,16),cancelAnimationFrame:clearTimeout,matchMedia:()=>({matches:false,addEventListener:vi.fn(),removeEventListener:vi.fn()}),speechSynthesis:{cancel:vi.fn()},addEventListener:(name:string,fn:(event:any)=>void)=>{const set=windowEvents.get(name)??new Set();set.add(fn);windowEvents.set(name,set);},removeEventListener:(name:string,fn:(event:any)=>void)=>windowEvents.get(name)?.delete(fn),Event:win.Event});
++    const location = {protocol: 'https:', href: 'https://page.synthetic.test/article'};
++    vi.stubGlobal('location', location);
++    Object.defineProperty(document, 'location', {configurable: true, value: location});
++    Object.defineProperty(document, 'URL', {configurable: true, value: location.href});
++    Object.defineProperty(document, 'contentType', {configurable: true, value: 'text/html'});
++    Object.defineProperty(HTMLElement.prototype, 'getClientRects', {configurable: true, value: () => Object.assign([{width: 600, height: 60, top: 0, left: 0, bottom: 60, right: 600}], {item: () => null})});
++    Object.defineProperty(HTMLElement.prototype, 'getBoundingClientRect', {configurable: true, value: () => ({width: 600, height: 60, top: 0, left: 0, bottom: 60, right: 600})});
++    nativeSender = {id: 'ext', documentId: 'native-page-document', frameId: 0, url: location.href, tab: {id: 4, incognito: true}};
++    browserBoundary = {extension: {inIncognitoContext: true}, runtime: {
++        id: 'ext', getURL: (path: string) => `moz-extension://ext/${path.replace(/^\//u, '')}`, getContexts: m.contexts,
++        connect: vi.fn(() => {
++            const pair = documentPortPair(nativeSender);
++            const client = {...pair.client, name: 'fluentReadTranslationDocument:v1'};
++            const background = {...pair.background, name: 'fluentReadTranslationDocument:v1'};
++            pairs.push(pair); expect(server.connect(background)).toBe(true); return client;
++        }), sendMessage: vi.fn(async (message: any) => message.type === 'incrementConfigCount'
++            ? {success: true, count: await store.incrementConfigCount(message.delta, message.operationId)}
++            : 'origin' in message || message.type === 'fluentReadTranslationCancel' || message.type === 'selectionWordLookup' ? (await dispatch(message, {sender: nativeSender})).response : {success: true}),
++        onMessage: {addListener: vi.fn(), removeListener: vi.fn()},
++    }, tabs: {create: vi.fn().mockResolvedValue({})}};
++    m.nativeAPI=browserBoundary;vi.stubGlobal('browser', browserBoundary);
++    const initial = new Config();
++    initial.service = initial.selectionTranslationService = publicService;
++    initial.customOpenAIProviders = [
++        {id: publicService, name: 'Synthetic public document', endpoint: publicURL, models: ['document-public']},
++        {id: privateService, name: 'Synthetic private document', endpoint: privateURL, models: ['document-private', 'document-next', 'private-ordinary']},
++    ];
++    initial.model = {[publicService]: 'document-public', [privateService]: 'private-ordinary'};
++    initial.documentModel = {[publicService]: 'document-public', [privateService]: 'private-ordinary'};
++    initial.incognitoService = privateService; initial.incognitoModel = 'document-private';
++    initial.requireApiKey = Object.fromEntries([[publicService, 'document-public'], ...['document-private', 'document-next', 'private-ordinary'].map(model => [privateService, model])]
++        .map(pair => [`v2:${JSON.stringify(pair)}`, false]));
++    initial.selectionTranslatorMode = 'bilingual'; initial.theme = 'light'; initial.display = 1; initial.fullPageTranslationMode = 'all'; initial.pageTitleTranslationEnabled = false;
++    initial.disableFloatingBall = true; initial.disableSelectionTranslator = false; initial.disableImageTranslator = true; initial.selectionAreaEnabled = false;
++    initial.translationProgressPanelEnabled = false; initial.vocabularyReencounterEnabled = false; initial.alwaysTranslateDomains = []; initial.enableAIMultiSegment = false;
++    initial.from = 'en'; initial.to = 'zh-Hans'; initial.enableAIContext = false; initial.translationMaxRetries = 0;
++    m.values.set('local:config', initial); m.contexts.mockResolvedValue([]);
++    store = await import('@/src/services/config/store'); await store.configReady;
++    const http = await import('@/src/platform/http/runtime'); resetFetch = () => http.setRuntimeFetch();
++    transport = vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
++        const body = JSON.parse(String(init?.body)); calls.push({url: String(url), body, signal: init?.signal});
++        const userText = String(body.messages?.findLast((message: any) => message.role === 'user')?.content ?? '');
++        const packets = [...userText.matchAll(/(___FLUENTREAD_([a-z0-9_-]+)_(\d+)_BEGIN___)[\s\S]*?(___FLUENTREAD_\2_\3_END___)/giu)];
++        return Array.isArray(body) ? new Response(JSON.stringify(body.map(() => ({translations: [{text: '合成批量译文'}]}))), {headers: {'content-type': 'application/json'}})
++            : response(body.model, packets.length ? packets.map(match => `${match[1]}\n合成分段译文 ${match[3]}\n${match[4]}`).join('\n') : `合成译文 ${body.model}`);
++    }); http.setRuntimeFetch(transport);
++    cache = await import('@/src/services/translation/cache'); await cache.translationCache.clear();
++    cacheRead = vi.spyOn(cache.translationCache, 'get'); cacheWrite = vi.spyOn(cache.translationCache, 'set'); cacheIdentity = vi.spyOn(cache, 'buildTranslationCacheKey');
++    const handlers = await import('@/src/app/background/handlers/translation');
++    const {createBackgroundMessageRouter} = await import('@/src/app/background/messageRouter');
++    const backend = await import('@/src/app/translation/runtime');
++    const registry = handlers.createTranslationRequestRegistry(true);
++    const {serializeTranslationError} = await import('@/src/services/translation/errors');
++    const word = await import('@/src/features/selection-translation/background/wordLookupHandler');
++    const dictionary = await import('@/src/features/selection-translation/services/wordDictionary');
++    lookup = dictionary.createWordDictionaryLookup({providers: [{id: 'free-dictionary', lookup: lookupBoundary}]});
++    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry), word.createSelectionWordLookupHandler({lookupWord: value => lookup.lookup(value), getDefaultTargetLanguage: () => store.config.to, translate: backend.translateWithCache, warn: vi.fn()})],
++        handlers.createNativeTranslationRequestFallback(browserBoundary.runtime, {ready: store.configReady,
++            translate: backend.translateWithCache, serializeError: serializeTranslationError, requestRegistry: registry, requireDocumentOwner: true}));
++    dispatch = vi.fn((message, context) => router.dispatch(message, context));
++    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry]});
++    await mountPage();
++});
++afterEach(async()=>{
++ unmounted?.forEach(fn=>fn());scope?.stop();pairs.forEach(pair=>pair.close());pendingResponses.forEach(finish=>finish(response('document-private','迟到合成译文')));
++ (await import('@/src/app/translation/client')).cancelAllTranslations();await settle();resetFetch?.();if(cache){await cache.translationCache.clear();cache.translationCacheDb.close();}
++ vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();vi.unstubAllGlobals();
++});
++describe('native word-card effective pair and lifetime',()=>{
++ it('enriches actual visible dictionary fields through native text Port and SDK while preserving raw semantics',async()=>{
++  const pending=state.requestWordCard(begin());await pump(()=>Boolean(state.wordCard?.meanings[0].definitions[0].translatedDefinition));await pending;
++  expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL&&call.body.model==='document-private')).toBe(true);
++  expect(requests()[0]).toMatchObject({origin:['A readable dictionary definition.','A readable dictionary example.'],context:'',pageContext:undefined,enableAIContext:false,useCache:true,serviceOverride:privateService,modelOverride:'document-private'});
++  expect(state.wordCard.meanings[0].definitions[0]).toMatchObject({definition:'A readable dictionary definition.',example:'A readable dictionary example.',translatedDefinition:'合成译文 document-private'});
++  expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');expect(browserBoundary.runtime.sendMessage.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false]);
++ });
++ it('selects the effective frontend pair before ordinary missing-model capability planning and preserves private prompt',async()=>{
++  await store.requestConfigPatch({service:catalog.services.openai,selectionTranslationService:catalog.services.openai,model:{},customModel:{},system_role:{[privateService]:'PRIVATE_CARD_PROMPT',openai:'PUBLIC_CARD_PROMPT'}});
++  await state.requestTranslation(begin());expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private'});expect(calls).toHaveLength(1);expect(calls[0]).toMatchObject({url:privateURL,body:{model:'document-private'}});expect(JSON.stringify(calls[0].body)).toContain('PRIVATE_CARD_PROMPT');expect(JSON.stringify(calls[0].body)).not.toContain('PUBLIC_CARD_PROMPT');expect(state.translationResult).toBe('合成译文 document-private');
++ });
++});
++
++async function complete(promise:Promise<unknown>){let done=false;const pending=promise.finally(()=>{done=true;});await pump(()=>done);expect(done).toBe(true);await pending;}
++async function runWord(){await complete(state.requestWordCard(begin()));}
++describe('word-card model safety and compatibility',()=>{
++ it.each([undefined,'true',1])('frontend unknown %s closes model requests while independent raw lookup remains',async hint=>{
++  browserBoundary.extension.inIncognitoContext=hint;await runWord();await complete(state.requestTranslation(begin()));
++  expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(cacheWrite).not.toHaveBeenCalled();expect(state.error).toBe('翻译失败，请重试');
++ });
++ it.each([undefined,'true',1])('native unknown %s cannot be authorized by a frontend true hint',async hint=>{
++  nativeSender.tab.incognito=hint;await runWord();expect(lookupBoundary).toHaveBeenCalledOnce();expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBeUndefined();expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();expect(cacheWrite).not.toHaveBeenCalled();
++ });
++ it.each(['regular-invalid-pair','regular-empty','private-empty','unknown-empty'] as const)('%s retains ordinary model path',async kind=>{
++  const regular=kind.startsWith('regular');browserBoundary.extension.inIncognitoContext=regular?false:kind==='unknown-empty'?undefined:true;nativeSender.tab.incognito=regular?false:kind==='unknown-empty'?undefined:true;
++  await store.requestConfigPatch({incognitoService:kind==='regular-invalid-pair'?'custom:missing':'',incognitoModel:kind==='regular-invalid-pair'?'missing':''});await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===publicURL&&call.body.model==='document-public')).toBe(true);
++ });
++ it('missing dedicated model requirement closes enrichment but preserves dictionary definition',async()=>{
++  await store.requestConfigPatch({requireApiKey:{[`v2:${JSON.stringify([privateService,'document-private'])}`]:true}});await runWord();expect(state.wordCard.meanings[0].definitions[0].definition).toBe('A readable dictionary definition.');expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();
++ });
++ it('ordinary/private/endpoint cache identities are actual and markers do not enter payload or persisted keys',async()=>{
++  browserBoundary.extension.inIncognitoContext=false;nativeSender.tab.incognito=false;await runWord();expect(calls).toHaveLength(2);
++  browserBoundary.extension.inIncognitoContext=true;nativeSender.tab.incognito=true;await runWord();expect(calls).toHaveLength(4);await runWord();expect(calls).toHaveLength(4);
++  await store.requestConfigPatch({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://next-private.synthetic.test/v1/chat/completions'}:p)});await runWord();expect(calls).toHaveLength(6);expect(calls.slice(-2).every(call=>call.url==='https://next-private.synthetic.test/v1/chat/completions')).toBe(true);
++  expect(lookupBoundary).toHaveBeenCalledOnce();expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
++ });
++ const patches={
++  model:()=>({incognitoModel:'document-next'}),endpoint:()=>({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://save-private.synthetic.test/v1/chat/completions'}:p)}),
++  selectionService:()=>({selectionTranslationService:catalog.services.microsoft}),ordinaryModel:()=>({model:{...store.config.model,[publicService]:'ordinary-changed'}}),prompt:()=>({system_role:{[privateService]:'UPDATED_CARD_PROMPT'}}),
++  context:()=>({enableAIContext:true}),cache:()=>({useCache:false}),sourceLanguage:()=>({from:'auto'}),targetLanguage:()=>({to:'de'}),thinking:()=>({modelThinking:{[privateService]:{'document-private':true}}}),multiSegment:()=>({enableAIMultiSegment:true}),
++ };
++ it.each(Object.keys(patches) as Array<keyof typeof patches>)('actual save/subscriber %s aborts SDK and prevents late old-card/cache updates',async kind=>{
++  const gate=delaySDK(),pending=state.requestWordCard(begin());await pump(()=>calls.length>0);expect(calls).toHaveLength(1);expect(calls[0].signal?.aborted).toBe(false);
++  await store.requestConfigPatch(patches[kind]());expect(calls[0].signal?.aborted).toBe(true);expect(state.wordCard).toBeNull();expect(state.selectedText).toBe('fixture');gate.resolve(response());await complete(pending);expect(state.wordCard).toBeNull();expect(cacheWrite).not.toHaveBeenCalled();
++ });
++ it.each(['close','pagehide','popstate','hashchange','unmount'] as const)('%s aborts old enrichment, preserving raw dictionary provider object',async action=>{
++  const gate=delaySDK(),pending=state.requestWordCard(begin());await pump(()=>calls.length>0);
++  if(action==='close')state.closeTooltip();else if(action==='unmount'){unmounted.forEach(fn=>fn());unmounted=[];scope.stop();}else windowEvents.get(action)?.forEach(fn=>fn({isTrusted:true}));
++  await settle();expect(calls[0].signal?.aborted).toBe(true);gate.resolve(response());await complete(pending);expect(state.wordCard).toBeNull();expect(cacheWrite).not.toHaveBeenCalled();expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');
++ });
++ it('counts/UI saves do not cancel current card and its current result may commit',async()=>{
++  const gate=delaySDK(),pending=state.requestWordCard(begin());await pump(()=>calls.length>0);await store.requestConfigPatch({count:8,uiLanguage:'en-US'});expect(calls[0].signal?.aborted).toBe(false);gate.resolve(response());await complete(pending);expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBe('合成译文 document-private');
++ });
++ it('enrichment deadline ends actual SDK rather than merely hiding a late response',async()=>{
++  delaySDK();const pending=state.requestWordCard(begin());await pump(()=>calls.length>0);await vi.advanceTimersByTimeAsync(2500);await complete(pending);expect(calls[0].signal?.aborted).toBe(true);expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBeUndefined();expect(cacheWrite).not.toHaveBeenCalled();
++ });
++ it('native capability false keeps legacy typed enrichment and does not touch privacy helpers',async()=>{
++  await mountPage(false);browserBoundary.extension.inIncognitoContext=undefined;await runWord();
++  expect(browserBoundary.runtime.sendMessage.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false,true]);expect(requests()).toEqual([]);expect(calls).toEqual([]);expect(windowEvents.get('popstate')?.size??0).toBe(0);
++ });
++});
++
++describe('word-card native API and concurrent source controls',()=>{
++ it('missing frontend extension API keeps dictionary original but closes model requests',async()=>{
++  delete browserBoundary.extension;await mountPage();await runWord();expect(state.wordCard.meanings[0].definitions[0].definition).toBe('A readable dictionary definition.');expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();
++ });
++ it.each(['save','close','pagehide'] as const)('%s cancels both main word translation and auxiliary SDK before late cache/card commits',async action=>{
++  const gates:Array<ReturnType<typeof deferred<Response>>>=[];transport.mockImplementation(async(url:RequestInfo|URL,init?:RequestInit)=>{calls.push({url:String(url),body:JSON.parse(String(init?.body)),signal:init?.signal});const gate=deferred<Response>();gates.push(gate);pendingResponses.push(gate.resolve);return gate.promise;});
++  const request=begin(),main=state.requestTranslation(request),support=state.requestWordCard(request);await pump(()=>calls.length>=2);expect(calls.length).toBeGreaterThanOrEqual(2);
++  if(action==='save')await store.requestConfigPatch({incognitoModel:'document-next'});else if(action==='close')state.closeTooltip();else windowEvents.get('pagehide')?.forEach(fn=>fn({isTrusted:true}));
++  await settle();expect(calls.every(call=>call.signal?.aborted)).toBe(true);gates.forEach(gate=>gate.resolve(response()));await complete(Promise.all([main,support]));expect(state.wordCard).toBeNull();expect(state.translationResult).toBe('');expect(cacheWrite).not.toHaveBeenCalled();
++ });
++ it('closing before dictionary response prevents a late card or new model request',async()=>{
++  const gate=deferred<ReturnType<typeof card>>();lookupBoundary.mockImplementationOnce(()=>gate.promise);const pending=state.requestWordCard(begin());await settle();expect(lookupBoundary).toHaveBeenCalledOnce();state.closeTooltip();gate.resolve(card());await complete(pending);expect(state.wordCard).toBeNull();expect(calls).toEqual([]);expect(cacheRead).not.toHaveBeenCalled();
++ });
++ it('ordinary missing credentials cannot block dedicated auxiliary fields and private prompt/thinking are preserved',async()=>{
++  await store.requestConfigPatch({selectionTranslationService:catalog.services.openai,model:{},system_role:{openai:'ORDINARY_DICTIONARY_PROMPT',[privateService]:'DEDICATED_DICTIONARY_PROMPT'},modelThinking:{[privateService]:{'document-private':true}},enableAIContext:true});
++  await runWord();expect(calls).toHaveLength(2);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private',thinkingOverride:true,context:'',enableAIContext:false,pageContext:undefined});expect(JSON.stringify(calls.map(call=>call.body))).toContain('DEDICATED_DICTIONARY_PROMPT');expect(JSON.stringify(calls.map(call=>call.body))).not.toContain('ORDINARY_DICTIONARY_PROMPT');expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBe('合成译文 document-private');
++ });
++ it('Chrome direct runtime uses module API and actual native sender without global browser',async()=>{
++  m.target='chrome';vi.stubGlobal('browser',undefined);try{await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL)).toBe(true);expect(browserBoundary.runtime.connect).not.toHaveBeenCalled();}finally{vi.stubGlobal('browser',browserBoundary);}
++ });
++});
+diff --git a/userscript/incognitoRoute.ts b/userscript/incognitoRoute.ts
+index 963f6f8d..96a4f804 100644
+--- a/userscript/incognitoRoute.ts
++++ b/userscript/incognitoRoute.ts
+@@ -5,7 +5,8 @@ export const NATIVE_PRIVATE_ROUTE_SUPPORTED = false;
+ const unavailable = (_context: object): undefined => undefined;
+ export {unavailable as initializeIncognitoRouteConfig, unavailable as normalizeIncognitoRouteConfig,
+     unavailable as resolveIncognitoRoute, unavailable as getLockedIncognitoRoute,
+-    unavailable as resolvePageTranslationRouteHint, unavailable as fullPageTranslationConfigKey};
++    unavailable as resolvePageTranslationRouteHint, unavailable as fullPageTranslationConfigKey,
++    unavailable as translateVisibleWordCardFields};
+ export {unavailable as getTranslationSourcePrivacy, unavailable as assertTranslationSourcePrivacy};
+ export {hasTrustedPrivateSource as hasConfiguredIncognitoRoute};
+ export function hasTrustedPrivateSource(_message: object): false {return false;}
+diff --git a/userscript/vite.config.ts b/userscript/vite.config.ts
+index fc0a3350..ff36ae5b 100644
+--- a/userscript/vite.config.ts
++++ b/userscript/vite.config.ts
+@@ -447,6 +447,7 @@ export const userscriptAliases = [
+     // 无浏览器原生 sender，油猴不能确认私密来源，也不携带扩展专用路由验证器。
+     {find: '@/src/core/config/incognitoRoute', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
+     {find: '@/src/services/translation/requestPrivacy', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
++    {find: '@/src/features/selection-translation/background/wordLookupHandler', replacement: resolve(root, 'userscript/incognitoRoute.ts')},
+     ...(bundleLibraries ? [{find: '@/userscript/pakoRuntime', replacement: resolve(root, 'userscript/pakoBundled.ts')}] : []),
+     // dexie 官方 ESM 入口把自身注册到跨 realm 共享的 globalThis[Symbol.for('Dexie')]，版本不一致时会在
+     // 模块求值阶段直接抛错。脚本管理器（如 Safari 的 Userscripts）把脚本注入页面主 world，与宿主页面共享
+diff --git a/vitest.coverage.config.ts b/vitest.coverage.config.ts
+index 38dbe481..0173336b 100644
+--- a/vitest.coverage.config.ts
++++ b/vitest.coverage.config.ts
+@@ -190,6 +190,7 @@ export default defineConfig({
+             'tests/fullPageTitleTranslation.test.ts',
+             'tests/fullPagePriority.test.ts',
+             'tests/fullPageVisibilityScheduling.test.ts',
++            'tests/wordCardPrivacyRoute.test.ts',
+             'tests/fullPagePrivacyRoute.test.ts',
+             'tests/fullPageTranslationIndicators.test.ts',
+             'tests/liveTextRender.test.ts',

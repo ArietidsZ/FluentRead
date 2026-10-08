@@ -1,0 +1,21 @@
+{
+  "label": "word-card-baseline-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "enriches actual|effective pair before ordinary|actual save/subscriber|cancels both",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/word-card-baseline-red.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T21:03:23.384968+00:00",
+  "duration_seconds": 2.09,
+  "exit_code": 1
+}

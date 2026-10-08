@@ -1,0 +1,8 @@
+{
+  "baselineHead": "6320ebe17e3e0cde43286c11793a74f9194d5907",
+  "module": "src/features/selection-translation/ui/SelectionTranslator.vue",
+  "baselineSha256": "00ea4303c445d6946272e3283ae4597cfd204faba8585c9856b3dd199b109e1e",
+  "workingSha256": "b6cf24974f54447bbf63f9abb84a176676bfedffaf3b4d9dc8b46b7c101a1343",
+  "selectedPattern": "enriches actual|effective frontend pair before ordinary|actual save/subscriber|cancels both",
+  "onlySfcRestored": true
+}

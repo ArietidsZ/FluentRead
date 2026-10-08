@@ -1,0 +1,844 @@
+{
+  "sourceCommit": "95a4fdf1672185bd42c98bd2930f17611b8f6bda",
+  "baselineHead": "6320ebe17e3e0cde43286c11793a74f9194d5907",
+  "scope": "Native word-card primary/auxiliary model fields use effective pair before client capability/context/model and backend credential/prompt/cache decisions; actual configuration saves and UI close/navigation cancel SDK and late old-card/model-cache writes.",
+  "productionFiles": [
+    "src/features/selection-translation/ui/SelectionTranslator.vue",
+    "userscript/incognitoRoute.ts",
+    "userscript/vite.config.ts"
+  ],
+  "frontendPrivacyHintIsExecutionAuthorization": false,
+  "finalAuthorization": "Existing native sender/getContexts tri-state, text Port/registry/handler and broker; unchanged.",
+  "sfcNumericStrictOwnership": false,
+  "realUiGuiAcceptance": false,
+  "newWordCardCaseCount": 40,
+  "supportingRelatedTarget": {
+    "success": true,
+    "numTotalTests": 198,
+    "numPassedTests": 198,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 4,
+    "exitCode": 0
+  },
+  "newControlsFinal": {
+    "success": true,
+    "numTotalTests": 40,
+    "numPassedTests": 40,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 0
+  },
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10200,
+      "numPassedTests": 10200,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 410,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66113,
+        "covered": 66113,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66113,
+        "covered": 66113,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4608,
+        "covered": 4608,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33761,
+        "covered": 33761,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "existingOwnedModules": {
+    "src/features/selection-translation/background/wordLookupHandler.ts": {
+      "lines": {
+        "total": 112,
+        "covered": 112,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 7,
+        "covered": 7,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 112,
+        "covered": 112,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 58,
+        "covered": 58,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "src/features/selection-translation/services/wordDictionary.ts": {
+      "lines": {
+        "total": 665,
+        "covered": 665,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 52,
+        "covered": 52,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 665,
+        "covered": 665,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 473,
+        "covered": 473,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architectureFinal": {
+    "success": true,
+    "numTotalTests": 1379,
+    "numPassedTests": 1379,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 32,
+    "exitCode": 0
+  },
+  "testAudit": {
+    "status": "ok",
+    "groups": {
+      "architecture": 32,
+      "unit": 308,
+      "functional": 122,
+      "regression": 37
+    },
+    "files": 499,
+    "cases": 6895
+  },
+  "baselineNegative": {
+    "success": false,
+    "numTotalTests": 40,
+    "numPassedTests": 0,
+    "numFailedTests": 16,
+    "numPendingTests": 24,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 1
+  },
+  "intermediateResults": {
+    "architecture-final": {
+      "success": true,
+      "numTotalTests": 1379,
+      "numPassedTests": 1379,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 32,
+      "exitCode": 0
+    },
+    "full-strict-final": {
+      "success": true,
+      "numTotalTests": 10200,
+      "numPassedTests": 10200,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 410,
+      "exitCode": 0
+    },
+    "word-card-baseline-red-first": {
+      "success": false,
+      "numTotalTests": 40,
+      "numPassedTests": 1,
+      "numFailedTests": 15,
+      "numPendingTests": 24,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "word-card-baseline-red": {
+      "success": false,
+      "numTotalTests": 40,
+      "numPassedTests": 0,
+      "numFailedTests": 16,
+      "numPendingTests": 24,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 1
+    },
+    "word-card-controls-final": {
+      "success": true,
+      "numTotalTests": 40,
+      "numPassedTests": 40,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 1,
+      "exitCode": 0
+    },
+    "word-card-final-target": {
+      "success": false,
+      "numTotalTests": 209,
+      "numPassedTests": 208,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 5,
+      "exitCode": 1
+    },
+    "word-card-green-complete": {
+      "success": false,
+      "numTotalTests": 202,
+      "numPassedTests": 201,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 5,
+      "exitCode": 1
+    },
+    "word-card-green-expanded": {
+      "success": false,
+      "numTotalTests": 191,
+      "numPassedTests": 187,
+      "numFailedTests": 4,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 4,
+      "exitCode": 1
+    },
+    "word-card-green-initial": {
+      "success": false,
+      "numTotalTests": 53,
+      "numPassedTests": 51,
+      "numFailedTests": 2,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 2,
+      "exitCode": 1
+    },
+    "word-card-green-second": {
+      "success": false,
+      "numTotalTests": 53,
+      "numPassedTests": 52,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 2,
+      "exitCode": 1
+    },
+    "word-card-source-final": {
+      "success": true,
+      "numTotalTests": 198,
+      "numPassedTests": 198,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 4,
+      "exitCode": 0
+    }
+  },
+  "boundaryFailures": "Initial layout window/prototype fixture and pageContext undefined vs empty; async cancel assertion needed a bounded message turn. Existing userscript source check failed spawnSync git EPERM under restricted sandbox; final independent gate request permits local read-only git child process. First baseline negative exposed weak SDK-only primary test (15 fail/1 pass); tightened actual frontend message pair gives 16 failures.",
+  "dictionaryNonModelBoundary": {
+    "sourceUnchanged": true,
+    "localFirst": true,
+    "onlineFallbackMayReceiveWord": true,
+    "onlineProviders": [
+      "youdao-web",
+      "free-dictionary",
+      "datamuse",
+      "wiktionary-rest",
+      "wiktapi"
+    ],
+    "existingSharedRawInMemoryCacheUnchanged": true,
+    "dedicatedModelPairDoesNotIsolateRawDictionary": true,
+    "nonModelLateCacheCancellationClaimed": false
+  },
+  "legacyTypedModelBoundary": "selectionWordLookup translateFields:true remains original direct broker without trusted native source. With configured pair it remains contained as unknown; new native UI never calls that enrichment path.",
+  "contentCredentials": "Existing public config boundary skips local sensitive credential inspection; final credential authorization remains backend. No real credentials read/modified.",
+  "conservativeConfigInvalidation": "Whole related public mappings plus selection service are compared; ordinary models/endpoints also cancel. Selected source text and snapshot retained on save; counts/UI changes do not cancel.",
+  "gateCommands": {
+    "architecture-final": {
+      "label": "architecture-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:10:56.518876+00:00",
+      "duration_seconds": 11.55,
+      "exit_code": 0
+    },
+    "chrome-build-final": {
+      "label": "chrome-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:11:21.461788+00:00",
+      "duration_seconds": 19.452,
+      "exit_code": 0
+    },
+    "docs-build-final": {
+      "label": "docs-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:12:04.856052+00:00",
+      "duration_seconds": 2.649,
+      "exit_code": 0
+    },
+    "firefox-build-final": {
+      "label": "firefox-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:11:41.115392+00:00",
+      "duration_seconds": 19.154,
+      "exit_code": 0
+    },
+    "full-strict-final": {
+      "label": "full-strict-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:07:18.591686+00:00",
+      "duration_seconds": 216.746,
+      "exit_code": 0
+    },
+    "manifest-verify-final": {
+      "label": "manifest-verify-final",
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:12:00.470602+00:00",
+      "duration_seconds": 0.106,
+      "exit_code": 0
+    },
+    "test-audit-complete": {
+      "label": "test-audit-complete",
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:10:55.538382+00:00",
+      "duration_seconds": 0.778,
+      "exit_code": 0
+    },
+    "typecheck-final": {
+      "label": "typecheck-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:11:08.268512+00:00",
+      "duration_seconds": 12.993,
+      "exit_code": 0
+    },
+    "userscript-build-final": {
+      "label": "userscript-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:12:00.779340+00:00",
+      "duration_seconds": 3.642,
+      "exit_code": 0
+    },
+    "userscript-isolation-preflight": {
+      "label": "userscript-isolation-preflight",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:51:55.964323+00:00",
+      "duration_seconds": 3.525,
+      "exit_code": 0
+    },
+    "userscript-preflight": {
+      "label": "userscript-preflight",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:50:53.352281+00:00",
+      "duration_seconds": 3.56,
+      "exit_code": 0
+    },
+    "userscript-verify-final": {
+      "label": "userscript-verify-final",
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:12:04.623776+00:00",
+      "duration_seconds": 0.032,
+      "exit_code": 0
+    },
+    "word-card-baseline-red-first": {
+      "label": "word-card-baseline-red",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "-t",
+        "enriches actual|effective pair before ordinary|actual save/subscriber|cancels both",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-baseline-red.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:03:23.384968+00:00",
+      "duration_seconds": 2.09,
+      "exit_code": 1
+    },
+    "word-card-baseline-red": {
+      "label": "word-card-baseline-red",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "-t",
+        "enriches actual|effective frontend pair before ordinary|actual save/subscriber|cancels both",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-baseline-red.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:05:45.485525+00:00",
+      "duration_seconds": 2.16,
+      "exit_code": 1
+    },
+    "word-card-controls-final": {
+      "label": "word-card-controls-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-controls-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:05:07.564694+00:00",
+      "duration_seconds": 3.254,
+      "exit_code": 0
+    },
+    "word-card-final-target": {
+      "label": "word-card-final-target",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "tests/incognitoInputRoute.test.ts",
+        "tests/backgroundFeatureHandlers.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-final-target.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:59:28.109181+00:00",
+      "duration_seconds": 8.426,
+      "exit_code": 1
+    },
+    "word-card-green-complete": {
+      "label": "word-card-green-complete",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "tests/incognitoInputRoute.test.ts",
+        "tests/backgroundFeatureHandlers.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-green-complete.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:57:52.077036+00:00",
+      "duration_seconds": 8.036,
+      "exit_code": 1
+    },
+    "word-card-green-expanded": {
+      "label": "word-card-green-expanded",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "tests/incognitoInputRoute.test.ts",
+        "tests/backgroundFeatureHandlers.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-green-expanded.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:56:49.283352+00:00",
+      "duration_seconds": 7.225,
+      "exit_code": 1
+    },
+    "word-card-green-initial": {
+      "label": "word-card-green-initial",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-green-initial.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:53:57.329827+00:00",
+      "duration_seconds": 1.602,
+      "exit_code": 1
+    },
+    "word-card-green-second": {
+      "label": "word-card-green-second",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-green-second.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T20:54:52.822100+00:00",
+      "duration_seconds": 2.089,
+      "exit_code": 1
+    },
+    "word-card-source-final": {
+      "label": "word-card-source-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/wordCardPrivacyRoute.test.ts",
+        "tests/selectionTranslatorLifecycle.test.ts",
+        "tests/incognitoInputRoute.test.ts",
+        "tests/backgroundFeatureHandlers.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/word-card-source-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T21:01:54.587545+00:00",
+      "duration_seconds": 7.951,
+      "exit_code": 0
+    }
+  },
+  "userscriptProof": {
+    "source": "1c2ad69d1bfd62725b927ec6350b4915fd63823e",
+    "evidenceHead": "6320ebe17e3e0cde43286c11793a74f9194d5907",
+    "bytes": 1954981,
+    "sha256": "415dc0d695816905dd451187af2af2247ceec9d2e2a7022e04c235f8e66cd060",
+    "budget": 1955000,
+    "headroom": 19,
+    "finalBytes": 1954998,
+    "finalSha256": "bbea978bf70327e940b69e532bc7093543b01d26367f5ee807265eaa73e649dd",
+    "byteDelta": 17,
+    "identicalBytes": false,
+    "finalHeadroom": 2,
+    "budgetConfigurationUnchanged": true,
+    "platformTreeIsolation": true,
+    "ordinaryFrontendCapabilityFalseControl": "tests/wordCardPrivacyRoute.test.ts",
+    "realUserscriptGuiAcceptance": false
+  },
+  "userscriptAliasDelta": {
+    "nativeHelperAliasAdded": "{find: '@/src/features/selection-translation/background/wordLookupHandler', replacement: resolve(root, 'userscript/incognitoRoute.ts')},",
+    "allOtherViteConfigurationByteIdenticalToBaseline": true,
+    "budgetUnchanged": 1955000,
+    "initialWithoutAliasBytes": 1956427,
+    "firstWithAliasBytes": 1954998,
+    "headroomAfterPreflight": 2,
+    "sameByteSizeDoesNotProveOnlyRename": true
+  },
+  "manifestProof": {
+    ".output/chrome-mv3/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "optional_permissions": null,
+        "host_permissions": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": {
+          "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        },
+        "browser_specific_settings": null
+      },
+      "finalSha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+    },
+    ".output/firefox-mv2/manifest.json": {
+      "securityFieldsUnchanged": true,
+      "securityFields": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_permissions": null,
+        "host_permissions": null,
+        "optional_host_permissions": null,
+        "incognito": null,
+        "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+        "browser_specific_settings": {
+          "gecko": {
+            "id": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+            "strict_min_version": "140.0",
+            "data_collection_permissions": {
+              "required": [
+                "websiteContent",
+                "authenticationInfo",
+                "personalCommunications"
+              ]
+            }
+          }
+        }
+      },
+      "finalSha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6"
+    }
+  },
+  "historicalLoopbackApprovalMetadataRecovered": false,
+  "currentExecutionMetadata": "CURRENT-GATE-EXECUTION-METADATA.json records actual independently reviewed request and tool result; signed decision is not exposed.",
+  "excludedIndependentEntries": [
+    "non-model dictionary access/cache privacy redesign",
+    "legacy typed word enrichment native source migration",
+    "standalone settings probe",
+    "video"
+  ],
+  "realApiBrowserGpuDownloadOrPermissionAcceptance": false,
+  "pr883ModifiedOrReplied": false,
+  "docsBuildIncludingEvidence": {
+    "label": "docs-build-with-evidence",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "cwd": "<CW-REPO>",
+    "started_at": "2026-10-08T21:14:28.722730+00:00",
+    "duration_seconds": 2.696,
+    "exit_code": 0
+  }
+}
