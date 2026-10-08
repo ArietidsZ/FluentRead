@@ -1,6 +1,6 @@
 /**
  * @file src/features/image-translation/services/client.ts
- * 文件职责：封装网页与扩展页面调用图片翻译后台的 runtime 消息，统一支持跨域图片读取与整图翻译两种可取消客户端操作。
+ * 文件职责：封装图片文档 Port 上的可取消读取与翻译，并保留后台语言包准备的独立消息路径。
  * 主要内容：提供 fetchImageInExtension 与 translateImageInExtension，生成跨页面安全请求标识，传播取消、超时信号与本地模型失败原因，订阅当前任务的真实阶段和识别百分比、清理监听，并在图片翻译消息断线时按共享截止时间恢复一次；准备语言包时可回报缺失语言包合并后的下载百分比。
  * 模块边界：客户端不读取图片像素、不直接访问网络或 Offscreen；跨域 URL 只作为受控消息交给 background，再由 Offscreen 校验和读取，页面 UI 由 content/runtime 决定。
  */
@@ -11,6 +11,8 @@ import {IMAGE_PROGRESS_MESSAGE_TYPE, isImageTranslationStage, normalizeImageProg
 import type { OcrLine } from '@/src/features/image-translation/core';
 import {createDownloadCompletionSummary, ocrLanguageDownloadId} from '@/src/core/download/progress';
 import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
+import {isImageDocumentOperation} from '../documentChannel';
+import {imageDocumentClient} from './documentClient';
 
 interface ImageTranslationLine extends OcrLine {
     sourceText?: string;
@@ -109,6 +111,9 @@ export async function sendCancellableImageOperation<TResponse>(
     const requestId = options.requestId || createImageRequestId();
     const timeoutMs = normalizeImageTimeout(options.timeoutMs);
     if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
+    if (isImageDocumentOperation(message.type)) {
+        return await imageDocumentClient().request(message, {...options, requestId, timeoutMs}, timeoutMessage, cancelMessageType) as TResponse | undefined;
+    }
 
     return new Promise<TResponse | undefined>((resolve, reject) => {
         let settled = false;
@@ -192,7 +197,7 @@ export async function translateImageInExtension(
     if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
     const deadlineAt = Date.now() + timeoutMs;
     let requestId = options.requestId || createImageRequestId();
-    for (let attempt = 0; ; attempt += 1) {
+    const attempt = async (retried: boolean): ReturnType<typeof translateImageInExtension> => {
         if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
         const remainingMs = remainingTimeout(deadlineAt);
         if (remainingMs <= 0) throw createImageClientError('图片翻译超时', 'TimeoutError');
@@ -210,14 +215,14 @@ export async function translateImageInExtension(
             if (!isDisconnectedError(error)) throw error;
             if (options.signal?.aborted) throw createImageClientError('图片 OCR 请求已取消', 'AbortError');
             if (remainingTimeout(deadlineAt) <= 0) throw createImageClientError('图片翻译超时', 'TimeoutError');
-            if (attempt === 1) throw normalizeTranslationTransportError(error);
-            // 通道可能只丢失了回复；先释放旧任务，再用新身份恢复，避免旧进度与新结果串线。
-            try {
-                void Promise.resolve(browser.runtime.sendMessage({type: 'fluentReadImageCancel', requestId})).catch(() => undefined);
-            } catch { /* 扩展重载时清理消息可能同步失败，仍受原取消信号和截止时间约束。 */ }
+            if (retried) throw normalizeTranslationTransportError(error);
+            // 新 Port 是新文档归属；仅关闭原 peer，不在新连接上取消旧 ID，截止时间保持不变。
+            imageDocumentClient().reset();
             requestId = createImageRequestId();
+            return attempt(true);
         }
-    }
+    };
+    return attempt(false);
 }
 
 /**

@@ -1,11 +1,12 @@
 /**
  * @file src/features/image-translation/background/operationRegistry.ts
  * 文件职责：管理图片与区域翻译共享的后台事务身份、发送者归属与取消生命周期。
- * 主要内容：以公开 ID 和浏览器 sender 键索引不可复用的内部事务，冻结配置和来源，继承绝对截止时间；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
+ * 主要内容：以公开 ID 和可信文档 session／浏览器 sender 键索引不可复用的内部事务，冻结配置和来源，继承绝对截止时间；父结束先撤销恢复权限再中止剩余子工作，限定离屏回传并有界保存归属内预取消。
  * 模块边界：只管理本地事务和信号，不访问浏览器、OCR、供应商、配置存储或消息传输，也不信任消息体自报归属。
  */
 import {requestOwnerKey, type BrowserRequestContext} from '@/src/platform/browser/requestOwner';
 import type {Config} from '@/src/core/config/model';
+import {assertImageDocumentContext, copyImageDocumentSession, getImageDocumentSession} from './documentSession';
 export interface ImageProgressContext extends BrowserRequestContext {}
 export const IMAGE_OPERATION_TIMEOUT_MS = 180_000;
 const MAX_IMAGE_OPERATION_TIMEOUT_MS = 300_000;
@@ -54,6 +55,7 @@ export interface ImageOperationRegistry {
     restore(requestId: unknown, context: ImageProgressContext): ImageTransactionRecord;
     bind(context: ImageProgressContext, options: ImageOperationOptions): ImageProgressContext;
     releaseTab(tabId: number): void;
+    releaseOwner(context: ImageProgressContext): void;
 }
 
 export function parseRequestId(value: unknown): string {
@@ -78,7 +80,8 @@ export function imageAbortError(timedOut: boolean): Error {
 
 /** 图片与圈选复用一张事务表，公开 ID 只在原 sender 归属内有效。 */
 export function createImageOperationRegistry(legacyPrefix = 'image',
-    isOffscreenSender: (context: ImageProgressContext) => boolean = () => false, now: () => number = Date.now): ImageOperationRegistry {
+    isOffscreenSender: (context: ImageProgressContext) => boolean = () => false, now: () => number = Date.now,
+    requireDocumentOwner = false): ImageOperationRegistry {
     const active = new Map<string, ImageTransactionRecord>();
     const byOwner = new Map<string, ImageTransactionRecord>();
     const executions = new WeakMap<ImageTransactionRecord, number>();
@@ -95,6 +98,7 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
     };
     const assertActive = (record: ImageTransactionRecord | undefined): ImageTransactionRecord => {
         if (!record || record.terminal || active.get(record.transactionId) !== record) throw new Error('图片翻译上下文已失效，请重新翻译');
+        assertImageDocumentContext(record.ownerContext);
         if (record.deadlineAt <= now()) {
             revoke(record);
             record.controller.abort(imageAbortError(true));
@@ -130,7 +134,8 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
                 return execute(record, operation, () => {});
             }
             const callerRequestId = message.requestId === undefined ? `legacy-${legacyPrefix}-${++sequence}` : parseRequestId(message.requestId);
-            const ownerKey = requestOwnerKey(context);
+            assertImageDocumentContext(context, requireDocumentOwner);
+            const ownerKey = getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
             const ownerId = key(ownerKey, callerRequestId);
             if (preCancelled.delete(ownerId)) throw imageAbortError(false);
             if (byOwner.has(ownerId)) throw new Error('图片 OCR requestId 正在执行');
@@ -140,8 +145,8 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             const controller = new AbortController();
             let terminal = false;
             const sender = context.sender;
-            const ownerContext = Object.freeze({...(sender ? {sender: Object.freeze({...sender,
-                ...(sender.tab ? {tab: Object.freeze({...sender.tab})} : {})})} : {})});
+            const ownerContext = Object.freeze(copyImageDocumentSession(context, {...(sender ? {sender: Object.freeze({...sender,
+                ...(sender.tab ? {tab: Object.freeze({...sender.tab})} : {})})} : {})}));
             const frozen = snapshot?.();
             const options = Object.freeze({requestId: transactionId, callerRequestId, signal: controller.signal, controller,
                 deadlineAt, ...(frozen ? {snapshot: frozen} : {}), get timeoutMs() {return Math.max(0, Math.floor(deadlineAt - now()));}});
@@ -159,7 +164,8 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
         cancel(value, context = {}) {
             const requestId = parseRequestId(value);
             const offscreen = fromOffscreen(context);
-            const ownerId = key(requestOwnerKey(context), requestId);
+            if (!offscreen) assertImageDocumentContext(context, requireDocumentOwner);
+            const ownerId = key(getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context), requestId);
             const record = offscreen ? active.get(requestId) : byOwner.get(ownerId);
             if (record) {revoke(record); record.controller.abort(imageAbortError(false));}
             else if (!offscreen) {
@@ -180,6 +186,13 @@ export function createImageOperationRegistry(legacyPrefix = 'image',
             for (const record of active.values()) if (record.ownerContext.sender?.tab?.id === tabId) {
                 revoke(record); record.controller.abort(imageAbortError(false));
             }
+        },
+        releaseOwner(context) {
+            const owner = getImageDocumentSession(context)?.ownerKey ?? requestOwnerKey(context);
+            for (const id of preCancelled.keys()) if (id.startsWith(`${owner.length}:${owner}:`)) preCancelled.delete(id);
+            const records = [...active.values()].filter(record => record.ownerKey === owner);
+            for (const record of records) revoke(record);
+            for (const record of records) record.controller.abort(imageAbortError(false));
         },
     };
 }

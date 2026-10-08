@@ -1,9 +1,10 @@
 /**
  * @file src/features/image-translation/content/sourceAuthorization.ts
  * 文件职责：为单次图片读取建立页面私有的短期授权，只让后台复核当前已选中的图片。
- * 主要内容：使用随机 requestId 绑定当前 document、图片元素与 currentSrc；后台 sender 地址在同文档翻页后可能保留初始路径，HTTP 来源按同源核对，每次授权仍锁定当前完整地址，结束、取消、换图、导航或移除后不再授权。
+ * 主要内容：以原公开 requestId 绑定当前 document、图片元素与 currentSrc，并在原文档 Port 回复后台挑战；后台 sender 地址在同文档翻页后可能保留初始路径，HTTP 来源按同源核对，每次授权仍锁定当前完整地址，结束、取消、换图、导航或移除后不再授权。
  * 模块边界：本文件不联网、不执行 OCR、不改变宿主 DOM；后台验证和 Offscreen 字节读取各自执行独立边界校验。
  */
+import {subscribeImageSourceValidation} from '../services/documentClient';
 export const IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE = 'fluentReadImageValidateSource';
 
 /** 同文档导航可保留旧 sender 路径；同 frame 的私有随机挑战仍必须命中已选择图片。 */
@@ -28,21 +29,26 @@ export async function withImageSourceAuthorization<T>(
     const documentUrl = document.URL;
     const owner = document;
     const identity = [image.getAttribute('src'), image.getAttribute('srcset'), image.getAttribute('sizes')];
+    const validate = (payload: any) => {
+        if (!payload || payload.type !== IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE || payload.requestId !== requestId) return undefined;
+        return {valid: !signal?.aborted && image.isConnected
+            && document === owner && image.ownerDocument === owner && document.URL === documentUrl
+            && matchesSenderDocument(documentUrl, payload.documentUrl)
+            && payload.url === source && (image.currentSrc || image.src) === source
+            && [image.getAttribute('src'), image.getAttribute('srcset'), image.getAttribute('sizes')]
+                .every((value, index) => value === identity[index])};
+    };
     const listener = (message: unknown, sender: {id?: string; tab?: unknown}, respond: (value: unknown) => void): boolean => {
         if (!message || typeof message !== 'object') return false;
         const payload = message as Record<string, unknown>;
         if (payload.type !== IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE || payload.requestId !== requestId
             || sender.id !== browser.runtime.id || sender.tab) return false;
-        respond({valid: !signal?.aborted && image.isConnected
-            && document === owner && image.ownerDocument === owner && document.URL === documentUrl
-            && matchesSenderDocument(documentUrl, payload.documentUrl)
-            && payload.url === source && (image.currentSrc || image.src) === source
-            && [image.getAttribute('src'), image.getAttribute('srcset'), image.getAttribute('sizes')]
-                .every((value, index) => value === identity[index])});
+        respond(validate(payload));
         return false;
     };
-    const cleanup = () => browser.runtime.onMessage.removeListener(listener);
     if (signal?.aborted) throw Object.assign(new Error('图片翻译已取消'), {name: 'AbortError'});
+    const unsubscribe = subscribeImageSourceValidation(validate);
+    const cleanup = () => {browser.runtime.onMessage.removeListener(listener); unsubscribe();};
     browser.runtime.onMessage.addListener(listener);
     signal?.addEventListener('abort', cleanup, {once: true});
     try { return await operation(requestId); }

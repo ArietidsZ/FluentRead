@@ -12,10 +12,12 @@ import {IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, IMAGE_
 import {attachTranslationGlossaryContext, attachTranslationProviderConfig, createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
+import {assertImageDocumentContext} from '@/src/features/image-translation/background/documentSession';
 
 export interface ImageGlossarySenderContext extends ImageProgressContext {}
 interface ImageGlossaryMessage extends BackgroundMessage {requestId?: unknown; timeoutMs?: unknown; sourceLanguage?: unknown;}
 export interface ImageGlossaryContextDependencies {
+    readonly requireDocumentOwner?: boolean;
     readonly ready: Promise<unknown>;
     readonly offscreenUrl: string;
     readonly operationRegistry?: ImageOperationRegistry;
@@ -29,7 +31,7 @@ function pageUrlFromSender(context: ImageGlossarySenderContext): string | undefi
     try {const url = new URL(value); return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined;}
     catch {return undefined;}
 }
-/** 配置只在原页面开始事务时读取；恢复旧事务禁止读当前设置。 */
+/** 配置只在原文档开始事务时读取；等待配置后重查连接，恢复旧事务禁止读当前设置。 */
 export function createImageGlossaryContext<TContext extends ImageGlossarySenderContext>(
     dependencies: ImageGlossaryContextDependencies,
 ): {wrap(handlers: readonly BackgroundMessageHandler<TContext>[]): BackgroundMessageHandler<TContext>[]} {
@@ -49,6 +51,7 @@ export function createImageGlossaryContext<TContext extends ImageGlossarySenderC
         if (!starts && handler.type !== IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE) return handler;
         return {type: handler.type, async handle(rawMessage, context) {
             await dependencies.ready;
+            if (!fromOffscreen(context)) assertImageDocumentContext(context, dependencies.requireDocumentOwner);
             const message = rawMessage as ImageGlossaryMessage;
             const invoke = (frozen: ImageTransactionSnapshot, bound: TContext) => {
                 let trusted = attachTranslationGlossaryContext({...message, glossaryRevision: frozen.glossaryRevision,

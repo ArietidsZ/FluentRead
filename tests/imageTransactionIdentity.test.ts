@@ -394,3 +394,44 @@ describe('父事务结束撤销剩余子工作', () => {
         }
     });
 });
+
+describe('实际应用装配文档Port入口', () => {
+    it('无documentId旧脚本被拒绝，同sender双Port真实图片handler独立且tabclose贯通', async () => {
+        vi.resetModules();
+        const config = Object.assign(new Config(), {service: 'openai', imageTranslationService: 'openai'});
+        vi.doMock('@/src/services/config/store', () => ({config, configReady: Promise.resolve()}));
+        vi.doMock('@/src/app/translation/runtime', () => ({translateWithCache: vi.fn(async () => ['translated'])}));
+        vi.doMock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {resolve: vi.fn()}}));
+        vi.stubGlobal('browser', {runtime: {id: 'extension', getURL: (path: string) => `chrome-extension://extension${path}`}});
+        const {documentPortPair} = await import('./helpers/imageDocumentPorts');
+        const {createImageDocumentClient} = await import('@/src/features/image-translation/services/documentClient');
+        const {imageTranslationOffscreenAdapter: adapter} = await import('@/src/features/image-translation/background/offscreenAdapter');
+        const {createImageAreaTranslationRuntime} = await import('@/src/app/background/areaRuntime');
+        const work = deferred(); const options: any[] = [];
+        const translation = vi.spyOn(adapter, 'translateImage').mockImplementation(async (_i, _l, _t, value) => {
+            options.push(value); await work.promise; return {image: 'data:image/png,x', lines: []};
+        });
+        const runtime = createImageAreaTranslationRuntime({assertDownloaded: async () => {}, getDownloaded: async () => [], markDownloaded: async () => [], markRemoved: async () => []} as any,
+            {imageTranslation: true, areaTranslation: true} as any);
+        const pairA = documentPortPair(); const pairB = documentPortPair();
+        const message = {type: IMAGE_TRANSLATE_MESSAGE_TYPE, requestId: 'same', image: 'data:image/png,x', sourceLanguage: 'en'};
+        const outcomes: Promise<unknown>[] = [];
+        try {
+            await expect(Promise.resolve(runtime.handlers.find(h => h.type === message.type)!.handle(message,
+                {sender: {...owner(1).sender, documentId: undefined}}))).rejects.toThrow('刷新');
+            expect(translation).not.toHaveBeenCalled();
+            runtime.connect(pairA.background); runtime.connect(pairB.background);
+            const a = createImageDocumentClient(() => pairA.client); const b = createImageDocumentClient(() => pairB.client);
+            outcomes.push(Promise.allSettled([a.request(message, {requestId: 'same', timeoutMs: 1000}, 'timeout'),
+                b.request(message, {requestId: 'same', timeoutMs: 1000}, 'timeout')]));
+            for (let i = 0; i < 30; i += 1) await Promise.resolve();
+            expect(options).toHaveLength(2); expect(options[0].requestId).not.toBe(options[1].requestId);
+            pairA.close(); expect(options[0].signal.aborted).toBe(true); expect(options[1].signal.aborted).toBe(false);
+            runtime.releaseTab(1); expect(options[1].signal.aborted).toBe(true);
+            expect(await outcomes[0]).toEqual([expect.objectContaining({status: 'rejected'}), expect.objectContaining({status: 'rejected'})]);
+        } finally {
+            pairA.close(); pairB.close(); work.resolve('late'); await Promise.allSettled(outcomes); translation.mockRestore();
+            vi.doUnmock('@/src/services/config/store'); vi.doUnmock('@/src/app/translation/runtime'); vi.doUnmock('@/src/app/translation/visionProbeRuntime');
+        }
+    });
+});

@@ -151,6 +151,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
     );
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
+    browser.runtime.onConnect.addListener(imageAreaRuntime.connect);
     selectionPageZoom.installZoomChangeListener();
     browser.tabs.onRemoved.addListener((tabId: number) => {
         imageAreaRuntime.releaseTab(Number(tabId));

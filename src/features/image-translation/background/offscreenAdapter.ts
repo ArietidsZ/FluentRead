@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/background/offscreenAdapter.ts
  * 文件职责：把跨域图片读取、图片识别、整图翻译和 OCR 语言包下载请求适配为平台 Offscreen 消息，并校验隔离文档返回的结构后交还后台 handlers。
- * 主要内容：回查原页面当前图片任务的短期授权；透传单图本地识别方式，包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
+ * 主要内容：经原文档 Port 或精确 documentId 回查当前图片任务短期授权并发送进度，不降级为 frame 槽；透传单图本地识别方式，包含 OffscreenResponse 解析、data:image 与 lines 数组验证、译图 image/lines 结果收窄，以及 createImageTranslationOffscreenAdapter 和默认 extensionDomClient 实例。
  * 模块边界：适配器不创建 Offscreen document、不执行 OCR/绘制，也不读取配置；文档生命周期属于 platform/offscreen，实际运算在 services/offscreenRuntime 与 ocrRuntime 中完成。
  */
 import {createImageTranslationFailure} from '../failure';
@@ -18,6 +18,7 @@ import {
 } from '@/src/platform/offscreen/client';
 
 import {parseMangaPatchPacket} from '../mangaPatchResult';
+import {getImageDocumentSession} from './documentSession';
 
 interface OffscreenResponse {
     readonly mangaPatches?: unknown;
@@ -147,9 +148,12 @@ export const imageTranslationProgressTransport = {
         return context.sender?.url === browser.runtime.getURL('/offscreen.html') && context.sender?.tab === undefined;
     },
     async sendProgress(context: ImageProgressContext, message: {type: typeof IMAGE_PROGRESS_MESSAGE_TYPE; requestId: string; stage: ImageTranslationStage; progress?: number}): Promise<void> {
+        const session = getImageDocumentSession(context);
+        if (session) {session.post({kind: 'progress', message}); return;}
+        if (!context.sender?.documentId) return;
         const tabId = context.sender?.tab?.id;
         if (typeof tabId !== 'number') return;
-        await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0, ...(context.sender?.documentId ? {documentId: context.sender.documentId} : {})}).catch(() => undefined);
+        await browser.tabs.sendMessage(tabId, message, {frameId: context.sender?.frameId ?? 0, documentId: context.sender.documentId}).catch(() => undefined);
     },
 };
 
@@ -167,9 +171,15 @@ export function createImageSourceVerifier(
         if (options.signal.aborted) throw new Error('图片读取已取消');
         let response: unknown;
         try {
-            response = await sendTabMessage(tabId, {
+            const message = {
                 type: 'fluentReadImageValidateSource', requestId: options.callerRequestId ?? options.requestId, url, documentUrl: sender.url,
-            }, {frameId, ...(sender.documentId ? {documentId: sender.documentId} : {})});
+            };
+            const session = getImageDocumentSession(context);
+            if (session) response = await session.challenge(message, options.signal, options.timeoutMs);
+            else {
+                if (!sender.documentId) throw new Error('图片文档连接已失效');
+                response = await sendTabMessage(tabId, message, {frameId, documentId: sender.documentId});
+            }
         } catch { throw new Error('图片来源已失效，请重试'); }
         if (options.signal.aborted) throw new Error('图片读取已取消');
         if (!response || typeof response !== 'object' || (response as {valid?: unknown}).valid !== true) {

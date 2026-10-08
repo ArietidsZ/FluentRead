@@ -1,7 +1,7 @@
 /**
  * @file src/features/area-translation/background/handlers.ts
  * 文件职责：定义圈选截图与圈选翻译在后台消息路由中的类型化处理器，并在进入浏览器截图和 Offscreen OCR 边界前校验所有不可信消息字段。
- * 主要内容：定义截图、圈选与取消协议，在 OCR 前冻结文本事务，依序执行本地裁剪识别及整块翻译并向原页面发送真实阶段；窗口、图像和选区在副作用前严格校验，截图请求全局串行并至少间隔 600ms，等待后及截图完成后均核对真实 sender 仍为活动标签页。
+ * 主要内容：定义截图、圈选与取消协议，在 OCR 前冻结文本事务，依序执行本地裁剪识别及整块翻译并向原页面发送真实阶段；窗口、图像和选区在副作用前严格校验，截图请求绑定可取消文档事务、全局串行并至少间隔 600ms，等待与截图前后核对 session、信号及真实活动标签页。
  * 模块边界：本文件只负责编排和输入防线，不直接访问 tabs、配置存储或 OCR 实现；这些副作用由 background composition root 注入，几何换算归 core，Offscreen 通信归 adapter。
  */
 import type {Config} from '@/src/core/config/model';
@@ -9,6 +9,7 @@ import type {BrowserRequestContext} from '@/src/platform/browser/requestOwner';
 import type {AreaTranslationSelection} from '@/src/features/area-translation/core';
 import {
     createImageOperationRegistry,
+    assertImageDocumentContext,
     IMAGE_PROGRESS_MESSAGE_TYPE,
     type ImageTranslationStage,
     type ImageOperationOptions,
@@ -23,6 +24,8 @@ export interface AreaTranslationBackgroundContext extends BrowserRequestContext 
 
 export interface AreaCaptureMessage {
     type: typeof AREA_CAPTURE_MESSAGE_TYPE;
+    requestId?: unknown;
+    timeoutMs?: unknown;
 }
 
 export interface AreaTranslateCaptureMessage {
@@ -48,6 +51,7 @@ export interface AreaCaptureResponse {
 }
 
 export interface AreaTranslationBackgroundDependencies<TResult extends object> {
+    readonly requireDocumentOwner?: boolean;
     readonly operationRegistry?: ImageOperationRegistry;
     readonly captureVisibleTab: (windowId: number) => Promise<string | undefined>;
     readonly captureNow?: () => number;
@@ -160,22 +164,34 @@ export function createAreaTranslationBackgroundHandlers<TResult extends object>(
     return [
         {
             type: AREA_CAPTURE_MESSAGE_TYPE,
-            async handle(_message, context) {
+            async handle(message, context) {
+                assertImageDocumentContext(context, dependencies.requireDocumentOwner);
                 const windowId = parseWindowId(context.sender?.tab?.windowId);
                 const tabId = context.sender?.tab?.id;
-                const operation = captureQueue.then(async (): Promise<AreaCaptureResponse> => {
-                    const delay = 600 - (captureNow() - lastCaptureStartedAt);
-                    if (delay > 0) await waitForCapture(delay);
-                    // 排队期间用户可能已切页；只有等待结束后核验通过才能消耗截图额度。
-                    await dependencies.assertCaptureOwner?.(windowId, tabId);
-                    lastCaptureStartedAt = captureNow();
-                    const image = await dependencies.captureVisibleTab(windowId);
-                    await dependencies.assertCaptureOwner?.(windowId, tabId);
-                    if (typeof image !== 'string' || !image) throw new Error('当前页面截图为空');
-                    return {success: true, image};
-                });
-                captureQueue = operation.then(() => undefined, () => undefined);
-                return operation;
+                return operationRegistry.run(message, options => {
+                    const assertLive = () => {
+                        assertImageDocumentContext(context, dependencies.requireDocumentOwner);
+                        if (options.signal.aborted) throw new Error('圈选截图已取消');
+                    };
+                    const operation = captureQueue.then(async (): Promise<AreaCaptureResponse> => {
+                        assertLive();
+                        const delay = 600 - (captureNow() - lastCaptureStartedAt);
+                        if (delay > 0) await waitForCapture(delay);
+                        assertLive();
+                        // 排队期间用户可能已切页；只有等待结束后核验通过才能消耗截图额度。
+                        await dependencies.assertCaptureOwner?.(windowId, tabId);
+                        assertLive();
+                        lastCaptureStartedAt = captureNow();
+                        const image = await dependencies.captureVisibleTab(windowId);
+                        assertLive();
+                        await dependencies.assertCaptureOwner?.(windowId, tabId);
+                        assertLive();
+                        if (typeof image !== 'string' || !image) throw new Error('当前页面截图为空');
+                        return {success: true, image};
+                    });
+                    captureQueue = operation.then(() => undefined, () => undefined);
+                    return operation;
+                }, context);
             },
         },
         {

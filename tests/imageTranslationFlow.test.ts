@@ -566,11 +566,11 @@ describe('图片进度平台传输', () => {
         await imageTranslationProgressTransport.sendProgress({}, message);
         await imageTranslationProgressTransport.sendProgress({sender: {}}, message);
         expect(sendMessage).not.toHaveBeenCalled();
-        await imageTranslationProgressTransport.sendProgress({sender: {tab: {id: 0}}}, message);
-        expect(sendMessage).toHaveBeenLastCalledWith(0, message, {frameId: 0});
+        await imageTranslationProgressTransport.sendProgress({sender: {tab: {id: 0}, documentId: 'doc-0'}}, message);
+        expect(sendMessage).toHaveBeenLastCalledWith(0, message, {frameId: 0, documentId: 'doc-0'});
         sendMessage.mockRejectedValueOnce(new Error('tab closed'));
-        await imageTranslationProgressTransport.sendProgress({sender: {tab: {id: 2}, frameId: 3}}, message);
-        expect(sendMessage).toHaveBeenLastCalledWith(2, message, {frameId: 3});
+        await imageTranslationProgressTransport.sendProgress({sender: {tab: {id: 2}, frameId: 3, documentId: 'doc-2'}}, message);
+        expect(sendMessage).toHaveBeenLastCalledWith(2, message, {frameId: 3, documentId: 'doc-2'});
     });
 });
 

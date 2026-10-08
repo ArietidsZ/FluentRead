@@ -140,14 +140,14 @@ describe('跨域图片读取任务的页面授权', () => {
 });
 
 describe('后台跨域图片来源复核', () => {
-    const owner = {sender: {tab: {id: 7}, frameId: 3, url: documentUrl}};
+    const owner = {sender: {tab: {id: 7}, frameId: 3, documentId: 'source-document', url: documentUrl}};
     const options = () => ({requestId: 'source-request', signal: new AbortController().signal, timeoutMs: 1000});
     it('核验真实 sender 的同一 frame、document 与 requestId，生产适配器沿用同一约束', async () => {
         const send = vi.fn(async (_tabId: number, _message: object, _options: {frameId: number}) => ({valid: true})); const verify = createImageSourceVerifier(send); const request = options();
         await verify(url, request, owner);
-        expect(send).toHaveBeenCalledWith(7, {type: IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE, requestId: request.requestId, url, documentUrl}, {frameId: 3});
-        await verify(url, request, {sender: {tab: {id: 0}, url: 'file:///tmp/page.html'}});
-        expect(send.mock.calls[1][2]).toEqual({frameId: 0});
+        expect(send).toHaveBeenCalledWith(7, {type: IMAGE_SOURCE_VALIDATION_MESSAGE_TYPE, requestId: request.requestId, url, documentUrl}, {frameId: 3, documentId: 'source-document'});
+        await verify(url, request, {sender: {tab: {id: 0}, documentId: 'file-document', url: 'file:///tmp/page.html'}});
+        expect(send.mock.calls[1][2]).toEqual({frameId: 0, documentId: 'file-document'});
         vi.stubGlobal('browser', {tabs: {sendMessage: send}});
         await imageTranslationSourceTransport.assertImageSource(url, request, owner);
         expect(send).toHaveBeenCalledTimes(3);

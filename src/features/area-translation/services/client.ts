@@ -4,7 +4,6 @@
  * 主要内容：定义 AreaTranslationResult，提供 captureVisibleAreaInExtension 与 translateCapturedAreaInExtension，并严格检查截图、OCR 行、服务模型及文本结果协议后生成面向 UI 的错误。
  * 模块边界：客户端只处理 webextension runtime 协议，不直接使用 tabs.captureVisibleTab、Offscreen 或 Canvas；消息实现归 background handlers，拖拽状态与结果展示归 AreaTranslator.vue。
  */
-import browser from 'webextension-polyfill';
 import type {AreaTranslationResult} from '../protocol';
 export type {AreaTranslationResult} from '../protocol';
 import type { AreaTranslationSelection } from '@/src/features/area-translation/core';
@@ -19,7 +18,8 @@ interface AreaTranslationResponse extends Partial<AreaTranslationResult> {
 }
 
 export async function captureVisibleAreaInExtension(): Promise<string> {
-    const response = await browser.runtime.sendMessage({ type: 'fluentReadAreaCapture' }) as { success?: boolean; image?: string; error?: string } | undefined;
+    const response = await sendCancellableImageOperation<{success?: boolean; image?: string; error?: string}>(
+        {type: 'fluentReadAreaCapture'}, {}, '圈选截图超时', 'fluentReadAreaCancel');
     if (!response?.success || !response.image) {
         throw new Error(response?.error || '无法读取当前页面区域');
     }

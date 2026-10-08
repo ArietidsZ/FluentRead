@@ -1,4 +1,5 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {clientRuntimePorts} from './helpers/imageDocumentPorts';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     captureVisibleAreaInExtension,
     translateCapturedAreaInExtension,
@@ -14,9 +15,11 @@ vi.mock('webextension-polyfill', () => ({
     default: {runtime: {sendMessage}},
 }));
 
+afterEach(() => {vi.useRealTimers();});
+
 beforeEach(() => {
     sendMessage.mockReset();
-    vi.stubGlobal('browser', {runtime: {sendMessage}});
+    vi.stubGlobal('browser', {runtime: {sendMessage, connect: clientRuntimePorts(sendMessage).connect}});
 });
 
 describe('圈选翻译内容脚本客户端', () => {
@@ -24,7 +27,7 @@ describe('圈选翻译内容脚本客户端', () => {
         sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,area'});
 
         await expect(captureVisibleAreaInExtension()).resolves.toBe('data:image/png;base64,area');
-        expect(sendMessage).toHaveBeenCalledWith({type: 'fluentReadAreaCapture'});
+        expect(sendMessage).toHaveBeenCalledWith({type: 'fluentReadAreaCapture', requestId: expect.stringMatching(/^image-/u), timeoutMs: 180_000});
     });
 
     it.each([
@@ -151,6 +154,7 @@ describe('图片翻译内容脚本客户端', () => {
     });
 
     it('预取消信号不会发送业务请求，超时会发送同 requestId 的取消消息', async () => {
+        vi.useFakeTimers();
         const preCancelled = new AbortController();
         preCancelled.abort();
         await expect(fetchImageInExtension('https://example.test/a.png', {
@@ -167,7 +171,8 @@ describe('图片翻译内容脚本客户端', () => {
             timeoutMs: 1,
         });
 
-        await expect(timedOut).rejects.toMatchObject({name: 'TimeoutError'});
+        const observed = expect(timedOut).rejects.toMatchObject({name: 'TimeoutError'});
+        await vi.advanceTimersByTimeAsync(1); await observed;
         expect(sendMessage).toHaveBeenNthCalledWith(2, {
             type: 'fluentReadImageCancel',
             requestId: 'translate-timeout',

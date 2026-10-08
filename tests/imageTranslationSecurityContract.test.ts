@@ -1,3 +1,4 @@
+import {clientRuntimePorts} from './helpers/imageDocumentPorts';
 import {existsSync, readdirSync, readFileSync, statSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {afterEach, describe, expect, it, vi} from 'vitest';
@@ -100,7 +101,7 @@ describe('图片翻译跨域读取安全契约', () => {
             getContext: vi.fn(() => context),
             toDataURL: vi.fn(() => 'data:image/png;base64,local'),
         };
-        vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
+        vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, connect: clientRuntimePorts(sendMessage).connect, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
         vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
 
         await expect(getImageData(imageElement())).resolves.toBe('data:image/png;base64,local');
@@ -131,7 +132,7 @@ describe('图片翻译跨域读取安全契约', () => {
                 }),
             };
             vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
-            vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
+            vi.stubGlobal('browser', {runtime: {id: 'test-id', sendMessage, connect: clientRuntimePorts(sendMessage).connect, onMessage: {addListener: vi.fn(), removeListener: vi.fn()}}});
             vi.stubGlobal('document', {URL: 'https://page.example.com/', createElement: vi.fn(() => canvas)});
             sendMessage.mockResolvedValue({success: true, image: 'data:image/png;base64,remote'});
 

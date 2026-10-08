@@ -18,3 +18,4 @@ export {
     IMAGE_PROGRESS_MESSAGE_TYPE,
     type ImageTranslationStage,
 } from './progress';
+export {assertImageDocumentContext} from './background/documentSession';
