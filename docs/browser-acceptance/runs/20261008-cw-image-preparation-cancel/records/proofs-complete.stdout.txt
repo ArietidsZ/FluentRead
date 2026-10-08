@@ -1,0 +1,1 @@
+{"type_roots": {"src": {"files": 799, "missing": []}, "tests": {"files": 500, "missing": []}, "entrypoints": {"files": 15, "missing": []}}, "new_branch_counts": {"src/app/background/areaRuntime.ts": 7, "src/features/image-translation/content/runtime.ts": 8}}

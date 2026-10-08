@@ -1,0 +1,428 @@
+{
+  "correction": "Prior three-module diagnostic included new area/content branches. Earlier attribution of all omissions to pre-existing branches was incorrect; historical records are preserved.",
+  "prior_record": "20261008-cw-image-private-route/records/targeted-coverage-final/coverage-final.json",
+  "prior_raw_sha256": "e73521e4231cd09e7eeeafbc89129a41892c59ab118fb2495c6987370ef14d74",
+  "current_diagnostic_exit_code": 1,
+  "current_diagnostic_thresholds": "original 100% unchanged; exit 1 for unowned whole-module gaps, not an acceptance pass",
+  "current_modules": {
+    "total": {
+      "lines": {
+        "total": 1333,
+        "covered": 1297,
+        "skipped": 0,
+        "pct": 97.29
+      },
+      "statements": {
+        "total": 1333,
+        "covered": 1297,
+        "skipped": 0,
+        "pct": 97.29
+      },
+      "functions": {
+        "total": 138,
+        "covered": 118,
+        "skipped": 0,
+        "pct": 85.5
+      },
+      "branches": {
+        "total": 822,
+        "covered": 749,
+        "skipped": 0,
+        "pct": 91.11
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "<WORKTREE>/src/app/background/areaRuntime.ts": {
+      "lines": {
+        "total": 66,
+        "covered": 66,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 21,
+        "covered": 14,
+        "skipped": 0,
+        "pct": 66.66
+      },
+      "statements": {
+        "total": 66,
+        "covered": 66,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 26,
+        "covered": 21,
+        "skipped": 0,
+        "pct": 80.76
+      }
+    },
+    "<WORKTREE>/src/app/background/imageGlossaryContext.ts": {
+      "lines": {
+        "total": 80,
+        "covered": 80,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 9,
+        "covered": 9,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 80,
+        "covered": 80,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 72,
+        "covered": 72,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "<WORKTREE>/src/features/image-translation/content/runtime.ts": {
+      "lines": {
+        "total": 1187,
+        "covered": 1151,
+        "skipped": 0,
+        "pct": 96.96
+      },
+      "functions": {
+        "total": 108,
+        "covered": 95,
+        "skipped": 0,
+        "pct": 87.96
+      },
+      "statements": {
+        "total": 1187,
+        "covered": 1151,
+        "skipped": 0,
+        "pct": 96.96
+      },
+      "branches": {
+        "total": 724,
+        "covered": 656,
+        "skipped": 0,
+        "pct": 90.6
+      }
+    }
+  },
+  "new_branch_evidence": {
+    "src/app/background/areaRuntime.ts": {
+      "added_lines_against_pre_image_source": [
+        4,
+        8,
+        26,
+        27,
+        28,
+        57,
+        64,
+        65,
+        66,
+        67,
+        68,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88
+      ],
+      "new_branch_location_start_records": [
+        {
+          "id": "12",
+          "location": {
+            "start": {
+              "line": 57,
+              "column": 35
+            },
+            "end": {
+              "line": 57,
+              "column": 143
+            }
+          },
+          "counts": [
+            38
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "16",
+          "location": {
+            "start": {
+              "line": 64,
+              "column": 101
+            },
+            "end": {
+              "line": 68,
+              "column": 14
+            }
+          },
+          "counts": [
+            24
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "17",
+          "location": {
+            "start": {
+              "line": 67,
+              "column": 42
+            },
+            "end": {
+              "line": 67,
+              "column": 122
+            }
+          },
+          "counts": [
+            23
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "18",
+          "location": {
+            "start": {
+              "line": 67,
+              "column": 118
+            },
+            "end": {
+              "line": 67,
+              "column": 129
+            }
+          },
+          "counts": [
+            1
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "19",
+          "location": {
+            "start": {
+              "line": 75,
+              "column": 29
+            },
+            "end": {
+              "line": 82,
+              "column": 115
+            }
+          },
+          "counts": [
+            83
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "20",
+          "location": {
+            "start": {
+              "line": 84,
+              "column": 20
+            },
+            "end": {
+              "line": 88,
+              "column": 5
+            }
+          },
+          "counts": [
+            51
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "21",
+          "location": {
+            "start": {
+              "line": 86,
+              "column": 43
+            },
+            "end": {
+              "line": 86,
+              "column": 67
+            }
+          },
+          "counts": [
+            18
+          ],
+          "prior_diagnostic_same_line": []
+        }
+      ],
+      "all_recorded_added_start_branches_visited": true
+    },
+    "src/features/image-translation/content/runtime.ts": {
+      "added_lines_against_pre_image_source": [
+        5,
+        320,
+        321,
+        322,
+        323,
+        324,
+        325,
+        326,
+        327,
+        328,
+        329,
+        330,
+        331
+      ],
+      "new_branch_location_start_records": [
+        {
+          "id": "154",
+          "location": {
+            "start": {
+              "line": 323,
+              "column": 20
+            },
+            "end": {
+              "line": 323,
+              "column": 54
+            }
+          },
+          "counts": [
+            236
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "155",
+          "location": {
+            "start": {
+              "line": 323,
+              "column": 50
+            },
+            "end": {
+              "line": 323,
+              "column": 68
+            }
+          },
+          "counts": [
+            8
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "156",
+          "location": {
+            "start": {
+              "line": 324,
+              "column": 20
+            },
+            "end": {
+              "line": 324,
+              "column": 50
+            }
+          },
+          "counts": [
+            236
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "157",
+          "location": {
+            "start": {
+              "line": 325,
+              "column": 20
+            },
+            "end": {
+              "line": 325,
+              "column": 48
+            }
+          },
+          "counts": [
+            236
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "158",
+          "location": {
+            "start": {
+              "line": 328,
+              "column": 49
+            },
+            "end": {
+              "line": 328,
+              "column": 61
+            }
+          },
+          "counts": [
+            4
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "159",
+          "location": {
+            "start": {
+              "line": 330,
+              "column": 13
+            },
+            "end": {
+              "line": 330,
+              "column": 39
+            }
+          },
+          "counts": [
+            8
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "160",
+          "location": {
+            "start": {
+              "line": 331,
+              "column": 13
+            },
+            "end": {
+              "line": 331,
+              "column": 37
+            }
+          },
+          "counts": [
+            8
+          ],
+          "prior_diagnostic_same_line": []
+        },
+        {
+          "id": "163",
+          "location": {
+            "start": {
+              "line": 329,
+              "column": 67
+            },
+            "end": {
+              "line": 329,
+              "column": 109
+            }
+          },
+          "counts": [
+            17
+          ],
+          "prior_diagnostic_same_line": []
+        }
+      ],
+      "all_recorded_added_start_branches_visited": true
+    }
+  }
+}

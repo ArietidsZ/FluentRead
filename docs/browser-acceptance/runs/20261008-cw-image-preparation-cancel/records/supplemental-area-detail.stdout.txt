@@ -1,0 +1,12 @@
+
+ RUN  v2.1.9 <WORKTREE>
+
+ ❯ tests/imagePrivacyRoute.test.ts (30 tests | 1 failed | 29 skipped) 787ms
+   × native image private route through OCR transaction, actual broker and SDK > a permitted Offscreen child of an unmarked area snapshot still fails closed in the actual image broker adapter 787ms
+     → expected { success: false, …(2) } to match object { success: false, …(1) }
+(1 matching property omitted from actual)
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 29 skipped (30)
+   Start at  00:48:23
+   Duration  938ms (transform 542ms, setup 0ms, collect 41ms, tests 787ms, environment 0ms, prepare 21ms)

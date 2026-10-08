@@ -1,0 +1,16 @@
+{
+  "label": "supplemental-area-detail",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "permitted Offscreen"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T16:48:23.183077+00:00",
+  "duration_seconds": 1.087,
+  "exit_code": 1
+}

@@ -1,0 +1,14 @@
+{
+  "input_files": 4010,
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "9f89ad12dc6de2609de71af06b1318b5d94cf6f176d2e4411d3e364083818d5b",
+  "artifacts": 797,
+  "artifact_manifest_sha256": "d124eda5aa7074caa77b2bd2a9d28b7a5c5739b91d8ce167828ecfbc1eb19e8b",
+  "userscript_bytes": 1954962,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "d3ba6ae6614d29364823d9742a992b2880d7b571073b241057ff01f1ac653bec",
+  "userscript_identical_to_prior_accepted_image": false,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning"
+}

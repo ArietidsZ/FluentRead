@@ -1,0 +1,24 @@
+{
+  "source_commit": "1fb8c69773df0de8fd35ddf723d7c995ed760731",
+  "source_tree": "abb4075a9ee4b8e5ce27c634fd8d25ef8fae26fd",
+  "base_head": "f6b37c924cc49649fb87c1fdaaf83c53066ace11",
+  "accepted_base_application": "f2381f3cdfe17ddaa33afaadcd0b88657013edd7",
+  "input_scope": "all non-archived tracked and candidate source/test/config/docs inputs",
+  "input_files": 4010,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/imageGlossaryContext.ts",
+    "src/features/image-translation/background/operationRegistry.ts",
+    "tests/imagePreparationCancellation.test.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageTranslationRuntime.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "9f89ad12dc6de2609de71af06b1318b5d94cf6f176d2e4411d3e364083818d5b",
+  "artifact_manifest_sha256": "d124eda5aa7074caa77b2bd2a9d28b7a5c5739b91d8ce167828ecfbc1eb19e8b"
+}

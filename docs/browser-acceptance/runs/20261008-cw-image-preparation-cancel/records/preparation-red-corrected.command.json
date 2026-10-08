@@ -1,0 +1,20 @@
+{
+  "label": "preparation-red-corrected",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePreparationCancellation.test.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/preparation-red-corrected.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T16:39:08.385639+00:00",
+  "duration_seconds": 5.193,
+  "exit_code": 1
+}

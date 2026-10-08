@@ -1,0 +1,148 @@
+{
+  "baseline_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "prior_application_source": "f2381f3cdfe17ddaa33afaadcd0b88657013edd7",
+  "targets": {
+    "chrome-mv3": {
+      "permissions": {
+        "baseline": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "current": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "equal": true
+      },
+      "optional_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "host_permissions": {
+        "baseline": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "current": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "equal": true
+      },
+      "optional_host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "incognito": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "manifest_version": 3
+    },
+    "firefox-mv2": {
+      "permissions": {
+        "baseline": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "current": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "equal": true
+      },
+      "optional_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "optional_host_permissions": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "incognito": {
+        "baseline": null,
+        "current": null,
+        "equal": true
+      },
+      "manifest_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+      "manifest_version": 2
+    }
+  },
+  "chrome_effective_incognito": "spanning",
+  "firefox_minimum": "140.0"
+}

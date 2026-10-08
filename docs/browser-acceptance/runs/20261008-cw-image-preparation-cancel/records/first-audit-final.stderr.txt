@@ -1,0 +1,3 @@
+测试套件审计失败：
+- 重复测试名：image preparation cancellation before any gate settlement > <dynamic>（tests/imagePreparationCancellation.test.ts:41 与 tests/imagePreparationCancellation.test.ts:59）
+- 重复测试名：image preparation cancellation before any gate settlement > <dynamic>（tests/imagePreparationCancellation.test.ts:41 与 tests/imagePreparationCancellation.test.ts:70）

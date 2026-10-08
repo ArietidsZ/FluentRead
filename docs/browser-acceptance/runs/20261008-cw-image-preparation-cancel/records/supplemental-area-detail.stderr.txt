@@ -1,0 +1,24 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/imagePrivacyRoute.test.ts > native image private route through OCR transaction, actual broker and SDK > a permitted Offscreen child of an unmarked area snapshot still fails closed in the actual image broker adapter
+AssertionError: expected { success: false, …(2) } to match object { success: false, …(1) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  Object {
+-   "error": "synthetic stop after restoration",
++   "error": "图片文字批量翻译失败：无法确认此翻译请求的普通或私密来源，已停止执行。请从支持的网页标签页重试；设置仍可读取和保存。",
+    "success": false,
+  }
+
+ ❯ tests/imagePrivacyRoute.test.ts:218:31
+    216|         const {pending} = await portRequest(native(), {...request, typ…
+    217|             selection: {left: 0, top: 0, width: 20, height: 20, viewpo…
+    218|         expect(await pending).toMatchObject({success: false, error: 's…
+       |                               ^
+    219|         expect(restored).toMatchObject({success: false, error: expect.…
+    220|         expect(readCache).not.toHaveBeenCalled(); expect(calls).toHave…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯

@@ -1,0 +1,15 @@
+[fix/incognito-model-route-20261008 1fb8c697] fix(image): cancel ready and source preparation before dispatch
+ 10 files changed, 200 insertions(+), 43 deletions(-)
+ create mode 100644 tests/imagePreparationCancellation.test.ts
+1fb8c697 fix(image): cancel ready and source preparation before dispatch
+ docs/architecture.md                               |  2 +-
+ docs/incognito-route-first-batch.md                |  2 +-
+ docs/testing.md                                    |  2 +
+ src/app/background/imageGlossaryContext.ts         | 52 +++++++-----
+ .../background/operationRegistry.ts                | 39 +++++----
+ tests/imagePreparationCancellation.test.ts         | 97 ++++++++++++++++++++++
+ tests/imagePrivacyRoute.test.ts                    | 32 +++++--
+ tests/imageTranslationRuntime.test.ts              | 15 ++++
+ tests/test-matrix.json                             |  1 +
+ vitest.coverage.config.ts                          |  1 +
+ 10 files changed, 200 insertions(+), 43 deletions(-)

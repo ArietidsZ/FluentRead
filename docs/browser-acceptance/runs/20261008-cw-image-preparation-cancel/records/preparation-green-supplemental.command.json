@@ -1,0 +1,22 @@
+{
+  "label": "preparation-green-supplemental",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imagePreparationCancellation.test.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageGlossaryContext.test.ts",
+    "tests/imageTransactionIdentity.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/preparation-green-supplemental.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T16:46:05.535727+00:00",
+  "duration_seconds": 3.925,
+  "exit_code": 0
+}
