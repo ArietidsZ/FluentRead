@@ -6,7 +6,7 @@
  -->
 <template>
   <span v-if="service === 'deeplx'" class="service-nature-badge" :data-service-nature-badge="service">{{ t('settings.services.library.freeUnofficial') }}</span>
-  <span v-else-if="service === 'bilibili'" class="service-nature-badge is-recommended" :data-service-nature-badge="service">{{ translateLegacy('推荐') }}</span>
+  <span v-else-if="service === 'bilibili'" class="service-nature-badge is-recommended" :data-service-nature-badge="service">{{ translateLegacy('免费') }} · {{ translateLegacy('推荐') }}</span>
 </template>
 <script setup lang="ts">
 import { useUiI18n } from '@/src/ui/i18n'

@@ -69,7 +69,7 @@ function control(ariaLabel: string): Node { const element = [...elements].revers
 describe('free translation settings compiled component', () => {
   it('微软第一、B站第二展示推荐标记，手动顺序仍可调整', async () => {
     expect(state.providers.slice(0, 2).map((provider: {id: string}) => provider.id)).toEqual(['microsoft', 'bilibiliFree']);
-    expect(elements.filter(node => node.props['data-provider-recommended']).map(node => node.text)).toEqual(['推荐']);
+    expect(elements.filter(node => node.props['data-provider-recommended']).map(node => node.text)).toEqual(['免费 · 推荐']);
     state.setMode('sequential');
     config.freeTranslationOrder = ['google', 'bilibiliFree'];
     await runtime.nextTick();

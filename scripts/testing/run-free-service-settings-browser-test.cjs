@@ -57,7 +57,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     assert.equal(await basic().locator('[data-fallback-provider="deeplx"]').count(), 0);
     assert.equal(await basic().locator('[data-fallback-provider="lingvaFree"]').count(), 0);
     assert.deepEqual(await basic().locator('[data-fallback-provider]').evaluateAll(nodes => nodes.slice(0, 2).map(node => node.dataset.fallbackProvider)), ['microsoft', 'bilibiliFree']);
-    assert.equal(await basic().locator('[data-provider-recommended="bilibiliFree"]').textContent(), '推荐');
+    assert.equal(await basic().locator('[data-provider-recommended="bilibiliFree"]').textContent(), '免费 · 推荐');
     report.caseCoverage.push('16 official services, states and allocation visible without expansion; email outside cards');
     if (process.argv.includes('--bilibili-live')) {
       const rules = await popup.evaluate(() => chrome.declarativeNetRequest.getDynamicRules());
@@ -77,7 +77,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
       await page.locator('[data-service-no-setup]').waitFor();
       assert.equal(await page.locator('[data-editing-service]').getAttribute('data-editing-service'), 'bilibili');
       assert.equal((await readConfig()).service, 'freeTranslation');
-      assert.equal(await page.locator('[data-service-nature-badge="bilibili"]').first().textContent(), '推荐');
+      assert.equal(await page.locator('[data-service-nature-badge="bilibili"]').first().textContent(), '免费 · 推荐');
       const standaloneShot = path.join(artifactsDir, 'bilibili-standalone-desktop.png');
       await page.screenshot({path: standaloneShot, animations: 'disabled'}); report.screenshots.push(standaloneShot);
       await page.setViewportSize({width: 390, height: 960});
