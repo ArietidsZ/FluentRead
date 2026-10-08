@@ -5,6 +5,7 @@
  * 主要内容：检查阅读预览、学习程度、请求限额、统一下拉、可选中提示、识图反馈去重、朗读来源及当前/备用识别资源层级；模型请求仅连接本机图片响应夹具，语言包交互用临时页内消息夹具。
  * 模块边界：只使用临时 Edge profile 和不抢焦点 helper，不读取用户配置、不调用真实供应商、不下载模型、不代表 Firefox 实机表现。
  */
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -142,7 +143,7 @@ const record = id => { report.caseCoverage.push({id, status: 'passed'}); console
     const policy = page.locator('[data-api-key-requirement-row] [data-api-key-auth-policy]');
     assert.equal(await policy.getAttribute('role'), 'radiogroup');
     await policy.getByRole('radio', {name: '允许留空', exact: true}).click();
-    await page.waitForFunction(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.requireApiKey['v2:["openai","gpt-4.1-mini"]'] === false);
+    await waitForAsyncCondition(() => page.evaluate(async () => (await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'})).value.requireApiKey['v2:["openai","gpt-4.1-mini"]'] === false), {timeoutMs: 10000, message: "gpt-4.1-mini 允许留空密钥策略未持久化"});
     assert.equal(await policy.getByRole('radio', {name: '允许留空', exact: true}).getAttribute('aria-checked'), 'true');
     await shot(page.locator('[data-api-key-requirement-row]'), 'key-policy');
     await shot(page.locator('.api-key-list'), 'key-list');

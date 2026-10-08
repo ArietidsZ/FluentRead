@@ -6,6 +6,7 @@
  * focus-safe Edge. Inspect geometry, title/metadata ownership, restore, remount and retry.
  */
 const assert = require('node:assert/strict');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -13,7 +14,7 @@ const crypto = require('node:crypto');
 const {createRequire} = require('node:module');
 const {assertFreshProductionExtension} = require('../run-site-translation-test.cjs');
 const root = path.resolve(__dirname, '../..');
-const args = {timeout: 30000};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000};
 for (let i = 2; i < process.argv.length; i++) {
   const key = process.argv[i];
   if (key === '--background') continue;
@@ -37,7 +38,7 @@ async function main() {
   if (!args.expectRegression) assertFreshProductionExtension(args.extensionDir, root);
   report.contentSha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(args.extensionDir, 'content-scripts/content.js'))).digest('hex');
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-github-spacing-'));
-  let session, context, worker, popup, page, sequence = 0;
+  let session, context, worker, popup, page, primaryError, sequence = 0;
   const installedWorkers = new WeakMap();
   const installWorker = current => {
     if (!installedWorkers.has(current)) installedWorkers.set(current, current.evaluate(() => {
@@ -100,6 +101,7 @@ async function main() {
       browserPath: args.browserPath || '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true,
       headless: false, viewport: {width: 1280, height: 900}, displayTarget: 'secondary', timeout: args.timeout,
       browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     context = session.context;
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     assert.equal(report.launchMode, 'macos-background-cdp'); assert.equal(report.focusPolicy, 'launchservices-no-foreground');
@@ -178,11 +180,32 @@ async function main() {
     }
     assert.deepEqual(report.errors, []); report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack;
     if (page) { report.failureGeometry = await geometry().catch(() => null); await page.screenshot({path: path.join(args.artifactsDir, 'failure.png')}).catch(() => {}); }
     throw error;
   } finally {
-    save(); if (session) await session.close(); fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        if (resource === 'profile') report.retainedProfile = profileDir;
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup('profile', () => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else report.retainedProfile = profileDir;
+    });
+    await cleanup('report', () => {save();});
+    if (report.retainedProfile) process.stderr.write(`Unconfirmed browser/profile cleanup; retained profile: ${profileDir}\n`);
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   console.log(JSON.stringify({passed: report.passed, reproduced: report.reproduced, cases: report.cases, artifacts: args.artifactsDir}));
 }

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 
 // 按阅读进度的真实 Edge 回归：本地长文 fixture + 确定性微软 worker provider。
 const fs = require('node:fs');
@@ -10,7 +11,7 @@ const {createRequire} = require('node:module');
 const {startTranslationFixtureServer} = require('./run-full-page-translation-test.cjs');
 
 function argsOf(argv) {
-  const out = {timeout: 90000, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true};
+  const out = {focusSafeHelper: path.join(__dirname, 'testing/focus-safe-browser.cjs'), timeout: 90000, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true};
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (token === '--background') continue;
@@ -43,7 +44,7 @@ async function serverFor(html) {
     res.writeHead(200, {'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store'}); res.end(html);
   });
   await new Promise((resolve, reject) => {server.once('error', reject); server.listen(0, '127.0.0.1', resolve);});
-  return {url: `http://127.0.0.1:${server.address().port}/reading-progress.html`, close: () => new Promise(resolve => server.close(resolve))};
+  return {url: `http://127.0.0.1:${server.address().port}/reading-progress.html`, close: () => new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()))};
 }
 
 async function installProvider(worker, translationUrl, blockedUrl) {
@@ -122,13 +123,18 @@ async function main() {
   for (const method of ['launchFocusSafePersistentContext', 'newPageWithoutForeground', 'activateExtensionTabWithoutForeground']) if (typeof helper[method] !== 'function') throw new Error(`helper 缺少 ${method}`);
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-reading-progress-'));
   const unexpectedNetwork = [], workerErrors = [], runtimeErrors = [];
-  const pageServer = await serverFor(fixtureHtml());
-  // 延迟足够长，使快速划过期间有真实请求处于 pending，才能观察撤队结果。
-  const provider = await startTranslationFixtureServer(unexpectedNetwork, 300);
+  let pageServer, provider;
+  let primaryError;
   let session, context, page;
   const report = {evidenceType: 'production-extension-equivalent-fixture', liveSite: false, fixtureChars: fixtureHtml().length, launchMode: null, focusPolicy: null, windowPlacement: null, scenarios: {}, requests: [], screenshots: []};
+  let launchAttempted = false;
   try {
+    pageServer = await serverFor(fixtureHtml());
+    // 延迟足够长，使快速划过期间有真实请求处于 pending，才能观察撤队结果。
+    provider = await startTranslationFixtureServer(unexpectedNetwork, 300);
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: args.browserPath, headless: false, background: true, viewport: {width: 1280, height: 900}, timeout: args.timeout, browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     ({context} = session); report.launchMode = session.launchMode; report.focusPolicy = session.focusPolicy; report.windowPlacement = session.windowPlacement;
     const install = worker => installProvider(worker, provider.translationUrl, provider.blockedUrl).catch(error => workerErrors.push(error.message));
     context.on('serviceworker', install);
@@ -169,15 +175,40 @@ async function main() {
     await config(popup, {fullPageTranslationMode: 'all', eagerTranslationCharacters: 0}); await page.reload({waitUntil: 'domcontentloaded'}); await page.waitForSelector('#fluent-read-page-styles', {state: 'attached', timeout: args.timeout}); await toggle(page, helper, context); await waitFor(page, () => document.querySelectorAll('[data-reading-index] .fluent-read-bilingual-content').length === 10, args.timeout); const all = await snapshot(page); if (all.translated.length !== 10) throw new Error(`all 模式未译完：${JSON.stringify(all)}`); await page.screenshot({path: path.join(args.artifactsDir, 'reading-progress-all.png')}); report.screenshots.push(path.join(args.artifactsDir, 'reading-progress-all.png')); report.scenarios.all = all;
     report.requests = report.requests.slice(-100); report.workerErrors = workerErrors; report.unexpectedNetwork = unexpectedNetwork; report.runtimeErrors = runtimeErrors;
     if (workerErrors.length || unexpectedNetwork.length || runtimeErrors.length) throw new Error(`浏览器回归存在错误：${JSON.stringify({workerErrors, unexpectedNetwork, runtimeErrors})}`);
-    report.passed = true; fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`); process.stdout.write(`${JSON.stringify({passed: true, artifactsDir: args.artifactsDir, launchMode: report.launchMode, focusPolicy: report.focusPolicy, windowPlacement: report.windowPlacement}, null, 2)}\n`);
+    report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.passed = false; report.error = error.stack || error.message; report.workerErrors = workerErrors; report.unexpectedNetwork = unexpectedNetwork; report.runtimeErrors = runtimeErrors;
-    fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
     throw error;
   } finally {
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
     let browserClosed = false;
-    try { if (session) { await session.close(); browserClosed = true; } } finally { await pageServer.close().catch(() => {}); await provider.close().catch(() => {}); if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true}); }
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {await pageServer?.close();});
+    await cleanup(async () => {await provider?.close();});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.passed = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
+  process.stdout.write(`${JSON.stringify({passed: report.passed, artifactsDir: args.artifactsDir, launchMode: report.launchMode, focusPolicy: report.focusPolicy, windowPlacement: report.windowPlacement}, null, 2)}\n`);
 }
 
 main().catch(error => {process.stderr.write(`${error.stack || error.message}\n`); process.exitCode = 1;});

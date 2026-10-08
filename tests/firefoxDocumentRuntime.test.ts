@@ -20,7 +20,7 @@ function createSubject(overrides: Partial<OffscreenMessageDependencies> = {}) {
     const document = makeDocument();
     const dependencies: OffscreenMessageDependencies = {
         translate: vi.fn(async () => 'translated'),
-        ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn()},
+        ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn(), seek: vi.fn(() => true)},
         fetchImage: vi.fn(async () => 'data:image/png;base64,AA=='),
         translateImage: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),
         translateArea: vi.fn(async () => ({image: 'data:image/png;base64,AA==', lines: []})),
@@ -188,7 +188,9 @@ describe('Firefox shared DOM runtime', () => {
         let listener!: ReturnType<typeof createOffscreenMessageListener>;
         vi.stubGlobal('Audio', Audio);
         vi.stubGlobal('window', {addEventListener: vi.fn()});
+        const runtimeId = 'controlled-firefox-extension';
         vi.stubGlobal('chrome', {runtime: {
+            id: runtimeId,
             onMessage: {addListener: (value: typeof listener) => { listener = value; }},
             sendMessage: (message: unknown, callback?: () => void) => {
                 notifications.push(message);
@@ -199,14 +201,27 @@ describe('Firefox shared DOM runtime', () => {
         }});
         const {startOffscreenApp} = await import('@/src/app/offscreen/runtime');
         startOffscreenApp();
-        const send = (message: Record<string, unknown>) => new Promise(resolve => {
-            listener({target: 'offscreen', ...message}, {}, resolve);
+        const send = (message: Record<string, unknown>, sender: unknown = {id: runtimeId}) => new Promise(resolve => {
+            listener({target: 'offscreen', ...message}, sender, resolve);
         });
-        const route = {tabId: 7, clientRequestId: 'firefox-audio'};
+        const route = {tabId: 7, clientRequestId: 'firefox-audio', frameId: 0, ownerUrl: 'https://controlled.example/read'};
         const play = {type: 'PLAY_SELECTION_TTS', audioBase64: 'AA==', contentType: 'audio/wav', ...route};
-        await expect(send(play)).resolves.toEqual({success: true});
+        for (const sender of [{}, {id: 'other-extension'}, {id: runtimeId, tab: {id: 7}}]) {
+            await expect(send(play, sender)).resolves.toMatchObject({success: false});
+        }
+        expect(audios).toHaveLength(0);
+        const revision = await send({type: 'READ_SELECTION_TTS_REVISION'}) as {revision: string};
+        const permit = await send({type: 'RESERVE_SELECTION_TTS', ...route, expectedRevision: revision.revision}) as {playbackToken: string};
+        await expect(send({...play, playbackToken: permit.playbackToken})).resolves.toEqual({success: true});
+        for (const type of ['STOP_SELECTION_TTS', 'SEEK_SELECTION_TTS']) {
+            await expect(send({type, ...route, offsetSeconds: 5}, {id: runtimeId, tab: {id: 7}}))
+                .resolves.toMatchObject({success: false});
+        }
+        expect(audios[0].pause).not.toHaveBeenCalled();
         expect(() => audios[0].onended()).not.toThrow();
-        await expect(send(play)).resolves.toEqual({success: true});
+        const nextRevision = await send({type: 'READ_SELECTION_TTS_REVISION'}) as {revision: string};
+        const nextPermit = await send({type: 'RESERVE_SELECTION_TTS', ...route, expectedRevision: nextRevision.revision}) as {playbackToken: string};
+        await expect(send({...play, playbackToken: nextPermit.playbackToken})).resolves.toEqual({success: true});
         await expect(send({type: 'STOP_SELECTION_TTS', ...route})).resolves.toEqual({success: true});
         expect(audios[1].pause).toHaveBeenCalledOnce();
         expect(notifications).toEqual([

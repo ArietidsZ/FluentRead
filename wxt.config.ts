@@ -8,7 +8,8 @@ import {checkExtensionSize} from './scripts/testing/extension-size-budget';
 import {wllamaExtensionWorker} from './scripts/testing/wllama-extension-build';
 import {createUiLanguageBundleFiles} from './src/core/i18n/bundles';
 import {UI_LANGUAGE_BUNDLE_DIRECTORY} from './src/core/i18n/language';
-import {packageWasmDiagnostics, packageTesseractWasm} from './scripts/wasm/package-diagnostics';
+import {packageWasmDiagnostics, packageTesseractWasm, packageTesseractWorker} from './scripts/wasm/package-diagnostics';
+import {tesseractSdkBuildPlugin} from './scripts/wasm/tesseract-sdk-build';
 import {GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENSION_PUBLIC_KEY, GOOGLE_DRIVE_SCOPES} from './src/platform/google-drive/constants';
 
 
@@ -187,7 +188,7 @@ export default defineConfig({
     vite: (env) => {
         const isProductionBuild = env.command === 'build' && env.mode === 'production';
         return {
-            plugins: [vue(), sharedOnnxBuildPlugin(), wllamaExtensionWorker(), escapeExtensionNoncharacters()],
+            plugins: [vue(), sharedOnnxBuildPlugin(), wllamaExtensionWorker(), tesseractSdkBuildPlugin(), escapeExtensionNoncharacters()],
             // WXT 默认在每个开发脚本中内联源码与 sourcemap；需要源码调试时显式开启。
             build: env.command === 'serve' ? {sourcemap: process.env.FLUENTREAD_DEV_SOURCEMAPS === '1' ? 'inline' : false} : undefined,
             define: {
@@ -202,8 +203,20 @@ export default defineConfig({
         name: 'fluent-read',
         // 默认等级 9 的压缩耗时明显更长；6 保留标准 DEFLATE 和全部文件，平衡打包速度与体积。
         compressionLevel: 6,
-        // 仅排除本地测试产物；Firefox 同样需要可复现的 OCR worker/core 资产。
-        excludeSources: ['coverage/**'],
+        // AMO 源码包保留扩展源码、锁文件、构建脚本及字体/OCR 资产，
+        // 排除网站素材、测试证据和其他发布出口，避免超过 200 MB 上传限制。
+        excludeSources: [
+            'coverage/**',
+            'docs/**',
+            'marketing/**',
+            'userscript/**',
+            'storybook/**',
+            'integrations/**',
+            'examples/**',
+            'scripts/testing/evidence/**',
+        ],
+        // 保留源码中的第三方来源说明；includeSources 会覆盖上述排除规则。
+        includeSources: ['docs/development/service-icons.md', 'docs/guide/deepseek-harness.md'],
     },
     hooks: {
         'build:done': async (wxt) => {
@@ -238,6 +251,11 @@ export default defineConfig({
             const packagedOcr = packageTesseractWasm(__dirname, ocrCore.absoluteSrc);
             ocrCore.absoluteSrc = packagedOcr.glue;
             files.push({absoluteSrc: packagedOcr.wasm, relativeDest: 'fluent-read-ocr/core/tesseract-core-simd-lstm.wasm'});
+            const ocrWorker = files.find(file => file.relativeDest === 'fluent-read-ocr/worker/worker.min.js');
+            if (!ocrWorker || !('absoluteSrc' in ocrWorker)) throw new Error('Missing packaged OCR worker');
+            ocrWorker.absoluteSrc = packageTesseractWorker(__dirname, ocrWorker.absoluteSrc);
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/tesseract.js/dist/worker.min.js.LICENSE.txt'), relativeDest: 'fluent-read-ocr/worker/worker.min.js.LICENSE.txt'});
+            files.push({absoluteSrc: resolve(__dirname, 'node_modules/tesseract.js/LICENSE.md'), relativeDest: 'fluent-read-ocr/LICENSE.md'});
         },
     },
 

@@ -30,6 +30,8 @@ export type AdapterDecision =
 
 export interface AdapterContext {
     url: URL;
+    /** 仅一次同步 inspect 内复用已证实的 closest miss；不得跨 DOM 写入。 */
+    closestSelectorMisses?: WeakMap<Element, Set<string | readonly string[]>>;
 }
 
 /** A bounded text range selected from a large unstructured hover target. */

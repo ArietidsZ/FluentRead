@@ -3,10 +3,13 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
 import {gunzipSync} from 'node:zlib';
+import {runInNewContext} from 'node:vm';
 import {describe, expect, it, vi} from 'vitest';
 import {ungzip} from 'pako';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {inflateWithPako} from '@/userscript/pakoRuntime';
+import * as chineseCharacterData from '@/src/core/language/chineseVariants';
+import {createUserscriptCharacterDataCompressionPlugin} from '@/userscript/characterDataPlugin';
 import {
     default as userscriptConfig,
     executionGuardEnd,
@@ -22,6 +25,51 @@ import {
 const entrypointId = resolve(process.cwd(), 'entrypoints/userscript-injection-fixture.ts');
 const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
+
+describe('authoritative site catalogs with an external pinned data asset', () => {
+    it.each(['unchanged', 'old-asset', 'reordered', 'removed-rule', 'missing-runtime-rule'] as const)
+    ('reconciles %s without mutating the external asset', async variant => {
+        const vm = await vi.importActual<typeof import('node:vm')>('node:vm');
+        const authoritative = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/site-adaptation/catalog/established.json'), 'utf8'));
+        const data = vm.runInNewContext(readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 5000});
+        if (variant === 'unchanged' || variant === 'reordered' || variant === 'removed-rule') {
+            data.siteCatalogs.established = structuredClone(authoritative);
+        }
+        if (variant === 'reordered') data.siteCatalogs.established.reverse();
+        if (variant === 'removed-rule') data.siteCatalogs.established.push({id: 'removed-pinned-rule', match: {hosts: ['removed.invalid']}});
+        vi.doMock('node:vm', () => ({...vm, runInNewContext: () => data}));
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules();
+            const {createUserscriptCatalogCompressionPlugin: createPlugin} = await import('@/userscript/vite.config');
+            const {transformWithEsbuild} = await import('vite');
+            const plugin = createPlugin();
+            const resolveId = typeof plugin.resolveId === 'function' ? plugin.resolveId : plugin.resolveId!.handler;
+            const load = typeof plugin.load === 'function' ? plugin.load : plugin.load!.handler;
+            const id = await Reflect.apply(resolveId, {}, ['./catalog/established.json', resolve(process.cwd(), 'src/core/site-adaptation/pack.ts')]);
+            const source = await Reflect.apply(load, {}, [id]);
+            const compiled = await transformWithEsbuild(source, 'pinned-catalog.js', {format: 'cjs', target: 'es2018'});
+            if (variant === 'missing-runtime-rule') data.siteCatalogs.established = data.siteCatalogs.established.filter((rule: {id: string}) => rule.id !== 'openrouter');
+            const before = JSON.stringify(data), original = data.siteCatalogs.established;
+            const realm = {module: {exports: {} as any}, __FLUENTREAD_USERSCRIPT_DATA__: data};
+            if (variant === 'missing-runtime-rule') {
+                expect(() => vm.runInNewContext(compiled.code, realm, {timeout: 5000})).toThrow('Missing pinned userscript site rule: openrouter');
+            } else {
+                vm.runInNewContext(compiled.code, realm, {timeout: 5000});
+                const result = realm.module.exports.default;
+                expect(result).toEqual(authoritative);
+                if (variant === 'unchanged') expect(result).toBe(original);
+                for (const rule of original) {
+                    const expected = authoritative.find((current: {id: string}) => current.id === rule.id);
+                    if (expected && JSON.stringify(rule) === JSON.stringify(expected)) expect(result.find((current: {id: string}) => current.id === rule.id)).toBe(rule);
+                }
+            }
+            expect(JSON.stringify(data)).toBe(before);
+        } finally {vi.doUnmock('node:vm');vi.unstubAllEnvs();vi.resetModules();}
+    });
+});
 
 describe('userscript browser shim injection', () => {
     it('pins each remote language file to a commit containing exactly its built contents', () => {
@@ -174,5 +222,66 @@ describe('userscript browser shim injection', () => {
             'browser.runtime.sendMessage({}); chrome.runtime.getURL("icon.png");',
             bundleId,
         )).toEqual(['browser', 'chrome']);
+    });
+});
+
+
+describe('userscript lossless Unicode character data', () => {
+    const dataPath = resolve(process.cwd(), 'src/core/language/chineseVariants.ts');
+    const createPlugin = (enabled = true) => createUserscriptCharacterDataCompressionPlugin(process.cwd(), enabled) as unknown as {
+        transform: (code: string, id: string) => {code: string; map: null} | null;
+    };
+    const restoreExports = (moduleSource: string, names: readonly string[]) => {
+        const body = moduleSource.replace("import {inflateWithPako} from '@/userscript/pakoRuntime';", '')
+            .replace(/export const /gu, 'const ');
+        // 使用生产解压适配器和真实 pako；禁止 fromCodePoint，覆盖旧内核上的补充平面还原。
+        return runInNewContext(
+            'String.fromCodePoint = undefined;\n' + body + '\n({' + names.join(',') + '})',
+            {atob: (value: string) => Buffer.from(value, 'base64').toString('binary'), Uint8Array, inflateWithPako},
+        );
+    };
+
+    it('restores every generated Unicode character exactly before Chinese detection consumes it', () => {
+        const original = readFileSync(dataPath, 'utf8');
+        const transformed = createPlugin().transform(original, dataPath);
+        expect(transformed).not.toBeNull();
+        vi.stubGlobal('pako', {ungzip});
+        try {
+            const restored = restoreExports(transformed!.code, Object.keys(chineseCharacterData));
+            expect(restored).toEqual({...chineseCharacterData});
+            for (const value of Object.values(chineseCharacterData)) {
+                expect(typeof value).toBe('string');
+                expect(value.length).toBeGreaterThan(0);
+            }
+            expect(Array.from(restored.simplifiedOnlyCharacters as string).some((character) => character.codePointAt(0)! > 0xFFFF)).toBe(true);
+            expect(Array.from(restored.traditionalOnlyCharacters as string).some((character) => character.codePointAt(0)! > 0xFFFF)).toBe(true);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('preserves unsorted strings, repeated characters, surrogate pairs and empty exports', () => {
+        const values = {sample: 'A𱊯A\0\ud800', empty: ''};
+        const original = Object.entries(values).map(([name, value]) => 'export const ' + name + ' = ' + JSON.stringify(value) + ';').join('\n');
+        const transformed = createPlugin().transform(original, dataPath)!;
+        vi.stubGlobal('pako', {ungzip});
+        try {
+            expect(restoreExports(transformed.code, Object.keys(values))).toEqual(values);
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it('rejects executable additions to the data file instead of dropping or compressing them', () => {
+        const original = readFileSync(dataPath, 'utf8');
+        expect(() => createPlugin().transform(original + '\nsideEffect();', dataPath)).toThrow('only exported const strings');
+        expect(() => createPlugin().transform('export const data = makeData();', dataPath)).toThrow('only exported const strings');
+        expect(() => createPlugin().transform('const privateData = "data";', dataPath)).toThrow('only exported const strings');
+    });
+
+    it('leaves Greasy Fork source and every other module untouched', () => {
+        const original = readFileSync(dataPath, 'utf8');
+        expect(createPlugin(false).transform(original, dataPath)).toBeNull();
+        expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/chinese.ts'))).toBeNull();
     });
 });

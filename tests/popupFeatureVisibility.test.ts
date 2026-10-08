@@ -2,6 +2,7 @@ import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {runInNewContext} from 'node:vm';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import {parse, type SFCDescriptor} from 'vue/compiler-sfc';
 import {popupQuickFeatureOptions} from '@/src/core/config/interfaceAppearance';
 
 const mountPreparedPopupApp = vi.hoisted(() => vi.fn());
@@ -15,6 +16,27 @@ function source(path: string): string {
     return readFileSync(resolve(process.cwd(), path), 'utf8');
 }
 
+type TemplateRoot = NonNullable<NonNullable<SFCDescriptor['template']>['ast']>;
+type TemplateElement = Extract<TemplateRoot['children'][number], {type: 1}>;
+
+function templateElements(content: string): TemplateElement[] {
+    const {descriptor, errors} = parse(content);
+    expect(errors).toEqual([]);
+    expect(descriptor.template?.ast).toBeDefined();
+    const elements: TemplateElement[] = [];
+    function visit(children: TemplateRoot['children']) {
+        for (const node of children) if (node.type === 1) {elements.push(node); visit(node.children);}
+    }
+    visit(descriptor.template!.ast!.children);
+    return elements;
+}
+
+function directive(element: TemplateElement, name: string, argument?: string): string | undefined {
+    const prop = element.props.find(prop => prop.type === 7 && prop.name === name
+        && (argument === undefined || prop.arg?.type === 4 && prop.arg.content === argument));
+    return prop?.type === 7 && prop.exp?.type === 4 ? prop.exp.content : undefined;
+}
+
 describe('popup feature visibility', () => {
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
@@ -25,7 +47,11 @@ describe('popup feature visibility', () => {
         expect(criticalStyles).toContain('display: flex;');
         expect(html.indexOf('</style>')).toBeLessThan(html.indexOf('src="/popup-startup.js"'));
         expect(styles).toContain('html { width: var(--interface-popup-width, 320px); }');
-        expect(styles).toContain('body, #app { width: 100%; }');
+        // Firefox 以内容固有宽度定 popup 尺寸，body 不能用百分比宽度。
+        const bodyWidth = 'body, #app { width: var(--fluentread-localized-popup-width, var(--interface-popup-width, 320px));';
+        expect(criticalStyles).toContain(bodyWidth);
+        expect(styles).toContain(bodyWidth);
+        expect(styles).not.toContain('body, #app { width: 100%; }');
         expect(styles).not.toContain('width: min(var(--interface-popup-width, 360px), 100vw)');
         expect(styles).toContain('.popup-shell { max-height: 560px; overflow-y: auto;');
         expect(styles).not.toContain('max-height: min(560px, 100dvh)');
@@ -224,7 +250,7 @@ describe('popup feature visibility', () => {
         const popup = source('src/app/popup/PopupApp.vue');
         expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document']);
         expect(popup).toContain('data-testid="page-translation"');
-        expect(popup).toContain('@click="togglePageTranslation"');
+        expect(popup).toContain(':onClick="pageButtons.toggle"');
         expect(popup).toContain('data-testid="section-translation"');
         expect(popup.indexOf('data-testid="section-translation"')).toBeLessThan(popup.indexOf('<el-drawer'));
         expect(popup).not.toContain('class="eyebrow features-eyebrow"');
@@ -265,13 +291,35 @@ describe('popup feature visibility', () => {
         expect(settings).toContain('v-model="config.videoService"');
         expect(settings).toContain('v-model="config.videoSourceLanguage"');
         expect(settings).toContain('<LocalTtsSettings :config="config"');
-        expect(ttsSettings).toContain('v-model="config.selectionTtsVoices"');
+        // 同一个控件保留读值、更新事件、多选与在线行归属；实际写回和旧事件隔离由 localModelSettingsLifecycle 的完整 client SFC 覆盖。
+        const speech = templateElements(ttsSettings);
+        const voiceControls = speech.filter(node => node.tag === 'el-select'
+            && directive(node, 'bind', 'model-value') === 'config.selectionTtsVoices');
+        expect(voiceControls).toHaveLength(1);
+        expect(directive(voiceControls[0], 'bind', 'onUpdate:modelValue')).toBe('actions.voices');
+        expect(directive(voiceControls[0], 'bind', 'disabled')).toBe('!active');
+        expect(voiceControls[0].props.some(prop => prop.type === 6 && prop.name === 'multiple')).toBe(true);
+        const voiceRow = speech.find(node => node.props.some(prop => prop.type === 6
+            && prop.name === 'data-testid' && prop.value?.content === 'speech-online-voices'))!;
+        expect(voiceRow).toBeDefined();
+        expect(voiceRow.children).toContain(voiceControls[0]);
+        expect(directive(voiceRow, 'if')).toBe("ttsMode !== 'local-only'");
         // 译文样式迁到界面风格页的样式卡片；弹窗“译文显示”只保留翻译模式并跳转到那里。
         expect(settings).not.toContain('v-model="config.style"');
         expect(translationStyle).toContain('@click="selectPreset(preset.value)"');
         expect(popup).toContain("appearance: 'settings-interface'");
         expect(settings).toContain('v-model="config.theme"');
-        expect(modelSettings).toContain('v-model="config.videoLocalModel"');
+        // 模型 radio 保留卡片内的模板绑定；当前模型写回与旧 radio/card/download 回调归属由完整 client SFC 覆盖。
+        const models = templateElements(modelSettings);
+        const radios = models.filter(node => node.tag === 'input' && node.props.some(prop => prop.type === 6
+            && prop.name === 'name' && prop.value?.content === 'video-local-model'));
+        expect(radios).toHaveLength(1);
+        expect(directive(radios[0], 'model')).toBe('item.selection.value');
+        const radioLabel = models.find(node => node.tag === 'label' && node.children.includes(radios[0]))!;
+        expect(radioLabel).toBeDefined();
+        const card = models.find(node => node.tag === 'article' && node.children.includes(radioLabel))!;
+        expect(card).toBeDefined();
+        expect(directive(card, 'for')).toBe('item in modelCards');
         expect(appearance).toContain('v-model.number="config.videoSubtitleAppearance.fontScale"');
     });
 
@@ -314,7 +362,7 @@ describe('popup feature visibility', () => {
         expect(popup).toContain('{{ quickProfileSummary(profile) }}');
         expect(popup).toContain("t('popup.quickTranslation.defaultHoverShortcut')");
         expect(popup).toContain("t('popup.quickTranslation.defaultOnly', {count: quickHoverProfiles.length})");
-        expect(popup).toContain('@click="toggleDefaultHoverShortcut"');
+        expect(popup).toContain(':onClick="drawerActions.hover"');
         expect(popup).toContain(':aria-checked="defaultHoverEnabled"');
         expect(popup).toContain("t('popup.quickSettings.chooseHoverShortcut')");
         expect(popup).not.toContain("setHoverHotkey('Control')");
@@ -348,7 +396,8 @@ describe('popup feature visibility', () => {
         expect(panel).toContain('searchServiceOptions(');
         expect(panel).toContain('searchableModels.value');
         expect(panel).toContain('provider.models');
-        expect(panel).toContain('setFeatureService(props.config, feature, service)');
+        expect(panel).toContain('setFeatureService(config, feature, service)');
+        expect(popup).toContain(':active="drawerVisible && activeDrawer === \'services\'"');
         expect(panel).toContain('class="popup-service-overview"');
         expect(panel).toContain('class="popup-service-picker"');
         expect(panel).toContain('role="listbox"');

@@ -8,7 +8,8 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const artifactPath = path.join(root, '.output/userscript/fluent-read.user.js');
 const source = fs.readFileSync(artifactPath, 'utf8');
 const artifactBytes = Buffer.byteLength(source);
-const MAX_USERSCRIPT_BYTES = 1_950_000;
+// 新增 B站匿名文本适配器后产物实测约 1.957 MB；预算增加 5 KB，保留所有协议和运行边界校验。
+const MAX_USERSCRIPT_BYTES = 1_960_000;
 const preludeStartMarker = '/* FluentRead userscript compatibility prelude:start */';
 const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */';
 const preludeStart = source.indexOf(preludeStartMarker);
@@ -55,6 +56,9 @@ const assertions = [
   [!source.includes('fluent-read-sentence-actions'), 'sentence actions runtime must be excluded from userscript'],
   [!source.includes('fluent:prefill'), 'page-driven New API config bridge must be excluded from userscript'],
   [!source.includes('CHROME_TRANSLATE_OFFSCREEN'), 'Chrome offscreen translator must be excluded from userscript'],
+  [!source.includes('FLUENT_READ_OFFSCREEN_READY'), 'extension Offscreen client must be excluded from userscript'],
+  [!source.includes('fluent-read-background-dom-runtime'), 'Firefox background DOM host must be excluded from userscript'],
+  [!source.includes('LOCAL_TRANSLATION_TRANSLATE'), 'local translation Offscreen transport must be excluded from userscript'],
 ];
 
 const failure = assertions.find(([passed]) => !passed);

@@ -30,6 +30,7 @@ const DOCS_TOOL_SCRIPTS = [
     'scripts/capture-docs-ui.cjs',
     'scripts/verify-brand-copy.mjs',
     'scripts/verify-docs-build.mjs',
+    'scripts/verify-storybook-build.mjs',
 ];
 
 type VerificationOwner =
@@ -78,9 +79,29 @@ function listFiles(directory: string): string[] {
 }
 
 function coverageSourcePaths(): Set<string> {
-    const source = readFileSync(projectPath('vitest.coverage.config.ts'), 'utf8');
-    const paths = source.match(/['"]src\/[^'"]+\.ts['"]/gu) ?? [];
-    return new Set(paths.map((path) => path.slice(1, -1)));
+    const file = projectPath('vitest.coverage.config.ts');
+    const sourceFile = ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const declaration = sourceFile.statements.find(ts.isExportAssignment);
+    if (!declaration || !ts.isCallExpression(declaration.expression)
+        || !ts.isObjectLiteralExpression(declaration.expression.arguments[0])) {
+        throw new Error('Strict coverage configuration must export defineConfig with an object');
+    }
+    const property = (object: ts.ObjectLiteralExpression, name: string): ts.Expression => {
+        const entry = object.properties.find((node) => ts.isPropertyAssignment(node)
+            && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) && node.name.text === name);
+        if (!entry || !ts.isPropertyAssignment(entry)) throw new Error(`Missing strict coverage property: ${name}`);
+        return entry.initializer;
+    };
+    const test = property(declaration.expression.arguments[0], 'test');
+    if (!ts.isObjectLiteralExpression(test)) throw new Error('Strict coverage test must be an object');
+    const coverage = property(test, 'coverage');
+    if (!ts.isObjectLiteralExpression(coverage)) throw new Error('Strict coverage settings must be an object');
+    const include = property(coverage, 'include');
+    if (!ts.isArrayLiteralExpression(include)) throw new Error('Strict coverage include must be a literal array');
+    return new Set(include.elements.map((element) => {
+        if (!ts.isStringLiteral(element)) throw new Error('Strict coverage source must be a literal path');
+        return element.text;
+    }).filter((path) => path.startsWith('src/') && /\.(?:ts|vue)$/u.test(path)));
 }
 
 function verificationOwners(path: string, strictCoverage: Set<string>): VerificationOwner[] {
@@ -105,7 +126,7 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
     if (path === 'src/features/document-translation/ui/pdfPreview.ts') owners.add('document-browser-functional');
     if (path === 'src/features/full-page-translation/content/state.ts') owners.add('full-page-state-functional');
     if (path.startsWith('docs/.vitepress/')) owners.add('docs-build');
-    if (path === 'scripts/verify-docs-build.mjs') owners.add('docs-build');
+    if (path === 'scripts/verify-docs-build.mjs' || path === 'scripts/verify-storybook-build.mjs') owners.add('docs-build');
     if (path === 'scripts/verify-brand-copy.mjs') owners.add('brand-copy-functional');
     if (path.startsWith('examples/')) owners.add('isolated-browser-regression');
     if (path.startsWith('scripts/run-') || path.startsWith('scripts/site-translation/')
@@ -133,7 +154,20 @@ function verificationOwners(path: string, strictCoverage: Set<string>): Verifica
 }
 
 function isTypeOnlyModule(path: string): boolean {
-    return path.endsWith('/types.ts') || path.endsWith('.d.ts');
+    if (path.endsWith('.d.ts')) return true;
+    if (!path.endsWith('.ts')) return false;
+    // 以实际输出判断纯声明；任意文件中的常量、枚举和副作用仍须拥有行为验证。
+    const source = readFileSync(projectPath(path), 'utf8');
+    const emitted = ts.transpileModule(source, {
+        compilerOptions: {module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ESNext},
+    }).outputText;
+    const runtime = ts.createSourceFile(path + '.js', emitted, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+    return runtime.statements.every((statement) => ts.isEmptyStatement(statement)
+        || (ts.isExportDeclaration(statement)
+            && !statement.moduleSpecifier
+            && !!statement.exportClause
+            && ts.isNamedExports(statement.exportClause)
+            && statement.exportClause.elements.length === 0));
 }
 
 function isPureBarrel(path: string): boolean {
@@ -153,8 +187,6 @@ function isCoverageExemptSrcModule(path: string): boolean {
 const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     // 识图探测 composition 只接线共享 broker 与本地存储；策略、消息、编码严格覆盖并由隔离浏览器验证。
     'src/app/translation/visionProbeRuntime.ts',
-    // Vue 缓存订阅与过期计时仅绑定 core 严格覆盖策略；真实设置页验证卸载与同步。
-    'src/features/settings/ui/services/useVisionProbeStatus.ts',
     // 后台同步 composition root 仅装配已有配置端口；协议和事务经严格覆盖，真实端口由隔离浏览器专项验证。
     'src/app/background/googleDriveSyncRuntime.ts',
     'src/app/background/webDavBackupRuntime.ts',
@@ -169,16 +201,12 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/core/i18n/messages/ru-RU.ts',
     'src/core/i18n/messages/zh-CN.ts',
     'src/ui/i18n.ts',
-    // 设置快捷键组合器只协调 Vue ref、Element Plus 消息和 SFC 对话框；纯冲突识别由 strict coverage 验证，交互由隔离浏览器回归验证。
-    'src/features/settings/ui/useTranslationShortcutSettings.ts',
     // WXT ShadowRootUi/Vue 挂载适配器绑定真实 DOM 与组件生命周期；由 shadowUi 单测和双浏览器构建验证。
     'src/platform/shadow-ui/vue.ts',
     // 配置存储运行时只识别 MV3/MV2 背景身份并装配 WXT、IndexedDB 或 runtime 端口；行为由纯端口测试和双浏览器构建验证。
     'src/platform/storage/configStorageRuntime.ts',
     // 内容脚本构建专用的纯远程配置端口，只调用严格覆盖的 createRemoteConfigStorage；替换规则由 manifest/构建契约测试验证。
     'src/platform/storage/remoteConfigStorageRuntime.ts',
-    // 页内通知绑定 Shadow DOM、定时器和 runtime 消息；由 pageNotice 功能测试和双浏览器构建验证。
-    'src/features/page-notice/content/notice.ts',
     // 悬浮球组装 Vue、WXT、配置持久化与全文翻译；生命周期由 contentUiRuntime 测试覆盖。
     'src/features/floating-ball/content/runtime.ts',
     // 进度面板绑定 Vue Shadow UI；纯进度状态机已另行进入 strict coverage。
@@ -187,8 +215,6 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/features/full-page-translation/ui/translationIndicators.ts',
     // options composition root 只注册 Element Plus 组件、图标、全局样式并挂载 Vue；由组件契约与双浏览器构建验证。
     'src/app/options/index.ts',
-    // 界面皮肤应用只设置扩展页面根节点 data 属性；纯归一化由 strict coverage 验证，真实跨页面效果由隔离 UI 回归验证。
-    'src/ui/interfaceAppearance.ts',
     // popup composition root 等待配置就绪再注册 Vue/Element Plus 并挂载；由 popup 契约、逐帧启动回归和双浏览器构建验证。
     'src/app/popup/index.ts',
     // 抽屉入口只重导出 Element Plus 组件和 CSS；由 popup 启动/抽屉浏览器回归与双浏览器构建验证。
@@ -197,12 +223,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/app/offscreen/runtime.ts',
     // background composition root 只串联菜单、静态消息 registry 和缓存维护；由 handler 单测、入口契约与双浏览器构建验证。
     'src/app/background/runtime.ts',
-    // 右键菜单绑定 browser tabs/contextMenus 生命周期；纯标题策略与 tab 状态仓库已严格覆盖，真实交互由隔离浏览器回归验证。
-    'src/app/background/contextMenuRuntime.ts',
     // 工具栏翻译状态角标绑定 browser.action 角标 API 与 tabs 生命周期，含 action 缺失的防御分支；渲染映射由 backgroundBadgeRuntime 功能测试与双浏览器构建验证。
     'src/app/background/badgeRuntime.ts',
-    // 共享真值查询绑定 browser.tabs.sendMessage 回源，是从 contextMenuRuntime 下沉的浏览器消息封装；由右键菜单与角标功能测试及双浏览器构建验证。
-    'src/app/background/tabTranslationQuery.ts',
     // 视频字幕菜单文案只绑定已拥有的播放器 DOM；由视频单测与双浏览器构建验证。
     'src/features/video-subtitle/content/ui.ts',
     // 后台消息 composition 只把 provider、feature handler 与 browser API 静态注入；各 handler/路由均已严格覆盖。
@@ -288,12 +310,8 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
     'src/providers/translation/doubao-seed-translation.ts',
     'src/providers/translation/gemini.ts',
     'src/providers/translation/google.ts',
-    'src/providers/translation/hunyuan-translation.ts',
     'src/providers/translation/microsoft.ts',
-    'src/providers/translation/tencent.ts',
     'src/providers/translation/tongyi.ts',
-    'src/providers/translation/xiaoniu.ts',
-    'src/providers/translation/youdao.ts',
     'src/providers/translation/zhipu.ts',
     // 本地翻译绑定浏览器 Cache Storage、Offscreen 和独立 Worker；模型目录、协议取消、缓存和构建由专项测试覆盖。
     'src/core/config/localTranslation.ts',
@@ -312,6 +330,13 @@ const BUILD_ONLY_SRC_ALLOWLIST = new Set([
 ]);
 
 describe('repository verification ownership', () => {
+    it('按实际输出识别非 types 文件的纯声明，并保留运行时常量归属', () => {
+        expect(isTypeOnlyModule('src/features/vocabulary/content/reencounterState.ts')).toBe(true);
+        expect(isTypeOnlyModule('src/services/model-usage/types.ts')).toBe(false);
+        expect(isTypeOnlyModule('src/services/translation-stats/types.ts')).toBe(false);
+        expect(isTypeOnlyModule('src/app/content/learningFeatures.ts')).toBe(false);
+    });
+
     it.each(PRODUCT_TOOL_SCRIPTS)('产品工具 %s 保持可解析的 CommonJS 入口', path => {
         expect(() => new Script(readFileSync(projectPath(path), 'utf8'), {filename: path})).not.toThrow();
     });
@@ -332,6 +357,10 @@ describe('repository verification ownership', () => {
         expect(captureSource).not.toContain('ctx.newPage(');
     });
     const strictCoverage = coverageSourcePaths();
+    it('Vue 客户端编译白名单不冒充严格覆盖率边界', () => {
+        expect(strictCoverage.has('src/features/area-translation/ui/AreaTranslator.vue')).toBe(false);
+        expect(strictCoverage.has('src/core/harness/loop.ts')).toBe(true);
+    });
     const auditedFiles = [
         ...PRODUCT_ROOTS.flatMap(listFiles),
         ...ROOT_FILES,

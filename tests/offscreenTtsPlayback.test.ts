@@ -180,7 +180,7 @@ describe('Offscreen 划词 TTS 播放状态机', () => {
         expect(state.audios[1].pause).not.toHaveBeenCalled();
     });
 
-    it('当前播放的 error 事件和 play 拒绝只上报一次并释放资源', async () => {
+    it('已开始播放的 error 走通知，启动 play 拒绝只走失败响应并释放资源', async () => {
         const eventState = fixture();
         await eventState.player.play({audioBase64: 'event', ...route('request-4', 2)});
         const staleError = eventState.audios[0].onerror;
@@ -201,10 +201,28 @@ describe('Offscreen 划词 TTS 播放状态机', () => {
         });
         await expect(rejectionState.player.play({sourceUrl: 'https://audio', ...route('request-5', 2)}))
             .rejects.toBe(failure);
-        expect(rejectionState.notifications).toEqual([
-            expect.objectContaining({state: 'error', error: failure}),
-        ]);
+        expect(rejectionState.notifications).toEqual([]);
         expect(rejectionState.audios[0].pause).toHaveBeenCalledOnce();
+    });
+
+
+    it('同一次启动先触发媒体 error 再拒绝 play 仍只有 PLAY 失败响应', async () => {
+        const state = fixture();
+        const failure = new Error('media startup failed');
+        state.setCreateAudio(() => {
+            const audio = new FakeAudio();
+            audio.play.mockImplementation(async () => {
+                audio.onerror?.(new Event('error'));
+                throw failure;
+            });
+            state.audios.push(audio);
+            return audio;
+        });
+        await expect(state.player.play({audioBase64: 'pending', ...route('startup')})).rejects.toBe(failure);
+        expect(state.notifications).toEqual([]);
+        expect(state.audios[0].pause).toHaveBeenCalledOnce();
+        expect(state.revokeObjectUrl).toHaveBeenCalledOnce();
+        expect(state.player.stop(route('startup'))).toBe(false);
     });
 
     it('停止参数校验发生在状态变更前，factory 返回独立实例', async () => {
@@ -223,6 +241,37 @@ describe('Offscreen TTS media progress', () => {
         {startChar: 0, endChar: 12, startTime: 0, endTime: 1},
         {startChar: 13, endChar: 17, startTime: 1, endTime: 5},
     ];
+
+    it('5 秒跳转使用媒体时间并立即更新高亮，不重建音频或干扰另一条路由', async () => {
+        const state = fixture();
+        expect(state.player.seek({...route('old'),offsetSeconds:5})).toBe(false);
+        await state.player.play({sourceUrl:'https://audio',text:'Hello world',...route('seek',0)});
+        const audio=state.audios[0];audio.duration=12;audio.currentTime=2;
+        expect(state.player.seek({...route('seek',1),offsetSeconds:5})).toBe(false);
+        expect(state.player.seek({...route('old',0),offsetSeconds:5})).toBe(false);
+        expect(audio.currentTime).toBe(2);
+        expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(true);
+        expect(audio.currentTime).toBe(7);
+        expect(state.progressNotifications.at(-1)?.progress.start).toBe(6);
+        expect(state.notifyProgress).toHaveBeenLastCalledWith(expect.objectContaining(route('seek',0)),expect.any(Object),{currentTime:7,duration:12});
+        expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(true);
+        expect(audio.currentTime).toBe(12);
+        expect(state.player.seek({...route('seek',0),offsetSeconds:-5})).toBe(true);
+        expect(audio.currentTime).toBe(7);
+        state.player.seek({...route('seek',0),offsetSeconds:-5});state.player.seek({...route('seek',0),offsetSeconds:-5});
+        expect(audio.currentTime).toBe(0);
+        expect(state.audios).toHaveLength(1);expect(audio.play).toHaveBeenCalledOnce();expect(state.notifications).toEqual([]);
+        audio.duration=NaN;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        audio.duration=undefined;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        audio.duration=12;audio.currentTime=undefined;expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        expect(()=>state.player.seek({...route('seek',0),offsetSeconds:15})).toThrow('5 秒');
+        state.player.stop(route('seek',0));expect(state.player.seek({...route('seek',0),offsetSeconds:5})).toBe(false);
+        const legacy=fixture();await legacy.player.play({sourceUrl:'https://audio/legacy',...route('legacy-seek')});
+        expect(legacy.player.seek({...route('legacy-seek'),offsetSeconds:5})).toBe(true);
+        expect(legacy.notifyProgress).not.toHaveBeenCalled();
+        const silent=fixture(false);await silent.player.play({sourceUrl:'https://audio',text:'Hello',...route('silent-seek')});
+        expect(silent.player.seek({...route('silent-seek'),offsetSeconds:5})).toBe(true);
+    });
 
     it('samples actual currentTime every 100ms and uses chunk timings for words, Chinese characters and seeks', async () => {
         const state = fixture();

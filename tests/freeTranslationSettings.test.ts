@@ -1,9 +1,10 @@
+import {parseHTML} from 'linkedom';
 import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {resolve} from 'node:path';
 import vue from '@vitejs/plugin-vue';
 import {createServer, type ViteDevServer} from 'vite';
-import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it} from 'vitest';
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi} from 'vitest';
 import {compileScript, compileTemplate, parse} from 'vue/compiler-sfc';
 import ts from 'typescript';
 import {Config} from '@/src/core/config/model';
@@ -55,15 +56,35 @@ async function mountComponent(advanced: boolean): Promise<void> {
 }
 
 beforeEach(async () => {
+  // The external browser constructor is present in production; complete the renderer port.
+  vi.stubGlobal('ShadowRoot', parseHTML('<html><body></body></html>').window.ShadowRoot);
   config = runtime.reactive(new Config());
   checks = runtime.reactive({});
   await mountComponent(false);
 });
-afterEach(() => app?.unmount());
+afterEach(() => {app?.unmount(); vi.unstubAllGlobals();});
 afterAll(async () => server?.close());
 function control(ariaLabel: string): Node { const element = [...elements].reverse().find(node => node.props['aria-label'] === ariaLabel); expect(element, ariaLabel).toBeDefined(); return element!; }
 
 describe('free translation settings compiled component', () => {
+  it('已失效的检查不发布排队状态或发起请求', async () => {
+    let updates = 0, requests = 0;
+    await checkAllFreeTranslationProviders({isCurrent: () => false, failureMessage: 'failed',
+      update: () => {updates++;}, check: async () => {requests++;return {success: true};}});
+    expect(updates).toBe(0);expect(requests).toBe(0);
+  });
+  it('排队回调取消后停止后续状态发布，不启动任何服务', async () => {
+    let current = true, requests = 0;const updates: string[] = [];
+    await checkAllFreeTranslationProviders({isCurrent: () => current, failureMessage: 'failed',
+      update: id => {updates.push(id);current = false;}, check: async () => {requests++;return {success: true};}});
+    expect(updates).toEqual([FREE_TRANSLATION_PROVIDERS[0].id]);expect(requests).toBe(0);
+  });
+  it('checking状态回调取消后不发起对应HTTP消息', async () => {
+    let current = true, requests = 0;
+    await checkAllFreeTranslationProviders({isCurrent: () => current, failureMessage: 'failed',
+      update: (_id, value) => {if (value.status === 'checking') current = false;}, check: async () => {requests++;return {success: true};}});
+    expect(requests).toBe(0);
+  });
   it('所有服务直接展示逐项结果与测试耗时，停用服务也保留本轮检查', async () => {
     const badges = elements.filter(element => element.props['data-provider-state']);
     expect(badges.map(node => node.props['data-provider-state'])).toEqual(FREE_TRANSLATION_PROVIDERS.map(provider => provider.id));
@@ -184,7 +205,7 @@ describe('free translation settings compiled component', () => {
     const details = elements.find(element => element.props['data-testid'] === 'free-routing-details');
     expect(details).toBeUndefined();
     expect(elements.some(element => element.tag === 'details')).toBe(false);
-    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('13.9%');
+    expect(elements.find(element => element.props['data-provider-weight'] === 'microsoft')?.text).toBe('13.1%');
     expect(control('启用 阿里翻译').props['model-value']).toBe(true);
     state.toggle('alibabaFree', false);
     await runtime.nextTick();

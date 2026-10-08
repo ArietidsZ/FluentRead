@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/core.ts
  * 文件职责：集中划词翻译的纯交互与内容算法，包括请求代次、词典回退、触发展示状态、选区过滤、上下文摘要、弹窗锚点和语音语言规范化。
- * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理中英划词反向目标、同语种判断、文本清理、公式单份文本提取、行内代码片段保护、敏感区域排除、多矩形选择、按页面缩放补偿的弹窗定位及仅用于朗读的普通话语言别名。
+ * 主要内容：定义 SelectionRequestTokenGate、Presentation 状态机、选区/视口类型，处理中英划词反向目标、同语种判断、文本清理、公式单份文本提取、正文中的行内代码片段保护、主动代码选区提取、敏感区域排除、多矩形选择、按页面缩放补偿的弹窗定位及仅用于朗读的普通话语言别名。
  * 模块边界：本模块不监听 document selection、不发消息、不渲染 Vue 或播放音频；组件负责连接 DOM，词典和 TTS 由 services/background 提供，函数保持确定性以供单元测试。
  */
 import {getElementTagName, isTopLevelApplicationShell} from '@/src/core/translation/public';
@@ -201,8 +201,10 @@ export interface SelectionTextPart {
 /** 冻结选区片段；代码只保留文字与 code 语义，不把宿主属性或 HTML 带入扩展 UI。 */
 export function readSelectionParts(range: Range, browserText: string): SelectionTextPart[] {
     const ancestor = elementFromSelectionNode(range.commonAncestorContainer);
-    if (ancestor?.closest(`${selectionFormulaSelector}, code`)) return [];
+    if (ancestor?.closest(selectionFormulaSelector)) return [];
     const plainText = () => [{kind: 'text' as const, text: normalizeSelectionText(browserText)}];
+    // 用户主动选中的代码文字可以翻译；正文跨行内代码时仍保留代码快照。
+    if (ancestor?.closest('pre, code')) return plainText();
     if (!ancestor?.querySelector(`${selectionFormulaSelector}, code`)) return plainText();
     const fragment = ancestor.ownerDocument.createElement('div');
     fragment.append(range.cloneContents());
@@ -211,7 +213,7 @@ export function readSelectionParts(range: Range, browserText: string): Selection
     if (formulas.length === 0 && !fragment.querySelector('code')) return plainText();
     const prose = fragment.cloneNode(true) as HTMLElement;
     prose.querySelectorAll(`${selectionFormulaSelector}, code, script, style, .MathJax_Preview`).forEach(element => element.remove());
-    if (!/\p{L}/u.test(prose.textContent!)) return [];
+    if (!/\p{L}/u.test(prose.textContent!)) return fragment.querySelector('code') ? plainText() : [];
     for (const formula of formulas) {
         const tex = formula.nextElementSibling?.matches('script[type^="math/tex"]')
             ? formula.nextElementSibling.textContent
@@ -281,8 +283,8 @@ function isInlineSelectionFormulaPart(element: Element): boolean {
 }
 
 const selectionExcludedTagNames = new Set([
-    'audio', 'button', 'canvas', 'code', 'embed', 'iframe', 'img', 'input',
-    'kbd', 'math', 'object', 'option', 'picture', 'pre', 'samp', 'select',
+    'audio', 'button', 'canvas', 'embed', 'iframe', 'img', 'input',
+    'kbd', 'math', 'object', 'option', 'picture', 'samp', 'select',
     'svg', 'template', 'textarea', 'var', 'video',
 ]);
 
@@ -292,7 +294,7 @@ const selectionExcludedRoles = new Set([
     'switch', 'tab', 'textbox',
 ]);
 
-const selectionExcludedNonCodeSelector = [
+const selectionExcludedSelector = [
     '.fluent-read-bilingual-content',
     '.fluent-read-loading',
     '.fluent-read-retry-wrapper',
@@ -316,23 +318,11 @@ const selectionExcludedNonCodeSelector = [
     '[role="tab"]',
     '[role="textbox"]',
     '[translate="no"]',
+    '[contenteditable=""]',
     '[contenteditable="true"]',
     '[contenteditable="plaintext-only"]',
-    ...Array.from(selectionExcludedTagNames).filter(tag => tag !== 'code'),
+    ...Array.from(selectionExcludedTagNames),
 ].join(',');
-const selectionExcludedSelector = `${selectionExcludedNonCodeSelector},code`;
-
-/** 行内代码可跨越，但代码块、可编辑内容和显式禁止区域不能借此放行。 */
-function isInlineSelectionCodePart(element: Element): boolean {
-    const code = element.closest('code');
-    if (!code || getElementTagName(code) !== 'code' || isSelectionExcludedElement(code.parentElement)) return false;
-    if (selectionExcludedRoles.has(code.getAttribute('role')?.trim().toLowerCase() ?? '')) return false;
-    const display = code.ownerDocument.defaultView?.getComputedStyle?.(code).display;
-    if (display && !display.startsWith('inline') && display !== 'contents') return false;
-    return !isEditableSelectionElement(element)
-        && !code.contains(element.closest(selectionExcludedNonCodeSelector));
-}
-
 export function isSelectionExcludedTagName(tagName: string): boolean {
     return selectionExcludedTagNames.has(tagName.trim().toLowerCase());
 }
@@ -360,7 +350,11 @@ function isIntrinsicallyExcludedSelectionElement(element: Element): boolean {
 
 function isSelectionExcludedElement(element: Element | null): boolean {
     if (!element) return false;
-    if (isIntrinsicallyExcludedSelectionElement(element)) return true;
+    let current: Element | null = element;
+    while (current) {
+        if (isIntrinsicallyExcludedSelectionElement(current)) return true;
+        current = current.parentElement;
+    }
 
     const excluded = element.closest(selectionExcludedSelector);
     if (!excluded) return false;
@@ -378,7 +372,7 @@ function selectionExcludedDescendants(range: Range): Element[] {
     const commonAncestor = range.commonAncestorContainer;
     const queryRoot = commonAncestor.nodeType === 3 ? commonAncestor.parentElement : commonAncestor;
     if (!queryRoot || !('querySelectorAll' in queryRoot)) return [];
-    return Array.from((queryRoot as ParentNode).querySelectorAll(selectionExcludedSelector));
+    return Array.from((queryRoot as ParentNode).querySelectorAll(`${selectionExcludedSelector},[role]`));
 }
 
 function containsNonZeroClientRect(rects: DOMRectList): boolean {
@@ -395,7 +389,7 @@ function hasNonZeroClientRect(element: Element): boolean {
 }
 
 /**
- * 划词翻译只处理页面正文，不处理原子内容或交互控件。这里同时检查选区两端
+ * 划词翻译处理用户主动选中的正文与代码文字，不处理交互控件。这里同时检查选区两端
  * 与实时 DOM 中相交且具有可见几何的排除元素，避免隐藏控件误伤浏览器生成的段落选区。
  */
 export function shouldIgnoreSelection(range: Range): boolean {
@@ -404,14 +398,15 @@ export function shouldIgnoreSelection(range: Range): boolean {
         elementFromSelectionNode(range.endContainer),
     ];
     if (boundaries.some(element => isSelectionExcludedElement(element) &&
-        !(element && (isInlineSelectionFormulaPart(element) || isInlineSelectionCodePart(element))))) return true;
+        !(element && isInlineSelectionFormulaPart(element)))) return true;
 
     try {
         return selectionExcludedDescendants(range).some((element) => {
             try {
                 if (!isIntrinsicallyExcludedSelectionElement(element) &&
                     isTopLevelApplicationShell(element)) return false;
-                if (isInlineSelectionFormulaPart(element) || isInlineSelectionCodePart(element)) return false;
+                if (!isSelectionExcludedElement(element)) return false;
+                if (isInlineSelectionFormulaPart(element)) return false;
                 return range.intersectsNode(element) && hasNonZeroClientRect(element);
             } catch {
                 return false;
@@ -491,7 +486,7 @@ export function normalizeSpeechLanguage(language: string | undefined, fallback =
         'ru': 'ru-RU',
     };
 
-    if (aliases[lower]) return aliases[lower];
+    if (Object.hasOwn(aliases, lower)) return aliases[lower];
     return /^[a-z]{2,3}(-[a-z0-9]{2,8})*$/i.test(normalized) ? normalized : fallback;
 }
 

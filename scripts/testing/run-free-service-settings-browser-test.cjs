@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 // 免费服务设置专项：统一目录、测试耗时/失败/重测、分流、邮箱、顺序与多尺寸；仅使用隔离后台 Chromium profile。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -12,14 +13,16 @@ const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-free-service-settings'));
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
-const ids = ['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'lingvanexFree'];
+const ids = ['microsoft', 'transmart', 'volcengineFree', 'google', 'youdaoFree', 'icibaFree', 'yandexFree', 'myMemory', 'sogouFree', 'reversoFree', 'apertiumFree', 'alibabaFree', 'modernMtFree', 'laraFree', 'bilibiliFree', 'lingvanexFree'];
 const defaultIds = ids;
-const report = {ok: false, extensionDir, evidenceBoundary: live ? 'Real anonymous connection tests on a fixed synthetic sentence; one network and one run.' : 'Production extension UI with controlled connection-message results; provider behavior is tested separately.', caseCoverage: [], screenshots: [], consoleErrors: [], layouts: []};
+const report = {ok: false, extensionDir, evidenceBoundary: process.argv.includes('--bilibili-live') ? 'Production extension Bilibili-only real connection check on a synthetic sentence; verifies installed DNR and provider transport, not all-site translation quality.' : live ? 'Real anonymous connection tests on a fixed synthetic sentence; one network and one run.' : 'Production extension UI with controlled connection-message results; provider behavior is tested separately.', caseCoverage: [], screenshots: [], consoleErrors: [], layouts: []};
 fs.mkdirSync(artifactsDir, {recursive: true});
 (async () => {
-  let launched;
+  let launched, profileDir;
+  let launchAttempted = false;
   try {
-    const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-free-settings-'));
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-free-settings-'));
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), background: true, headless: false, viewport: {width: 1440, height: 960}, timeout: 30000, browserArgs: [...(loadViaCdp ? ['--enable-unsafe-extension-debugging'] : [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`]), '--no-first-run', '--no-default-browser-check']});
     Object.assign(report, {browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'), launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
@@ -36,24 +39,38 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     const create = async url => {const p = await newPageWithoutForeground(context, 30000); p.on('pageerror', e => report.consoleErrors.push(e.message)); await p.goto(url, {waitUntil: 'domcontentloaded'}); return p;};
     const popup = await create(`${origin}/popup.html`);
     const readConfig = () => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value) : r.value;});
-    await popup.waitForFunction(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;});
+    await waitForAsyncCondition(() => popup.evaluate(async () => {const r = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'}); return typeof r.value === 'string' ? JSON.parse(r.value)?.service : r.value?.service;}), {timeoutMs: 30000, message: "免费服务测试默认服务配置尚未就绪"});
     const existing = await readConfig();
     assert.deepEqual(existing.freeTranslationOrder, defaultIds);
-    report.caseCoverage.push('fresh configuration enables 15 official providers');
+    report.caseCoverage.push('fresh configuration enables 16 official providers');
     const patch = {uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, service: 'freeTranslation', from: 'en', to: 'zh-Hans', freeTranslationMode: 'balanced', freeTranslationOrder: defaultIds, freeTranslationTimeoutMs: 5000};
     assert.equal((await popup.evaluate(({patch, expected}) => chrome.runtime.sendMessage({type: 'persistConfig', mode: 'patch', config: patch, expected, clientId: `free-settings-${crypto.randomUUID()}`, sequence: 1}), {patch, expected: Object.fromEntries(Object.keys(patch).map(k => [k, existing[k]]))})).success, true);
     let page = await create(`${origin}/options.html`);
     await page.locator('button[data-section="settings-services"]').click();
     const basic = () => page.locator('[data-free-translation-settings]:not(.is-advanced)');
     await basic().locator('[data-fallback-provider]').last().waitFor();
-    assert.equal(await basic().locator('[data-fallback-provider]').count(), 15);
+    assert.equal(await basic().locator('[data-fallback-provider]').count(), 16);
     assert.equal(await basic().locator('details').count(), 0);
-    assert.equal(await basic().locator('[data-provider-state]').count(), 15);
-    assert.equal(await basic().locator('[data-provider-weight]').count(), 15);
+    assert.equal(await basic().locator('[data-provider-state]').count(), 16);
+    assert.equal(await basic().locator('[data-provider-weight]').count(), 16);
     assert.equal(await basic().locator('input[type="email"]').isVisible(), true);
     assert.equal(await basic().locator('[data-fallback-provider="deeplx"]').count(), 0);
     assert.equal(await basic().locator('[data-fallback-provider="lingvaFree"]').count(), 0);
-    report.caseCoverage.push('15 official services, states and allocation visible without expansion; email outside cards');
+    report.caseCoverage.push('16 official services, states and allocation visible without expansion; email outside cards');
+    if (process.argv.includes('--bilibili-live')) {
+      const rules = await popup.evaluate(() => chrome.declarativeNetRequest.getDynamicRules());
+      const rule = rules.find(rule => rule.condition.regexFilter?.includes('index-translate'));
+      assert.ok(rule, 'Bilibili Origin rule missing');
+      assert.deepEqual(rule.condition.initiatorDomains, [origin.replace('chrome-extension://', '')]);
+      assert.deepEqual(rule.action.requestHeaders, [{header: 'Origin', operation: 'remove'}]);
+      const result = await popup.evaluate(() => chrome.runtime.sendMessage({type: 'testTranslationService', service: 'freeTranslation', freeProviderId: 'bilibiliFree'}));
+      report.bilibiliLive = {result, rule};
+      assert.equal(result.success, true, JSON.stringify(result));
+      const screenshot = path.join(artifactsDir, 'bilibili-free-settings.png');
+      await basic().locator('[data-fallback-provider="bilibiliFree"]').scrollIntoViewIfNeeded();
+      await page.screenshot({path: screenshot, animations: 'disabled'}); report.screenshots.push(screenshot);
+      assert.deepEqual(report.consoleErrors, []); report.ok = true; return;
+    }
     if (!live) await page.evaluate(() => {
       const original = chrome.runtime.sendMessage.bind(chrome.runtime);
       window.__freeChecks = {calls: [], active: 0, peak: 0, delay: 70};
@@ -71,7 +88,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     });
     const before = (await readConfig()).freeTranslationOrder;
     await page.locator('[data-connection-test-button]').click();
-    await page.waitForFunction(() => document.querySelectorAll('[data-provider-duration]').length === 15, undefined, {timeout: 45000});
+    await page.waitForFunction(() => document.querySelectorAll('[data-provider-duration]').length === 16, undefined, {timeout: 45000});
     report.results = await basic().locator('[data-fallback-provider]').evaluateAll(nodes => nodes.map(node => ({id: node.dataset.fallbackProvider, status: node.querySelector('[data-provider-state]').dataset.providerCheckStatus, duration: node.querySelector('[data-provider-duration]')?.textContent, error: document.querySelector(`[data-provider-error="${node.dataset.fallbackProvider}"]`)?.textContent})));
     assert.deepEqual((await readConfig()).freeTranslationOrder, before);
     assert.equal(report.results.every(r => /^\d+ ms$/u.test(r.duration)), true);
@@ -95,7 +112,7 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     await page.evaluate(() => {window.__freeChecks.delay = 400;});
     await page.locator('[data-connection-test-button]').click();
     assert.equal(await basic().locator('[data-provider-duration]').count(), 0);
-    await page.waitForFunction(() => document.querySelectorAll('[data-provider-duration]').length === 15);
+    await page.waitForFunction(() => document.querySelectorAll('[data-provider-duration]').length === 16);
     report.caseCoverage.push('retest immediately clears old durations');
     for (const width of [1440, 1024, 820, 390]) {
       await page.setViewportSize({width, height: 960});
@@ -165,5 +182,22 @@ fs.mkdirSync(artifactsDir, {recursive: true});
     assert.deepEqual(report.consoleErrors, []);
     report.ok = true;
   } catch (error) {report.error = error.stack || String(error); process.exitCode = 1;}
-  finally {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); await launched?.close(); console.log(JSON.stringify(report, null, 2));}
+  finally {
+    report.cleanupErrors = [];
+    let browserClosed = !launchAttempted;
+    if (launched) {
+      try {await launched.close(); browserClosed = true;}
+      catch (error) {report.cleanupErrors.push(`session close: ${error.message}`);}
+    }
+    if (profileDir) {
+      if (browserClosed) {
+        try {fs.rmSync(profileDir, {recursive: true, force: true}); report.profileRemoved = true;}
+        catch (error) {report.cleanupErrors.push(`profile removal: ${error.message}`); report.retainedProfile = profileDir;}
+      } else report.retainedProfile = profileDir;
+    }
+    if (report.cleanupErrors.length) {report.ok = false; process.exitCode = 1;}
+    try {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));}
+    catch (error) {console.error(`free settings report write: ${error.stack || error}`); process.exitCode = 1;}
+    console.log(JSON.stringify(report, null, 2));
+  }
 })();

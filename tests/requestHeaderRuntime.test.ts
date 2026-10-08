@@ -29,6 +29,7 @@ describe('后台请求头同步屏障', () => {
         await vi.waitFor(() => expect(api.updateDynamicRules).toHaveBeenCalledOnce());
         expect(fetch).not.toHaveBeenCalled();
         expect(api.updateDynamicRules.mock.calls[0][0].addRules[0].condition.initiatorDomains).toEqual(['own-uuid']);
+        expect(api.updateDynamicRules.mock.calls[0][0].addRules).toHaveLength(2);
         release();
         await request;
         expect(fetch).toHaveBeenCalledWith('https://api.example.com/v1', {method: 'POST'});
@@ -36,7 +37,7 @@ describe('后台请求头同步屏障', () => {
         api.getDynamicRules.mockResolvedValue([{id: 2_763_000}]);
         mocks.subscribe.mock.calls[0][0]();
         await runtimeFetch('https://api.example.com/v1');
-        expect(api.updateDynamicRules).toHaveBeenLastCalledWith({removeRuleIds: [2_763_000], addRules: []});
+        expect(api.updateDynamicRules).toHaveBeenLastCalledWith({removeRuleIds: [2_763_000], addRules: [expect.objectContaining({condition: expect.objectContaining({regexFilter: '^https?://index-translate\\.bilibili\\.com(?::[0-9]+)?/'})})]});
     });
 
     it('安装失败时阻止网络并重试；后台订阅的失败只输出固定诊断', async () => {
@@ -56,4 +57,13 @@ describe('后台请求头同步屏障', () => {
         await runtimeFetch('https://api.example.com/');
         expect(fetch).toHaveBeenCalledOnce();
     });
+});
+
+it('缺少 DNR 的运行环境不影响其他服务', async () => {
+    mocks.config.requestHeaderRules = [];
+    vi.stubGlobal('browser', {runtime: {getURL: () => 'chrome-extension://own/'}});
+    const fetch = vi.fn().mockResolvedValue(new Response('ok')); vi.stubGlobal('fetch', fetch);
+    installRequestHeaderRuntime();
+    await runtimeFetch('https://other.example/');
+    expect(fetch).toHaveBeenCalledOnce();
 });

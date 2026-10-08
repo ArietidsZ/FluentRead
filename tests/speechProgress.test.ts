@@ -1,5 +1,5 @@
 import {describe,expect,it} from 'vitest';
-import {audioSpeechProgress,boundarySpeechProgress,parseSpeechCues,parseSpeechProgress,speechTextSlices} from '@/src/core/tts/speechProgress';
+import {audioSpeechProgress,boundarySpeechProgress,parseSpeechCues,parseSpeechProgress,speechTextSlices,speechTextTokens,parseSpeechPlaybackPosition,seekSpeechTime} from '@/src/core/tts/speechProgress';
 describe('音频时间与安全跟读切片',()=>{
     it('仅接受有序有效句段，损坏或超大数据不参与跟读',()=>{
         const cue={startChar:0,endChar:5,startTime:0,endTime:1};expect(parseSpeechCues([cue])).toEqual([cue]);
@@ -27,9 +27,33 @@ describe('音频时间与安全跟读切片',()=>{
     });
     it('浏览器真实词边界不估算字符范围，缺失长度时定位当前词',()=>{
         expect(boundarySpeechProgress('Hello world',6,5)).toEqual({start:6,end:11,fraction:1,estimated:false});
-        expect(boundarySpeechProgress('Hello world',6,0)?.end).toBe(11);expect(boundarySpeechProgress('Hi there',2,0)?.end).toBe(3);
+        expect(boundarySpeechProgress('Hello world',6,0)?.end).toBe(11);expect(boundarySpeechProgress('Hi there',2,0)).toEqual({start:3,end:8,fraction:1,estimated:false});
         expect(boundarySpeechProgress('Hi',0,100)?.end).toBe(2);
         for(const n of [-1,.1,20])expect(boundarySpeechProgress('Hi',n,1)).toBeNull();
+        expect(boundarySpeechProgress('For this release, we agree.',9,2)).toEqual({start:9,end:16,fraction:1,estimated:false});
+        expect(boundarySpeechProgress('For this release, we agree.',11,1)?.start).toBe(9);
+        expect(boundarySpeechProgress('Hello! ',5,1)).toBeNull();
+    });
+    it('分词连续保留空白、缩写、混排和 emoji，分段时间间隙保持前一个词',()=>{
+        const text="  We’re publishing H2D，中文\n🙂 release.";
+        const tokens=speechTextTokens(text);
+        expect(tokens.map(token=>token.text).join('')).toBe(text);
+        expect(tokens.filter(token=>token.word).map(token=>token.text)).toEqual(['We’re','publishing','H2D','中','文','release']);
+        expect(speechTextTokens('word')[0]).toEqual({text:'word',start:0,end:4,word:true});
+        expect(speechTextTokens('')).toEqual([]);
+        const cues=[{startChar:0,endChar:5,startTime:0,endTime:1},{startChar:6,endChar:11,startTime:2,endTime:3}];
+        expect(audioSpeechProgress('Hello world',1.5,3,cues)).toEqual({start:0,end:5,fraction:1,estimated:true});
+        expect(audioSpeechProgress('Hello world',2.5,3,cues)?.start).toBe(6);
+    });
+    it('音频时钟严格解析，5 秒跳转限制首尾且拒绝未加载时长',()=>{
+        expect(parseSpeechPlaybackPosition({currentTime:2,duration:12,privateField:'discard'})).toEqual({currentTime:2,duration:12});
+        expect(parseSpeechPlaybackPosition({currentTime:20,duration:12})).toEqual({currentTime:12,duration:12});
+        for(const value of [null,{},'time',{currentTime:-1,duration:12},{currentTime:NaN,duration:12},{currentTime:0,duration:Infinity},{currentTime:0,duration:0}])expect(parseSpeechPlaybackPosition(value)).toBeNull();
+        expect(seekSpeechTime(2,12,-5)).toBe(0);
+        expect(seekSpeechTime(2,12,5)).toBe(7);
+        expect(seekSpeechTime(10,12,5)).toBe(12);
+        expect(seekSpeechTime(0,NaN,5)).toBeNull();
+        expect(seekSpeechTime(0,12,NaN)).toBeNull();
     });
     it('原文与空白完整保留，跨富文本片段按绝对索引扫色',()=>{
         const p={start:2,end:8,fraction:.5,estimated:true};

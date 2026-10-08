@@ -2,7 +2,7 @@
  * @file src/providers/translation/google.ts
  *
  * 文件职责：适配无需用户密钥的 Google 浏览器批量接口与网页 RPC，在统一截止时间内合批、换线和冷却失败入口。
- * 主要内容：编码 translateHtml、translate_a/t 与带编号的 batchexecute 批次，严格校验结果数量与槽位，保护纯文本、换行及取消所有权；短时间合并同语言请求，按近期可靠性、延迟和在途负载动态排序，定期探索备用入口并单独探测冷却恢复，避免每个段落重复访问失效入口。公开符号包括 parseGoogleBatchResponse、translateGoogleTexts、translateGoogleText、default:google。
+ * 主要内容：编码 translateHtml、translate_a/t 与带编号的 batchexecute 批次，严格校验结果数量与槽位，保护纯文本、换行及取消所有权；短时间合并同语言请求，按近期可靠性、延迟和在途负载动态排序，定期探索备用入口并单独探测冷却恢复，避免每个段落重复访问失效入口。为免费池提供不跨 owner 合批的数组传输入口。公开符号包括 parseGoogleBatchResponse、translateGoogleOwnerTexts、translateGoogleTexts、translateGoogleText、default:google。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -479,6 +479,13 @@ function enqueueGoogleText(
         pendingTexts.push(task);
         flushTimer ??= setTimeout(flushGoogleTexts, GOOGLE_BATCH_WINDOW_MS);
     });
+}
+
+/** 上层已限定组大小并保留纯空白槽；本入口只复用原端点排序/超时，不共享在途请求或信号。 */
+export function translateGoogleOwnerTexts(
+    texts: readonly string[], fromLang: string, toLang: string, signal: AbortSignal,
+): Promise<string[]> {
+    return executeGoogleTexts([...texts], googleLanguage(fromLang), googleLanguage(toLang), signal);
 }
 
 export async function translateGoogleTexts(texts: readonly string[], fromLang: string, toLang: string, signal?: AbortSignal): Promise<string[]> {

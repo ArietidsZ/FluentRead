@@ -1,8 +1,8 @@
 <!--
  * @file src/features/settings/ui/services/ServiceCatalog.vue
  * 文件职责：以服务目录和清晰分层的配置工作区呈现翻译服务，窄屏按需展开目录，保持配置与默认使用分离。
- * 主要内容：侧栏展示全部内置及自定义服务，分组可单独收起，选中服务或回到本页时展开正在配置的服务所在分组；顶部分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索过滤目录时展开全部匹配分组，此时点击分组导航会清空搜索并回到完整目录；自定义按钮直接打开创建表单；右侧集中展示服务名称及接口性质徽章、模型、官网帮助和连接配置。
- * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏承载当前服务的检查连接操作，不编辑凭据、不测试连接也不保存配置；分组收起状态只保存在本次页面会话，不写入配置，卸载时断开目录尺寸观察；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
+ * 主要内容：侧栏展示全部内置及自定义服务，分组可单独收起，选中服务或回到本页时展开正在配置的服务所在分组；顶部分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索过滤目录时展开全部匹配分组，此时点击分组导航会清空搜索并回到完整目录；自定义按钮直接打开创建表单；右侧集中展示服务名称及接口性质徽章、模型、官网帮助和连接配置；目录搜索文本按需缓存，活跃上下文限定操作并取消过期焦点与滚动。
+ * 模块边界：目录提供“配置服务”和“自定义服务”入口，标题栏承载当前服务的检查连接操作，不编辑凭据、不测试连接也不保存配置；分组收起状态只保存在本次页面会话，不写入配置，停用或切换上下文时断开并重建目录尺寸观察，卸载时清理观察器；详细表单归 ServiceConfiguration.vue，服务定义来自 core/config，外层 SettingsSections 处理持久化。
  -->
 <template>
   <section
@@ -18,12 +18,13 @@
         type="button"
         :data-service-group-link="group.id"
         :aria-current="activeGroup === group.id ? 'location' : undefined"
-        @click="revealGroup(group.id)"
+        :disabled="!active"
+        :onClick="actions.revealGroup.bind(null, group.id)"
       >{{ group.label }}</button>
     </nav>
     <div class="catalog-layout">
       <aside class="service-rail" :class="{ 'is-expanded': directoryOpen }" :aria-label="t('settings.services.library.shortlist')">
-        <button ref="directoryToggle" type="button" class="mobile-directory-toggle" :aria-expanded="directoryOpen" :aria-controls="directoryId" @click="directoryOpen = !directoryOpen">
+        <button ref="directoryToggle" type="button" class="mobile-directory-toggle" :disabled="!active" :aria-expanded="directoryOpen" :aria-controls="directoryId" :onClick="actions.toggleDirectory">
           <ServiceIcon :service="isCustomOpenAIProviderId(service) ? 'custom' : service" :label="selectedService?.label" size="small" />
           <span class="mobile-directory-name">{{ selectedService?.label }}</span><small>{{ t('settings.organization.chooseService') }}</small>
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>
@@ -35,7 +36,7 @@
             <span class="service-count">{{ allServices.length }}</span>
           </div>
           <el-tooltip :content="t('settings.services.library.addHelp')" placement="bottom" :show-after="250" :trigger="['hover', 'focus']">
-          <button ref="addButton" type="button" class="service-add-button" data-testid="custom-service-add" :aria-label="t('settings.services.library.add')" @click="$emit('add:service')">
+          <button ref="addButton" type="button" class="service-add-button" data-testid="custom-service-add" :disabled="!active" :aria-label="t('settings.services.library.add')" :onClick="actions.addService">
             <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14" /></svg>
             <span>{{ t('settings.services.library.add') }}</span>
           </button>
@@ -43,12 +44,12 @@
         </div>
         <label class="catalog-search">
           <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4 4" /></svg>
-          <input v-model="serviceQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" />
+          <input :value="serviceQuery" :disabled="!active" :onInput="actions.updateQuery" type="search" :aria-label="t('settings.services.library.search')" :placeholder="t('settings.services.library.search')" />
         </label>
-        <div ref="groupsElement" class="service-groups" @scroll.passive="syncActiveGroup" @wheel.passive="releasePinnedGroup" @touchstart.passive="releasePinnedGroup" @pointerdown="releasePinnedGroup" @keydown="releasePinnedGroup" @focusin="releasePinnedGroup">
+        <div ref="groupsElement" class="service-groups" :onScrollPassive="actions.syncActiveGroup" :onWheelPassive="actions.releasePinnedGroup" :onTouchstartPassive="actions.releasePinnedGroup" :onPointerdown="actions.releasePinnedGroup" :onKeydown="actions.releasePinnedGroup" :onFocusin="actions.releasePinnedGroup">
           <section v-for="group in visibleDirectoryGroups" :key="group.id" :data-service-section="group.id" class="directory-section" :class="{ 'is-collapsed': !isGroupOpen(group.id) }">
             <h4>
-              <button type="button" class="directory-section-toggle" :aria-expanded="isGroupOpen(group.id)" :aria-controls="`${directoryId}-${group.id}`" :disabled="searching" @click="toggleGroup(group.id)">
+              <button type="button" class="directory-section-toggle" :aria-expanded="isGroupOpen(group.id)" :aria-controls="`${directoryId}-${group.id}`" :disabled="!active || searching" :onClick="actions.toggleGroup.bind(null, group.id)">
                 <span>{{ group.label }}</span><small>{{ group.items.length }}</small>
                 <svg v-if="!searching" class="directory-section-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m6 4 4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
               </button>
@@ -57,7 +58,7 @@
               <ServiceCatalogItem v-for="item in group.items" :key="item.value" :item="item" compact
                 :selected="service === item.value" :is-default="defaultService === item.value"
                 :is-configured="configuredSet.has(item.value)" :is-favorite="favoriteSet.has(item.value)"
-                @select="selectService" />
+                :onSelect="actions.selectService" />
             </div>
           </section>
           <p v-if="!visibleDirectoryGroups.length" class="catalog-empty" role="status">{{ t('settings.services.library.empty') }}</p>
@@ -145,16 +146,16 @@
           <div class="model-heading">
             <strong>模型</strong>
           </div>
-          <ModelPicker
+          <ModelPicker :active="active" :context="props.context" :context-key="service"
             :options="modelOptions"
             :selected-model="selectedModel"
             :maximum-models="maximumModels"
             :maximum-model-length="maximumModelLength"
             :custom-model-count="customModelCount"
             :allow-custom-models="allowCustomModels"
-            @select="$emit('update:model', $event)"
-            @add="$emit('add:model', $event)"
-            @remove="$emit('remove:model', $event)"
+            :onSelect="actions.selectModel"
+            :onAdd="actions.addModel"
+            :onRemove="actions.removeModel"
           />
         </div>
 
@@ -181,6 +182,7 @@ import {
 } from '@/src/ui/view-model/serviceCatalog'
 import ModelPicker from './ModelPicker.vue'
 import ServiceCatalogItem from './ServiceCatalogItem.vue'
+import {useSettingsActionContext} from '../../model/useSettingsActionContext'
 
 interface ModelPickerOption {
   value: string
@@ -188,7 +190,9 @@ interface ModelPickerOption {
   removable?: boolean
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
+  active?: boolean
+  context?: unknown
   service: string
   defaultService: string
   website?: ServiceWebsite
@@ -203,11 +207,10 @@ const props = defineProps<{
   maximumModelLength: number
   customModelCount: number
   allowCustomModels: boolean
-}>()
+}>(), {active: true})
 
 const emit = defineEmits<{
   'update:service': [value: string]
-  'update:favorites': [value: string[]]
   'update:model': [value: string]
   'add:service': []
   'add:model': [value: string]
@@ -215,6 +218,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useUiI18n()
+const {active, capture} = useSettingsActionContext(() => props.active, () => [props.context, props.service])
 const serviceQuery = ref('')
 const directoryOpen = ref(false)
 const directoryToggle = ref<HTMLButtonElement | null>(null)
@@ -231,12 +235,16 @@ const directoryGroups = computed(() => [
   ...(customServices.value.length ? [{ id: 'custom', label: t('settings.services.library.custom'), items: customServices.value }] : []),
 ])
 const allServices = computed(() => directoryGroups.value.flatMap(group => group.items))
+// 延迟建立索引，空搜索不读取或规范化逐项文本；连续输入复用同一目录索引。
+const directorySearchText = computed(() => new Map(allServices.value.map(item => [item,
+  [item.label, item.value, item.description, ...(item.searchTerms || [])].join(' ').normalize('NFKC').toLocaleLowerCase(),
+])))
 const visibleDirectoryGroups = computed(() => {
   const keyword = serviceQuery.value.trim().normalize('NFKC').toLocaleLowerCase()
+  if (!keyword) return directoryGroups.value
   return directoryGroups.value
-    .map(group => ({ ...group, items: group.items.filter(item =>
-      [item.label, item.value, item.description, ...(item.searchTerms || [])].join(' ').normalize('NFKC').toLocaleLowerCase().includes(keyword),
-    ) })).filter(group => group.items.length)
+    .map(group => ({ ...group, items: group.items.filter(item => directorySearchText.value.get(item)!.includes(keyword)) }))
+    .filter(group => group.items.length)
 })
 const selectedService = computed(() => allServices.value.find(item => item.value === props.service))
 const searching = computed(() => Boolean(serviceQuery.value.trim()))
@@ -258,9 +266,11 @@ function setGroupOpen(id: string, open: boolean): void {
   collapsedGroups.value = next
 }
 function toggleGroup(id: string): void {
+  if (!active.value || searching.value || !directoryGroups.value.some(group => group.id === id)) return
   setGroupOpen(id, !isGroupOpen(id))
 }
 function expandGroupOf(service: string): void {
+  if (!active.value) return
   const group = directoryGroups.value.find(candidate => candidate.items.some(item => item.value === service))
   if (group) setGroupOpen(group.id, true)
 }
@@ -272,6 +282,7 @@ function releasePinnedGroup(): void {
   pinnedGroup = ''
 }
 function syncActiveGroup(): void {
+  if (!active.value) return
   const scroller = groupsElement.value
   // 目录隐藏时没有可比较的位置，保留上一次的结果。
   if (!scroller?.getClientRects().length) return
@@ -293,12 +304,15 @@ function syncActiveGroup(): void {
   activeGroup.value = current
 }
 async function revealGroup(id: string) {
+  const current = capture()
+  if (!current() || !directoryGroups.value.some(group => group.id === id)) return
   // 导航始终列出全部分组；搜索中点击即回到完整目录。
   serviceQuery.value = ''
   setGroupOpen(id, true)
   pinnedGroup = id
   activeGroup.value = id
   await nextTick()
+  if (!current()) return
   const scroller = groupsElement.value
   const target = groupElement(id)
   if (!scroller || !target) return
@@ -310,41 +324,79 @@ async function revealGroup(id: string) {
 // 同步执行，保证 revealGroup 清空搜索后设置的目标不会被随后的回调清掉。
 watch(serviceQuery, releasePinnedGroup, {flush: 'sync'})
 // 分组增减、收起或展开都会改变目录高度，但不会触发滚动事件；等 v-show 生效后再比较位置。
-watch([visibleDirectoryGroups, collapsedGroups], () => nextTick(syncActiveGroup), {flush: 'post'})
+function scheduleActiveGroupSync(): void {
+  const current = capture()
+  if (current()) void nextTick(() => {if (current()) syncActiveGroup()})
+}
+watch([visibleDirectoryGroups, collapsedGroups], scheduleActiveGroupSync, {flush: 'post'})
 // 切回本页、窄屏展开目录或跨越断点时目录从隐藏变为可见，同样没有滚动事件：此时让正在配置的服务保持可见并重新定位高亮。
 let directoryVisible = false
 let directoryObserver: ResizeObserver | undefined
-onMounted(() => {
-  const scroller = groupsElement.value
-  if (!scroller) return
-  directoryObserver = new ResizeObserver(() => {
+function stopDirectoryObserver(): void {
+  const previous = directoryObserver
+  directoryObserver = undefined
+  directoryVisible = false
+  previous?.disconnect()
+}
+function refreshDirectoryObserver(): void {
+  stopDirectoryObserver()
+  const current = capture(), scroller = groupsElement.value
+  if (!current() || !scroller) return
+  expandGroupOf(props.service)
+  const observer = new ResizeObserver(() => {
+    if (!current() || directoryObserver !== observer) return
     const visible = scroller.getClientRects().length > 0
     if (visible && !directoryVisible) expandGroupOf(props.service)
     directoryVisible = visible
-    void nextTick(syncActiveGroup)
+    void nextTick(() => {if (current() && directoryObserver === observer) syncActiveGroup()})
   })
-  directoryObserver.observe(scroller)
-})
-onBeforeUnmount(() => directoryObserver?.disconnect())
-
-async function selectService(service: string) {
-  expandGroupOf(service)
-  emit('update:service', service)
-  if (directoryOpen.value) {
-    directoryOpen.value = false
-    await nextTick()
-    directoryToggle.value?.focus({preventScroll: true})
-  }
+  directoryObserver = observer
+  observer.observe(scroller)
 }
+onMounted(refreshDirectoryObserver)
+watch(() => [active.value, props.context, props.service], refreshDirectoryObserver, {flush: 'post'})
+onBeforeUnmount(stopDirectoryObserver)
+
+function selectService(service: string): void {
+  if (!active.value || !allServices.value.some(item => item.value === service && !item.disabled)) return
+  expandGroupOf(service)
+  if (service === props.service) {
+    const restoreFocus = directoryOpen.value, current = capture()
+    directoryOpen.value = false
+    if (restoreFocus) void nextTick(() => {if (current()) directoryToggle.value?.focus({preventScroll: true})})
+    return
+  }
+  emit('update:service', service)
+}
+const actions = computed(() => {
+  const current = capture()
+  return {
+    selectService: (value: string) => {if (current()) selectService(value)},
+    revealGroup: (id: string) => {if (current()) return revealGroup(id)},
+    toggleGroup: (id: string) => {if (current()) toggleGroup(id)},
+    syncActiveGroup: () => {if (current()) syncActiveGroup()},
+    releasePinnedGroup: () => {if (current()) releasePinnedGroup()},
+    toggleDirectory: () => {if (current()) directoryOpen.value = !directoryOpen.value},
+    updateQuery: (event: Event) => {const value = (event.currentTarget as HTMLInputElement | null)?.value;if (current() && typeof value === 'string') serviceQuery.value = value},
+    addService: () => {if (current()) emit('add:service')},
+    selectModel: (value: string) => {if (current()) emit('update:model', value)},
+    addModel: (value: string) => {if (current()) emit('add:model', value)},
+    removeModel: (value: string) => {if (current()) emit('remove:model', value)},
+  }
+})
+watch(() => [active.value, props.context], () => {directoryOpen.value = false;serviceQuery.value = '';pinnedGroup = ''}, {flush: 'sync'})
 // 外部跳转和新建服务沿用同一编辑工作区，并从表单顶部开始。
-watch(() => props.service, async (service) => {
+watch(() => props.service, (service) => {
   expandGroupOf(service)
   const restoreDirectoryFocus = directoryOpen.value
   directoryOpen.value = false
-  await nextTick()
-  if (restoreDirectoryFocus) directoryToggle.value?.focus({ preventScroll: true })
-  addButton.value?.closest('.catalog-layout')?.querySelector('.service-detail')?.scrollTo({ top: 0 })
-})
+  const current = capture()
+  void nextTick(() => {
+    if (!current()) return
+    if (restoreDirectoryFocus) directoryToggle.value?.focus({ preventScroll: true })
+    addButton.value?.closest('.catalog-layout')?.querySelector('.service-detail')?.scrollTo({ top: 0 })
+  })
+}, {flush: 'sync'})
 
 </script>
 

@@ -9,12 +9,13 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {createRequire} = require('node:module');
 
-const args = {timeout: 30000};
+const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs'), timeout: 30000};
 for (let index = 2; index < process.argv.length; index += 1) {
   const flag = process.argv[index];
   if (flag === '--background') continue;
@@ -111,7 +112,7 @@ async function inspectLanguages(page, width, dark) {
 }
 
 async function main() {
-  let session;
+  let session, primaryError;
   try {
     session = await launchFocusSafePersistentContext({
       chromium,
@@ -129,6 +130,7 @@ async function main() {
         '--no-default-browser-check',
       ],
     });
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {
       launchMode: session.launchMode,
       focusPolicy: session.focusPolicy,
@@ -253,13 +255,32 @@ async function main() {
     assert.deepEqual(report.errors, [], `Popup console errors: ${report.errors.join('; ')}`);
     report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.passed = false;
     report.errors.push(error.stack || String(error));
     throw error;
   } finally {
-    fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (session) await session.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {await release();} catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        if (resource === 'profile') report.retainedProfile = profileDir;
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup('profile', () => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else report.retainedProfile = profileDir;
+    });
+    await cleanup('report', () => {fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    if (report.retainedProfile) process.stderr.write(`Unconfirmed browser/profile cleanup; retained profile: ${profileDir}\n`);
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 

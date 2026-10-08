@@ -1,22 +1,26 @@
 // 真实生产扩展的工具栏状态回归；只使用临时 profile 与确定性供应商响应。
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 const argument=(name,fallback)=>{const i=process.argv.indexOf('--'+name);return i<0?fallback:process.argv[i+1]};
 const fs=require('fs'),os=require('os'),path=require('path'),crypto=require('crypto'),assert=require('assert/strict');
 const {execFileSync}=require('child_process');
 const {chromium}=require(path.join(argument('playwright-root','/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'),'playwright'));
-const helper=require(argument('focus-safe-helper','/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
+const helper=require(argument('focus-safe-helper',path.join(__dirname, 'focus-safe-browser.cjs')));
 const out=path.resolve(argument('artifacts-dir','/private/tmp/fluentread-toolbar-status')),ext=path.resolve(argument('extension-dir','.output/chrome-mv3'));fs.mkdirSync(out,{recursive:true});
 const windowQuery=argument('window-query',null);
 const profile=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-edge-profile-toolbar-'));
 const id=crypto.createHash('sha256').update(ext).digest('hex').slice(0,32).replace(/[0-9a-f]/g,x=>String.fromCharCode(97+parseInt(x,16)));
-fs.mkdirSync(path.join(profile,'Default'));
-fs.writeFileSync(path.join(profile,'Default','Preferences'),JSON.stringify({translate:{enabled:false},extensions:{toolbar:[id],pinned_extensions:[id]},browser:{has_seen_welcome_page:true}}));
+
 const report={profile,expectedId:id,scope:'Production extension; local page fixture and deterministic provider responses',cases:[],errors:[]};
 const nativeBadges={idle:{text:''},translating:{text:'…',background:[37,99,235,255]},translated:{text:'✓',background:[21,128,61,255]},error:{text:'!',background:[180,83,9,255]}};
-let session;
+let session, primaryError, launchAttempted = false;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function main(){
  try{
+ fs.mkdirSync(path.join(profile,'Default'));
+ fs.writeFileSync(path.join(profile,'Default','Preferences'),JSON.stringify({translate:{enabled:false},extensions:{toolbar:[id],pinned_extensions:[id]},browser:{has_seen_welcome_page:true}}));
+ launchAttempted = true;
  session=await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',background:true,headless:false,viewport:{width:1120,height:780},displayTarget:'secondary',timeout:30000,browserArgs:[`--disable-extensions-except=${ext}`,`--load-extension=${ext}`,'--no-first-run','--no-default-browser-check','--disable-background-networking','--disable-features=msEdgeTranslate,msEdgeUpdateNotifications']});
+ guardBrowserClose(session, profile);
  Object.assign(report,{launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement});
  const context=session.context;
  let worker=context.serviceWorkers()[0]||await context.waitForEvent('serviceworker');
@@ -83,6 +87,25 @@ async function main(){
  report.workerRestart={verified:false,scope:'activation recovery covered; forced worker restart not exercised by this suite'};
  await page.reload();await page.waitForSelector('#fluent-read-page-styles',{state:'attached'});assert.equal((await snap('07-reloaded')).text,'');
  report.completed=true;
- }finally{fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));if(session)await session.close();fs.rmSync(profile,{recursive:true,force:true});}
+ } catch (error) { primaryError = error; report.fatal = error.stack; throw error; } finally {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.completed = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (!launchAttempted || browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(out, 'browser-report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+ }
 }
-main().catch(e=>{report.fatal=e.stack;fs.writeFileSync(path.join(out,'browser-report.json'),JSON.stringify(report,null,2));console.error(e);process.exitCode=1});
+main().catch(e=>{console.error(e);process.exitCode=1});

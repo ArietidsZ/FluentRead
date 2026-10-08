@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按实际消费的云地域和凭据摘要、匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；入口在等待前复制消息，批次摘要与分项缓存键只构建一次并复用，重复身份只读写一次；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -24,6 +24,7 @@ import {
     attachTranslationRouteObserver,
     attachTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
+    createTranslationRequestSnapshot,
     getTranslationGlossaryContext,
     getTranslationProviderConfig,
     getTranslationGlossarySourceText,
@@ -37,6 +38,7 @@ import {
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
+import {hasTranslationContent} from '@/src/core/translation/result';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
 import {supportsTranslationGlossary} from './capabilities';
 import {getGlossaryProtectionEntries, isGlossaryOnlyResult, prepareGlossaryRequest} from './glossaryProtection';
@@ -45,7 +47,9 @@ import {
     isLikelyPageContextLeak,
 } from '@/src/core/translation/prompts';
 import {isCustomOpenAIProviderId, LEGACY_CUSTOM_OPENAI_PROVIDER_ID} from '@/src/core/config/customOpenAI';
-import {customModelString, services} from '@/src/core/config/catalog';
+import {customModelString, resolveCloudRegion, services} from '@/src/core/config/catalog';
+import {getAliyunTranslationEndpoint} from '@/src/core/config/constants';
+import {getServiceApiKeys} from '@/src/core/config/apiKeys';
 import {currentConfiguredModel, getCurrentModel} from './templates';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {supportsVisionTransport} from '@/src/core/config/vision';
@@ -81,7 +85,7 @@ export type {
     TranslationSingleRequestMessage,
 } from './types';
 
-type CacheRequestMode = 'single' | 'batch' | 'ai-multi-segment';
+type CacheRequestMode = 'single' | 'slot-protocol' | 'batch' | 'ai-multi-segment';
 
 /** 单次公开翻译请求的观测累加器，只记录服务标识与数值，随 execution 传入缓存和 provider 路径。 */
 interface TranslationRequestTrace {
@@ -130,6 +134,17 @@ class AIMultiSegmentResponseError extends Error {
     constructor() {
         super('AI 多段翻译返回格式异常，已切换为逐段翻译');
         this.name = 'AIMultiSegmentResponseError';
+    }
+}
+
+class TranslationSlotResponseError extends Error {
+    readonly kind = 'response';
+    readonly retryable = false;
+    readonly code = 'TRANSLATION_SLOT_RESPONSE_INVALID';
+
+    constructor() {
+        super('多段翻译连续返回空译文，请尝试切换服务');
+        this.name = 'TranslationSlotResponseError';
     }
 }
 
@@ -195,8 +210,9 @@ export function resolveTranslationRequestModel(
     const body = current.customBody?.[service];
     if (!(isAI(service) && service !== services.gemini) || typeof body !== 'string' || !body.trim()) return selected;
     try {
-        const parsed = JSON.parse(body) as {model?: unknown};
-        return typeof parsed?.model === 'string' && parsed.model.trim() ? parsed.model.trim() : selected;
+        const parsed = JSON.parse(body) as {model?: unknown; Model?: unknown};
+        const requestedModel = service === services.huanYuanTranslation ? parsed?.Model : parsed?.model;
+        return typeof requestedModel === 'string' && requestedModel.trim() ? requestedModel.trim() : selected;
     } catch {
         return selected;
     }
@@ -293,6 +309,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         // custom、New API、MiniMax 与 MiMo 都经 AI SDK 端点解析；这里只保留仍走旧适配器的地址来源，
         // 避免同一服务出现第二套默认区域或地址补全规则。
         if (service === 'deepL') return getDeepLEndpoint(current.deeplApiPlan, current.proxy[service]);
+        // 云服务按固定端点或地域访问，未消费的旧代理值不能分裂缓存与在途身份。
+        if (service === services.aliyunTranslation) return getAliyunTranslationEndpoint(current.serviceRegion?.[service]);
+        if (service === services.baiduTranslation || service === services.googleCloudTranslation
+            || service === services.azureTranslator || service === services.volcTranslation
+            || service === services.youdao) return '';
         if (current.proxy[service]) return current.proxy[service];
         if (service === 'deeplx') return current.deeplx;
         return '';
@@ -351,16 +372,16 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         execution: TranslationRequestExecution,
         origin: string,
         itemIndex: number,
-        batchOrigins: readonly string[],
+        batchFingerprint: string,
         context: string,
         pageContext: string,
         mode: CacheRequestMode,
         modelOverride?: string,
     ): string {
         // AI 多段结果会受同批邻段影响，不能只按当前 origin 复用到另一种组合。
-        // 把槽位序号和当前项放在首位，再携带完整有序批次；同批重复原文也不会被错误折叠。
+        // 把槽位序号和当前项放在首位，再携带完整有序批次的摘要；同批重复原文也不会被错误折叠。
         const sourceIdentity = mode === 'ai-multi-segment'
-            ? [`slot:${itemIndex}`, origin, ...batchOrigins]
+            ? [`slot:${itemIndex}`, origin, `batch:${batchFingerprint}`]
             : origin;
         return buildCacheKey(
             execution,
@@ -383,9 +404,32 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     function isCacheableResult(origin: string, result: unknown, targetLanguage: string, current: TranslationProviderConfigSnapshot): result is string {
         // 同目标文字和短名称仍可缓存 no-op；旧原文或明确错语种的缓存必须失效。
         return typeof result === 'string'
-            && Boolean(result.trim())
+            && hasTranslationContent(result)
             && (isGlossaryOnlyResult(current, origin, result) || (!isLikelyUntranslatedResponse(origin, result, targetLanguage)
             && !isClearlyWrongLanguageResponse(origin, result, targetLanguage)));
+    }
+
+    /** 标记与原始载荷必须同时符合内部协议；普通原文中的相似标记没有逐槽语义。 */
+    function getSingleSlotProtocol(message: TranslationSingleRequestMessage) {
+        if (message.validateTranslationSlots !== true) return null;
+        const sources = getTranslationGlossarySourceText(message.origin);
+        if (!Array.isArray(sources)) return null;
+        const packet = serializeTranslationSlots(sources);
+        return packet.payload === message.origin ? {sources, packet} : null;
+    }
+
+    function isCacheableSingleResult(
+        execution: TranslationRequestExecution,
+        message: TranslationSingleRequestMessage,
+        result: string,
+    ): boolean {
+        if (message.validateTranslationSlots !== true) {
+            return isCacheableResult(message.origin, result, execution.targetLanguage, execution.config);
+        }
+        const protocol = getSingleSlotProtocol(message);
+        const parsed = protocol && parseTranslationSlots(protocol.packet, result);
+        return Boolean(parsed && parsed.every((translation, index) =>
+            isCacheableResult(protocol!.sources[index]!, translation, execution.targetLanguage, execution.config)));
     }
 
     function requireSingleResult(result: unknown): string {
@@ -507,6 +551,29 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             ...(usesMyMemory ? {email: (current.myMemoryEmail ?? '').trim()} : {}),
         };
         return `:anonymous:${sha256Hex(JSON.stringify(identity))}`;
+    }
+
+    /** 成功译文可跨凭据复用；新凭据/地域请求不能继承旧鉴权失败，摘要只用于内存 pending。 */
+    function pendingCloudConfigSuffix(execution: TranslationRequestExecution): string {
+        const {service, config: current} = execution;
+        let credentials: unknown;
+        if (service === services.youdao) {
+            credentials = [current.youdaoAppKey, current.youdaoAppSecret];
+        } else if (service === services.tencent || service === services.huanYuanTranslation) {
+            credentials = [current.tencentSecretId?.trim(), current.tencentSecretKey?.trim()];
+        } else if (service === services.baiduTranslation || service === services.googleCloudTranslation
+            || service === services.azureTranslator || service === services.aliyunTranslation
+            || service === services.volcTranslation || service === services.xiaoniu) {
+            const keys = getServiceApiKeys(current, service);
+            const usesSecret = service === services.baiduTranslation || service === services.aliyunTranslation
+                || service === services.volcTranslation;
+            const rotationEnabled = current.apiKeyRotationEnabled?.[service] !== false;
+            credentials = [keys, ...(usesSecret ? [current.secret?.[service]?.trim()] : []),
+                ...(keys.length > 1 ? [rotationEnabled] : [])];
+        } else return '';
+        return `:cloud:${sha256Hex(JSON.stringify({credentials,
+            region: resolveCloudRegion(service, current.serviceRegion?.[service]),
+        }))}`;
     }
 
     function requestAbortError(): Error {
@@ -645,6 +712,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     const providerMessage = attachTranslationRequestScheduler(attachTranslationRouteObserver(
                         attachTranslationModelUsageObserver({
                             ...message,
+                            // 外层排队已消费预算；传给内部 freepool/数组 worker 的只能是入场后剩余值。
+                            requestTimeoutMs: remainingTimeoutMs,
                             abortSignal: controller.signal,
                         }, (observation) => observations.push({...observation})),
                         (observation) => collectRouteAttempt(execution.trace, observation),
@@ -748,6 +817,25 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         context = '',
         validationPageContext = '',
     ): Promise<string> {
+        const protocol = getSingleSlotProtocol(message);
+        if (protocol) {
+            const parsed = parseTranslationSlots(protocol.packet, result);
+            // 保留前端既有的协议失败回退，但绝不能把损坏包写入缓存。
+            if (!parsed) return result;
+            for (let index = 0; index < parsed.length; index++) {
+                const slotMessage = {...message, origin: protocol.sources[index]!, validateTranslationSlots: false};
+                const translation = parsed[index]!;
+                if (isGlossaryOnlyResult(execution.config, slotMessage.origin, translation)) continue;
+                parsed[index] = !hasTranslationContent(translation) || shouldRecoverPageContextLeak(
+                    execution, slotMessage.origin, translation, validationPageContext, message.modelOverride,
+                )
+                    ? await callSingleProviderWithoutPageContext(execution, slotMessage, requestDeadline, validationPageContext)
+                    : await recoverInvalidResult(execution, slotMessage, translation, requestDeadline, context, validationPageContext);
+                if (!hasTranslationContent(parsed[index]!)) throw new TranslationSlotResponseError();
+            }
+            return parsed.map((translation, index) =>
+                `${protocol.packet.starts[index]}${translation}${protocol.packet.ends[index]}`).join('\n');
+        }
         if (isGlossaryOnlyResult(execution.config, message.origin, result)) return result;
         if (!isLikelyUntranslatedResponse(message.origin, result, execution.targetLanguage)
             && !isClearlyWrongLanguageResponse(message.origin, result, execution.targetLanguage)) return result;
@@ -799,7 +887,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             execution,
             applyRemainingDeadline({...message, context, pageContext}, requestDeadline),
         ));
-        if (!shouldRecoverPageContextLeak(
+        if (getSingleSlotProtocol(message) || !shouldRecoverPageContextLeak(
             execution,
             message.origin,
             result,
@@ -894,19 +982,20 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const nonEmptyIndexes = message.origin
             .map((origin, index) => origin.trim() ? index : -1)
             .filter((index) => index >= 0);
+        // 协议解析与数量校验已保证两侧都是等长的稠密字符串数组，后续按槽访问无需空串兜底。
         if (nonEmptyIndexes.length > 0 && nonEmptyIndexes.every((index) => (
-            normalizeTranslationComparable(parsed[index] ?? '')
-                === normalizeTranslationComparable(message.origin[index] ?? '')
+            normalizeTranslationComparable(parsed[index])
+                === normalizeTranslationComparable(message.origin[index])
         ))) throw new AIMultiSegmentResponseError();
 
         // 若协议完整但只有个别段落误译了页面上下文，只对这些段落做极简单段重译，
         // 已正确的同批结果继续复用，避免整批再次消耗。
         for (let index = 0; index < parsed.length; index += 1) {
-            const origin = message.origin[index] ?? '';
+            const origin = message.origin[index];
             const leakedPageContext = shouldRecoverPageContextLeak(
                 execution,
                 origin,
-                parsed[index] ?? '',
+                parsed[index],
                 pageContext,
                 message.modelOverride,
             );
@@ -915,7 +1004,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 if (isDefiniteRecoveryPageContextLeak(
                     execution,
                     origin,
-                    parsed[index] ?? '',
+                    parsed[index],
                     pageContext,
                     message.modelOverride,
                 )) throw new AIContextRecoveryResponseError();
@@ -930,12 +1019,12 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
         const finalized = Array.from(parsed);
         if (finalized.some((result, index) => !isGlossaryOnlyResult(execution.config, message.origin[index], result) && isLikelyUntranslatedResponse(
-            message.origin[index] ?? '', result ?? '', execution.targetLanguage,
+            message.origin[index], result, execution.targetLanguage,
         ))) throw new AIMultiSegmentResponseError();
         for (let index = 0; index < finalized.length; index += 1) {
-            const origin = message.origin[index] ?? '';
+            const origin = message.origin[index];
             if (isGlossaryOnlyResult(execution.config, origin, finalized[index])
-                || !isClearlyWrongLanguageResponse(origin, finalized[index] ?? '', execution.targetLanguage)) continue;
+                || !isClearlyWrongLanguageResponse(origin, finalized[index], execution.targetLanguage)) continue;
             finalized[index] = await recoverInvalidResult(
                 execution, {...message, origin}, finalized[index], requestDeadline, '', pageContext,
             );
@@ -1192,24 +1281,34 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestGeneration: number,
         requestDeadline: number,
         pendingBudgetMs: number,
+        recoverSharedDeadline = true,
     ): Promise<string> {
         const key = buildCacheKey(
             execution,
             message.origin,
             context,
             pageContext,
-            'single',
+            message.validateTranslationSlots === true ? 'slot-protocol' : 'single',
             message.modelOverride,
             message.sourceLanguageDetectionText,
         );
         const imageInput = getTranslationImageInput(message);
         const imageSuffix = imageInput ? `:image:${sha256Hex(imageInput)}` : '';
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) {
             execution.trace.shared = true;
-            return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            try {
+                return await runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            } catch (error) {
+                // 仅恢复早于自身截止时间的共享 transport 超时；普通失败和自身取消仍原样返回。
+                if (!recoverSharedDeadline || !(error instanceof TranslationProviderDeadlineError) || now() >= requestDeadline) throw error;
+                // 恢复轮按原绝对截止时间去重；相同等待者共享一次重发，仍最多恢复一轮。
+                execution.trace.shared = false;
+                return translateSingleWithCache(execution, message, context, pageContext, useCache,
+                    requestGeneration, requestDeadline, pendingBudgetMs, false);
+            }
         }
 
         const request = useCache ? (async () => {
@@ -1230,7 +1329,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     pageContext,
                     message.modelOverride,
                 );
-                if (isCacheableResult(message.origin, cached, execution.targetLanguage, execution.config) && !leakedPageContext) {
+                if (isCacheableSingleResult(execution, message, cached) && !leakedPageContext) {
                     execution.trace.cachedSegments = 1;
                     return cached;
                 }
@@ -1249,7 +1348,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                         pageContext,
                         requestDeadline,
                     );
-                if (isCacheableResult(message.origin, recovered, execution.targetLanguage, execution.config)) {
+                if (isCacheableSingleResult(execution, message, recovered)) {
                     await persistCacheWrite(requestGeneration, key, recovered);
                 }
                 return recovered;
@@ -1262,7 +1361,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 pageContext,
                 requestDeadline,
             );
-            if (isCacheableResult(message.origin, result, execution.targetLanguage, execution.config)) {
+            if (isCacheableSingleResult(execution, message, result)) {
                 await persistCacheWrite(requestGeneration, key, result);
             }
             return result;
@@ -1295,6 +1394,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         requestGeneration: number,
         requestDeadline: number,
         pendingBudgetMs: number,
+        recoverSharedDeadline = true,
     ): Promise<string[]> {
         const cacheMode: CacheRequestMode = message.aiMultiSegment === true
             ? 'ai-multi-segment'
@@ -1307,28 +1407,38 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             cacheMode,
             message.modelOverride,
         );
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}`;
+        // 完整批次身份只计算一次；AI 分项用定长摘要保留邻段和槽位语义，避免逐项携带整个批次。
+        const batchFingerprint = cacheMode === 'ai-multi-segment' ? sha256Hex(batchKey) : '';
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) {
             execution.trace.shared = true;
-            return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            try {
+                return await runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
+            } catch (error) {
+                // 仅恢复早于自身截止时间的共享 transport 超时；普通失败和自身取消仍原样返回。
+                if (!recoverSharedDeadline || !(error instanceof TranslationProviderDeadlineError) || now() >= requestDeadline) throw error;
+                // 恢复轮按原绝对截止时间去重；相同等待者共享一次重发，仍最多恢复一轮。
+                execution.trace.shared = false;
+                return translateBatchWithCache(execution, message, context, pageContext, useCache,
+                    requestGeneration, requestDeadline, pendingBudgetMs, false);
+            }
         }
 
         const request = useCache ? (async () => {
+            const itemKeys = message.origin.map((origin, index) => buildBatchItemCacheKey(
+                execution, origin, index, batchFingerprint, context, pageContext, cacheMode, message.modelOverride,
+            ));
+            const reads = new Map<string, Promise<string | null>>();
             // 步骤 1：分项读取缓存，只把缺失且去重后的原文交给 provider。
             const cached = await runWithinDeadline(
-                () => Promise.all(message.origin.map((origin, index) => {
-                    const itemKey = buildBatchItemCacheKey(
-                        execution,
-                        origin,
-                        index,
-                        message.origin,
-                        context,
-                        pageContext,
-                        cacheMode,
-                        message.modelOverride,
-                    );
-                    return readCacheWithPendingValue(requestGeneration, itemKey);
+                () => Promise.all(itemKeys.map(itemKey => {
+                    let read = reads.get(itemKey);
+                    if (!read) {
+                        read = readCacheWithPendingValue(requestGeneration, itemKey);
+                        reads.set(itemKey, read);
+                    }
+                    return read;
                 })),
                 requestDeadline,
                 execution.abortSignal,
@@ -1369,20 +1479,11 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     requestDeadline,
                 );
                 await Promise.all(translated.map(async (value, index) => {
-                    const origin = message.origin[index] ?? '';
+                    const origin = message.origin[index];
                     if (!isCacheableResult(origin, value, execution.targetLanguage, execution.config)) return;
                     await persistCacheWrite(
                         requestGeneration,
-                        buildBatchItemCacheKey(
-                            execution,
-                            origin,
-                            index,
-                            message.origin,
-                            context,
-                            pageContext,
-                            cacheMode,
-                            message.modelOverride,
-                        ),
+                        itemKeys[index],
                         value,
                     );
                 }));
@@ -1404,16 +1505,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             for (const group of groups) {
                 if (group.entries.length === 0) continue;
                 const uniqueEntries = [...new Map(group.entries.map(({origin, index}) => [
-                    buildBatchItemCacheKey(
-                        execution,
-                        origin,
-                        index,
-                        message.origin,
-                        context,
-                        pageContext,
-                        cacheMode,
-                        message.modelOverride,
-                    ),
+                    itemKeys[index],
                     origin,
                 ])).entries()];
                 const uniqueOrigins = uniqueEntries.map(([, origin]) => origin);
@@ -1426,27 +1518,20 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     group.startWithoutPageContext,
                 );
                 uniqueEntries.forEach(([key], index) => {
-                    translatedByKey.set(key, translated[index] ?? '');
+                    translatedByKey.set(key, translated[index]);
                 });
             }
 
             // 步骤 2：按原请求顺序回填结果，并只缓存有效译文。
             const result = [...validatedCached] as Array<string | null>;
             const cacheWrites: Promise<void>[] = [];
+            const writtenKeys = new Set<string>();
             missingEntries.forEach(({index, origin}) => {
-                const itemKey = buildBatchItemCacheKey(
-                    execution,
-                    origin,
-                    index,
-                    message.origin,
-                    context,
-                    pageContext,
-                    cacheMode,
-                    message.modelOverride,
-                );
+                const itemKey = itemKeys[index];
                 const value = translatedByKey.get(itemKey);
                 result[index] = value as string;
-                if (isCacheableResult(origin, value, execution.targetLanguage, execution.config)) {
+                if (!writtenKeys.has(itemKey) && isCacheableResult(origin, value, execution.targetLanguage, execution.config)) {
+                    writtenKeys.add(itemKey);
                     cacheWrites.push(persistCacheWrite(
                         requestGeneration,
                         itemKey,
@@ -1547,6 +1632,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         // 空请求没有 provider 语义，也不应被配置水合阻塞或计入统计。
         if (Array.isArray(message.origin) && message.origin.length === 0) return [];
         if (typeof message.origin === 'string' && !message.origin.trim()) return message.origin;
+
+        message = createTranslationRequestSnapshot(message);
 
         const trace: TranslationRequestTrace = {cachedSegments: 0, shared: false, upstreamCalls: 0, upstreamMs: 0, routeAttempts: []};
         const startedAt = now();

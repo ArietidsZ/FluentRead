@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 
 /**
  * @file scripts/testing/run-modal-first-translation-test.cjs
@@ -22,7 +23,7 @@ const {
 const {assertFreshProductionExtension} = require('../run-site-translation-test.cjs');
 
 function parseArgs(argv) {
-  const args = {background: true, timeout: 30000};
+  const args = {focusSafeHelper: path.join(__dirname, 'focus-safe-browser.cjs'), background: true, timeout: 30000};
   for (let i = 0; i < argv.length; i += 1) {
     const token = argv[i];
     if (token === '--background') continue;
@@ -42,7 +43,7 @@ function parseArgs(argv) {
   return args;
 }
 
-function startProviderServer(delayMs = 180) {
+function startProviderServer(delayMs = 180, own = () => {}) {
   const requests = [];
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url || '/', 'http://127.0.0.1');
@@ -58,6 +59,7 @@ function startProviderServer(delayMs = 180) {
     response.writeHead(200, {'access-control-allow-origin': '*', 'content-type': 'application/json; charset=utf-8'});
     response.end(buildFixtureMicrosoftResponseBody(payload));
   });
+  own({server, requests});
   return new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', () => {
@@ -123,19 +125,23 @@ async function main() {
     evidenceLimit: '本地 mock provider 只证明扩展调度、请求顺序和浏览器 DOM 行为，不证明真实翻译服务质量。',
   };
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-modal-first-'));
-  const provider = await startProviderServer(180);
-  const fixtureHtml = fs.readFileSync(path.join(__dirname, '../../tests/fixtures/modal-first-translation.html'), 'utf8');
-  const fixtureServer = http.createServer((request, response) => {
-    if (new URL(request.url || '/', 'http://127.0.0.1').pathname !== '/modal-first-translation.html') { response.writeHead(404); response.end(); return; }
-    response.writeHead(200, {'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store'}); response.end(fixtureHtml);
-  });
-  await new Promise((resolve, reject) => { fixtureServer.once('error', reject); fixtureServer.listen(0, '127.0.0.1', resolve); });
-  const fixtureUrl = `http://127.0.0.1:${fixtureServer.address().port}/modal-first-translation.html`;
-  let session;
+  let provider, fixtureServer, fixtureUrl, session;
+  let primaryError;
+  let launchAttempted = false;
   try {
+    provider = await startProviderServer(180, owned => { provider = owned; });
+    const fixtureHtml = fs.readFileSync(path.join(__dirname, '../../tests/fixtures/modal-first-translation.html'), 'utf8');
+    fixtureServer = http.createServer((request, response) => {
+      if (new URL(request.url || '/', 'http://127.0.0.1').pathname !== '/modal-first-translation.html') { response.writeHead(404); response.end(); return; }
+      response.writeHead(200, {'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store'}); response.end(fixtureHtml);
+    });
+    await new Promise((resolve, reject) => { fixtureServer.once('error', reject); fixtureServer.listen(0, '127.0.0.1', resolve); });
+    fixtureUrl = `http://127.0.0.1:${fixtureServer.address().port}/modal-first-translation.html`;
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
       headless: false, background: args.background, displayTarget: 'secondary', viewport: {width: 1280, height: 900}, timeout: args.timeout,
       browserArgs: [`--disable-extensions-except=${args.extensionDir}`, `--load-extension=${args.extensionDir}`, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(session, profileDir);
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
     if (args.background) {
       assert.equal(report.launchMode, 'macos-background-cdp');
@@ -239,20 +245,50 @@ async function main() {
     assert.equal(report.unexpectedNetworkRequests.length, 0, JSON.stringify(report.unexpectedNetworkRequests));
     report.passed = true;
   } catch (error) {
+    primaryError = error;
     report.error = error.stack || String(error);
-    const failedPage = session?.context.pages().find(page => page.url().startsWith(fixtureUrl));
-    if (failedPage) {
-      await failedPage.screenshot({path: path.join(args.artifactsDir, 'failure.png'), fullPage: true}).catch(() => {});
-      report.failureDom = await failedPage.locator('body').innerHTML().catch(() => 'unavailable');
-    }
+    try {
+      const failedPage = session?.context.pages().find(page => page.url().startsWith(fixtureUrl));
+      if (failedPage) {
+        await failedPage.screenshot({path: path.join(args.artifactsDir, 'failure.png'), fullPage: true}).catch(() => {});
+        report.failureDom = await failedPage.locator('body').innerHTML().catch(() => 'unavailable');
+      }
+    } catch (diagnosticError) { console.error('Failure diagnostics failed:', diagnosticError); }
     throw error;
   } finally {
-    report.requests = provider.requests;
-    fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
-    await session?.close().catch(() => {});
-    await new Promise(resolve => fixtureServer.close(resolve));
-    await new Promise(resolve => provider.server.close(resolve));
-    fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+    report.requests = provider?.requests || [];
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.passed = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (session) { await session.close(); browserClosed = true; } });
+    await cleanup('fixture server', () => new Promise((resolve, reject) => {
+  if (!fixtureServer) return resolve();
+  fixtureServer.close(error => { if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve(); });
+}));
+    await cleanup('provider server', () => new Promise((resolve, reject) => {
+  if (!provider?.server) return resolve();
+  provider?.server.close(error => { if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve(); });
+}));
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true, maxRetries: 5, retryDelay: 200});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(args.artifactsDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

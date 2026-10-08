@@ -50,7 +50,22 @@ node scripts/testing/run-local-audio-gpu-test.cjs \
 
 音频专项验证实际 WAV 解码、媒体时钟推进、进度和结束清理；默认静音测试播放。需要双线程能力对照时仅在临时副本增加 `--cross-origin-isolated --modes unavailable,thread-failure`，不更改生产 manifest。线程创建故障注入和实际 GPU 不可用情况分别记录；真实设置页、扬声器和 Firefox 实机音频不在这个限定命令的验收范围内。
 
+划词朗读的整词高亮与前后 5 秒跳转使用独立专项：
+
+```sh
+pnpm test tests/speechProgress.test.ts tests/offscreenTtsPlayback.test.ts tests/selectionTtsBackgroundHandler.test.ts tests/offscreenMessageRouter.test.ts tests/offscreenAdapters.test.ts tests/selectionTranslatorLifecycle.test.ts tests/selectionTtsProtocol.test.ts tests/selectionTtsContentController.test.ts
+node scripts/run-selection-speech-test.cjs \
+  --extension-dir .output/chrome-mv3 \
+  --playwright-root <Node包目录> \
+  --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs \
+  --artifacts-dir /private/tmp/fluentread-selection-speech
+```
+
+浏览器专项加载生产扩展，在第二屏临时 Edge 后台窗口运行；翻译与语音响应使用确定性夹具，但音频解码、媒体时钟、跳转及跨后台路由真实执行。验证完整词高亮、文字节点与换行稳定、跳转不重新合成、浅色/深色/390px 布局、减少动画和停止清理；保存 `report.json` 与卡片截图。它不证明在线发音对齐、扬声器输出或 Firefox 实机行为。
+
 ## 设置分组、阅读辅助与右键菜单
+
+右键菜单后台恢复专项：`pnpm test tests/contextMenuRuntimeOwnership.test.ts tests/contextMenu.test.ts tests/backgroundBadgeRuntime.test.ts tests/contentMessageRuntime.test.ts`。受控浏览器端口覆盖 MV3 后台冷启动首击等待配置与菜单就绪、活动页查询暂时失败后的点击、导航/关闭/禁用期间丢弃旧点击，以及失败重试和翻译—恢复—再次翻译。菜单已创建后，活动页查询失败不会清空点击路由。该专项不代表操作系统原生菜单、报告者环境或在线供应商验收。
 
 生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。
 
@@ -96,9 +111,9 @@ Popup 赞赏窗口内的微信二维码点击后原位从 164px 放大到 200px�
 
 测试页只替换工具栏 Popup 的 active-tab 查询，返回一个真实本地网页标签；翻译使用本地确定性 OpenAI 兼容端点，错误分支和 GitHub 导航使用明确标注的响应夹具。不证明外部翻译服务、Firefox 实机或商店发布。完成后检查报告中的全部截图，并保存逐项复核结论；见[本次报告](./reports/popup-ui-restoration-20260930/README.md)。
 
-## 划词行内代码（issue #704）
+## 划词行内代码与代码块（issue #704、#845）
 
-`tests/selectionTranslatorCore.test.ts` 覆盖行内代码与正文混排、部分代码选区、多段代码、公式、代码空白、代码块和交互边界，以及只翻译正文和批量失败处理。生产构建后运行 `node scripts/run-selection-trigger-test.cjs --inline-code-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`，在临时 Edge profile 的后台可见窗口验证图标、直接弹出和快捷键，检查原文/译文代码节点、宿主 DOM 不变、请求不含代码、复制反馈及改选后的迟到响应保护。
+`tests/selectionTranslatorCore.test.ts` 覆盖行内代码与正文混排、部分代码选区、多段代码、公式、代码空白、代码块和交互边界，以及只翻译正文和批量失败处理。生产构建后运行 `node scripts/run-selection-trigger-test.cjs --inline-code-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`，在临时 Edge profile 的后台可见窗口验证图标、直接弹出和快捷键，检查原文/译文代码节点、宿主 DOM 不变、正文混排请求不含代码、复制反馈及改选后的迟到响应保护。用户主动选择纯代码、`pre` 代码块或高亮代码中的文字时，可使用同样的划词入口翻译；正文夹带行内代码时仍保留代码原文。可编辑代码区域、按钮和显式禁止翻译区域仍排除。
 
 网页与微软批量响应为本地确定性夹具；此专项不代表真实供应商翻译质量或 Zen/Firefox 扩展运行时验证。
 
@@ -115,6 +130,16 @@ Popup 赞赏窗口内的微信二维码点击后原位从 164px 放大到 200px�
 识别器对比可复现运行 `node scripts/testing/evaluate-language-detectors.mjs --out <report.json>`；追加 `--franc-full <本地 franc 包目录>` 在同一判断链中替换统计库，`--old-root <旧源码目录>` 对比旧实现，`--browser --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径>` 在临时 profile 的后台 Edge 中测量 `chrome.i18n.detectLanguage`。结果只代表这些由项目编写的语料，不作为通用准确率。最近一次结论见 [语言识别报告](./reports/language-detection-20260916.md)。
 
 生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --multilingual-same-target --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。专项复用临时 Edge、后台可见且不抢焦点的窗口，对 de/pt/it/fr/en/ru/ja/ko/zh-Hans 分别验证同目标段落和标题在悬浮与全文中零请求、相邻外语悬浮 `[1,0,1,0]` 与全文 `[1,0,1]`、GitHub `li > a` 提交链接保持、宿主 `lang="en"` 不影响判断、全文会话中动态改写为外语后重新请求、恢复原文，以及同一页面从德文目标切到英文目标、以简体为目标并排除德文时的结论。页面与译文来自本地回环夹具，只证明扩展判断链与请求计数，不代表真实供应商质量，也不替代 Firefox 实机验证。
+
+## 原文回显与逐槽恢复
+
+`tests/chineseUiNamesRegression.test.ts` 验证“继续使用 Apple”“通过 Google 继续操作”等短中文界面文字在中文目标下保持原样；引号内的外语、英文提示与中外文混合正文继续参与翻译。`tests/identicalTranslation.test.ts` 只在展示比较副本中忽略 U+200B，保留大小写、可见字词间隔、简繁转换、ZWJ 与 ZWNJ 的差异。
+
+`tests/translationEchoValidationRegression.test.ts` 验证有外语证据的正文仅增加句末标点或 U+200B 时，后台恢复一次并拒绝连续回显，异常结果不能缓存；真实词字、数字和运算符变化不能被折叠为相同。`tests/translationSlotEchoRegression.test.ts` 验证内部单条协议逐槽恢复：保留成功槽和顺序，沿用冻结术语的“保持原文”规则、Chrome 长检测样本和同一请求截止时间；取消、损坏协议与部分回显缓存不能被当作完整成功。`tests/requestConfigSnapshot.test.ts` 另覆盖来源中的字面槽标记、嵌套及碰撞避让后的 nonce、共享下划线和长来源边界扫描；非法尾部编号不能驱动不受输入规模约束的槽数组分配。普通用户文本不因含有相似标记而自动进入内部槽协议。
+
+空槽、恢复后结果与缓存共用有效内容判定：空白及仅含 U+200B 的结果不能成功缓存，ZWJ/ZWNJ 和数学符号不被作为空白删除。`tests/sameTargetLanguageClient.test.ts` 使用真实全文入口、client、后台 handler 和 broker，仅替换浏览器消息边界与 provider，验证整包空字符串不会被换成合法来源包而跳过逐槽回退；普通单条空响应仍沿用原文回退行为。
+
+生产 Chrome 扩展构建后，运行 `node scripts/testing/run-identical-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper scripts/testing/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用临时 Edge profile、第二屏后台窗口和本地供应商夹具，验证悬浮、全文、恢复、重复翻译与相同结果展示。其计数观察供应商 fetch；不能把零 fetch 推导成零 runtime 消息，也不代表在线供应商质量或 Firefox 实机行为。
 
 ## 双语链接悬停提示与属性边界
 
@@ -669,6 +694,16 @@ node scripts/testing/run-popup-startup-ui-test.cjs \
 
 加载动画另由 `scripts/testing/run-loading-motion-ui-test.cjs` 验证，使用相同的扩展目录、Playwright 与 focus-safe helper 参数。它在测试页面保留 closed ShadowRoot 句柄，检查 15 种动画的真实运动、关闭与系统减少动态效果后的静态反馈，并验证同一文档只解析一份共享样式表。采样窗口覆盖包含停顿的完整动画周期，避免把沙漏停顿误判为失效；跨文档样式隔离与旧浏览器的安全回退也有独立断言。
 
+## WebDAV 属性响应边界
+
+`tests/webDavProperties.test.ts` 直接验证实际 Saxes XML 解析器的命名空间、字符引用、CDATA、资源唯一性、属性状态、强 ETag、DTD 拒绝及长度/深度/元素数量限制。目标 URL 必须为可解析的绝对 URL；无效目标返回未识别结果，避免解析函数向调用方抛出 URL 异常。属性模块进入永久四维 100% 清单，和 `webDavApi`、`webDavConnection`、`webDavHttpIntegration` 联合验证；HTTP 用例只对临时本地服务完成首次/再次保存与版本冲突，不代表用户真实 WebDAV 账号。沙箱若禁止本地 listen，需在允许 127.0.0.1 的环境运行相同测试，不跳过或模拟这组三种 ETag 来源的协议链路。
+
+## 快捷键草稿与录制弹窗
+
+`tests/translationShortcutSettings.test.ts` 使用真实 Vue effectScope 验证三种快捷键的重复选择、延迟打开、取消、确认、清除、配置替换、分区离开和卸载，并检查划词触发字段同步及额外方案冲突。`tests/customHotkeyInputLifecycle.test.ts` 执行实际客户端 SFC 模板、Teleport、按钮事件和 Vue 卸载；DOM 与焦点端口由 Linkedom 提供，检查录制只有一个完成计时器、旧录制不能结束新录制、当前值变化取消旧录制、确认前冲突重验、焦点循环和关闭后不抢走新控件焦点。两模块进入永久四维 100% 覆盖率清单，不使用覆盖率忽略。
+
+生产 Chrome 构建后运行 `node scripts/testing/run-lazy-options-ui-test.cjs --suite shortcut-lifecycle --extension-dir .output/chrome-mv3 --playwright-root <path> --focus-safe-helper <path> --artifacts-dir <path>`。专项验证首次直达划词设置、真实键盘录制与取消、清除保存、切换分区阻止迟到弹窗、390 像素与减少动态效果、传统全文快捷键保存。为在 100 ms 打开延迟内稳定离开，只有该离开用例使用 DOM 导航点击；录制和其他操作使用可信浏览器输入。此专项验证生产扩展设置和存储，不代表真实翻译供应商或 Firefox 运行时。`--suite hotkeys` 继续验证共享弹窗在段落复制、额外悬浮方案和圈选翻译调用方中的兼容性。
+
 ## 模型用量界面
 
 模型用量的独立生产扩展回归使用临时 Edge profile 和同一套防抢焦点 helper：
@@ -792,6 +827,10 @@ node scripts/testing/run-image-translation-flow-test.cjs \
 追加 `--x-surface` 验证 X 页面快照中的透明 img 与同级背景图结构，保留根节点视口高度并滚动超过 2000 像素，使用自动识别语言，检查左下入口、关闭悬浮后的可信右键目标、持久准备卡片、居中转圈、真实 OCR 百分比、日语推荐包、中英日界面切换、翻译和还原。此用例通过生产消息执行菜单动作，未自动点击操作系统原生菜单项。可追加 `--multilingual` 断言实际 OCR 请求包含简体、繁體与英文，或追加 `--original-image <图片URL>` 使用真实原图、`--live-translation` 使用在线 Google 翻译；原图及 DOM 结构夹具不等同于登录后的 X 页面测试。报告分别记录页面和 OCR 控制台诊断，并要求实际监听 dedicated Worker、没有子语言文件加载错误。
 
 图片单元与功能测试另覆盖低置信噪声、坐标回映、语言与图片缓存隔离、取消队列、有限并发保序去重、失败取消同批请求、同步消息异常清理及旧请求迟到清理。像素修补微基准只反映图像处理步骤，不代表 OCR 和网络请求的整体加速倍数。
+
+`pnpm exec vitest run tests/mangaEntryComponentLifecycle.test.ts tests/mangaCompositor.test.ts` 定向验证漫画入口和合成器。入口测试通过真实 Vue SFC 的客户端模板与 renderer 执行资源确认、按钮事件、焦点、闲置计时器、换章和卸载后的迟到响应；资源检查与保存由注入端口提供，不是实际模型下载或扩展配置持久化。`vitest.config.ts` 仅为该组件测试使用客户端转换，并断言真实 render 已生成，避免 Node 默认 SSR 转换让模板未执行。原生 DOM、闭合 Shadow Root、CSS、加载动画、触摸和窄屏仍须隔离浏览器验证。
+
+漫画合成器的绘制和全部图块解码共用从调用开始计算的 15 秒截止时间，每块只使用剩余预算。测试验证多块等待、最后一次绘制、取消、迟到位图关闭和独立调用的预算。同步原生 Canvas 绘制无法中途抢占；返回后检测耗时并停止后续工作、释放自有画布，不把该预算描述为主线程阻塞的硬上限。
 
 
 ## 圈选独立阅读流程
@@ -923,3 +962,5 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ```
 
 使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
+
+Popup 服务概览显示默认、继承和独立功能实际使用的模型，包含自定义模型占位符解析；机器翻译行不显示模型，凭据或能力提醒仍优先。模型说明通过原本地化 modelScope 缓存在 rows 内，aria-label 保留服务/继承说明并追加模型，title 保留完整模型。`popupServiceModelClarity` 和 `popupServicesLifecycle` 的真实 Vue 模板验证继承/独立/自定义、搜索不改选模，以及活跃上下文、KeepAlive/卸载、配置替换、跨功能旧事件、已删除供应商和用户焦点保护；隔离浏览器结果另行绑定源码版本，普通扩展 tab 不代替工具栏 popup 验收。

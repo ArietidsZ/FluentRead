@@ -6,6 +6,17 @@ import {TranslationCandidateCore, collectLiveTranslationTextSlots, extractTransl
 import {isProtectedDescendantElement} from '@/src/core/translation/dom';
 
 describe('时间、时长和动态来源过滤', () => {
+    it.each([
+        ['完整月日与全角展示', ['10月7日', '１０月７日', '２０２６年１０月８日'], true],
+        ['时钟在日期前', ['3:19 · 2026年10月8日', '３：１９　·　２０２６年１０月８日', '3:19 PM · 10月7日'], true],
+        ['时钟在日期后', ['2026年10月8日 · 3:19', '10月7日 · 3:19 PM'], true],
+        ['正文前缀', ['发布于10月7日', '更新于3:19 · 2026年10月8日'], false],
+        ['正文后缀', ['10月7日发布新版本', '3:19 · 2026年10月8日更新完成。'], false],
+        ['缺失字段', ['10月', '7日', '2026年10月', '3:19 · 2026年10月', '2026年10月8日 · 3:', '· 10月7日'], false],
+    ] as const)('独立本地日期边界：%s', (_label, values, expected) => {
+        for (const value of values) expect(isNonTranslatableLiveData(value), value).toBe(expected);
+    });
+
     it.each(['12:34', '125:32', '12:34:56.123', '12:34 PM', 'AM 8:05', '１２：３４',
         '2026-10-03T12:34:56.789Z', '2026/10/03 12:34 +08:00', '2026年10月3日',
         '2026年10月3日12时34分56秒', '5 seconds', '2 minutes ago', 'in 5 minutes',

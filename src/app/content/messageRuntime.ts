@@ -2,7 +2,7 @@
  * @file src/app/content/messageRuntime.ts
  * 文件职责：创建 content 侧 runtime 消息处理函数，把 popup/background 的设置变化和功能命令映射为当前页面上的精确 mount、unmount 或状态响应。
  * 主要内容：处理悬浮球、划词模式与延迟、区域/图片能力、进度面板、站点禁用及旧缓存清理消息，并把右键菜单的划词、圈选、整页与恢复请求及 Popup 的局部翻译请求转给对应 feature；结合 BrowserCapabilities 对不支持功能确定性拒绝，并更新共享运行时状态。
- * 模块边界：本文件只做消息到 feature 生命周期的适配，不注册全局监听器、不执行供应商翻译，也不实现组件 UI；监听安装及配置订阅由 content/runtime 负责。
+ * 模块边界：本文件只做消息到 feature 生命周期的适配，全文状态与完成查询委托给 fullPageCompletionQuery，不注册全局监听器、不执行供应商翻译，也不实现组件 UI；监听安装及配置订阅由 content/runtime 负责。
  */
 import type {ContentScriptContext} from 'wxt/utils/content-script-context';
 import {normalizeSelectionTranslatorDelay} from '@/src/core/config/model';
@@ -10,7 +10,7 @@ import {config} from '@/src/services/config/store';
 import {
     autoTranslateEnglishPage,
     invalidateFullPageTranslationSessionCache,
-    isFullPageTranslationActive, getTranslationToolbarStatus,
+    isFullPageTranslationActive,
     mountAreaTranslator, mountFloatingBall,
     startAreaTranslationFromContextMenu, startSectionTranslationPicker, translateSelectionFromContextMenu,
     toggleContextMenuImage,
@@ -24,6 +24,7 @@ import {
     unmountSelectionTranslator,
     unmountTranslationProgressPanel,
 } from './features';
+import {handleFullPageCompletionQuery} from './fullPageCompletionQuery';
 import {forwardLegacyCacheClear} from './cacheMessage';
 import {respondToAreaContextMenu} from './areaContextMenuResponse';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
@@ -137,12 +138,7 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
             return true;
         }
         if (payload.type === 'getFullPageTranslationState') {
-            sendResponse({
-                status: 'success',
-                isTranslated: config.on !== false && !state.isSiteDisabled() && isFullPageTranslationActive(),
-                isSiteDisabled: state.isSiteDisabled(), toolbarStatus: getTranslationToolbarStatus(),
-            });
-            return true;
+            return handleFullPageCompletionQuery(payload, _sender, ctx, state, sendResponse);
         }
         if (payload.type === 'contextMenuTranslate') {
             if (config.on === false || state.isSiteDisabled()) {

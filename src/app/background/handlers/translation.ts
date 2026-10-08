@@ -1,7 +1,7 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
+ * 主要内容：校验 origin、clientRequestId、AI 多段与内部单条槽校验标记、Chrome 源语言检测样本及其他可选字段，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
 import type {BackgroundFallbackHandler} from '../messageRouter';
@@ -102,13 +102,11 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
     const active = new Map<string, AbortController>();
     const cancelledBeforeStart = new Set<string>();
     const completed = new Set<string>();
-    const cancellationOrder: string[] = [];
-    const completionOrder: string[] = [];
-    const remember = (set: Set<string>, order: string[], key: string) => {
+    const remember = (set: Set<string>, key: string) => {
         if (set.has(key)) return;
         set.add(key);
-        order.push(key);
-        if (order.length > REQUEST_HISTORY_LIMIT) set.delete(order.shift()!);
+        // Set 的插入顺序即当前记录的 FIFO；已消费取消不再占容量或淘汰同 ID 的新一代记录。
+        if (set.size > REQUEST_HISTORY_LIMIT) set.delete(set.values().next().value!);
     };
 
     return {
@@ -116,7 +114,7 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
             const owner = requestOwnerKey(context);
             const key = `${owner.length}:${owner}:${clientRequestId}`;
             if (cancelledBeforeStart.delete(key)) {
-                remember(completed, completionOrder, key);
+                remember(completed, key);
                 throw translationAbortError();
             }
             if (active.has(key) || completed.has(key)) {
@@ -128,7 +126,7 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
                 return await operation(controller.signal, key);
             } finally {
                 if (active.get(key) === controller) active.delete(key);
-                remember(completed, completionOrder, key);
+                remember(completed, key);
             }
         },
         cancel(clientRequestIdValue, context) {
@@ -137,7 +135,7 @@ export function createTranslationRequestRegistry(): TranslationRequestRegistry {
             const key = `${owner.length}:${owner}:${clientRequestId}`;
             const controller = active.get(key);
             if (controller) controller.abort();
-            else if (!completed.has(key)) remember(cancelledBeforeStart, cancellationOrder, key);
+            else if (!completed.has(key)) remember(cancelledBeforeStart, key);
             return {success: true, cancelled: Boolean(controller), clientRequestId};
         },
     };
@@ -170,6 +168,9 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (candidate.aiMultiSegment !== undefined && typeof candidate.aiMultiSegment !== 'boolean') {
         throw new TypeError('翻译请求字段 aiMultiSegment 必须是布尔值');
     }
+    if (candidate.validateTranslationSlots !== undefined && typeof candidate.validateTranslationSlots !== 'boolean') {
+        throw new TypeError('翻译请求字段 validateTranslationSlots 必须是布尔值');
+    }
     if (candidate.thinkingOverride !== undefined && typeof candidate.thinkingOverride !== 'boolean') {
         throw new TypeError('翻译请求字段 thinkingOverride 必须是布尔值');
     }
@@ -200,6 +201,7 @@ export function parseTranslationRequest(candidate: TranslationRequestCandidate):
     if (typeof candidate.enableAIContext === 'boolean') base.enableAIContext = candidate.enableAIContext;
     if (typeof candidate.useCache === 'boolean') base.useCache = candidate.useCache;
     if (typeof candidate.aiMultiSegment === 'boolean') base.aiMultiSegment = candidate.aiMultiSegment;
+    if (typeof candidate.validateTranslationSlots === 'boolean') base.validateTranslationSlots = candidate.validateTranslationSlots;
     if (typeof candidate.thinkingOverride === 'boolean') base.thinkingOverride = candidate.thinkingOverride;
     if (typeof candidate.requestTimeoutMs === 'number') base.requestTimeoutMs = candidate.requestTimeoutMs;
     if (candidate.glossaryIds === null) base.glossaryIds = null;

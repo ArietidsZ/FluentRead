@@ -3008,4 +3008,11 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "选中文字后查看翻译卡片，查词或按需学习句子": "Select text to open its translation card, look up words or learn about a sentence",
     "先看译文，再按需读懂、分析句法、学用法或练习": "Read the translation first, then explore meaning, grammar, usage or practice",
     "划词卡片内容": "Translation card content",
+    // 划词朗读的 5 秒跳转控件与反馈。
+    "后退 5 秒": "Rewind 5 seconds",
+    "前进 5 秒": "Forward 5 seconds",
+    "当前语音不支持按秒跳转": "This voice does not support seeking",
+    "语音跳转失败，请重试": "Could not seek audio. Please retry.",
+    "B站翻译": "Bilibili Translate",
+    "官方免费文本 API，Index-Translate-35B-A3B，无需密钥": "Official free text API, Index-Translate-35B-A3B, no API key required",
 };

@@ -10,6 +10,7 @@ import {compileSiteRulePack, resolveSiteRule} from '@/src/core/site-adaptation/c
 import {parseSiteRulePack, validateSelectors} from '@/src/core/site-adaptation/schema';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {extractTranslationText} from '@/src/core/translation/text';
+import {applyTranslationsToSnapshot, buildWholeBlockTranslationSource, createTranslationSourceSnapshot} from '@/src/core/translation/serialization';
 
 const result = parseSiteRulePack({version: 1, profiles: rawProfiles, rules: rawRules});
 if (!result.ok) throw new Error(JSON.stringify(result.issues));
@@ -55,6 +56,36 @@ describe('网站正文规则目录', () => {
         expect(adapter.decide(document.getElementById('nested')!, {url})).toMatchObject({
             kind: 'force-target', atomic: true,
         });
+    });
+
+    it.each([
+        ['Division', '/', '除法'],
+        ['Logical NOT', '!a', '逻辑非'],
+    ] as const)('Swift %s 的 p 持有可译标签，非原子 li 不吞并子段落，inline code 留在本地', (label, codeText, translated) => {
+        const document = documentFor(`<main><ul><li id="item"><p id="operator">${label} (<code>${codeText}</code>)</p></li></ul></main>`);
+        const url = new URL('https://docs.swift.org/latest/documentation/the-swift-programming-language/basicoperators/');
+        const adapter = adapterById.get('swift-docs')!;
+        const core = new TranslationCandidateCore({url, adapters: [adapter]});
+        const paragraph = document.getElementById('operator') as HTMLElement;
+        const item = document.getElementById('item')!;
+        const code = paragraph.querySelector('code')!;
+        const original = paragraph.innerHTML;
+        expect(adapter.decide(paragraph, {url})).toMatchObject({kind: 'force-target', atomic: false});
+        expect(adapter.decide(item, {url})).toMatchObject({kind: 'force-target', atomic: false});
+        const candidates = core.discover(document);
+        expect(candidates.filter(candidate => candidate.element === paragraph)).toHaveLength(1);
+        expect(candidates.some(candidate => candidate.element === item)).toBe(false);
+        expect(core.resolve(paragraph.firstChild)?.element).toBe(paragraph);
+        expect(core.shouldStayOriginal(code)).toBe(true);
+        expect(core.resolve(code.firstChild)?.element).toBe(paragraph);
+        const snapshot = createTranslationSourceSnapshot(paragraph, core.shouldStayOriginal);
+        expect(snapshot.slots.map(slot => slot.source)).toEqual([`${label} (`, ')']);
+        expect(buildWholeBlockTranslationSource(snapshot)).toBeNull();
+        const rendered = applyTranslationsToSnapshot(snapshot, [`${translated}（`, ')']);
+        expect(rendered).toBe(`${translated}（<code>${codeText}</code>)`);
+        expect(paragraph.innerHTML).toBe(original);
+        expect(paragraph.querySelector('code')).toBe(code);
+        expect(code.textContent).toBe(codeText);
     });
 
     it('整个目录满足统一 JSON 契约，使用有效选择器和可追踪的独立设计记录', () => {

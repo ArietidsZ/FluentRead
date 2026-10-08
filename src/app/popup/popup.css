@@ -40,7 +40,8 @@
 html { width: var(--interface-popup-width, 320px); }
 /* 完整样式到达后解除 HTML 关键样式的临时高度，菜单仍按实际内容伸缩。 */
 html { min-height: 0; }
-body, #app { width: 100%; }
+/* Firefox 按内容的固有宽度给 popup 定尺寸，不采用 html 的宽度；body 用百分比时会被当成 auto，首启页被裁成 200px、英文菜单右侧留白。 */
+body, #app { width: var(--fluentread-localized-popup-width, var(--interface-popup-width, 320px)); }
 html, body, #app { min-width: 0; margin: 0; overflow-x: hidden; background: #fff; }
 :root.dark body, :root.dark #app { background: #14161b; }
 button, select, input { font: inherit; }

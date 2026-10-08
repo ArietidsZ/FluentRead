@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {translateExtraFreeWebText} from '@/src/providers/translation/free-extra-web';
+import {translateExtraFreeWebText, isKnownUnsupportedApertiumDirection} from '@/src/providers/translation/free-extra-web';
 import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import {serializeTranslationSlots, parseTranslationSlots} from '@/src/core/translation/serialization';
 
@@ -160,5 +160,150 @@ describe('extra anonymous web providers', () => {
             expect(output.length).toBeGreaterThan(0);
             expect(fetchMock.mock.calls.length).toBeGreaterThan(1);
         }
+    });
+});
+
+describe('Apertium 已确认不支持的方向', () => {
+    let clock = Date.now();
+    beforeEach(() => {
+        // 每个用例都跨过前一个方向记忆的有效期，避免测试间共享能力观测。
+        clock = Math.max(clock, Date.now()) + 5 * 60_000 + 1;
+        vi.useFakeTimers();
+        vi.setSystemTime(clock);
+    });
+    afterEach(() => vi.useRealTimers());
+
+    it('有效列表确认不支持后不再外发，同义语言码共用方向，其他方向照常翻译', async () => {
+        fetchMock.mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: [{sourceLanguage: 'eng', targetLanguage: 'spa'}]}));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Original prose', 'en', 'zh-Hans')).rejects.toMatchObject({statusCode: 400, freeFailure: 'request'});
+        expect(isKnownUnsupportedApertiumDirection('en', 'zh_CN')).toBe(true);
+        await expect(translateExtraFreeWebText('apertiumFree', 'Different prose', 'en', 'zh-CN')).rejects.toMatchObject({statusCode: 400, freeFailure: 'request'});
+        expect(fetchMock).toHaveBeenCalledOnce();
+
+        fetchMock.mockResolvedValueOnce(Response.json(['eng-spa'])).mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: {translatedText: 'Hola'}}));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'es')).resolves.toBe('Hola');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+        expect(isKnownUnsupportedApertiumDirection('en', 'es')).toBe(false);
+    });
+
+    it('到期重新读取动态列表并恢复已新增的方向，不延长请求预算', async () => {
+        fetchMock.mockResolvedValueOnce(Response.json(['eng-spa']));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).rejects.toMatchObject({freeFailure: 'request'});
+        vi.setSystemTime(clock + 5 * 60_000 - 1);
+        expect(isKnownUnsupportedApertiumDirection('en', 'zh-Hans')).toBe(true);
+        vi.setSystemTime(clock + 5 * 60_000);
+        expect(isKnownUnsupportedApertiumDirection('en', 'zh-Hans')).toBe(false);
+        fetchMock.mockResolvedValueOnce(Response.json(['eng|zh'])).mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: {translatedText: '你好'}}));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).resolves.toBe('你好');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('并发负观测不能中断已验证方向的后续分块，新的请求仍按负缓存拒绝', async () => {
+        let releaseFirst!: () => void;
+        let firstStarted!: () => void;
+        const started = new Promise<void>(resolve => { firstStarted = resolve; });
+        const firstResponse = new Promise<void>(resolve => { releaseFirst = resolve; });
+        let lists = 0;
+        fetchMock.mockImplementation(async url => {
+            const request = new URL(String(url));
+            if (request.pathname.endsWith('/listPairs')) {
+                lists += 1;
+                return Response.json(lists === 1 ? ['eng-spa'] : ['fra-eng']);
+            }
+            const text = request.searchParams.get('q');
+            if (text === 'x'.repeat(1000)) {
+                firstStarted();
+                await firstResponse;
+            }
+            return Response.json({responseStatus: 200, responseData: {translatedText: text === 'x' ? 'segundo' : 'primero'}});
+        });
+        const active = translateExtraFreeWebText('apertiumFree', 'x'.repeat(1001), 'en', 'es')
+            .then(value => ({value, error: null}), error => ({value: null, error}));
+        await started;
+        try {
+            await expect(translateExtraFreeWebText('apertiumFree', 'Other text', 'en', 'es'))
+                .rejects.toMatchObject({statusCode: 400, freeFailure: 'request'});
+            expect(isKnownUnsupportedApertiumDirection('en', 'es')).toBe(true);
+        } finally {
+            releaseFirst();
+        }
+        expect(await active).toEqual({value: 'primerosegundo', error: null});
+        expect(fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname)).toEqual([
+            '/apy/listPairs', '/apy/translate', '/apy/listPairs', '/apy/translate',
+        ]);
+        await expect(translateExtraFreeWebText('apertiumFree', 'New text', 'en', 'es'))
+            .rejects.toMatchObject({statusCode: 400, freeFailure: 'request'});
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+    });
+
+    it.each([
+        {body: null},
+        {body: {responseData: null}},
+        {body: {responseData: {error: 'unknown shape'}}},
+        {body: ['invalid pair']},
+        {body: [null, {langpair: 'eng-spa'}]},
+        {body: [{langpair: 'invalid pair'}]},
+        {body: {responseStatus: 500, responseData: ['eng-spa']}},
+    ])('畸形或业务失败列表不记忆为不支持 %#', async ({body}) => {
+        fetchMock.mockResolvedValueOnce(Response.json(body));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).rejects.toMatchObject({freeFailure: 'request'});
+        expect(isKnownUnsupportedApertiumDirection('en', 'zh-Hans')).toBe(false);
+        fetchMock.mockResolvedValueOnce(Response.json(['eng|zh'])).mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: {translatedText: '你好'}}));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).resolves.toBe('你好');
+        expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it.each(['fetch', 'json'])('语言列表在 %s 期间被取消时不污染后续请求', async phase => {
+        const owner = new AbortController();
+        const reason = new Error('真实取消');
+        const response = Response.json(['eng-spa']);
+        if (phase === 'json') vi.spyOn(response, 'json').mockImplementationOnce(async () => {
+            owner.abort(reason);
+            return ['eng-spa'];
+        });
+        fetchMock.mockImplementationOnce(async () => {
+            if (phase === 'fetch') owner.abort(reason);
+            return response;
+        });
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans', owner.signal)).rejects.toBe(reason);
+        expect(isKnownUnsupportedApertiumDirection('en', 'zh-Hans')).toBe(false);
+        fetchMock.mockResolvedValueOnce(Response.json(['eng|zh'])).mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: {translatedText: '你好'}}));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).resolves.toBe('你好');
+    });
+
+    it('方向记忆最多 32 项，淘汰最早结果后允许重新探测', async () => {
+        fetchMock.mockImplementation(async () => Response.json(['eng-spa']));
+        for (let index = 0; index < 33; index += 1) {
+            await expect(translateExtraFreeWebText('apertiumFree', 'Hello', `zz${index}`, 'es')).rejects.toMatchObject({freeFailure: 'request'});
+        }
+        expect(isKnownUnsupportedApertiumDirection('zz0', 'es')).toBe(false);
+        expect(isKnownUnsupportedApertiumDirection('zz32', 'es')).toBe(true);
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'zz0', 'es')).rejects.toMatchObject({freeFailure: 'request'});
+        expect(fetchMock).toHaveBeenCalledTimes(34);
+    });
+
+    it('已知不支持时仍优先传递调用方真实取消，不向外发送请求', async () => {
+        fetchMock.mockResolvedValueOnce(Response.json(['eng-spa']));
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans')).rejects.toMatchObject({freeFailure: 'request'});
+        const owner = new AbortController();
+        const reason = new Error('真实取消');
+        owner.abort(reason);
+        await expect(translateExtraFreeWebText('apertiumFree', 'Hello', 'en', 'zh-Hans', owner.signal)).rejects.toBe(reason);
+        expect(fetchMock).toHaveBeenCalledOnce();
+        expect(isKnownUnsupportedApertiumDirection('en', 'auto')).toBe(false);
+    });
+
+    it('其他受支持方向保留槽序、换行、边缘空白和原始序列化正文', async () => {
+        const packet = serializeTranslationSlots(['  Hello\nBye  ', 'World'], 'apertium-originals');
+        const original = packet.payload;
+        fetchMock.mockResolvedValueOnce(Response.json(['eng-spa']));
+        for (const translatedText of ['Hola', 'Adios', 'Mundo']) {
+            fetchMock.mockResolvedValueOnce(Response.json({responseStatus: 200, responseData: {translatedText}}));
+        }
+        const translated = await translateExtraFreeWebText('apertiumFree', packet.payload, 'en', 'es');
+        expect(parseTranslationSlots(packet, translated)).toEqual(['  Hola\nAdios  ', 'Mundo']);
+        expect(packet.payload).toBe(original);
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/listPairs'))).toHaveLength(1);
     });
 });

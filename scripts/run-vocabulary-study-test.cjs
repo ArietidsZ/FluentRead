@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // 使用隔离真实 Edge 验证收藏学习、原句请求、造句反馈、取消隔离和窄屏布局。
 // HTTP fixture 只代替模型响应；配置、存储、端口、Harness 和组件使用生产产物。
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -10,7 +11,7 @@ const arg = (name, fallback) => { const i = process.argv.indexOf(`--${name}`); r
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-vocabulary-study'));
 const playwrightRoot = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 if (!playwrightRoot || !helperPath) throw new Error('需要 --playwright-root 和 --focus-safe-helper');
 const {chromium} = createRequire(path.join(path.resolve(playwrightRoot), 'loader.cjs'))('playwright');
 const helper = require(path.resolve(helperPath));
@@ -34,7 +35,12 @@ async function main() {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-study-profile-'));
   const requests = [];
   let slow = false, failNext = false;
-  const server = http.createServer(async (req,res) => {
+  const report={ok:false,extensionDir,modelEvidence:'local HTTP fixture; no live model quality claim',cases:[],screenshots:[],consoleErrors:[]};
+  let server, session;
+  let primaryError;
+  let launchAttempted = false;
+  try {
+  server = http.createServer(async (req,res) => {
     if (req.method !== 'POST') {res.writeHead(404).end();return;}
     const chunks=[]; for await (const chunk of req) chunks.push(chunk);
     const body=JSON.parse(Buffer.concat(chunks).toString()); requests.push(body);
@@ -57,11 +63,10 @@ async function main() {
     }
     if (!res.destroyed) {res.write('data: [DONE]\n\n');res.end();}
   });
-  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  const report={ok:false,extensionDir,modelEvidence:'local HTTP fixture; no live model quality claim',cases:[],screenshots:[],consoleErrors:[]};
-  let session;
-  try {
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+    launchAttempted = true;
     session=await helper.launchFocusSafePersistentContext({chromium,profileDir:profile,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check','--mute-audio'],viewport:{width:1440,height:1000}});
+    guardBrowserClose(session, profile);
     Object.assign(report,{launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement});
     const context=session.context;
     const worker=context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
@@ -144,14 +149,35 @@ async function main() {
     await page.locator('.harness-attribution').scrollIntoViewIfNeeded();assert(await page.locator('.harness-attribution a').getAttribute('href')==='https://github.com/deepseek-ai/deepseek-harness','来源链接错误');await shot('translation-card-source');record('translation-card-name-group-attribution');
     assert(report.consoleErrors.length===0,JSON.stringify(report.consoleErrors));
     report.ok=true;
-  } catch(error) {report.failure=error.stack;throw error;}
+  } catch(error) {primaryError=error;report.failure=error.stack;throw error;}
   finally {
     report.requestCount=requests.length;
-    fs.writeFileSync(path.join(artifacts,'result.json'),JSON.stringify(report,null,2));
-    fs.writeFileSync(path.join(artifacts,'fixture-requests.json'),JSON.stringify(requests,null,2));
-    if(session) await session.close();
-    server.closeAllConnections();await new Promise(resolve=>server.close(resolve));
-    fs.rmSync(profile,{recursive:true,force:true});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {if (server?.listening) await new Promise((resolve, reject) => {server.close(error => error ? reject(error) : resolve()); server.closeAllConnections();});});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profile);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup(() => {fs.writeFileSync(path.join(artifacts,'fixture-requests.json'),JSON.stringify(requests,null,2));});
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifacts,'result.json'),JSON.stringify(report,null,2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
   console.log(JSON.stringify(report,null,2));
 }

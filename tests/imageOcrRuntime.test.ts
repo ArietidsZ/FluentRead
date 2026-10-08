@@ -6,6 +6,9 @@ const {recognize, ensureLanguages, clearModels, removeFiles, createRuntime, tess
     prefetchModels: vi.fn(async () => {}),
 }));
 vi.mock('@/src/features/image-translation/services/ocrModelDownload', () => ({prefetchOcrModelFiles: prefetchModels}));
+// Keep the production cancellable encoder; control only Canvas and FileReader.
+const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aRZkAAAAASUVORK5CYII=';
+const ENCODED_PNG = `data:image/png;base64,${PNG_BASE64}`;
 vi.mock('@/src/features/image-translation/services/ocrWorkerRuntime', () => ({
     createOcrWorkerRuntime: createRuntime,
 }));
@@ -20,7 +23,10 @@ describe('图片 OCR 处理与结果缓存', () => {
     let recognizeImage: typeof import('@/src/features/image-translation/services/ocrRuntime')['recognizeImage'];
     let dimensions: {width: number; height: number};
     let sources: Array<{src: string; onload: (() => void) | null; onerror: (() => void) | null}>;
-    let canvas: {width: number; height: number; getContext: ReturnType<typeof vi.fn>; toDataURL: ReturnType<typeof vi.fn>};
+    let canvas: {width: number; height: number; getContext: ReturnType<typeof vi.fn>; toDataURL: ReturnType<typeof vi.fn>; toBlob: ReturnType<typeof vi.fn>};
+    let pngBlob: Blob;
+    let encodedSizes: Array<{width: number; height: number}>;
+    let readers: Array<{result: string | null; readyState: number; onload: (() => void) | null; onerror: (() => void) | null; readAsDataURL: ReturnType<typeof vi.fn>; abort: ReturnType<typeof vi.fn>}>;
     let context: {drawImage: ReturnType<typeof vi.fn>; fillRect: ReturnType<typeof vi.fn>; fillStyle: string; imageSmoothingEnabled: boolean; imageSmoothingQuality: string};
     let onImageCreated: (() => void) | undefined;
 
@@ -36,8 +42,15 @@ describe('图片 OCR 处理与结果缓存', () => {
         const decoded = {naturalWidth: 900, naturalHeight: 2595, src: 'owned'} as HTMLImageElement;
         const lines = await recognizeImage(`data:image/${format};base64,example`, 'ru', undefined, {decodedImage: decoded});
         expect(context.drawImage).toHaveBeenCalledWith(decoded, 0, 0, 900, 2595);
-        expect(canvas.toDataURL).toHaveBeenCalledWith('image/png');
-        expect(recognize).toHaveBeenCalledWith('scaled-image', 'rus+eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(canvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png');
+        expect(canvas.toDataURL).not.toHaveBeenCalled();
+        expect(encodedSizes).toEqual([{width: 900, height: 2595}]);
+        expect(readers).toHaveLength(1);
+        expect(readers[0].readAsDataURL).toHaveBeenCalledWith(pngBlob);
+        expect(pngBlob.type).toBe('image/png');
+        expect(new Uint8Array(await pngBlob.arrayBuffer())).toEqual(Uint8Array.from(atob(PNG_BASE64), byte => byte.charCodeAt(0)));
+        expect(readers[0]).toMatchObject({readyState: 2, onload: null, onerror: null});
+        expect(recognize).toHaveBeenCalledWith(ENCODED_PNG, 'rus+eng', expect.any(AbortSignal), undefined, expect.any(Function));
         expect(lines).toEqual([{text: 'hello', bbox: {x0: 10, y0: 10, x1: 50, y1: 30}}]);
         expect(decoded.src).toBe('owned');expect(sources).toHaveLength(0);
         expect(canvas.width).toBe(0);expect(canvas.height).toBe(0);
@@ -47,6 +60,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         await recognizeImage(input, 'ko');
         expect(recognize).toHaveBeenCalledWith(input, 'kor+eng', expect.any(AbortSignal), undefined, expect.any(Function));
         expect(canvas.toDataURL).not.toHaveBeenCalled();
+        expect(canvas.toBlob).not.toHaveBeenCalled(); expect(readers).toHaveLength(0);
     });
     it('清除语言包后丢弃 OCR 结果并重新识别', async () => {
         await recognizeImage('same', 'en');
@@ -68,7 +82,29 @@ describe('图片 OCR 处理与结果缓存', () => {
         dimensions = {width: 100, height: 100};
         sources = [];
         context = {drawImage: vi.fn(), fillRect: vi.fn(), fillStyle: '', imageSmoothingEnabled: false, imageSmoothingQuality: 'low'};
-        canvas = {width: 0, height: 0, getContext: vi.fn(() => context), toDataURL: vi.fn(() => 'scaled-image')};
+        pngBlob = new Blob([Uint8Array.from(atob(PNG_BASE64), byte => byte.charCodeAt(0))], {type: 'image/png'});
+        encodedSizes = []; readers = [];
+        canvas = {width: 0, height: 0, getContext: vi.fn(() => context), toDataURL: vi.fn(() => ENCODED_PNG),
+            toBlob: vi.fn((callback: BlobCallback) => {
+                encodedSizes.push({width: canvas.width, height: canvas.height});
+                queueMicrotask(() => callback(pngBlob));
+            })};
+        vi.stubGlobal('FileReader', class {
+            result: string | null = null;
+            readyState = 0;
+            onload: (() => void) | null = null;
+            onerror: (() => void) | null = null;
+            constructor() {readers.push(this);}
+            readAsDataURL = vi.fn((blob: Blob) => {
+                expect(blob).toBe(pngBlob);
+                this.readyState = 1;
+                queueMicrotask(() => {
+                    if (this.readyState !== 1) return;
+                    this.result = ENCODED_PNG; this.readyState = 2; this.onload?.();
+                });
+            });
+            abort = vi.fn(() => {this.readyState = 2;});
+        });
         vi.stubGlobal('document', {createElement: vi.fn(() => canvas)});
         vi.stubGlobal('Image', class {
             naturalWidth = dimensions.width;
@@ -148,7 +184,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(tesseractCreateWorker).toHaveBeenCalledWith(['jpn', 'eng'], 1, {
             workerPath: 'chrome-extension://test/fluent-read-ocr/worker/worker.min.js',
             corePath: 'chrome-extension://test/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js',
-            cachePath: 'fluent-read-image-ocr', workerBlobURL: false, logger: expect.any(Function),
+            cachePath: 'fluent-read-image-ocr', workerBlobURL: false, errorHandler: expect.any(Function), logger: expect.any(Function),
         }, {tessedit_load_sublangs: ''});
         const logger = tesseractCreateWorker.mock.calls[0][2].logger;
         logger({status:'loading language', progress:0.2, userJobId:'load'});
@@ -195,8 +231,8 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(recognize).toHaveBeenLastCalledWith('manga', 'chi_sim+eng', expect.any(AbortSignal), undefined, expect.any(Function));
         recognize.mockResolvedValueOnce({data: {blocks: []}});
         await recognizeImage('bubble', 'ja', undefined, {profile: 'area'});
-        expect(recognize).toHaveBeenNthCalledWith(3, 'scaled-image', 'jpn+jpn_vert+eng', expect.any(AbortSignal), 12, expect.any(Function));
-        expect(recognize).toHaveBeenNthCalledWith(4, 'scaled-image', 'jpn+jpn_vert+eng', expect.any(AbortSignal), 6);
+        expect(recognize).toHaveBeenNthCalledWith(3, ENCODED_PNG, 'jpn+jpn_vert+eng', expect.any(AbortSignal), 12, expect.any(Function));
+        expect(recognize).toHaveBeenNthCalledWith(4, ENCODED_PNG, 'jpn+jpn_vert+eng', expect.any(AbortSignal), 6);
         const {removeImageOcrLanguages} = await import('@/src/features/image-translation/services/ocrRuntime');
         await removeImageOcrLanguages(['jpn']);
         expect(removeFiles).toHaveBeenLastCalledWith(['jpn', 'jpn_vert']);
@@ -222,12 +258,34 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(context.drawImage).toHaveBeenCalledWith(sources[0], 0, 0, 4096, 512);
         expect(context.imageSmoothingEnabled).toBe(true);
         expect(context.imageSmoothingQuality).toBe('high');
-        expect(recognize).toHaveBeenCalledWith('scaled-image', 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(recognize).toHaveBeenCalledWith(ENCODED_PNG, 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
         expect(lines).toEqual([{text: 'hello', bbox: {x0: 19, y0: 19, x1: 98, y1: 59}}]);
         expect(canvas.width).toBe(0);
         expect(canvas.height).toBe(0);
         expect(sources[0].src).toBe('');
         expect(context.fillRect).not.toHaveBeenCalled();
+    });
+
+    it.each([false, true])('圈选借用解码图=%s 在异步编码中保留画布、释放自有解码图，取消不启动 Worker', async borrowed => {
+        const controller = new AbortController();
+        const decoded = {naturalWidth: 100, naturalHeight: 100, src: 'borrowed-image'} as HTMLImageElement;
+        let complete!: BlobCallback;
+        canvas.toBlob.mockImplementationOnce((callback: BlobCallback) => {complete = callback;});
+        const operation = recognizeImage('encode-pending', 'en', controller.signal, {profile: 'area',
+            ...(borrowed ? {decodedImage: decoded} : {})});
+        const outcome = operation.then(result => ({result}), error => ({error}));
+        await vi.waitFor(() => expect(canvas.toBlob).toHaveBeenCalledOnce());
+        expect(canvas.toDataURL).not.toHaveBeenCalled();
+        expect(canvas).toMatchObject({width: 220, height: 220});
+        expect(recognize).not.toHaveBeenCalled();
+        if (borrowed) expect(decoded.src).toBe('borrowed-image'); else expect(sources[0].src).toBe('');
+        controller.abort(); complete(pngBlob);
+        expect(await outcome).toMatchObject({error: {name: 'AbortError'}});
+        await vi.waitFor(() => expect(canvas).toMatchObject({width: 0, height: 0}));
+        expect(recognize).not.toHaveBeenCalled();
+        expect(readers).toHaveLength(0);
+        expect(canvas).toMatchObject({width: 0, height: 0});
+        expect(decoded.src).toBe('borrowed-image');
     });
 
     it('圈选小图放大加边后映回坐标，与普通图片分开缓存且不重复识别', async () => {
@@ -249,8 +307,8 @@ describe('图片 OCR 处理与结果缓存', () => {
     it('圈选和小图片空结果重试一次且不缓存空结果，大图仍只识别一次', async () => {
         recognize.mockResolvedValueOnce({data: {blocks: []}});
         await expect(recognizeImage('area', 'en', undefined, {profile: 'area'})).resolves.toHaveLength(1);
-        expect(recognize).toHaveBeenNthCalledWith(1, 'scaled-image', 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
-        expect(recognize).toHaveBeenNthCalledWith(2, 'scaled-image', 'eng', expect.any(AbortSignal), 6);
+        expect(recognize).toHaveBeenNthCalledWith(1, ENCODED_PNG, 'eng', expect.any(AbortSignal), undefined, expect.any(Function));
+        expect(recognize).toHaveBeenNthCalledWith(2, ENCODED_PNG, 'eng', expect.any(AbortSignal), 6);
         recognize.mockResolvedValue({data: {blocks: []}});
         await expect(recognizeImage('blank', 'en', undefined, {profile: 'area'})).resolves.toEqual([]);
         expect(recognize).toHaveBeenCalledTimes(4);
@@ -309,7 +367,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         expect(sources[0]).toMatchObject({src: '', onload: null, onerror: null});
         onImageCreated = undefined;
         const encoding = new AbortController();
-        canvas.toDataURL.mockImplementationOnce(() => { encoding.abort(); return 'encoded'; });
+        canvas.toBlob.mockImplementationOnce((callback: BlobCallback) => {encoding.abort(); callback(pngBlob);});
         await expect(recognizeImage('encoded-abort', 'en', encoding.signal, {profile: 'area'}))
             .rejects.toMatchObject({name: 'AbortError'});
         expect(sources[1].src).toBe('');
@@ -321,7 +379,7 @@ describe('图片 OCR 处理与结果缓存', () => {
         dimensions = {width: 8000, height: 1000};
         if (stage === 'context') canvas.getContext.mockReturnValueOnce(null);
         if (stage === 'drawing') context.drawImage.mockImplementationOnce(() => { throw new Error('draw failed'); });
-        if (stage === 'encoding') canvas.toDataURL.mockImplementationOnce(() => { throw new Error('encode failed'); });
+        if (stage === 'encoding') canvas.toBlob.mockImplementationOnce(() => {throw new Error('encode failed');});
         await expect(recognizeImage('canvas-failure', 'en')).rejects.toThrow();
         expect(canvas).toMatchObject({width: 0, height: 0});
         expect(sources[0].src).toBe('');

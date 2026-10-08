@@ -35,6 +35,7 @@ const EXPECTED_PROVIDER_FILES = [
     'free-chinese-web.ts',
     'free-extra-web.ts',
     'free-official-web.ts',
+    'bilibili-free.ts',
     'gemini.ts',
     'google.ts',
     'hunyuan-translation.ts',

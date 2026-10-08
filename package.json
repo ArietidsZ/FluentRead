@@ -2,7 +2,7 @@
   "name": "FluentRead-流畅阅读",
   "description": "Closer languages. A bigger world. 让语言更近，让世界更大。",
   "private": true,
-  "version": "0.0.35",
+  "version": "0.0.36",
   "userscriptVersion": "2.0.1",
   "type": "module",
   "engines": {
@@ -21,6 +21,7 @@
     "build:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt build -b firefox",
     "build:thunderbird": "pnpm build:firefox && node scripts/thunderbird/package.mjs",
     "zip": "node scripts/testing/run-resource-safe.mjs -- wxt zip",
+    "zip:edge": "node scripts/testing/run-resource-safe.mjs -- wxt zip -b edge",
     "zip:firefox": "node scripts/testing/run-resource-safe.mjs -- wxt zip -b firefox",
     "compile": "node scripts/testing/run-resource-safe.mjs -- vue-tsc --noEmit",
     "test": "node scripts/testing/run-resource-safe.mjs -- vitest run",
@@ -49,6 +50,11 @@
     "docs:preview": "vitepress preview docs",
     "docs:check": "node scripts/verify-docs-build.mjs",
     "docs:typecheck": "vue-tsc --noEmit -p docs/tsconfig.json",
+    "storybook": "storybook dev -p 6006 --host 127.0.0.1 --no-open --disable-telemetry",
+    "storybook:build": "node scripts/testing/run-resource-safe.mjs -- storybook build --output-dir docs/.vitepress/dist/storybook --disable-telemetry",
+    "storybook:typecheck": "vue-tsc --noEmit -p storybook/tsconfig.json",
+    "storybook:check": "node scripts/verify-storybook-build.mjs",
+    "docs:build:site": "pnpm docs:build && pnpm storybook:build",
     "docs:contributors": "node scripts/update-readme-contributors.mjs",
     "analyze:bundle": "node scripts/testing/run-resource-safe.mjs -- node scripts/testing/analyze-bundle-size.mjs",
     "test:cloud-backup": "node scripts/testing/run-resource-safe.mjs -- vitest run --config vitest.cloud-backup.config.ts"
@@ -84,6 +90,9 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@storybook/addon-essentials": "8.6.18",
+    "@storybook/vue3": "8.6.18",
+    "@storybook/vue3-vite": "8.6.18",
     "@types/chrome": "^0.2.0",
     "@types/crypto-js": "^4.2.2",
     "@types/node": "22.10.7",
@@ -94,6 +103,7 @@
     "fake-indexeddb": "^6.0.0",
     "linkedom": "0.18.12",
     "obsidian": "1.13.1",
+    "storybook": "8.6.18",
     "typescript": "^5.7.3",
     "vite": "^5.4.19",
     "vite-plugin-imagemin": "^0.6.1",
@@ -105,7 +115,9 @@
   },
   "pnpm": {
     "overrides": {
-      "vite": "5.4.19"
+      "vite": "5.4.19",
+      "react": "18.3.1",
+      "react-dom": "18.3.1"
     }
   },
   "packageManager": "pnpm@9.12.1+sha1.7084e7df42ee1d221994c2c2599277a2a937f050"

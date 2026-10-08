@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 // 网站规则专项：仅使用临时生产扩展 profile，验证独立标题分隔栏、配置保留、同页定位、单次保存、编辑导入、诊断与窄屏布局。
 const fs = require('node:fs');
 const path = require('node:path');
@@ -9,22 +10,28 @@ const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-site-rules-ui'));
 const {chromium} = require(path.join(arg('playwright-root', '/Users/thinkstu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'), 'playwright'));
 const {launchFocusSafePersistentContext, newPageWithoutForeground, activateExtensionTabWithoutForeground} =
-  require(arg('focus-safe-helper', '/Users/thinkstu/.codex/skills/fluentread-extension-ui-test/scripts/focus-safe-browser.cjs'));
+  require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 fs.mkdirSync(artifactsDir, {recursive: true});
 async function main() {
   const profileDir = fs.mkdtempSync('/private/tmp/fr-site-rules-');
   const report = {ok: false, artifact: 'production', extensionDir, cases: [], caseCoverage: [], persistenceCases: [], quickClose: false, crossPageSync: false, latestWriteWins: false, screenshots: [], consoleErrors: []};
   const timeout = 30000;
-  let launched, page;
-  const server = http.createServer((_request, response) => {response.setHeader('content-type', 'text/html'); response.end('<!doctype html><html><body><article><h1>Local rules fixture</h1><p>This fixture does not call a translation provider.</p></article></body></html>');});
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  let launched, page, server, primaryError;
+  let launchAttempted = false;
   try {
+    server = http.createServer((_request, response) => {response.setHeader('content-type', 'text/html'); response.end('<!doctype html><html><body><article><h1>Local rules fixture</h1><p>This fixture does not call a translation provider.</p></article></body></html>');});
+    await new Promise((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(0, '127.0.0.1', () => { server.off('error', reject); resolve(); });
+    });
     const manifest = JSON.parse(fs.readFileSync(path.join(extensionDir, 'manifest.json'), 'utf8'));
     report.manifest = {options: manifest.options_page || manifest.options_ui?.page, popup: manifest.action?.default_popup};
     assert(report.manifest.options && report.manifest.popup);
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir, timeout, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', displayTarget: arg('display', 'secondary'),
       viewport: {width: 1440, height: 900}, browserArgs: ['--disable-extensions-except=' + extensionDir, '--load-extension=' + extensionDir, '--no-first-run', '--no-default-browser-check']});
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     const context = launched.context;
     const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker', {timeout});
@@ -336,15 +343,39 @@ async function main() {
     assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
     report.ok = true;
   } catch (error) {
+    primaryError = error;
     report.failure = error.stack || String(error);
     if (page && !page.isClosed()) await page.screenshot({path: path.join(artifactsDir, 'failure.png')}).catch(() => {});
     process.exitCode = 1;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (launched) await launched.close();
-    await new Promise(resolve => server.close(resolve));
-    // 只移除本次 mkdtemp 创建且已关闭的 profile。
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('HTTP fixture', () => new Promise((resolve, reject) => {
+  if (!server) return resolve();
+  server.close(error => { if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') reject(error); else resolve(); });
+}));
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profileDir); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
     console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, failure: report.failure, report: path.join(artifactsDir, 'report.json')}, null, 2));
   }
 }

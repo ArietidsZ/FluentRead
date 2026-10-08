@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
+const {waitForAsyncCondition} = require('./testing/wait-for-async-condition.cjs');
 const fs = require('node:fs');
 const http = require('node:http');
 const os = require('node:os');
@@ -121,6 +123,51 @@ async function persistExtensionConfig(extensionPage, patch) {
   }
 }
 
+async function readVideoSettingsState(page) {
+  return page.evaluate(() => {
+    const section = document.querySelector('#settings-video');
+    const card = section?.querySelector('.feature-enable-card');
+    const toggle = card?.querySelector('[role="switch"]');
+    const group = section?.querySelector('[role="radiogroup"][aria-label="视频字幕显示模式"]');
+    return {
+      checked: toggle?.getAttribute('aria-checked') ?? null,
+      disabled: toggle ? toggle.disabled : null,
+      summary: card?.querySelector('.feature-enable-description')?.textContent?.trim() || '',
+      betaMarkers: [...(card?.querySelectorAll('*') || [])]
+        .filter((node) => /beta|测试版/iu.test(node.textContent || '')).length,
+      modes: [...(group?.querySelectorAll('[role="radio"]') || [])].map((node) => ({
+        label: node.textContent?.trim() || '',
+        checked: node.getAttribute('aria-checked'),
+        disabled: node.disabled,
+      })),
+    };
+  });
+}
+
+async function waitForVideoDisplayModePersistence(page, expectedMode) {
+  // 控件先乐观更新；等待后台实际保存，随后仍完整核对 UI 和持久配置。
+  await waitForAsyncCondition(async () => (await readExtensionConfig(page)).videoSubtitleDisplayMode === expectedMode,
+    {timeoutMs: 5000, message: `字幕模式未持久化为 ${expectedMode}`});
+}
+
+function assertEnabledVideoSettingsState(state, stored, expectedMode = 'bilingual') {
+  const modeIndex = ['bilingual', 'translation-only', 'original-only'].indexOf(expectedMode);
+  const modeLabels = ['双语', '仅译文', '仅原文'];
+  if (modeIndex < 0 || state.checked !== 'true' || state.disabled !== false
+    || !state.summary || state.betaMarkers !== 0
+    || stored.videoTranslationEnabled !== true || stored.videoSubtitleVisible !== true
+    || stored.videoSubtitleDisplayMode !== expectedMode
+    || state.modes.length !== modeLabels.length
+    || state.modes.some((mode, index) => mode.label !== modeLabels[index]
+      || mode.checked !== String(index === modeIndex) || mode.disabled !== false)) {
+    throw new Error(`视频字幕设置与持久配置不一致：${JSON.stringify({state, stored: {
+      videoTranslationEnabled: stored.videoTranslationEnabled,
+      videoSubtitleVisible: stored.videoSubtitleVisible,
+      videoSubtitleDisplayMode: stored.videoSubtitleDisplayMode,
+    }, expectedMode})}`);
+  }
+}
+
 function comparableConfigWithoutVideoToggle(value) {
   const comparable = {...value};
   delete comparable.videoTranslationEnabled;
@@ -179,15 +226,17 @@ async function main() {
   const url = arg('url', 'https://www.youtube.com/watch?v=fluentread-offline-fixture');
   const artifactsDir = path.resolve(arg('artifacts-dir', path.join(os.tmpdir(), 'fluentread-video-subtitle-fixture')));
   const browserPath = arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
-  const focusSafeHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER || '');
+  const focusSafeHelper = arg('focus-safe-helper', process.env.FLUENTREAD_FOCUS_SAFE_HELPER || path.join(__dirname, 'testing/focus-safe-browser.cjs'));
   const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-edge-video-fixture-'));
+  let browserSession, providerFixtureServer, evidence; let launchAttempted = false; let primaryError;
+  try {
   assertDedicatedTemporaryProfile(profileDir);
   if (!fs.existsSync(path.join(extensionDir, 'manifest.json'))) throw new Error(`找不到扩展构建：${extensionDir}`);
   fs.mkdirSync(artifactsDir, { recursive: true });
   // 预取窗口覆盖到 20 秒，媒体本身必须足够长，才能用真实 currentTime 验证显示时间。
   const mediaFile = path.join(artifactsDir, 'fixture.mp4');
   const media = spawnSync(arg('ffmpeg', '/opt/homebrew/bin/ffmpeg'), ['-y', '-f', 'lavfi', '-i', 'color=c=black:s=16x16:r=1',
-    '-t', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaFile], {encoding: 'utf8'});
+    '-t', '30', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', mediaFile], {encoding: 'utf8', timeout: 30000, killSignal: 'SIGKILL'});
   if (media.status !== 0) throw new Error(`无法生成视频时间轴夹具：${media.stderr}`);
   const videoFixtureDataUrl = `data:video/mp4;base64,${fs.readFileSync(mediaFile).toString('base64')}`;
 
@@ -197,7 +246,8 @@ async function main() {
     launchFocusSafePersistentContext,
     newPageWithoutForeground,
   } = loadFocusSafeBrowser(focusSafeHelper);
-  const browserSession = await launchFocusSafePersistentContext({
+  launchAttempted = true;
+  browserSession = await launchFocusSafePersistentContext({
     chromium,
     profileDir,
     browserPath,
@@ -212,6 +262,7 @@ async function main() {
     ],
     viewport: { width: 1280, height: 900 },
   });
+  guardBrowserClose(browserSession, profileDir);
   const context = browserSession.context;
   const createPage = () => newPageWithoutForeground(context);
   const activatePage = (page) => activateExtensionTabWithoutForeground(context, page);
@@ -230,7 +281,7 @@ async function main() {
     'Timeline subtitle catches up.': '时间轴已追上字幕。',
     'This subtitle was translated in advance.': '预先翻译的字幕。',
   };
-  const providerFixtureServer = http.createServer(async (request, response) => {
+  providerFixtureServer = http.createServer(async (request, response) => {
     const responseHeaders = {
       'access-control-allow-origin': '*',
       'cache-control': 'no-store',
@@ -288,7 +339,6 @@ async function main() {
     response.end(JSON.stringify({ error: 'unknown fixture route' }));
   });
 
-  try {
     await new Promise((resolve, reject) => {
       providerFixtureServer.once('error', reject);
       providerFixtureServer.listen(0, '127.0.0.1', resolve);
@@ -373,17 +423,18 @@ async function main() {
     await control.goto(`chrome-extension://${extensionId}/popup.html`, { waitUntil: 'domcontentloaded' });
     await activatePage(control);
     await control.waitForTimeout(500);
-    const initialPopupVideoState = await control.evaluate(() => {
-      const card = document.querySelector('[data-feature="video-subtitle"]');
-      return {
-        enabled: Boolean(card?.querySelector('i.active')),
-        summary: card?.querySelector('small')?.textContent?.trim() || '',
-      };
-    });
-    // 新配置默认开启视频字幕翻译（媒体翻译默认值调整后）。
-    if (!initialPopupVideoState.enabled) {
-      throw new Error(`新配置的视频字幕翻译应默认开启：${JSON.stringify(initialPopupVideoState)}`);
-    }
+    await control.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout: 10000});
+    // 新 main 将视频总开关与显示模式集中到设置页；Popup 卡片已移除。
+    // 首次配置的真实默认值仍为开启/可见/双语，同时核对 UI 与后台持久记录。
+    const videoSettingsPage = await createPage();
+    await videoSettingsPage.goto(`chrome-extension://${extensionId}/options.html#settings-video`, {waitUntil: 'domcontentloaded'});
+    await activatePage(videoSettingsPage);
+    const videoSettings = videoSettingsPage.locator('#settings-video');
+    await videoSettings.getByRole('switch', {name: '视频字幕翻译', exact: true}).waitFor({state: 'visible', timeout: 10000});
+    const videoDisplayModes = videoSettings.getByRole('radiogroup', {name: '视频字幕显示模式', exact: true});
+    await videoDisplayModes.waitFor({state: 'visible', timeout: 10000});
+    const initialVideoSettingsState = await readVideoSettingsState(videoSettingsPage);
+    assertEnabledVideoSettingsState(initialVideoSettingsState, await readExtensionConfig(control));
     await persistExtensionConfig(control, {uiLanguageSetupCompleted: true, videoTranslationEnabled: false});
     await control.reload({waitUntil: 'domcontentloaded'});
     await control.locator('.popup-shell').waitFor({state: 'visible', timeout: 10000});
@@ -404,7 +455,10 @@ async function main() {
       mimeType: 'text/plain',
       buffer: Buffer.from('FluentRead cross-context configuration probe.', 'utf8'),
     });
-    const documentSourceLanguage = documentConfigPage.getByRole('combobox', { name: '文档源语言' });
+    await documentConfigPage.getByRole('button', {name: '调整文档翻译设置', exact: true}).click();
+    const documentSettings = documentConfigPage.getByRole('dialog', {name: '翻译设置', exact: true});
+    await documentSettings.waitFor({state: 'visible', timeout: 15000});
+    const documentSourceLanguage = documentSettings.getByRole('combobox', { name: '文档源语言', exact: true });
     await documentSourceLanguage.waitFor({state: 'visible', timeout: 15000});
     await persistExtensionConfig(control, {
       on: true,
@@ -421,55 +475,55 @@ async function main() {
     const englishOption = documentConfigPage.locator('[role="option"]:visible').filter({ hasText: 'English' }).first();
     await englishOption.waitFor({ state: 'visible', timeout: 10000 });
     await englishOption.evaluate((element) => element.click());
-    await documentConfigPage.waitForFunction(async () => {
+    await waitForAsyncCondition(() => documentConfigPage.evaluate(async () => {
       const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
-      return response?.success === true
-        && response.value?.from === 'en'
-        && response.value?.videoTranslationEnabled === true;
-    }, null, {timeout: 10000});
+      if (response?.success !== true) throw new Error(response?.error || '后台配置读取失败：local:config');
+      const current = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
+      return current?.from === 'en' && current.videoTranslationEnabled === true;
+    }), {timeoutMs: 10000, message: '文档源语言与字幕开关未持久化'});
     const crossContextDocumentConfig = await readExtensionConfig(control);
     if (crossContextDocumentConfig.from !== 'en' || crossContextDocumentConfig.videoTranslationEnabled !== true) {
       throw new Error(`文档页旧快照覆盖了字幕开关：${JSON.stringify(crossContextDocumentConfig)}`);
     }
     await documentConfigPage.close();
-    const popupFeature = await control.evaluate(() => ({
-      cardPresent: Boolean(document.querySelector('[data-feature="video-subtitle"]')),
-      betaMarkers: [...document.querySelectorAll('[data-feature="video-subtitle"] *')]
+    // Popup 当前的视频入口是翻译服务分配行，字幕控制在设置页和播放器内。
+    await activatePage(control);
+    await control.locator('[data-testid="popup-feature-services"]').click();
+    const popupServices = control.locator('.popup-service-panel');
+    const popupVideoService = popupServices.locator('[data-feature-service="video"]');
+    await popupVideoService.waitFor({state: 'visible', timeout: 10000});
+    const popupFeature = await popupVideoService.evaluate((row) => ({
+      entryPresent: row.getAttribute('data-feature-service') === 'video',
+      summary: row.querySelector('.assignment-value')?.textContent?.trim() || '',
+      betaMarkers: [...row.querySelectorAll('*')]
         .filter((node) => /beta|测试版/iu.test(node.textContent || '')).length,
     }));
-    if (!popupFeature.cardPresent || popupFeature.betaMarkers !== 0) {
-      throw new Error(`Popup 视频字幕去 Beta 标识校验失败：${JSON.stringify(popupFeature)}`);
+    if (!popupFeature.entryPresent || !popupFeature.summary || popupFeature.betaMarkers !== 0) {
+      throw new Error(`Popup 视频服务入口校验失败：${JSON.stringify(popupFeature)}`);
     }
-    // Popup 抽屉只保留高频控制：启用开关、显示方式与播放器入口提示；服务和字号在设置页配置。
-    await control.locator('[data-feature="video-subtitle"]').click();
-    const videoDrawer = control.locator('.drawer-content.video-quick-settings');
-    await videoDrawer.waitFor({ state: 'visible', timeout: 10000 });
-    const popupDrawerDescription = (await videoDrawer.locator('.video-player-hint').textContent())?.trim() || '';
-    if (!popupDrawerDescription || /beta|测试版/iu.test(popupDrawerDescription)) {
-      throw new Error(`Popup 视频字幕抽屉提示异常：${popupDrawerDescription}`);
-    }
-    if (await videoDrawer.getByRole('switch', { name: '启用或关闭视频字幕翻译' }).getAttribute('aria-checked') !== 'true') {
-      throw new Error('Popup 视频字幕抽屉没有同步开启状态');
-    }
-    const popupVideoDisplayModes = await videoDrawer.locator('.chips.three button').allTextContents();
-    if (popupVideoDisplayModes.length !== 3) {
-      throw new Error(`Popup 视频字幕显示方式不完整：${JSON.stringify(popupVideoDisplayModes)}`);
-    }
-    await videoDrawer.locator('.chips.three button').nth(1).click();
-    await control.waitForTimeout(350);
-    const popupVideoDisplayModePersisted = (await readExtensionConfig(control)).videoSubtitleDisplayMode;
-    if (popupVideoDisplayModePersisted === 'bilingual') {
-      throw new Error(`Popup 视频字幕显示方式没有持久化：${JSON.stringify({ popupVideoDisplayModePersisted })}`);
-    }
-    await videoDrawer.locator('.chips.three button').nth(0).click();
-    await control.waitForTimeout(350);
-    if ((await readExtensionConfig(control)).videoSubtitleDisplayMode !== 'bilingual') {
-      throw new Error('Popup 视频字幕显示方式没有恢复为双语');
-    }
-    // 字号已移到设置页；后续清晰度断言依赖 140% 字号，这里通过同一持久化接口写入。
+    await control.screenshot({path: path.join(artifactsDir, 'popup-video-service.png'), fullPage: true});
+    await popupServices.locator('.service-panel-close').click();
+
+    await activatePage(videoSettingsPage);
+    await videoSettingsPage.waitForFunction(() => document.querySelector('#settings-video .feature-enable-card [role="switch"]')?.getAttribute('aria-checked') === 'true', null, {timeout: 10000});
+    const videoSettingsState = await readVideoSettingsState(videoSettingsPage);
+    assertEnabledVideoSettingsState(videoSettingsState, await readExtensionConfig(control));
+    const videoSettingsDescription = videoSettingsState.summary;
+    const videoSettingsDisplayModes = videoSettingsState.modes.map((mode) => mode.label);
+    await videoDisplayModes.getByRole('radio', {name: '仅译文', exact: true}).click();
+    await waitForVideoDisplayModePersistence(control, 'translation-only');
+    const videoDisplayModeConfig = await readExtensionConfig(control);
+    const videoSettingsDisplayModePersisted = videoDisplayModeConfig.videoSubtitleDisplayMode;
+    assertEnabledVideoSettingsState(await readVideoSettingsState(videoSettingsPage), videoDisplayModeConfig, 'translation-only');
+    await videoDisplayModes.getByRole('radio', {name: '双语', exact: true}).click();
+    await waitForVideoDisplayModePersistence(control, 'bilingual');
+    assertEnabledVideoSettingsState(await readVideoSettingsState(videoSettingsPage), await readExtensionConfig(control));
+    // 后续清晰度断言依赖 140% 字号，继续通过原持久化接口写入。
     const videoAppearance = (await readExtensionConfig(control)).videoSubtitleAppearance || {};
     await persistExtensionConfig(control, {videoSubtitleAppearance: {...videoAppearance, fontScale: 140}});
-    await control.screenshot({ path: path.join(artifactsDir, 'popup-video-beta-test.png'), fullPage: true });
+    await videoSettingsPage.screenshot({path: path.join(artifactsDir, 'video-subtitle-settings.png'), fullPage: true});
+    // 结束设置页会话，避免其草稿在播放器真实动作阶段参与保存。
+    await videoSettingsPage.close();
 
     const page = await createPage();
     const pageErrors = [];
@@ -606,14 +660,16 @@ async function main() {
       downloadStatusLive: document.querySelector('#fluent-read-video-subtitle-menu [data-download-status]')?.getAttribute('aria-live') || '',
       downloadStatusAtomic: document.querySelector('#fluent-read-video-subtitle-menu [data-download-status]')?.getAttribute('aria-atomic') || '',
       rect: document.querySelector('#fluent-read-video-subtitle-menu')?.getBoundingClientRect().toJSON() || null,
+      viewport: {width: innerWidth, height: innerHeight},
     }));
     if (menu.brand !== '流畅阅读' || menu.betaMarkers !== 0 || menu.service !== '微软翻译' || !menu.bilingual
       || menu.offChecked !== 'false' || menu.playerButtonAriaPressed !== 'true' || menu.legacySwitches !== 0
       || JSON.stringify(menu.modeLabels) !== JSON.stringify(['双语', '译文', '原文', '关闭'])
-      || menu.originalDownloadLabel !== '原文字幕' || menu.translatedDownloadLabel !== '译文字幕'
+      || menu.originalDownloadLabel !== '原文' || menu.translatedDownloadLabel !== '译文'
       || menu.originalDownloadName !== '下载原文字幕' || menu.translatedDownloadName !== '下载译文字幕'
       || menu.downloadStatusLive !== 'polite' || menu.downloadStatusAtomic !== 'true'
-      || !menu.rect || menu.rect.width <= 0 || menu.rect.height <= 0 || menu.rect.width > 240 || menu.rect.height > 180) {
+      || !menu.rect || menu.rect.width <= 0 || menu.rect.height <= 0 || menu.rect.width > 280 || menu.rect.height > 180
+      || menu.rect.left < 0 || menu.rect.top < 0 || menu.rect.right > menu.viewport.width || menu.rect.bottom > menu.viewport.height) {
       throw new Error(`播放器菜单校验失败：${JSON.stringify(menu)}`);
     }
 
@@ -1234,7 +1290,7 @@ async function main() {
 
     await page.locator('#fluent-read-video-subtitle-panel').screenshot({ path: path.join(artifactsDir, 'video-subtitle-panel.png') });
     await page.screenshot({ path: path.join(artifactsDir, 'video-subtitle-fixture-player.png'), fullPage: false });
-    const evidence = {
+    evidence = {
       ok: pageErrors.length === 0 && consoleErrors.length === 0 && unexpectedNetworkRequests.length === 0,
       url,
       navigationMode,
@@ -1242,10 +1298,10 @@ async function main() {
       menu,
       disabledMenu,
       popupFeature,
-      initialPopupVideoState,
-      popupDrawerDescription,
-      popupVideoDisplayModes,
-      popupVideoDisplayModePersisted,
+      initialVideoSettingsState,
+      videoSettingsDescription,
+      videoSettingsDisplayModes,
+      videoSettingsDisplayModePersisted,
       crossContextDocumentConfig: {
         from: crossContextDocumentConfig.from,
         videoTranslationEnabled: crossContextDocumentConfig.videoTranslationEnabled,
@@ -1293,12 +1349,33 @@ async function main() {
     if (!evidence.ok) {
       throw new Error(`视频字幕浏览器回归未通过：${JSON.stringify({pageErrors, consoleErrors, unexpectedNetworkRequests})}`);
     }
-  } finally {
-    await browserSession.close();
-    if (providerFixtureServer.listening) {
-      await new Promise(resolve => providerFixtureServer.close(resolve));
+  } catch (error) {primaryError = error; throw error;} finally {
+    const cleanupErrors = [];
+    let closed = false;
+    if (browserSession) {
+      try {await browserSession.close(); closed = true;}
+      catch (error) {cleanupErrors.push(error);}
     }
-    fs.rmSync(profileDir, { recursive: true, force: true });
+    try {if (providerFixtureServer) await new Promise(resolve => {providerFixtureServer.close(resolve); providerFixtureServer.closeAllConnections();});}
+    catch (error) {cleanupErrors.push(error);}
+    let profileRemoved = false;
+    try {
+      if (closed) {fs.rmSync(profileDir, {recursive: true, force: true}); profileRemoved = true;}
+      else if (!launchAttempted) {fs.rmdirSync(profileDir); profileRemoved = true;}
+    } catch (error) {cleanupErrors.push(error);}
+    if (!profileRemoved) console.error(`Unconfirmed browser/profile cleanup; retained profile: ${profileDir}`);
+    if (evidence && (cleanupErrors.length || !profileRemoved)) {
+      evidence.ok = false;
+      evidence.cleanupErrors = cleanupErrors.map(error => String(error.stack || error));
+      if (!profileRemoved) evidence.retainedProfile = profileDir;
+      try {fs.writeFileSync(path.join(artifactsDir, 'report.json'), `${JSON.stringify(evidence, null, 2)}\n`);}
+      catch (error) {cleanupErrors.push(error);}
+    }
+    if (cleanupErrors.length) {
+      for (const error of cleanupErrors) console.error(error.stack || error);
+      process.exitCode = 1;
+      if (!primaryError) throw cleanupErrors[0];
+    }
   }
 }
 

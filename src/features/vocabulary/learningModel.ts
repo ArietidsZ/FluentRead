@@ -1,11 +1,32 @@
 /**
  * @file src/features/vocabulary/learningModel.ts
- * 文件职责：定义单词与句子学习收藏的完整数据模型与纯状态算法，覆盖多语种原文、上下文、掌握度、复习队列、会话推进、导入导出和错误协议。
- * 主要内容：包含容量与版本常量、Anki TSV、句子识别、定向讲解指令、独立解释合并、复习队列与生命周期 guard，以及 VocabularyEntry、ReviewLog、BookRequest/Response 等权威类型。
- * 模块边界：此文件不访问 IndexedDB、浏览器消息或 UI；repository 负责持久化和清洗，protocol 提供轻量运行时镜像，VocabularyBook.vue 只调用这些纯函数驱动学习流程。
+ * 文件职责：定义单词与句子学习收藏的领域数据模型与纯状态算法，复用轻量协议的公共消息合同，覆盖多语种原文、上下文、掌握度、复习队列、会话推进及导入导出。
+ * 主要内容：包含收藏与复习扩展类型、导入导出、解释合并与会话 guard；公共状态、选项、响应和消息常量只在 protocol 定义；学习语境复用统一表达匹配，用一个索引和挖空结果选择真实原句，不重复扫描已选语境。
+ * 模块边界：此文件不访问 IndexedDB、浏览器消息或 UI；repository 负责持久化和清洗，protocol 提供公共消息合同，VocabularyBook.vue 只调用这些纯函数驱动学习流程。
  */
-export const VOCABULARY_BOOK_MESSAGE = 'fluentReadVocabularyBook' as const;
-export const VOCABULARY_BOOK_CHANGED_MESSAGE = 'fluentReadVocabularyBookChanged' as const;
+import {createExpressionIndex, matchExpressions, type ExpressionIndex} from './domain/expressionMatcher';
+import {
+  VOCABULARY_BOOK_MESSAGE,
+  VOCABULARY_BOOK_CHANGED_MESSAGE,
+  type VocabularyContextInput as VocabularyWireContextInput,
+  type VocabularyUpsertInput as VocabularyWireUpsertInput,
+  type VocabularyStatus,
+  type VocabularyReviewRating,
+  type VocabularyScheduledReviewRating,
+  type VocabularyListOptions,
+  type VocabularyExportOptions,
+} from './protocol';
+export {VOCABULARY_BOOK_MESSAGE, VOCABULARY_BOOK_CHANGED_MESSAGE};
+export type {
+  VocabularyStatus,
+  VocabularyReviewRating,
+  VocabularyScheduledReviewRating,
+  VocabularyListOptions,
+  VocabularyExportOptions,
+  VocabularyBookErrorCode,
+  VocabularyBookResponse,
+  VocabularyBookChangedMessage,
+} from './protocol';
 
 export const VOCABULARY_BOOK_EXPORT_FORMAT = 'fluentread-vocabulary-book' as const;
 export const VOCABULARY_BOOK_EXPORT_VERSION = 1 as const;
@@ -44,46 +65,45 @@ export function vocabularyImportNeedsConfirmation(fileSize: number): boolean {
   return Number.isFinite(fileSize) && fileSize > VOCABULARY_LARGE_IMPORT_WARNING_BYTES;
 }
 
-const VOCABULARY_WORD_CONTINUATION_CLASS = "\\p{L}\\p{M}\\p{N}'’‘\\-‐‑‒–—";
-
-function vocabularyTermPattern(term: string): string {
-  return [...term].map(character => {
-    if ("'’‘".includes(character)) return "['’‘]";
-    if ('-‐‑‒–—'.includes(character)) return '[-‐‑‒–—]';
-    return character.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }).join('');
+/** 复用阅读中的原始坐标，用片段拼接掩盖所有完整表达，其他原文逐字保留。 */
+function clozeWithIndex(context: string, index: ExpressionIndex): string {
+  const source = String(context || '');
+  const parts: string[] = [];
+  let end = 0;
+  for (const match of matchExpressions(source, index, Infinity)) {
+    parts.push(source.slice(end, match.start), '____');
+    end = match.end;
+  }
+  if (!parts.length) return '';
+  parts.push(source.slice(end));
+  return parts.join('');
 }
 
-/** 仅替换完整单词；无法安全生成挖空文本时返回空字符串。 */
+/** 按统一词界挖空真实表达，支持连续中文及假名、组合字符与原文空白。 */
 export function buildVocabularyCloze(context: string, term: string): string {
   const source = String(context || '');
-  const normalizedTerm = String(term || '').trim();
-  if (!source || !normalizedTerm) return '';
-  const termPattern = vocabularyTermPattern(normalizedTerm);
-  const matcher = new RegExp(
-    `(^|[^${VOCABULARY_WORD_CONTINUATION_CLASS}])(?:${termPattern})(?=$|[^${VOCABULARY_WORD_CONTINUATION_CLASS}])`,
-    'giu',
-  );
-  let replacements = 0;
-  const cloze = source.replace(matcher, (_match, prefix: string) => {
-    replacements += 1;
-    return `${prefix}____`;
-  });
-  return replacements > 0 ? cloze : '';
+  const expression = String(term || '').trim();
+  if (!source || !expression) return '';
+  return clozeWithIndex(source, createExpressionIndex([{id: 'study', term: expression}]));
+}
+
+function studyContextWithCloze(entry: Pick<VocabularyEntry, 'term' | 'contexts'>): {context: VocabularyContext; cloze: string} | undefined {
+  if (!entry.contexts.length) return;
+  const index = createExpressionIndex([{id: 'study', term: entry.term}]);
+  for (const context of [...entry.contexts].sort((a, b) => b.capturedAt - a.capturedAt)) {
+    const cloze = clozeWithIndex(context.text, index);
+    if (cloze && /[\p{L}\p{N}]/u.test(cloze.replaceAll('____', ''))) return {context, cloze};
+  }
 }
 
 /** 优先使用最近一次确实包含目标表达的原句，拒绝词条自身和无关上下文。 */
 export function vocabularyStudyContext(entry: Pick<VocabularyEntry, 'term' | 'contexts'>): VocabularyContext | undefined {
-  return [...entry.contexts].sort((a, b) => b.capturedAt - a.capturedAt).find(context => {
-    const cloze = buildVocabularyCloze(context.text, entry.term);
-    return cloze && /[\p{L}\p{N}]/u.test(cloze.replaceAll('____', ''));
-  });
+  return studyContextWithCloze(entry)?.context;
 }
 
-/** 复习保留真实语境，只挖空有可读线索的原句；缺少语境时改为回忆含义与用法。 */
+/** 复习保留真实语境；同一次选择共享索引与挖空结果，不重复匹配已选句。 */
 export function vocabularyReviewCloze(entry: Pick<VocabularyEntry, 'term' | 'contexts'>): string {
-  const context = vocabularyStudyContext(entry);
-  return context ? buildVocabularyCloze(context.text, entry.term) : '';
+  return studyContextWithCloze(entry)?.cloze || '';
 }
 
 /** 生成单个收藏表达的定向学习指令；用户造句仍由独立的用户消息传输，不插入系统指令。 */
@@ -112,9 +132,6 @@ export function mergeVocabularyNotes(left: VocabularyEntry, right: VocabularyEnt
 }
 
 export type VocabularyMasteryLevel = 0 | 1 | 2 | 3 | 4 | 5;
-export type VocabularyStatus = 'new' | 'learning' | 'familiar' | 'mastered';
-export type VocabularyReviewRating = 'again' | 'good' | 'manual-mastered' | 'relearn';
-export type VocabularyScheduledReviewRating = Extract<VocabularyReviewRating, 'again' | 'good'>;
 
 export interface VocabularyTranslationSnapshot {
   text: string;
@@ -123,11 +140,8 @@ export interface VocabularyTranslationSnapshot {
 
 export type VocabularyTranslations = Record<string, VocabularyTranslationSnapshot>;
 
-export interface VocabularyContextInput {
+export interface VocabularyContextInput extends VocabularyWireContextInput {
   text: string;
-  sourceUrl?: string;
-  pageTitle?: string;
-  capturedAt?: number;
 }
 
 export interface VocabularyContext {
@@ -293,29 +307,9 @@ export interface VocabularyReviewLog {
   nextReviewAt: number | null;
 }
 
-export interface VocabularyUpsertInput {
-  sourceLanguage: string;
-  targetLanguage: string;
-  term: string;
-  translation: string;
-  kind?: 'sentence' | 'expression';
-  note?: string;
-  phonetic?: string;
-  partOfSpeech?: string | string[];
+export interface VocabularyUpsertInput extends Omit<VocabularyWireUpsertInput, 'context' | 'contexts'> {
   context?: VocabularyContextInput;
   contexts?: VocabularyContextInput[];
-}
-
-export interface VocabularyListOptions {
-  status?: VocabularyStatus | VocabularyStatus[];
-  sourceLanguage?: string;
-  targetLanguage?: string;
-  search?: string;
-  dueOnly?: boolean;
-  now?: number;
-  order?: 'recent' | 'due' | 'term';
-  offset?: number;
-  limit?: number;
 }
 
 export interface VocabularyReviewResult {
@@ -351,11 +345,6 @@ export interface VocabularyBookExport {
   reviewLogs: VocabularyReviewLog[];
 }
 
-export interface VocabularyExportOptions {
-  includePrivateContext?: boolean;
-  now?: number;
-}
-
 export interface VocabularyImportResult {
   inserted: number;
   updated: number;
@@ -364,13 +353,6 @@ export interface VocabularyImportResult {
   /** 按词条执行保留上限裁剪后仍存在的已导入复习日志数量。 */
   reviewLogsImported: number;
 }
-
-export type VocabularyBookErrorCode =
-  | 'invalid-input'
-  | 'not-found'
-  | 'limit-exceeded'
-  | 'invalid-export'
-  | 'storage-error';
 
 export type VocabularyGetByTermRequest = {
   type: typeof VOCABULARY_BOOK_MESSAGE;
@@ -404,27 +386,3 @@ export type VocabularyBookRequest =
       options?: VocabularyExportOptions;
     }
   | { type: typeof VOCABULARY_BOOK_MESSAGE; action: 'importData'; data: unknown };
-
-export type VocabularyBookResponse<T = unknown> =
-  | { success: true; data: T }
-  | {
-      success: false;
-      error: {
-        code: VocabularyBookErrorCode;
-        message: string;
-      };
-    };
-
-export interface VocabularyBookChangedMessage {
-  type: typeof VOCABULARY_BOOK_CHANGED_MESSAGE;
-  reason:
-    | 'upsert'
-    | 'note'
-    | 'review'
-    | 'manual-mastered'
-    | 'relearn'
-    | 'remove'
-    | 'clear'
-    | 'import';
-  entryId?: string;
-}

@@ -9,6 +9,7 @@ import {
     attachTranslationRequestScheduler,
     getTranslationRequestScheduler,
     createTranslationProviderConfigSnapshot,
+    createTranslationRequestSnapshot,
     getTranslationProviderConfig,
     getTranslationRequestControl,
     attachTranslationRouteObserver,
@@ -20,7 +21,7 @@ import {
     getTranslationGlossarySourceText,
 } from '@/src/services/translation/requestSnapshot';
 import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
-import {serializeTranslationSlots} from '@/src/core/translation/public';
+import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 
 function configSource(overrides: Partial<TranslationConfigSource> = {}): TranslationConfigSource {
@@ -60,6 +61,46 @@ function configSource(overrides: Partial<TranslationConfigSource> = {}): Transla
 }
 
 describe('translation provider request config snapshot', () => {
+    it('占位符约束按当前单条或批量片段筛选，不外发其他片段的标记', () => {
+        const snapshot = {...createTranslationProviderConfigSnapshot(configSource()),
+            glossaryProtectedTokens: ['__FRTERM_first__', '__FRTERM_second__']};
+        expect(getTranslationGlossaryTerms(snapshot, 'Only __FRTERM_first__ here'))
+            .toEqual([{source: '__FRTERM_first__', target: '__FRTERM_first__'}]);
+        expect(getTranslationGlossaryTerms(snapshot, ['__FRTERM_second__', 'plain']))
+            .toEqual([{source: '__FRTERM_second__', target: '__FRTERM_second__'}]);
+        expect(getTranslationGlossaryTerms(snapshot, 'plain')).toEqual([]);
+    });
+    it('消息快照复制数组与标量，保留全部内部 symbol 的属性描述符', () => {
+        const control = {signal: new AbortController().signal, ownershipKey: 'snapshot'};
+        const original = attachTranslationRequestControl({origin: ['Before'], glossaryIds: ['library-a'], targetLanguage: 'zh-Hans'}, control);
+        const snapshot = createTranslationRequestSnapshot(original);
+        original.origin[0] = 'After';
+        original.glossaryIds.push('library-b');
+        original.targetLanguage = 'ja';
+        expect(snapshot).toMatchObject({origin: ['Before'], glossaryIds: ['library-a'], targetLanguage: 'zh-Hans'});
+        expect(getTranslationRequestControl(snapshot)).toEqual(control);
+        expect(Object.getOwnPropertyDescriptor(snapshot, TRANSLATION_REQUEST_CONTROL)).toEqual(Object.getOwnPropertyDescriptor(original, TRANSLATION_REQUEST_CONTROL));
+        expect(createTranslationRequestSnapshot({origin: 'Scalar', glossaryIds: null})).toEqual({origin: 'Scalar', glossaryIds: null});
+        expect(createTranslationRequestSnapshot({origin: 'Scalar'})).toEqual({origin: 'Scalar'});
+    });
+    it('可读消息字段在入口只取值一次，getter 数组与标量不会继续读取外部状态', () => {
+        const origins = ['Before'];
+        const ids = ['library-a'];
+        let target = 'zh-Hans';
+        const reads = {origin: 0, glossaryIds: 0, targetLanguage: 0};
+        const snapshot = createTranslationRequestSnapshot({
+            get origin() { reads.origin += 1; return origins; },
+            get glossaryIds() { reads.glossaryIds += 1; return ids; },
+            get targetLanguage() { reads.targetLanguage += 1; return target; },
+        });
+        origins.push('After');
+        ids.push('library-b');
+        target = 'ja';
+        expect(snapshot.origin).toEqual(['Before']);
+        expect(snapshot.glossaryIds).toEqual(['library-a']);
+        expect(snapshot.targetLanguage).toBe('zh-Hans');
+        expect(reads).toEqual({origin: 1, glossaryIds: 1, targetLanguage: 1});
+    });
     it('keeps service and model limit snapshots stable after settings are edited', () => {
         const source = configSource({
             serviceRequestLimits: {aiSdk: {enabled: true, limits: {maxConcurrentTranslations: 4, translationRequestsPerSecond: 2, translationRequestsPerMinute: 60}}},
@@ -131,6 +172,79 @@ describe('translation provider request config snapshot', () => {
             `literal ${packet.payload}`, '___FLUENTREAD_partial_0_BEGIN___agent']) {
             expect(getTranslationGlossarySourceText(text)).toBe(text);
         }
+    });
+    it('keeps out-of-range and nonstandard literal markers inside their source slots', () => {
+        const sources = ['An agent reads ___FLUENTREAD_literal_999_BEGIN___example___FLUENTREAD_literal_999_END___ and ___FLUENTREAD_literal_01_BEGIN___text___FLUENTREAD_literal_01_END___.',
+            'The next source explains translation settings.'];
+        const packet = serializeTranslationSlots(sources, 'literal');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_literal_0_BEGIN___');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('uses the final outer slot boundary when the last source contains the next index as a literal marker', () => {
+        const sources = ['An agent reads.', 'The final source contains ___FLUENTREAD_literal_2_BEGIN___example___FLUENTREAD_literal_2_END___ and continues.'];
+        const packet = serializeTranslationSlots(sources, 'literal');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_literal_0_BEGIN___');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['duplicate', 'gap', 'reversed'] as const)('rejects %s real slot markers instead of inferring a valid source packet', variant => {
+        const packet = serializeTranslationSlots(['An agent reads.', 'The next source explains settings.'], 'invalid');
+        const malformed = variant === 'duplicate' ? packet.payload.replace('An agent reads.', `${packet.starts[0]}An agent reads.`)
+            : variant === 'gap' ? packet.payload.replaceAll('_1_', '_2_')
+            : `${packet.starts[1]}The next source explains settings.${packet.ends[1]}\n${packet.starts[0]}An agent reads.${packet.ends[0]}`;
+        expect(getTranslationGlossarySourceText(malformed)).toBe(malformed);
+    });
+    it('preserves a different namespace literal BEGIN at the very start of the first source', () => {
+        const sources = ['___FLUENTREAD_literal_0_BEGIN___ The software reads the document and translates the language on this page.', 'The second paragraph explains the settings for the computer network.'];
+        const packet = serializeTranslationSlots(sources);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['Case_1-x', 'Case_0_BEGIN___tail', 'x_0_BEGIN______FLUENTREAD_x'])('preserves serializer nonce compatibility for %s', nonce => {
+        const sources = ['___FLUENTREAD_literal_0_BEGIN___ An agent reads.', 'The settings explain the computer network.'];
+        const packet = serializeTranslationSlots(sources, nonce);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('restores plain source terms for a nonce containing a complete nested marker prefix', () => {
+        const sources = ['agent', 'An agent works.'];
+        const packet = serializeTranslationSlots(sources, 'x_0_BEGIN______FLUENTREAD_x');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('preserves a valid source sharing marker underscores across the first boundary', () => {
+        const sources = ['FLUENTREAD_x_0_BEGIN'];
+        const packet = serializeTranslationSlots(sources, 'x');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_x_0_BEGIN___');
+        expect(parseTranslationSlots(packet, packet.payload)).toEqual(sources);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['collision', 'x_0_BEGIN______FLUENTREAD_x'])('restores source after serializer avoids a real marker collision in %s', nonce => {
+        const sources = [`___FLUENTREAD_${nonce}_0_BEGIN___ An agent reads.`, 'The settings explain the computer network.'];
+        const packet = serializeTranslationSlots(sources, nonce);
+        expect(packet.starts[0]).toBe(`___FLUENTREAD_${nonce}_1_0_BEGIN___`);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('keeps an incomplete source with thousands of possible nonce delimiters intact', () => {
+        const text = '___FLUENTREAD_x' + '_0_BEGIN___'.repeat(5000) + ' source';
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
+    });
+    it.each([
+        '___FLUENTREAD_invalid_1_BEGIN___source___FLUENTREAD_invalid_0_END___',
+        '___FLUENTREAD_invalid_0_BEGIN___ plain source___FLUENTREAD_invalid_0_BEGIN___ plain _0_END___',
+        '___FLUENTREAD_0_END___',
+        '___FLUENTREAD_!_0_END___',
+    ])('rejects malformed outer namespace boundaries: %s', text => {
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
+    });
+    it('preserves a long valid nonce containing many possible BEGIN delimiters', () => {
+        const sources = ['agent', 'An agent works.'];
+        const packet = serializeTranslationSlots(sources, 'x' + '_0_BEGIN___'.repeat(512) + 'tail');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('keeps a long malformed source with a final ordinal but no matching namespace intact', () => {
+        const text = '___FLUENTREAD_x' + '_0_BEGIN___'.repeat(5000) + ' source___FLUENTREAD_wrong_0_END___';
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
+    });
+    it('does not allocate slots from an unsafe integer in a malformed final marker', () => {
+        const malformed = '___FLUENTREAD_invalid_0_BEGIN___source___FLUENTREAD_invalid_999999999999999999999_END___';
+        expect(getTranslationGlossarySourceText(malformed)).toBe(malformed);
     });
     it('deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays', () => {
         const libraries = [{id: 'one', name: 'One', enabled: true, sourceLanguage: '', targetLanguage: '', domains: [],

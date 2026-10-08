@@ -99,6 +99,11 @@ const groups = computed(() => [
       </section>
     </div>
     <section class="fr-docs-help">
+      <h2>{{ t('设计与贡献', 'Design & contribution') }}</h2>
+      <p>{{ t('查看视觉规范与真实组件，在不同主题和尺寸下体验界面交互。', 'Explore visual guidelines and real components across themes and screen sizes.') }}</p>
+      <a :href="link('/guide/design-system')">{{ t('设计系统与组件预览', 'Design system & component previews') }} →</a>
+    </section>
+    <section class="fr-docs-help">
       <h2>{{ t('帮助', 'Help') }}</h2>
       <a :href="link('/guide/faq')">{{ t('常见问题与排查', 'Questions & troubleshooting') }} →</a>
       <a :href="link('/guide/privacy')">{{ t('数据与隐私', 'Data & privacy') }} →</a>

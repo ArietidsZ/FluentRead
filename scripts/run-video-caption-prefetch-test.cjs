@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Production extension, real media clock, controlled caption tracks and a 500 ms provider.
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -13,7 +14,7 @@ const arg = (name, fallback) => {
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-caption-prefetch'));
 const runtime = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 const extensionInstall = arg('extension-install', 'command-line');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
 const {chromium} = createRequire(path.join(runtime, 'caption-prefetch-proof.cjs'))('playwright');
@@ -28,18 +29,29 @@ const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-caption-pre
 const report = {success: false, providerDelayMs: 500, evidence: 'Production extension; controlled YouTube/X caption tracks; real video; simulated provider', checks: [], errors: []};
 const check = (name, pass, details) => report.checks.push({name, pass: Boolean(pass), details});
 let session, youtube, x;
+let primaryError;
+let launchAttempted = false;
 (async () => {
+  launchAttempted = true;
   session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
     browserPath: arg('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'),
     headless: false, background: true, displayTarget: 'secondary', viewport: {width: 1280, height: 900},
     browserArgs: [...(extensionInstall === 'cdp' ? ['--enable-unsafe-extension-debugging']
       : [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`]), '--no-first-run', '--no-default-browser-check'],
   });
+  guardBrowserClose(session, profileDir);
   const {context} = session;
   if (extensionInstall === 'cdp') {
     const install = await context.browser().newBrowserCDPSession();
-    await install.send('Extensions.loadUnpacked', {path: extensionDir});
-    await install.detach();
+    let installError;
+    try {await install.send('Extensions.loadUnpacked', {path: extensionDir});}
+    catch (error) {installError = error; throw error;}
+    finally {
+      try {await install.detach();} catch (error) {
+        if (!installError) throw error;
+        process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+      }
+    }
   }
   Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
   context.on('page', page => page.on('pageerror', error => report.errors.push(error.message)));
@@ -270,9 +282,30 @@ let session, youtube, x;
   report.requests = await worker.evaluate(() => globalThis.prefetchProofRequests);
   report.success = report.checks.every(c => c.pass) && report.errors.length === 0;
   assert.equal(report.success, true, JSON.stringify(report.checks.filter(c => !c.pass)));
-})().catch(error => {report.failure = error.stack; process.exitCode = 1;}).finally(async () => {
-  fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
-  if (session) await session.close();
-  fs.rmSync(profileDir, {recursive: true, force: true});
+})().catch(error => {primaryError = error; report.failure = error.stack; process.exitCode = 1;}).finally(async () => {
+  const cleanupErrors = [];
+  const cleanup = async action => {
+    try {await action();} catch (error) {cleanupErrors.push(error);}
+  };
+  let browserClosed = false;
+  await cleanup(async () => {
+    if (session) {await session.close(); browserClosed = true;}
+  });
+  await cleanup(() => {
+    if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+    else if (!launchAttempted) {
+      // No browser launch was attempted; only remove an empty initial profile.
+      try {fs.rmdirSync(profileDir);} catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+      }
+    }
+  });
+  if (cleanupErrors.length) {
+    report.success = false;
+    report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+  }
+  await cleanup(() => {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));});
+  for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+  if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   console.log(JSON.stringify(report, null, 2));
-});
+}).catch(error => {console.error(error.stack || error); process.exitCode = 1;});

@@ -32,6 +32,20 @@ describe('语义化公共工具', () => {
         expect(now).toHaveBeenCalledTimes(4);
     });
 
+    it('节流首次调用不受时钟起点影响，系统时钟回退后仍可继续提示错误', () => {
+        vi.spyOn(Date, 'now')
+            .mockReturnValueOnce(0)
+            .mockReturnValueOnce(50)
+            .mockReturnValueOnce(100)
+            .mockReturnValueOnce(-1_000)
+            .mockReturnValueOnce(-950)
+            .mockReturnValueOnce(-900);
+        const calls: number[] = [];
+        const throttled = throttle((value: number) => { calls.push(value); }, 100);
+        for (let value = 0; value < 6; value += 1) throttled(value);
+        expect(calls).toEqual([0, 2, 3, 5]);
+    });
+
     it.each([
         ['这是一个用于中文语言识别的完整句子。', 'zh-Hans'],
         ['這是一個用於中文語言識別的完整句子。', 'zh-Hant'],
@@ -164,6 +178,42 @@ describe('语义化公共工具', () => {
             'a_b, c_d, e_f, g_h, i_j, k_l', 'zh-Hans')).toBe(false);
         const invalidTags = 'a__, b__, c__, d__, e__, f__, Hello';
         expect(isLikelyUntranslatedResponse(invalidTags, invalidTags, 'zh-Hans')).toBe(false);
+    });
+
+    it.each([
+        ['Division (', '（', true],
+        ['Division (', '(', true],
+        ['Division ()', '（）', true],
+        ['Division', 'DIVISION', true],
+        ['Logical NOT (', 'LOGICAL NOT (', true],
+        ['Logical NOT ()', 'LOGICAL NOT ()', true],
+        ['Logical AND (', 'logical and （', true],
+        ['Bitwise XOR (', 'BITWISE XOR (', true],
+        ['Subtraction (', '—', true],
+        ['Division (', '除法（', false],
+        ['Logical NOT (', '逻辑非（', false],
+        ['Logical OR (', '逻辑或（', false],
+        ['(', '（', false],
+        [')', ')', false],
+        ['1', '1', false],
+        ['OpenAI API', 'OpenAI API', false],
+        ['Taylor Swift', 'Taylor Swift', false],
+        ['Visual Studio', 'Visual Studio', false],
+        ['DivisionService', 'DIVISIONSERVICE', false],
+        ['Division.swift', 'Division.swift', false],
+        ['Division v2.0', 'Division v2.0', false],
+        ['Division()', 'Division()', false],
+        ['division()', 'division()', false],
+        ['Addition()', 'Addition()', false],
+        ['Remainder()', 'Remainder()', false],
+        ['Bitwise Xor()', 'Bitwise Xor()', false],
+    ] as const)('中文运算符槽 %j -> %j 的丢词/回显判定为 %s', (source, output, rejected) => {
+        expect(isLikelyUntranslatedResponse(source, output, 'zh-Hans')).toBe(rejected);
+        expect(isLikelyUntranslatedResponse(source, output, 'zh-Hant')).toBe(rejected);
+    });
+
+    it.each(['en', 'ja', 'de'])('运算符补充判定不把 %s 目标的大小写差异强制判为漏译', target => {
+        expect(isLikelyUntranslatedResponse('Logical NOT (', 'LOGICAL NOT (', target)).toBe(false);
     });
 
     it('图片中的裸网址与技术标识原样返回是合法结果，网址旁的正文仍须翻译', () => {

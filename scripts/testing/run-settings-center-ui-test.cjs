@@ -1,4 +1,6 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
+const {waitForAsyncCondition} = require('./wait-for-async-condition.cjs');
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -22,7 +24,7 @@ function argument(name, fallback) {
 const extensionDir = path.resolve(argument('extension-dir', '.output/chrome-mv3'));
 const playwrightRoot = path.resolve(argument('playwright-root', ''));
 // 统一回归 runner 使用 --focus-safe-helper；旧的 --focus-helper 仅保留为本脚本的兼容别名。
-const focusHelper = path.resolve(argument('focus-safe-helper', argument('focus-helper', '')));
+const focusHelper = path.resolve(argument('focus-safe-helper', argument('focus-helper', path.join(__dirname, 'focus-safe-browser.cjs'))));
 const artifactsDir = path.resolve(argument('artifacts-dir', '/private/tmp/fluentread-settings-center-ui'));
 const browserPath = argument('browser-path', '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge');
 const timeout = Number(argument('timeout', '30000'));
@@ -64,39 +66,76 @@ function contrastRatio(foreground, background) {
   const [first, second] = colors.map(luminance).sort((left, right) => right - left);
   return (first + .05) / (second + .05);
 }
-// 基础配置按使用顺序排列：先选服务，再设置翻译触发，最后调整界面风格。
+// 栏目契约对应 navigation.ts；分组折叠按钮不属于栏目，旧入口通过别名保留。
 const expectedNavigation = [
   ['settings-general', '通用设置'],
   ['settings-services', '翻译服务'],
   ['settings-translation', '翻译设置'],
   ['settings-interface', '界面风格'],
-  ['settings-harness', '翻译卡片'],
-  ['settings-image-translation', '图片翻译'],
-  ['settings-area-translation', '圈选翻译'],
+  ['settings-selection', '划词翻译'],
+  ['settings-image-translation', '图片/漫画翻译'],
   ['settings-video', '视频字幕翻译'],
-  ['settings-sites', '网站规则'],
   ['settings-writing', '写作助手'],
   ['settings-translation-center', '翻译中心'],
   ['settings-vocabulary', '学习中心'],
   ['settings-glossary', '术语库'],
+  ['settings-sites', '网站规则'],
   ['settings-translation-stats', '翻译统计'],
-  ['settings-model-usage', '模型用量'],
   ['settings-advanced', '高级选项'],
   ['settings-data', '备份与恢复'],
   ['settings-about', '关于流畅阅读'],
 ];
 const expectedNavigationGroups = [
   ['基础配置', ['settings-general', 'settings-services', 'settings-translation', 'settings-interface']],
-  ['专项翻译', ['settings-harness', 'settings-image-translation', 'settings-area-translation', 'settings-video', 'settings-sites']],
-  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-translation-stats', 'settings-model-usage']],
+  ['专项翻译', ['settings-selection', 'settings-image-translation', 'settings-video']],
+  ['工具与学习', ['settings-writing', 'settings-translation-center', 'settings-vocabulary', 'settings-glossary', 'settings-sites', 'settings-translation-stats']],
   ['系统与数据', ['settings-advanced', 'settings-data', 'settings-about']],
 ];
-// 通用设置优先呈现日常翻译，再提供网页辅助和基本偏好；悬浮球进阶设置位于翻译设置。
-const expectedGeneralGroups = ['日常翻译', '网页辅助', '基本偏好'];
-// 译文显示相关设置已迁到界面风格页，通用设置不再有二级分组标题。
+const settingsNavigationSelector = 'nav[aria-label="设置分类"] button[data-section]';
+// 默认四项；用例显式添加译文显示后，完整皮肤矩阵必须保留全部五项。
+const expectedExpandedQuickFeatureCount = 5;
+const modelUsageAverageSelector = '#settings-model-usage section.usage-average-card';
+const modelUsageRequestLogSelector = '#settings-model-usage section.usage-request-log-card';
+const expectedDefaultServiceDescription = '未单独指定方案时，全文、悬浮和划词翻译使用此服务';
+function matchesAboutSupportQrBounds(bounds, availableWidth) {
+  // 赞赏图片应填满卡片内容宽度，桌面与窄屏都按实际可用空间判断。
+  return Boolean(bounds && Number.isFinite(bounds.width) && Number.isFinite(bounds.height)
+    && Number.isFinite(availableWidth) && availableWidth > 0
+    && Math.abs(bounds.width - availableWidth) <= 1
+    && Math.abs(bounds.height - availableWidth) <= 1
+    && Math.abs(bounds.width - bounds.height) <= 1);
+}
+function matchesPalettePopupSurfaces(metrics) {
+  const actual = parseCssColor(metrics.translateButtonBackground);
+  const declared = parseCssColor(metrics.declaredActionBackground);
+  return Boolean(actual && declared && Number.isFinite(metrics.actionContrast) && metrics.actionContrast >= 4.5
+    && JSON.stringify(actual) === JSON.stringify(declared)
+    && metrics.translateButtonBackgroundImage === 'none'
+    && metrics.shellBackgroundImage === 'none');
+}
+function matchesWrappedServiceLabel(metrics) {
+  return Number.isFinite(metrics.cardLeft) && Number.isFinite(metrics.cardRight)
+    && Number.isFinite(metrics.labelLeft) && Number.isFinite(metrics.labelRight)
+    && Number.isFinite(metrics.labelWidth) && Number.isFinite(metrics.labelHeight)
+    && metrics.labelWidth > 0 && metrics.labelHeight > 0
+    && metrics.labelLeft >= metrics.cardLeft - 1 && metrics.labelRight <= metrics.cardRight + 1
+    && metrics.overflow === 'visible' && metrics.textOverflow === 'clip'
+    && metrics.whiteSpace === 'normal' && metrics.overflowWrap === 'anywhere';
+}
+function resolveSolidBackground(layers) {
+  for (const {color, image} of layers) {
+    // 透明的 OCR 行使用祖先表面；带图片或半透明的表面不能按纯色猜测对比度。
+    if (image !== 'none') return null;
+    if (color === 'transparent' || /^rgba\([^)]*,\s*0(?:\.0+)?\)$/u.test(color)) continue;
+    return parseCssColor(color) ? color : null;
+  }
+  return null;
+}
+const expectedGeneralGroups = ['基础配置', '翻译服务选择', '网页辅助', '基本偏好'];
 const expectedGeneralSubgroups = [];
-const expectedInterfaceGroups = ['译文样式', '界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
-const expectedTranslationGroups = ['鼠标悬浮翻译', '划词翻译', '本地朗读', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制', '局部翻译', '不翻译的语言'];
+const expectedInterfaceGroups = ['译文样式', '逐句高亮样式', '界面与弹窗', '动画与加载效果', '菜单栏布局', '界面字体'];
+// 划词触发、翻译卡片与朗读均在划词页；阅读辅助保留在翻译设置首项。
+const expectedTranslationGroups = ['阅读辅助', '鼠标悬浮翻译', '输入框翻译', '全文翻译', '右键菜单', '悬浮球进阶设置', '段落复制', '局部翻译', '不翻译的语言'];
 const expectedLoadingStyles = [
   ['ring', '柔和圆环'],
   ['minimal', '简洁'],
@@ -164,25 +203,76 @@ async function readTestBrowserPid(context) {
   const browser = context.browser();
   if (!browser) throw new Error('无法获取隔离浏览器实例；无法执行复用页签的焦点校验');
   const session = await browser.newBrowserCDPSession();
+  let hasPrimaryError = false;
   try {
     const {processInfo} = await session.send('SystemInfo.getProcessInfo');
     const pid = processInfo.find(process => process.type === 'browser')?.id;
     if (!Number.isInteger(pid) || pid <= 0) throw new Error('无法确认测试 Edge 的精确进程 ID；焦点校验已停止');
     return pid;
+  } catch (error) {
+    hasPrimaryError = true;
+    throw error;
   } finally {
-    await session.detach().catch(() => {});
+    try {
+      await session.detach();
+    } catch (error) {
+      console.error('Cleanup failed (browser PID CDP session):', error);
+      process.exitCode = 1;
+      if (!hasPrimaryError) throw error;
+    }
   }
 }
 
 async function assertTestBrowserRemainsBackground(context, label) {
-  const [browserPid, frontmost] = await Promise.all([
-    readTestBrowserPid(context),
-    readMacFrontmostApplication(),
-  ]);
+  const pending = [readTestBrowserPid(context), readMacFrontmostApplication()];
+  let browserPid, frontmost;
+  try {
+    [browserPid, frontmost] = await Promise.all(pending);
+  } finally {
+    // Join both checks before main can close their browser/child-process owners.
+    await Promise.allSettled(pending);
+  }
   if (!frontmost) throw new Error(`无法读取 macOS 前台应用（${label}）；焦点校验已停止`);
   if (frontmost.pid === browserPid) {
     throw new Error(`测试 Edge 进程 ${browserPid} 成为了前台应用（${label}）；测试已停止`);
   }
+}
+
+// 桌面点击真实侧栏入口，窄屏选择生产移动导航；不绕过用户导航写 hash。
+async function selectSettingsSection(page, sectionId, panelId) {
+  const mobile = page.locator('select.mobile-settings-navigation');
+  if (await mobile.isVisible()) {
+    await mobile.selectOption(sectionId);
+  } else {
+    const button = page.locator(`${settingsNavigationSelector}[data-section="${sectionId}"]`);
+    if (!await button.isVisible()) {
+      await button.locator('xpath=ancestor::section[contains(concat(" ", normalize-space(@class), " "), " nav-group ")][1]')
+        .locator('.nav-group-toggle').click();
+    }
+    await button.click();
+  }
+  await page.locator(`${settingsNavigationSelector}[data-section="${sectionId}"][aria-current="page"]`)
+    .waitFor({state: 'attached', timeout});
+  if (panelId) await page.locator(`.settings-page-tabs button[data-settings-category="${panelId}"]`).click();
+}
+
+function inspectSettingsNavigationVisibility() {
+  const mobile = document.querySelector('select.mobile-settings-navigation');
+  const sidebar = document.querySelector('nav[aria-label="设置分类"] button[data-section][aria-current="page"]');
+  const active = mobile?.getClientRects().length ? mobile : sidebar;
+  if (!active || !sidebar || (active === mobile && mobile.value !== sidebar.dataset.section)) return false;
+  const rect = active.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && rect.left >= -1 && rect.right <= innerWidth + 1
+    && rect.top >= -1 && rect.bottom <= innerHeight + 1;
+}
+
+// 同页图片/漫画/圈选共用一套 OCR 管理器；用真实 disclosure 点击展开资源。
+async function openSharedOcrResources(page) {
+  for (const selector of ['.image-ocr-engine-details', '.image-ocr-language-details']) {
+    const details = page.locator(`#settings-image-translation ${selector}`);
+    if (await details.getAttribute('open') === null) await details.locator(':scope > summary').click();
+  }
+  await page.locator('#settings-image-translation .image-ocr-pack-card').first().waitFor({state: 'visible', timeout});
 }
 
 async function settleFiniteUiAnimations(page) {
@@ -440,7 +530,7 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
       {width: 390, height: 844},
     ]) {
       await page.setViewportSize(viewport);
-      await page.locator('button[data-section="settings-interface"]').click();
+      await selectSettingsSection(page, 'settings-interface');
       await page.locator('.interface-skin-live-preview').scrollIntoViewIfNeeded();
       await page.waitForTimeout(150);
       const metrics = await page.evaluate(() => {
@@ -492,7 +582,7 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
       });
       if (!layoutMetrics.workbenchWithinViewport || !layoutMetrics.previewWithinViewport
         || !layoutMetrics.controlsWithinViewport || layoutMetrics.horizontalOverflow
-        || layoutMetrics.moduleCount !== 4 || layoutMetrics.featureCount !== 7) {
+        || layoutMetrics.moduleCount !== 4 || layoutMetrics.featureCount !== expectedExpandedQuickFeatureCount) {
         throw new Error(`${skin.label} ${theme} ${viewport.width}px 菜单栏工作台异常：${JSON.stringify(layoutMetrics)}`);
       }
       const layoutMotif = await inspectInterfaceMotif(page.locator('.popup-layout-live-preview .preview-popup'), skin);
@@ -510,29 +600,31 @@ async function verifyInterfaceDesignMatrix(page, skin, report) {
 }
 
 async function verifyBilingualHighlightPreview(page) {
-  // 逐句高亮开关与多句预览随“译文样式”迁到界面风格页第一组；验证完成后回到通用设置继续后续断言。
-  await page.locator('button[data-section="settings-interface"]').click();
-  const preview = page.getByTestId('bilingual-highlight-preview');
-  const source = page.getByTestId('bilingual-highlight-preview-source');
-  const translation = page.getByTestId('bilingual-highlight-preview-translation');
-  const toggle = page.getByRole('switch', {name: '双语逐句高亮', exact: true});
+  // 阅读辅助拥有开关与交互预览；样式页保留独立外观预览。
+  await selectSettingsSection(page, 'settings-translation');
+  const reading = page.locator('#settings-translation .reading-assistance-settings');
+  const preview = reading.getByTestId('bilingual-highlight-preview');
+  const source = preview.getByTestId('bilingual-highlight-preview-source');
+  const translation = preview.getByTestId('bilingual-highlight-preview-translation');
+  const toggle = reading.getByRole('switch', {name: '双语逐句高亮', exact: true});
   await preview.waitFor({state: 'visible', timeout});
   if (await source.count() !== 1 || await translation.count() !== 1 || await toggle.count() !== 1) {
     throw new Error('双语逐句高亮预览缺少唯一的原文、译文或开关');
   }
-  const firstGroup = (await page.locator('#settings-interface .settings-group-heading h2').first().innerText()).trim();
-  if (firstGroup !== '译文样式') throw new Error(`界面风格第一组不是译文样式：${firstGroup}`);
+  const firstGroup = (await page.locator('#settings-translation .settings-group-heading h2').first().innerText()).trim();
+  if (firstGroup !== '阅读辅助') throw new Error(`翻译设置第一组不是阅读辅助：${firstGroup}`);
 
   const setEnabled = async (enabled) => {
     if ((await toggle.getAttribute('aria-checked') === 'true') === enabled) return;
     await toggle.locator('..').click();
-    await page.waitForFunction(expected => document.querySelector('[data-testid="bilingual-highlight-preview"]')
+    await page.waitForFunction(expected => document.querySelector('#settings-translation .reading-assistance-settings [data-testid="bilingual-highlight-preview"]')
       ?.getAttribute('data-bilingual-highlight-enabled') === expected, String(enabled), {timeout});
   };
   const readState = () => preview.evaluate(element => ({
     highlighted: [...element.querySelectorAll('.is-sentence-highlighted')].map(node => node.textContent.trim()),
     rect: (({x, y, width, height}) => ({x, y, width, height}))(element.getBoundingClientRect()),
   }));
+  await preview.scrollIntoViewIfNeeded();
   const initialEnabled = await toggle.getAttribute('aria-checked') === 'true';
   await setEnabled(false);
   await page.mouse.move(0, 0);
@@ -546,11 +638,11 @@ async function verifyBilingualHighlightPreview(page) {
   await source.locator('span').nth(0).hover();
   await page.waitForTimeout(150);
   const sourceHover = await readState();
-  await translation.locator('span').nth(1).hover();
+  await translation.locator('.fluent-read-translation-text > span').nth(1).hover();
   await page.waitForTimeout(150);
   const translationHover = await readState();
   await page.mouse.move(0, 0);
-  await translation.locator('span').nth(0).focus();
+  await translation.locator('.fluent-read-translation-text > span').nth(0).focus();
   await page.waitForTimeout(150);
   const keyboardFocus = await readState();
   for (const [state, expected] of [[sourceHover, 'Reading should'], [translationHover, 'Move over'], [keyboardFocus, 'Reading should']]) {
@@ -572,7 +664,7 @@ async function verifyBilingualHighlightPreview(page) {
   });
   await setEnabled(initialEnabled);
   await page.mouse.move(0, 0);
-  await page.locator('button[data-section="settings-general"]').click();
+  await selectSettingsSection(page, 'settings-general');
   await page.locator('#settings-general').waitFor({state: 'visible', timeout});
 
   return {
@@ -591,14 +683,14 @@ async function verifyNamedTranslationStyles(page) {
     const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
     return typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
   });
-  const waitForProfiles = async (count, activeName) => page.waitForFunction(async ({count, activeName}) => {
+  const waitForProfiles = async (count, activeName) => waitForAsyncCondition(() => page.evaluate(async ({count, activeName}) => {
     const response = await chrome.runtime.sendMessage({type: 'configStorageRead', key: 'local:config'});
     const config = typeof response.value === 'string' ? JSON.parse(response.value) : response.value;
     const active = config.translationStyleProfiles.find(profile => profile.id === config.activeTranslationStyleProfileId);
     return config.translationStyleProfiles.length === count && (active?.name || '') === activeName;
-  }, {count, activeName}, {timeout});
+  }, {count, activeName}), {timeoutMs: timeout, pollingMs: 100, message: `命名译文样式未持久化：期望 ${count} 套 / ${activeName || '无激活样式'}`});
 
-  await page.locator('button[data-section="settings-interface"]').click();
+  await selectSettingsSection(page, 'settings-interface');
   const panel = page.getByTestId('translation-style-settings');
   await panel.waitFor({state: 'visible', timeout});
   const original = await readConfig();
@@ -622,7 +714,7 @@ async function verifyNamedTranslationStyles(page) {
     throw new Error('第二套命名样式未保存独立的内置样式选择');
   }
   await page.reload({waitUntil: 'domcontentloaded', timeout});
-  await page.locator('button[data-section="settings-interface"]').click();
+  await selectSettingsSection(page, 'settings-interface');
   await panel.waitFor({state: 'visible', timeout});
   const saved = panel.locator('.translation-style-saved-list');
   if (await saved.getByRole('radio').count() !== 2
@@ -646,7 +738,7 @@ async function verifyNamedTranslationStyles(page) {
     || JSON.stringify(restored.translationAppearance) !== JSON.stringify(original.translationAppearance)) {
     throw new Error('删除测试样式后未恢复初始译文外观');
   }
-  await page.locator('button[data-section="settings-general"]').click();
+  await selectSettingsSection(page, 'settings-general');
   await page.locator('#settings-general').waitFor({state: 'visible', timeout});
   return {savedNames: second.translationStyleProfiles.map(profile => profile.name), reloadRestored: true,
     selectionRestored: true, deleted: true, initialStyleRestored: true};
@@ -836,7 +928,7 @@ async function chooseDifferentSelectOption(page, inputSelector) {
 }
 
 async function selectElementPlusOption(page, ariaLabel, optionText) {
-  const input = page.locator(`input[aria-label="${ariaLabel}"]`);
+  const input = page.locator(`input[aria-label="${ariaLabel}"]:visible`);
   await input.waitFor({state: 'visible', timeout});
   const wrapper = input.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]');
   const previouslyOpenDropdown = page.locator('.el-select-dropdown:visible').first();
@@ -855,7 +947,7 @@ async function selectElementPlusOption(page, ariaLabel, optionText) {
   try {
     await page.waitForFunction(({label, expected}) => {
       const inputElement = [...document.querySelectorAll('input[aria-label]')]
-        .find(element => element.getAttribute('aria-label') === label);
+        .find(element => element.getAttribute('aria-label') === label && element.getClientRects().length);
       const selectWrapper = inputElement?.closest('.el-select__wrapper');
       const displayed = selectWrapper?.querySelector('.el-select__selected-item, .el-select__placeholder');
       return displayed?.textContent?.trim() === expected
@@ -1154,16 +1246,16 @@ async function seedLegacyStorageAndReloadExtension(page, context, extensionOrigi
 }
 
 async function verifyIndependentAreaSettings(page, context, extensionOrigin, report, attachPageDiagnostics) {
-  await page.locator('button[data-section="settings-area-translation"]').click();
-  const readChoice = label => page.locator(`input[aria-label="${label}"]`).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]').locator('.el-select__placeholder').textContent();
+  await selectSettingsSection(page, 'settings-image-translation');
+  const readChoice = label => page.locator(`#settings-image-translation input[aria-label="${label}"]`).locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " el-select__wrapper ")][1]').locator('.el-select__placeholder').textContent();
   const before = {
-    enabled: await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).getAttribute('aria-checked'),
+    enabled: await page.locator('#settings-area-translation').getByRole('switch', {name: '圈选翻译设置', exact: true}).getAttribute('aria-checked'),
     service: (await readChoice('圈选翻译服务'))?.trim(),
     mode: (await readChoice('翻译方式'))?.trim(),
     recognitionMode: (await readChoice('文字识别'))?.trim(),
     sourceLanguage: (await readChoice('识别语言'))?.trim(),
   };
-  if (before.enabled !== 'true') await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).locator('..').click();
+  if (before.enabled !== 'true') await page.locator('#settings-area-translation').getByRole('switch', {name: '圈选翻译设置', exact: true}).click();
   await selectElementPlusOption(page, '圈选翻译服务', '微软翻译');
   await selectElementPlusOption(page, '翻译方式', '标准翻译');
   const modeInput = page.locator('input[aria-label="翻译方式"]');
@@ -1174,9 +1266,9 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await page.keyboard.press('Escape');
   await selectElementPlusOption(page, '圈选翻译服务', 'OpenAI');
   await selectElementPlusOption(page, '翻译方式', 'AI 上下文增强');
-  // 识别语言只对本地 OCR 生效；切到本地 OCR 后折叠区自动展开，再修改语言并立即关闭设置页。
+  // 识别语言只对本地 OCR 生效；切到本地 OCR 并展开共享资源，再修改语言并立即关闭设置页。
   await selectElementPlusOption(page, '文字识别', '本地 OCR');
-  await page.locator('#settings-area-translation .area-ocr-details[open]').waitFor({state: 'visible', timeout});
+  await openSharedOcrResources(page);
   await selectElementPlusOption(page, '识别语言', '繁體中文');
   const reopenedUrl = page.url();
   await page.close();
@@ -1185,8 +1277,9 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await page.setViewportSize({width: 1440, height: 1000});
   await page.goto(reopenedUrl, {waitUntil: 'domcontentloaded', timeout});
   await page.locator('#settings-area-translation').waitFor({state: 'visible', timeout});
+  await openSharedOcrResources(page);
   const after = {
-    enabled: await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).getAttribute('aria-checked'),
+    enabled: await page.locator('#settings-area-translation').getByRole('switch', {name: '圈选翻译设置', exact: true}).getAttribute('aria-checked'),
     service: (await readChoice('圈选翻译服务'))?.trim(),
     mode: (await readChoice('翻译方式'))?.trim(),
     recognitionMode: (await readChoice('文字识别'))?.trim(),
@@ -1203,17 +1296,17 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await popup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
   await popup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout});
   const ids = await popup.locator('[data-popup-quick-feature]').evaluateAll(elements => elements.map(element => element.getAttribute('data-popup-quick-feature')));
-  if (ids.length !== 6 || new Set(ids).size !== 6 || !ids.includes('area') || ids.includes('appearance')) throw new Error(`Popup 独立圈选卡异常：${JSON.stringify(ids)}`);
-  await popup.locator('[data-popup-quick-feature="area"]').click();
+  if (JSON.stringify(ids) !== JSON.stringify(['hover', 'selection', 'image', 'document']) || new Set(ids).size !== ids.length) throw new Error(`Popup 默认快捷入口异常：${JSON.stringify(ids)}`);
+  await popup.locator('[data-popup-quick-feature="image"]').click();
   const areaDrawer = popup.locator('.drawer-surface');
-  await areaDrawer.getByRole('heading', {name: '圈选翻译设置', exact: true}).waitFor({state: 'visible', timeout});
+  await areaDrawer.getByRole('heading', {name: '图片翻译', exact: true}).waitFor({state: 'visible', timeout});
   if (await areaDrawer.getByRole('switch', {name: '启用或关闭圈选翻译'}).getAttribute('aria-checked') !== 'true') throw new Error('Popup 没有同步圈选开关');
-  if (!(await areaDrawer.innerText()).includes('修正明显的识别错误。请对照原文核对。')) throw new Error('Popup 缺少 AI 圈选能力边界说明');
+  if (!await areaDrawer.getByTestId('area-translation-demo').isVisible() || !(await areaDrawer.locator('.image-method-shortcut').innerText()).includes('Shift+Z')) throw new Error('Popup 图片抽屉缺少圈选快捷键与操作示例');
   report.screenshots.push(await screenshot(popup, 'popup-area-independent-drawer.png'));
   await areaDrawer.getByRole('button', {name: '关闭', exact: true}).click();
   await popup.locator('[data-popup-quick-feature="image"]').click();
-  await areaDrawer.getByRole('heading', {name: '图片翻译设置', exact: true}).waitFor({state: 'visible', timeout});
-  if (await areaDrawer.getByRole('switch', {name: '启用或关闭圈选翻译'}).count()) throw new Error('图片抽屉混入圈选开关');
+  await areaDrawer.getByRole('heading', {name: '图片翻译', exact: true}).waitFor({state: 'visible', timeout});
+  if (await areaDrawer.getByRole('switch', {name: '启用或关闭图片翻译'}).count() !== 1 || await areaDrawer.getByRole('switch', {name: '启用或关闭圈选翻译'}).count() !== 1) throw new Error('图片抽屉没有各自独立的图片与圈选开关');
   report.screenshots.push(await screenshot(popup, 'popup-image-independent-drawer.png'));
   const imageOptionsCreated = context.waitForEvent('page', {timeout});
   await areaDrawer.locator('.drawer-settings-link').click();
@@ -1227,12 +1320,12 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   attachPageDiagnostics(areaLinkPopup);
   await areaLinkPopup.goto(`${extensionOrigin}/popup.html`, {waitUntil: 'domcontentloaded', timeout});
   await areaLinkPopup.locator('.popup-shell[data-config-ready="true"]').waitFor({state: 'visible', timeout});
-  await areaLinkPopup.locator('[data-popup-quick-feature="area"]').click();
+  await areaLinkPopup.locator('[data-popup-quick-feature="image"]').click();
   const areaOptionsCreated = context.waitForEvent('page', {timeout});
   await areaLinkPopup.locator('.drawer-settings-link').click();
   const areaOptionsPage = await areaOptionsCreated;
   attachPageDiagnostics(areaOptionsPage);
-  await areaOptionsPage.waitForURL(`${extensionOrigin}/options.html#settings-area-translation`, {timeout});
+  await areaOptionsPage.waitForURL(`${extensionOrigin}/options.html#settings-image-translation`, {timeout});
   await areaOptionsPage.locator('#settings-area-translation').waitFor({state: 'visible', timeout});
   await areaOptionsPage.close();
   if (!areaLinkPopup.isClosed()) await areaLinkPopup.close();
@@ -1244,22 +1337,31 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
     for (const dark of [false, true]) {
       await page.evaluate(value => document.documentElement.classList.toggle('dark', value), dark);
       await settleFiniteUiAnimations(page);
-      const metrics = await page.locator('#settings-area-translation').evaluate(element => ({
+      const metrics = await page.locator('#settings-area-translation').evaluate(element => {
+        const ocrBackgroundLayers = [];
+        for (let node = document.querySelector('#settings-image-translation .image-ocr-pack-card'); node; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          ocrBackgroundLayers.push({color: style.backgroundColor, image: style.backgroundImage});
+        }
+        return {
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
-        controlsWithinViewport: [...element.querySelectorAll('.el-select, .el-switch')].every(control => {
+        controlsWithinViewport: [...element.querySelectorAll('.el-select, [role="switch"]')].every(control => {
           const box = control.getBoundingClientRect();
           return box.left >= -1 && box.right <= innerWidth + 1;
         }),
-        ocrCardBackground: getComputedStyle(element.querySelector('.image-ocr-pack-card')).backgroundColor,
-        ocrTitleColor: getComputedStyle(element.querySelector('.image-ocr-heading h2')).color,
+        ocrCardBackground: getComputedStyle(document.querySelector('#settings-image-translation .image-ocr-pack-card')).backgroundColor,
+        ocrBackgroundLayers,
+        ocrTitleColor: getComputedStyle(document.querySelector('#image-ocr-pack-title')).color,
         duplicateIds: [...document.querySelectorAll('[id]')].map(node => node.id).filter((id, index, list) => list.indexOf(id) !== index),
-      }));
+        };
+      });
       if (metrics.horizontalOverflow || !metrics.controlsWithinViewport || metrics.duplicateIds.length) throw new Error(`圈选 ${width}px ${dark ? 'dark' : 'light'} 布局异常：${JSON.stringify(metrics)}`);
-      const backgroundChannels = parseCssColor(metrics.ocrCardBackground);
+      metrics.ocrEffectiveBackground = resolveSolidBackground(metrics.ocrBackgroundLayers);
+      const backgroundChannels = parseCssColor(metrics.ocrEffectiveBackground);
       const titleChannels = parseCssColor(metrics.ocrTitleColor);
       if (!backgroundChannels || !titleChannels
         || (dark && backgroundChannels.reduce((sum, channel) => sum + channel, 0) / 3 >= 90)
-        || contrastRatio(metrics.ocrTitleColor, metrics.ocrCardBackground) < 4.5) {
+        || contrastRatio(metrics.ocrTitleColor, metrics.ocrEffectiveBackground) < 4.5) {
         throw new Error(`共享 OCR ${dark ? 'dark' : 'light'} 主题不可读：${JSON.stringify(metrics)}`);
       }
       report.areaTranslationUi.responsive.push({width, dark, ...metrics});
@@ -1272,13 +1374,12 @@ async function verifyIndependentAreaSettings(page, context, extensionOrigin, rep
   await selectElementPlusOption(page, '翻译方式', before.mode);
   await selectElementPlusOption(page, '识别语言', before.sourceLanguage);
   await selectElementPlusOption(page, '文字识别', before.recognitionMode);
-  if (before.enabled !== 'true') await page.getByRole('switch', {name: '启用圈选翻译', exact: true}).locator('..').click();
+  if (before.enabled !== 'true') await page.locator('#settings-area-translation').getByRole('switch', {name: '圈选翻译设置', exact: true}).click();
   await assertTestBrowserRemainsBackground(context, '独立圈选设置验证完成');
   return page;
 }
 
 async function main() {
-  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-settings-center-profile-'));
   const errors = [];
   const report = {
     ok: false,
@@ -1301,8 +1402,12 @@ async function main() {
     consoleErrors: errors,
     screenshots: [],
   };
-  let launched;
+  let launched, profileDir;
+  let hasPrimaryError = false;
+  let launchAttempted = false;
   try {
+    profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-settings-center-profile-'));
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({
       chromium,
       profileDir,
@@ -1318,6 +1423,7 @@ async function main() {
       viewport: {width: 1440, height: 1000},
       timeout,
     });
+    guardBrowserClose(launched, profileDir);
     report.launchMode = launched.launchMode;
     report.focusPolicy = launched.focusPolicy;
     report.windowPlacement = launched.windowPlacement;
@@ -1342,11 +1448,11 @@ async function main() {
     page = migration.page;
     attachPageDiagnostics(page);
     await page.setViewportSize({width: 1440, height: 1000});
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
     await page.getByRole('heading', {name: '自动设置快照', exact: true}).waitFor({state: 'visible', timeout});
     const migratedRecordKeys = ['local:config', 'local:configAutoBackups', 'local:credentials'];
-    await page.waitForFunction(async ({databaseName, expectedKeys}) => {
+    await waitForAsyncCondition(() => page.evaluate(async ({databaseName, expectedKeys}) => {
       const database = await new Promise((resolve, reject) => {
         const request = indexedDB.open(databaseName);
         request.onsuccess = () => resolve(request.result);
@@ -1362,36 +1468,48 @@ async function main() {
       } finally {
         database.close();
       }
-    }, {databaseName: configDatabaseName, expectedKeys: migratedRecordKeys}, {timeout});
+    }, {databaseName: configDatabaseName, expectedKeys: migratedRecordKeys}), {timeoutMs: timeout, pollingMs: 100, message: '旧存储迁移后缺少预期的加密配置记录'});
     report.legacyMigration = {
       ...migration.legacySources,
       ...(await inspectEncryptedConfigurationStorage(page, legacyMigrationSentinels, migratedRecordKeys)),
       legacyPersistentCredentialsMigratedAfterExtensionReload: true,
       legacySessionRecordAbsent: true,
     };
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
 
-    const navButtons = page.locator('nav[aria-label="设置分类"] button');
+    const navButtons = page.locator(settingsNavigationSelector);
     const navCount = await navButtons.count();
-    if (navCount !== expectedNavigation.length) throw new Error(`导航数量异常：${navCount}`);
     const ids = await navButtons.evaluateAll(buttons => buttons.map(button => button.dataset.section));
-    if (new Set(ids).size !== ids.length) throw new Error('导航 section id 重复');
     const navigationContract = await navButtons.evaluateAll(buttons => buttons.map(button => [
       button.dataset.section,
       button.querySelector('strong')?.textContent?.trim(),
     ]));
+    // 数量失败也保留实际 DOM 契约，避免下一次报告只有数量而没有栏目证据。
+    report.informationArchitecture.navigation = navigationContract;
+    report.informationArchitecture.navigationButtonCounts = {
+      sections: navCount,
+      groupToggles: await page.locator('nav[aria-label="设置分类"] .nav-group-toggle').count(),
+    };
+    if (navCount !== expectedNavigation.length) throw new Error(`导航数量异常：${navCount}，期望 ${expectedNavigation.length}：${JSON.stringify(navigationContract)}`);
+    if (new Set(ids).size !== ids.length) throw new Error('导航 section id 重复');
     if (JSON.stringify(navigationContract) !== JSON.stringify(expectedNavigation)) {
       throw new Error(`导航顺序或名称异常：${JSON.stringify(navigationContract)}`);
     }
     report.informationArchitecture.navigation = navigationContract;
     const navigationGroupContract = await page.locator('nav[aria-label="设置分类"] .nav-group').evaluateAll(groups => groups.map(group => [
-      group.querySelector('.nav-group-label')?.textContent?.trim(),
+      group.querySelector('.nav-group-toggle > span:first-child')?.textContent?.trim(),
       [...group.querySelectorAll('button[data-section]')].map(button => button.dataset.section),
     ]));
     if (JSON.stringify(navigationGroupContract) !== JSON.stringify(expectedNavigationGroups)) {
       throw new Error(`导航分组异常：${JSON.stringify(navigationGroupContract)}`);
     }
     report.informationArchitecture.navigationGroups = navigationGroupContract;
+    const mobileNavigationContract = await page.locator('select.mobile-settings-navigation option')
+      .evaluateAll(options => options.map(option => [option.value, option.textContent?.trim()]));
+    if (JSON.stringify(mobileNavigationContract) !== JSON.stringify(expectedNavigation)) {
+      throw new Error(`移动导航栏目、名称或顺序异常：${JSON.stringify(mobileNavigationContract)}`);
+    }
+    report.informationArchitecture.mobileNavigation = mobileNavigationContract;
 
     for (let index = 0; index < navCount; index += 1) {
       const button = navButtons.nth(index);
@@ -1404,25 +1522,27 @@ async function main() {
       }
       const anchor = page.locator(`#${id}`);
       if (await anchor.count() !== 1 || !await anchor.isVisible()) throw new Error(`页面锚点不可见：${id}`);
-      if (id === 'settings-image-translation' || id === 'settings-area-translation') {
-        const expectedOcrTitle = id === 'settings-area-translation' ? 'area-ocr-pack-title' : 'image-ocr-pack-title';
-        await anchor.locator(`#${expectedOcrTitle}`).waitFor({state: 'attached', timeout});
-        if (await anchor.locator(`#${expectedOcrTitle}`).count() !== 1
+      if (id === 'settings-image-translation') {
+        await openSharedOcrResources(page);
+        if (await anchor.locator('#image-ocr-pack-title').count() !== 1
           || await page.locator('.image-ocr-pack-list').count() !== 1) {
-          throw new Error(`${id} 未复用唯一的活动 OCR 语言包管理界面`);
+          throw new Error('图片/漫画/圈选未复用唯一的活动 OCR 语言包管理界面');
         }
-        if (id === 'settings-image-translation'
-          && await anchor.getByRole('switch', {name: '启用圈选翻译', exact: true}).count() !== 0) {
-          throw new Error('图片设置仍混有圈选开关');
+        const area = anchor.locator('#settings-area-translation');
+        if (await area.count() !== 1 || !await area.getByRole('switch', {name: '圈选翻译设置', exact: true}).isVisible()) {
+          throw new Error('图片/漫画页没有唯一的圈选设置入口');
         }
-        if (id === 'settings-area-translation') {
-          const areaCopy = await anchor.innerText();
-          // 默认优先模型识图：识别语言收在 OCR 语言包折叠区，隐私说明提示识图会上传选区图片。
-          for (const expected of ['圈选翻译服务', '文字识别', '优先使用模型识图', '翻译方式', '圈选快捷键', 'Shift+Z', '模型识图会上传选区图片', 'OCR 语言包']) {
-            if (!areaCopy.includes(expected)) throw new Error(`圈选独立设置缺少产品信息：${expected}`);
-          }
-          report.assertions.independentAreaSettings = true;
+        const areaCopy = await area.innerText();
+        for (const expected of ['圈选翻译服务', '文字识别', '优先使用模型识图', '翻译方式', '圈选快捷键', 'Shift+Z']) {
+          if (!areaCopy.includes(expected)) throw new Error(`圈选设置缺少产品信息：${expected}`);
         }
+        // 隐私说明在真实帮助浮层，共享语言包管理独立于圈选卡片。
+        const recognitionHelp = area.locator('.settings-item').filter({hasText: '文字识别'}).locator('.field-help');
+        await recognitionHelp.hover();
+        await page.locator('.fluentread-field-help-popper:visible').getByText(/模型识图会上传选区图片/).waitFor({state: 'visible', timeout});
+        await recognitionHelp.press('Escape');
+        await page.mouse.move(0, 0);
+        report.assertions.independentAreaSettings = true;
       }
       if (id === 'settings-about') {
         const supportPanel = anchor.locator('.about-support-panel');
@@ -1440,20 +1560,61 @@ async function main() {
           throw new Error(`关于页赞赏链接异常：${JSON.stringify(supportLinks)}`);
         }
         const qrBounds = await supportPanel.locator('.about-support-qr').boundingBox();
-        if (!qrBounds || qrBounds.width < 200 || qrBounds.height < 200) {
-          throw new Error(`关于页没有直接展示足够大的二维码：${JSON.stringify(qrBounds)}`);
+        const availableQrWidth = await supportPanel.locator('.about-support-wechat').evaluate(card => {
+          const style = getComputedStyle(card);
+          return card.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        });
+        if (!matchesAboutSupportQrBounds(qrBounds, availableQrWidth)) {
+          throw new Error(`关于页赞赏图片未填满卡片内容宽度或不是正方形：${JSON.stringify({qrBounds, availableQrWidth})}`);
         }
         const pageCount = context.pages().length;
         const aboutUrl = page.url();
-        await supportPanel.locator('.about-support-wechat').click();
-        const preview = page.locator('.about-approve-dialog');
-        await preview.waitFor({state: 'visible', timeout});
-        await preview.locator('img').evaluate(image => image.decode());
-        if (context.pages().length !== pageCount || page.url() !== aboutUrl) {
-          throw new Error('点击赞赏码离开了关于页或打开了新标签页');
+        const checkQrPreview = async kind => {
+          const contact = kind === 'contact';
+          const triggerSelector = contact ? '#settings-about .about-wechat-contact' : '#settings-about .about-support-wechat';
+          const preview = page.locator(contact ? '.about-wechat-contact-dialog' : '.about-approve-dialog');
+          await page.locator(triggerSelector).click();
+          await preview.waitFor({state: 'visible', timeout});
+          const image = await preview.locator('img').evaluate(async image => {
+            await image.decode();
+            return {
+              src: image.currentSrc,
+              width: image.naturalWidth,
+              height: image.naturalHeight,
+              declaredWidth: image.getAttribute('width'),
+              declaredHeight: image.getAttribute('height'),
+            };
+          });
+          const expectedWidth = contact ? '888' : '1152';
+          const expectedHeight = contact ? '1131' : '1152';
+          if (!image.src || image.width <= 0 || image.height <= 0
+            || image.declaredWidth !== expectedWidth || image.declaredHeight !== expectedHeight) {
+            throw new Error(`关于页 ${kind} 二维码没有正确解码或尺寸异常：${JSON.stringify(image)}`);
+          }
+          if (context.pages().length !== pageCount || page.url() !== aboutUrl) {
+            throw new Error(contact ? '点击联系码离开了关于页或打开了新标签页' : '点击赞赏码离开了关于页或打开了新标签页');
+          }
+          await page.keyboard.press('Escape');
+          await preview.waitFor({state: 'hidden', timeout});
+          await page.waitForFunction(selector => document.querySelector(selector) === document.activeElement, triggerSelector, {timeout});
+          return image;
+        };
+        const supportImage = await checkQrPreview('support');
+        const contactImage = await checkQrPreview('contact');
+        if (contactImage.src === supportImage.src) throw new Error('微信联系码错误地使用了赞赏码图片');
+
+        await selectSettingsSection(page, 'settings-general');
+        await page.locator('#settings-general').waitFor({state: 'visible', timeout});
+        await anchor.waitFor({state: 'hidden', timeout});
+        if (await page.locator('.about-qr-dialog:visible').count() !== 0) throw new Error('离开关于页后仍显示二维码弹窗');
+        await button.click();
+        await anchor.waitFor({state: 'visible', timeout});
+        const returnedContactImage = await checkQrPreview('contact');
+        const returnedSupportImage = await checkQrPreview('support');
+        if (returnedContactImage.src !== contactImage.src || returnedSupportImage.src !== supportImage.src) {
+          throw new Error('返回关于页后联系码或赞赏码图片发生错误切换');
         }
-        await page.keyboard.press('Escape');
-        await preview.waitFor({state: 'hidden', timeout});
+        report.assertions.aboutQrRoundTrip = {contactImage, supportImage, returnedContactImage, returnedSupportImage};
         if (await anchor.locator('.about-experience, .about-features, .about-feature').count() !== 0) {
           throw new Error('关于页仍显示已删除的核心体验介绍');
         }
@@ -1469,7 +1630,7 @@ async function main() {
         }
         report.assertions.aboutSupportArea = true;
       }
-      const visiblePageHeadings = await page.locator('.topbar h1:visible').count();
+      const visiblePageHeadings = await page.locator('.workspace > .settings-content-title:visible').count();
       if (visiblePageHeadings !== 1) throw new Error(`${id} 页面级标题数量异常：${visiblePageHeadings}`);
       if (await page.locator('.card-intro:visible').count() !== 0) throw new Error(`${id} 仍有重复 card intro`);
       const metrics = await page.evaluate(() => ({
@@ -1480,7 +1641,7 @@ async function main() {
       if (metrics.horizontalOverflow) throw new Error(`${id} 出现横向滚动：${JSON.stringify(metrics)}`);
       const file = `settings-${String(index + 1).padStart(2, '0')}-${id}.png`;
       report.screenshots.push(await screenshot(page, file));
-      report.navigation.push({id, label, title: (await page.locator('.topbar h1').textContent())?.trim(), metrics});
+      report.navigation.push({id, label, title: (await page.locator('.workspace > .settings-content-title').textContent())?.trim(), metrics});
     }
     page = await verifyIndependentAreaSettings(page, context, extensionOrigin, report, attachPageDiagnostics);
     report.assertions.navigation = true;
@@ -1490,7 +1651,7 @@ async function main() {
 
     const interfaceSearchCases = [];
     for (const query of ['界面风格', '菜单栏布局', '传统色', '青花', '水墨', '乌金']) {
-      await page.locator('button[data-section="settings-general"]').click();
+      await selectSettingsSection(page, 'settings-general');
       await page.locator('.search-box input').fill(query);
       const interfaceResult = page.locator('.search-results button').filter({has: page.locator('strong', {hasText: /^界面风格$/u})});
       if (await interfaceResult.count() !== 1) throw new Error(`搜索“${query}”没有唯一的界面风格入口`);
@@ -1510,10 +1671,13 @@ async function main() {
     for (const [hash, destination] of [
       ['settings-interface', 'settings-interface'],
       ['settings-shortcuts', 'settings-translation'],
+      ['settings-harness', 'settings-selection'],
+      ['settings-area-translation', 'settings-image-translation'],
+      ['settings-model-usage', 'settings-translation-stats'],
     ]) {
       await page.goto(`${extensionOrigin}/options.html#${hash}`, {waitUntil: 'domcontentloaded', timeout});
       await page.reload({waitUntil: 'domcontentloaded', timeout});
-      await page.locator(`#${destination}`).waitFor({state: 'visible', timeout});
+      await page.locator(`#${hash === 'settings-model-usage' ? 'settings-model-usage' : destination}`).waitFor({state: 'visible', timeout});
       if (await page.locator(`button[data-section="${destination}"]`).getAttribute('aria-current') !== 'page') {
         throw new Error(`旧设置链接 #${hash} 没有正确激活 ${destination}`);
       }
@@ -1524,7 +1688,7 @@ async function main() {
     report.assertions.interfaceSearchAndLegacyNavigation = true;
 
     // 界面布局中的段落加载样式必须用真实运行时指示器预览，并经统一配置链路持久化。
-    await page.locator('button[data-section="settings-interface"]').click();
+    await selectSettingsSection(page, 'settings-interface');
     const loadingStyleGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '动画与加载效果'});
     await loadingStyleGroup.waitFor({state: 'visible', timeout});
     const loadingStyleCards = loadingStyleGroup.locator('.loading-style-option');
@@ -1605,7 +1769,7 @@ async function main() {
 
     // 基础配置中的界面布局统一容纳风格和菜单栏编排；默认风格保持原布局。
     // 设置页需要真实拖动并保存 Popup 模块顺序；Popup 重开后还要消费同一份布局与栏目配置。
-    await page.locator('button[data-section="settings-interface"]').click();
+    await selectSettingsSection(page, 'settings-interface');
     const interfaceSection = page.locator('#settings-interface');
     await interfaceSection.waitFor({state: 'visible', timeout});
     const interfaceSettingsGroup = page.locator('.settings-section:visible .settings-group').filter({hasText: '界面与弹窗'});
@@ -1619,20 +1783,20 @@ async function main() {
       throw new Error('界面布局仍向用户显示 Popup 布局旧名称');
     }
     const expectedInterfaceSkins = [
-      {value: 'default', label: '默认风格', kind: 'default', contentHeight: true, popupWidth: 360, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
-      {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 350, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
-      {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 340, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
-      {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 360, brand: '#111', surface: '#fff', darkSurface: '#050505'},
-      {value: 'qinghua', label: '青花', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#183a65', surface: '#ffffff', darkSurface: '#111d31'},
-      {value: 'zhusha', label: '朱砂', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#c3272b', surface: '#ffffff', darkSurface: '#211a17'},
-      {value: 'shuimo', label: '水墨', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#3d3b4f', surface: '#ffffff', darkSurface: '#17181d'},
-      {value: 'zhuqing', label: '竹青', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#057748', surface: '#ffffff', darkSurface: '#17221b'},
-      {value: 'ouhe', label: '藕荷', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#574266', surface: '#ffffff', darkSurface: '#221b27'},
-      {value: 'xiangse', label: '缃色', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#8a6200', surface: '#ffffff', darkSurface: '#1f1c16'},
-      {value: 'qinglv', label: '青绿', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#205580', surface: '#ffffff', darkSurface: '#142430'},
-      {value: 'yuebai', label: '月白', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#576d93', surface: '#ffffff', darkSurface: '#1b2c37'},
-      {value: 'xuanqing', label: '玄青', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#8db4dc', surface: '#1e2030', darkSurface: '#1e2030'},
-      {value: 'wujin', label: '乌金', kind: 'palette', contentHeight: true, popupWidth: 360, brand: '#f2be45', surface: '#1b1a16', darkSurface: '#1b1a16'},
+      {value: 'default', label: '默认风格', kind: 'default', contentHeight: true, popupWidth: 320, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'minimal', label: '简约风格', kind: 'minimal', contentHeight: true, popupWidth: 310, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'compact', label: '紧凑风格', kind: 'compact', contentHeight: true, popupWidth: 300, brand: '#ef4776', surface: '#fff', darkSurface: '#1d2027'},
+      {value: 'contrast', label: '高对比 ⚡', kind: 'contrast', contentHeight: true, popupWidth: 320, brand: '#111', surface: '#fff', darkSurface: '#050505'},
+      {value: 'qinghua', label: '青花', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#183a65', surface: '#ffffff', darkSurface: '#111d31'},
+      {value: 'zhusha', label: '朱砂', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#c3272b', surface: '#ffffff', darkSurface: '#211a17'},
+      {value: 'shuimo', label: '水墨', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#3d3b4f', surface: '#ffffff', darkSurface: '#17181d'},
+      {value: 'zhuqing', label: '竹青', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#057748', surface: '#ffffff', darkSurface: '#17221b'},
+      {value: 'ouhe', label: '藕荷', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#574266', surface: '#ffffff', darkSurface: '#221b27'},
+      {value: 'xiangse', label: '缃色', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#8a6200', surface: '#ffffff', darkSurface: '#1f1c16'},
+      {value: 'qinglv', label: '青绿', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#205580', surface: '#ffffff', darkSurface: '#142430'},
+      {value: 'yuebai', label: '月白', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#576d93', surface: '#ffffff', darkSurface: '#1b2c37'},
+      {value: 'xuanqing', label: '玄青', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#8db4dc', surface: '#1e2030', darkSurface: '#1e2030'},
+      {value: 'wujin', label: '乌金', kind: 'palette', contentHeight: true, popupWidth: 320, brand: '#f2be45', surface: '#1b1a16', darkSurface: '#1b1a16'},
     ];
     const skinCards = interfaceSettingsGroup.locator('.interface-skin-option');
     if (await skinCards.count() !== expectedInterfaceSkins.length) {
@@ -1702,17 +1866,17 @@ async function main() {
     const readQuickFeatureOrder = () => popupQuickFeatureEditor.locator('[data-popup-quick-feature-layout]').evaluateAll(
       elements => elements.map(element => element.getAttribute('data-popup-quick-feature-layout')),
     );
-    const defaultSix = ['hover', 'selection', 'image', 'area', 'video', 'document'];
-    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultSix)) {
-      throw new Error('快捷功能默认应显示六项并隐藏译文显示');
+    const defaultVisibleQuickFeatures = ['hover', 'selection', 'image', 'document'];
+    if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultVisibleQuickFeatures)) {
+      throw new Error('快捷功能默认应显示四项并隐藏译文显示');
     }
     await popupQuickFeatureTab.click();
     await popupQuickFeatureEditor.getByRole('button', {name: '添加译文显示', exact: true}).click();
     await page.waitForFunction(() => !!document.querySelector('[data-popup-quick-feature-layout="appearance"]'));
     await popupModuleTab.click();
-    // 后续继续覆盖用户显式添加七项后的排序、隐藏、主题与持久化。
-    const defaultQuickFeatureOrder = ['hover', 'selection', 'appearance', 'image', 'area', 'video', 'document'];
-    const customQuickFeatureOrder = ['document', 'hover', 'selection', 'appearance', 'image', 'area', 'video'];
+    // 后续继续覆盖用户显式添加译文显示后的五项排序、隐藏、主题与持久化。
+    const defaultQuickFeatureOrder = ['hover', 'selection', 'appearance', 'image', 'document'];
+    const customQuickFeatureOrder = ['document', 'hover', 'selection', 'appearance', 'image'];
     const visibleCustomQuickFeatureOrder = customQuickFeatureOrder.filter(feature => feature !== 'image');
     if (JSON.stringify(await readQuickFeatureOrder()) !== JSON.stringify(defaultQuickFeatureOrder)) {
       throw new Error(`快捷功能默认顺序异常：${JSON.stringify(await readQuickFeatureOrder())}`);
@@ -1861,7 +2025,7 @@ async function main() {
     await dragWholeElement(
       page,
       popupLayoutPreview.locator('[data-preview-quick-feature="document"]'),
-      popupLayoutPreview.locator('[data-preview-quick-feature="video"]'),
+      popupLayoutPreview.locator('[data-preview-quick-feature="image"]'),
       'x',
       'after',
     );
@@ -1944,12 +2108,12 @@ async function main() {
       const lastFeatureCard = document
         .querySelector('[data-popup-module="quickFeatures"] .feature-card:last-child')
         ?.getBoundingClientRect();
-      const mainSwitch = document
-        .querySelector('[data-popup-module="translation"] .hero-switches .switch')
+      const mainAction = document
+        .querySelector('[data-popup-module="translation"] [data-testid="page-translation"]')
         ?.getBoundingClientRect();
       return {
         moduleGap: quickFeatures && translation ? translation.top - quickFeatures.bottom : -1,
-        controlGap: lastFeatureCard && mainSwitch ? mainSwitch.top - lastFeatureCard.bottom : -1,
+        controlGap: lastFeatureCard && mainAction ? mainAction.top - lastFeatureCard.bottom : -1,
       };
     });
     if (reorderedModuleSpacing.moduleGap < 10 || reorderedModuleSpacing.controlGap < 10) {
@@ -1973,7 +2137,7 @@ async function main() {
     const defaultSingleFeatureHiddenMetrics = await inspectPopupContentHeight(
       defaultSingleFeatureHiddenPopup, '默认风格隐藏单张快捷卡片',
     );
-    if (defaultSingleFeatureHiddenMetrics.visibleQuickFeatures !== 6
+    if (defaultSingleFeatureHiddenMetrics.visibleQuickFeatures !== 4
       || await defaultSingleFeatureHiddenPopup.locator('[data-popup-quick-feature="image"]').count() !== 0) {
       throw new Error(`默认风格没有应用单张快捷卡片显隐：${JSON.stringify(defaultSingleFeatureHiddenMetrics)}`);
     }
@@ -1983,7 +2147,7 @@ async function main() {
     ));
     await defaultSingleFeatureHiddenPopup.close();
 
-    // 先证明单项配置跨页面生效，再恢复七张卡片，避免影响后续完整皮肤矩阵。
+    // 先证明单项配置跨页面生效，再恢复显式添加后的五张卡片，避免影响后续完整皮肤矩阵。
     await popupQuickFeatureEditor.locator('.popup-layout-hidden-chip').filter({hasText: '图片翻译'}).getByRole('button', {name: '添加图片翻译', exact: true}).click();
     await popupQuickFeatureEditor.getByRole('button', {name: '恢复默认顺序'}).click();
     await page.waitForFunction((expected) => (
@@ -2079,10 +2243,11 @@ async function main() {
           visibleBetaBadges: [...document.querySelectorAll('.beta-badge')]
             .filter(badge => getComputedStyle(badge).display !== 'none').length,
           translateButtonBackground: getComputedStyle(document.querySelector('.translate-button')).backgroundColor,
+          declaredActionBackground: rootStyle.getPropertyValue('--skin-action-background').trim() || rootStyle.getPropertyValue('--brand').trim(),
           translateButtonBackgroundImage: getComputedStyle(document.querySelector('.translate-button')).backgroundImage,
           translateButtonShadow: getComputedStyle(document.querySelector('.translate-button')).boxShadow,
-          heroSwitchBackground: getComputedStyle(document.querySelector('.hero-card .switch')).backgroundColor,
-          heroSwitchKnobBackground: getComputedStyle(document.querySelector('.hero-card .switch i')).backgroundColor,
+          siteRuleBackground: getComputedStyle(document.querySelector('.site-rule-row [data-setting="always-translate-site"]')).backgroundColor,
+          siteRuleKnobBackground: getComputedStyle(document.querySelector('.site-rule-row [data-setting="always-translate-site"] i')).backgroundColor,
           brandIconFilter: getComputedStyle(document.querySelector('.popup-shell .brand img')).filter,
           brandIconOpacity: getComputedStyle(document.querySelector('.popup-shell .brand img')).opacity,
         };
@@ -2102,10 +2267,7 @@ async function main() {
         || !metrics.ink
         || metrics.textContrast < 4.5
         || (skin.kind === 'palette' && (
-          metrics.actionContrast < 4.5
-          || JSON.stringify(parseCssColor(metrics.translateButtonBackground)) !== JSON.stringify(parseCssColor(metrics.brand))
-          || metrics.translateButtonBackgroundImage !== 'none'
-          || metrics.shellBackgroundImage === 'none'
+          !matchesPalettePopupSurfaces(metrics)
         ))) {
         throw new Error(`${skin.label}基础布局异常：${JSON.stringify(metrics)}`);
       }
@@ -2114,7 +2276,7 @@ async function main() {
         || metrics.translateButtonBackgroundImage !== 'none'
         || metrics.translateButtonShadow !== 'none'
         || metrics.translateButtonBackground === 'rgb(239, 71, 118)'
-        || metrics.heroSwitchBackground === 'rgb(239, 71, 118)'
+        || metrics.siteRuleBackground === 'rgb(239, 71, 118)'
         || metrics.brandIconFilter !== 'none'
         || metrics.brandIconOpacity !== '1'
       )) {
@@ -2141,6 +2303,7 @@ async function main() {
           ink: rootStyle.getPropertyValue('--ink').trim(),
           actionText: getComputedStyle(document.querySelector('.translate-button')).color,
           translateButtonBackground: getComputedStyle(document.querySelector('.translate-button')).backgroundColor,
+          declaredActionBackground: rootStyle.getPropertyValue('--skin-action-background').trim() || rootStyle.getPropertyValue('--brand').trim(),
           translateButtonBackgroundImage: getComputedStyle(document.querySelector('.translate-button')).backgroundImage,
           shellBackgroundImage: getComputedStyle(document.querySelector('.popup-shell')).backgroundImage,
           bodyBackground: getComputedStyle(document.body).backgroundColor,
@@ -2157,10 +2320,7 @@ async function main() {
         || !darkMetrics.ink
         || darkMetrics.textContrast < 4.5
         || (skin.kind === 'palette' && (
-          darkMetrics.actionContrast < 4.5
-          || JSON.stringify(parseCssColor(darkMetrics.translateButtonBackground)) !== JSON.stringify(parseCssColor(darkMetrics.brand))
-          || darkMetrics.translateButtonBackgroundImage !== 'none'
-          || darkMetrics.shellBackgroundImage === 'none'
+          !matchesPalettePopupSurfaces(darkMetrics)
           || darkMetrics.elementPrimary !== darkMetrics.brand
         ))) {
         throw new Error(`${skin.label}暗色布局异常：${JSON.stringify(darkMetrics)}`);
@@ -2226,12 +2386,12 @@ async function main() {
     }
 
     // 配色型皮肤的共享适配层必须覆盖独立 feature，而不是只覆盖通用设置组件。
-    // 同时用纸张护眼遍历全部导航，阻止任何新页面重新引入大面积纯白表面。
+    // 同时用水墨遍历全部导航，阻止任何新页面重新引入大面积纯白表面。
     const paletteSkins = expectedInterfaceSkins.filter(item => item.kind === 'palette');
     const specialtyPages = [
       {section: 'settings-services', ready: '.service-detail'},
       {section: 'settings-image-translation', ready: '.image-ocr-pack-card'},
-      {section: 'settings-area-translation', ready: '.area-settings-note'},
+      {section: 'settings-image-translation', ready: '#settings-area-translation .feature-enable-card', feature: 'area'},
       {section: 'settings-vocabulary', ready: '.vocabulary-book'},
     ];
     const auditLargeWhiteSurfaces = () => page.evaluate(() => {
@@ -2264,38 +2424,40 @@ async function main() {
       await interfaceSettingsGroup.locator(`.interface-skin-option[data-skin="${skin.value}"]`).click();
       await page.waitForFunction(value => document.documentElement.dataset.interfaceSkin === value, skin.value, {timeout});
       for (const specialty of specialtyPages) {
-        await page.locator(`button[data-section="${specialty.section}"]`).click();
+        await selectSettingsSection(page, specialty.section);
+        if (specialty.ready === '.image-ocr-pack-card') await openSharedOcrResources(page);
         await page.locator(specialty.ready).first().waitFor({state: 'visible', timeout});
         await page.waitForTimeout(120);
         const whiteSurfaces = await auditLargeWhiteSurfaces();
         if (whiteSurfaces.length) {
           throw new Error(`${skin.label}在${specialty.section}仍有大面积纯白表面：${JSON.stringify(whiteSurfaces)}`);
         }
-        paletteSurfaceCoverage.push({skin: skin.value, section: specialty.section});
+        paletteSurfaceCoverage.push({skin: skin.value, section: specialty.section, feature: specialty.feature || specialty.section});
       }
-      await page.locator('button[data-section="settings-interface"]').click();
+      await selectSettingsSection(page, 'settings-interface');
       await liveSkinPreview.waitFor({state: 'visible', timeout});
     }
 
-    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="paper"]').click();
-    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'paper', undefined, {timeout});
+    await interfaceSettingsGroup.locator('.interface-skin-option[data-skin="shuimo"]').click();
+    await page.waitForFunction(() => document.documentElement.dataset.interfaceSkin === 'shuimo', undefined, {timeout});
     const paperPageCoverage = [];
     for (const [section] of expectedNavigation) {
-      await page.locator(`button[data-section="${section}"]`).click();
+      await selectSettingsSection(page, section);
       await page.locator(`button[data-section="${section}"].active`).waitFor({state: 'visible', timeout});
       await page.waitForTimeout(120);
       const whiteSurfaces = await auditLargeWhiteSurfaces();
       if (whiteSurfaces.length) {
-        throw new Error(`纸张护眼在${section}仍有大面积纯白表面：${JSON.stringify(whiteSurfaces)}`);
+        throw new Error(`水墨在${section}仍有大面积纯白表面：${JSON.stringify(whiteSurfaces)}`);
       }
       paperPageCoverage.push(section);
       report.screenshots.push(await screenshot(page, `settings-paper-${section}.png`));
     }
     report.paletteSurfaceCoverage = paletteSurfaceCoverage;
     report.paperPageCoverage = paperPageCoverage;
+    report.informationArchitecture.fullNavigationPalette = 'shuimo';
     report.assertions.paletteSurfaceCoverage = true;
 
-    await page.locator('button[data-section="settings-interface"]').click();
+    await selectSettingsSection(page, 'settings-interface');
     await interfaceSettingsGroup.waitFor({state: 'visible', timeout});
     const minimalSkinCase = skinCases.find(item => item.value === 'minimal');
     if (!minimalSkinCase) throw new Error('缺少简约风格验证结果');
@@ -2417,7 +2579,7 @@ async function main() {
       deliverablePopupSkins.push({skin, moduleOrder: visibleOrder, file});
     }
     await page.setViewportSize({width: 1440, height: 1000});
-    await page.locator('button[data-section="settings-interface"]').click();
+    await selectSettingsSection(page, 'settings-interface');
     await liveSkinPreview.scrollIntoViewIfNeeded();
     report.screenshots.push(await screenshot(page, 'deliverable-settings-shuimo-1440.png'));
     report.deliverablePopupSkins = deliverablePopupSkins;
@@ -2490,7 +2652,7 @@ async function main() {
     report.assertions.popupQuickFeatureLayoutPersistence = true;
     report.assertions.multilingualInterfaceLayout = true;
 
-    await page.locator('button[data-section="settings-model-usage"]').click();
+    await selectSettingsSection(page, 'settings-translation-stats', 'usage');
     await page.locator('#settings-model-usage').waitFor({state: 'visible', timeout});
     await page.waitForFunction(() => document.querySelector('#settings-model-usage .usage-state-card, #settings-model-usage .usage-summary-grid'), undefined, {timeout});
     const modelUsageFixture = await seedModelUsageFixture(page);
@@ -2543,24 +2705,29 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-model-usage-filter-open.png'));
     await page.keyboard.press('Escape');
     await openFilterDropdown.waitFor({state: 'hidden', timeout});
-    const averageDisclosure = page.locator('#settings-model-usage details.usage-average-card');
-    if (await averageDisclosure.getAttribute('open') !== null) {
-      throw new Error('模型用量平均构成没有默认收起');
+    // ModelUsageDashboard.vue 将平均构成和模型调用记录改为常驻 section。
+    // 保留默认可见性与明确命名的检查，随后继续逐项验证实际统计值。
+    const averageComposition = page.locator(modelUsageAverageSelector);
+    if (await averageComposition.count() !== 1 || !await averageComposition.isVisible()
+      || await averageComposition.getAttribute('aria-label') !== '平均每次请求') {
+      throw new Error('模型用量平均构成没有常驻显示或缺少明确名称');
     }
-    const requestDisclosure = page.locator('#settings-model-usage details.usage-request-log-card');
-    const requestDisclosureState = {
-      open: await requestDisclosure.getAttribute('open'),
-      summary: (await requestDisclosure.locator('summary').textContent())?.trim(),
+    const requestRecords = page.locator(modelUsageRequestLogSelector);
+    const requestRecordsState = {
+      visible: await requestRecords.isVisible(),
+      labelledBy: await requestRecords.getAttribute('aria-labelledby'),
+      title: (await requestRecords.locator('#usage-request-log-title').textContent())?.trim(),
     };
-    // 请求记录默认展开（逐条用量与速度优先可见），摘要仍保留可收起的明确入口。
-    if (requestDisclosureState.open === null || !requestDisclosureState.summary?.includes('请求记录')) {
-      throw new Error(`模型用量请求记录没有默认展开或缺少明确入口：${JSON.stringify(requestDisclosureState)}`);
+    if (await requestRecords.count() !== 1 || !requestRecordsState.visible
+      || requestRecordsState.labelledBy !== 'usage-request-log-title'
+      || requestRecordsState.title !== '模型调用记录') {
+      throw new Error(`模型用量调用记录没有默认显示或缺少明确入口：${JSON.stringify(requestRecordsState)}`);
     }
     const allCoverageNotice = await page.locator('#settings-model-usage .usage-coverage-note').textContent();
     if (!allCoverageNotice?.includes('66.7%')) {
       throw new Error(`全部调用 Token 上报率没有计入失败请求：${allCoverageNotice}`);
     }
-    await averageDisclosure.locator('summary').click();
+    await averageComposition.scrollIntoViewIfNeeded();
     const allAverageValues = (await page.locator('#settings-model-usage .usage-average-value strong').allTextContents())
       .map(value => value.trim());
     if (JSON.stringify(allAverageValues) !== JSON.stringify([
@@ -2724,7 +2891,9 @@ async function main() {
       filterDropdownMetrics,
       tokenCoverage: coverageNotice,
       allCallTokenCoverage: allCoverageNotice?.trim(),
-      progressiveDisclosure: true,
+      progressiveDisclosure: false,
+      averageCompositionAlwaysVisible: true,
+      requestRecordsAlwaysVisible: true,
       resetCancelPreserved: true,
       rangeKeyboard: true,
       resetFocusLoop: true,
@@ -2737,9 +2906,9 @@ async function main() {
     report.assertions.modelUsageResetFocus = true;
     report.assertions.modelUsageZeroTokenEncoding = true;
 
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     const refreshEvent = await appendModelUsageRefreshEvent(page);
-    await page.locator('button[data-section="settings-model-usage"]').click();
+    await selectSettingsSection(page, 'settings-translation-stats', 'usage');
     const refreshedTokenTotal = modelUsageFixture.allTokens + refreshEvent.deltaTokens;
     await page.waitForFunction(expected => {
       const text = document.querySelector('#settings-model-usage .usage-token-card .usage-card-heading strong')?.textContent || '';
@@ -2747,7 +2916,7 @@ async function main() {
     }, refreshedTokenTotal, {timeout});
     report.modelUsage.returnRefreshTokens = refreshedTokenTotal;
     report.assertions.modelUsageReturnRefresh = true;
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     const themeGroup = page.getByRole('radiogroup', {name: '界面主题'});
     const initialThemeRadio = themeGroup.locator('[role="radio"][aria-checked="true"]');
     await initialThemeRadio.focus();
@@ -2770,7 +2939,7 @@ async function main() {
     };
     if (!Object.values(darkColors).every(isDarkColor)) throw new Error(`暗色主题表面仍为亮色：${JSON.stringify(darkColors)}`);
     report.screenshots.push(await screenshot(page, 'settings-dark-general.png'));
-    await page.locator('button[data-section="settings-services"]').click();
+    await selectSettingsSection(page, 'settings-services');
     if (await page.getByTestId('model-thinking-control').count() === 0) {
       // 直接从完整服务列表打开 OpenAI。
       await page.locator('[data-service-value="openai"]:visible').first().click();
@@ -2798,13 +2967,14 @@ async function main() {
     }
     report.informationArchitecture.modelThinkingDarkSurface = thinkingDarkSurface;
     report.screenshots.push(await screenshot(page, 'settings-dark-services.png'));
-    await darkTranslationSettings.locator(':scope > summary').click();
-    if (await darkTranslationSettings.getAttribute('open') !== null) {
-      throw new Error('暗色验证后没有恢复模型偏好的默认折叠状态');
+    await page.locator('[data-service-settings-tabs] [id$="tab-requests"]').click();
+    if (await darkTranslationSettings.isVisible()
+      || await page.locator('[data-service-settings-tabs] [role="tabpanel"]:visible').count() !== 1) {
+      throw new Error('暗色验证后没有切回唯一的请求策略页签并隐藏模型偏好');
     }
-    await page.locator('button[data-section="settings-translation"]').click();
+    await selectSettingsSection(page, 'settings-translation');
     report.screenshots.push(await screenshot(page, 'settings-dark-translation.png'));
-    await page.locator('button[data-section="settings-interface"]').click();
+    await selectSettingsSection(page, 'settings-interface');
     await page.locator('#settings-interface .loading-style-option').first().waitFor({state: 'visible', timeout});
     const darkLoadingStyleSurfaces = await page.locator('.loading-style-option').evaluateAll(cards => (
       cards.map(card => ({
@@ -2820,13 +2990,13 @@ async function main() {
       throw new Error(`段落加载样式暗色卡片仍为亮色：${JSON.stringify(darkLoadingStyleSurfaces)}`);
     }
     report.screenshots.push(await screenshot(page, 'settings-dark-loading-styles.png'));
-    await page.locator('button[data-section="settings-model-usage"]').click();
+    await selectSettingsSection(page, 'settings-translation-stats', 'usage');
     const usageDarkSurface = await page.locator('#settings-model-usage .usage-card').first().evaluate(card => getComputedStyle(card).backgroundColor);
     if (!isDarkColor(usageDarkSurface)) throw new Error(`模型用量暗色卡片仍为亮色：${usageDarkSurface}`);
     report.screenshots.push(await screenshot(page, 'settings-dark-model-usage.png'));
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
     report.screenshots.push(await screenshot(page, 'settings-dark-data.png'));
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     await themeGroup.getByRole('radio', {name: '亮色主题', exact: true}).click();
     await page.waitForFunction(() => !document.documentElement.classList.contains('dark'), undefined, {timeout});
     report.assertions.segmentedKeyboard = true;
@@ -2875,7 +3045,7 @@ async function main() {
     });
     if (!defaultServiceMetrics.defaultService
       || defaultServiceMetrics.label !== '默认网页翻译服务'
-      || defaultServiceMetrics.description !== '未单独指定方案时，全文、悬浮和划词翻译使用此服务。'
+      || defaultServiceMetrics.description !== expectedDefaultServiceDescription
       || !defaultServiceMetrics.selectedService
       || defaultServiceMetrics.backgroundImage !== 'none'
       || defaultServiceMetrics.controlShadow !== 'none'
@@ -2912,7 +3082,7 @@ async function main() {
     );
     const aiContextRestored = await aiContextSwitch.getAttribute('aria-checked');
 
-    await page.locator('button[data-section="settings-services"]').click();
+    await selectSettingsSection(page, 'settings-services');
     const servicesSection = page.locator('#settings-services');
     const serviceCatalog = servicesSection.locator('.service-catalog');
     await serviceCatalog.waitFor({state: 'visible', timeout});
@@ -3035,7 +3205,7 @@ async function main() {
     report.assertions.serviceCatalogSearch = true;
     report.assertions.machineDefaultAiContextOperable = true;
 
-    await page.locator('button[data-section="settings-translation"]').click();
+    await selectSettingsSection(page, 'settings-translation');
     const translationSection = page.locator('#settings-translation');
     await translationSection.waitFor({state: 'visible', timeout});
     const translationGroups = (await page.locator('.settings-section:visible .settings-group-heading h2').allTextContents())
@@ -3046,11 +3216,11 @@ async function main() {
     report.informationArchitecture.translationGroups = translationGroups;
     report.assertions.translationGroupOrder = true;
 
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     const targetLanguageSelector = '[data-config-field="to"] input';
     const targetChange = await chooseDifferentSelectOption(page, targetLanguageSelector);
     await page.waitForTimeout(500);
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
     await page.getByRole('heading', {name: '最近修改', exact: true}).waitFor({state: 'visible', timeout});
     await page.getByRole('heading', {name: '自动设置快照', exact: true}).waitFor({state: 'visible', timeout});
     const recentEntries = page.locator('#settings-data .version-panel').nth(0).locator('.version-entry');
@@ -3066,12 +3236,57 @@ async function main() {
     await page.waitForTimeout(250);
     report.screenshots.push(await screenshot(page, 'settings-config-version-preview.png'));
     await restoreButton.click();
-    const restoreConfirm = page.locator('.el-message-box:visible');
+    const restoreConfirm = page.locator('.config-restore-confirm-dialog:visible');
+    await restoreConfirm.waitFor({state: 'visible', timeout});
+    // 浏览器 hash 导航使已访问页面失活；未确认的恢复不得发送，返回后 busy 必须释放。
+    await page.evaluate(() => {window.location.hash = '#settings-general';});
+    await page.locator('#settings-general').waitFor({state: 'visible', timeout});
+    await restoreConfirm.waitFor({state: 'hidden', timeout});
+    await previewDialog.waitFor({state: 'hidden', timeout});
+    await page.waitForFunction(
+      ({selector, expected}) => document.querySelector(selector)
+        ?.closest('.el-select__wrapper')?.querySelector('.el-select__placeholder')?.textContent?.trim() === expected,
+      {selector: targetLanguageSelector, expected: targetChange.after}, {timeout},
+    );
+    report.assertions.configRestoreHashCancellation = true;
+    await selectSettingsSection(page, 'settings-data');
+    await page.getByRole('heading', {name: '自动设置快照', exact: true}).waitFor({state: 'visible', timeout});
+    await backupEntries.first().click();
+    await previewDialog.waitFor({state: 'visible', timeout});
+    if (await restoreButton.isDisabled()) throw new Error('离开并返回后恢复 busy 没有释放');
+    await restoreButton.click();
+    await restoreConfirm.waitFor({state: 'visible', timeout});
+    await restoreConfirm.getByRole('button', {name: '取消', exact: true}).click();
+    await restoreConfirm.waitFor({state: 'hidden', timeout});
+    await previewDialog.waitFor({state: 'visible', timeout});
+    if (await restoreButton.isDisabled()) throw new Error('取消确认后恢复按钮仍不可用');
+    await restoreButton.click();
+    await restoreConfirm.waitFor({state: 'visible', timeout});
+    await page.keyboard.press('Escape');
+    await restoreConfirm.waitFor({state: 'hidden', timeout});
+    await previewDialog.waitFor({state: 'visible', timeout});
+    if (await restoreButton.isDisabled()) throw new Error('Escape 后恢复按钮仍不可用');
+    await page.waitForFunction(() => document.activeElement?.closest('.config-preview-dialog')
+      && document.activeElement?.textContent?.trim() === '恢复此版本', undefined, {timeout}).catch(async error => {
+        report.configRestoreFocusFailure = await page.evaluate(() => ({
+          activeElement: document.activeElement?.outerHTML.slice(0, 1200),
+          activeDialog: document.activeElement?.closest('.el-dialog')?.className,
+          previewActions: [...document.querySelectorAll('.config-preview-dialog .el-dialog__footer button')].map(button => ({
+            text: button.textContent?.trim(), disabled: button.disabled,
+            rect: button.getBoundingClientRect().toJSON(),
+          })),
+          confirmationCount: document.querySelectorAll('.config-restore-confirm-dialog').length,
+        })).catch(() => null);
+        throw error;
+      });
+    report.assertions.configRestoreCancelEscapeFocusRetry = true;
+    await restoreButton.click();
     await restoreConfirm.waitFor({state: 'visible', timeout});
     await restoreConfirm.getByRole('button', {name: '恢复', exact: true}).click();
     await previewDialog.waitFor({state: 'hidden', timeout});
+    report.assertions.configRestoreOwnedConfirmation = true;
 
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     const targetInput = page.locator(targetLanguageSelector);
     await targetInput.waitFor({state: 'visible', timeout});
     await page.waitForFunction(
@@ -3085,7 +3300,7 @@ async function main() {
 
     // 配置版本恢复按设计会回到旧快照，所以在该用例之后创建 profile，再把它继续
     // 带过完整备份、精确恢复和页面重载，覆盖目录、配置、凭据与持久化整条链路。
-    await page.locator('button[data-section="settings-services"]').click();
+    await selectSettingsSection(page, 'settings-services');
     await serviceCatalog.waitFor({state: 'visible', timeout});
     await customServiceAdd.click();
     const customServiceDialog = page.getByTestId('custom-service-dialog');
@@ -3120,20 +3335,22 @@ async function main() {
       const labelRect = label?.getBoundingClientRect();
       const labelStyle = label ? getComputedStyle(label) : null;
       return {
+        cardLeft: card?.left ?? null,
         cardRight: card?.right ?? null,
+        labelLeft: labelRect?.left ?? null,
         labelRight: labelRect?.right ?? null,
+        labelWidth: labelRect?.width || 0,
+        labelHeight: labelRect?.height || 0,
         overflow: labelStyle?.overflow ?? '',
         textOverflow: labelStyle?.textOverflow ?? '',
         whiteSpace: labelStyle?.whiteSpace ?? '',
+        overflowWrap: labelStyle?.overflowWrap ?? '',
         status: button.querySelector('.library-copy small')?.textContent?.trim() || '',
       };
     });
-    if (customServiceLabelLayout.labelRight === null || customServiceLabelLayout.cardRight === null
-      || customServiceLabelLayout.labelRight > customServiceLabelLayout.cardRight + 1
-      || customServiceLabelLayout.overflow !== 'hidden'
-      || customServiceLabelLayout.textOverflow !== 'ellipsis'
-      || customServiceLabelLayout.whiteSpace !== 'nowrap') {
-      throw new Error(`自定义服务目录卡片名称超出边界或缺少已保存状态：${JSON.stringify(customServiceLabelLayout)}`);
+    // ServiceCatalogItem.vue 明确允许完整名称换行，仍必须可见且落在卡片边界内。
+    if (!matchesWrappedServiceLabel(customServiceLabelLayout)) {
+      throw new Error(`自定义服务目录卡片名称没有完整换行显示或超出边界：${JSON.stringify(customServiceLabelLayout)}`);
     }
     report.informationArchitecture.serviceCatalogHierarchy.customServiceLabel = customServiceLabelLayout;
     report.assertions.customServiceDescriptionBounded = true;
@@ -3216,7 +3433,7 @@ async function main() {
     report.screenshots.push(await screenshot(page, 'settings-custom-service-created.png'));
 
     const vocabularyBackupFixture = await seedVocabularyBackupFixture(page);
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
     const transferActionLabels = (await page.locator('#settings-data .transfer-actions button').allTextContents())
       .map(label => label.trim());
     if (JSON.stringify(transferActionLabels) !== JSON.stringify(['导出备份', '从备份恢复'])) {
@@ -3358,7 +3575,7 @@ async function main() {
     await localDataImportDialog.waitFor({state: 'hidden', timeout});
     await page.locator('.el-message:visible').filter({hasText: '导入完成'}).waitFor({state: 'visible', timeout});
 
-    await page.locator('button[data-section="settings-general"]').click();
+    await selectSettingsSection(page, 'settings-general');
     await page.waitForFunction(
       ({selector, expected}) => document.querySelector(selector)
         ?.closest('.el-select__wrapper')
@@ -3370,7 +3587,7 @@ async function main() {
       },
       {timeout},
     );
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
 
     report.encryptedConfigurationStorage = await inspectEncryptedConfigurationStorage(page, sentinels);
     report.assertions.indexedDbEncryptedAtRest = true;
@@ -3378,7 +3595,7 @@ async function main() {
 
     await page.reload({waitUntil: 'domcontentloaded', timeout});
     await page.locator('.settings-app').waitFor({state: 'visible', timeout});
-    await page.locator('button[data-section="settings-data"]').click();
+    await selectSettingsSection(page, 'settings-data');
     const reloadedDownload = await downloadCompleteBackup(page, false);
     const reloadedBackup = reloadedDownload.backup;
     assertCompleteBackupEnvelope(reloadedBackup, sentinels, {
@@ -3439,7 +3656,7 @@ async function main() {
       {width: 390, height: 844},
     ]) {
       await page.setViewportSize(viewport);
-      await page.locator('button[data-section="settings-general"]').click();
+      await selectSettingsSection(page, 'settings-general');
       await page.waitForTimeout(150);
       const serviceCardLayout = await defaultServiceCard.evaluate(card => {
         const item = card.closest('.settings-item');
@@ -3464,16 +3681,9 @@ async function main() {
             const rect = section.getBoundingClientRect();
             return rect.left >= -1 && rect.right <= window.innerWidth + 1;
           }),
-        activeNavigationVisible: (() => {
-          const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
-          if (!active) return false;
-          const rect = active.getBoundingClientRect();
-          return rect.left >= -1
-            && rect.right <= window.innerWidth + 1
-            && rect.top >= -1
-            && rect.bottom <= window.innerHeight + 1;
-        })(),
+        activeNavigationVisible: false,
       }));
+      generalMetrics.activeNavigationVisible = await page.evaluate(inspectSettingsNavigationVisibility);
       if (generalMetrics.horizontalOverflow
         || !generalMetrics.sectionWithinViewport
         || !generalMetrics.activeNavigationVisible) {
@@ -3484,7 +3694,7 @@ async function main() {
       report.defaultServiceCard.responsive.push({...viewport, ...serviceCardLayout});
       report.responsive.push({page: 'settings-general', ...viewport, ...generalMetrics});
 
-      await page.locator('button[data-section="settings-translation"]').click();
+      await selectSettingsSection(page, 'settings-translation');
       await page.waitForTimeout(150);
       const translationMetrics = await page.evaluate(expectedGroups => ({
         horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
@@ -3502,16 +3712,9 @@ async function main() {
             return rect.left >= -1 && rect.right <= window.innerWidth + 1;
           }),
         expectedOrder: JSON.stringify(expectedGroups),
-        activeNavigationVisible: (() => {
-          const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
-          if (!active) return false;
-          const rect = active.getBoundingClientRect();
-          return rect.left >= -1
-            && rect.right <= window.innerWidth + 1
-            && rect.top >= -1
-            && rect.bottom <= window.innerHeight + 1;
-        })(),
+        activeNavigationVisible: false,
       }), expectedTranslationGroups);
+      translationMetrics.activeNavigationVisible = await page.evaluate(inspectSettingsNavigationVisibility);
       if (translationMetrics.horizontalOverflow
         || !translationMetrics.groupsWithinViewport
         || !translationMetrics.activeNavigationVisible
@@ -3522,7 +3725,7 @@ async function main() {
       report.screenshots.push(await screenshot(page, translationFile));
       report.responsive.push({page: 'settings-translation', ...viewport, ...translationMetrics});
 
-      await page.locator('button[data-section="settings-interface"]').click();
+      await selectSettingsSection(page, 'settings-interface');
       await page.waitForTimeout(150);
       const loadingStyleMetrics = await page.evaluate(() => {
         const picker = document.querySelector('.loading-style-picker');
@@ -3539,17 +3742,10 @@ async function main() {
           ))),
           optionCount: cards.length,
           columnCount: new Set(cardRects.map(rect => Math.round(rect.left))).size,
-          activeNavigationVisible: (() => {
-            const active = document.querySelector('nav[aria-label="设置分类"] button[aria-current="page"]');
-            if (!active) return false;
-            const rect = active.getBoundingClientRect();
-            return rect.left >= -1
-              && rect.right <= window.innerWidth + 1
-              && rect.top >= -1
-              && rect.bottom <= window.innerHeight + 1;
-          })(),
+          activeNavigationVisible: false,
         };
       });
+      loadingStyleMetrics.activeNavigationVisible = await page.evaluate(inspectSettingsNavigationVisibility);
       if (loadingStyleMetrics.horizontalOverflow
         || !loadingStyleMetrics.pickerWithinViewport
         || !loadingStyleMetrics.cardsWithinPicker
@@ -3562,7 +3758,7 @@ async function main() {
       report.screenshots.push(await screenshot(page, loadingStyleFile));
       report.responsive.push({page: 'settings-interface-loading-styles', ...viewport, ...loadingStyleMetrics});
 
-      await page.locator('button[data-section="settings-model-usage"]').click();
+      await selectSettingsSection(page, 'settings-translation-stats', 'usage');
       await page.waitForTimeout(150);
       const usageMetrics = await page.evaluate(() => {
         const dashboard = document.querySelector('#settings-model-usage');
@@ -3629,6 +3825,7 @@ async function main() {
     if (errors.length) throw new Error(`浏览器控制台存在错误：${errors.join(' | ')}`);
     report.ok = true;
   } catch (error) {
+    hasPrimaryError = true;
     report.failure = error instanceof Error ? {message: error.message, stack: error.stack} : {message: String(error)};
     if (/测试 Edge 进程 \d+ 成为了前台应用/u.test(report.failure.message)) {
       report.focusSafetyFailure = true;
@@ -3637,9 +3834,39 @@ async function main() {
     }
     throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    await launched?.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try {
+        await release();
+      } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error?.stack || error)});
+        report.ok = false;
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => {
+      if (launched) {
+        await launched.close();
+        browserClosed = true;
+      }
+    });
+    await cleanup('profile', () => {
+      if (!profileDir) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          // No browser launch was attempted; only remove an empty initial profile.
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    await cleanup('report', () => {
+      fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
+    });
+    if (cleanupErrors.length && !hasPrimaryError) throw cleanupErrors[0];
   }
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

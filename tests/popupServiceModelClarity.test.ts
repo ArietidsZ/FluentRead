@@ -43,7 +43,7 @@ afterAll(async () => server?.close());
 function mount(savedConfig?: Config) {
   const {document, window} = parseHTML('<html><body><div id="root"></div></body></html>');
   const root = document.getElementById('root')!;
-  let focused: HTMLElement | null = null;
+  let focused: HTMLElement | null = document.body;
   vi.stubGlobal('document', document);
   Object.defineProperty(document, 'activeElement', {get: () => focused});
   const renderer = runtime.createRenderer<any, any>({
@@ -227,6 +227,7 @@ describe('Popup effective model overview', () => {
     config.service = 'custom:private';
     config.model['custom:private'] = 'removed-provider-model';
     config.token['custom:private'] = 'test-only-key';
+    await runtime.nextTick();
     await click('[data-feature-service="default"]');
     expect(find('[data-service-choice="custom:private"]').hasAttribute('disabled')).toBe(false);
     config.customOpenAIProviders = [];

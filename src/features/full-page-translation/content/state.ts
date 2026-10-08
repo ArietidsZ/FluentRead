@@ -1,11 +1,12 @@
 /**
  * @file src/features/full-page-translation/content/state.ts
  * 文件职责：维护每个被翻译 DOM 节点的可恢复状态、请求代次、译文工件和共享布局覆盖所有权，确保重复翻译、宿主变更和移除节点都能安全收敛。
- * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、含固定高度 line-clamp 的共享样式租约、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、按区域枚举译文所有者，以及全量恢复。
+ * 主要内容：包含 WeakMap 状态索引、begin/complete/error/discard 状态机、spinner/译文/retry/仅译文槽节点登记、无主槽原文解包、兼容字体标记与链接提示的译文复验及有界重挂、离线模板仅省略外层属性自比较并保留内容与复制工件复验、已提交译文的前后位置及骨架重放换行快照、含固定高度 line-clamp 的共享样式租约、同批布局与来源保护读数复用及写入失效（释放最后一个旧祖先租约也立即失效）、祖先观察器引用计数、文本槽回写、按钮型 input 标签属性的原值记录与回滚、逐父节点单次读取子列表的移除子树所有者枚举，以及沿用当前 owner 快照并保护各滚动面的全量恢复。
  * 模块边界：该模块不发现候选、不请求翻译也不生成译文 HTML；runtime 负责会话编排，renderer 负责内容创建，本文件仅拥有 DOM 状态与可逆样式资源，避免跨 session 误删新结果。
  */
 import {getTranslatableControlValueAttribute, isTranslationTooltip} from "@/src/core/translation/dom";
 import {clearTranslationFailedHost} from "@/src/features/full-page-translation/core/hostMarkers";
+import {withFullPageRestorationAnchors} from './viewportStability';
 import {
     hasTranslationHeightOverflow,
     isTranslationHeightBoundary,
@@ -13,6 +14,7 @@ import {
 } from "@/src/core/translation/serialization";
 import {
     collectLiveTranslationTextSlots,
+    createTranslationLayoutMeasurements,
     createTranslationTextProtectionCache,
     getComposedParent,
     getCurrentTranslationCore,
@@ -23,6 +25,8 @@ import {
     translationTruncationStyleOverrides,
     type TranslationCandidate,
     type TranslationScope,
+    type TranslationLayoutMeasurements,
+    type TranslationTextProtectionCache,
 } from "@/src/core/translation/public";
 
 /**
@@ -47,6 +51,8 @@ export interface BilingualTranslationReplay {
     translations: readonly string[];
     targetLanguage: string;
     style: number;
+    /** 首次提交已冻结的换行选项，骨架重放不得跟随后改的全局设置。 */
+    longParagraphLineBreak?: boolean;
 }
 
 interface TranslationLayoutPropertySnapshot {
@@ -134,6 +140,8 @@ export interface TranslationState {
     /** 完成前已移除的 spinner，仅用于精确识别随后送达的 MutationRecord。 */
     settledSpinner?: HTMLElement;
     bilingualContent?: HTMLElement;
+    /** 最后一次提交时译文位于来源之前；重挂沿用此快照，不读取后改的全局配置。 */
+    bilingualBeforeSource?: boolean;
     /** 插件首次提交的可信译文模板；宿主改写当前 wrapper 时只从该离线模板重建。 */
     bilingualContentTemplate?: HTMLElement;
     /** 失败态的重试控件；用于区分扩展写入与宿主移除。 */
@@ -164,6 +172,15 @@ const activeRefsByNode = new WeakMap<HTMLElement, WeakRef<HTMLElement>>();
 const ownersByIndexedNode = new WeakMap<Node, Set<WeakRef<HTMLElement>>>();
 const indexedNodesByOwner = new WeakMap<HTMLElement, Set<Node>>();
 const sharedLayoutOverrides = new WeakMap<HTMLElement, SharedTranslationLayoutOverride>();
+// 同步布局批次只在真实样式写入或发现宿主改写后失效；共享租约新增 owner 不改布局。
+let layoutStyleVersion = 0;
+const layoutMeasurementVersions = new WeakMap<TranslationLayoutMeasurements, number>();
+
+function synchronizeTranslationLayoutMeasurements(measurements: TranslationLayoutMeasurements): void {
+    if (layoutMeasurementVersions.get(measurements) === layoutStyleVersion) return;
+    measurements.invalidate();
+    layoutMeasurementVersions.set(measurements, layoutStyleVersion);
+}
 const layoutObserversByRoot = new WeakMap<TranslationLayoutObserverRoot, TranslationLayoutRootObserver>();
 const pendingLayoutRefreshes = new WeakMap<HTMLElement, {removedNodes: Set<Node>}>();
 let bilingualOwnerRemountHandler: ((mutations: readonly MutationRecord[]) => void) | undefined;
@@ -215,7 +232,15 @@ export function setBilingualArtifactCapitulationHandler(
 }
 
 export function setBilingualLifecycleExternalManager(handler: (() => boolean) | undefined): void {
+    const hadManager = bilingualLifecycleExternallyManaged !== undefined;
     bilingualLifecycleExternallyManaged = handler;
+    // 接管期间旧根的 records 不属于独立管理器；明确交还时重登记当前根并释放旧租约。
+    if (hadManager && !handler?.()) {
+        activeNodeRefs.forEach((ref) => {
+            const owner = ref.deref();
+            if (owner) scheduleTranslationLayoutRefresh(owner);
+        });
+    }
 }
 
 export function setBilingualSkeletonRefreshHandler(
@@ -233,6 +258,7 @@ export function getTranslationSourceStructureSignature(
     allowTopLevelApplicationShell = false,
     sourceTextNodes?: readonly Text[],
     scope?: TranslationScope,
+    protectionCache: TranslationTextProtectionCache = createTranslationTextProtectionCache(),
 ): string {
     if ((node as Node).nodeType !== 1 || !node.childNodes) return node.innerHTML;
     const tokens: Array<string | readonly [string, string]> = [];
@@ -247,7 +273,6 @@ export function getTranslationSourceStructureSignature(
         ? {allowTopLevelApplicationShell: true, protectedElement: node}
         : {protectedElement: node};
     const translatableTextNodes = sourceTextNodes ? new WeakSet(sourceTextNodes) : undefined;
-    const protectionCache = createTranslationTextProtectionCache();
     const shouldStayOriginal = getCurrentTranslationCore(scope).shouldStayOriginal;
     const preservesWhitespace = (text: Text): boolean => {
         const parent = text.parentElement;
@@ -391,8 +416,7 @@ function clearOwnershipIndex(owner: HTMLElement): void {
 }
 
 function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): void {
-    clearOwnershipIndex(owner);
-    // 每次状态跃迁都会重建索引；直接写入 Set，不为每类产物先摊出临时数组。
+    // 重建节点集合，但复用仍有效的反向索引桶；每类产物直接写入 Set。
     const indexedNodes = new Set<Node>();
     indexedNodes.add(owner);
     if (state.spinner) indexedNodes.add(state.spinner);
@@ -401,8 +425,15 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
     state.singleTextSlotHosts?.forEach(({host}) => indexedNodes.add(host));
     state.layoutOverrideElements?.forEach((element) => indexedNodes.add(element));
     state.layoutWatchElements?.forEach((element) => indexedNodes.add(element));
-    indexedNodesByOwner.set(owner, indexedNodes);
+    const previousIndexedNodes = indexedNodesByOwner.get(owner);
     const ownerRef = trackActiveNode(owner);
+    previousIndexedNodes?.forEach((indexedNode) => {
+        if (indexedNodes.has(indexedNode)) return;
+        const owners = ownersByIndexedNode.get(indexedNode);
+        owners?.delete(ownerRef);
+        if (owners?.size === 0) ownersByIndexedNode.delete(indexedNode);
+    });
+    indexedNodesByOwner.set(owner, indexedNodes);
 
     indexedNodes.forEach((indexedNode) => {
         let owners = ownersByIndexedNode.get(indexedNode);
@@ -410,6 +441,8 @@ function refreshOwnershipIndex(owner: HTMLElement, state: TranslationState): voi
             owners = new Set<WeakRef<HTMLElement>>();
             ownersByIndexedNode.set(indexedNode, owners);
         }
+        // 保留原来 clear/re-add 的枚举顺序，同时避免单 owner 桶删除后重新分配。
+        owners.delete(ownerRef);
         owners.add(ownerRef);
     });
 }
@@ -601,6 +634,7 @@ export function setBilingualContent(
     if (state) {
         state.bilingualHTML = content.innerHTML;
         state.bilingualOuterHTML = content.outerHTML;
+        state.bilingualBeforeSource = content === node.firstChild;
         state.bilingualContentTemplate = (trustedTemplate ?? content).cloneNode(true) as HTMLElement;
         if (state.syntheticSegment) {
             state.syntheticHost = node.parentElement ?? state.syntheticHost;
@@ -922,6 +956,8 @@ function bilingualContentMatchesSnapshot(artifact: HTMLElement, state: Translati
 function bilingualWrapperAttributesMatch(artifact: HTMLElement, state: TranslationState): boolean {
     const template = state.bilingualContentTemplate;
     if (!template || !artifact.matches(BILINGUAL_ARTIFACT_SELECTOR)) return false;
+    // 模板外层与自身比较恒真；内容快照和复制工件复验仍由原有路径执行。
+    if (artifact === template) return true;
     const templateAttributes = new Map(Array.from(template.attributes, ({name, value}) => [name, value]));
     for (const {name, value} of Array.from(artifact.attributes)) {
         if (name === 'ultimate-bold-correct' && value === '') continue;
@@ -1207,6 +1243,15 @@ function scheduleTranslationLayoutRefresh(owner: HTMLElement, removedNodes: read
         pendingLayoutRefreshes.delete(owner);
         const state = states.get(owner);
         if (!state) return;
+        // 外部管理器拥有来源/工件生命周期；独立状态仍拥有布局租约。resize 可只
+        // 改变媒体查询而不产生 mutation，此时只复核在位的已提交工件，不恢复/中止。
+        if (bilingualLifecycleExternallyManaged?.()) {
+            if (owner.isConnected && state.phase === 'translated' && state.mode === 'bilingual' &&
+                state.kind === 'content' && state.bilingualContent?.parentNode === owner) {
+                ensureTranslationTruncationLayout(owner);
+            }
+            return;
+        }
 
         // 从当前检查点起，在所有 MutationObserver 回调之后执行；这样全文观察器可以先
         // 注销自己的索引，再由独立悬浮翻译释放共享状态。
@@ -1326,10 +1371,12 @@ function createTranslationLayoutRootObserver(root: TranslationLayoutObserverRoot
     });
     // 只在有活动译文时响应真实窗口尺寸变化；不轮询、不观察尺寸写入，避免布局反馈循环。
     const view = document.defaultView;
-    const handleResize = () => owners.forEach((ref) => {
-        const owner = ref.deref();
-        if (owner) scheduleTranslationLayoutRefresh(owner);
-    });
+    const handleResize = () => {
+        owners.forEach((ref) => {
+            const owner = ref.deref();
+            if (owner) scheduleTranslationLayoutRefresh(owner);
+        });
+    };
     view?.addEventListener("resize", handleResize);
     return {observer, owners, releaseResizeListener: () => view?.removeEventListener("resize", handleResize)};
 }
@@ -1364,6 +1411,7 @@ function restoreSharedTranslationLayoutOverride(
     element: HTMLElement,
     override: SharedTranslationLayoutOverride,
 ): void {
+    layoutStyleVersion += 1;
     if (override.canRestoreExactStyleAttribute &&
         element.getAttribute("style") === override.renderedStyleAttribute) {
         if (override.originalStyleAttribute === null) element.removeAttribute("style");
@@ -1477,7 +1525,8 @@ function releaseTranslationLayoutOverride(
             override.owners.delete(ref);
         }
     }
-    if (override?.owners.size === 0) restoreSharedTranslationLayoutOverride(element, override);
+    const restored = override?.owners.size === 0;
+    if (restored) restoreSharedTranslationLayoutOverride(element, override!);
     state.layoutOverrideElements?.delete(element);
 }
 
@@ -1500,11 +1549,13 @@ export function acquireTranslationLayoutOverride(
         // 保留首个所有者的快照，不能把扩展已写入的样式重新当成宿主原样式。
         if (element.getAttribute("style") !== existing.renderedStyleAttribute) {
             existing.canRestoreExactStyleAttribute = false;
+            layoutStyleVersion += 1;
         }
         overrides.filter(({property}) => !existing.properties.some((item) => item.property === property))
             .forEach(({property, value, priority}) => {
                 const originalValue = getStylePropertyValue(element.style, property);
                 const originalPriority = getStylePropertyPriority(element.style, property);
+                layoutStyleVersion += 1;
                 element.style.setProperty(property, value, priority);
                 existing.properties.push({
                     property, overrideValue: value, overridePriority: priority, originalValue, originalPriority,
@@ -1523,6 +1574,7 @@ export function acquireTranslationLayoutOverride(
     const properties = overrides.map(({property, value, priority}) => {
         const originalValue = getStylePropertyValue(element.style, property);
         const originalPriority = getStylePropertyPriority(element.style, property);
+        layoutStyleVersion += 1;
         element.style.setProperty(property, value, priority);
         return {
             property,
@@ -1565,6 +1617,7 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
 
         if (element.getAttribute("style") !== override.renderedStyleAttribute) {
             override.canRestoreExactStyleAttribute = false;
+            layoutStyleVersion += 1;
         }
         override.properties.forEach((property) => {
             const currentValue = getStylePropertyValue(element.style, property.property);
@@ -1572,6 +1625,7 @@ export function reconcileTranslationLayoutOverrides(owner: HTMLElement): boolean
             if (currentValue === property.appliedValue && currentPriority === property.appliedPriority) return;
             property.originalValue = currentValue;
             property.originalPriority = currentPriority;
+            layoutStyleVersion += 1;
             element.style.setProperty(
                 property.property,
                 property.overrideValue,
@@ -1590,6 +1644,7 @@ function releaseTranslationHeightOverride(element: HTMLElement): void {
     const override = sharedLayoutOverrides.get(element);
     const property = override?.properties.find((item) => item.property === "height");
     if (!override || !property) return;
+    layoutStyleVersion += 1;
     if (element.getAttribute("style") !== override.renderedStyleAttribute) {
         override.canRestoreExactStyleAttribute = false;
     }
@@ -1613,9 +1668,13 @@ function releaseTranslationHeightOverride(element: HTMLElement): void {
 }
 
 /** 从内向外解除实际截断及高度溢出，保留滚动/定位边界，并释放重挂后过期的租约。 */
-export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
+export function ensureTranslationTruncationLayout(
+    owner: HTMLElement,
+    measurements: TranslationLayoutMeasurements = createTranslationLayoutMeasurements(),
+): boolean {
     const state = states.get(owner);
     if (!state || !owner.isConnected) return false;
+    synchronizeTranslationLayoutMeasurements(measurements);
 
     const ancestors = translationLayoutAncestorChain(owner);
     const watchElements = new Set(ancestors);
@@ -1629,31 +1688,50 @@ export function ensureTranslationTruncationLayout(owner: HTMLElement): boolean {
     }
     // 先吸收宿主对已租用属性的改写；新增属性不能掩盖这些新的恢复基线。
     if (!reconcileTranslationLayoutOverrides(owner)) return false;
+    synchronizeTranslationLayoutMeasurements(measurements);
     const hasBilingualContent = state.mode === "bilingual" && state.kind === "content" &&
         Boolean(owner.querySelector(BILINGUAL_ARTIFACT_SELECTOR));
     let heightBoundary = !hasBilingualContent;
     let branch = owner;
     for (const element of chain) {
-        const elementIsBoundary = isTranslationHeightBoundary(element);
-        if (elementIsBoundary) releaseTranslationHeightOverride(element);
-        const truncation = hasActiveTranslationTruncation(element);
-        if (sharedLayoutOverrides.has(element) || truncation) {
+        // 接管可能清理断开的最后旧租户并恢复裁剪；必须先收敛租约，再读取当前布局。
+        if (sharedLayoutOverrides.has(element)) {
+            acquireTranslationLayoutOverride(owner, element, []);
+            synchronizeTranslationLayoutMeasurements(measurements);
+        }
+        const elementIsBoundary = isTranslationHeightBoundary(element, measurements);
+        if (elementIsBoundary) {
+            releaseTranslationHeightOverride(element);
+            synchronizeTranslationLayoutMeasurements(measurements);
+        }
+        const truncation = hasActiveTranslationTruncation(element, measurements);
+        if (truncation) {
             // 有些站点把 line-clamp 与固定 height、overflow:hidden 同时设在译文 owner 上。
             // 只解除行数限制仍会把中文裁在盒子外；此处一并恢复自然高度，并由租约负责还原。
-            const overrides = !truncation ? [] : hasActiveTranslationLineClamp(element)
+            const overrides = hasActiveTranslationLineClamp(element, measurements)
                 ? [...translationTruncationStyleOverrides, ...translationHeightStyleOverrides]
                 : translationTruncationStyleOverrides;
             acquireTranslationLayoutOverride(owner, element, overrides);
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         heightBoundary ||= elementIsBoundary;
         // 必须在解除当前内层 clamp 后读外层几何；先收集全部祖先会读到尚未展开的旧高度。
-        if (!heightBoundary && hasTranslationHeightOverflow(element, branch)) {
+        if (!heightBoundary && hasTranslationHeightOverflow(element, branch, measurements)) {
             acquireTranslationLayoutOverride(owner, element, translationHeightStyleOverrides);
+            synchronizeTranslationLayoutMeasurements(measurements);
         }
         branch = element;
     }
     refreshOwnershipIndex(owner, state);
-    return reconcileTranslationLayoutOverrides(owner);
+    const reconciled = reconcileTranslationLayoutOverrides(owner);
+    synchronizeTranslationLayoutMeasurements(measurements);
+    return reconciled;
+}
+
+/** 同一同步挂载批次共享祖先读数；每次布局写入立即失效，不跨任务复用。 */
+export function createTranslationTruncationLayoutBatch(): (owner: HTMLElement) => boolean {
+    const measurements = createTranslationLayoutMeasurements();
+    return (owner) => ensureTranslationTruncationLayout(owner, measurements);
 }
 
 function releaseTranslationLayoutOverrides(owner: HTMLElement, state: TranslationState): void {
@@ -1686,7 +1764,9 @@ function unwrapSyntheticSegment(node: HTMLElement, state: TranslationState): voi
 
 function restoreOriginalStyle(node: HTMLElement, state: TranslationState): void {
     if (state.renderedStyleAttribute === undefined) return;
-    if (node.getAttribute("style") !== state.renderedStyleAttribute) return;
+    if (node.getAttribute("style") !== state.renderedStyleAttribute ||
+        state.originalStyleAttribute === state.renderedStyleAttribute) return;
+    layoutStyleVersion += 1;
 
     if (state.originalStyleAttribute === null) {
         node.removeAttribute("style");
@@ -1875,8 +1955,9 @@ export function getTranslationOwnersForRemovedNode(removed: Node): HTMLElement[]
             if (shadowRoot) stack.push(shadowRoot);
         }
 
-        for (let index = current.childNodes.length - 1; index >= 0; index -= 1) {
-            const child = current.childNodes.item(index);
+        const children = current.childNodes;
+        for (let index = children.length - 1; index >= 0; index -= 1) {
+            const child = children.item(index);
             if (child) stack.push(child);
         }
     }
@@ -1953,5 +2034,5 @@ export function getOwnedTranslationCandidateAtPoint(
 export function restoreAllTranslations(): void {
     const nodes: HTMLElement[] = [];
     forEachActiveNode((node) => nodes.push(node));
-    nodes.forEach((node) => restoreTranslation(node));
+    withFullPageRestorationAnchors(() => nodes.forEach((node) => restoreTranslation(node)), nodes);
 }

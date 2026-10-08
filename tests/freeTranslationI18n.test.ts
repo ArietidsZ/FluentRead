@@ -8,7 +8,7 @@ import {options} from '@/src/core/config/catalog';
 registerAllUiLanguageBundles();
 
 const languages: UiLanguage[] = ['en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'ru-RU', 'es-ES'];
-const sources = ['自动均衡', '自动分配', '实验候选', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。', '搜狗翻译', '实验性网页接口，可能触发访问验证', '官方网页接口，无需密钥', '阿里翻译'];
+const sources = ['B站翻译', '官方免费文本 API，Index-Translate-35B-A3B，无需密钥', '自动均衡', '自动分配', '实验候选', '网络问题通常几分钟后重试；限流按服务提示恢复；拦截可能需要几小时；日额度通常隔天恢复。', '搜狗翻译', '实验性网页接口，可能触发访问验证', '官方网页接口，无需密钥', '阿里翻译'];
 
 describe('free translation legacy text localization', () => {
   it('localizes the free unofficial badge independently from the DeepLX name', () => {

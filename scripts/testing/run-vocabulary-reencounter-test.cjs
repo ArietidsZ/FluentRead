@@ -6,10 +6,20 @@ const path = require('node:path');
 const os = require('node:os');
 const http = require('node:http');
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const arg = (name, fallback) => {const i = process.argv.indexOf(`--${name}`); return i < 0 ? fallback : process.argv[i + 1];};
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifacts = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-vocabulary-reencounter'));
 const packages = arg('playwright-root'); const helperPath = arg('focus-safe-helper');
+const readingStress = process.argv.includes('--reading-stress');
+const readingBaseline = process.argv.includes('--reading-baseline');
+const readingPerformance = process.argv.includes('--reading-performance');
+const studyContext = process.argv.includes('--study-context');
+const studyContextBaseline = process.argv.includes('--study-context-baseline');
+const bookActions = process.argv.includes('--book-actions');
+const bookActionsBaseline = process.argv.includes('--book-actions-baseline');
+const largeImport = process.argv.includes('--large-import');
+const largeImportBaseline = process.argv.includes('--large-import-baseline');
 if (!packages || !helperPath) throw new Error('Provide --playwright-root and --focus-safe-helper');
 const {chromium} = require(path.join(path.resolve(packages), 'playwright'));
 const helper = require(path.resolve(helperPath));
@@ -23,19 +33,28 @@ async function read(page) {
 }
 async function persist(page, patch) {
   const current = await read(page);
-  const result = await send(page, {type: 'persistConfig', config: {...current, ...patch}, clientId: `reencounter-${process.pid}`, sequence: Date.now(), baseRevision: current.__fluentConfigRevision});
+  const initialCredentials = Object.hasOwn(patch, 'token');
+  if (initialCredentials) assert.equal(current.customOpenAIProviders?.length, 0, 'Synthetic credentials require an empty temporary profile');
+  const expected = Object.fromEntries(Object.keys(patch).map(key => [key, current[key]]));
+  const result = await send(page, {type: 'persistConfig', mode: initialCredentials ? 'replace' : 'patch',
+    config: initialCredentials ? {...current, ...patch} : patch, expected,
+    clientId: `reencounter-${process.pid}`, sequence: Date.now(), baseRevision: initialCredentials ? current.__fluentConfigRevision : undefined});
   assert.equal(result.success, true, result.error); await wait(300);
 }
 async function until(check, message) {for (let i = 0; i < 180; i++) {if (await check()) return; await wait(80);} throw new Error(message);}
 async function main() {
   fs.mkdirSync(artifacts, {recursive: true});
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-reencounter-edge-'));
+  let profile; let launchAttempted = false;
   const requests = [];
   let slow = false; let fail = false;
   const server = http.createServer(async (req, res) => {
     if (req.method === 'POST') {
       const chunks = []; for await (const chunk of req) chunks.push(chunk);
-      const body = JSON.parse(Buffer.concat(chunks).toString()); requests.push(body);
+      let body;
+      try {body = JSON.parse(Buffer.concat(chunks).toString());}
+      catch {res.writeHead(400, {'content-type': 'application/json'}); res.end(JSON.stringify({error: {message: 'Invalid synthetic fixture JSON'}})); return;}
+      if (body === null || (body.stream && body.tools?.length && (!Array.isArray(body.messages) || body.messages.some(message => message === null)))) {res.writeHead(400, {'content-type': 'application/json'}); res.end(JSON.stringify({error: {message: 'Invalid synthetic fixture request'}})); return;}
+      requests.push(body);
       if (fail) {fail = false; res.writeHead(401, {'content-type': 'application/json'}).end(JSON.stringify({error: {message: 'fixture failure'}})); return;}
       if (!body.stream) {res.writeHead(200, {'content-type': 'application/json'}).end(JSON.stringify({id:'translation-fixture', choices:[{index:0,message:{role:'assistant',content:'测试译文 bank'},finish_reason:'stop'}]}));return;}
       res.writeHead(200, {'content-type': 'text/event-stream', 'cache-control': 'no-cache'});
@@ -55,11 +74,28 @@ async function main() {
     res.writeHead(200, {'content-type': 'text/html; charset=utf-8'});
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Saved expressions in a new reading</title><style>body{margin:0;padding:42px 7vw;background:white;color:#283042;font:20px/1.9 system-ui}main{max-width:960px}p{margin:24px 0}a{color:#506bc0}#far{margin-top:2200px}textarea{width:300px}</style></head><body><main><h1 translate="no">A new reading context</h1><p id="river">We rested on the river bank after our walk.</p><p id="phrase">We should not <em>take for</em> granted the help we receive.</p><p id="substring">The article discusses banking, bankruptcy, and banknotes.</p><p id="links"><a href="#target">bank</a> <button>bank</button></p><p hidden>bank</p><p translate="no">bank</p><pre>bank</pre><div contenteditable>bank</div><textarea>bank</textarea><p id="dynamic">A quiet afternoon.</p><div id="shadow-host"></div><div id="later-shadow"></div><p id="far">The river bank is quiet here too.</p><p id="target">The end.</p></main><script>document.getElementById('shadow-host').attachShadow({mode:'open'}).innerHTML='<p>The bank of a river is land beside it.</p>';document.getElementById('river').addEventListener('click',()=>window.hostClicks=(window.hostClicks||0)+1);</script></body></html>`);
   });
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const url = `http://127.0.0.1:${server.address().port}`;
-  const report = {ok: false, cases: [], screenshots: [], consoleErrors: [], evidenceBoundary: 'Production extension and real Edge with local HTML and synthetic model responses; no live model or Firefox runtime quality claim.'};
+  const report = {ok: false, readingStress, readingBaseline, readingPerformance, studyContext, studyContextBaseline, bookActions, bookActionsBaseline, largeImport, largeImportBaseline, cases: [], screenshots: [], consoleErrors: [],
+    evidenceBoundary: 'Production extension and real Edge with local HTML and synthetic model responses; optional verified isolated-world reading counters are work evidence, not timing. No live model or Firefox runtime quality claim.'};
   let session; let page;
   try {
+    profile = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-reencounter-edge-'));
+    await new Promise((resolve, reject) => {
+    const onError = error => {server.off('listening', onListening); reject(error);};
+    const onListening = () => {server.off('error', onError); resolve();};
+    server.once('error', onError); server.once('listening', onListening); server.listen(0, '127.0.0.1');
+  });
+    const url = `http://127.0.0.1:${server.address().port}`;
+    report.buildSha256 = crypto.createHash('sha256').update(fs.readFileSync(path.join(extensionDir, 'content-scripts/content.js'))).digest('hex');
+  const javascriptFiles = [];
+  const collectJavaScript = directory => {for (const item of fs.readdirSync(directory,{withFileTypes:true})) {
+    const file = path.join(directory,item.name); if(item.isDirectory()) collectJavaScript(file);
+    else if(file.endsWith('.js')) javascriptFiles.push(file);
+  }};
+  collectJavaScript(extensionDir);
+  const assetHash = crypto.createHash('sha256');
+  for (const file of javascriptFiles.sort()) assetHash.update(path.relative(extensionDir,file)).update('\0').update(fs.readFileSync(file));
+  report.javascriptAssetsSha256 = assetHash.digest('hex');
+    launchAttempted = true;
     session = await helper.launchFocusSafePersistentContext({chromium, profileDir: profile, browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge', background: true, headless: false,
       browserArgs: [`--disable-extensions-except=${extensionDir}`, `--load-extension=${extensionDir}`, '--no-first-run', '--no-default-browser-check'], viewport: {width: 1440, height: 1000}});
     Object.assign(report, {launchMode: session.launchMode, focusPolicy: session.focusPolicy, windowPlacement: session.windowPlacement});
@@ -170,9 +206,274 @@ async function main() {
     await ui.locator('.reencounter-entry').click(); await ui.getByText('标记选项',{exact:true}).click(); await ui.getByRole('button',{name:'关闭所有网页标记',exact:true}).click();
     await until(async()=>(await read(options)).vocabularyReencounterEnabled===false,'Permanent disable not saved'); await until(async()=>await ui.count()===0,'Permanent disable left UI'); assert.deepEqual(await marks(),[]);
     await page.reload(); await wait(400); assert.deepEqual(await marks(),[]); assert.equal(await ui.count(),0); record('permanent-disable-persists-across-reload');
+    if (studyContext) {
+      // 仅清理本次临时 profile 的合成词条；通过实际收藏、学习及复习 UI 验证持久化链路。
+      for (const entry of (await snapshot()).data) assert.equal((await send(options, {type:'fluentReadVocabularyBook', action:'remove', entryId:entry.id})).success, true);
+      const saved = await send(options, {type:'fluentReadVocabularyBook', action:'upsert', input:{term:'学习', translation:'study', sourceLanguage:'zh-CN', targetLanguage:'en', kind:'expression', context:{text:'我每天学习中文。', pageTitle:'Synthetic Chinese reading', sourceUrl:`${url}/synthetic-study`}}});
+      assert.equal(saved.success, true);
+      const stored = await snapshot(); const requestCount = requests.length;
+      await options.reload(); await options.locator('.vocabulary-book').waitFor();
+      await options.locator('.entry-open').filter({hasText:'学习'}).click();
+      await options.locator('.word-study').waitFor();
+      const displayedContext = await options.locator('.study-source blockquote').allTextContents();
+      if (studyContextBaseline) {assert.deepEqual(displayedContext, []); assert((await options.locator('.study-source').innerText()).includes('没有可用的原句'));}
+      else assert.deepEqual(displayedContext, ['我每天学习中文。']);
+      const studyShot = path.join(artifacts, 'chinese-study-context.png'); await options.screenshot({path:studyShot}); report.screenshots.push(studyShot);
+      await options.locator('.study-header button').click(); await options.locator('.start-review').click();
+      await options.locator('.review-card').waitFor();
+      const displayedCloze = await options.locator('.cloze-context').allTextContents();
+      if (studyContextBaseline) {assert.deepEqual(displayedCloze, []); assert.equal(await options.locator('.review-prompt h3').innerText(), '学习');}
+      else assert.deepEqual(displayedCloze, ['我每天____中文。']);
+      const reviewShot = path.join(artifacts, 'chinese-review-cloze.png'); await options.screenshot({path:reviewShot}); report.screenshots.push(reviewShot);
+      await options.locator('.reveal-button').click(); await options.locator('.review-answer').waitFor();
+      assert.equal(await options.locator('.answer-context').innerText(), '我每天学习中文。');
+      await options.locator('.review-header button').click();
+      assert.deepEqual(await snapshot(), stored); assert.equal(requests.length, requestCount);
+      report.studyContextResult = {displayedContext, displayedCloze, storedDataPreserved:true, additionalModelRequests:0,
+        evidence:'Actual production upsert, persistent store, options study and review UI; no review rating or automatic model request.'};
+      report.cases.push({id:'continuous-chinese-saved-study-and-review-context', status:studyContextBaseline ? 'reproduced' : 'passed'});
+    }
+    if (largeImport) {
+      const stored = await snapshot(); assert.equal(stored.data.length,1); const requestCount=requests.length;
+      const exported = await send(options,{type:'fluentReadVocabularyBook',action:'exportData',options:{includePrivateContext:true}});
+      assert.equal(exported.success,true); const fixture=exported.data;
+      const baseTime=fixture.entries[0].updatedAt;
+      fixture.entries[0].contexts=Array.from({length:150_000},(_,i)=>({text:`Synthetic import context ${i}.`,capturedAt:baseTime+i+1,
+        ...(i>=149_992 ? {sourceUrl:`https://synthetic-import.invalid/${i}`} : {})}));
+      const bytes=Buffer.from(JSON.stringify(fixture)); assert(bytes.length<20*1024*1024);
+      // 使用真实文件输入的 change 路径；只导入本次临时 profile 的合成数据。
+      await options.locator('input[aria-label="导入收藏文件"]').setInputFiles({name:'synthetic-large-collection.json',mimeType:'application/json',buffer:bytes});
+      if (largeImportBaseline) {
+        await until(async()=> (await options.locator('.book-toast').innerText()).includes('Maximum call stack size'),'Old large import did not reproduce stack overflow');
+        assert.deepEqual(await snapshot(),stored);
+      } else {
+        await until(async()=> (await snapshot()).data[0]?.contexts.at(-1)?.capturedAt===baseTime+150_000,'Large import did not persist newest context');
+        const entry=(await snapshot()).data[0];
+        assert.equal(entry.contexts.length,8); assert.equal(entry.updatedAt,baseTime+150_000);
+        assert.deepEqual(entry.contexts.map(context=>context.text),Array.from({length:8},(_,i)=>`Synthetic import context ${149_992+i}.`));
+        assert.deepEqual(entry.translations,stored.data[0].translations); assert.equal(entry.reviewCount,stored.data[0].reviewCount);
+      }
+      const more=options.locator('.book-more > summary'); await more.click();
+      await until(async()=>!await options.getByRole('button',{name:'导出到 Anki',exact:true}).isDisabled(),'Large import did not release management actions');
+      await more.click(); assert.equal(requests.length,requestCount);
+      report.largeImportResult={fileBytes:bytes.length,rawContexts:150_000,retainedContexts:largeImportBaseline ? null:8,
+        stackOverflowReproduced:largeImportBaseline,priorDataPreservedOnFailure:largeImportBaseline,modelRequests:0,
+        evidence:'Production options file input change, actual import IPC and persistent store. Below20MiB warning threshold; no timing assertion.'};
+      report.cases.push({id:'large-collection-file-import-and-management-recovery',status:largeImportBaseline?'reproduced':'passed'});
+    }
+    if (bookActions) {
+      // 延迟真实 IPC 响应，保留后台正常完成；不把测试插桩当作性能测量。
+      const stored = await snapshot(); const requestCount = requests.length; const downloads = [];
+      options.on('download', download => downloads.push(download));
+      options.on('pageerror', error => report.consoleErrors.push(error.message));
+      const more = options.locator('.book-more > summary');
+      const openMore = async () => {if (!await options.locator('.book-more').evaluate(element => element.open)) await more.click();};
+      const dialog = options.locator('.el-message-box');
+      await options.evaluate(() => {
+        const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+        window.bookOriginalSend = original; window.holdBookExport = true;
+        chrome.runtime.sendMessage = function (...args) {
+          const message = args[0];
+          if (!window.holdBookExport || message?.type !== 'fluentReadVocabularyBook' || message.action !== 'exportData') return original(...args);
+          const callback = args.at(-1);
+          if (typeof callback === 'function') return original(...args.slice(0,-1), response => {
+            window.heldBookExport = {response, options:message.options, deliver:() => callback(response)};
+          });
+          return original(...args).then(response => new Promise(resolve => {
+            window.heldBookExport = {response, options:message.options, deliver:() => resolve(response)};
+          }));
+        };
+      });
+      await openMore(); await options.getByRole('button',{name:'导出到 Anki',exact:true}).click();
+      const busyDuringConfirmation = await options.getByRole('button',{name:'导出到 Anki',exact:true}).isDisabled();
+      assert.equal(busyDuringConfirmation,!bookActionsBaseline);
+      report.cases.push({id:'anki-reserves-management-action-during-confirmation',status:bookActionsBaseline ? 'reproduced' : 'passed'});
+      await dialog.getByRole('button',{name:'不包含',exact:true}).click();
+      await until(() => options.evaluate(() => Boolean(window.heldBookExport)), 'Real Anki response was not held');
+      const heldResponse = await options.evaluate(() => ({success:window.heldBookExport.response.success, options:window.heldBookExport.options}));
+      assert.equal(heldResponse.success,true); assert.deepEqual(heldResponse.options,{includePrivateContext:false});
+      await options.getByRole('radio',{name:'阅读记录',exact:true}).click();
+      await options.locator('.vocabulary-book').waitFor({state:'detached'});
+      await options.evaluate(() => {window.holdBookExport=false;window.heldBookExport.deliver();}); await wait(700);
+      assert.equal(downloads.length,bookActionsBaseline ? 1 : 0);
+      record('learning-tab-unmounts-collection-before-real-export-response');
+      report.cases.push({id:'closed-book-rejects-late-anki-download',status:bookActionsBaseline ? 'reproduced' : 'passed'});
+      report.bookActionResult = {lateDownloads:downloads.length, busyDuringConfirmation, backendExportSucceeded:true, actualBookUnmounted:true,
+        evidence:'Native buttons and learning-center tab, real export IPC held until after unmount; callback/Promise delivery instrumentation, not timing.'};
+      await options.getByRole('radio',{name:'收藏',exact:true}).click(); await options.locator('.vocabulary-book').waitFor();
+      await until(async () => await options.locator('.entry-open').count() === stored.data.length,'Remounted collection did not reload');
+      for (const includePrivateContext of [false,true]) {
+        const previousDownloads = downloads.length;
+        await openMore(); await options.getByRole('button',{name:'导出到 Anki',exact:true}).click();
+        await dialog.getByRole('button',{name:includePrivateContext ? '包含上下文' : '不包含',exact:true}).click();
+        await until(() => downloads.length === previousDownloads+1, 'Normal Anki export did not download');
+        const downloadedPath = await downloads.at(-1).path(); const body = fs.readFileSync(downloadedPath,'utf8');
+        assert(body.includes('Term\tMeaning\tExplanation\tContext\tSource\tTags'));
+        for (const entry of stored.data) {
+          assert(body.includes(entry.term));
+          const source = entry.contexts.at(-1); if (source?.sourceUrl) assert.equal(body.includes(source.sourceUrl),includePrivateContext);
+        }
+      }
+      assert.deepEqual(await snapshot(),stored); assert.equal(requests.length,requestCount);
+      record('remounted-anki-both-privacy-choices-and-persistent-data-preserved');
+      await openMore(); await options.getByRole('button',{name:'清空单词本',exact:true}).click();
+      await dialog.getByRole('button',{name:'取消',exact:true}).click();
+      assert.deepEqual(await snapshot(),stored);
+      await openMore(); await options.getByRole('button',{name:'清空单词本',exact:true}).click();
+      await dialog.getByRole('button',{name:'确认清空',exact:true}).click();
+      await until(async () => (await snapshot()).data.length===0,'Confirmed clear did not persist');
+      await until(async () => await options.locator('.entry-open').count()===0,'Confirmed clear did not refresh collection');
+      await dialog.waitFor({state:'hidden'});
+      await openMore(); assert(await options.getByRole('button',{name:'清空单词本',exact:true}).isDisabled());
+      await more.click(); assert.equal(await options.locator('.book-more').evaluate(element=>element.open),false);
+      assert.equal(requests.length,requestCount); record('cancel-then-confirm-clear-on-temporary-collection');
+      const file = path.join(artifacts,'book-after-confirmed-clear.png'); await options.screenshot({path:file}); report.screenshots.push(file);
+      await options.evaluate(() => {chrome.runtime.sendMessage=window.bookOriginalSend;delete window.bookOriginalSend;delete window.heldBookExport;delete window.holdBookExport;});
+    }
+    if (readingPerformance) {
+      for (const entry of (await snapshot()).data) assert.equal((await send(options, {type:'fluentReadVocabularyBook', action:'remove', entryId:entry.id})).success, true);
+      const saved = await send(options, {type:'fluentReadVocabularyBook', action:'upsert', input:{term:'bank', translation:'合成河岸', sourceLanguage:'en', targetLanguage:'zh-CN'}});
+      assert.equal(saved.success, true);
+      await page.evaluate(() => {
+        const root = document.createElement('section'); root.id = 'reading-performance';
+        const wide = document.createElement('div'); wide.innerHTML = '<span></span>'.repeat(30_000); root.append(wide);
+        const paragraph = document.createElement('p'); paragraph.textContent = 'bank '.repeat(20_000); root.append(paragraph);
+        document.querySelector('main').replaceChildren(root);
+        window.performanceSource = paragraph.firstChild; window.performanceMarkup = root.innerHTML;
+      });
+      await wait(800); await page.evaluate(() => document.querySelector('#reading-performance').getBoundingClientRect());
+      const samples = []; const requestsBefore = requests.length; const bookBefore = await snapshot();
+      for (let run = 0; run < 3; run++) {
+        await page.evaluate(() => {
+          const start = performance.now(); let last = start;
+          const state = window.readingPerformance = {start, heartbeats:[], frames:[], longTasks:[], paintAt:null};
+          state.interval = setInterval(() => {const now = performance.now(); state.heartbeats.push(now - last); last = now;}, 10);
+          state.observer = new PerformanceObserver(list => {for (const task of list.getEntries()) state.longTasks.push({start:task.startTime - start, duration:task.duration});});
+          state.observer.observe({type:'longtask'});
+          const frame = () => {
+            const now = performance.now(); state.frames.push(now - start);
+            if (CSS.highlights.get('fluentread-vocabulary-reencounter')?.size === 300) {state.paintAt = now - start; return;}
+            state.raf = requestAnimationFrame(frame);
+          };
+          state.raf = requestAnimationFrame(frame);
+        });
+        await persist(options, {vocabularyReencounterEnabled:true});
+        await until(async()=>await page.evaluate(()=>window.readingPerformance.paintAt!==null), 'Large nonempty reading never finished painting');
+        await wait(100);
+        samples.push(await page.evaluate(() => {
+          const state = window.readingPerformance; clearInterval(state.interval); cancelAnimationFrame(state.raf);
+          state.longTasks.push(...state.observer.takeRecords().map(task=>({start:task.startTime-state.start,duration:task.duration}))); state.observer.disconnect();
+          const root = document.querySelector('#reading-performance'); const paint = CSS.highlights.get('fluentread-vocabulary-reencounter');
+          return {paintAtMs:state.paintAt, heartbeatSamples:state.heartbeats, maxHeartbeatGapMs:Math.max(...state.heartbeats),
+            hostFramesBeforePaint:state.frames.length, longTasks:state.longTasks, paintedRanges:paint.size,
+            documentDrawingStyles:document.querySelectorAll('[data-fr-reencounter-style]').length,
+            commonDrawingRulePresent:document.getElementById('fluent-read-page-styles').textContent.includes('::highlight(fluentread-vocabulary-reencounter)'),
+            allPaintedOriginal: [...paint].every(range=>range.startContainer === window.performanceSource && range.toString()==='bank'),
+            sourcePreserved:root.innerHTML === window.performanceMarkup && root.querySelector('p').firstChild===window.performanceSource};
+        }));
+        assert.equal(samples.at(-1).paintedRanges, 300); assert(samples.at(-1).allPaintedOriginal); assert(samples.at(-1).sourcePreserved);
+        assert.equal(samples.at(-1).documentDrawingStyles, samples.at(-1).commonDrawingRulePresent ? 0 : 1);
+        if (run === 0) await shot('large-nonempty-reading');
+        await persist(options, {vocabularyReencounterEnabled:false}); await until(async()=>await ui.count()===0, 'Performance toggle left UI');
+        assert.deepEqual(await marks(), []); await wait(300);
+      }
+      assert.deepEqual(await snapshot(), bookBefore); assert.equal(requests.length, requestsBefore);
+      report.readingPerformanceSamples = {shallowEmptyElements:30_000, sourceCharacters:100_000, repeatedExpressions:20_000, samples,
+        evidence:'Uninstrumented production reading; only host heartbeat, rAF and PerformanceObserver. Enable-to-paint includes config delivery and 180ms debounce. Sequential run after this audit build/test jobs ended; no machine-wide idle or hard latency claim.'};
+      record('large-nonempty-reading-host-response-and-source-preservation');
+      await page.evaluate(() => document.querySelector('#reading-performance').remove());
+    }
+    if (readingStress) {
+      // 在完整阅读/学习链路之后，只操作本次临时 profile 中的合成收藏。
+      for (const entry of (await snapshot()).data) assert.equal((await send(options, {type:'fluentReadVocabularyBook', action:'remove', entryId:entry.id})).success, true);
+      await page.evaluate(() => {
+        const root = document.createElement('div'); root.id = 'reading-stress';
+        const direct = document.createElement('p'); direct.textContent = 'A quiet river bank.'; root.append(direct);
+        window.stressNativeText = direct.firstChild;
+        const deep = document.createElement('span'); let leaf = deep;
+        for (let i = 0; i < 1500; i++) {const child = document.createElement('span'); leaf.append(child); leaf = child;}
+        leaf.textContent = ' Another river bank.'; direct.append(deep);
+        for (let i = 0; i < 2500; i++) root.append(document.createElement('span'));
+        const host = document.createElement('div'); root.append(host);
+        const shadow = host.attachShadow({mode:'open'}); shadow.append(document.createTextNode('A river bank in a shadow.'));
+        for (let i = 0; i < 800; i++) shadow.append(document.createElement('span'));
+        document.querySelector('main').prepend(root); window.stressMarkup = root.innerHTML;
+      });
+      const cdp = await context.newCDPSession(page); const worlds = [];
+      cdp.on('Runtime.executionContextCreated', event => worlds.push(event.context.id)); await cdp.send('Runtime.enable');
+      let isolated;
+      for (const contextId of worlds) {
+        const result = await cdp.send('Runtime.evaluate', {contextId, returnByValue:true, expression:'typeof chrome !== "undefined" && chrome.runtime?.id'});
+        if (result.result?.value === new URL(origin).host) {isolated = contextId; break;}
+      }
+      assert(isolated, 'Reading counters require the verified extension isolated world');
+      try {
+        const installed = await cdp.send('Runtime.evaluate', {contextId:isolated, returnByValue:true, expression:'(' + function () {
+          globalThis.__frReadingWork = {style:0, box:0};
+          const belongs = element => element.closest('#reading-stress') || element.getRootNode().host?.closest('#reading-stress');
+          const style = window.getComputedStyle; const box = Element.prototype.getBoundingClientRect;
+          window.getComputedStyle = function (element, ...args) {if (belongs(element)) globalThis.__frReadingWork.style++; return style.call(this, element, ...args);};
+          Element.prototype.getBoundingClientRect = function (...args) {if (belongs(this)) globalThis.__frReadingWork.box++; return box.apply(this, args);};
+          return true;
+        }.toString() + ')()'}); assert.equal(installed.result?.value, true);
+        const work = async () => (await cdp.send('Runtime.evaluate', {contextId:isolated, returnByValue:true, expression:'globalThis.__frReadingWork'})).result.value;
+        const reset = () => cdp.send('Runtime.evaluate', {contextId:isolated, expression:'globalThis.__frReadingWork = {style:0, box:0}'});
+        await persist(options, {vocabularyReencounterEnabled:true}); await wait(600);
+        const emptyInitial = await work(); assert.deepEqual(await marks(), []);
+        await reset(); await page.evaluate(() => document.querySelector('#reading-stress').append(document.createElement('span'))); await wait(500);
+        const emptyMutation = await work(); assert.deepEqual(await marks(), []);
+        for (const count of [emptyInitial, emptyMutation]) {
+          if (readingBaseline) assert(count.style > 4800, 'Baseline must actually traverse empty-book reading');
+          else assert.deepEqual(count, {style:0, box:0});
+        }
+        await reset();
+        const saved = await send(options, {type:'fluentReadVocabularyBook', action:'upsert', input:{term:'bank', translation:'合成河岸', sourceLanguage:'en', targetLanguage:'zh-CN'}});
+        assert.equal(saved.success, true); await until(async()=>(await marks()).includes('bank'), 'Later nonempty book must restore marking');
+        const nonempty = await work(); assert(nonempty.style > 4800, 'Counter must reach actual production reading after entries arrive');
+        assert(await page.evaluate(() => {
+          const root = document.querySelector('#reading-stress'); const shadow = root.querySelector('div').shadowRoot;
+          return root.innerHTML === window.stressMarkup + '<span></span>' && window.stressNativeText === root.querySelector('p').firstChild
+            && [...CSS.highlights.get('fluentread-vocabulary-reencounter')].some(range => range.startContainer.getRootNode() === shadow)
+            && [...CSS.highlights.get('fluentread-vocabulary-reencounter')].some(range => range.startContainer.data === ' Another river bank.');
+        }), 'Native source identity, markup, deep inline hit and shadow hit must survive');
+        await shot('reading-stress-restored');
+        assert.equal((await send(options, {type:'fluentReadVocabularyBook', action:'remove', entryId:saved.data.id})).success, true);
+        await until(async()=>(await marks()).length===0,'Removing last entry must clear painting'); await wait(300);
+        const drawingStyles = await page.evaluate(() => {
+          const shadow = document.querySelector('#reading-stress div').shadowRoot;
+          return document.querySelectorAll('[data-fr-reencounter-style]').length + shadow.querySelectorAll('[data-fr-reencounter-style]').length;
+        });
+        if (!readingBaseline) assert.equal(drawingStyles, 0);
+        await persist(options, {vocabularyReencounterEnabled:false}); await until(async()=>await ui.count()===0, 'Stress marking disable must clear UI');
+        assert.deepEqual(await marks(), []);
+        assert.equal(await page.evaluate(() => document.querySelectorAll('[data-fr-reencounter-style]').length + document.querySelector('#reading-stress div').shadowRoot.querySelectorAll('[data-fr-reencounter-style]').length), 0);
+        report.readingWork = {emptyInitial, emptyMutation, nonempty, drawingStylesAfterLastEntry:drawingStyles,
+          nativeDepth:1500, shallowEmptyElements:3300, originalTextAndMarkupPreserved:true, shadowAndDeepMarksRestored:true,
+          evidence:'Verified isolated-world wrappers count actual native style and box reads. Instrumented timing excluded.'};
+        record('empty-book-page-work-and-later-native-deep-shadow-matching');
+      } finally {await cdp.detach();}
+    }
     assert.equal(report.consoleErrors.length,0); report.ok=true;
   } catch(error) {report.error=error.stack; if(page){report.uiDiagnostics=await page.evaluate(()=>{const host=document.getElementById('fluent-read-vocabulary-reencounter');const panel=host?.shadowRoot?.querySelector('.reencounter-ui');return {host:host?.outerHTML,content:panel?.outerHTML,roots:host?.shadowRoot?.innerHTML.slice(-5000),paint:[...(CSS.highlights.get('fluentread-vocabulary-reencounter')||[])].map(r=>r.toString())};}).catch(()=>null);await page.screenshot({path:path.join(artifacts,'failure.png')}).catch(()=>{});}throw error;}
-  finally {fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));if(session)await session.close().catch(()=>{});server.closeAllConnections();await new Promise(resolve=>server.close(resolve));fs.rmSync(profile,{recursive:true,force:true});}
+  finally {
+    report.cleanupErrors = [];
+    let closed = !launchAttempted;
+    if (session) {
+      try {await session.close(); closed = true;}
+      catch (error) {report.cleanupErrors.push(`session close: ${error.message}`);}
+    }
+    try {await new Promise(resolve => {server.close(resolve); server.closeAllConnections();});}
+    catch (error) {report.cleanupErrors.push(`server close: ${error.message}`);}
+    if (profile) {
+      if (closed) {
+        try {fs.rmSync(profile, {recursive: true, force: true});}
+        catch (error) {report.cleanupErrors.push(`profile removal: ${error.message}`); report.retainedProfile = profile;}
+      } else report.retainedProfile = profile;
+    }
+    if (report.cleanupErrors.length) {report.ok = false; if ('status' in report) report.status = 'failed'; process.exitCode = 1;}
+    try {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));}
+    catch (error) {console.error(error.stack || error); process.exitCode = 1;}
+  }
   console.log(JSON.stringify(report,null,2));
 }
 main().catch(error=>{console.error(error.stack||error);process.exitCode=1;});

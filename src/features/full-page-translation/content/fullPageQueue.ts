@@ -187,11 +187,9 @@ export function createFullPageDispatchPlan(
 ): FullPageDispatchPlan {
     const ordered = collectPrioritizedCandidates(state, options)
         .sort((left, right) => compareFullPageCandidatePriority(left.priority, right.priority));
-    const background = ordered.filter(({priority}) => priority.band === 'background');
-    const agedBackground = background.filter(({priority}) =>
-        priority.ageMs >= FULL_PAGE_BACKGROUND_MAX_WAIT_MS);
+    const agedBackground = ordered.filter(({priority}) =>
+        priority.band === 'background' && priority.ageMs >= FULL_PAGE_BACKGROUND_MAX_WAIT_MS);
     let cursor = 0;
-    let backgroundCursor = 0;
     let agedCursor = 0;
 
     const stillQueued = (entry: FullPagePendingSelection): boolean =>
@@ -211,8 +209,8 @@ export function createFullPageDispatchPlan(
             // 长时间等待的离屏任务不能被当前视口永久淹没；配额未用满时仍优先前景。
             if (agedCursor < agedBackground.length &&
                 state.foregroundDispatchesSinceBackground >= FULL_PAGE_FOREGROUND_DISPATCH_QUOTA) {
-                backgroundCursor = advance(background, backgroundCursor);
-                if (backgroundCursor < background.length) return background[backgroundCursor];
+                // 顺向但尚未超时的后台项不能抢走超时项的公平配额。
+                return agedBackground[agedCursor];
             }
             return ordered[cursor];
         },

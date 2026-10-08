@@ -1,4 +1,5 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /**
  * @file scripts/testing/run-chrome-translation-ui-test.cjs
  * 文件职责：用隔离真实 Chrome 验证内置翻译准备 UI、实际模型和后续 Offscreen 翻译。
@@ -16,7 +17,7 @@ function arg(name, fallback) {
 const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
 const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-chrome-translation-ui'));
 const {chromium} = require(path.join(arg('playwright-root', ''), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(path.resolve(arg('focus-safe-helper', '')));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(path.resolve(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'))));
 const storagePrefix = 'fluentread.chromeTranslationPreparation.';
 const pendingKey = (source, target) => `${storagePrefix}${source}:${target}`;
 const skipNative = arg('skip-native', 'false') === 'true';
@@ -29,8 +30,11 @@ async function main() {
   const profileDir = suppliedProfile ? path.resolve(suppliedProfile) : fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-chrome-ui-'));
   assert.ok((profileDir.startsWith('/private/tmp/') || profileDir.startsWith(os.tmpdir())) && path.basename(profileDir).startsWith('fluentread-chrome-ui-'), 'Only dedicated temporary test profiles are permitted');
   report.profileMode = suppliedProfile ? 'reused-task-model-cache' : 'fresh';
-  let launched;
+  let launched, cdp;
+  let primaryError;
+  let launchAttempted = false;
   try {
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({
       chromium, profileDir,
       browserPath: arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
@@ -38,10 +42,11 @@ async function main() {
       browserArgs: ['--no-first-run', '--no-default-browser-check', '--enable-unsafe-extension-debugging'],
       viewport: {width: 1440, height: 1000}, timeout: 30000,
     });
+    guardBrowserClose(launched, profileDir);
     Object.assign(report, {launchMode: launched.launchMode, focusPolicy: launched.focusPolicy, windowPlacement: launched.windowPlacement});
     const {context} = launched;
     report.browserVersion = context.browser().version();
-    const cdp = await context.browser().newBrowserCDPSession();
+    cdp = await context.browser().newBrowserCDPSession();
     const {id} = await cdp.send('Extensions.loadUnpacked', {path: extensionDir});
     const page = await newPageWithoutForeground(context);
     page.on('pageerror', error => report.consoleErrors.push(error.message));
@@ -190,13 +195,37 @@ async function main() {
     report.ok = report.uiContractPassed && (skipNative || report.nativePassed);
     if (arg('require-native', 'false') === 'true') assert.equal(report.nativePassed, true, 'Native Chrome model preparation or Offscreen translation failed');
   } catch (error) {
+    primaryError = error;
     report.ok = false;
     report.error = error.stack || String(error);
     throw error;
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    await launched?.close();
-    if (!suppliedProfile) fs.rmSync(profileDir, {recursive: true, force: true});
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {await cdp?.detach();});
+    await cleanup(async () => {
+      if (launched) {await launched.close(); browserClosed = true;}
+    });
+    await cleanup(() => {
+      if (suppliedProfile) return;
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

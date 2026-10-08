@@ -18,13 +18,15 @@ const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg
 const assert = (value, message) => { if (!value) throw new Error(message); };
 const timeout = 30000;
 const sections = ['machine-services', 'cloud-services', 'ai-providers', 'ai-platforms'];
-fs.mkdirSync(artifactsDir, {recursive: true});
-
 async function main() {
-  const profileDir = fs.mkdtempSync('/private/tmp/fr-service-group-navigation-');
-  const report = {ok: false, extensionDir, scope: '翻译服务目录的分组收起与顶部分组导航', cases: [], screenshots: [], consoleErrors: []};
-  let launched;
+  const report = {ok: false, extensionDir, scope: '翻译服务目录的分组收起与顶部分组导航', cases: [], screenshots: [], consoleErrors: [], cleanupErrors: []};
+  let launched, profileDir, profileIdentity;
+  let launchAttempted = false;
   try {
+    fs.mkdirSync(artifactsDir, {recursive: true});
+    profileDir = fs.mkdtempSync('/private/tmp/fr-service-group-navigation-');
+    profileIdentity = fs.lstatSync(profileDir);
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({
       chromium, profileDir, timeout, background: true, headless: false,
       browserPath: '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
@@ -171,13 +173,39 @@ async function main() {
     assert(report.consoleErrors.length === 0, '浏览器控制台存在异常');
     report.ok = true;
   } catch (error) {
-    report.error = error.stack || String(error);
+    report.error = error?.stack || String(error);
   } finally {
-    fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2));
-    if (launched) await launched.close();
-    fs.rmSync(profileDir, {recursive: true, force: true});
+    // 未取得会话时，启动可能已部分完成；没有成功关闭的回执就保留 profile。
+    let closed = !launchAttempted;
+    if (launched) {
+      try { await launched.close(); closed = true; }
+      catch (error) { report.cleanupErrors.push(`session close: ${error?.stack || String(error)}`); }
+    }
+    if (profileDir) {
+      if (closed && profileIdentity) {
+        try {
+          const current = fs.lstatSync(profileDir);
+          assert(!current.isSymbolicLink() && current.ino === profileIdentity.ino && current.dev === profileIdentity.dev,
+            'Temporary profile ownership changed');
+          fs.rmSync(profileDir, {recursive: true, force: true});
+          report.profileRemoved = true;
+        } catch (error) {
+          report.cleanupErrors.push(`profile removal: ${error?.stack || String(error)}`);
+          report.retainedProfile = profileDir;
+        }
+      } else report.retainedProfile = profileDir;
+    }
+    if (report.cleanupErrors.length) report.ok = false;
+    // 报告最后写入，写失败不跳过独立清理，也不覆盖最先发生的异常。
+    try { fs.writeFileSync(path.join(artifactsDir, 'report.json'), JSON.stringify(report, null, 2)); }
+    catch (error) {
+      report.cleanupErrors.push(`report write: ${error?.stack || String(error)}`);
+      report.ok = false;
+      console.error(error?.stack || String(error));
+    }
   }
-  console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, error: report.error, artifactsDir}));
+  console.log(JSON.stringify({ok: report.ok, cases: report.cases.length, error: report.error,
+    cleanupErrors: report.cleanupErrors, retainedProfile: report.retainedProfile, artifactsDir}));
   if (!report.ok) process.exitCode = 1;
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

@@ -13,12 +13,23 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({
 
 let canvases: any[];
 let sizes: Array<[number, number]>;
+let paintedTextCountsAtEncoding: number[];
 let failEncoding: boolean;
 const input = () => ({sourceBytes: new Uint8Array([1]), pageNumber: 1, width: pdf.width, height: pdf.height, blocks: [], translations: []});
+const previewDocument = (): ParsedDocument => ({
+    fileName: 'sample.pdf', format: 'pdf', label: 'PDF 文件', parts: [],
+    segments: [{id: 0, source: 'Original text', contextLabel: '第 1 页', role: 'paragraph'}],
+    binary: {kind: 'pdf', bytes: new Uint8Array([1]), pages: [{
+        pageNumber: 1, width: pdf.width, height: pdf.height, segmentIndexes: [0],
+        blocks: [{segmentIndex: 0, x: 20, y: 30, width: 200, height: 12,
+            fontSize: 12, lineHeight: 12, lineCount: 1, fontFamily: 'sans-serif', fontWeight: 600, textAlign: 'left'}],
+    }]},
+});
 
 beforeEach(() => {
     canvases = [];
     sizes = [];
+    paintedTextCountsAtEncoding = [];
     failEncoding = false;
     pdf.width = 600;
     pdf.height = 800;
@@ -27,11 +38,18 @@ beforeEach(() => {
     vi.stubGlobal('window', {location: {origin: 'chrome-extension://fixture'}});
     vi.stubGlobal('document', {createElement: () => {
         const canvas = {width: 0, height: 0,
-            getContext: () => ({fillRect: vi.fn()}),
+            getContext: (): object => context,
             toBlob: (done: (value: Blob | null) => void) => {
                 sizes.push([canvas.width, canvas.height]);
+                paintedTextCountsAtEncoding.push(context.fillText.mock.calls.length);
                 done(failEncoding ? null : new Blob([new Uint8Array([1])]));
             },
+        };
+        const context = {canvas, fillRect: vi.fn(), fillText: vi.fn(),
+            measureText: vi.fn((value: string) => ({width: value.length * 8})),
+            getImageData: vi.fn((_x: number, _y: number, width: number, height: number) =>
+                ({data: new Uint8ClampedArray(width * height * 4).fill(255)})),
+            save: vi.fn(), restore: vi.fn(), beginPath: vi.fn(), rect: vi.fn(), clip: vi.fn(),
         };
         canvases.push(canvas);
         return canvas;
@@ -80,13 +98,26 @@ describe('PDF rasterizer resource lifecycle', () => {
     });
 
     it('encodes the original preview before painting translation and releases the shared canvas', async () => {
-        const page = input();
-        const document = {binary: {kind: 'pdf', bytes: page.sourceBytes, pages: [page]}} as unknown as ParsedDocument;
-        const preview = await createPdfPagePreview(document, 1, []);
+        const preview = await createPdfPagePreview(previewDocument(), 1, ['Translated text']);
         expect(preview.original).toEqual(new Uint8Array([1]));
         expect(preview.translated).toEqual(new Uint8Array([1]));
         expect(sizes).toHaveLength(2);
+        expect(paintedTextCountsAtEncoding).toEqual([0, 1]);
         expect(canvases).toHaveLength(1);
+        expect(canvases[0].getContext().fillText).toHaveBeenCalledWith('Translated text', expect.any(Number), expect.any(Number), expect.any(Number));
         expect(canvases[0]).toMatchObject({width: 0, height: 0});
+        expect(pdf.cleanup).toHaveBeenCalledOnce();
+    });
+
+    it.each(['Original text', ' \nOriginal   text\t '])('keeps only the original preview without repainting an equivalent translation %j', async translation => {
+        const preview = await createPdfPagePreview(previewDocument(), 1, [translation]);
+        expect(preview).toEqual({original: new Uint8Array([1])});
+        expect(sizes).toEqual([[1440, 1920]]);
+        expect(paintedTextCountsAtEncoding).toEqual([0]);
+        expect(canvases).toHaveLength(1);
+        expect(canvases[0].getContext().fillText).not.toHaveBeenCalled();
+        expect(canvases[0].getContext().fillRect).toHaveBeenCalledOnce();
+        expect(canvases[0]).toMatchObject({width: 0, height: 0});
+        expect(pdf.cleanup).toHaveBeenCalledOnce();
     });
 });

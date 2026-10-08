@@ -18,7 +18,7 @@ const client = {
 } as any;
 
 const baseOffscreenDependencies = {
-  ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn(() => true)},
+  ttsPlayer: {play: vi.fn(async () => undefined), stop: vi.fn(() => true), seek: vi.fn(() => true)},
   fetchImage: vi.fn(async () => 'data:image/png;base64,image'),
   translateImage: vi.fn(async () => ({image: 'image', lines: []})),
   translateArea: vi.fn(async () => ({image: 'image', lines: []})),

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // 统一划词专项：使用生产扩展、独立 profile 与焦点安全 helper。AI/译文由本地确定性夹具返回。
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -11,7 +12,7 @@ const arg = (key) => process.argv[process.argv.indexOf(`--${key}`) + 1];
 const output = path.resolve(arg('artifacts-dir'));
 const extensionDir = path.resolve(arg('extension-dir'));
 const {chromium} = createRequire(path.join(arg('playwright-root'), 'package.json'))('playwright');
-const helper = require(path.resolve(arg('focus-safe-helper')));
+const helper = require(path.resolve((process.argv.includes('--focus-safe-helper') ? arg('focus-safe-helper') : path.join(__dirname, 'testing/focus-safe-browser.cjs'))));
 const sentence = 'The curious reader explores new ideas.';
 const grammar = '### 主干\nThe reader explores ideas. 读者探索想法。\n\n### 词性与句法\n| Text | POS | Role | Meaning |\n| --- | --- | --- | --- |\n| The | article | 限定 reader | 这位 |\n| curious | adjective | 修饰 reader | 好奇的 |\n| reader | noun | 主语 | 读者 |\n| explores | verb | 谓语 | 探索 |\n| new | adjective | 修饰 ideas | 新的 |\n| ideas | noun | 宾语 | 想法 |\n\n### 关键点\n形容词描述名词，词性和句中作用分开理解。';
 const report = {providerEvidence:'Production extension in isolated Edge; translation and AI responses use deterministic local fixtures. Dictionary uses the real dictionary pipeline. No authenticated AI quality claim.',ok:false,cases:[],screenshots:[],consoleErrors:[],translationRequests:0,aiRequests:0,persistenceCases:[],quickClose:{},crossPageSync:{},latestWriteWins:{}};
@@ -57,6 +58,9 @@ async function patch(value) {await support.patchStoredConfig(popup,value); await
 async function main(){
  fs.mkdirSync(output,{recursive:true});
  const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-selection-unified-'));
+ let primaryError;
+ let launchAttempted = false;
+ try {
  server=http.createServer(async(req,res)=>{
    if(req.url==='/translate') {report.translationRequests++; let data='';for await(const chunk of req)data+=chunk; let texts;try{texts=JSON.parse(data);}catch{texts=[sentence];} res.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify(texts.map(text=>({translations:[{text:text===sentence?'这位好奇的读者探索新的想法。':text==='curious'?'好奇的；求知欲强的':/beyond|unusual/i.test(text)?'异乎寻常的；古怪的':'渴望了解或学习的；好奇的',to:'zh-Hans'}]}))));return;}
    report.aiRequests++;let body='';for await(const c of req)body+=c;assert(body.includes('Text | POS | Role | Meaning'),'grammar contract not sent');
@@ -64,9 +68,10 @@ async function main(){
    for(const part of grammar.match(/[\s\S]{1,40}/g)){res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{content:part},finish_reason:null}]})+'\n\n');await wait(20);}
    res.write('data: '+JSON.stringify({id:'fixture',choices:[{index:0,delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n');res.end();
  });
- await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const port=server.address().port;
- try {
+ await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});const port=server.address().port;
+   launchAttempted = true;
    session=await helper.launchFocusSafePersistentContext({chromium,profileDir,browserPath:'/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',headless:false,background:true,browserArgs:[`--disable-extensions-except=${extensionDir}`,`--load-extension=${extensionDir}`,'--no-first-run','--no-default-browser-check'],viewport:{width:1440,height:960}});
+   guardBrowserClose(session, profileDir);
    context=session.context;Object.assign(report,{launchMode:session.launchMode,focusPolicy:session.focusPolicy,windowPlacement:session.windowPlacement,extensionDir});
    const ready=await support.waitForWorker(context);worker=ready.worker;const id=ready.extensionId;
    const newPage=async()=>{const p=await helper.newPageWithoutForeground(context);p.on('pageerror',error=>report.consoleErrors.push(error.message));return p;};
@@ -162,7 +167,33 @@ async function main(){
    await patch({uiLanguage:'zh-CN'});
    await optionsPage.getByRole('switch',{name:'启用划词翻译'}).click();await until(async()=>!(await page.locator('#fluent-read-selection-translator-container').count()),'master off left UI mounted');await choose('#sentence');await wait(400);assert.equal(await node(cls('fr-selection-indicator')),null);record('master off unmounts even when AI preference remains enabled');
    assert.equal(await page.locator('#neighbor').innerText(),'Learning grows with every question.');assert.equal(report.consoleErrors.length,0);report.ok=true;
- }catch(error){report.error=error.stack; if(optionsPage&&!optionsPage.isClosed())await screenshot(optionsPage,'failure-settings').catch(()=>{});if(page&&!page.isClosed())await screenshot(page,'failure-page').catch(()=>{});throw error;}
- finally{fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(report,null,2));await session?.close();server.close();fs.rmSync(profileDir,{recursive:true,force:true});}
+ }catch(error){primaryError=error;report.error=error.stack; if(optionsPage&&!optionsPage.isClosed())await screenshot(optionsPage,'failure-settings').catch(()=>{});if(page&&!page.isClosed())await screenshot(page,'failure-page').catch(()=>{});throw error;}
+ finally {
+    const cleanupErrors = [];
+    const cleanup = async action => {
+      try {await action();} catch (error) {cleanupErrors.push(error);}
+    };
+    let browserClosed = false;
+    await cleanup(async () => {
+      if (session) {await session.close(); browserClosed = true;}
+    });
+    await cleanup(async () => {if (server?.listening) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));});
+    await cleanup(() => {
+      if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        // No browser launch was attempted; only remove an empty initial profile.
+        try {fs.rmdirSync(profileDir);} catch (error) {
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    if (cleanupErrors.length) {
+      report.ok = false;
+      report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+    }
+    await cleanup(() => {fs.writeFileSync(path.join(output,'report.json'),JSON.stringify(report,null,2));});
+    for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+ }
 }
 main().catch(error=>{console.error(error.stack);process.exitCode=1;});

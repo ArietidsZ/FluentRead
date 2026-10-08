@@ -1,20 +1,26 @@
 'use strict';
+const {guardBrowserClose} = require('./owned-browser-close.cjs');
 /** 漫画排版专项：隔离后台 Chrome 测量同页字形绘制与测量次数；直接执行源码束，不把受控输入当作真实 OCR 或翻译质量证据。 */
 const fs = require('node:fs');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 function arg(name, fallback) {const index = process.argv.indexOf(`--${name}`); return index < 0 ? fallback : process.argv[index + 1];}
 const {chromium} = require(path.join(arg('playwright-root'), 'playwright'));
-const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper'));
+const {launchFocusSafePersistentContext, newPageWithoutForeground} = require(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs')));
 const artifacts = path.resolve(arg('artifacts-dir'));
-const profile = fs.mkdtempSync('/private/tmp/fluentread-manga-rendering-');
+let profile;
+let primaryError;
 fs.mkdirSync(artifacts, {recursive: true});
 const report = {cases: [], errors: [], scope: 'real Canvas text rendering with controlled regions; no OCR or translation transport'};
+let launchAttempted = false;
 let launched;
 (async () => {
+    profile = fs.mkdtempSync('/private/tmp/fluentread-manga-rendering-');
+    launchAttempted = true;
     launched = await launchFocusSafePersistentContext({chromium, profileDir: profile,
         browserPath: arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'),
         headless: false, background: true, browserArgs: ['--no-first-run','--no-default-browser-check'], viewport: {width:1280,height:900}});
+    guardBrowserClose(launched, profile);
     Object.assign(report, {launchMode:launched.launchMode,focusPolicy:launched.focusPolicy,windowPlacement:launched.windowPlacement});
     assert.equal(report.windowPlacement.browserFrontmost, false);
     const page = await newPageWithoutForeground(launched.context);
@@ -64,5 +70,32 @@ let launched;
         report.cases.push('read-only inspection of requested live chapter and two loaded images');
     }
     assert.deepEqual(report.errors,[]);report.status='passed';
-})().catch(error=>{report.status='failed';report.failure=String(error.stack);process.exitCode=1;})
-.finally(async()=>{await launched?.close();fs.rmSync(profile,{recursive:true,force:true});report.temporaryProfileRemoved=!fs.existsSync(profile);fs.writeFileSync(path.join(artifacts,'report.json'),JSON.stringify(report,null,2));console.log(JSON.stringify({status:report.status,medianMs:report.samples?.medianMs,measureCalls:report.samples?.samples.at(-1).measureCalls,failure:report.failure,report:path.join(artifacts,'report.json')}));});
+})().catch(error=>{primaryError=error;report.status='failed';report.failure=String(error.stack);process.exitCode=1;})
+.finally(async () => {
+    const cleanupErrors = [];
+    const cleanup = async (resource, release) => {
+      try { await release(); } catch (error) {
+        cleanupErrors.push(error);
+        (report.cleanupErrors ||= []).push({resource, error: String(error.stack || error)});
+        report.status = 'failed';
+        process.exitCode = 1;
+        console.error(`Cleanup failed (${resource}):`, error);
+      }
+    };
+    let browserClosed = false;
+    await cleanup('browser', async () => { if (launched) { await launched.close(); browserClosed = true; } });
+    await cleanup('profile', () => {
+      if (!profile) return;
+      if (browserClosed) fs.rmSync(profile, {recursive: true, force: true});
+      else if (!launchAttempted) {
+        try { fs.rmdirSync(profile); } catch (error) {
+          // 未尝试启动浏览器时，仅移除初始空目录。
+          if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+        }
+      }
+    });
+    report.temporaryProfileRemoved = !profile || !fs.existsSync(profile);
+    await cleanup('report', () => { fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2)); });
+    if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
+    console.log(JSON.stringify({status:report.status,medianMs:report.samples?.medianMs,measureCalls:report.samples?.samples.at(-1).measureCalls,failure:report.failure,report:path.join(artifacts,'report.json')}));
+}).catch(error => {console.error(error); process.exitCode = 1;});

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // Production X native TextTrack fixture. No Whisper/model preparation is used.
+const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
@@ -16,7 +17,7 @@ const mediaInput = arg('media-dir');
 if (!mediaInput) throw new Error('Pass --media-dir containing video-direct.mp4 from run-x-subtitle-sync-test.cjs');
 const mediaDir = path.resolve(mediaInput);
 const runtime = arg('playwright-root');
-const helperPath = arg('focus-safe-helper');
+const helperPath = arg('focus-safe-helper', path.join(__dirname, 'testing/focus-safe-browser.cjs'));
 const browserPath = arg('browser-path', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome');
 const extensionInstall = arg('extension-install', 'cdp');
 if (!runtime || !helperPath) throw new Error('Explicit Playwright runtime and focus-safe helper are required');
@@ -39,9 +40,11 @@ const report = {
   translationCalls: 0,
 };
 const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-x-native-profile-'));
+let launchAttempted = false;
 let browser;
 let page;
 let control;
+let primaryError;
 
 async function persistConfig(controlPage, fontScale = 100, appearanceOverrides = {}) {
   return controlPage.evaluate(async ({fontScale, appearanceOverrides}) => {
@@ -78,6 +81,7 @@ async function screenshot(pageRef, name) {
 
 async function main() {
   const videoBytes = fs.readFileSync(path.join(mediaDir, 'video-direct.mp4'));
+  launchAttempted = true;
   browser = await helper.launchFocusSafePersistentContext({
     chromium,
     profileDir,
@@ -93,14 +97,22 @@ async function main() {
     ],
     viewport: {width: 1280, height: 900},
   });
+  guardBrowserClose(browser, profileDir);
   const context = browser.context;
   report.browserVersion = context.browser().version();
   report.browserPath = browserPath;
   let extensionId;
   if (extensionInstall === 'cdp') {
     const extensionSession = await context.browser().newBrowserCDPSession();
-    extensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;
-    await extensionSession.detach();
+    let installError;
+    try {extensionId = (await extensionSession.send('Extensions.loadUnpacked', {path: extensionDir})).id;}
+    catch (error) {installError = error; throw error;}
+    finally {
+      try {await extensionSession.detach();} catch (error) {
+        if (!installError) throw error;
+        process.stderr.write(`CDP detach failed: ${error.stack || error}\n`);
+      }
+    }
   }
   report.extensionInstall = extensionInstall;
   context.on('page', candidate => {
@@ -383,12 +395,34 @@ async function main() {
 }
 
 main().catch(async error => {
+  primaryError = error;
   report.failure = error.stack;
   process.exitCode = 1;
   if (page) await page.screenshot({path: path.join(artifacts, 'failure.png')}).catch(() => {});
 }).finally(async () => {
-  fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));
+  const cleanupErrors = [];
+  const cleanup = async action => {
+    try {await action();} catch (error) {cleanupErrors.push(error);}
+  };
+  let browserClosed = false;
+  await cleanup(async () => {
+    if (browser) {await browser.close(); browserClosed = true;}
+  });
+  await cleanup(() => {
+    if (browserClosed) fs.rmSync(profileDir, {recursive: true, force: true});
+    else if (!launchAttempted) {
+      // No browser launch was attempted; only remove an empty initial profile.
+      try {fs.rmdirSync(profileDir);} catch (error) {
+        if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) throw error;
+      }
+    }
+  });
+  if (cleanupErrors.length) {
+    report.success = false;
+    report.cleanupErrors = cleanupErrors.map(error => error.stack || String(error));
+  }
+  await cleanup(() => {fs.writeFileSync(path.join(artifacts, 'report.json'), JSON.stringify(report, null, 2));});
+  for (const error of cleanupErrors) process.stderr.write(`Cleanup failed: ${error.stack || error}\n`);
+  if (cleanupErrors.length && !primaryError) throw cleanupErrors[0];
   console.log(JSON.stringify({success: report.success, failure: report.failure, artifacts}, null, 2));
-  if (browser) await browser.close();
-  fs.rmSync(profileDir, {recursive: true, force: true});
-});
+}).catch(error => {console.error(error.stack || error); process.exitCode = 1;});
