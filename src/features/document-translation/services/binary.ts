@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/binary.ts
  * 文件职责：处理 PDF、EPUB 与 DOCX 二进制文档的受限解析和导出，把压缩包或页面文本转换为统一 ParsedDocument，并生成可下载的双语产物。
- * 主要内容：相同译文保留原文且不重复展示；按需加载二进制依赖，包含归档安全上限、文本提取与译文回填；PDF 导出逐页压缩释放解码像素，支持进度回调和取消；ePub/DOCX 导出在内容回填间让出主线程，并通过可取消的归档流编码。
+ * 主要内容：相同译文保留原文且不重复展示；按需加载二进制依赖，包含归档安全上限、文本提取与译文回填；PDF 导出固定源文本快照以隔离异步加载期间的源段替换，逐页压缩释放解码像素，支持进度回调和取消；ePub/DOCX 导出在内容回填间让出主线程，并通过可取消的归档流编码。
  * 模块边界：此服务可以依赖 JSZip、pdf-lib 和二进制 I/O，但不负责调用翻译服务或渲染设置页；文本格式规则归 core/document，浏览器 Canvas 光栅实现由 ui/pdfPreview 通过接口注入。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -660,6 +660,7 @@ async function renderPdf(
     options: CreateDocumentDownloadOptions,
 ): Promise<Uint8Array> {
     const binary = document.binary as Extract<NonNullable<ParsedDocument['binary']>, {kind: 'pdf'}>;
+    const sourceTexts = document.segments.map(segment => segment.source);
     const {PDFDocument} = await import('pdf-lib');
     options.signal?.throwIfAborted();
     const outputPdf = await PDFDocument.create();
@@ -683,11 +684,11 @@ async function renderPdf(
         pages.forEach(({pageNumber}, index) => sourcePages.set(pageNumber, embedded[index]));
     }
     const visibleTranslations = translations.map((translation, segmentIndex) =>
-        hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
+        hasDistinctTranslation(sourceTexts[segmentIndex] ?? '', translation) ? translation : '');
     for (const [index, pageData] of binary.pages.entries()) {
         options.signal?.throwIfAborted();
         const pageChanged = pageData.segmentIndexes.some(segmentIndex =>
-            hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translations[segmentIndex]));
+            hasDistinctTranslation(sourceTexts[segmentIndex] ?? '', translations[segmentIndex]));
         if (mode === 'bilingual' && !pageChanged) {
             const page = outputPdf.addPage([pageData.width, pageData.height]);
             const source = sourcePages.get(pageData.pageNumber);

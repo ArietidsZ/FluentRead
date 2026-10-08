@@ -48,6 +48,44 @@ describe('binary document translation formats', () => {
         expect((await parseBinaryDocument(download.fileName, download.data as Uint8Array)).segments).toHaveLength(parsed.segments.length);
     });
 
+    it.each([false, true])('PDF loading keeps the original source snapshot when segments are replaced asynchronously (distinct=%s)', async distinct => {
+        const source = await PDFDocument.create();
+        source.addPage([400, 600]).drawText('Unchanged source page');
+        const parsed = await parseBinaryDocument('source-snapshot.pdf', await source.save());
+        const translations = parsed.segments.map(segment => distinct ? `Translated ${segment.source}` : ` ${segment.source} `);
+        const originalSegments = parsed.segments;
+        const rasterizer = vi.fn(testRasterizer);
+        const load = PDFDocument.load;
+        let entered!: () => void;
+        let release!: () => void;
+        const enteredLoad = new Promise<void>(resolve => { entered = resolve; });
+        const releasedLoad = new Promise<void>(resolve => { release = resolve; });
+        const spy = vi.spyOn(PDFDocument, 'load').mockImplementation(async (...args) => {
+            const pdf = await load(...args);
+            entered();
+            await releasedLoad;
+            return pdf;
+        });
+        const pending = createDocumentDownload(parsed, translations, 'bilingual', {pdfPageRasterizer: rasterizer});
+        void pending.catch(() => undefined);
+        try {
+            await enteredLoad;
+            parsed.segments = originalSegments.map((segment, index) => ({...segment, source: distinct ? translations[index] : 'Replacement while PDF loading'}));
+            release();
+            const download = await pending;
+            const output = await load(download.data as Uint8Array);
+            expect(rasterizer.mock.calls.length).toBe(distinct ? 1 : 0);
+            if (distinct) expect(rasterizer.mock.calls[0][0].translations).toEqual(translations);
+            expect(output.getPageCount()).toBe(1);
+            expect(output.getPage(0).getSize()).toEqual({width: distinct ? 810 : 400, height: 600});
+            expect(translations).toEqual(originalSegments.map(segment => distinct ? `Translated ${segment.source}` : ` ${segment.source} `));
+        } finally {
+            release();
+            await Promise.allSettled([pending]);
+            spy.mockRestore();
+        }
+    });
+
     it('preserves blank pages in a bilingual PDF without failing to embed them', async () => {
         const source = await PDFDocument.create();
         source.addPage([400, 600]).drawText('First page');
