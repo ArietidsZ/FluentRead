@@ -1,7 +1,7 @@
 /**
  * @file tests/translationSlotEchoRegression.test.ts
  * 文件职责：通过真实 broker 入口验证全文单条槽协议的局部恢复、术语豁免和缓存安全。
- * 主要内容：注入 provider、内存 cache 与时钟，观察顺序、请求次数、旧缓存/pending 隔离、协议形状、取消和共享 deadline；Chrome 接入真实请求构造与 offscreen 检测逻辑，覆盖损坏槽包降级时的长样本、调用快照与乱序结算，上下文泄漏验证只恢复坏槽；frontend 验证标记透传、中文过滤及失败会话复用。
+ * 主要内容：注入 provider、内存 cache 与时钟，观察顺序、请求次数、旧缓存/pending 隔离、协议形状、取消和共享 deadline；零宽空槽验证首次恢复、恢复后拒绝和旧缓存失效；Chrome 接入真实请求构造与 offscreen 检测逻辑，覆盖损坏槽包降级时的长样本、调用快照与乱序结算，上下文泄漏验证只恢复坏槽；frontend 验证标记透传、中文过滤及失败会话复用。
  * 模块边界：不 mock broker 或校验算法，不使用网络、浏览器与真实存储；client 替身把 frontend 请求交给真实 broker，公共翻译出口仅替换为纯槽协议模块。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -292,26 +292,37 @@ describe('真实 broker 的全文单条槽协议', () => {
         expect(h.store.size).toBe(0);
     });
 
-    it('空槽仅发一次无上下文请求，成功后保留良槽并缓存', async () => {
+    it.each([' \t', '\u200b', ' \u200b\t\u200b'])('不可见空槽 %j 仅恢复该槽，保留良槽并缓存修复整包', async empty => {
         const h = createHarness();
         const packet = serializeTranslationSlots([first, second]);
         const complete = renderPacket(packet, translated.slice(0, 2));
-        h.provider.mockResolvedValueOnce(renderPacket(packet, [' \t', translated[1]!])).mockResolvedValueOnce(translated[0]);
+        h.provider.mockResolvedValueOnce(renderPacket(packet, [empty, translated[1]!])).mockResolvedValueOnce(translated[0]);
         await expect(h.broker.translateWithCache({...slotRequest([first, second]), context: 'Document title'})).resolves.toBe(complete);
         expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, first]);
         expect(h.provider.mock.calls[1]![0]).toMatchObject({context: '', pageContext: '', validateTranslationSlots: false});
         expect([...h.store.values()]).toEqual([complete]);
     });
 
-    it('空槽恢复后仍为空使整包显式失败，不再发请求或缓存', async () => {
+    it.each([' \t', '\u200b', ' \u200b\t\u200b'])('恢复仍为不可见空槽 %j 时整包失败，不再请求或缓存', async empty => {
         const h = createHarness({service: 'deepL'});
         const packet = serializeTranslationSlots([first, second]);
-        h.provider.mockResolvedValueOnce(renderPacket(packet, ['', translated[1]!])).mockResolvedValueOnce(' \t');
+        h.provider.mockResolvedValueOnce(renderPacket(packet, ['', translated[1]!])).mockResolvedValueOnce(empty);
         await expect(h.broker.translateWithCache(slotRequest([first, second]))).rejects.toMatchObject({
             kind: 'response', code: 'TRANSLATION_SLOT_RESPONSE_INVALID', retryable: false,
         });
         expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, first]);
         expect(h.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it('旧缓存的零宽字符空槽不能作为成功整包复用', async () => {
+        const h = createHarness({service: 'deepL'});
+        const packet = serializeTranslationSlots([first, second]);
+        const complete = renderPacket(packet, translated.slice(0, 2));
+        h.cacheGet.mockResolvedValueOnce(renderPacket(packet, ['\u200b', translated[1]!]));
+        h.provider.mockResolvedValueOnce(complete);
+        await expect(h.broker.translateWithCache(slotRequest([first, second]))).resolves.toBe(complete);
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload]);
+        expect([...h.store.values()]).toEqual([complete]);
     });
 
     it('首包返回时共享 deadline 已耗尽，不启动坏槽恢复请求', async () => {

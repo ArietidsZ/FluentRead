@@ -1,10 +1,16 @@
 import {describe, expect, it} from 'vitest';
-import {hasDistinctTranslation} from '@/src/core/translation/result';
+import {hasDistinctTranslation, hasTranslationContent} from '@/src/core/translation/result';
 import {parseDocument, renderDocument} from '@/src/features/document-translation/core/document';
 import {createDocumentPreviewHtml} from '@/src/features/document-translation/core/preview';
 import {parseHTML} from 'linkedom';
 
 describe('相同译文只保留原文', () => {
+    it.each([
+        ['', false], [' \n\t\u3000', false], ['\u200b', false], [' \u200b\t\u200b', false],
+        ['\u200c', true], ['\u200d', true], ['+', true], ['=', true], ['0', true], ['中文\u200b', true],
+    ])('有效内容判定 %j：%s，保留连接符与数学语义', (text, content) => {
+        expect(hasTranslationContent(text as string)).toBe(content);
+    });
     it.each([
         ['Hello world', 'Hello world', false],
         ['Hello  world', '  Hello\nworld\u3000', false],

@@ -38,6 +38,7 @@ import {
 } from './requestSnapshot';
 import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import {isClearlyWrongLanguageResponse, isLikelyUntranslatedResponse} from '@/src/core/translation/resultValidation';
+import {hasTranslationContent} from '@/src/core/translation/result';
 import {buildGlossaryRevision, resolveGlossary} from '@/src/core/glossary';
 import {supportsTranslationGlossary} from './capabilities';
 import {getGlossaryProtectionEntries, isGlossaryOnlyResult, prepareGlossaryRequest} from './glossaryProtection';
@@ -403,7 +404,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
     function isCacheableResult(origin: string, result: unknown, targetLanguage: string, current: TranslationProviderConfigSnapshot): result is string {
         // 同目标文字和短名称仍可缓存 no-op；旧原文或明确错语种的缓存必须失效。
         return typeof result === 'string'
-            && Boolean(result.trim())
+            && hasTranslationContent(result)
             && (isGlossaryOnlyResult(current, origin, result) || (!isLikelyUntranslatedResponse(origin, result, targetLanguage)
             && !isClearlyWrongLanguageResponse(origin, result, targetLanguage)));
     }
@@ -825,12 +826,12 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 const slotMessage = {...message, origin: protocol.sources[index]!, validateTranslationSlots: false};
                 const translation = parsed[index]!;
                 if (isGlossaryOnlyResult(execution.config, slotMessage.origin, translation)) continue;
-                parsed[index] = !translation.trim() || shouldRecoverPageContextLeak(
+                parsed[index] = !hasTranslationContent(translation) || shouldRecoverPageContextLeak(
                     execution, slotMessage.origin, translation, validationPageContext, message.modelOverride,
                 )
                     ? await callSingleProviderWithoutPageContext(execution, slotMessage, requestDeadline, validationPageContext)
                     : await recoverInvalidResult(execution, slotMessage, translation, requestDeadline, context, validationPageContext);
-                if (!parsed[index]!.trim()) throw new TranslationSlotResponseError();
+                if (!hasTranslationContent(parsed[index]!)) throw new TranslationSlotResponseError();
             }
             return parsed.map((translation, index) =>
                 `${protocol.packet.starts[index]}${translation}${protocol.packet.ends[index]}`).join('\n');

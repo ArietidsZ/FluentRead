@@ -88,6 +88,7 @@ export default defineConfig({
             'tests/hnFirstTargetReadiness.test.ts',
             'tests/translationEchoValidationRegression.test.ts',
             'tests/translationSlotEchoRegression.test.ts',
+            'tests/sameTargetLanguageClient.test.ts',
             'tests/xModernSiteAdaptationRegression.test.ts',
             'tests/finalCoveragePublicBoundariesA.test.ts',
             'tests/finalCoveragePublicBoundariesB.test.ts',
