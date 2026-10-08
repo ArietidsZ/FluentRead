@@ -1,0 +1,9 @@
+{
+  "official_package_browser_binary_sha256": "0994937730e362e40653610fd40e38d62d4160152b590f90e99971005c2e0881",
+  "installed_binary_matches_verified_official_deb": true,
+  "owned_test_processes": [],
+  "new_test_window_absence_evidence": "No BrowserOS/Xvfb/independent D-Bus process for this batch was launched; no temporary profile or display was created. Window titles were omitted from the retained evidence.",
+  "default_profile_directory_exists": false,
+  "default_sidecar_directory_exists": false,
+  "port_reference_status": ""
+}

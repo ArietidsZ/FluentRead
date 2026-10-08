@@ -1,0 +1,13 @@
+NOTE: This is only a simulation!
+      apt-get needs root privileges for real execution.
+      Keep also in mind that locking is deactivated,
+      so don't depend on the relevance to the real current situation!
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Solving dependencies...
+The following NEW packages will be installed:
+  xvfb
+0 upgraded, 1 newly installed, 0 to remove and 17 not upgraded.
+Inst xvfb (2:21.1.22-1ubuntu1.2 Ubuntu:26.04/resolute-updates [amd64])
+Conf xvfb (2:21.1.22-1ubuntu1.2 Ubuntu:26.04/resolute-updates [amd64])

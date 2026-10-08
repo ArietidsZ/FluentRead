@@ -1,0 +1,27 @@
+{
+  "checked_at_utc": "2026-10-08T10:29:24.666304+00:00",
+  "tag": "browserclaw/v0.51.0",
+  "files": [
+    {
+      "path": "packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_proxy.cc",
+      "official_source_url": "https://github.com/browseros-ai/BrowserOS/blob/browserclaw/v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_proxy.cc",
+      "git_blob_sha": "0cae06957eb94c5468b937ae7d4459eb176318a9",
+      "sha256": "1bc5d6c76ec064372fd76632d76154e7ab78037fd5cc93d6d00a9fb7878861ae",
+      "local_audit_source_matches_official_tag": true
+    },
+    {
+      "path": "packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_manager.cc",
+      "official_source_url": "https://github.com/browseros-ai/BrowserOS/blob/browserclaw/v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_manager.cc",
+      "git_blob_sha": "955361ea3354f8efd7085e851bee4fa973e72bb7",
+      "sha256": "0b9f229d707817869d4f9459c6990f3618e946f30a5e8b79086779ae5e2277f7",
+      "local_audit_source_matches_official_tag": true
+    },
+    {
+      "path": "packages/browseros/chromium_patches/chrome/browser/browseros/core/browseros_switches.h",
+      "official_source_url": "https://github.com/browseros-ai/BrowserOS/blob/browserclaw/v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/core/browseros_switches.h",
+      "git_blob_sha": "033ebe682ae7dea6283c1ad7aaf0acdf46c8c9f5",
+      "sha256": "d5650b7c7b159ae8e88f6821c1ddcb98d0996795bfe28eb549a1f248ffdb6b25",
+      "local_audit_source_matches_official_tag": true
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "checked_at_utc": "2026-10-08T10:26:28.050776+00:00",
+  "exit_code": 0,
+  "window_titles_recorded": false,
+  "read_only_method": "org.cua.WinRects.GetRects",
+  "windows": [
+    {
+      "id": 3,
+      "pid": 10304,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 11,
+      "pid": 68168,
+      "x": 664,
+      "y": 47,
+      "focused": false
+    },
+    {
+      "id": 4,
+      "pid": 11841,
+      "x": 0,
+      "y": 32,
+      "focused": false
+    },
+    {
+      "id": 19,
+      "pid": 1785675,
+      "x": 0,
+      "y": 32,
+      "focused": true
+    }
+  ],
+  "total_windows": 4
+}

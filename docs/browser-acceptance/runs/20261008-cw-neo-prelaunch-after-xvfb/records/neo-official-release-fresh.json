@@ -1,0 +1,13 @@
+{
+  "checked_at_utc": "2026-10-08T10:24:50.769977+00:00",
+  "official_api_url": "https://api.github.com/repos/browseros-ai/BrowserOS/releases/tags/browserclaw%2Fv0.51.0",
+  "tag_name": "browserclaw/v0.51.0",
+  "published_at": "2026-10-05T18:26:47Z",
+  "html_url": "https://github.com/browseros-ai/BrowserOS/releases/tag/browserclaw/v0.51.0",
+  "asset": {
+    "name": "BrowserOS_neo_v0.51.0_amd64.deb",
+    "size": 182120604,
+    "digest": "sha256:caebdfd1d105ee4fc69886361cd42a1f7c6bffaba50fd9da6c68c7977aae4d15",
+    "browser_download_url": "https://github.com/browseros-ai/BrowserOS/releases/download/browserclaw/v0.51.0/BrowserOS_neo_v0.51.0_amd64.deb"
+  }
+}

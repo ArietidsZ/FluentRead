@@ -1,0 +1,55 @@
+{
+  "at_utc": "2026-10-08T10:24:44.905229+00:00",
+  "hostname": "arietids-cw",
+  "xvfb": "2:21.1.22-1ubuntu1.2",
+  "xvfb_transaction": {
+    "new": [
+      "xvfb"
+    ],
+    "upgraded": [],
+    "removed": [],
+    "source": "existing Ubuntu resolute-updates official archive",
+    "version": "2:21.1.22-1ubuntu1.2"
+  },
+  "neo_package": {
+    "package": "browserclaw",
+    "version": "155.0.8309.26",
+    "official_deb_sha256": "caebdfd1d105ee4fc69886361cd42a1f7c6bffaba50fd9da6c68c7977aae4d15",
+    "installed_binary_sha256": "0994937730e362e40653610fd40e38d62d4160152b590f90e99971005c2e0881"
+  },
+  "input_route_checkpoint": "b6afd87fca8b556214037a34288565a8d898f431",
+  "port_application_source": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "port_reference_clean": true,
+  "official_proxy_bindings": [
+    {
+      "file": "approval-prep-source/neo-v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_proxy.cc",
+      "patch_file_line": 374,
+      "code": [
+        "+  int result = listener->socket->ListenWithAddressAndPort(",
+        "+      \"0.0.0.0\", static_cast<uint16_t>(http_port), kBackLog);",
+        "+  if (result != net::OK) {"
+      ]
+    },
+    {
+      "file": "approval-prep-source/neo-v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_proxy.cc",
+      "patch_file_line": 414,
+      "code": [
+        "+  int result = listener->socket->ListenWithAddressAndPort(",
+        "+      \"0.0.0.0\", static_cast<uint16_t>(https_port), kBackLog);",
+        "+  if (result != net::OK) {"
+      ]
+    }
+  ],
+  "runtime_started": {
+    "neo": false,
+    "xvfb_display": false,
+    "independent_dbus": false,
+    "fixture_server": false,
+    "new_mcp_or_cdp_listener": false
+  },
+  "actual_gui_tests": 0,
+  "linux_focus_helper_implemented": false,
+  "no_user_browser_or_service_changes": true,
+  "blocker": "Pinned official Neo MCP HTTP and HTTPS proxy unconditionally bind 0.0.0.0. Xvfb isolates display, not network. The supported separate-instance control channel therefore fails the no-expanded-listener prerequisite. Stopped before display/profile/browser/session launch; did not try a CDP fallback or network/security change.",
+  "minimum_next_step": "Review a supported loopback-only or local-pipe BrowserOS instance channel before launching; if it requires runtime/network settings or namespaces beyond the granted scope, obtain specific approval first. Then implement and validate the truthful Linux helper branch, without macOS labels."
+}

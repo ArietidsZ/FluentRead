@@ -1,0 +1,41 @@
+{
+  "status": "prepared-for-specific-parent-review; not executed",
+  "candidate": "official BrowserOS-owned loopback CDP with managed MCP/sidecar disabled in a new temporary profile",
+  "flags": [
+    "--ozone-platform=x11",
+    "--user-data-dir=<owned-temporary-profile>",
+    "--browseros-cdp-port=<verified-free-loopback-port>",
+    "--disable-browseros-server",
+    "--no-first-run",
+    "--no-default-browser-check",
+    "--load-extension=<verified-89fd0580-chrome-output>"
+  ],
+  "display": "fresh Xvfb display, normal size, authenticated Unix socket only; no TCP X listener",
+  "session": "fresh dbus-run-session and task-owned HOME/XDG directories; no inherited user Wayland display or session bus",
+  "source_proof": {
+    "official_source_url": "https://github.com/browseros-ai/BrowserOS/blob/browserclaw/v0.51.0/packages/browseros/chromium_patches/chrome/browser/browseros/server/browseros_server_manager.cc",
+    "loopback_socket_factory_patch_lines": [
+      164,
+      175
+    ],
+    "managed_cdp_starts_before_disable_server_return_patch_lines": [
+      495,
+      507
+    ],
+    "proxy_starts_after_return_patch_lines": [
+      513,
+      523
+    ],
+    "source_sha256": "0b9f229d707817869d4f9459c6990f3618e946f30a5e8b79086779ae5e2277f7"
+  },
+  "risk": "Allows BrowserOS-specific CDP automation, including JavaScript/DOM, over a temporary unauthenticated loopback control endpoint for the synthetic profile. It disables the managed MCP sidecar for that process. This is not a Cua tool or Cua policy expansion; it is a changed BrowserOS control mode and must not be treated as already-approved GUI-only Cua access.",
+  "approval_required_reason": "The delegation requires explicit review of network/privacy/security setting changes and forbids using unapproved CDP features to bypass the existing GUI-only Cua policy. Request clarification/approval for this exact BrowserOS-owned alternative before execution.",
+  "additional_software": "No extra software installed beyond approved Xvfb. Existing image/area scripts require a Playwright module; no package found in the bounded checked roots. Do not install new driver dependencies without reviewing scope. A smaller native BrowserOS-channel fixture driver may avoid this dependency.",
+  "next_after_approval": [
+    "implement truthful linux-isolated-x11 mode; never return macOS labels",
+    "verify display/bus/profile/PID/loopback ownership before control",
+    "load only 89fd0580 application output",
+    "run normal/concurrent/cancel/navigation/new-owner Port fixtures",
+    "record desktop absence and own process cleanup; no GPU/native-desktop claim"
+  ]
+}

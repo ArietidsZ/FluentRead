@@ -1,0 +1,5 @@
+{
+  "exit_code": 1,
+  "titles_recorded": false,
+  "error": "Error connecting: Could not connect: Operation not permitted"
+}

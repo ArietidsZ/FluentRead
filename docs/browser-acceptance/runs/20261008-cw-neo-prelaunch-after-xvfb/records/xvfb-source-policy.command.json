@@ -1,0 +1,12 @@
+{
+  "label": "xvfb-source-policy",
+  "command": [
+    "apt-cache",
+    "policy",
+    "xvfb"
+  ],
+  "cwd": "<CW_TASK>/FluentRead-transaction-wxt-validation-20261008",
+  "started_at": "2026-10-08T10:31:57.991790+00:00",
+  "duration_seconds": 0.011,
+  "exit_code": 0
+}
