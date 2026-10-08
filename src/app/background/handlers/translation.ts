@@ -4,7 +4,8 @@
  * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，从原生 sender 绑定私密来源，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
  * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
  */
-import {requestOwnerKey} from '@/src/platform/browser/requestOwner';
+import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
+export {createTranslationRequestRegistry, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {isTrustedIncognitoSender, resolveNativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
 import type {IncognitoSourceRuntime, NativeMessageSender, NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
 import {attachTranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
@@ -30,25 +31,6 @@ export interface TranslationRequestHandlerDependencies {
     serializeError(error: unknown): unknown;
 }
 
-export interface TranslationRequestContext {
-    sender?: {
-        id?: string;
-        url?: string;
-        frameId?: number;
-        documentId?: string;
-        origin?: string;
-        tab?: {id?: number; incognito?: boolean};
-    };
-}
-
-export interface TranslationRequestRegistry {
-    run<T>(clientRequestId: string, context: TranslationRequestContext, operation: (
-        signal: AbortSignal,
-        ownershipKey: string,
-    ) => Promise<T>): Promise<T>;
-    cancel(clientRequestId: unknown, context: TranslationRequestContext): TranslationCancelResponse;
-}
-
 const STRING_FIELDS = [
     'context',
     'pageContext',
@@ -59,8 +41,6 @@ const STRING_FIELDS = [
     'sourceLanguageDetectionText',
     'glossaryRevision',
 ] as const satisfies readonly (keyof TranslationRequestMessageBase)[];
-const CLIENT_REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/u;
-const REQUEST_HISTORY_LIMIT = 512;
 
 function hasOwn(value: object, key: PropertyKey): boolean {
     return Object.prototype.hasOwnProperty.call(value, key);
@@ -77,67 +57,6 @@ function assertOptionalString(candidate: TranslationRequestCandidate, field: typ
     if (value !== undefined && typeof value !== 'string') {
         throw new TypeError(`翻译请求字段 ${field} 必须是字符串`);
     }
-}
-
-function parseClientRequestId(value: unknown, optional = false): string | undefined {
-    if (value === undefined && optional) return undefined;
-    if (typeof value !== 'string' || !CLIENT_REQUEST_ID_PATTERN.test(value)) {
-        throw new TypeError('翻译请求 clientRequestId 格式无效');
-    }
-    return value;
-}
-
-
-function translationAbortError(): Error {
-    const error = new Error('翻译请求已取消');
-    error.name = 'AbortError';
-    return error;
-}
-
-/** 有界保存 cancel-before-start/已用 ID，同时用 sender scope 防止跨页面误取消。 */
-export function createTranslationRequestRegistry(): TranslationRequestRegistry {
-    const active = new Map<string, AbortController>();
-    const cancelledBeforeStart = new Set<string>();
-    const completed = new Set<string>();
-    const cancellationOrder: string[] = [];
-    const completionOrder: string[] = [];
-    const remember = (set: Set<string>, order: string[], key: string) => {
-        if (set.has(key)) return;
-        set.add(key);
-        order.push(key);
-        if (order.length > REQUEST_HISTORY_LIMIT) set.delete(order.shift()!);
-    };
-
-    return {
-        async run(clientRequestId, context, operation) {
-            const owner = requestOwnerKey(context);
-            const key = `${owner.length}:${owner}:${clientRequestId}`;
-            if (cancelledBeforeStart.delete(key)) {
-                remember(completed, completionOrder, key);
-                throw translationAbortError();
-            }
-            if (active.has(key) || completed.has(key)) {
-                throw new Error('翻译请求 clientRequestId 已在使用');
-            }
-            const controller = new AbortController();
-            active.set(key, controller);
-            try {
-                return await operation(controller.signal, key);
-            } finally {
-                if (active.get(key) === controller) active.delete(key);
-                remember(completed, completionOrder, key);
-            }
-        },
-        cancel(clientRequestIdValue, context) {
-            const clientRequestId = parseClientRequestId(clientRequestIdValue)!;
-            const owner = requestOwnerKey(context);
-            const key = `${owner.length}:${owner}:${clientRequestId}`;
-            const controller = active.get(key);
-            if (controller) controller.abort();
-            else if (!completed.has(key)) remember(cancelledBeforeStart, cancellationOrder, key);
-            return {success: true, cancelled: Boolean(controller), clientRequestId};
-        },
-    };
 }
 
 export function parseTranslationRequest(candidate: TranslationRequestCandidate): TranslationRequestMessage {
@@ -222,30 +141,31 @@ export function createTranslationRequestFallback<TContext = undefined>(
         async handle(candidate, context) {
             try {
                 const parsed = parseTranslationRequest(candidate);
-                const sender = (context as TranslationRequestContext | undefined)?.sender;
-                const message = dependencies.resolveSourcePrivacy
-                    ? attachTranslationSourcePrivacy(parsed, await dependencies.resolveSourcePrivacy(sender))
-                    : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed)
-                        : dependencies.runtimeId && sender?.id === dependencies.runtimeId && sender.tab?.incognito === false
-                            ? attachTranslationSourcePrivacy(parsed, 'regular') : parsed;
-                const senderUrl = (context as TranslationRequestContext | undefined)?.sender?.url;
-                const isDocument = typeof senderUrl === 'string'
-                    && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);
-                attachTranslationGlossaryContext(message, {
-                    pageUrl: typeof senderUrl === 'string' && /^https?:\/\//u.test(senderUrl) ? senderUrl : undefined,
-                    context: message.glossaryContext === 'document' && isDocument ? 'document'
-                        : message.glossaryContext === 'video' ? 'video' : 'page',
-                });
                 const clientRequestId = parseClientRequestId(candidate.clientRequestId, true);
-                if (!clientRequestId) return await dependencies.translate(message);
-                return await requestRegistry.run(
-                    clientRequestId,
-                    (context ?? {}) as TranslationRequestContext,
-                    (signal, ownershipKey) => dependencies.translate(attachTranslationRequestControl(message, {
-                        signal,
-                        ownershipKey,
-                    })),
-                );
+                const captured = captureTranslationRequestContext(context as TranslationRequestContext | undefined);
+                const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
+                    const sender = captured.sender;
+                    const message = dependencies.resolveSourcePrivacy
+                        ? attachTranslationSourcePrivacy(parsed, await dependencies.resolveSourcePrivacy(sender))
+                        : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed)
+                            : dependencies.runtimeId && sender?.id === dependencies.runtimeId && sender.tab?.incognito === false
+                                ? attachTranslationSourcePrivacy(parsed, 'regular') : parsed;
+                    throwIfTranslationRequestAborted(signal);
+                    const senderUrl = sender?.url;
+                    const isDocument = typeof senderUrl === 'string'
+                        && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);
+                    attachTranslationGlossaryContext(message, {
+                        pageUrl: typeof senderUrl === 'string' && /^https?:\/\//u.test(senderUrl) ? senderUrl : undefined,
+                        context: message.glossaryContext === 'document' && isDocument ? 'document'
+                            : message.glossaryContext === 'video' ? 'video' : 'page',
+                    });
+                    if (signal && ownershipKey) attachTranslationRequestControl(message, {signal, ownershipKey});
+                    throwIfTranslationRequestAborted(signal);
+                    const result = await dependencies.translate(message);
+                    throwIfTranslationRequestAborted(signal);
+                    return result;
+                };
+                return await (clientRequestId ? requestRegistry.run(clientRequestId, captured, operation) : operation());
             } catch (error) {
                 return dependencies.serializeError(error);
             }

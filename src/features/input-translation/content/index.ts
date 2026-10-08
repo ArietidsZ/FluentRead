@@ -12,6 +12,7 @@ import type { ContentScriptContext } from 'wxt/utils/content-script-context';
 import type { ShadowRootContentScriptUi } from 'wxt/utils/content-script-ui/shadow-root';
 import {services as translationServices} from '@/src/core/config/catalog';
 import {parseApiKeyRequirementKey} from '@/src/core/config/validation';
+import {waitForTranslationRuntimeRequest} from '@/src/services/translation/runtimeTransport';
 import {normalizeUiLanguage, translateLegacyText} from '@/src/core/i18n';
 import {normalizeInputBoxTranslationOutputMode, type InputBoxTranslationOutputMode} from '@/src/core/config/inputTranslation';
 import {
@@ -233,12 +234,16 @@ async function translateInputBox(
     sendMessage: (message: unknown) => Promise<unknown>,
     text: string,
     targetLang: string,
+    signal: AbortSignal,
 ): Promise<string> {
-    const result = await sendMessage({
+    const message = {
         type: 'inputBoxTranslation',
         text,
         targetLang,
-    }) as { success?: boolean; translatedText?: string; error?: string } | undefined;
+    };
+    const result = await (NATIVE_PRIVATE_ROUTE_SUPPORTED
+        ? waitForTranslationRuntimeRequest(sendMessage, message, 45_000, signal, undefined, 'inputBoxTranslationCancel')
+        : sendMessage(message)) as { success?: boolean; translatedText?: string; error?: string } | undefined;
 
     if (result?.success) return result.translatedText || '';
     throw new Error(result?.error || '翻译失败');
@@ -528,8 +533,8 @@ export function createInputTranslationContentFeature(
             }
 
             try {
-                // 步骤 3：background 消息不能中断，结果落地前再次校验快照和 feature signal。
-                const translatedText = await translateInputBox(deps.sendMessage, originalText, targetLanguage);
+                // 步骤 3：原生传输用当前请求 signal 精确取消，写回前仍校验输入与配置快照。
+                const translatedText = await translateInputBox(deps.sendMessage, originalText, targetLanguage, requestSignal);
                 if (!isCurrentAndUnchanged()) {
                     clearOwnedVisuals();
                     return;

@@ -2,7 +2,8 @@ import {vi} from 'vitest';
 import {Config} from '@/src/core/config/model';
 import {currentModelIds, customModelString, services, servicesType} from '@/src/core/config/catalog';
 import {resolveNativeSourcePrivacy, type NativeMessageSender} from '@/src/platform/browser/incognitoSource';
-import {createInputBoxTranslationHandler, type InputBoxTranslationContext} from '@/src/features/input-translation/background/handler';
+import {createInputBoxTranslationCancelHandler, createInputBoxTranslationHandler, type InputBoxTranslationContext} from '@/src/features/input-translation/background/handler';
+import {createTranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {createTranslationBroker} from '@/src/services/translation/broker';
 import {createTranslationAvailability} from '@/src/services/translation/availability';
 import {commonMsgTemplate} from '@/src/services/translation/templates';
@@ -53,10 +54,11 @@ export function incognitoInputRuntime(factory = createTranslationBroker) {
     const getConfig = vi.fn(() => config);
     const nativeRuntime = {id: nativeInputSender.id, getURL: () => 'chrome-extension://input-fixture/', getContexts: vi.fn(async () => [] as unknown[])};
     const resolveSourcePrivacy = (sender: NativeMessageSender | undefined) => resolveNativeSourcePrivacy(sender, nativeRuntime);
-    const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig, resolveSourcePrivacy,
+    const inputRegistry = createTranslationRequestRegistry();
+    const handler = createInputBoxTranslationHandler({requestRegistry: inputRegistry,ready: Promise.resolve(), getConfig, resolveSourcePrivacy,
         translate: request => {requests.push(request); return availability.translateWithCache(request);},
     });
-    const listener = createBackgroundRuntimeMessageListener(createBackgroundMessageRouter([handler]), sender => ({sender} as InputBoxTranslationContext));
+    const listener = createBackgroundRuntimeMessageListener(createBackgroundMessageRouter([handler, createInputBoxTranslationCancelHandler(inputRegistry)]), sender => ({sender} as InputBoxTranslationContext));
     return {config, getConfig, broker, availability, handler, listener, requests, provider, providers, providerRequests, snapshots, payloads, cacheGet, cacheKeys,
         nativeRuntime, resolveSourcePrivacy, setProviderResponse: (response: Promise<string>) => {providerResponse = response;}, getAvailabilityRequest: () => availabilityRequest};
 }

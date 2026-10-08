@@ -69,6 +69,7 @@ import {
 } from '@/src/app/background/handlers/translation';
 import {clearTranslationQueue} from '@/src/services/translation/queue';
 import {getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {waitForTranslationRuntimeRequest} from '@/src/services/translation/runtimeTransport';
 
 const originalDocument = globalThis.document;
 const originalLocation = globalThis.location;
@@ -88,6 +89,119 @@ async function flushMicrotasks(times = 8): Promise<void> {
 }
 
 describe('translation API request lifecycle performance', () => {
+  it('userscript text/batch preserve the old protocol while video retains its existing ID protocol', async () => {
+    vi.resetModules(); vi.doMock('@/src/core/config/incognitoRoute', async () => ({
+      ...await vi.importActual<typeof import('@/src/core/config/incognitoRoute')>('@/src/core/config/incognitoRoute'), NATIVE_PRIVATE_ROUTE_SUPPORTED: false,
+    }));
+    try {
+      const client = await import('@/src/app/translation/client');
+      mocks.sendMessage.mockImplementation(message => Promise.resolve(Array.isArray(message.origin) ? ['译文'] : '译文'));
+      await client.translateText('Userscript text.', '', {maxRetries: 0});
+      await client.translateTextBatch(['Userscript batch.'], '', {maxRetries: 0});
+      await client.translateVideoText('Userscript video.');
+      expect(mocks.sendMessage.mock.calls[0][0]).not.toHaveProperty('clientRequestId');
+      expect(mocks.sendMessage.mock.calls[1][0]).not.toHaveProperty('clientRequestId');
+      expect(mocks.sendMessage.mock.calls[2][0].clientRequestId).toEqual(expect.any(String));
+      client.cancelAllTranslations();
+    } finally {vi.doUnmock('@/src/core/config/incognitoRoute'); vi.resetModules();}
+  });
+  it.each(['text', 'batch'])('native %s retries use fresh IDs and aborting backoff sends no new attempt or cancel', async kind => {
+    const run = (signal?: AbortSignal) => kind === 'text'
+      ? translateText('Retry native source.', '', {signal, maxRetries: 1, retryDelay: 100})
+      : translateTextBatch(['Retry native source.'], '', {signal, maxRetries: 1, retryDelay: 100});
+    mocks.sendMessage.mockRejectedValueOnce(new Error('temporary network failure'))
+      .mockResolvedValueOnce(kind === 'text' ? '成功' : ['成功']);
+    const pending = run(); await vi.advanceTimersByTimeAsync(100); await pending;
+    const ids = mocks.sendMessage.mock.calls.map(([message]) => message.clientRequestId);
+    expect(ids).toHaveLength(2); expect(ids.every(id => typeof id === 'string')).toBe(true); expect(new Set(ids).size).toBe(2);
+    mocks.sendMessage.mockReset().mockRejectedValue(new Error('temporary network failure'));
+    const controller = new AbortController(), cancelled = run(controller.signal).catch(error => error);
+    await flushMicrotasks(20); controller.abort(); await expect(cancelled).resolves.toMatchObject({name: 'AbortError'});
+    expect(mocks.sendMessage).toHaveBeenCalledOnce(); expect(mocks.sendMessage.mock.calls[0][0]).not.toHaveProperty('type');
+  });
+
+  it('cancelled caller holds its unresolved transport lease while another slot admits the queued request', async () => {
+    mocks.config.maxConcurrentTranslations = 2;
+    const first = deferred<string>(), second = deferred<string>();
+    mocks.sendMessage.mockImplementation(message => message.type ? Promise.resolve({success: true})
+      : message.origin === 'First transport.' ? first.promise : message.origin === 'Second transport.' ? second.promise : Promise.resolve('third'));
+    const controller = new AbortController();
+    const a = translateText('First transport.', '', {signal: controller.signal, maxRetries: 0}).catch(error => error);
+    const b = translateText('Second transport.', '', {maxRetries: 0});
+    const c = translateText('Third transport.', '', {maxRetries: 0});
+    await flushMicrotasks(20); controller.abort(); await expect(a).resolves.toMatchObject({name: 'AbortError'});
+    await flushMicrotasks(20);
+    expect(mocks.sendMessage.mock.calls.filter(([message]) => !message.type).map(([message]) => message.origin)).toEqual(['First transport.', 'Second transport.']);
+    second.resolve('second'); await b; await expect(c).resolves.toBe('third');
+    first.resolve('late first'); await flushMicrotasks(20);
+    expect(mocks.sendMessage.mock.calls.filter(([message]) => message.type)).toHaveLength(1);
+  });
+
+  it('native ordinary timeout sends one cancel and consumes a late rejection after caller abort', async () => {
+    const transport = deferred<string>(), controller = new AbortController();
+    mocks.sendMessage.mockImplementation(message => message.type ? Promise.resolve({success: true}) : transport.promise);
+    const pending = translateText('Timeout ordinary source.', '', {signal: controller.signal, maxRetries: 0, timeout: 50}).catch(error => error);
+    await vi.advanceTimersByTimeAsync(50); await expect(pending).resolves.toMatchObject({message: '翻译请求超时'});
+    controller.abort(); transport.reject(new Error('late transport failure')); await flushMicrotasks();
+    expect(mocks.sendMessage.mock.calls.filter(([message]) => message.type === 'fluentReadTranslationCancel')).toHaveLength(1);
+  });
+
+  it('transport abort before dispatch sends neither start nor cancel; synchronous dispatch abort consumes rejection', async () => {
+    const before = new AbortController(); before.abort(); const send = vi.fn(async (_message: unknown) => 'unused');
+    expect(() => waitForTranslationRuntimeRequest(send, {origin: 'unused'}, 50, before.signal, undefined, 'cancel')).toThrow('翻译已取消');
+    expect(send).not.toHaveBeenCalled();
+    const during = new AbortController(); const transport = deferred<string>();
+    send.mockImplementation(message => {
+      if ((message as any).type) return Promise.resolve('cancelled');
+      during.abort(); return transport.promise;
+    });
+    const pending = waitForTranslationRuntimeRequest(send, {origin: 'source'}, 50, during.signal, undefined, 'cancel').catch(error => error);
+    await expect(pending).resolves.toMatchObject({name: 'AbortError'});
+    transport.reject(new Error('late rejection')); await flushMicrotasks(); await vi.advanceTimersByTimeAsync(50);
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['sync', 'async'])('input transport tolerates %s cancellation notification failure', async failure => {
+    const transport = deferred<string>(), controller = new AbortController();
+    const send = vi.fn((message: any) => {
+      if (!message.type) return transport.promise;
+      if (failure === 'sync') throw new Error('runtime unloaded');
+      return Promise.reject(new Error('runtime unloaded'));
+    });
+    const pending = waitForTranslationRuntimeRequest(send, {origin: 'source'}, 50, controller.signal, undefined, 'inputBoxTranslationCancel').catch(error => error);
+    controller.abort(); await expect(pending).resolves.toMatchObject({name: 'AbortError'});
+    await vi.advanceTimersByTimeAsync(50); transport.resolve('late'); await flushMicrotasks(); expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(['missing', 'no-uuid', 'random-error'])('request IDs retain a unique fallback when crypto is %s', async cryptoState => {
+    vi.resetModules();
+    vi.stubGlobal('crypto', cryptoState === 'missing' ? undefined : {
+      getRandomValues: (values: Uint32Array) => {if (cryptoState === 'random-error') throw new Error('random unavailable'); return values.fill(7);},
+    });
+    try {
+      const module = await import('@/src/services/translation/runtimeTransport');
+      const send = vi.fn(async (_message: unknown) => 'translated');
+      await module.waitForTranslationRuntimeRequest(send, {origin: 'one'}, 50, undefined, undefined, 'cancel');
+      await module.waitForTranslationRuntimeRequest(send, {origin: 'two'}, 50, undefined, undefined, 'cancel');
+      const ids = send.mock.calls.map(([message]) => (message as any).clientRequestId);
+      expect(ids[0]).toMatch(/^translation-[A-Za-z0-9-]+$/); expect(ids[1]).not.toBe(ids[0]);
+    } finally {vi.unstubAllGlobals();}
+  });
+  it.each(['text', 'batch'])('native ordinary %s dispatch has an ID and abort sends exactly one cancel', async kind => {
+    const transport = deferred<any>(); const controller = new AbortController();
+    mocks.sendMessage.mockImplementation(message => message.type ? Promise.resolve({success: true}) : transport.promise);
+    const pending = kind === 'text'
+      ? translateText('Native ordinary readable source.', '', {signal: controller.signal, maxRetries: 0})
+      : translateTextBatch(['Native ordinary readable source.'], '', {signal: controller.signal, maxRetries: 0});
+    const outcome = pending.catch(error => error);
+    await flushMicrotasks();
+    const start = mocks.sendMessage.mock.calls[0][0];
+    controller.abort(); await outcome;
+    transport.resolve(kind === 'text' ? 'late result' : ['late result']); await flushMicrotasks();
+    expect(start.clientRequestId).toEqual(expect.any(String));
+    expect(mocks.sendMessage.mock.calls.filter(([message]) => message.type === 'fluentReadTranslationCancel'))
+      .toEqual([[{type: 'fluentReadTranslationCancel', clientRequestId: start.clientRequestId}]]);
+  });
   it('carries the comparison purpose to native background without replacing the chosen card model', async () => {
     mocks.sendMessage.mockResolvedValue('fixture translation');
     await expect(translateText('A complete readable sentence.', 'Comparison', {

@@ -1600,7 +1600,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                     model: Object.freeze({...current.model, [route.service]: route.model}),
                     customModel: Object.freeze({...current.customModel, [route.service]: route.model}),
                 }, route);
-                message = {...message, serviceOverride: route.service, modelOverride: route.model};
+                message = Object.defineProperties({}, {...Object.getOwnPropertyDescriptors(message),
+                    serviceOverride: {value: route.service, enumerable: true, configurable: true, writable: true},
+                    modelOverride: {value: route.model, enumerable: true, configurable: true, writable: true},
+                }) as TranslationRequestMessage;
             }
         }
         const serviceOverride = message.serviceOverride;

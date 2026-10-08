@@ -23,7 +23,7 @@ import {
 } from './handlers/fullPageTranslationState';
 import {createNeteaseMailFrameBackgroundHandlers, type NeteaseMailFrameBackgroundContext} from '@/src/features/full-page-translation/background/neteaseMailFrameHandlers';
 import {createImageOcrLanguageRepository} from './handlers/imageTranslation';
-import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
+import {createInputBoxTranslationCancelHandler, createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createLocalInsightsHandlers} from './localInsightsHandlers';
 import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWeights';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
@@ -62,6 +62,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const cancelWriting = installWritingBackgroundRuntime();
     const capabilities = options.capabilities ?? browserCapabilities;
     const translationRequestRegistry = createTranslationRequestRegistry();
+    const inputTranslationRequestRegistry = createTranslationRequestRegistry();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
@@ -92,7 +93,9 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         }),
         ...createConfigBackgroundHandlers<BackgroundRuntimeContext>(),
         ...createProviderTestRuntimeHandlers(),
+        createInputBoxTranslationCancelHandler(inputTranslationRequestRegistry),
         createInputBoxTranslationHandler({
+            requestRegistry: inputTranslationRequestRegistry,
             ready: configReady,
             getConfig: () => config,
             translate: translateWithCache,

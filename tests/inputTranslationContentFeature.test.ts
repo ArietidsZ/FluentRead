@@ -373,7 +373,7 @@ describe('input translation content feature', () => {
         input.value = original;
         harness.fakeDocument.activeElement = input;
         await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
-        expect(harness.sendMessage).toHaveBeenCalledWith({type: 'inputBoxTranslation', text: original, targetLang: 'zh'});
+        expect(harness.sendMessage).toHaveBeenCalledWith({type: 'inputBoxTranslation', text: original, targetLang: 'zh', clientRequestId: expect.any(String)});
         expect(input.value).toBe(mode === 'append' ? `${original}\n你好` : `你好\n${original}`);
         await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
         expect(harness.sendMessage).toHaveBeenCalledTimes(1);
@@ -469,6 +469,7 @@ describe('input translation content feature', () => {
             type: 'inputBoxTranslation',
             text: 'Hello',
             targetLang: 'zh',
+            clientRequestId: expect.any(String),
         });
         expect(input.value).toBe('你好');
         expect(tooltipRecords.map(record => record.options.mode)).toEqual(['closed', 'closed']);
@@ -1087,9 +1088,9 @@ describe('input translation content feature', () => {
     it('旧请求返回时不能清理新请求拥有的视觉状态', async () => {
         let resolveFirst: (value: unknown) => void = () => undefined;
         const first = new Promise(resolve => { resolveFirst = resolve; });
-        const sendMessage = vi.fn()
-            .mockReturnValueOnce(first)
-            .mockResolvedValueOnce({success: true, translatedText: '第二次'});
+        let starts = 0;
+        const sendMessage = vi.fn((message: any) => message.type === 'inputBoxTranslationCancel'
+            ? Promise.resolve({success: true}) : ++starts === 1 ? first : Promise.resolve({success: true, translatedText: '第二次'}));
         const harness = mountHarness({
             sendMessage,
         });
@@ -1273,6 +1274,26 @@ describe('input translation content feature', () => {
 
 
 describe('private input config identity and late content result', () => {
+    it.each(['config', 'edit', 'dispose'])('input %s change cancels the actual backend once and rejects late writes', async change => {
+        const f = incognitoInputRuntime(); let release!: (value: string) => void, generation = 0;
+        f.setProviderResponse(new Promise(resolve => {release = resolve;}));
+        const h = mountHarness({config: {...f.config, inputBoxTranslationTrigger: 'ctrl_enter', inputBoxTranslationTarget: 'zh'},
+            generation: () => generation, sendMessage: message => f.listener(message, nativeInputSender) as Promise<unknown>});
+        const element = fakeElement('textarea'); element.value = 'Original input.'; h.fakeDocument.activeElement = element;
+        const pending = h.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+        await vi.waitFor(() => expect(f.providerRequests).toHaveLength(1));
+        if (change === 'config') {generation++; h.feature.invalidate();}
+        else if (change === 'dispose') h.controller.abort();
+        else {element.value = 'User edit.'; await h.fakeDocument.emit('input', {target: element, isTrusted: true});}
+        h.feature.invalidate();
+        const providerAborted = f.providerRequests[0].abortSignal?.aborted;
+        release('Late translation.'); await pending;
+        expect(providerAborted).toBe(true);
+        const cancelCalls = h.sendMessage.mock.calls.filter(([message]) => (message as any).type === 'inputBoxTranslationCancel');
+        expect(cancelCalls).toHaveLength(1);
+        expect(cancelCalls[0][0]).toMatchObject({clientRequestId: (h.sendMessage.mock.calls[0][0] as any).clientRequestId});
+        expect(element.value).toBe(change === 'edit' ? 'User edit.' : 'Original input.');
+    });
     it.each([
         {incognitoService: 'google'}, {incognitoModel: 'other-model'},
         {token: {openai: 'fixture-key-changed'}}, {modelThinking: {openai: 'high'}},

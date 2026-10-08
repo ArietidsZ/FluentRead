@@ -10,8 +10,147 @@ import {prepareAreaTextTranslation, prepareAreaVisionRecognition} from '@/src/fe
 import {createImageTranslationBackgroundHandlers} from '@/src/features/image-translation/background/handlers';
 import {createSelectionWordLookupHandler, type WordCardData} from '@/src/features/selection-translation/background/wordLookupHandler';
 import {createModelVisionProbe} from '@/src/services/translation/visionProbe';
+import * as inputHandlers from '@/src/features/input-translation/background/handler';
+import {createTranslationRequestFallback, createTranslationRequestRegistry} from '@/src/app/background/handlers/translation';
+import {attachTranslationGlossaryContext, attachTranslationRequestControl, getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {createTranslationBroker} from '@/src/services/translation/broker';
 vi.mock('@/src/services/config/store', () => ({config: {}}));
 const input = {type: 'inputBoxTranslation' as const, text: 'A complete input sentence.', targetLang: 'zh-Hans'};
+
+describe('native generic and typed input backend cancellation', () => {
+    const owner = {sender: {...nativeInputSender, tab: {id: 11, incognito: true}, frameId: 0, documentId: 'document-A'}};
+    it.each(['generic', 'input'])('%s cancellation reaches the actual private-routed provider signal', async kind => {
+        const f = incognitoInputRuntime();
+        const registry = createTranslationRequestRegistry();
+        let release!: (value: string) => void;
+        f.setProviderResponse(new Promise(resolve => {release = resolve;}));
+        const dependencies = {ready: Promise.resolve(), getConfig: f.getConfig, requestRegistry: registry,
+            resolveSourcePrivacy: f.resolveSourcePrivacy, translate: f.availability.translateWithCache};
+        const pending = kind === 'input'
+            ? createInputBoxTranslationHandler(dependencies).handle({...input, clientRequestId: 'provider-abort'}, owner)
+            : createTranslationRequestFallback<typeof owner>({...dependencies, serializeError: error => error}).handle({origin: input.text,
+                serviceOverride: services.google, clientRequestId: 'provider-abort'}, owner);
+        const outcome = Promise.resolve(pending).catch(error => error);
+        await vi.waitFor(() => expect(f.providerRequests).toHaveLength(1));
+        expect(f.providerRequests[0].serviceOverride).toBe(services.openai);
+        expect(f.payloads[0].model).toBe('gpt-5.4-mini');
+        registry.cancel('provider-abort', owner);
+        const aborted = f.providerRequests[0].abortSignal?.aborted;
+        release('late result');
+        expect(aborted).toBe(true);
+        await expect(outcome).resolves.toMatchObject({name: 'AbortError'});
+        expect(f.getAvailabilityRequest()).not.toHaveProperty('clientRequestId');
+        expect(JSON.stringify(f.cacheKeys.mock.calls)).not.toContain('provider-abort');
+        expect(getTranslationRequestControl(f.getAvailabilityRequest())?.signal.aborted).toBe(true);
+    });
+    it.each(['ready', 'source'])('input %s wait stays active during 513 unrelated early cancels', async wait => {
+        const f = incognitoInputRuntime(); const registry = createTranslationRequestRegistry();
+        let hydrated!: () => void, sourced!: (value: 'private') => void;
+        const ready = new Promise<void>(resolve => {hydrated = resolve;});
+        const source = new Promise<'private'>(resolve => {sourced = resolve;});
+        const handler = createInputBoxTranslationHandler({ready: wait === 'ready' ? ready : Promise.resolve(),
+            getConfig: f.getConfig, requestRegistry: registry, resolveSourcePrivacy: () => source,
+            translate: f.availability.translateWithCache} as Parameters<typeof createInputBoxTranslationHandler>[0]);
+        const message = {...input, clientRequestId: 'input-wait'};
+        const pending = handler.handle(message, owner).catch(error => error);
+        await Promise.resolve();
+        const wasActive = registry.cancel(message.clientRequestId, owner).cancelled;
+        for (let index = 0; index < 513; index++) registry.cancel(`other-${index}`, owner);
+        hydrated(); sourced('private');
+        const result = await pending;
+        expect(wasActive).toBe(true); expect(result).toMatchObject({name: 'AbortError'});
+        expect(f.getConfig).not.toHaveBeenCalled(); expect(f.provider).not.toHaveBeenCalled();
+    });
+    it('exports a dedicated typed input cancel handler', () => {
+        expect((inputHandlers as Record<string, unknown>).createInputBoxTranslationCancelHandler).toBeTypeOf('function');
+    });
+    it.each(['tab', 'frame', 'document'])('typed input rejects cross-%s cancels and remains separate from generic with the same ID', async scope => {
+        const f = incognitoInputRuntime(), inputRegistry = createTranslationRequestRegistry(), genericRegistry = createTranslationRequestRegistry();
+        let release!: (value: string) => void;
+        f.setProviderResponse(new Promise(resolve => {release = resolve;}));
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: f.getConfig,
+            resolveSourcePrivacy: f.resolveSourcePrivacy, translate: f.availability.translateWithCache, requestRegistry: inputRegistry});
+        const cancel = inputHandlers.createInputBoxTranslationCancelHandler(inputRegistry);
+        const message = {...input, clientRequestId: 'same-ID'};
+        const pending = handler.handle(message, owner).catch(error => error);
+        await vi.waitFor(() => expect(f.providerRequests).toHaveLength(1));
+        const other = structuredClone(owner);
+        if (scope === 'tab') other.sender.tab.id++;
+        else if (scope === 'frame') other.sender.frameId++;
+        else other.sender.documentId = 'document-B';
+        const cancelMessage = {type: inputHandlers.INPUT_BOX_TRANSLATION_CANCEL_MESSAGE_TYPE, clientRequestId: 'same-ID'};
+        expect(cancel.handle(cancelMessage, other).cancelled).toBe(false);
+        expect(genericRegistry.cancel('same-ID', owner).cancelled).toBe(false);
+        expect(f.providerRequests[0].abortSignal?.aborted).toBe(false);
+        await expect(handler.handle(message, owner)).rejects.toThrow('已在使用');
+        expect(cancel.handle(cancelMessage, owner).cancelled).toBe(true);
+        expect(cancel.handle(cancelMessage, owner).cancelled).toBe(true);
+        release('late'); await expect(pending).resolves.toMatchObject({name: 'AbortError'});
+        await expect(handler.handle(message, owner)).rejects.toThrow('已在使用');
+        expect(cancel.handle(cancelMessage, owner).cancelled).toBe(false);
+        await expect(handler.handle({...input, clientRequestId: 'new-attempt'}, owner)).resolves.toMatchObject({success: true});
+        expect(f.provider).toHaveBeenCalledTimes(2);
+    });
+    it('typed input validates optional IDs before hydration and handles genuinely early cancellation', async () => {
+        const f = incognitoInputRuntime(), registry = createTranslationRequestRegistry();
+        const handler = createInputBoxTranslationHandler({ready: new Promise(() => {}), getConfig: f.getConfig,
+            translate: f.availability.translateWithCache, requestRegistry: registry});
+        const cancel = inputHandlers.createInputBoxTranslationCancelHandler(registry);
+        for (const clientRequestId of [null, 1, '', 'with space', 'x'.repeat(129)]) {
+            await expect(handler.handle({...input, clientRequestId}, owner)).rejects.toThrow('格式无效');
+            expect(() => cancel.handle({type: 'inputBoxTranslationCancel', clientRequestId}, owner)).toThrow('格式无效');
+        }
+        expect(() => cancel.handle({type: 'inputBoxTranslationCancel'})).toThrow('格式无效');
+        expect(cancel.handle({type: 'inputBoxTranslationCancel', clientRequestId: 'early'}, owner).cancelled).toBe(false);
+        await expect(handler.handle({...input, clientRequestId: 'early'}, owner)).rejects.toMatchObject({name: 'AbortError'});
+        expect(f.getConfig).not.toHaveBeenCalled(); expect(f.provider).not.toHaveBeenCalled();
+    });
+    it('generic registers while real getContexts awaits', async () => {
+        const registry = createTranslationRequestRegistry(), f = incognitoInputRuntime();
+        let contexts!: (value: unknown[]) => void;
+        f.nativeRuntime.getContexts.mockImplementation(() => new Promise(resolve => {contexts = resolve;}));
+        const context = {sender: {id: nativeInputSender.id, url: 'chrome-extension://input-fixture/document.html', documentId: 'resolver-doc'}};
+        const fallback = createTranslationRequestFallback<typeof context>({requestRegistry: registry,
+            resolveSourcePrivacy: f.resolveSourcePrivacy, translate: f.availability.translateWithCache, serializeError: error => error});
+        const pending = fallback.handle({origin: input.text, clientRequestId: 'contexts'}, context);
+        await vi.waitFor(() => expect(f.nativeRuntime.getContexts).toHaveBeenCalledOnce());
+        expect(registry.cancel('contexts', context).cancelled).toBe(true);
+        for (let index = 0; index < 513; index++) registry.cancel(`churn-${index}`, context);
+        contexts([{documentId: 'resolver-doc', incognito: true}]);
+        await expect(pending).resolves.toMatchObject({name: 'AbortError'}); expect(f.provider).not.toHaveBeenCalled();
+    });
+    it('generic control aborts the actual broker configuration wait before cache or provider', async () => {
+        let hydrated!: () => void;
+        const ready = new Promise<void>(resolve => {hydrated = resolve;});
+        const f = incognitoInputRuntime(dependencies => createTranslationBroker({...dependencies, ready}));
+        const registry = createTranslationRequestRegistry();
+        const fallback = createTranslationRequestFallback<typeof owner>({requestRegistry: registry, resolveSourcePrivacy: f.resolveSourcePrivacy,
+            translate: f.availability.translateWithCache, serializeError: error => error});
+        const pending = fallback.handle({origin: input.text, clientRequestId: 'config-wait'}, owner);
+        await vi.waitFor(() => expect(f.getAvailabilityRequest()).toBeDefined());
+        expect(registry.cancel('config-wait', owner).cancelled).toBe(true);
+        for (let index = 0; index < 513; index++) registry.cancel(`config-churn-${index}`, owner);
+        hydrated(); await expect(pending).resolves.toMatchObject({name: 'AbortError'});
+        expect(f.cacheKeys).not.toHaveBeenCalled(); expect(f.cacheGet).not.toHaveBeenCalled(); expect(f.provider).not.toHaveBeenCalled();
+    });
+    it('generic and input with identical payload/owner/ID do not share a cancellable broker pending operation', async () => {
+        const f = incognitoInputRuntime(), genericRegistry = createTranslationRequestRegistry(), inputRegistry = createTranslationRequestRegistry();
+        f.config.incognitoService = services.google; f.config.incognitoModel = ''; f.config.inputBoxTranslationService = services.google;
+        let release!: (value: string) => void; f.setProviderResponse(new Promise(resolve => {release = resolve;}));
+        const fallback = createTranslationRequestFallback<typeof owner>({requestRegistry: genericRegistry, resolveSourcePrivacy: f.resolveSourcePrivacy,
+            translate: f.availability.translateWithCache, serializeError: error => error});
+        const generic = fallback.handle({origin: input.text, targetLanguage: input.targetLang, sourceLanguage: 'auto',
+            serviceOverride: services.google, enableAIContext: false, glossaryIds: [], useCache: true, clientRequestId: 'identical'}, owner);
+        await vi.waitFor(() => expect(f.providerRequests).toHaveLength(1));
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: f.getConfig, requestRegistry: inputRegistry,
+            resolveSourcePrivacy: f.resolveSourcePrivacy, translate: f.availability.translateWithCache});
+        const typed = handler.handle({...input, clientRequestId: 'identical'}, owner).catch(error => error);
+        await vi.waitFor(() => expect(f.providerRequests).toHaveLength(2));
+        inputRegistry.cancel('identical', owner);
+        expect(f.providerRequests[0].abortSignal?.aborted).toBe(false); expect(f.providerRequests[1].abortSignal?.aborted).toBe(true);
+        release('generic succeeds'); await expect(generic).resolves.toBe('generic succeeds'); await expect(typed).resolves.toMatchObject({name: 'AbortError'});
+    });
+});
 
 describe('typed input native handler → availability → broker → captured provider', () => {
     it('private route wins over input service/model and preserves supported input prompts', async () => {
@@ -96,6 +235,8 @@ describe('typed input native handler → availability → broker → captured pr
     });
     it('actual availability wrapper preserves non-enumerable source and provider snapshot descriptors', async () => {
         const f = incognitoInputRuntime(); const request = createInputBoxTranslationRequest(f.config, input.text, input.targetLang, 'private');
+        attachTranslationGlossaryContext(request, {pageUrl: 'https://captured.invalid/', context: 'page'});
+        attachTranslationRequestControl(request, {signal: new AbortController().signal, ownershipKey: 'descriptor-owner'});
         for (const key of Object.getOwnPropertySymbols(request)) Object.defineProperty(request, key, {...Object.getOwnPropertyDescriptor(request, key), enumerable: false});
         await f.availability.translateWithCache(request);
         const forwarded = f.getAvailabilityRequest()!;
@@ -103,6 +244,7 @@ describe('typed input native handler → availability → broker → captured pr
         for (const key of Object.getOwnPropertySymbols(request)) expect(Object.getOwnPropertyDescriptor(forwarded, key)?.enumerable).toBe(false);
         expect(getTranslationProviderConfig(forwarded, f.config as never)).toBe(getTranslationProviderConfig(request, f.config as never));
         expect(f.payloads[0].model).toBe('gpt-5.4-mini');
+        expect(f.snapshots[0].glossaryMatchContext?.pageUrl).toBe('https://captured.invalid/');
     });
 });
 

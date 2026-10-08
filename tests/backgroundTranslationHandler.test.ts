@@ -14,6 +14,38 @@ import {
 } from '@/src/services/translation/requestSnapshot';
 
 describe('background translation fallback handler', () => {
+    it('registers before source resolution so cancellation survives more than 512 unrelated early cancels', async () => {
+        const registry = createTranslationRequestRegistry();
+        let resolveSource!: (value: 'private') => void;
+        const source = new Promise<'private'>(resolve => {resolveSource = resolve;});
+        const translate = vi.fn(async () => 'must not dispatch');
+        const context = {sender: {id: 'extension', tab: {id: 7, incognito: true}, frameId: 0, documentId: 'original-document'}};
+        const fallback = createTranslationRequestFallback<TranslationRequestContext>({requestRegistry: registry,
+            resolveSourcePrivacy: () => source, translate, serializeError: error => error});
+        const pending = fallback.handle({origin: 'A readable source.', clientRequestId: 'source-wait'}, context);
+        const wasActive = registry.cancel('source-wait', context).cancelled;
+        for (let index = 0; index < 513; index++) registry.cancel(`unrelated-${index}`, context);
+        resolveSource('private');
+        await expect(pending).resolves.toMatchObject({name: 'AbortError'});
+        expect(wasActive).toBe(true);
+        expect(translate).not.toHaveBeenCalled();
+    });
+
+    it('captures sender ownership and glossary URL before awaiting source resolution', async () => {
+        const registry = createTranslationRequestRegistry();
+        let resolveSource!: (value: 'regular') => void;
+        const source = new Promise<'regular'>(resolve => {resolveSource = resolve;});
+        const original = {sender: {id: 'extension', tab: {id: 8, incognito: false}, frameId: 0, documentId: 'captured', url: 'https://original.invalid/'}};
+        const context = structuredClone(original);
+        const translate = vi.fn(async (_message: {origin: string | string[]}) => 'translated');
+        const fallback = createTranslationRequestFallback<TranslationRequestContext>({requestRegistry: registry,
+            resolveSourcePrivacy: () => source, translate, serializeError: error => error});
+        const pending = fallback.handle({origin: 'Source.', clientRequestId: 'capture'}, context);
+        context.sender.documentId = 'mutated'; context.sender.tab.id = 99; context.sender.url = 'https://mutated.invalid/';
+        resolveSource('regular'); await pending;
+        expect(getTranslationRequestControl(translate.mock.calls[0][0])?.ownershipKey).toContain('document:captured');
+        expect(getTranslationGlossaryContext(translate.mock.calls[0][0])?.pageUrl).toBe(original.sender.url);
+    });
     it('只认无 type 且自有 origin 的历史翻译消息', () => {
         const fallback = createTranslationRequestFallback({
             translate: vi.fn(),

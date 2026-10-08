@@ -8,6 +8,7 @@ import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {Config} from '@/src/core/config/model';
 import {getLockedIncognitoRoute, lockIncognitoRoute, resolveIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED, type IncognitoRoute} from '@/src/core/config/incognitoRoute';
 import type {NativeMessageSender} from '@/src/platform/browser/incognitoSource';
+import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {attachTranslationSourcePrivacy, type TranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {
     DEFAULT_INPUT_BOX_TRANSLATION_SYSTEM_PROMPT,
@@ -19,15 +20,23 @@ import {
 } from '@/src/core/config/inputTranslation';
 import {
     attachTranslationProviderConfig,
+    attachTranslationRequestControl,
     createTranslationProviderConfigSnapshot,
 } from '@/src/services/translation/requestSnapshot';
-import type {TranslationSingleRequestMessage} from '@/src/services/translation/types';
+import type {TranslationCancelResponse, TranslationSingleRequestMessage} from '@/src/services/translation/types';
 export const INPUT_BOX_TRANSLATION_MESSAGE_TYPE = 'inputBoxTranslation' as const;
+export const INPUT_BOX_TRANSLATION_CANCEL_MESSAGE_TYPE = 'inputBoxTranslationCancel' as const;
 
 export interface InputBoxTranslationMessage {
     type: typeof INPUT_BOX_TRANSLATION_MESSAGE_TYPE;
     text?: unknown;
     targetLang?: unknown;
+    clientRequestId?: unknown;
+}
+
+export interface InputBoxTranslationCancelMessage {
+    type: typeof INPUT_BOX_TRANSLATION_CANCEL_MESSAGE_TYPE;
+    clientRequestId?: unknown;
 }
 
 export interface InputBoxTranslationResponse {
@@ -40,6 +49,7 @@ export interface InputBoxTranslationDependencies {
     readonly getConfig: () => Config;
     readonly translate: (message: TranslationSingleRequestMessage) => Promise<string | string[]>;
     readonly resolveSourcePrivacy?: (sender: NativeMessageSender | undefined) => Promise<TranslationSourcePrivacy>;
+    readonly requestRegistry?: TranslationRequestRegistry;
 }
 
 export interface InputBoxTranslationContext {sender?: NativeMessageSender}
@@ -120,6 +130,7 @@ export function createInputBoxTranslationRequest(
 export function createInputBoxTranslationHandler(
     dependencies: InputBoxTranslationDependencies,
 ): InputBoxTranslationHandler {
+    const registry = NATIVE_PRIVATE_ROUTE_SUPPORTED ? dependencies.requestRegistry ?? createTranslationRequestRegistry() : undefined;
     return {
         type: INPUT_BOX_TRANSLATION_MESSAGE_TYPE,
         async handle(message, context) {
@@ -127,20 +138,43 @@ export function createInputBoxTranslationHandler(
             const text = parseRequiredString(message.text, 'text');
             const targetLanguage = parseRequiredString(message.targetLang, 'targetLang');
 
-            await dependencies.ready;
-            let privacy: TranslationSourcePrivacy | undefined;
+            let result: string | string[];
             if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
-                privacy = dependencies.resolveSourcePrivacy ? await dependencies.resolveSourcePrivacy(context?.sender) : 'unknown';
+                const clientRequestId = parseClientRequestId(message.clientRequestId, true);
+                const captured = captureTranslationRequestContext(context);
+                const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
+                    await dependencies.ready;
+                    throwIfTranslationRequestAborted(signal);
+                    const privacy = dependencies.resolveSourcePrivacy ? await dependencies.resolveSourcePrivacy(captured.sender) : 'unknown';
+                    throwIfTranslationRequestAborted(signal);
+                    // 步骤 2：身份、快照与私密路线先附着，不可枚举的 control 最后附着。
+                    const request = createInputBoxTranslationRequest(dependencies.getConfig(), text, targetLanguage, privacy);
+                    if (signal && ownershipKey) attachTranslationRequestControl(request, {signal, ownershipKey: `inputBoxTranslation:${ownershipKey}`});
+                    throwIfTranslationRequestAborted(signal);
+                    const translated = await dependencies.translate(request);
+                    throwIfTranslationRequestAborted(signal);
+                    return translated;
+                };
+                result = await (clientRequestId ? registry!.run(clientRequestId, captured, operation) : operation());
+            } else {
+                await dependencies.ready;
+                result = await dependencies.translate(createInputBoxTranslationRequest(dependencies.getConfig(), text, targetLanguage));
             }
-            // 步骤 2：原生来源解析后一次读取当前配置，再锁路线与提示词，不采纳 payload 的模型或身份。
-            const result = await dependencies.translate(NATIVE_PRIVATE_ROUTE_SUPPORTED
-                ? createInputBoxTranslationRequest(dependencies.getConfig(), text, targetLanguage, privacy)
-                : createInputBoxTranslationRequest(dependencies.getConfig(), text, targetLanguage));
             const translatedText = Array.isArray(result) ? result[0] : result;
             if (typeof translatedText !== 'string' || !translatedText.trim()) {
                 throw new Error('输入框翻译未返回有效译文');
             }
             return {success: true, translatedText};
+        },
+    };
+}
+
+/** 独立注册表由后台 composition root 共享给输入 start/cancel，避免与通用文本交叉取消。 */
+export function createInputBoxTranslationCancelHandler(registry: TranslationRequestRegistry) {
+    return {
+        type: INPUT_BOX_TRANSLATION_CANCEL_MESSAGE_TYPE,
+        handle(message: InputBoxTranslationCancelMessage, context: InputBoxTranslationContext = {}): TranslationCancelResponse {
+            return registry.cancel(message.clientRequestId, context);
         },
     };
 }
