@@ -12,7 +12,11 @@ vi.mock('@/src/platform/browser/capabilities',async original=>({...await origina
 vi.mock('@/src/core/config/incognitoRoute',async original=>({...await original<object>(),get NATIVE_PRIVATE_ROUTE_SUPPORTED(){return m.native;}}));
 vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository:{captureGeneration:()=>1,recordMany:m.record}}));
 vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
-class BoundaryObserver {observe(){} unobserve(){} disconnect(){} takeRecords(){return [];} }
+class BoundaryObserver {
+ static instances:BoundaryObserver[]=[];readonly targets=new Set<Node>();
+ constructor(readonly callback?:(records:MutationRecord[])=>void){BoundaryObserver.instances.push(this);}
+ observe(target:Node){this.targets.add(target);} unobserve(){} disconnect(){this.targets.clear();} takeRecords(){return [];}
+}
 const publicService='custom:document-public',privateService='custom:document-private';
 const publicURL='https://public-document.synthetic.test/v1/chat/completions',privateURL='https://private-document.synthetic.test/v1/chat/completions';
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
@@ -46,7 +50,7 @@ const requests=()=>dispatch.mock.calls.map(([message])=>message).filter(message=
 beforeEach(async()=>{
  dispose=undefined;restoreBridge=undefined;
 
-    vi.resetModules(); vi.clearAllMocks(); m.values.clear(); m.target = 'firefox';m.native=true;m.cachedAiCues=[]; m.record.mockResolvedValue(undefined);
+    vi.resetModules(); vi.clearAllMocks(); BoundaryObserver.instances=[];m.values.clear(); m.target = 'firefox';m.native=true;m.cachedAiCues=[]; m.record.mockResolvedValue(undefined);
     calls = []; pairs = []; pendingResponses = [];  vi.useFakeTimers({toFake: ['Date', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']});
     const dom = parseHTML('<html><head><title>Synthetic page source title</title></head><body><main><p id="source">Readable synthetic source paragraph.</p></main></body></html>');
     for (const key of ['window','document','Node','Element','HTMLElement','Text','ShadowRoot','DOMParser','HTMLStyleElement','HTMLVideoElement','HTMLButtonElement','HTMLSelectElement','Event','CustomEvent'] as const) vi.stubGlobal(key, dom.window[key]);
@@ -220,5 +224,48 @@ describe('video cache/source and compatibility controls',()=>{
  });
  it('X restores synthetic cached ASR source without inference/download and retains it across model save/export',async()=>{
   m.cachedAiCues=[{startMs:0,durationMs:5000,text:'An original cached ASR sentence.'}];const raw=structuredClone(m.cachedAiCues);await mountVideo('x');await pump(()=>calls.length>0);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private'});const sourceCues=(await downloads!.resolve()).cues;expect(sourceCues).toMatchObject(raw);await store.requestConfigPatch({incognitoModel:'document-next'});expect((await downloads!.resolve()).cues).toEqual(sourceCues);expect(m.cachedAiCues).toEqual(raw);exportButton(true);await pump(()=>save.mock.calls.length>0);expect(save).toHaveBeenCalledOnce();expect(save.mock.calls[0][0][0].text).toContain(raw[0].text);expect(browserBoundary.runtime.sendMessage.mock.calls.map(([message]:any)=>message.type)).not.toContain('fluentReadTranscribeLocalVideoAudio');
+ });
+});
+
+/** DOM replacement is real; the MutationObserver delivery and unflushed RAF are explicit browser boundaries. */
+function replaceSelectedVideo(sameURL:boolean){
+ const old=video,next=document.createElement('video');next.className=old.className;
+ for(const [key,value] of Object.entries({currentTime:1,duration:60,paused:false,ended:false,seeking:false,readyState:4,playbackRate:1,currentSrc:sameURL?old.currentSrc:'https://media.synthetic.test/replacement.mp4',src:sameURL?old.src:'https://media.synthetic.test/replacement.mp4',textTracks:Object.assign([],{addEventListener:vi.fn(),removeEventListener:vi.fn()})}))Object.defineProperty(next,key,{configurable:true,writable:true,value});
+ const parent=old.parentElement!;old.replaceWith(next);video=next;
+ const record={type:'childList',target:parent,addedNodes:[next],removedNodes:[old]} as unknown as MutationRecord;
+ BoundaryObserver.instances.filter(observer=>observer.targets.has(document.documentElement)).forEach(observer=>observer.callback?.([record]));
+ return {old,next};
+}
+function holdLocatorFrames(){
+ const frames=new Map<number,FrameRequestCallback>();let id=100000;
+ vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{frames.set(++id,callback);return id;});
+ const cancel=window.cancelAnimationFrame.bind(window);vi.spyOn(window,'cancelAnimationFrame').mockImplementation(handle=>{if(!frames.delete(handle))cancel(handle);});
+ return frames;
+}
+async function observeProviderSettlements(){
+ const {translationRequestScheduler:scheduler}=await import('@/src/app/translation/runtime');
+ const settlements:Array<{settled:boolean}>=[],schedule=scheduler.schedule.bind(scheduler);
+ vi.spyOn(scheduler,'schedule').mockImplementation((task,options)=>schedule(lease=>{
+  const hold=lease.holdUntil.bind(lease);vi.spyOn(lease,'holdUntil').mockImplementation(operation=>{const state={settled:false};settlements.push(state);void Promise.resolve(operation).then(()=>{state.settled=true;},()=>{state.settled=true;});hold(operation);});return task(lease);
+ },options));return settlements;
+}
+describe('actual video node replacement before locator frame',()=>{
+ it.each((['youtube','x'] as const).flatMap(kind=>(['loadstart','loadedmetadata'] as const).flatMap(event=>[true,false].flatMap(sameURL=>(['play','export'] as const).map(owner=>[kind,event,sameURL,owner] as const)))))('%s %s sameURL=%s %s revokes old result before RAF',async(kind,event,sameURL,owner)=>{
+  const settlements=await observeProviderSettlements(),held=holdSDK();if(kind==='x'){m.cachedAiCues=[{startMs:0,durationMs:5000,text:sentence}];await mountVideo('x');}else capture();const raw=structuredClone(m.cachedAiCues);await pump(()=>calls.length>0);
+  if(owner==='export'){exportButton(true);await pump(()=>calls.length>=2);}const oldCalls=[...calls],oldGates=[...held.gates],oldLeases=[...settlements],sourceCues=(await downloads!.resolve()).cues;
+  expect(oldLeases.length).toBe(oldCalls.length);expect(oldLeases.every(state=>!state.settled)).toBe(true);
+  const frames=holdLocatorFrames(),{old,next}=replaceSelectedVideo(sameURL);expect(old.isConnected).toBe(false);expect(document.querySelector('video')).toBe(next);expect(frames.size).toBeGreaterThan(0);
+  next.dispatchEvent(new Event(event,{bubbles:true}));await settle();const immediateAbort=oldCalls.every(call=>call.signal?.aborted);
+  oldGates.forEach(gate=>gate.resolve(response('document-private','迟到旧节点译文')));for(let i=0;i<20;i++)await settle();
+  const observation={immediateAbort,oldCacheWrites:cacheWrite.mock.calls.length,oldFileSaves:save.mock.calls.length,lateDOM:translatedDOM().includes('迟到旧节点译文')};console.info('replacement-observation',JSON.stringify({kind,event,sameURL,owner,...observation,rafDelivered:0,providerSettled:oldLeases.every(state=>state.settled)}));expect(observation).toEqual({immediateAbort:true,oldCacheWrites:0,oldFileSaves:0,lateDOM:false});
+  expect(oldLeases.every(state=>state.settled)).toBe(true);expect(next.textTracks.addEventListener).toHaveBeenCalled();expect(document.querySelector('video')).toBe(next);expect(source.textContent).toBe(sentence);expect(document.title).toBe('Synthetic page source title');expect(m.cachedAiCues).toEqual(raw);if(sameURL)expect((await downloads!.resolve()).cues).toEqual(sourceCues);
+ });
+ it.each(['youtube','x'] as const)('%s duplicate detached and interleaved old events retain new playback when export cancels',async kind=>{
+  const settlements=await observeProviderSettlements(),held=holdSDK();if(kind==='x'){m.cachedAiCues=[{startMs:0,durationMs:5000,text:sentence}];await mountVideo('x');}else capture();const raw=structuredClone(m.cachedAiCues);await pump(()=>calls.length>0);
+  const oldCalls=[...calls],oldGates=[...held.gates],sourceCues=(await downloads!.resolve()).cues,frames=holdLocatorFrames(),{old,next}=replaceSelectedVideo(true);next.dispatchEvent(new Event('loadstart',{bubbles:true}));await settle();expect(oldCalls.every(call=>call.signal?.aborted)).toBe(true);await pump(()=>calls.length>oldCalls.length);const playing=calls[oldCalls.length];expect(playing.signal?.aborted).toBe(false);const registrations=vi.mocked(next.textTracks.addEventListener).mock.calls.length;
+  for(const event of ['loadstart','loadedmetadata','emptied']){next.dispatchEvent(new Event(event,{bubbles:true}));old.dispatchEvent(new Event(event,{bubbles:true}));await settle();expect(playing.signal?.aborted).toBe(false);}
+  next.parentElement!.append(old);for(const event of ['loadstart','loadedmetadata','emptied']){old.dispatchEvent(new Event(event,{bubbles:true}));next.dispatchEvent(new Event(event,{bubbles:true}));await settle();expect(playing.signal?.aborted).toBe(false);}old.remove();old.dispatchEvent(new Event('loadedmetadata',{bubbles:true}));await settle();expect(vi.mocked(next.textTracks.addEventListener).mock.calls).toHaveLength(registrations);expect(document.querySelector('video')).toBe(next);expect(frames.size).toBeGreaterThan(0);
+  const beforeExport=calls.length;exportButton(true);await pump(()=>calls.length>beforeExport);const exporting=calls[beforeExport];expect(new Set(requests().map(request=>request.clientRequestId)).size).toBe(requests().length);downloads!.cancel();await settle();expect(exporting.signal?.aborted).toBe(true);expect(playing.signal?.aborted).toBe(false);
+  oldGates.forEach(gate=>gate.resolve(response('document-private','迟到交错旧节点译文')));for(let i=0;i<20;i++)await settle();expect(cacheWrite).not.toHaveBeenCalled();expect(save).not.toHaveBeenCalled();expect(translatedDOM()).not.toContain('迟到交错旧节点译文');held.release();await pump(()=>translatedDOM().includes('合成译文'));for(let i=0;i<20;i++)await settle();expect(translatedDOM()).toContain('合成译文');expect(cacheWrite).toHaveBeenCalledOnce();expect(save).not.toHaveBeenCalled();expect(settlements.every(state=>state.settled)).toBe(true);expect((await downloads!.resolve()).cues).toEqual(sourceCues);expect(m.cachedAiCues).toEqual(raw);expect(source.textContent).toBe(sentence);expect(document.title).toBe('Synthetic page source title');
  });
 });

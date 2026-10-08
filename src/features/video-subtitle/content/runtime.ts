@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和有效服务的预翻译窗口；原生路由/媒体/配置变更撤销旧译文与译文导出，导出使用独立请求取消身份，配置保存保留原字幕和 ASR 源数据；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
+ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和有效服务的预翻译窗口；原生媒体事件同步查询现有 locator 的 DOM 身份，在下一帧前撤销旧译文与导出；原生路由/配置变更撤销旧代次，导出使用独立请求取消身份，配置保存保留原字幕和 ASR 源数据；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -1840,7 +1840,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     observeCaptionContainer();
     scheduleUpdate();
   });
-  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const unsubscribe = unsubscribeConfig, release = installVideoTranslationLifetime(document, window, refresh => { downloads.cancel(); clearPretranslationState(false); if (refresh) syncPlayerUi(); }, () => observedVideo); unsubscribeConfig = () => { release(); unsubscribe(); }; }
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const unsubscribe = unsubscribeConfig, release = installVideoTranslationLifetime(document, window, refresh => { downloads.cancel(); clearPretranslationState(false); if (refresh) syncPlayerUi(); }, () => playerLocator.sync()?.video || null); unsubscribeConfig = () => { release(); unsubscribe(); }; }
   return () => {
     destroyed = true;
     humanCaptions.clear();
