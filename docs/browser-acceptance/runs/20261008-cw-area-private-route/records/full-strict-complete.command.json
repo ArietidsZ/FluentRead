@@ -1,0 +1,24 @@
+{
+  "label": "full-strict-complete",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-complete",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-strict-complete.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T18:25:04.752911+00:00",
+  "duration_seconds": 196.617,
+  "exit_code": 0
+}

@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/imagePrivacyRoute.test.ts tests/visionProbe.test.ts tests/imageGlossaryContext.test.ts tests/imagePreparationCancellation.test.ts --no-cache --reporter=json --outputFile=<CW-EVIDENCE>/area-green-second.results.json
+JSON report written to <CW-EVIDENCE>/area-green-second.results.json

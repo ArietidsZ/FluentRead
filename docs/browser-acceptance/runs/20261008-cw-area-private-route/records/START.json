@@ -1,0 +1,13 @@
+{
+  "baselineHead": "3714c1fb1fed58d53fd2ce3ec42943bbb7853a3a",
+  "branch": "fix/incognito-model-route-20261008",
+  "scope": "area native preparation/effective frozen route + necessary probe provenance + real save cancellation keys",
+  "registrySourceUnchanged": true,
+  "excludedIndependentEntries": [
+    "settings-page standalone vision-probe handler",
+    "document translation",
+    "video translation",
+    "other direct translation entries"
+  ],
+  "apiModelDownloadGpuPermissionsUsed": false
+}

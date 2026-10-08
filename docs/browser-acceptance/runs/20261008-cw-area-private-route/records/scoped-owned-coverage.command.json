@@ -1,0 +1,30 @@
+{
+  "label": "scoped-owned-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/imageGlossaryContext.test.ts",
+    "tests/imagePreparationCancellation.test.ts",
+    "tests/visionProbe.test.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.include=src/app/background/imageGlossaryContext.ts",
+    "--coverage.include=src/services/translation/visionProbe.ts",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<CW-EVIDENCE>/scoped-owned-coverage",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/scoped-owned-coverage.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T18:13:41.990838+00:00",
+  "duration_seconds": 7.117,
+  "exit_code": 1
+}

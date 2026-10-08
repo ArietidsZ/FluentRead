@@ -1,0 +1,57 @@
+{
+  "vitest.coverage.config.ts": {
+    "headBlob": "14f2227be7a6401fd10349cfe28f72b002124ac6",
+    "sha256": "97f10287772817e6b78b4d0e2f60c013ab684c69f496fd146ff94277b30382e6",
+    "unchanged": true
+  },
+  "vitest.config.ts": {
+    "headBlob": "c70e18b079acdf0435e954369423890ba884e5f2",
+    "sha256": "7be25ef2c3a183d809d427bfac971dc1b77171029fa1ed31b0fea2a3b0bc1628",
+    "unchanged": true
+  },
+  "tests/test-matrix.json": {
+    "headBlob": "391c5cba64bd8da616cb99b9f4ba20dcb988b681",
+    "sha256": "4640cd7f684ebd0b581ce82ff0b19a97ff9c6aa88033a2242d3f5390d91bda09",
+    "unchanged": true
+  },
+  "scripts/testing/run-full-regression.mjs": {
+    "headBlob": "c050273f209876977a42f3ab347cccb9044101bb",
+    "sha256": "976fa7656297a76c0b0ab10cbb021bbbe69d931710e9b7b667c90110814baa17",
+    "unchanged": true
+  },
+  "scripts/testing/run-resource-safe.mjs": {
+    "headBlob": "5037ce7d222b7ef93d604b57b39181efcc3ad196",
+    "sha256": "8c6807bd30db379fe31fc0bc073dbe071cd456b73fdcc5e61a34fc527dd6072b",
+    "unchanged": true
+  },
+  "src/features/image-translation/background/operationRegistry.ts": {
+    "headBlob": "83e31951ee3bf2db16ebadd4800b3636860c2e6c",
+    "sha256": "ac60685ff0e9c4cb04dc002920be6360390acfb891cd7f44a720ffb2c8bc8903",
+    "unchanged": true
+  },
+  "wxt.config.ts": {
+    "headBlob": "e026e81114ec5defbdf478c5c7f38919b386431d",
+    "sha256": "4cecd1c6dee9258e224eaab2040cc51eb0edd05bd8f6aac00ea552d3f77c53df",
+    "unchanged": true
+  },
+  "userscript/vite.config.ts": {
+    "headBlob": "fc0a33505e4969086dd636f0b7c4ae99801fcb73",
+    "sha256": "b80a7bd19773aeab977a26ce9b40c366dce6a3e8f13d3f9c3e45ed9453e8c23c",
+    "unchanged": true
+  },
+  "scripts/verify-userscript-build.mjs": {
+    "headBlob": "fd265eb4055313f86cbce5854caecfd815bb590c",
+    "sha256": "deb2c564adf922d8e5cb39f1118b4cfb28417ab9e295330bfa8720343d09136d",
+    "unchanged": true
+  },
+  "package.json": {
+    "headBlob": "53705f2b8241f10bb370cdb659d89f1af903d525",
+    "sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9",
+    "unchanged": true
+  },
+  "pnpm-lock.yaml": {
+    "headBlob": "3dfe795b8092e7df45e1c854582c17b07f199b3e",
+    "sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "unchanged": true
+  }
+}

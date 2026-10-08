@@ -1,0 +1,11 @@
+{
+  "label": "test-audit-final",
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T18:19:01.047184+00:00",
+  "duration_seconds": 0.765,
+  "exit_code": 0
+}

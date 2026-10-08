@@ -1,0 +1,17 @@
+{
+  "label": "firefox-build-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T18:29:05.712650+00:00",
+  "duration_seconds": 19.12,
+  "exit_code": 0
+}

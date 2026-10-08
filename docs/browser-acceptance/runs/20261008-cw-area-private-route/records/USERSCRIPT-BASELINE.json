@@ -1,0 +1,9 @@
+{
+  "source": "61d6641c3ef527de3ef6eeca753da3c18b7a1cef",
+  "evidenceHead": "3714c1fb1fed58d53fd2ce3ec42943bbb7853a3a",
+  "file": ".output/userscript/fluent-read.user.js",
+  "bytes": 1954981,
+  "sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+  "budget": 1955000,
+  "headroom": 19
+}
