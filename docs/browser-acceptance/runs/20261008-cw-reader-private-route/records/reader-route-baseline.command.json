@@ -1,0 +1,19 @@
+{
+  "label": "reader-route-baseline",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/harnessPrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/reader-route-baseline.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T14:58:58.877016+00:00",
+  "duration_seconds": 11.452,
+  "exit_code": 1
+}

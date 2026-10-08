@@ -1,0 +1,25 @@
+{
+  "label": "reader-route-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/harnessPrivacyRoute.test.ts",
+    "tests/harnessRuntime.test.ts",
+    "tests/harnessBackground.test.ts",
+    "tests/harnessAppRuntime.test.ts",
+    "tests/harnessConversation.test.ts",
+    "tests/harnessConversationPersistence.test.ts",
+    "tests/harnessStreamPort.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/reader-route-green.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T15:03:01.388584+00:00",
+  "duration_seconds": 4.99,
+  "exit_code": 1
+}

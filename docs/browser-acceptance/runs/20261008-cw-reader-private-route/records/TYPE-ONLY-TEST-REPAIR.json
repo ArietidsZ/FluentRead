@@ -1,0 +1,8 @@
+{
+  "before_sha256": "894a6be65624ceb1477505a43fda76c3984f2c7e23dc521470c45400f5010b7e",
+  "after_sha256": "0b3070feca05c83a205e56d7dccc120dc4bf06a6f57c963763af03406b56b455",
+  "esbuild_emitted_javascript_sha256": "16796ef3311ce0441644655963b969c181de4856ab711f6117c5c127d2d716cd",
+  "identical_emitted_javascript": true,
+  "reason": "ReadingRequest assertion only; no runtime or test-data change. Final complete gates nevertheless rerun after final inputs frozen.",
+  "esbuild_resolution": "existing Vite transitive dependency; no installation"
+}

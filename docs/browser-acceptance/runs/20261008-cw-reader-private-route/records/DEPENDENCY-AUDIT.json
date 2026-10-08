@@ -1,0 +1,47 @@
+{
+  "scope": "reader local config/store-normalized endpoint/model/admission/key rotation decisions, and existing prompt/context/tool/persistence semantics; not a full browser DNR network policy audit",
+  "native_entry": "actual Port attach and typed app.handle → handler → conversation → runtime → gateway → AI SDK; browser API boundary injected",
+  "source_capture": "handler deep-copies/freezes validated native sender/tab before first await. URL, frontend bool and selected frontend pair do not confer source authority",
+  "unknown": "configured or partially configured pair rejected before conversation store operations; private/regular/unknown symbol survives existing restoredRequest object spread",
+  "model_lock": "actual private provider/model checked against catalogue and chat/context capability before gateway, with cloned config and internal route lock",
+  "normalized_config_controls": [
+    "incognitoModel",
+    "customOpenAIProviders",
+    "proxy",
+    "customModels",
+    "customBody",
+    "customHeaders",
+    "apiKeyRecoveryMs with enabled two-key pool",
+    "requireApiKey with no configured key"
+  ],
+  "custom_evidence": "real compatibility-only save retains normalized existing endpoint and pending valid request; empty profile with new custom normalizes provider endpoint and cancels; no bare runtime Object.assign red or custom key added",
+  "legacy_custom_rotation_scope": "scopeFor still reads compatibility custom for key-health namespace. This is not claimed to change normalized effective endpoint or constitute the withdrawn endpoint defect",
+  "serviceRegion": "normalizer only retains azureTranslator/aliyunTranslation/volcTranslation; all rejected by isHarnessService, not added as a reader route key",
+  "requestHeaderRules": "separate browser DNR boundary; not read by gateway/runtimeFetch, not claimed covered by SDK transport tests",
+  "other_actual_gateway_fields": "service/model/customModel, proxy, provider profiles, token/apiKeys/rotation flag/recovery policy, customHeaders, modelThinking, Azure/NewAPI/DeepSeek/MiniMax/MiMo route fields included; customBody and customModels/private pair included for private policy validation",
+  "cancellation": "existing Port and conversation unchanged. Existing regular partial output may persist stopped; late provider text/result cannot write old session or page. Real IndexedDB repository backed by isolated fake-indexeddb",
+  "unchanged": [
+    "src/features/reading-assistant/streamPort.ts",
+    "src/services/harness/conversation.ts",
+    "src/services/harness/modelGateway.ts",
+    "src/app/background/writingRuntime.ts",
+    "src/features/writing-assistant/background.ts",
+    "src/services/writing/runtime.ts",
+    "src/core/config/model.ts",
+    "src/services/config/store.ts",
+    "src/core/config/credentialBinding.ts",
+    "wxt.config.ts",
+    "pnpm-lock.yaml",
+    "package.json",
+    "tsconfig.json"
+  ],
+  "remaining": [
+    "dictionary and word-card source route",
+    "image/manga, area OCR/vision transcription, vision capability probe source route",
+    "remaining video/document source routes and cache audit",
+    "real GUI/provider API/RTX5090 acceptance"
+  ],
+  "real_user_credentials_read_or_changed": false,
+  "real_network_models_called": false,
+  "subagents_or_extra_codex_tasks_started": false
+}

@@ -1,0 +1,15 @@
+[fix/incognito-model-route-20261008 866a1258] fix(reading): bind private model route to native source and saved configuration
+ 10 files changed, 270 insertions(+), 20 deletions(-)
+ create mode 100644 tests/harnessPrivacyRoute.test.ts
+866a1258 fix(reading): bind private model route to native source and saved configuration
+ docs/architecture.md                         |   3 +
+ docs/incognito-route-first-batch.md          |   9 +-
+ docs/testing.md                              |   5 +-
+ src/app/background/harnessRuntime.ts         |  22 ++-
+ src/features/reading-assistant/background.ts |   4 +-
+ src/services/harness/runtime.ts              |  21 ++-
+ tests/harnessAppRuntime.test.ts              |  21 +--
+ tests/harnessPrivacyRoute.test.ts            | 203 +++++++++++++++++++++++++++
+ tests/test-matrix.json                       |   1 +
+ vitest.coverage.config.ts                    |   1 +
+ 10 files changed, 270 insertions(+), 20 deletions(-)

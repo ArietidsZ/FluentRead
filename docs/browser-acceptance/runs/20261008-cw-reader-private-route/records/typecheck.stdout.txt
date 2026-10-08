@@ -1,0 +1,4 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/harnessPrivacyRoute.test.ts(44,5): error TS6133: 'app' is declared but its value is never read.
+tests/harnessPrivacyRoute.test.ts(106,58): error TS2352: Conversion of type 'string | null | undefined' to type 'boolean' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type 'string' is not comparable to type 'boolean'.

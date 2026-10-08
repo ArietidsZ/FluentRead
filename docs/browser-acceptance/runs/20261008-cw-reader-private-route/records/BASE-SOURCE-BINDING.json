@@ -1,0 +1,46 @@
+{
+  "base_head": "fc99d1fa8b4c3cb143f2c53bc51527a3802f6ed2",
+  "accepted_base_application": "7fb7fc44f5ebb36ffaf531b07a277c63caea3415",
+  "red_fixture_sha256": "bab144e8fb31f3e9e01277d1be72c1ba8c58bb3c2b27f95eb3a54d50c9daeb53",
+  "red_cases": 29,
+  "passed_controls": 6,
+  "expected_failures": 23,
+  "production": [
+    {
+      "path": "src/app/background/harnessRuntime.ts",
+      "sha256": "d6d0dccb42bbed5c7b7a800dc8a1af3e46566c62fcb4a05ed72d3de7f2ccbb87"
+    },
+    {
+      "path": "src/features/reading-assistant/background.ts",
+      "sha256": "73b15bc533c7b5d08ba04618aa190e01bd85f8952186db947dd805afaacc8f09"
+    },
+    {
+      "path": "src/services/harness/runtime.ts",
+      "sha256": "9c9ef26fc4d43cbf5a4bdd89c85ca53118d413735f592e392821b400e929d4c3"
+    },
+    {
+      "path": "src/services/harness/conversation.ts",
+      "sha256": "d0f87b9436a9fb88b2ddbbd756b2a0f15db1ac61dc7bd5b78d1c6a77befb0f63"
+    },
+    {
+      "path": "src/features/reading-assistant/streamPort.ts",
+      "sha256": "383b027cc7879f8d7b1ea8f503c7a2ee37bcb27a83f82c1a216ed7f69066ce9b"
+    },
+    {
+      "path": "src/services/harness/modelGateway.ts",
+      "sha256": "680fbab582deac41d1482e241e6b8cf7c38572a01b38d375f60b86fd67675db7"
+    },
+    {
+      "path": "src/services/config/store.ts",
+      "sha256": "67fe2ec576501c2e6fa37ec7334b3238c2ca38fefb4db983d28fd83550cbf5ce"
+    },
+    {
+      "path": "src/core/config/model.ts",
+      "sha256": "9748f94b0d5c510913de2ee455e55b641a8731acd693eeb0c7ebe3116b322755"
+    }
+  ],
+  "source_store_and_runtime_gateway_sdk_replaced": false,
+  "real_indexeddb_repository": true,
+  "indexeddb_boundary": "fake-indexeddb in isolated synthetic database",
+  "synthetic_fetch_only": true
+}

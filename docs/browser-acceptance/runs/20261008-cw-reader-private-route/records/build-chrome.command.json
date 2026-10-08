@@ -1,0 +1,14 @@
+{
+  "label": "build-chrome",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/.bin/wxt",
+    "build"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T15:13:24.422422+00:00",
+  "duration_seconds": 20.202,
+  "exit_code": 0
+}

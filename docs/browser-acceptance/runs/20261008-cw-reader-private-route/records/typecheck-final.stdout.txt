@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/harnessPrivacyRoute.test.ts(180,54): error TS2353: Object literal may only specify known properties, and 'requestId' does not exist in type 'BackgroundMessage'.

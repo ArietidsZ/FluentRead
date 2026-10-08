@@ -1,0 +1,84 @@
+{
+  "baseline_source": "7fb7fc44f5ebb36ffaf531b07a277c63caea3415",
+  "unchanged_source_contracts": {
+    "src/features/reading-assistant/streamPort.ts": {
+      "sha256": "383b027cc7879f8d7b1ea8f503c7a2ee37bcb27a83f82c1a216ed7f69066ce9b",
+      "equal": true
+    },
+    "src/services/harness/conversation.ts": {
+      "sha256": "d0f87b9436a9fb88b2ddbbd756b2a0f15db1ac61dc7bd5b78d1c6a77befb0f63",
+      "equal": true
+    },
+    "src/services/harness/modelGateway.ts": {
+      "sha256": "680fbab582deac41d1482e241e6b8cf7c38572a01b38d375f60b86fd67675db7",
+      "equal": true
+    },
+    "src/app/background/writingRuntime.ts": {
+      "sha256": "95d04ef1170f1be292c04eb61c466aff8bf2d3e99997d4c87cb4b42ac19d8afd",
+      "equal": true
+    },
+    "src/features/writing-assistant/background.ts": {
+      "sha256": "77a1deed75b2ff58d91ac604f2d5f20c15bf0c42fab17fbf6088c39e143895c3",
+      "equal": true
+    },
+    "src/services/writing/runtime.ts": {
+      "sha256": "0c0d0b8dd8c5dcd1cdc9c04b7f70a3283b4c8edb91595b81da84a272a3adf28e",
+      "equal": true
+    },
+    "src/core/config/model.ts": {
+      "sha256": "9748f94b0d5c510913de2ee455e55b641a8731acd693eeb0c7ebe3116b322755",
+      "equal": true
+    },
+    "src/services/config/store.ts": {
+      "sha256": "67fe2ec576501c2e6fa37ec7334b3238c2ca38fefb4db983d28fd83550cbf5ce",
+      "equal": true
+    },
+    "src/core/config/credentialBinding.ts": {
+      "sha256": "bcc959f78619a3be3833fa82c33562a1e0d6f5e4610aad9d6350516446c944dd",
+      "equal": true
+    },
+    "wxt.config.ts": {
+      "sha256": "4cecd1c6dee9258e224eaab2040cc51eb0edd05bd8f6aac00ea552d3f77c53df",
+      "equal": true
+    },
+    "pnpm-lock.yaml": {
+      "sha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+      "equal": true
+    },
+    "package.json": {
+      "sha256": "464ffb3b95d6445f3fd5ab8e57acd2f5b268ab33d2ceaa5f6cf0761c9d4988b9",
+      "equal": true
+    },
+    "tsconfig.json": {
+      "sha256": "f1397c3b7f2d20a45ce39df71ea6dab777d4d1f1304cdd53ad5a395232ccd263",
+      "equal": true
+    }
+  },
+  "reading_prompt_and_generation_blocks": {
+    "function actionSystem": {
+      "sha256": "15d2e2ee4aa578a1bc396b0aced94af3cfb7cf9bf6fa354011546f088c96b157",
+      "equal": true
+    },
+    "function makeGenerate": {
+      "sha256": "786576b94f248dc0630817c917e909faba08be71d4f8d99a627e6ff1118c6e18",
+      "equal": true
+    }
+  },
+  "byte_identical_artifacts": {
+    ".output/chrome-mv3/manifest.json": {
+      "sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "baseline_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "equal": true
+    },
+    ".output/firefox-mv2/manifest.json": {
+      "sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+      "baseline_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+      "equal": true
+    },
+    ".output/userscript/fluent-read.user.js": {
+      "sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+      "baseline_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+      "equal": true
+    }
+  }
+}

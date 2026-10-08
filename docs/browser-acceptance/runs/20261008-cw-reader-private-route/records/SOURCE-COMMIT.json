@@ -1,0 +1,24 @@
+{
+  "source_commit": "866a1258c645ade6d836ec917a7e549c2028b0d4",
+  "source_tree": "7ffbbba6eb0f88b8cf5bd17db682529d06932767",
+  "base_head": "fc99d1fa8b4c3cb143f2c53bc51527a3802f6ed2",
+  "accepted_base_application": "7fb7fc44f5ebb36ffaf531b07a277c63caea3415",
+  "input_scope": "all tracked and nonignored new repository source/test/config/docs files, excluding archived docs/browser-acceptance/runs/** evidence",
+  "input_files": 4008,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/harnessRuntime.ts",
+    "src/features/reading-assistant/background.ts",
+    "src/services/harness/runtime.ts",
+    "tests/harnessAppRuntime.test.ts",
+    "tests/harnessPrivacyRoute.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "22ebb7186a87b0599971ea2c9a293632ea34b005e0f19ae214289d560b264e3e",
+  "artifact_manifest_sha256": "032c28ba202c862e78c1fc05e99832d9a393c0c9359099205c328d013143e1b1"
+}

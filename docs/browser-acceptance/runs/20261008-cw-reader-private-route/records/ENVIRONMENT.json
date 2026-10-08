@@ -1,0 +1,23 @@
+{
+  "recorded_at": "2026-10-08T15:22:38.162786+00:00",
+  "selected_environment": "CW local",
+  "cloud_or_MII_used": false,
+  "node": "v26.7.0",
+  "branch": "fix/incognito-model-route-20261008",
+  "origin": "https://github.com/ArietidsZ/FluentRead.git",
+  "dependencies": {
+    "wxt": "0.20.18",
+    "vitest": "2.1.9",
+    "typescript": "5.7.3",
+    "vue-tsc": "2.2.0",
+    "vite": "5.4.19",
+    "vitepress": "1.6.3",
+    "ai": "6.0.264",
+    "@ai-sdk/openai-compatible": "2.0.70"
+  },
+  "no_dependency_install": true,
+  "no_browser_launch": true,
+  "no_real_api_call": true,
+  "no_user_credential_files_read": true,
+  "no_extra_tasks_or_subagents": true
+}

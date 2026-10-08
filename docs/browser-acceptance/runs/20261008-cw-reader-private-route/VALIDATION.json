@@ -1,0 +1,229 @@
+{
+  "source_commit": "866a1258c645ade6d836ec917a7e549c2028b0d4",
+  "source_tree": "7ffbbba6eb0f88b8cf5bd17db682529d06932767",
+  "base_head": "fc99d1fa8b4c3cb143f2c53bc51527a3802f6ed2",
+  "accepted_base_application": "7fb7fc44f5ebb36ffaf531b07a277c63caea3415",
+  "input_scope": "all tracked and nonignored new repository source/test/config/docs files, excluding archived docs/browser-acceptance/runs/** evidence",
+  "input_files": 4008,
+  "all_git_blob_sha256_match_frozen_inputs": true,
+  "historical_evidence_unchanged": true,
+  "changed_source_paths": [
+    "docs/architecture.md",
+    "docs/incognito-route-first-batch.md",
+    "docs/testing.md",
+    "src/app/background/harnessRuntime.ts",
+    "src/features/reading-assistant/background.ts",
+    "src/services/harness/runtime.ts",
+    "tests/harnessAppRuntime.test.ts",
+    "tests/harnessPrivacyRoute.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "frozen_inputs_sha256": "22ebb7186a87b0599971ea2c9a293632ea34b005e0f19ae214289d560b264e3e",
+  "artifact_manifest_sha256": "032c28ba202c862e78c1fc05e99832d9a393c0c9359099205c328d013143e1b1",
+  "unchanged_frozen_inputs": true,
+  "input_manifest_sha256": "22ebb7186a87b0599971ea2c9a293632ea34b005e0f19ae214289d560b264e3e",
+  "artifacts": 797,
+  "userscript_bytes": 1954988,
+  "userscript_budget": 1955000,
+  "userscript_sha256": "54907dde55fd0dfc5928c7984300c524512d2a7465d24f9d6fafc0a52bd025f8",
+  "userscript_identical_to_7fb7fc44": true,
+  "permissions_match": true,
+  "firefox_minimum": "140.0",
+  "chrome_effective_incognito": "spanning",
+  "implemented_slice": "reading native Port and typed Harness entry → actual conversation/runtime/modelGateway/SDK private model routing",
+  "baseline_red": {
+    "numTotalTests": 29,
+    "numPassedTests": 6,
+    "numFailedTests": 23
+  },
+  "final_private_entry_cases": 37,
+  "targeted_tests": {
+    "numTotalTests": 119,
+    "numPassedTests": 119,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "tests": {
+    "numTotalTests": 9958,
+    "numPassedTests": 9958,
+    "numFailedTests": 0,
+    "numPendingTests": 0
+  },
+  "test_files": 405,
+  "coverage": {
+    "lines": {
+      "total": 66046,
+      "covered": 66046,
+      "skipped": 0,
+      "pct": 100
+    },
+    "statements": {
+      "total": 66046,
+      "covered": 66046,
+      "skipped": 0,
+      "pct": 100
+    },
+    "functions": {
+      "total": 4600,
+      "covered": 4600,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branches": {
+      "total": 33643,
+      "covered": 33643,
+      "skipped": 0,
+      "pct": 100
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "changed_modules_coverage": {
+    "app/background/harnessRuntime.ts": {
+      "lines": {
+        "total": 66,
+        "covered": 66,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 11,
+        "covered": 11,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66,
+        "covered": 66,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 61,
+        "covered": 61,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "features/reading-assistant/background.ts": {
+      "lines": {
+        "total": 91,
+        "covered": 91,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 14,
+        "covered": 14,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 91,
+        "covered": 91,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 91,
+        "covered": 91,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "services/harness/runtime.ts": {
+      "lines": {
+        "total": 130,
+        "covered": 130,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 10,
+        "covered": 10,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 130,
+        "covered": 130,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 110,
+        "covered": 110,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architecture_tests": 1379,
+  "architecture_files": 32,
+  "checks": {
+    "reader-route-coverage-final": 0,
+    "full-coverage-final": 0,
+    "architecture-final": 0,
+    "typecheck-complete": 0,
+    "typecheck-list": 0,
+    "audit-final": 0,
+    "build-chrome": 0,
+    "build-firefox": 0,
+    "build-userscript": 0,
+    "verify-extension-manifests": 0,
+    "verify-userscript": 0,
+    "docs-source-build": 0,
+    "bindings-final": 0,
+    "bind-source-commit": 0
+  },
+  "typecheck_scope": {
+    "tsconfig_changed": false,
+    "archive_exclusion": "existing docs/browser-acceptance/runs/** only",
+    "archive_inputs_in_compiler": [],
+    "roots": {
+      "src": {
+        "files": 799,
+        "missing": []
+      },
+      "tests": {
+        "files": 498,
+        "missing": []
+      },
+      "entrypoints": {
+        "files": 15,
+        "missing": []
+      }
+    }
+  },
+  "unchanged_port_conversation_gateway_writing": true,
+  "reading_prompt_and_generation_blocks_byte_identical": true,
+  "no_defensive_custom_key_added": true,
+  "fixture_boundaries": {
+    "real_config_store_normalization_save_patch_subscriber": true,
+    "real_native_handler_conversation_runtime_gateway_sdk": true,
+    "real_session_repository": "actual HarnessSessionRepository; isolated fake-indexeddb boundary",
+    "browser_config_storage_memory_usage_fetch": "synthetic boundary ports"
+  },
+  "earlier_failures_preserved": [
+    "initial baseline both-empty control reused completed request ID; fixed before final red binding",
+    "initial composition test expected synchronous untagged string call; updated to await tagged ReadingRequest",
+    "test type failures: unused router then typed message literal; fixed with ReadingRequest assertion only and byte-identical emitted JS proof"
+  ],
+  "initial_full_gate_repeated_reason": "final source/test input binding after type-only test repair; not for status reporting",
+  "no_gui_or_real_provider_api_run": true,
+  "no_credentials_permissions_defaults_dependencies_or_prompts_changed": true,
+  "remaining": [
+    "dictionary and word-card source route",
+    "image/manga, area OCR/vision transcription and vision capability probe source route",
+    "remaining video/document source routes and cache audit",
+    "real GUI/provider API/RTX5090 acceptance"
+  ],
+  "privacy_feature_complete": false,
+  "evidence_docs_build_exit_code": 0,
+  "published_record_files": 127
+}

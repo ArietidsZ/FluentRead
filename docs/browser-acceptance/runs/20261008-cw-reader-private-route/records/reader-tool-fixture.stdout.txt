@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/harnessPrivacyRoute.test.ts -t actual tool loop --no-cache --reporter=json --outputFile=<RAW>/reader-tool-fixture.results.json
+JSON report written to <RAW>/reader-tool-fixture.results.json

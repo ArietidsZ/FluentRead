@@ -1,0 +1,21 @@
+{
+  "label": "reader-tool-fixture",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/harnessPrivacyRoute.test.ts",
+    "-t",
+    "actual tool loop",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<RAW>/reader-tool-fixture.results.json"
+  ],
+  "cwd": "<WORKTREE>",
+  "started_at": "2026-10-08T15:00:36.312635+00:00",
+  "duration_seconds": 0.845,
+  "exit_code": 1
+}
