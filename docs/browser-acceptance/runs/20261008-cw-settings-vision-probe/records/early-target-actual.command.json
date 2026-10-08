@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/visionProbe.test.ts",
+    "tests/backgroundVisionProbe.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "tests/backgroundProviderRuntime.test.ts",
+    "--no-cache"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:26:53.866745+00:00",
+  "finishedAt": "2026-10-08T23:26:55.288762+00:00",
+  "durationSeconds": 1.422,
+  "exitCode": 1
+}

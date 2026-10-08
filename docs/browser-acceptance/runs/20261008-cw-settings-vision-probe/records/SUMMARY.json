@@ -1,0 +1,328 @@
+{
+  "sourceCommit": "d12b84425aaa631e0307c48f522af2c0f1d5ad3d",
+  "baselineHead": "09814056290d5b805717851b5a0244fdc97333d6",
+  "changedFiles": [
+    "docs/testing.md",
+    "src/app/background/handlers/visionProbe.ts",
+    "src/app/background/messageRuntime.ts",
+    "src/app/background/providerRuntime.ts",
+    "src/core/config/visionProbe.ts",
+    "src/features/settings/ui/services/ModelVisionSettings.vue",
+    "src/features/settings/ui/services/useVisionProbeStatus.ts",
+    "src/services/translation/documentChannel.ts",
+    "src/services/translation/visionProbe.ts",
+    "tests/backgroundProviderRuntime.test.ts",
+    "tests/backgroundVisionProbe.test.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "tests/test-matrix.json",
+    "vitest.coverage.config.ts"
+  ],
+  "productionFileCount": 8,
+  "settingsCaseCount": 56,
+  "baselineNegative": {
+    "success": false,
+    "numTotalTests": 56,
+    "numPassedTests": 0,
+    "numFailedTests": 7,
+    "numPendingTests": 49,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 1
+  },
+  "focusedDiagnostic": {
+    "success": true,
+    "numTotalTests": 98,
+    "numPassedTests": 98,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 5,
+    "exitCode": 0
+  },
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10359,
+      "numPassedTests": 10359,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 412,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66203,
+        "covered": 66203,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66203,
+        "covered": 66203,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4619,
+        "covered": 4619,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33928,
+        "covered": 33928,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architectureFinal": {
+    "success": true,
+    "numTotalTests": 1379,
+    "numPassedTests": 1379,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 32,
+    "exitCode": 0
+  },
+  "testAudit": {
+    "status": "ok",
+    "groups": {
+      "architecture": 32,
+      "unit": 308,
+      "functional": 122,
+      "regression": 39
+    },
+    "files": 501,
+    "cases": 6961
+  },
+  "gateCommands": {
+    "test-audit-complete": {
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:43:58.489977+00:00",
+      "finishedAt": "2026-10-08T23:43:59.276225+00:00",
+      "durationSeconds": 0.786,
+      "exitCode": 0
+    },
+    "architecture-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:04.160884+00:00",
+      "finishedAt": "2026-10-08T23:44:16.494661+00:00",
+      "durationSeconds": 12.334,
+      "exitCode": 0
+    },
+    "typecheck-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:03.714546+00:00",
+      "finishedAt": "2026-10-08T23:44:18.098360+00:00",
+      "durationSeconds": 14.384,
+      "exitCode": 0
+    },
+    "chrome-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:18.328568+00:00",
+      "finishedAt": "2026-10-08T23:44:37.935086+00:00",
+      "durationSeconds": 19.607,
+      "exitCode": 0
+    },
+    "firefox-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:38.169028+00:00",
+      "finishedAt": "2026-10-08T23:44:58.408167+00:00",
+      "durationSeconds": 20.239,
+      "exitCode": 0
+    },
+    "manifest-verify-final": {
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:58.635583+00:00",
+      "finishedAt": "2026-10-08T23:44:58.738214+00:00",
+      "durationSeconds": 0.103,
+      "exitCode": 0
+    },
+    "userscript-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:58.968943+00:00",
+      "finishedAt": "2026-10-08T23:45:02.799503+00:00",
+      "durationSeconds": 3.831,
+      "exitCode": 0
+    },
+    "userscript-verify-final": {
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:45:03.029956+00:00",
+      "finishedAt": "2026-10-08T23:45:03.063761+00:00",
+      "durationSeconds": 0.034,
+      "exitCode": 0
+    },
+    "full-strict-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:44:03.497240+00:00",
+      "finishedAt": "2026-10-08T23:47:55.255998+00:00",
+      "durationSeconds": 231.759,
+      "exitCode": 0
+    },
+    "docs-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-08T23:45:03.293455+00:00",
+      "finishedAt": "2026-10-08T23:45:06.224899+00:00",
+      "durationSeconds": 2.931,
+      "exitCode": 0
+    }
+  },
+  "userscriptProof": {
+    "baselineCommit": "09814056290d5b805717851b5a0244fdc97333d6",
+    "bytes": 1954998,
+    "sha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "source": "prior committed source-bound artifact proof and local byte-identical build",
+    "finalBytes": 1954998,
+    "finalSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "identicalSha256AndSize": true,
+    "byteDelta": 0,
+    "budget": 1955000,
+    "headroom": 2,
+    "budgetsAliasesDependenciesUnchanged": true,
+    "realUserscriptGuiAcceptance": false
+  },
+  "scope": "Settings manual capability probe native admission, explicit target, document owner/cancellation and shared probe cache/publication isolation. Existing area auto chain unchanged.",
+  "behavior": "Native sender/getContexts tri-state before rules/cache; private explicit pair must match. Unknown configured pair fails closed. Manual success names actual verified provider/model; no silent replacement.",
+  "cache": "Opaque native-v2 private/unknown identities normalize explicit target and isolate provider/model/connection/pair/privacy; ordinary v1 remains compatible. Manual/auto share one active subscriber task.",
+  "storageFence": "Native writes serialize; abort detected after in-flight storage completion restores previous records before queued fresh publication. Storage may briefly receive the obsolete snapshot before cleanup; no claim of instant cancellation or crash-atomic storage.",
+  "lifetime": "Real save/subscriber, selected model change, button cancel, native pagehide, disconnect/unmount, original document capture, foreign cancellation, ready/source timeout/late resolution and delayed final storage controls.",
+  "fixtureBoundary": "Actual compiled SFC/setup/template mounted by Vue custom renderer, actual config save/normalize/subscription, native Port/router/registry, shared singleton, broker/provider registry/AI SDK. DOM/browser/config and capability storage/statistics/HTTP remain synthetic boundaries.",
+  "failedExperiments": "Raw records retain command ENOENT, sandbox child EPERM, initial LinkeDOM Window spy mistake, overbroad timer count, updated privacy cache expectation and UI source-copy scan failures. Final gates use existing direct Node entrypoints and per-execution approvals for existing local child/loopback tests.",
+  "numericCoverageLimit": "Existing strict-owned modules retain four-dimensional 100%; SFC and composition glue receive actual-entry offline tests, not a new numerical coverage claim.",
+  "remainingEntries": [
+    "online dictionary access/raw-cache privacy isolation"
+  ],
+  "realApiGuiGpuOrModelDownloadAcceptance": false,
+  "pr883Operation": false,
+  "extraAgentsOrWorkTasksStarted": false,
+  "persistentProductPermissionsChanged": false,
+  "sourceVersionsDependenciesAliasesBudgetsChanged": false,
+  "approvalEvidence": "Per-execution requests and actual tool success are observed; tools do not expose signed approval decisions. No historical approval record is fabricated."
+}

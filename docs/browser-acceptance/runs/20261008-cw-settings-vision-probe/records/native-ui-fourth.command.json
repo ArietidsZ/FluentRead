@@ -1,0 +1,20 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "tests/imagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=../settings-vision-probe-20261008/native-ui-fourth.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:34:27.705640+00:00",
+  "finishedAt": "2026-10-08T23:34:36.240531+00:00",
+  "durationSeconds": 8.535,
+  "exitCode": 1
+}

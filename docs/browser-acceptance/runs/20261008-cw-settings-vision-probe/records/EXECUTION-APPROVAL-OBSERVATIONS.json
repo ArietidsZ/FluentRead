@@ -1,0 +1,19 @@
+{
+  "provenance": "Observed direct exec_command request arguments and actual tool results in this turn; the tool did not expose signed approval decisions.",
+  "perExecutionEscalationRequests": [
+    {"operation": "strict-development", "scope": "Existing local offline coverage gate, temporary 127.0.0.1 WebDAV fixture", "actualExecution": "Completed, exit 1 from three development test failures"},
+    {"operation": "full-strict-final", "scope": "Same existing offline gate on frozen inputs", "actualExecution": "Completed, exit 0"},
+    {"operation": "architecture-final", "scope": "Existing read-only local Node/git child checks", "actualExecution": "Completed, exit 0"},
+    {"operation": "run-build-gates", "scope": "Existing builds/verifiers; local git child read only", "actualExecution": "All gates completed, exit 0"},
+    {"operation": "source git add", "scope": "Existing shared worktree Git metadata", "actualExecution": "Completed, exit 0"},
+    {"operation": "initial source git commit", "scope": "Same Git metadata", "actualExecution": "Exit 128: author identity was not inherited; no commit created"},
+    {"operation": "recorded source-commit", "scope": "Same Git metadata; verified prior branch public noreply identity passed only through git -c", "actualExecution": "Completed, exit 0"},
+    {"operation": "remote-pre-push", "scope": "Read only the explicitly authorized existing privacy branch", "actualExecution": "Completed, exit 0"}
+  ],
+  "automaticApprovalReviewRejectionObserved": false,
+  "signedApprovalLogAvailable": false,
+  "historicalApprovalReconstructed": false,
+  "globalGitOrAuthenticationConfigurationChanged": false,
+  "persistentProductPermissionsChanged": false,
+  "futureGitWritesOrPushes": "Recorded separately when executed; this file does not assert a future action succeeded."
+}

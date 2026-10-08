@@ -1,0 +1,19 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/i18n.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=../settings-vision-probe-20261008/i18n-native-copy.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:40:38.299837+00:00",
+  "finishedAt": "2026-10-08T23:40:41.058406+00:00",
+  "durationSeconds": 2.759,
+  "exitCode": 0
+}

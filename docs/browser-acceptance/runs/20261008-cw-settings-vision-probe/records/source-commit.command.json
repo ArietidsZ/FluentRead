@@ -1,0 +1,17 @@
+{
+  "command": [
+    "git",
+    "-c",
+    "user.name=Arietids",
+    "-c",
+    "user.email=69024461+ArietidsZ@users.noreply.github.com",
+    "commit",
+    "-m",
+    "fix: bind settings vision probes to native document privacy and explicit targets"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:50:09.145429+00:00",
+  "finishedAt": "2026-10-08T23:50:09.153441+00:00",
+  "durationSeconds": 0.008,
+  "exitCode": 0
+}

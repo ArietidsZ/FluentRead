@@ -1,0 +1,21 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "actual UI refuses private mismatched|actual UI unknown hint|frontend false cannot elevate|unknown configured source cannot return|cancelled standalone publication",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/baseline-control.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:39:50.545721+00:00",
+  "finishedAt": "2026-10-08T23:39:52.281819+00:00",
+  "durationSeconds": 1.736,
+  "exitCode": 1
+}

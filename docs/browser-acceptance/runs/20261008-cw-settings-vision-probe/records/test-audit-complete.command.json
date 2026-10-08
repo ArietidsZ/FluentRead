@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/audit-test-suite.mjs"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:43:58.489977+00:00",
+  "finishedAt": "2026-10-08T23:43:59.276225+00:00",
+  "durationSeconds": 0.786,
+  "exitCode": 0
+}

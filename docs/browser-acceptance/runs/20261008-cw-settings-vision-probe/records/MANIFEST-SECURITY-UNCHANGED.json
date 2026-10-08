@@ -1,0 +1,83 @@
+{
+  ".output/chrome-mv3/manifest.json": {
+    "securityFieldsUnchanged": true,
+    "securityFields": {
+      "permissions": [
+        "storage",
+        "unlimitedStorage",
+        "alarms",
+        "contextMenus",
+        "declarativeNetRequestWithHostAccess",
+        "identity",
+        "offscreen"
+      ],
+      "optional_permissions": null,
+      "host_permissions": [
+        "<all_urls>",
+        "https://translate.google.com/*",
+        "https://translate.google.co.uk/*",
+        "https://translate.googleapis.com/*",
+        "https://dev.microsofttranslator.com/*",
+        "https://*.tts.speech.microsoft.com/*",
+        "https://deeplx.1stg.me/*",
+        "https://freeapi.fanyimao.cn/*",
+        "https://api.deeplx.org/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://*/*",
+        "https://*/*"
+      ],
+      "optional_host_permissions": null,
+      "incognito": null,
+      "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+      },
+      "browser_specific_settings": null
+    },
+    "sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+  },
+  ".output/firefox-mv2/manifest.json": {
+    "securityFieldsUnchanged": true,
+    "securityFields": {
+      "permissions": [
+        "storage",
+        "unlimitedStorage",
+        "alarms",
+        "contextMenus",
+        "declarativeNetRequestWithHostAccess",
+        "<all_urls>",
+        "https://translate.google.com/*",
+        "https://translate.google.co.uk/*",
+        "https://translate.googleapis.com/*",
+        "https://dev.microsofttranslator.com/*",
+        "https://*.tts.speech.microsoft.com/*",
+        "https://deeplx.1stg.me/*",
+        "https://freeapi.fanyimao.cn/*",
+        "https://api.deeplx.org/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "http://*/*",
+        "https://*/*"
+      ],
+      "optional_permissions": null,
+      "host_permissions": null,
+      "optional_host_permissions": null,
+      "incognito": null,
+      "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+      "browser_specific_settings": {
+        "gecko": {
+          "id": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+          "strict_min_version": "140.0",
+          "data_collection_permissions": {
+            "required": [
+              "websiteContent",
+              "authenticationInfo",
+              "personalCommunications"
+            ]
+          }
+        }
+      }
+    },
+    "sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6"
+  }
+}

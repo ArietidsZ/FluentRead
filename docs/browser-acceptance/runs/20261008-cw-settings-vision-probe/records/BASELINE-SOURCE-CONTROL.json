@@ -1,0 +1,26 @@
+{
+  "src/core/config/visionProbe.ts": {
+    "baselineSha256": "9a9032f1a989463bd7131f47eadda27a7b26530384277dc49c1920217008e157",
+    "workingSha256": "eb1ec2db75c7a9ac6a14edf672c4867f00879ac804527702cecbed08fe6e83b1"
+  },
+  "src/services/translation/visionProbe.ts": {
+    "baselineSha256": "2d7d8a59769956f6f3635af89a95d27e42a3afc1d8a95646054dc6cbb460a520",
+    "workingSha256": "96fc9a27677918ed7f57e433ecdb67ec850d92564f670c65e1e88f38f9e01b4e"
+  },
+  "src/app/background/handlers/visionProbe.ts": {
+    "baselineSha256": "1da29fcd61db8530ea362aa4919402df741044a69c72cdcfa748493ca2e6659e",
+    "workingSha256": "659621637ef2c29155579842c4d22e7ab1bcff9f76223450a4489f30d59e0866"
+  },
+  "src/features/settings/ui/services/ModelVisionSettings.vue": {
+    "baselineSha256": "fdd21cdad46d156993b6f5900c57cfcdf5af6e935ce993c595e3005699934598",
+    "workingSha256": "5a53a399db44a9423c731e579e5b3c636a62db5b3b4f749f123d43c7ffb71ba0"
+  },
+  "src/features/settings/ui/services/useVisionProbeStatus.ts": {
+    "baselineSha256": "031701e8f79c9b250b495e4901d13de41227bae2061ad2f11fe513c533a1f33b",
+    "workingSha256": "a6602c930c74e808da385b228e6216d7d304a126b9f346cc2e156ac2f0511ea4"
+  },
+  "baselineExitCode": 1,
+  "baselineCommit": "09814056290d5b805717851b5a0244fdc97333d6",
+  "testSha256": "a70c8492c228be0b618dd50855b090384b381ea3a2c56bf3d0584cd63bbe7ebf",
+  "restoredBytesIdentical": true
+}

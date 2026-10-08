@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-08T23:44:03.714546+00:00",
+  "finishedAt": "2026-10-08T23:44:18.098360+00:00",
+  "durationSeconds": 14.384,
+  "exitCode": 0
+}
