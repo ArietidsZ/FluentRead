@@ -23,5 +23,11 @@
     "causality": "not established; correlation only",
     "successful_minimal_measure": "service autostart restriction only in owned temporary D-Bus config",
     "system_daily_services_keyring_credentials_password_store_changed": false
+  },
+  "process_discovery": {
+    "enumeration": "/proc/*/stat plus uid metadata",
+    "selection": "owned known PID/startTicks, process groups and ancestry",
+    "detailed_process_reads": "owned selected processes only",
+    "rejected_all_user_environ_scan_executed": false
   }
 }

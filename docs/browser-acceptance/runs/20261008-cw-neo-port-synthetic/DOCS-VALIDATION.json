@@ -11,8 +11,6 @@
   "status": "passed after correction",
   "note": "Fresh evidence-only checkout warns .wxt/tsconfig.json absent; documentation build completes. No application build or source change performed here.",
   "driver_syntax_checks": "both passed",
-  "published_json_parse_checks": 68,
-  "evidence_hashes_verified": 90,
   "first_attempt": {
     "exit_code": 1,
     "failure": "Found dead link ./driver/index in README.md",
@@ -29,6 +27,54 @@
       "docs"
     ],
     "duration_seconds": 2.492,
+    "exit_code": 0
+  },
+  "initial_publication_check": {
+    "payload_hashes_verified": 90,
+    "payload_json_parse_checks": 68,
+    "scope": "initial payload only; excludes subsequently added publication-check records and metadata/manifest self-reference"
+  },
+  "manifest_count_history": [
+    {
+      "stage": "initial payload",
+      "entries": 90
+    },
+    {
+      "stage": "initial docs publication records added",
+      "entries": 95,
+      "added": 5
+    },
+    {
+      "stage": "navigation diagnostic clarification records added",
+      "entries": 98,
+      "added": 3
+    },
+    {
+      "stage": "count-scope clarification docs records added",
+      "entries": 101,
+      "added": 3
+    }
+  ],
+  "current_manifest_check": {
+    "published_hashes_verified": 101,
+    "scope": "all current manifest entries; manifest and README/BINDING/DOCS-VALIDATION are not entries; metadata bound by Git tree",
+    "new_browser_runs": false,
+    "payload_json_parse_checks": 72
+  },
+  "count_scope_docs_attempt": {
+    "label": "docs-count-scope-clarification",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "cwd": "/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-neo-isolated-port-evidence-20261008",
+    "started_at": "2026-10-08T11:56:20.454135+00:00",
+    "duration_seconds": 2.712,
     "exit_code": 0
   }
 }
