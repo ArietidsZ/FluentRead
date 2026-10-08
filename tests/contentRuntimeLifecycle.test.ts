@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     resetRouteState: vi.fn(),
     addRuntimeListener: vi.fn(), removeRuntimeListener: vi.fn(), createMessageHandler: vi.fn(),
     setBridges: vi.fn(),
+    imageDocumentClient: vi.fn(),
     mountWriting: vi.fn(), unmountWriting: vi.fn(), writingMounted: false,
     floatingBallAllowed: true, shareCardMounted: false, mountShareCard: vi.fn(), mountReencounter: vi.fn(), unmountReencounter: vi.fn(),
 }));
@@ -35,8 +36,8 @@ vi.mock('@/src/services/config/store', () => ({
     config: mocks.config, get configReady() { return mocks.configReady; }, subscribeConfig: mocks.subscribeConfig,
 }));
 vi.mock('wxt/utils/content-script-ui/shadow-root', () => ({createShadowRootUi: vi.fn()}));
-vi.mock('@/src/app/content/features', async () => ({
-    imageDocumentClient: (await import('@/src/features/image-translation/services/documentClient')).imageDocumentClient,
+vi.mock('@/src/app/content/features', () => ({
+    imageDocumentClient: mocks.imageDocumentClient,
     ...Object.fromEntries([
         'autoTranslateEnglishPage', 'cancelPendingHoverTranslation', 'handleTranslation', 'noteBilingualHostGesture',
         'inputBoxTranslationConfigKey', 'isAreaTranslatorMounted', 'isFullPageTranslationActive',
@@ -270,9 +271,10 @@ describe('content composition root 冷启动与暂停恢复', () => {
     let context: {isInvalid: boolean; onInvalidated: (callback: () => void) => void};
     let ready: () => void;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         vi.resetModules();
         vi.clearAllMocks();
+        mocks.imageDocumentClient.mockImplementation((await import('@/src/features/image-translation/services/documentClient')).imageDocumentClient);
         mocks.config.on = true;
         mocks.config.writing.enabled = false;
         mocks.writingMounted = false;
