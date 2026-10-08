@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：冻结翻译消息的可编辑字段与数组，并附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：在入口一次读取消息字段并复制原文/术语数组，保留内部 symbol 描述符；定义配置快照、剩余预算、内部取消、线路观察与可信术语来源，冻结术语规则并从完整文本槽协议恢复纯匹配原文。
+ * 主要内容：在入口一次读取消息字段并复制原文/术语数组，保留内部 symbol 描述符；定义配置快照、剩余预算、内部取消、线路观察与可信术语来源，冻结术语规则并从完整文本槽协议恢复纯匹配原文；仅用连续槽号构造协议快照，保留来源中的超范围字面标记，重复、交错与缺项仍由同一严格解析器拒绝。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -105,8 +105,12 @@ export function getTranslationGlossarySourceText(origin: string | string[]): str
     const firstMarker = origin.match(/^___FLUENTREAD_([a-z0-9_-]+)_0_BEGIN___/iu);
     if (!firstMarker) return origin;
     // nonce 的白名单只允许字母、数字、下划线和连字符，可直接组成字面正则片段。
-    const starts = [...origin.matchAll(new RegExp(`___FLUENTREAD_${firstMarker[1]}_\\d+_BEGIN___`, 'gu'))]
-        .map(([marker]) => marker);
+    const starts: string[] = [];
+    for (const [marker, index] of origin.matchAll(new RegExp(`___FLUENTREAD_${firstMarker[1]}_(0|[1-9]\\d*)_BEGIN___`, 'gu'))) {
+        // Serializer 与 parser 都把超范围标记视为字面来源，不能用它扩大包的槽数。
+        // 重复或倒序的真实槽标记保留在载荷中，后续严格解析仍会拒绝。
+        if (Number(index) === starts.length) starts.push(marker);
+    }
     const ends = starts.map(marker => marker.replace(/_BEGIN___$/u, '_END___'));
     return parseTranslationSlots({payload: origin, starts, ends}, origin) ?? origin;
 }

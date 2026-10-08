@@ -1,7 +1,7 @@
 /**
  * @file tests/translationSlotEchoRegression.test.ts
  * 文件职责：通过真实 broker 入口验证全文单条槽协议的局部恢复、术语豁免和缓存安全。
- * 主要内容：注入 provider、内存 cache 与时钟，观察顺序、请求次数、旧缓存/pending 隔离、协议形状、取消和共享 deadline；Chrome 接入真实请求构造与 offscreen 检测逻辑，上下文泄漏验证只恢复坏槽；frontend 验证标记透传、中文过滤及失败会话复用。
+ * 主要内容：注入 provider、内存 cache 与时钟，观察顺序、请求次数、旧缓存/pending 隔离、协议形状、取消和共享 deadline；Chrome 接入真实请求构造与 offscreen 检测逻辑，覆盖损坏槽包降级时的长样本、调用快照与乱序结算，上下文泄漏验证只恢复坏槽；frontend 验证标记透传、中文过滤及失败会话复用。
  * 模块边界：不 mock broker 或校验算法，不使用网络、浏览器与真实存储；client 替身把 frontend 请求交给真实 broker，公共翻译出口仅替换为纯槽协议模块。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -70,7 +70,9 @@ function connectFrontend(harness: ReturnType<typeof createHarness>): void {
     ports.single.mockImplementation((origin: string, context: string, options: TranslateOptions) => {
         const message = {origin, context, useCache: options.useCache,
             sourceLanguage: options.sourceLanguage, targetLanguage: options.targetLanguage,
-            validateTranslationSlots: options.validateTranslationSlots};
+            validateTranslationSlots: options.validateTranslationSlots,
+            ...(options.sourceLanguageDetectionText !== undefined
+                ? {sourceLanguageDetectionText: options.sourceLanguageDetectionText} : {})};
         return harness.broker.translateWithCache(options.signal
             ? attachTranslationRequestControl(message, {signal: options.signal, ownershipKey: 'frontend-slot-fixture'}) : message);
     });
@@ -82,6 +84,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('真实 broker 的全文单条槽协议', () => {
+    it('默认 serializer 生成的包含超范围字面标记时仍修复回显槽，并缓存完整结果', async () => {
+        const h = createHarness({service: 'deepL'});
+        connectFrontend(h);
+        // 两个 code unit 令默认来源摘要为 abcdef；没有传自定义 nonce，复现真实生成包的边界。
+        const literal = '___FLUENTREAD_abcdef_999_BEGIN___example___FLUENTREAD_abcdef_999_END___';
+        const sources = [`${first} Literal marker ${literal} \ua306\uf5dd`, second];
+        const packet = serializeTranslationSlots(sources);
+        expect(packet.starts[0]).toBe('___FLUENTREAD_abcdef_0_BEGIN___');
+        const outputs = [`${translated[0]} 字面标记 ${literal} \ua306\uf5dd`, translated[1]!];
+        const partial = renderPacket(packet, [sources[0]!, outputs[1]!]);
+        const complete = renderPacket(packet, outputs);
+        h.provider.mockResolvedValueOnce(partial).mockResolvedValueOnce(outputs[0]);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, sources[0]]);
+        expect(h.provider.mock.calls[1]![0]).toMatchObject({validateTranslationSlots: false});
+        expect(parseTranslationSlots(packet, complete)).toEqual(outputs);
+        expect([...h.store.values()]).toEqual([complete]);
+        expect([...h.store.values()]).not.toContain(partial);
+        await expect(translateTextSlots(sources, snapshot)).resolves.toEqual(outputs);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+    });
+
     it('只重试中间坏槽一次，保留两侧良槽及顺序，修复整包后复用缓存', async () => {
         const h = createHarness();
         const sources = [first, second, third];
@@ -433,6 +457,125 @@ describe('真实 broker 的全文单条槽协议', () => {
 });
 
 describe('frontend 只负责全文槽协议入口与会话边界', () => {
+    it.each([
+        {shape: 'missing-end', name: 'und', shortResult: {detectedLanguage: 'und', confidence: 0.99}},
+        {shape: 'missing-end', name: 'en/0.39', shortResult: {detectedLanguage: 'en', confidence: 0.39}},
+        {shape: 'reordered', name: 'und', shortResult: {detectedLanguage: 'und', confidence: 0.99}},
+        {shape: 'reordered', name: 'en/0.39', shortResult: {detectedLanguage: 'en', confidence: 0.39}},
+    ])('Chrome malformed $shape 回退遇到短标题 $name 时仍使用冻结长样本并按来源排序', async ({shape, shortResult}) => {
+        const h = createHarness({service: 'chromeTranslator'});
+        connectFrontend(h);
+        const heading = 'Software Engineer';
+        const sources = [heading, second];
+        const packet = serializeTranslationSlots(sources);
+        const detectionSample = sources.join('\n');
+        const outputs = ['软件工程师', translated[1]!];
+        const malformed = shape === 'missing-end'
+            ? renderPacket(packet, outputs).replace(packet.ends[1]!, '')
+            : `${packet.starts[1]}${outputs[1]}${packet.ends[1]}\n${packet.starts[0]}${outputs[0]}${packet.ends[0]}`;
+        let releasePacket!: (value: string) => void;
+        const packetResult = new Promise<string>(resolve => {releasePacket = resolve;});
+        let markPacketStarted!: () => void;
+        const packetStarted = new Promise<void>(resolve => {markPacketStarted = resolve;});
+        let releaseHeading!: () => void;
+        const secondCompleted = new Promise<void>(resolve => {releaseHeading = resolve;});
+        const completed: string[] = [];
+        const detect = vi.fn(async (text: string) => {
+            if (text === detectionSample) return [{detectedLanguage: 'en', confidence: 0.99}];
+            if (text === heading) return [shortResult];
+            if (text === second) return [{detectedLanguage: 'en', confidence: 0.99}];
+            throw new Error('unexpected detection sample');
+        });
+        const destroy = vi.fn();
+        const translate = vi.fn(async (text: string) => {
+            if (text === packet.payload) {markPacketStarted(); return packetResult;}
+            if (text === heading) {
+                await secondCompleted;
+                completed.push(heading);
+                return outputs[0]!;
+            }
+            if (text === second) {
+                completed.push(second);
+                releaseHeading();
+                return outputs[1]!;
+            }
+            throw new Error('unexpected source or extra provider request');
+        });
+        const translatorCreate = vi.fn<NonNullable<ChromeTranslationEnvironment['Translator']>['create']>(async () => ({translate}));
+        const environment: ChromeTranslationEnvironment = {
+            LanguageDetector: {availability: vi.fn(async () => 'available'), create: vi.fn(async () => ({detect, destroy}))},
+            Translator: {availability: vi.fn(async () => 'available'), create: translatorCreate},
+        };
+        h.provider.mockImplementation(message => translateWithChromeApi(
+            buildChromeOffscreenTranslationData(message, {sourceLanguage: 'auto', targetLanguage: 'zh-Hans'}),
+            environment, message.abortSignal as AbortSignal | undefined,
+        ));
+        const invocation = {...snapshot, service: 'chromeTranslator', useCache: false};
+        const controller = new AbortController();
+        const pending = translateTextSlots(sources, invocation, controller.signal);
+        try {
+            // 首包在途时编辑调用参数；协议回退必须沿用调用入口自己的来源与配置快照。
+            await packetStarted;
+            sources[0] = 'Changed source';
+            sources.reverse();
+            invocation.service = 'deepL';
+            invocation.sourceLanguage = 'fr';
+            invocation.targetLanguage = 'en';
+            invocation.model = 'edited-model';
+            releasePacket(malformed);
+            await expect(pending).resolves.toEqual(outputs);
+        } finally {
+            releasePacket(malformed);
+            releaseHeading();
+            controller.abort();
+        }
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual([packet.payload, heading, second]);
+        expect(detect.mock.calls.map(([text]) => text)).toEqual([detectionSample, detectionSample, detectionSample]);
+        expect(destroy).toHaveBeenCalledTimes(3);
+        expect(translatorCreate).toHaveBeenCalledTimes(3);
+        for (const [options] of translatorCreate.mock.calls) {
+            expect(options).toMatchObject({sourceLanguage: 'en', targetLanguage: 'zh'});
+        }
+        expect(completed).toEqual([second, heading]);
+        for (const [, , options] of ports.single.mock.calls) {
+            expect(options).toMatchObject({serviceOverride: 'chromeTranslator', sourceLanguage: 'auto',
+                targetLanguage: 'zh-Hans', sourceLanguageDetectionText: detectionSample, useCache: false,
+                modelOverride: undefined, thinkingOverride: false});
+            expect(options).not.toHaveProperty('timeout');
+        }
+        expect(ports.batch).not.toHaveBeenCalled();
+        expect(h.cacheSet).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {service: 'localTranslation', sourceLanguage: 'auto', sample: true},
+        {service: 'localTranslation', sourceLanguage: 'en', sample: false},
+        {service: 'chromeTranslator', sourceLanguage: 'en', sample: false},
+        {service: 'deepL', sourceLanguage: 'auto', sample: false},
+    ])('逐槽兼容 $service/$sourceLanguage 保留本地样本策略且不扩散样本', async ({service, sourceLanguage, sample}) => {
+        const h = createHarness({service});
+        connectFrontend(h);
+        const sources = [first, second];
+        const packet = serializeTranslationSlots(sources);
+        h.provider.mockImplementation(async message => {
+            if (message.origin === packet.payload) return renderPacket(packet, translated.slice(0, 2)).replace(packet.ends[1]!, '');
+            if (message.origin === first) return translated[0]!;
+            if (message.origin === second) return translated[1]!;
+            throw new Error('unexpected provider request');
+        });
+        await expect(translateTextSlots(sources, {...snapshot, service, sourceLanguage, useCache: false}))
+            .resolves.toEqual(translated.slice(0, 2));
+        expect(h.provider.mock.calls.map(([message]) => message.origin)).toEqual(
+            service === 'localTranslation' ? sources : [packet.payload, ...sources],
+        );
+        for (const [, , options] of ports.single.mock.calls) {
+            if (sample) expect(options.sourceLanguageDetectionText).toBe(sources.join('\n'));
+            else expect(options).not.toHaveProperty('sourceLanguageDetectionText');
+        }
+        expect(ports.batch).not.toHaveBeenCalled();
+        expect(h.cacheSet).not.toHaveBeenCalled();
+    });
+
     it('serialized single 向 client 透传 validateTranslationSlots=true', async () => {
         const h = createHarness();
         connectFrontend(h);

@@ -173,6 +173,20 @@ describe('translation provider request config snapshot', () => {
             expect(getTranslationGlossarySourceText(text)).toBe(text);
         }
     });
+    it('keeps out-of-range and nonstandard literal markers inside their source slots', () => {
+        const sources = ['An agent reads ___FLUENTREAD_literal_999_BEGIN___example___FLUENTREAD_literal_999_END___ and ___FLUENTREAD_literal_01_BEGIN___text___FLUENTREAD_literal_01_END___.',
+            'The next source explains translation settings.'];
+        const packet = serializeTranslationSlots(sources, 'literal');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_literal_0_BEGIN___');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['duplicate', 'gap', 'reversed'] as const)('rejects %s real slot markers instead of inferring a valid source packet', variant => {
+        const packet = serializeTranslationSlots(['An agent reads.', 'The next source explains settings.'], 'invalid');
+        const malformed = variant === 'duplicate' ? packet.payload.replace('An agent reads.', `${packet.starts[0]}An agent reads.`)
+            : variant === 'gap' ? packet.payload.replaceAll('_1_', '_2_')
+            : `${packet.starts[1]}The next source explains settings.${packet.ends[1]}\n${packet.starts[0]}An agent reads.${packet.ends[0]}`;
+        expect(getTranslationGlossarySourceText(malformed)).toBe(malformed);
+    });
     it('deep-freezes glossary rules, per-entry selections and resolved terms without sharing mutable arrays', () => {
         const libraries = [{id: 'one', name: 'One', enabled: true, sourceLanguage: '', targetLanguage: '', domains: [],
             entries: [{id: 'term', source: 'agent', target: '智能体', caseSensitive: false}]}];
