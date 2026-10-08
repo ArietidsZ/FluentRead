@@ -462,7 +462,8 @@
       "tests/popupMount.test.ts",
       "tests/translationDocumentLifetime.test.ts",
       "tests/translationDocumentPort.test.ts",
-      "tests/writingPrivacyRoute.test.ts"
+      "tests/writingPrivacyRoute.test.ts",
+      "tests/writingSavedConfig.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

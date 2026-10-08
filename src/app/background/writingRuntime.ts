@@ -39,7 +39,7 @@ export function installWritingBackgroundRuntime(): () => void {
         },
     });
     browser.runtime.onConnect.addListener(port => handler.connect(port));
-    const configurationKey = (next: Config) => JSON.stringify([next.on, next.harness.memoryEnabled, {...next.writing, referenceLanguage: undefined}, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders, next.incognitoService, next.incognitoModel, next.customModels, next.customBody, next.customHeaders, next.apiKeys, next.apiKeyRotationEnabled, next.modelThinking, next.azureOpenaiEndpoint, next.newApiUrl, next.deepseekApiType, next.minimaxRegion, next.minimaxBillingPlan, next.mimoRegion, next.mimoBillingPlan]);
+    const configurationKey = (next: Config) => JSON.stringify([next.on, next.harness.memoryEnabled, {...next.writing, referenceLanguage: undefined}, next.disabledExtensionDomains, next.service, next.model, next.customModel, next.proxy, next.token, next.customOpenAIProviders, next.incognitoService, next.incognitoModel, next.customModels, next.customBody, next.customHeaders, next.apiKeys, next.apiKeyRotationEnabled, next.apiKeyRecoveryMs, next.requireApiKey, next.modelThinking, next.azureOpenaiEndpoint, next.newApiUrl, next.deepseekApiType, next.minimaxRegion, next.minimaxBillingPlan, next.mimoRegion, next.mimoBillingPlan]);
     let previous = configurationKey(config);
     subscribeConfig(next => {
         const key = configurationKey(next);
