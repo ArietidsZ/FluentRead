@@ -11,6 +11,7 @@ import {createTranslationSourceHistory, observeTranslationSource} from './source
 interface SourceStabilitySession {
     translationMode: string;
     scheduled: Map<Node, TranslationCandidate>;
+    candidateAnchors?: ReadonlyMap<Node, HTMLElement>;
     unchangedCandidates: WeakMap<Node, unknown>;
     lifecycleRetries: WeakMap<Node, unknown>;
 }
@@ -54,27 +55,48 @@ export class TranslationSourceStabilityGate<T extends SourceStabilitySession> {
         if (currentTimer !== undefined) {
             window.clearTimeout(currentTimer);
             timers!.delete(identity);
+            if (!timers!.size) this.timers.delete(session!);
         }
         if (stability.kind === 'ready') return false;
         if (stability.kind === 'settling' && session) {
             const pending = timers ?? new Map<Node, number>();
             this.timers.set(session, pending);
-            pending.set(identity, window.setTimeout(() => {
-                pending.delete(identity);
-                if (!this.ports.isCurrent(session) || !identity.isConnected) return;
-                session.unchangedCandidates.delete(identity);
-                session.lifecycleRetries.delete(identity);
-                const fresh = this.ports.resolve(candidate);
-                if (!fresh) return;
-                this.ports.discover(session, fresh);
-                const key = getTranslationCandidateKey(fresh);
-                const scheduled = session.scheduled.get(key);
-                // 重新 observe 相同锚点不保证再次派发 IO；只唤醒仍在预取区的最新候选。
-                if (scheduled && (session.translationMode === 'all' || isAnchorNearViewport(fresh.element))) {
-                    this.ports.queue(session, key, scheduled, this.ports.source(scheduled));
-                    this.ports.drain(session);
+            const history = this.history;
+            const observed = history.get(identity)!;
+            const observedSource = observed.source, changedAt = observed.changedAt;
+            const timer = window.setTimeout(() => {
+                // 外部端口和宿主布局读取可同步重入 reset/dispose/blocks；运行中的
+                // timer 仍须拥有槽位，才能拒绝旧路由、旧来源并保留新一代 timer。
+                const ownsTimer = () => this.timers.get(session) === pending && pending.get(identity) === timer;
+                const isCurrent = () => this.ports.isCurrent(session) && ownsTimer() && identity.isConnected &&
+                    this.history === history && observed.source === observedSource && observed.changedAt === changedAt;
+                try {
+                    if (!isCurrent()) return;
+                    session.unchangedCandidates.delete(identity);
+                    session.lifecycleRetries.delete(identity);
+                    const fresh = this.ports.resolve(candidate);
+                    if (!fresh || !isCurrent() || !fresh.element.isConnected) return;
+                    this.ports.discover(session, fresh);
+                    if (!isCurrent()) return;
+                    const key = getTranslationCandidateKey(fresh);
+                    const scheduled = session.scheduled.get(key);
+                    // discover 可能保留共享 key 的优先候选；读取它的来源和几何。
+                    if (!scheduled || !scheduled.element.isConnected) return;
+                    const source = this.ports.source(scheduled);
+                    if (!isCurrent() || session.scheduled.get(key) !== scheduled) return;
+                    const anchor = session.candidateAnchors?.get(key) ?? scheduled.element;
+                    if (session.translationMode !== 'all' && (!anchor.isConnected || !isAnchorNearViewport(anchor))) return;
+                    if (!isCurrent() || !scheduled.element.isConnected || session.scheduled.get(key) !== scheduled) return;
+                    this.ports.queue(session, key, scheduled, source);
+                    if (isCurrent()) this.ports.drain(session);
+                } finally {
+                    if (ownsTimer()) {
+                        pending.delete(identity);
+                        if (!pending.size) this.timers.delete(session);
+                    }
                 }
-            }, stability.delay));
+            }, stability.delay);
+            pending.set(identity, timer);
         }
         return true;
     }

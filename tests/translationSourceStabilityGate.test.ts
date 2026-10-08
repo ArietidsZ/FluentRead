@@ -9,7 +9,7 @@ function fixture() {
     vi.stubGlobal('window', {innerWidth:1280, innerHeight:900, setTimeout:globalThis.setTimeout, clearTimeout:globalThis.clearTimeout});
     const element = document.querySelector<HTMLElement>('p')!;
     const candidate: TranslationCandidate = {element, kind:'content', reason:'source-stability'};
-    const session = {translationMode:'all', scheduled:new Map<Node, TranslationCandidate>(),
+    const session = {translationMode:'all', scheduled:new Map<Node, TranslationCandidate>(), candidateAnchors:new Map<Node, HTMLElement>(),
         unchangedCandidates:new WeakMap<Node, unknown>(), lifecycleRetries:new WeakMap<Node, unknown>()};
     const ports = {isCurrent:vi.fn(() => true), resolve:vi.fn<() => TranslationCandidate | null>(() => candidate),
         discover:vi.fn((_session: typeof session, fresh:TranslationCandidate) => {session.scheduled.set(fresh.element, {...fresh, scope:'all'});}),
@@ -102,6 +102,105 @@ describe('动态来源安静窗口调度', () => {
         await vi.runAllTimersAsync();
         expect(ports.queue).toHaveBeenCalledOnce();
         expect(gate.blocks(candidate,'A new route source.',session)).toBe(false);
+    });
+
+    it.each(['resolve', 'discover', 'source', 'queue'] as const)('外部 %s 端口重入路由 reset 后不继续旧调度', async port => {
+        const {candidate, session, ports, gate} = fixture();
+        gate.blocks(candidate, 'Changed source.', session);
+        const original = ports[port].getMockImplementation() ?? (() => undefined);
+        ports[port].mockImplementation(((...args: never[]) => {
+            const result = (original as (...values: never[]) => unknown)(...args);
+            gate.reset();
+            return result;
+        }) as never);
+        await vi.runAllTimersAsync();
+        if (port !== 'queue') expect(ports.queue).not.toHaveBeenCalled();
+        expect(ports.drain).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it.each(['ready', 'numeric', 'ready-reentry'] as const)('取消后 %s 不保留 session 强引用或运行旧 timer', async reason => {
+        const {candidate, session, ports, gate} = fixture();
+        const pending = Reflect.get(gate, 'timers') as Map<typeof session, unknown>;
+        gate.blocks(candidate, reason === 'numeric' ? 'Visitors: 2' : 'Changed source.', session);
+        expect(pending.size).toBe(1);
+        if (reason === 'numeric') gate.blocks(candidate, 'Visitors: 3', session);
+        else if (reason === 'ready') {
+            vi.setSystemTime(Date.now() + 1800); // 时钟已过 quiet window，timer 尚未执行。
+            expect(gate.blocks(candidate, 'Changed source.', session)).toBe(false);
+        } else {
+            ports.source.mockImplementationOnce(() => {
+                expect(gate.blocks(candidate, 'Changed source.', session)).toBe(false);
+                return 'Changed source.';
+            });
+            await vi.advanceTimersByTimeAsync(1800);
+        }
+        await vi.runAllTimersAsync();
+        expect(pending.size).toBe(0);
+        expect(vi.getTimerCount()).toBe(0);
+        expect(ports.queue).not.toHaveBeenCalled();
+        expect(ports.drain).not.toHaveBeenCalled();
+    });
+
+    it('source 端口发现新一代来源时保留新 timer，旧回调不抢先派发', async () => {
+        const {candidate, session, ports, gate} = fixture();
+        gate.blocks(candidate, 'Changed source.', session);
+        ports.source.mockImplementationOnce(() => {
+            gate.blocks(candidate, 'A newer generation.', session);
+            return 'A newer generation.';
+        });
+        await vi.advanceTimersByTimeAsync(1800);
+        expect(ports.queue).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(1);
+        ports.source.mockReturnValue('A newer generation.');
+        await vi.advanceTimersByTimeAsync(1800);
+        expect(ports.queue).toHaveBeenCalledOnce();
+        expect(ports.queue.mock.calls[0][3]).toBe('A newer generation.');
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('可见锚点布局读取重入 dispose 后不复活已取消回调', async () => {
+        const {element, candidate, session, ports, gate} = fixture();
+        session.translationMode = 'viewport';
+        Object.defineProperty(element, 'getBoundingClientRect', {value: () => {
+            gate.dispose(session);
+            return {width:400, height:40, right:400, left:0, bottom:40, top:0};
+        }});
+        gate.blocks(candidate, 'Changed source.', session);
+        await vi.runAllTimersAsync();
+        expect(ports.queue).not.toHaveBeenCalled();
+        expect(ports.drain).not.toHaveBeenCalled();
+    });
+
+    it('重新发现保留共享 key 的优先候选时按实际 scheduled owner 判断视口', async () => {
+        const {document, element, candidate, session, ports, gate} = fixture();
+        session.translationMode = 'viewport';
+        const owner = document.createElement('section');
+        document.body.append(owner);
+        Object.defineProperty(element, 'getBoundingClientRect', {value: () => ({width:400,height:40,right:400,left:0,bottom:40,top:0})});
+        Object.defineProperty(owner, 'getBoundingClientRect', {value: () => ({width:400,height:40,right:400,left:0,bottom:20040,top:20000})});
+        const preferred = {...candidate, element: owner, nodes: [element]};
+        ports.discover.mockImplementation(() => {session.scheduled.set(element, preferred);});
+        gate.blocks(candidate, 'Changed source.', session);
+        await vi.runAllTimersAsync();
+        expect(ports.queue).not.toHaveBeenCalled();
+    });
+
+    it('display:contents owner 的安静重试复用重新发现绑定的可见后代锚点', async () => {
+        const {document, element, candidate, session, ports, gate} = fixture();
+        session.translationMode = 'viewport';
+        const anchor = document.createElement('span');
+        element.append(anchor);
+        Object.defineProperty(element, 'getBoundingClientRect', {value: () => ({width:0,height:0,right:0,left:0,bottom:0,top:0})});
+        Object.defineProperty(anchor, 'getBoundingClientRect', {value: () => ({width:400,height:40,right:400,left:0,bottom:40,top:0})});
+        ports.discover.mockImplementation(() => {
+            session.scheduled.set(element, candidate);
+            session.candidateAnchors.set(element, anchor);
+        });
+        gate.blocks(candidate, 'Changed source.', session);
+        await vi.runAllTimersAsync();
+        expect(ports.queue).toHaveBeenCalledOnce();
+        expect(ports.drain).toHaveBeenCalledOnce();
     });
 
     it.each([

@@ -5,6 +5,7 @@
  * 快照切换目标或排除语言后重新判断，不复用旧会话结果；取消与失败重试同样只涉及外语槽。只替换翻译客户端与配置存储。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {parseHTML} from 'linkedom';
 import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
 
 const runtime = vi.hoisted(() => ({
@@ -57,7 +58,7 @@ import {
     translateTextSlots,
 } from '@/src/features/full-page-translation/content/translationRequest';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
-import {serializeTranslationSlots} from '@/src/core/translation/public';
+import {collectLiveTranslationTextSlots, extractTranslationText, serializeTranslationSlots} from '@/src/core/translation/public';
 
 const german = 'Dieser deutsche Absatz beschreibt die verschiedenen Einstellungen der Anwendung und die automatische Übersetzung.';
 const english = 'This English sentence still needs a German translation for the reader.';
@@ -93,6 +94,24 @@ describe('各请求路径共用逐槽判断', () => {
             .resolves.toEqual([technicalParagraphs[0], `T:${english}`, ...technicalParagraphs.slice(1)]);
         expect(submitted()).toEqual([english]);
     });
+    it.each(['microsoft', 'google', 'freeTranslation', 'localTranslation'])('%s：真实 DOM 中独立 X 日期不进入相邻正文的请求槽', async service => {
+        runtime.config.service = service;
+        runtime.config.to = 'zh-Hans';
+        const {document} = parseHTML(`<html><body><p>${english}<a href="/status/123">10月7日</a><span>3:19 · 2026年10月8日</span></p></body></html>`);
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const dateNodes = Array.from(owner.querySelectorAll('a,span')).map(element => ({element, source:element.firstChild, value:element.textContent}));
+        const slots = collectLiveTranslationTextSlots(owner);
+        expect(slots.map(slot => slot.source)).toEqual([english]);
+        expect(extractTranslationText(owner)).toBe(english);
+        await expect(translateTextSlots(slots.map(slot => slot.source), captureFullPageTranslationConfig()))
+            .resolves.toEqual([`T:${english}`]);
+        expect(submitted()).toEqual([english]);
+        dateNodes.forEach(({element, source, value}) => {
+            expect(element.firstChild).toBe(source);
+            expect(element.textContent).toBe(value);
+        });
+    });
+
     it('中文 README 中的英文名称不触发请求，旁边独立的英文段落照常翻译', async () => {
         runtime.config.to = 'zh-Hans';
         const source = 'FluentRead 支持在原网页中对照阅读原文与译文，并提供划词翻译、AI 阅读辅助、图片翻译、文档翻译和视频双语字幕。翻译卡片接入了 DeepSeek Harness 会话内核的浏览器适配，支持结合上下文解释选中文字并连续追问。';
@@ -156,6 +175,61 @@ describe('各请求路径共用逐槽判断', () => {
         const snapshot = captureFullPageTranslationConfig();
         await expect(translateTextSlots([german, japanese, chinese, '2026-09-16'], snapshot)).resolves.toEqual([german, japanese, chinese, '2026-09-16']);
         expect(runtime.requests).toEqual([]);
+    });
+});
+
+describe('X 实际中文界面标签的全文请求边界', () => {
+    // 来自 X 全文 provider origins；只替换客户端与配置，沿用真实语言核心。
+    const labels = ['登录或注册 X', '使用用户名或邮箱登录', '相关用户', '关注', '当前趋势', '条款', '隐私'];
+    const services = ['google', 'microsoft', 'freeTranslation', 'localTranslation'];
+
+    it.each(services)('%s：auto → zh-Hans 保留七个中文标签，只提交相邻英文正文', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'zh-Hans'});
+        const texts = [labels[0]!, english, ...labels.slice(1)];
+        const result = await translateTextSlots(texts, captureFullPageTranslationConfig());
+        expect.soft(submitted()).toEqual([english]);
+        expect(result).toEqual([labels[0], `T:${english}`, ...labels.slice(1)]);
+    });
+
+    it.each(services)('%s：auto → en 仍提交七个中文标签，保留相邻英文正文', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'en'});
+        const result = await translateTextSlots([labels[0]!, english, ...labels.slice(1)], captureFullPageTranslationConfig());
+        expect(submitted()).toEqual(labels);
+        expect(result).toEqual([`T:${labels[0]}`, english, ...labels.slice(1).map(label => `T:${label}`)]);
+    });
+
+    it.each(services)('%s：简繁转换继续请求，混合正文、日韩文与不确定纯 Han 不误跳过', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'zh-Hant'});
+        // 七个完整标签含简体字形；同形片段「注册」不单独证明任意纯 Han 属于中文。
+        const traditional = '這個網頁可以翻譯繁體中文。';
+        const hantResult = await translateTextSlots([...labels, traditional], captureFullPageTranslationConfig());
+        expect.soft(submitted()).toEqual(labels);
+        expect.soft(hantResult).toEqual([...labels.map(text => `T:${text}`), traditional]);
+
+        runtime.requests = [];
+        runtime.config.to = 'zh-Hans';
+        const foreignOrUncertain = [
+            traditional,
+            '这些算法使用 AI，可以降低成本，但是 Please translate this sentence.',
+            'この機能は誰でも簡単に使うことが出来ます。',
+            '경제(經濟) 성장률이 올해 크게 높아졌습니다.',
+            '時間',
+            '日本国立大学',
+            '趨勢',
+        ];
+        const hansResult = await translateTextSlots(foreignOrUncertain, captureFullPageTranslationConfig());
+        expect(submitted()).toEqual(foreignOrUncertain);
+        expect(hansResult).toEqual(foreignOrUncertain.map(text => `T:${text}`));
+
+        runtime.requests = [];
+        runtime.config.to = 'zh-Hant';
+        await expect(translateTextSlots(['趨勢'], captureFullPageTranslationConfig())).resolves.toEqual(['T:趨勢']);
+        expect(submitted()).toEqual(['趨勢']);
+
+        runtime.requests = [];
+        Object.assign(runtime.config, {to: 'en', excludedLanguages: ['zh-Hant']});
+        await expect(translateTextSlots(['趨勢'], captureFullPageTranslationConfig())).resolves.toEqual(['T:趨勢']);
+        expect(submitted()).toEqual(['趨勢']);
     });
 });
 
