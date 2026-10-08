@@ -5,6 +5,16 @@ function rect(p:Uint8ClampedArray,w:number,x:number,y:number,width:number,height
 const text=(value:string,x:number,y:number,width=40,height=12)=>({text:value,confidence:.99,box:{x,y,width,height}});
 const box=(x:number,y:number,w=80,h=80)=>({x0:x,y0:y,x1:x+w,y1:y+h});
 describe('漫画局部气泡识别边界',()=>{
+    it('普通截图同高 OCR 行按横坐标从左到右排序，保留独立行与输入顺序', () => {
+        const right = text('Right label', 180, 30);
+        const left = text('Left label', 20, 30);
+        const page = {results: [right, left]};
+        const regions = collectMangaRegions(page, 'en', 400, 400, 'image');
+        expect(regions.map(region => region.text)).toEqual(['Left label', 'Right label']);
+        expect(regions.map(region => region.bbox.x0)).toEqual([20, 180]);
+        expect(page.results).toEqual([right, left]);
+        expect(regions.every(region => region.sourceBoxes === undefined)).toBe(true);
+    });
     it('普通截图 Paddle 保留源行供严格段落分组，局部放大结果替换重复检测', () => {
         const page = {results: [text('wrong small', 25, 30), text('Title', 160, 180, 90, 16), text('Body line', 160, 200, 200, 12)],
             bubbles: [{bbox: box(10, 10), results: [text('First', 20, 20), text('second', 20, 34)]}]};

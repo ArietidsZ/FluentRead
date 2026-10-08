@@ -76,6 +76,21 @@ function harness() {
 }
 
 describe('术语库与真实翻译编排协作', () => {
+    it('accepts exact glossary-only recovery after a padded untranslated response', async () => {
+        const h = harness();
+        const origin = 'This English sentence requires a Chinese translation.';
+        const glossary = library('brand', origin);
+        glossary.entries[0].source = origin;
+        h.config.glossaryLibraries = [glossary];
+        h.provider
+            .mockImplementationOnce(async message => `  ${message.origin}  `)
+            .mockImplementationOnce(async message => String(message.origin));
+        await expect(h.request({origin, useCache: false})).resolves.toBe(origin);
+        expect(h.provider).toHaveBeenCalledTimes(2);
+        expect(h.provider.mock.calls[1][0]).toMatchObject({context: '', pageContext: ''});
+        expect(h.cache.size).toBe(0);
+    });
+
     it('只把当前原文命中的占位符约束写进提示词，译法和网站规则不外发', async () => {
         const h = harness();
         await expect(h.request({origin: 'An agent works here.'})).resolves.toBe('An 智能体 works here.');

@@ -1185,6 +1185,26 @@ describe('繁体词典辅助内容只采用本次成功翻译', () => {
 
 describe('圈选视觉识别路由', () => {
     const selection = {left: 0, top: 0, width: 20, height: 20, viewportWidth: 100, viewportHeight: 100};
+    it('reports recognizing before awaiting the prepared vision route and never starts OCR', async () => {
+        const order: string[] = [];
+        const progress = vi.fn(async () => {order.push('progress');});
+        const route = vi.fn(async () => {order.push('route'); return {mode: 'vision' as const};});
+        const vision = vi.fn(async () => {order.push('vision'); return {image: 'vision', lines: [], recognitionMethod: 'vision'};});
+        const ocr = vi.fn();
+        const languages = vi.fn();
+        const context = {sender: {tab: {id: 1}}};
+        const [, handler] = createAreaTranslationBackgroundHandlers({
+            captureVisibleTab: vi.fn(), getDefaultSourceLanguage: () => 'en', assertLanguagesDownloaded: languages,
+            translateArea: ocr, prepareVisionRoute: () => route, prepareVisionTranslation: () => vision, sendProgress: progress,
+        });
+        await expect(handler.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, image: 'data:image/png,x', selection,
+            requestId: 'prepared-route-progress'}, context)).resolves.toMatchObject({success: true, recognitionMethod: 'vision'});
+        expect(order).toEqual(['progress', 'route', 'vision']);
+        expect(progress).toHaveBeenCalledWith(context, expect.objectContaining({requestId: 'prepared-route-progress', stage: 'recognizing'}));
+        expect(ocr).not.toHaveBeenCalled();
+        expect(languages).not.toHaveBeenCalled();
+    });
+
     it.each([
         [{mode: 'ocr', fallback: 'unsupported'}, 'unsupported'],
         [{mode: 'ocr', fallback: 'unknown'}, 'unknown'],

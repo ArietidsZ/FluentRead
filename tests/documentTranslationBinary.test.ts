@@ -382,3 +382,29 @@ it('相同 DOCX 译文在双语和仅译文导出均保留原有结构', async (
         }
     }
 });
+
+
+it('a PDF with lost source metadata preserves the real original page and reports completed progress', async () => {
+    const source = await PDFDocument.create();
+    source.addPage([400, 600]).drawText('Source intact');
+    const parsed = await parseBinaryDocument('missing-source.pdf', await source.save());
+    expect(parsed.segments.length).toBeGreaterThan(0);
+    // Deliberate invalid-state injection: the bytes and page indexes remain real, but a reviewed segment loses its source field.
+    // No translation exists, so defensive fallback must retain the original page rather than invent a translation page.
+    for (const segment of parsed.segments) delete (segment as {source?: string}).source;
+    const rasterizer = vi.fn(testRasterizer);
+    const progress = vi.fn();
+    const download = await createDocumentDownload(parsed, [], 'bilingual', {pdfPageRasterizer: rasterizer, onPdfProgress: progress});
+    const exported = await PDFDocument.load(download.data as Uint8Array);
+    expect(exported.getPageCount()).toBe(1);
+    expect(exported.getPage(0).getWidth()).toBe(400);
+    expect(exported.getPage(0).getHeight()).toBe(600);
+    expect(rasterizer).not.toHaveBeenCalled();
+    expect(progress.mock.calls.map(([event]) => event)).toEqual([
+        {phase: 'rendering', completedPages: 0, totalPages: 1},
+        {phase: 'rendering', completedPages: 1, totalPages: 1},
+        {phase: 'saving', completedPages: 1, totalPages: 1},
+    ]);
+    expect((await parseBinaryDocument('exported.pdf', download.data as Uint8Array)).segments.map(segment => segment.source).join(' '))
+        .toContain('Source intact');
+});

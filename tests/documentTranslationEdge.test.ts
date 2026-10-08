@@ -158,3 +158,19 @@ describe('document translation edge contracts', () => {
             .toThrow('不支持为 srt 生成富文档预览');
     });
 });
+
+
+it('bilingual formatting rechecks a source invalidated while reading reviewed raw text', () => {
+    const source = '  Source text  \r\n';
+    const document = parseDocument('reviewed.txt', source);
+    const part = document.parts.find(part => part.kind === 'segment')!;
+    if (part.kind !== 'segment') throw new Error('fixture must have a real text segment');
+    const originalSource = part.source;
+    let reads = 0;
+    // Explicit synchronous state-invalidating fault injection, not a claim of an ordinary async UI race.
+    // A raw-source accessor commits a reviewed source after the outer check. The formatter's defensive recheck must avoid duplication.
+    Object.defineProperty(part, 'rawSource', {get() {reads += 1; part.source = 'Reviewed text'; return originalSource;}});
+    expect(renderDocument(document, ['Reviewed text'], 'bilingual')).toBe(source);
+    expect(reads).toBe(1);
+    expect(part.source).toBe('Reviewed text');
+});

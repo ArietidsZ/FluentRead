@@ -3536,3 +3536,18 @@ describe('排除语言持久化配置', () => {
         expect(input.excludedLanguages).toEqual(['zh_TW', 'en', 'en', 'auto']);
     });
 });
+
+
+describe('disabled hover shortcut and reencounter config recovery', () => {
+    it.each(['Alt', undefined, 'invalid'])('restores a valid remembered shortcut or the default (%s)', previous => {
+        const input = {hotkey: 'none', hoverShortcutBeforeDisable: previous};
+        const normalized = normalizeConfig(input as never);
+        expect(normalized.hotkey).toBe('none');
+        expect(normalized.hoverShortcutBeforeDisable).toBe(previous === 'Alt' ? 'Alt' : new Config().hotkey);
+        expect(input).toEqual({hotkey: 'none', hoverShortcutBeforeDisable: previous});
+    });
+    it.each([null, 1, 'true'])('does not enable vocabulary reencounter for a malformed value (%s)', value => {
+        expect(normalizeConfig({vocabularyReencounterEnabled: value} as never).vocabularyReencounterEnabled).toBe(false);
+        expect(normalizeConfig({vocabularyReencounterEnabled: true}).vocabularyReencounterEnabled).toBe(true);
+    });
+});
