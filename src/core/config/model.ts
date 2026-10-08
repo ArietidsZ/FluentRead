@@ -1126,9 +1126,9 @@ export function normalizeConfig(value: unknown): Config {
     normalized.apiKeyRecoveryMs = normalizeApiKeyRecoveryMs(source.apiKeyRecoveryMs);
     normalized.freeTranslationOrder = normalizeFreeTranslationOrder(source.freeTranslationOrder);
     // 旧配置首次升级默认开启 B站；标记写入后尊重用户后续的手动关闭。
-    if (source.freeTranslationBilibiliDefaultApplied !== true
-        && !normalized.freeTranslationOrder.includes('bilibiliFree')) {
-        normalized.freeTranslationOrder.push('bilibiliFree');
+    if (source.freeTranslationBilibiliDefaultApplied !== true) {
+        normalized.freeTranslationOrder = ['bilibiliFree',
+            ...normalized.freeTranslationOrder.filter(id => id !== 'bilibiliFree')];
     }
     normalized.freeTranslationBilibiliDefaultApplied = true;
     normalized.freeTranslationMode = normalizeFreeTranslationMode(source.freeTranslationMode);
