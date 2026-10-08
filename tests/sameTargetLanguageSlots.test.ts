@@ -2,7 +2,7 @@
  * @file tests/sameTargetLanguageSlots.test.ts
  * 全文富文本槽与批量请求在真实语言识别下的一致性：谷歌/微软批量、免费聚合会话缓存、普通供应商文本包、本地模型逐槽、
  * AI 跨候选合并与 $$$ 公式拆分都只提交未被同一判断跳过的槽，并按原索引回填；是否配置排除语言不改变识别深度；
- * 快照切换目标或排除语言后重新判断，不复用旧会话结果；取消与失败重试同样只涉及外语槽。只替换翻译客户端与配置存储。
+ * 快照切换目标或排除语言后重新判断，不复用旧会话结果；取消与失败重试同样只涉及外语槽。只替换翻译客户端、配置存储与浏览器原生边界。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
@@ -42,6 +42,9 @@ async function respond(kind: 'text' | 'batch', origins: string[], options: Recor
         ? origin.replace(/(_\d+_BEGIN___)([\s\S]*?)(___FLUENTREAD_)/gu, (_match, begin, content, end) => `${begin}T:${content}${end}`)
         : `T:${origin}`);
 }
+
+// 原生 API 边界夹具：本组只验证普通上下文，不伪造后台私密授权。
+vi.mock('webextension-polyfill', () => ({default: {extension: {inIncognitoContext: false}}}));
 
 vi.mock('@/src/services/config/store', () => ({config: runtime.config}));
 vi.mock('@/src/app/translation/client', () => ({

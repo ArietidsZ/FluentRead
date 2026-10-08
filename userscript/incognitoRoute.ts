@@ -4,7 +4,8 @@ export {normalizeIncognitoRouteField} from '../src/core/config/incognitoRoute';
 export const NATIVE_PRIVATE_ROUTE_SUPPORTED = false;
 const unavailable = (_context: object): undefined => undefined;
 export {unavailable as initializeIncognitoRouteConfig, unavailable as normalizeIncognitoRouteConfig,
-    unavailable as resolveIncognitoRoute, unavailable as getLockedIncognitoRoute};
+    unavailable as resolveIncognitoRoute, unavailable as getLockedIncognitoRoute,
+    unavailable as resolvePageTranslationRouteHint, unavailable as fullPageTranslationConfigKey};
 export {unavailable as getTranslationSourcePrivacy, unavailable as assertTranslationSourcePrivacy};
 export {hasTrustedPrivateSource as hasConfiguredIncognitoRoute};
 export function hasTrustedPrivateSource(_message: object): false {return false;}

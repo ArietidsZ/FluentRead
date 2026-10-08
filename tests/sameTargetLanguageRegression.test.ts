@@ -29,6 +29,9 @@ const runtime = vi.hoisted(() => ({
     },
 }));
 
+// 原生 API 边界夹具：本组只验证普通上下文，不伪造后台私密授权。
+vi.mock('webextension-polyfill', () => ({default: {extension: {inIncognitoContext: false}}}));
+
 vi.mock('@/src/services/config/store', () => ({config: runtime.config}));
 vi.mock('@/src/app/translation/client', () => ({
     translateText: async (origin: string) => {

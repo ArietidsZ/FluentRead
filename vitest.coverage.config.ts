@@ -190,6 +190,7 @@ export default defineConfig({
             'tests/fullPageTitleTranslation.test.ts',
             'tests/fullPagePriority.test.ts',
             'tests/fullPageVisibilityScheduling.test.ts',
+            'tests/fullPagePrivacyRoute.test.ts',
             'tests/fullPageTranslationIndicators.test.ts',
             'tests/liveTextRender.test.ts',
             'tests/liveTextTranslation.test.ts',

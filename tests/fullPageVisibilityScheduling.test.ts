@@ -61,9 +61,13 @@ const runtime = vi.hoisted(() => ({
     clearlyTargetLanguage: vi.fn<(value: string, targetLanguage: string, excluded?: readonly string[]) => boolean>(() => false),
 }));
 
+// 原生 API 边界夹具：本组只验证普通上下文，不伪造后台私密授权。
+vi.mock('webextension-polyfill', () => ({default: {extension: {inIncognitoContext: false}}}));
+
 vi.mock("@/src/app/translation/check", () => ({checkConfig: () => true}));
 vi.mock('@/src/features/full-page-translation/ui/modalProgressHint', () => ({syncModalTranslationHint: vi.fn()}));
 vi.mock("@/src/core/config/catalog", () => ({
+    customModelString: 'custom',
     services: {
         microsoft: "microsoft",
         freeTranslation: "freeTranslation",

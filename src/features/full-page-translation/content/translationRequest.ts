@@ -1,7 +1,7 @@
 /**
  * @file src/features/full-page-translation/content/translationRequest.ts
  * 文件职责：为单次全文翻译会话冻结请求配置，并执行文本槽的批量、AI 跨候选合并、分包、回退与会话级结果复用。
- * 主要内容：捕获服务/模型/语言/排除列表/缓存/展示快照，先过滤排除语言的文本槽再合批，在本地保留尚未排版的三美元公式源码，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
+ * 主要内容：在原生平台复用文档提示规则，先确定有效服务/模型再捕获语言/排除列表/缓存/展示快照，先过滤排除语言的文本槽再合批，在本地保留尚未排版的三美元公式源码，构造显式 client 参数，按服务选择批译策略，为 Chrome auto 富文本包保留无哨兵检测样本，并严格隔离 AI 批次快照与维护有界的会话槽缓存。
  * 模块边界：本文件不发现候选、不持有 DOM 翻译状态也不渲染译文；runtime 提供会话缓存和取消作用域，client 负责后台协议与队列执行。
  */
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
@@ -11,6 +11,9 @@ import {
     serializeTranslationSlots,
 } from '@/src/core/translation/public';
 import {config} from '@/src/services/config/store';
+import browser from 'webextension-polyfill';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
 import {normalizeMaxConcurrentTranslations} from '@/src/core/config/scheduling';
 import {normalizeExcludedLanguages} from '@/src/core/config/pageTranslation';
 import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
@@ -128,9 +131,10 @@ const aiMultiSegmentQueues = new WeakMap<FullPageTranslationSessionCache, AIMult
 export function captureFullPageTranslationConfig(
     overrides: PageTranslationConfigOverrides = {},
 ): FullPageTranslationConfigSnapshot {
-    const service = overrides.service?.trim() || config.service;
+    const route = NATIVE_PRIVATE_ROUTE_SUPPORTED ? resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext) : undefined;
+    const service = route?.service || overrides.service?.trim() || config.service;
     const configuredModel = overrides.model?.trim();
-    const model = configuredModel || resolveConfiguredModel(config.model[service], config.customModel[service]);
+    const model = route?.model ?? (configuredModel || resolveConfiguredModel(config.model[service], config.customModel[service]));
     const profileId = overrides.profileId?.trim();
     const requestOverridesApplied = Object.keys(overrides).length > 0;
     return {

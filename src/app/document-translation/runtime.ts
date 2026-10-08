@@ -15,8 +15,7 @@ import {createDocumentSegmentTranslator} from '@/src/features/document-translati
 import {rasterizePdfTranslationPage} from '@/src/features/document-translation/ui/pdfPreview';
 import {config, configReady} from '@/src/services/config/store';
 import browser from 'webextension-polyfill';
-import {hasConfiguredIncognitoRoute, resolveIncognitoRoute} from '@/src/core/config/incognitoRoute';
-import {TranslationSourceUnknownError} from '@/src/services/translation/requestPrivacy';
+import {resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
 import {sha256Hex} from '@/src/shared/function/sha256';
 import type {Config} from '@/src/core/config/model';
 import type {TranslateDocumentSegments} from '@/src/features/document-translation/services/translation';
@@ -45,9 +44,7 @@ const translateSegments = createDocumentSegmentTranslator({
 
 /** 仅供前端显示与编排；不附着来源标记，后台原生 sender 仍是唯一执行授权。 */
 export function resolveDocumentPrivateRoute(source: Config = config) {
-    if (!hasConfiguredIncognitoRoute(source) || browser.extension?.inIncognitoContext === false) return undefined;
-    if (browser.extension?.inIncognitoContext !== true) throw new TranslationSourceUnknownError();
-    return resolveIncognitoRoute(source);
+    return resolvePageTranslationRouteHint(source, browser.extension?.inIncognitoContext);
 }
 
 /** 私密有效 pair 必须先于现有 feature 的拆批、上下文和客户端凭据预检。 */

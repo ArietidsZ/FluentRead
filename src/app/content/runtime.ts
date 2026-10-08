@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/runtime.ts
  * 文件职责：作为内容脚本应用的顶层 composition root，协调配置就绪、站点规则、公共样式、主世界桥、功能注册表、快捷键和消息监听生命周期。
- * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅配置变化并处理停用、往返缓存暂停恢复与销毁，取消后关闭图片及 Firefox 文本文档 Port，低频检查扩展重载以主动释放旧页面。
+ * 主要内容：先排除原始 XML 文档与失效扩展上下文，再安装内联 page.css 并按 capability 和配置挂载页面功能；订阅相关公开翻译配置变化并撤销旧译文代次、保留宿主源内容，处理停用、往返缓存暂停恢复与销毁，取消后关闭图片及 Firefox 文本文档 Port，低频检查扩展重载以主动释放旧页面。
  * 模块边界：本文件只负责依赖装配和页面激活所有权，不实现具体翻译算法、组件内部状态、provider 请求或配置存储；这些职责分别属于 features、services 与 platform。
  */
 import {createLearningContentFeatures} from './learningFeatures';
@@ -13,6 +13,7 @@ import {config, configReady, subscribeConfig} from '@/src/services/config/store'
 import {ensureUiLanguageBundle} from '@/src/platform/i18n/uiLanguageBundles';
 import {cancelAllTranslations} from '@/src/app/translation/client';
 import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {fullPageTranslationConfigKey} from '@/src/services/translation/requestPrivacy';
 import {sendTranslationRuntimeMessage, translationDocumentClient} from '@/src/services/translation/documentClient';
 import {resetPageTranslationContextCache} from '@/src/services/translation/context';
 import {clearLegacyPageTranslationCache} from '@/src/services/translation/legacyPageCache';
@@ -75,7 +76,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     if (ctx.isInvalid || cleanedUp || (document.readyState === 'loading' && !await waitForContentDocument(document, pageEventController.signal))) { cleanup(); return; }
     const siteAdaptation = createContentSiteAdaptationRuntime(config.siteAdaptation, new URL(window.location.href));
     applyCoreTranslationPreferences(config); clearLegacyPageTranslationCache();
-    let currentRouteHref = window.location.href;
+    let currentRouteHref = window.location.href, previousFullPageConfigKey = NATIVE_PRIVATE_ROUTE_SUPPORTED && fullPageTranslationConfigKey(config);
     let currentPageSiteDisabled = isExtensionDisabledOnSite(currentRouteHref, config.disabledExtensionDomains);
     let unsubscribeContentConfig: (() => void) | null = null;
     let runtimeMessageListener: ContentRuntimeMessageHandler | null = null;
@@ -246,6 +247,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     runtimeMessages.addListener(runtimeMessageListener);
     void reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const nextKey = fullPageTranslationConfigKey(nextConfig); if (nextKey !== previousFullPageConfigKey) { previousFullPageConfigKey = nextKey; restoreOriginalContent(); } }
         void ensureUiLanguageBundle(nextConfig.uiLanguage); applyCoreTranslationPreferences(nextConfig);
         siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
         syncBilingualSentenceHighlight(document, isPageRuntimeEnabled() && nextConfig.bilingualSentenceHighlightEnabled === true, nextConfig.bilingualSentenceHighlightStyle, nextConfig.bilingualSentenceHighlightAppearance);
