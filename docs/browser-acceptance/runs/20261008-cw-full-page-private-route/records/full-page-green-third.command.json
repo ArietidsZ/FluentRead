@@ -1,0 +1,20 @@
+{
+  "label": "full-page-green-third",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-green-third.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:47:59.691056+00:00",
+  "duration_seconds": 1.21,
+  "exit_code": 1
+}

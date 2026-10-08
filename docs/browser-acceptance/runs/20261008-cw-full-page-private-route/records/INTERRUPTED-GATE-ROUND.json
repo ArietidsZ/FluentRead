@@ -1,0 +1,23 @@
+{
+  "round": "second",
+  "scope": "full strict runner before browser binding correction",
+  "toolInitialRequestMetadata": "CURRENT-GATE-EXECUTION-METADATA-final.json",
+  "reportedResumeFailure": "exec-server transport disconnected; failed to resume exec-server session: recovery timed out after 25s",
+  "readOnlyRecovery": "CW cwd and source status verified; no gate runner/Vitest process remained",
+  "partialObservedResults": {
+    "tests": 10159,
+    "passed": 10159,
+    "failed": 0,
+    "coverageDimensionsPct": {
+      "statements": 100,
+      "lines": 100,
+      "functions": 100,
+      "branches": 100
+    }
+  },
+  "commandMetadataFileProduced": false,
+  "verifiedExitCode": null,
+  "allGatesClaimedPassed": false,
+  "finalAcceptanceClaim": false,
+  "approvalReviewRejection": false
+}

@@ -1,0 +1,16 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > uses the dedicated pair before ordinary missing-model precheck and commits real DOM translation
+TypeError: Cannot read properties of undefined (reading 'endsWith')
+ ❯ Module.isRawXmlContentDocument src/shared/dom/documentType.ts:13:24
+     11|         || contentType === 'application/xml'
+     12|         || contentType === 'text/xsl'
+     13|         || contentType.endsWith('+xml')
+       |                        ^
+     14|     );
+     15| }
+ ❯ Module.startContentApp src/app/content/runtime.ts:61:9
+ ❯ tests/fullPagePrivacyRoute.test.ts:151:55
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

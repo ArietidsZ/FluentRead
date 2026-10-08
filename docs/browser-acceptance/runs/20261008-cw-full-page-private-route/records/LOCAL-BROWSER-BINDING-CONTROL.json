@@ -1,0 +1,10 @@
+{
+  "source": "Existing document helper uses imported webextension-polyfill API; generated WXT 0.20.18 imports declare browser from wxt/browser, which is a module binding",
+  "generatedTypeFiles": [
+    ".wxt/types/imports-module.d.ts",
+    ".wxt/types/imports.d.ts"
+  ],
+  "productionCorrection": "Full-page capture reads imported browser.extension instead of assuming globalThis.browser",
+  "offlineControl": "Actual Chrome direct-runtime frontend and broker/SDK/cache/DOM with module API present and global browser absent",
+  "realChromeGuiRun": false
+}

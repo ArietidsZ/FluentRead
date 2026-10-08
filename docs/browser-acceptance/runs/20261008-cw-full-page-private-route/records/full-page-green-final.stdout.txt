@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/fullPagePrivacyRoute.test.ts tests/fullPageVisibilityScheduling.test.ts tests/contentRuntimeLifecycle.test.ts tests/documentPrivacyRoute.test.ts tests/sameTargetLanguageSlots.test.ts tests/sameTargetLanguageRegression.test.ts --no-cache --reporter=json --outputFile=<CW-EVIDENCE>/full-page-green-final.results.json
+JSON report written to <CW-EVIDENCE>/full-page-green-final.results.json

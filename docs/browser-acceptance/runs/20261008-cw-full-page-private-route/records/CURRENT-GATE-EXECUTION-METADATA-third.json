@@ -1,0 +1,22 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; no signed approval decision is exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "运行当前授权全页隐私源码的冻结完整测试和构建门禁。既有合成 WebDAV 测试仅临时绑定 127.0.0.1，本次执行独立沙箱审核；不以缺失历史审批推导授权，不修改持久网络权限、产品设置或启动远程控制端口。"
+  },
+  "result": {
+    "chunk_id": "eb9e94",
+    "wall_time_seconds": 1.000856429,
+    "session_id": 33425,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Current full regression only, independently requested; not reconstruction of historical loopback approval."
+}

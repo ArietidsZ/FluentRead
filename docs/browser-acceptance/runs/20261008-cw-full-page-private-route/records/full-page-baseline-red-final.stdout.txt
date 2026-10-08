@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/fullPagePrivacyRoute.test.ts --no-cache -t before ordinary missing-model|prompt/context|before ordinary Microsoft|dedicated machine route|actual save/subscriber|title and body|route ends old generation --reporter=json --outputFile=<CW-EVIDENCE>/full-page-baseline-red-final.results.json
+JSON report written to <CW-EVIDENCE>/full-page-baseline-red-final.results.json

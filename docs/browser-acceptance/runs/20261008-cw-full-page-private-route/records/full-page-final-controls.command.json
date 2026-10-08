@@ -1,0 +1,19 @@
+{
+  "label": "full-page-final-controls",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-final-controls.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T20:14:16.868089+00:00",
+  "duration_seconds": 3.678,
+  "exit_code": 0
+}

@@ -1,0 +1,22 @@
+{
+  "label": "full-page-two-controls",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "prompt/context|host edits",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-two-controls.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:54:07.955708+00:00",
+  "duration_seconds": 1.469,
+  "exit_code": 1
+}

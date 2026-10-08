@@ -1,0 +1,23 @@
+stderr | tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > uses the dedicated pair before ordinary missing-model precheck and commits real DOM translation
+[FluentRead] 内容功能 share-card mount 失败: Error: 内容功能挂载后未就绪: share-card
+    at ContentFeatureRegistry.performFeatureMount (<CW-REPO>/src/app/content/featureRegistry.ts:165:23)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at ContentFeatureRegistry.reconcileEnabled (<CW-REPO>/src/app/content/featureRegistry.ts:104:26)
+    at Object.activatePageFeatures (<CW-REPO>/src/app/content/runtime.ts:196:9)
+    at reconcileLatest (<CW-REPO>/src/app/content/pageAvailability.ts:94:13)
+[FluentRead] 内容功能 share-card mount 失败: Error: 内容功能挂载后未就绪: share-card
+    at ContentFeatureRegistry.performFeatureMount (<CW-REPO>/src/app/content/featureRegistry.ts:165:23)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at ContentFeatureRegistry.reconcileEnabled (<CW-REPO>/src/app/content/featureRegistry.ts:104:26)
+
+stderr | tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > uses the dedicated pair before ordinary missing-model precheck and commits real DOM translation
+[FluentRead] 保存翻译计数失败: Error: 翻译计数保存没有返回结果
+    at Module.requestConfigCountIncrement (<CW-REPO>/src/services/config/store.ts:878:52)
+    at Object.flush (<CW-REPO>/src/services/config/count.ts:161:17)
+[FluentRead] 保存翻译计数失败: Error: 翻译计数保存没有返回结果
+    at Module.requestConfigCountIncrement (<CW-REPO>/src/services/config/store.ts:878:52)
+    at Object.flush (<CW-REPO>/src/services/config/count.ts:161:17)
+[FluentRead] 保存翻译计数失败: Error: 翻译计数保存没有返回结果
+    at Module.requestConfigCountIncrement (<CW-REPO>/src/services/config/store.ts:878:52)
+    at Object.flush (<CW-REPO>/src/services/config/count.ts:161:17)
+

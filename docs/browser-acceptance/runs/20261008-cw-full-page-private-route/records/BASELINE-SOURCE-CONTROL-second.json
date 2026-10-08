@@ -1,0 +1,36 @@
+{
+  "baselineHead": "37c12c63e9797aaced0ec35a5126324f051e98b0",
+  "files": {
+    "src/app/content/runtime.ts": {
+      "baselineGitBlob": "97ef96cb9a2346c53790c515d56f5b51bfc0cc83",
+      "baselineSha256": "0b8e7b69b3ca086b151190bd280673ee6b46ffaf19f4433eccb4cb3cd46bc62b",
+      "workingSha256": "4940b1e500bcea504cf88527a804ea2658fa27e5322635555c9f86f6e43ee5c7"
+    },
+    "src/app/document-translation/runtime.ts": {
+      "baselineGitBlob": "bc56a9cd52546b0265ce2e5b8337812bb5eae075",
+      "baselineSha256": "df635ab35a6cf7e3278bd0aee8ed3a118afa8ecbe27588810089b5befe100eca",
+      "workingSha256": "987714f5c6b7090b17bba2865a49d41235cb9217cf53c4577a86a93dca3f78b9"
+    },
+    "src/features/full-page-translation/content/runtime.ts": {
+      "baselineGitBlob": "cafb5f319a87cd65e59a787f73837623565d753d",
+      "baselineSha256": "b0172fde6475e2064018b63a28bb625b4a286254055056422b22e389259a67f1",
+      "workingSha256": "a3422a4425d839e4e65b03ad485f2052b7a0213b9deb44d9222c0210f3d6d7e2"
+    },
+    "src/features/full-page-translation/content/translationRequest.ts": {
+      "baselineGitBlob": "524e387b9ce31de6fa89ac8d58c9514d29288c68",
+      "baselineSha256": "5c9891e5b5a520bff4e8ed25532835f0b6f1a1a2aa5662770d3e864fc9f5a962",
+      "workingSha256": "76f7316649784aabe64d654ee9e0a8238893306a53379b6ac1454938bc27d61f"
+    },
+    "src/services/translation/requestPrivacy.ts": {
+      "baselineGitBlob": "3d267e26842fb8904baf3d98f0bd22523325d13d",
+      "baselineSha256": "957bb1454f168d7718b2f4bc71b1804d06d3a2267a7d7864e4759b5fd994514b",
+      "workingSha256": "c3061ab4d6099e50b4b767f140a8e63b94a19dcaaa395e461bdbf7f4118ad94a"
+    },
+    "userscript/incognitoRoute.ts": {
+      "baselineGitBlob": "4d3bfd5b39a5642a7ef3c2b688998a12aff895fd",
+      "baselineSha256": "9f8a04544299a61985a7cf1e7f23c78f4fccfad2ae25ba71e772b6e80c85e0b1",
+      "workingSha256": "41bf6003d2b9b7170b57bfec784c02b1dfc5db1d2dcad600fe74ecfce02c8697"
+    }
+  },
+  "selectedPattern": "before ordinary missing-model|prompt/context|before ordinary Microsoft|dedicated machine route|actual save/subscriber|title and body|route ends old generation"
+}

@@ -1,0 +1,12 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/fullPagePrivacyRoute.test.ts --no-cache --reporter=verbose --reporter=json --outputFile=<CW-EVIDENCE>/full-page-green-fourth.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ ✓ tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > uses the dedicated pair before ordinary missing-model precheck and commits real DOM translation 699ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  03:48:32
+   Duration  1.08s (transform 603ms, setup 0ms, collect 279ms, tests 699ms, environment 0ms, prepare 21ms)
+
+JSON report written to <CW-EVIDENCE>/full-page-green-fourth.results.json

@@ -1,0 +1,15 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/fullPagePrivacyRoute.test.ts --no-cache -t prompt/context|host edits --reporter=verbose --reporter=json --outputFile=<CW-EVIDENCE>/full-page-two-controls.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+ × tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > uses dedicated prompt/context/thinking capability despite an ordinary qwen-mt model 772ms
+   → expected '{"model":"document-private","messages…' to contain 'PRIVATE_PAGE_SYSTEM'
+ × tests/fullPagePrivacyRoute.test.ts > full-page native effective route through actual content lifetime > route/config restoration keeps host edits and starts a fresh dedicated model generation
+   → expected [ { …(14) } ] to have a length of 2 but got 1
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 36 skipped (38)
+   Start at  03:54:08
+   Duration  1.29s (transform 667ms, setup 0ms, collect 330ms, tests 851ms, environment 0ms, prepare 22ms)
+
+JSON report written to <CW-EVIDENCE>/full-page-two-controls.results.json

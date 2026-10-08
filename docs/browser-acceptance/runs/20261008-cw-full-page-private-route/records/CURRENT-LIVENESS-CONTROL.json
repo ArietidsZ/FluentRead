@@ -1,0 +1,17 @@
+{
+  "observedAtUtc": "2026-10-08 20:31:36 UTC",
+  "environment": "CW local workspace",
+  "activeSessionId": 33425,
+  "gateRunnerPid": 3994881,
+  "commandRecorderPid": 3994883,
+  "resourceSafeRunnerPid": 3994884,
+  "elapsedAtObservation": "02:48",
+  "runnerState": "S / Sl",
+  "command": "python3 full-page-private-route-20261008/run-final-gates.py -> run-recorded.py full-strict-final -> node scripts/testing/run-resource-safe.mjs -- node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --no-cache --coverage",
+  "source": "Read-only ps PID/PPID/etime/CPU/state/argv and current clock; no environment variables or credentials read",
+  "duplicateRunStartedForStatus": false,
+  "finalResultAtObservation": "Not written yet; existing final regression remains active",
+  "latestCompletedTarget": {"passed": 404, "total": 404, "exitCode": 0},
+  "latestBaselineNegative": {"failed": 17, "passed": 0, "filtered": 32, "exitCode": 1},
+  "fixtureWaitControl": "New async pump is bounded to 400 fake-timer steps and existing Vitest timeouts are retained"
+}

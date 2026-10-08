@@ -1,0 +1,17 @@
+{
+  "source": "14812674bcbcf0b06dbcde0ecb1c8b4c365d44b3",
+  "evidenceHead": "d8e4091beb9113451cedf8052f54c22edc5ca80f",
+  "bytes": 1954981,
+  "sha256": "b744392b363cd909bbedd7e1c7ba7415c604f3f29435f2bbac623b91941bf453",
+  "budget": 1955000,
+  "headroom": 19,
+  "finalBytes": 1954981,
+  "finalSha256": "415dc0d695816905dd451187af2af2247ceec9d2e2a7022e04c235f8e66cd060",
+  "byteDelta": 0,
+  "identicalBytes": false,
+  "finalHeadroom": 19,
+  "budgetConfigurationUnchanged": true,
+  "platformTreeIsolation": true,
+  "ordinaryFrontendCapabilityFalseControl": "tests/fullPagePrivacyRoute.test.ts",
+  "realUserscriptGuiAcceptance": false
+}

@@ -1,0 +1,16 @@
+{
+  "reason": "Architecture 1378/1379 passed: full-page runtime had 2200 counted lines, ceiling 2196. Fold only four newly added integration lines; no ceiling/test ownership/threshold change.",
+  "semanticChange": false,
+  "changedSource": "src/features/full-page-translation/content/runtime.ts",
+  "finalValidationMustRerunAgainstNewFrozenBytes": true,
+  "firstCompleteStrictTests": {
+    "passed": 10160,
+    "total": 10160,
+    "exitCode": 0
+  },
+  "firstArchitecture": {
+    "passed": 1378,
+    "total": 1379,
+    "exitCode": 1
+  }
+}

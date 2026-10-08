@@ -1,0 +1,21 @@
+{
+  "label": "full-page-baseline-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "before ordinary missing-model|prompt/context|before ordinary Microsoft|dedicated machine route|actual save/subscriber|title and body|route ends old generation",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-baseline-red.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T20:03:05.449655+00:00",
+  "duration_seconds": 2.136,
+  "exit_code": 1
+}

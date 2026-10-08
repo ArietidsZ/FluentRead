@@ -1,0 +1,29 @@
+{
+  "source": "Actual current tools.exec_command request and immediate result; no signed approval decision is exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1800,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "验证四行等效折叠后的当前冻结全页源码，完整测试和构建门禁。既有合成 WebDAV 测试仅临时绑定 127.0.0.1，本次独立沙箱审核；不使用缺失历史审批授权，不修改持久网络权限、产品安全设置或启动远程控制端口。"
+  },
+  "result": {
+    "chunk_id": "5b0e0f",
+    "wall_time_seconds": 1.000821532,
+    "session_id": 97664,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "Current complete gates against final 2196-line integration; independently requested, not reconstruction of historical loopback approval.",
+  "completionObserved": {
+    "source": "Actual tools.write_stdin final result for the same session, plus command records from run-final-gates.py",
+    "sessionId": 97664,
+    "gateRunnerExitCode": 0,
+    "allTenGateCommandExitCodes": 0,
+    "explicitApprovalDecisionProvided": false
+  }
+}

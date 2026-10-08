@@ -1,0 +1,23 @@
+{
+  "label": "legacy-preflight",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPageVisibilityScheduling.test.ts",
+    "tests/contentRuntimeLifecycle.test.ts",
+    "tests/sameTargetLanguageSlots.test.ts",
+    "tests/sameTargetLanguageRegression.test.ts",
+    "tests/documentPrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/legacy-preflight.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:44:20.279252+00:00",
+  "duration_seconds": 7.8,
+  "exit_code": 1
+}

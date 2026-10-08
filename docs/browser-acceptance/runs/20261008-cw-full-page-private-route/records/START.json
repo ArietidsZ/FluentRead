@@ -1,0 +1,12 @@
+{
+  "baselineHead": "37c12c63e9797aaced0ec35a5126324f051e98b0",
+  "scope": "Full-page effective route and save/navigation lifecycle using shared document helper and existing native text transport",
+  "excludes": [
+    "PR883",
+    "standalone settings probe",
+    "word cards",
+    "video",
+    "real API/GUI/GPU/download",
+    "permissions/tasks/subagents"
+  ]
+}

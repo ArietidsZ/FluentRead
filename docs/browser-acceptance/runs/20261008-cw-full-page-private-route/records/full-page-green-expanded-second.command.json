@@ -1,0 +1,19 @@
+{
+  "label": "full-page-green-expanded-second",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-green-expanded-second.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:53:07.135599+00:00",
+  "duration_seconds": 3.494,
+  "exit_code": 1
+}

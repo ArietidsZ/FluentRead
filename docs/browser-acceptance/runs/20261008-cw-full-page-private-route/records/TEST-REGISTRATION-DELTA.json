@@ -1,0 +1,7 @@
+{
+  "newFile": "tests/fullPagePrivacyRoute.test.ts",
+  "matrixGroup": "functional",
+  "strictExecutionListAddedOnce": true,
+  "coverageOwnershipIncludeExcludeThresholdsIgnoresUnchanged": true,
+  "existingEntriesRemovedOrReclassified": false
+}

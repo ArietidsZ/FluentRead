@@ -1,0 +1,23 @@
+{
+  "module": "src/features/full-page-translation/content/runtime.ts",
+  "previousFrozenSha256": "a3422a4425d839e4e65b03ad485f2052b7a0213b9deb44d9222c0210f3d6d7e2",
+  "currentFrozenSha256": "771829ec422a27417bdf39937662df71e49bfd5b8ada81ab86da0c394cfe59a4",
+  "structuralTypeScriptAstEqual": true,
+  "comparison": "Node kind, identifier/literal text and recursive forEachChild, excluding SourceFile raw text, source positions, formatting and trailing comma",
+  "earlierDiagnosticFailures": [
+    {
+      "comparison": "Printer output",
+      "reason": "Printer retains multi-line object formatting"
+    },
+    {
+      "comparison": "Initial structural comparator",
+      "reason": "SourceFile.text included complete raw source, including the four-line fold"
+    }
+  ],
+  "typescriptVersion": "5.7.3",
+  "previousCountedLines": 2200,
+  "currentCountedLines": 2196,
+  "ceiling": 2196,
+  "gateCeilingChanged": false,
+  "independentCurrentFrozenFullGatesStillRequired": true
+}

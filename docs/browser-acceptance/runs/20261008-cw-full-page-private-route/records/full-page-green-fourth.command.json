@@ -1,0 +1,20 @@
+{
+  "label": "full-page-green-fourth",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/fullPagePrivacyRoute.test.ts",
+    "--no-cache",
+    "--reporter=verbose",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-page-green-fourth.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:48:32.268475+00:00",
+  "duration_seconds": 1.24,
+  "exit_code": 0
+}

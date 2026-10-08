@@ -1,0 +1,11 @@
+{
+  "label": "userscript-verify-final",
+  "command": [
+    "node",
+    "scripts/verify-userscript-build.mjs"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T20:39:06.565859+00:00",
+  "duration_seconds": 0.033,
+  "exit_code": 0
+}

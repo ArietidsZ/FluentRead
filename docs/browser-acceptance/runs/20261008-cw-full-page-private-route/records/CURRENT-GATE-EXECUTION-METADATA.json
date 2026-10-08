@@ -1,0 +1,22 @@
+{
+  "source": "Assistant-visible tools.exec_command invocation and returned result; copied immediately, not a signed approval audit",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 1300,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "执行本轮全页源码已授权的 CW 本地完整测试与构建；既有合成 WebDAV 测试临时绑定 127.0.0.1 需要本次执行沙箱放行。仅现有回归夹具，不改系统网络设置/持久权限、不开放远程控制；不以缺失的上轮审批日志推导新授权。"
+  },
+  "result": {
+    "chunk_id": "db3489",
+    "wall_time_seconds": 1.002032886,
+    "session_id": 34741,
+    "original_token_count": 0,
+    "output": ""
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "This turn's requested full regression only; not historical approval reconstruction or product/network permission change"
+}

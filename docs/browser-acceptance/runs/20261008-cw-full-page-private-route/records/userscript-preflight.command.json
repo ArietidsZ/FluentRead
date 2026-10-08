@@ -1,0 +1,17 @@
+{
+  "label": "userscript-preflight",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T19:43:47.456279+00:00",
+  "duration_seconds": 3.545,
+  "exit_code": 0
+}
