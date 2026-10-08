@@ -484,6 +484,7 @@
       "tests/fullPageVisibilityScheduling.test.ts",
       "tests/fullPagePrivacyRoute.test.ts",
       "tests/wordCardPrivacyRoute.test.ts",
+      "tests/videoPrivacyRoute.test.ts",
       "tests/fullPageHostClassPreservation.test.ts",
       "tests/pageTranslationAdvanced.test.ts",
       "tests/mainWorldBridgeCore.test.ts",

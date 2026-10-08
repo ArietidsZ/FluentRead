@@ -1,9 +1,22 @@
 /**
  * @file src/features/video-subtitle/content/pretranslationController.ts
  * 文件职责：管理视频字幕预取的有界计时器和原生轨道就绪监听。
- * 主要内容：普通播放事件合并为 120ms 一次预取，轨道加载、加入或换句时立即通知运行时并预取；更换视频和卸载时释放轨道、媒体监听器与计时器。
+ * 主要内容：普通播放事件合并为 120ms 一次预取，轨道加载、加入或换句时立即通知运行时并预取；更换视频和卸载时释放轨道、媒体监听器与计时器；原生路由信号与页面离开立即通知翻译所有者撤销代次。
  * 模块边界：只观察注入的 video 并调用回调，不读取全局配置、不选择字幕文本，也不调用翻译服务。
  */
+/** 原生运行时调用；同 URL 重复信号不撤销新代次，返回函数精确释放当前监听。 */
+export function installVideoTranslationLifetime(document: EventTarget, window: Pick<Window, 'location' | 'addEventListener' | 'removeEventListener'>, invalidate: (refresh: boolean) => void, getVideo: () => Pick<HTMLVideoElement, 'currentSrc' | 'src'> | null): () => void {
+  let href = window.location.href;
+  let video = getVideo(), source = video?.currentSrc || video?.src || '';
+  const route = () => { if (href === window.location.href) return; href = window.location.href; invalidate(true); };
+  const leave = () => invalidate(false);
+  const media = () => { const next = getVideo(), src = next?.currentSrc || next?.src || ''; if (next === video && src === source) return; video = next; source = src; invalidate(true); };
+  const capture = {capture: true};
+  document.addEventListener('fluentread-route-change', route); window.addEventListener('pagehide', leave);
+  for (const event of ['loadstart', 'loadedmetadata', 'emptied']) document.addEventListener(event, media, capture);
+  return () => { document.removeEventListener('fluentread-route-change', route); window.removeEventListener('pagehide', leave); for (const event of ['loadstart', 'loadedmetadata', 'emptied']) document.removeEventListener(event, media, capture); };
+}
+
 export class VideoPretranslationController {
   private timer: ReturnType<typeof setTimeout> | undefined;
   private video: HTMLVideoElement | null = null;

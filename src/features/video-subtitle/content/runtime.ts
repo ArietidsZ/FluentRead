@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
+ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和有效服务的预翻译窗口；原生路由/媒体/配置变更撤销旧译文与译文导出，导出使用独立请求取消身份，配置保存保留原字幕和 ASR 源数据；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -52,7 +52,8 @@ import {XCaptionSource} from './xCaptionSource';
 import {XHlsAudioReader} from './hlsAudioRuntime';
 import {XSubtitleLoader} from './xSubtitleLoader';
 import {VideoTranslationCache} from './translationCache';
-import {VideoPretranslationController} from './pretranslationController';
+import {VideoPretranslationController, installVideoTranslationLifetime} from './pretranslationController';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, findProgressiveVideoCaptionCue} from './subtitleLogic';
 export {translateVideoSubtitleCues, getVideoTranslationConfigFingerprint, normalizeVideoCaptionText, revealVideoSubtitleTranslation} from './subtitleLogic';
 export {getVideoSubtitleDownloadErrorMessage} from './ui';
@@ -62,7 +63,7 @@ import {
   type Config,
   normalizeVideoSubtitleOffsetMs,
 } from '@/src/core/config/model';
-import { translateVideoText } from '@/src/app/translation/client';
+import { translateVideoText, getNativeVideoServiceHint } from '@/src/app/translation/client';
 import {
   buildYoutubeTimedTextUrl,
   chooseYoutubeCaptionTrackForLocation,
@@ -507,7 +508,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   const primeUpcomingVideoCaptions = () => {
     if (destroyed || !canTranslateVideo() || !observedVideo || pretranslationCues.length === 0) return;
     videoTranslator.primeUpcoming(pretranslationCues, observedVideo.currentTime * 1000 - subtitleOffsetMs,
-      getVideoPretranslationWindowMs(config.videoService || config.service), observedVideo.playbackRate, getCachedVideoTranslation);
+      getVideoPretranslationWindowMs((NATIVE_PRIVATE_ROUTE_SUPPORTED ? getNativeVideoServiceHint() : undefined) || config.videoService || config.service), observedVideo.playbackRate, getCachedVideoTranslation);
   };
 
   const pretranslationController = new VideoPretranslationController(primeUpcomingVideoCaptions, () => {
@@ -1046,7 +1047,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const selectedMode: VideoMenuMode = enabled && visible ? normalizeVideoSubtitleDisplayMode(config.videoSubtitleDisplayMode) : 'off';
     renderVideoMenuMode(menu, selectedMode, !config.on, status);
     const service = menu.querySelector<HTMLElement>('[data-service-label]');
-    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel(config.videoService || config.service), language);
+    if (service) service.textContent = localizeVideoUiText(getVideoServiceLabel((NATIVE_PRIVATE_ROUTE_SUPPORTED ? getNativeVideoServiceHint() : undefined) || config.videoService || config.service), language);
     refreshVideoUiText(menu, language);
     refreshVideoUiAccessibility(menu, button, document, language, status);
     renderVideoSubtitleTiming(menu, subtitleOffsetMs, enabled && pretranslationCues.length > 0, language);
@@ -1111,7 +1112,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     config, document, location: window.location, request: (input, init) => fetch(input, init), isX: isXVideoPage, isDisposed: () => destroyed,
     isAiActive: isAiCaptureActive, nativeX: () => xCaptionSource.readNativeTrack(), aiCues: () => aiCues,
     captured: () => Array.from(capturedSubtitleTracks.values()).reverse(), human: humanCaptions,
-    translate: source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
+    translate: NATIVE_PRIVATE_ROUTE_SUPPORTED ? (source, signal) => isVideoSubtitleInTargetLanguage(source, config.to) ? Promise.resolve(source) : translateVideoText(source, signal, isXVideoPage() ? config.videoSourceLanguage : undefined) : source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
     remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.delete(key); capturedSubtitleTracks.set(key, entry);
       if (canTranslateVideo()) setPretranslationTrack(key, entry); },
   });
@@ -1777,8 +1778,7 @@ export function mountVideoSubtitleTranslation(): () => void {
   window.addEventListener('message', handleXSubtitleResourceMessage);
   syncPlayerUi();
   uiSyncTimer = window.setInterval(syncPlayerUi, 1000);
-
-  const unsubscribeConfig = subscribeConfig((nextConfig) => {
+  let unsubscribeConfig = subscribeConfig((nextConfig) => {
     const nextOffset = normalizeVideoSubtitleOffsetMs(nextConfig.videoSubtitleOffsetMs);
     if (nextOffset !== subtitleOffsetMs) {
       subtitleOffsetMs = nextOffset;
@@ -1840,7 +1840,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     observeCaptionContainer();
     scheduleUpdate();
   });
-
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const unsubscribe = unsubscribeConfig, release = installVideoTranslationLifetime(document, window, refresh => { downloads.cancel(); clearPretranslationState(false); if (refresh) syncPlayerUi(); }, () => observedVideo); unsubscribeConfig = () => { release(); unsubscribe(); }; }
   return () => {
     destroyed = true;
     humanCaptions.clear();

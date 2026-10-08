@@ -1,10 +1,11 @@
 /**
  * @file src/features/video-subtitle/content/downloads.ts
  * 文件职责：协调原文、译文与双语字幕导出，避免播放器运行时继续承载下载与人工轨回退细节。
- * 主要内容：选择 X 原生或 AI、YouTube 捕获或初始化轨道，优先人工目标时间轴，仅翻译缺失区间，并管理取消和按钮反馈。
+ * 主要内容：选择 X 原生或 AI、YouTube 捕获或初始化轨道，优先人工目标时间轴，仅翻译缺失区间；原生模型导出传递独立 signal，在保存前再次检查代次，旧导出不覆盖当前反馈；源字幕不被译文替换。
  * 模块边界：网络、配置、界面文案、状态提示和文件下载由注入端口提供，不直接访问全局页面或存储。
  */
 import type {Config} from '@/src/core/config/model';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {buildYoutubeTimedTextUrl, chooseYoutubeCaptionTrackForLocation, finalizeVideoSubtitleCues, parseYoutubeTimedTextResponse, type VideoSubtitleCue} from './youtubeSubtitleData';
 import {createVideoSubtitleAbortError, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, translateVideoSubtitleCues} from './subtitleLogic';
 
@@ -23,7 +24,7 @@ interface VideoDownloadPorts {
     captured(): CapturedTrack[];
     remember(track: CapturedTrack): void;
     human: {ready(): Promise<void>; at(time: number): string};
-    translate(source: string): Promise<string>;
+    translate(source: string, signal?: AbortSignal): Promise<string>;
     ui(key: string, params?: Record<string, string | number>): string;
     status(menu: HTMLElement, message: string, delay?: number): void;
     save(cues: VideoSubtitleCue[], language: string): void;
@@ -31,6 +32,7 @@ interface VideoDownloadPorts {
 
 export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
     let controller: AbortController | undefined;
+    let generation = 0;
     const timers = new Set<ReturnType<typeof setTimeout>>();
     const restoreButton = (button: HTMLButtonElement) => {
         const timer = setTimeout(() => { timers.delete(timer); button.disabled = false; }, 2200);
@@ -69,6 +71,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
         }
         controller?.abort();
         const current = new AbortController(); controller = current;
+        const version = NATIVE_PRIVATE_ROUTE_SUPPORTED ? ++generation : 0;
         const language = ports.config.to || 'translated';
         button.setAttribute('aria-busy', 'true');
         ports.status(menu, ports.ui('video.fetching'));
@@ -79,7 +82,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
             const manualAt = (cue: VideoSubtitleCue) => ports.config.videoPreferHumanSubtitles
                 ? ports.human.at(cue.startMs + cue.durationMs / 2) : '';
             const fallback = result.cues.filter(cue => !manualAt(cue));
-            const translations = await translateVideoSubtitleCues(fallback, ports.translate, {concurrency: 3, signal: current.signal,
+            const translations = await translateVideoSubtitleCues(fallback, NATIVE_PRIVATE_ROUTE_SUPPORTED ? source => ports.translate(source, current.signal) : ports.translate, {concurrency: 3, signal: current.signal,
                 onProgress: (completed, total) => ports.status(menu, ports.ui('video.translating', {completed, total})),
             });
             const byText = new Map(fallback.map((cue, index) => [normalizeVideoCaptionText(cue.text), translations[index]!.text]));
@@ -95,7 +98,7 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
         } finally {
             if (controller === current) controller = undefined;
             button.removeAttribute('aria-busy');
-            if (!ports.isDisposed()) { ports.status(menu, feedback, 2200); restoreButton(button); }
+            if (!ports.isDisposed()) { if (!NATIVE_PRIVATE_ROUTE_SUPPORTED || version === generation) ports.status(menu, feedback, 2200); restoreButton(button); }
         }
     };
     return {resolve, translated, cancel: () => controller?.abort(), destroy: () => {

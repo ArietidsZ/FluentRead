@@ -1,7 +1,7 @@
 /**
  * @file src/app/translation/client.ts
  * 文件职责：作为页面与后台翻译 broker 之间的客户端代理（Firefox 由文档 Port 绑定生命周期），统一管理单条、批量和视频字幕翻译的队列、取消、重试、超时、上下文与统计。
- * 主要内容：冻结服务/模型与语言参数，单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合及谷歌内部换线免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为原生文本的每次尝试及既有视频翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
+ * 主要内容：冻结服务/模型与语言参数，原生视频在 Thinking/上下文/缓存决策前解析有效 pair，前端提示不附加执行授权；单条与批量文本共用同目标预检，批量只发送待译片段并按原索引回填，显式 skipLanguageDetection 可强制发送；免费聚合及谷歌内部换线免除外层重复重试，验证凭据与页面摘要上下文，使用 runtime 协议分派请求；为原生文本的每次尝试及既有视频翻译携带随机 clientRequestId，auto 时转发纯检测样本，并在页面取消/超时时通知后台停止真实 provider。
  * 模块边界：客户端不实现供应商协议、不直接读写翻译缓存，也不修改全文 DOM；后台 runtime/broker 负责 provider 与缓存，调用它的各 feature 负责展示和会话状态。
  */
 /**
@@ -16,6 +16,7 @@ import {shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import {resolveConfiguredModel, services, servicesType} from '@/src/core/config/catalog';
 import {isModelThinkingEnabled} from '@/src/core/config/modelThinking';
 import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
 import {buildGlossaryRevision} from '@/src/core/glossary';
 import {getMissingCredentialMessage} from '@/src/core/config/validation';
 import {isTrustedCredentialStorageContext} from '@/src/platform/storage/credentialContext';
@@ -406,6 +407,11 @@ export async function translateTextBatch(
  * 翻译视频字幕。视频字幕可继承网页默认或独立选择服务，通过 background
  * 统一请求、缓存和错误边界；只发送字幕纯文本，允许 X 原语言独立于网页设置。
  */
+/** 只供视频标签/预取窗口选择；无效提示不授予请求权限，实际请求仍严格解析并拒绝。 */
+export function getNativeVideoServiceHint(): string | undefined {
+  if (!NATIVE_PRIVATE_ROUTE_SUPPORTED) return undefined;
+  try { return resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext)?.service; } catch { return undefined; }
+}
 export async function translateVideoText(origin: string, signal?: AbortSignal, sourceLanguage?: string): Promise<string> {
   if (signal?.aborted) throw createAbortError();
   const cleanedOrigin = origin?.replace(/[\s\u3000]/g, '') || '';
@@ -415,8 +421,9 @@ export async function translateVideoText(origin: string, signal?: AbortSignal, s
     glossaryIds: config.videoGlossaryIds,
   });
 
-  const service = config.videoService || config.service;
-  const model = resolveConfiguredModel(config.model[service], config.customModel[service]);
+  let service = config.videoService || config.service;
+  let model = resolveConfiguredModel(config.model[service], config.customModel[service]);
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const route = resolvePageTranslationRouteHint(config, browser.extension?.inIncognitoContext); if (route) { service = route.service; model = route.model; } }
   const thinking = isModelThinkingEnabled(config.modelThinking, service, model);
   const languages = getTranslationLanguages({sourceLanguage});
   const useCache = config.useCache;

@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {VideoPretranslationController} from '@/src/features/video-subtitle/content/pretranslationController';
+import {VideoPretranslationController, installVideoTranslationLifetime} from '@/src/features/video-subtitle/content/pretranslationController';
 
 const track = (kind = 'captions') => Object.assign(new EventTarget(), {kind}) as unknown as TextTrack;
 const video = (tracks: TextTrack[]) => {
@@ -62,4 +62,20 @@ describe('VideoPretranslationController', () => {
     expect(prime).toHaveBeenCalledOnce();
     controller.destroy();
   });
+});
+
+
+describe('native video route/media lifetime owner',()=>{
+ it.each([null,{currentSrc:'',src:'preload-source'}])('initial %s deduplicates href/media, ignores unrelated signals and releases listeners twice',initial=>{
+  const document=new EventTarget(),events=new EventTarget(),invalidate=vi.fn();const location={href:'https://video.synthetic.test/first'};
+  let selected:{currentSrc:string;src:string}|null=initial;const window={location,addEventListener:events.addEventListener.bind(events),removeEventListener:events.removeEventListener.bind(events)} as unknown as Window;
+  const release=installVideoTranslationLifetime(document,window,invalidate,()=>selected);
+  document.dispatchEvent(new Event('fluentread-route-change'));document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).not.toHaveBeenCalled();
+  selected={currentSrc:'',src:'first'};document.dispatchEvent(new Event('loadstart'));expect(invalidate).toHaveBeenLastCalledWith(true);document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(1);
+  selected.currentSrc='second';document.dispatchEvent(new Event('emptied'));expect(invalidate).toHaveBeenCalledTimes(2);
+  selected={currentSrc:'second',src:''};document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(3);
+  selected={currentSrc:'',src:''};document.dispatchEvent(new Event('loadedmetadata'));selected=null;document.dispatchEvent(new Event('emptied'));expect(invalidate).toHaveBeenCalledTimes(5);
+  location.href='https://video.synthetic.test/second';document.dispatchEvent(new Event('fluentread-route-change'));document.dispatchEvent(new Event('fluentread-route-change'));expect(invalidate).toHaveBeenCalledTimes(6);
+  events.dispatchEvent(new Event('pagehide'));expect(invalidate).toHaveBeenLastCalledWith(false);release();release();location.href='https://video.synthetic.test/third';document.dispatchEvent(new Event('fluentread-route-change'));events.dispatchEvent(new Event('pagehide'));selected={currentSrc:'third',src:''};document.dispatchEvent(new Event('loadedmetadata'));expect(invalidate).toHaveBeenCalledTimes(7);
+ });
 });

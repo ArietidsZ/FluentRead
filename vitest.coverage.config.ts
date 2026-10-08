@@ -191,6 +191,7 @@ export default defineConfig({
             'tests/fullPagePriority.test.ts',
             'tests/fullPageVisibilityScheduling.test.ts',
             'tests/wordCardPrivacyRoute.test.ts',
+            'tests/videoPrivacyRoute.test.ts',
             'tests/fullPagePrivacyRoute.test.ts',
             'tests/fullPageTranslationIndicators.test.ts',
             'tests/liveTextRender.test.ts',

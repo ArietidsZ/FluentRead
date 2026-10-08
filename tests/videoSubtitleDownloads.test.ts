@@ -1,6 +1,8 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {Config} from '@/src/core/config/model';
+// 显式保留旧适配器的参数与反馈合同；新增原生 signal/代次通过 videoPrivacyRoute 的真实调用验证。
+vi.mock('@/src/core/config/incognitoRoute', async original => ({...await original<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
 import {createVideoSubtitleDownloads} from '@/src/features/video-subtitle/content/downloads';
 
 type Ports = Parameters<typeof createVideoSubtitleDownloads>[0];

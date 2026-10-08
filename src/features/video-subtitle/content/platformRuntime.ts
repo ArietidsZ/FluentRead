@@ -1,13 +1,15 @@
 /**
  * @file src/features/video-subtitle/content/platformRuntime.ts
  * 文件职责：在会议、Udemy 与 Disney+ 网页中挂载隔离的双语字幕，复用现有视频配置及翻译缓存。
- * 主要内容：观察原生字幕、读取浏览器字幕轨、自动开启明确的会议字幕按钮、优先目标语言人工轨；处理显示切换、失败重试、全屏、动态页面与所有权恢复。
+ * 主要内容：观察原生字幕、读取浏览器字幕轨、自动开启明确的会议字幕按钮、优先目标语言人工轨；处理显示切换、失败重试、全屏、动态页面与所有权恢复；原生配置/路由/媒体切换立即撤销旧翻译，保留源字幕文本与轨道。
  * 模块边界：只通过注入端口读取配置、翻译和保存设置，不采集音频、不访问账号接口，不修改网站播放器实现。
  */
 import type {Config} from '@/src/core/config/model';
 import {getVideoSubtitleAppearanceCssVars} from '@/src/core/config/videoSubtitleAppearance';
 import {getVideoTranslationConfigFingerprint, normalizeVideoCaptionText} from './subtitleLogic';
 import {VideoTranslationCache} from './translationCache';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {installVideoTranslationLifetime} from './pretranslationController';
 import {isVideoSubtitleInTargetLanguage} from './subtitleLanguage';
 import {chooseTargetHumanCaptionTrack, getCaptionPlatform, isMeetingCaptionPlatform, PLATFORM_CAPTION_SELECTORS, findCaptionEnableButton, findTeamsCaptionMenuStep, captionLanguageMatch} from './platforms';
 
@@ -249,11 +251,12 @@ export function mountPlatformCaptions(ports: PlatformCaptionPorts): () => void {
     });
     observer.observe(document.documentElement, {childList: true, subtree: true, characterData: true});
     const timer = setInterval(sync, 250);
-    const unsubscribe = ports.subscribe(() => {
+    let unsubscribe = ports.subscribe(() => {
         const next = getVideoTranslationConfigFingerprint(config);
         if (next !== fingerprint) { fingerprint = next; cache.clear(); clear(); }
         sync();
     });
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) { const stop = unsubscribe, release = installVideoTranslationLifetime(document, window, refresh => { cache.clear(); clear(); if (refresh) sync(); }, selectVideo); unsubscribe = () => { release(); stop(); }; }
     document.addEventListener('fullscreenchange', schedule);
     document.addEventListener('seeking', schedule, true);
     document.addEventListener('click', releaseUserControls, true);

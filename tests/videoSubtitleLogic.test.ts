@@ -1,4 +1,6 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
+// 原油猴/旧平台指纹合同；原生完整公开映射的保守撤销由 videoPrivacyRoute 实际保存验证。
+vi.mock('@/src/core/config/incognitoRoute', async original => ({...await original<object>(), NATIVE_PRIVATE_ROUTE_SUPPORTED: false}));
 import {Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
 import {getVideoTranslationConfigFingerprint, mergeBilingualVideoSubtitleCues, normalizeVideoCaptionText, revealVideoSubtitleTranslation, translateVideoSubtitleCues, selectYoutubeCaptionCue, selectVideoSubtitleCueAtOffset, selectVideoSubtitlePretranslationCues, findProgressiveVideoCaptionCue} from '@/src/features/video-subtitle/content/subtitleLogic';

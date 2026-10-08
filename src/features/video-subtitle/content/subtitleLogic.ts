@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/subtitleLogic.ts
  * 文件职责：提供字幕批量翻译、配置指纹和渐进文本展示的纯逻辑。
- * 主要内容：相同译文保留原文且不重复展示；合成双语导出文本、去重并限制批译并发，生成服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
+ * 主要内容：相同译文保留原文且不重复展示；合成双语导出文本、去重并限制批译并发，原生比较完整相关公开配置以撤销旧代次，其他平台保留原服务配置键，按原文进度截取译文与按时间选择渐进字幕；按播放速度选取当前句和八条不同的后续原文，排除过期字幕，并以手动偏移计算有效字幕区间。
  * 模块边界：只处理输入数据和注入翻译函数，不读取 DOM、全局配置或浏览器接口。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -9,6 +9,8 @@ import {buildGlossaryRevision} from '@/src/core/glossary';
 import type {Config} from '@/src/core/config/model';
 import {resolveConfiguredModel} from '@/src/core/config/catalog';
 import type {VideoSubtitleCue} from './youtubeSubtitleData';
+import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+import {fullPageTranslationConfigKey} from '@/src/services/translation/requestPrivacy';
 
 /** 根据原文前缀和播放时间选择渐进字幕，支持重复句与短时单词片段。 */
 export function findProgressiveVideoCaptionCue(cues: readonly VideoSubtitleCue[], source: string, currentMs: number): VideoSubtitleCue | null {
@@ -255,6 +257,7 @@ export function mergeBilingualVideoSubtitleCues(
 
 /** 与后台翻译 cache key 对齐的配置指纹；配置变化时旧译文不能写回视频。 */
 export function getVideoTranslationConfigFingerprint(value: Config): string {
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) return JSON.stringify([fullPageTranslationConfigKey(value), value.videoService, value.videoSourceLanguage, value.videoPreferHumanSubtitles, value.videoGlossaryIds]);
   const service = value.videoService || value.service;
   const endpoint = value.proxy[service]
     || (service === 'custom' ? value.custom : '')
