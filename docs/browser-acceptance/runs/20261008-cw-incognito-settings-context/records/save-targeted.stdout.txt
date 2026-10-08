@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/config.test.ts tests/incognitoTranslationRoute.test.ts tests/incognitoNativeSource.test.ts tests/incognitoRouteSettings.test.ts
+
+ RUN  v2.1.9 [CW_WORKTREE]
+
+ ✓ tests/config.test.ts (136 tests) 6537ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1070ms
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 108ms
+ ✓ tests/incognitoRouteSettings.test.ts (11 tests) 646ms
+   ✓ compiled incognito settings and settings-parent composition > uses the existing reactive UI language for all seven localized controls and scope descriptions 416ms
+ ✓ tests/incognitoNativeSource.test.ts (39 tests) 5ms
+
+ Test Files  4 passed (4)
+      Tests  235 passed (235)
+   Start at  17:09:59
+   Duration  8.80s (transform 520ms, setup 0ms, collect 1.12s, tests 7.30s, environment 0ms, prepare 94ms)
+

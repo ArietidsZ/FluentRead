@@ -1,0 +1,79 @@
+{
+  "reference_directory": "[CW_WORKSPACE]/FluentRead-transaction-wxt-validation-20261008",
+  "compared_fields": [
+    "permissions",
+    "optional_permissions",
+    "host_permissions",
+    "optional_host_permissions",
+    "incognito"
+  ],
+  "results": {
+    "chrome-mv3": {
+      "fields_equal": true,
+      "baseline_manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "current_manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+      "values": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "identity",
+          "offscreen"
+        ],
+        "optional_permissions": null,
+        "host_permissions": [
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_host_permissions": null,
+        "incognito": null
+      }
+    },
+    "firefox-mv2": {
+      "fields_equal": true,
+      "baseline_manifest_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+      "current_manifest_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+      "values": {
+        "permissions": [
+          "storage",
+          "unlimitedStorage",
+          "alarms",
+          "contextMenus",
+          "declarativeNetRequestWithHostAccess",
+          "<all_urls>",
+          "https://translate.google.com/*",
+          "https://translate.google.co.uk/*",
+          "https://translate.googleapis.com/*",
+          "https://dev.microsofttranslator.com/*",
+          "https://*.tts.speech.microsoft.com/*",
+          "https://deeplx.1stg.me/*",
+          "https://freeapi.fanyimao.cn/*",
+          "https://api.deeplx.org/*",
+          "http://localhost/*",
+          "http://127.0.0.1/*",
+          "http://*/*",
+          "https://*/*"
+        ],
+        "optional_permissions": null,
+        "host_permissions": null,
+        "optional_host_permissions": null,
+        "incognito": null
+      }
+    }
+  },
+  "reference_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "reference_worktree_clean": true
+}

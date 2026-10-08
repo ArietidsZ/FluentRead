@@ -1,0 +1,25 @@
+{
+  "label": "strict-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage.reportsDirectory=../incognito-route-settings-context-20261008/strict-initial-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--reporter=json",
+    "--outputFile=../incognito-route-settings-context-20261008/strict-initial-tests.json"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T08:59:43.619375+00:00",
+  "duration_seconds": 182.381,
+  "exit_code": 1
+}

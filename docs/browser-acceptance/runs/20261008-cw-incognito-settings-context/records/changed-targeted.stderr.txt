@@ -1,0 +1,14 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/userscriptViteConfig.test.ts > userscript browser shim injection > pins each remote language file to a commit containing exactly its built contents
+Error: spawnSync git EPERM
+ ❯ tests/userscriptViteConfig.test.ts:57:31
+     55|         for (const file of Object.values(bundles)) {
+     56|             const path = `userscript/languages/${file}`;
+     57|             const committed = execFileSync('git', ['show', `${commit}:…
+       |                               ^
+     58|             expect(committed).toBe(readFileSync(resolve(process.cwd(),…
+     59|         }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

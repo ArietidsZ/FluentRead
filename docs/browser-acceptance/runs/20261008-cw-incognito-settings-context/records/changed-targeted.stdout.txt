@@ -1,0 +1,19 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoNativeSource.test.ts tests/incognitoTranslationRoute.test.ts tests/incognitoRouteSettings.test.ts tests/translateApiPerformance.test.ts tests/translationCenterComponent.test.ts tests/userscriptViteConfig.test.ts
+
+ RUN  v2.1.9 [CW_WORKTREE]
+
+ ✓ tests/translateApiPerformance.test.ts (37 tests) 274ms
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 105ms
+ ✓ tests/translationCenterComponent.test.ts (20 tests) 239ms
+ ✓ tests/incognitoRouteSettings.test.ts (10 tests) 552ms
+   ✓ compiled incognito settings and settings-parent composition > starts disabled and is composed in the existing service-assignment page 424ms
+ ❯ tests/userscriptViteConfig.test.ts (11 tests | 1 failed) 69ms
+   × userscript browser shim injection > pins each remote language file to a commit containing exactly its built contents 7ms
+     → spawnSync git EPERM
+ ✓ tests/incognitoNativeSource.test.ts (39 tests) 4ms
+
+ Test Files  1 failed | 5 passed (6)
+      Tests  1 failed | 165 passed (166)
+   Start at  16:58:08
+   Duration  3.53s (transform 747ms, setup 0ms, collect 1.78s, tests 1.24s, environment 0ms, prepare 129ms)
+

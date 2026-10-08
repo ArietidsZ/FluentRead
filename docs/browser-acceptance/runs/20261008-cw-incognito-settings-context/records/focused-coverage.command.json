@@ -1,0 +1,29 @@
+{
+  "label": "focused-coverage",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "--config",
+    "vitest.coverage.config.ts",
+    "tests/incognitoNativeSource.test.ts",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/incognitoRouteSettings.test.ts",
+    "--coverage.include=src/platform/browser/incognitoSource.ts",
+    "--coverage.include=src/services/translation/requestPrivacy.ts",
+    "--coverage.include=src/features/settings/ui/incognitoRouteCopy.ts",
+    "--coverage.reportsDirectory=../incognito-route-settings-context-20261008/focused-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T09:08:19.930798+00:00",
+  "duration_seconds": 2.473,
+  "exit_code": 0
+}

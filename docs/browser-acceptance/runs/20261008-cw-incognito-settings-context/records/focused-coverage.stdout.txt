@@ -1,0 +1,27 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false --config vitest.coverage.config.ts tests/incognitoNativeSource.test.ts tests/incognitoTranslationRoute.test.ts tests/incognitoRouteSettings.test.ts --coverage.include=src/platform/browser/incognitoSource.ts --coverage.include=src/services/translation/requestPrivacy.ts --coverage.include=src/features/settings/ui/incognitoRouteCopy.ts --coverage.reportsDirectory=../incognito-route-settings-context-20261008/focused-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text
+
+ RUN  v2.1.9 [CW_WORKTREE]
+      Coverage enabled with v8
+
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 110ms
+ ✓ tests/incognitoRouteSettings.test.ts (11 tests) 852ms
+   ✓ compiled incognito settings and settings-parent composition > uses the existing reactive UI language for all seven localized controls and scope descriptions 507ms
+ ✓ tests/incognitoNativeSource.test.ts (39 tests) 5ms
+
+ Test Files  3 passed (3)
+      Tests  99 passed (99)
+   Start at  17:08:20
+   Duration  2.28s (transform 343ms, setup 0ms, collect 760ms, tests 967ms, environment 0ms, prepare 86ms)
+
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+-------------------|---------|----------|---------|---------|-------------------
+All files          |     100 |      100 |     100 |     100 |
+ ...es/settings/ui |     100 |      100 |     100 |     100 |
+  ...oRouteCopy.ts |     100 |      100 |     100 |     100 |
+ platform/browser  |     100 |      100 |     100 |     100 |
+  ...nitoSource.ts |     100 |      100 |     100 |     100 |
+ ...es/translation |     100 |      100 |     100 |     100 |
+  ...estPrivacy.ts |     100 |      100 |     100 |     100 |
+-------------------|---------|----------|---------|---------|-------------------

@@ -1,0 +1,25 @@
+{
+  "label": "strict-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--coverage.reportsDirectory=../incognito-route-settings-context-20261008/strict-final-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text",
+    "--reporter=json",
+    "--outputFile=../incognito-route-settings-context-20261008/strict-final-tests.json"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T09:12:01.270329+00:00",
+  "duration_seconds": 180.385,
+  "exit_code": 0
+}

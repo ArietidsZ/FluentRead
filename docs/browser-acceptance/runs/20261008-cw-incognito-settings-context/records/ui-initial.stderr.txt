@@ -1,0 +1,21 @@
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/incognitoRouteSettings.test.ts > compiled incognito settings and settings-parent composition > save/reopen/clear uses the existing native message router and persistence handler even when source is unknown
+AssertionError: expected undefined to be 'gpt-5.4-mini' // Object.is equality
+
+- Expected:
+"gpt-5.4-mini"
+
++ Received:
+undefined
+
+ ❯ tests/incognitoRouteSettings.test.ts:107:48
+    105|     expect(await listener({type: 'persistConfig', config: JSON.parse(J…
+    106|     config = runtime.reactive(normalizeConfig(saved)); await mount();
+    107|     expect(element('私密翻译模型').props.modelValue).toBe('gpt-5.4-min…
+       |                                                ^
+    108|     expect(state.status.description).toContain('openai / gpt-5.4-mini'…
+    109|     element('清空私密翻译专用路线').props.onClick(); await runtime.nex…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

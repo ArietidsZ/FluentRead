@@ -1,0 +1,15 @@
+{
+  "label": "types-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T09:10:00.402722+00:00",
+  "duration_seconds": 14.155,
+  "exit_code": 0
+}

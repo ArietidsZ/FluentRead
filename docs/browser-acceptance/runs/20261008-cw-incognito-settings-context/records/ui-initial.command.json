@@ -1,0 +1,20 @@
+{
+  "label": "ui-initial",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/incognitoRouteSettings.test.ts",
+    "tests/translationCenterComponent.test.ts",
+    "tests/translateApiPerformance.test.ts"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T08:57:06.370598+00:00",
+  "duration_seconds": 2.518,
+  "exit_code": 1
+}

@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false --config vitest.coverage.config.ts --coverage.reportsDirectory=../incognito-route-settings-context-20261008/strict-initial-coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=text --reporter=json --outputFile=../incognito-route-settings-context-20261008/strict-initial-tests.json
+JSON report written to [CW_RECORDS]/strict-initial-tests.json

@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoRouteSettings.test.ts tests/translationCenterComponent.test.ts tests/translateApiPerformance.test.ts
+
+ RUN  v2.1.9 [CW_WORKTREE]
+
+ ✓ tests/translateApiPerformance.test.ts (36 tests) 275ms
+ ✓ tests/translationCenterComponent.test.ts (20 tests) 243ms
+ ❯ tests/incognitoRouteSettings.test.ts (10 tests | 1 failed) 550ms
+   ✓ compiled incognito settings and settings-parent composition > starts disabled and is composed in the existing service-assignment page 429ms
+   × compiled incognito settings and settings-parent composition > save/reopen/clear uses the existing native message router and persistence handler even when source is unknown 19ms
+     → expected undefined to be 'gpt-5.4-mini' // Object.is equality
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 65 passed (66)
+   Start at  16:57:06
+   Duration  2.35s (transform 353ms, setup 0ms, collect 1.02s, tests 1.07s, environment 0ms, prepare 65ms)
+

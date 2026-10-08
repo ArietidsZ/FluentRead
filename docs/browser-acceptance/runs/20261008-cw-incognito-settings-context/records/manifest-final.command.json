@@ -1,0 +1,11 @@
+{
+  "label": "manifest-final",
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T09:15:11.432584+00:00",
+  "duration_seconds": 0.104,
+  "exit_code": 0
+}

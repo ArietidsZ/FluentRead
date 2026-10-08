@@ -1,0 +1,24 @@
+{
+  "label": "changed-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/config.test.ts",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/incognitoNativeSource.test.ts",
+    "tests/incognitoRouteSettings.test.ts",
+    "tests/i18n.test.ts",
+    "tests/translateApiPerformance.test.ts",
+    "tests/translationCenterComponent.test.ts"
+  ],
+  "cwd": "[CW_WORKTREE]",
+  "started_at": "2026-10-08T09:10:47.610138+00:00",
+  "duration_seconds": 11.542,
+  "exit_code": 0
+}

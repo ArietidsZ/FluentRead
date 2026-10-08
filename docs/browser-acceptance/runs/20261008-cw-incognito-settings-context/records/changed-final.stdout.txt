@@ -1,0 +1,22 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/config.test.ts tests/incognitoTranslationRoute.test.ts tests/incognitoNativeSource.test.ts tests/incognitoRouteSettings.test.ts tests/i18n.test.ts tests/translateApiPerformance.test.ts tests/translationCenterComponent.test.ts
+
+ RUN  v2.1.9 [CW_WORKTREE]
+
+ ✓ tests/config.test.ts (136 tests) 6126ms
+   ✓ 统一配置存储 > 补丁链超过后台批次上限时不发出部分链 1063ms
+ ✓ tests/i18n.test.ts (58 tests) 1504ms
+   ✓ i18n 全量界面扫描 > Vue 文案和展示注册表在非中文界面有本地化结果 489ms
+   ✓ 运行期反馈文案资源 > 每条精确反馈都来自真实源码，不重复，并在每种界面语言中完整本地化 450ms
+   ✓ 旧界面译文人工校正 > 校正原文仍在界面源码中使用，不重复，并覆盖此前的译文 355ms
+ ✓ tests/translateApiPerformance.test.ts (37 tests) 274ms
+ ✓ tests/incognitoTranslationRoute.test.ts (49 tests) 100ms
+ ✓ tests/translationCenterComponent.test.ts (20 tests) 235ms
+ ✓ tests/incognitoRouteSettings.test.ts (11 tests) 556ms
+   ✓ compiled incognito settings and settings-parent composition > uses the existing reactive UI language for all seven localized controls and scope descriptions 355ms
+ ✓ tests/incognitoNativeSource.test.ts (39 tests) 4ms
+
+ Test Files  7 passed (7)
+      Tests  350 passed (350)
+   Start at  17:10:47
+   Duration  11.37s (transform 896ms, setup 0ms, collect 1.96s, tests 8.80s, environment 1ms, prepare 149ms)
+
