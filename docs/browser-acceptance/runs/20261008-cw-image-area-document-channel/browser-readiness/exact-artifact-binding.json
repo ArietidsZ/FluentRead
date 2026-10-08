@@ -1,0 +1,10 @@
+{
+  "combination_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "combination_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "checked_artifacts": 797,
+  "mismatches": [],
+  "chrome_manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+  "chrome_background_sha256": "c8b6b7e784b7cba0ad0b00f72cacda852610c0dd280568084d64e0b25e705e9c",
+  "firefox_manifest_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+  "firefox_background_sha256": "9dd11e0eb5612ae2b23a415187df3895bc136ef5782b970d8e4d9fc9c7bf2a14"
+}

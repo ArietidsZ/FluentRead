@@ -1,0 +1,21 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CW synthetic image and area fixture</title>
+<style>body{font:24px sans-serif;margin:48px;background:white;color:black}img{display:block;max-width:700px;border:1px solid #bbb;margin:24px 0}button,a{font:18px sans-serif;margin:8px}iframe{width:700px;height:300px}</style>
+<h1>CW synthetic image and area fixture</h1>
+<p>Only generated test content. No account, cookies, external assets or real user data.</p>
+<div id="images"></div>
+<button id="replace">Replace selected image</button>
+<button id="frame">Replace same-URL iframe</button>
+<a href="/next">Navigate away</a>
+<a href="/fixture">Reload fixture route</a>
+<p id="events">Events:</p>
+<iframe src="/frame" title="Synthetic child document"></iframe>
+<script>
+const images=document.querySelector('#images');
+function generate(label){const canvas=document.createElement('canvas');canvas.width=700;canvas.height=180;const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,700,180);ctx.fillStyle='black';ctx.font='32px sans-serif';ctx.fillText(label,25,80);const img=document.createElement('img');img.alt=label;img.src=canvas.toDataURL('image/png');return img;}
+images.append(generate('Synthetic image A: The sky is blue.'),generate('Synthetic image B: A green tree.'));
+document.querySelector('#replace').onclick=()=>images.firstElementChild.replaceWith(generate('Synthetic replacement: A red circle.'));
+document.querySelector('#frame').onclick=()=>{const previous=document.querySelector('iframe');const next=previous.cloneNode();previous.replaceWith(next);};
+for(const type of ['pagehide','pageshow','visibilitychange'])addEventListener(type,event=>{document.querySelector('#events').textContent+=` ${type}:${event.persisted??''}`;});
+</script>

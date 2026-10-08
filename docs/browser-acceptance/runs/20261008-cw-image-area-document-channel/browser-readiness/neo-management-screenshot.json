@@ -1,0 +1,15 @@
+{
+  "tool": "screenshot",
+  "arguments": {
+    "page": 2,
+    "format": "png",
+    "size": {
+      "width": 1200,
+      "height": 900
+    }
+  },
+  "images": [
+    "CW_BROWSER_EVIDENCE/neo-extension-management-0.png"
+  ],
+  "isError": false
+}

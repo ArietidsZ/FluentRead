@@ -1,0 +1,12 @@
+{
+  "READINESS.json": "85a2cbe6f18b3ae4fd561e1d6f66207a4ed872714c99be8f191a6886bb92cda8",
+  "exact-artifact-binding.json": "c696e4478d34b18dd2bdde02c104c0d0439e2e1b5e526d63adf97a69d7409604",
+  "cua-readonly-boundary.json": "1b1848f2b76f05b3b5b69cef11cb30a79a485f7e220f35aa75bcf439dbe43821",
+  "neo-server-info.json": "abb45b95877b62cc6edf0359eb07a11d6a1f4d165883e96ac4adc92b3e5f99a1",
+  "neo-existing-extension-state.json": "90551a3233bfe1f449add7e62c4c268a6ab3ffdfc16e655929f597e31fc1733f",
+  "neo-management-screenshot.json": "b77f3e10d42ef8052b8082fe20403b9fdb603d3e354f1f1b97936393f4d39376",
+  "neo-extension-management-0.png": "83fddc55624dd14c5d25d920f28afc95b5e68591581734f5e214933893bb18f4",
+  "owned-management-tab-cleanup.json": "0f111e7c6be052aabd7c960c93611f4b70315163ff8ec7cea3edc3f1cfd9f41b",
+  "fixture.html": "9e486caa56f7fa9acc43718619bb88cd1ba4d8e083c7bb86bd8b9e05e7c02305",
+  "fixture-server.py": "5f10be2a529b5b22d9e923fffbace278c08b16c0a0e7191f43be71f9e69cb8ad"
+}

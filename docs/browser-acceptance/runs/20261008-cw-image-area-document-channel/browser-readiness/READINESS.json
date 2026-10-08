@@ -1,0 +1,79 @@
+{
+  "at": "2026-10-08T07:13:04.178103+00:00",
+  "status": "Readiness checks completed; actual FluentRead browser acceptance blocked before extension load",
+  "source_commit": "27a1f191680c421451fb762a833a95c3d47a0188",
+  "combination_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "combination_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "artifact_binding": {
+    "combination_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+    "combination_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+    "checked_artifacts": 797,
+    "mismatches": [],
+    "chrome_manifest_sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844",
+    "chrome_background_sha256": "c8b6b7e784b7cba0ad0b00f72cacda852610c0dd280568084d64e0b25e705e9c",
+    "firefox_manifest_sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6",
+    "firefox_background_sha256": "9dd11e0eb5612ae2b23a415187df3895bc136ef5782b970d8e4d9fc9c7bf2a14"
+  },
+  "versions": {
+    "neo_chromium": "155.0.8309.26",
+    "neo_mcp": "0.0.67",
+    "cua_driver": "0.34.0",
+    "firefox_snap": "157.0.1-1",
+    "firefox_snap_revision": "9036"
+  },
+  "verified": [
+    "All 797 previously built combination artifacts still match their recorded SHA256 values; no rebuild.",
+    "Existing localhost Neo MCP initialized and listed its actual tool schema.",
+    "Opened only a new controlled chrome://extensions page, read it and captured its viewport screenshot.",
+    "Screenshot and snapshot show Developer mode off and no installed FluentRead extension.",
+    "Actual Cua direct client loaded the unchanged GUI-only default-deny policy; 19 tools listed.",
+    "Actual native Cua list_windows and get_screen_size succeeded; non-test window titles omitted.",
+    "Installed Firefox snap metadata confirms version 157.0.1; actual addon permission/loading behavior remains untested."
+  ],
+  "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "blockers": [
+    "Existing isolated Neo profile has no FluentRead and no GUI Load unpacked entry with Developer mode off. No security setting was enabled under the no-permission-change instruction.",
+    "FLUENTREAD_FOCUS_SAFE_HELPER and PLAYWRIGHT_ROOT are unset. No focus-safe-browser.cjs was found in the checked task, local skill and /tmp paths (bounded filename search). A compliant temporary-profile normal-window launch path is not yet established.",
+    "Firefox is installed, not missing; it needs a compliant temporary-profile/addon-loading path before the same checks can run. No Firefox launch or addon load was attempted."
+  ],
+  "not_run": [
+    "normal or concurrent actual image Port operations",
+    "actual queued area screenshot cancellation",
+    "navigation/exit/reopen owner cleanup",
+    "iframe replacement",
+    "actual BFCache",
+    "real GPU compute or model/provider API",
+    "incognito dedicated model acceptance or remaining main backlog"
+  ],
+  "prepared_not_started": {
+    "fixture": "fixture.html: generated PNGs, source replacement, same-URL iframe replacement and navigation links",
+    "server": "fixture-server.py: binds 127.0.0.1 only when explicitly started; deterministic fake completion responses; never persists headers/prompts/image bytes",
+    "distinction": "Controlled model responses are not model inference or quality acceptance; no service was started and no listener opened in this readiness check"
+  },
+  "minimum_next_step": [
+    "Establish an allowed temporary-profile launch/window-placement path under the existing focus-safe policy.",
+    "Use a previously allowed unpacked-extension loader, or confirm the specific temporary-profile Developer mode and local unpacked load operation before enabling a new browser security setting.",
+    "Load only the exact verified Chrome/Firefox output. Retain its manifest unchanged; test only generated local content and controlled responses.",
+    "Then record actual UI/Port lifecycle behavior and clearly retain any untested paths."
+  ],
+  "cleanup": {
+    "owned_neo_management_page_2_closed": true,
+    "owned_direct_cua_client_exited": true,
+    "desktop_session_started": false,
+    "fixture_server_started": false,
+    "user_browser_closed": false
+  },
+  "no_change": [
+    "production source",
+    "Pi/MII settings",
+    "credentials",
+    "Neo Developer mode",
+    "browser/extension permissions",
+    "Cua policy/tool scope",
+    "remote control listener",
+    "default browser",
+    "installed packages"
+  ],
+  "no_extra_task_or_paid_call": true,
+  "not_a_complete_main_task_acceptance": true
+}
