@@ -65,6 +65,8 @@ node scripts/run-selection-speech-test.cjs \
 
 ## 设置分组、阅读辅助与右键菜单
 
+右键菜单后台恢复专项：`pnpm test tests/contextMenuRuntimeOwnership.test.ts tests/contextMenu.test.ts tests/backgroundBadgeRuntime.test.ts tests/contentMessageRuntime.test.ts`。受控浏览器端口覆盖 MV3 后台冷启动首击等待配置与菜单就绪、活动页查询暂时失败后的点击、导航/关闭/禁用期间丢弃旧点击，以及失败重试和翻译—恢复—再次翻译。菜单已创建后，活动页查询失败不会清空点击路由。该专项不代表操作系统原生菜单、报告者环境或在线供应商验收。
+
 生产扩展构建后，运行 `node scripts/testing/run-settings-reading-menu-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <扩展界面测试技能>/scripts/focus-safe-browser.cjs --artifacts-dir <证据目录>`。专项使用第二屏上的临时 Edge 后台窗口，检查阅读辅助左侧预览与右侧设置、完整说明、虚线、高亮联动与样式跳转，右键菜单左侧单一虚拟菜单与右侧紧凑选项、所有启用入口的实时增删、功能前置条件禁用、总开关禁用和重开后保存；覆盖七种语言的桌面与 390px 布局、深色主题和其他设置分组标题。浏览器范围为 Edge，不代表 Firefox 实机或外部翻译服务。
 
 `run-settings-section-navigation-test.cjs` 检查连续表单中的完整导航、搜索、跨页定位、折叠、键盘与滚动高亮。翻译设置分别登记右键菜单、悬浮球进阶设置、段落复制、局部翻译与不翻译的语言；最后一组较短时，滚动到底仍应高亮其入口。元数据与既有直达链接由 `tests/optionsNavigation.test.ts` 和 `tests/optionsAppNavigationLifecycle.test.ts` 验证。
