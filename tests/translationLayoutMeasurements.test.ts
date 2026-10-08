@@ -339,4 +339,52 @@ describe('同步布局测量字段的冻结与失效', () => {
             expect(empty).toHaveBeenCalledTimes(1);
         } finally { restore(); }
     });
+
+    it.each([['translate', '0px 40px'], ['rotate', '45deg'], ['scale', '2']])(
+        '%s 独立变换阻止把视觉溢出当成祖先自然流高度溢出', (property, value) => {
+            const {document, window} = parseHTML('<html><body><main><p>Source.</p></main></body></html>');
+            const main = document.querySelector('main')!;
+            const owner = document.querySelector('p')!;
+            main.getBoundingClientRect = () => rect(20);
+            owner.getBoundingClientRect = () => rect(80);
+            let liveValue = value;
+            Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: (element: Element) =>
+                style({translate: 'none', rotate: 'none', scale: 'none',
+                    ...(element === owner ? {[property]: liveValue} : {})})});
+            const measurements = createTranslationLayoutMeasurements();
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(true);
+            expect(hasTranslationHeightOverflow(main, owner, measurements)).toBe(false);
+            expect(hasTranslationHeightOverflow(owner, owner, measurements)).toBe(false);
+            liveValue = 'none';
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(true);
+            measurements.invalidate();
+            expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+            expect(hasTranslationHeightOverflow(main, owner, measurements)).toBe(true);
+        },
+    );
+
+    it.each(['absolute', 'fixed', 'sticky'])('已知 %s 边界不读取会强制布局的 transform', position => {
+        const {document, window} = parseHTML('<html><body><p>Source.</p></body></html>');
+        const owner = document.querySelector('p')!;
+        const transform = vi.fn(() => 'none');
+        Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: () => ({
+            ...style({position}), get transform() {return transform();},
+        })});
+        expect(isTranslationHeightBoundary(owner, createTranslationLayoutMeasurements())).toBe(true);
+        expect(transform).not.toHaveBeenCalled();
+    });
+
+    it.each(['', 'none'])('独立变换默认值 %s 保持自然流溢出判断', value => {
+        const {document, window} = parseHTML('<html><body><main><p>Source.</p></main></body></html>');
+        const main = document.querySelector('main')!;
+        const owner = document.querySelector('p')!;
+        main.getBoundingClientRect = () => rect(20);
+        owner.getBoundingClientRect = () => rect(80);
+        Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: () =>
+            style({translate: value, rotate: value, scale: value})});
+        const measurements = createTranslationLayoutMeasurements();
+        expect(isTranslationHeightBoundary(owner, measurements)).toBe(false);
+        expect(hasTranslationHeightOverflow(main, owner, measurements)).toBe(true);
+    });
+
 });
