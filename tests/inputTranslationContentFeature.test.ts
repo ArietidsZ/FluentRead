@@ -119,6 +119,7 @@ function mountHarness(overrides: {
     sendMessage?: (message: unknown) => Promise<unknown>;
     generation?: () => number;
     createUi?: any;
+    createFeature?: typeof createInputTranslationContentFeature;
 } = {}) {
     const fakeDocument = new FakeDocument();
     const tooltipRecords: any[] = [];
@@ -134,7 +135,7 @@ function mountHarness(overrides: {
         translatedText: '你好',
     })));
     const logger = {error: vi.fn()};
-    const feature = createInputTranslationContentFeature({
+    const feature = (overrides.createFeature ?? createInputTranslationContentFeature)({
         context: {onInvalidated: vi.fn()} as any,
         config,
         document: fakeDocument as unknown as Document,
@@ -160,6 +161,24 @@ afterEach(() => {
 });
 
 describe('input translation content feature', () => {
+    it('userscript content sends the legacy input protocol without an ID or cancellation message', async () => {
+        vi.resetModules();
+        vi.doMock('@/src/core/config/incognitoRoute', async () => ({
+            ...await vi.importActual<typeof import('@/src/core/config/incognitoRoute')>('@/src/core/config/incognitoRoute'),
+            NATIVE_PRIVATE_ROUTE_SUPPORTED: false,
+        }));
+        try {
+            const content = await import('@/src/features/input-translation/content');
+            const harness = mountHarness({createFeature: content.createInputTranslationContentFeature});
+            const input = fakeElement('textarea'); input.value = 'Hello';
+            harness.fakeDocument.activeElement = input;
+            await harness.fakeDocument.emit('keydown', trustedKey({key: 'Enter', ctrlKey: true}));
+            expect(input.value).toBe('你好');
+            expect(harness.sendMessage).toHaveBeenCalledOnce();
+            expect(harness.sendMessage).toHaveBeenCalledWith({type: 'inputBoxTranslation', text: 'Hello', targetLang: 'zh'});
+            harness.controller.abort(); expect(harness.sendMessage).toHaveBeenCalledOnce();
+        } finally {vi.doUnmock('@/src/core/config/incognitoRoute'); vi.resetModules();}
+    });
     it('继承服务变更作废输入请求键，独立服务忽略网页默认变更', () => {
         const base = {on: true, service: 'google', inputBoxTranslationTrigger: 'triple_slash', inputBoxTranslationTarget: 'en', inputBoxTranslationService: ''};
         expect(inputBoxTranslationConfigKey(base)).not.toBe(inputBoxTranslationConfigKey({...base, service: 'microsoft'}));

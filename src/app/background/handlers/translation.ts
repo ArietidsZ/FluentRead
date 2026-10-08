@@ -1,10 +1,10 @@
 /**
  * @file src/app/background/handlers/translation.ts
  * 文件职责：解析没有显式 type 的翻译请求，并把它作为后台消息路由的受控 fallback 接入共享翻译 broker。
- * 主要内容：校验 origin、clientRequestId、AI 多段标记、Chrome 源语言检测样本及其他可选字段，从原生 sender 绑定私密来源，以发送者和随机 ID 管理 AbortController，并提供精确取消 handler。
- * 模块边界：本文件只承担协议验证与 fallback 适配，不选择 provider、不缓存结果、不读取配置或凭据；真正的翻译执行由注入的 translateWithCache 完成。
+ * 主要内容：同步校验 origin 与公开请求 ID、捕获原生 sender，先注册活动请求再等待来源，逐步核验取消；附着隐私、术语来源后最后附着不可枚举 control，并提供精确取消 handler。
+ * 模块边界：只承担协议验证与 fallback 适配，注册表由共享 service 工厂提供；不选择 provider、不缓存或读取配置凭据，公开 ID 在 broker 前移除。没有 documentId 的发送者沿用现有 tab/frame 或扩展页 URL 范围，尚不能代替文档生命周期 Port 授权。
  */
-import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
+import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, waitForTranslationRequestPreparation, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 export {createTranslationRequestRegistry, type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {isTrustedIncognitoSender, resolveNativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
 import type {IncognitoSourceRuntime, NativeMessageSender, NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
@@ -146,7 +146,7 @@ export function createTranslationRequestFallback<TContext = undefined>(
                 const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
                     const sender = captured.sender;
                     const message = dependencies.resolveSourcePrivacy
-                        ? attachTranslationSourcePrivacy(parsed, await dependencies.resolveSourcePrivacy(sender))
+                        ? attachTranslationSourcePrivacy(parsed, await waitForTranslationRequestPreparation(dependencies.resolveSourcePrivacy(sender), signal))
                         : isTrustedIncognitoSender(sender, dependencies.runtimeId) ? attachTrustedPrivateSource(parsed)
                             : dependencies.runtimeId && sender?.id === dependencies.runtimeId && sender.tab?.incognito === false
                                 ? attachTranslationSourcePrivacy(parsed, 'regular') : parsed;

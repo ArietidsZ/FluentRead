@@ -11,7 +11,7 @@ import {createImageTranslationBackgroundHandlers} from '@/src/features/image-tra
 import {createSelectionWordLookupHandler, type WordCardData} from '@/src/features/selection-translation/background/wordLookupHandler';
 import {createModelVisionProbe} from '@/src/services/translation/visionProbe';
 import * as inputHandlers from '@/src/features/input-translation/background/handler';
-import {createTranslationRequestFallback, createTranslationRequestRegistry} from '@/src/app/background/handlers/translation';
+import {createTranslationRequestFallback, createTranslationRequestRegistry, type TranslationRequestContext} from '@/src/app/background/handlers/translation';
 import {attachTranslationGlossaryContext, attachTranslationRequestControl, getTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
 import {createTranslationBroker} from '@/src/services/translation/broker';
 vi.mock('@/src/services/config/store', () => ({config: {}}));
@@ -19,6 +19,93 @@ const input = {type: 'inputBoxTranslation' as const, text: 'A complete input sen
 
 describe('native generic and typed input backend cancellation', () => {
     const owner = {sender: {...nativeInputSender, tab: {id: 11, incognito: true}, frameId: 0, documentId: 'document-A'}};
+    it.each(['ready', 'source'].flatMap(wait => ['pending', 'resolve', 'reject'].map(late => [wait, late])))
+    ('input %s cancellation settles before gate release; late %s cannot affect another request', async (wait, late) => {
+        const f = incognitoInputRuntime(), registry = createTranslationRequestRegistry();
+        let resolve!: (value: 'private') => void, reject!: (error: Error) => void;
+        const gate = new Promise<'private'>((yes, no) => {resolve = yes; reject = no;});
+        const source = vi.fn(async () => 'private' as const);
+        const blockedSource = vi.fn(() => gate);
+        const handler = createInputBoxTranslationHandler({ready: wait === 'ready' ? gate : Promise.resolve(),
+            getConfig: f.getConfig, requestRegistry: registry,
+            resolveSourcePrivacy: wait === 'source' ? blockedSource : source, translate: f.availability.translateWithCache});
+        let result: unknown;
+        const pending = handler.handle({...input, clientRequestId: 'never-settling'}, owner).catch(error => error);
+        void pending.then(value => {result = value;});
+        if (wait === 'source') await vi.waitFor(() => expect(blockedSource).toHaveBeenCalledOnce());
+        expect(registry.cancel('never-settling', owner).cancelled).toBe(true);
+        // The gate remains unresolved: cancellation must complete the actual handler and clear active.
+        await vi.waitFor(() => expect(result).toMatchObject({name: 'AbortError'}), {timeout: 200});
+        expect(registry.cancel('never-settling', owner).cancelled).toBe(false);
+        expect(f.getConfig).not.toHaveBeenCalled(); expect(f.provider).not.toHaveBeenCalled();
+        const next = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: f.getConfig,
+            requestRegistry: registry, resolveSourcePrivacy: source, translate: f.availability.translateWithCache});
+        await expect(next.handle({...input, clientRequestId: 'independent'}, owner)).resolves.toMatchObject({success: true});
+        const unhandled = vi.fn(); process.on('unhandledRejection', unhandled);
+        try {
+            if (late === 'resolve') resolve('private');
+            if (late === 'reject') reject(new Error('late preparation failure'));
+            await new Promise<void>(done => setImmediate(done));
+            expect(unhandled).not.toHaveBeenCalled(); expect(f.provider).toHaveBeenCalledOnce();
+            expect(registry.cancel('independent', owner).cancelled).toBe(false);
+        } finally {process.off('unhandledRejection', unhandled);}
+    });
+    it.each(['pending', 'resolve', 'reject'])('real generic getContexts cancellation settles independently of late %s', async late => {
+        const registry = createTranslationRequestRegistry(), f = incognitoInputRuntime();
+        let resolve!: (value: unknown[]) => void, reject!: (error: Error) => void;
+        const gate = new Promise<unknown[]>((yes, no) => {resolve = yes; reject = no;});
+        f.nativeRuntime.getContexts.mockImplementationOnce(() => gate);
+        const context = {sender: {id: nativeInputSender.id, url: 'chrome-extension://input-fixture/document.html', documentId: 'resolver-doc'}};
+        const fallback = createTranslationRequestFallback<TranslationRequestContext>({requestRegistry: registry,
+            resolveSourcePrivacy: f.resolveSourcePrivacy, translate: f.availability.translateWithCache, serializeError: error => error});
+        let result: unknown;
+        const pending = fallback.handle({origin: input.text, clientRequestId: 'never-contexts'}, context);
+        void Promise.resolve(pending).then(value => {result = value;});
+        await vi.waitFor(() => expect(f.nativeRuntime.getContexts).toHaveBeenCalledOnce());
+        expect(registry.cancel('never-contexts', context).cancelled).toBe(true);
+        await vi.waitFor(() => expect(result).toMatchObject({name: 'AbortError'}), {timeout: 200});
+        expect(registry.cancel('never-contexts', context).cancelled).toBe(false);
+        expect(f.provider).not.toHaveBeenCalled();
+        await expect(fallback.handle({origin: input.text, clientRequestId: 'independent-contexts'}, owner)).resolves.toBe('翻译完成');
+        const unhandled = vi.fn(); process.on('unhandledRejection', unhandled);
+        try {
+            if (late === 'resolve') resolve([{documentId: 'resolver-doc', incognito: true}]);
+            if (late === 'reject') reject(new Error('late getContexts failure'));
+            await new Promise<void>(done => setImmediate(done));
+            expect(unhandled).not.toHaveBeenCalled(); expect(f.provider).toHaveBeenCalledOnce();
+        } finally {process.off('unhandledRejection', unhandled);}
+    });
+    it('input consumes a rejected source promise when its resolver synchronously cancels', async () => {
+        const f = incognitoInputRuntime(), registry = createTranslationRequestRegistry();
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: f.getConfig,
+            requestRegistry: registry, translate: f.availability.translateWithCache,
+            resolveSourcePrivacy: () => {registry.cancel('sync-source', owner); return Promise.reject(new Error('late source error'));}});
+        await expect(handler.handle({...input, clientRequestId: 'sync-source'}, owner)).rejects.toMatchObject({name: 'AbortError'});
+        await new Promise<void>(done => setImmediate(done));
+        expect(registry.cancel('sync-source', owner).cancelled).toBe(false);
+        expect(f.provider).not.toHaveBeenCalled();
+    });
+    it.each(['generic', 'input'])('%s registry keeps an already dispatched operation active until it actually settles', async kind => {
+        const registry = createTranslationRequestRegistry();
+        let release!: (value: string) => void;
+        const translate = vi.fn(() => new Promise<string>(resolve => {release = resolve;}));
+        const dependencies = {ready: Promise.resolve(), getConfig: () => incognitoInputRuntime().config,
+            requestRegistry: registry, resolveSourcePrivacy: async () => 'private' as const, translate};
+        const pending = kind === 'input'
+            ? createInputBoxTranslationHandler(dependencies).handle({...input, clientRequestId: 'dispatched'}, owner)
+            : createTranslationRequestFallback<typeof owner>({...dependencies, serializeError: error => error})
+                .handle({origin: input.text, clientRequestId: 'dispatched'}, owner);
+        const outcome = Promise.resolve(pending).catch(error => error);
+        let settled = false; void outcome.then(() => {settled = true;});
+        await vi.waitFor(() => expect(translate).toHaveBeenCalledOnce());
+        expect(registry.cancel('dispatched', owner).cancelled).toBe(true);
+        await new Promise<void>(done => setImmediate(done));
+        expect(settled).toBe(false);
+        expect(registry.cancel('dispatched', owner).cancelled).toBe(true);
+        release('late operation result');
+        await expect(outcome).resolves.toMatchObject({name: 'AbortError'});
+        expect(registry.cancel('dispatched', owner).cancelled).toBe(false);
+    });
     it.each(['generic', 'input'])('%s cancellation reaches the actual private-routed provider signal', async kind => {
         const f = incognitoInputRuntime();
         const registry = createTranslationRequestRegistry();
@@ -42,6 +129,7 @@ describe('native generic and typed input backend cancellation', () => {
         expect(f.getAvailabilityRequest()).not.toHaveProperty('clientRequestId');
         expect(JSON.stringify(f.cacheKeys.mock.calls)).not.toContain('provider-abort');
         expect(getTranslationRequestControl(f.getAvailabilityRequest())?.signal.aborted).toBe(true);
+        expect(registry.cancel('provider-abort', owner).cancelled).toBe(false);
     });
     it.each(['ready', 'source'])('input %s wait stays active during 513 unrelated early cancels', async wait => {
         const f = incognitoInputRuntime(); const registry = createTranslationRequestRegistry();

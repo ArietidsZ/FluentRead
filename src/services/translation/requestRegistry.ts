@@ -1,8 +1,8 @@
 /**
  * @file src/services/translation/requestRegistry.ts
  * 文件职责：为不同原生文本协议提供可独立实例化的请求注册表，以真实发送者和有限 ID 绑定后台取消。
- * 主要内容：严格解析公开 ID、同步捕获 sender、管理活动 AbortController，以及各自最多 512 条的乱序取消和已完成历史。
- * 模块边界：不监听 runtime、不读取配置或凭据、不选择 provider；消息处理器必须在任何 await 前注册，并在等待后检查 signal。documentId 缺失时仅沿用 tab/frame 或页面 URL 范围，不能替代文档生命周期授权。
+ * 主要内容：严格解析公开 ID、同步捕获 sender、管理活动 AbortController、可取消的 provider 前准备等待，以及各自最多 512 条的乱序取消和已完成历史。
+ * 模块边界：不监听 runtime、不读取配置或凭据、不选择 provider；handler 在任何 await 前注册，准备取消后消费底层迟到结果，但不竞速整个已分派 operation。documentId 缺失时仅沿用 tab/frame 或页面 URL 范围，不能替代文档生命周期授权。
  */
 import {requestOwnerKey} from '@/src/platform/browser/requestOwner';
 import type {TranslationCancelResponse} from './types';
@@ -98,4 +98,25 @@ export function captureTranslationRequestContext(context?: TranslationRequestCon
 
 export function throwIfTranslationRequestAborted(signal?: AbortSignal): void {
     if (signal?.aborted) throw translationAbortError();
+}
+
+/** 只用于 provider 前 ready/source；及时结束准备等待，底层迟到拒绝仍被消费。 */
+export function waitForTranslationRequestPreparation<T>(pending: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
+    if (!signal) return Promise.resolve(pending);
+    return new Promise<T>((resolve, reject) => {
+        const onAbort = () => {
+            signal.removeEventListener('abort', onAbort);
+            reject(translationAbortError());
+        };
+        signal.addEventListener('abort', onAbort, {once: true});
+        // 即使调用方已取消，也先接住底层 promise 的两种结果，不能留下 unhandled rejection。
+        Promise.resolve(pending).then(value => {
+            signal.removeEventListener('abort', onAbort);
+            resolve(value);
+        }, error => {
+            signal.removeEventListener('abort', onAbort);
+            reject(error);
+        });
+        if (signal.aborted) onAbort();
+    });
 }

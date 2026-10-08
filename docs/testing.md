@@ -248,6 +248,10 @@ X 另覆盖未预取句子等待原译文成对显示、seek 后迟到结果丢�
 
 `node scripts/run-input-translation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-input-translation` 使用生产扩展和临时 Edge profile，在第二屏后台验证输入框配置保存、三击间隔与恢复默认、独立模型和提示词、窄屏与深色布局，以及真实按键的翻译、取消、恢复和失败重试。
 
+原生普通文本与输入取消另由 `backgroundTranslationHandler`、`incognitoInputRoute`、`translateApiPerformance`、`inputTranslationContentFeature` 覆盖：登记早于真实 getContexts/config 等待、513 条乱序历史 churn 后不分派 provider、真实 handler→availability→broker→捕获 provider 的 signal、中途私密改路、跨 tab/frame/document 与跨协议拒绝取消、重复/过早/迟到/bad ID、每次重试新 ID、backoff 取消不再尝试、及时返回但迟到 transport 保持 lease，以及配置/编辑/卸载单次取消和不写回旧结果。注册表、共享 runtime 传输与输入 handler 纳入严格四项 100% 覆盖，userscript 模拟 capability=false 校验旧协议。这些确定性测试不代替真实供应商 API、旧 Firefox 文档生命周期或 GPU/桌面验收。
+
+准备等待专项在不释放 ready/source/getContexts gate 的情况下确认取消令 handler 结束、active 清理；再释放或拒绝旧 gate，确认零额外 provider、零 unhandled rejection、新请求不受影响。另确认已分派且忽略 abort 的 operation 仍留在注册表至实际 settle，既有 runtime 传输 lease 测试保持占位至回复／超时。userscript 内容页实际触发输入翻译，确认 start 没有 ID 且卸载不发送 cancel。
+
 供应商响应与网页均为本地夹具，报告中的请求记录用于核对模型、提示词和原文；不代表外部服务连通性或模型翻译质量。`tests/inputTranslationConfig.test.ts`、`tests/inputTranslationBackground.test.ts` 和输入框内容脚本测试覆盖配置迁移、缓存隔离、输入快照、选区、输入法和迟到结果保护；`tests/inputEditableHost.test.ts` 覆盖编辑宿主的光标度量、选区同步等待、合成粘贴与原生插入回退。
 
 同一专项还验证富文本编辑区：原生 contenteditable 通过可撤销的原生插入写回，撤销后恢复粗体结构；模拟 Lexical/Draft.js 的模型驱动编辑器只在 selectionchange 后同步选区，报告中的 `modelEditorLog` 用于确认整段粘贴发生在选区同步之后、没有重复插入；plaintext-only 支持三连触发，密码框和代码编辑器保持不参与。`node scripts/run-rich-text-input-editors-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-rich-text-editors` 从 esm.sh 与 jsDelivr 加载真实的 Quill、ProseMirror、Lexical、Slate 和 Draft.js，逐个验证三连触发后编辑器自身模型只含译文、原文不含触发符，以及恢复原文；该脚本需要联网获取编辑器，结果不代表具体网站的定制编辑器。Firefox 与用户脚本构建需另外执行，Edge 结果不能替代其运行时验证。

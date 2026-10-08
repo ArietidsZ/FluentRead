@@ -174,6 +174,10 @@ WXT 会把 `entrypoints/` 下零层或一层的入口作为构建输入，并在
 - `offscreenDocument` 仅表示原生 API 与权限；`extensionDom` 表示共享运行时可用。Firefox 的图片、区域、本地字幕和扩展朗读可用，但 Chrome Translator 仍单独受 `chromeTranslation` 约束；Firefox MV3 尚未开放此适配。
 - content 生命周期使用 WXT `ContentScriptContext` 与 `AbortSignal`，扩展失效后不得继续回写页面。默认关闭的输入翻译和段落复制不挂载监听器，由独立子 signal 随配置启停；图片悬浮的连续 pointermove 每帧仅检测最新事件，关闭和卸载时取消待处理帧。
 
+原生普通文本与批量文本的每次 runtime 尝试都使用新 `clientRequestId`，后台在任何来源或配置等待前捕获 sender 并登记活动请求；取消经不可枚举 control 传到 availability/broker/provider。输入框使用相同注册表工厂的独立实例和 `inputBoxTranslationCancel`，并在 broker 的 ownershipKey 上加输入协议范围，避免同 owner/ID 的两个协议复用可取消 pending。输入 start 保留可选 ID 兼容旧调用，公开 ID 不进入 broker/cache/provider；userscript 文本和输入框沿用旧协议，视频保留原有协议。
+
+provider 前的 ready/source 等待独立响应取消，底层永不 settle 也能结束 handler 并经 identity-checked finally 清理活动项；迟到 resolve/reject 被消费且不能继续分派。此准备 helper 不竞速整个已分派 operation。调用方取消可立即结束等待，队列 lease 仍保留至传输回复或超时；clearQueue/sessionCancel 的活动请求语义不变。注册表分别保留最多 512 条真正乱序的 cancel-before-start 与已完成 ID 历史，活动请求不依赖这份历史。sender 有 documentId 时按现有文档范围核验；旧 Firefox 缺少 documentId 时仍只有 tab/frame，无 tab 的扩展页按 URL/frame。随机 ID 不提供导航授权，完整 disconnect/reconnect 隔离仍需后续文档生命周期 Port lease。
+
 参考：[WXT Entrypoints](https://wxt.dev/guide/essentials/entrypoints)、[Content Scripts](https://wxt.dev/guide/essentials/content-scripts)、[Project Structure](https://wxt.dev/guide/essentials/project-structure)。
 
 ## 什么时候用单文件，什么时候建目录

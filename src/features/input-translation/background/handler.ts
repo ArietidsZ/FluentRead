@@ -1,14 +1,14 @@
 /**
  * @file src/features/input-translation/background/handler.ts
  * 文件职责：定义输入框快捷翻译的后台消息处理器，在调用共享翻译 broker 前校验原文和目标语言，并统一返回成功译文结构。
- * 主要内容：校验纯文本协议，从注入的原生 sender 解析三态来源，水合后一次读取配置，先锁定私密路线再选择输入服务/模型和提示词能力，冻结快照后调用共享 broker。
- * 模块边界：此文件不监听键盘、不修改输入框也不绑定具体 provider；content feature 负责触发和提交，翻译实现由 background composition root 注入，统一路由负责错误响应。网页消息只能携带纯文本和目标语言，服务、模型、提示词与凭据均从后台配置读取。
+ * 主要内容：同步校验纯文本与可选请求 ID 并捕获真实 sender，使用独立注册表在水合与来源等待前登记；每次等待后核验取消，锁定私密路线与提示词快照，最后附着带输入协议范围的不可枚举 control；专用 cancel 只作用于同 owner 的输入请求。
+ * 模块边界：不监听键盘、不修改输入框或绑定 provider；content 负责触发和提交，composition root 为 start/cancel 注入同一输入注册表，统一路由负责错误响应。页面公开 ID 在 broker 前移除，模型与凭据仅从后台配置读取；userscript 沿用旧纯文本协议。
  */
 import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {Config} from '@/src/core/config/model';
 import {getLockedIncognitoRoute, lockIncognitoRoute, resolveIncognitoRoute, NATIVE_PRIVATE_ROUTE_SUPPORTED, type IncognitoRoute} from '@/src/core/config/incognitoRoute';
 import type {NativeMessageSender} from '@/src/platform/browser/incognitoSource';
-import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
+import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, throwIfTranslationRequestAborted, waitForTranslationRequestPreparation, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
 import {attachTranslationSourcePrivacy, type TranslationSourcePrivacy} from '@/src/services/translation/requestPrivacy';
 import {
     DEFAULT_INPUT_BOX_TRANSLATION_SYSTEM_PROMPT,
@@ -143,9 +143,10 @@ export function createInputBoxTranslationHandler(
                 const clientRequestId = parseClientRequestId(message.clientRequestId, true);
                 const captured = captureTranslationRequestContext(context);
                 const operation = async (signal?: AbortSignal, ownershipKey?: string) => {
-                    await dependencies.ready;
+                    await waitForTranslationRequestPreparation(dependencies.ready, signal);
                     throwIfTranslationRequestAborted(signal);
-                    const privacy = dependencies.resolveSourcePrivacy ? await dependencies.resolveSourcePrivacy(captured.sender) : 'unknown';
+                    const privacy = dependencies.resolveSourcePrivacy
+                        ? await waitForTranslationRequestPreparation(dependencies.resolveSourcePrivacy(captured.sender), signal) : 'unknown';
                     throwIfTranslationRequestAborted(signal);
                     // 步骤 2：身份、快照与私密路线先附着，不可枚举的 control 最后附着。
                     const request = createInputBoxTranslationRequest(dependencies.getConfig(), text, targetLanguage, privacy);
