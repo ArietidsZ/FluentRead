@@ -21,7 +21,7 @@ import {
     getTranslationGlossarySourceText,
 } from '@/src/services/translation/requestSnapshot';
 import {createTranslationRequestScheduler} from '@/src/services/translation/requestScheduler';
-import {serializeTranslationSlots} from '@/src/core/translation/public';
+import {parseTranslationSlots, serializeTranslationSlots} from '@/src/core/translation/public';
 import type {TranslationConfigSource} from '@/src/services/translation/types';
 
 function configSource(overrides: Partial<TranslationConfigSource> = {}): TranslationConfigSource {
@@ -198,10 +198,49 @@ describe('translation provider request config snapshot', () => {
         const packet = serializeTranslationSlots(sources);
         expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
     });
-    it.each(['Case_1-x', 'Case_0_BEGIN___tail'])('preserves serializer nonce compatibility for %s', nonce => {
+    it.each(['Case_1-x', 'Case_0_BEGIN___tail', 'x_0_BEGIN______FLUENTREAD_x'])('preserves serializer nonce compatibility for %s', nonce => {
         const sources = ['___FLUENTREAD_literal_0_BEGIN___ An agent reads.', 'The settings explain the computer network.'];
         const packet = serializeTranslationSlots(sources, nonce);
         expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('restores plain source terms for a nonce containing a complete nested marker prefix', () => {
+        const sources = ['agent', 'An agent works.'];
+        const packet = serializeTranslationSlots(sources, 'x_0_BEGIN______FLUENTREAD_x');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('preserves a valid source sharing marker underscores across the first boundary', () => {
+        const sources = ['FLUENTREAD_x_0_BEGIN'];
+        const packet = serializeTranslationSlots(sources, 'x');
+        expect(packet.starts[0]).toBe('___FLUENTREAD_x_0_BEGIN___');
+        expect(parseTranslationSlots(packet, packet.payload)).toEqual(sources);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it.each(['collision', 'x_0_BEGIN______FLUENTREAD_x'])('restores source after serializer avoids a real marker collision in %s', nonce => {
+        const sources = [`___FLUENTREAD_${nonce}_0_BEGIN___ An agent reads.`, 'The settings explain the computer network.'];
+        const packet = serializeTranslationSlots(sources, nonce);
+        expect(packet.starts[0]).toBe(`___FLUENTREAD_${nonce}_1_0_BEGIN___`);
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('keeps an incomplete source with thousands of possible nonce delimiters intact', () => {
+        const text = '___FLUENTREAD_x' + '_0_BEGIN___'.repeat(5000) + ' source';
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
+    });
+    it.each([
+        '___FLUENTREAD_invalid_1_BEGIN___source___FLUENTREAD_invalid_0_END___',
+        '___FLUENTREAD_invalid_0_BEGIN___ plain source___FLUENTREAD_invalid_0_BEGIN___ plain _0_END___',
+        '___FLUENTREAD_0_END___',
+        '___FLUENTREAD_!_0_END___',
+    ])('rejects malformed outer namespace boundaries: %s', text => {
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
+    });
+    it('preserves a long valid nonce containing many possible BEGIN delimiters', () => {
+        const sources = ['agent', 'An agent works.'];
+        const packet = serializeTranslationSlots(sources, 'x' + '_0_BEGIN___'.repeat(512) + 'tail');
+        expect(getTranslationGlossarySourceText(packet.payload)).toEqual(sources);
+    });
+    it('keeps a long malformed source with a final ordinal but no matching namespace intact', () => {
+        const text = '___FLUENTREAD_x' + '_0_BEGIN___'.repeat(5000) + ' source___FLUENTREAD_wrong_0_END___';
+        expect(getTranslationGlossarySourceText(text)).toBe(text);
     });
     it('does not allocate slots from an unsafe integer in a malformed final marker', () => {
         const malformed = '___FLUENTREAD_invalid_0_BEGIN___source___FLUENTREAD_invalid_999999999999999999999_END___';

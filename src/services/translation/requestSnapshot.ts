@@ -2,7 +2,7 @@
  * @file src/services/translation/requestSnapshot.ts
  *
  * 文件职责：冻结翻译消息的可编辑字段与数组，并附加只读 provider 配置快照，消除异步缓存读取期间全局配置变化造成的请求身份错配。
- * 主要内容：在入口一次读取消息字段并复制原文/术语数组，保留内部 symbol 描述符；定义配置快照、剩余预算、内部取消、线路观察与可信术语来源，冻结术语规则并从完整文本槽协议恢复纯匹配原文；以最终外层结束标记约束真实槽数，保留来源中的超范围字面标记，重复、交错与缺项仍由同一严格解析器拒绝。
+ * 主要内容：在入口一次读取消息字段并复制原文/术语数组，保留内部 symbol 描述符；定义配置快照、剩余预算、内部取消、线路观察与可信术语来源，冻结术语规则并从完整文本槽协议恢复纯匹配原文；以线性首尾边界扫描确定命名空间和最终外层槽数，保留来源中的字面标记和自定义命名空间，重复、交错与缺项仍由同一严格解析器拒绝。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -99,20 +99,46 @@ export function getTranslationGlossaryContext(message: object): TrustedTranslati
     return (message as {[TRANSLATION_GLOSSARY_CONTEXT]?: TrustedTranslationGlossaryContext})[TRANSLATION_GLOSSARY_CONTEXT];
 }
 
+/** KMP 首尾公共前缀：嵌套字面标记不能让短 nonce 抢先，也不按每个 BEGIN 重扫全文。 */
+function slotNamespaceFromBoundaries(origin: string, finalOrdinalOffset: number): string | undefined {
+    const prefix = origin.match(/^___FLUENTREAD_[a-z0-9_-]+/iu);
+    if (!prefix) return undefined;
+    const markerPrefix = '___FLUENTREAD_';
+    const borders = new Uint32Array(finalOrdinalOffset);
+    let matched = 0;
+    for (let index = 1; index < finalOrdinalOffset; index += 1) {
+        while (matched > 0 && origin[index] !== origin[matched]) matched = borders[matched - 1]!;
+        if (origin[index] === origin[matched]) matched += 1;
+        borders[index] = matched;
+    }
+    // 选择最长合法 namespace，先排除 BEGIN/END 自身重叠的伪边界；来源可与
+    // 标记共享下划线，但不能把该重叠扩为 namespace。随后仍通过完整严格 parser。
+    while (matched > markerPrefix.length) {
+        if (matched <= prefix[0].length && origin.startsWith('_0_BEGIN___', matched)
+            && finalOrdinalOffset - matched >= matched + '_0_BEGIN___'.length) {
+            return origin.slice(markerPrefix.length, matched);
+        }
+        matched = borders[matched - 1]!;
+    }
+    return undefined;
+}
+
 /** 仅解析完整的内部槽协议，避免哨兵下划线破坏词边界或被当成用户术语；其他文本原样匹配。 */
 export function getTranslationGlossarySourceText(origin: string | string[]): string | string[] {
     if (Array.isArray(origin)) return origin.flatMap(getTranslationGlossarySourceText);
-    // 首尾必须使用同一 namespace；惰性 nonce 不吞入首槽开头的字面 BEGIN。
-    // 末尾回溯引用同时保留 nonce 自身包含 _0_BEGIN___ 的公开 serializer 兼容性。
-    const boundaries = origin.match(/^___FLUENTREAD_([a-z0-9_-]+?)_0_BEGIN___[\s\S]*___FLUENTREAD_\1_(0|[1-9]\d*)_END___\s*$/iu);
-    if (!boundaries) return origin;
-    // nonce 的白名单只允许字母、数字、下划线和连字符，可直接组成字面正则片段。
-    const nonce = boundaries[1];
+    // 普通正文不扫描尾部，也不分配协议边界数组。
+    if (!origin.startsWith('___FLUENTREAD_')) return origin;
+    const finalMarker = origin.match(/_(0|[1-9]\d*)_END___\s*$/u);
+    if (!finalMarker) return origin;
     // 最后一槽正文中的 index=N 仍是字面内容，不能由所有 BEGIN 数量推断槽数。
-    const count = Number(boundaries[2]) + 1;
+    const count = Number(finalMarker[1]) + 1;
+    if (!Number.isSafeInteger(count)) return origin;
+    const nonce = slotNamespaceFromBoundaries(origin, finalMarker.index!);
+    if (!nonce) return origin;
+    // nonce 的白名单只允许字母、数字、下划线和连字符，可直接组成字面正则片段。
     const observedStarts = [...origin.matchAll(new RegExp(`___FLUENTREAD_${nonce}_(?:0|[1-9]\\d*)_BEGIN___`, 'gu'))].length;
     // 先验证实际输入规模，不能按不可信尾部整数分配无限数组。
-    if (!Number.isSafeInteger(count) || count > observedStarts) return origin;
+    if (count > observedStarts) return origin;
     const starts = Array.from({length: count}, (_, index) => `___FLUENTREAD_${nonce}_${index}_BEGIN___`);
     const ends = starts.map(marker => marker.replace(/_BEGIN___$/u, '_END___'));
     return parseTranslationSlots({payload: origin, starts, ends}, origin) ?? origin;
