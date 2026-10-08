@@ -1,0 +1,14 @@
+{
+  "label": "type-publish",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vue-tsc/bin/vue-tsc.js",
+    "--noEmit"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:29:13.620474+00:00",
+  "duration_seconds": 13.589,
+  "exit_code": 0
+}

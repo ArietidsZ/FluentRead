@@ -1,0 +1,15 @@
+{
+  "label": "identity-red",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageTransactionIdentity.test.ts",
+    "--reporter=json",
+    "--outputFile=../image-area-transaction-identity-20261008/identity-red.results.json"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T03:52:00.690899+00:00",
+  "duration_seconds": 0.435,
+  "exit_code": 1
+}

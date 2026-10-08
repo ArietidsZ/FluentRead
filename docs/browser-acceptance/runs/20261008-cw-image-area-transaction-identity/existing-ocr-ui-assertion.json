@@ -1,0 +1,6 @@
+{
+  "baseline": "e12faf5e0875297ae970a0de947c9763b5ac21e8",
+  "test": "tests/featureVerticalSliceRegression.test.ts",
+  "source_file": "src/features/image-translation/ui/ImageOcrSettings.vue",
+  "expected_literal_present_at_baseline": false
+}

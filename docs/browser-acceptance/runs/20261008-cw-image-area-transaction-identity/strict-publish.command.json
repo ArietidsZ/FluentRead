@@ -1,0 +1,22 @@
+{
+  "label": "strict-publish",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=../image-area-transaction-identity-20261008/strict-publish.results.json",
+    "--coverage.reportsDirectory=../image-area-transaction-identity-20261008/strict-publish-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:29:13.505840+00:00",
+  "duration_seconds": 171.087,
+  "exit_code": 0
+}

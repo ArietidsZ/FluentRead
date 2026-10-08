@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/extensionManifestContract.test.ts --reporter=json --outputFile=../image-area-transaction-identity-20261008/combo-wxt-contract.results.json
+JSON report written to <CW_TASK_ROOT>/image-area-transaction-identity-20261008/combo-wxt-contract.results.json

@@ -1,0 +1,15 @@
+{
+  "label": "build-chrome-publish",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:30:33.609176+00:00",
+  "duration_seconds": 0.796,
+  "exit_code": 1
+}

@@ -1,0 +1,15 @@
+{
+  "label": "vertical-slice-publish",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/featureVerticalSliceRegression.test.ts",
+    "--reporter=json",
+    "--outputFile=../image-area-transaction-identity-20261008/vertical-slice-publish.results.json"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:34:17.172729+00:00",
+  "duration_seconds": 0.261,
+  "exit_code": 1
+}

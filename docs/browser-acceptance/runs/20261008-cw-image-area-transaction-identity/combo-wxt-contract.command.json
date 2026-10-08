@@ -1,0 +1,18 @@
+{
+  "label": "combo-wxt-contract",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/extensionManifestContract.test.ts",
+    "--reporter=json",
+    "--outputFile=../image-area-transaction-identity-20261008/combo-wxt-contract.results.json"
+  ],
+  "cwd": "<CW_COMBINATION_WORKTREE>",
+  "started_at": "2026-10-08T04:39:39.767265+00:00",
+  "duration_seconds": 1.144,
+  "exit_code": 0
+}

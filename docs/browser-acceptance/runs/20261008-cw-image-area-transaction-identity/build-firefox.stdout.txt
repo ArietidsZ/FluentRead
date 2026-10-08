@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/wxt/bin/wxt.mjs build -b firefox
+
+WXT 0.20.18
+ℹ Building firefox-mv2 for production with Vite 5.4.19
+✖ Command failed after 514 ms

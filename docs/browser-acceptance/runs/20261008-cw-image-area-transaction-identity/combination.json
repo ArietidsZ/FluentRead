@@ -1,0 +1,20 @@
+{
+  "pure_commit": "2bc49b8377ed537d1a57ab8535df4c3cc17a09cf",
+  "approved_wxt_patch": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74",
+  "patch_already_in_pure_commit": false,
+  "combination_commit": "b25e372731a6feb2aa1bf4bbd7992b37a0e19cb8",
+  "combination_tree": "89b6279f3aae30dac7b112b371dab35319f5373f",
+  "combination_worktree": "<CW_COMBINATION_WORKTREE>",
+  "installed_dependencies_reused": true,
+  "pure_branch_not_modified": true,
+  "changed_files_against_pure": [
+    "entrypoints/localTtsWorker.ts",
+    "tests/extensionManifestContract.test.ts"
+  ],
+  "builds": {
+    "combo-build-chrome": 0,
+    "combo-build-firefox": 0,
+    "combo-manifests": 0,
+    "combo-wxt-contract": 0
+  }
+}

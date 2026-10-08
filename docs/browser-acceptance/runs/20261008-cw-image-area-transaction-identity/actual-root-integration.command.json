@@ -1,0 +1,15 @@
+{
+  "label": "actual-root-integration",
+  "command": [
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/imageTransactionIdentity.test.ts",
+    "--reporter=json",
+    "--outputFile=../image-area-transaction-identity-20261008/actual-root-integration.results.json"
+  ],
+  "cwd": "<CW_WORKTREE>",
+  "started_at": "2026-10-08T04:28:01.540137+00:00",
+  "duration_seconds": 0.675,
+  "exit_code": 0
+}
