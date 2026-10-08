@@ -178,6 +178,50 @@ describe('各请求路径共用逐槽判断', () => {
     });
 });
 
+describe('X 实际中文界面标签的全文请求边界', () => {
+    // 来自 X 全文 provider origins；只替换客户端与配置，沿用真实语言核心。
+    const labels = ['登录或注册 X', '使用用户名或邮箱登录', '相关用户', '关注', '当前趋势', '条款', '隐私'];
+    const services = ['google', 'microsoft', 'freeTranslation', 'localTranslation'];
+
+    it.each(services)('%s：auto → zh-Hans 保留七个中文标签，只提交相邻英文正文', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'zh-Hans'});
+        const texts = [labels[0]!, english, ...labels.slice(1)];
+        const result = await translateTextSlots(texts, captureFullPageTranslationConfig());
+        expect.soft(submitted()).toEqual([english]);
+        expect(result).toEqual([labels[0], `T:${english}`, ...labels.slice(1)]);
+    });
+
+    it.each(services)('%s：auto → en 仍提交七个中文标签，保留相邻英文正文', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'en'});
+        const result = await translateTextSlots([labels[0]!, english, ...labels.slice(1)], captureFullPageTranslationConfig());
+        expect(submitted()).toEqual(labels);
+        expect(result).toEqual([`T:${labels[0]}`, english, ...labels.slice(1).map(label => `T:${label}`)]);
+    });
+
+    it.each(services)('%s：简繁转换继续请求，混合正文、日韩文与不确定纯 Han 不误跳过', async service => {
+        Object.assign(runtime.config, {service, from: 'auto', to: 'zh-Hant'});
+        // 七个完整标签含简体字形；同形片段「注册」不单独证明任意纯 Han 属于中文。
+        const traditional = '這個網頁可以翻譯繁體中文。';
+        const hantResult = await translateTextSlots([...labels, traditional], captureFullPageTranslationConfig());
+        expect.soft(submitted()).toEqual(labels);
+        expect.soft(hantResult).toEqual([...labels.map(text => `T:${text}`), traditional]);
+
+        runtime.requests = [];
+        runtime.config.to = 'zh-Hans';
+        const foreignOrUncertain = [
+            traditional,
+            '这些算法使用 AI，可以降低成本，但是 Please translate this sentence.',
+            'この機能は誰でも簡単に使うことが出来ます。',
+            '경제(經濟) 성장률이 올해 크게 높아졌습니다.',
+            '時間',
+            '日本国立大学',
+        ];
+        const hansResult = await translateTextSlots(foreignOrUncertain, captureFullPageTranslationConfig());
+        expect(submitted()).toEqual(foreignOrUncertain);
+        expect(hansResult).toEqual(foreignOrUncertain.map(text => `T:${text}`));
+    });
+});
+
 describe('排除语言与快照变化', () => {
     it('是否配置排除语言都执行同样的完整识别：德文目标下德文槽不因排除列表为空而提交', async () => {
         const withoutExcluded = captureFullPageTranslationConfig();

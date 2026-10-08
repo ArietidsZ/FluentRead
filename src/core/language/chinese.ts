@@ -83,8 +83,9 @@ const traditionalChineseEvidencePattern = /[這們譯與說從對樣發氣點實
 const cantoneseMarkerPattern = /[嘅咗哋佢冇嚟喺啲嘢唔咁乜嗰咩噉]/u;
 // 中文词语同样能确认语境，不能只在所有汉字均为中性字形时才使用：
 // 如「清单允许清空，且不再连带拒掉无关偏好的保存」没有命中上方单字短表。
+// 登录、用户、邮箱等中文词语也可确认短界面文本，仍须先通过字形冲突与混合正文检查。
 // 不能把「時間」「日本語」或任何纯 Han 都视为中文，也不靠宿主页 lang 猜测。
-const sharedChineseEvidencePattern = /新增|不再|允[许許]|[你您]好|[谢謝]{2}/u;
+const sharedChineseEvidencePattern = /新增|不再|允[许許]|[你您]好|[谢謝]{2}|登[录錄]|用[户戶]|[邮郵]箱|[关關]注|[趋趨][势勢]|[条條]款|[隐隱]私/u;
 
 export function hasSimplifiedChineseEvidence(value: string): boolean {
     return simplifiedChineseOnlyPattern.test(value);
