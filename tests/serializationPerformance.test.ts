@@ -10,9 +10,102 @@ import {
     serializeTranslationSlots,
 } from '@/src/core/translation/public';
 import {isForeignTranslationBoundary} from '@/src/core/translation/dom';
-import {isTranslationTextNodeProtected} from '@/src/core/translation/text';
+import {
+    createTranslationTextProtectionCache,
+    isTranslationTextElementProtected,
+    isTranslationTextNodeProtected,
+} from '@/src/core/translation/text';
 
 describe('translation snapshot mapping performance', () => {
+    it('共享父级已判定后仍复核普通叶子和禁译元素，下一轮读取宿主变化', () => {
+        const {document} = parseHTML('<html><body><p>Source <span>inline</span><code>code</code><span translate="no">label</span></p></body></html>');
+        const owner = document.querySelector('p')!;
+        const originalHTML = owner.innerHTML;
+        const cache = createTranslationTextProtectionCache();
+        const checked: Element[] = [];
+        const shouldStayOriginal = (element: Element) => {checked.push(element); return false;};
+        expect(isTranslationTextElementProtected(owner, shouldStayOriginal, cache)).toBe(false);
+        checked.length = 0;
+        const nodes = [owner.firstChild!, ...Array.from(owner.children).map(element => element.firstChild!)] as Text[];
+        expect(nodes.map(node => isTranslationTextNodeProtected(node, shouldStayOriginal, undefined, undefined, cache)))
+            .toEqual([false, false, true, true]);
+        expect(checked).toEqual([owner.children[0]]);
+        expect(owner.innerHTML).toBe(originalHTML);
+        expect(nodes.every((node, index) => node === (index === 0 ? owner.firstChild : owner.children[index - 1]!.firstChild)))
+            .toBe(true);
+        expect(extractTranslationText(owner)).toBe('Source inline');
+        owner.children[0]!.setAttribute('translate', 'no');
+        expect(extractTranslationText(owner)).toBe('Source');
+    });
+
+    it('已缓存父级仍调用站点叶子保护回调，并使用来源节点自己的文档', () => {
+        const {document} = parseHTML('<html><body><p><span>Allowed source</span><em>Keep original</em></p></body></html>');
+        const owner = document.querySelector('p')!;
+        const checked: Element[] = [];
+        const shouldStayOriginal = (element: Element) => {
+            checked.push(element);
+            return element === owner.lastElementChild;
+        };
+        expect(extractTranslationText(owner, shouldStayOriginal)).toBe('Allowed source');
+        expect(checked.indexOf(owner.firstElementChild!)).toBeLessThan(checked.indexOf(owner.lastElementChild!));
+        const {document: hiddenDocument, window} = parseHTML('<html><body><p><span>Other document</span></p></body></html>');
+        const style = vi.fn(() => ({display: 'none', visibility: 'visible', fontFamily: 'serif'}));
+        const previous = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+        try {
+            Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: style});
+            expect(extractTranslationText(hiddenDocument.querySelector('p')!)).toBe('');
+            expect(style).toHaveBeenCalled();
+        } finally {
+            if (previous) Object.defineProperty(window, 'getComputedStyle', previous);
+            else Reflect.deleteProperty(window, 'getComputedStyle');
+        }
+    });
+
+    it('父级缓存继承仍跨 Shadow host 保护并仅放行指定原文槽，MathML 保持受保护', () => {
+        const {document} = parseHTML('<html><body><section></section><math xmlns="http://www.w3.org/1998/Math/MathML"><mi>x</mi></math></body></html>');
+        const host = document.querySelector('section')!;
+        const shadow = host.attachShadow({mode: 'open'});
+        const leaf = document.createElement('span');
+        leaf.textContent = 'Shadow source';
+        shadow.append(leaf);
+        const cache = createTranslationTextProtectionCache();
+        expect(isTranslationTextElementProtected(host, undefined, cache)).toBe(false);
+        expect(isTranslationTextNodeProtected(leaf.firstChild as Text, undefined, undefined, undefined, cache)).toBe(false);
+        host.setAttribute('translate', 'no');
+        expect(isTranslationTextNodeProtected(leaf.firstChild as Text)).toBe(true);
+        host.setAttribute('data-fr-translation-owned', 'true');
+        const options = {sourceTextSlotHosts: new Set([host])};
+        const slotCache = createTranslationTextProtectionCache();
+        expect(isTranslationTextElementProtected(host, undefined, slotCache, options)).toBe(false);
+        expect(isTranslationTextNodeProtected(leaf.firstChild as Text, undefined, undefined, options, slotCache)).toBe(false);
+        leaf.setAttribute('translate', 'no');
+        expect(isTranslationTextNodeProtected(leaf.firstChild as Text, undefined, undefined, options)).toBe(true);
+        const math = document.querySelector('math')!;
+        const mathCache = createTranslationTextProtectionCache();
+        expect(isTranslationTextElementProtected(math, undefined, mathCache)).toBe(true);
+        expect(isTranslationTextNodeProtected(math.firstChild!.firstChild as Text, undefined, undefined, undefined, mathCache)).toBe(true);
+    });
+
+    it('已缓存父级的第 513 层叶子仍保守保护且不调用站点放行回调', () => {
+        const {document} = parseHTML('<html><body></body></html>');
+        const root = document.createElement('span');
+        let parent = root;
+        for (let depth = 1; depth < 512; depth += 1) {
+            const child = document.createElement('span');
+            parent.append(child);
+            parent = child;
+        }
+        const leaf = document.createElement('span');
+        leaf.textContent = 'Deep source';
+        parent.append(leaf);
+        const cache = createTranslationTextProtectionCache();
+        const shouldStayOriginal = vi.fn(() => false);
+        expect(isTranslationTextElementProtected(parent, shouldStayOriginal, cache)).toBe(false);
+        shouldStayOriginal.mockClear();
+        expect(isTranslationTextNodeProtected(leaf.firstChild as Text, shouldStayOriginal, undefined, undefined, cache)).toBe(true);
+        expect(shouldStayOriginal).not.toHaveBeenCalled();
+    });
+
     it.each(['BEGIN', 'END'])('原文包含另一槽的 %s 完整标记时避让 nonce，自己生成的包仍可完整往返', (kind) => {
         const sources = [`A literal ___FLUENTREAD_cross_slot_1_${kind}___ appears here.`, 'Second source.'];
         const packet = serializeTranslationSlots(sources, 'cross_slot');

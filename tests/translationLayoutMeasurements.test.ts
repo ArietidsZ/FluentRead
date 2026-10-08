@@ -1,8 +1,8 @@
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createTranslationLayoutMeasurements} from '@/src/core/translation/layoutMeasurements';
-import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow, isTranslationHeightBoundary} from '@/src/core/translation/serialization';
-import {beginTranslation, createTranslationTruncationLayoutBatch, ensureTranslationTruncationLayout,
+import {hasActiveTranslationLineClamp, hasTranslationHeightOverflow, isTranslationHeightBoundary, translationHeightStyleOverrides} from '@/src/core/translation/serialization';
+import {acquireTranslationLayoutOverride, beginTranslation, createTranslationTruncationLayoutBatch, ensureTranslationTruncationLayout,
     markTranslationComplete, restoreAllTranslations, restoreTranslation, setBilingualContent} from '@/src/features/full-page-translation/content/state';
 
 afterEach(() => restoreAllTranslations());
@@ -155,6 +155,94 @@ describe('synchronous translation layout measurements', () => {
         restoreTranslation(owners[1]!);
         expect(main.getAttribute('style')).toBe(originalStyle);
     });
+
+    it('断开的最后租户在新 owner 接管时释放后，当轮重新解除恢复的裁剪', () => {
+        const {document, window} = parseHTML('<html><body><main style="max-height:20px;overflow:hidden"><p>Same source.</p></main></body></html>');
+        const main = document.querySelector('main')!;
+        const originalStyle = main.getAttribute('style');
+        const oldOwner = document.querySelector('p')!;
+        const restore = installStyle(window, element => style({
+            maxHeight: element === main ? main.style.getPropertyValue('max-height') : 'none',
+            overflowY: element === main ? main.style.getPropertyValue('overflow') : 'visible',
+        }));
+        main.getBoundingClientRect = () => rect(main.style.getPropertyValue('max-height') === '20px' ? 20 : 80);
+        Object.defineProperties(main, {
+            clientHeight: {get: () => main.style.getPropertyValue('max-height') === '20px' ? 20 : 80},
+            scrollHeight: {value: 80},
+        });
+        const translate = (owner: HTMLElement) => {
+            owner.getBoundingClientRect = () => rect(80);
+            const source = owner.firstChild;
+            const attempt = beginTranslation(owner, 'bilingual', 'content', false, owner.textContent!, [])!;
+            expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+            const wrapper = document.createElement('span');
+            wrapper.className = 'fluent-read-bilingual-content';
+            wrapper.setAttribute('data-fr-translation-owned', 'true');
+            wrapper.textContent = '译文';
+            owner.append(wrapper);
+            setBilingualContent(owner, wrapper);
+            return {attempt, source};
+        };
+        try {
+            const previous = translate(oldOwner);
+            expect(ensureTranslationTruncationLayout(oldOwner)).toBe(true);
+            expect(main.style.getPropertyValue('max-height')).toBe('unset');
+            const replacement = document.createElement('p');
+            replacement.textContent = 'Same source.';
+            oldOwner.replaceWith(replacement);
+            const current = translate(replacement);
+            expect(ensureTranslationTruncationLayout(replacement)).toBe(true);
+            expect(main.style.getPropertyValue('max-height')).toBe('unset');
+            expect(previous.attempt.state.controller.signal.aborted).toBe(true);
+            expect(replacement.firstChild).toBe(current.source);
+            expect(restoreTranslation(replacement)).toBe(true);
+            expect(main.getAttribute('style')).toBe(originalStyle);
+            expect(replacement.textContent).toBe('Same source.');
+        } finally { restore(); }
+    });
+
+    it('同批移走唯一租户恢复旧祖先样式后，后续兄弟读取因 CSS 依赖改变的新裁剪', () => {
+        const {document, window} = parseHTML('<html><body><div id="leased" style="height:10px"><p id="moved">Moving source.</p></div><div id="destination"></div><main><p id="first">First source.</p><p id="second">Second source.</p></main></body></html>');
+        const leased = document.getElementById('leased')!;
+        const destination = document.getElementById('destination')!;
+        const main = document.querySelector('main')!;
+        const owners = ['moved', 'first', 'second'].map(id => document.getElementById(id)!);
+        const sourceNodes = owners.map(owner => owner.firstChild);
+        const restore = installStyle(window, element => style({
+            height: element === main && leased.style.height !== 'auto' ? '20px' : '100px',
+            maxHeight: element === main ? main.style.getPropertyValue('max-height') ||
+                (leased.style.height === 'auto' ? 'none' : '20px') : 'none',
+            overflowY: element === main ? 'hidden' : 'visible',
+        }));
+        [leased, destination, main, ...owners].forEach(element => {
+            element.getBoundingClientRect = () => rect(element === main && leased.style.height !== 'auto' ? 20 : 100);
+            Object.defineProperties(element, {
+                clientHeight: {get: () => element === main && leased.style.height !== 'auto' ? 20 : 100},
+                scrollHeight: {value: 100},
+            });
+        });
+        try {
+            owners.forEach(owner => {
+                const attempt = beginTranslation(owner, 'bilingual', 'content', false, owner.textContent!, [])!;
+                expect(markTranslationComplete(owner, attempt.state, attempt.generation)).toBe(true);
+                const wrapper = document.createElement('span');
+                wrapper.className = 'fluent-read-bilingual-content';
+                wrapper.setAttribute('data-fr-translation-owned', 'true');
+                wrapper.textContent = '译文';
+                owner.append(wrapper);
+                setBilingualContent(owner, wrapper);
+            });
+            expect(acquireTranslationLayoutOverride(owners[0], leased, translationHeightStyleOverrides)).toBe(true);
+            destination.append(owners[0]); // 宿主写入在整个读批次开始前完成。
+            const reconcile = createTranslationTruncationLayoutBatch();
+            expect(reconcile(owners[1])).toBe(true); // 此时缓存 main 未裁剪的读数。
+            expect(reconcile(owners[0])).toBe(true); // 释放最后一个旧祖先租约。
+            expect(leased.style.height).toBe('10px');
+            expect(reconcile(owners[2])).toBe(true);
+            expect(main.style.getPropertyValue('max-height')).toBe('unset');
+            expect(owners.map(owner => owner.firstChild)).toEqual(sourceNodes);
+        } finally { restore(); }
+    });
 });
 
 function installStyle(window: Window, read: (element: Element) => object): () => void {
@@ -167,6 +255,40 @@ function installStyle(window: Window, read: (element: Element) => object): () =>
 }
 
 describe('同步布局测量字段的冻结与失效', () => {
+    it.each(['none', '', undefined])('transform 首次读数 %s 在同轮保持不变，失效后读取宿主新变换', initial => {
+        const {document, window} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        let current = initial;
+        const transform = vi.fn(() => current);
+        const restore = installStyle(window, () => ({get transform() { return transform(); }}));
+        try {
+            const measurements = createTranslationLayoutMeasurements();
+            const first = measurements.style(owner)!;
+            expect(first.transform).toBe(initial);
+            current = 'matrix(1, 0, 0, 1, 0, 20)';
+            expect(measurements.style(owner)!.transform).toBe(initial);
+            expect(transform).toHaveBeenCalledTimes(1);
+            measurements.invalidate();
+            expect(measurements.style(owner)!.transform).toBe(current);
+            expect(transform).toHaveBeenCalledTimes(2);
+        } finally { restore(); }
+    });
+
+    it('transform 读取抛错不登记快照，布局 API 恢复后同轮可重新读取', () => {
+        const {document, window} = parseHTML('<html><body><p>Readable source.</p></body></html>');
+        const owner = document.querySelector<HTMLElement>('p')!;
+        const transform = vi.fn().mockImplementationOnce(() => {throw new Error('Unreadable transform');})
+            .mockReturnValue('none');
+        const restore = installStyle(window, () => ({get transform() { return transform(); }}));
+        try {
+            const first = createTranslationLayoutMeasurements().style(owner)!;
+            expect(() => first.transform).toThrow('Unreadable transform');
+            expect(first.transform).toBe('none');
+            expect(first.transform).toBe('none');
+            expect(transform).toHaveBeenCalledTimes(2);
+        } finally { restore(); }
+    });
+
     it('边界预检查不读取无关高度/矩形，字段按需冻结且失效后取得新值', () => {
         const {document, window} = parseHTML('<html><body><p>Readable source.</p></body></html>');
         const owner = document.querySelector<HTMLElement>('p')!;

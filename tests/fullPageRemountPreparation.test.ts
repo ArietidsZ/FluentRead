@@ -7,10 +7,10 @@
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
-import {createBilingualRemountPreparationBatch} from '@/src/features/full-page-translation/content/bilingualRemount';
+import {createBilingualRemountPreparationBatch, transferEquivalentBilingualOwners} from '@/src/features/full-page-translation/content/bilingualRemount';
 import {asHTMLElement, isElementNode, mutationTargetElement} from '@/src/features/full-page-translation/content/mutationObservation';
-import {beginTranslation, markTranslationComplete, restoreAllTranslations, setBilingualContent} from '@/src/features/full-page-translation/content/state';
-import {getCurrentTranslationCore} from '@/src/core/translation/public';
+import {acquireTranslationLayoutOverride, beginTranslation, getTranslationState, markTranslationComplete, restoreAllTranslations, restoreTranslation, setBilingualContent} from '@/src/features/full-page-translation/content/state';
+import {getCurrentTranslationCore, translationTruncationStyleOverrides} from '@/src/core/translation/public';
 
 const source = 'This readable source paragraph must keep its current text and translation ownership after remounting.';
 
@@ -42,6 +42,50 @@ afterEach(() => {
 });
 
 describe('公开全文重挂准备与节点边界', () => {
+    it('真实重挂准备与交接当轮重新解除最后旧租户恢复的裁剪，恢复保留新来源', () => {
+        const fixture = committedReplacement();
+        const {document, previousOwner, replacementOwner} = fixture;
+        const window = document.defaultView!;
+        const descriptor = Object.getOwnPropertyDescriptor(window, 'getComputedStyle');
+        const clamp = document.createElement('div');
+        clamp.setAttribute('style', 'max-height:20px;overflow:hidden');
+        const originalStyle = clamp.getAttribute('style');
+        const sourceNode = replacementOwner.firstChild;
+        replacementOwner.replaceWith(clamp);
+        clamp.append(previousOwner);
+        const clipped = () => clamp.style.getPropertyValue('max-height') === '20px';
+        const rect = (height: number) => ({top: 0, bottom: height} as DOMRect);
+        clamp.getBoundingClientRect = () => rect(clipped() ? 20 : 80);
+        replacementOwner.getBoundingClientRect = () => rect(80);
+        Object.defineProperties(clamp, {
+            clientHeight: {get: () => clipped() ? 20 : 80}, scrollHeight: {value: 80},
+        });
+        try {
+            Object.defineProperty(window, 'getComputedStyle', {configurable: true, value: (element: HTMLElement) => ({
+                display: 'block', visibility: 'visible', fontFamily: 'serif', position: 'static', transform: 'none',
+                height: '100px', maxHeight: element === clamp ? clamp.style.getPropertyValue('max-height') : 'none',
+                overflowY: element === clamp ? clamp.style.getPropertyValue('overflow') : 'visible',
+                webkitLineClamp: 'none', getPropertyValue: () => '',
+            })});
+            expect(acquireTranslationLayoutOverride(previousOwner, clamp, translationTruncationStyleOverrides)).toBe(true);
+            previousOwner.replaceWith(replacementOwner);
+            const result = transferEquivalentBilingualOwners({type: 'childList', target: clamp,
+                addedNodes: [replacementOwner], removedNodes: [previousOwner]} as unknown as MutationRecord,
+            createBilingualRemountPreparationBatch());
+            expect(result.transfers).toEqual([{previousOwner, replacementOwner}]);
+            expect(clamp.style.getPropertyValue('max-height')).toBe('unset');
+            expect(getTranslationState(previousOwner)).toBeUndefined();
+            expect(replacementOwner.firstChild).toBe(sourceNode);
+            expect(restoreTranslation(replacementOwner)).toBe(true);
+            expect(clamp.getAttribute('style')).toBe(originalStyle);
+            expect(replacementOwner.textContent).toBe(source);
+        } finally {
+            restoreAllTranslations();
+            if (descriptor) Object.defineProperty(window, 'getComputedStyle', descriptor);
+            else Reflect.deleteProperty(window, 'getComputedStyle');
+        }
+    });
+
     it('拒绝缺少标签或样式的元素形状，保留 Text 与 ShadowRoot 的真实宿主', () => {
         for (const invalid of [null, undefined, false, 'p', {nodeType: 3},
             {nodeType: 1, tagName: 12, style: {}}, {nodeType: 1, tagName: 'P', style: undefined}]) {
