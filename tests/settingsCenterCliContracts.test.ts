@@ -169,17 +169,17 @@ describe('settings center CLI remaining current UI contracts', () => {
             [{color: 'invalid', image: 'none'}],
         ]) expect(resolveSolidBackground(layers)).toBeNull();
     });
-    it('checks the About QR against its declared desktop size and square presentation', () => {
-        const {expectedAboutSupportQrSize, matchesAboutSupportQrBounds} = bindings(['expectedAboutSupportQrSize', 'matchesAboutSupportQrBounds']);
+    it('checks the About QR against available card width and square presentation', () => {
+        const {matchesAboutSupportQrBounds} = bindings(['matchesAboutSupportQrBounds']);
         const css = cssDeclarations('src/features/settings/ui/settings-page.css', '.about-support-qr');
-        const declaredSize = Number(css.width.match(/^min\((\d+)px,\s*100%\)$/)?.[1]);
-        expect(declaredSize).toBe(148);
-        expect(expectedAboutSupportQrSize).toBe(declaredSize);
+        expect(css.width).toBe('100%');
         expect(css.height).toBe('auto');
         expect(css['aspect-ratio']).toBe('1');
         expect(css['object-fit']).toBe('contain');
-        expect(matchesAboutSupportQrBounds({width: declaredSize, height: declaredSize})).toBe(true);
-        expect(matchesAboutSupportQrBounds({width: declaredSize + .4, height: declaredSize - .4})).toBe(true);
+        for (const availableWidth of [148, 200, 320]) {
+            expect(matchesAboutSupportQrBounds({width: availableWidth, height: availableWidth}, availableWidth)).toBe(true);
+            expect(matchesAboutSupportQrBounds({width: availableWidth + .4, height: availableWidth - .4}, availableWidth)).toBe(true);
+        }
 
         const about = productionSource('src/app/options/OptionsApp.vue');
         const image = about.match(/<img\b[^>]*class="about-support-qr"[^>]*>/)?.[0];
@@ -195,12 +195,12 @@ describe('settings center CLI remaining current UI contracts', () => {
     });
 
     it.each([
-        null, {width: 0, height: 0}, {width: 146, height: 148}, {width: 148, height: 146},
-        {width: 160, height: 160}, {width: 200, height: 200},
-        {width: 147, height: 149}, {width: NaN, height: 148}, {width: 148, height: Infinity},
-    ])('rejects a missing, undersized, legacy oversized or distorted About QR (%j)', bounds => {
-        const {matchesAboutSupportQrBounds} = bindings(['expectedAboutSupportQrSize', 'matchesAboutSupportQrBounds']);
-        expect(matchesAboutSupportQrBounds(bounds)).toBe(false);
+        null, {width: 0, height: 0}, {width: 258, height: 260}, {width: 260, height: 258},
+        {width: 148, height: 148}, {width: 280, height: 280},
+        {width: 259, height: 261}, {width: NaN, height: 260}, {width: 260, height: Infinity},
+    ])('rejects a missing, undersized, overflowing or distorted About QR (%j)', bounds => {
+        const {matchesAboutSupportQrBounds} = bindings(['matchesAboutSupportQrBounds']);
+        expect(matchesAboutSupportQrBounds(bounds, 260)).toBe(false);
     });
 
     it('keeps all five current quick features in the matrix after explicitly adding appearance', () => {
