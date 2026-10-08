@@ -1,0 +1,47 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/architecture/moduleBoundaries.test.ts tests/architecture/providerBoundaries.test.ts tests/architecture/sourceFileHeaders.test.ts tests/architecture/verificationOwnership.test.ts tests/backgroundConfigPersistenceHandler.test.ts tests/backgroundConfigStorage.test.ts tests/backgroundConnectionTestHandler.test.ts tests/backgroundCoreHandlers.test.ts tests/backgroundMessageRouter.test.ts tests/backgroundProviderRuntime.test.ts tests/freeTranslationWeightsHandler.test.ts tests/backgroundRetiredContentScripts.test.ts tests/backgroundTranslationHandler.test.ts tests/selectionTtsBackgroundHandler.test.ts tests/browserFocusSafety.test.ts tests/harnessBackground.test.ts tests/harnessAppRuntime.test.ts tests/contentTrustBoundary.test.ts tests/extensionManifestContract.test.ts tests/fullRegressionRunner.test.ts tests/imageTranslationSecurityContract.test.ts tests/popupFeatureVisibility.test.ts tests/settingsUiArchitecture.test.ts tests/userscriptMetadata.test.ts tests/userscriptPrivacy.test.ts tests/userscriptViteConfig.test.ts tests/freeTranslationSettings.test.ts tests/writingBackground.test.ts tests/requestLimitSettings.test.ts tests/backgroundVisionProbe.test.ts tests/requestHeaderRuntime.test.ts tests/extensionSizeBudget.test.ts
+
+ RUN  v2.1.9 CW_INCOGNITO_WORKTREE
+
+ ✓ tests/settingsUiArchitecture.test.ts (37 tests) 41ms
+ ✓ tests/selectionTtsBackgroundHandler.test.ts (38 tests) 369ms
+ ✓ tests/backgroundConfigPersistenceHandler.test.ts (81 tests) 376ms
+ ✓ tests/browserFocusSafety.test.ts (105 tests) 121ms
+ ✓ tests/popupFeatureVisibility.test.ts (28 tests) 15ms
+ ✓ tests/architecture/verificationOwnership.test.ts (35 tests) 802ms
+   ✓ repository verification ownership > src 中每个可执行非组装模块都进入四维 100% 覆盖率边界 553ms
+ ✓ tests/backgroundTranslationHandler.test.ts (47 tests) 9ms
+ ✓ tests/architecture/moduleBoundaries.test.ts (13 tests) 1864ms
+   ✓ architecture module boundaries > src 的静态依赖图不存在跨文件循环 631ms
+   ✓ architecture module boundaries > src 只能通过精确登记的 composition/browser/provider 迁移边界读取 entrypoints 532ms
+ ✓ tests/extensionManifestContract.test.ts (20 tests) 44ms
+ ✓ tests/harnessBackground.test.ts (17 tests) 10ms
+ ✓ tests/freeTranslationSettings.test.ts (11 tests) 743ms
+   ✓ free translation settings compiled component > 所有服务直接展示逐项结果与测试耗时，停用服务也保留本轮检查 540ms
+ ✓ tests/userscriptViteConfig.test.ts (11 tests) 88ms
+ ✓ tests/fullRegressionRunner.test.ts (7 tests) 144ms
+ ✓ tests/harnessAppRuntime.test.ts (3 tests) 3ms
+ ✓ tests/backgroundConfigStorage.test.ts (6 tests) 108ms
+ ✓ tests/architecture/providerBoundaries.test.ts (6 tests) 64ms
+ ✓ tests/writingBackground.test.ts (7 tests) 27ms
+ ✓ tests/requestLimitSettings.test.ts (4 tests) 559ms
+   ✓ request limit settings interaction > inherits existing global values and retains disabled model settings across toggles 504ms
+ ✓ tests/backgroundVisionProbe.test.ts (5 tests) 61ms
+ ✓ tests/imageTranslationSecurityContract.test.ts (6 tests) 24ms
+ ✓ tests/backgroundConnectionTestHandler.test.ts (10 tests) 4ms
+ ✓ tests/userscriptPrivacy.test.ts (10 tests) 3ms
+ ✓ tests/architecture/sourceFileHeaders.test.ts (829 tests) 107ms
+ ✓ tests/backgroundCoreHandlers.test.ts (9 tests) 5ms
+ ✓ tests/backgroundProviderRuntime.test.ts (3 tests) 6ms
+ ✓ tests/backgroundMessageRouter.test.ts (6 tests) 3ms
+ ✓ tests/contentTrustBoundary.test.ts (5 tests) 2ms
+ ✓ tests/requestHeaderRuntime.test.ts (2 tests) 55ms
+ ✓ tests/backgroundRetiredContentScripts.test.ts (3 tests) 3ms
+ ✓ tests/freeTranslationWeightsHandler.test.ts (2 tests) 3ms
+ ✓ tests/userscriptMetadata.test.ts (1 test) 1ms
+ ✓ tests/extensionSizeBudget.test.ts (1 test) 4ms
+
+ Test Files  32 passed (32)
+      Tests  1368 passed (1368)
+   Start at  16:14:25
+   Duration  11.39s (transform 1.00s, setup 0ms, collect 3.04s, tests 5.67s, environment 3ms, prepare 703ms)
+

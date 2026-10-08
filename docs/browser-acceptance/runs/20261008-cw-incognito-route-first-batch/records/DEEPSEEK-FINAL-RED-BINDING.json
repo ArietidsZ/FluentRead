@@ -1,0 +1,11 @@
+{
+  "old_implementation_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
+  "new_test_commit": "4868aabe3393cdbf99df5edbdce1166acfc34583",
+  "old_templates_sha256": "0b72dffa7a70366985a807f3e1a0f5f8cf97e6d6db1b9fedf9d67347e00d2e31",
+  "fixed_templates_sha256": "1ee06eabb115b505e3f9670c88e5e3d2e32e5a2387b1d2c48792cc6a13d052ad",
+  "committed_regression_test_sha256": "3b404d10e87314c9376de87b6ee262e1a3ab0e7a3fe86dc89b717121f43d3291",
+  "old_version_passed": 34,
+  "old_version_failed": 4,
+  "fixed_source_restored_byte_for_byte": true,
+  "worktree_status_after_restore": ""
+}

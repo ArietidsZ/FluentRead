@@ -1,0 +1,14 @@
+{
+  "at_utc": "2026-10-08T08:08:00.917642+00:00",
+  "checked_roots": [
+    "CW_TASK_ROOT",
+    "CW_LOCAL_AGENT_SKILLS",
+    "CW_LOCAL_CODEX_SKILLS",
+    "/tmp"
+  ],
+  "found_helpers": [],
+  "policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "no_browser_launch": true,
+  "no_setting_change": true,
+  "scope": "bounded filename search; not global absence"
+}

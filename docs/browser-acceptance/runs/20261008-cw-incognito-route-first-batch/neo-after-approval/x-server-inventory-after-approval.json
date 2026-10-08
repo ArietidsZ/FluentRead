@@ -1,0 +1,16 @@
+{
+  "programs": [
+    {
+      "pid": 8111,
+      "parent_pid": 6909,
+      "program": "Xwayland",
+      "display": ":0",
+      "tcp_disabled": false,
+      "uses_auth_file": true,
+      "auth_file_exists": true
+    }
+  ],
+  "read_only": true,
+  "auth_file_bodies_not_read": true,
+  "new_server_started": false
+}

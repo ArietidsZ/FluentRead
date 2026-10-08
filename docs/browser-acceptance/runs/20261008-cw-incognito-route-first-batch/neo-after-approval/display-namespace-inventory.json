@@ -1,0 +1,72 @@
+{
+  "program_paths": {
+    "Xvfb": null,
+    "Xephyr": null,
+    "Xvnc": null,
+    "Xtigervnc": null,
+    "dbus-run-session": "/usr/bin/dbus-run-session",
+    "xauth": "/usr/bin/xauth"
+  },
+  "process_metadata": [
+    {
+      "pid": 8111,
+      "executable": "/usr/bin/Xwayland",
+      "executable_on_cw_host_exists": true,
+      "namespaces_match_observer": {
+        "mnt": true,
+        "net": true,
+        "ipc": true,
+        "user": true
+      },
+      "ancestors": [
+        {
+          "pid": 8111,
+          "name": "Xwayland"
+        },
+        {
+          "pid": 6909,
+          "name": "gnome-shell"
+        },
+        {
+          "pid": 2857,
+          "name": "systemd"
+        },
+        {
+          "pid": 1,
+          "name": "systemd"
+        }
+      ]
+    },
+    {
+      "pid": 230503,
+      "executable": "/opt/base/bin/Xvnc",
+      "executable_on_cw_host_exists": false,
+      "namespaces_match_observer": {
+        "mnt": false,
+        "net": false,
+        "ipc": false,
+        "user": false
+      },
+      "ancestors": [
+        {
+          "pid": 230503,
+          "name": "Xvnc"
+        },
+        {
+          "pid": 229576,
+          "name": "cinit"
+        },
+        {
+          "pid": 229573,
+          "name": "conmon"
+        },
+        {
+          "pid": 1,
+          "name": "systemd"
+        }
+      ]
+    }
+  ],
+  "read_only": true,
+  "entered_other_namespace": false
+}

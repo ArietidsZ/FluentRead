@@ -1,0 +1,20 @@
+{
+  "label": "deepseek-old-red",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/incognitoTranslationRoute.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_INCOGNITO_EVIDENCE/deepseek-old-red.results.json"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:10:29.243060+00:00",
+  "duration_seconds": 0.784,
+  "exit_code": 1
+}

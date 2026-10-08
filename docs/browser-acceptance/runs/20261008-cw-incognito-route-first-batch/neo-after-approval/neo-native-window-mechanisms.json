@@ -1,0 +1,100 @@
+{
+  "at_utc": "2026-10-08T08:20:44.069571+00:00",
+  "server_info": {
+    "name": "browseros-neo",
+    "title": "BrowserOS neo",
+    "version": "0.0.67"
+  },
+  "operations": [
+    "initialize",
+    "notifications/initialized",
+    "tools/list"
+  ],
+  "tools": {
+    "tabs": {
+      "description": "Manage browser tabs: list open pages (with their page ids), show the active page, open a new page in the background (snapshot attached), or close one. Use the returned page id with snapshot/act/navigate. action=\"list\" reports the tab group id of every grouped page. Record yours on your first list of a task, before you need it. Ownership is per connection: every remade connection starts a new session and loses it, so list before you open anything on a new connection and pass that id as groupId on action=\"new\". Your pages then keep going to that group instead of a second one being started for the same task, and the tabs already in it read as yours again. If you no longer have the id, find it in the listing: after a reconnect your tabs read as another agent's, and your group is titled with your own name as <yourName>/<task>. Only action=\"new\" reclaims; groupId is ignored on the other actions.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {
+          "not": {}
+        },
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "active",
+              "new",
+              "close"
+            ],
+            "type": "string"
+          },
+          "groupId": {
+            "default": null,
+            "description": "Tab group id for action=\"new\". Pass the group id a previous call reported\nto keep continuing work in the same group; omit it to use your own group.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "page": {
+            "description": "Page id for action=\"close\".",
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "session": {
+            "description": "Opaque session handle for this browser session. You receive one only if your client connects without its own transport session id: then the server returns it in every tool result's `_meta` under the key `com.browseros.neo/session` and as a line in the result text, and you pass it back as this `session` argument on every later call to stay in the same browser session. If you never see one, this argument does nothing for you, and your continuity across a remade connection is your tab group id instead: read it from tabs action=\"list\" and pass it as groupId on tabs action=\"new\". Omit this argument on your first call, and again if the server tells you this session was stopped or is no longer active; resending a dead handle will not revive it.",
+            "type": "string"
+          },
+          "url": {
+            "description": "URL for action=\"new\" (defaults to about:blank).",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    },
+    "windows": {
+      "description": "Manage browser windows: list, create, or close windows.",
+      "inputSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "additionalProperties": {
+          "not": {}
+        },
+        "properties": {
+          "action": {
+            "enum": [
+              "list",
+              "create",
+              "close"
+            ],
+            "type": "string"
+          },
+          "session": {
+            "description": "Opaque session handle for this browser session. You receive one only if your client connects without its own transport session id: then the server returns it in every tool result's `_meta` under the key `com.browseros.neo/session` and as a line in the result text, and you pass it back as this `session` argument on every later call to stay in the same browser session. If you never see one, this argument does nothing for you, and your continuity across a remade connection is your tab group id instead: read it from tabs action=\"list\" and pass it as groupId on tabs action=\"new\". Omit this argument on your first call, and again if the server tells you this session was stopped or is no longer active; resending a dead handle will not revive it.",
+            "type": "string"
+          },
+          "windowId": {
+            "description": "Window id for close.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
+  "gui_calls": 0,
+  "window_creation": false,
+  "profile_change": false,
+  "actual_session_handles_omitted": true
+}

@@ -1,0 +1,52 @@
+node /org/cua/WinRects {
+  interface org.freedesktop.DBus.Properties {
+    methods:
+      Get(in  s interface_name,
+          in  s property_name,
+          out v value);
+      GetAll(in  s interface_name,
+             out a{sv} properties);
+      Set(in  s interface_name,
+          in  s property_name,
+          in  v value);
+    signals:
+      PropertiesChanged(s interface_name,
+                        a{sv} changed_properties,
+                        as invalidated_properties);
+    properties:
+  };
+  interface org.freedesktop.DBus.Introspectable {
+    methods:
+      Introspect(out s xml_data);
+    signals:
+    properties:
+  };
+  interface org.freedesktop.DBus.Peer {
+    methods:
+      Ping();
+      GetMachineId(out s machine_uuid);
+    signals:
+    properties:
+  };
+  interface org.cua.WinRects {
+    methods:
+      GetVersion(out u version);
+      GetRects(out s json);
+      Capture(out s png_base64);
+      Activate(in  u id,
+               out b activated);
+      MoveCursor(in  i x,
+                 in  i y);
+      ClickPulse(in  i x,
+                 in  i y);
+      SetCursorColor(in  s fill_color);
+      SetCursorState(in  s action,
+                     in  s delivery,
+                     in  s target,
+                     in  b active);
+      SetSessionLabel(in  s label);
+      HideCursor();
+    signals:
+    properties:
+  };
+};

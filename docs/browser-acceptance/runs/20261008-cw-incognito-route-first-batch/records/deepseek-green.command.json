@@ -1,0 +1,23 @@
+{
+  "label": "deepseek-green",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "tests/incognitoTranslationRoute.test.ts",
+    "tests/template.test.ts",
+    "tests/translationBroker.test.ts",
+    "tests/deepseek.test.ts",
+    "--reporter=json",
+    "--outputFile=CW_INCOGNITO_EVIDENCE/deepseek-green.results.json"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:11:28.540794+00:00",
+  "duration_seconds": 2.694,
+  "exit_code": 0
+}

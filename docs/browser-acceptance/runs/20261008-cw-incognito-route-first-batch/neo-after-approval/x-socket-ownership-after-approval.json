@@ -1,0 +1,36 @@
+{
+  "servers": [
+    {
+      "pid": 8111,
+      "parent_pid": 6909,
+      "program": "Xwayland",
+      "display": ":0"
+    },
+    {
+      "pid": 230503,
+      "parent_pid": 229576,
+      "program": "Xvnc",
+      "display": ":0"
+    }
+  ],
+  "sockets": [
+    {
+      "name": "X1",
+      "uid": 1000,
+      "is_socket": true
+    },
+    {
+      "name": "X0",
+      "uid": 1000,
+      "is_socket": true
+    }
+  ],
+  "listening_x_socket_rows": [
+    "u_str LISTEN 0      1                                                     /tmp/.X11-unix/X0 39474              * 0    users:((\"Xwayland\",pid=8111,fd=5))                                   ",
+    "u_str LISTEN 0      1                                                     /tmp/.X11-unix/X1 39476              * 0    users:((\"Xwayland\",pid=8111,fd=7))                                   ",
+    "u_str LISTEN 0      1                                                    @/tmp/.X11-unix/X0 39473              * 0    users:((\"Xwayland\",pid=8111,fd=4))                                   ",
+    "u_str LISTEN 0      1                                                    @/tmp/.X11-unix/X1 39475              * 0    users:((\"gnome-shell\",pid=6909,fd=59))                               "
+  ],
+  "no_authority_body_read": true,
+  "no_new_process": true
+}

@@ -1,0 +1,115 @@
+{
+  "at_utc": "2026-10-08T08:15:11.357365+00:00",
+  "neo_approval": {
+    "assistant_prompt_at_utc": "2026-10-08T07:19:00Z",
+    "user_approval_at_utc": "2026-10-08T08:00:00Z",
+    "user_text": "允许neo验收",
+    "scope": [
+      "new isolated temporary Neo profile only",
+      "Developer mode and verified extension only",
+      "normal focus-safe isolated window",
+      "existing Cua GUI-only policy",
+      "stop before launch if window constraint cannot be satisfied"
+    ]
+  },
+  "incognito_code_checkpoint": "4868aabe3393cdbf99df5edbdce1166acfc34583",
+  "port_acceptance_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
+  "port_acceptance_tree": "8b7ee997b8a30f90640d888a85703fbc416fe409",
+  "verified_port_artifacts": 797,
+  "artifact_mismatches": [],
+  "port_worktree_status": "",
+  "cua_binary_sha256": "5fa60c7ab35194e0e050a337521ca0e0b0ae0a8fe898813b340f65c94e15264c",
+  "cua_policy_sha256": "99b5606209886bf57e04e3bd456479afc2b24b7965f15dd0667be85a68bb540a",
+  "helper_environment": {
+    "FLUENTREAD_FOCUS_SAFE_HELPER": false,
+    "PLAYWRIGHT_ROOT": false
+  },
+  "window_placement": null,
+  "focus_policy": "must not take focus; no bringToFront, headless substitute, no-sandbox or new remote control listener",
+  "launch_mode": "not launched",
+  "actual_extension_tests": 0,
+  "gui_inputs": 0,
+  "temporary_profile_created": false,
+  "developer_mode_enabled": false,
+  "extension_loaded": false,
+  "user_browser_changes": false,
+  "fixture_server_started": false,
+  "blocker": "Selected CW host lacks Xvfb/Xephyr/Xvnc; observed X0/X1 belong to daily GNOME, while the other Xvnc is in a different container namespace and is not reused. Existing native WinRects/Neo APIs do not establish a nonactivating new-temporary-profile launch/placement path. A supported independent display + session bus + separate Neo MCP connection are unverified; stop before launch.",
+  "next_required_input": "Parent to choose a minimal supported native nonactivation/placement implementation within the existing tool scope, or ask separately about a narrowly specified temporary foreground test. No repeated Developer-mode approval or request for the user to find a helper path.",
+  "not_run": [
+    "concurrent two-client disconnect/reconnect",
+    "queued capture cancellation",
+    "navigation and document owner replacement",
+    "temporary Neo extension UI load",
+    "RTX5090 WebGPU browser validation"
+  ],
+  "window_backend": {
+    "session_type": "wayland",
+    "desktop": "ubuntu:GNOME",
+    "wayland_display": "wayland-0",
+    "winrects_version": 8,
+    "live_introspection_verified": true,
+    "safe_read_methods": [
+      "GetVersion",
+      "GetRects"
+    ],
+    "no_nonactivating_create_or_window_move_method": true,
+    "Activate_not_called": true
+  },
+  "repo_contract": {
+    "AGENTS": "temporary profile, offscreen normal-size window, focus-safe helper; no bringToFront or silently foreground fallback",
+    "generic_runner": "requires --focus-safe-helper/FLUENTREAD_FOCUS_SAFE_HELPER",
+    "image_script_exports": [
+      "launchFocusSafePersistentContext",
+      "newPageWithoutForeground"
+    ],
+    "image_script_hard_asserts": {
+      "launchMode": "macos-background-cdp",
+      "focusPolicy": "launchservices-no-foreground",
+      "windowPlacement.mode": "background-visible-no-focus",
+      "windowPlacement.browserFrontmost": false
+    },
+    "contract_is_not_a_particular_filename_requirement_for_custom_CW_GUI_test": true,
+    "existing_image_runner_is_not_native_Wayland_compatible": true
+  },
+  "native_tools": {
+    "neo_server_info": {
+      "name": "browseros-neo",
+      "title": "BrowserOS neo",
+      "version": "0.0.67"
+    },
+    "tabs.new": "documented background tab in current browser session; no new profile argument",
+    "windows.create": "no focus, geometry or profile argument in current schema; not called",
+    "existing_neo_profile": "pi-agent profile; cannot substitute for the specifically authorized new temporary profile",
+    "cua_policy": "19 GUI-only tools; read window state and input, no nonactivating launch/window-rectangle setter; bring_to_front would violate focus constraint"
+  },
+  "looping_helper_search": false,
+  "user_path_request_pending": false,
+  "virtual_display_candidate": {
+    "programs": {
+      "Xvfb": null,
+      "Xephyr": null,
+      "Xvnc": null,
+      "Xtigervnc": null,
+      "Xorg": "/usr/bin/Xorg",
+      "dbus-run-session": "/usr/bin/dbus-run-session",
+      "xauth": "/usr/bin/xauth"
+    },
+    "existing_host_sockets": "X0/X1 are owned by the active GNOME Xwayland process; not an independent test display",
+    "other_Xvnc": "PID 230503, cinit/conmon ancestry, executable /opt/base/bin/Xvnc absent on selected CW host, mnt/net/ipc/user namespaces differ; not entered or reused",
+    "independent_session_bus": "dbus-run-session is installed; no new bus launched and no display/bus binding established",
+    "new_neo_instance_connection": "current MCP endpoint targets existing pi-agent profile; window schema has no new-profile/focus/geometry arguments; no supported separate-instance endpoint was verified",
+    "linux_helper_implemented": false,
+    "new_software_installed": false,
+    "global_display_changed": false,
+    "Recovery_session_changed": false,
+    "virtual_display_started": false,
+    "virtual_display_is_not_gpu_or_native_desktop_acceptance": true
+  },
+  "minimum_parent_options": [
+    "Prepare a reviewed native Wayland nonactivation/window-placement path for the temporary Neo instance within existing policy, without falsifying macOS labels",
+    "If separately authorized, provision an independent headed virtual-display backend with its own session bus, authority and supported per-instance Neo connection; treat it only as Port fixture acceptance, never RTX5090/native-desktop proof",
+    "If the user chooses it separately, specify a bounded temporary foreground Neo test and its focus effect; current nonactivation approval is unchanged"
+  ],
+  "not_waiting_for_user_to_locate_helper": true
+}

@@ -1,0 +1,36 @@
+{
+  "implementation_source_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
+  "worktree_head": "7ddd98b621ed157addba6afe7ca3a4f7e3e373c7",
+  "modified_files": [
+    "tests/incognitoTranslationRoute.test.ts"
+  ],
+  "regression_test_sha256": "8b8d49590c63baebea8eed7e7453a2f9855421fc414205305550ef71f2749615",
+  "tests_passed": 34,
+  "tests_failed": 4,
+  "failures": [
+    {
+      "test": "background to broker to request payload vertical route keeps saved private model deepseek-chat identical in cache and actual chat transport",
+      "failure": [
+        "AssertionError: expected 'deepseek-flash' to be 'deepseek-chat' // Object.is equality\n    at CW_INCOGNITO_WORKTREE/tests/incognitoTranslationRoute.test.ts:291:34\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11\n    at withEnv (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)"
+      ]
+    },
+    {
+      "test": "background to broker to request payload vertical route keeps saved private model deepseek-chat identical in cache and actual responses transport",
+      "failure": [
+        "AssertionError: expected 'deepseek-flash' to be 'deepseek-chat' // Object.is equality\n    at CW_INCOGNITO_WORKTREE/tests/incognitoTranslationRoute.test.ts:291:34\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11\n    at withEnv (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)"
+      ]
+    },
+    {
+      "test": "background to broker to request payload vertical route keeps saved private model deepseek-reasoner identical in cache and actual chat transport",
+      "failure": [
+        "AssertionError: expected 'deepseek-flash' to be 'deepseek-reasoner' // Object.is equality\n    at CW_INCOGNITO_WORKTREE/tests/incognitoTranslationRoute.test.ts:291:34\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11\n    at withEnv (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)"
+      ]
+    },
+    {
+      "test": "background to broker to request payload vertical route keeps saved private model deepseek-reasoner identical in cache and actual responses transport",
+      "failure": [
+        "AssertionError: expected 'deepseek-flash' to be 'deepseek-reasoner' // Object.is equality\n    at CW_INCOGNITO_WORKTREE/tests/incognitoTranslationRoute.test.ts:291:34\n    at processTicksAndRejections (node:internal/process/task_queues:104:5)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:533:5\n    at runTest (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1056:11)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runSuite (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1205:15)\n    at runFiles (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1262:5)\n    at startTests (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/@vitest+runner@2.1.9/node_modules/@vitest/runner/dist/index.js:1271:3)\n    at file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:126:11\n    at withEnv (file://CW_EXISTING_DEPENDENCIES/node_modules/.pnpm/vitest@2.1.9_@types+node@22.10.7/node_modules/vitest/dist/chunks/runBaseTests.3qpJUEJM.js:90:5)"
+      ]
+    }
+  ]
+}

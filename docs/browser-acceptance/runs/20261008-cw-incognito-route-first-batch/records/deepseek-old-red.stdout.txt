@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --cache false tests/incognitoTranslationRoute.test.ts --reporter=json --outputFile=CW_INCOGNITO_EVIDENCE/deepseek-old-red.results.json
+JSON report written to CW_INCOGNITO_EVIDENCE/deepseek-old-red.results.json

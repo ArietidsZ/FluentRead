@@ -1,0 +1,15 @@
+{
+  "label": "deepseek-chrome",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:13:42.927321+00:00",
+  "duration_seconds": 20.883,
+  "exit_code": 0
+}

@@ -1,0 +1,25 @@
+{
+  "label": "deepseek-strict-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--cache",
+    "false",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--reporter=json",
+    "--outputFile=CW_INCOGNITO_EVIDENCE/deepseek-strict-final.results.json",
+    "--coverage.reportsDirectory=CW_INCOGNITO_EVIDENCE/deepseek-strict-final-coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reporter=text"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:13:41.423994+00:00",
+  "duration_seconds": 179.8,
+  "exit_code": 0
+}

@@ -1,0 +1,16 @@
+{
+  "label": "deepseek-evidence-docs",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitepress/bin/vitepress.js",
+    "build",
+    "docs"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:32:17.415984+00:00",
+  "duration_seconds": 2.485,
+  "exit_code": 0
+}

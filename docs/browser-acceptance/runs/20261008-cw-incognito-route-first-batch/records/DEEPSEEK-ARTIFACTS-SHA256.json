@@ -1,0 +1,3195 @@
+{
+  "source_commit": "4868aabe3393cdbf99df5edbdce1166acfc34583",
+  "source_tree": "f13710bd6d6945d0a22748c3379969ff92621757",
+  "permission_fields_match_89fd0580": true,
+  "artifacts": {
+    ".output/chrome-mv3/assets/AreaTranslationSettings-FLIUGQeI.css": {
+      "bytes": 1427,
+      "sha256": "43dca8f58bb6e3e4dc3eb3c90f30a82084a18230ea73c23a92dbd622b03ef46e"
+    },
+    ".output/chrome-mv3/assets/ConfigManagement-BWHET5G6.css": {
+      "bytes": 44468,
+      "sha256": "a36cf493d8552fe8ffaf2d898d096a041be7f13cde75df115736b6df8ad49090"
+    },
+    ".output/chrome-mv3/assets/ContextMenuSettings-BoR0SmU-.css": {
+      "bytes": 2284,
+      "sha256": "4b960e17ec66ea4c396d1ba6c277ba9aedf92559f671a7387070d701e2b96882"
+    },
+    ".output/chrome-mv3/assets/CustomHotkeyInput-P9juqSIU.css": {
+      "bytes": 7049,
+      "sha256": "ad1b792a2269924d9bd3ef866cf9874703a438d43701e9319b6f07292f641ab9"
+    },
+    ".output/chrome-mv3/assets/CustomOpenAIProviderDialog-w3GgbW0C.css": {
+      "bytes": 1468,
+      "sha256": "8bc2a3f958f3b3c6cd384115fa4ac872db316c85eb302553a8319967f0cc8bfe"
+    },
+    ".output/chrome-mv3/assets/DownloadProgress-E5aTQrXU.css": {
+      "bytes": 1794,
+      "sha256": "ed1f28ea6ba1a16dde808daec84f677fd86bccd3e2a486e451a72098cfd21fd6"
+    },
+    ".output/chrome-mv3/assets/FloatingBallSettings-D_eKwpsz.css": {
+      "bytes": 5392,
+      "sha256": "5988aaa015ff2c9e215ddd13ac70c97d4bcf986b11d19fd84a1fbd50f55aac75"
+    },
+    ".output/chrome-mv3/assets/GlossaryLibrarySelect-C9SHhXci.css": {
+      "bytes": 1449,
+      "sha256": "a3991d2ae01647a928bf6a4a0cf2f46d109e24e7c6bbd1a1aee898aae130d973"
+    },
+    ".output/chrome-mv3/assets/InputTranslationSettings-BVZoRSt4.css": {
+      "bytes": 4311,
+      "sha256": "268c3f082a91235aa4c5120bd158ed8a26cd43e6bb85f1ef4edfe5feefe3fed0"
+    },
+    ".output/chrome-mv3/assets/InterfaceSettings-D4cK9war.css": {
+      "bytes": 65066,
+      "sha256": "d4b1eae9af6077b0d83021bc9a8bf5d895c48e2cf64edcc58a889bd492916e4d"
+    },
+    ".output/chrome-mv3/assets/LearningCenter-Dj2PQL7U.css": {
+      "bytes": 30973,
+      "sha256": "6cde0cf1d1eabb1d711e2251f1851e4eb1d78f8173839bf3c5fe21e9d6595fc6"
+    },
+    ".output/chrome-mv3/assets/LocalTtsSettings-BPl7ljaS.css": {
+      "bytes": 2924,
+      "sha256": "454393943f588c86bbac288af9795444b083f1dd03c4799b7c18d044f1a9f8c5"
+    },
+    ".output/chrome-mv3/assets/MangaSettings-DzxczD2f.css": {
+      "bytes": 23536,
+      "sha256": "adf4ce8904afc05d3a5712612027085b47bf8375660e3a2ad0d0afe29948ee7e"
+    },
+    ".output/chrome-mv3/assets/ParagraphCopySettings-DUAhYzIh.css": {
+      "bytes": 443,
+      "sha256": "391c3c8ca8fd40d82d98c4dedea6056a9b90098a8ac621aed3d1606ca36dae33"
+    },
+    ".output/chrome-mv3/assets/PopupDrawer-CpuVa63I.css": {
+      "bytes": 2159,
+      "sha256": "978af640cdf56e3264ee8b2e46f3d071cb2b5ac5e3f4db3e6f6701bec0db10d2"
+    },
+    ".output/chrome-mv3/assets/PopupOnboarding-CYEleLnm.css": {
+      "bytes": 321,
+      "sha256": "b6dd8d7430115bae1f7298d4abd98df1fad41341e234e93b3bc39411c6f89adb"
+    },
+    ".output/chrome-mv3/assets/PopupServices-D3xtHBGU.css": {
+      "bytes": 6080,
+      "sha256": "788c602234b3cd31cbd1ef460878bc11aa88bc4b2074b344024be71767abb836"
+    },
+    ".output/chrome-mv3/assets/PromptTemplateEditor-DCi7hmxL.css": {
+      "bytes": 3713,
+      "sha256": "975cf9b62dbd24296585e7c53d2d49ed4219a016588e3169fe355fce07b80763"
+    },
+    ".output/chrome-mv3/assets/QuickTranslationProfiles-CAqIFlSs.css": {
+      "bytes": 6046,
+      "sha256": "aa0c4b880f4c6241985d828e05ff39545d0ef35252abe678be6dc1185983a6e1"
+    },
+    ".output/chrome-mv3/assets/SectionTranslationSettings-C0FWI_gM.css": {
+      "bytes": 458,
+      "sha256": "707c9e2c99832ba07672d95043c66e1b355563f6b0ddceb51a7b1cff80e30bfb"
+    },
+    ".output/chrome-mv3/assets/SegmentedControl--NR7P1Yk.css": {
+      "bytes": 3441,
+      "sha256": "234b748d30550ed2316ccb9c690ab50483156081d275b1cc897cfcccb1d49e1e"
+    },
+    ".output/chrome-mv3/assets/SelectionSettings-C0fZ9SK5.css": {
+      "bytes": 6418,
+      "sha256": "bba702a97c195efc0f0d5a89c833bef4a31c3a68e04c07796e87d0d8175e8ec9"
+    },
+    ".output/chrome-mv3/assets/ServiceCatalog-Cp3Pz49E.css": {
+      "bytes": 20020,
+      "sha256": "2ceca39b18f8fe157a0be1923a1b772066627f5ea5a3cdbc83793932c4e2ed0d"
+    },
+    ".output/chrome-mv3/assets/ServiceConfiguration-BWXhkVfy.css": {
+      "bytes": 56617,
+      "sha256": "c407137903f4abcd1d43cb59c7da1b7e6fe2564f37cecb9aa984356a49b42479"
+    },
+    ".output/chrome-mv3/assets/ServiceNatureBadge-Cln2l_tr.css": {
+      "bytes": 313,
+      "sha256": "abfb3d74e16e5d25887df1cafe51bcf134397b83848bd5fb14d29d32d3c7177a"
+    },
+    ".output/chrome-mv3/assets/SettingsPreviewLayout-e2D_WJRq.css": {
+      "bytes": 1408,
+      "sha256": "49fe11c6ca271c7bab1e89515a70975945eda28bf16688c2fd8908e2a149d0a1"
+    },
+    ".output/chrome-mv3/assets/SettingsSections-CfoQZTY4.css": {
+      "bytes": 32266,
+      "sha256": "5352b99e58fd109e991de8c8ff687ba88afd168624f6e7126d699ddd6cc5fe3b"
+    },
+    ".output/chrome-mv3/assets/SiteAdaptationSettings-DgXU1SEe.css": {
+      "bytes": 9688,
+      "sha256": "3d00f1c3b733086e9914c41a386833aa7e63c5c377a36eb3334abce91577c1c8"
+    },
+    ".output/chrome-mv3/assets/SitePreferencesSettings-DZM8c0yL.css": {
+      "bytes": 6080,
+      "sha256": "fb62a323b0349771ed07d30880c006a83f0c1664573e3dec85f7ba7153598fc8"
+    },
+    ".output/chrome-mv3/assets/SiteRulePreview-aKN6Wzfu.css": {
+      "bytes": 6087,
+      "sha256": "f577ba06225829a82295188c9619c491af94b90bdafc2d9d4c3a5972d799bd3c"
+    },
+    ".output/chrome-mv3/assets/TranslationCacheSettings-D9OWPS1D.css": {
+      "bytes": 2656,
+      "sha256": "86c7d2c2517499fb9b24099d738414fc1f2f1ba3eb0f0ca385dd9864cf49b247"
+    },
+    ".output/chrome-mv3/assets/UiLanguageOnboarding-BiL-L5Xi.css": {
+      "bytes": 10397,
+      "sha256": "50450438ea268b037bf8552b980da9c1328f92a1c509fae97084b934fef6efb8"
+    },
+    ".output/chrome-mv3/assets/VideoLocalModelSettings-_kcffw-s.css": {
+      "bytes": 5940,
+      "sha256": "d5e55193aab160fd9b57531df5d76f6c878f938b7a3890110e76c76178eeec4e"
+    },
+    ".output/chrome-mv3/assets/VideoSubtitleAppearanceSettings-DOspl6Ug.css": {
+      "bytes": 6024,
+      "sha256": "543b8203e808690fb068ab4d56b7d78335a5f2e609772d4720d906d65329feee"
+    },
+    ".output/chrome-mv3/assets/WritingSettings-IKgagdFp.css": {
+      "bytes": 20786,
+      "sha256": "c83cd5b8126449fc096c3787ecfa945cc1ff59fe622d5cf3d2a72d1de34cf1ab"
+    },
+    ".output/chrome-mv3/assets/capabilities-zxabMWFJ.css": {
+      "bytes": 22844,
+      "sha256": "9705c2e8a8f6f9b919d212e4bcb4311c4e634eac176dd03c6c85fdaafc67c943"
+    },
+    ".output/chrome-mv3/assets/core-BB7luzvx.css": {
+      "bytes": 20428,
+      "sha256": "50ed7201c2bdcc9826c73aec4909656fd40e1775ee3ac5fe7db43ffc436c00e3"
+    },
+    ".output/chrome-mv3/assets/document-CALGb6Pg.css": {
+      "bytes": 40718,
+      "sha256": "5802e681e37affa4d1ecb92377129ae02d0171c9e24e511eeb8477ec4c24fe33"
+    },
+    ".output/chrome-mv3/assets/el-overlay-CUAhHdWP.css": {
+      "bytes": 184,
+      "sha256": "6e0625dda9705862b149b88a50aca9845faa26a3ce4789f989bca4b19c605108"
+    },
+    ".output/chrome-mv3/assets/featureServices-DCag4A8p.css": {
+      "bytes": 4057,
+      "sha256": "910fb83fe24916b277b44317a6785e05cf314f7aefb111e87e63b64f8723d7d1"
+    },
+    ".output/chrome-mv3/assets/i18n-CMRK1q-d.css": {
+      "bytes": 8388,
+      "sha256": "e382397766c23fb4ecb734471d413d646b2e1b38472cf463891440ff926b39e9"
+    },
+    ".output/chrome-mv3/assets/interface-skins-C-micYUc.css": {
+      "bytes": 69405,
+      "sha256": "7439658a60c945c9e651f8d772c667ef009f29e2b4a086bba6ae7be94518f89d"
+    },
+    ".output/chrome-mv3/assets/options-BVlavS6u.css": {
+      "bytes": 142569,
+      "sha256": "b0c2f5677e8bdaa87833e0f63d826bab308e54ab28a6089b7eeab53cc1b1baba"
+    },
+    ".output/chrome-mv3/assets/pdf.worker.min-rsCePomN.mjs": {
+      "bytes": 1417586,
+      "sha256": "bd88805178a26c729db8c0107a5b630cb900ec070f4d8c7529a3e45530afd41d"
+    },
+    ".output/chrome-mv3/assets/popup-DKFWjdUl.css": {
+      "bytes": 44289,
+      "sha256": "c54d7dd7d3e025913ee431285f130ed6f9cb7a4302f405781647cdb1d2e5b232"
+    },
+    ".output/chrome-mv3/assets/public-1smmMcHZ.css": {
+      "bytes": 30541,
+      "sha256": "2f5e0d7409db6c79346cb8e1a8190a933fe3d1627a6676670e2766690f2ceeb3"
+    },
+    ".output/chrome-mv3/assets/public-BdRlOPhV.css": {
+      "bytes": 14627,
+      "sha256": "bd0dc6b148057303151d087ff16cede5ae8f57227d586850a10dbf010fa20d19"
+    },
+    ".output/chrome-mv3/assets/public-D9kf6335.css": {
+      "bytes": 42568,
+      "sha256": "e37a869d2559f0a1f6e551b58d6aca3ffce58e297d6f1c26c7cb6ce491aa36ad"
+    },
+    ".output/chrome-mv3/assets/public-w4UP57lP.css": {
+      "bytes": 17306,
+      "sha256": "7be2de56be6ddfc8b65ab971b839b7db09ac35e4f5ac9d956dc019db32466939"
+    },
+    ".output/chrome-mv3/assets/wechat-contact-zY-MJ-Xi.jpg": {
+      "bytes": 100720,
+      "sha256": "1360e8cca225506208c153b6c5143912e048d5df08d506df2eb84ed3914cfd62"
+    },
+    ".output/chrome-mv3/background.js": {
+      "bytes": 2103645,
+      "sha256": "ae3040ed0fcc9890081b616ef0709dec14c780c26011392857baec3c4be88383"
+    },
+    ".output/chrome-mv3/chunks/128-rof0LK9z.js": {
+      "bytes": 40,
+      "sha256": "c2c1b4849a455abe1d0addec181081392aa5edda088f006af669128962b63628"
+    },
+    ".output/chrome-mv3/chunks/AreaTranslationSettings-B-7ON_N5.js": {
+      "bytes": 10979,
+      "sha256": "8bfc0c5392691c43c0c5d8db6317855b78b8458f52ca85734327cdea8ad585d4"
+    },
+    ".output/chrome-mv3/chunks/ConfigManagement-J-VPcjFa.js": {
+      "bytes": 108244,
+      "sha256": "561353013c3edfd4dadeb51f0fb1165446d7c9dc18317fa21736d3ffa19c83c4"
+    },
+    ".output/chrome-mv3/chunks/ContextMenuSettings-7solefuY.js": {
+      "bytes": 4716,
+      "sha256": "8a8595aefe3fd607d6e8a3eedfc0f107ad24263596dcfc01d7418aec11e54e2c"
+    },
+    ".output/chrome-mv3/chunks/CustomHotkeyInput-MrSdYuXW.js": {
+      "bytes": 7615,
+      "sha256": "c87fc82c925aad7df0cf7a07780d966fd122799baddfe45f3469cefc7279a727"
+    },
+    ".output/chrome-mv3/chunks/CustomOpenAIProviderDialog-bR4AklT9.js": {
+      "bytes": 4101,
+      "sha256": "735fe3d3a0c8004b1c38016b9f5482701820546f31d07c826b26922ae80c4cf3"
+    },
+    ".output/chrome-mv3/chunks/DownloadProgress-D_PgcnKd.js": {
+      "bytes": 1042,
+      "sha256": "bfd4a92a38223a6798539fe9c34580eb35af2aa71874c20ae31b93cac99f8805"
+    },
+    ".output/chrome-mv3/chunks/FloatingBallSettings-IMeREQ_C.js": {
+      "bytes": 10661,
+      "sha256": "f09df683104b9ce22b1f9c75b82473c13496355b557a684a5aefca33b6c72da6"
+    },
+    ".output/chrome-mv3/chunks/GlossaryLibrarySelect-CYhhtOzg.js": {
+      "bytes": 2263,
+      "sha256": "7ff18a8f702e7385f362f8cdbf28d6780727ebb014018e0a41212ab396e7cf21"
+    },
+    ".output/chrome-mv3/chunks/InputTranslationSettings-Ds1VoerN.js": {
+      "bytes": 12747,
+      "sha256": "f79bf6af377922eb7bedff74cdfe0455994f1db48f151331a719cf1be2f30c80"
+    },
+    ".output/chrome-mv3/chunks/InterfaceSettings-DKz2WJsk.js": {
+      "bytes": 84065,
+      "sha256": "e9ffaa00f6a3784baeafbae2a0c94bb379f65df5b99936cf059724de33badef6"
+    },
+    ".output/chrome-mv3/chunks/LearningCenter-CAmy6ngF.js": {
+      "bytes": 58964,
+      "sha256": "43fff4957e412a2ee5de0eab2d2c19e6f5142f1c620fa024bee818f9a2a5177e"
+    },
+    ".output/chrome-mv3/chunks/LocalTtsSettings-2bqFvUd1.js": {
+      "bytes": 7510,
+      "sha256": "a2d5d643219490e4e9bcaf6ad2f179aef4219e5254dde9799ead71db521d23da"
+    },
+    ".output/chrome-mv3/chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-C9Lsuzdx.js": {
+      "bytes": 106446,
+      "sha256": "a4502879a861087e9adf98c0edfcbc1218f0306cef8bf1dbf3ec2b3d7ab54701"
+    },
+    ".output/chrome-mv3/chunks/ParagraphCopySettings-DyI5h0mq.js": {
+      "bytes": 6393,
+      "sha256": "8d9fc3a5b5a7bbe1978469ef2faf469d6e0a1d83b52c9407f38857fe4c79e82b"
+    },
+    ".output/chrome-mv3/chunks/ParagraphHandlingSettings-VSiLbSuO.js": {
+      "bytes": 2689,
+      "sha256": "3198a12ce76794a447a232b28e65d89eab954d7c78c464afcb36a7a60afbf7ec"
+    },
+    ".output/chrome-mv3/chunks/PopupApp-CN-cyTzF.js": {
+      "bytes": 39008,
+      "sha256": "a0f8c5d60ae9d008a704d3851da5724f597caa0af3c985f988cef4fee9891a39"
+    },
+    ".output/chrome-mv3/chunks/PopupDrawer-DF5ClIJI.js": {
+      "bytes": 3536,
+      "sha256": "edd9c182d08cd893c6671602c0c9f33362207b9b810d1c3c68a77c780e880f2a"
+    },
+    ".output/chrome-mv3/chunks/PopupOnboarding-Dx4_H_wz.js": {
+      "bytes": 2501,
+      "sha256": "2b1523aaed64be39770f9735a3a9f1300c6d772bf3d226552df1a57f1045f301"
+    },
+    ".output/chrome-mv3/chunks/PopupServices-4vg9a-wG.js": {
+      "bytes": 9252,
+      "sha256": "3d8d0dc312ce6aedf840d6bc5421427fb695fdad2459fdd37d52404d80e01de7"
+    },
+    ".output/chrome-mv3/chunks/PromptTemplateEditor-nCm8gxnU.js": {
+      "bytes": 3951,
+      "sha256": "8cb99f6800626977f6b8af36c1bebe40418049e17be43f4dbe1fe675fcb8079d"
+    },
+    ".output/chrome-mv3/chunks/QuickTranslationProfiles-vVGXDP-I.js": {
+      "bytes": 16794,
+      "sha256": "fc8cc60d40ad5d4d778ce0ea67b22e61b8b20e1d0cbf14eff13b18facc211874"
+    },
+    ".output/chrome-mv3/chunks/ReadingAnswer-CaL1-NFK.js": {
+      "bytes": 11959,
+      "sha256": "51d3e8e8f399f7745c1fa5086460d4f612ae85cbe7918c73c485aed71520a606"
+    },
+    ".output/chrome-mv3/chunks/SectionTranslationSettings-7xL-uY5u.js": {
+      "bytes": 6980,
+      "sha256": "9853c0dc9d5ef6b66cf14495af91cb8dd464b2934a386195c24fa5e1cc8366ce"
+    },
+    ".output/chrome-mv3/chunks/SegmentedControl-BEZjd9rH.js": {
+      "bytes": 2596,
+      "sha256": "cb060f1c9f09434cdc26cea9439e629283bd9b2efb6e8f1536a0cf5371a449b9"
+    },
+    ".output/chrome-mv3/chunks/SelectionSettings-CSH4ql-6.js": {
+      "bytes": 15287,
+      "sha256": "b56ed7624c3ff1258e3acdcc9db0da817754477f48c166cd939c269e59aa3ade"
+    },
+    ".output/chrome-mv3/chunks/ServiceCatalog-C-h6b4vE.js": {
+      "bytes": 19427,
+      "sha256": "ce7e0cc2b471b69ad095964fca587b02b158b9abd1eab8963c957cdae48dd5b7"
+    },
+    ".output/chrome-mv3/chunks/ServiceConfiguration-DgqJIoW2.js": {
+      "bytes": 123028,
+      "sha256": "57b465edfd236b1cedafce777250b587f8218852800441138e7120235549ee8f"
+    },
+    ".output/chrome-mv3/chunks/ServiceNatureBadge-CouHFbRj.js": {
+      "bytes": 505,
+      "sha256": "42dab43dcd7c77b981af30f2b62232743e64771f05e5de338b7a53b1c03c1609"
+    },
+    ".output/chrome-mv3/chunks/SettingsPreviewLayout-DxsH0mBZ.js": {
+      "bytes": 893,
+      "sha256": "37a061cb6ac486b7e7e171a13a6adf46c1e90c4f4a74c991b88d628ae4d97855"
+    },
+    ".output/chrome-mv3/chunks/SettingsSections-DmvO_ATR.js": {
+      "bytes": 84855,
+      "sha256": "dbf9e1944460ad862057b431fc8df2cccc826ad3fa2b2b6f5f22a1a8418fa5c8"
+    },
+    ".output/chrome-mv3/chunks/SiteAdaptationSettings-BaHJiRCC.js": {
+      "bytes": 26731,
+      "sha256": "e10b619492938a837db5997138cc2d033bbacdcdc9dc970eba7428f1e5c6bf88"
+    },
+    ".output/chrome-mv3/chunks/SitePreferencesSettings-D5S4oM8v.js": {
+      "bytes": 8148,
+      "sha256": "2819e7bab3cb7d36ce6419e73e3fc13120e43bbf7f54dbc5d8e688ce67ac5ec7"
+    },
+    ".output/chrome-mv3/chunks/SiteRulePreview-CdRPA6JA.js": {
+      "bytes": 5052,
+      "sha256": "4d9ba1d790e479e26a448c280c1b1cabfd55d4b0d23f0b071674a656a6b1a05f"
+    },
+    ".output/chrome-mv3/chunks/TranslationCacheSettings-mHHotf2P.js": {
+      "bytes": 7155,
+      "sha256": "97266372ce33e0c51c56816facebf92ceb17866564f94513d08cc7549d1f8149"
+    },
+    ".output/chrome-mv3/chunks/UiLanguageOnboarding-Bzgvu-Bu.js": {
+      "bytes": 5433,
+      "sha256": "b165534738513fc5a15edaad2d58813726c3575ba79ec8a9ed128c0802b50d1a"
+    },
+    ".output/chrome-mv3/chunks/VideoLocalModelSettings-BgkBgfDL.js": {
+      "bytes": 8460,
+      "sha256": "e16b49862d2adbc9d451c8d09c4ba00f2f25093a5de6d07e43956bfcfcec13aa"
+    },
+    ".output/chrome-mv3/chunks/VideoSubtitleAppearanceSettings-xAdKu0e8.js": {
+      "bytes": 8890,
+      "sha256": "775abd97cb7cd5946a58ca7751e6543d2541aa948ffd64302a7896d07f3b15ab"
+    },
+    ".output/chrome-mv3/chunks/WritingSettings-BIPzrmM3.js": {
+      "bytes": 14658,
+      "sha256": "b84d3ac62188c755ce8ed7dfb37ec0877b479986fa374618599b05669ab2483f"
+    },
+    ".output/chrome-mv3/chunks/_commonjs-dynamic-modules-TDtrdbi3.js": {
+      "bytes": 239,
+      "sha256": "590ab8057bc032c3e14f9f1a76aaeffd01da609413fb12888819ca0433c1fae9"
+    },
+    ".output/chrome-mv3/chunks/_plugin-vue_export-helper-DlAUqK2U.js": {
+      "bytes": 91,
+      "sha256": "cb85b0f263dbe24e857338301c0627076592e9f1f1a5662929f86d2c126444aa"
+    },
+    ".output/chrome-mv3/chunks/_virtual_wxt-plugins-CcwMJl89.js": {
+      "bytes": 69588,
+      "sha256": "f8a24f2a53ff39f71c9b4cc6eee7c16bee6dc6f5277abf9845196974ef56f153"
+    },
+    ".output/chrome-mv3/chunks/capabilities-VPNKntVc.js": {
+      "bytes": 697,
+      "sha256": "3fabccee5f390c15a04f94b5184b921ac0b52bbb4d1629fcf21004bc837388e7"
+    },
+    ".output/chrome-mv3/chunks/capabilities-wdo8I4CB.js": {
+      "bytes": 118353,
+      "sha256": "46ac2629f745edb5b4bd206d6f467dcfeca7128211c698e16547a69e463e7397"
+    },
+    ".output/chrome-mv3/chunks/client-CBY88EDl.js": {
+      "bytes": 14728,
+      "sha256": "825bed05f9988830d6d0dbf80cbc12a2db50eb7b2161c66eeba84c48de23b848"
+    },
+    ".output/chrome-mv3/chunks/compiler-DmHdJBKo.js": {
+      "bytes": 100930,
+      "sha256": "ecfc15ffbbe01a69a585a5c43c38cac69b738e352d34cda5cf63089f0de1130c"
+    },
+    ".output/chrome-mv3/chunks/core-MDBU--qc.js": {
+      "bytes": 1322,
+      "sha256": "b31bc358d5027981fe4e5fcd12067486c3718482c49960f6f33a49ed3a1d2497"
+    },
+    ".output/chrome-mv3/chunks/document-Cj--Asgj.js": {
+      "bytes": 98648,
+      "sha256": "7ee254f9fbc0dff19c7ee300c3659bc5c23ee908da4e52c5180a123aa003d868"
+    },
+    ".output/chrome-mv3/chunks/downloadProgress-D2eFwS-x.js": {
+      "bytes": 305,
+      "sha256": "6e4845e666742d59edad2c8cc0eefdb9b54032e3e67bf190ad282d0c27717733"
+    },
+    ".output/chrome-mv3/chunks/el-overlay-BMemZky5.js": {
+      "bytes": 6651,
+      "sha256": "acb3921a268fed5252a11d54dd57d7c3cd80a64388231e5d4902cb73a2910dab"
+    },
+    ".output/chrome-mv3/chunks/featureServices-C2M7MG3o.js": {
+      "bytes": 44837,
+      "sha256": "c9745f762d81ddf90318873db8d316b33ec9dc8fa8aef4140a3da3f9c8e07a7a"
+    },
+    ".output/chrome-mv3/chunks/i18n-8WH_9GNa.js": {
+      "bytes": 672394,
+      "sha256": "9ee26f30c66dc8b24ad70c1be06c71c2776dcbe15e8190c97569a5b540840a4a"
+    },
+    ".output/chrome-mv3/chunks/index-B8sR5Pwa.js": {
+      "bytes": 4824,
+      "sha256": "9d67530fb6df1c9914bfa3d6b9cd44e8b7c1aa827f096345ba4b938a9e90bcca"
+    },
+    ".output/chrome-mv3/chunks/index-CEVYDCfJ.js": {
+      "bytes": 10698,
+      "sha256": "dd45659f1b41ecf7a059e78e18a59710868caaa91b01f0c8416e4be75b24275e"
+    },
+    ".output/chrome-mv3/chunks/index-D8RiVcL0.js": {
+      "bytes": 43754,
+      "sha256": "08d7dfc515fc2688ba6929799f8eeedfa33245447fceb4407d9641853aa85084"
+    },
+    ".output/chrome-mv3/chunks/index-D9awcXjb.js": {
+      "bytes": 3310,
+      "sha256": "ad99d582f71bbf4756d867672633dd9edb1fd2a2137bbbc1f92d164ba57cda11"
+    },
+    ".output/chrome-mv3/chunks/index-Yp9tp4VN.js": {
+      "bytes": 19049,
+      "sha256": "12e6b13b19f7a17bcb90530040748549e562b1fae3034ccae7b984ed049a87fa"
+    },
+    ".output/chrome-mv3/chunks/index-_lI0Qv9u.js": {
+      "bytes": 435999,
+      "sha256": "3367aaf3d129e16942ea62d1bbeb47fc8c8071436ad00b415f5893b30226ee2e"
+    },
+    ".output/chrome-mv3/chunks/index.full-DFE3GRRf.js": {
+      "bytes": 728840,
+      "sha256": "e89dd39d30ccc6d8ebdc9173ff170fbada20b2d0f3872bccb73427ad4f8e638d"
+    },
+    ".output/chrome-mv3/chunks/interface-skins-DLqP91lx.js": {
+      "bytes": 9892,
+      "sha256": "1d85e02be69baa35ba7948987077c67c9a4f69c6112b44c083524a6ab37085fc"
+    },
+    ".output/chrome-mv3/chunks/jszip.min-sgB4wRYF.js": {
+      "bytes": 96967,
+      "sha256": "e4bc6ab4a444f169b82feb8cb98d42bb0180b05d5628f8dd38de681a8805af30"
+    },
+    ".output/chrome-mv3/chunks/learningModel-Bvb0ALXZ.js": {
+      "bytes": 2400,
+      "sha256": "8eeeb8b17622b7258bea7b142fb287f8889c921c66938c39c326ba46f4deca14"
+    },
+    ".output/chrome-mv3/chunks/localTranslationSupport-DXWQbPZk.js": {
+      "bytes": 131,
+      "sha256": "d20efb076ad1b4548d5d4fad6a42ce140d7db59cd9083deff44fabebc6f10507"
+    },
+    ".output/chrome-mv3/chunks/mangaPatchResult-47sa0hPa.js": {
+      "bytes": 12565,
+      "sha256": "b86d021aab39341aabf5e7de6142eed3be5bf4432d01b20fc75220b0b02ad89d"
+    },
+    ".output/chrome-mv3/chunks/modelDownloads-Bo5kfRlg.js": {
+      "bytes": 2412,
+      "sha256": "ab6373b9b0fae98b58a30dc344a45c9d5b3fe8f86466281a3e8a5622f374ae6e"
+    },
+    ".output/chrome-mv3/chunks/offscreen-DEMqfIJZ.js": {
+      "bytes": 115612,
+      "sha256": "621e0933d8b334291e96bc898c28eadb44f537356b307361978882b96b560341"
+    },
+    ".output/chrome-mv3/chunks/options-ymi7bnd-.js": {
+      "bytes": 87530,
+      "sha256": "b08a6fbb910b54bf5c6f196ff1a7e8fe8aef7719b4156ce427c7000d4cab1f6b"
+    },
+    ".output/chrome-mv3/chunks/pdf-DVqZvFDv.js": {
+      "bytes": 408181,
+      "sha256": "b9f2366b6e0f3d5cb89215b9883eef19934939f7735a26b99a4ac2e571b3f35c"
+    },
+    ".output/chrome-mv3/chunks/popup-D0iIqD_6.js": {
+      "bytes": 2085,
+      "sha256": "f2fed795538b3789372e899a14b8a4c8a68d96af6bfb4b71b6b5f32e7081b2cf"
+    },
+    ".output/chrome-mv3/chunks/popupQuickFeatureIcons-KvIetRmS.js": {
+      "bytes": 509,
+      "sha256": "cf5f7f618efe67d1b7e16bc36359baaabfbceb659e10e9ff8a6de84158806c28"
+    },
+    ".output/chrome-mv3/chunks/progress-DjAJ0I8S.js": {
+      "bytes": 1750,
+      "sha256": "63677294300e760014f80f4e79f4d62ed5efbe0935d111db5af44a933cbcef88"
+    },
+    ".output/chrome-mv3/chunks/protocol-KDiP4bB9.js": {
+      "bytes": 1039,
+      "sha256": "682628a54051e4d229fee6635759ce793d3fd296bccf9e186984b3f7de50dc7e"
+    },
+    ".output/chrome-mv3/chunks/public-Bw7Z0O32.js": {
+      "bytes": 52591,
+      "sha256": "e72cd038040b480f16a4b2d192fdf5446480f7642117378300583832a48d2a77"
+    },
+    ".output/chrome-mv3/chunks/public-C2y1Wn0X.js": {
+      "bytes": 42889,
+      "sha256": "210521cc9c128c12986f2575fd2c088ea1a8484c107bbb80084063070281f6d7"
+    },
+    ".output/chrome-mv3/chunks/public-CpT25I1c.js": {
+      "bytes": 32138,
+      "sha256": "b6e7eea4187cbaffbbb0e6e79816477740dc1d4fbfbe954eb8630bc3c2c1f053"
+    },
+    ".output/chrome-mv3/chunks/public-DDAMIo1C.js": {
+      "bytes": 37280,
+      "sha256": "32f4b065128e748cde526311f3fffddfb696e8ff02f405d50f4cc2f1c1ef3338"
+    },
+    ".output/chrome-mv3/chunks/public-DYin0sdp.js": {
+      "bytes": 22744,
+      "sha256": "d3bff23326bbc0e6c66bb38e2fb10201105ef1ec65d2ed637c84d95125dd6599"
+    },
+    ".output/chrome-mv3/chunks/registry-B6FSrXdJ.js": {
+      "bytes": 348,
+      "sha256": "18cbab1cb7c5752970a8d3ab2757bdb15bc0ffe28e177ad5a2b0e94a24e7eab4"
+    },
+    ".output/chrome-mv3/chunks/result-BfAf8_0F.js": {
+      "bytes": 133,
+      "sha256": "e3f3b4827c2830d400a52a96b478e87103861ec6e2cdec34d3886a65798f901d"
+    },
+    ".output/chrome-mv3/chunks/serviceCatalog-DLkNpg1G.js": {
+      "bytes": 7008,
+      "sha256": "53cdf392aabe41e3fcd9275c181b4b934f01e71a6eac1eb86ffdb9965fe1a1a4"
+    },
+    ".output/chrome-mv3/chunks/sha2-DK1pzazS.js": {
+      "bytes": 208191,
+      "sha256": "981377b9b3fc35f3bfc91875f5a24d233b6ee1a9d3838407aeae3452ddcea6b2"
+    },
+    ".output/chrome-mv3/chunks/siteAdaptationEditor-BwGm9NfQ.js": {
+      "bytes": 4969,
+      "sha256": "f74b15f9a18239be12bc7f18d373aefb255620458f224a890a1a9670252a16c6"
+    },
+    ".output/chrome-mv3/chunks/sitePreferences-drTG7tQo.js": {
+      "bytes": 1338,
+      "sha256": "9fd6fa4cc05863d00d7c4c1288f8c72301d583eadf9b8adea43ede0c4451034f"
+    },
+    ".output/chrome-mv3/chunks/tensor-B9JHZz66.js": {
+      "bytes": 13699,
+      "sha256": "2bbfe7954c2053b74a87e4c67dd53f87307b4898bda52b4855037ba552c63dfc"
+    },
+    ".output/chrome-mv3/chunks/transcription-D0LXjvam.js": {
+      "bytes": 1410,
+      "sha256": "e14cebd4f45f5a7a485d82cd98520c7601417ad3cfac869f446dc31925ef26b4"
+    },
+    ".output/chrome-mv3/chunks/transformers.web-DJiRTHOD.js": {
+      "bytes": 458158,
+      "sha256": "5e0cc66d24b4825347af231f2d83dd823633d3c8a89a98087e10dada344e29d2"
+    },
+    ".output/chrome-mv3/chunks/types-CN7jBpgI.js": {
+      "bytes": 85,
+      "sha256": "c779522bc87a94e683c35a5a8843c4d0504cf5dcf8bc2322a417a897e070ccfe"
+    },
+    ".output/chrome-mv3/chunks/useVisionProbeStatus-I3iiJeEL.js": {
+      "bytes": 12860,
+      "sha256": "95e60853eaf5e042da83670405bcdb5a1da998c7712f1cea1e4c3a7119435df7"
+    },
+    ".output/chrome-mv3/chunks/webgpu-DytTlEIG.js": {
+      "bytes": 710,
+      "sha256": "6b674fe89f313728c7fc68aa033cb6e016480158c2e2844a03fe5d3056bdc954"
+    },
+    ".output/chrome-mv3/content-scripts/content.css": {
+      "bytes": 187025,
+      "sha256": "c48f4b70960b1db03b1235517ef1cd697d99c140aad901af535566a90d0de0af"
+    },
+    ".output/chrome-mv3/content-scripts/content.js": {
+      "bytes": 2511717,
+      "sha256": "18c2061bb4cc85c82964e48ca5e8ba9581aeb146a6505460f252ae37878709fc"
+    },
+    ".output/chrome-mv3/content-scripts/neteaseMailFrame.css": {
+      "bytes": 97654,
+      "sha256": "3ba474b889c2cf7c2757a72dee34dd6c878ca39c73f5e2dc161489309cf3bd67"
+    },
+    ".output/chrome-mv3/content-scripts/neteaseMailFrame.js": {
+      "bytes": 1964804,
+      "sha256": "bab104f8e73dacd2a3c387c1c141db7626ba46e755c61b48733b1ca07e96701a"
+    },
+    ".output/chrome-mv3/content-scripts/shadowBridge.js": {
+      "bytes": 3351,
+      "sha256": "ac4cd36fa2f66d591c031c44f3d0b7bc58a39888aee263037b71be2fad686e39"
+    },
+    ".output/chrome-mv3/content-scripts/supportedFrame.css": {
+      "bytes": 97654,
+      "sha256": "3ba474b889c2cf7c2757a72dee34dd6c878ca39c73f5e2dc161489309cf3bd67"
+    },
+    ".output/chrome-mv3/content-scripts/supportedFrame.js": {
+      "bytes": 1767066,
+      "sha256": "f8e7afdd00ac41b3f878b8d9bef19935ed7ba463a624d99697bc93e599663ce9"
+    },
+    ".output/chrome-mv3/content-scripts/xVideoBridge.js": {
+      "bytes": 5104,
+      "sha256": "bb6ebec208353fe0cad042148d65b100f960801603b406ea1a95cdb2fdbf7a4d"
+    },
+    ".output/chrome-mv3/content-scripts/youtubeBridge.js": {
+      "bytes": 4428,
+      "sha256": "3f032901f7b0f7c3c95533d976a9ee996bc84573b406e61d28b13cd04d45e182"
+    },
+    ".output/chrome-mv3/document.html": {
+      "bytes": 1797,
+      "sha256": "2697d3796af39bff0ada7909467ec7bbf91fb5eccf068ea3cbed462c0e93ac86"
+    },
+    ".output/chrome-mv3/ecdict-core.LICENSE.md": {
+      "bytes": 1719,
+      "sha256": "a0ce5a3cdfc3efc3d7a89bdf72935020512b0b73ed3c19184b871eff7d540854"
+    },
+    ".output/chrome-mv3/ecdict-core.json": {
+      "bytes": 823996,
+      "sha256": "af135b66f9e94d5ab189605fda471e7333c874bf96e3b6ac7faf6a645b21f80f"
+    },
+    ".output/chrome-mv3/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs": {
+      "bytes": 50696,
+      "sha256": "52f1f7df6fb81e00730cd34f1a8416f386b5f1ef40c526b1f4438d7c2f5c59bb"
+    },
+    ".output/chrome-mv3/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm": {
+      "bytes": 23567050,
+      "sha256": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786"
+    },
+    ".output/chrome-mv3/fluent-read-ai/wllama.wasm": {
+      "bytes": 8457512,
+      "sha256": "6ca9fdd1b6c03206cd3a04e359b52c8f539896d6c5fb5d36243dded4a689f0ad"
+    },
+    ".output/chrome-mv3/fluent-read-ai/wllama.worker.js": {
+      "bytes": 155460,
+      "sha256": "2d2341d0b5ce81ff8de94a0ac77878d71c5389d537eef556aceaf489670917a7"
+    },
+    ".output/chrome-mv3/fluent-read-manga/NOTICE.md": {
+      "bytes": 1355,
+      "sha256": "ce2d1fe5336e50b71a3d8e42c9ff31bc61ad50c27d6f0ecdfb33bc7d02565ad3"
+    },
+    ".output/chrome-mv3/fluent-read-ocr/NOTICE.md": {
+      "bytes": 387,
+      "sha256": "06fb6142aa7ebfcc99e2f17383926bdd9a9677edf1a55c0039633d0fbe7c16ee"
+    },
+    ".output/chrome-mv3/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm": {
+      "bytes": 2871377,
+      "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+    },
+    ".output/chrome-mv3/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js": {
+      "bytes": 129533,
+      "sha256": "40ef8bbb068893b1ab9de186990123588c7d1e6cec902414decf53af2e280bd6"
+    },
+    ".output/chrome-mv3/fluent-read-ocr/worker/worker.min.js": {
+      "bytes": 111162,
+      "sha256": "38645599043239c0eb6db08a6504a92dcdc292200535f3e9339cd77c4443b842"
+    },
+    ".output/chrome-mv3/i18n/en-US.json": {
+      "bytes": 452896,
+      "sha256": "a20907c272879aa81dbc7788dd2b1a5f4762086e066256501babbcbc40c9f9e8"
+    },
+    ".output/chrome-mv3/i18n/es-ES.json": {
+      "bytes": 493748,
+      "sha256": "d7ecb82e34670a699b2753ce09de2b2e9fe7d041c8ccb8bc8fffca5852506589"
+    },
+    ".output/chrome-mv3/i18n/fr-FR.json": {
+      "bytes": 507242,
+      "sha256": "0a42aa062311cc48fe9bf295319b127987217e1876aebf838ab3f97eb249e0fe"
+    },
+    ".output/chrome-mv3/i18n/ja-JP.json": {
+      "bytes": 537208,
+      "sha256": "125d91b47a5304202554f88fdb7e555f8a6d86d60dc973eb2dc3af63b3e1630f"
+    },
+    ".output/chrome-mv3/i18n/ko-KR.json": {
+      "bytes": 507007,
+      "sha256": "62207911d468bf926d8c4e715f44dc2c22d4600d3ddb24232e6d1da446fd62ee"
+    },
+    ".output/chrome-mv3/i18n/ru-RU.json": {
+      "bytes": 663277,
+      "sha256": "3bebdbb63232229dcb7f85c05eec50d6139822a07a5cf771094bafa3334fa541"
+    },
+    ".output/chrome-mv3/icon/128.png": {
+      "bytes": 16432,
+      "sha256": "61e692cb26510e0edff8e6367c3b3c849b9f4656c35ceb04055b074d715fac08"
+    },
+    ".output/chrome-mv3/icon/16.png": {
+      "bytes": 1957,
+      "sha256": "09ede47c9bf8dc5b3eaf0eeef33237cbb5f0ff31ab40d3accd8e3d57349c38f8"
+    },
+    ".output/chrome-mv3/icon/32.png": {
+      "bytes": 3341,
+      "sha256": "66f544ae1b67e12b2fb714523a1d0f658a851d99749a5ed99c5d55f8a8047886"
+    },
+    ".output/chrome-mv3/icon/48.png": {
+      "bytes": 4689,
+      "sha256": "dba018fcc0563c9cea1cdb6d1ba4f9ff945b2325363a956ac7bf2fabd5fbb25c"
+    },
+    ".output/chrome-mv3/icon/64.png": {
+      "bytes": 6331,
+      "sha256": "4226fc057f80b2308a6153b3316bc02b31b74f1a7f92504e9f45f30d245b5535"
+    },
+    ".output/chrome-mv3/icon/toolbar/error-128.png": {
+      "bytes": 14858,
+      "sha256": "51ab091df710f8f38a5a52e818842c76ea70b8f024418b701e0032a0a616aa4b"
+    },
+    ".output/chrome-mv3/icon/toolbar/error-16.png": {
+      "bytes": 952,
+      "sha256": "944968433fff2c05cb320cba161ccdb76225d1a743c15c1e53c88055332d2ec9"
+    },
+    ".output/chrome-mv3/icon/toolbar/error-32.png": {
+      "bytes": 2301,
+      "sha256": "526342b0fcd3ed0bfd4f9d9a078508e7c7499a18589744293a765ee66a60bc7c"
+    },
+    ".output/chrome-mv3/icon/toolbar/error-48.png": {
+      "bytes": 3680,
+      "sha256": "dbc388b73af960aa628ca2090397f0b17c57f388f8496e6f4a968483d5b16c9a"
+    },
+    ".output/chrome-mv3/icon/toolbar/error-64.png": {
+      "bytes": 5261,
+      "sha256": "88245ef46e4dfbb60c5336ddfdf2950e738a0407a2bc359ef0b5d196a0daf00b"
+    },
+    ".output/chrome-mv3/icon/toolbar/translated-128.png": {
+      "bytes": 15181,
+      "sha256": "8a5e28ea1cf6699fadbf0214958fc31482a5a335214f69b583f6b303684f4c90"
+    },
+    ".output/chrome-mv3/icon/toolbar/translated-16.png": {
+      "bytes": 892,
+      "sha256": "5db36514a2d0b32e0a856d30fdd5ef86d90e3fbc2fbea236e2c48557adc816b8"
+    },
+    ".output/chrome-mv3/icon/toolbar/translated-32.png": {
+      "bytes": 2329,
+      "sha256": "bada52133ac00e03f4432f7b0057c19e4114622df162d418d9f7abfc12030b4e"
+    },
+    ".output/chrome-mv3/icon/toolbar/translated-48.png": {
+      "bytes": 3759,
+      "sha256": "87dffaff69a899384570f0729e6f40bf368e855858e7b4ae285bdab5d0491cf7"
+    },
+    ".output/chrome-mv3/icon/toolbar/translated-64.png": {
+      "bytes": 5384,
+      "sha256": "daccdbc48fba06c5b4cb56f526151a6b637543f158ca1100479eb29feb4d03cc"
+    },
+    ".output/chrome-mv3/icon/toolbar/translating-128.png": {
+      "bytes": 15071,
+      "sha256": "f58280ed17a651a2cca57d0d4955c2dd86999f9a22a82eb8317659079f977e7d"
+    },
+    ".output/chrome-mv3/icon/toolbar/translating-16.png": {
+      "bytes": 951,
+      "sha256": "5b5a02f88706b94be712cb451bdd8aa3e0d911cec143053b87c1ee5a197124e7"
+    },
+    ".output/chrome-mv3/icon/toolbar/translating-32.png": {
+      "bytes": 2308,
+      "sha256": "08522bc266f1f39e1645341b9829be3748919b95028628b2a66f09d124d9a23d"
+    },
+    ".output/chrome-mv3/icon/toolbar/translating-48.png": {
+      "bytes": 3688,
+      "sha256": "76719a41ab96b2e973468ed3e5cb1930dab5bb78e5a38a8cfc7d306837d7fe78"
+    },
+    ".output/chrome-mv3/icon/toolbar/translating-64.png": {
+      "bytes": 5267,
+      "sha256": "93942458dce9732fa98648ef6db7a86d8a3cb0ace0e5c2282a4663d50bd68906"
+    },
+    ".output/chrome-mv3/interface-font-licenses.txt": {
+      "bytes": 39823,
+      "sha256": "ea3c07b3883c6b3130ea3d9be48a8edd752c261f20887aea134609be34c5b8fa"
+    },
+    ".output/chrome-mv3/localTranslationWorker.js": {
+      "bytes": 388705,
+      "sha256": "d05f191d10dd51472a3b9b1fdf2d6e39062bf24c4fe63c02b9af3054a4529fba"
+    },
+    ".output/chrome-mv3/localTtsWorker.js": {
+      "bytes": 2044833,
+      "sha256": "96fbbe482a6d5efc3bfb803dbd445041b0ba8789e2c56ac99134b52f2d3dec3c"
+    },
+    ".output/chrome-mv3/mangaInferenceWorker.js": {
+      "bytes": 23086,
+      "sha256": "766fbd6c70b8b7182cbf240b150b41d28beabe512cac63fa795bbaa7477911ea"
+    },
+    ".output/chrome-mv3/manifest.json": {
+      "bytes": 3178,
+      "sha256": "54223343e496a19bae001b835811ed037e46aa77012702140286f1947b814844"
+    },
+    ".output/chrome-mv3/misc/approve.jpg": {
+      "bytes": 67652,
+      "sha256": "065553fd95e2b916fa23aa0c32cc7feb4198603e5f0eb1409acadb90bd0ac609"
+    },
+    ".output/chrome-mv3/offscreen.html": {
+      "bytes": 1310,
+      "sha256": "13a8b2aa650ab7d91168fb61b24fa69acabd28030f299ff88698e8d41220c6ca"
+    },
+    ".output/chrome-mv3/options.html": {
+      "bytes": 1623,
+      "sha256": "080ad14430ff4135e8d4902b2d2a056b0b2914c5793cf146792d8bf9375b9a7f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-EUC-H.bcmap": {
+      "bytes": 2404,
+      "sha256": "d92a261336dc18b8c03a46eb4d462382d33f4338fa195d303256b2031434c874"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-EUC-V.bcmap": {
+      "bytes": 173,
+      "sha256": "61670bebc4e4827b67230c054fd0d820d6e30c3584d02e386804e62bbedc032a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-H.bcmap": {
+      "bytes": 2379,
+      "sha256": "ece6415b853d61e1b2560165151407d35cf16e6556932b85a13ea75276b77402"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-RKSJ-H.bcmap": {
+      "bytes": 2398,
+      "sha256": "696b1f973c97623496703809eaaa5f9b40696c77540057413f4b826a08edfa7b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-RKSJ-V.bcmap": {
+      "bytes": 173,
+      "sha256": "53cb6d560ab377da48cf65d6dcacb0bdb31f13fab7066c580de38c12a73a7ff9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78-V.bcmap": {
+      "bytes": 169,
+      "sha256": "289000f02fd34872b6975503217f33abae6bee676e7d28f640473a67c8db1712"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78ms-RKSJ-H.bcmap": {
+      "bytes": 2651,
+      "sha256": "a2442595218f5f8bd8e1b42188e368587d876cfe0cc4cd87196f077c878f72e2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/78ms-RKSJ-V.bcmap": {
+      "bytes": 290,
+      "sha256": "f8ddceba96bfd9d3740bd1789ee30d1f47c78371520a8084f71f7df58f19be0b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/83pv-RKSJ-H.bcmap": {
+      "bytes": 905,
+      "sha256": "44040051ec818fe09b9703472bea72efd2759d5eeb5ff0d77c718d6bb5e6d1df"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90ms-RKSJ-H.bcmap": {
+      "bytes": 721,
+      "sha256": "c13e043e85ff715b75bb03801e8fd0fb8f3a75e4a48496faa6baaf92b5b48ba1"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90ms-RKSJ-V.bcmap": {
+      "bytes": 290,
+      "sha256": "499bb916ce1adbe4289b6e5811f4dc20eb238cdc2ffad20cf26ae56716885bab"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90msp-RKSJ-H.bcmap": {
+      "bytes": 715,
+      "sha256": "7b8b3b8bbf821702e9a4df9f3596ce292380c8c1b0925dedadbb4e4b2d80498b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90msp-RKSJ-V.bcmap": {
+      "bytes": 291,
+      "sha256": "6296c2b5c07dca8128e96d5296d621a3268803d4fa0e5812a21e52fe2802aacb"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90pv-RKSJ-H.bcmap": {
+      "bytes": 982,
+      "sha256": "fb5103f03d3a34547e18d316e52b6d9b26e485c662999222f84d2ba54c2e4fa8"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/90pv-RKSJ-V.bcmap": {
+      "bytes": 260,
+      "sha256": "7bcb5ad2ba55b9662ce379e16c2d9cc2b82d621a579807353741172e4af615c2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Add-H.bcmap": {
+      "bytes": 2419,
+      "sha256": "a2ffab28b990998181bcca9b0e914bb2207820f100ae31d5c469444892e5ad8e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Add-RKSJ-H.bcmap": {
+      "bytes": 2413,
+      "sha256": "b29f4b52e2465d0485856d5e69f1ba69927deb2848d8fd328c8035583b35bb7e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Add-RKSJ-V.bcmap": {
+      "bytes": 287,
+      "sha256": "2aa2232c283a3f5d0997c2834a36cead0b79ce2657944cfeed08140c293460ff"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Add-V.bcmap": {
+      "bytes": 282,
+      "sha256": "25125d3b1be64e86b2df5b3344170b45a42bcaa0b46e43a34314ef73c166e542"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-0.bcmap": {
+      "bytes": 317,
+      "sha256": "8c65be9d51a9f269a547dc12460707aaf4031ab67ebe8a2900f4b4cc6b3e450e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-1.bcmap": {
+      "bytes": 371,
+      "sha256": "73152bc1a59cc594b414ac6068be48e5512b96ae85920c40e32a99269fdb0c04"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-2.bcmap": {
+      "bytes": 376,
+      "sha256": "a1b8d353bdef9584c820464e8f1c9e2013d64ebf433cba0aa831dddf515818c2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-3.bcmap": {
+      "bytes": 401,
+      "sha256": "2ffc0c75c79fafde506163d3c08c390d183251009f3fbf6ae50d1167d14b9570"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-4.bcmap": {
+      "bytes": 405,
+      "sha256": "98a1f470c878c6b9691a4d7aef776af8ac9b55f5587c9fafa00547f3bf655716"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-5.bcmap": {
+      "bytes": 406,
+      "sha256": "ddd6e29955eb8cb545f2ebd09c628c3bbda5023256eda1b728f743c75fb77829"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-6.bcmap": {
+      "bytes": 406,
+      "sha256": "317bb2db71e0e5b7b0c47b75de1da915c2e22f65f0c0861507f9ca7ba238f8a2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-CNS1-UCS2.bcmap": {
+      "bytes": 41193,
+      "sha256": "e665837f2197c6bd08cd8955ad4d6932cee2398e2e328b25b00e6bfb3bd72af9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-0.bcmap": {
+      "bytes": 217,
+      "sha256": "8b81cce8a11d510e505704953cfa4e4ab080c1a0cab991145a3512ee433946b9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-1.bcmap": {
+      "bytes": 250,
+      "sha256": "0426983081788ec7202703e71f1efa4b860f75b936994236010b39d89251a81e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-2.bcmap": {
+      "bytes": 465,
+      "sha256": "e67b37a83b160ab3831306a71a605893b24454ee81ac9b6123bf2d3984d268d5"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-3.bcmap": {
+      "bytes": 470,
+      "sha256": "aa299afc3e12a28726147305f191be28c7498078c8b182ece7886ac79cd99078"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-4.bcmap": {
+      "bytes": 601,
+      "sha256": "8fbd7d74c2ddb1350c1cecce54a73fde3f5453093d4bed445283ec0033d2097f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-5.bcmap": {
+      "bytes": 625,
+      "sha256": "c22cb2fcff24112fa31dab2111bdc51957006576d31aad5a25e67793ac01428c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-GB1-UCS2.bcmap": {
+      "bytes": 33974,
+      "sha256": "20507620260c0c935c35afc1e70e5888aa7125d5ec7ffc03cef1959feb2c1641"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-0.bcmap": {
+      "bytes": 225,
+      "sha256": "464f08905236f5703b1f5cf8358767c8b18e6bcc808840d081f1de2c7ab38134"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-1.bcmap": {
+      "bytes": 226,
+      "sha256": "4c823848722187d1ffe75ae3f5f9126ccd2d7895a05fad14c919fb119e037008"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-2.bcmap": {
+      "bytes": 233,
+      "sha256": "7810fb808e367e70429e90a9478fe6a3fdc3e214f25c7582ce9c2da6a242315c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-3.bcmap": {
+      "bytes": 242,
+      "sha256": "84deb1828711ad3d390c9899c38abce1bf619d65ff7bf1a326ec95acc45f08f8"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-4.bcmap": {
+      "bytes": 337,
+      "sha256": "3f8a4f974919c2b8bae5d10175ffa2673be140481e00840542c85d48ef184067"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-5.bcmap": {
+      "bytes": 430,
+      "sha256": "1d3ce4ff28d977f8cf37a912ae4ec811f4175c3167b1ec0b2567feec3e79e1db"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-6.bcmap": {
+      "bytes": 485,
+      "sha256": "5609797b9401b30be72ef9645da62a87829f058c3be4b5c623383119f584b1d9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Japan1-UCS2.bcmap": {
+      "bytes": 40951,
+      "sha256": "66c5d0dc4964f4093e77b194023f3a0f689324028ec8330e1e1d0570bcba7c2f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Korea1-0.bcmap": {
+      "bytes": 241,
+      "sha256": "dfb8c3874f0e5a8c3acf597d2c12d2b63e90bc5e4f0fce990ec4c56077d80b32"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Korea1-1.bcmap": {
+      "bytes": 386,
+      "sha256": "62f277b7b1c441c007797ae707d5c37258d029ce4661a2b911e2e1ee35e6adc1"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Korea1-2.bcmap": {
+      "bytes": 391,
+      "sha256": "1d77068af462f96d7ad28ad7e7d43eef6423c685b479d7dc25ff5df38db0380d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Adobe-Korea1-UCS2.bcmap": {
+      "bytes": 23293,
+      "sha256": "857b723088be97255053562bfa41bd1075a7f7910d3bab59a0645c8bbc7060ff"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/B5-H.bcmap": {
+      "bytes": 1086,
+      "sha256": "718ad0ffbef4c34f8f3f31292c462e519cd567a5511fc8b346c60010d64f4ef9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/B5-V.bcmap": {
+      "bytes": 142,
+      "sha256": "b5c37383517477620ced927b6b4ffd4f4cc6230d8051b5b46a21d6768e07f7d8"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/B5pc-H.bcmap": {
+      "bytes": 1099,
+      "sha256": "bab6028aead1d6149400e904ab10cfd319082d826473ed4c582c8eeed920f17e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/B5pc-V.bcmap": {
+      "bytes": 144,
+      "sha256": "41543142b9767f3b76133899fc8453282b01ad3c653acaeea42d78c5a7d08c63"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS-EUC-H.bcmap": {
+      "bytes": 1780,
+      "sha256": "e8f89cd61e6486b948205da46499d659ed0aed949b7095fd3c8e95ffe2b0e7a9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS-EUC-V.bcmap": {
+      "bytes": 1920,
+      "sha256": "cae422bec2ac6dbe86bf921cec942bacd2d0b733ffcca5f91b3ba14e917025a0"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS1-H.bcmap": {
+      "bytes": 706,
+      "sha256": "e8487971ab20cd16f3de3e8ac56ec994b72b658ad113f2818239dfd5108f501a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS1-V.bcmap": {
+      "bytes": 143,
+      "sha256": "42df8076aaa7574505e7304af83a3323ec032c4177d64b1309db8c043d594a8a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS2-H.bcmap": {
+      "bytes": 504,
+      "sha256": "bc6024d274d440f0625c69e25f37036ef6cb6689432ceaa160d3432a2a716ca7"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/CNS2-V.bcmap": {
+      "bytes": 93,
+      "sha256": "2e4f70a8afd23a121030fc2e5b5f3816e903b11e7ba8b8c09654b31c80399c38"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETHK-B5-H.bcmap": {
+      "bytes": 4426,
+      "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETHK-B5-V.bcmap": {
+      "bytes": 158,
+      "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETen-B5-H.bcmap": {
+      "bytes": 1125,
+      "sha256": "87ee6b3f5bfda5fe26fa35431264c7d73070d10dbbf398a75185d63ae322c18d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETen-B5-V.bcmap": {
+      "bytes": 158,
+      "sha256": "47dc0d2c21e3bde317947aec1675ceabc1d5460a60bf9c24334b8c407a17172c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETenms-B5-H.bcmap": {
+      "bytes": 101,
+      "sha256": "d5f5a73da4173b7da9a3a20e16f26f9cd5d12deb1553409919e0cec6fd37fdee"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/ETenms-B5-V.bcmap": {
+      "bytes": 172,
+      "sha256": "18252fca90f472f479af1bddd60d6ab51c8e1b55dcf6845951426504934543e0"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/EUC-H.bcmap": {
+      "bytes": 578,
+      "sha256": "f9939cd57fccdc65c5d9f4c205fd497ebdbd283643308da5663801a8c1d9c595"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/EUC-V.bcmap": {
+      "bytes": 170,
+      "sha256": "1283a50a706507c4436da83ede9ad7a4440be25378f2e96f6c81a430081426a3"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Ext-H.bcmap": {
+      "bytes": 2536,
+      "sha256": "4000ed4e61a1c668ef453bbd0603cfa383defa793abd46a57ed870d7f527350b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Ext-RKSJ-H.bcmap": {
+      "bytes": 2542,
+      "sha256": "e0d2f0df337660e73813238dd4a725f11f0621b90f3273857db253d0e7694caa"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Ext-RKSJ-V.bcmap": {
+      "bytes": 218,
+      "sha256": "f617a22b6d67febb187990952006c91a9f5a4db21155d268c656252d0c21985d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Ext-V.bcmap": {
+      "bytes": 215,
+      "sha256": "c2087fb845a9e3acea0c2922cd40e6af67e11957bec74dcd597f1285edd490ce"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GB-EUC-H.bcmap": {
+      "bytes": 549,
+      "sha256": "928bad06fd84a48f5ba7150d7716609119fb660f2aaa73eccad81ddab9b9d203"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GB-EUC-V.bcmap": {
+      "bytes": 179,
+      "sha256": "a9ad88ac2479da529b16dc48abc5952332e27bc355335f91df5729a587533324"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GB-H.bcmap": {
+      "bytes": 528,
+      "sha256": "1018c777a8910b5bb46d7d54a4aee9d51ca5cff8addb2b41c969d9101cb3fd1c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GB-V.bcmap": {
+      "bytes": 175,
+      "sha256": "0b96789143c0bbf9f1641ae7165b3456dccd14dabffcbb0bd654d5bf6f94f863"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBK-EUC-H.bcmap": {
+      "bytes": 14692,
+      "sha256": "2103fed28650ede096a2281104a1a8a4304dae0db414342c636867522307123b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBK-EUC-V.bcmap": {
+      "bytes": 180,
+      "sha256": "a7fd35dd14d9dbdb955f34e6c0630618b6620dfd09d4283b2f65a65ce77fcaea"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBK2K-H.bcmap": {
+      "bytes": 19662,
+      "sha256": "3d919ae72af16c5cc6846ec87a4326a9f125e493c59d3628429d35c2c95fe8c4"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBK2K-V.bcmap": {
+      "bytes": 219,
+      "sha256": "b927fdfd595c07ce9158bf2ec13f4641b2e83b01c70989dadfabd6ed7c6ac2dc"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBKp-EUC-H.bcmap": {
+      "bytes": 14686,
+      "sha256": "d15ebd8e81fb4fe8a244f1b1e877922e03500ac69eddf5001093e502430451d2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBKp-EUC-V.bcmap": {
+      "bytes": 181,
+      "sha256": "fdc736d46e642625dccc8ad8c59f2c69fc7db7a13f2e799c6c6b779e707bb97a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBT-EUC-H.bcmap": {
+      "bytes": 7290,
+      "sha256": "dc5f44e48a39f3367ae28665027d8ab1d8cedb5a9dcc5068a900acd6709f60f9"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBT-EUC-V.bcmap": {
+      "bytes": 180,
+      "sha256": "a1ad24e63653b8aa388c18fa5e498f007564e43dde699a9f91ccb4645c999be8"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBT-H.bcmap": {
+      "bytes": 7269,
+      "sha256": "8afda745a505763f3ff54c8126eeb48ef376ea9ed07d9f42ff9a22c5c547ec57"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBT-V.bcmap": {
+      "bytes": 176,
+      "sha256": "cdc2ec5c3c7c7033290c9a8894878202f08674eb9b1ae7d36218430326768771"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBTpc-EUC-H.bcmap": {
+      "bytes": 7298,
+      "sha256": "7b23e2f7bfdb6c918f567b7324bf858f398bd8cd5f268d74ece19a3c91bf4f32"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBTpc-EUC-V.bcmap": {
+      "bytes": 182,
+      "sha256": "d7a1b13ead9ab511cf2cd01de6ce8b02aa8e8767e84895337d7a3b67f039f93b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBpc-EUC-H.bcmap": {
+      "bytes": 557,
+      "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/GBpc-EUC-V.bcmap": {
+      "bytes": 181,
+      "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/H.bcmap": {
+      "bytes": 553,
+      "sha256": "a0233e21047ec00b852125b243cbcf30abee511155b6d8159c24f944384bc9ee"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKdla-B5-H.bcmap": {
+      "bytes": 2654,
+      "sha256": "5242bce18fb13ab4cc59b146a03eba36e4ce42667eeff09e10981a9d2aa4996b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKdla-B5-V.bcmap": {
+      "bytes": 148,
+      "sha256": "2e0537f786c0791d41a925f72bad2d4e7268aa6cbf15a1400a722672cec38e2c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKdlb-B5-H.bcmap": {
+      "bytes": 2414,
+      "sha256": "fdc8159984bf5dbe475c0d5dfcb621ecee4dea07c38c668bd77f4c679e23b9b3"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKdlb-B5-V.bcmap": {
+      "bytes": 148,
+      "sha256": "b249eb9dcb915ab45057c5d4d7aa55ef88d0efbb092af6bae0b2d4705d139abf"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKgccs-B5-H.bcmap": {
+      "bytes": 2292,
+      "sha256": "ab64c7fc5e9b2e97750cc4f269b0da14fd8649e49151b7598c8df86599bac591"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKgccs-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "02ebdf7cdffb5395fb21091cd58a013a18ae5388922822f9dc6292ef16b98956"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKm314-B5-H.bcmap": {
+      "bytes": 1772,
+      "sha256": "bfd8bbde6b36a9da4c1c902c74121a30d9807a7079a00eeea218be6adc223cef"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKm314-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "2a64a815cfb6fdd480674a868762e3d161fda17543b20c9209978559f0667164"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKm471-B5-H.bcmap": {
+      "bytes": 2171,
+      "sha256": "49d7c037758826b5b6c0fa329c35bbf25d3943197754e72ecd30c6fb04d745e6"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKm471-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "be24c109e78aa4fe3c1f27d30aab3ed0741e783fa1b6b6c2719741072b54b132"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKscs-B5-H.bcmap": {
+      "bytes": 4437,
+      "sha256": "08599378f41d96b40537adef6e6edcc4a787bc63f5accf47c026df4905a13914"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/HKscs-B5-V.bcmap": {
+      "bytes": 159,
+      "sha256": "d073542b7dad1c4cbf01c1af5f0cd13218d1281a491956e310c55702fc8705c4"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Hankaku.bcmap": {
+      "bytes": 132,
+      "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Hiragana.bcmap": {
+      "bytes": 124,
+      "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-EUC-H.bcmap": {
+      "bytes": 1848,
+      "sha256": "6784e16dbc5861c036c23d3e55f0d4ba0975a3e464da0ee8e49bcfff0be070c4"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-EUC-V.bcmap": {
+      "bytes": 164,
+      "sha256": "fdb36bad85e9924823d49db374067988e024cf80fc894711f2c9178951cbbe95"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-H.bcmap": {
+      "bytes": 1831,
+      "sha256": "c1f6d61f1d3304fd539a65ae72624fa567ecc3853bf52e283958a7a2515b3eee"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-Johab-H.bcmap": {
+      "bytes": 16791,
+      "sha256": "939993d213f68db763bf156217c217ae23af082b91a0eacecf3d11eb4ff8ef8c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-Johab-V.bcmap": {
+      "bytes": 166,
+      "sha256": "5d61967aac0e666def721e8b8d0fed8f95a879a14f2e76ce516c3d11c621e519"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSC-V.bcmap": {
+      "bytes": 160,
+      "sha256": "d7da5afd9f1fe74816d79c9325f0139a4efb6438664ebfdf9a7aa92f3034360f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCms-UHC-H.bcmap": {
+      "bytes": 2787,
+      "sha256": "5b70d8f6a4fa9e2283dc649f0ff95d906d56efbee50a20e8d2faec3a8fed078e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCms-UHC-HW-H.bcmap": {
+      "bytes": 2789,
+      "sha256": "a5e6ba22aceb02fdedee11bfb9ed138463d89e85b87810b9f075b469d936f8ec"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCms-UHC-HW-V.bcmap": {
+      "bytes": 169,
+      "sha256": "890332a6a26880d463a12f2a6ff048bf9cf7e45077cfb1ca8815b89baa7bf411"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCms-UHC-V.bcmap": {
+      "bytes": 166,
+      "sha256": "1631b531c9a40c8cbe24c2317dba107362e49fa6e18af620414d627c111d570c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCpc-EUC-H.bcmap": {
+      "bytes": 2024,
+      "sha256": "709480682c55cedbb0124b9960d78e28febeee0df2e34607d61aac6601647ec7"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/KSCpc-EUC-V.bcmap": {
+      "bytes": 166,
+      "sha256": "031707887d6fc2378a36cdb6775334fd7a236c3f95048d8436abf43fe26fc49d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Katakana.bcmap": {
+      "bytes": 100,
+      "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/LICENSE": {
+      "bytes": 2078,
+      "sha256": "abd69a0491a21582eabf70d5538f24027353c58eeaff574773147f4edf4c8ad2"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/NWP-H.bcmap": {
+      "bytes": 2765,
+      "sha256": "286c6c9e335da330928a01edc3c97a3a623f1f7f3c42762b0a7dc2f651b1a78f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/NWP-V.bcmap": {
+      "bytes": 252,
+      "sha256": "3a75fb7b59adfb172710758c425d8ac6c93fd5360a64dd4afd5dd04e60ab4b4d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/RKSJ-H.bcmap": {
+      "bytes": 534,
+      "sha256": "a70de61a22a898f693f02cc011c3e3cff2e10aaa7cddb4661e456a21ae859f78"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/RKSJ-V.bcmap": {
+      "bytes": 170,
+      "sha256": "68c1a64506471a524ea5cfc3b3a9f8f70031989a6bd95427b1351f33ccf50b06"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/Roman.bcmap": {
+      "bytes": 96,
+      "sha256": "1c6b3ef9d9e5cb1aa329142ce9414b90f9b6d7f9182a2a9e927378dab8f0d43f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UCS2-H.bcmap": {
+      "bytes": 48280,
+      "sha256": "779428116752f34e2490a1941d24e4634c71e3c22d053b811d2090ae2fb3c704"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UCS2-V.bcmap": {
+      "bytes": 156,
+      "sha256": "1e5cc184b850ea44abc2df8ae5674279df668e8edf5e2a1a2ea2bd77adbd280f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF16-H.bcmap": {
+      "bytes": 50419,
+      "sha256": "32ff139b3c7b91d6ad25f994701f3ce7b242906022c418fd73e6493fc228bfe5"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF16-V.bcmap": {
+      "bytes": 156,
+      "sha256": "278eb1e68d1a236c60ef59472cf0176ee0d45f364285e76ca12419a08d46fb9a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF32-H.bcmap": {
+      "bytes": 52679,
+      "sha256": "bf26eb67fe19ee5ba915799e80ca72408400aa8342fdf6a244a4f44de8f97336"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF32-V.bcmap": {
+      "bytes": 160,
+      "sha256": "f7da3caf83ceb1cb37936fa10700d9ba6e9c3f72c5bc9724e3ac79bff0c0179e"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF8-H.bcmap": {
+      "bytes": 53629,
+      "sha256": "2f2a742bcd1a84a148a4a518b9eed51a8f9c6ca5ed3bc5e2e41fff97de5dc2d8"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniCNS-UTF8-V.bcmap": {
+      "bytes": 157,
+      "sha256": "b7c3f10780a8c62dd1c8ff6c30dc1e4e23b6cdc87c3a96fcd514cc98ffd3af9d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UCS2-H.bcmap": {
+      "bytes": 43366,
+      "sha256": "9201569b402e81ad8860650bd86350c4fa28e5dd5971f05fcacaf40f51de18ed"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UCS2-V.bcmap": {
+      "bytes": 193,
+      "sha256": "f10282335e4d64203bc2a653a3a47d745ec76c8ae04549f4d50180c1899be216"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF16-H.bcmap": {
+      "bytes": 44086,
+      "sha256": "386fd39581245c034da016a92d23f3df1117d169f996100050b264fc09a84e35"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF16-V.bcmap": {
+      "bytes": 178,
+      "sha256": "0473cfbba612b92dd9918f0ff8aee9112897c48e0ffdc0eb82da3144ed8ea84a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF32-H.bcmap": {
+      "bytes": 45738,
+      "sha256": "f48a145dc4e3ed1dca1dde7111716a72306a2a4191ab05c6bae3a5c3a961cd2f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF32-V.bcmap": {
+      "bytes": 182,
+      "sha256": "106acc49b7118bdef944e32107b4f348238f3929a0a15d3b7aab7b9101535993"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF8-H.bcmap": {
+      "bytes": 46837,
+      "sha256": "f217b439c80ee5fa1bc2cf6d1defcc319f8d84483d166a00ee199e05a68588df"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniGB-UTF8-V.bcmap": {
+      "bytes": 181,
+      "sha256": "a64df947632878eacc532fa193c735c92a383b7d66e6f8374ac193af7c64fc63"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UCS2-H.bcmap": {
+      "bytes": 25439,
+      "sha256": "ad2352f40870880fbf7f8ee5abadff743fbd025fbf9830b8ada472d1c5e4da0b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UCS2-HW-H.bcmap": {
+      "bytes": 119,
+      "sha256": "16e87edca954177c0881c874859d6783220925d821b5cdfb8755b61ebd93f9ce"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UCS2-HW-V.bcmap": {
+      "bytes": 680,
+      "sha256": "1973457e2c0192819947e56068625b34fb9a72ecc8a476ce6d7eaae5f73e2e5c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UCS2-V.bcmap": {
+      "bytes": 664,
+      "sha256": "42a133d8e2ce9dd6d2288018e01592d2bf2435b326d39b94ea0b6e6a44ac33d3"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF16-H.bcmap": {
+      "bytes": 39443,
+      "sha256": "f6a89c5688978548c83fcee990e205bc63c74274d5c69b49032a3bd4c49a05ee"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF16-V.bcmap": {
+      "bytes": 643,
+      "sha256": "c67126fc7c73850855186bb0d6482ac0a365057e0b58778c4ab9f234683fef53"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF32-H.bcmap": {
+      "bytes": 40539,
+      "sha256": "96195950ce0fe24443d8eb426fa6b88534ec421d7bef9046f0b2362809cfba73"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF32-V.bcmap": {
+      "bytes": 677,
+      "sha256": "ed4dafda402bdd19c4d5d8bf2ab41473c0f86f384552b4c7b963d6627daedeb1"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF8-H.bcmap": {
+      "bytes": 41695,
+      "sha256": "798fb0bf06ab0788d1f6a91c2db7de581612eef03c628f10e8f7ecd8f70ab448"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS-UTF8-V.bcmap": {
+      "bytes": 678,
+      "sha256": "1021611424f913b2df0bfdbe94bd327c04e224ec89d8e821c6501ea3d21f4265"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF16-H.bcmap": {
+      "bytes": 39534,
+      "sha256": "710a32d7cb43fd6bd9dbf30da5971f8c941590f74441e208d852c2be0e74cc97"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF16-V.bcmap": {
+      "bytes": 647,
+      "sha256": "3b149aff5c5707b57fb3215d1775852c8b1f413ec0f679ea628f25cf87fe098d"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF32-H.bcmap": {
+      "bytes": 40630,
+      "sha256": "8d2658e18741af7937d586a57c89729a6fec0d86121197c1f8518aa58b29cdfb"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF32-V.bcmap": {
+      "bytes": 681,
+      "sha256": "6dd475782f2897648a683c48b2fa015a15b8f06856760bddc8a17a63f418bacb"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF8-H.bcmap": {
+      "bytes": 41779,
+      "sha256": "691c614ce432b3e62486efb54e5c84c6da5afe9b51b21253bde4758feb484183"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJIS2004-UTF8-V.bcmap": {
+      "bytes": 682,
+      "sha256": "40a8c7ea2d46711c5f78fc9a878a7db68b1543ba5cd60ecf14f519a2deb829b7"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISPro-UCS2-HW-V.bcmap": {
+      "bytes": 705,
+      "sha256": "6826f94d789d7bf1960668c1c5819c34c9585c1b23152fbc19ee81c7df08524b"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISPro-UCS2-V.bcmap": {
+      "bytes": 689,
+      "sha256": "493de9fd1a08f7946065d8ab58f0c3c9fe489f5a0f109f2d05a3169b4bd5789f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISPro-UTF8-V.bcmap": {
+      "bytes": 726,
+      "sha256": "6181d382cf736c5e09492e8be9f26f31fa25b7462253f23ab16646af432cad81"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISX0213-UTF32-H.bcmap": {
+      "bytes": 40517,
+      "sha256": "692044e1fb33445668632bc9fe7386805c624864be1ddeb29d65bb0c99fc630c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISX0213-UTF32-V.bcmap": {
+      "bytes": 684,
+      "sha256": "dd54e16ca7bffb3a886242549b2bf7d78a277087f7c60d2636f118c21a5b0646"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISX02132004-UTF32-H.bcmap": {
+      "bytes": 40608,
+      "sha256": "f80ea5a989be30ccda5a8804baef6d3b4b044d2b339bf8b31c671b2466171cf6"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniJISX02132004-UTF32-V.bcmap": {
+      "bytes": 688,
+      "sha256": "94c22bd99e771c5fbe0dd8dc39850570d4db0075074aca13e272813edd7cc57f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UCS2-H.bcmap": {
+      "bytes": 25783,
+      "sha256": "a1081396ab4adb6f4a5b6c15f896963c244c1c9bcb65ce5616d06096a1b9811c"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UCS2-V.bcmap": {
+      "bytes": 178,
+      "sha256": "6cab547431958fbdc1d401d06ebd4dd61a73f5509a10f974df32bcbca11a2e43"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF16-H.bcmap": {
+      "bytes": 26327,
+      "sha256": "42d35b396286499dfae1737a07adb3a64500df37b426580bfb1d3ea872938519"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF16-V.bcmap": {
+      "bytes": 164,
+      "sha256": "5bdb7390c80dcc136cb47d41dc7460082560969c17322ee739fe3020fb642410"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF32-H.bcmap": {
+      "bytes": 26451,
+      "sha256": "3a01ec51ed1b828101351e337ffb8250abe11880032e5210f881170fed2588de"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF32-V.bcmap": {
+      "bytes": 168,
+      "sha256": "dfda895eceaed081af030dbbb962b49629eea817fc3c02bae15db93d0c68acd7"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF8-H.bcmap": {
+      "bytes": 27790,
+      "sha256": "3fac9c65145f72d7d42157a3b9c5ed6904632184e6a0888f2b828699afd2002f"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/UniKS-UTF8-V.bcmap": {
+      "bytes": 169,
+      "sha256": "9ecc6cf30dd354b9778ddba163b6cc7302b087ce9f39d1ba73472d2b75ed13ca"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/V.bcmap": {
+      "bytes": 166,
+      "sha256": "b9ad1c0c09ff14bca52f9a28a9767eb857ad0e8946e64ba14c7387a7eb69866a"
+    },
+    ".output/chrome-mv3/pdfjs/cmaps/WP-Symbol.bcmap": {
+      "bytes": 179,
+      "sha256": "543923bead225732aba30976690ee89095a19628277b5863efecc2c728d5d7bf"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitDingbats.pfb": {
+      "bytes": 29513,
+      "sha256": "845c752392b6c914fb989c75a08b7792b88f542d2499042ef2889f8c814a16ed"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitFixed.pfb": {
+      "bytes": 17597,
+      "sha256": "b6c8fe53f134b8b6d4578cd2d544df4cee9624c4efa8d51a560fb40ea296101b"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitFixedBold.pfb": {
+      "bytes": 18055,
+      "sha256": "f1b7159702973f54fc86254ea38bcf3712b2a736eb3a0995751e9f4bb45ad603"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitFixedBoldItalic.pfb": {
+      "bytes": 19151,
+      "sha256": "8a000945843bd31add06aee63bf9fd41b7578b4f3242a4b7cd46349ad9d24d4d"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitFixedItalic.pfb": {
+      "bytes": 18746,
+      "sha256": "5007faf8320fa1fcc08b8894b356ad976f60b992ba29ee5272578bbdebaf3876"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitSerif.pfb": {
+      "bytes": 19469,
+      "sha256": "4f57d2b9d884af8f907bf22df6019b52d86cbf6214fdbd02b1ae05472a543f35"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitSerifBold.pfb": {
+      "bytes": 19395,
+      "sha256": "0bdf4b04e964139818d51eda03d566ba999fc3ba2421b1c6c51f9dc969022e80"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitSerifBoldItalic.pfb": {
+      "bytes": 20733,
+      "sha256": "a406cac82583bf98175cb62c87ed5e95c45fbb34eece63a10b0a13e793cb2e10"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitSerifItalic.pfb": {
+      "bytes": 21227,
+      "sha256": "610ae0687198045c4db5d1a6650fd5e92536631706382eb8b72e38df578d0ae9"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/FoxitSymbol.pfb": {
+      "bytes": 16729,
+      "sha256": "47967d055530e7357088a08403115425643ec2cdfd6201ba8af0fbd7116c1539"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LICENSE_FOXIT": {
+      "bytes": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LICENSE_LIBERATION": {
+      "bytes": 4410,
+      "sha256": "a0c060f758d33ee59a674cd7b45914a560d0a5935968af5e87b0c6981fd89ddc"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LiberationSans-Bold.ttf": {
+      "bytes": 137052,
+      "sha256": "361c61b82d575c5c35fd9157fda8b0194bcfcd0d88ea8521a4fb5dd53d33dddc"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LiberationSans-BoldItalic.ttf": {
+      "bytes": 135124,
+      "sha256": "a224075ac17495ad0a3af3bc0a419ac0704a8b3fd1095456201fb9b095fc281d"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LiberationSans-Italic.ttf": {
+      "bytes": 162036,
+      "sha256": "832b4406dbef23628800d3aaad21048534ac84d7e3ad955be83b8172ed8ef512"
+    },
+    ".output/chrome-mv3/pdfjs/standard_fonts/LiberationSans-Regular.ttf": {
+      "bytes": 139512,
+      "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f"
+    },
+    ".output/chrome-mv3/popup-startup.js": {
+      "bytes": 1153,
+      "sha256": "6e3a0c0fdd2ff6e24a881adb8f7e44e3f08bc1d53d9ae1ed0706c2159213d805"
+    },
+    ".output/chrome-mv3/popup.html": {
+      "bytes": 2179,
+      "sha256": "77950bdde87c36b3cfb2f554c870418da9853ee486279496814089f6d36e22c8"
+    },
+    ".output/chrome-mv3/third-party-notices/ai-sdk-adapters-Apache-2.0.txt": {
+      "bytes": 703,
+      "sha256": "4c2a71f1822e52cd3fd2ab99cb40595597636195f0bb44d8fa203a7f3c0b2e9e"
+    },
+    ".output/chrome-mv3/third-party-notices/deepseek-harness-MIT.txt": {
+      "bytes": 1640,
+      "sha256": "4512a2da5578784c3b737b72439c747fc94089bf578313ed7af752afc1111253"
+    },
+    ".output/chrome-mv3/third-party-notices/dsh-agent-memory-MIT.txt": {
+      "bytes": 1548,
+      "sha256": "f525bd356a56f0013803ce42ccf5907c0e8b45b3e67b0996ccb271c6a809c6d5"
+    },
+    ".output/chrome-mv3/third-party-notices/lobe-icons-MIT.txt": {
+      "bytes": 1230,
+      "sha256": "a9181b95e2fb2bb7b4c5dd8d52f93b452ce67dc9815900318cb6a376eda48938"
+    },
+    ".output/chrome-mv3/third-party-notices/manga-models-Apache-2.0.txt": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    ".output/chrome-mv3/third-party-notices/manga-onnxruntime-MIT.txt": {
+      "bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    ".output/chrome-mv3/third-party-notices/manga-onnxruntime-ThirdPartyNotices.txt": {
+      "bytes": 326866,
+      "sha256": "e9e90971a8e75a9a8ac0c6412e29c1202d079998389915aa485f46c816c3b4cc"
+    },
+    ".output/chrome-mv3/third-party-notices/noble-hashes-MIT.txt": {
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec"
+    },
+    ".output/chrome-mv3/third-party-notices/ppu-ocv-MIT.txt": {
+      "bytes": 1080,
+      "sha256": "0876ebaae29ef0721c14733d8e0a9a9cc4853142ed757edecb1e633fd99872a0"
+    },
+    ".output/chrome-mv3/third-party-notices/ppu-paddle-ocr-MIT.txt": {
+      "bytes": 1080,
+      "sha256": "0876ebaae29ef0721c14733d8e0a9a9cc4853142ed757edecb1e633fd99872a0"
+    },
+    ".output/chrome-mv3/third-party-notices/saxes-ISC.txt": {
+      "bytes": 3011,
+      "sha256": "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e"
+    },
+    ".output/chrome-mv3/third-party-notices/tinycolor-MIT.txt": {
+      "bytes": 1072,
+      "sha256": "40623170cffa92890b9a2decc5456de6bba6d4f75a7a7b7abc60cc9fdaf78b65"
+    },
+    ".output/chrome-mv3/third-party-notices/unicode-17.0.0.txt": {
+      "bytes": 1995,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    ".output/chrome-mv3/third-party-notices/wllama-MIT.txt": {
+      "bytes": 1071,
+      "sha256": "5866e3bd7e3cbd3f7c8bea6efd8a1e7fa7cc8de68c30f428aff7c6584a0fb720"
+    },
+    ".output/chrome-mv3/third-party-notices/xmlchars-MIT.txt": {
+      "bytes": 1086,
+      "sha256": "45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c"
+    },
+    ".output/chrome-mv3/videoTranscriptionWorker.js": {
+      "bytes": 12065,
+      "sha256": "c3923e9ac05e567dfcd02dc171bc901076062d6d4656a296f8978a4dc8954a2a"
+    },
+    ".output/firefox-mv2/assets/AreaTranslationSettings-FLIUGQeI.css": {
+      "bytes": 1427,
+      "sha256": "43dca8f58bb6e3e4dc3eb3c90f30a82084a18230ea73c23a92dbd622b03ef46e"
+    },
+    ".output/firefox-mv2/assets/ConfigManagement-BWHET5G6.css": {
+      "bytes": 44468,
+      "sha256": "a36cf493d8552fe8ffaf2d898d096a041be7f13cde75df115736b6df8ad49090"
+    },
+    ".output/firefox-mv2/assets/ContextMenuSettings-BoR0SmU-.css": {
+      "bytes": 2284,
+      "sha256": "4b960e17ec66ea4c396d1ba6c277ba9aedf92559f671a7387070d701e2b96882"
+    },
+    ".output/firefox-mv2/assets/CustomHotkeyInput-P9juqSIU.css": {
+      "bytes": 7049,
+      "sha256": "ad1b792a2269924d9bd3ef866cf9874703a438d43701e9319b6f07292f641ab9"
+    },
+    ".output/firefox-mv2/assets/CustomOpenAIProviderDialog-w3GgbW0C.css": {
+      "bytes": 1468,
+      "sha256": "8bc2a3f958f3b3c6cd384115fa4ac872db316c85eb302553a8319967f0cc8bfe"
+    },
+    ".output/firefox-mv2/assets/DownloadProgress-E5aTQrXU.css": {
+      "bytes": 1794,
+      "sha256": "ed1f28ea6ba1a16dde808daec84f677fd86bccd3e2a486e451a72098cfd21fd6"
+    },
+    ".output/firefox-mv2/assets/FloatingBallSettings-D_eKwpsz.css": {
+      "bytes": 5392,
+      "sha256": "5988aaa015ff2c9e215ddd13ac70c97d4bcf986b11d19fd84a1fbd50f55aac75"
+    },
+    ".output/firefox-mv2/assets/GlossaryLibrarySelect-C9SHhXci.css": {
+      "bytes": 1449,
+      "sha256": "a3991d2ae01647a928bf6a4a0cf2f46d109e24e7c6bbd1a1aee898aae130d973"
+    },
+    ".output/firefox-mv2/assets/InputTranslationSettings-BVZoRSt4.css": {
+      "bytes": 4311,
+      "sha256": "268c3f082a91235aa4c5120bd158ed8a26cd43e6bb85f1ef4edfe5feefe3fed0"
+    },
+    ".output/firefox-mv2/assets/InterfaceSettings-D4cK9war.css": {
+      "bytes": 65066,
+      "sha256": "d4b1eae9af6077b0d83021bc9a8bf5d895c48e2cf64edcc58a889bd492916e4d"
+    },
+    ".output/firefox-mv2/assets/LearningCenter-Dj2PQL7U.css": {
+      "bytes": 30973,
+      "sha256": "6cde0cf1d1eabb1d711e2251f1851e4eb1d78f8173839bf3c5fe21e9d6595fc6"
+    },
+    ".output/firefox-mv2/assets/LocalTtsSettings-BPl7ljaS.css": {
+      "bytes": 2924,
+      "sha256": "454393943f588c86bbac288af9795444b083f1dd03c4799b7c18d044f1a9f8c5"
+    },
+    ".output/firefox-mv2/assets/MangaSettings-DzxczD2f.css": {
+      "bytes": 23536,
+      "sha256": "adf4ce8904afc05d3a5712612027085b47bf8375660e3a2ad0d0afe29948ee7e"
+    },
+    ".output/firefox-mv2/assets/ParagraphCopySettings-DUAhYzIh.css": {
+      "bytes": 443,
+      "sha256": "391c3c8ca8fd40d82d98c4dedea6056a9b90098a8ac621aed3d1606ca36dae33"
+    },
+    ".output/firefox-mv2/assets/PopupDrawer-CpuVa63I.css": {
+      "bytes": 2159,
+      "sha256": "978af640cdf56e3264ee8b2e46f3d071cb2b5ac5e3f4db3e6f6701bec0db10d2"
+    },
+    ".output/firefox-mv2/assets/PopupOnboarding-CYEleLnm.css": {
+      "bytes": 321,
+      "sha256": "b6dd8d7430115bae1f7298d4abd98df1fad41341e234e93b3bc39411c6f89adb"
+    },
+    ".output/firefox-mv2/assets/PopupServices-D3xtHBGU.css": {
+      "bytes": 6080,
+      "sha256": "788c602234b3cd31cbd1ef460878bc11aa88bc4b2074b344024be71767abb836"
+    },
+    ".output/firefox-mv2/assets/PromptTemplateEditor-DCi7hmxL.css": {
+      "bytes": 3713,
+      "sha256": "975cf9b62dbd24296585e7c53d2d49ed4219a016588e3169fe355fce07b80763"
+    },
+    ".output/firefox-mv2/assets/QuickTranslationProfiles-CAqIFlSs.css": {
+      "bytes": 6046,
+      "sha256": "aa0c4b880f4c6241985d828e05ff39545d0ef35252abe678be6dc1185983a6e1"
+    },
+    ".output/firefox-mv2/assets/SectionTranslationSettings-C0FWI_gM.css": {
+      "bytes": 458,
+      "sha256": "707c9e2c99832ba07672d95043c66e1b355563f6b0ddceb51a7b1cff80e30bfb"
+    },
+    ".output/firefox-mv2/assets/SegmentedControl--NR7P1Yk.css": {
+      "bytes": 3441,
+      "sha256": "234b748d30550ed2316ccb9c690ab50483156081d275b1cc897cfcccb1d49e1e"
+    },
+    ".output/firefox-mv2/assets/SelectionSettings-C0fZ9SK5.css": {
+      "bytes": 6418,
+      "sha256": "bba702a97c195efc0f0d5a89c833bef4a31c3a68e04c07796e87d0d8175e8ec9"
+    },
+    ".output/firefox-mv2/assets/ServiceCatalog-Cp3Pz49E.css": {
+      "bytes": 20020,
+      "sha256": "2ceca39b18f8fe157a0be1923a1b772066627f5ea5a3cdbc83793932c4e2ed0d"
+    },
+    ".output/firefox-mv2/assets/ServiceConfiguration-BWXhkVfy.css": {
+      "bytes": 56617,
+      "sha256": "c407137903f4abcd1d43cb59c7da1b7e6fe2564f37cecb9aa984356a49b42479"
+    },
+    ".output/firefox-mv2/assets/ServiceNatureBadge-Cln2l_tr.css": {
+      "bytes": 313,
+      "sha256": "abfb3d74e16e5d25887df1cafe51bcf134397b83848bd5fb14d29d32d3c7177a"
+    },
+    ".output/firefox-mv2/assets/SettingsPreviewLayout-e2D_WJRq.css": {
+      "bytes": 1408,
+      "sha256": "49fe11c6ca271c7bab1e89515a70975945eda28bf16688c2fd8908e2a149d0a1"
+    },
+    ".output/firefox-mv2/assets/SettingsSections-CfoQZTY4.css": {
+      "bytes": 32266,
+      "sha256": "5352b99e58fd109e991de8c8ff687ba88afd168624f6e7126d699ddd6cc5fe3b"
+    },
+    ".output/firefox-mv2/assets/SiteAdaptationSettings-DgXU1SEe.css": {
+      "bytes": 9688,
+      "sha256": "3d00f1c3b733086e9914c41a386833aa7e63c5c377a36eb3334abce91577c1c8"
+    },
+    ".output/firefox-mv2/assets/SitePreferencesSettings-DZM8c0yL.css": {
+      "bytes": 6080,
+      "sha256": "fb62a323b0349771ed07d30880c006a83f0c1664573e3dec85f7ba7153598fc8"
+    },
+    ".output/firefox-mv2/assets/SiteRulePreview-aKN6Wzfu.css": {
+      "bytes": 6087,
+      "sha256": "f577ba06225829a82295188c9619c491af94b90bdafc2d9d4c3a5972d799bd3c"
+    },
+    ".output/firefox-mv2/assets/TranslationCacheSettings-D9OWPS1D.css": {
+      "bytes": 2656,
+      "sha256": "86c7d2c2517499fb9b24099d738414fc1f2f1ba3eb0f0ca385dd9864cf49b247"
+    },
+    ".output/firefox-mv2/assets/UiLanguageOnboarding-BiL-L5Xi.css": {
+      "bytes": 10397,
+      "sha256": "50450438ea268b037bf8552b980da9c1328f92a1c509fae97084b934fef6efb8"
+    },
+    ".output/firefox-mv2/assets/VideoLocalModelSettings-_kcffw-s.css": {
+      "bytes": 5940,
+      "sha256": "d5e55193aab160fd9b57531df5d76f6c878f938b7a3890110e76c76178eeec4e"
+    },
+    ".output/firefox-mv2/assets/VideoSubtitleAppearanceSettings-DOspl6Ug.css": {
+      "bytes": 6024,
+      "sha256": "543b8203e808690fb068ab4d56b7d78335a5f2e609772d4720d906d65329feee"
+    },
+    ".output/firefox-mv2/assets/WritingSettings-IKgagdFp.css": {
+      "bytes": 20786,
+      "sha256": "c83cd5b8126449fc096c3787ecfa945cc1ff59fe622d5cf3d2a72d1de34cf1ab"
+    },
+    ".output/firefox-mv2/assets/capabilities-zxabMWFJ.css": {
+      "bytes": 22844,
+      "sha256": "9705c2e8a8f6f9b919d212e4bcb4311c4e634eac176dd03c6c85fdaafc67c943"
+    },
+    ".output/firefox-mv2/assets/core-BB7luzvx.css": {
+      "bytes": 20428,
+      "sha256": "50ed7201c2bdcc9826c73aec4909656fd40e1775ee3ac5fe7db43ffc436c00e3"
+    },
+    ".output/firefox-mv2/assets/document-CALGb6Pg.css": {
+      "bytes": 40718,
+      "sha256": "5802e681e37affa4d1ecb92377129ae02d0171c9e24e511eeb8477ec4c24fe33"
+    },
+    ".output/firefox-mv2/assets/el-overlay-CUAhHdWP.css": {
+      "bytes": 184,
+      "sha256": "6e0625dda9705862b149b88a50aca9845faa26a3ce4789f989bca4b19c605108"
+    },
+    ".output/firefox-mv2/assets/featureServices-DCag4A8p.css": {
+      "bytes": 4057,
+      "sha256": "910fb83fe24916b277b44317a6785e05cf314f7aefb111e87e63b64f8723d7d1"
+    },
+    ".output/firefox-mv2/assets/i18n-CMRK1q-d.css": {
+      "bytes": 8388,
+      "sha256": "e382397766c23fb4ecb734471d413d646b2e1b38472cf463891440ff926b39e9"
+    },
+    ".output/firefox-mv2/assets/interface-skins-C-micYUc.css": {
+      "bytes": 69405,
+      "sha256": "7439658a60c945c9e651f8d772c667ef009f29e2b4a086bba6ae7be94518f89d"
+    },
+    ".output/firefox-mv2/assets/options-BVlavS6u.css": {
+      "bytes": 142569,
+      "sha256": "b0c2f5677e8bdaa87833e0f63d826bab308e54ab28a6089b7eeab53cc1b1baba"
+    },
+    ".output/firefox-mv2/assets/pdf.worker.min-rsCePomN.mjs": {
+      "bytes": 1417586,
+      "sha256": "bd88805178a26c729db8c0107a5b630cb900ec070f4d8c7529a3e45530afd41d"
+    },
+    ".output/firefox-mv2/assets/popup-DKFWjdUl.css": {
+      "bytes": 44289,
+      "sha256": "c54d7dd7d3e025913ee431285f130ed6f9cb7a4302f405781647cdb1d2e5b232"
+    },
+    ".output/firefox-mv2/assets/public-1smmMcHZ.css": {
+      "bytes": 30541,
+      "sha256": "2f5e0d7409db6c79346cb8e1a8190a933fe3d1627a6676670e2766690f2ceeb3"
+    },
+    ".output/firefox-mv2/assets/public-BdRlOPhV.css": {
+      "bytes": 14627,
+      "sha256": "bd0dc6b148057303151d087ff16cede5ae8f57227d586850a10dbf010fa20d19"
+    },
+    ".output/firefox-mv2/assets/public-D9kf6335.css": {
+      "bytes": 42568,
+      "sha256": "e37a869d2559f0a1f6e551b58d6aca3ffce58e297d6f1c26c7cb6ce491aa36ad"
+    },
+    ".output/firefox-mv2/assets/public-w4UP57lP.css": {
+      "bytes": 17306,
+      "sha256": "7be2de56be6ddfc8b65ab971b839b7db09ac35e4f5ac9d956dc019db32466939"
+    },
+    ".output/firefox-mv2/assets/wechat-contact-zY-MJ-Xi.jpg": {
+      "bytes": 100720,
+      "sha256": "1360e8cca225506208c153b6c5143912e048d5df08d506df2eb84ed3914cfd62"
+    },
+    ".output/firefox-mv2/background.js": {
+      "bytes": 2103465,
+      "sha256": "955174c89bb46518d86bfbc69180f21cccc05df898c44205f3916c4f66489553"
+    },
+    ".output/firefox-mv2/chunks/128-rof0LK9z.js": {
+      "bytes": 40,
+      "sha256": "c2c1b4849a455abe1d0addec181081392aa5edda088f006af669128962b63628"
+    },
+    ".output/firefox-mv2/chunks/AreaTranslationSettings-EZsGEAcO.js": {
+      "bytes": 10979,
+      "sha256": "d191b9ee5e4752c06360ffd8c86b4b65937188cb4819ebbc5e73e51dc2ebf776"
+    },
+    ".output/firefox-mv2/chunks/ConfigManagement-C5jCs7D0.js": {
+      "bytes": 108244,
+      "sha256": "0da7ac324ad07b2ee003aa64afe856fdb74fd1be9241d2d0b870a3a5653c011b"
+    },
+    ".output/firefox-mv2/chunks/ContextMenuSettings-CCU_Yfcf.js": {
+      "bytes": 4716,
+      "sha256": "db4856f881d83d8ed06580357d9b45912a31c2982529efdb5a89f8eb4b1a9411"
+    },
+    ".output/firefox-mv2/chunks/CustomHotkeyInput-ClxjEciQ.js": {
+      "bytes": 7615,
+      "sha256": "d6fc4292660d44060a45617f875403b79e24f474bc65de0207152b5b00cd40b7"
+    },
+    ".output/firefox-mv2/chunks/CustomOpenAIProviderDialog-bR4AklT9.js": {
+      "bytes": 4101,
+      "sha256": "735fe3d3a0c8004b1c38016b9f5482701820546f31d07c826b26922ae80c4cf3"
+    },
+    ".output/firefox-mv2/chunks/DownloadProgress-D_PgcnKd.js": {
+      "bytes": 1042,
+      "sha256": "bfd4a92a38223a6798539fe9c34580eb35af2aa71874c20ae31b93cac99f8805"
+    },
+    ".output/firefox-mv2/chunks/FloatingBallSettings-B0xVc25b.js": {
+      "bytes": 10661,
+      "sha256": "eca8a0f9e1d2f94cd028258fa9b853e9bbe663239a997caa1a87f0031c5a22c6"
+    },
+    ".output/firefox-mv2/chunks/GlossaryLibrarySelect-B5TKYAr6.js": {
+      "bytes": 2263,
+      "sha256": "827dec53a6c1b549b8db01b1f4cb6cecb77400572a95b4345cd7a0027cc5d36d"
+    },
+    ".output/firefox-mv2/chunks/InputTranslationSettings-M2b8syZ9.js": {
+      "bytes": 12747,
+      "sha256": "44770533d65cc0ee3b5c4eb34d155c2d7415e0d12890a3c1f5e7006ce3a85d62"
+    },
+    ".output/firefox-mv2/chunks/InterfaceSettings-BJzbKx_W.js": {
+      "bytes": 84065,
+      "sha256": "c643078f3314e51e6dd9c3637d49f7610e27c2b78b068c0582e37ff3abab15ac"
+    },
+    ".output/firefox-mv2/chunks/LearningCenter-C_OilyR2.js": {
+      "bytes": 58964,
+      "sha256": "b7fcd7b066f5f795b6cbe006d6da34b557facb11a43eb58efadd5e11111da968"
+    },
+    ".output/firefox-mv2/chunks/LocalTtsSettings-CKFMbgoB.js": {
+      "bytes": 7510,
+      "sha256": "5559e8ba5117f786611b28bb3fcadb35f0fd82540d635d209be26da2c79e8383"
+    },
+    ".output/firefox-mv2/chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-BGXo1MYY.js": {
+      "bytes": 106446,
+      "sha256": "5e53f8f90ad516c1778f68d631996b04900cc967978f08798e2856e53a170837"
+    },
+    ".output/firefox-mv2/chunks/ParagraphCopySettings-CCcj7EFW.js": {
+      "bytes": 6393,
+      "sha256": "cd23865fe4de6b6651a88e78f69c8db4f548a794858d67d72164c110dc85b581"
+    },
+    ".output/firefox-mv2/chunks/ParagraphHandlingSettings-Ck71pqAP.js": {
+      "bytes": 2689,
+      "sha256": "1956eb8f7e39515140ff7ca83492261080284b936ac9b5223fbabbf60a23b302"
+    },
+    ".output/firefox-mv2/chunks/PopupApp-OA8UQRzi.js": {
+      "bytes": 39008,
+      "sha256": "d3b091aa0ed09c0216f541ce84d95c28559c01d6096e69378c5e76bfa22b41b5"
+    },
+    ".output/firefox-mv2/chunks/PopupDrawer-CLGEVOhg.js": {
+      "bytes": 3536,
+      "sha256": "5ecc0c329a1b7467e85fc7d8317391fbabb3bf3643a89ff4aa060fa4abc36534"
+    },
+    ".output/firefox-mv2/chunks/PopupOnboarding-B7v7lM5-.js": {
+      "bytes": 2501,
+      "sha256": "d1f02469c542d513db0a128a77f9c62621e5ae6d683104cf74d3f19908d4682b"
+    },
+    ".output/firefox-mv2/chunks/PopupServices-WqmqdxSY.js": {
+      "bytes": 9252,
+      "sha256": "2d25274787db3e0f01ae60ea725168d3363bc0b7289c98ed9aa41d72fe73ffa3"
+    },
+    ".output/firefox-mv2/chunks/PromptTemplateEditor-BCyoPkNS.js": {
+      "bytes": 3951,
+      "sha256": "e435a4c5dd65972c583f04477487d92b8a66401410afa8fc8571fa84d641f587"
+    },
+    ".output/firefox-mv2/chunks/QuickTranslationProfiles-j62GhVck.js": {
+      "bytes": 16794,
+      "sha256": "3bbe060a87635418b23275a826f34740694c3d44af4283398eb10f225b8d81a9"
+    },
+    ".output/firefox-mv2/chunks/ReadingAnswer-CaL1-NFK.js": {
+      "bytes": 11959,
+      "sha256": "51d3e8e8f399f7745c1fa5086460d4f612ae85cbe7918c73c485aed71520a606"
+    },
+    ".output/firefox-mv2/chunks/SectionTranslationSettings-DWjf_p9f.js": {
+      "bytes": 6980,
+      "sha256": "14c6d3f2f02282ebed2e952a380c9587c7b33d291c2241c5ff9076974c9cbf4d"
+    },
+    ".output/firefox-mv2/chunks/SegmentedControl-BEZjd9rH.js": {
+      "bytes": 2596,
+      "sha256": "cb060f1c9f09434cdc26cea9439e629283bd9b2efb6e8f1536a0cf5371a449b9"
+    },
+    ".output/firefox-mv2/chunks/SelectionSettings-Cp81uJdf.js": {
+      "bytes": 15287,
+      "sha256": "e3afe1c9aefa9ccc758eedbfd959a97665d2bf1a701c18c5f0cec761fee05817"
+    },
+    ".output/firefox-mv2/chunks/ServiceCatalog-DvjlX4gy.js": {
+      "bytes": 19427,
+      "sha256": "970dcbbe6718913e95ce3492614458f1a0680d967edc2428b6f8e84f3d21d53d"
+    },
+    ".output/firefox-mv2/chunks/ServiceConfiguration-Bq4he24k.js": {
+      "bytes": 123028,
+      "sha256": "f87bda0ffbd017ef6ab2c93a57c949b5c389116a1f8cb03081af97a60e0cfb2c"
+    },
+    ".output/firefox-mv2/chunks/ServiceNatureBadge-CouHFbRj.js": {
+      "bytes": 505,
+      "sha256": "42dab43dcd7c77b981af30f2b62232743e64771f05e5de338b7a53b1c03c1609"
+    },
+    ".output/firefox-mv2/chunks/SettingsPreviewLayout-DxsH0mBZ.js": {
+      "bytes": 893,
+      "sha256": "37a061cb6ac486b7e7e171a13a6adf46c1e90c4f4a74c991b88d628ae4d97855"
+    },
+    ".output/firefox-mv2/chunks/SettingsSections-BFaULJIq.js": {
+      "bytes": 84855,
+      "sha256": "487220fc7bb7900639c52e11f12cb720f2209c60527a4d03005a8e5c92592d9f"
+    },
+    ".output/firefox-mv2/chunks/SiteAdaptationSettings-B-64bRf_.js": {
+      "bytes": 26731,
+      "sha256": "96fac9fefd54e35583be214295b0e771a4bfcef1fa1306e437c352f97b31fd5d"
+    },
+    ".output/firefox-mv2/chunks/SitePreferencesSettings-C0Iu9Coh.js": {
+      "bytes": 8148,
+      "sha256": "123e01049266d564a1cc54cd704f3619bc6d9e0c54f0fcfb7c64ca38be30effa"
+    },
+    ".output/firefox-mv2/chunks/SiteRulePreview-CdRPA6JA.js": {
+      "bytes": 5052,
+      "sha256": "4d9ba1d790e479e26a448c280c1b1cabfd55d4b0d23f0b071674a656a6b1a05f"
+    },
+    ".output/firefox-mv2/chunks/TranslationCacheSettings-he5vA2lg.js": {
+      "bytes": 7155,
+      "sha256": "a65517af27e3b804dcee32d0a839313ff2df8e57e2278ee1b6acccc071dd3072"
+    },
+    ".output/firefox-mv2/chunks/UiLanguageOnboarding-Bzgvu-Bu.js": {
+      "bytes": 5433,
+      "sha256": "b165534738513fc5a15edaad2d58813726c3575ba79ec8a9ed128c0802b50d1a"
+    },
+    ".output/firefox-mv2/chunks/VideoLocalModelSettings-BL02upp_.js": {
+      "bytes": 8460,
+      "sha256": "bc5b49964de21a2c7752c6946c37d0e0aee6e64c53d5b0c340183f753e08d8bd"
+    },
+    ".output/firefox-mv2/chunks/VideoSubtitleAppearanceSettings-CXyjLcS9.js": {
+      "bytes": 8890,
+      "sha256": "26fec290b8d8be5f11915eb426ee72adba9d020942b17303132ff651a5c90394"
+    },
+    ".output/firefox-mv2/chunks/WritingSettings-hqM6mJwt.js": {
+      "bytes": 14658,
+      "sha256": "a5c4b7a751c7632fc620fbd75a284848688a05c09668f863a3beb788248bd410"
+    },
+    ".output/firefox-mv2/chunks/_commonjs-dynamic-modules-TDtrdbi3.js": {
+      "bytes": 239,
+      "sha256": "590ab8057bc032c3e14f9f1a76aaeffd01da609413fb12888819ca0433c1fae9"
+    },
+    ".output/firefox-mv2/chunks/_plugin-vue_export-helper-DlAUqK2U.js": {
+      "bytes": 91,
+      "sha256": "cb85b0f263dbe24e857338301c0627076592e9f1f1a5662929f86d2c126444aa"
+    },
+    ".output/firefox-mv2/chunks/_virtual_wxt-plugins-CcwMJl89.js": {
+      "bytes": 69588,
+      "sha256": "f8a24f2a53ff39f71c9b4cc6eee7c16bee6dc6f5277abf9845196974ef56f153"
+    },
+    ".output/firefox-mv2/chunks/capabilities-BLpr6arh.js": {
+      "bytes": 118355,
+      "sha256": "35eb12e5917663f8173ff6e38867b5480336cbb7477a33d892d81495f9fe77f4"
+    },
+    ".output/firefox-mv2/chunks/capabilities-C0BzXjKD.js": {
+      "bytes": 697,
+      "sha256": "a58b6058c9194909c60b5cfb9b0a2c748d7b27950362a4112a14e0fd9ec8a628"
+    },
+    ".output/firefox-mv2/chunks/client-CBY88EDl.js": {
+      "bytes": 14728,
+      "sha256": "825bed05f9988830d6d0dbf80cbc12a2db50eb7b2161c66eeba84c48de23b848"
+    },
+    ".output/firefox-mv2/chunks/compiler-DmHdJBKo.js": {
+      "bytes": 100930,
+      "sha256": "ecfc15ffbbe01a69a585a5c43c38cac69b738e352d34cda5cf63089f0de1130c"
+    },
+    ".output/firefox-mv2/chunks/core-MDBU--qc.js": {
+      "bytes": 1322,
+      "sha256": "b31bc358d5027981fe4e5fcd12067486c3718482c49960f6f33a49ed3a1d2497"
+    },
+    ".output/firefox-mv2/chunks/document-Bv0CjLm6.js": {
+      "bytes": 98648,
+      "sha256": "46b6929430141f746ed3b5c3e0cebd6e67335d9c6876f138d679371c3ee44e6b"
+    },
+    ".output/firefox-mv2/chunks/downloadProgress-D2eFwS-x.js": {
+      "bytes": 305,
+      "sha256": "6e4845e666742d59edad2c8cc0eefdb9b54032e3e67bf190ad282d0c27717733"
+    },
+    ".output/firefox-mv2/chunks/el-overlay-DYIWPkPP.js": {
+      "bytes": 6651,
+      "sha256": "a6665af8f99e3ed04d34045ef5f1d28200523e5eac29a756c79c06cc2a571d74"
+    },
+    ".output/firefox-mv2/chunks/featureServices-C2M7MG3o.js": {
+      "bytes": 44837,
+      "sha256": "c9745f762d81ddf90318873db8d316b33ec9dc8fa8aef4140a3da3f9c8e07a7a"
+    },
+    ".output/firefox-mv2/chunks/i18n-8WH_9GNa.js": {
+      "bytes": 672394,
+      "sha256": "9ee26f30c66dc8b24ad70c1be06c71c2776dcbe15e8190c97569a5b540840a4a"
+    },
+    ".output/firefox-mv2/chunks/index-B0wELXd3.js": {
+      "bytes": 19049,
+      "sha256": "b89a1ecd0df4365a1b019e0bbbf971b709ee174c13b125d0a8622483323383fd"
+    },
+    ".output/firefox-mv2/chunks/index-CUo4csk1.js": {
+      "bytes": 10698,
+      "sha256": "242a31055624c785e7ce27a24d7b55ce64f1df87f9ac029ba86845843b782427"
+    },
+    ".output/firefox-mv2/chunks/index-D8RiVcL0.js": {
+      "bytes": 43754,
+      "sha256": "08d7dfc515fc2688ba6929799f8eeedfa33245447fceb4407d9641853aa85084"
+    },
+    ".output/firefox-mv2/chunks/index-D9awcXjb.js": {
+      "bytes": 3310,
+      "sha256": "ad99d582f71bbf4756d867672633dd9edb1fd2a2137bbbc1f92d164ba57cda11"
+    },
+    ".output/firefox-mv2/chunks/index-DxlQluW7.js": {
+      "bytes": 4824,
+      "sha256": "bd6cdd3800cbc093d127cc641ad9ee63b0ed0b284173be61c1e9d93de75cd878"
+    },
+    ".output/firefox-mv2/chunks/index-_lI0Qv9u.js": {
+      "bytes": 435999,
+      "sha256": "3367aaf3d129e16942ea62d1bbeb47fc8c8071436ad00b415f5893b30226ee2e"
+    },
+    ".output/firefox-mv2/chunks/index.full-DFE3GRRf.js": {
+      "bytes": 728840,
+      "sha256": "e89dd39d30ccc6d8ebdc9173ff170fbada20b2d0f3872bccb73427ad4f8e638d"
+    },
+    ".output/firefox-mv2/chunks/interface-skins-DLqP91lx.js": {
+      "bytes": 9892,
+      "sha256": "1d85e02be69baa35ba7948987077c67c9a4f69c6112b44c083524a6ab37085fc"
+    },
+    ".output/firefox-mv2/chunks/jszip.min-sgB4wRYF.js": {
+      "bytes": 96967,
+      "sha256": "e4bc6ab4a444f169b82feb8cb98d42bb0180b05d5628f8dd38de681a8805af30"
+    },
+    ".output/firefox-mv2/chunks/learningModel-Bvb0ALXZ.js": {
+      "bytes": 2400,
+      "sha256": "8eeeb8b17622b7258bea7b142fb287f8889c921c66938c39c326ba46f4deca14"
+    },
+    ".output/firefox-mv2/chunks/localTranslationSupport-DXWQbPZk.js": {
+      "bytes": 131,
+      "sha256": "d20efb076ad1b4548d5d4fad6a42ce140d7db59cd9083deff44fabebc6f10507"
+    },
+    ".output/firefox-mv2/chunks/mangaPatchResult-47sa0hPa.js": {
+      "bytes": 12565,
+      "sha256": "b86d021aab39341aabf5e7de6142eed3be5bf4432d01b20fc75220b0b02ad89d"
+    },
+    ".output/firefox-mv2/chunks/modelDownloads-Bo5kfRlg.js": {
+      "bytes": 2412,
+      "sha256": "ab6373b9b0fae98b58a30dc344a45c9d5b3fe8f86466281a3e8a5622f374ae6e"
+    },
+    ".output/firefox-mv2/chunks/offscreen-DEMqfIJZ.js": {
+      "bytes": 115612,
+      "sha256": "621e0933d8b334291e96bc898c28eadb44f537356b307361978882b96b560341"
+    },
+    ".output/firefox-mv2/chunks/options-C2jyIUU-.js": {
+      "bytes": 87530,
+      "sha256": "7e7c081483d08331c3f7315336a6af8feafe97d57784b0ac18e1b268f7a1b4c1"
+    },
+    ".output/firefox-mv2/chunks/pdf-DVqZvFDv.js": {
+      "bytes": 408181,
+      "sha256": "b9f2366b6e0f3d5cb89215b9883eef19934939f7735a26b99a4ac2e571b3f35c"
+    },
+    ".output/firefox-mv2/chunks/popup-D4KlyAdy.js": {
+      "bytes": 2085,
+      "sha256": "5d93142d5bffe620795d208c52ed489f1c6d40d6348cc41c623b2ef44093446a"
+    },
+    ".output/firefox-mv2/chunks/popupQuickFeatureIcons-KvIetRmS.js": {
+      "bytes": 509,
+      "sha256": "cf5f7f618efe67d1b7e16bc36359baaabfbceb659e10e9ff8a6de84158806c28"
+    },
+    ".output/firefox-mv2/chunks/progress-DjAJ0I8S.js": {
+      "bytes": 1750,
+      "sha256": "63677294300e760014f80f4e79f4d62ed5efbe0935d111db5af44a933cbcef88"
+    },
+    ".output/firefox-mv2/chunks/protocol-KDiP4bB9.js": {
+      "bytes": 1039,
+      "sha256": "682628a54051e4d229fee6635759ce793d3fd296bccf9e186984b3f7de50dc7e"
+    },
+    ".output/firefox-mv2/chunks/public-B0G1HKok.js": {
+      "bytes": 32138,
+      "sha256": "0399b615489920a65873a8509df55cc4b63ebc100cdf461a344dd10a0312802e"
+    },
+    ".output/firefox-mv2/chunks/public-CyIx5MaQ.js": {
+      "bytes": 37280,
+      "sha256": "431a6f399dfeb08483550c445a3e7bcf56ad5e6a59eb95ef8a8ca5bd24590f05"
+    },
+    ".output/firefox-mv2/chunks/public-D3MLuRx0.js": {
+      "bytes": 52591,
+      "sha256": "b2028356a6204222241bfafa5d8434b7f21d47f20a5615bba9dcd3d2a1c80bac"
+    },
+    ".output/firefox-mv2/chunks/public-DPbmbmh7.js": {
+      "bytes": 22744,
+      "sha256": "0ef6e901dc2c5d184d9c676704eb60fa2516261e84219f1f421c46ae9e2bdb88"
+    },
+    ".output/firefox-mv2/chunks/public-DRyHNyy_.js": {
+      "bytes": 42889,
+      "sha256": "e8c9cfb51f1e802cfd23c83bc770c604b851a5d143a6a7d617dbef08a659e816"
+    },
+    ".output/firefox-mv2/chunks/registry-B6FSrXdJ.js": {
+      "bytes": 348,
+      "sha256": "18cbab1cb7c5752970a8d3ab2757bdb15bc0ffe28e177ad5a2b0e94a24e7eab4"
+    },
+    ".output/firefox-mv2/chunks/result-BfAf8_0F.js": {
+      "bytes": 133,
+      "sha256": "e3f3b4827c2830d400a52a96b478e87103861ec6e2cdec34d3886a65798f901d"
+    },
+    ".output/firefox-mv2/chunks/serviceCatalog-DLkNpg1G.js": {
+      "bytes": 7008,
+      "sha256": "53cdf392aabe41e3fcd9275c181b4b934f01e71a6eac1eb86ffdb9965fe1a1a4"
+    },
+    ".output/firefox-mv2/chunks/sha2-DK1pzazS.js": {
+      "bytes": 208191,
+      "sha256": "981377b9b3fc35f3bfc91875f5a24d233b6ee1a9d3838407aeae3452ddcea6b2"
+    },
+    ".output/firefox-mv2/chunks/siteAdaptationEditor-BwGm9NfQ.js": {
+      "bytes": 4969,
+      "sha256": "f74b15f9a18239be12bc7f18d373aefb255620458f224a890a1a9670252a16c6"
+    },
+    ".output/firefox-mv2/chunks/sitePreferences-drTG7tQo.js": {
+      "bytes": 1338,
+      "sha256": "9fd6fa4cc05863d00d7c4c1288f8c72301d583eadf9b8adea43ede0c4451034f"
+    },
+    ".output/firefox-mv2/chunks/tensor-B9JHZz66.js": {
+      "bytes": 13699,
+      "sha256": "2bbfe7954c2053b74a87e4c67dd53f87307b4898bda52b4855037ba552c63dfc"
+    },
+    ".output/firefox-mv2/chunks/transcription-D0LXjvam.js": {
+      "bytes": 1410,
+      "sha256": "e14cebd4f45f5a7a485d82cd98520c7601417ad3cfac869f446dc31925ef26b4"
+    },
+    ".output/firefox-mv2/chunks/transformers.web-DJiRTHOD.js": {
+      "bytes": 458158,
+      "sha256": "5e0cc66d24b4825347af231f2d83dd823633d3c8a89a98087e10dada344e29d2"
+    },
+    ".output/firefox-mv2/chunks/types-CN7jBpgI.js": {
+      "bytes": 85,
+      "sha256": "c779522bc87a94e683c35a5a8843c4d0504cf5dcf8bc2322a417a897e070ccfe"
+    },
+    ".output/firefox-mv2/chunks/useVisionProbeStatus-I3iiJeEL.js": {
+      "bytes": 12860,
+      "sha256": "95e60853eaf5e042da83670405bcdb5a1da998c7712f1cea1e4c3a7119435df7"
+    },
+    ".output/firefox-mv2/chunks/webgpu-DytTlEIG.js": {
+      "bytes": 710,
+      "sha256": "6b674fe89f313728c7fc68aa033cb6e016480158c2e2844a03fe5d3056bdc954"
+    },
+    ".output/firefox-mv2/content-scripts/content.css": {
+      "bytes": 187025,
+      "sha256": "c48f4b70960b1db03b1235517ef1cd697d99c140aad901af535566a90d0de0af"
+    },
+    ".output/firefox-mv2/content-scripts/content.js": {
+      "bytes": 2511719,
+      "sha256": "6ccfed344fba3e9bc6d9f89b53dd7a17b665cc13d5199eae65b047fb246ebe52"
+    },
+    ".output/firefox-mv2/content-scripts/neteaseMailFrame.css": {
+      "bytes": 97654,
+      "sha256": "3ba474b889c2cf7c2757a72dee34dd6c878ca39c73f5e2dc161489309cf3bd67"
+    },
+    ".output/firefox-mv2/content-scripts/neteaseMailFrame.js": {
+      "bytes": 1964806,
+      "sha256": "4dbe1de4e07fc3ad31a2ef7ef482b328eea456a80044d063f6d79995c6ba661f"
+    },
+    ".output/firefox-mv2/content-scripts/shadowBridge.js": {
+      "bytes": 3351,
+      "sha256": "ac4cd36fa2f66d591c031c44f3d0b7bc58a39888aee263037b71be2fad686e39"
+    },
+    ".output/firefox-mv2/content-scripts/supportedFrame.css": {
+      "bytes": 97654,
+      "sha256": "3ba474b889c2cf7c2757a72dee34dd6c878ca39c73f5e2dc161489309cf3bd67"
+    },
+    ".output/firefox-mv2/content-scripts/supportedFrame.js": {
+      "bytes": 1767068,
+      "sha256": "d9e7b579b00d77e6641c68964f03a3acabe30ca48d41d638b81dc8503fbb82d7"
+    },
+    ".output/firefox-mv2/content-scripts/xVideoBridge.js": {
+      "bytes": 5104,
+      "sha256": "bb6ebec208353fe0cad042148d65b100f960801603b406ea1a95cdb2fdbf7a4d"
+    },
+    ".output/firefox-mv2/content-scripts/youtubeBridge.js": {
+      "bytes": 4428,
+      "sha256": "3f032901f7b0f7c3c95533d976a9ee996bc84573b406e61d28b13cd04d45e182"
+    },
+    ".output/firefox-mv2/document.html": {
+      "bytes": 1797,
+      "sha256": "f81cbc953e4ad4ceaf2dc5739ae65935c2a707faff1c0483801f552f59175f0b"
+    },
+    ".output/firefox-mv2/ecdict-core.LICENSE.md": {
+      "bytes": 1719,
+      "sha256": "a0ce5a3cdfc3efc3d7a89bdf72935020512b0b73ed3c19184b871eff7d540854"
+    },
+    ".output/firefox-mv2/ecdict-core.json": {
+      "bytes": 823996,
+      "sha256": "af135b66f9e94d5ab189605fda471e7333c874bf96e3b6ac7faf6a645b21f80f"
+    },
+    ".output/firefox-mv2/fluent-read-ai/ort-wasm-simd-threaded.asyncify.mjs": {
+      "bytes": 50696,
+      "sha256": "52f1f7df6fb81e00730cd34f1a8416f386b5f1ef40c526b1f4438d7c2f5c59bb"
+    },
+    ".output/firefox-mv2/fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm": {
+      "bytes": 23567050,
+      "sha256": "e0c0c6d3e73d43b8a249972f8358f845b08cc16fec3c80efafdf8bed40366786"
+    },
+    ".output/firefox-mv2/fluent-read-ai/wllama.wasm": {
+      "bytes": 8457512,
+      "sha256": "6ca9fdd1b6c03206cd3a04e359b52c8f539896d6c5fb5d36243dded4a689f0ad"
+    },
+    ".output/firefox-mv2/fluent-read-ai/wllama.worker.js": {
+      "bytes": 155460,
+      "sha256": "2d2341d0b5ce81ff8de94a0ac77878d71c5389d537eef556aceaf489670917a7"
+    },
+    ".output/firefox-mv2/fluent-read-manga/NOTICE.md": {
+      "bytes": 1355,
+      "sha256": "ce2d1fe5336e50b71a3d8e42c9ff31bc61ad50c27d6f0ecdfb33bc7d02565ad3"
+    },
+    ".output/firefox-mv2/fluent-read-ocr/NOTICE.md": {
+      "bytes": 387,
+      "sha256": "06fb6142aa7ebfcc99e2f17383926bdd9a9677edf1a55c0039633d0fbe7c16ee"
+    },
+    ".output/firefox-mv2/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm": {
+      "bytes": 2871377,
+      "sha256": "187d76742dfc0d8929f0b49a619f145bb6370730776c7bd0d3e20c6b2098808d"
+    },
+    ".output/firefox-mv2/fluent-read-ocr/core/tesseract-core-simd-lstm.wasm.js": {
+      "bytes": 129533,
+      "sha256": "40ef8bbb068893b1ab9de186990123588c7d1e6cec902414decf53af2e280bd6"
+    },
+    ".output/firefox-mv2/fluent-read-ocr/worker/worker.min.js": {
+      "bytes": 111162,
+      "sha256": "38645599043239c0eb6db08a6504a92dcdc292200535f3e9339cd77c4443b842"
+    },
+    ".output/firefox-mv2/i18n/en-US.json": {
+      "bytes": 452896,
+      "sha256": "a20907c272879aa81dbc7788dd2b1a5f4762086e066256501babbcbc40c9f9e8"
+    },
+    ".output/firefox-mv2/i18n/es-ES.json": {
+      "bytes": 493748,
+      "sha256": "d7ecb82e34670a699b2753ce09de2b2e9fe7d041c8ccb8bc8fffca5852506589"
+    },
+    ".output/firefox-mv2/i18n/fr-FR.json": {
+      "bytes": 507242,
+      "sha256": "0a42aa062311cc48fe9bf295319b127987217e1876aebf838ab3f97eb249e0fe"
+    },
+    ".output/firefox-mv2/i18n/ja-JP.json": {
+      "bytes": 537208,
+      "sha256": "125d91b47a5304202554f88fdb7e555f8a6d86d60dc973eb2dc3af63b3e1630f"
+    },
+    ".output/firefox-mv2/i18n/ko-KR.json": {
+      "bytes": 507007,
+      "sha256": "62207911d468bf926d8c4e715f44dc2c22d4600d3ddb24232e6d1da446fd62ee"
+    },
+    ".output/firefox-mv2/i18n/ru-RU.json": {
+      "bytes": 663277,
+      "sha256": "3bebdbb63232229dcb7f85c05eec50d6139822a07a5cf771094bafa3334fa541"
+    },
+    ".output/firefox-mv2/icon/128.png": {
+      "bytes": 16432,
+      "sha256": "61e692cb26510e0edff8e6367c3b3c849b9f4656c35ceb04055b074d715fac08"
+    },
+    ".output/firefox-mv2/icon/16.png": {
+      "bytes": 1957,
+      "sha256": "09ede47c9bf8dc5b3eaf0eeef33237cbb5f0ff31ab40d3accd8e3d57349c38f8"
+    },
+    ".output/firefox-mv2/icon/32.png": {
+      "bytes": 3341,
+      "sha256": "66f544ae1b67e12b2fb714523a1d0f658a851d99749a5ed99c5d55f8a8047886"
+    },
+    ".output/firefox-mv2/icon/48.png": {
+      "bytes": 4689,
+      "sha256": "dba018fcc0563c9cea1cdb6d1ba4f9ff945b2325363a956ac7bf2fabd5fbb25c"
+    },
+    ".output/firefox-mv2/icon/64.png": {
+      "bytes": 6331,
+      "sha256": "4226fc057f80b2308a6153b3316bc02b31b74f1a7f92504e9f45f30d245b5535"
+    },
+    ".output/firefox-mv2/icon/toolbar/error-128.png": {
+      "bytes": 14858,
+      "sha256": "51ab091df710f8f38a5a52e818842c76ea70b8f024418b701e0032a0a616aa4b"
+    },
+    ".output/firefox-mv2/icon/toolbar/error-16.png": {
+      "bytes": 952,
+      "sha256": "944968433fff2c05cb320cba161ccdb76225d1a743c15c1e53c88055332d2ec9"
+    },
+    ".output/firefox-mv2/icon/toolbar/error-32.png": {
+      "bytes": 2301,
+      "sha256": "526342b0fcd3ed0bfd4f9d9a078508e7c7499a18589744293a765ee66a60bc7c"
+    },
+    ".output/firefox-mv2/icon/toolbar/error-48.png": {
+      "bytes": 3680,
+      "sha256": "dbc388b73af960aa628ca2090397f0b17c57f388f8496e6f4a968483d5b16c9a"
+    },
+    ".output/firefox-mv2/icon/toolbar/error-64.png": {
+      "bytes": 5261,
+      "sha256": "88245ef46e4dfbb60c5336ddfdf2950e738a0407a2bc359ef0b5d196a0daf00b"
+    },
+    ".output/firefox-mv2/icon/toolbar/translated-128.png": {
+      "bytes": 15181,
+      "sha256": "8a5e28ea1cf6699fadbf0214958fc31482a5a335214f69b583f6b303684f4c90"
+    },
+    ".output/firefox-mv2/icon/toolbar/translated-16.png": {
+      "bytes": 892,
+      "sha256": "5db36514a2d0b32e0a856d30fdd5ef86d90e3fbc2fbea236e2c48557adc816b8"
+    },
+    ".output/firefox-mv2/icon/toolbar/translated-32.png": {
+      "bytes": 2329,
+      "sha256": "bada52133ac00e03f4432f7b0057c19e4114622df162d418d9f7abfc12030b4e"
+    },
+    ".output/firefox-mv2/icon/toolbar/translated-48.png": {
+      "bytes": 3759,
+      "sha256": "87dffaff69a899384570f0729e6f40bf368e855858e7b4ae285bdab5d0491cf7"
+    },
+    ".output/firefox-mv2/icon/toolbar/translated-64.png": {
+      "bytes": 5384,
+      "sha256": "daccdbc48fba06c5b4cb56f526151a6b637543f158ca1100479eb29feb4d03cc"
+    },
+    ".output/firefox-mv2/icon/toolbar/translating-128.png": {
+      "bytes": 15071,
+      "sha256": "f58280ed17a651a2cca57d0d4955c2dd86999f9a22a82eb8317659079f977e7d"
+    },
+    ".output/firefox-mv2/icon/toolbar/translating-16.png": {
+      "bytes": 951,
+      "sha256": "5b5a02f88706b94be712cb451bdd8aa3e0d911cec143053b87c1ee5a197124e7"
+    },
+    ".output/firefox-mv2/icon/toolbar/translating-32.png": {
+      "bytes": 2308,
+      "sha256": "08522bc266f1f39e1645341b9829be3748919b95028628b2a66f09d124d9a23d"
+    },
+    ".output/firefox-mv2/icon/toolbar/translating-48.png": {
+      "bytes": 3688,
+      "sha256": "76719a41ab96b2e973468ed3e5cb1930dab5bb78e5a38a8cfc7d306837d7fe78"
+    },
+    ".output/firefox-mv2/icon/toolbar/translating-64.png": {
+      "bytes": 5267,
+      "sha256": "93942458dce9732fa98648ef6db7a86d8a3cb0ace0e5c2282a4663d50bd68906"
+    },
+    ".output/firefox-mv2/interface-font-licenses.txt": {
+      "bytes": 39823,
+      "sha256": "ea3c07b3883c6b3130ea3d9be48a8edd752c261f20887aea134609be34c5b8fa"
+    },
+    ".output/firefox-mv2/localTranslationWorker.js": {
+      "bytes": 388705,
+      "sha256": "d05f191d10dd51472a3b9b1fdf2d6e39062bf24c4fe63c02b9af3054a4529fba"
+    },
+    ".output/firefox-mv2/localTtsWorker.js": {
+      "bytes": 2044833,
+      "sha256": "96fbbe482a6d5efc3bfb803dbd445041b0ba8789e2c56ac99134b52f2d3dec3c"
+    },
+    ".output/firefox-mv2/mangaInferenceWorker.js": {
+      "bytes": 23086,
+      "sha256": "766fbd6c70b8b7182cbf240b150b41d28beabe512cac63fa795bbaa7477911ea"
+    },
+    ".output/firefox-mv2/manifest.json": {
+      "bytes": 2385,
+      "sha256": "1c961d990cb06001499c9d68a76e55d76546623956a6b50ea833ae8bc0093bf6"
+    },
+    ".output/firefox-mv2/misc/approve.jpg": {
+      "bytes": 67652,
+      "sha256": "065553fd95e2b916fa23aa0c32cc7feb4198603e5f0eb1409acadb90bd0ac609"
+    },
+    ".output/firefox-mv2/offscreen.html": {
+      "bytes": 1310,
+      "sha256": "13a8b2aa650ab7d91168fb61b24fa69acabd28030f299ff88698e8d41220c6ca"
+    },
+    ".output/firefox-mv2/options.html": {
+      "bytes": 1623,
+      "sha256": "3ee213a2dfa354da8d3c05212184e1aa48fd2668422ab9c68db46fa4358b07e8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-EUC-H.bcmap": {
+      "bytes": 2404,
+      "sha256": "d92a261336dc18b8c03a46eb4d462382d33f4338fa195d303256b2031434c874"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-EUC-V.bcmap": {
+      "bytes": 173,
+      "sha256": "61670bebc4e4827b67230c054fd0d820d6e30c3584d02e386804e62bbedc032a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-H.bcmap": {
+      "bytes": 2379,
+      "sha256": "ece6415b853d61e1b2560165151407d35cf16e6556932b85a13ea75276b77402"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-RKSJ-H.bcmap": {
+      "bytes": 2398,
+      "sha256": "696b1f973c97623496703809eaaa5f9b40696c77540057413f4b826a08edfa7b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-RKSJ-V.bcmap": {
+      "bytes": 173,
+      "sha256": "53cb6d560ab377da48cf65d6dcacb0bdb31f13fab7066c580de38c12a73a7ff9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78-V.bcmap": {
+      "bytes": 169,
+      "sha256": "289000f02fd34872b6975503217f33abae6bee676e7d28f640473a67c8db1712"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78ms-RKSJ-H.bcmap": {
+      "bytes": 2651,
+      "sha256": "a2442595218f5f8bd8e1b42188e368587d876cfe0cc4cd87196f077c878f72e2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/78ms-RKSJ-V.bcmap": {
+      "bytes": 290,
+      "sha256": "f8ddceba96bfd9d3740bd1789ee30d1f47c78371520a8084f71f7df58f19be0b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/83pv-RKSJ-H.bcmap": {
+      "bytes": 905,
+      "sha256": "44040051ec818fe09b9703472bea72efd2759d5eeb5ff0d77c718d6bb5e6d1df"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90ms-RKSJ-H.bcmap": {
+      "bytes": 721,
+      "sha256": "c13e043e85ff715b75bb03801e8fd0fb8f3a75e4a48496faa6baaf92b5b48ba1"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90ms-RKSJ-V.bcmap": {
+      "bytes": 290,
+      "sha256": "499bb916ce1adbe4289b6e5811f4dc20eb238cdc2ffad20cf26ae56716885bab"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90msp-RKSJ-H.bcmap": {
+      "bytes": 715,
+      "sha256": "7b8b3b8bbf821702e9a4df9f3596ce292380c8c1b0925dedadbb4e4b2d80498b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90msp-RKSJ-V.bcmap": {
+      "bytes": 291,
+      "sha256": "6296c2b5c07dca8128e96d5296d621a3268803d4fa0e5812a21e52fe2802aacb"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90pv-RKSJ-H.bcmap": {
+      "bytes": 982,
+      "sha256": "fb5103f03d3a34547e18d316e52b6d9b26e485c662999222f84d2ba54c2e4fa8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/90pv-RKSJ-V.bcmap": {
+      "bytes": 260,
+      "sha256": "7bcb5ad2ba55b9662ce379e16c2d9cc2b82d621a579807353741172e4af615c2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Add-H.bcmap": {
+      "bytes": 2419,
+      "sha256": "a2ffab28b990998181bcca9b0e914bb2207820f100ae31d5c469444892e5ad8e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Add-RKSJ-H.bcmap": {
+      "bytes": 2413,
+      "sha256": "b29f4b52e2465d0485856d5e69f1ba69927deb2848d8fd328c8035583b35bb7e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Add-RKSJ-V.bcmap": {
+      "bytes": 287,
+      "sha256": "2aa2232c283a3f5d0997c2834a36cead0b79ce2657944cfeed08140c293460ff"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Add-V.bcmap": {
+      "bytes": 282,
+      "sha256": "25125d3b1be64e86b2df5b3344170b45a42bcaa0b46e43a34314ef73c166e542"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-0.bcmap": {
+      "bytes": 317,
+      "sha256": "8c65be9d51a9f269a547dc12460707aaf4031ab67ebe8a2900f4b4cc6b3e450e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-1.bcmap": {
+      "bytes": 371,
+      "sha256": "73152bc1a59cc594b414ac6068be48e5512b96ae85920c40e32a99269fdb0c04"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-2.bcmap": {
+      "bytes": 376,
+      "sha256": "a1b8d353bdef9584c820464e8f1c9e2013d64ebf433cba0aa831dddf515818c2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-3.bcmap": {
+      "bytes": 401,
+      "sha256": "2ffc0c75c79fafde506163d3c08c390d183251009f3fbf6ae50d1167d14b9570"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-4.bcmap": {
+      "bytes": 405,
+      "sha256": "98a1f470c878c6b9691a4d7aef776af8ac9b55f5587c9fafa00547f3bf655716"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-5.bcmap": {
+      "bytes": 406,
+      "sha256": "ddd6e29955eb8cb545f2ebd09c628c3bbda5023256eda1b728f743c75fb77829"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-6.bcmap": {
+      "bytes": 406,
+      "sha256": "317bb2db71e0e5b7b0c47b75de1da915c2e22f65f0c0861507f9ca7ba238f8a2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-CNS1-UCS2.bcmap": {
+      "bytes": 41193,
+      "sha256": "e665837f2197c6bd08cd8955ad4d6932cee2398e2e328b25b00e6bfb3bd72af9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-0.bcmap": {
+      "bytes": 217,
+      "sha256": "8b81cce8a11d510e505704953cfa4e4ab080c1a0cab991145a3512ee433946b9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-1.bcmap": {
+      "bytes": 250,
+      "sha256": "0426983081788ec7202703e71f1efa4b860f75b936994236010b39d89251a81e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-2.bcmap": {
+      "bytes": 465,
+      "sha256": "e67b37a83b160ab3831306a71a605893b24454ee81ac9b6123bf2d3984d268d5"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-3.bcmap": {
+      "bytes": 470,
+      "sha256": "aa299afc3e12a28726147305f191be28c7498078c8b182ece7886ac79cd99078"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-4.bcmap": {
+      "bytes": 601,
+      "sha256": "8fbd7d74c2ddb1350c1cecce54a73fde3f5453093d4bed445283ec0033d2097f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-5.bcmap": {
+      "bytes": 625,
+      "sha256": "c22cb2fcff24112fa31dab2111bdc51957006576d31aad5a25e67793ac01428c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-GB1-UCS2.bcmap": {
+      "bytes": 33974,
+      "sha256": "20507620260c0c935c35afc1e70e5888aa7125d5ec7ffc03cef1959feb2c1641"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-0.bcmap": {
+      "bytes": 225,
+      "sha256": "464f08905236f5703b1f5cf8358767c8b18e6bcc808840d081f1de2c7ab38134"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-1.bcmap": {
+      "bytes": 226,
+      "sha256": "4c823848722187d1ffe75ae3f5f9126ccd2d7895a05fad14c919fb119e037008"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-2.bcmap": {
+      "bytes": 233,
+      "sha256": "7810fb808e367e70429e90a9478fe6a3fdc3e214f25c7582ce9c2da6a242315c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-3.bcmap": {
+      "bytes": 242,
+      "sha256": "84deb1828711ad3d390c9899c38abce1bf619d65ff7bf1a326ec95acc45f08f8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-4.bcmap": {
+      "bytes": 337,
+      "sha256": "3f8a4f974919c2b8bae5d10175ffa2673be140481e00840542c85d48ef184067"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-5.bcmap": {
+      "bytes": 430,
+      "sha256": "1d3ce4ff28d977f8cf37a912ae4ec811f4175c3167b1ec0b2567feec3e79e1db"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-6.bcmap": {
+      "bytes": 485,
+      "sha256": "5609797b9401b30be72ef9645da62a87829f058c3be4b5c623383119f584b1d9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Japan1-UCS2.bcmap": {
+      "bytes": 40951,
+      "sha256": "66c5d0dc4964f4093e77b194023f3a0f689324028ec8330e1e1d0570bcba7c2f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Korea1-0.bcmap": {
+      "bytes": 241,
+      "sha256": "dfb8c3874f0e5a8c3acf597d2c12d2b63e90bc5e4f0fce990ec4c56077d80b32"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Korea1-1.bcmap": {
+      "bytes": 386,
+      "sha256": "62f277b7b1c441c007797ae707d5c37258d029ce4661a2b911e2e1ee35e6adc1"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Korea1-2.bcmap": {
+      "bytes": 391,
+      "sha256": "1d77068af462f96d7ad28ad7e7d43eef6423c685b479d7dc25ff5df38db0380d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Adobe-Korea1-UCS2.bcmap": {
+      "bytes": 23293,
+      "sha256": "857b723088be97255053562bfa41bd1075a7f7910d3bab59a0645c8bbc7060ff"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/B5-H.bcmap": {
+      "bytes": 1086,
+      "sha256": "718ad0ffbef4c34f8f3f31292c462e519cd567a5511fc8b346c60010d64f4ef9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/B5-V.bcmap": {
+      "bytes": 142,
+      "sha256": "b5c37383517477620ced927b6b4ffd4f4cc6230d8051b5b46a21d6768e07f7d8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/B5pc-H.bcmap": {
+      "bytes": 1099,
+      "sha256": "bab6028aead1d6149400e904ab10cfd319082d826473ed4c582c8eeed920f17e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/B5pc-V.bcmap": {
+      "bytes": 144,
+      "sha256": "41543142b9767f3b76133899fc8453282b01ad3c653acaeea42d78c5a7d08c63"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS-EUC-H.bcmap": {
+      "bytes": 1780,
+      "sha256": "e8f89cd61e6486b948205da46499d659ed0aed949b7095fd3c8e95ffe2b0e7a9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS-EUC-V.bcmap": {
+      "bytes": 1920,
+      "sha256": "cae422bec2ac6dbe86bf921cec942bacd2d0b733ffcca5f91b3ba14e917025a0"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS1-H.bcmap": {
+      "bytes": 706,
+      "sha256": "e8487971ab20cd16f3de3e8ac56ec994b72b658ad113f2818239dfd5108f501a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS1-V.bcmap": {
+      "bytes": 143,
+      "sha256": "42df8076aaa7574505e7304af83a3323ec032c4177d64b1309db8c043d594a8a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS2-H.bcmap": {
+      "bytes": 504,
+      "sha256": "bc6024d274d440f0625c69e25f37036ef6cb6689432ceaa160d3432a2a716ca7"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/CNS2-V.bcmap": {
+      "bytes": 93,
+      "sha256": "2e4f70a8afd23a121030fc2e5b5f3816e903b11e7ba8b8c09654b31c80399c38"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETHK-B5-H.bcmap": {
+      "bytes": 4426,
+      "sha256": "d2f10fa519336bc4efcc7b6deb9604b75429946b40d82e311cb3a97a1994c89a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETHK-B5-V.bcmap": {
+      "bytes": 158,
+      "sha256": "1fea3fd0d9f0f679f80505800851ef2e4131d81127e18c006938ffa2f4c8b247"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETen-B5-H.bcmap": {
+      "bytes": 1125,
+      "sha256": "87ee6b3f5bfda5fe26fa35431264c7d73070d10dbbf398a75185d63ae322c18d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETen-B5-V.bcmap": {
+      "bytes": 158,
+      "sha256": "47dc0d2c21e3bde317947aec1675ceabc1d5460a60bf9c24334b8c407a17172c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETenms-B5-H.bcmap": {
+      "bytes": 101,
+      "sha256": "d5f5a73da4173b7da9a3a20e16f26f9cd5d12deb1553409919e0cec6fd37fdee"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/ETenms-B5-V.bcmap": {
+      "bytes": 172,
+      "sha256": "18252fca90f472f479af1bddd60d6ab51c8e1b55dcf6845951426504934543e0"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/EUC-H.bcmap": {
+      "bytes": 578,
+      "sha256": "f9939cd57fccdc65c5d9f4c205fd497ebdbd283643308da5663801a8c1d9c595"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/EUC-V.bcmap": {
+      "bytes": 170,
+      "sha256": "1283a50a706507c4436da83ede9ad7a4440be25378f2e96f6c81a430081426a3"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Ext-H.bcmap": {
+      "bytes": 2536,
+      "sha256": "4000ed4e61a1c668ef453bbd0603cfa383defa793abd46a57ed870d7f527350b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Ext-RKSJ-H.bcmap": {
+      "bytes": 2542,
+      "sha256": "e0d2f0df337660e73813238dd4a725f11f0621b90f3273857db253d0e7694caa"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Ext-RKSJ-V.bcmap": {
+      "bytes": 218,
+      "sha256": "f617a22b6d67febb187990952006c91a9f5a4db21155d268c656252d0c21985d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Ext-V.bcmap": {
+      "bytes": 215,
+      "sha256": "c2087fb845a9e3acea0c2922cd40e6af67e11957bec74dcd597f1285edd490ce"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GB-EUC-H.bcmap": {
+      "bytes": 549,
+      "sha256": "928bad06fd84a48f5ba7150d7716609119fb660f2aaa73eccad81ddab9b9d203"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GB-EUC-V.bcmap": {
+      "bytes": 179,
+      "sha256": "a9ad88ac2479da529b16dc48abc5952332e27bc355335f91df5729a587533324"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GB-H.bcmap": {
+      "bytes": 528,
+      "sha256": "1018c777a8910b5bb46d7d54a4aee9d51ca5cff8addb2b41c969d9101cb3fd1c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GB-V.bcmap": {
+      "bytes": 175,
+      "sha256": "0b96789143c0bbf9f1641ae7165b3456dccd14dabffcbb0bd654d5bf6f94f863"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBK-EUC-H.bcmap": {
+      "bytes": 14692,
+      "sha256": "2103fed28650ede096a2281104a1a8a4304dae0db414342c636867522307123b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBK-EUC-V.bcmap": {
+      "bytes": 180,
+      "sha256": "a7fd35dd14d9dbdb955f34e6c0630618b6620dfd09d4283b2f65a65ce77fcaea"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBK2K-H.bcmap": {
+      "bytes": 19662,
+      "sha256": "3d919ae72af16c5cc6846ec87a4326a9f125e493c59d3628429d35c2c95fe8c4"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBK2K-V.bcmap": {
+      "bytes": 219,
+      "sha256": "b927fdfd595c07ce9158bf2ec13f4641b2e83b01c70989dadfabd6ed7c6ac2dc"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBKp-EUC-H.bcmap": {
+      "bytes": 14686,
+      "sha256": "d15ebd8e81fb4fe8a244f1b1e877922e03500ac69eddf5001093e502430451d2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBKp-EUC-V.bcmap": {
+      "bytes": 181,
+      "sha256": "fdc736d46e642625dccc8ad8c59f2c69fc7db7a13f2e799c6c6b779e707bb97a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBT-EUC-H.bcmap": {
+      "bytes": 7290,
+      "sha256": "dc5f44e48a39f3367ae28665027d8ab1d8cedb5a9dcc5068a900acd6709f60f9"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBT-EUC-V.bcmap": {
+      "bytes": 180,
+      "sha256": "a1ad24e63653b8aa388c18fa5e498f007564e43dde699a9f91ccb4645c999be8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBT-H.bcmap": {
+      "bytes": 7269,
+      "sha256": "8afda745a505763f3ff54c8126eeb48ef376ea9ed07d9f42ff9a22c5c547ec57"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBT-V.bcmap": {
+      "bytes": 176,
+      "sha256": "cdc2ec5c3c7c7033290c9a8894878202f08674eb9b1ae7d36218430326768771"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBTpc-EUC-H.bcmap": {
+      "bytes": 7298,
+      "sha256": "7b23e2f7bfdb6c918f567b7324bf858f398bd8cd5f268d74ece19a3c91bf4f32"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBTpc-EUC-V.bcmap": {
+      "bytes": 182,
+      "sha256": "d7a1b13ead9ab511cf2cd01de6ce8b02aa8e8767e84895337d7a3b67f039f93b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBpc-EUC-H.bcmap": {
+      "bytes": 557,
+      "sha256": "3c4a4eb82f05abe51f6650985c630e180438bfdd491318f5d20d2ec29236e1c3"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/GBpc-EUC-V.bcmap": {
+      "bytes": 181,
+      "sha256": "215bdfa2842705624b4cf4cd29b8e3c720f1e192365e0305c11030a424c84d7c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/H.bcmap": {
+      "bytes": 553,
+      "sha256": "a0233e21047ec00b852125b243cbcf30abee511155b6d8159c24f944384bc9ee"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKdla-B5-H.bcmap": {
+      "bytes": 2654,
+      "sha256": "5242bce18fb13ab4cc59b146a03eba36e4ce42667eeff09e10981a9d2aa4996b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKdla-B5-V.bcmap": {
+      "bytes": 148,
+      "sha256": "2e0537f786c0791d41a925f72bad2d4e7268aa6cbf15a1400a722672cec38e2c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKdlb-B5-H.bcmap": {
+      "bytes": 2414,
+      "sha256": "fdc8159984bf5dbe475c0d5dfcb621ecee4dea07c38c668bd77f4c679e23b9b3"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKdlb-B5-V.bcmap": {
+      "bytes": 148,
+      "sha256": "b249eb9dcb915ab45057c5d4d7aa55ef88d0efbb092af6bae0b2d4705d139abf"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKgccs-B5-H.bcmap": {
+      "bytes": 2292,
+      "sha256": "ab64c7fc5e9b2e97750cc4f269b0da14fd8649e49151b7598c8df86599bac591"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKgccs-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "02ebdf7cdffb5395fb21091cd58a013a18ae5388922822f9dc6292ef16b98956"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKm314-B5-H.bcmap": {
+      "bytes": 1772,
+      "sha256": "bfd8bbde6b36a9da4c1c902c74121a30d9807a7079a00eeea218be6adc223cef"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKm314-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "2a64a815cfb6fdd480674a868762e3d161fda17543b20c9209978559f0667164"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKm471-B5-H.bcmap": {
+      "bytes": 2171,
+      "sha256": "49d7c037758826b5b6c0fa329c35bbf25d3943197754e72ecd30c6fb04d745e6"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKm471-B5-V.bcmap": {
+      "bytes": 149,
+      "sha256": "be24c109e78aa4fe3c1f27d30aab3ed0741e783fa1b6b6c2719741072b54b132"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKscs-B5-H.bcmap": {
+      "bytes": 4437,
+      "sha256": "08599378f41d96b40537adef6e6edcc4a787bc63f5accf47c026df4905a13914"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/HKscs-B5-V.bcmap": {
+      "bytes": 159,
+      "sha256": "d073542b7dad1c4cbf01c1af5f0cd13218d1281a491956e310c55702fc8705c4"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Hankaku.bcmap": {
+      "bytes": 132,
+      "sha256": "b454701f7aecd7856769016dfd04ca64280a060f2c67a2466d50b4395d24974e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Hiragana.bcmap": {
+      "bytes": 124,
+      "sha256": "2ed669394756dd9458651cd9995ab29ab691ecb7686659003306cdf22767a414"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-EUC-H.bcmap": {
+      "bytes": 1848,
+      "sha256": "6784e16dbc5861c036c23d3e55f0d4ba0975a3e464da0ee8e49bcfff0be070c4"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-EUC-V.bcmap": {
+      "bytes": 164,
+      "sha256": "fdb36bad85e9924823d49db374067988e024cf80fc894711f2c9178951cbbe95"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-H.bcmap": {
+      "bytes": 1831,
+      "sha256": "c1f6d61f1d3304fd539a65ae72624fa567ecc3853bf52e283958a7a2515b3eee"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-Johab-H.bcmap": {
+      "bytes": 16791,
+      "sha256": "939993d213f68db763bf156217c217ae23af082b91a0eacecf3d11eb4ff8ef8c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-Johab-V.bcmap": {
+      "bytes": 166,
+      "sha256": "5d61967aac0e666def721e8b8d0fed8f95a879a14f2e76ce516c3d11c621e519"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSC-V.bcmap": {
+      "bytes": 160,
+      "sha256": "d7da5afd9f1fe74816d79c9325f0139a4efb6438664ebfdf9a7aa92f3034360f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCms-UHC-H.bcmap": {
+      "bytes": 2787,
+      "sha256": "5b70d8f6a4fa9e2283dc649f0ff95d906d56efbee50a20e8d2faec3a8fed078e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCms-UHC-HW-H.bcmap": {
+      "bytes": 2789,
+      "sha256": "a5e6ba22aceb02fdedee11bfb9ed138463d89e85b87810b9f075b469d936f8ec"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCms-UHC-HW-V.bcmap": {
+      "bytes": 169,
+      "sha256": "890332a6a26880d463a12f2a6ff048bf9cf7e45077cfb1ca8815b89baa7bf411"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCms-UHC-V.bcmap": {
+      "bytes": 166,
+      "sha256": "1631b531c9a40c8cbe24c2317dba107362e49fa6e18af620414d627c111d570c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCpc-EUC-H.bcmap": {
+      "bytes": 2024,
+      "sha256": "709480682c55cedbb0124b9960d78e28febeee0df2e34607d61aac6601647ec7"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/KSCpc-EUC-V.bcmap": {
+      "bytes": 166,
+      "sha256": "031707887d6fc2378a36cdb6775334fd7a236c3f95048d8436abf43fe26fc49d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Katakana.bcmap": {
+      "bytes": 100,
+      "sha256": "3b6ca6642fbf8822da00d5e58a8aa275216d5c32dbf2bd73e934197fc9fc5c53"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/LICENSE": {
+      "bytes": 2078,
+      "sha256": "abd69a0491a21582eabf70d5538f24027353c58eeaff574773147f4edf4c8ad2"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/NWP-H.bcmap": {
+      "bytes": 2765,
+      "sha256": "286c6c9e335da330928a01edc3c97a3a623f1f7f3c42762b0a7dc2f651b1a78f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/NWP-V.bcmap": {
+      "bytes": 252,
+      "sha256": "3a75fb7b59adfb172710758c425d8ac6c93fd5360a64dd4afd5dd04e60ab4b4d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/RKSJ-H.bcmap": {
+      "bytes": 534,
+      "sha256": "a70de61a22a898f693f02cc011c3e3cff2e10aaa7cddb4661e456a21ae859f78"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/RKSJ-V.bcmap": {
+      "bytes": 170,
+      "sha256": "68c1a64506471a524ea5cfc3b3a9f8f70031989a6bd95427b1351f33ccf50b06"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/Roman.bcmap": {
+      "bytes": 96,
+      "sha256": "1c6b3ef9d9e5cb1aa329142ce9414b90f9b6d7f9182a2a9e927378dab8f0d43f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UCS2-H.bcmap": {
+      "bytes": 48280,
+      "sha256": "779428116752f34e2490a1941d24e4634c71e3c22d053b811d2090ae2fb3c704"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UCS2-V.bcmap": {
+      "bytes": 156,
+      "sha256": "1e5cc184b850ea44abc2df8ae5674279df668e8edf5e2a1a2ea2bd77adbd280f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF16-H.bcmap": {
+      "bytes": 50419,
+      "sha256": "32ff139b3c7b91d6ad25f994701f3ce7b242906022c418fd73e6493fc228bfe5"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF16-V.bcmap": {
+      "bytes": 156,
+      "sha256": "278eb1e68d1a236c60ef59472cf0176ee0d45f364285e76ca12419a08d46fb9a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF32-H.bcmap": {
+      "bytes": 52679,
+      "sha256": "bf26eb67fe19ee5ba915799e80ca72408400aa8342fdf6a244a4f44de8f97336"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF32-V.bcmap": {
+      "bytes": 160,
+      "sha256": "f7da3caf83ceb1cb37936fa10700d9ba6e9c3f72c5bc9724e3ac79bff0c0179e"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF8-H.bcmap": {
+      "bytes": 53629,
+      "sha256": "2f2a742bcd1a84a148a4a518b9eed51a8f9c6ca5ed3bc5e2e41fff97de5dc2d8"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniCNS-UTF8-V.bcmap": {
+      "bytes": 157,
+      "sha256": "b7c3f10780a8c62dd1c8ff6c30dc1e4e23b6cdc87c3a96fcd514cc98ffd3af9d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UCS2-H.bcmap": {
+      "bytes": 43366,
+      "sha256": "9201569b402e81ad8860650bd86350c4fa28e5dd5971f05fcacaf40f51de18ed"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UCS2-V.bcmap": {
+      "bytes": 193,
+      "sha256": "f10282335e4d64203bc2a653a3a47d745ec76c8ae04549f4d50180c1899be216"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF16-H.bcmap": {
+      "bytes": 44086,
+      "sha256": "386fd39581245c034da016a92d23f3df1117d169f996100050b264fc09a84e35"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF16-V.bcmap": {
+      "bytes": 178,
+      "sha256": "0473cfbba612b92dd9918f0ff8aee9112897c48e0ffdc0eb82da3144ed8ea84a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF32-H.bcmap": {
+      "bytes": 45738,
+      "sha256": "f48a145dc4e3ed1dca1dde7111716a72306a2a4191ab05c6bae3a5c3a961cd2f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF32-V.bcmap": {
+      "bytes": 182,
+      "sha256": "106acc49b7118bdef944e32107b4f348238f3929a0a15d3b7aab7b9101535993"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF8-H.bcmap": {
+      "bytes": 46837,
+      "sha256": "f217b439c80ee5fa1bc2cf6d1defcc319f8d84483d166a00ee199e05a68588df"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniGB-UTF8-V.bcmap": {
+      "bytes": 181,
+      "sha256": "a64df947632878eacc532fa193c735c92a383b7d66e6f8374ac193af7c64fc63"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UCS2-H.bcmap": {
+      "bytes": 25439,
+      "sha256": "ad2352f40870880fbf7f8ee5abadff743fbd025fbf9830b8ada472d1c5e4da0b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UCS2-HW-H.bcmap": {
+      "bytes": 119,
+      "sha256": "16e87edca954177c0881c874859d6783220925d821b5cdfb8755b61ebd93f9ce"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UCS2-HW-V.bcmap": {
+      "bytes": 680,
+      "sha256": "1973457e2c0192819947e56068625b34fb9a72ecc8a476ce6d7eaae5f73e2e5c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UCS2-V.bcmap": {
+      "bytes": 664,
+      "sha256": "42a133d8e2ce9dd6d2288018e01592d2bf2435b326d39b94ea0b6e6a44ac33d3"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF16-H.bcmap": {
+      "bytes": 39443,
+      "sha256": "f6a89c5688978548c83fcee990e205bc63c74274d5c69b49032a3bd4c49a05ee"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF16-V.bcmap": {
+      "bytes": 643,
+      "sha256": "c67126fc7c73850855186bb0d6482ac0a365057e0b58778c4ab9f234683fef53"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF32-H.bcmap": {
+      "bytes": 40539,
+      "sha256": "96195950ce0fe24443d8eb426fa6b88534ec421d7bef9046f0b2362809cfba73"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF32-V.bcmap": {
+      "bytes": 677,
+      "sha256": "ed4dafda402bdd19c4d5d8bf2ab41473c0f86f384552b4c7b963d6627daedeb1"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF8-H.bcmap": {
+      "bytes": 41695,
+      "sha256": "798fb0bf06ab0788d1f6a91c2db7de581612eef03c628f10e8f7ecd8f70ab448"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS-UTF8-V.bcmap": {
+      "bytes": 678,
+      "sha256": "1021611424f913b2df0bfdbe94bd327c04e224ec89d8e821c6501ea3d21f4265"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF16-H.bcmap": {
+      "bytes": 39534,
+      "sha256": "710a32d7cb43fd6bd9dbf30da5971f8c941590f74441e208d852c2be0e74cc97"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF16-V.bcmap": {
+      "bytes": 647,
+      "sha256": "3b149aff5c5707b57fb3215d1775852c8b1f413ec0f679ea628f25cf87fe098d"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF32-H.bcmap": {
+      "bytes": 40630,
+      "sha256": "8d2658e18741af7937d586a57c89729a6fec0d86121197c1f8518aa58b29cdfb"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF32-V.bcmap": {
+      "bytes": 681,
+      "sha256": "6dd475782f2897648a683c48b2fa015a15b8f06856760bddc8a17a63f418bacb"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF8-H.bcmap": {
+      "bytes": 41779,
+      "sha256": "691c614ce432b3e62486efb54e5c84c6da5afe9b51b21253bde4758feb484183"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJIS2004-UTF8-V.bcmap": {
+      "bytes": 682,
+      "sha256": "40a8c7ea2d46711c5f78fc9a878a7db68b1543ba5cd60ecf14f519a2deb829b7"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISPro-UCS2-HW-V.bcmap": {
+      "bytes": 705,
+      "sha256": "6826f94d789d7bf1960668c1c5819c34c9585c1b23152fbc19ee81c7df08524b"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISPro-UCS2-V.bcmap": {
+      "bytes": 689,
+      "sha256": "493de9fd1a08f7946065d8ab58f0c3c9fe489f5a0f109f2d05a3169b4bd5789f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISPro-UTF8-V.bcmap": {
+      "bytes": 726,
+      "sha256": "6181d382cf736c5e09492e8be9f26f31fa25b7462253f23ab16646af432cad81"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISX0213-UTF32-H.bcmap": {
+      "bytes": 40517,
+      "sha256": "692044e1fb33445668632bc9fe7386805c624864be1ddeb29d65bb0c99fc630c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISX0213-UTF32-V.bcmap": {
+      "bytes": 684,
+      "sha256": "dd54e16ca7bffb3a886242549b2bf7d78a277087f7c60d2636f118c21a5b0646"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISX02132004-UTF32-H.bcmap": {
+      "bytes": 40608,
+      "sha256": "f80ea5a989be30ccda5a8804baef6d3b4b044d2b339bf8b31c671b2466171cf6"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniJISX02132004-UTF32-V.bcmap": {
+      "bytes": 688,
+      "sha256": "94c22bd99e771c5fbe0dd8dc39850570d4db0075074aca13e272813edd7cc57f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UCS2-H.bcmap": {
+      "bytes": 25783,
+      "sha256": "a1081396ab4adb6f4a5b6c15f896963c244c1c9bcb65ce5616d06096a1b9811c"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UCS2-V.bcmap": {
+      "bytes": 178,
+      "sha256": "6cab547431958fbdc1d401d06ebd4dd61a73f5509a10f974df32bcbca11a2e43"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF16-H.bcmap": {
+      "bytes": 26327,
+      "sha256": "42d35b396286499dfae1737a07adb3a64500df37b426580bfb1d3ea872938519"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF16-V.bcmap": {
+      "bytes": 164,
+      "sha256": "5bdb7390c80dcc136cb47d41dc7460082560969c17322ee739fe3020fb642410"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF32-H.bcmap": {
+      "bytes": 26451,
+      "sha256": "3a01ec51ed1b828101351e337ffb8250abe11880032e5210f881170fed2588de"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF32-V.bcmap": {
+      "bytes": 168,
+      "sha256": "dfda895eceaed081af030dbbb962b49629eea817fc3c02bae15db93d0c68acd7"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF8-H.bcmap": {
+      "bytes": 27790,
+      "sha256": "3fac9c65145f72d7d42157a3b9c5ed6904632184e6a0888f2b828699afd2002f"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/UniKS-UTF8-V.bcmap": {
+      "bytes": 169,
+      "sha256": "9ecc6cf30dd354b9778ddba163b6cc7302b087ce9f39d1ba73472d2b75ed13ca"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/V.bcmap": {
+      "bytes": 166,
+      "sha256": "b9ad1c0c09ff14bca52f9a28a9767eb857ad0e8946e64ba14c7387a7eb69866a"
+    },
+    ".output/firefox-mv2/pdfjs/cmaps/WP-Symbol.bcmap": {
+      "bytes": 179,
+      "sha256": "543923bead225732aba30976690ee89095a19628277b5863efecc2c728d5d7bf"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitDingbats.pfb": {
+      "bytes": 29513,
+      "sha256": "845c752392b6c914fb989c75a08b7792b88f542d2499042ef2889f8c814a16ed"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitFixed.pfb": {
+      "bytes": 17597,
+      "sha256": "b6c8fe53f134b8b6d4578cd2d544df4cee9624c4efa8d51a560fb40ea296101b"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitFixedBold.pfb": {
+      "bytes": 18055,
+      "sha256": "f1b7159702973f54fc86254ea38bcf3712b2a736eb3a0995751e9f4bb45ad603"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitFixedBoldItalic.pfb": {
+      "bytes": 19151,
+      "sha256": "8a000945843bd31add06aee63bf9fd41b7578b4f3242a4b7cd46349ad9d24d4d"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitFixedItalic.pfb": {
+      "bytes": 18746,
+      "sha256": "5007faf8320fa1fcc08b8894b356ad976f60b992ba29ee5272578bbdebaf3876"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitSerif.pfb": {
+      "bytes": 19469,
+      "sha256": "4f57d2b9d884af8f907bf22df6019b52d86cbf6214fdbd02b1ae05472a543f35"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitSerifBold.pfb": {
+      "bytes": 19395,
+      "sha256": "0bdf4b04e964139818d51eda03d566ba999fc3ba2421b1c6c51f9dc969022e80"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitSerifBoldItalic.pfb": {
+      "bytes": 20733,
+      "sha256": "a406cac82583bf98175cb62c87ed5e95c45fbb34eece63a10b0a13e793cb2e10"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitSerifItalic.pfb": {
+      "bytes": 21227,
+      "sha256": "610ae0687198045c4db5d1a6650fd5e92536631706382eb8b72e38df578d0ae9"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/FoxitSymbol.pfb": {
+      "bytes": 16729,
+      "sha256": "47967d055530e7357088a08403115425643ec2cdfd6201ba8af0fbd7116c1539"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LICENSE_FOXIT": {
+      "bytes": 1553,
+      "sha256": "b578cdd2345840ada550bd12519533812320d5f1d21cf4c1c7e1b1b0a31c98b7"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LICENSE_LIBERATION": {
+      "bytes": 4410,
+      "sha256": "a0c060f758d33ee59a674cd7b45914a560d0a5935968af5e87b0c6981fd89ddc"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LiberationSans-Bold.ttf": {
+      "bytes": 137052,
+      "sha256": "361c61b82d575c5c35fd9157fda8b0194bcfcd0d88ea8521a4fb5dd53d33dddc"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LiberationSans-BoldItalic.ttf": {
+      "bytes": 135124,
+      "sha256": "a224075ac17495ad0a3af3bc0a419ac0704a8b3fd1095456201fb9b095fc281d"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LiberationSans-Italic.ttf": {
+      "bytes": 162036,
+      "sha256": "832b4406dbef23628800d3aaad21048534ac84d7e3ad955be83b8172ed8ef512"
+    },
+    ".output/firefox-mv2/pdfjs/standard_fonts/LiberationSans-Regular.ttf": {
+      "bytes": 139512,
+      "sha256": "f8ace1f892b2bd9dc1792ba7f097fa7588f84fed48321480e04de5390828221f"
+    },
+    ".output/firefox-mv2/popup-startup.js": {
+      "bytes": 1153,
+      "sha256": "6e3a0c0fdd2ff6e24a881adb8f7e44e3f08bc1d53d9ae1ed0706c2159213d805"
+    },
+    ".output/firefox-mv2/popup.html": {
+      "bytes": 2179,
+      "sha256": "a2ae0c5cfadcb40b4d995bf763af214e3249f4efbc4795272dab656de49e0383"
+    },
+    ".output/firefox-mv2/third-party-notices/ai-sdk-adapters-Apache-2.0.txt": {
+      "bytes": 703,
+      "sha256": "4c2a71f1822e52cd3fd2ab99cb40595597636195f0bb44d8fa203a7f3c0b2e9e"
+    },
+    ".output/firefox-mv2/third-party-notices/deepseek-harness-MIT.txt": {
+      "bytes": 1640,
+      "sha256": "4512a2da5578784c3b737b72439c747fc94089bf578313ed7af752afc1111253"
+    },
+    ".output/firefox-mv2/third-party-notices/dsh-agent-memory-MIT.txt": {
+      "bytes": 1548,
+      "sha256": "f525bd356a56f0013803ce42ccf5907c0e8b45b3e67b0996ccb271c6a809c6d5"
+    },
+    ".output/firefox-mv2/third-party-notices/lobe-icons-MIT.txt": {
+      "bytes": 1230,
+      "sha256": "a9181b95e2fb2bb7b4c5dd8d52f93b452ce67dc9815900318cb6a376eda48938"
+    },
+    ".output/firefox-mv2/third-party-notices/manga-models-Apache-2.0.txt": {
+      "bytes": 11358,
+      "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+    },
+    ".output/firefox-mv2/third-party-notices/manga-onnxruntime-MIT.txt": {
+      "bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    ".output/firefox-mv2/third-party-notices/manga-onnxruntime-ThirdPartyNotices.txt": {
+      "bytes": 326866,
+      "sha256": "e9e90971a8e75a9a8ac0c6412e29c1202d079998389915aa485f46c816c3b4cc"
+    },
+    ".output/firefox-mv2/third-party-notices/noble-hashes-MIT.txt": {
+      "bytes": 1109,
+      "sha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec"
+    },
+    ".output/firefox-mv2/third-party-notices/ppu-ocv-MIT.txt": {
+      "bytes": 1080,
+      "sha256": "0876ebaae29ef0721c14733d8e0a9a9cc4853142ed757edecb1e633fd99872a0"
+    },
+    ".output/firefox-mv2/third-party-notices/ppu-paddle-ocr-MIT.txt": {
+      "bytes": 1080,
+      "sha256": "0876ebaae29ef0721c14733d8e0a9a9cc4853142ed757edecb1e633fd99872a0"
+    },
+    ".output/firefox-mv2/third-party-notices/saxes-ISC.txt": {
+      "bytes": 3011,
+      "sha256": "0fac2374380621b22e6b50451057721a9c52935b02d16d106a9f04897f061d0e"
+    },
+    ".output/firefox-mv2/third-party-notices/tinycolor-MIT.txt": {
+      "bytes": 1072,
+      "sha256": "40623170cffa92890b9a2decc5456de6bba6d4f75a7a7b7abc60cc9fdaf78b65"
+    },
+    ".output/firefox-mv2/third-party-notices/unicode-17.0.0.txt": {
+      "bytes": 1995,
+      "sha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96"
+    },
+    ".output/firefox-mv2/third-party-notices/wllama-MIT.txt": {
+      "bytes": 1071,
+      "sha256": "5866e3bd7e3cbd3f7c8bea6efd8a1e7fa7cc8de68c30f428aff7c6584a0fb720"
+    },
+    ".output/firefox-mv2/third-party-notices/xmlchars-MIT.txt": {
+      "bytes": 1086,
+      "sha256": "45d196313c2647d313cc65ca9b093d2d6974b64d35ee7346f2c60c9d518dff2c"
+    },
+    ".output/firefox-mv2/videoTranscriptionWorker.js": {
+      "bytes": 12065,
+      "sha256": "c3923e9ac05e567dfcd02dc171bc901076062d6d4656a296f8978a4dc8954a2a"
+    },
+    ".output/userscript/fluent-read.user.js": {
+      "bytes": 1954938,
+      "sha256": "1f9a3e6613964cadb895f0a994ce472f8c0d9096cdd59f7e3db8b2eb2ece422f"
+    }
+  }
+}

@@ -1,23 +1,23 @@
 {
   "status": "offline-first-batch-pass-browser-not-run",
-  "source_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
-  "source_tree": "1758c6439325b09d526b3d4f5cbe225ec06b7767",
+  "source_commit": "4868aabe3393cdbf99df5edbdce1166acfc34583",
+  "source_tree": "f13710bd6d6945d0a22748c3379969ff92621757",
   "base_commit": "89fd05806c4c41778e8a47817988130ef09ca583",
-  "source_hashed_files": 4123,
+  "source_hashed_files": 4240,
   "test_files": 396,
-  "tests_passed": 9637,
+  "tests_passed": 9641,
   "tests_failed": 0,
   "tests_pending": 0,
   "coverage": {
     "lines": {
-      "total": 65480,
-      "covered": 65480,
+      "total": 65484,
+      "covered": 65484,
       "skipped": 0,
       "pct": 100
     },
     "statements": {
-      "total": 65480,
-      "covered": 65480,
+      "total": 65484,
+      "covered": 65484,
       "skipped": 0,
       "pct": 100
     },
@@ -28,8 +28,8 @@
       "pct": 100
     },
     "branches": {
-      "total": 33166,
-      "covered": 33166,
+      "total": 33174,
+      "covered": 33174,
       "skipped": 0,
       "pct": 100
     },
@@ -46,60 +46,60 @@
   "unchanged_userscript_budget": 1955000,
   "private_marker_in_userscript": false,
   "checks": {
-    "strict-final": {
+    "deepseek-strict-final": {
       "exit_code": 0,
-      "duration_seconds": 178.943,
-      "record": "records/strict-final.command.json"
+      "duration_seconds": 179.8,
+      "record": "records/deepseek-strict-final.command.json"
     },
-    "focused-final": {
+    "deepseek-green": {
       "exit_code": 0,
-      "duration_seconds": 1.214,
-      "record": "records/focused-final.command.json"
+      "duration_seconds": 2.694,
+      "record": "records/deepseek-green.command.json"
     },
-    "types-final": {
+    "deepseek-types": {
       "exit_code": 0,
-      "duration_seconds": 14.459,
-      "record": "records/types-final.command.json"
+      "duration_seconds": 14.735,
+      "record": "records/deepseek-types.command.json"
     },
-    "audit-final": {
+    "deepseek-audit": {
       "exit_code": 0,
-      "duration_seconds": 0.878,
-      "record": "records/audit-final.command.json"
+      "duration_seconds": 0.875,
+      "record": "records/deepseek-audit.command.json"
     },
-    "architecture-final-source": {
+    "deepseek-architecture": {
       "exit_code": 0,
-      "duration_seconds": 11.491,
-      "record": "records/architecture-final-source.command.json"
+      "duration_seconds": 11.566,
+      "record": "records/deepseek-architecture.command.json"
     },
-    "chrome-final": {
+    "deepseek-chrome": {
       "exit_code": 0,
-      "duration_seconds": 20.895,
-      "record": "records/chrome-final.command.json"
+      "duration_seconds": 20.883,
+      "record": "records/deepseek-chrome.command.json"
     },
-    "firefox-final": {
+    "deepseek-firefox": {
       "exit_code": 0,
-      "duration_seconds": 20.165,
-      "record": "records/firefox-final.command.json"
+      "duration_seconds": 19.947,
+      "record": "records/deepseek-firefox.command.json"
     },
-    "userscript-final": {
+    "deepseek-userscript": {
       "exit_code": 0,
-      "duration_seconds": 3.49,
-      "record": "records/userscript-final.command.json"
+      "duration_seconds": 3.499,
+      "record": "records/deepseek-userscript.command.json"
     },
-    "userscript-verify-final": {
+    "deepseek-userscript-verify": {
       "exit_code": 0,
       "duration_seconds": 0.03,
-      "record": "records/userscript-verify-final.command.json"
+      "record": "records/deepseek-userscript-verify.command.json"
     },
-    "manifests-final": {
+    "deepseek-manifests": {
       "exit_code": 0,
-      "duration_seconds": 0.102,
-      "record": "records/manifests-final.command.json"
+      "duration_seconds": 0.103,
+      "record": "records/deepseek-manifests.command.json"
     },
-    "docs-final": {
+    "deepseek-docs": {
       "exit_code": 0,
-      "duration_seconds": 2.643,
-      "record": "records/docs-final.command.json"
+      "duration_seconds": 2.614,
+      "record": "records/deepseek-docs.command.json"
     }
   },
   "actual_browser_tests": 0,
@@ -120,5 +120,21 @@
     "configuration-change cache invalidation and cancellation",
     "extension-page and comparison-page source semantics",
     "actual browser acceptance and RTX5090 WebGPU validation"
-  ]
+  ],
+  "previous_implementation_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
+  "deepseek_review_gap": "fixed: locked saved deepseek-chat/deepseek-reasoner bypass ordinary model fallback in getCurrentModel",
+  "old_version_regressions": {
+    "implementation_commit": "1fd6b064465ab63dbd7009013d30fd5b15eadfe3",
+    "test_commit": "4868aabe3393cdbf99df5edbdce1166acfc34583",
+    "passed": 34,
+    "failed": 4,
+    "binding": "records/DEEPSEEK-FINAL-RED-BINDING.json"
+  },
+  "fixed_actual_transports": [
+    "DeepSeek Chat",
+    "DeepSeek Responses"
+  ],
+  "ordinary_legacy_alias_behavior": "preserved and tested",
+  "permission_fields_match_port_89fd0580": true,
+  "browser_after_approval_status": "approved temporary profile; blocked before launch on supported nonactivation/isolated-display prerequisites"
 }

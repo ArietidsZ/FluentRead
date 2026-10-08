@@ -1,0 +1,17 @@
+{
+  "label": "deepseek-userscript",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "CW_INCOGNITO_WORKTREE",
+  "started_at": "2026-10-08T08:12:09.511675+00:00",
+  "duration_seconds": 3.499,
+  "exit_code": 0
+}
