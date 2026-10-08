@@ -1,0 +1,37 @@
+⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true export revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false play revokes old result before RAF
+ FAIL  tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false export revokes old result before RAF
+AssertionError: expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+
+- Expected
++ Received
+
+  Object {
+-   "immediateAbort": true,
+-   "lateDOM": false,
+-   "oldCacheWrites": 0,
++   "immediateAbort": false,
++   "lateDOM": true,
++   "oldCacheWrites": 1,
+    "oldFileSaves": 0,
+  }
+
+ ❯ tests/videoPrivacyRoute.test.ts:260:349
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/16]⎯

@@ -1,0 +1,13 @@
+{
+  "baselineHead": "d6781cc3640eefa798b91fb6a828c42c9a61e4d2",
+  "module": "src/features/video-subtitle/content/runtime.ts",
+  "baselineSha256": "98d34972f7e7d12ff5d44984d87f35e1886100311bcf213760f44e17c8c3b0fb",
+  "workingSha256": "ea53192f541f33859b3e8eaf94de7f55de2e3bd1066fecec835f10d7501cf140",
+  "testSha256": "9ce30240ad55bf329d3ae57a9718d4582ec765a01cd7219fc3188a629329942f",
+  "selectedPattern": "revokes old result before RAF",
+  "onlyRuntimeRestored": true,
+  "workingBytesRestored": true,
+  "expectedFailed": 8,
+  "alreadyProtectedPassed": 8,
+  "filtered": 77
+}

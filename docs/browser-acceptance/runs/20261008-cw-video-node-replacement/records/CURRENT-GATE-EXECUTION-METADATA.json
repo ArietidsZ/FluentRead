@@ -1,0 +1,39 @@
+{
+  "source": "Actual current exec_command request and immediate tool result; signed approval decision is not exposed.",
+  "request": {
+    "cmd": "python3 <CW-EVIDENCE>/run-final-gates.py",
+    "workdir": "<CW-REPO>",
+    "login": false,
+    "max_output_tokens": 2300,
+    "yield_time_ms": 1000,
+    "sandbox_permissions": "require_escalated",
+    "justification": "YT/X节点替换loadstart已以8个真实入口负控复现迟到缓存/DOM/保存，一行locator同步getter修复后18新控制及235专项通过。对3文件改动冻结输入完成必要十项门禁，严格覆盖阈值/预算/权限不变；既有WebDAV测试临时127.0.0.1及只读git子进程限本次。无真实API/ASR下载/GPU/GUI/PR操作。"
+  },
+  "result": {
+    "chunk_id": "a94c69",
+    "wall_time_seconds": 1.005957326,
+    "session_id": 2608,
+    "original_token_count": 83,
+    "output": "{\"label\": \"test-audit-complete\", \"cwd\": \"<CW-REPO>\", \"duration_seconds\": 0.778, \"exit_code\": 0}\n{\n  \"status\": \"ok\",\n  \"groups\": {\n    \"architecture\": 32,\n    \"unit\": 308,\n    \"functional\": 122,\n    \"regression\": 38\n  },\n  \"files\": 500,\n  \"cases\": 6926\n}\n\n\n"
+  },
+  "explicitApprovalDecisionProvided": false,
+  "toolRejected": false,
+  "scope": "One complete gate execution for the frozen minimal node-replacement fix. Existing temporary loopback/read-only child fixtures only; no persistent/product permission changes.",
+  "completionToolObservation": {
+    "tool": "write_stdin",
+    "request": {
+      "session_id": 2608,
+      "chars": "",
+      "yield_time_ms": 30000,
+      "max_output_tokens": 5000
+    },
+    "result": {
+      "chunk_id": "7a5c1b",
+      "wall_time_seconds": 0.000023654,
+      "exit_code": 0,
+      "original_token_count": 395,
+      "output": "{\"label\": \"full-strict-final\", \"cwd\": \"<CW-REPO>\", \"duration_seconds\": 224.46, \"exit_code\": 0}\n[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --no-cache --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final --reporter=json --outputFile=<CW-EVIDENCE>/full-strict-final.results.json\nJSON report written to <CW-EVIDENCE>/full-strict-final.results.json\n\n(node:186317) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n{\"label\": \"docs-build-final\", \"cwd\": \"<CW-REPO>\", \"duration_seconds\": 2.71, \"exit_code\": 0}\n[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitepress/bin/vitepress.js build docs\n\n  vitepress v1.6.3\n\nbuild complete in 2.53s.\n\n- building client + server bundles...\n\u001b[32m✓\u001b[0m building client + server bundles...\n- rendering pages...\n\u001b[32m✓\u001b[0m rendering pages...\n- generating sitemap...\n\u001b[32m✓\u001b[0m generating sitemap...\n\nAll final gates completed against the same frozen source inputs.\n"
+    },
+    "signedApprovalDecisionExposed": false
+  }
+}

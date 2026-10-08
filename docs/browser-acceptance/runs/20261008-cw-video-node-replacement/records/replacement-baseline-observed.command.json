@@ -1,0 +1,22 @@
+{
+  "label": "replacement-baseline-observed",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "actual video node replacement before locator frame",
+    "--reporter=json",
+    "--reporter=verbose",
+    "--outputFile=<CW-EVIDENCE>/replacement-baseline-observed.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:46:57.477647+00:00",
+  "duration_seconds": 2.146,
+  "exit_code": 1
+}

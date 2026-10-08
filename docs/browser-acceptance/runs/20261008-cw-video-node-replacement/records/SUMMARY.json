@@ -1,0 +1,854 @@
+{
+  "sourceCommit": "6aee348618412de212ccad5b73f13072a4aff10b",
+  "baselineHead": "d6781cc3640eefa798b91fb6a828c42c9a61e4d2",
+  "scope": "YT/X native selected video node replacement before the existing locator RAF; one getter expression and header in runtime.ts, 18 additional actual-entry controls and testing documentation.",
+  "productionFileCount": 1,
+  "changedFiles": [
+    "docs/testing.md",
+    "src/features/video-subtitle/content/runtime.ts",
+    "tests/videoPrivacyRoute.test.ts"
+  ],
+  "baselineActualObservation": [
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": false,
+      "oldCacheWrites": 1,
+      "oldFileSaves": 0,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": false,
+      "oldCacheWrites": 2,
+      "oldFileSaves": 1,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": false,
+      "oldCacheWrites": 1,
+      "oldFileSaves": 0,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": false,
+      "oldCacheWrites": 2,
+      "oldFileSaves": 1,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": false,
+      "oldCacheWrites": 1,
+      "oldFileSaves": 0,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": false,
+      "oldCacheWrites": 2,
+      "oldFileSaves": 1,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": false,
+      "oldCacheWrites": 1,
+      "oldFileSaves": 0,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": false,
+      "oldCacheWrites": 2,
+      "oldFileSaves": 1,
+      "lateDOM": true,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    }
+  ],
+  "fixedActualObservation": [
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "youtube",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadstart",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": true,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "play",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    },
+    {
+      "kind": "x",
+      "event": "loadedmetadata",
+      "sameURL": false,
+      "owner": "export",
+      "immediateAbort": true,
+      "oldCacheWrites": 0,
+      "oldFileSaves": 0,
+      "lateDOM": false,
+      "rafDelivered": 0,
+      "providerSettled": true
+    }
+  ],
+  "baselineNegative": {
+    "success": false,
+    "numTotalTests": 93,
+    "numPassedTests": 8,
+    "numFailedTests": 8,
+    "numPendingTests": 77,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 1
+  },
+  "newCaseCount": 18,
+  "videoCaseCount": 93,
+  "targetFinal": {
+    "success": true,
+    "numTotalTests": 235,
+    "numPassedTests": 235,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 10,
+    "exitCode": 0
+  },
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10303,
+      "numPassedTests": 10303,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 411,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66127,
+        "covered": 66127,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66127,
+        "covered": 66127,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4613,
+        "covered": 4613,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33847,
+        "covered": 33847,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architectureFinal": {
+    "success": true,
+    "numTotalTests": 1379,
+    "numPassedTests": 1379,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 32,
+    "exitCode": 0
+  },
+  "testAudit": {
+    "status": "ok",
+    "groups": {
+      "architecture": 32,
+      "unit": 308,
+      "functional": 122,
+      "regression": 38
+    },
+    "files": 500,
+    "cases": 6926
+  },
+  "gateCommands": {
+    "test-audit-complete": {
+      "label": "test-audit-complete",
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:51:26.547670+00:00",
+      "duration_seconds": 0.778,
+      "exit_code": 0
+    },
+    "architecture-final": {
+      "label": "architecture-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:51:27.527017+00:00",
+      "duration_seconds": 11.546,
+      "exit_code": 0
+    },
+    "typecheck-final": {
+      "label": "typecheck-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:51:39.276389+00:00",
+      "duration_seconds": 13.223,
+      "exit_code": 0
+    },
+    "chrome-build-final": {
+      "label": "chrome-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:51:52.704177+00:00",
+      "duration_seconds": 19.079,
+      "exit_code": 0
+    },
+    "firefox-build-final": {
+      "label": "firefox-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:52:11.982396+00:00",
+      "duration_seconds": 19.038,
+      "exit_code": 0
+    },
+    "manifest-verify-final": {
+      "label": "manifest-verify-final",
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:52:31.225842+00:00",
+      "duration_seconds": 0.103,
+      "exit_code": 0
+    },
+    "userscript-build-final": {
+      "label": "userscript-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:52:31.536413+00:00",
+      "duration_seconds": 3.559,
+      "exit_code": 0
+    },
+    "userscript-verify-final": {
+      "label": "userscript-verify-final",
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:52:35.297697+00:00",
+      "duration_seconds": 0.033,
+      "exit_code": 0
+    },
+    "full-strict-final": {
+      "label": "full-strict-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:52:35.531279+00:00",
+      "duration_seconds": 224.46,
+      "exit_code": 0
+    },
+    "docs-build-final": {
+      "label": "docs-build-final",
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "started_at": "2026-10-08T22:56:20.194173+00:00",
+      "duration_seconds": 2.71,
+      "exit_code": 0
+    }
+  },
+  "existingOwnedVideoModules": {
+    "pretranslationController.ts": {
+      "lines": {
+        "total": 57,
+        "covered": 57,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 13,
+        "covered": 13,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 57,
+        "covered": 57,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 59,
+        "covered": 59,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "downloads.ts": {
+      "lines": {
+        "total": 75,
+        "covered": 75,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 9,
+        "covered": 9,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 75,
+        "covered": 75,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 80,
+        "covered": 80,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "subtitleLogic.ts": {
+      "lines": {
+        "total": 261,
+        "covered": 261,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 17,
+        "covered": 17,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 261,
+        "covered": 261,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 197,
+        "covered": 197,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "translationCache.ts": {
+      "lines": {
+        "total": 94,
+        "covered": 94,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 10,
+        "covered": 10,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 94,
+        "covered": 94,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 38,
+        "covered": 38,
+        "skipped": 0,
+        "pct": 100
+      }
+    },
+    "translationScheduler.ts": {
+      "lines": {
+        "total": 62,
+        "covered": 62,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 5,
+        "covered": 5,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 62,
+        "covered": 62,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 28,
+        "covered": 28,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "providerLeaseEvidence": "Spy delegates actual scheduler.schedule and lease.holdUntil to their original implementations; observes real provider operation promises settle. It does not inspect private scheduler counters or assert an abort-ignoring HTTP transport must remain held after SDK reports cancellation.",
+  "fixtureBoundary": "Real linkedom replaceWith/append/remove. Manual MutationObserver record delivery calls actual locator callback; requestAnimationFrame remains queued and unexecuted. Native document Port microtasks settle without timer advancement before old SDK replies are released. Actual menu/download controller/file-save spy, model cache and rendered DOM observed. X starts held transport before mounting and restores synthetic completed ASR cache.",
+  "fixtureCorrections": "First probe mounted X before installing held SDK/lease observation. An initial post-event check sampled the SDK signal before native Port microtasks and incorrectly marked already-protected loadedmetadata cases as failures. A pre-release unsettled-provider expectation also overclaimed SDK abort timing. Corrected all three without running RAF or changing production; original failed probes preserved.",
+  "sourceRetention": "Title, original cues and raw synthetic ASR cache remain unchanged; same-URL replacement retains restored source timeline. Repeated selected events, detached old events and reconnected unselected old events leave new playback alive; export-only cancel aborts independent export and retains new playback.",
+  "userscriptProof": {
+    "evidenceHead": "d6781cc3640eefa798b91fb6a828c42c9a61e4d2",
+    "bytes": 1954998,
+    "sha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "budget": 1955000,
+    "headroom": 2,
+    "finalBytes": 1954998,
+    "finalSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "byteDelta": 0,
+    "identicalBytes": true,
+    "finalHeadroom": 2,
+    "budgetConfigurationUnchanged": true,
+    "platformTreeIsolation": true,
+    "ordinaryFrontendCapabilityFalseControl": "tests/videoPrivacyRoute.test.ts",
+    "realUserscriptGuiAcceptance": false
+  },
+  "protectedFileCount": 38,
+  "remainingEntries": [
+    "independent settings probe",
+    "online dictionary access/cache privacy isolation"
+  ],
+  "realApiGuiGpuAsrInferenceOrModelDownloadAcceptance": false,
+  "pr883Operation": false,
+  "extraAgentsOrWorkTasksStarted": false,
+  "persistentProductPermissionsChanged": false,
+  "numericCoverageLimit": "runtime/client glue not assigned a new numeric 100% claim; existing strict-owned range retains four-dimensional 100%.",
+  "historicalLoopbackApprovalGap": "Previous evidence remains authoritative; no historical signed approval is fabricated. Current exec request and actual tool observations recorded separately.",
+  "docsBuildIncludingEvidence": {
+    "label": "docs-build-with-evidence",
+    "command": [
+      "node",
+      "scripts/testing/run-resource-safe.mjs",
+      "--",
+      "node",
+      "node_modules/vitepress/bin/vitepress.js",
+      "build",
+      "docs"
+    ],
+    "cwd": "<CW-REPO>",
+    "started_at": "2026-10-08T22:57:24.089321+00:00",
+    "duration_seconds": 2.712,
+    "exit_code": 0
+  }
+}

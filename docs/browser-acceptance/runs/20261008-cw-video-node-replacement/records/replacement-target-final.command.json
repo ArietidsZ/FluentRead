@@ -1,0 +1,28 @@
+{
+  "label": "replacement-target-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "tests/videoSubtitleDownloads.test.ts",
+    "tests/videoTranslationCache.test.ts",
+    "tests/videoPretranslationController.test.ts",
+    "tests/videoCaptionPlatformRuntime.test.ts",
+    "tests/videoSubtitleLogic.test.ts",
+    "tests/videoTranslationScheduler.test.ts",
+    "tests/mainWorldBridgeCore.test.ts",
+    "tests/videoPlayerLocator.test.ts",
+    "tests/translationRequestScheduler.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/replacement-target-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:50:35.718951+00:00",
+  "duration_seconds": 7.633,
+  "exit_code": 0
+}

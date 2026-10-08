@@ -1,0 +1,22 @@
+{
+  "label": "replacement-baseline-final",
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/videoPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "revokes old result before RAF",
+    "--reporter=json",
+    "--reporter=verbose",
+    "--outputFile=<CW-EVIDENCE>/replacement-baseline-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "started_at": "2026-10-08T22:50:01.509849+00:00",
+  "duration_seconds": 2.176,
+  "exit_code": 1
+}

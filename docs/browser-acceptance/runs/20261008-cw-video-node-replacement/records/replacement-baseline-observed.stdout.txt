@@ -1,0 +1,83 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/videoPrivacyRoute.test.ts --no-cache -t actual video node replacement before locator frame --reporter=json --reporter=verbose --outputFile=<CW-EVIDENCE>/replacement-baseline-observed.results.json
+
+ RUN  v2.1.9 <CW-REPO>
+
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true play revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadstart","sameURL":true,"owner":"play","immediateAbort":false,"oldCacheWrites":1,"oldFileSaves":0,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true play revokes old result before RAF 740ms
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true export revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadstart","sameURL":true,"owner":"export","immediateAbort":false,"oldCacheWrites":2,"oldFileSaves":1,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=true export revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false play revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadstart","sameURL":false,"owner":"play","immediateAbort":false,"oldCacheWrites":1,"oldFileSaves":0,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false play revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false export revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadstart","sameURL":false,"owner":"export","immediateAbort":false,"oldCacheWrites":2,"oldFileSaves":1,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadstart sameURL=false export revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true play revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadedmetadata","sameURL":true,"owner":"play","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true play revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true export revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadedmetadata","sameURL":true,"owner":"export","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=true export revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false play revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadedmetadata","sameURL":false,"owner":"play","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false play revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false export revokes old result before RAF
+replacement-observation {"kind":"youtube","event":"loadedmetadata","sameURL":false,"owner":"export","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > youtube loadedmetadata sameURL=false export revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true play revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadstart","sameURL":true,"owner":"play","immediateAbort":false,"oldCacheWrites":1,"oldFileSaves":0,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true play revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true export revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadstart","sameURL":true,"owner":"export","immediateAbort":false,"oldCacheWrites":2,"oldFileSaves":1,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=true export revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false play revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadstart","sameURL":false,"owner":"play","immediateAbort":false,"oldCacheWrites":1,"oldFileSaves":0,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false play revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false export revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadstart","sameURL":false,"owner":"export","immediateAbort":false,"oldCacheWrites":2,"oldFileSaves":1,"lateDOM":true,"rafDelivered":0,"providerSettled":true}
+
+ × tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadstart sameURL=false export revokes old result before RAF
+   → expected { immediateAbort: false, …(3) } to deeply equal { immediateAbort: true, …(3) }
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true play revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadedmetadata","sameURL":true,"owner":"play","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true play revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true export revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadedmetadata","sameURL":true,"owner":"export","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=true export revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false play revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadedmetadata","sameURL":false,"owner":"play","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false play revokes old result before RAF
+stdout | tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false export revokes old result before RAF
+replacement-observation {"kind":"x","event":"loadedmetadata","sameURL":false,"owner":"export","immediateAbort":true,"oldCacheWrites":0,"oldFileSaves":0,"lateDOM":false,"rafDelivered":0,"providerSettled":true}
+
+ ✓ tests/videoPrivacyRoute.test.ts > actual video node replacement before locator frame > x loadedmetadata sameURL=false export revokes old result before RAF
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 8 passed | 75 skipped (91)
+   Start at  06:46:57
+   Duration  1.97s (transform 663ms, setup 0ms, collect 307ms, tests 1.55s, environment 0ms, prepare 23ms)
+
+JSON report written to <CW-EVIDENCE>/replacement-baseline-observed.results.json
