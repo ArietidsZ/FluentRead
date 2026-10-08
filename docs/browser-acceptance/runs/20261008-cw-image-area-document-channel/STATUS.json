@@ -1,8 +1,8 @@
 {
-  "source_commit": "ae168d323bc555d545c6f89c3cd691ca24450558",
+  "source_commit": "6526afcbbe4edc2f3d32cea7bd392a8879ce3ec6",
   "baseline": "3e7c5e45d3bcb029ad0aa1a6f65e390f8f079568",
-  "updated_at": "2026-10-08T05:54:31.590610+00:00",
-  "stage": "Complete Port implementation; final full checks and builds pending",
+  "updated_at": "2026-10-08T06:24:50.693957+00:00",
+  "stage": "Client review corrections committed; final full checks and exact-SHA builds pending",
   "implemented": "Same peer start/cancel/progress/result/source challenge/reply; private browser Port session, liveness after config/capture waits, reconnect deadline, background downloads preserved",
   "offline_checks": {
     "targeted_new_modules": "93/93 and four-dimensional100% before latest boundary additions",
@@ -11,7 +11,15 @@
     "complete_intermediate": "9593/9593 tests pass, coverage gate failed with 1statement/7branches; gaps addressed, final rerun pending",
     "architecture_intermediate": "1362/1362,32files",
     "type_intermediate": "pass",
-    "audit_current": "485files6605 staticcases pass"
+    "audit_current": "485files6605 staticcases pass",
+    "historical_ae_full": "9596/9596 and four-dimensional 100%; preserved, before new review corrections",
+    "historical_ab_full": "9597/9597 and four-dimensional 100%; preserved, before new review corrections",
+    "review_red": "3 client defects and 1 lifecycle defect reproduced",
+    "review_focused": "135/135, then 103/103 boundary tests incl UI controller propagation",
+    "review_full_intermediate": "9601/9601 tests pass, branch coverage gate failed with 3 missing branches; boundary corrections made, final rerun pending",
+    "type_review": "pass; exact final rerun pending",
+    "audit_review": "485 files, 6613 static cases; pass",
+    "architecture_review": "1362/1362, 32 files; exact final rerun pending"
   },
   "not_accepted": [
     "final full coverage gate",
@@ -19,5 +27,15 @@
     "real browser navigation/iframe/BFCache/GPU"
   ],
   "profile_or_permission_change": false,
-  "pr_created": false
+  "pr_created": false,
+  "source_tree": "b8457e5d436578e83c8daac84e603f3e7c5b5d03",
+  "review_corrections": {
+    "shared_port_retry": "Removed global reset. Actual physical Port disconnect cleans only the failed peer; nested Offscreen error retries do not close live shared Port.",
+    "area_capture": "Optional operation options reach capture helper; UI passes same controller.signal. Real helper cancellation reaches actual background registry.",
+    "page_lifecycle": "Existing content root cancels/unmounts UI before suspend/dispose of shared Port. Suspended/disposed requests reject AbortError; restore permits a new peer.",
+    "source_authorization": "Fetch has no automatic retry or migration of authorization. A fresh manual UI attempt creates a new image-source-* authorization and verifies DOM/currentSrc."
+  },
+  "combination_commit": "76f4e7993659d76c280ed413baa9af8a2be4cf68",
+  "combination_tree": "940c3379fcc431e94318a8c4385a43237e1c7ece",
+  "approved_wxt_patch": "dccb0bd1c749c7030df590c2512e2b55fb0a5b74"
 }
