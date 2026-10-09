@@ -95,6 +95,10 @@ Enable sentence highlighting and point to a sentence on either side to highlight
 
 Enable bilingual selection translation in the extension menu, select a word or passage, and click the nearby icon.
 
+Sentences and passages show the translation first, with the complete original below it for comparison. Card navigation stays on one row; scroll it horizontally or use Tab to reach later learning actions on a narrow card. Dragging, resizing, switching learning views, and streamed answers preserve the position and size you set.
+
+Learning answers take priority in the reading area. More tools sit beside the answer, and follow-up questions appear after it; scroll or use Tab to reach them. Changing the interface language preserves the original and translated content.
+
 [Open guide](/en/guide/deepseek-harness)
 
 </details>

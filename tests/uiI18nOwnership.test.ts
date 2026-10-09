@@ -1,13 +1,14 @@
 /**
  * @file tests/uiI18nOwnership.test.ts
  * 文件职责：执行实际共享 i18n 保存函数及 Selector，复现语言选择的异步身份问题。
- * 主要内容：覆盖资源先后、外部 revision、连续调用、销毁和组件失败提示；另以实际 store 和加密 IndexedDB 端口核对同步乐观回声、权威回滚与迟到失败。
+ * 主要内容：覆盖资源先后、外部 revision、连续调用、销毁和组件失败提示；另以实际 store 和加密 IndexedDB 端口核对同步乐观回声、权威回滚与迟到失败，并验证真实指令在嵌套正文、语言切换及迟到文本中的所有权边界。
  * 模块边界：组件细测使用可控存储端口；集成组直接 import 实际 i18n/store/repository/storage，只控制后台消息和语言资源加载，不调用浏览器或翻译供应商。
  */
 import 'fake-indexeddb/auto'
 import {resolve} from 'node:path'
 import {Server as TcpServer} from 'node:net'
 import {promises as dnsPromises} from 'node:dns'
+import {parseHTML} from 'linkedom'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {createLanguageHarness, deferred, settle, languageHarnessPhases} from './uiI18nAuditHarness'
 import {EncryptedConfigRepository, FluentReadConfigDatabase} from '@/src/platform/storage/configRepository'
@@ -177,6 +178,71 @@ describe('实际 i18n DOM observer 生命周期', () => {
     if(target==='directive')directive.beforeUnmount(h.document.body)
     const root:{$root?:unknown}={};root.$root=root;rootUnmount.call(root)
     expect(clear).toHaveBeenCalledWith(0);queued();expect(observers.reduce((sum,observer)=>sum+observer.observe.mock.calls.length,0)).toBe(calls)
+  })
+})
+
+describe('实际 i18n 指令的嵌套正文所有权', () => {
+  async function mountDirective() {
+    const h=actualHarness=await createActualStoreHarness()
+    const core=await import('@/src/core/i18n'), bundles=await import('@/src/core/i18n/bundles')
+    core.registerUiLanguageBundle('en-US',bundles.UI_LANGUAGE_BUNDLES['en-US'])
+    // 用真实资源确认这个正文单字确实会命中旧 UI 词典，不能靠无翻译夹具掩盖扫描错误。
+    expect(core.translateLegacyText('文','en-US')).not.toBe('文')
+    const {document,window}=parseHTML('<html><body><div id="owned-ui"></div></body></html>')
+    for(const [name,value] of Object.entries({document,Node:window.Node,MutationObserver:window.MutationObserver,NodeFilter:{SHOW_TEXT:4}}))vi.stubGlobal(name,value)
+    const root=document.querySelector('#owned-ui') as unknown as HTMLElement
+    let directive:any, context!:import('@/src/ui/i18n').UiI18nContext, rootUnmount!:()=>void
+    const app={config:{globalProperties:{}},provide:(_key:unknown,value:import('@/src/ui/i18n').UiI18nContext)=>{context=value},
+      directive:(_name:string,value:unknown)=>{directive=value},mixin:(hooks:{beforeUnmount:()=>void})=>{rootUnmount=hooks.beforeUnmount}}
+    const plugin=h.i18n.createUiI18nPlugin()
+    if(typeof plugin.install !== 'function')throw new Error('Actual UI i18n plugin must provide an install function')
+    plugin.install(app as any)
+    const start=()=>directive.mounted(root)
+    const language=async(value:UiLanguage,revision:number)=>{
+      await h.commit(value,revision)
+      await vi.waitFor(()=>expect(context.language.value).toBe(value))
+    }
+    const close=()=>{directive.beforeUnmount(root);const vm:{$root?:unknown}={};vm.$root=vm;rootUnmount.call(vm)}
+    return {h,document,root,context,start,language,close}
+  }
+  const speechText=(text:string)=>`<span>${[...text].map(token=>`<span class="fr-speech-word">${token}</span>`).join('')}</span>`
+
+  it.each(['pre','code'])('真实英文扫描保留 %s 祖先里的 SpeechFollowText 嵌套单字与普通子元素',async tag=>{
+    const fixture=await mountDirective(),{root,context}=fixture
+    root.innerHTML=`<button title="关闭">翻译</button><${tag} id="content">${speechText('完整原文。')}<span><em>文</em></span></${tag}><div data-i18n-ignore><span title="关闭">翻译</span></div>`
+    const body=root.querySelector('#content')!,before=body.outerHTML,ignored=root.querySelector('[data-i18n-ignore]')!.outerHTML
+    try {
+      fixture.start();await fixture.language('en-US',11)
+      await vi.waitFor(()=>expect(root.querySelector('button')!.textContent).toBe(context.translateLegacy('翻译')))
+      expect(root.querySelector('button')!.textContent).not.toBe('翻译')
+      expect(root.querySelector('button')!.title).toBe(context.translateLegacy('关闭'))
+      expect(body.outerHTML).toBe(before)
+      expect(root.querySelector('[data-i18n-ignore]')!.outerHTML).toBe(ignored)
+    } finally {fixture.close()}
+  })
+
+  it('语言往返与 observer 收到迟到插入或 text 更新时，只本地化普通 UI',async()=>{
+    const fixture=await mountDirective(),{root,document,context}=fixture
+    root.innerHTML=`<button>翻译</button><pre id="content">${speechText('完整原文。')}</pre>`
+    const body=root.querySelector('#content')!,original=body.innerHTML
+    try {
+      fixture.start();await fixture.language('en-US',11)
+      await vi.waitFor(()=>expect(root.querySelector('button')!.textContent).toBe(context.translateLegacy('翻译')))
+      expect(body.innerHTML).toBe(original)
+      const late=document.createElement('span');late.innerHTML=speechText('原文')
+      body.appendChild(late)
+      const text=body.querySelector('.fr-speech-word')!.firstChild as Text;text.data='文'
+      const expected=body.innerHTML
+      const lateUi=document.createElement('button');lateUi.textContent='关闭';root.appendChild(lateUi)
+      await vi.waitFor(()=>expect(lateUi.textContent).toBe(context.translateLegacy('关闭')))
+      expect(body.innerHTML).toBe(expected)
+      await fixture.language('zh-CN',12)
+      await vi.waitFor(()=>expect(lateUi.textContent).toBe('关闭'))
+      expect(root.querySelector('button')!.textContent).toBe('翻译');expect(body.innerHTML).toBe(expected)
+      await fixture.language('en-US',13)
+      await vi.waitFor(()=>expect(lateUi.textContent).toBe(context.translateLegacy('关闭')))
+      expect(root.querySelector('button')!.textContent).toBe(context.translateLegacy('翻译'));expect(body.innerHTML).toBe(expected)
+    } finally {fixture.close()}
   })
 })
 

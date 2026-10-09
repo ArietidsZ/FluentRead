@@ -760,8 +760,8 @@ describe('SelectionTranslator trimmed speech offsets in rich text', () => {
         expect(displayed).toEqual({...rawProgress, start: text.indexOf('hello'), end: text.indexOf('hello') + 5});
         expect(fixture.state.audioTextOffset).toBe(leading.length);
         expect(fixture.state.audioProgressFor(kind === 'source' ? 'translation' : 'source')).toBeNull();
-        const displayedParts = kind === 'source' ? fixture.state.snapshot.parts : fixture.state.translationParts;
-        const offset = fixture.state.partOffset(displayedParts, 1);
+        const displayedParts = kind === 'source' ? fixture.state.sourceTextParts : fixture.state.translatedTextParts;
+        const offset = displayedParts[1].offset;
         expect(offset).toBe(leading.length + code.length);
         expect(speechProgress.speechTextSlices(displayedParts[1].text, offset, displayed)).toEqual({
             before: ' ', active: 'hello', after: trailing, fraction: 0.5,
@@ -801,7 +801,7 @@ describe('SelectionTranslator trimmed speech offsets in rich text', () => {
         utterance.onboundary({charIndex: 2, charLength: 5});
         const displayed = fixture.state.audioProgressFor(kind);
         expect(displayed).toEqual({start: 4, end: 9, fraction: 1, estimated: false});
-        expect(speechProgress.speechTextSlices(parts[1].text, fixture.state.partOffset(parts, 1), displayed)).toEqual({
+        expect(speechProgress.speechTextSlices(parts[1].text, (kind === 'source' ? fixture.state.sourceTextParts : fixture.state.translatedTextParts)[1].offset, displayed)).toEqual({
             before: ' ', active: 'hello', after: '', fraction: 1,
         });
         fixture.state.stopAudioFromUi();
@@ -868,4 +868,269 @@ it('相同译文隐藏后，切换选区与不同结果仍恢复显示', async (
     state.selectedText = '咖啡馆'; await Vue.nextTick();
     expect(state.hasDistinctTranslationResult).toBe(false);
     expect(lifecycleErrors).not.toHaveBeenCalled();
+});
+
+
+describe('selection card bounded layout work', () => {
+    async function gestureFixture(edge = '') {
+        const fixture = mountSelection();
+        const frames = new Map<number, FrameRequestCallback>();
+        let frameId = 0;
+        fixture.window.requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+            frames.set(++frameId, callback); return frameId;
+        }) as any;
+        fixture.window.cancelAnimationFrame = vi.fn((id: any) => {frames.delete(id);});
+        class GestureElement {
+            dataset = {resizeEdge: edge};
+            clientLeft = 0;
+            clientWidth = 388;
+            captured = false;
+            getBoundingClientRect = vi.fn(() => ({left: 200, top: 100, right: 588, bottom: 340, width: 388, height: 240}));
+            closest(selector: string) {return selector === '.fr-tooltip-header' ? this : null;}
+            matches() {return false;}
+            setPointerCapture() {this.captured = true;}
+            hasPointerCapture() {return this.captured;}
+            releasePointerCapture() {this.captured = false;}
+        }
+        vi.stubGlobal('HTMLElement', GestureElement);
+        const element = new GestureElement();
+        fixture.state.tooltipRef = element;
+        fixture.state.snapshot = {text: 'Practice helps.', range: {getClientRects: vi.fn(() => [])}};
+        fixture.state.showTooltip = true;
+        fixture.state.manualPopupPosition = {left: 200, top: 100};
+        await Vue.nextTick();
+        const pointer = (type: string, x: number, y: number, pointerId = 1) => ({
+            type, isTrusted: true, isPrimary: true, button: 0, pointerId, clientX: x, clientY: y,
+            target: element, preventDefault: vi.fn(), stopPropagation: vi.fn(),
+        });
+        fixture.state.beginPopupGesture(pointer('pointerdown', 205, 110));
+        const flush = () => {const pending = [...frames.values()];frames.clear();pending.forEach(callback => callback(0));};
+        return {...fixture, element, frames, pointer, flush};
+    }
+
+    it('coalesces trusted pointer moves and paints only the last point without re-reading card geometry', async () => {
+        const {state, element, frames, pointer, flush} = await gestureFixture();
+        for (let i = 1; i <= 30; i++) state.movePopupGesture(pointer('pointermove', 205 + i, 110 + i));
+        expect(frames.size).toBe(1);
+        expect(element.getBoundingClientRect).toHaveBeenCalledTimes(1);
+        expect(state.manualPopupPosition).toEqual({left: 200, top: 100});
+        flush();
+        expect(state.tooltipStyle).toMatchObject({left: '230px', top: '130px'});
+        expect(element.getBoundingClientRect).toHaveBeenCalledTimes(1);
+        expect(frames.size).toBe(0);
+    });
+
+    it('flushes the final accepted pointer point on release and rejects a late cancelled animation frame', async () => {
+        const {state, element, frames, pointer} = await gestureFixture('se');
+        state.movePopupGesture(pointer('pointermove', 255, 145));
+        const lateFrame = [...frames.values()][0];
+        state.stopPopupGesture(pointer('pointerup', 255, 145));
+        expect(state.manualPopupSize).toEqual({width: 438, height: 275});
+        expect(state.tooltipStyle).toMatchObject({width: '438px', height: '275px'});
+        expect(element.captured).toBe(false);
+        expect(frames.size).toBe(0);
+        const settled = {...state.tooltipStyle};
+        lateFrame(0);
+        expect(state.tooltipStyle).toEqual(settled);
+    });
+
+    it.each(['pointercancel', 'lostpointercapture', 'blur', 'hide', 'unmount'])('discards pending moves after %s', async reason => {
+        const fixture = await gestureFixture();
+        const {state, frames, pointer} = fixture;
+        state.movePopupGesture(pointer('pointermove', 255, 145));
+        const lateFrame = [...frames.values()][0];
+        if (reason === 'hide') state.hideAll();
+        else if (reason === 'unmount') fixture.unmount();
+        else if (reason === 'blur') state.handleWindowBlur();
+        else state.stopPopupGesture(pointer(reason, 255, 145));
+        const settled = {...state.tooltipStyle};
+        expect(frames.size).toBe(0);
+        expect(state.popupManipulating).toBe(false);
+        lateFrame(0);
+        expect(state.tooltipStyle).toEqual(settled);
+    });
+
+    it('ignores foreign pointer moves and release events while the current gesture remains owned', async () => {
+        const {state, frames, pointer} = await gestureFixture();
+        state.movePopupGesture(pointer('pointermove', 255, 145, 2));
+        expect(frames.size).toBe(0);
+        state.stopPopupGesture(pointer('pointerup', 255, 145, 2));
+        expect(state.popupManipulating).toBe(true);
+        state.movePopupGesture({...pointer('pointermove', 255, 145), isTrusted: false});
+        expect(frames.size).toBe(0);
+    });
+
+    it('keeps a new gesture frame intact when a cancelled old callback is delivered late', async () => {
+        const {state, frames, pointer, flush} = await gestureFixture();
+        state.movePopupGesture(pointer('pointermove', 215, 120));
+        const oldFrame = [...frames.values()][0];
+        state.stopPopupGesture(pointer('pointercancel', 215, 120));
+        state.beginPopupGesture(pointer('pointerdown', 205, 110));
+        state.movePopupGesture(pointer('pointermove', 245, 150));
+        oldFrame(0);
+        expect(frames.size).toBe(1);
+        flush();
+        expect(state.tooltipStyle).toMatchObject({left: '240px', top: '140px'});
+    });
+
+    it('does not remeasure the host selection for an anchored card, and needs no card read after manual resize', () => {
+        const {state} = mountSelection();
+        const range = {getClientRects: vi.fn(() => [])};
+        const cardRect = vi.fn(() => ({width: 388, height: 240}));
+        state.snapshot = {text: 'Practice helps.', range};
+        state.tooltipRef = {getBoundingClientRect: cardRect};
+        state.showTooltip = true;
+        state.manualPopupPosition = {left: 200, top: 100};
+        state.manualPopupSize = {width: 388, height: 240};
+        for (let i = 0; i < 30; i++) state.updatePosition();
+        expect(range.getClientRects).not.toHaveBeenCalled();
+        expect(cardRect).not.toHaveBeenCalled();
+        expect(state.tooltipStyle).toMatchObject({left: '200px', top: '100px', width: '388px', height: '240px'});
+    });
+
+    it.each(['hide', 'replacement', 'unmount'])('rejects the queued first anchor after %s', async reason => {
+        const fixture = mountSelection();
+        const {state} = fixture;
+        const cardRect = vi.fn(() => ({width: 388, height: 240}));
+        state.snapshot = {text: 'Practice helps.', range: {}, anchor: {left: 40, right: 150, top: 100, bottom: 120, width: 110, height: 20}, isForward: true};
+        state.tooltipRef = {getBoundingClientRect: cardRect};
+        state.showTooltip = true;
+        state.updatePosition(false);
+        if (reason === 'hide') state.hideAll();
+        else if (reason === 'unmount') fixture.unmount();
+        else state.snapshot = {...state.snapshot, text: 'A new selection.'};
+        await Vue.nextTick();
+        expect(cardRect).not.toHaveBeenCalled();
+        expect(state.manualPopupPosition).toBeNull();
+    });
+
+    it('does not let an old position frame clear the new frame after geometry reset', async () => {
+        const {state, frames, flush} = await gestureFixture();
+        state.stopPopupGesture();
+        state.schedulePositionUpdate();
+        const oldFrame = [...frames.values()][0];
+        state.resetPopupGeometry();
+        state.manualPopupPosition = {left: 250, top: 150};
+        state.manualPopupSize = {width: 388, height: 240};
+        state.schedulePositionUpdate();
+        oldFrame(0);
+        expect(frames.size).toBe(1);
+        flush();
+        expect(state.tooltipStyle).toMatchObject({left: '250px', top: '150px'});
+    });
+
+    it('cancels a captured drag when the viewport changes its automatic width', async () => {
+        const {state, window, frames, pointer, element} = await gestureFixture();
+        state.movePopupGesture(pointer('pointermove', 900, 200));
+        const oldMove = [...frames.values()][0];
+        window.innerWidth = 390;
+        state.handleViewportResize();
+        expect(state.popupManipulating).toBe(false);
+        expect(element.captured).toBe(false);
+        state.movePopupGesture(pointer('pointermove', 905, 200));
+        oldMove(0);
+        const frameCount = frames.size;
+        expect(frameCount).toBe(1); // only the current viewport reposition remains queued
+        const current = [...frames.values()];frames.clear();current.forEach(callback => callback(0));
+        expect(parseFloat(state.tooltipStyle.left)).toBe(12);
+        expect(state.manualPopupPosition).toEqual({left: 12, top: 100});
+    });
+
+    it('uses an ordinary wheel to scroll only the overflowing one-row navigation', () => {
+        const {state} = mountSelection();
+        class NavigationElement {
+            scrollWidth = 600; clientWidth = 280; scrollLeft = 0;
+            matches(selector: string) {return selector === '.fr-study-toolbar';}
+        }
+        vi.stubGlobal('HTMLElement', NavigationElement);
+        vi.stubGlobal('getComputedStyle', () => ({overflowX: 'auto', overflowY: 'auto'}));
+        const toolbar = new NavigationElement();
+        const preventDefault = vi.fn();
+        const event = {ctrlKey: false, deltaX: 0, deltaY: 60, cancelable: true, preventDefault, composedPath: () => [toolbar], currentTarget: toolbar};
+        state.handleUiWheel(event);
+        expect(toolbar.scrollLeft).toBe(60);
+        expect(preventDefault).toHaveBeenCalledOnce();
+        state.handleUiWheel({...event, deltaY: -30});
+        expect(toolbar.scrollLeft).toBe(30);
+        state.handleUiWheel({...event, ctrlKey: true});
+        expect(toolbar.scrollLeft).toBe(30);
+    });
+
+    it('reveals each focused toolbar action by moving only the owned horizontal strip', () => {
+        const {state} = mountSelection();
+        class NavigationElement {
+            tagName = 'BUTTON'; clientWidth = 278; clientLeft = 0; scrollLeft = 0;
+            left = 259; right = 297;
+            getBoundingClientRect() {return {left: this.left, right: this.right};}
+            contains(element: unknown) {return element === button;}
+        }
+        vi.stubGlobal('HTMLElement', NavigationElement);
+        vi.stubGlobal('getComputedStyle', () => ({paddingLeft: '8px', paddingRight: '8px'}));
+        const toolbar = new NavigationElement(), button = new NavigationElement();
+        toolbar.left = 13; toolbar.right = 291;
+        const event = {currentTarget: toolbar, target: button};
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(14); // reveal the clipped final button and its focus outline
+        button.left = 7; button.right = 45;
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(0);
+        button.left = 21; button.right = 59;
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(0);
+        state.handleStudyToolbarFocus({...event, target: new NavigationElement()});
+        state.handleStudyToolbarFocus({...event, currentTarget: {}});
+        button.tagName = 'SPAN';
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(0);
+    });
+
+    it.each([0.5, 2])('reveals focused toolbar actions at popup scale %s using layout scroll units', scale => {
+        const {state} = mountSelection();
+        state.pageZoom = 1 / scale;
+        class ScaledNavigationElement {
+            tagName = 'BUTTON'; clientWidth = 278; clientLeft = 1; scrollLeft = 0;
+            left = 246; right = 284;
+            getBoundingClientRect() {
+                if (this === toolbar) return {left:13, right:13 + 280 * scale};
+                return {left:13 + (this.left - toolbar.scrollLeft) * scale, right:13 + (this.right - toolbar.scrollLeft) * scale};
+            }
+            contains(element: unknown) {return element === button;}
+        }
+        vi.stubGlobal('HTMLElement', ScaledNavigationElement);
+        vi.stubGlobal('getComputedStyle', () => ({paddingLeft:'8px',paddingRight:'8px'}));
+        const toolbar = new ScaledNavigationElement(), button = new ScaledNavigationElement();
+        const event = {currentTarget:toolbar,target:button};
+        const visibleLeft = 13 + 9 * scale, visibleRight = 13 + 271 * scale;
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(13);
+        expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(visibleRight);
+        button.left = 9; button.right = 47;
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(0);
+        expect(button.getBoundingClientRect().left).toBeGreaterThanOrEqual(visibleLeft);
+        button.left = 180; button.right = 218;
+        state.handleStudyToolbarFocus(event);
+        expect(toolbar.scrollLeft).toBe(0); // an already visible action must not jump the strip
+        expect(button.getBoundingClientRect().right).toBeLessThanOrEqual(visibleRight);
+    });
+
+    it('computes UTF-16 offsets once and preserves positioned segments through speech progress updates', () => {
+        const {state} = mountSelection();
+        const parts = [{kind: 'code', text: ' 😀'}, {kind: 'text', text: ' café'}, {kind: 'code', text: '`x`'}, {kind: 'text', text: ' end'}];
+        state.snapshot = {parts};
+        state.translationParts = parts;
+        const source = state.sourceTextParts, translated = state.translatedTextParts;
+        expect(source.map((part: {offset: number}) => part.offset)).toEqual([0, 3, 8, 11]);
+        expect(source.map((part: {text: string}) => part.text).join('')).toBe(' 😀 café`x` end');
+        state.isPlaying = true; state.currentAudioKind = 'source';
+        for (let i = 0; i < 30; i++) {
+            state.audioProgress = {start: 3, end: 8, fraction: i / 30, estimated: true};
+            expect(state.sourceTextParts).toBe(source);
+            expect(state.translatedTextParts).toBe(translated);
+            expect(state.sourceAudioProgress).toEqual({start: 3, end: 8, fraction: i / 30, estimated: true});
+        }
+        state.snapshot = {parts: [{kind: 'text', text: 'new'}]};
+        expect(state.sourceTextParts).not.toBe(source);
+        expect(state.sourceTextParts[0].offset).toBe(0);
+    });
 });

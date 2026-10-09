@@ -192,6 +192,16 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 
 译文样式由 `tests/translationAppearance.test.ts` 与 `tests/translationAppearanceStyles.test.ts` 覆盖预设注册表、旧版选项顺序、外观归一化、颜色换算与网页样式节点的安装、原位更新和移除；`tests/pageStyles.test.ts` 验证外观样式随公共页面样式一起安装、订阅配置更新，并在移除或 context 失效时一起清理。生产扩展构建后执行 `node scripts/testing/run-translation-style-ui-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-translation-style`：在临时 Edge 与第二屏后台窗口中验证界面风格页第一组为译文样式、四类 29 张样式卡片逐一写入配置并同步预览、色板与方向键、滑块、分段控件和自定义取色器、仅译文提示、逐句高亮开关、重新打开后的保存结果、设置搜索直达外观面板与逐句高亮开关、深色界面与 1024/820/390 宽度；再用本地确定性夹具真实悬浮翻译，确认外观调整无需新请求即可更新已有译文，停用插件或恢复默认时移除外观样式节点，并检查简约卡片底色在网页上生效。
 
+## 关键内容空间与交互工作量
+
+划词卡片定向回归使用 `tests/selectionTranslatorLifecycle.test.ts`、`tests/readingPanelLifecycle.test.ts` 与 `tests/readingPanelStreamingResize.test.ts`，检查单帧合并拖动、结束时刷新最后位置、取消与迟到帧、视口变化、UTF-16 朗读偏移和流式正文的尺寸通知。生产构建后执行 `node scripts/testing/run-selection-key-information-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --artifacts-dir <证据目录> --phase optimized`，在第二屏临时后台 Edge 中检查译文首屏、完整原文、单行工具栏的滚轮与键盘操作、手动拖动/缩放、流式阅读期间的卡片尺寸和网页内容保留。`--phase baseline` 允许记录优化前的关键内容失败，但仍要求基础交互、原文和清理契约通过。性能探针在核对扩展 ID 的隔离世界统计实际送达的受信指针事件与卡片几何读取；请求的输入数量不等于实际事件数量，也不代表 FPS。
+
+菜单使用 `tests/popupKeyInformation.test.ts` 及既有 Popup 生命周期、服务与页面操作测试。生产专项运行 `node scripts/testing/run-popup-key-information-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --artifacts-dir <证据目录> --phase optimized`，覆盖中英文、亮暗主题与三种皮肤，长名称、配置模型、本地/非模型服务、多服务分配、静态凭据提醒、模块排序及服务抽屉。仅使用合成配置，不执行翻译、连接检查或模型下载；普通扩展标签页尺寸不代表浏览器原生工具栏 Popup。
+
+学习卡片在正文出现与完成后分别验证首个非标题回答段落的完整首行及至少 48px 的阅读视口；保持卡片尺寸不能代替正文可读性。`tests/uiI18nOwnership.test.ts` 使用真实界面指令与语言资源，检查 PRE/CODE 等内容祖先内的跟读子节点、语言切换和迟到文本不会被旧文案扫描改写。
+
+两个专项使用自己的临时 profile 和 focus-safe helper，逐次截图前后检查自有浏览器没有成为前台，结束后只关闭自有浏览器再删除 profile。划词响应由本地夹具提供；它们证明生产 Chromium 的指定 UI 与事件路径，不能证明在线供应商质量、实际语音输出、Firefox 运行时或全部设备的流畅度。
+
 ## 不翻译的语言（issue #627）
 
 使用 `scripts/testing/run-chinese-translation-test.cjs --excluded-languages`，并传入原有的 `--extension-dir`、`--playwright-root`、`--focus-safe-helper` 和独立 `--artifacts-dir`。该专项复用临时 Edge、后台可见且不抢焦点的窗口与本地确定性响应，验证翻译设置末尾的语言多选、立即关闭后持久化、跨页同步、键盘操作、展开后选择与清空、七种界面语言，以及浅色 1440/1024/820/390 和深色 1440/390 布局。
