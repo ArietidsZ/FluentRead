@@ -1,0 +1,220 @@
+{
+  "chrome": {
+    "beforeJsCssCount": 167,
+    "afterJsCssCount": 167,
+    "allEightOriginalSfcDefinitionsRetained": true,
+    "components": {
+      "WritingSettings": {
+        "builtOriginalSfcNameMarker": "WritingSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/WritingSettings-DXzDlSKV.js",
+            "bytes": 14893,
+            "sha256": "071e14b38ae0cddf1a0b36cf8a67eaa634a4710c0b80ae7b9c2df66279d048d9"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "ImageOcrSettings": {
+        "builtOriginalSfcNameMarker": "ImageOcrSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-CKDVL8iK.js",
+            "bytes": 105227,
+            "sha256": "8c610096853c563cae1069843ba43dcedf198326f4a3f211c36cd993b7cc372c"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [
+          "chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-CKDVL8iK.js"
+        ],
+        "unchangedPriorBytes": true
+      },
+      "MangaSettings": {
+        "builtOriginalSfcNameMarker": "MangaSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/public-CGNfBtTg.js",
+            "bytes": 32673,
+            "sha256": "aabc497a48c6c1b97c60b52b4df9490247f02e78b2fe88a5234f9e5b1d155e35"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "VideoLocalModelSettings": {
+        "builtOriginalSfcNameMarker": "VideoLocalModelSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/VideoLocalModelSettings-DgKTN_eE.js",
+            "bytes": 9664,
+            "sha256": "489c6c5e560358a358637589d6758bbc983d70364056f2469fc9e2ee1c9ccc51"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [
+          "chunks/VideoLocalModelSettings-DgKTN_eE.js"
+        ],
+        "unchangedPriorBytes": true
+      },
+      "VideoSubtitleAppearanceSettings": {
+        "builtOriginalSfcNameMarker": "VideoSubtitleAppearanceSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/VideoSubtitleAppearanceSettings-wSrkl591.js",
+            "bytes": 8997,
+            "sha256": "382d587443a71e9aeb93e30e2ac3e305d60f77f3554dbb7ddbbd777cc6b3063e"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "ModelUsageDashboard": {
+        "builtOriginalSfcNameMarker": "ModelUsageDashboard",
+        "afterChunks": [
+          {
+            "path": "chunks/public-CkP8IB1M.js",
+            "bytes": 43133,
+            "sha256": "6de972815c40dd70cfc886b02e2e5d156d27bd39a08cf5a9bb6b6afb4cb549a7"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "TranslationStatsDashboard": {
+        "builtOriginalSfcNameMarker": "TranslationStatsDashboard",
+        "afterChunks": [
+          {
+            "path": "chunks/public-BPHxksCu.js",
+            "bytes": 38009,
+            "sha256": "c573064aa025155d690a02467a0ee77045eb00c84e5667af83a502f812f586e1"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "AreaTranslationSettings": {
+        "builtOriginalSfcNameMarker": "AreaTranslationSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/AreaTranslationSettings-BIBk_I8F.js",
+            "bytes": 11678,
+            "sha256": "666d5afb14a4ac8f211a9d12a0b92a63107ff66efa928200736b4e73bed91697"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      }
+    },
+    "unchangedExactPathsAndBytes": 136,
+    "note": "Actual built __name markers locate original feature SFC definitions including aggregate public chunks. Scoped parent SFC hashes may change; whole extension artifact byte identity is not claimed."
+  },
+  "firefox": {
+    "beforeJsCssCount": 167,
+    "afterJsCssCount": 167,
+    "allEightOriginalSfcDefinitionsRetained": true,
+    "components": {
+      "WritingSettings": {
+        "builtOriginalSfcNameMarker": "WritingSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/WritingSettings-BX27r1wX.js",
+            "bytes": 14893,
+            "sha256": "e412927619d14ed57b23b2978a2aaac11a0d77407a3d6b25c180fdca4a0668bd"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "ImageOcrSettings": {
+        "builtOriginalSfcNameMarker": "ImageOcrSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-CzAfaYEA.js",
+            "bytes": 105227,
+            "sha256": "9b028ca8f84d0903accd9df3798626febc16492a4b08f0ed84a525aef2ec8fac"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [
+          "chunks/MangaSettings.vue_vue_type_style_index_0_scoped_e6dec263_lang-CzAfaYEA.js"
+        ],
+        "unchangedPriorBytes": true
+      },
+      "MangaSettings": {
+        "builtOriginalSfcNameMarker": "MangaSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/public-DkJP1F2U.js",
+            "bytes": 32673,
+            "sha256": "ab2a8ae7c2df3886584d1b9aae274ef325cd2b5e0aaa09dc9000fa4dcce18e2a"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "VideoLocalModelSettings": {
+        "builtOriginalSfcNameMarker": "VideoLocalModelSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/VideoLocalModelSettings-DWJI8JYB.js",
+            "bytes": 9664,
+            "sha256": "013104b9e7646cb50eea2d3a2dcde8b808128ca4d1ac829fa65c98acfa4684f2"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [
+          "chunks/VideoLocalModelSettings-DWJI8JYB.js"
+        ],
+        "unchangedPriorBytes": true
+      },
+      "VideoSubtitleAppearanceSettings": {
+        "builtOriginalSfcNameMarker": "VideoSubtitleAppearanceSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/VideoSubtitleAppearanceSettings-B_nvj3xH.js",
+            "bytes": 8997,
+            "sha256": "77d9efccfc5961445b9c20b9db0afddca9537b215d9cf55be4d425570d80a7dd"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "ModelUsageDashboard": {
+        "builtOriginalSfcNameMarker": "ModelUsageDashboard",
+        "afterChunks": [
+          {
+            "path": "chunks/public-BVOyDp45.js",
+            "bytes": 43133,
+            "sha256": "7ba3b312b73754e8b660d95b1707277bb382ab502c102b88f6600841f555d887"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "TranslationStatsDashboard": {
+        "builtOriginalSfcNameMarker": "TranslationStatsDashboard",
+        "afterChunks": [
+          {
+            "path": "chunks/public-Nx-lP1RU.js",
+            "bytes": 38009,
+            "sha256": "620fa42744f01e51d2bfabc7d49d0c7cb1b8d2afbe0b91ad1fccde540b7bda22"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      },
+      "AreaTranslationSettings": {
+        "builtOriginalSfcNameMarker": "AreaTranslationSettings",
+        "afterChunks": [
+          {
+            "path": "chunks/AreaTranslationSettings-CXPbfBhF.js",
+            "bytes": 11678,
+            "sha256": "d58606ba4fb782cb4ea085de54b6c62f4c0a1ced7e7e40994c0e72aa5fe03a46"
+          }
+        ],
+        "priorCorrespondingChunkPaths": [],
+        "unchangedPriorBytes": false
+      }
+    },
+    "unchangedExactPathsAndBytes": 137,
+    "note": "Actual built __name markers locate original feature SFC definitions including aggregate public chunks. Scoped parent SFC hashes may change; whole extension artifact byte identity is not claimed."
+  }
+}
