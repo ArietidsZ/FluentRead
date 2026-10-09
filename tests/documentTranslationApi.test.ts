@@ -383,7 +383,7 @@ describe('document translation reading-order priority and batch sizing', () => {
         let focus = 4;
         const order: number[] = [];
         const result = await translateDocumentSegments(segments, {
-            fileName: 'paper.pdf', batchLimits: {items: 2},
+            fileName: 'paper.pdf', batchLimits: {items: 2}, batchConcurrency: 1,
             prioritize: pending => [...pending].sort((left, right) => Math.abs(left.id - focus) - Math.abs(right.id - focus) || left.id - right.id),
             onSegment: ({id}) => {order.push(id); if (id === 3) focus = 0;},
         });
@@ -391,6 +391,41 @@ describe('document translation reading-order priority and batch sizing', () => {
         expect(order).toEqual([4, 3, 0, 1, 2, 5]);
         expect(mocks.translateTextBatch.mock.calls.map(call => call[0])).toEqual([['Source 4', 'Source 3'], ['Source 0', 'Source 1'], ['Source 2', 'Source 5']]);
         expect(result).toEqual(segments.map(segment => `译 ${segment.source}`));
+    });
+
+    it('keeps several batches in flight so the first finished batch is shown first, and stops claiming work after a failure', async () => {
+        const releases: Array<() => void> = [];
+        let inFlight = 0, peak = 0;
+        mocks.translateTextBatch.mockImplementation(async (sources: string[]) => {
+            inFlight += 1; peak = Math.max(peak, inFlight);
+            await new Promise<void>(resolve => releases.push(resolve));
+            inFlight -= 1;
+            return sources.map(source => `译 ${source}`);
+        });
+        const order: number[] = [];
+        const running = translateDocumentSegments(segments, {fileName: 'paper.pdf', batchLimits: {items: 1}, onSegment: ({id}) => order.push(id)});
+        await vi.waitFor(() => expect(releases).toHaveLength(3));
+        // 第三批先返回就先显示，不必等前两批。
+        releases[2](); await vi.waitFor(() => expect(order).toEqual([2]));
+        releases[0](); releases[1]();
+        await vi.waitFor(() => expect(releases).toHaveLength(6));
+        releases.slice(3).forEach(release => release());
+        expect(await running).toEqual(segments.map(segment => `译 ${segment.source}`));
+        expect(peak).toBe(3);
+
+        // 一批失败后，其余在途批次的结果不再提交，也不再认领新的片段。
+        mocks.translateTextBatch.mockReset();
+        const pending: Array<{resolve: (value: string[]) => void; reject: (error: Error) => void; sources: string[]}> = [];
+        mocks.translateTextBatch.mockImplementation((sources: string[]) => new Promise<string[]>((resolve, reject) => pending.push({resolve, reject, sources})));
+        const committed: number[] = [];
+        const failing = translateDocumentSegments(segments, {fileName: 'paper.pdf', batchLimits: {items: 1}, onSegment: ({id}) => committed.push(id)});
+        const outcome = expect(failing).rejects.toThrow('第 1 段文档翻译失败：quota exceeded');
+        await vi.waitFor(() => expect(pending).toHaveLength(3));
+        pending[0].reject(new Error('quota exceeded'));
+        await outcome;
+        pending[1].resolve(['late']); pending[2].reject(new Error('also late'));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(committed).toEqual([]); expect(mocks.translateTextBatch).toHaveBeenCalledTimes(3);
     });
 
     it('limits a batch by characters, always takes at least one segment and ignores invalid or loosened limits', async () => {
@@ -517,7 +552,7 @@ describe('document translation keeps going when a service echoes names and short
         mocks.translateTextBatch.mockRejectedValueOnce(echo()).mockResolvedValueOnce(['表格之后是一个完整的句子。']);
         mocks.translateText.mockImplementation(async (source: string) => {if (source === 'ARGUS') throw echo(); return source === 'Seconds' ? '  ' : '延迟';});
         const committed: Array<[number, string]> = []; const waits: number[] = [];
-        const result = await translateDocumentSegments(segments, {fileName: 'paper.pdf', batchLimits: {items: 3}, retryBackoff: {maxWaitMs: 120_000, sleep: async milliseconds => {waits.push(milliseconds);}}, onSegment: ({id, translation}) => committed.push([id, translation])});
+        const result = await translateDocumentSegments(segments, {fileName: 'paper.pdf', batchLimits: {items: 3}, batchConcurrency: 1, retryBackoff: {maxWaitMs: 120_000, sleep: async milliseconds => {waits.push(milliseconds);}}, onSegment: ({id, translation}) => committed.push([id, translation])});
         expect(result).toEqual(['延迟', 'ARGUS', 'Seconds', '表格之后是一个完整的句子。']);
         expect(committed).toEqual([[0, '延迟'], [1, 'ARGUS'], [2, 'Seconds'], [3, '表格之后是一个完整的句子。']]);
         // 原样返回不是暂时性故障，不进入退避等待。

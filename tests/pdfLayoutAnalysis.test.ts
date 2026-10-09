@@ -244,6 +244,38 @@ describe('PDF layout analysis on real paper typography', () => {
         const lines = pdfLayoutLines([atom('Learning and Verbal Behavior, 12, 335-359.', 294, 370.2, 130, 6.4), atom('left column line in a larger size', 41, 374.4, 220, 8), atom('Dahan, D., and Tanenhaus, M. K. (2004). Continuous mapping', 282, 378.2, 221, 6.4)]);
         expect(lines.map(line => line.text)).toEqual(['Learning and Verbal Behavior, 12, 335-359.', 'left column line in a larger size', 'Dahan, D., and Tanenhaus, M. K. (2004). Continuous mapping']);
     });
+    it('treats slide frames, title bands and filled text boxes as containers while real figures keep their small labels', () => {
+        // 幻灯片：占页面大半的内容框里是大字号的短要点，全部是正文。
+        const slide = analyze([atom('可靠性', 60, 120, 78, 26), atom('性能', 60, 170, 52, 26), atom('成本', 60, 220, 52, 26)], [{kind: 'image', x: 30, y: 60, width: 660, height: 440}], 720, 540);
+        expect(slide.preservedRegions).toEqual([]);
+        expect(slide.blocks.every(block => !block.preserveSource && block.kind !== 'figure-label')).toBe(true);
+        // 标题色带：一行成句的标题几乎填满色带。
+        const band = analyze([atom('嵌入式软件的应用与特点', 43, 60, 430, 39), atom('Body sentence under the title band.', 43, 140, 300, 20)], [{kind: 'path', x: 29, y: 17, width: 649, height: 49}], 720, 540);
+        expect(band.preservedRegions).toEqual([]);
+        expect(band.blocks.find(block => block.source.startsWith('嵌入式'))?.preserveSource).toBe(false);
+        // 带边框的报告页：框内多半是成句的正文行，短行不是小字号标注。
+        const framed = analyze([atom('Section', 60, 100, 40), atom('This framed report page keeps ordinary body sentences inside a border.', 60, 130, 420), atom('Another complete sentence continues the framed report body text here.', 60, 160, 420)], [{kind: 'path', x: 40, y: 60, width: 520, height: 600}]);
+        expect(framed.preservedRegions).toEqual([]);
+        // 许多相接的小底框并成一个大区域时，合并之后同样按容器处理。
+        const chained = analyze([atom('第一段说明文字写在底框里面', 50, 80, 300, 14), atom('第二段说明文字也写在底框里面', 50, 330, 300, 14)], [{kind: 'path', x: 40, y: 40, width: 500, height: 262}, {kind: 'path', x: 40, y: 300, width: 500, height: 300}]);
+        expect(chained.preservedRegions).toEqual([]);
+        // 真正的插图：包围盒圈入了正文，但图内成批的小字短标注说明它仍是插图。
+        const labels = ['Kernel', 'Vector', 'Grafana', 'Perfetto', 'Storage'].map((text, index) => atom(text, 60 + index * 90, 100, 30, 6));
+        const figure = analyze([...labels, atom('A body sentence that the figure bounding box happens to swallow completely.', 60, 250, 420), atom('It continues with another full sentence of ordinary body text right here.', 60, 262, 420)], [{kind: 'form', x: 0, y: 40, width: 600, height: 400}]);
+        expect(figure.preservedRegions.some(region => region.kind === 'figure')).toBe(true);
+        expect(figure.blocks.filter(block => block.kind === 'figure-label')).toHaveLength(5);
+        // 小插图里只有零星短标注：不够容器的任何一条。
+        const small = analyze([atom('Axis', 120, 150, 20, 7), atom('Body text outside the figure stays body text for this page.', 60, 400, 400)], [{kind: 'image', x: 100, y: 100, width: 200, height: 150}]);
+        expect(small.preservedRegions.some(region => region.kind === 'figure')).toBe(true);
+    });
+    it('reads text that is painted twice in place once, and counts CJK sentences inside figures as prose', () => {
+        const doubled = pdfLayoutLines([atom('关系数据库标准语言', 190, 280, 252, 28), atom('SQL', 442, 280, 53, 28), atom('关系数据库标准语言', 190.1, 280, 252, 28), atom('SQL', 442.1, 280, 53, 28), atom('  ', 500, 280, 4, 28), atom('SQL', 600, 280, 53, 28)]);
+        expect(doubled.map(line => line.text).join(' ')).toBe('关系数据库标准语言SQL SQL');
+        // 同一位置但字号不同的同一个字不是重复描字（例如上标与正文字符重叠的排版）。
+        expect(pdfLayoutLines([atom('x', 0, 0, 5, 10), atom('x', 0, 0, 5, 10.6)]).map(line => line.text).join('')).toBe('xx');
+        const prose = analyze([atom('这是一句写在插图范围里面的完整中文说明', 60, 120, 200, 8), atom('A', 70, 200, 5, 5), atom('B', 140, 200, 5, 5), atom('C', 210, 200, 5, 5), atom('D', 280, 200, 5, 5), atom('Body text below the figure is long enough to set the page body size here.', 60, 500, 420), atom('More body text follows so that the median body font stays at ten points.', 60, 512, 420)], [{kind: 'image', x: 40, y: 100, width: 300, height: 200}]);
+        expect(prose.blocks.find(block => block.source.startsWith('这是一句'))).toMatchObject({kind: 'text', preserveSource: false});
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

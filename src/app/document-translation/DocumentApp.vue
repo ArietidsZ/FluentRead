@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，从正在阅读的页开始翻译；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -203,9 +203,11 @@
             </button>
           </nav>
           <iframe
+            ref="richFrame"
             class="rich-preview-frame"
-            :srcdoc="richPreviewHtml"
-            sandbox=""
+            :srcdoc="richFrameHtml"
+            sandbox="allow-same-origin"
+            @load="refreshRichPreview"
             :title="t('document.layoutPreview', {format: parsedDocument.label})"
           />
         </section>
@@ -402,6 +404,8 @@ import browser from 'webextension-polyfill';
 import {
   Config,
   PdfReader,
+  syncRichPreview,
+  richPreviewInterval,
   hasDistinctTranslation,
   TranslationRequestError,
   buildGlossaryRevision,
@@ -926,7 +930,7 @@ const completedSegments = computed(() => translating.value ? liveCompletedSegmen
 const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
 const progress = computed(() => parsedDocument.value?.segments.length ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 // PDF 打开即左右对照，其他格式从翻译开始进入所选方式：译文页先显示原页，各段译文到达后逐段替换。
-const canCompare = computed(() => hasTranslation.value || translating.value || (isPdfDocument.value && Boolean(parsedDocument.value?.segments.length)));
+const canCompare = computed(() => translating.value || hasTranslation.value || (isPdfDocument.value && Boolean(parsedDocument.value?.segments.length)));
 const effectivePreviewMode = computed(() => canCompare.value ? previewMode.value : 'source');
 const currentFingerprint = computed(() => JSON.stringify({
   from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
@@ -956,19 +960,16 @@ const richPreviewDocument = computed<ParsedDocument | null>(() => {
   }
   return ['html', 'markdown', 'txt'].includes(document.format) ? document : null;
 });
-const richPreviewTranslations = computed(() => {
-  const chapter = currentEpubChapter.value;
-  return chapter
-    ? settledTranslations.value.slice(chapter.segmentOffset, chapter.segmentOffset + chapter.segmentCount)
-    : settledTranslations.value;
-});
-const richPreviewHtml = computed(() => {
+/** 富文本预览的完整 HTML：直接读取逐段写入的译文，翻译进行中也能反映最新进度。 */
+function buildRichPreview(): string {
   const document = richPreviewDocument.value;
   if (!document) return '';
+  const chapter = currentEpubChapter.value;
+  const translations = toRaw(translatedSegments.value);
   const html = createDocumentPreviewHtml(
     document,
-    richPreviewTranslations.value,
-    settledTranslations.value.some(Boolean) ? previewMode.value : 'source',
+    chapter ? translations.slice(chapter.segmentOffset, chapter.segmentOffset + chapter.segmentCount) : translations,
+    effectivePreviewMode.value,
   );
   // 只为当前隔离阅读页补充固定主题规则，不改变原文件或导出内容。
   return isDark.value ? html.replace('</head>', `<style>
@@ -978,7 +979,31 @@ const richPreviewHtml = computed(() => {
     pre,code,.document-security-note { color: #e8edf7; background: #29303d; border-color: #434b5d; }
     td,th { border-color: #434b5d; }
   </style></head>`) : html;
-});
+}
+const richFrame = ref<HTMLIFrameElement | null>(null);
+const richFrameHtml = ref('');
+let richPreviewTimer: ReturnType<typeof setTimeout> | undefined;
+/** 译文或阅读方式变化时原位更新预览框，保留滚动位置；预览框不可访问时才整页重载。 */
+function refreshRichPreview(): void {
+  clearTimeout(richPreviewTimer);
+  richPreviewTimer = undefined;
+  if (!richPreviewDocument.value) return;
+  const html = buildRichPreview();
+  if (!syncRichPreview(richFrame.value, html)) richFrameHtml.value = html;
+}
+/** 翻译进行中逐段到达的译文按节流间隔刷新：先译完的先显示，不必等全文结束。 */
+function scheduleRichPreview(): void {
+  if (richPreviewTimer !== undefined || !richPreviewDocument.value) return;
+  richPreviewTimer = setTimeout(refreshRichPreview, richPreviewInterval(richPreviewDocument.value.segments.length));
+}
+// 换文档、换章节或换主题时整页载入一次；之后的译文与阅读方式变化都原位更新。
+watch([richPreviewDocument, isDark], () => {
+  clearTimeout(richPreviewTimer);
+  richPreviewTimer = undefined;
+  richFrameHtml.value = buildRichPreview();
+}, {immediate: true});
+watch([settledTranslations, effectivePreviewMode], refreshRichPreview);
+onUnmounted(() => clearTimeout(richPreviewTimer));
 const docxParts = computed(() => parsedDocument.value?.binary?.kind === 'docx'
   ? parsedDocument.value.binary.parts
   : []);
@@ -1009,13 +1034,22 @@ const pdfSegmentPages = computed(() => {
   binary.pages.forEach((page, index) => page.segmentIndexes.forEach(segment => { if (!map.has(segment)) map.set(segment, index); }));
   return {map, count: binary.pages.length};
 });
-/** 从正在阅读的页开始向后翻译，读到哪里先译哪里；前面的页排在全文末尾之后。 */
-function prioritizeVisiblePages<T extends {id: number}>(pending: readonly T[]): T[] {
+/** 从正在阅读的位置开始向后翻译，读到哪里先译哪里；前面的内容排在全文末尾之后。 */
+function prioritizeReadingPosition<T extends {id: number}>(pending: readonly T[]): T[] {
   const pages = pdfSegmentPages.value;
-  if (!pages) return [...pending];
-  const current = pdfPage.value - 1;
-  const rank = (segment: T) => ((pages.map.get(segment.id) ?? 0) - current + pages.count) % pages.count;
-  return [...pending].sort((left, right) => rank(left) - rank(right) || left.id - right.id);
+  if (pages) {
+    const current = pdfPage.value - 1;
+    const rank = (segment: T) => ((pages.map.get(segment.id) ?? 0) - current + pages.count) % pages.count;
+    return [...pending].sort((left, right) => rank(left) - rank(right) || left.id - right.id);
+  }
+  // 其他格式按片段顺序排列：ePub 从当前章节、Word 从当前部分的当前页、字幕与表格类从当前页的第一段开始。
+  const total = parsedDocument.value?.segments.length || 1;
+  const offset = (readerPage.value - 1) * READER_PAGE_SIZE;
+  const anchor = currentEpubChapter.value?.segmentOffset
+    ?? (currentDocxPart.value ? currentDocxPart.value.paragraphSegments[offset]?.segmentIndex ?? 0 : isRichDocument.value ? 0 : offset);
+  if (!anchor) return [...pending];
+  const rank = (segment: T) => (segment.id - anchor + total) % total;
+  return [...pending].sort((left, right) => rank(left) - rank(right));
 }
 
 function releaseDocumentPreview(document: ParsedDocument | null): void {
@@ -1378,7 +1412,8 @@ async function startTranslation(restart = false): Promise<void> {
       onRetry: ({delayMs, reason}) => {
         if (requestId === translationRequestId && !controller.signal.aborted) retryNotice.value = `${translateLegacy('翻译服务暂时没有响应，将自动重试')} · ${Math.ceil(delayMs / 1000)}s · ${reason}`;
       },
-      ...(pdfSegmentPages.value ? {batchLimits: {items: 8, characters: 2400}, prioritize: prioritizeVisiblePages} : {}),
+      ...(pdfSegmentPages.value ? {batchLimits: {items: 8, characters: 2400}} : {}),
+      prioritize: prioritizeReadingPosition,
       onSegment: ({id, translation}) => {
         if (requestId !== translationRequestId || parsedDocument.value !== document || controller.signal.aborted) return;
         retryNotice.value = '';
@@ -1386,6 +1421,7 @@ async function startTranslation(restart = false): Promise<void> {
         translatedSegments.value[id] = translation;
         editRevision.value += 1;
         scheduleHistorySave();
+        scheduleRichPreview();
       },
     });
   } catch (error) {

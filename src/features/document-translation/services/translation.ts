@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/translation.ts
  * 文件职责：编排文档片段的批量翻译流程，在固定语言和服务快照下按数量及字符预算拆批，并向调用方持续报告确定性进度。
- * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，提交前移除服务凭空加入的表情符号，请求失败时可按退避间隔自动重试并向页面报告原因，被服务原样返回的专名与短词保留原文而不中断全文，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
+ * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，支持批量的服务同时保持数批请求在途、先返回的先提交，提交前移除服务凭空加入的表情符号，请求失败时可按退避间隔自动重试并向页面报告原因，被服务原样返回的专名与短词保留原文而不中断全文，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
  * 模块边界：该层不解析文件、不持久化配置，也不直接绑定具体 provider；上层负责冻结用户设置并注入 gateway，文档结构由 core 提供，网络和缓存语义由应用翻译客户端承担。
  */
 import {TranslationRequestError} from '@/src/services/translation/errors';
@@ -29,6 +29,8 @@ export interface DocumentTranslationOptions {
     prioritize?: (pending: readonly DocumentSegment[]) => readonly DocumentSegment[];
     /** 收紧单批的片段数与字符数，译文可以更细地逐批显示；只能小于默认上限。 */
     batchLimits?: {items?: number; characters?: number};
+    /** 支持批量的服务同时在途的批次数，默认 3；设为 1 即逐批顺序请求。 */
+    batchConcurrency?: number;
     /**
      * 请求失败时按 2、4、8…秒（单次不超过 30 秒）退避重试，累计等待不超过 maxWaitMs；
      * 不提供时保持“失败即停止”。sleep 仅供测试替换计时。
@@ -108,6 +110,7 @@ export function createDocumentFileLoadGuard(): DocumentFileLoadGuard {
 
 const BATCH_ITEM_LIMIT = 16;
 const BATCH_CHARACTER_LIMIT = 3_500;
+const BATCH_CONCURRENCY = 3;
 
 function getErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -241,7 +244,10 @@ export function createDocumentSegmentTranslator(
         if (gateway.supportsBatch(service)) {
             const itemLimit = boundedLimit(options.batchLimits?.items, BATCH_ITEM_LIMIT);
             const characterLimit = boundedLimit(options.batchLimits?.characters, BATCH_CHARACTER_LIMIT);
-            while (queue.length > 0) {
+            // 同时发出几批请求：先出结果的那一批先显示，整篇的等待时间按并发数缩短；任何一批失败后其余批次不再认领新片段。
+            let failed = false;
+            const batchWorker = async () => {
+            while (queue.length > 0 && !failed) {
                 throwIfAborted(options.signal);
                 queue = prioritized(queue, options.prioritize);
                 const batch = takeBatch(queue, itemLimit, characterLimit);
@@ -268,9 +274,11 @@ export function createDocumentSegmentTranslator(
                     }
                     return result;
                     }, options);
+                    if (failed) return;
                     result.forEach((translation, index) => commit(batch[index].id, translation));
                     reportProgress();
                 } catch (error) {
+                    if (failed) return;
                     throwIfAborted(options.signal);
                     if (untranslatedEcho(error)) {
                         // 整批里只要有一段被原样返回就会整批报错；逐段重译，仍被原样返回的那几段保留原文。
@@ -283,17 +291,20 @@ export function createDocumentSegmentTranslator(
                                 if (typeof received === 'string' && received.trim()) translation = received;
                             } catch (single) {
                                 throwIfAborted(options.signal);
-                                if (!untranslatedEcho(single)) throw new Error(`第 ${segment.id + 1} 段文档翻译失败：${getErrorMessage(single)}`);
+                                if (!untranslatedEcho(single)) {failed = true; throw new Error(`第 ${segment.id + 1} 段文档翻译失败：${getErrorMessage(single)}`);}
                             }
                             commit(segment.id, translation);
                             reportProgress();
                         }
                         continue;
                     }
+                    failed = true;
                     if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') throw error;
                     throw new Error(`第 ${batch[0].id + 1} 段文档翻译失败：${getErrorMessage(error)}`);
                 }
             }
+            };
+            await Promise.all(Array.from({length: boundedLimit(options.batchConcurrency, BATCH_CONCURRENCY)}, () => batchWorker()));
             return translations;
         }
 

@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/pdfLayoutAnalysis.ts
  * 文件职责：从 PDF 原始字形和绘图操作推导阅读顺序、段落与必须保留的公式、表格、插图区域。
- * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按相邻行共同让出的竖带识别栏间距，松散的两端对齐行不被拆散；页眉页脚、编号标题、题注与公式碎片分别归类，图形在题注处断开，表格按单元格切分且含词语的单元格可以翻译；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
+ * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按相邻行共同让出的竖带识别栏间距，松散的两端对齐行不被拆散；页眉页脚、编号标题、题注与公式碎片分别归类，图形在题注处断开，幻灯片内容框、段落底色和标题色带这类装文字的容器不算插图，原位重复描画的文字只读一次，表格按单元格切分且含词语的单元格可以翻译；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
  * 模块边界：纯几何分析，不加载 PDF.js、不访问 Canvas、网络或 DOM，不修改来源文字或文件。
  */
 import type {PdfDocumentBlock, PdfDocumentLine, PdfDocumentRun, PdfPreservedRegion} from './document';
@@ -75,7 +75,22 @@ function joinRuns(runs: readonly PdfLayoutAtom[]): string {
 /** 基线而非字形顶边决定同一行，上下标仍保留自己的矩形和文字。 */
 export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
     const rows: Array<{runs: PdfLayoutAtom[]; font: number; baseline: number; samples: number; first: number}> = [];
-    for (const atom of [...atoms].sort((a, b) => a.baseline - b.baseline || a.x - b.x)) {
+    // 幻灯片常把同一段文字在原位再画一遍来加粗或做阴影；同一位置的同一段文字只算一次，否则译文会收到重复的原文。
+    const drawn = new Map<string, PdfLayoutAtom[]>();
+    const unique = atoms.filter(atom => {
+        if (!atom.text.trim()) return true;
+        const slack = Math.max(1, atom.fontSize * 0.1);
+        const column = Math.round(atom.x / slack), row = Math.round(atom.baseline / slack);
+        // 按位置分桶后只看相邻的桶，同一行里成百上千个相同的字也不会两两比较。
+        for (let dx = -1; dx <= 1; dx += 1) for (let dy = -1; dy <= 1; dy += 1) {
+            if (drawn.get(`${column + dx}:${row + dy}:${atom.text}`)?.some(other => Math.abs(other.x - atom.x) <= Math.min(slack, atom.width / 2) && Math.abs(other.baseline - atom.baseline) <= slack && Math.abs(other.fontSize - atom.fontSize) <= 0.5)) return false;
+        }
+        const key = `${column}:${row}:${atom.text}`;
+        const bucket = drawn.get(key);
+        if (bucket) bucket.push(atom); else drawn.set(key, [atom]);
+        return true;
+    });
+    for (const atom of [...unique].sort((a, b) => a.baseline - b.baseline || a.x - b.x)) {
         const row = rows.at(-1);
         const tolerance = row ? Math.max(2, Math.max(row.font, atom.fontSize) * 0.55) : 0;
         // 双栏行距不同时，一栏的基线会落在另一栏两行之间；只与行首基线比较，避免它把上下两行接力串成一行。
@@ -140,19 +155,22 @@ export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
     return result.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
+/** 一行的“词数”：按空白分出的词，加上不用空格分词的中日韩文字（两个字约合一个词）。 */
+const textUnits = (text: string) => text.split(/\s+/u).filter(Boolean).length + (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0) / 2;
 /** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译。 */
 const readable = (text: string) => /\p{L}{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text.replace(/\b(?:lim|min|max|log|exp|sin|cos|tan|arg|sup|inf)\b/giu, ''));
-function mergedFigures(shapes: readonly PdfGraphicsShape[], width: number, height: number): Rectangle[] {
+function mergedFigures(shapes: readonly PdfGraphicsShape[], width: number, height: number, container: (box: Rectangle) => boolean): Rectangle[] {
     const figures: Rectangle[] = [];
     for (const shape of shapes.filter(shape => shape.width >= 24 && shape.height >= 24 && (shape.kind !== 'path' || shape.width * shape.height >= 900))) {
-        if (shape.width * shape.height >= width * height * 0.94) continue;
+        if (shape.width * shape.height >= width * height * 0.94 || container(shape)) continue;
         let merged: Rectangle = shape;
         for (let index = figures.length - 1; index >= 0; index -= 1) {
             if (overlaps(merged, figures[index], 2)) {merged = union(merged, figures[index]); figures.splice(index, 1);}
         }
         figures.push(merged);
     }
-    return figures;
+    // 许多小底框首尾相接也会并成一个圈住整页文字的大区域，合并之后再检查一次。
+    return figures.filter(figure => !container(figure));
 }
 function tableRegions(shapes: readonly PdfGraphicsShape[], width: number, figures: readonly Rectangle[]): Rectangle[] {
     const rows = shapes.filter(shape => shape.kind === 'path' && shape.width >= width * 0.2 && shape.height <= 2 && !figures.some(figure => overlaps(shape, figure)))
@@ -188,7 +206,19 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     let remaining = sized.reduce((sum, atom) => sum + atom.text.length, 0) / 2;
     const font = sized.find(atom => (remaining -= atom.text.length) <= 0)?.fontSize ?? 10;
     const captionStart = /^(?:Figure|Table|Fig\.)\s+\d+[.:]/iu;
-    const figures = mergedFigures(input.graphics, input.width, input.height);
+    // 幻灯片的内容框、笔记的段落底色和标题色带都是“装文字的容器”而不是插图：成句的文字占去框内三成以上面积，
+    // 或者框占页面三分之一以上且框内多半是成句的行、或字号明显大于图内标注时，框内文字按正文处理。
+    const container = (box: Rectangle) => {
+        const inside = lines.filter(line => coversLine(box, line) && readable(line.text));
+        if (!inside.length) return false;
+        const area = box.width * box.height;
+        // 插图的包围盒也会圈入旁边的正文；图内若有成批小于正文字号的短标注，它仍是插图。
+        const labels = inside.filter(line => textUnits(line.text) < 4 && line.fontSize < Math.min(font * 0.9, 11)).length;
+        if (labels > Math.max(3, inside.length * 0.15)) return false;
+        if (inside.some(line => textUnits(line.text) >= 4) && inside.reduce((sum, line) => sum + line.width * line.height, 0) >= area * 0.3) return true;
+        return area >= input.width * input.height * 0.35 && (median(inside.map(line => line.fontSize)) >= 12 || inside.filter(line => textUnits(line.text) >= 6).length >= inside.length / 2);
+    };
+    const figures = mergedFigures(input.graphics, input.width, input.height, container);
     // 图形对象的包围盒常把题注一并圈入，上下相邻的两张图还会连同中间的题注并成一个区域；题注是需要翻译的正文，图形在题注处断开。
     for (let index = 0; index < figures.length; index += 1) {
         const figure = figures[index];
@@ -220,8 +250,8 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     // 图形包围盒可能跨栏并圈入下方的正文：图内只有短标签属于图形，题注、成句的行以及紧随成句行的续行仍是正文。
     const prose = new Set<LayoutLine>();
     for (const line of lines) {
-        if (captionStart.test(line.text) || line.text.split(/\s+/u).length >= 7) prose.add(line);
-        else if (lines.some(near => near.text.split(/\s+/u).length >= 7 && near.baseline < line.baseline && line.baseline - near.baseline <= near.fontSize * 1.5 && Math.abs(near.fontSize - line.fontSize) <= 0.6 && line.x >= near.x - 1 && line.x - near.x <= font * 2.2 && right(line) <= right(near) + 2)) prose.add(line);
+        if (captionStart.test(line.text) || textUnits(line.text) >= 7) prose.add(line);
+        else if (lines.some(near => textUnits(near.text) >= 7 && near.baseline < line.baseline && line.baseline - near.baseline <= near.fontSize * 1.5 && Math.abs(near.fontSize - line.fontSize) <= 0.6 && line.x >= near.x - 1 && line.x - near.x <= font * 2.2 && right(line) <= right(near) + 2)) prose.add(line);
     }
     const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && prose.has(line));
     const ordinary = lines.filter(line => !regions.some(region => inRegion(region, line)));
