@@ -1,0 +1,154 @@
+{
+  "baseHead": "b7f88830e3d47f595cb287f3833d5d001adcffc6",
+  "branch": "perf/userscript-unreachable-settings-20261009",
+  "sourceFiles": {
+    "userscript/pakoBundled.ts": "fe6111535d14b46dedfbbd9c3210864a00f29654904883bb622a1b2ac05e2510",
+    "userscript/pako.d.ts": "ddcc00abe4377728b78b31f1ff7cd3b24b4ec1a428ffe3ec0306dbd109969c06",
+    "tests/userscriptCompression.test.ts": "f6dc470fac671b22251c22b1cb4f89493c49fab0687ca8daf2cd87ab75c263c8"
+  },
+  "baselineSourceBinding": {
+    "userscript/pakoBundled.ts": "bda52d7bb7351c7a49090611bfc98ac1d7b45cf0481d9ac948bd4a6bc197f13a",
+    "userscript/pako.d.ts": "897e82edd6102a39e2e97b236f64bea1766697dff9a6c629036d8083e59408f9"
+  },
+  "installedPako": {
+    "version": "2.1.0",
+    "packageJsonSha256": "268f53a4c305b7b49a63f7aadcdc026b00574fafc5fd6a452351bac21d5417ae",
+    "inflateSourceSha256": "f6d86f7e71ecbbdec39f91d109a92147a215db9e31e3dcc540db19cfa71c0616",
+    "officialSources": [
+      "https://github.com/nodeca/pako/blob/2.1.0/package.json",
+      "https://github.com/nodeca/pako/blob/2.1.0/lib/inflate.js"
+    ]
+  },
+  "productionFunctionBodyUnchanged": true,
+  "buildTimeGzipAndGlobalRuntimeUnchanged": true,
+  "stages": [
+    {
+      "stage": "round7-standard-after-graph",
+      "startedAt": "2026-10-09T15:08:04.437818+00:00",
+      "durationSeconds": 3.82,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round7-record-build.mjs",
+        "standard",
+        "after"
+      ]
+    },
+    {
+      "stage": "round7-standalone-after-graph",
+      "startedAt": "2026-10-09T15:08:08.306646+00:00",
+      "durationSeconds": 6.926,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round7-record-build.mjs",
+        "standalone",
+        "after"
+      ]
+    },
+    {
+      "stage": "round7-greasyfork-after-graph",
+      "startedAt": "2026-10-09T15:08:15.278087+00:00",
+      "durationSeconds": 2.818,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round7-record-build.mjs",
+        "greasyfork",
+        "after"
+      ]
+    },
+    {
+      "stage": "round7-seven-gzip-compatibility",
+      "startedAt": "2026-10-09T15:08:18.146239+00:00",
+      "durationSeconds": 0.464,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/PAKO-INFLATE-CANDIDATE/gzip-compatibility.mjs"
+      ]
+    },
+    {
+      "stage": "round7-compression-contracts",
+      "startedAt": "2026-10-09T15:08:18.659057+00:00",
+      "durationSeconds": 2.518,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptCompression.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "--reporter=json",
+        "--outputFile=/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/PAKO-INFLATE-CANDIDATE/related-tests.json"
+      ]
+    },
+    {
+      "stage": "round7-compile",
+      "startedAt": "2026-10-09T15:08:21.226208+00:00",
+      "durationSeconds": 16.945,
+      "exitCode": 0,
+      "arguments": [
+        "compile"
+      ]
+    },
+    {
+      "stage": "round7-standalone-verifier",
+      "startedAt": "2026-10-09T15:08:38.210344+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-standalone-build.mjs"
+      ]
+    },
+    {
+      "stage": "round7-standard-verifier",
+      "startedAt": "2026-10-09T15:08:38.523656+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ]
+    },
+    {
+      "stage": "round7-test-audit",
+      "startedAt": "2026-10-09T15:08:38.838820+00:00",
+      "durationSeconds": 1.216,
+      "exitCode": 0,
+      "arguments": [
+        "test:audit"
+      ]
+    },
+    {
+      "stage": "round7-docs-build",
+      "startedAt": "2026-10-09T15:13:01.804997+00:00",
+      "durationSeconds": 2.767,
+      "exitCode": 0,
+      "arguments": [
+        "docs:build"
+      ]
+    }
+  ],
+  "moduleIdNormalization": "Full modules.json retains observed keys; module-proof removes repository prefix including inside virtual IDs. Same canonical removal yields exact complete key/ID correspondence.",
+  "diffWhitespaceCheck": "Source, tests and reports checked; candidate.patch space-only context markers preserved as unified-diff data.",
+  "sevenActualGzipFixturesPassed": true,
+  "typedInputCases": 21,
+  "invalidInputContracts": 5,
+  "relatedTestsPassed": 44,
+  "realModelSearchApiCalls": 0,
+  "newPermissionsDependenciesEnvironments": 0,
+  "recoveryOperations": 0,
+  "pr906HeadUnchanged": "18e049003bffab6d2bd49220c48b569b0a70856e",
+  "reusedUiAndExtensionEvidence": "../context-menu; no actual Chrome browser interaction claimed",
+  "docsBuildPassed": true,
+  "afterProofMetadataNaming": "Inherited previous389Artifact/byteIdenticalTo389 metadata keys renamed to previousArtifact/byteIdenticalToPrevious in new after proofs and reproduction recorder; values and full graph unchanged. Reused before files retain historical naming, with the authoritative artifact object bound to b7 baseline."
+}

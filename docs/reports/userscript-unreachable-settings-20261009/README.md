@@ -6,6 +6,8 @@
 
 [ContextMenu 单独增量](./context-menu/README.md)再减少 5,245 字节，standalone 为 3,615,583，两步共减少 181,747，仍超 15,583。standard 和 GF 字节、SHA 与模块均不变。ContextMenu 保留提示与实际导航另有六次前后回归，Chrome/Firefox 原加载组件全部保留。增量的完整 SHA、JS/CSS ID 差异及 GF 全模块归因分别见 [ContextMenu 比较](./context-menu/three-mode-comparison.json)、[GF before](./context-menu/greasyfork-before-modules.json)、[GF after](./context-menu/greasyfork-after-modules.json)。
 
+[pako inflate 单独消融](./pako-inflate/README.md)在 b7f88830 基线上再减少 26,292 字节，standalone 为 **3,589,291**，原门禁通过、余 **10,709**。三项合计减少 **208,039** 字节。七份真实 gzip 的21组typed输入逐字节比较和五组无效/截断输入契约均与原入口一致；44项相关测试、类型、测试归类和standard/standalone verifier通过。standard/GF字节与SHA保持不变。
+
 完整产物 SHA 和 JS/CSS ID 差异见 [八声明三出口对比](./eight-declarations/three-mode-comparison.json)。GreasyFork 的 [前归因](./eight-declarations/greasyfork-before-modules.json)、[后归因](./eight-declarations/greasyfork-after-modules.json) 为全部实际模块映射；[前实际 ID](./eight-declarations/greasyfork-before-module-proof.json)、[后实际 ID](./eight-declarations/greasyfork-after-module-proof.json) 也完整提供，没有仅用 SVG 标记或摘录替代。
 
-沿用 CPU 目标 60%、单 worker、并发 1、现有依赖和固定资源 URL。未刷新资源或放宽预算。真实根组件合成导航、类型、Chrome/Firefox 构建和 standard verifier 有通过证据；standalone/GF 门禁、GF 固定数据不匹配、既有“CPU 和内存”文案断言仍未闭合。合成证据不代表真实浏览器、Windows 或 RTX 5090 WebGPU 验收。
+沿用 CPU 目标 60%、单 worker、并发 1、现有依赖和固定资源 URL。未刷新资源或放宽预算。真实根组件合成导航、类型、Chrome/Firefox 构建和 standard verifier 有通过证据；当前 standalone 门禁已通过；GF 门禁/固定数据不匹配、既有“CPU 和内存”文案断言仍未闭合。合成证据不代表真实浏览器、Windows 或 RTX 5090 WebGPU 验收。
