@@ -8,7 +8,7 @@ import vue from '@vitejs/plugin-vue';
 import ts from 'typescript';
 import {defineConfig, normalizePath, transformWithEsbuild, type Plugin} from 'vite';
 import {createUserscriptMetadata} from './metadata';
-import {createUserscriptCharacterDataCompressionPlugin} from './characterDataPlugin';
+import {createUserscriptCharacterDataCompressionPlugin, readUserscriptCharacterData} from './characterDataPlugin';
 import {UI_LANGUAGE_BUNDLES} from '../src/core/i18n/bundles';
 import {zhCNMessages} from '../src/core/i18n/messages/zh-CN';
 
@@ -108,6 +108,15 @@ const pinnedSiteCatalogs = greasyForkSource
     : undefined;
 const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
 const externalChineseMessagesId = '\0fluentread-userscript-zh-cn.js';
+
+// GF 只把 AST 已验证的纯字符串放入原固定 JSON 资源；消费者仍在主文件同步初始化 RegExp/Set。
+const pinnedCharacterSources = greasyForkSource && !bundleLibraries
+    ? ['src/core/language/chineseVariants.ts', 'src/core/language/functionWordData.ts'].map((path) =>
+        readUserscriptCharacterData(fs.readFileSync(resolve(root, path), 'utf8'), resolve(root, path)))
+    : [];
+const pinnedCharacterData = Object.fromEntries(pinnedCharacterSources.flatMap(({names, values}) =>
+    names.map((name, index) => [name, values[index]])));
+
 
 /** 只压缩站点规则与中文文案数据；产品逻辑仍留在可审查的 userscript 主文件中。 */
 export function createUserscriptCatalogCompressionPlugin(): Plugin {
@@ -394,12 +403,15 @@ function bundleUserscriptCss(): Plugin {
                     zhCNMessages,
                     siteCatalogs: siteCatalogData,
                     css,
+                    characterData: pinnedCharacterData,
                 };
                 this.emitFile({
                     type: 'asset',
                     fileName: 'fluentread-data.v1.js',
                     source: [
-                        '/* FluentRead non-code data: UI translations, site rules and CSS. */',
+                        '/* FluentRead non-code data: UI translations, site rules, CSS and language strings. */',
+                        unicodeNotice,
+                        ...pinnedCharacterSources.map(({header}) => header),
                         `globalThis.__FLUENTREAD_USERSCRIPT_DATA__=${JSON.stringify(data)};`,
                     ].join('\n'),
                 });
@@ -508,7 +520,7 @@ export const userscriptAliases = [
 export default defineConfig({
     root,
     publicDir: false,
-    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), createUserscriptCharacterDataCompressionPlugin(root, !greasyForkSource), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
+    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), createUserscriptCharacterDataCompressionPlugin(root, true, greasyForkSource && !bundleLibraries), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
     resolve: {
         alias: userscriptAliases,
     },

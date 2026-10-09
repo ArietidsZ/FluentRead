@@ -438,3 +438,94 @@ describe('offline precise-version vendor license fallbacks', () => {
         expect(realm.fixtureExecuted).toBe(17);
     });
 });
+
+
+describe('GF pinned pure language data', () => {
+    const paths = ['src/core/language/chineseVariants.ts', 'src/core/language/functionWordData.ts'];
+    const originalTables = [{...chineseCharacterData}, {...functionWordData}];
+    const allStrings = {...chineseCharacterData, ...functionWordData};
+    const transform = (code: string, path: string) => {
+        const factory = createUserscriptCharacterDataCompressionPlugin as unknown as (root: string, enabled: boolean, external: boolean) => {
+            transform: (code: string, path: string) => {code: string; map: null} | null;
+        };
+        return factory(process.cwd(), true, true).transform(code, resolve(process.cwd(), path))!.code;
+    };
+    const evaluate = async (source: string, data: unknown) => {
+        const {transformWithEsbuild} = await import('vite');
+        const compiled = await transformWithEsbuild(source, 'pinned-language-data.ts', {format: 'cjs', target: 'es2018'});
+        const realm = {module: {exports: {} as any}, __FLUENTREAD_USERSCRIPT_DATA__: data,
+            fetch: () => {throw new Error('Unexpected fixture network');},
+            require: () => {throw new Error('Unexpected asynchronous/compressed data import');}};
+        runInNewContext(compiled.code, realm, {timeout: 5000});
+        return realm.module.exports;
+    };
+    it.each(paths)('exports every original string synchronously with exact UTF-8 bytes and SHA in %s', async path => {
+        const original = originalTables[paths.indexOf(path)], source = readFileSync(resolve(process.cwd(), path), 'utf8');
+        const transformed = transform(source, path);
+        expect(transformed).toContain('globalThis.__FLUENTREAD_USERSCRIPT_DATA__');
+        expect(transformed).not.toMatch(/\b(?:await|eval|fetch|atob|inflateWithPako)\b/u);
+        const restored = await evaluate(transformed, {characterData: allStrings});
+        expect(Object.keys(restored)).toHaveLength(Object.keys(original).length);
+        for (const [name, value] of Object.entries(original)) {
+            expect(restored[name]).toBe(value);
+            expect(Buffer.from(restored[name], 'utf8')).toEqual(Buffer.from(value, 'utf8'));
+            expect(createHash('sha256').update(restored[name]).digest('hex')).toBe(createHash('sha256').update(value).digest('hex'));
+        }
+        if (path === paths[0]) {
+            expect(Array.from(restored.simplifiedOnlyCharacters as string).some(character => character.codePointAt(0)! > 0xFFFF)).toBe(true);
+            for (const provenance of ['https://www.unicode.org/Public/17.0.0/ucd/Unihan.zip',
+                '3f23cd71872633f3350875d25bd388e83b60fa71807634c9a600ec26f38a68ab',
+                'd1c817dd7db84295dab0643c277d97c2fa742c245f8824e6736c2a0935095325', 'Unicode License V3']) {
+                expect(transformed).toContain(provenance);
+            }
+        }
+    });
+    it.each(paths)('preserves unsorted spaces, repeated supplementary characters, lone surrogates and empty strings in pinned %s', async path => {
+        const values = {sample: '  A𱊯A\0\ud800 Z  ', empty: ''};
+        const source = Object.entries(values).map(([name, value]) => `export const ${name} = ${JSON.stringify(value)};`).join('\n');
+        const restored = await evaluate(transform(source, path), {characterData: values});
+        expect(restored.sample).toBe(values.sample);
+        expect(restored.empty).toBe('');
+    });
+    it.each(paths.flatMap(path => ['missing-object', 'missing-field', 'wrong-type'].map(failure => ({path, failure}))))
+    ('fails synchronously for $failure in $path', async ({path, failure}) => {
+        const table = originalTables[paths.indexOf(path)], name = Object.keys(table)[0];
+        const strings: Record<string, unknown> = {...allStrings};
+        if (failure === 'missing-field') delete strings[name];
+        if (failure === 'wrong-type') strings[name] = 1;
+        const data = failure === 'missing-object' ? {} : {characterData: strings};
+        await expect(evaluate(transform(readFileSync(resolve(process.cwd(), path), 'utf8'), path), data))
+            .rejects.toThrow('Missing pinned userscript language string: ' + name);
+    });
+    it.each(paths)('keeps the original AST rejection for executable pinned %s', path => {
+        const source = readFileSync(resolve(process.cwd(), path), 'utf8');
+        expect(() => transform(source + '\nsideEffect();', path)).toThrow('only exported const strings');
+    });
+    it('initializes the actual Chinese patterns and ordered word Sets immediately from pinned modules', async () => {
+        const tables = await Promise.all(paths.map(path => evaluate(transform(readFileSync(resolve(process.cwd(), path), 'utf8'), path), {characterData: allStrings})));
+        const {transformWithEsbuild} = await import('vite');
+        const codes = await import('@/src/core/language/codes');
+        const originalChinese = await import('@/src/core/language/chinese');
+        const originalLexicon = await import('@/src/core/language/lexicon');
+        const load = async (file: string, ports: Record<string, unknown>) => {
+            const source = readFileSync(resolve(process.cwd(), file), 'utf8');
+            const compiled = await transformWithEsbuild(source, file, {format: 'cjs', target: 'es2018'});
+            const realm = {module: {exports: {} as any}, require: (name: string) => {
+                if (!(name in ports)) throw new Error('Unexpected consumer import: ' + name);
+                return ports[name];
+            }};
+            runInNewContext(compiled.code, realm, {timeout: 5000});
+            return realm.module.exports;
+        };
+        const chinese = await load('src/core/language/chinese.ts', {'./codes': codes, './chineseVariants': tables[0]});
+        for (const value of ['', '这是中文翻译设置', '這是中文翻譯設定', '你好', '日本国立大学', '𱊯語']) {
+            expect(chinese.classifyChineseHan(value)).toBe(originalChinese.classifyChineseHan(value));
+        }
+        const lexicon = await load('src/core/language/lexicon.ts', {'./functionWordData': tables[1]});
+        for (const [script, languages] of Object.entries(originalLexicon.FUNCTION_WORDS)) {
+            for (const [language, words] of Object.entries(languages)) {
+                expect(Array.from(lexicon.FUNCTION_WORDS[script][language])).toEqual(Array.from(words));
+            }
+        }
+    });
+});
