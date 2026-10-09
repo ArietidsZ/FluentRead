@@ -1,8 +1,8 @@
 /**
  * @file tests/informationHighlightSettingsLifecycle.test.ts
- * 文件职责：验证阅读辅助设置中信息高亮的真实父子模板、回退操作归属和按需模型读取。
- * 主要内容：执行 Settings、Preferences 与 ModelCard 的 Vue setup 和客户端模板，覆盖模式后插槽、只改偏好的关键词回退，以及配置替换、隐藏、缓存停用、卸载和迟到读取。
- * 模块边界：使用受控浏览器消息与 Linkedom 节点树；不下载模型、不启用网页、不验证真实浏览器布局或 GPU 性能。
+ * 文件职责：验证智能高亮独立设置分组的真实父子模板、回退操作归属和按需模型读取。
+ * 主要内容：执行 Settings、Preferences 与 ModelCard 的 Vue setup 和客户端模板，覆盖模式后插槽、标题标签的可访问触发配置和 Escape 关闭调用、只改偏好的关键词回退，以及配置替换、隐藏、缓存停用、卸载和迟到读取。
+ * 模块边界：使用受控浏览器消息、Element Plus 展示端口与 Linkedom 节点树；不下载模型、不启用网页、不把受控提示端口视为真实浏览器的浮层交互或 GPU 证据。
  */
 import {createRequire} from 'node:module'
 import {readFileSync} from 'node:fs'
@@ -23,6 +23,12 @@ const realComponents = ['InformationHighlightSettings', 'InformationHighlightPre
 let server: ViteDevServer | undefined, app: import('vue').App | undefined
 let document: Document, state: Record<string, any>, props: {config: Config; active?: boolean}
 let shown: import('vue').Ref<boolean>, events: Map<Element, Record<string, any>>
+const tooltips: {props: Record<string, any>; hide: ReturnType<typeof vi.fn>; onClose: ReturnType<typeof vi.fn>}[] = []
+const Tooltip = runtime.defineComponent({props: {content: String, trigger: [Array, String], disabled: Boolean, teleported: Boolean, persistent: Boolean,
+  showAfter: Number, hideAfter: Number, placement: String, effect: String, popperClass: String}, setup(props, {slots, expose}) {
+  const hide = vi.fn(), onClose = vi.fn(); tooltips.push({props, hide, onClose}); expose({hide, onClose})
+  return () => runtime.h('span', {'data-tooltip-port': ''}, [slots.default?.(), runtime.h('span', {'data-tooltip-content-port': '', class: props.popperClass}, props.content)])
+}})
 const send = vi.fn((_message: {type: string}) => Promise.resolve({success: true, status: model()}))
 function model(overrides: Partial<InformationHighlightModelStatus> = {}): InformationHighlightModelStatus {
   return {phase: 'absent', downloaded: false, initialized: false, downloadedBytes: 0, totalBytes: 490043908,
@@ -40,9 +46,9 @@ function expectOnlyReads() {expect(messages().every(type => type === 'GET_INFORM
 
 beforeEach(async () => {
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']}); send.mockReset(); send.mockResolvedValue({success: true, status: model()})
-  events = new Map(); document = parseHTML('<html><body><div id="app"></div></body></html>').document as unknown as Document
+  events = new Map(); tooltips.length = 0; document = parseHTML('<html><body><div id="app"></div></body></html>').document as unknown as Document
   Object.defineProperty(document, 'visibilityState', {configurable: true, value: 'visible'})
-  vi.stubGlobal('document', document); Object.assign(globalThis, {[key]: {send}})
+  vi.stubGlobal('document', document); Object.assign(globalThis, {[key]: {send, Tooltip}})
   server = await createServer({appType: 'custom', configFile: false, logLevel: 'silent', root: process.cwd(),
     resolve: {alias: {'@': resolve(process.cwd())}}, ssr: {noExternal: ['webextension-polyfill', 'element-plus']},
     server: {hmr: false, middlewareMode: true}, plugins: [{name: 'information-highlight-settings-controlled-ports', enforce: 'pre', resolveId(id) {
@@ -55,7 +61,7 @@ beforeEach(async () => {
     }, load(id) {
       if (id === '\0highlight-settings-browser') return `export default {runtime: {sendMessage: globalThis.${key}.send}}`
       if (id === '\0highlight-settings-i18n') return 'export const useUiI18n = () => ({t: key => key});'
-      if (id === '\0highlight-settings-options') return 'export const ElOption = {render: () => null};'
+      if (id === '\0highlight-settings-options') return `export const ElOption = {render: () => null}; export const ElTooltip = globalThis.${key}.Tooltip;`
       if (id === '\0highlight-settings-select') return "import {h} from 'vue';export default {setup(_, {attrs, slots}) {return () => h('div', attrs, slots.default?.())}};"
       if (id === '\0highlight-settings-display') return 'export default {render: () => null};'
       return null
@@ -102,6 +108,51 @@ async function mount(mode: 'keywords' | 'surprisal-local' = 'surprisal-local', a
 }
 
 describe('信息高亮设置真实父子模板与生命周期', () => {
+  it('标题辅助插槽保留原始标题，三个标签是原生按钮并声明悬停、聚焦和点击提示', async () => {
+    await mount('keywords')
+    const heading = element('#information-highlight-settings .settings-group-heading'), title = element('#information-highlight-settings h2')
+    expect(title.textContent).toBe('informationHighlight.title'); expect(heading.querySelectorAll('h2')).toHaveLength(1)
+    expect(title.nextElementSibling).toBe(element('.information-highlight-tags'))
+    expect(element('.information-highlight-tags').nextElementSibling?.textContent).toBe('informationHighlight.description')
+    expect(tooltips).toHaveLength(3)
+    for (const [index, tag] of ['keywords', 'surprisal', 'reading'].entries()) {
+      const button = element(`[data-information-highlight-tag="${tag}"]`)
+      expect(button.tagName).toBe('BUTTON'); expect(button.getAttribute('type')).toBe('button'); expect(button.getAttribute('tabindex')).not.toBe('-1')
+      expect(button.getAttribute('aria-label')).toBe(`informationHighlight.tags.${tag}`); expect(button.textContent).toBe(`informationHighlight.tags.${tag}`)
+      expect(button.hasAttribute('disabled')).toBe(false)
+      expect(tooltips[index].props).toMatchObject({content: `informationHighlight.tags.${tag}.help`, trigger: ['hover', 'focus', 'click'],
+        disabled: false, persistent: false, teleported: false, placement: 'bottom', showAfter: 150, hideAfter: 100, popperClass: 'fluentread-information-highlight-tag-popper'})
+    }
+    expect(send).not.toHaveBeenCalled(); expect(props.config.on).toBe(false)
+  })
+  it('Escape 调用现有提示延迟关闭和立即隐藏端口，不移动焦点或改偏好；其他键不关闭', async () => {
+    await mount('keywords'); const before = {...props.config.informationHighlight}, stopPropagation = vi.fn()
+    event('[data-information-highlight-tag="surprisal"]', 'onKeydown')({key: 'Enter', stopPropagation})
+    expect(stopPropagation).not.toHaveBeenCalled(); expect(tooltips.every(tooltip => tooltip.hide.mock.calls.length === 0)).toBe(true)
+    event('[data-information-highlight-tag="surprisal"]', 'onKeydown')({key: 'Escape', stopPropagation})
+    expect(stopPropagation).toHaveBeenCalledOnce()
+    for (const tooltip of tooltips) {expect(tooltip.onClose).toHaveBeenCalledOnce(); expect(tooltip.hide).toHaveBeenCalledOnce()}
+    expect(props.config.informationHighlight).toEqual(before); expect(send).not.toHaveBeenCalled(); expect(props.config.on).toBe(false)
+  })
+  it.each(['hidden', 'cached', 'unmounted'] as const)('%s 撤销提示触发所有权；卸载后的旧 Escape 不触碰已移除的提示', async reason => {
+    await mount('keywords'); const button = element('[data-information-highlight-tag="keywords"]'), escape = event('[data-information-highlight-tag="keywords"]', 'onKeydown')
+    if (reason === 'hidden') props.active = false
+    else if (reason === 'cached') shown.value = false
+    else {app!.unmount(); app = undefined}
+    await settle()
+    for (const tooltip of tooltips) {expect(tooltip.onClose).toHaveBeenCalledOnce(); expect(tooltip.hide).toHaveBeenCalledOnce()}
+    if (reason === 'unmounted') {
+      escape({key: 'Escape', stopPropagation: vi.fn()})
+      for (const tooltip of tooltips) {expect(tooltip.onClose).toHaveBeenCalledOnce(); expect(tooltip.hide).toHaveBeenCalledOnce()}
+      expect(document.querySelector('[data-tooltip-content-port]')).toBeNull()
+    } else {
+      expect(button.hasAttribute('disabled')).toBe(true); expect(tooltips.every(tooltip => tooltip.props.disabled === true)).toBe(true)
+      if (reason === 'hidden') props.active = true; else shown.value = true
+      await settle(); expect(button.hasAttribute('disabled')).toBe(false); expect(tooltips.every(tooltip => tooltip.props.disabled === false)).toBe(true)
+      for (const tooltip of tooltips) {expect(tooltip.onClose).toHaveBeenCalledOnce(); expect(tooltip.hide).toHaveBeenCalledOnce()}
+    }
+    expect(send).not.toHaveBeenCalled(); expect(props.config.informationHighlight.mode).toBe('keywords')
+  })
   it('关键词模式不挂载模型卡；改成本地模式后只读取状态，模型卡在模式与密度之间', async () => {
     await mount('keywords'); expect(document.querySelector('[data-testid="information-highlight-model-card"]')).toBeNull(); expect(send).not.toHaveBeenCalled()
     modeSelect()('surprisal-local'); await settle()

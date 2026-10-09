@@ -28,7 +28,7 @@ const guide = (en = false): DefaultTheme.SidebarItem[] => {
         item('悬浮段落翻译', 'Hover translation', '/guide/hover-translation'),
         item('输入框翻译', 'Input translation', '/guide/input-translation'),
         item('翻译中心', 'Translation Center', '/guide/translation-center'),
-        item('信息高亮', 'Information highlighting', '/guide/information-highlight'),
+        item('智能高亮', 'Smart Highlighting', '/guide/information-highlight'),
       ],
     },
     {

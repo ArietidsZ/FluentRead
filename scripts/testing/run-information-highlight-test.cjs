@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-information-highlight-test.cjs
  * 文件职责：在独立真实 Edge 中验证生产信息高亮的页面保护、启停、动态正文与设置持久化。
- * 主要内容：通过现有后台无焦点浏览器 helper 加载本地扩展和只读正文 fixture，在设置页操作真实控件，并用 direct RPC 验证受控正文；分阶段保存证据，显式选择真实模型下载、暂停与续传。
+ * 主要内容：通过现有后台无焦点浏览器 helper 加载本地扩展和只读正文 fixture，在连续设置页真实点击智能高亮锚点与搜索结果、检查独立分组和说明标签的指针/键盘交互，再操作持久偏好与模型资源；分阶段保存证据，显式选择真实下载或校验后的本地导入。
  * 模块边界：只清理本次 profile；本地导入与产品下载证据分开记录，下载后的推理和 PDF 复用已有页签；不修改共享焦点策略，超时和断开均失败，网络观察不冒充全机流量或阅读效果证明。
  */
 'use strict';
@@ -37,7 +37,7 @@ const artifacts=path.resolve(args['artifacts-dir']);
 const manifest=JSON.parse(fs.readFileSync(path.join(extensionDir,'manifest.json'),'utf8'));
 fs.mkdirSync(artifacts,{recursive:true});
 const profileDir=fs.mkdtempSync(path.join(os.tmpdir(),'fluentread-information-highlight-'));
-const report={ok:false,extensionDir,profileDir,stages:[],surface:'options-settings-only',build:extensionDir.endsWith('-dev')?'development':'production',
+const report={ok:false,extensionDir,profileDir,stages:[],surface:'options-continuous-smart-highlight-group',build:extensionDir.endsWith('-dev')?'development':'production',
   evidence:'real-extension-controlled-pages',cases:[],screenshots:[],consoleErrors:[],persistenceCases:[],consoleWarnings:[],
   quickClose:false,crossPageSync:false,latestWriteWins:false,
   modelAcquisition:args['download-model']?'production-settings-download':args['model-dir']?'verified-local-artifact-import':'not-requested',
@@ -185,9 +185,107 @@ function popupSourceContract(){
     const origin=`chrome-extension://${new URL(worker.url()).host}`,optionsUrl=`${origin}/${manifest.options_page||manifest.options_ui.page}#settings-translation`,popupUrl=`${origin}/${manifest.action.default_popup}`;
     let control=await open(optionsUrl,'options');await activate(control,'options');
     const waitSettings=page=>step('settings-group-ready',()=>page.locator('#information-highlight-settings').waitFor());
-    await waitSettings(control);
+    const highlightTitle=(page,language)=>step(`smart-highlight-title:${language}`,async()=>{
+      const expected=language==='en-US'?'Smart Highlighting':'智能高亮';
+      const title=page.locator('#information-highlight-settings').getByRole('heading',{name:expected,exact:true});await title.waitFor();
+      assert.equal((await title.innerText()).trim(),expected);
+      assert.equal((await page.locator('[data-settings-anchor-link="information-highlight"]').innerText()).trim(),expected);
+      if(language==='zh-CN')assert.equal((await page.locator('#information-highlight-settings > .settings-group-heading > p').innerText()).trim(),'自动突出正文中的词语，让阅读更有侧重。');
+      return {language,title:expected};
+    });
+    const anchorSnapshot=(page,id)=>page.evaluate(id=>{
+      const content=document.querySelector('.settings-card'),target=document.querySelector(`[data-settings-panel="${id}"]`),contentRect=content.getBoundingClientRect(),targetRect=target.getBoundingClientRect();
+      return {anchor:id,scrollTop:content.scrollTop,content:contentRect.toJSON(),target:targetRect.toJSON(),relativeTop:targetRect.top-contentRect.top,
+        panels:['reading','information-highlight','hover','input'].map(name=>{const element=document.querySelector(`[data-settings-panel="${name}"]`),rect=element?.getBoundingClientRect(),style=element&&getComputedStyle(element);return{name,inDOM:Boolean(element?.isConnected),cssVisible:Boolean(rect&&rect.width>0&&rect.height>0&&style.display!=='none'&&style.visibility!=='hidden'&&element.getClientRects().length),height:rect?.height};})};
+    },id);
+    const waitAnchor=(page,id)=>page.waitForFunction(id=>{
+      const content=document.querySelector('.settings-card'),target=document.querySelector(`[data-settings-panel="${id}"]`),button=document.querySelector(`[data-settings-anchor-link="${id}"]`);
+      if(!content||!target||button?.getAttribute('aria-current')!=='location')return false;
+      const relativeTop=target.getBoundingClientRect().top-content.getBoundingClientRect().top;
+      return relativeTop>=-3&&relativeTop<=24;
+    },id,{timeout:7000});
+    const clickAnchor=(page,id)=>step(`continuous-settings-anchor:${id}`,async()=>{
+      const button=page.locator(`[data-settings-anchor-link="${id}"]`);await button.waitFor();const before=await anchorSnapshot(page,id);await button.click();await waitAnchor(page,id);
+      const after=await anchorSnapshot(page,id);assert(after.panels.every(panel=>panel.inDOM&&panel.cssVisible),'Anchor navigation must keep reading, Smart Highlighting, hover and input groups CSS-visible in the continuous page');
+      return {id,before,after,scrollDelta:after.scrollTop-before.scrollTop,selection:'native-anchor-click'};
+    });
+    const openHighlightSettings=(page,{verifyReading=false}={})=>step('open-smart-highlight-anchor-in-continuous-settings',async()=>{
+      const readingAnchor=page.locator('[data-settings-anchor-link="reading"]'),smartAnchor=page.locator('[data-settings-anchor-link="information-highlight"]');
+      await readingAnchor.waitFor();await smartAnchor.waitFor();await waitSettings(page);
+      for(const id of ['reading','information-highlight','hover','input'])await page.locator(`[data-settings-panel="${id}"]`).waitFor();
+      if(verifyReading){
+        const readingNavigation=await clickAnchor(page,'reading');const readingPanel=page.locator('[data-settings-panel="reading"]');await readingPanel.waitFor();
+        const bilingualSwitch=readingPanel.locator('#translation-sentence-highlight .el-switch');await bilingualSwitch.waitFor();
+        const bilingualInput=bilingualSwitch.locator('input[role="switch"]');await bilingualInput.waitFor({state:'attached'});
+        assert.equal(await bilingualInput.getAttribute('aria-label'),'双语逐句高亮');
+        const checked=await bilingualInput.getAttribute('aria-checked');assert(['true','false'].includes(checked));assert.equal(await bilingualInput.isChecked(),checked==='true');
+        assert.equal(await readingPanel.locator('#information-highlight-settings,[data-information-highlight-mode-select],[data-testid="information-highlight-model-card"]').count(),0,'Bilingual reading panel must contain no Smart Highlighting feature');
+        report.cases.push({id:'bilingual-reading-group-excludes-smart-highlighting',panel:'reading',navigation:readingNavigation,bilingualSwitch:{visibleWrapper:true,attachedRoleInput:true,ariaLabel:'双语逐句高亮',checked}});
+        for(const id of ['hover','input'])report.cases.push({id:`continuous-settings-anchor-${id}`,navigation:await clickAnchor(page,id)});
+      }
+      const navigation=await clickAnchor(page,'information-highlight');const smartPanel=page.locator('[data-settings-panel="information-highlight"]');await smartPanel.waitFor();
+      assert.equal(await smartAnchor.getAttribute('aria-current'),'location');assert.equal(await readingAnchor.getAttribute('aria-current'),null);
+      assert.equal(await smartPanel.locator('#information-highlight-settings').count(),1);
+      assert.equal(await smartPanel.locator('#translation-sentence-highlight,[data-testid="sentence-highlight-grouping-hint"],[data-testid="open-sentence-highlight-styles"],.reading-assistance-settings').count(),0,'Smart Highlighting panel must contain no bilingual controls');
+      if(verifyReading){
+        assert(Math.abs(navigation.scrollDelta)>5,'Smart Highlighting anchor must move the existing content scroller from the input group');
+        report.cases.push({id:'smart-highlighting-independent-group-in-continuous-page',section:'settings-translation',panel:'information-highlight',navigation});
+        await clickAnchor(page,'reading');const before=await anchorSnapshot(page,'information-highlight');
+        const search=page.locator('.search-box input[type="search"]');await search.fill('智能高亮');
+        const results=page.locator('.search-results button').filter({has:page.locator('strong').filter({hasText:/^智能高亮$/u})});await results.first().waitFor();const matchingResults=await results.count();
+        await results.first().click();await page.locator('.search-results').waitFor({state:'hidden'});await waitAnchor(page,'information-highlight');
+        const after=await anchorSnapshot(page,'information-highlight');assert(after.panels.every(panel=>panel.inDOM&&panel.cssVisible));assert(after.scrollTop-before.scrollTop>5);
+        report.cases.push({id:'smart-highlight-search-reveals-anchor-without-hiding-neighbours',matchingResults,selection:'native-search-result-click',before,after,scrollDelta:after.scrollTop-before.scrollTop});
+      }
+    });
+    // 真实 hover、Tab/Shift+Tab 和 click，不注入 focus/visibility，也不替换 Tooltip 或 runtime API。
+    const helpTags=async(page,language,{interactions=true,screenshot}={})=>step(`smart-highlight-help-tags:${language}:${interactions?'interactions':'layout'}`,async()=>{
+      const names=['keywords','surprisal','reading'],group=page.locator('#information-highlight-settings'),title=group.locator('h2');
+      const tags=names.map(name=>group.locator(`button[data-information-highlight-tag="${name}"]`));
+      const visiblePopper=page.locator('.fluentread-information-highlight-tag-popper[role="tooltip"]:visible');
+      const hidden=()=>page.locator('.fluentread-information-highlight-tag-popper[role="tooltip"]').waitFor({state:'hidden',timeout:5000});
+      const outside=async()=>{await title.click();await hidden();};
+      const tooltip=async(index,via)=>{
+        await visiblePopper.waitFor({timeout:5000});assert.equal(await visiblePopper.count(),1);await delay(300);
+        const describedBy=await tags[index].getAttribute('aria-describedby');assert(describedBy,'Help tag must describe its tooltip');
+        assert(describedBy.split(/\s+/u).includes(await visiblePopper.getAttribute('id')));
+        const metrics=await visiblePopper.evaluate(element=>({text:element.innerText.trim(),rect:element.getBoundingClientRect().toJSON(),width:innerWidth,height:innerHeight}));
+        assert(metrics.text.length>15,'Tooltip must explain the principle or use, rather than repeat its tag');
+        assert(metrics.rect.width>0&&metrics.rect.height>0&&metrics.rect.x>=-1&&metrics.rect.y>=-1&&metrics.rect.right<=metrics.width+1&&metrics.rect.bottom<=metrics.height+1,'Help tooltip must fit the viewport');
+        return {tag:names[index],via,...metrics};
+      };
+      await title.scrollIntoViewIfNeeded();await outside();
+      const viewportWidth=await page.evaluate(()=>innerWidth);
+      const layout=[];for(const [index,tag]of tags.entries()){
+        await tag.waitFor();assert(await tag.isEnabled());const rect=await tag.boundingBox();assert(rect&&rect.width>0&&rect.x>=0&&rect.x+rect.width<=viewportWidth+1);
+        layout.push({tag:names[index],rect,label:(await tag.innerText()).trim()});
+      }
+      const evidence=[];
+      if(interactions){
+        for(let index=0;index<tags.length;index++){await tags[index].hover();evidence.push(await tooltip(index,'pointer-hover'));await title.hover();await hidden();}
+        // 点击末标签建立真实焦点，随后通过原生 Shift+Tab / Tab 进入三个标签。
+        await tags[2].click();await page.keyboard.press('Escape');await hidden();await title.hover();
+        for(const [index,key]of [[1,'Shift+Tab'],[0,'Shift+Tab'],[1,'Tab'],[2,'Tab']]){
+          await page.keyboard.press(key);assert(await tags[index].evaluate(element=>document.activeElement===element&&element.matches(':focus-visible')),'Help tag must receive visible keyboard focus');
+          evidence.push(await tooltip(index,`keyboard-${key}`));await page.keyboard.press('Escape');await hidden();
+          assert(await tags[index].evaluate(element=>document.activeElement===element),'Escape must dismiss help without moving focus');
+        }
+        await outside();
+        for(let index=0;index<tags.length;index++){
+          await tags[index].click();evidence.push(await tooltip(index,'native-click'));await page.keyboard.press('Escape');await hidden();
+          await title.hover();await tags[index].click();await tooltip(index,'native-click-before-outside');await outside();
+        }
+      }
+      await tags[0].hover();const narrowTooltip=await tooltip(0,'layout-hover');if(screenshot)await shot(page,screenshot);await title.hover();await hidden();
+      report.cases.push({id:`smart-highlight-help-tags-${language}-${viewportWidth}`,language,viewportWidth,layout,interactions:evidence,tooltip:narrowTooltip});
+    },45000);
+    await step('translation-anchors-ready',()=>control.locator('[data-settings-anchor-link="reading"]').waitFor());
     await step('fixture-config',()=>support.patchStoredConfig(control,{on:true,disableFloatingBall:false,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,theme:'light',informationHighlight:{mode:'keywords',density:'medium',color:'amber',style:'background'}}));
     const patchConfig=patch=>step('fixture-config-patch',()=>support.patchStoredConfig(control,patch));
+    await openHighlightSettings(control,{verifyReading:true});report.cases.push({id:'smart-highlight-exact-title-zh',...await highlightTitle(control,'zh-CN')});
+    await helpTags(control,'zh-CN',{screenshot:'smart-highlight-help-zh'});
+    await patchConfig({uiLanguage:'en-US'});report.cases.push({id:'smart-highlight-exact-title-en',...await highlightTitle(control,'en-US')});
+    await helpTags(control,'en-US',{screenshot:'smart-highlight-help-en'});await patchConfig({uiLanguage:'zh-CN'});await highlightTitle(control,'zh-CN');
     const page=await open(fixtureUrl,'article');await activate(page,'article');
     await step('article-content-ready',()=>page.waitForFunction(()=>Boolean(document.querySelector('#fluent-read-floating-ball-container')),null,{timeout:30000}));
     const tabId=await step('article-tab-id',()=>control.evaluate(async url=>(await chrome.tabs.query({})).find(tab=>tab.url===url)?.id,fixtureUrl));assert(Number.isInteger(tabId));
@@ -219,7 +317,7 @@ function popupSourceContract(){
       await step(`popup-ready:${layout.name}`,()=>popup.locator('.popup-shell').waitFor());await delay(1100);
       const absence=await step(`popup-absence:${layout.name}`,()=>popup.evaluate(()=>({
         selectors:[...document.querySelectorAll('[data-popup-quick-feature="highlight"],[data-popup-feature="information-highlight"],[data-information-highlight-drawer],[data-information-highlight-enabled],[data-information-highlight-mode-select],[data-testid*="information-highlight"]')].map(element=>element.outerHTML),
-        featureWords:/信息高亮|Information highlight/iu.test(document.body.innerText),width:innerWidth,scrollWidth:document.documentElement.scrollWidth,
+        featureWords:/智能高亮|Smart Highlighting|信息高亮|Information highlight/iu.test(document.body.innerText),width:innerWidth,scrollWidth:document.documentElement.scrollWidth,
         dark:document.documentElement.classList.contains('dark'),lang:document.documentElement.lang,visibility:document.visibilityState
       })));
       assert.equal(absence.selectors.length,0);assert.equal(absence.featureWords,false);assert(absence.scrollWidth<=layout.width+1);
@@ -236,12 +334,12 @@ function popupSourceContract(){
     await settingButton('[data-information-highlight-color="mint"]','mint-quick-close');
     await step('settings-close-after-color',()=>control.close());
     // 真关闭 Options 后重用已经存在的第二正文页签，避免为“重开”新增 CDP Target。
-    control=second;await navigate(control,optionsUrl,'reopen-settings-after-color');await activate(control,'reopened-settings');await waitSettings(control);
+    control=second;await navigate(control,optionsUrl,'reopen-settings-after-color');await activate(control,'reopened-settings');await openHighlightSettings(control);
     assert.equal(await step('reopened-mint-selected',()=>control.locator('[data-information-highlight-color="mint"]').getAttribute('aria-pressed')),'true');
     report.quickClose=true;report.persistenceCases.push({id:'settings-color-quick-close-reopen',value:'mint',reusedTarget:true});
     await settingButton('[data-information-highlight-color="amber"]','amber');await settingButton('[data-information-highlight-color="blue"]','blue-latest-write');
     await settingButton('[data-information-highlight-density="high"]','density-high');await settingButton('[data-information-highlight-style="underline"]','style-underline');
-    await step('settings-reload-after-preferences',()=>control.reload({timeout:30000}),35000);await waitSettings(control);
+    await step('settings-reload-after-preferences',()=>control.reload({timeout:30000}),35000);await openHighlightSettings(control);
     for(const [selector,value]of [['color','blue'],['density','high'],['style','underline']])assert.equal(await step(`preference-restored:${selector}`,()=>control.locator(`[data-information-highlight-${selector}="${value}"]`).getAttribute('aria-pressed')),'true');
     const crossPage=await step('preferences-cross-page-config',()=>support.readStoredConfig(popup));assert.equal(crossPage.informationHighlight.color,'blue');
     report.latestWriteWins=true;report.crossPageSync=true;report.persistenceCases.push({id:'settings-latest-write-reload-and-cross-page-sync',color:'blue',density:'high',style:'underline'});
@@ -249,6 +347,7 @@ function popupSourceContract(){
       await step(`settings-layout-size:${width}`,()=>control.setViewportSize({width,height:1000}));await step(`settings-layout-scroll:${width}`,()=>control.locator('#information-highlight-settings').scrollIntoViewIfNeeded());
       const metrics=await step(`settings-layout-metrics:${width}`,()=>control.evaluate(()=>({width:innerWidth,scrollWidth:document.documentElement.scrollWidth,height:innerHeight,scrollHeight:document.documentElement.scrollHeight})));
       assert(metrics.scrollWidth<=width+1);assert(metrics.scrollHeight<=metrics.height+1);report.cases.push({id:`settings-layout-${width}`,metrics});await shot(control,`settings-${width}`);
+      if(width===390){await helpTags(control,'zh-CN',{interactions:false,screenshot:'smart-highlight-help-390-zh'});await patchConfig({uiLanguage:'en-US',theme:'dark'});await highlightTitle(control,'en-US');await helpTags(control,'en-US',{interactions:false,screenshot:'smart-highlight-help-390-en-dark'});await patchConfig({uiLanguage:'zh-CN',theme:'light'});await highlightTitle(control,'zh-CN');}
     }
     await step('restore-settings-size',()=>control.setViewportSize({width:1440,height:1000}));
     await activate(page,'dynamic-article');
@@ -301,7 +400,7 @@ function popupSourceContract(){
       report.cases.push({id:'product-model-settings-download-and-pause',before,partial,paused:settled});await shot(control,'settings-model-download-paused');
       await step('settings-close-after-pause',()=>control.close());
       // 重用先前检查过的普通 Popup 页签作为真正重开的设置页，不为续传新增窗口或 Target。
-      control=popup;await step('reopened-settings-size',()=>control.setViewportSize({width:1440,height:1000}));await navigate(control,optionsUrl,'reopen-settings-after-pause');await activate(control,'resume-settings');await waitSettings(control);
+      control=popup;await step('reopened-settings-size',()=>control.setViewportSize({width:1440,height:1000}));await navigate(control,optionsUrl,'reopen-settings-after-pause');await activate(control,'resume-settings');await openHighlightSettings(control);
       const reopened=recordStatus(await readModelStatus(),'reopened-paused');assert.equal(reopened.phase,'paused');assert.equal(reopened.downloadedBytes,settled.downloadedBytes);
       await step('settings-resume-label',()=>control.getByRole('button',{name:'继续下载',exact:true}).waitFor());
       report.model.actions.push({at:Date.now(),action:'resume',via:'native-reopened-settings-button',metrics:await settingButton('[data-information-highlight-download]','model-resume'),retainedBytes:reopened.downloadedBytes});

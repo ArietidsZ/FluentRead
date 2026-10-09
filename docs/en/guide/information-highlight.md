@@ -1,14 +1,20 @@
-# Information highlighting
+# Smart Highlighting
 
-Information highlighting marks words worth noticing in longer passages. The complete text remains readable, selectable and copyable, with its original layout. The current entry is in Settings; web pages stay off by default.
+Automatically highlight words in the text to give your reading more focus. Once enabled, Smart Highlighting turns selected words into visual cues for scanning longer passages, locating details and revisiting the text. The complete text remains readable, selectable and copyable, with its original layout.
+
+Smart Highlighting is a separate reading aid. Bilingual sentence highlighting links original and translated sentences; Smart Highlighting marks words in the text. Each has its own settings.
 
 ## Use it
 
-1. Open **Settings → Translation settings → Reading assistance → Information highlighting**.
+1. Open **Settings → Translation settings**, then use the **Smart Highlighting** anchor at the top or scroll down to its settings group.
 2. Choose mode, density, colour and drawing style, and check the illustrative preview.
-3. Enable **Information highlighting** from the FluentRead PDF reader toolbar for the current document. Turn it off to clear the marks.
+3. Enable **Smart Highlighting** from the FluentRead PDF reader toolbar for the current document. Turn it off to clear the marks.
 
-Preferences are saved in Settings. Changing preferences or downloading a model does not enable web-page highlighting. The popup has no information-highlighting entry.
+The top navigation scrolls within the continuous settings page. All groups remain displayed. Smart Highlighting and bilingual sentence highlighting have separate settings groups.
+
+The **Keywords**, **Surprisal** and **Reading aid** tags beside the title explain how it works and what it helps with. Hover, focus with the keyboard or tap a tag to view its explanation. Press Escape or click outside to close it.
+
+Preferences are saved in Settings. Web pages stay off by default; changing preferences or downloading a model does not enable web-page highlighting. The popup has no Smart Highlighting entry.
 
 ## Modes
 
@@ -23,7 +29,7 @@ Surprisal is `−log₂ P(word | preceding text)`. A higher value means the mode
 
 ## Appearance and performance
 
-Manage mode, density, colour and drawing style in **Settings → Translation settings → Reading assistance → Information highlighting**. In local-model mode, model status and download actions appear immediately after the mode selector. You can explicitly choose **Use keywords instead** when the model is unavailable. The preview illustrates appearance rather than model output.
+Manage mode, density, colour and drawing style in **Settings → Translation settings → Smart Highlighting**. In local-model mode, model status and download actions appear immediately after the mode selector. You can explicitly choose **Use keywords instead** when the model is unavailable. The preview illustrates appearance rather than model output.
 
 Choose low, medium or high density, amber, mint or blue, and a soft background or underline. Appearance and density changes reuse existing scores.
 
@@ -41,4 +47,4 @@ CSS Custom Highlight API support is required; unsupported browsers keep the norm
 
 The design draws on [InfoLens](https://github.com/dqy08/InfoLens/tree/205c45b8fac0b2ded7f8aac764fcba5f6b0719db). FluentRead implements it in its own Vue and WXT architecture, with no runtime dependency on the reference repository. Keyword ranking and language-model surprisal remain distinct methods.
 
-In the FluentRead PDF reader, enable **Information highlighting** from the toolbar. It uses the selectable text layer and preserves the original page image and layout. Scanned pages without a text layer are excluded.
+In the FluentRead PDF reader, enable **Smart Highlighting** from the toolbar. It uses the selectable text layer and preserves the original page image and layout. Scanned pages without a text layer are excluded.
