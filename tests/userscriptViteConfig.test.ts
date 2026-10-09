@@ -102,6 +102,32 @@ describe('GF pinned Vite inline styles', () => {
             else expect(plugin).toBeUndefined();
         } finally {vi.unstubAllEnvs();vi.resetModules();}
     });
+    it('emits the same fixed JSON when Vite completes the six transforms in a different order', async () => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules();
+            const {default: config} = await import('@/userscript/vite.config');
+            const plugins = (config as {plugins: any[]}).plugins;
+            const capture = plugins.find(item => item.name === 'pin-gf-inline-styles');
+            const emit = plugins.find(item => item.name === 'bundle-userscript-css');
+            const generate = async (entries: Array<[string, string]>) => {
+                capture.buildStart();
+                for (const [name, path] of entries) capture.transform(`export default ${JSON.stringify('processed ' + name)};`, resolve(process.cwd(), path) + '?inline');
+                let resource = '';
+                await emit.generateBundle.handler.call({emitFile: (item: {source: string}) => {resource = item.source;}}, {}, {
+                    'fluent-read.user.js': {type: 'chunk', isEntry: true, code: '(function () {})();'},
+                });
+                return resource;
+            };
+            const first = await generate(Object.entries(paths)), second = await generate(Object.entries(paths).reverse());
+            expect(first === second).toBe(true);
+            const data = runInNewContext(first, {}, {timeout: 5000});
+            expect(Object.keys(data.inlineStyles)).toEqual(Object.keys(paths));
+        } finally {vi.unstubAllEnvs();vi.resetModules();}
+    });
 });
 
 describe('CommonJS initialization policy by userscript output', () => {

@@ -446,7 +446,9 @@ function bundleUserscriptCss(): Plugin {
                     siteCatalogs: siteCatalogData,
                     css,
                     characterData: pinnedCharacterData,
-                    ...(!bundleLibraries ? {inlineStyles: pinnedInlineStyles} : {}),
+                    // 固定六端口的键序，避免异步 transform 完成顺序改变不可变资源 SHA。
+                    ...(!bundleLibraries ? {inlineStyles: Object.fromEntries([...inlineStyleIds.values()]
+                        .map(name => [name, pinnedInlineStyles[name]]))} : {}),
                 };
                 this.emitFile({
                     type: 'asset',
