@@ -208,7 +208,21 @@ function formulaLine(line: LayoutLine, pageWidth: number, lines: readonly Layout
 }
 
 export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; graphics: readonly PdfGraphicsShape[]; width: number; height: number}): {blocks: PdfLayoutBlock[]; preservedRegions: PdfPreservedRegion[]} {
-    const lines = pdfLayoutLines(input.atoms);
+    // 项目符号是单独的一个字形：符号字体里的圆点方块常被读成 n、u、l 这样的字母。它留在原页上不参与翻译，
+    // 所在的行从符号之后算起，并且总是另起一段。
+    const rawLines = pdfLayoutLines(input.atoms);
+    const bulletGlyph = (line: LayoutLine) => line.runs.length > 1 ? line.runs[0].text.trim() : '';
+    const letterBullets = new Map<string, number>();
+    for (const line of rawLines) {const glyph = bulletGlyph(line); if (/^[nlupqvw]$/u.test(glyph) && !/^\s*\p{Ll}/u.test(line.runs[1].text)) letterBullets.set(glyph, (letterBullets.get(glyph) ?? 0) + 1);}
+    const bulleted = new Set<LayoutLine>();
+    const lines = rawLines.map(line => {
+        const glyph = bulletGlyph(line);
+        if (!(/^[•◦▪■□◆◇●○▶►➢➤❖·§Ø\uE000-\uF8FF]$/u.test(glyph) || (/^[nlupqvw]$/u.test(glyph) && (letterBullets.get(glyph)! >= 2 || cjkLine(line.runs[1].text)) && !/^\s*\p{Ll}/u.test(line.runs[1].text)))) return line;
+        const runs = line.runs.slice(1), x = runs[0].x;
+        const stripped = {...line, x, width: right(line) - x, runs, text: joinRuns(runs as PdfLayoutAtom[])};
+        bulleted.add(stripped);
+        return stripped;
+    });
     // 正文字号按字符数加权取中位数：标题、脚注和页眉的行数再多，也不会改变一页的基准字号。
     const sized = input.atoms.filter(atom => atom.fontSize >= 6).sort((a, b) => a.fontSize - b.fontSize);
     let remaining = sized.reduce((sum, atom) => sum + atom.text.length, 0) / 2;
@@ -266,13 +280,13 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     }
     const tables = tableRegions(input.graphics, input.width, figures);
     const regions: PdfPreservedRegion[] = [...figures.map((box, index) => ({...box, id: `figure-${index + 1}`, kind: 'figure' as const})), ...tables.map((box, index) => ({...box, id: `table-${index + 1}`, kind: 'table' as const}))];
-    // 图形包围盒可能跨栏并圈入下方的正文：图内只有短标签属于图形，题注、成句的行以及紧随成句行的续行仍是正文。
+    // 图形包围盒可能跨栏并圈入下方的正文：图内只有小字短标签属于图形，题注、成句的行、紧随成句行的续行以及 12 磅以上的大字（幻灯片流程图里的文字）仍是正文。
     const prose = new Set<LayoutLine>();
     for (const line of lines) {
         if (captionStart.test(line.text) || textUnits(line.text) >= 7) prose.add(line);
         else if (lines.some(near => textUnits(near.text) >= 7 && near.baseline < line.baseline && line.baseline - near.baseline <= near.fontSize * 1.5 && Math.abs(near.fontSize - line.fontSize) <= 0.6 && line.x >= near.x - 1 && line.x - near.x <= font * 2.2 && right(line) <= right(near) + 2)) prose.add(line);
     }
-    const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && prose.has(line));
+    const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && (prose.has(line) || (line.fontSize >= 12 && readable(line.text))));
     const ordinary = lines.filter(line => !regions.some(region => inRegion(region, line)));
     const formulas = ordinary.filter(line => formulaLine(line, input.width, ordinary, font));
     for (const line of formulas) {
@@ -332,7 +346,7 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         const region = regions.find(region => inRegion(region, line));
         const kind = region ? region.kind === 'figure' ? 'figure-label' : region.kind : classify(line);
         let selected: Draft | undefined;
-        if (kind !== 'footer' && !/^\(\d+\)\s/u.test(line.text)) {
+        if (kind !== 'footer' && !/^\(\d+\)\s/u.test(line.text) && !bulleted.has(line)) {
             for (const draft of active) {
                 const last = draft.lines.at(-1)!;
                 const gap = line.baseline - last.baseline;

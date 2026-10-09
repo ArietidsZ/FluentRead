@@ -125,7 +125,8 @@ describe('binary document translation formats', () => {
 
     it.each(['bilingual', 'translated'] as const)('exports 40 PDF pages in %s mode with ordered progress', async mode => {
         const source = await PDFDocument.create();
-        for (let page = 1; page <= 40; page += 1) source.addPage([400, 600]).drawText(`Page ${page}`);
+        // 正文位置的一句话；页面边缘的孤立短行是页眉页脚，按原样保留而不参与翻译。
+        for (let page = 1; page <= 40; page += 1) source.addPage([400, 600]).drawText(`Page ${page}`, {x: 50, y: 300});
         const parsed = await parseBinaryDocument('long.pdf', await source.save());
         const progress: Array<{phase: string; completedPages: number; totalPages: number}> = [];
         const rasterizer = vi.fn(testRasterizer);

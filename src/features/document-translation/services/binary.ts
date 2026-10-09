@@ -605,7 +605,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                 const blocks: PdfDocumentBlock[] = [];
                 layoutBlocks.forEach((block, blockIndex) => {
                     // 表格里含词语的单元格作为独立片段翻译；数字、符号单元格与公式、图内文字保留原样。
-                    if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label') {
+                    // 页眉页脚和作者信息在阅读与导出时都按原文显示，不占用翻译请求。
+                    if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label' || block.kind === 'footer' || block.kind === 'metadata') {
                         blocks.push({...block, segmentIndex: -1});
                         return;
                     }

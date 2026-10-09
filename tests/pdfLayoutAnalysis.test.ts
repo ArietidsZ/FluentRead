@@ -314,6 +314,19 @@ describe('PDF layout analysis on real paper typography', () => {
         // 标题末尾同一基线上的普通字母不是脚注标记。
         expect(analyze([atom('Appendix', 41, 100, 60, 14), atom('B', 105, 100, 8, 9), atom('Body text sets the page size and is long enough to be a real sentence here.', 41, 300, 420, 8), atom('More body text follows on the next line of the very same body paragraph.', 41, 310, 420, 8)]).blocks[0].source).toBe('Appendix B');
     });
+    it('leaves bullet glyphs on the page, starts a block at every bullet and translates large text inside slide diagrams', () => {
+        const slide = analyze([
+            atom('u', 60, 100, 10, 22), atom('Compiler and linker', 75, 100, 200, 22), atom('u', 60, 130, 10, 22), atom('Debugger', 75, 130, 100, 22),
+            atom('n', 40, 200, 10, 26), atom('典型的开发环境', 60, 200, 180, 26), atom('•', 60, 260, 6, 22), atom('real-time kernel', 75, 260, 160, 22),
+            atom('源程序', 494, 400, 54, 18), atom('n', 60, 320, 10, 22), atom('is the number of tasks', 75, 320, 220, 22),
+        ], [{kind: 'path', x: 480, y: 380, width: 87, height: 60}, {kind: 'path', x: 560, y: 380, width: 87, height: 60}], 720, 540);
+        expect(slide.blocks.map(block => block.source)).toEqual(['Compiler and linker', 'Debugger', '典型的开发环境', 'real-time kernel', 'n is the number of tasks', '源程序']);
+        expect(slide.blocks.find(block => block.source === 'Compiler and linker')).toMatchObject({x: 75, width: 200});
+        expect(slide.blocks.find(block => block.source === '源程序')).toMatchObject({kind: 'text', preserveSource: false});
+        // 只出现一次、后面跟小写英文的单个字母是变量而不是项目符号；两行都以它开头时才是。
+        const twice = analyze([atom('n', 60, 100, 6), atom('First point', 75, 100, 100), atom('n', 60, 112, 6), atom('Second point', 75, 112, 100)]);
+        expect(twice.blocks.map(block => block.source)).toEqual(['First point', 'Second point']);
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });
