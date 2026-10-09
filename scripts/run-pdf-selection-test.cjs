@@ -1104,7 +1104,8 @@ async function main() {
     await setPresentation('readable');
     await page.locator('.pdf-page-row[data-page-number="1"][data-render-state="ready"] .pdf-page-column.translated .pdf-reading-sheet').waitFor();
     const readableEntries = await page.locator('[data-pdf-reading-page="1"] .pdf-reading-paragraph').evaluateAll(elements => elements.map(element => ({source: element.dataset.pdfSourceText, text: element.textContent, role: element.dataset.pdfRole})));
-    for (const line of [...LINES, caption]) assert.equal(readableEntries.find(entry => entry.source === line)?.text, `测试译文：${line}`, `重排阅读必须显示完整译文：${line}`);
+    // 与原版排版相同：每行原文恰好属于一个段落，该段落显示它完整的夹具译文。
+    for (const line of [...LINES, caption]) {const owners = readableEntries.filter(entry => entry.source.includes(line)); assert.equal(owners.length, 1, `重排阅读中“${line}”必须恰好属于一个段落`); assert.equal(owners[0].text, `测试译文：${owners[0].source}`, `重排阅读必须显示完整译文：${line}`);}
     assert.equal(await page.locator('.pdf-page-row[data-page-number="1"] .pdf-translation-layer').count(), 0, '重排阅读不显示原版排版的译文层');
     const readableParagraph = page.locator('[data-pdf-reading-page="1"] .pdf-reading-paragraph').filter({hasText: LINES[0]}).first(); await readableParagraph.scrollIntoViewIfNeeded();
     const readableDrag = await readableParagraph.evaluate(element => {

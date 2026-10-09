@@ -376,7 +376,11 @@ async function main() {
         settingsText: '调整设置', sidebarOpen: true, addFile: [{inSidebar: true, text: '添加文件'}], addFileInBar: 0, saveNote: 0, noticesInBar: true, selectionHint: 0}, `新工具栏与侧栏结构不符：${JSON.stringify(chrome)}`);
       assert.match(chrome.status, /准备就绪/); assert.deepEqual(chrome.readingModes, ['原文', '双语', '译文']);
       assert(chrome.translateRight > chrome.downloadRight && chrome.downloadRight > chrome.languageRight, `翻译按钮应在最右侧，下载按钮在其左：${JSON.stringify(chrome)}`);
-      assert.deepEqual(chrome.sidebarTabs, name === 'sample.pdf' ? ['文件', '目录'] : ['文件']);
+      // PDF 总有“目录”页；其他格式只有带标题的富文本预览（HTML、Markdown、ePub）才有，并且此时侧栏里必须真的列出目录项。
+      const outlineItems = await page.locator('.document-sidebar .document-outline-item').count();
+      const richHeadings = await page.locator('.rich-preview-frame').count() ? await page.locator('.rich-preview-frame').contentFrame().locator('h1,h2,h3,h4,h5,h6').count() : 0;
+      assert.deepEqual(chrome.sidebarTabs, name === 'sample.pdf' || richHeadings ? ['文件', '目录'] : ['文件'], `侧栏页签与文档是否带目录不符：${JSON.stringify({name, tabs: chrome.sidebarTabs, richHeadings, outlineItems})}`);
+      if (name !== 'sample.pdf') assert.equal(outlineItems > 0, richHeadings > 0, `目录项应与预览中的标题同时出现：${JSON.stringify({name, richHeadings, outlineItems})}`);
       if (name === 'sample.pdf') {
         // PDF 打开即为双语两栏的原版排版；阅读器把页码、缩放等控件传送到工具栏槽位，目录托管在侧栏“目录”页。
         const viewer = page.locator('.pdf-layout-viewer');
