@@ -1,0 +1,18 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vite/bin/vite.js",
+    "build",
+    "--config",
+    "userscript/vite.config.ts"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:48:02.988700+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T00:48:06.630092+00:00",
+  "durationSeconds": 3.641,
+  "exitCode": 0
+}

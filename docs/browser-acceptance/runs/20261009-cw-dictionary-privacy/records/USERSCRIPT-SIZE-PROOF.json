@@ -1,0 +1,15 @@
+{
+  "baselineCommit": "09814056290d5b805717851b5a0244fdc97333d6",
+  "bytes": 1954998,
+  "sha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+  "source": "prior committed source-bound artifact proof and local byte-identical build",
+  "finalBytes": 1954994,
+  "finalSha256": "dd70b5147e4b41a25407add0629d9fada69e9ba6a2de3eae053d8b31d83c0525",
+  "identicalSha256AndSize": false,
+  "byteDelta": -4,
+  "budget": 1955000,
+  "headroom": 6,
+  "budgetsAliasMappingsDependenciesUnchanged": true,
+  "nativeDictionaryNoteSentinelAbsent": true,
+  "realUserscriptGuiAcceptance": false
+}

@@ -1,0 +1,7 @@
+{"phase":"restricted-miss","privacy":"private","externalRequests":8,"cardPresent":true,"note":""}
+{"phase":"restricted-miss","privacy":"unknown","externalRequests":8,"cardPresent":true,"note":""}
+{"phase":"regular-documents","firstExternal":5,"finalExternal":5}
+{"phase":"profile-cache","firstExternal":5,"finalExternal":5,"cardPresent":true}
+{"phase":"cancel-held","action":"close","gateReleased":false,"handlerEnded":0,"signalsAborted":false,"cardPresent":false}
+{"phase":"cancel-held","action":"pagehide","gateReleased":false,"handlerEnded":0,"signalsAborted":false,"cardPresent":false}
+{"phase":"cancel-held","action":"config","gateReleased":false,"handlerEnded":0,"signalsAborted":false,"cardPresent":false}

@@ -1,0 +1,855 @@
+diff --git a/docs/architecture.md b/docs/architecture.md
+index ee2516ce..6bc72cee 100644
+--- a/docs/architecture.md
++++ b/docs/architecture.md
+@@ -440,3 +440,6 @@ pnpm test:regression:all -- --browser  # 追加屏幕外隔离浏览器 fixtures
+ 阅读入口的后续切片复用相同内部三态来源和模型锁，不改已有流式 Port 或 conversation：handler 在准备等待前固定原生 sender，应用层在持久会话操作前拒绝 unknown，来源 symbol 随原会话重建的对象展开保留；runtime 在 modelGateway 构造前选择并冻结具备会话能力的私密对。原阅读 prompt、上下文裁剪、追问历史与 read_context 工具不变。真实保存订阅中的有效 provider、模型、凭据、请求头/体与轮询策略变化取消旧请求；已有取消信号和仓库代次继续隔离迟到正文。两字段为空及原生 regular 保持原选模。该切片不代表字典或其余图像、视频、文档的私密路由接线完成。
+
+ 图片后台的原生三态来源在 app 的术语／配置包装边界接线；ImageTransactionSnapshot 内保留有效图片 provider/model、内部来源及模型锁，Offscreen 恢复不读取新配置。共享 registry 在图片 ready/source 等待前登记原归属、控制器和截止时间，新增可选准备回调在分派前一次封入只读快照；app 复用文本准备取消 helper，配置取消、原生 Port 断连或原截止时间到达均能结束未返回的准备等待，迟到 resolve/reject 被消费。app 将内部来源附着到原 OCR 文本请求对象，保留不可枚举的 request control 与剩余预算。前端专用线路依赖变更使已有译图缓存失效；文档 Port、图片来源授权及 broker/provider lease 保持原语义，已分派 provider 仍占有 lease 至真实传输 settle。圈选及 vision capability probe 的来源接线仍未完成，原拒绝边界继续保留。
++
++
++原生非模型词典通过既有文档 Port 注册独立请求表，来源仅取后台原生 sender/getContexts；配置专用对时 private/unknown 只读已有 ECDICT 数据，禁止自动在线回退及可选词库下载。普通来源和两字段均空保留原行为；用户提示只说明本地结果和在线查询限制，不新增配置。后台原文缓存按有效文档 owner、三态来源及在线能力隔离，关闭/导航/断连或相关配置变化清除所属缓存和在途请求，迟到结果不能重新发布。共用查询采用订阅计数，取消一个普通订阅者保留另一有效订阅者；最后订阅者退出才中止 HTTP。该缓存只在内存，不写入持久模型缓存。模型辅助仍沿用已有文本翻译链路；userscript 保留普通词典协议。消息总入口的词典依赖接线下沉到 selectionDictionaryRuntime，原历史文件行数上限保持不变。
+diff --git a/docs/testing.md b/docs/testing.md
+index d6426d82..b4baf69f 100644
+--- a/docs/testing.md
++++ b/docs/testing.md
+@@ -978,12 +978,16 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
+
+ 同文档 SPA 导航使用实际 `installShadowAndRouteBridge` 的 History 包装产生 document `fluentread-route-change`；组件仅在 URL 变化时复用关闭失效流程，随组件卸载移除监听。关闭卡片时保留已挂载组件的单一监听，供后续卡片使用。新增负控保持源 Text/选区有效，不触发 selectionchange、popstate 或 hashchange，延迟实际主/辅助 SDK，观察生产模板经 Vue 离线 renderer 得到的 DOM 与模型缓存；覆盖 pushState/replaceState、相同 URL、重复信号、新代次、关闭、重复卸载与重挂载，以及 native false 普通兼容。DOM/Range/History 平台边界是合成夹具，不代表实机浏览器验收。
+
+-独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
++原生非模型词典查询使用现有文档 Port 和可信三态来源。配置专用服务/模型对时，private/unknown 只读取打包 ECDICT 和已校验的现存完整词库，不自动查询五种在线词典或下载可选词库；卡片提示“仅显示本地词典，在线查询不可用”，未命中提示“本地暂无条目，在线查询不可用”。普通来源及两字段都为空保留正常在线回退，不新增设置。模型辅助释义继续走独立文本翻译通道，词典查询本身不转为模型请求。
++
++原文内存缓存按后台原生文档 owner、来源和是否允许在线查询隔离，不进入持久模型缓存或普通共享词典缓存；关闭、导航、断连及相关配置保存撤销所属查询并清除缓存。同文档有效订阅者可共用查询，取消一个保留另一个；最终订阅者取消后中止 HTTP，迟到结果不能发布。`wordCardPrivacyRoute` 使用实际默认词典适配器与原生 Port/handler/registry，离线 HTTP 边界观察请求、取消信号和重新查询；基线负控复现在线泄漏、跨文档共享缓存及仅前端取消。`wordDictionaryEdge` 验证只读完整词库、缓存容量、并发订阅及完成竞态。新增后台组装模块经聚焦四维 100% 后加入严格覆盖清单；既有执行列表、阈值、ignore、ownership 和预算保持原样。
++
++油猴保留既有消息路径，原生辅助函数通过既有平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。以上是离线入口和边界验证，不代表真实 GUI、GPU 或外部词典服务验收。历史 loopback 审批缺口仍见前批记录，未补造。
+
+ 视频模型切片同时覆盖 `runtime.ts` 的 YouTube/X 与 `platformRuntime.ts` 的会议/Udemy/Disney+ 播放翻译；两个入口共用文本客户端，在 Thinking、上下文能力、模型请求与缓存决策前解析有效专用 pair，最终授权继续由 native sender/getContexts 三态、文本 Port/registry/handler 与 broker 完成。有效服务也用于 YouTube/X 的标签和预翻译窗口；无效 UI 提示可回退标签，但实际模型请求仍拒绝。原生配置键保守比较完整相关公开映射与视频服务/语言/人工轨/术语配置，因此普通模型或其他服务映射改变也撤销旧译文；计数/UI 保存不取消。
+
+ 已有译文/双语字幕导出只由 YouTube/X 运行时调用，platform runtime 没有导出入口，本切片不新增该功能。原生导出使用独立文本请求 ID 和 signal，不加入播放的前端等待任务；取消导出保持同源播放请求，切换仅原文取消播放而保持独立导出，可能增加同时未缓存请求的上游工作。相关保存、实际 route bridge 信号、媒体加载身份变化和卸载撤销旧翻译/导出，旧结果不能更新新视频 DOM、模型缓存或下载文件，旧导出反馈不能覆盖新代次。配置保存保留当前原字幕与已恢复 ASR 源时间轴；切换视频隔离当前源视图，现有持久 ASR 源缓存不被本切片删除。
+
+-`videoPrivacyRoute` 从真实 root 进入两个运行时和实际导出菜单/控制器，执行真实配置保存、文本 Port/registry/handler、broker/cache/provider/AI SDK；仅浏览器/DOM/布局、合成 source cache、部分上下文捕获和 HTTP/文件保存使用离线边界。ASR 源控制从合成缓存恢复，不运行推理或模型下载；未验证 ASR 实机、GUI、GPU 或真实网络。原严格 owned 模块保持四维门禁，runtime 与 app client glue 不外推数值 100%。普通兼容由 native false 实际入口/导出及已有算法合同验证；userscript 继续通过既有平台 alias 关闭原生路径，预算与权限默认不改。独立设置页 probe 和在线 dictionary 仍是明确未迁移余项。
++`videoPrivacyRoute` 从真实 root 进入两个运行时和实际导出菜单/控制器，执行真实配置保存、文本 Port/registry/handler、broker/cache/provider/AI SDK；仅浏览器/DOM/布局、合成 source cache、部分上下文捕获和 HTTP/文件保存使用离线边界。ASR 源控制从合成缓存恢复，不运行推理或模型下载；未验证 ASR 实机、GUI、GPU 或真实网络。原严格 owned 模块保持四维门禁，runtime 与 app client glue 不外推数值 100%。普通兼容由 native false 实际入口/导出及已有算法合同验证；userscript 继续通过既有平台 alias 关闭原生路径，预算与权限默认不改。设置页 probe 与非模型词典由各自后续切片和证据记录验证。
+
+ YouTube/X 原生媒体生命周期还同步调用现有 `playerLocator.sync()` 读取当前 DOM 选择，避免 video 节点替换后 `loadstart` 在 locator 下一帧前仍读旧 observedVideo。18 项追加控制真实替换节点（包括同媒体 URL），向既有 locator 的 MutationObserver 边界交付对应变更并保持其 RAF 未执行，在原生 Port 微任务完成后释放旧 SDK 响应；分别观察播放的 DOM/模型缓存和导出的文件保存。基线 `loadstart` 8 项负控复现迟到写入；`loadedmetadata` 8 项已由既有 timeline handler 保护，不将其通过误报为缺口。重复、分离节点、重新连接但未选中的旧节点与新旧事件交错不取消新播放，取消独立导出也保留新播放；实际 scheduler lease 的 holdUntil provider operation 最终结算。原标题、原字幕以及同媒体节点替换时的合成已恢复 ASR 时间轴保留。MutationObserver、RAF、DOM 和 HTTP 仍是离线平台边界，不能外推为真实浏览器或 ASR 推理通过。
+diff --git a/src/app/background/messageRuntime.ts b/src/app/background/messageRuntime.ts
+index 254b61bb..8e471d10 100644
+--- a/src/app/background/messageRuntime.ts
++++ b/src/app/background/messageRuntime.ts
+@@ -2,11 +2,10 @@
+  * @file src/app/background/messageRuntime.ts
+  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
+  * 主要内容：向图片处理注入已保存的单图识别方式；创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为通用翻译装配原生 sender/context 三态来源解析，为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，接入离屏下载进度转存，注册类型化 router，绑定独立文本文档 Port 的原生租约和断连取消，并管理响应与错误。
+- * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
++ * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期；原文词典装配归 selectionDictionaryRuntime，独立注册表绑定原生 Port，模型辅助沿用文本翻译链路；具体算法来自 features、services、providers 与 platform。
+  */
+ import {getFreeTranslationWeightSnapshot, createProviderTestRuntimeHandlers} from './providerRuntime';
+ import {config, configReady} from '@/src/services/config/store';
+-import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
+ import {createSelectionPageZoomBrowserPort, createSelectionPageZoomHandler} from '@/src/features/selection-translation/background/pageZoomHandler';
+ import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
+ import {vocabularyBook} from '@/src/features/vocabulary/repository';
+@@ -31,7 +30,7 @@ import {createDownloadProgressHandler} from './handlers/downloadProgress';
+ import {createTranslationCancelHandler, createNativeTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
+ import {createTranslationDocumentPortHandler} from '@/src/services/translation/documentChannel';
+ import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
+-import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
++import {createSelectionDictionaryRuntime} from './selectionDictionaryRuntime';
+ import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
+ import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
+ import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
+@@ -65,6 +64,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
+     const translationRequestRegistry = createTranslationRequestRegistry(true);
+     const inputTranslationRequestRegistry = createTranslationRequestRegistry(true);
+     const visionProbeRequestRegistry = createTranslationRequestRegistry(true);
++    const dictionaryRuntime = createSelectionDictionaryRuntime();
+     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
+     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
+     const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
+@@ -116,12 +116,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
+             isTabId: isBrowserTabId,
+             onStateChanged: options.onFullPageStateChanged,
+         }),
+-        createSelectionWordLookupHandler({
+-            lookupWord,
+-            getDefaultTargetLanguage: () => config.to,
+-            translate: (request) => translateWithCache({...request, serviceOverride: config.selectionTranslationService || config.service}),
+-            warn: (message, error) => console.warn(message, error),
+-        }),
++        ...dictionaryRuntime.handlers,
+         createSelectionPageZoomHandler(selectionPageZoom.getZoom),
+         ...imageAreaRuntime.handlers,
+         ...createSelectionTtsBackgroundHandlers({
+@@ -163,7 +158,8 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
+     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
+     const textPorts = createTranslationDocumentPortHandler({runtimeId: browser.runtime.id,
+         dispatch: (message, context) => router.dispatch(message, context as BackgroundRuntimeContext),
+-        registries: [translationRequestRegistry, inputTranslationRequestRegistry, visionProbeRequestRegistry]});
++        registries: [translationRequestRegistry, inputTranslationRequestRegistry, visionProbeRequestRegistry,
++            ...(dictionaryRuntime.registry ? [dictionaryRuntime.registry] : [])]});
+     browser.runtime.onConnect.addListener(textPorts.connect);
+     browser.runtime.onConnect.addListener(imageAreaRuntime.connect);
+     selectionPageZoom.installZoomChangeListener();
+diff --git a/src/app/background/selectionDictionaryRuntime.ts b/src/app/background/selectionDictionaryRuntime.ts
+new file mode 100644
+index 00000000..15722bbb
+--- /dev/null
++++ b/src/app/background/selectionDictionaryRuntime.ts
+@@ -0,0 +1,24 @@
++/**
++ * @file src/app/background/selectionDictionaryRuntime.ts
++ * 文件职责：为后台划词词典装配现有配置、原生来源解析与翻译服务，供消息总入口注册。
++ * 主要内容：扩展构建采用文档会话词典运行时；兼容构建保留普通词典查询与辅助释义服务选择。
++ * 模块边界：这里只连接已有依赖，不请求词典、不解析来源或管理缓存；这些行为归划词 feature 与翻译服务。
++ */
++import {config, configReady, subscribeConfig} from '@/src/services/config/store';
++import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
++import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
++import {createNativeSelectionWordLookupRuntime, createSelectionWordLookupHandler} from
++    '@/src/features/selection-translation/background/wordLookupHandler';
++import {translateWithCache} from '@/src/app/translation/runtime';
++import type {IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
++
++/** 构建能力来自编译常量；参数只供兼容构建验证，不参与页面来源判定。 */
++export function createSelectionDictionaryRuntime(nativeSupported = NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++    if (nativeSupported) return createNativeSelectionWordLookupRuntime({ready: configReady,
++        getConfig: () => config, runtime: browser.runtime as unknown as IncognitoSourceRuntime, subscribeConfig});
++    return {registry: undefined, handlers: [createSelectionWordLookupHandler({lookupWord,
++        getDefaultTargetLanguage: () => config.to,
++        translate: request => translateWithCache({...request, serviceOverride: config.selectionTranslationService || config.service}),
++        warn: (message, error) => console.warn(message, error),
++    })]};
++}
+diff --git a/src/core/i18n/messages/native-dictionary-feedback.ts b/src/core/i18n/messages/native-dictionary-feedback.ts
+new file mode 100644
+index 00000000..89bc234b
+--- /dev/null
++++ b/src/core/i18n/messages/native-dictionary-feedback.ts
+@@ -0,0 +1,27 @@
++/**
++ * @file src/core/i18n/messages/native-dictionary-feedback.ts
++ * 文件职责：提供原生词典本地查询限制的简短多语言反馈，随当前界面语言展示。
++ * 主要内容：保留本地结果与本地未命中两种反馈，提供七种界面语言的精确译文和中文回退。
++ * 模块边界：只导出纯文案与匹配函数，不读取配置或浏览器；原生 UI 按需引用，兼容构建可移除整组资源。
++ */
++import type {UiLanguage} from '../types';
++
++export function nativeDictionaryFeedback(kind: 'local' | 'missing'): string {
++    return kind === 'local' ? '仅显示本地词典，在线查询不可用。' : '本地暂无条目，在线查询不可用。';
++}
++/** 仅识别本组反馈；其他文案交回已有旧文案本地化器。资源只在原生调用时创建。 */
++export function localizeNativeDictionaryFeedback(value: string, language: UiLanguage): string | undefined {
++    const copies: Readonly<Record<UiLanguage, readonly [string, string]>> = {
++        'zh-CN': [nativeDictionaryFeedback('local'), nativeDictionaryFeedback('missing')],
++        'en-US': ['Local dictionary only. Online lookup is unavailable.', 'No local entry. Online lookup is unavailable.'],
++        'ja-JP': ['ローカル辞書のみ表示します。オンライン検索は利用できません。', 'ローカル辞書に項目がありません。オンライン検索は利用できません。'],
++        'ko-KR': ['로컬 사전만 표시합니다. 온라인 검색은 사용할 수 없습니다.', '로컬 항목이 없습니다. 온라인 검색은 사용할 수 없습니다.'],
++        'fr-FR': ['Dictionnaire local uniquement. La recherche en ligne est indisponible.', 'Aucune entrée locale. La recherche en ligne est indisponible.'],
++        'ru-RU': ['Только локальный словарь. Онлайн-поиск недоступен.', 'Локальная статья не найдена. Онлайн-поиск недоступен.'],
++        'es-ES': ['Solo diccionario local. La búsqueda en línea no está disponible.', 'No hay entrada local. La búsqueda en línea no está disponible.'],
++    };
++    const copy = copies[language] ?? copies['zh-CN'];
++    const kind = Object.values(copies).findIndex(row => row.includes(value));
++    if (kind < 0) return undefined;
++    return Object.values(copies)[kind][0] === value ? copy[0] : copy[1];
++}
+diff --git a/src/features/selection-translation/background/wordLookupHandler.ts b/src/features/selection-translation/background/wordLookupHandler.ts
+index 1949d6e3..26ca5000 100644
+--- a/src/features/selection-translation/background/wordLookupHandler.ts
++++ b/src/features/selection-translation/background/wordLookupHandler.ts
+@@ -1,11 +1,21 @@
+ /**
+  * @file src/features/selection-translation/background/wordLookupHandler.ts
+  * 文件职责：处理划词词典查询消息，支持先返回词典原文、再限时补充目标语言辅助释义，失败时保留可读词卡。
+- * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词与查询阶段，隔离不匹配目标语言的辅助内容，深拷贝词卡并只翻译缺失的可见释义，按位置回填；补充翻译共用短时预算。
++ * 主要内容：定义 selectionWordLookup 协议和依赖，保留旧辅助释义编排；原生原文查询捕获文档 owner、解析可信三态来源、限制在线回退，配置变化和断连取消在途请求并清空所属缓存，回复明确标记受限路径。
+  * 模块边界：该文件不直接请求任何词典站点或翻译 provider；词典 lookup 和 translateTexts 由后台注入，数据解析/缓存归 services/wordDictionary，组件只消费返回词卡。
+  */
+ import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
+ import type {WordCardData} from '../services/wordDictionary';
++import {createNativeWordDictionaryLookup} from '../services/wordDictionary';
++import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, waitForTranslationRequestPreparation,
++    type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
++import {getNativeDocumentSession} from '@/src/platform/browser/documentSession';
++import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
++import {fullPageTranslationConfigKey} from '@/src/services/translation/requestPrivacy';
++import type {Config} from '@/src/core/config/model';
++import {hasConfiguredIncognitoRoute} from '@/src/core/config/incognitoRoute';
++
++export {nativeDictionaryFeedback, localizeNativeDictionaryFeedback} from '@/src/core/i18n/messages/native-dictionary-feedback';
+
+ export type {
+     WordCardData,
+@@ -173,3 +183,55 @@ export function createSelectionWordLookupHandler(
+         },
+     };
+ }
++
++/** 原生原文词卡独立准入：只接受原生来源，配置专用 pair 的 private/unknown 禁止在线词典回退。 */
++export function createNativeSelectionWordLookupRuntime(deps: {
++    ready: Promise<void>; getConfig(): Config; runtime: IncognitoSourceRuntime;
++    subscribeConfig(listener: (config: Config) => void): () => void;
++    requestRegistry?: TranslationRequestRegistry; lookup?: ReturnType<typeof createNativeWordDictionaryLookup>;
++}) {
++    const actual = deps.requestRegistry ?? createTranslationRequestRegistry(true);
++    const lookup = deps.lookup ?? createNativeWordDictionaryLookup();
++    const owners = new Map<string, TranslationRequestContext>();
++    const owner = (context: TranslationRequestContext) => getNativeDocumentSession(context)!.ownerKey;
++    const registry: TranslationRequestRegistry = {
++        run: (id, context, operation) => actual.run(id, context, operation),
++        cancel: (id, context) => actual.cancel(id, context),
++        releaseOwner(context) {actual.releaseOwner(context);const key = owner(context);lookup.releaseOwner(key);owners.delete(key);},
++    };
++    const configKey = (config: Config) => JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]);
++    let key = configKey(deps.getConfig());
++    const stop = deps.subscribeConfig(next => {
++        const value = configKey(next);
++        if (value === key) return;
++        key = value;for (const context of [...owners.values()]) registry.releaseOwner(context);lookup.clearCache();
++    });
++    const admit = (message: {clientRequestId?: unknown}, context: TranslationRequestContext) => {
++        if (!deps.runtime.id || context.sender?.id !== deps.runtime.id) throw new Error('词典查询来源不属于当前扩展');
++        if (!getNativeDocumentSession(context)) throw new Error('词典查询需要原生文档连接');
++        return parseClientRequestId(message.clientRequestId)!;
++    };
++    const handlers = [{type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, async handle(message: SelectionWordLookupMessage & {clientRequestId?: unknown}, context: TranslationRequestContext) {
++        const captured = captureTranslationRequestContext(context), id = admit(message, captured), word = parseWord(message.word);
++        if (message.translateFields !== false) throw new TypeError('原生词典查询只返回原文，辅助释义使用独立翻译入口');
++        return registry.run(id, captured, async signal => {
++            const ownerKey = owner(captured);owners.set(ownerKey, captured);
++            const timer = setTimeout(() => registry.cancel(id, captured), 3_500);
++            try {
++                await waitForTranslationRequestPreparation(deps.ready, signal);
++                const privacy = await waitForTranslationRequestPreparation(resolveNativeSourcePrivacy(captured.sender, deps.runtime), signal);
++                const config = deps.getConfig(), target = parseTargetLanguage(message.targetLanguage, config.to);
++                const configured = hasConfiguredIncognitoRoute(config);
++                const restricted = configured && privacy !== 'regular';
++                let card: WordCardData | null;
++                try {card = await lookup.lookup(word, {ownerKey, privacy, onlineAllowed: !restricted, signal});}
++                catch (error) {signal.throwIfAborted();if (!restricted) throw error;card = null;}
++                signal.throwIfAborted();
++                return {success: true, data: card ? prepareWordCardForTarget(card, target) : null, onlineDictionaryRestricted: restricted};
++            } finally {clearTimeout(timer);}
++        });
++    }}, {type: 'selectionWordLookupCancel', handle(message: {type?: string; clientRequestId?: unknown}, context: TranslationRequestContext) {
++        const captured = captureTranslationRequestContext(context);return registry.cancel(admit(message, captured), captured);
++    }}] as const;
++    return {handlers, registry, dispose() {stop();for (const context of [...owners.values()]) registry.releaseOwner(context);lookup.clearCache();}};
++}
+diff --git a/src/features/selection-translation/services/ecdictAsset.ts b/src/features/selection-translation/services/ecdictAsset.ts
+index 5406c416..3730bcc4 100644
+--- a/src/features/selection-translation/services/ecdictAsset.ts
++++ b/src/features/selection-translation/services/ecdictAsset.ts
+@@ -1,7 +1,7 @@
+ /**
+  * @file src/features/selection-translation/services/ecdictAsset.ts
+  * 文件职责：在词卡首次需要扩展词库时，下载固定版本的纯 JSON 数据并校验后缓存。
+- * 主要内容：限制响应体积与下载时长、验证 SHA-256、复用 CacheStorage 中的可信副本，并允许镜像失败后重试。
++ * 主要内容：限制响应体积与下载时长、验证 SHA-256、复用 CacheStorage 中的可信副本，并允许镜像失败后重试；原生受限读取另用只读 match，不创建缓存、不删除副本、不下载。
+  * 模块边界：只处理可选词库资产，不传输查询词、不解析词义，也不加载远程脚本或 WASM。
+  */
+ import {runtimeFetch} from '@/src/platform/http/runtime';
+@@ -105,3 +105,12 @@ export async function downloadFullEcdict(): Promise<EcdictCompactRow[]> {
+     }
+     throw new Error('Optional dictionary sources unavailable', {cause: lastError});
+ }
++
++/** 原生受限查询只读现存副本；不创建 CacheStorage、不删除损坏数据、不启动下载。 */
++export async function readAvailableFullEcdict(): Promise<EcdictCompactRow[] | null> {
++    if (typeof globalThis.caches?.match !== 'function') return null;
++    try {
++        const response = await caches.match(CACHE_KEY, {cacheName: CACHE_NAME});
++        return response ? await verifiedRows(await readBounded(response)) : null;
++    } catch {return null;}
++}
+diff --git a/src/features/selection-translation/services/wordDictionary.ts b/src/features/selection-translation/services/wordDictionary.ts
+index 635e61e6..dd58fe77 100644
+--- a/src/features/selection-translation/services/wordDictionary.ts
++++ b/src/features/selection-translation/services/wordDictionary.ts
+@@ -1,7 +1,7 @@
+ /**
+  * @file src/features/selection-translation/services/wordDictionary.ts
+  * 文件职责：实现划词英文词典的本地优先查询、在线限时补充、数据清洗、发音选择和缓存，让已有释义及时返回。
+- * 主要内容：支持 ECDICT 内置及可选词库与五种在线词典，本地释义直接返回，在线来源并发查询并共用截止时间；清理剩余请求，缓存确定结果，区分未命中与网络不可用。
++ * 主要内容：支持 ECDICT 内置及可选词库与五种在线词典，本地释义直接返回，在线来源并发查询并共用截止时间；原生原文缓存绑定可信文档/来源，受限查询只读现存词库，最后订阅者取消和会话失效阻止迟到写回；旧普通查询适配保持兼容。
+  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
+  */
+ import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
+@@ -9,6 +9,9 @@ import {readJsonResponse} from '@/src/platform/http/errors';
+ import {createRuntimeAbortContext, runtimeFetch} from '@/src/platform/http/runtime';
+ import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, type EcdictCompactRow} from './ecdictAsset';
+ import {normalizeEnglishWord} from './wordNormalization';
++import {readAvailableFullEcdict} from './ecdictAsset';
++import {waitForTranslationRequestPreparation} from '@/src/services/translation/requestRegistry';
++import type {NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
+
+ export {isSingleEnglishWord, normalizeEnglishWord} from './wordNormalization';
+
+@@ -896,3 +899,98 @@ export function lookupWord(value: string): Promise<WordCardData | null> {
+ export function clearWordDictionaryCache(): void {
+     defaultWordDictionaryLookup.clearCache();
+ }
++
++/** 原生受限路径只读打包词库与已校验的现存完整副本，原文缓存由下方文档会话管理。 */
++function createAvailableLocalDictionary(): WordDictionaryProvider {
++    let core: Promise<unknown[]> | undefined;
++    return {id: 'ecdict-local', async lookup(word) {
++        const url = localDictionaryUrl();
++        if (!url) return null;
++        core ??= runtimeFetch(url, {credentials: 'omit'}).then(async response => {
++            if (!response.ok) throw new Error('本地词典资源不可用');
++            const value = await readJsonResponse(response, '本地词典格式不可用');
++            return Array.isArray(value) ? value : [];
++        }).catch(error => {core = undefined; throw error;});
++        const find = (rows: unknown[]) => rows.find(row => Array.isArray(row) && row.length === 4
++            && row.every(value => typeof value === 'string') && row[0].toLowerCase() === word) as EcdictCompactRow | undefined;
++        let rows: unknown[];
++        try {rows = await core;} catch {rows = [];}
++        const entry = find(rows) ?? find(await readAvailableFullEcdict() ?? []);
++        return entry ? parseEcdictEntry({w: entry[0], p: entry[1], d: entry[2], t: entry[3]}, word) : null;
++    }};
++}
++
++export interface NativeWordLookupOptions {
++    readonly ownerKey: string; readonly privacy: NativeSourcePrivacy;
++    readonly onlineAllowed: boolean; readonly signal: AbortSignal;
++}
++/** 原生后台专用：可信文档/来源缓存独立；仅最后订阅者撤销 provider，关闭会话拒绝迟到写回。 */
++export function createNativeWordDictionaryLookup(options: {providers?: readonly WordDictionaryProvider[]} = {}) {
++    const providers = options.providers ? [...options.providers] : createDefaultWordDictionaryProviders();
++    const local = options.providers ? providers.filter(provider => provider.id === 'ecdict-local') : [createAvailableLocalDictionary()];
++    type Task = {controller: AbortController; users: number; promise: Promise<WordCardData | null>};
++    type Scope = {ownerKey: string; live: boolean; records: Map<string, WordCardData | null>; tasks: Map<string, Task>};
++    const scopes = new Map<string, Scope>();
++    const cancelled = () => new DOMException('词典查询已取消', 'AbortError');
++    const perform = (word: string, selected: readonly WordDictionaryProvider[], signal: AbortSignal) => new Promise<WordCardData | null>((resolve, reject) => {
++        const controller = new AbortController();let merged: WordCardData | null = null, settled = false, failed = false;
++        const finish = (unavailable = false, abort = false) => {
++            if (settled) return;
++            settled = true;clearTimeout(timer);signal.removeEventListener('abort', onAbort);controller.abort();
++            if (abort) reject(cancelled());
++            else if (unavailable && !merged) reject(new Error('词典查询暂时不可用'));
++            else resolve(finalizeWordCard(merged));
++        };
++        const onAbort = () => finish(false, true);
++        const timer = setTimeout(() => finish(true), LOOKUP_BUDGET_MS);
++        signal.addEventListener('abort', onAbort, {once: true});
++        const query = async (provider: WordDictionaryProvider) => {
++            try {
++                const result = await provider.lookup(word, controller.signal);
++                if (settled) return;
++                if (hasUsefulData(result)) merged = mergeWordCardData(merged, result);
++                if (merged?.meanings.length) finish();
++            } catch {
++                if (!settled) failed = true;
++            }
++        };
++        void (async () => {
++            for (const provider of selected.filter(item => item.id === 'ecdict-local')) {await query(provider);if (settled) return;}
++            await Promise.all(selected.filter(item => item.id !== 'ecdict-local').map(query));finish(failed);
++        })();
++    });
++    const releaseOwner = (ownerKey: string) => {
++        for (const [key, scope] of scopes) if (scope.ownerKey === ownerKey) {
++            scope.live = false;scope.records.clear();scopes.delete(key);
++            for (const task of scope.tasks.values()) task.controller.abort();
++        }
++    };
++    return {
++        async lookup(value: string, request: NativeWordLookupOptions): Promise<WordCardData | null> {
++            request.signal.throwIfAborted();
++            const word = normalizeEnglishWord(value);
++            if (!word) return null;
++            const key = JSON.stringify([request.ownerKey, request.privacy, request.onlineAllowed]);
++            let scope = scopes.get(key);
++            if (!scope) {scope = {ownerKey: request.ownerKey, live: true, records: new Map(), tasks: new Map()};scopes.set(key, scope);}
++            if (scope.records.has(word)) return structuredClone(scope.records.get(word)!);
++            const current = scope;
++            let task = current.tasks.get(word);
++            if (!task) {
++                const controller = new AbortController();
++                const promise = perform(word, request.onlineAllowed ? providers : local, controller.signal).then(card => {
++                    if (!current.live || controller.signal.aborted) throw cancelled();
++                    if (current.records.size >= DEFAULT_WORD_LOOKUP_CACHE_SIZE) current.records.delete(current.records.keys().next().value!);
++                    current.records.set(word, structuredClone(card));return card;
++                });
++                task = {controller, users: 0, promise};current.tasks.set(word, task);
++                void promise.finally(() => {if (current.tasks.get(word)?.promise === promise) current.tasks.delete(word);}).catch(() => undefined);
++            }
++            const active = task;active.users++;
++            try {return structuredClone(await waitForTranslationRequestPreparation(active.promise, request.signal));}
++            finally {if (--active.users === 0) {active.controller.abort();if (current.tasks.get(word) === active) current.tasks.delete(word);}}
++        },
++        releaseOwner,
++        clearCache() {for (const scope of [...scopes.values()]) releaseOwner(scope.ownerKey);},
++    };
++}
+diff --git a/src/features/selection-translation/ui/SelectionTranslator.vue b/src/features/selection-translation/ui/SelectionTranslator.vue
+index cade5bda..fd37fe2d 100644
+--- a/src/features/selection-translation/ui/SelectionTranslator.vue
++++ b/src/features/selection-translation/ui/SelectionTranslator.vue
+@@ -2,6 +2,7 @@
+  * @file src/features/selection-translation/ui/SelectionTranslator.vue
+  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
+  * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/同文档 SPA 路由变更/关闭或更换选区取消等待并阻止旧响应覆盖新结果，路由监听随组件卸载清理；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
++ * 原生词典边界：原文沿用文档 Port，由后台可信来源限制在线回退；保留本地词条并展示受限说明，关闭和导航释放文档词卡会话，模型辅助释义继续使用既有专用路由。
+  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
+  -->
+ <template>
+@@ -189,7 +190,9 @@ import {openShareCard, isShareCardMounted} from '@/src/features/share-card/publi
+ import { config, subscribeConfig } from '@/src/services/config/store';
+ import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
+ import {fullPageTranslationConfigKey, resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
+-import {translateVisibleWordCardFields} from '@/src/features/selection-translation/background/wordLookupHandler';
++import {translateVisibleWordCardFields, nativeDictionaryFeedback, localizeNativeDictionaryFeedback} from '@/src/features/selection-translation/background/wordLookupHandler';
++import {createTranslationDocumentClient} from '@/src/services/translation/documentClient';
++import {waitForTranslationRequestPreparation} from '@/src/services/translation/requestRegistry';
+ import { translateText, translateTextBatch } from '@/src/app/translation/client';
+ import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
+ import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
+@@ -292,6 +295,7 @@ let translationAbortController: AbortController | null = null;
+ let translationRequestId = 0;
+ let wordLookupRequestId = 0;
+ let wordLookupAbortController: AbortController | null = null;
++let dictionaryDocumentClient: ReturnType<typeof createTranslationDocumentClient> | undefined;
+ let copyTimer: number | null = null;
+ const vocabularyLookupGate = new SelectionRequestTokenGate();
+ const vocabularySaveGate = new SelectionRequestTokenGate();
+@@ -512,6 +516,9 @@ function resetSelectionContentState(clearSelectionText = false): void {
+   wordLookupRequestId += 1;
+   wordLookupAbortController?.abort();
+   wordLookupAbortController = null;
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++    if (clearSelectionText) {dictionaryDocumentClient?.dispose();dictionaryDocumentClient = undefined;}
++  }
+   isLoading.value = false;
+   activeContentRequest.value = null;
+   translationAnswer.value = null;
+@@ -1060,6 +1067,7 @@ function chooseSelectionTarget(targetLanguage: string): void {
+
+ async function sendWordCardRequest(word: string, targetLanguage: string, translateFields: boolean, signal: AbortSignal): Promise<{success?: boolean; data?: WordCardData | null}> {
+   if (signal.aborted) throw new DOMException('Lookup aborted', 'AbortError');
++  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) return sendNativeWordCardRequest(word, targetLanguage, signal);
+   let onAbort!: () => void;
+   let timer: ReturnType<typeof setTimeout> | undefined;
+   const interrupted = new Promise<never>((_resolve, reject) => {
+@@ -1075,6 +1083,18 @@ async function sendWordCardRequest(word: string, targetLanguage: string, transla
+   }
+ }
+
++async function sendNativeWordCardRequest(word: string, targetLanguage: string, signal: AbortSignal): Promise<{success?: boolean; data?: WordCardData | null; onlineDictionaryRestricted?: boolean}> {
++  const client = dictionaryDocumentClient ??= createTranslationDocumentClient(() => browser.runtime.connect({name: 'fluentReadTranslationDocument:v1'}));
++  const clientRequestId = createSelectionTtsClientRequestId();
++  const cancel = () => {void client.request({type: 'selectionWordLookupCancel', clientRequestId}).catch(() => {});};
++  signal.addEventListener('abort', cancel, {once: true});
++  let timer: ReturnType<typeof setTimeout>;
++  try {
++    return await Promise.race([waitForTranslationRequestPreparation(client.request({type: 'selectionWordLookup', word, targetLanguage, translateFields: false, clientRequestId}), signal),
++      new Promise<never>((_, reject) => {timer = setTimeout(() => {cancel();reject(new Error('Dictionary lookup timed out'));}, 3_500);})]) as {success?: boolean; data?: WordCardData | null; onlineDictionaryRestricted?: boolean};
++  } finally {clearTimeout(timer!);signal.removeEventListener('abort', cancel);}
++}
++
+ function retryWordCard(): void {
+   const request = currentContentRequest.value;
+   if (request) void requestWordCard(request);
+@@ -1095,10 +1115,16 @@ async function requestWordCard(request: SelectionContentRequest): Promise<void>
+     const response = await sendWordCardRequest(word, request.targetLanguage, false, controller.signal);
+     if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
+     if (!response?.success) throw new Error('Dictionary response unavailable');
++    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++      if ((response as {onlineDictionaryRestricted?: boolean}).onlineDictionaryRestricted) wordCardError.value = localizeNativeDictionaryFeedback(nativeDictionaryFeedback('local'), config.uiLanguage)!;
++    }
+     if (!response.data) {
+       wordCard.value = null;
+       dictionaryAnswer.value = null;
+       wordCardError.value = '未查到词典条目，请检查拼写；也可能是名称或新词。';
++      if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
++        if ((response as {onlineDictionaryRestricted?: boolean}).onlineDictionaryRestricted) wordCardError.value = localizeNativeDictionaryFeedback(nativeDictionaryFeedback('missing'), config.uiLanguage)!;
++      }
+     } else {
+       wordCard.value = response.data;
+       dictionaryAnswer.value = {...request, answer: dictionaryDefinitions(response.data, request.targetLanguage)};
+@@ -1784,7 +1810,7 @@ onMounted(() => {
+   );
+   void requestPageZoom();
+   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
+-  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
++  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const note = localizeNativeDictionaryFeedback(wordCardError.value, config.uiLanguage); if (note) wordCardError.value = note; const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
+   document.addEventListener('pointerdown', handlePointerDown, true);
+   document.addEventListener('pointerup', handlePointerUp, true);
+   document.addEventListener('pointercancel', handlePointerCancel, true);
+diff --git a/src/services/translation/documentChannel.ts b/src/services/translation/documentChannel.ts
+index ffa06cc0..1b3d90c8 100644
+--- a/src/services/translation/documentChannel.ts
++++ b/src/services/translation/documentChannel.ts
+@@ -1,6 +1,6 @@
+ /**
+  * @file src/services/translation/documentChannel.ts
+- * 文件职责：定义文本、批量文本、输入框和设置识图检测共用的原生文档长连接协议。
++ * 文件职责：定义文本、批量文本、输入框、设置识图检测和划词原文词典共用的原生文档长连接协议。
+  * 主要内容：版本化端口名称以及严格限定的 start/cancel 消息集合；公开请求 ID 只用于同连接内定位，不提供文档身份。
+  * 模块边界：不连接浏览器或供应商，不授予 capability；真实连接租约由 platform 后台 Port 工厂创建。
+  */
+@@ -15,7 +15,7 @@ export function isTranslationDocumentOperation(value: unknown): value is Record<
+     const message = value as Record<string, unknown>;
+     if (typeof message.clientRequestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/u.test(message.clientRequestId)) return false;
+     if (Object.prototype.hasOwnProperty.call(message, 'type')) {
+-        if (NATIVE_PRIVATE_ROUTE_SUPPORTED && ['fluentReadModelVisionProbe', 'fluentReadModelVisionProbeCancel'].includes(message.type as string)) return true;
++        if (NATIVE_PRIVATE_ROUTE_SUPPORTED && ['fluentReadModelVisionProbe', 'fluentReadModelVisionProbeCancel', 'selectionWordLookup', 'selectionWordLookupCancel'].includes(message.type as string)) return true;
+         return ['fluentReadTranslationCancel', 'inputBoxTranslation', 'inputBoxTranslationCancel'].includes(message.type as string);
+     }
+     return Object.prototype.hasOwnProperty.call(message, 'origin');
+@@ -23,11 +23,13 @@ export function isTranslationDocumentOperation(value: unknown): value is Record<
+ export function translationDocumentCancelKey(message: Record<string, unknown>): string | undefined {
+     const type = message.type;
+     if (NATIVE_PRIVATE_ROUTE_SUPPORTED && type === 'fluentReadModelVisionProbeCancel') return `vision:${message.clientRequestId}`;
++    if (NATIVE_PRIVATE_ROUTE_SUPPORTED && type === 'selectionWordLookupCancel') return `dictionary:${message.clientRequestId}`;
+     if (type !== 'fluentReadTranslationCancel' && type !== 'inputBoxTranslationCancel') return undefined;
+     return `${type === 'inputBoxTranslationCancel' ? 'input' : 'text'}:${message.clientRequestId}`;
+ }
+ export function translationDocumentRequestKey(message: Record<string, unknown>): string {
+     if (NATIVE_PRIVATE_ROUTE_SUPPORTED && message.type === 'fluentReadModelVisionProbe') return `vision:${message.clientRequestId}`;
++    if (NATIVE_PRIVATE_ROUTE_SUPPORTED && message.type === 'selectionWordLookup') return `dictionary:${message.clientRequestId}`;
+     return `${message.type === 'inputBoxTranslation' ? 'input' : 'text'}:${message.clientRequestId}`;
+ }
+
+diff --git a/tests/wordCardPrivacyRoute.test.ts b/tests/wordCardPrivacyRoute.test.ts
+index b644e5ea..8dddb405 100644
+--- a/tests/wordCardPrivacyRoute.test.ts
++++ b/tests/wordCardPrivacyRoute.test.ts
+@@ -1,6 +1,6 @@
+ /** 真实 SelectionTranslator setup→词典原文/辅助编排→文本 client/原生 Port/handler/registry→broker/IndexedDB/SDK；仅布局、非模型 lookup provider、浏览器和合成 HTTP 使用边界。 */
+ import 'fake-indexeddb/auto';
+-import {readFileSync} from 'node:fs';
++import {appendFileSync,readFileSync} from 'node:fs';
+ import {createRequire} from 'node:module';
+ import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
+ import {parseHTML} from 'linkedom';
+@@ -28,7 +28,7 @@ const publicURL='https://public-document.synthetic.test/v1/chat/completions',pri
+ const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
+ const settle=async()=>{await tick();await tick();await vue.nextTick();};
+ function response(model='document-private',content=`合成译文 ${model}`){return new Response(JSON.stringify({id:'synthetic',object:'chat.completion',model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});}
+-function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};}
++function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((done,fail)=>{resolve=done;reject=fail;});return {promise,resolve,reject};}
+ const card=()=>({word:'fixture',normalizedWord:'fixture',phonetics:[],sources:[{id:'free-dictionary' as const,label:'Synthetic non-model dictionary',url:'https://dictionary.synthetic.test'}],meanings:[{partOfSpeech:'noun',definitions:[{definition:'A readable dictionary definition.',example:'A readable dictionary example.'},{definition:'A readable dictionary definition.'}]}]});
+ let store:typeof import('@/src/services/config/store'),cache:typeof import('@/src/services/translation/cache');
+ let cacheRead:MockInstance,cacheWrite:MockInstance,cacheIdentity:MockInstance,transport:ReturnType<typeof vi.fn>,resetFetch:()=>void;
+@@ -37,9 +37,11 @@ let server:ReturnType<typeof import('@/src/services/translation/documentChannel'
+ let lookup:ReturnType<typeof import('@/src/features/selection-translation/services/wordDictionary').createWordDictionaryLookup>,lookupBoundary:ReturnType<typeof vi.fn>;
+ let state:Record<string,any>,scope:vue.EffectScope,mounted:Array<()=>void>,unmounted:Array<()=>void>,windowEvents:Map<string,Set<(event:any)=>void>>;
+ let domApp:vue.App|undefined,domHost:HTMLElement|undefined,bridgeDispose:(()=>void)|undefined;
++let fixtureNativeCapability=true;
+ const routeEvent='fluentread-route-change';
+ async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
+ async function mountPage(nativeCapability=true){
++ fixtureNativeCapability=nativeCapability;
+  domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
+  const modules:Record<string,unknown>={
+   vue:{...vue,useTemplateRef:()=>vue.ref(null),onMounted:(fn:()=>void)=>mounted.push(fn),onBeforeUnmount:(fn:()=>void)=>unmounted.push(fn)},
+@@ -48,6 +50,9 @@ async function mountPage(nativeCapability=true){
+   '@/src/core/config/incognitoRoute':{...await import('@/src/core/config/incognitoRoute'),NATIVE_PRIVATE_ROUTE_SUPPORTED:nativeCapability},
+   '@/src/services/translation/requestPrivacy':await import('@/src/services/translation/requestPrivacy'),
+   '@/src/features/selection-translation/background/wordLookupHandler':await import('@/src/features/selection-translation/background/wordLookupHandler'),
++  '@/src/core/i18n/messages/native-dictionary-feedback':await import('@/src/core/i18n/messages/native-dictionary-feedback'),
++  '@/src/services/translation/documentClient':await import('@/src/services/translation/documentClient'),
++  '@/src/services/translation/requestRegistry':await import('@/src/services/translation/requestRegistry'),
+   '@/src/features/share-card/public':{isShareCardMounted:()=>false},
+   '@/src/features/reading-assistant/public':{ReadingPanel:{}},
+   '@/src/features/selection-translation/content/contextMenuBridge':{setSelectionContextMenuHandler:()=>()=>{}},
+@@ -128,11 +133,16 @@ beforeEach(async()=>{
+     const word = await import('@/src/features/selection-translation/background/wordLookupHandler');
+     const dictionary = await import('@/src/features/selection-translation/services/wordDictionary');
+     lookup = dictionary.createWordDictionaryLookup({providers: [{id: 'free-dictionary', lookup: lookupBoundary}]});
+-    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry), word.createSelectionWordLookupHandler({lookupWord: value => lookup.lookup(value), getDefaultTargetLanguage: () => store.config.to, translate: backend.translateWithCache, warn: vi.fn()})],
++    const legacyWord=word.createSelectionWordLookupHandler({lookupWord:value=>lookup.lookup(value),getDefaultTargetLanguage:()=>store.config.to,translate:backend.translateWithCache,warn:vi.fn()});
++    const nativeWord=(word as any).createNativeSelectionWordLookupRuntime?.({ready:store.configReady,getConfig:()=>store.config,runtime:browserBoundary.runtime,subscribeConfig:store.subscribeConfig,
++        lookup:(dictionary as any).createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:lookupBoundary}]})});
++    functionsForDictionaryCleanup.push(()=>nativeWord?.dispose());
++    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry), ...(nativeWord?.handlers??[legacyWord])],
+         handlers.createNativeTranslationRequestFallback(browserBoundary.runtime, {ready: store.configReady,
+             translate: backend.translateWithCache, serializeError: serializeTranslationError, requestRegistry: registry, requireDocumentOwner: true}));
+-    dispatch = vi.fn((message, context) => router.dispatch(message, context));
+-    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry]});
++    dispatch = vi.fn(async(message, context) => !fixtureNativeCapability&&message.type==='selectionWordLookup'&&!message.clientRequestId
++        ? {handled:true,response:await legacyWord.handle(message)} : router.dispatch(message, context));
++    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry,...(nativeWord?[nativeWord.registry]:[])]});
+     await mountPage();
+ });
+ afterEach(async()=>{
+@@ -205,7 +215,7 @@ describe('native word-card effective pair and lifetime',()=>{
+   expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL&&call.body.model==='document-private')).toBe(true);
+   expect(requests()[0]).toMatchObject({origin:['A readable dictionary definition.','A readable dictionary example.'],context:'',pageContext:undefined,enableAIContext:false,useCache:true,serviceOverride:privateService,modelOverride:'document-private'});
+   expect(state.wordCard.meanings[0].definitions[0]).toMatchObject({definition:'A readable dictionary definition.',example:'A readable dictionary example.',translatedDefinition:'合成译文 document-private'});
+-  expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');expect(browserBoundary.runtime.sendMessage.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false]);
++  expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');expect(dispatch.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false]);
+  });
+  it('selects the effective frontend pair before ordinary missing-model capability planning and preserves private prompt',async()=>{
+   await store.requestConfigPatch({service:catalog.services.openai,selectionTranslationService:catalog.services.openai,model:{},customModel:{},system_role:{[privateService]:'PRIVATE_CARD_PROMPT',openai:'PUBLIC_CARD_PROMPT'}});
+@@ -234,7 +244,7 @@ describe('word-card model safety and compatibility',()=>{
+   browserBoundary.extension.inIncognitoContext=false;nativeSender.tab.incognito=false;await runWord();expect(calls).toHaveLength(2);
+   browserBoundary.extension.inIncognitoContext=true;nativeSender.tab.incognito=true;await runWord();expect(calls).toHaveLength(4);await runWord();expect(calls).toHaveLength(4);
+   await store.requestConfigPatch({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://next-private.synthetic.test/v1/chat/completions'}:p)});await runWord();expect(calls).toHaveLength(6);expect(calls.slice(-2).every(call=>call.url==='https://next-private.synthetic.test/v1/chat/completions')).toBe(true);
+-  expect(lookupBoundary).toHaveBeenCalledOnce();expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
++  expect(lookupBoundary).toHaveBeenCalledTimes(2);expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
+  });
+  const patches={
+   model:()=>({incognitoModel:'document-next'}),endpoint:()=>({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://save-private.synthetic.test/v1/chat/completions'}:p)}),
+@@ -280,6 +290,151 @@ describe('word-card native API and concurrent source controls',()=>{
+   await runWord();expect(calls).toHaveLength(2);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private',thinkingOverride:true,context:'',enableAIContext:false,pageContext:undefined});expect(JSON.stringify(calls.map(call=>call.body))).toContain('DEDICATED_DICTIONARY_PROMPT');expect(JSON.stringify(calls.map(call=>call.body))).not.toContain('ORDINARY_DICTIONARY_PROMPT');expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBe('合成译文 document-private');
+  });
+  it('Chrome direct runtime uses module API and actual native sender without global browser',async()=>{
+-  m.target='chrome';vi.stubGlobal('browser',undefined);try{await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL)).toBe(true);expect(browserBoundary.runtime.connect).not.toHaveBeenCalled();}finally{vi.stubGlobal('browser',browserBoundary);}
++  m.target='chrome';vi.stubGlobal('browser',undefined);try{await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL)).toBe(true);expect(browserBoundary.runtime.connect).toHaveBeenCalledOnce();expect(dispatch.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup')).toHaveLength(1);}finally{vi.stubGlobal('browser',browserBoundary);}
++ });
++});
++
++/** 使用默认真实词典适配器；只把 extension 资源和 HTTP 响应放在离线边界。 */
++async function installActualDictionaryBoundary(hold=false,optionalCache=false){
++ Object.assign(window,{getSelection:()=>null});
++ const dictionary=await import('@/src/features/selection-translation/services/wordDictionary');
++ const word=await import('@/src/features/selection-translation/background/wordLookupHandler');
++ const requestModule=await import('@/src/services/translation/requestRegistry');
++ const registry=requestModule.createTranslationRequestRegistry(true);
++ const network:Array<{url:string;signal?:AbortSignal|null}>=[];let ended=0;
++ let held=hold;const gate=deferred<Response>();pendingResponses.push(()=>gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'old dictionary result'}]}]}]),{headers:{'content-type':'application/json'}})));
++ if(optionalCache)vi.stubGlobal('caches',{open:vi.fn(async()=>({match:vi.fn(async()=>undefined),put:vi.fn(),delete:vi.fn()})),match:vi.fn(async()=>undefined)});
++ const http=await import('@/src/platform/http/runtime');http.setRuntimeFetch(async(url,init)=>{
++  if(init?.body)return transport(url,init);
++  const value=String(url);network.push({url:value,signal:init?.signal});
++  if(value.startsWith('moz-extension://ext/'))return new Response(JSON.stringify([['fixture','/fixture/','n. local definition','n. 本地词义']]),{headers:{'content-type':'application/json'}});
++  if(held)return gate.promise.then(response=>response.clone());
++  if(value.includes('api.dictionaryapi.dev'))return new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'fresh dictionary result'}]}]}]),{headers:{'content-type':'application/json'}});
++  return new Response('[]',{headers:{'content-type':'application/json'},status:404});
++ });
++ const native=(word as any).createNativeSelectionWordLookupRuntime;
++ const runtime=native ? (await import('@/src/app/background/selectionDictionaryRuntime')).createSelectionDictionaryRuntime() : undefined;
++ const handlers:Array<{type:string;handle(message:any,context:any):any}>=[...(runtime?.handlers??[word.createSelectionWordLookupHandler({lookupWord:dictionary.lookupWord,getDefaultTargetLanguage:()=>store.config.to,translate:(await import('@/src/app/translation/runtime')).translateWithCache,warn:vi.fn()})])];
++ const original=handlers[0].handle;handlers[0]={...handlers[0],async handle(message:any,context:any){try{return await original(message,context);}finally{ended++;}}};
++ const router=(await import('@/src/app/background/messageRouter')).createBackgroundMessageRouter<any>(handlers);
++ dispatch=vi.fn((message,context)=>router.dispatch({...message,incognito:false,sourcePrivacy:'regular',documentId:'forged'},context));
++ server=(await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId:'ext',dispatch,registries:[runtime?.registry??registry]});
++ functionsForDictionaryCleanup.push(()=>{if(runtime && 'dispose' in runtime)runtime.dispose();});
++ return {network,gate,runtime,external:()=>network.filter(item=>!item.url.startsWith('moz-extension://')),ended:()=>ended,resume:()=>{held=false;}};
++}
++const functionsForDictionaryCleanup:Array<()=>void>=[];
++afterEach(()=>{functionsForDictionaryCleanup.splice(0).forEach(fn=>fn());});
++function recordDictionary(value:Record<string,unknown>){const path=process.env.FLUENTREAD_DICTIONARY_OBSERVATIONS;if(path)appendFileSync(path,JSON.stringify(value)+'\n');}
++function rawRequest(word='secretwordfixture'){state.snapshot={text:word,parts:[{kind:'text',text:word}]};state.selectedText=word;return state.beginSelectionContentRequest(word);}
++async function rawWord(word='secretwordfixture'){await complete(state.requestWordCard(rawRequest(word)));}
++
++describe('actual non-model dictionary privacy and document boundary',()=>{
++ it.each(['private','unknown'] as const)('restricted %s miss sends no word or optional download to external providers',async privacy=>{
++  nativeSender.tab.incognito=privacy==='private'?true:undefined;browserBoundary.extension.inIncognitoContext=false;
++  const boundary=await installActualDictionaryBoundary(false,true);await rawWord();
++  recordDictionary({phase:'restricted-miss',privacy,externalRequests:boundary.external().length,cardPresent:Boolean(state.wordCard),note:state.wordCardError});
++  expect(boundary.external()).toEqual([]);expect(state.wordCard).toBeNull();expect(state.wordCardError).toContain('在线查询');
++ });
++ it('restricted private source retains the actual bundled local provider result',async()=>{
++  const boundary=await installActualDictionaryBoundary(false,true);await rawWord('fixture');
++  expect(boundary.external()).toEqual([]);expect(state.wordCard.sources[0].id).toBe('ecdict-local');expect(state.wordCardError).toContain('在线查询');
++ });
++ it.each(['regular','private-empty','unknown-empty'] as const)('%s retains normal online dictionary fallback',async kind=>{
++  nativeSender.tab.incognito=kind==='regular'?false:kind==='private-empty'?true:undefined;
++  if(kind!=='regular')await store.requestConfigPatch({incognitoService:'',incognitoModel:''});
++  const boundary=await installActualDictionaryBoundary();await rawWord();expect(boundary.external().length).toBeGreaterThan(0);expect(state.wordCard.meanings[0].definitions[0].definition).toBe('fresh dictionary result');
++ });
++ it('regular raw cache cannot supply another native document',async()=>{
++  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary();await rawWord();const first=boundary.external().length;
++  state.closeTooltip();nativeSender.documentId='another-document';await rawWord();
++  recordDictionary({phase:'regular-documents',firstExternal:first,finalExternal:boundary.external().length});expect(boundary.external().length).toBeGreaterThan(first);
++ });
++ it('regular raw cache cannot supply a restricted private document',async()=>{
++  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary();await rawWord();const first=boundary.external().length;
++  state.closeTooltip();nativeSender.tab.incognito=true;nativeSender.documentId='private-document';await rawWord();
++  recordDictionary({phase:'profile-cache',firstExternal:first,finalExternal:boundary.external().length,cardPresent:Boolean(state.wordCard)});
++  expect(boundary.external()).toHaveLength(first);expect(state.wordCard).toBeNull();expect(state.wordCardError).toContain('在线查询');
++ });
++ it.each(['close','pagehide','config'] as const)('%s releases held online lookup and prevents late raw cache/card publication',async action=>{
++  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary(true);const pending=state.requestWordCard(rawRequest());
++  await pump(()=>boundary.external().length===5);expect(boundary.external()).toHaveLength(5);
++  if(action==='close')state.closeTooltip();else if(action==='pagehide')windowEvents.get('pagehide')?.forEach(fn=>fn({isTrusted:true}));else await store.requestConfigPatch({incognitoModel:'document-next'});
++  for(let i=0;i<5;i++)await settle();const held={phase:'cancel-held',action,gateReleased:false,handlerEnded:boundary.ended(),signalsAborted:boundary.external().every(item=>item.signal?.aborted),cardPresent:Boolean(state.wordCard)};recordDictionary(held);
++  boundary.gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'old dictionary result'}]}]}]),{headers:{'content-type':'application/json'}}));await complete(pending);await settle();
++  expect(held).toMatchObject({handlerEnded:1,signalsAborted:true,cardPresent:false});expect(state.wordCard).toBeNull();
++  boundary.resume();await rawWord();const definition=state.wordCard.meanings[0].definitions[0].definition;
++  recordDictionary({phase:'fresh-after-cancel',action,externalRequests:boundary.external().length,definition});
++  expect(boundary.external()).toHaveLength(10);expect(definition).toBe('fresh dictionary result');
++ });
++});
++
++describe('dictionary background composition compatibility',()=>{
++ it('legacy composition keeps configured target/service and reports enrichment failure',async()=>{
++  nativeSender.tab.incognito=false;await installActualDictionaryBoundary();
++  const compose=(await import('@/src/app/background/selectionDictionaryRuntime')).createSelectionDictionaryRuntime;
++  const legacy=compose(false);expect(legacy.registry).toBeUndefined();
++  const translate=vi.spyOn(await import('@/src/app/translation/runtime'),'translateWithCache').mockResolvedValueOnce(['兼容释义']);
++  const warn=vi.spyOn(console,'warn').mockImplementation(()=>undefined);
++  try {
++   await store.requestConfigPatch({selectionTranslationService:publicService});
++   const success:any=await legacy.handlers[0].handle({type:'selectionWordLookup',word:'secretwordfixture'} as any,{});
++   expect(success.data.meanings[0].definitions[0].translatedDefinition).toBe('兼容释义');expect(translate.mock.calls[0][0]).toMatchObject({serviceOverride:publicService,targetLanguage:store.config.to});
++   await store.requestConfigPatch({selectionTranslationService:''});translate.mockRejectedValueOnce(new Error('synthetic enrichment failure'));
++   const result:any=await legacy.handlers[0].handle({type:'selectionWordLookup',word:'secretwordfixture'} as any,{});expect(result.success).toBe(true);expect(warn).toHaveBeenCalled();expect(translate.mock.calls[1][0].serviceOverride).toBe(store.config.service);
++  } finally {warn.mockRestore();translate.mockRestore();}
++ });
++});
++
++describe('native dictionary admission and shared raw query',()=>{
++ const message=(clientRequestId='word-one')=>({type:'selectionWordLookup' as const,word:'fixture',translateFields:false,clientRequestId});
++ async function local(ready:Promise<void>=store.configReady,runtime:typeof browserBoundary.runtime=browserBoundary.runtime){
++  const dictionary=await import('@/src/features/selection-translation/services/wordDictionary');
++  const native=(await import('@/src/features/selection-translation/background/wordLookupHandler')).createNativeSelectionWordLookupRuntime({ready,getConfig:()=>store.config,runtime,subscribeConfig:store.subscribeConfig,
++   lookup:dictionary.createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:lookupBoundary}]})});functionsForDictionaryCleanup.push(()=>native.dispose());
++  let context!:import('@/src/services/translation/requestRegistry').TranslationRequestContext;
++  const channel=(await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId:'ext',dispatch:async(_message,captured)=>{context=captured;return{handled:true,response:{success:true}};},registries:[native.registry]});
++  const pair=documentPortPair(nativeSender);pairs.push(pair);channel.connect({...pair.background,name:'fluentReadTranslationDocument:v1'});
++  const client=(await import('@/src/services/translation/documentClient')).createTranslationDocumentClient(()=>({...pair.client,name:'fluentReadTranslationDocument:v1'}));await client.request(message('capture'));functionsForDictionaryCleanup.push(()=>client.dispose());return{...native,context};
++ }
++ it.each(['foreign-extension','missing-extension','missing-port','bad-id','bad-word','translate-fields','target'] as const)('%s refuses raw lookup before any provider',async kind=>{
++  const runtime=await local(),msg:any=message();let context:any=(await import('@/src/services/translation/requestRegistry')).captureTranslationRequestContext(runtime.context);
++  if(kind==='foreign-extension')context.sender.id='foreign';if(kind==='missing-extension')delete browserBoundary.runtime.id;if(kind==='missing-port')context={sender:nativeSender};
++  if(kind==='bad-id')msg.clientRequestId='bad id';if(kind==='bad-word')msg.word=null;if(kind==='translate-fields')msg.translateFields=true;if(kind==='target')msg.targetLanguage=' ';
++  await expect(runtime.handlers[0].handle(msg,context)).rejects.toThrow();expect(lookupBoundary).not.toHaveBeenCalled();
++ });
++ it.each(['private','regular'] as const)('local provider failure is explicit and no online replacement occurs for %s',async privacy=>{
++  nativeSender.tab.incognito=privacy==='private';lookupBoundary.mockRejectedValue(new Error('synthetic local unavailable'));const runtime=await local();const pending=runtime.handlers[0].handle(message(),runtime.context);
++  if(privacy==='private')await expect(pending).resolves.toMatchObject({success:true,data:null,onlineDictionaryRestricted:true});else await expect(pending).rejects.toThrow('不可用');expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toEqual([]);
++ });
++ it.each(['cancel','deadline','source-cancel'] as const)('%s releases native preparation before late readiness/source response',async action=>{
++  const gate=deferred<void>(),contextGate=deferred<unknown>();
++  if(action==='source-cancel'){delete nativeSender.tab;nativeSender.url='moz-extension://ext/popup.html';m.contexts.mockReturnValue(contextGate.promise);}
++  const runtime=await local(action==='source-cancel'?store.configReady:gate.promise),context=runtime.context,pending=runtime.handlers[0].handle(message(),context).catch(error=>error);await settle();
++  if(action==='deadline')await vi.advanceTimersByTimeAsync(3501);else runtime.handlers[1].handle({clientRequestId:'word-one'},context);
++  await expect(pending).resolves.toMatchObject({name:'AbortError'});expect(runtime.registry.cancel('word-one',context).cancelled).toBe(false);gate.resolve();if(action==='source-cancel')contextGate.reject(new Error('late context failure'));else contextGate.resolve([]);await settle();expect(lookupBoundary).not.toHaveBeenCalled();
++ });
++ it('real Port cancellation preserves the other subscriber and the shared HTTP query',async()=>{
++  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary(true);const client=(await import('@/src/services/translation/documentClient')).createTranslationDocumentClient(()=>browserBoundary.runtime.connect({name:'fluentReadTranslationDocument:v1'}));
++  const first=client.request({...message('first'),word:'secretwordfixture'}),second=client.request({...message('second'),word:'secretwordfixture'});await pump(()=>boundary.external().length===5);expect(boundary.external()).toHaveLength(5);
++  await client.request({type:'selectionWordLookupCancel',clientRequestId:'first'});await expect(first).resolves.toMatchObject({success:false});expect(boundary.external().every(item=>!item.signal?.aborted)).toBe(true);
++  boundary.gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'valid shared result'}]}]}]),{headers:{'content-type':'application/json'}}));
++  await expect(second).resolves.toMatchObject({success:true,data:{word:'secretwordfixture'}});expect(boundary.external()).toHaveLength(5);client.dispose();
++ });
++ it('restricted cached data is displayed with a visible explicit limitation and never enters persistent raw storage',async()=>{
++  await installActualDictionaryBoundary();await rawWord('fixture');state.showTooltip=true;renderCardDOM();await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('仅显示本地词典，在线查询不可用');
++   await store.requestConfigPatch({uiLanguage:'en-US'});await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('Local dictionary only. Online lookup is unavailable.');await store.requestConfigPatch({uiLanguage:'zh-CN'});await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('仅显示本地词典，在线查询不可用');
++  expect([...m.values.keys()].some(key=>/word|dictionary/iu.test(key))).toBe(false);expect(cacheWrite).not.toHaveBeenCalled();expect(calls).toEqual([]);
++ });
++});
++
++
++describe('native dictionary feedback localization',()=>{
++ it.each(['zh-CN','en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES'] as const)('%s provides both short restriction notes',async language=>{
++  const {nativeDictionaryFeedback:source,localizeNativeDictionaryFeedback:localize}=await import('@/src/core/i18n/messages/native-dictionary-feedback');const copy={local:source('local'),missing:source('missing')};
++  const local=localize(copy.local,language),missing=localize(copy.missing,language);expect(local).toBeTruthy();expect(missing).toBeTruthy();expect(local).not.toBe(missing);
++  if(language!=='zh-CN')expect(local).not.toBe(copy.local);expect(localize(local!, 'zh-CN')).toBe(copy.local);expect(localize(missing!, 'zh-CN')).toBe(copy.missing);expect(localize('ordinary feedback',language)).toBeUndefined();
++ });
++ it('falls back to Chinese for an unrecognized interface language',async()=>{
++  const {nativeDictionaryFeedback:source,localizeNativeDictionaryFeedback:localize}=await import('@/src/core/i18n/messages/native-dictionary-feedback');const copy={local:source('local'),missing:source('missing')};expect(localize(copy.local,'invalid' as any)).toBe(copy.local);
+  });
+ });
+diff --git a/tests/wordDictionaryEdge.test.ts b/tests/wordDictionaryEdge.test.ts
+index 6c608da7..bb44899e 100644
+--- a/tests/wordDictionaryEdge.test.ts
++++ b/tests/wordDictionaryEdge.test.ts
+@@ -2,12 +2,13 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
+ import {createHash, webcrypto} from 'node:crypto';
+ import {readFileSync} from 'node:fs';
+ import {resolve} from 'node:path';
+-import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict} from '@/src/features/selection-translation/services/ecdictAsset';
++import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, readAvailableFullEcdict} from '@/src/features/selection-translation/services/ecdictAsset';
+ import {setRuntimeFetch} from '@/src/platform/http/runtime';
+ import {
+     clearWordDictionaryCache,
+     createDefaultWordDictionaryProviders,
+     createWordDictionaryLookup,
++    createNativeWordDictionaryLookup,
+     lookupWord,
+     mergeWordCardData,
+     normalizeEnglishWord,
+@@ -703,3 +704,59 @@ describe('word dictionary lookup orchestration', () => {
+         expect(await dictionary.lookup('recovered')).not.toBeNull();
+     });
+ });
++
++describe('native dictionary document cache and subscriber lifetime',()=>{
++ const request=(ownerKey='document-a',signal=new AbortController().signal,privacy:'private'|'regular'|'unknown'='regular',onlineAllowed=true)=>({ownerKey,signal,privacy,onlineAllowed});
++ const deferred=<T>()=>{let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((done,fail)=>{resolve=done;reject=fail;});return{promise,resolve,reject};};
++ it('shares a live regular query and cancellation of one subscriber preserves the other',async()=>{
++  const gate=deferred<WordCardData|null>(),lookupBoundary=vi.fn((_word:string,_signal?:AbortSignal)=>gate.promise),lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:lookupBoundary}]});
++  const first=new AbortController(),second=new AbortController(),cancelled=lookup.lookup('fixture',request('same-owner',first.signal)).catch(error=>error),valid=lookup.lookup('fixture',request('same-owner',second.signal));
++  first.abort();await expect(cancelled).resolves.toMatchObject({name:'AbortError'});expect(lookupBoundary).toHaveBeenCalledOnce();expect(lookupBoundary.mock.calls[0][1]?.aborted).toBe(false);
++  gate.resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});lookup.clearCache();
++ });
++ it('owner release aborts only its scoped task and preserves another regular owner',async()=>{
++  const gates=[deferred<WordCardData|null>(),deferred<WordCardData|null>()],signals:AbortSignal[]=[];let next=0;
++  const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:(_word,signal)=>{signals.push(signal!);return gates[next++].promise;}}]});
++  const closed=lookup.lookup('fixture',request('closed')).catch(error=>error),valid=lookup.lookup('fixture',request('valid'));lookup.releaseOwner('closed');
++  await expect(closed).resolves.toMatchObject({name:'AbortError'});expect(signals[0].aborted).toBe(true);expect(signals[1].aborted).toBe(false);gates[0].reject(new Error('late closed provider failure'));gates[1].resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});lookup.clearCache();
++ });
++ it('clones cached raw data, scopes regular/private documents and clears positive and negative records',async()=>{
++  const boundary=vi.fn(async(word:string)=>word==='missing'?null:card(word));const lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});
++  const first=await lookup.lookup('fixture',request());first!.meanings[0].definitions[0].definition='mutated visible copy';expect((await lookup.lookup('fixture',request()))!.meanings[0].definitions[0].definition).toBe('an English definition');
++  await lookup.lookup('fixture',request('private-document',undefined,'private',false));await lookup.lookup('missing',request());await lookup.lookup('missing',request());expect(boundary).toHaveBeenCalledTimes(3);
++  lookup.clearCache();await lookup.lookup('fixture',request());await lookup.lookup('missing',request());expect(boundary).toHaveBeenCalledTimes(5);lookup.clearCache();
++ });
++ it('rejects an already cancelled lookup before providers and returns no card for non-words',async()=>{
++  const boundary=vi.fn(),lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});const controller=new AbortController();controller.abort();
++  await expect(lookup.lookup('fixture',request('doc',controller.signal))).rejects.toMatchObject({name:'AbortError'});expect(await lookup.lookup('two words',request())).toBeNull();expect(boundary).not.toHaveBeenCalled();
++ });
++ it('bounds each document to the existing 80 raw records and evicts its oldest word',async()=>{
++  const boundary=vi.fn(async(word:string)=>card(word)),lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});
++  const word=(i:number)=>'word'+String.fromCharCode(97+Math.floor(i/26),97+i%26);for(let i=0;i<81;i++)await lookup.lookup(word(i),request());await lookup.lookup(word(0),request());expect(boundary).toHaveBeenCalledTimes(82);lookup.clearCache();
++ });
++ it.each(['owner-close','subscriber-cancel'] as const)('%s at response completion cannot publish a raw card',async action=>{
++  let closeOnResponse=true;const controller=new AbortController();let lookup!:ReturnType<typeof createNativeWordDictionaryLookup>;
++  const boundary=vi.fn(async(word:string,signal?:AbortSignal)=>{signal!.addEventListener('abort',()=>{if(closeOnResponse){closeOnResponse=false;if(action==='owner-close')lookup.releaseOwner('doc');else controller.abort();}},{once:true});return card(word);});
++  lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});await expect(lookup.lookup('fixture',request('doc',controller.signal))).rejects.toMatchObject({name:'AbortError'});
++  await expect(lookup.lookup('fixture',request('doc'))).resolves.toMatchObject({word:'fixture'});expect(boundary).toHaveBeenCalledTimes(2);lookup.clearCache();
++ });
++ it('an old cancellation cannot delete a fresh same-owner task or turn late failure into cache',async()=>{
++  const old=deferred<WordCardData|null>(),fresh=deferred<WordCardData|null>();let next=0;const boundary=vi.fn(()=>[old,fresh][next++].promise);
++  const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:boundary}]}),controller=new AbortController();const cancelled=lookup.lookup('fixture',request('doc',controller.signal)).catch(error=>error);controller.abort();await expect(cancelled).resolves.toMatchObject({name:'AbortError'});const valid=lookup.lookup('fixture',request('doc'));
++  old.reject(new Error('late obsolete failure'));fresh.resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});expect(await lookup.lookup('fixture',request('doc'))).toMatchObject({word:'fixture'});expect(boundary).toHaveBeenCalledTimes(2);lookup.clearCache();
++ });
++ it('bounds unavailable and partial online lookups without caching a provider failure',async()=>{
++  vi.useFakeTimers();const gate=deferred<WordCardData|null>();const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:()=>gate.promise}]});const pending=lookup.lookup('fixture',request()).catch(error=>error);await vi.advanceTimersByTimeAsync(2501);await expect(pending).resolves.toMatchObject({message:'词典查询暂时不可用'});gate.reject(new Error('late timeout failure'));lookup.clearCache();
++  const partial=card('fixture','datamuse',{definition:'',phonetic:'/test/'}),never=deferred<WordCardData|null>();const phonetics=createNativeWordDictionaryLookup({providers:[{id:'datamuse',lookup:async()=>partial},{id:'free-dictionary',lookup:()=>never.promise}]});const partialRun=phonetics.lookup('fixture',request());await vi.advanceTimersByTimeAsync(2501);await expect(partialRun).resolves.toMatchObject({phonetics:[{text:'/test/'}],meanings:[]});never.resolve(null);phonetics.clearCache();
++ });
++ it('restricted readers use a verified existing full asset without any persistent operation',async()=>{
++  const match=vi.fn(async()=>new Response(fullEcdictBytes())),open=vi.fn(),put=vi.fn(),remove=vi.fn();vi.stubGlobal('caches',{match,open,put,delete:remove});vi.stubGlobal('crypto',webcrypto);
++  expect(await readAvailableFullEcdict()).toHaveLength(20_000);expect(open).not.toHaveBeenCalled();expect(put).not.toHaveBeenCalled();expect(remove).not.toHaveBeenCalled();
++  vi.stubGlobal('browser',{runtime:{getURL:()=> 'moz-extension://ext/ecdict-core.json'}});const fetch=vi.fn(async()=>new Response('[]'));setRuntimeFetch(fetch);const lookup=createNativeWordDictionaryLookup();await expect(lookup.lookup('puma',request('private',undefined,'private',false))).resolves.toMatchObject({word:'puma'});expect(fetch).toHaveBeenCalledOnce();lookup.clearCache();
++ });
++ it.each(['missing','malformed-core','missing-core','malformed-cache','cache-reject'] as const)('restricted local %s never creates cache or starts online fallback',async failure=>{
++  const open=vi.fn(),put=vi.fn(),remove=vi.fn(),match=vi.fn(async()=>failure==='cache-reject'?Promise.reject(new Error('cache unavailable')):failure==='malformed-cache'?new Response('corrupt'):undefined);
++  vi.stubGlobal('caches',{match,open,put,delete:remove});vi.stubGlobal('browser',failure==='missing'?undefined:{runtime:{getURL:()=> 'moz-extension://ext/ecdict-core.json'}});
++  const fetch=vi.fn(async()=>failure==='missing-core'?new Response('',{status:404}):new Response('{}'));setRuntimeFetch(fetch);const lookup=createNativeWordDictionaryLookup();expect(await lookup.lookup('fixture',request('private',undefined,'private',false))).toBeNull();expect(fetch.mock.calls.length).toBe(failure==='missing'?0:1);expect(open).not.toHaveBeenCalled();expect(put).not.toHaveBeenCalled();expect(remove).not.toHaveBeenCalled();lookup.clearCache();
++ });
++});
+diff --git a/userscript/incognitoRoute.ts b/userscript/incognitoRoute.ts
+index 96a4f804..863b0226 100644
+--- a/userscript/incognitoRoute.ts
++++ b/userscript/incognitoRoute.ts
+@@ -6,7 +6,8 @@ const unavailable = (_context: object): undefined => undefined;
+ export {unavailable as initializeIncognitoRouteConfig, unavailable as normalizeIncognitoRouteConfig,
+     unavailable as resolveIncognitoRoute, unavailable as getLockedIncognitoRoute,
+     unavailable as resolvePageTranslationRouteHint, unavailable as fullPageTranslationConfigKey,
+-    unavailable as translateVisibleWordCardFields};
++    unavailable as translateVisibleWordCardFields, unavailable as nativeDictionaryFeedback,
++    unavailable as localizeNativeDictionaryFeedback};
+ export {unavailable as getTranslationSourcePrivacy, unavailable as assertTranslationSourcePrivacy};
+ export {hasTrustedPrivateSource as hasConfiguredIncognitoRoute};
+ export function hasTrustedPrivateSource(_message: object): false {return false;}
+diff --git a/vitest.coverage.config.ts b/vitest.coverage.config.ts
+index e0d9d1be..41c86db9 100644
+--- a/vitest.coverage.config.ts
++++ b/vitest.coverage.config.ts
+@@ -791,6 +791,8 @@ export default defineConfig({
+                 'src/features/selection-translation/background/wordLookupHandler.ts',
+                 'src/features/selection-translation/services/edgeTtsPolicy.ts',
+                 'src/features/selection-translation/services/wordNormalization.ts',
++                'src/app/background/selectionDictionaryRuntime.ts',
++                'src/core/i18n/messages/native-dictionary-feedback.ts',
+                 'src/features/selection-translation/services/wordDictionary.ts',
+                 'src/features/video-subtitle/content/youtubeSubtitleData.ts',
+                 'src/features/video-subtitle/content/platforms.ts',

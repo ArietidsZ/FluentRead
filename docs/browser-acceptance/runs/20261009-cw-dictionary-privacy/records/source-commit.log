@@ -1,0 +1,4 @@
+[fix/incognito-model-route-20261008 c06caac8] fix: isolate native dictionary lookup and raw cache
+ 14 files changed, 495 insertions(+), 29 deletions(-)
+ create mode 100644 src/app/background/selectionDictionaryRuntime.ts
+ create mode 100644 src/core/i18n/messages/native-dictionary-feedback.ts

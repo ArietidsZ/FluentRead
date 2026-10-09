@@ -1,0 +1,21 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+tests/wordCardPrivacyRoute.test.ts(317,70): error TS2322: Type '(message: any, context: any) => Promise<TranslationCancelResponse | { success: true; data: WordCardData | null; } | { success: boolean; data: WordCardData | null; onlineDictionaryRestricted: boolean; }>' is not assignable to type '((message: SelectionWordLookupMessage) => Promise<{ success: true; data: WordCardData | null; }>) | ((message: SelectionWordLookupMessage & { ...; }, context: TranslationRequestContext) => Promise<...>) | ((message: { ...; }, context: TranslationRequestContext) => TranslationCancelResponse)'.
+  Type '(message: any, context: any) => Promise<TranslationCancelResponse | { success: true; data: WordCardData | null; } | { success: boolean; data: WordCardData | null; onlineDictionaryRestricted: boolean; }>' is not assignable to type '(message: SelectionWordLookupMessage) => Promise<{ success: true; data: WordCardData | null; }>'.
+    Target signature provides too few arguments. Expected 2 or more, but got 1.
+tests/wordCardPrivacyRoute.test.ts(318,103): error TS2345: Argument of type '({ type: "selectionWordLookup"; handle(message: SelectionWordLookupMessage & { clientRequestId?: unknown; }, context: TranslationRequestContext): Promise<...>; } | { ...; })[] | SelectionWordLookupHandler[]' is not assignable to parameter of type 'readonly BackgroundMessageHandler<any, BackgroundMessage, unknown>[]'.
+  Type '({ type: "selectionWordLookup"; handle(message: SelectionWordLookupMessage & { clientRequestId?: unknown; }, context: TranslationRequestContext): Promise<...>; } | { ...; })[]' is not assignable to type 'readonly BackgroundMessageHandler<any, BackgroundMessage, unknown>[]'.
+    Type '{ type: "selectionWordLookup"; handle(message: SelectionWordLookupMessage & { clientRequestId?: unknown; }, context: TranslationRequestContext): Promise<...>; } | { ...; }' is not assignable to type 'BackgroundMessageHandler<any, BackgroundMessage, unknown>'.
+      Type '{ type: string; handle(message: { clientRequestId?: unknown; }, context: TranslationRequestContext): TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<any, BackgroundMessage, unknown>'.
+        Types of property 'handle' are incompatible.
+          Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: any) => unknown'.
+            Types of parameters 'message' and 'message' are incompatible.
+              Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+tests/wordCardPrivacyRoute.test.ts(321,50): error TS2339: Property 'dispose' does not exist on type '{ handlers: ({ type: "selectionWordLookup"; handle(message: SelectionWordLookupMessage & { clientRequestId?: unknown; }, context: TranslationRequestContext): Promise<...>; } | { ...; })[]; registry: TranslationRequestRegistry; dispose(): void; } | { ...; }'.
+  Property 'dispose' does not exist on type '{ registry: undefined; handlers: SelectionWordLookupHandler[]; }'.
+tests/wordCardPrivacyRoute.test.ts(379,47): error TS2554: Expected 2 arguments, but got 1.
+tests/wordCardPrivacyRoute.test.ts(382,46): error TS2554: Expected 2 arguments, but got 1.
+tests/wordCardPrivacyRoute.test.ts(411,164): error TS2339: Property 'catch' does not exist on type 'TranslationCancelResponse | Promise<{ success: boolean; data: WordCardData | null; onlineDictionaryRestricted: boolean; }>'.
+  Property 'catch' does not exist on type 'TranslationCancelResponse'.
+tests/wordCardPrivacyRoute.test.ts(411,170): error TS7006: Parameter 'error' implicitly has an 'any' type.
+tests/wordCardPrivacyRoute.test.ts(412,98): error TS2345: Argument of type '{ clientRequestId: string; }' is not assignable to parameter of type 'SelectionWordLookupMessage & { clientRequestId?: unknown; }'.
+  Property 'type' is missing in type '{ clientRequestId: string; }' but required in type 'SelectionWordLookupMessage'.

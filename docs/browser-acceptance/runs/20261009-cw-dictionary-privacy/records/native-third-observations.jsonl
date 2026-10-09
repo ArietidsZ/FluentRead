@@ -1,0 +1,7 @@
+{"phase":"restricted-miss","privacy":"private","externalRequests":0,"cardPresent":false,"note":"在线词典在此隐私路径不可用；本地词典未能提供条目，译文会继续显示。"}
+{"phase":"restricted-miss","privacy":"unknown","externalRequests":0,"cardPresent":false,"note":"在线词典在此隐私路径不可用；本地词典未能提供条目，译文会继续显示。"}
+{"phase":"regular-documents","firstExternal":5,"finalExternal":10}
+{"phase":"profile-cache","firstExternal":5,"finalExternal":5,"cardPresent":false}
+{"phase":"cancel-held","action":"close","gateReleased":false,"handlerEnded":1,"signalsAborted":true,"cardPresent":false}
+{"phase":"cancel-held","action":"pagehide","gateReleased":false,"handlerEnded":1,"signalsAborted":true,"cardPresent":false}
+{"phase":"cancel-held","action":"config","gateReleased":false,"handlerEnded":1,"signalsAborted":true,"cardPresent":false}

@@ -1,0 +1,3 @@
+{"phase":"restricted-miss","privacy":"private","externalRequests":8,"cardPresent":false,"note":""}
+{"phase":"restricted-miss","privacy":"unknown","externalRequests":8,"cardPresent":false,"note":""}
+{"phase":"cancel-held","action":"config","gateReleased":false,"handlerEnded":0,"signalsAborted":false,"cardPresent":false}

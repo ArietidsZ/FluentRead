@@ -1,0 +1,6 @@
+{
+  "outcome": "An expensive SequenceMatcher comparator was interrupted after verifying unique task PID/cwd/command; finally restored source and candidate artifact. Linear decoded CSS comparison then completed.",
+  "exitCode": 130,
+  "temporarySourceRestored": true,
+  "otherUserProcessesInterrupted": false
+}

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "git",
+    "ls-remote",
+    "origin",
+    "refs/heads/fix/incognito-model-route-20261008"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T01:26:38.646523+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T01:26:39.304934+00:00",
+  "durationSeconds": 0.658,
+  "exitCode": 0
+}

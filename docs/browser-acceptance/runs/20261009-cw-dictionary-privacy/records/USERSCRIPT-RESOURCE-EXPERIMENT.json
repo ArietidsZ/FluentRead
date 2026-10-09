@@ -1,0 +1,27 @@
+{
+  "measurement": "Observed build artifact bytes and SHA256 immediately after each local development build; no byte-identity or complete semantic equivalence claim.",
+  "attempts": [
+    {
+      "label": "userscript-localization",
+      "bytes": 1956315,
+      "sha256": "44c5b08fb3d1022026e221a39b3954efddf8a4185c2cf9d6f9e063ee1fadc8a7",
+      "headroom": -1315,
+      "nativeNoteSentinelRetained": true
+    },
+    {
+      "label": "userscript-resource-scope",
+      "bytes": 1956323,
+      "sha256": "87af5ddf037613971e7b81879e86f06b81d620ce79780a9b1ca9f223ff84aa21",
+      "headroom": -1323,
+      "nativeNoteSentinelRetained": true
+    },
+    {
+      "label": "userscript-existing-boundary",
+      "bytes": 1954994,
+      "sha256": "dd70b5147e4b41a25407add0629d9fada69e9ba6a2de3eae053d8b31d83c0525",
+      "headroom": 6,
+      "nativeNoteSentinelRetained": false
+    }
+  ],
+  "fix": "Use existing wordLookupHandler userscript alias; add two compatibility exports backed by its existing unavailable function. No alias mapping or byte budget change."
+}

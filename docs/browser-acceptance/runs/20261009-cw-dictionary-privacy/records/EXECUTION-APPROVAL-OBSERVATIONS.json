@@ -1,0 +1,19 @@
+{
+  "requiredActions": [
+    "CW full strict/architecture local subprocess and temporary loopback tests",
+    "Git worktree common metadata stage/commit",
+    "read-only Git remote SHA preflight",
+    "ordinary existing-branch push and independent post-push SHA verification"
+  ],
+  "completedBeforePublication": [
+    "full strict/architecture exited 0",
+    "source stage/commit exited 0",
+    "remote preflight exited 0"
+  ],
+  "networkPushState": "authorized; pending execution after evidence commit",
+  "persistentProductPermissionsChanged": false,
+  "newAgentOrWorkTaskStarted": false,
+  "signedApprovalDecisionsAvailable": false,
+  "automaticApprovalRejectionObserved": false,
+  "approvalEvidence": "Tool executions with per-command require_escalated completed. No signed approval decision is exposed; no historical approval is invented."
+}

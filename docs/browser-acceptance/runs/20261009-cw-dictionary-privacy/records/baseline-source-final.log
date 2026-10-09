@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/wordCardPrivacyRoute.test.ts --no-cache -t actual non-model dictionary --reporter=json --outputFile=<CW-EVIDENCE>/baseline-source-final.results.json
+JSON report written to <CW-EVIDENCE>/baseline-source-final.results.json

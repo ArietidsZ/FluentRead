@@ -1,0 +1,22 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "actual non-model dictionary",
+    "--reporter=json",
+    "--outputFile=../dictionary-privacy-isolation-20261009/baseline-checked.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:26:21.830368+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T00:26:23.776910+00:00",
+  "durationSeconds": 1.947,
+  "exitCode": 1
+}

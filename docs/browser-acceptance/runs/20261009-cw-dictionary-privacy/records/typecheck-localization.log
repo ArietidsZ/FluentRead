@@ -1,0 +1,103 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vue-tsc/bin/vue-tsc.js --noEmit
+src/app/background/messageRuntime.ts(90,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(91,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(96,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(97,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(98,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(99,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(107,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(114,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(119,9): error TS2322: Type 'SelectionWordLookupHandler | { readonly type: "selectionWordLookup"; readonly handle: (message: SelectionWordLookupMessage & { ...; }, context: TranslationRequestContext) => Promise<...>; } | { ...; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(120,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(121,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(122,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(132,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(143,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(144,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(145,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.
+src/app/background/messageRuntime.ts(146,9): error TS2322: Type 'BackgroundMessageHandler<unknown, ConnectionTestMessage, ConnectionTestResponse> | BackgroundMessageHandler<VisionProbeContext, VisionProbeMessage, unknown> | ... 16 more ... | BackgroundMessageHandler<...>' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+  Type '{ readonly type: "selectionWordLookupCancel"; readonly handle: (message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse; }' is not assignable to type 'BackgroundMessageHandler<BackgroundRuntimeContext, BackgroundMessage, unknown>'.
+    Types of property 'handle' are incompatible.
+      Type '(message: { clientRequestId?: unknown; }, context: TranslationRequestContext) => TranslationCancelResponse' is not assignable to type '(message: BackgroundMessage, context: BackgroundRuntimeContext) => unknown'.
+        Types of parameters 'message' and 'message' are incompatible.
+          Type 'BackgroundMessage' has no properties in common with type '{ clientRequestId?: unknown; }'.

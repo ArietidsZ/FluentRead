@@ -1,0 +1,30 @@
+{
+  "src/features/selection-translation/background/wordLookupHandler.ts": {
+    "baselineSha256": "acbc2907f985ecd122171b1824d39f55f41bb22b7e7d9f34cc5dc782e792d60c",
+    "workingSha256": "24aae73481fec1436ad1b8ba290b2ff13d86fb5511e446e5fe8fd926335c52a8"
+  },
+  "src/features/selection-translation/services/wordDictionary.ts": {
+    "baselineSha256": "2fe44781d90bbf2d8e4bcf22561d39b98b98ac66e38c84220759f9438102e303",
+    "workingSha256": "c1a8201178407b65122b13dcdc673c36359ccd70076be9d57430f290f771a0b2"
+  },
+  "src/features/selection-translation/services/ecdictAsset.ts": {
+    "baselineSha256": "f563e92002fa8e000a89d904bcdaa31aa202c6e1f6330251d1315df101f932c0",
+    "workingSha256": "55f43aa515c816ff85de4d4274c35fc4e443a8e33dca546a87abde206071a70c"
+  },
+  "src/features/selection-translation/ui/SelectionTranslator.vue": {
+    "baselineSha256": "789a9edbfad14e3b2e38f59a00828cf977bad8d995e64717767d2a841e01c922",
+    "workingSha256": "4111c62eb873f3161bb3be5d3bb0242b5de910f16f3f172834fba4761fab687a"
+  },
+  "src/services/translation/documentChannel.ts": {
+    "baselineSha256": "651d3b809ccbfa32a0a6e1864477ad659b677021785bae7807dc2c178008406b",
+    "workingSha256": "a95397d2f18fefc544c5f7ee96d91ce73e518dcfb01b59bd003cf34d188a5adb"
+  },
+  "src/app/background/messageRuntime.ts": {
+    "baselineSha256": "8186f815e5c17682bc175815282723f8c3326700d2315a8f16713026bf4a51e2",
+    "workingSha256": "8e22d5173106e96992604622c723263998c9e60aa71e4776160a7059de8ca74b"
+  },
+  "baselineExitCode": 1,
+  "baselineCommit": "ed980ba087946ee6477bdeb5968166a3dca5bbfd",
+  "testSha256": "198ec119c2ae02cd7731f0592b1cb2c4acb1a9cd61509a8884972179e3d8aeee",
+  "restoredBytesIdentical": true
+}

@@ -1,0 +1,25 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/wordDictionary.test.ts",
+    "tests/wordDictionaryEdge.test.ts",
+    "tests/backgroundFeatureHandlers.test.ts",
+    "tests/incognitoInputRoute.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=../dictionary-privacy-isolation-20261009/native-lifetime-controls.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:46:34.616688+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T00:46:43.888289+00:00",
+  "durationSeconds": 9.272,
+  "exitCode": 1
+}

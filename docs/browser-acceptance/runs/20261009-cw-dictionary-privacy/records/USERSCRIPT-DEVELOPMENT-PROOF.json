@@ -1,0 +1,15 @@
+{
+  "baselineBytes": 1954998,
+  "candidateBytes": 1954998,
+  "baselineSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+  "candidateSha256": "55c193f29ac3c2add1bb0588d3d0c44db252c2248cc0ffdfc6d5c991b2cfa334",
+  "identicalBytes": false,
+  "sameSize": true,
+  "normalizedScopedCssIdentical": true,
+  "normalizedJavaScriptIdentical": false,
+  "observedJsDifference": "Minifier lexical identifier names and generated Vue scope ID differ; no byte-identity claim. Native branches absent; final userscript gate still required.",
+  "baselineScopeId": "27507535",
+  "candidateScopeId": "fdf3e392",
+  "budget": 1955000,
+  "headroom": 2
+}

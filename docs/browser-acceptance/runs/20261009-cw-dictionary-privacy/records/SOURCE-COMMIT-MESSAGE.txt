@@ -1,0 +1,4 @@
+fix: isolate native dictionary lookup and raw cache
+
+Restrict configured private/unknown sources to available local dictionary data.
+Bind raw cache and cancellation to native document Ports, preserving regular fallback and shared subscribers.

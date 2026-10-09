@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run tests/wordCardPrivacyRoute.test.ts tests/wordDictionary.test.ts tests/wordDictionaryEdge.test.ts tests/wordLookupHandler.test.ts tests/translationDocumentPort.test.ts --no-cache --reporter=json --outputFile=../dictionary-privacy-isolation-20261009/native-third.results.json
+JSON report written to <CW-EVIDENCE>/native-third.results.json

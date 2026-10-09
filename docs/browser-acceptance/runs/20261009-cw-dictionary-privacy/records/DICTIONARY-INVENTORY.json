@@ -1,0 +1,25 @@
+{
+  "providerIds": [
+    "ecdict-local",
+    "youdao-web",
+    "free-dictionary",
+    "datamuse",
+    "wiktionary-rest",
+    "wiktapi"
+  ],
+  "normalPolicy": "Local first; five online providers race for useful definitions within the existing 2.5 second dictionary budget.",
+  "packagedCore": {
+    "path": "public/ecdict-core.json",
+    "rows": 3000,
+    "bytes": 823996,
+    "sha256": "af135b66f9e94d5ab189605fda471e7333c874bf96e3b6ac7faf6a645b21f80f"
+  },
+  "optionalSource": {
+    "path": "assets/optional/ecdict-core-full.json",
+    "bytes": 3913556,
+    "sha256": "b0f0768e6730dfd07b895527ff56169f4d44904c58532b4cdd750aa97374071a"
+  },
+  "actualBrowserCacheStorageInspected": false,
+  "downloadExecuted": false,
+  "newProviderOrSettingAdded": false
+}

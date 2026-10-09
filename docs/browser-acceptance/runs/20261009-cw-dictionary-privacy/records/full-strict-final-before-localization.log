@@ -1,0 +1,5 @@
+[resource-safe] CPU target 60%, maxWorkers 2, concurrency 5, command: node node_modules/vitest/vitest.mjs run --config vitest.coverage.config.ts --no-cache --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final --reporter=json --outputFile=<CW-EVIDENCE>/full-strict-final.results.json
+settings-probe-observation {"phase":"publication-abort","recordCount":0,"cacheSource":"unknown","capability":"unknown","providerRequests":1}
+(node:415888) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+JSON report written to <CW-EVIDENCE>/full-strict-final.results.json

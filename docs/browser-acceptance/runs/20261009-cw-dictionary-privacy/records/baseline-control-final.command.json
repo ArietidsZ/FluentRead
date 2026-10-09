@@ -1,0 +1,22 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "actual non-model dictionary",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/baseline-control-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:49:48.386836+00:00",
+  "observationOutput": "<CW-EVIDENCE>/baseline-control-final-observations.jsonl",
+  "finishedAt": "2026-10-09T00:49:50.338149+00:00",
+  "durationSeconds": 1.951,
+  "exitCode": 1
+}

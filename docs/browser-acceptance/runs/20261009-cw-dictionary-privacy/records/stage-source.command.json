@@ -1,0 +1,27 @@
+{
+  "command": [
+    "git",
+    "add",
+    "--",
+    "docs/architecture.md",
+    "docs/testing.md",
+    "src/app/background/messageRuntime.ts",
+    "src/app/background/selectionDictionaryRuntime.ts",
+    "src/core/i18n/messages/native-dictionary-feedback.ts",
+    "src/features/selection-translation/background/wordLookupHandler.ts",
+    "src/features/selection-translation/services/ecdictAsset.ts",
+    "src/features/selection-translation/services/wordDictionary.ts",
+    "src/features/selection-translation/ui/SelectionTranslator.vue",
+    "src/services/translation/documentChannel.ts",
+    "tests/wordCardPrivacyRoute.test.ts",
+    "tests/wordDictionaryEdge.test.ts",
+    "userscript/incognitoRoute.ts",
+    "vitest.coverage.config.ts"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T01:29:59.497311+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T01:29:59.506587+00:00",
+  "durationSeconds": 0.009,
+  "exitCode": 0
+}
