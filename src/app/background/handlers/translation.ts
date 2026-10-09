@@ -6,7 +6,7 @@
  */
 import type {BackgroundFallbackHandler} from '../messageRouter';
 import type {BackgroundMessageHandler} from '../messageRouter';
-import {attachTranslationGlossaryContext, attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
+import {attachTranslationGlossaryContext, attachTranslationRequestControl, translationPrivacyContext} from '@/src/services/translation/requestSnapshot';
 import type {
     TranslationCancelMessage,
     TranslationCancelResponse,
@@ -25,6 +25,7 @@ export interface TranslationRequestHandlerDependencies {
 }
 
 export interface TranslationRequestContext {
+    extensionContext?: {url: string; incognito?: boolean};
     sender?: {
         id?: string;
         url?: string;
@@ -227,7 +228,7 @@ export function createTranslationRequestFallback<TContext = undefined>(
                 const isDocument = typeof senderUrl === 'string'
                     && /^(?:chrome|moz|safari-web)-extension:\/\/[^/]+\/document\.html(?:[?#]|$)/u.test(senderUrl);
                 attachTranslationGlossaryContext(message, {
-                    ...((context as TranslationRequestContext | undefined)?.sender?.tab?.incognito === true ? {privateContext: true} : {}),
+                    ...translationPrivacyContext(context as TranslationRequestContext | undefined),
                     pageUrl: typeof senderUrl === 'string' && /^https?:\/\//u.test(senderUrl) ? senderUrl : undefined,
                     context: message.glossaryContext === 'document' && isDocument ? 'document'
                         : message.glossaryContext === 'video' ? 'video' : 'page',

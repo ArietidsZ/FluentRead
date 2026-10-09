@@ -285,3 +285,67 @@ describe('userscript lossless Unicode character data', () => {
         expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/chinese.ts'))).toBeNull();
     });
 });
+
+
+describe('review counterexample: lossless single SVG path table compression', () => {
+    it('imports the authoritative SVG table through the real Vite and inflate pipeline', async () => {
+        const file = resolve(process.cwd(), 'src/ui/assets/serviceBrandPaths.json');
+        const original = JSON.parse(readFileSync(file, 'utf8')); const plugin = createUserscriptCatalogCompressionPlugin() as any;
+        const importer = resolve(process.cwd(), 'src/ui/components/ServiceIcon.vue');
+        for (const source of ['@/src/ui/assets/serviceBrandPaths.json', file, '../assets/serviceBrandPaths.json']) {
+            const id = plugin.resolveId(source, importer); expect(id).toBeTruthy();
+            const code = plugin.load(id); expect(code).toContain('inflateWithPako');
+            const encoded = code.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)![1];
+            vi.stubGlobal('pako', {ungzip});
+            expect(JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(encoded, 'base64'))))).toEqual(original);
+        }
+        const {createServer} = await import('vite');
+        const server = await createServer({configFile: false, plugins: [plugin], resolve: {alias: {'@': process.cwd()}}, server: {middlewareMode: true}});
+        try {
+            const loaded = await server.ssrLoadModule(file); expect(loaded.default).toEqual(original);
+            expect(Object.entries(loaded.default)).toEqual(Object.entries(original));
+        } finally {await server.close(); vi.unstubAllGlobals();}
+        // ServiceIcon 使用 @ 别名；SSR 绝对路径通过并不足以证明真实 Vue 生产导入已被压缩。
+        const {build} = await import('vite'); const {default: vue} = await import('@vitejs/plugin-vue');
+        const built = await build({configFile: false, root: process.cwd(), plugins: [plugin, vue()],
+            resolve: {alias: userscriptAliases}, logLevel: 'silent',
+            build: {write: false, target: 'es2018', minify: false,
+                lib: {entry: importer, formats: ['es']}, rollupOptions: {external: ['vue']}}});
+        const outputs = Array.isArray(built) ? built : [built];
+        const chunk = outputs.flatMap(output => 'output' in output ? output.output : []).find(item => item.type === 'chunk')!;
+        expect(chunk.type).toBe('chunk');
+        if (chunk.type !== 'chunk') throw new Error('ServiceIcon chunk missing');
+        expect(Object.keys(chunk.modules).some(id => id.includes('fluentread-userscript-site-catalog:') && id.includes('serviceBrandPaths.json.js'))).toBe(true);
+        expect(Object.keys(chunk.modules)).not.toContain(file);
+        const encoded = chunk.code.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)![1];
+        vi.stubGlobal('pako', {ungzip});
+        try {
+            const restored = JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(encoded, 'base64'))));
+            expect(restored).toEqual(original); expect(Object.entries(restored)).toEqual(Object.entries(original));
+        } finally {vi.unstubAllGlobals();}
+        expect(plugin.resolveId(resolve(process.cwd(), 'src/ui/assets/other.json'), importer)).toBeNull();
+    });
+    it('leaves the exact SVG table as native JSON for GreasyFork', async () => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules(); const {createUserscriptCatalogCompressionPlugin: createPlugin, userscriptAliases: aliases} = await import('@/userscript/vite.config');
+            const plugin = createPlugin() as any;
+            expect(plugin.resolveId('@/src/ui/assets/serviceBrandPaths.json', resolve(process.cwd(), 'src/ui/components/ServiceIcon.vue'))).toBeNull();
+            expect(plugin.resolveId(resolve(process.cwd(), 'src/ui/assets/serviceBrandPaths.json'), undefined)).toBeNull();
+            const {build} = await import('vite'); const {default: vue} = await import('@vitejs/plugin-vue');
+            const file = resolve(process.cwd(), 'src/ui/assets/serviceBrandPaths.json');
+            const built = await build({configFile: false, root: process.cwd(), plugins: [plugin, vue()],
+                resolve: {alias: aliases}, logLevel: 'silent',
+                build: {write: false, minify: false, lib: {entry: resolve(process.cwd(), 'src/ui/components/ServiceIcon.vue'), formats: ['es']},
+                    rollupOptions: {external: ['vue']}}});
+            const outputs = Array.isArray(built) ? built : [built];
+            const chunk = outputs.flatMap(output => 'output' in output ? output.output : []).find(item => item.type === 'chunk')!;
+            if (chunk.type !== 'chunk') throw new Error('GreasyFork ServiceIcon chunk missing');
+            expect(Object.keys(chunk.modules)).toContain(file);
+            expect(Object.keys(chunk.modules).some(id => id.includes('fluentread-userscript-site-catalog:'))).toBe(false);
+            expect(chunk.code).toContain(JSON.parse(readFileSync(file, 'utf8')).deepL[0].d);
+        } finally {vi.unstubAllEnvs(); vi.resetModules();}
+    });
+});

@@ -1,0 +1,17 @@
+{
+  "src/app/background/areaRuntime.ts": "9e7d2096b9c3a3c0a9f15eac4e2a71842efa695198ffd8bd6a101778a4b3fbd7",
+  "src/app/background/handlers/translation.ts": "e58c2a9b341b667c44ced7ff0833460e17a8aa5872673431ff304e1b2b2a9b9c",
+  "src/app/background/imageGlossaryContext.ts": "2da31075ea6111e88696db0f647a50a18fc29c9aa2f922eda9cf6e85a77a94cc",
+  "src/app/background/messageRuntime.ts": "019aba7f5bf9fc51ad11479db83083514a488c80069dbd253563fcf307f5c47f",
+  "src/features/area-translation/background/handlers.ts": "a4c7c6b4061e7314fe8aea8209a7a3aefdfa3bacd4b85c14e789352319c0d628",
+  "src/features/area-translation/services/textTranslation.ts": "22ae4e5daf399116c752a607310c3dfa6c3f7355d109a414a91f43be1c9c51db",
+  "src/features/input-translation/background/handler.ts": "57b9fddbbb4ece968279037636813ae135a1f308116e26b9f8ced2fc39e2f420",
+  "src/providers/translation/ai-sdk/openai-compatible.ts": "02dfc3d58dad852458d43519d4ce5b6cd6c743de2b69a7aca6082442891e6c8c",
+  "src/services/translation/broker.ts": "d17c38f0e7fc929159c1f094db977bd7542ec1d4f930a8a1935697262bacff83",
+  "src/services/translation/requestScheduler.ts": "bf045c3829ce44f91f9f4270e198e69decd1f88751fade3ab24fc5e7405cd154",
+  "src/services/translation/requestSnapshot.ts": "d78f5cb0decd80a98646a6e4f142a3fb80e17aea708f1c14ded9d90f1d7471df",
+  "userscript/vite.config.ts": "3f2e0235d158b248dfedd6906acdc1276c2afd3bb4aba5640e38632ac2d9075f",
+  "tests/translationRetryAfter.test.ts": "388cc59c981c57c9e516220ddb0f6c170287b160de747d26c4fe86782ba89470",
+  "tests/implementationAudit48A.test.ts": "cd726727625c74fbb910a2a17dd1d3bcc44893e607c13b874d9ca994662441ef",
+  "tests/userscriptViteConfig.test.ts": "89aa96a338f37633303705f54b68b12b609659651c123ba8b7ef61ed1af9e49a"
+}

@@ -2,7 +2,7 @@
  * @file src/services/translation/broker.ts
  *
  * 文件职责：编排翻译请求的配置快照、语言解析、缓存、请求去重、超时与 provider 调用，是后台翻译用例的中心服务。
- * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按实际消费的云地域和凭据摘要、匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；入口在等待前复制消息，批次摘要与分项缓存键只构建一次并复用，重复身份只读写一次；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。 可信 quota 摘要隔离实际端点、模型、凭据和普通/私密来源；共享 lease 等待真实 transport 收口。
+ * 主要内容：createTranslationBroker 同时支持单条、批量和页面摘要，验证 provider 返回数量、类型及明显的原文回显或错语种，在剩余预算内重试并排除旧异常缓存；对完整多段协议逐槽修复上下文回显，以包含 Chrome auto 检测样本的完整身份构建缓存键，并按实际消费的云地域和凭据摘要、匿名额度身份、等待策略、清理代次与剩余 deadline 隔离 pending 请求；入口在等待前复制消息，批次摘要与分项缓存键只构建一次并复用，重复身份只读写一次；每次公开请求累计缓存复用、上游调用次数、耗时与免费链线路尝试，结束后向注入的统计端口交付只含规模数值、服务与线路标识的事件。 可核对的公开符号包括 createTranslationBroker、聚合导出。 可信 quota 摘要隔离实际端点、模型、凭据和普通/私密来源；真实 HTTP attempt 取得并发，逻辑重试不占槽；pending 按可信隐私与有效凭据集合摘要隔离。
  * 模块边界：本文件位于翻译 application service 层，负责用例编排和端口契约；不挂载页面 UI，且不应把某家供应商的网络细节扩散到 feature，具体 HTTP 协议由 providers/platform 实现。
  */
 
@@ -107,7 +107,7 @@ interface TranslationRequestExecution {
     readonly thinking: boolean;
     readonly abortSignal?: AbortSignal;
     readonly ownershipKey?: string;
-    readonly privateContext: boolean;
+    readonly privateContext: boolean | undefined;
     readonly trace: TranslationRequestTrace;
 }
 
@@ -532,9 +532,22 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         return `${cacheKey}:generation:${requestGeneration}:timeout:${normalizedTimeoutMs}ms`;
     }
 
-    function pendingOwnershipSuffix(execution: TranslationRequestExecution): string {
+    /** 同一冻结配置派生 transport 的实际 key 与 pending 的有效 key 集合；摘要不进入成功缓存身份。 */
+    function quotaDigest(execution: TranslationRequestExecution, model: string, transport = false): string {
+        const current = execution.config;
+        if (!deps.serviceTypes.isAI(execution.service)) return sha256Hex(JSON.stringify([execution.privateContext]));
+        return sha256Hex(JSON.stringify([
+            execution.service, model, getProviderEndpoint(current, execution.service),
+            transport ? current.token[execution.service]?.trim() || ''
+                : [getServiceApiKeys(current, execution.service), current.apiKeyRotationEnabled?.[execution.service] !== false, current.apiKeyRecoveryMs],
+            current.customHeaders?.[execution.service] || '', current.requestHeaderRules, execution.privateContext,
+        ]));
+    }
+
+    function pendingIdentitySuffix(execution: TranslationRequestExecution): string {
         const ownershipKey = execution.ownershipKey;
-        return ownershipKey ? `:owner:${ownershipKey.length}:${ownershipKey}` : '';
+        return (ownershipKey ? `:owner:${ownershipKey.length}:${ownershipKey}` : '')
+            + `:quota:${quotaDigest(execution, getEffectiveRequestModel(execution.config, execution.service))}`;
     }
 
     function pendingAnonymousConfigSuffix(execution: TranslationRequestExecution): string {
@@ -687,12 +700,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const model = getEffectiveRequestModel(execution.config, execution.service, message.modelOverride);
         const identity = {
             service: execution.service, model,
-            ...(deps.serviceTypes.isAiSdk(execution.service) ? {quotaScope: sha256Hex(JSON.stringify([
-                execution.service, model, getProviderEndpoint(execution.config, execution.service),
-                execution.config.token[execution.service]?.trim() || '',
-                execution.config.customHeaders?.[execution.service] || '', execution.config.requestHeaderRules,
-                execution.privateContext,
-            ]))} : {}),
+            ...(deps.serviceTypes.isAiSdk(execution.service) ? {quotaScope: quotaDigest(execution, model, true)} : {}),
         };
 
         try {
@@ -779,6 +787,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 deadlineAt: providerDeadline,
                 identity,
                 countRate: !deps.serviceTypes.isAiSdk(execution.service),
+                countConcurrency: !deps.serviceTypes.isAiSdk(execution.service),
             });
         } catch (error) {
             if (error instanceof TranslationRequestSchedulerDeadlineError) {
@@ -1205,7 +1214,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         }
 
         const summaryTimeoutMs = normalizeDeadlineTimeoutMs(requestTimeoutMs as number);
-        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}`;
+        const pendingKey = `${buildPendingRequestKey(key, summaryTimeoutMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingIdentitySuffix(execution)}`;
         const existing = pendingPageSummaries.get(pendingKey);
         if (existing) return runWithinDeadline(() => existing, requestDeadline, execution.abortSignal);
 
@@ -1298,7 +1307,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         const imageInput = getTranslationImageInput(message);
         const imageSuffix = imageInput ? `:image:${sha256Hex(imageInput)}` : '';
-        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
+        const pendingKey = `${buildPendingRequestKey(key, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${imageSuffix}${pendingIdentitySuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingTranslations.get(pendingKey);
         // 共享的是 provider 工作；每个等待者仍需保留自己的取消和截止边界。
         if (existing) {
@@ -1413,7 +1422,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         );
         // 完整批次身份只计算一次；AI 分项用定长摘要保留邻段和槽位语义，避免逐项携带整个批次。
         const batchFingerprint = cacheMode === 'ai-multi-segment' ? sha256Hex(batchKey) : '';
-        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingOwnershipSuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
+        const pendingKey = `${buildPendingRequestKey(batchKey, pendingBudgetMs, requestGeneration)}:cache:${useCache ? 'on' : 'off'}${pendingIdentitySuffix(execution)}${pendingAnonymousConfigSuffix(execution)}${pendingCloudConfigSuffix(execution)}${recoverSharedDeadline ? '' : `:recovery-deadline:${requestDeadline}ms`}`;
         const existing = pendingBatches.get(pendingKey);
         if (existing) {
             execution.trace.shared = true;
@@ -1732,7 +1741,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
             ),
             abortSignal: requestControl?.signal,
             ownershipKey: requestControl?.ownershipKey,
-            privateContext: glossarySource?.privateContext === true,
+            privateContext: glossarySource?.privateContext,
             trace,
         };
         const credentialConfig = message.modelOverride

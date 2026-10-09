@@ -2,6 +2,7 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {writeFileSync} from 'node:fs';
 
 const state = vi.hoisted(() => ({
+    areaDispatch: async (_request: any): Promise<any> => undefined,
     config: {
         service: 'custom', from: 'en', to: 'zh-Hans', useCache: false, enableAIContext: false,
         token: {custom: 'fixture-a', newapi: 'fixture-b'}, model: {custom: 'fixture-model', newapi: 'fixture-model'},
@@ -18,6 +19,11 @@ const state = vi.hoisted(() => ({
 vi.mock('@/src/services/config/store', () => ({
     config: state.config, requestConfigCountIncrement: async () => 0,
 }));
+vi.mock('@/src/app/translation/runtime', () => ({translateWithCache: (request: any) => state.areaDispatch(request)}));
+vi.mock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {resolve: async () => ({})}}));
+vi.mock('@/src/features/area-translation/background/offscreenAdapter', () => ({areaTranslationOffscreenAdapter: {cropArea: async () => ({image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII=', lines: []}), translateArea: async () => ({image: '', lines: []})}}));
+vi.mock('@/src/features/image-translation/background/offscreenAdapter', () => ({imageTranslationProgressTransport: {sendProgress: async () => undefined}}));
+vi.mock('@/src/app/background/handlers/areaTranslation', async importOriginal => ({...await importOriginal<any>(), createAreaTranslationBackgroundHandlers: (dependencies: any) => dependencies, createAreaCaptureOwnershipVerifier: () => async () => undefined}));
 vi.mock('webextension-polyfill', () => ({default: {
     runtime: {sendMessage: (message: unknown) => state.dispatch(message)}, extension: {inIncognitoContext: false},
 }}));
@@ -27,6 +33,12 @@ import {createTranslationRequestScheduler} from '@/src/services/translation/requ
 import {translateWithOpenAICompatibleAiSdk} from '@/src/providers/translation/ai-sdk/openai-compatible';
 import {AI_SDK_TRANSPORT_PROFILE, resolveOpenAICompatibleEndpoint} from '@/src/providers/translation/ai-sdk/endpoints';
 import {createTranslationRequestFallback, createTranslationRequestRegistry, createTranslationCancelHandler, type TranslationRequestContext} from '@/src/app/background/handlers/translation';
+import {createAreaTranslationBackgroundHandlers as createActualAreaHandlers, AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE} from '@/src/features/area-translation/background/handlers';
+import {createInputBoxTranslationHandler} from '@/src/features/input-translation/background/handler';
+import {createImageGlossaryContext} from '@/src/app/background/imageGlossaryContext';
+import {createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE} from '@/src/features/image-translation/background/handlers';
+import {buildGlossaryRevision} from '@/src/core/glossary';
+import {translationPrivacyContext} from '@/src/services/translation/requestSnapshot';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {translateText, cancelAllTranslations} from '@/src/app/translation/client';
@@ -49,12 +61,12 @@ function response(status = 200, headers: Record<string, string> = {}) {
     } : {error: {message: 'synthetic response'}}), {status, headers: {'content-type': 'application/json', ...headers}});
 }
 
-function harness() {
+function harness(provider?: (request: any) => Promise<any>) {
     const scheduler = createTranslationRequestScheduler(() => state.config);
     const writes: unknown[] = [];
     const broker = createTranslationBroker({
         ready: Promise.resolve(), getConfig: () => state.config as TranslationConfigSource,
-        providers: {custom: translateWithOpenAICompatibleAiSdk as never, newapi: translateWithOpenAICompatibleAiSdk as never},
+        providers: {custom: (provider ?? translateWithOpenAICompatibleAiSdk) as never, newapi: (provider ?? translateWithOpenAICompatibleAiSdk) as never},
         cache: {get: async () => null, set: async (...args: unknown[]) => {writes.push(args); return true;}, clear: async () => undefined, cleanup: async () => undefined},
         serviceTypes: servicesType, endpointResolver: {resolveOpenAICompatibleEndpoint, aiSdkTransportProfile: AI_SDK_TRANSPORT_PROFILE},
         promptBuilder: {buildPageSummaryPrompt: () => '', buildPageSummarySystemPrompt: () => ''},
@@ -90,11 +102,12 @@ beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn(async () => {throw new Error('Unmatched real network prohibited');}));
     state.config.custom = 'https://quota-a.test/v1'; state.config.newApiUrl = 'https://healthy-b.test/v1';
     state.config.model.custom = 'fixture-model'; state.config.token.custom = 'fixture-a';
-    state.config.customHeaders = {};
+    state.config.translationRequestsPerSecond = 0; state.config.translationRequestsPerMinute = 0;
+    state.config.customHeaders = {}; (state.config as any).apiKeys = {}; (state.config as any).apiKeyRotationEnabled = {};
     state.config.translationMaxRetries = 2; state.config.maxConcurrentTranslations = 6;
     setRuntimeFetch(async () => {throw new Error('Unmatched runtime network prohibited');});
 });
-afterEach(() => {cancelAllTranslations(); setRuntimeFetch(); vi.useRealTimers(); vi.unstubAllGlobals();});
+afterEach(async () => {cancelAllTranslations(); if (vi.isFakeTimers()) await vi.runAllTimersAsync(); await flush(); setRuntimeFetch(); vi.useRealTimers(); vi.unstubAllGlobals();});
 
 describe('shared Retry-After real client/broker/SDK transport replay', () => {
     it('replays 30 fixed seeds with identical arrivals and server quota windows', async () => {
@@ -252,7 +265,7 @@ describe('shared Retry-After real client/broker/SDK transport replay', () => {
         await vi.advanceTimersByTimeAsync(10); expect(await privateCall).toBe('这是合成译文。'); expect(attempts).toBe(2);
     });
 
-    it('keeps the outer lease until a cancelled real transport actually settles', async () => {
+    it('keeps the physical attempt until a cancelled real transport actually settles', async () => {
         const {broker, writes} = harness(); state.config.maxConcurrentTranslations = 1; state.config.translationMaxRetries = 0;
         let settle!: (response: Response) => void; let attempts = 0;
         setRuntimeFetch(async () => {
@@ -277,5 +290,199 @@ describe('shared Retry-After real client/broker/SDK transport replay', () => {
         });
         expect(await client('real timer integration alpha')).toBe('这是合成译文。');
         expect(attempts).toBe(2); expect(started[1]! - started[0]!).toBeGreaterThanOrEqual(25);
+    });
+});
+
+
+describe('review counterexamples: physical capacity and trusted pending identity', () => {
+    it.each([1, 3])('releases all %s saturated logical leases during a 90-second quota wait', async cap => {
+        state.config.maxConcurrentTranslations = cap; const {fallback} = harness(); const start = Date.now();
+        // Independent pages have independent client queues; inject each trusted page at the real message boundary.
+        const invoke = (origin: string, serviceOverride = 'custom', requestTimeoutMs = 125_000) => Promise.resolve(fallback.handle({origin, serviceOverride, requestTimeoutMs, useCache: false} as never, {sender: {tab: {id: origin.length, incognito: false}}}));
+        const attempts: Array<{service: string; at: number}> = []; let active = 0; let peak = 0;
+        setRuntimeFetch(async input => {
+            active += 1; peak = Math.max(peak, active);
+            const at = Date.now() - start; const service = String(input).includes('healthy-b') ? 'B' : 'A';
+            attempts.push({service, at}); await Promise.resolve(); active -= 1;
+            return response(service === 'A' && at < 90_000 ? 429 : 200, {'retry-after': '90'});
+        });
+        const alpha = Array.from({length: cap}, (_, i) => invoke(`saturated alpha ${i}`).catch(() => 'error'));
+        await vi.advanceTimersByTimeAsync(10);
+        const beta = invoke('healthy with 40-second deadline', 'newapi', 40_000).catch(() => 'error');
+        await vi.advanceTimersByTimeAsync(10);
+        expect(attempts.some(x => x.service === 'B' && x.at < 40_010), JSON.stringify(attempts)).toBe(true);
+        expect(await beta).toBe('这是合成译文。');
+        expect(attempts.filter(x => x.service === 'A' && x.at > 0 && x.at < 90_000)).toEqual([]);
+        await vi.runAllTimersAsync(); expect(await Promise.all(alpha)).toEqual(Array(cap).fill('这是合成译文。'));
+        expect(peak).toBeLessThanOrEqual(cap); expect(attempts.filter(x => x.service === 'A' && x.at >= 90_000)).toHaveLength(cap);
+    });
+
+    it.each(['single', 'batch', 'summary'].flatMap(kind => ['privacy', 'credential', 'key-set', 'rotation'].map(change => [kind, change])))('keeps concurrent same-text %s pending work separate after %s changes', async (kind, change) => {
+        {
+            state.config.token.custom = 'fixture-a'; (state.config as any).apiKeys = {}; (state.config as any).apiKeyRotationEnabled = {};
+            if (change === 'key-set' || change === 'rotation') (state.config as any).apiKeys.custom = ['fixture-a', 'fixture-extra'];
+            const waiting: Array<() => void> = []; let calls = 0;
+            const {fallback} = harness(async request => {
+                calls += 1; await new Promise<void>(resolve => waiting.push(resolve));
+                return Array.isArray(request.origin) ? request.origin.map(() => '这是合成译文。') : '这是合成译文。';
+            });
+            const message = {origin: kind === 'batch' ? ['same alpha', 'same beta'] : 'same alpha', useCache: false,
+                enableAIContext: kind === 'summary', pageContext: kind === 'summary' ? 'same synthetic paragraph' : '', requestTimeoutMs: 5000};
+            const a = fallback.handle(message as never, {sender: {tab: {id: 1, incognito: false}}});
+            await vi.advanceTimersByTimeAsync(10); expect(calls).toBe(1);
+            if (change === 'credential') state.config.token.custom = 'other-fixture-credential';
+            if (change === 'key-set') (state.config as any).apiKeys.custom = ['fixture-a', 'changed-fixture-extra'];
+            if (change === 'rotation') (state.config as any).apiKeyRotationEnabled.custom = false;
+            const b = fallback.handle(message as never, {sender: {tab: {id: 2, incognito: change === 'privacy'}}});
+            await vi.advanceTimersByTimeAsync(10); expect(calls).toBe(2);
+            for (const release of waiting.splice(0)) release();
+            await vi.advanceTimersByTimeAsync(10);
+            for (const release of waiting.splice(0)) release();
+            await vi.runAllTimersAsync(); await Promise.all([a, b]);
+        }
+    });
+
+    it.each([false, true])('binds typed input privacy from sender %s and rejects payload claims', async firstPrivate => {
+        const {broker} = harness(); state.config.translationMaxRetries = 0; let attempts = 0;
+        setRuntimeFetch(async () => {attempts += 1; return response(attempts === 1 ? 429 : 200, {'retry-after': '90'});});
+        const input = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: () => state.config as never, translate: broker.translateWithCache});
+        const invoke = (text: string, incognito: boolean) => (input.handle as any)({type: 'inputBoxTranslation', text, targetLang: 'zh-Hans', privateContext: !incognito, quotaScope: 'forged'}, {sender: {tab: {incognito}}});
+        const a = invoke('typed first alpha', firstPrivate).catch(() => 'error'); await vi.advanceTimersByTimeAsync(10); await a;
+        const b = invoke('typed other alpha', !firstPrivate).catch(() => 'error'); await vi.advanceTimersByTimeAsync(10);
+        expect(attempts).toBe(2); expect(await b).toEqual({success: true, translatedText: '这是合成译文。'});
+    });
+
+    it.each([false, true])('restores image offscreen privacy from the active transaction %s', async firstPrivate => {
+        const {broker} = harness(); state.config.translationMaxRetries = 0; let attempts = 0;
+        setRuntimeFetch(async () => {attempts += 1; return response(attempts === 1 ? 429 : 200, {'retry-after': '90'});});
+        const offscreenUrl = 'chrome-extension://controlled/offscreen.html'; let handlers: any[];
+        const image = createImageTranslationBackgroundHandlers({assertLanguagesDownloaded: async () => {}, fetchImage: async () => '',
+            translateImage: async (_image: string, _source: string, _title: string, options: any) => {
+                await handlers.find(h => h.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: options.requestId, texts: ['same alpha'], privateContext: !firstPrivate}, {sender: {url: offscreenUrl}});
+                return {image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII='};
+            }, getTranslationService: () => 'custom', supportsBatchTranslation: () => false, translateTexts: broker.translateWithCache,
+            downloadLanguages: async () => {}, markLanguagesDownloaded: async () => []} as never);
+        handlers = createImageGlossaryContext({ready: Promise.resolve(), offscreenUrl, getSourceLanguage: () => 'en', getGlossaryRevision: () => buildGlossaryRevision((state.config as any).glossaryLibraries, (state.config as any).glossaryEnabled)}).wrap(image as never);
+        const invoke = (id: string, incognito: boolean) => handlers.find(h => h.type === IMAGE_TRANSLATE_MESSAGE_TYPE).handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, requestId: id, image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII=', sourceLanguage: 'en'}, {sender: {url: 'https://synthetic.test/', tab: {id: 1, incognito}}});
+        const a = invoke('private-first', firstPrivate).catch(() => 'error'); await vi.advanceTimersByTimeAsync(10); await a;
+        const b = invoke('private-second', !firstPrivate).catch(() => 'error'); await vi.advanceTimersByTimeAsync(10);
+        expect(attempts).toBe(2); await b;
+    });
+});
+
+
+describe('review counterexamples: area composition keeps trusted privacy', () => {
+    it.each(['text', 'vision'].flatMap(mode => [false, true].map(privacy => [mode, privacy] as const)))('isolates area %s from trusted sender %s', async (mode, firstPrivate) => {
+        const {broker} = harness(); state.areaDispatch = broker.translateWithCache; state.config.translationMaxRetries = 0;
+        Object.assign(state.config, {areaTranslationMode: 'standard', areaTranslationService: 'custom'}); state.config.model.custom = 'gpt-4o';
+        const {createAreaTranslationRuntime} = await import('@/src/app/background/areaRuntime');
+        const dependencies = createAreaTranslationRuntime(async () => {}) as any;
+        const handlers = createActualAreaHandlers({...dependencies,
+            getDefaultSourceLanguage: () => 'en', getVisionRoute: () => ({mode: mode === 'vision' ? 'vision' : 'ocr'}), prepareVisionRoute: undefined,
+            translateArea: async () => ({image: '', sourceText: 'same area alpha', lines: []})});
+        let attempts = 0; setRuntimeFetch(async () => {attempts += 1; return response(attempts === 1 ? 429 : 200, {'retry-after': '90'});});
+        const invoke = (id: string, incognito: boolean) => {
+            const context = {sender: {url: 'https://synthetic.test/', tab: {id: 1, incognito}}};
+            return handlers.find(h => h.type === AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE)!.handle({type: AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE, requestId: id,
+                image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII=',
+                selection: {left: 0, top: 0, width: 20, height: 16, viewportWidth: 40, viewportHeight: 20},
+                sourceLanguage: 'en', title: '', privateContext: !incognito, quotaScope: 'forged'} as never, context);
+        };
+        const a = invoke('area-first', firstPrivate).catch(e => `error:${(e as Error).message}`); await vi.advanceTimersByTimeAsync(10); const firstResult = await a; expect(attempts, String(firstResult)).toBe(1);
+        const b = invoke('area-second', !firstPrivate).catch(() => 'error'); await vi.advanceTimersByTimeAsync(10);
+        expect(attempts).toBe(mode === 'vision' ? 3 : 2); expect(await b).toMatchObject({success: true});
+    });
+});
+
+
+describe('trusted ordinary/private/unknown boundary', () => {
+    it.each([
+        [{sender: {tab: {incognito: false}}}, false], [{sender: {tab: {incognito: true}}}, true],
+        [{sender: {tab: {incognito: 'false'}}}, undefined], [{}, undefined],
+        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: false}}, false],
+        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: true}}, true],
+        [{sender: {url: 'chrome-extension://other/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: true}}, undefined],
+        [{sender: {url: 'https://synthetic.test/'}}, undefined],
+    ])('resolves only trusted sender/platform metadata %j', (context, expected) => {
+        expect(translationPrivacyContext(context as never).privateContext).toBe(expected);
+    });
+    it('separates an unknown typed source from an ordinary sender despite payload claims', async () => {
+        const {broker} = harness(); state.config.translationMaxRetries = 0; let attempts = 0;
+        setRuntimeFetch(async () => {attempts += 1; return response(attempts === 1 ? 429 : 200, {'retry-after': '90'});});
+        const handler = createInputBoxTranslationHandler({ready: Promise.resolve(), getConfig: () => state.config as never, translate: broker.translateWithCache});
+        const first = handler.handle({type: 'inputBoxTranslation', text: 'ordinary alpha', targetLang: 'zh-Hans'}, {sender: {tab: {incognito: false}}}).catch(() => 'error');
+        await vi.advanceTimersByTimeAsync(10); await first;
+        const unknown = handler.handle({type: 'inputBoxTranslation', text: 'unknown alpha', targetLang: 'zh-Hans', privateContext: false, quotaScope: 'ordinary'} as never, {});
+        await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(2); expect(await unknown).toEqual({success: true, translatedText: '这是合成译文。'});
+    });
+});
+
+
+describe('physical attempt capacity, FIFO, and cancellation', () => {
+    it.each([1, 3])('keeps %s real in-flight slots until ignored-abort transports settle', async cap => {
+        state.config.maxConcurrentTranslations = cap; state.config.translationMaxRetries = 0;
+        const {broker, writes} = harness(); const releases: Array<() => void> = []; let active = 0; let peak = 0; let attempts = 0;
+        setRuntimeFetch(async () => {
+            attempts += 1; active += 1; peak = Math.max(peak, active);
+            if (attempts > cap) {active -= 1; return response();}
+            return new Promise<Response>(resolve => releases.push(() => {active -= 1; resolve(response());}));
+        });
+        const controllers = Array.from({length: cap}, () => new AbortController());
+        const jobs = controllers.map((controller, i) => broker.translateWithCache(attachTranslationRequestControl({origin: `in flight alpha ${i}`, useCache: false, requestTimeoutMs: 5000}, {signal: controller.signal, ownershipKey: `owner-${i}`})).catch(() => 'cancelled'));
+        await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(cap); controllers[0]!.abort(); expect(await jobs[0]).toBe('cancelled');
+        const beta = broker.translateWithCache({origin: 'healthy queued beta', serviceOverride: 'newapi', useCache: false, requestTimeoutMs: 4000});
+        try {
+            await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(cap); releases[0]!();
+            await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(cap + 1); expect(await beta).toBe('这是合成译文。');
+        } finally {for (const release of releases.slice(1)) release();}
+        await vi.runAllTimersAsync(); await Promise.all(jobs); expect(peak).toBeLessThanOrEqual(cap); expect(writes).toEqual([]);
+    });
+    it('counts real attempts once and preserves FIFO under a global one-per-second bucket', async () => {
+        state.config.maxConcurrentTranslations = 1; state.config.translationRequestsPerSecond = 1;
+        const {broker} = harness(); const start = Date.now(); const calls: Array<{service: string; at: number}> = [];
+        setRuntimeFetch(async input => {
+            const service = String(input).includes('healthy-b') ? 'B' : 'A'; calls.push({service, at: Date.now() - start});
+            return response(calls.length === 1 ? 429 : 200, {'retry-after-ms': '25'});
+        });
+        const a = broker.translateWithCache({origin: 'FIFO original alpha', useCache: false, requestTimeoutMs: 5000});
+        await vi.advanceTimersByTimeAsync(10);
+        const b = broker.translateWithCache({origin: 'FIFO queued beta', serviceOverride: 'newapi', useCache: false, requestTimeoutMs: 4000});
+        await vi.runAllTimersAsync(); await Promise.all([a, b]); expect(calls).toEqual([{service: 'A', at: 0}, {service: 'B', at: 1000}, {service: 'A', at: 2000}]);
+    });
+    it.each([1, 3])('does not dispatch cancelled or expired saturated work at cap %s after cooldown', async cap => {
+        state.config.maxConcurrentTranslations = cap; const {broker} = harness(); let alpha = 0;
+        setRuntimeFetch(async input => {if (String(input).includes('healthy-b')) return response(); alpha += 1; return response(429, {'retry-after': '90'});});
+        const controllers = Array.from({length: cap}, () => new AbortController());
+        const jobs = controllers.map((controller, i) => broker.translateWithCache(attachTranslationRequestControl({origin: `expired alpha ${i}`, useCache: false, requestTimeoutMs: 4000}, {signal: controller.signal, ownershipKey: `expired-${i}`})).catch(() => 'ended'));
+        await vi.advanceTimersByTimeAsync(10); const b = broker.translateWithCache({origin: 'healthy early beta', serviceOverride: 'newapi', useCache: false, requestTimeoutMs: 40_000});
+        await vi.advanceTimersByTimeAsync(10); controllers[0]!.abort(); expect(await b).toBe('这是合成译文。');
+        await vi.runAllTimersAsync(); expect(await Promise.all(jobs)).toEqual(Array(cap).fill('ended')); expect(alpha).toBe(cap);
+    });
+});
+
+
+describe('image transaction identity cannot be borrowed by content payloads', () => {
+    it('uses the ordinary caller identity for a forged active private requestId', async () => {
+        const {broker, scheduler} = harness(); state.config.translationMaxRetries = 0; let attempts = 0;
+        const scopes = vi.spyOn(scheduler, 'observeResponse'); const offscreenUrl = 'chrome-extension://controlled/offscreen.html';
+        let finish!: () => void; let entered!: () => void; const ready = new Promise<void>(resolve => {entered = resolve;});
+        setRuntimeFetch(async () => {attempts += 1; return response(attempts === 1 ? 429 : 200, {'retry-after': '90'});});
+        const original = createImageTranslationBackgroundHandlers({assertLanguagesDownloaded: async () => {}, fetchImage: async () => '',
+            translateImage: async () => {entered(); await new Promise<void>(resolve => {finish = resolve;}); return {image: ''};},
+            getTranslationService: () => 'custom', supportsBatchTranslation: () => false, translateTexts: broker.translateWithCache,
+            downloadLanguages: async () => {}, markLanguagesDownloaded: async () => []} as never);
+        const handlers = createImageGlossaryContext({ready: Promise.resolve(), offscreenUrl, getSourceLanguage: () => 'en',
+            getGlossaryRevision: () => buildGlossaryRevision((state.config as any).glossaryLibraries, (state.config as any).glossaryEnabled)}).wrap(original as never);
+        const active = handlers.find(h => h.type === IMAGE_TRANSLATE_MESSAGE_TYPE)!.handle({type: IMAGE_TRANSLATE_MESSAGE_TYPE, requestId: 'private-active', sourceLanguage: 'en', title: '',
+            image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII='} as never, {sender: {url: 'https://private.test/', tab: {id: 1, incognito: true}}});
+        await ready;
+        const text = handlers.find(h => h.type === IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE)!;
+        const first = Promise.resolve(text.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'private-active', texts: ['same alpha']} as never, {sender: {url: offscreenUrl}})).catch(() => 'error');
+        await vi.advanceTimersByTimeAsync(10); await first;
+        const forged = text.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'private-active', texts: ['same alpha'], privateContext: true, sender: {url: offscreenUrl}} as never,
+            {sender: {url: 'https://ordinary.test/', tab: {id: 2, incognito: false}}});
+        try {await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(2); await forged; expect(scopes.mock.calls[0]![0]!.quotaScope).not.toBe(scopes.mock.calls[1]![0]!.quotaScope);}
+        finally {finish(); await active;}
+        await expect(text.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'private-active', texts: ['same alpha']} as never, {sender: {url: offscreenUrl}})).rejects.toThrow('上下文已失效');
     });
 });

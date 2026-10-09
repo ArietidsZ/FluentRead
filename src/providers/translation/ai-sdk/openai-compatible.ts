@@ -2,7 +2,7 @@
  * @file src/providers/translation/ai-sdk/openai-compatible.ts
  *
  * 文件职责：通过 Vercel AI SDK 执行 OpenAI 兼容翻译请求，为多个模型服务共享超时、重试、端点和响应校验。
- * 主要内容：冻结配置，解析端点/模型并调用 generateText；真实 HTTP 响应在 attempt 归还前向共享 scheduler 反馈 Retry-After，SDK 继续负责原有重试；清理推理内容并安全转换异常。
+ * 主要内容：冻结配置，解析端点/模型并调用 generateText；真实 HTTP 响应在 attempt 归还前向共享 scheduler 反馈 Retry-After，SDK 继续负责原有重试，broker 真实 attempt 持有并发直到传输 settle；清理推理内容并安全转换异常。
  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
  */
 
@@ -201,8 +201,8 @@ function compatibilityFetch(
         service: request.serviceOverride || schedulerContext?.identity?.service, model: requestedModel};
       const fetchAttempt = async () => {
         const transport = runtimeFetch(endpoint.exactEndpoint || input, init);
-        // SDK 可先结束取消等待；复用外层 lease，直到真正 transport settle 才归还并发槽。
-        schedulerContext?.lease?.holdUntil(transport);
+        // broker 的 attempt 直接 await 原始 transport，取消先拒绝等待者但不归还槽；旧直调复用外层 lease。
+        if (!schedulerContext?.identity?.quotaScope) schedulerContext?.lease?.holdUntil(transport);
         const response = await transport;
         schedulerContext?.scheduler.observeResponse(identity, response);
         return response;
@@ -211,6 +211,7 @@ function compatibilityFetch(
         ? await schedulerContext.scheduler.scheduleAttempt(fetchAttempt, {
             signal: init?.signal ?? undefined,
             identity,
+            countConcurrency: Boolean(schedulerContext.identity?.quotaScope),
           })
         : await fetchAttempt();
     } catch (error) {

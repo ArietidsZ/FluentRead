@@ -1,0 +1,8 @@
+{
+  "serviceIconIncluded": false,
+  "brandTableIncluded": false,
+  "brandModuleIds": [],
+  "note": "Real production module IDs inspected for both native and virtual SVG imports. Artifact bytes measured from final disk output; generate hook code length precedes final wrapper.",
+  "generateHookBytesBeforeFinalWrapping": 1900073,
+  "artifactBytes": 1961932
+}
