@@ -98,7 +98,7 @@ export interface DownloadFileProgress {
 }
 
 function isKnownSize(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value) && value > 0;
+    return isByteCount(value) && value > 0;
 }
 
 /**
