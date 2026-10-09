@@ -247,9 +247,10 @@ describe('documentbinaryAudit PDF resource consumers', () => {
         const before = JSON.stringify(blocks);
         await rasterizePdfTranslationPage({...input(bytes, blocks), translations: ['First paragraph\r\n\nsecond paragraph', 'center', 'LongUnbrokenWord'.repeat(10), '  ']});
         expect(context.fillText).toHaveBeenCalled();
-        expect(context.rect).toHaveBeenCalledTimes(3);
-        expect(context.save).toHaveBeenCalledTimes(3);
-        expect(context.restore).toHaveBeenCalledTimes(3);
+        // 两个放得下的段落被裁剪绘制；2×2 的小框连最小可读字号也放不下长词，保留原页像素而不绘制（与旋转页的同一约定一致），空白译文同样跳过。
+        expect(context.rect).toHaveBeenCalledTimes(2);
+        expect(context.save).toHaveBeenCalledTimes(2);
+        expect(context.restore).toHaveBeenCalledTimes(2);
         expect(JSON.stringify(blocks)).toBe(before);
         expect(canvases[0]).toMatchObject({width: 0, height: 0});
     });
