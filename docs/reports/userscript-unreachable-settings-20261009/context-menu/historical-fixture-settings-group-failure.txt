@@ -1,0 +1,6 @@
+AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+
+  assert(notice.textContent.includes('contextMenuSettings.title'))
+
+    at runPhase (file:///home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/CONTEXT-MENU-UNREACHABLE-CANDIDATE/options-shell-audit.mjs:106:19)
+    at async file:///home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/CONTEXT-MENU-UNREACHABLE-CANDIDATE/options-shell-audit.mjs:132:44

@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "phase": "before",
+      "source": "actual OptionsApp, SettingsSections and SettingsGroup setup + client templates; real Vue KeepAlive and navigation resolver",
+      "ports": "config/browser/appearance and unrelated UI leaves; neither root, availability decision, routes, template, nor KeepAlive replaced",
+      "trace": [
+        {
+          "target": "context-menu",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "context-menu-settings",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "selectPanel(context-menu)",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "keepAliveSameInstance": true,
+      "draftPreserved": "fr",
+      "localTtsMounted": true,
+      "prohibitedChildMounts": [],
+      "externalCalls": 0,
+      "errors": []
+    },
+    {
+      "phase": "after",
+      "source": "actual OptionsApp, SettingsSections and SettingsGroup setup + client templates; real Vue KeepAlive and navigation resolver",
+      "ports": "config/browser/appearance and unrelated UI leaves; neither root, availability decision, routes, template, nor KeepAlive replaced",
+      "trace": [
+        {
+          "target": "context-menu",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "context-menu-settings",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "selectPanel(context-menu)",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "keepAliveSameInstance": true,
+      "draftPreserved": "fr",
+      "localTtsMounted": true,
+      "prohibitedChildMounts": [],
+      "externalCalls": 0,
+      "errors": []
+    }
+  ]
+}
