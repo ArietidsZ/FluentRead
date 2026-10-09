@@ -78,7 +78,7 @@
 
 公开文件来源：[Tiny 固定版本](https://huggingface.co/onnx-community/whisper-tiny/blob/ff4177021cc41f7db950912b73ea4fdf7d01d8e7/onnx/decoder_model_merged_quantized.onnx)、[Base 固定版本](https://huggingface.co/onnx-community/whisper-base/blob/1846881b6b3a3024392c1eea3ad983695bc23925/onnx/decoder_model_merged_quantized.onnx)。原 q4 文件继续使用生产对照的相同摘要。
 
-## 未完成的 WebGPU 运行与限制
+## 恢复前未完成的 WebGPU 运行与限制
 
 显式启动方式为 `launchMode=headless-worker-benchmark`，使用新建临时 profile、localhost 静态资源和纯 Dedicated Worker。这不是扩展 UI 或 Service Worker 验收，不接用户日常浏览器，也不激活前台。
 
@@ -107,3 +107,9 @@ WebGPU headless harness 已做 Node 语法检查，但没有完成浏览器推�
 CPU/WASM 合成语料可复跑：用本机对应 Node 执行 `run-node-wasm-ab.cjs --models tiny,base --samples 0,1,2 --report <new-report-name.json>`，先保留已有来源/权重摘要和脚本归一化的原始报告，不覆盖它们。公开自然音频的临时 manifest 与完整原文报告均留在同一目录；精简 JSON 记录原报告摘要供核对。
 
 下一阶段最值得做的是固定用户实际失败视频中的授权真人音频和人工转写，覆盖口音、背景音乐及句尾，验证 decoder-only q8 在浏览器真实后端的效果与资源，再在同一语料上试 [Small q4](https://huggingface.co/onnx-community/whisper-small/tree/main/onnx)。本轮 CPU/WASM 的局部改善足以支持继续验证这条路线，尚不足以盲目更改默认；继续保持本地推理且不增加服务依赖。
+
+## 恢复后的独立 GPU 复核
+
+共享服务恢复后，最终集成扩展的 Base WebGPU q4 已通过一条自然英文的真实播放器完整链路，见[浏览器验收](./post-recovery-browser-evidence.md)。这与 q4/q8 控制实验分别记录。
+
+三臂 21 次调用的 GPU 对照第一次只完成一条原样 Tiny q4，随后字符归一化工具路径错误中止；两组控制实验尚未开始。修正驱动、通过离线回放与独立审查后，唯一有界重跑在 CacheStorage 导入时报告页面/context/browser 关闭，0 次模型准备、0 次识别；不能据此判定 q8 不兼容或归因内存。两轮均通过所有权关闭并清理新 profile，未追加实例，默认模型及精度未变。精简指标、阶段、SHA 和失败边界见[GPU 复核记录](./gpu-accuracy-experiment.md)。本节没有新增 q4/q8 GPU 准确率或速度结论。

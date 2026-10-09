@@ -81,3 +81,9 @@ fixed Tiny/Base 在调用 prepare 模型之前接收 6 秒全零 PCM。分别约
 该入口可改为 `--hung-master` 或 `--metadata-variants-only --preview-failure`。真实模型入口是 `scripts/run-video-ai-recognition-benchmark.cjs`：`--model-cache-dir` 导入带 SHA 的登记公开模型；`--silence-probe --assert-silence-gate` 验证数字静音；`--audio-padding-ms 2000 --assert-padding-offset` 供 fixed 时轴验收，基线对照省略 offset 断言。启动失败必须停止，保留证据；不能静默切到用户前台。
 
 还需要用户实际失败帖子的原始音频、自然人声/口音/音乐/多人样本、长片、不同硬件/后端及 Firefox/Android 验证。后续识别模型实验应与本轮生产修复分开记录，参考项目设计见 [open-source-review.md](./open-source-review.md)。
+
+## 恢复后的集成复核
+
+服务恢复后串行重跑三个媒体/交互场景，并在集成最新 main 的 `2ef55939f` 上重跑元数据读取。上述历史启动失败及不完整尝试仍保留，未改记为通过。
+
+同一集成产物另完成自然英文 AAC/MP4 的真实 X 夹具采集、原生 PCM16、Base WebGPU q4 Worker 和完整字幕链路，12 项检查通过。全部 22 词保留、单样本 WER 为 0%，正常产品协议下的独立 Microsoft 请求也成功。此轮 UI 翻译响应受控，实际供应商请求单独记录；没有用户故障视频或广泛语料准确率结论。构建 SHA、阶段耗时、所有权关闭和截图边界见[合并前验证](./merge-validation.md)。

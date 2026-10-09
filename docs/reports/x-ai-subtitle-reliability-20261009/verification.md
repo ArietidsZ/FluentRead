@@ -19,9 +19,9 @@
 | 最终模块边界、依赖循环、源码说明与验证归属 | 864 条通过（初轮另有 934 条检查） |
 | 最终 11 个相关业务模块定向覆盖率 | statements、branches、functions、lines 均为 100%（463 条用例） |
 | `pnpm compile` | 通过 |
-| `pnpm build` / `pnpm build:firefox` | 通过，两种扩展均约 60.53 MB |
+| `pnpm build` / `pnpm build:firefox` | 通过，两种扩展均约 60.54 MB（集成最新 main 后） |
 | `pnpm verify:extension-manifests` | 通过 |
-| `pnpm test:audit` | 597 个文件、9411 条用例，唯一归类检查通过 |
+| `pnpm test:audit` | 597 个文件、9431 条用例（集成 main 后），唯一归类检查通过 |
 | `pnpm docs:build` | 通过 |
 
 定向覆盖率包括 `hlsAudio`、`xVideoSubtitleData`、`youtubeTimedTextBridgeCore`、`transcription`、`fullCapture`、`cueTimeline`、`playerMenu`、`downloads`、`audioWindow`、`speechAlignment` 和 `streamingTranscript`。这不是全仓覆盖率或全仓回归声明。视频功能在 userscript 出口为不支持的能力，本轮没有改变这个出口。
@@ -44,7 +44,7 @@ CER 去掉标点和空白，但把简繁差异算作错误。它不能直接当�
 
 固定 q4 encoder、仅切换 q4/q8 decoder 的实验已在单线程本地 WASM 上完成三条合成普通话的 12 次推理。使用相同 Transformers.js 3.8.1、ORT Web 1.23.2、PCM、预处理、生成参数和优化器设置；公开固定快照的 16 个模型/配置文件均与缓存摘要匹配。实验 A 的六段 q4 输出也与此前生产 WebGPU q4 对照逐字相同。
 
-简繁归一化后，三条样本合计 93 字，Tiny 的内容编辑错误为 12→11，Base 为 7→4；Base 仍有短句错误。这只是有限合成样本中的 decoder 精度对照，归一化仅用于评价，没有修改产品输出。原始与归一化 CER 同时保留，生产默认模型与精度均未调整。浏览器 WebGPU A/B 仍未进入模型，不能把本地 WASM 结果当作 GPU 兼容性或速度验收。详见 [准确率实验](./accuracy-experiment.md)。
+简繁归一化后，三条样本合计 93 字，Tiny 的内容编辑错误为 12→11，Base 为 7→4；Base 仍有短句错误。这只是有限合成样本中的 decoder 精度对照，归一化仅用于评价，没有修改产品输出。原始与归一化 CER 同时保留，生产默认模型与精度均未调整。恢复后 GPU 对照仅完成一条原样 Tiny q4 调用，随后报告工具错误中止；有界修正重跑在缓存导入时页面关闭，尚未进入模型。两组 q4/q8 控制实验均未执行，不能把本地 WASM 结果当作 GPU 兼容性或速度验收。详见 [准确率实验](./accuracy-experiment.md)与[恢复后 GPU 记录](./gpu-accuracy-experiment.md)。
 
 另使用开源上游测试中的两个公开 X 样例实际读取 CDN 音轨，并完成 12 次本地 WASM 识别。结果非空、未触发重复退化，但没有人工真值，不能计算准确率或确认用户故障已经恢复。较长样例首段 12 秒，Base 在 32/128 kbps 与 q4/q8 decoder 下输出相同；不能据此支持提高默认码率。读取与声道、音量控制限制见 [公开 X 音频验证](./public-x-audio.md)，识别观察见 [实验记录](./accuracy-experiment.md)。
 
@@ -52,10 +52,12 @@ CER 去掉标点和空白，但把简繁差异算作错误。它不能直接当�
 
 追加完整管线复核确认：Tiny 的同一自然英文样本最终字幕从 19 词恢复为 22 词，词编辑错误 4→1，修复的是已识别短句和延续词被字幕整理吞掉。低音量参考样本从调用模型前被拒绝恢复为可读字幕，实际 PCM16 往返后 Base 仍为 22 词、0 错误。二者均为受控单样本证据，不能外推整体准确率。流式限额和取消资源反例也已复核，详见 [追加完整管线验证](./full-pipeline.md)。
 
+恢复后追加最终集成扩展的真实浏览器链路：自然英文样本制成 AAC/MP4，经 X 页面夹具的真实 MSE 与已加载 GraphQL 候选、原生音频读取、实际 PCM16 消息、生产 Base Worker 和完整字幕控制器，得到 2 条字幕、22 词、0 词编辑错误。实际后端为 WebGPU q4，adapter 为 `apple / metal-3`。模型确认到完整就绪约 2514 ms，推理约 786.7 ms；这是一轮缓存命中的观察值，没有速度对照。另以同一真实产品翻译协议完成一次 Microsoft 英译中请求，约 449 ms；字幕截图中的翻译响应仍受控，不能把它写成联网翻译 UI 验收。原始音频、完整转写和模型缓存不入仓，精简证据见[合并前验证](./merge-validation.md)。
+
 ## 验收边界与后续工作
 
-生产浏览器夹具使用真实 MSE/HLS/MP4/AAC 与 PCM 解码，ASR 和翻译响应受控；它们验证采集、媒体隔离和交互，不能证明真实模型在 X 音频中的准确率。生产 Worker 对照使用合成普通话；公开 X 音频已补充本地 WASM 识别观察，但仍缺用户失败视频的人工正确转写和浏览器完整链路验收。
+媒体回退及预览失败浏览器夹具使用真实 MSE/HLS/MP4/AAC 与 PCM 解码，ASR 和翻译响应受控，验证采集、媒体隔离和交互。恢复后另完成上述一条自然英文的真实浏览器模型链路，以及独立联网翻译请求。生产 Worker 的中文对照使用合成普通话；公开 X 音频补充了本地 WASM 识别观察。仍缺用户失败视频的人工正确转写、自然中文完整链路和广泛语言准确率验收。
 
-当前没有用户本次失败视频的链接，无法确认那些视频已恢复。追加浏览器运行无法取得 DevTools 端口，尚未开始产品断言；三个本任务实例的主线程采样均阻塞于 macOS 剪贴板初始化的同步 IPC。详见 [启动诊断](./browser-startup-diagnosis.md)。这是测试环境证据，失败运行不会计入产品通过结果；共享剪贴板服务的恢复仍待用户授权。Firefox 已构建并检查 manifest，尚未进行 Firefox 实机音频验证。
+当前没有用户本次失败视频的链接，无法确认那些视频已恢复。早期追加浏览器运行在 macOS 剪贴板初始化的同步 IPC 等待期间未开始产品断言，历史事实见 [启动诊断](./browser-startup-diagnosis.md)。随后取得授权并恢复服务，使用专用临时配置重新完成媒体与交互回归；集成最新 main 的构建也通过元数据 MP4 读取验收。恢复收据、重跑结果和真实模型链路的验收边界见 [合并前验证](./merge-validation.md)。失败运行仍不计入产品通过结果。Firefox 已构建并检查 manifest，尚未进行 Firefox 实机音频验证。
 
 下一阶段应固定用户失败视频的授权音频或可公开访问链接与正确转写，按语言、背景音乐、短句和连续对白建立语料。先分别测量音频取得率、完整字幕成功率、错字/漏句和首句等待，再决定模型、解码精度或语义 VAD 调整。[开源实现审查](./open-source-review.md)记录 yt-dlp、Whisper Web 和 WhisperLiveKit 的可借鉴设计；本轮为 FluentRead 独立实现，没有复制其代码或添加运行时服务依赖。

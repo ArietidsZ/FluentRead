@@ -1,6 +1,6 @@
 # 隔离浏览器启动故障诊断（2026-10-09）
 
-本报告记录本次任务创建的三个临时浏览器实例。它们在生成 `DevToolsActivePort` 之前阻塞；没有取得 CDP ownership 收据，扩展加载及产品断言均未开始。结论属于测试环境诊断，不能据此判断 FluentRead 功能成功或失败。
+本报告保留恢复前的三个临时浏览器实例诊断。它们在生成 `DevToolsActivePort` 之前阻塞；没有取得 CDP ownership 收据，扩展加载及产品断言均未开始。结论属于测试环境诊断，不能据此判断 FluentRead 功能成功或失败。随后取得授权并恢复服务的独立收据与重跑结果见[合并前验证](./merge-validation.md)。
 
 精简证据见 [browser-startup-diagnosis.json](./browser-startup-diagnosis.json)。原启动结果分别见 [fixed Home](./fixed-home-recovery/report.json)、[fixed Base padding](./fixed-base-padded-asr/report.json)、[refactored final metadata](./refactored-final-metadata-only/report.json)。这三次实际启动调用均显式使用 `require_escalated`；超时不能归因于遗漏该权限。
 

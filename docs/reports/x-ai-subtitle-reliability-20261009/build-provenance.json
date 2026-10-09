@@ -34,7 +34,7 @@
     "quietSpeechAndWordPreservationFinal": {
       "sourceCommit": "56aab82ae82a47ab009f05500bb140fbf7caea22",
       "directory": "/private/tmp/fluentread-x-ai-followup-final-build-20261009/chrome-mv3",
-      "browserAcceptance": "not run; macOS pasteboard initialization block documented separately",
+      "browserAcceptance": "Initial attempt blocked before product assertions; after service recovery, metadata MP4, hung master fallback and preview failure scenarios passed. ASR/translation mocked in these three scenarios; see merge-validation.md.",
       "files": {
         "manifest.json": "cc92950ad08ed2e2f02bd55a0756048e6569ec51c9341d9e678b65fb3d8d03f7",
         "background.js": "607478f85dd7d6870e40a3ca31579bc2262e976eaea8a4d40a4c1674acb3b03f",
@@ -42,6 +42,18 @@
         "content-scripts/content.js": "5b1d4699f37722cd311ea5795345130a8c44fb73067f10f23a798c64121cfd5c",
         "content-scripts/xVideoBridge.js": "f22318b71931cfc573c8aae63086438e4d186f4f654616a85ebd0c6178c50331"
       }
+    },
+    "mergedMainFinal": {
+      "sourceCommit": "2ef55939f123d4ecdb6b9cdac081ce52a1b2cd06",
+      "directory": "/private/tmp/fluentread-x-ai-merge-final-build-20261009/chrome-mv3",
+      "files": {
+        "manifest.json": "cc92950ad08ed2e2f02bd55a0756048e6569ec51c9341d9e678b65fb3d8d03f7",
+        "background.js": "f3883d787c567f937e5d350200b7a4195f1020d2c8f46042ba5a9ead5101d7e4",
+        "videoTranscriptionWorker.js": "ddcb25ca54475475a88c3cc0d27f90d0672a9de43e58af5d6c02d8ad50e33beb",
+        "content-scripts/content.js": "fa43cde96650eab98b36807fd3b1bb0991497b878278784d1f059735f004bcde",
+        "content-scripts/xVideoBridge.js": "f22318b71931cfc573c8aae63086438e4d186f4f654616a85ebd0c6178c50331"
+      },
+      "browserAcceptance": "Metadata MP4 scenario passed; separate natural-English AAC/MP4→PCM16→actual Base WebGPU q4→complete subtitles run passed 12 checks and guarded close. UI translation controlled; independent actual Microsoft protocol request succeeded. See merge-validation.md."
     }
   }
 }
