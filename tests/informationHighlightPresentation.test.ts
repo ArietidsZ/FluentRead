@@ -7,7 +7,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {alignInformationWordSpans, informationWordSpans, scoreInformationKeywords, selectInformationSpans} from '@/src/features/information-highlight/domain/keywords';
 import {informationGraphemeBoundaries} from '@/src/features/information-highlight/domain/textBoundaries';
-import {INFORMATION_HIGHLIGHT_COLORS, INFORMATION_HIGHLIGHT_LEVELS, INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap} from '@/src/features/information-highlight/domain/presentation';
+import {INFORMATION_HIGHLIGHT_COLORS, INFORMATION_HIGHLIGHT_LEVELS, INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap} from '@/src/features/information-highlight/domain/public';
 
 afterEach(() => vi.unstubAllGlobals());
 const sample = 'alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar papa';

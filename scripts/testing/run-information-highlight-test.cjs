@@ -295,9 +295,21 @@ function popupSourceContract(){
     await step('hotkey-toggle-on',()=>page.keyboard.press('Alt+KeyH'));
     await step('hotkey-paints-current-page',()=>page.waitForFunction(()=>[...CSS.highlights].some(([name,paint])=>name.startsWith('fluentread-information-highlight')&&paint.size>0),null,{timeout:30000}));
     const hotkeyRanges=await step('hotkey-range-count',paintedNow);assert(hotkeyRanges>0);
+    const noticeText=()=>page.evaluate(()=>document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'');
+    await step('hotkey-on-notice',()=>page.waitForFunction(()=>(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'').includes('智能高亮已开启'),null,{timeout:15000}));
+    assert((await step('hotkey-notice-keeps-paint',paintedNow))>=hotkeyRanges,'The page notice must not disturb painted ranges');
     const hotkeyStored=await step('hotkey-does-not-save-switch',()=>support.readStoredConfig(control));assert.equal(hotkeyStored.informationHighlight.enabled,false);assert.equal(hotkeyStored.informationHighlight.hotkey,'Alt+H');
     await step('hotkey-toggle-off',()=>page.keyboard.press('Alt+KeyH'));
     await step('hotkey-clears-current-page',()=>page.waitForFunction(()=>![...CSS.highlights.keys()].some(name=>name.startsWith('fluentread-information-highlight')),null,{timeout:30000}));
+    await step('hotkey-off-notice',()=>page.waitForFunction(()=>(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'').includes('智能高亮已关闭'),null,{timeout:15000}));
+    // 模型尚未下载时用快捷键开启：页面给出明确提示，而不是毫无反应。
+    await step('model-mode-before-download',()=>support.patchStoredConfig(control,{informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'surprisal-local',density:'medium',color:'amber',style:'background',intensity:'standard'}}));
+    await delay(600);await step('hotkey-on-without-model',()=>page.keyboard.press('Alt+KeyH'));
+    await step('hotkey-model-not-ready-notice',()=>page.waitForFunction(()=>(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'').includes('请先在设置中下载本地模型'),null,{timeout:30000}));
+    const missingModelNotice=await step('hotkey-model-not-ready-text',noticeText);
+    await step('hotkey-off-without-model',()=>page.keyboard.press('Alt+KeyH'));
+    await step('keywords-mode-restored',()=>support.patchStoredConfig(control,{informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'keywords',density:'medium',color:'amber',style:'background',intensity:'standard'}}));
+    await delay(600);report.cases.push({id:'hotkey-without-downloaded-model-shows-page-notice',missingModelNotice});
     assert.equal(await step('hotkey-settings-row',()=>control.locator('#information-highlight-settings [data-information-highlight-hotkey]').innerText()),'Alt+H');
     const hotkeySwitch=control.locator('#information-highlight-settings [data-information-highlight-hotkey-enabled]').first();
     await step('hotkey-switch-off',async()=>{await hotkeySwitch.scrollIntoViewIfNeeded();await hotkeySwitch.click();});

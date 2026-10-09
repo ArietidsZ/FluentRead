@@ -153,6 +153,19 @@ describe('信息高亮设置真实父子模板与生命周期', () => {
     expect(seen[0]).toBeLessThan(seen[1]); expect(seen[1]).toBeLessThan(seen[2])
     expect(props.config.informationHighlight).toMatchObject({mode: 'keywords', density: 'high', color: 'blue', style: 'heatmap'}); expect(send).not.toHaveBeenCalled()
   })
+  it('预览可切换到未高亮的原文对比，文字完全相同，切回后恢复高亮且不写配置', async () => {
+    await mount('keywords'); event('[data-information-highlight-style="heatmap"]')(); await settle()
+    const passage = () => [...document.querySelectorAll('.highlight-preview-text')].map(paragraph => paragraph.textContent).join('\n\n')
+    const marks = () => document.querySelectorAll('[data-information-highlight-preview-level]').length
+    const before = marks(), saved = JSON.stringify(props.config.informationHighlight); expect(before).toBeGreaterThan(0)
+    expect(element('[data-information-highlight-preview-view="highlighted"]').getAttribute('aria-pressed')).toBe('true')
+    event('[data-information-highlight-preview-view="original"]')(); await settle()
+    expect(marks()).toBe(0); expect(passage()).toBe(previewStory)
+    expect(element('[data-information-highlight-preview-view="original"]').getAttribute('aria-pressed')).toBe('true')
+    expect(element('.highlight-preview-legend').getAttribute('class')).toContain('is-hidden')
+    event('[data-information-highlight-preview-view="highlighted"]')(); await settle()
+    expect(marks()).toBe(before); expect(passage()).toBe(previewStory); expect(JSON.stringify(props.config.informationHighlight)).toBe(saved); expect(send).not.toHaveBeenCalled()
+  })
   it('热力预览按密度改变覆盖与浓淡，切换三种样式保留完整示意原文和 Unicode', async () => {
     await mount('keywords'); event('[data-information-highlight-style="heatmap"]')(); await settle()
     const passage = () => [...document.querySelectorAll('.highlight-preview-text')].map(paragraph => paragraph.textContent).join('\n\n')

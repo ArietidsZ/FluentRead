@@ -64,6 +64,7 @@ import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation, t
 import {createPdfReaderRenderPort, pdfReaderPageHasTranslation, pdfReaderPageKey, pdfReaderPageWindow, PdfReaderScheduler, type PdfReaderMode, type PdfReaderPageState} from '@/src/features/document-translation/ui/pdfReader';
 import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
 import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, type InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
+import {matchesConfiguredHotkey} from '@/src/core/hotkey';
 import type {InformationHighlightResult, InformationHighlightState} from '@/src/features/information-highlight/protocol';
 
 const props = withDefaults(defineProps<{document: ParsedDocument; translations?: readonly string[]; mode: PdfReaderMode; sourceUrl?: string; presentation?: PdfReadingPresentation; informationHighlight?: {preferences: InformationHighlightPreferences; scoreLocal(text: string, signal: AbortSignal): Promise<InformationHighlightResult>; available: boolean}}>(), {translations: () => [], sourceUrl: '', presentation: 'readable'});
@@ -77,6 +78,14 @@ const {t} = useUiI18n();
 const viewport = ref<HTMLElement>();
 let informationController: InformationHighlightController | undefined, informationWanted = false;
 const informationState = shallowRef<InformationHighlightState>({enabled: false, phase: 'idle', sessionId: '0', processedParagraphs: 0, queuedParagraphs: 0, highlightedSpans: 0, mode: props.informationHighlight?.preferences.mode ?? DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES.mode});
+/** 与网页相同的快捷键开关当前文档，等同于点击工具栏按钮。 */
+function handleInformationHotkey(event: KeyboardEvent): void {
+  const settings = props.informationHighlight;
+  if (!event.isTrusted || event.repeat || !settings?.available || !settings.preferences.hotkeyEnabled || !informationController
+    || !matchesConfiguredHotkey(event, 'custom', settings.preferences.hotkey)) return;
+  event.preventDefault(); event.stopPropagation();
+  informationController.setEnabled(!informationState.value.enabled);
+}
 function syncInformationHighlight(): void {
   const settings = props.informationHighlight;
   if (!settings || !viewport.value) {informationController?.dispose(); informationController = undefined; informationWanted = false; return;}
@@ -357,6 +366,7 @@ onMounted(() => {
   viewportWidth.value = viewport.value?.clientWidth || 920;
   createScheduler();
   globalThis.document.addEventListener('selectionchange', handleSelectionChange);
+  globalThis.document.addEventListener('keydown', handleInformationHotkey, true);
   globalThis.document.addEventListener('pointerdown', handlePointerDown, true);
   globalThis.document.addEventListener('pointerup', handlePointerUp, true);
   globalThis.document.body.addEventListener('fluentread-pdf-selection-range-change', handleCardRange);
@@ -376,6 +386,7 @@ onBeforeUnmount(() => {
   readingUpdateGeneration += 1;
   observer?.disconnect();
   globalThis.document.removeEventListener('selectionchange', handleSelectionChange);
+  globalThis.document.removeEventListener('keydown', handleInformationHotkey, true);
   globalThis.document.removeEventListener('pointerdown', handlePointerDown, true);
   globalThis.document.removeEventListener('pointerup', handlePointerUp, true);
   globalThis.document.body.removeEventListener('fluentread-pdf-selection-range-change', handleCardRange);

@@ -20,6 +20,8 @@ export default defineConfig({
                 'src/platform/storage/modelArtifacts.ts',
                 'src/app/background/localModelMessageRuntime.ts',
                 'src/app/content/informationHighlight.ts',
+                'src/app/content/informationHighlightScorePort.ts',
+                'src/app/document-translation/informationHighlight.ts',
                 'src/app/offscreen/informationHighlightWorker.ts',
                 'src/features/full-page-translation/content/visibleTranslation.ts',
             ],

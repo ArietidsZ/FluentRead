@@ -18,6 +18,8 @@ import type {InformationHighlightResult} from '@/src/features/information-highli
 // 保留背景与下划线的既有选择行为；新默认热力外观另用真实多档绘制断言覆盖。
 const defaults = {...defaultPreferences, style: 'background' as const};
 
+const pageNotice = vi.hoisted(() => vi.fn());
+vi.mock('@/src/features/page-notice/public', () => ({showPageNotice: pageNotice}));
 function deferred<T>() {let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;}); return {promise, resolve, reject};}
 function fixture(html = '<article><p id="paragraph">The extraordinary algorithm preserves original paragraphs and inline links.</p></article>', native = true) {
     const {document, window} = parseHTML(`<html><head></head><body>${html}</body></html>`);
@@ -530,6 +532,25 @@ describe('content composition and runtime score messages', () => {
         expect(runtime.getState().enabled).toBe(false); runtime.setEnabled(true); await f.settle();
         expect(f.painted()).toContain('Bright'); runtime.feature.unmount!(); expect(runtime.getState().phase).toBe('idle'); activation.abort();
     });
+    it('shows a localized page notice for shortcut feedback unless a notice port is injected', async () => {
+        const press = (f: ReturnType<typeof fixture>) => {
+            const event = new f.window.Event('keydown', {bubbles: true, cancelable: true}) as KeyboardEvent;
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false});
+            Object.defineProperty(event, 'isTrusted', {value: true}); f.document.dispatchEvent(event);
+        };
+        pageNotice.mockClear();
+        const f = fixture(), runtime = createPageInformationHighlightRuntime({document: f.document, config: {on: true, uiLanguage: 'zh-CN', informationHighlight: {...defaults, mode: 'surprisal-local'}}, send: vi.fn(async () => ({success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'}))});
+        runtime.feature.mount({ctx: {} as never, signal: new AbortController().signal, isCurrent: () => true});
+        press(f); await f.settle(); press(f);
+        expect(pageNotice.mock.calls.map(([message, tone, options]) => [message, tone, options.key])).toEqual([
+            ['智能高亮已开启', 'success', 'information-highlight'],
+            ['请先在设置中下载本地模型，或改用关键词方式', 'error', 'information-highlight'],
+            ['智能高亮已关闭', 'success', 'information-highlight']]);
+        runtime.feature.unmount!(); pageNotice.mockClear();
+        const injected = vi.fn(), g = fixture(), custom = createPageInformationHighlightRuntime({document: g.document, config: {on: true, informationHighlight: {...defaults}}, send: vi.fn(), notice: injected});
+        custom.feature.mount({ctx: {} as never, signal: new AbortController().signal, isCurrent: () => true}); press(g);
+        expect(injected).toHaveBeenCalledWith('on'); expect(pageNotice).not.toHaveBeenCalled(); custom.feature.unmount!();
+    });
     it('follows the saved switch on mount, setting changes and route changes, and normalizes malformed updates to off', async () => {
         const f = fixture(), send = vi.fn(async (message: {type: string; text?: string}) => ({success: true, result: scoreInformationKeywords(message.text || '')}));
         const runtime = createInformationHighlightContentRuntime({document: f.document, preferences: {...defaults, enabled: true}, send});
@@ -570,6 +591,31 @@ describe('content composition and runtime score messages', () => {
         runtime.updatePreferences({...defaults}); activation.abort(); expect(press(altH).defaultPrevented).toBe(false); expect(runtime.getState().enabled).toBe(false);
         const stale = new AbortController(); let current = true; runtime.mount(stale.signal, () => current); current = false;
         expect(press(altH).defaultPrevented).toBe(false); runtime.unmount(); expect(send).not.toHaveBeenCalled();
+    });
+    it('announces shortcut sessions once: on, off, missing model, generic failure and unsupported browsers, while automatic sessions stay quiet', async () => {
+        const press = (f: ReturnType<typeof fixture>) => {
+            const event = new f.window.Event('keydown', {bubbles: true, cancelable: true}) as KeyboardEvent;
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false});
+            Object.defineProperty(event, 'isTrusted', {value: true}); f.document.dispatchEvent(event);
+        };
+        const run = async (preferences: typeof defaults, reply: unknown, native = true) => {
+            const f = fixture(undefined, native), notice = vi.fn(), send = vi.fn(async () => reply);
+            const runtime = createInformationHighlightContentRuntime({document: f.document, preferences, send, notice});
+            runtime.mount(new AbortController().signal, () => true); return {f, notice, runtime};
+        };
+        const keywords = await run({...defaults}, undefined);
+        press(keywords.f); await keywords.f.settle(); press(keywords.f); expect(keywords.notice.mock.calls).toEqual([['on'], ['off']]); keywords.runtime.unmount();
+        const missing = await run({...defaults, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
+        press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls).toEqual([['on'], ['modelNotReady']]);
+        missing.runtime.retry(); await missing.f.settle(); expect(missing.notice).toHaveBeenCalledTimes(2); missing.runtime.unmount();
+        const failed = await run({...defaults, mode: 'surprisal-local'}, {success: false});
+        press(failed.f); await failed.f.settle(); expect(failed.notice.mock.calls).toEqual([['on'], ['error']]); failed.runtime.unmount();
+        const unsupported = await run({...defaults}, undefined, false);
+        press(unsupported.f); expect(unsupported.notice.mock.calls).toEqual([['unsupported']]); unsupported.runtime.unmount();
+        const automatic = await run({...defaults, enabled: true, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
+        await automatic.f.settle(); expect(automatic.runtime.getState().phase).toBe('error'); expect(automatic.notice).not.toHaveBeenCalled(); automatic.runtime.unmount();
+        const silent = fixture(), quiet = createInformationHighlightContentRuntime({document: silent.document, preferences: {...defaults, mode: 'surprisal-local'}, send: vi.fn(async () => ({success: false}))});
+        quiet.mount(new AbortController().signal, () => true); press(silent); await silent.settle(); expect(quiet.getState().phase).toBe('error'); quiet.unmount();
     });
     it('mounts only current activation, owns abort, maps score messages and returns idle after route change', async () => {
         const f = fixture(), activation = new AbortController();

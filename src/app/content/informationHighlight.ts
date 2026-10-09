@@ -1,15 +1,19 @@
 /**
  * @file src/app/content/informationHighlight.ts
  * 文件职责：装配当前页面的信息高亮控制器，将扩展模型消息端口适配成可取消的纯文本评分函数。
- * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
+ * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面并通过注入的通知端口反馈开启、关闭、模型未下载或不支持，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
  * 模块边界：只通过 feature public 与纯数据 protocol 装配，不导入 Worker、模型或后台内部实现，不写配置，不接触宿主原文。
  */
 import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
-import type {InformationHighlightResult, InformationHighlightState} from '@/src/features/information-highlight/protocol';
+import type {InformationHighlightState} from '@/src/features/information-highlight/protocol';
 import {normalizeInformationHighlightPreferences, type InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
 import {readVisibleTranslationRoot} from '@/src/features/full-page-translation/content/public';
 import {matchesConfiguredHotkey} from '@/src/core/hotkey';
+import {normalizeUiLanguage, translate} from '@/src/core/i18n';
+import {showPageNotice} from '@/src/features/page-notice/public';
 import type {ContentFeatureDefinition} from './featureRegistry';
+import {createInformationHighlightScorePort} from './informationHighlightScorePort';
+export {createInformationHighlightScorePort};
 export interface InformationHighlightContentRuntime {
     mount(signal: AbortSignal, isCurrent: () => boolean): void;
     unmount(): void;
@@ -19,6 +23,7 @@ export interface InformationHighlightContentRuntime {
     updatePreferences(preferences: InformationHighlightPreferences): void;
     routeChanged(): void;
 }
+export type InformationHighlightNotice = 'on' | 'off' | 'modelNotReady' | 'error' | 'unsupported';
 export interface InformationHighlightMessageState {
     isSiteDisabled(): boolean;
     isPageSuspended?(): boolean;
@@ -37,41 +42,13 @@ export function handleInformationHighlightMessage(payload: Record<string, unknow
     else sendResponse({success: true, state: payload.type === 'RETRY_INFORMATION_HIGHLIGHT' ? feature.retry() : feature.setEnabled(payload.enabled === true)});
     return true;
 }
-export function createInformationHighlightScorePort(send: (message: {type: string; text?: string; requestId: string}) => Promise<unknown>) {
-    const requestIdentity = () => {
-        if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-        // HTTP 宿主页也有 getRandomValues；构造相同 RFC 4122 v4 格式以满足后台消息验证。
-        const bytes = crypto.getRandomValues(new Uint8Array(16)); bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
-        const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
-        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-    };
-    return async function scoreLocal(text: string, signal: AbortSignal): Promise<InformationHighlightResult> {
-        const requestId = requestIdentity();
-        if (signal.aborted) throw new Error('INFORMATION_HIGHLIGHT_CANCELLED');
-        let rejectAbort: (reason: Error) => void;
-        const cancelled = new Promise<never>((_resolve, reject) => {rejectAbort = reject;});
-        const abort = () => {
-            void send({type: 'CANCEL_INFORMATION_HIGHLIGHT', requestId}).catch(() => undefined);
-            rejectAbort(new Error('INFORMATION_HIGHLIGHT_CANCELLED'));
-        };
-        signal.addEventListener('abort', abort, {once: true});
-        try {
-            const reply = await Promise.race([send({type: 'SCORE_INFORMATION_HIGHLIGHT', text, requestId}), cancelled]);
-            if (signal.aborted) throw new Error('INFORMATION_HIGHLIGHT_CANCELLED');
-            const response = reply as {success?: boolean; result?: InformationHighlightResult; error?: string} | undefined;
-            if (!response?.success || !response.result || !Array.isArray(response.result.spans) || typeof response.result.engine !== 'string') {
-                throw new Error(response?.error || 'INFORMATION_HIGHLIGHT_SCORE_FAILED');
-            }
-            return response.result;
-        } finally {signal.removeEventListener('abort', abort);}
-    };
-}
 export function createInformationHighlightContentRuntime(ports: {
     document: Document;
     preferences: InformationHighlightPreferences;
     send(message: {type: string; text?: string; requestId: string}): Promise<unknown>;
     readTranslationRoot?(host: Element): ShadowRoot | undefined;
     canToggle?(): boolean;
+    notice?(message: InformationHighlightNotice): void;
 }): InformationHighlightContentRuntime {
     let controller: InformationHighlightController | undefined, preference = normalizeInformationHighlightPreferences(ports.preferences);
     const scoreLocal = createInformationHighlightScorePort(ports.send);
@@ -81,7 +58,13 @@ export function createInformationHighlightContentRuntime(ports: {
     return {
         mount(signal, isCurrent) {
             if (signal.aborted || !isCurrent() || controller) return;
-            const owner = installInformationHighlight(ports.document, preference, {scoreLocal, isCurrent, readTranslationRoot: ports.readTranslationRoot});
+            // 只有快捷键开启的会话才提示问题，且每次开启最多提示一次；自动高亮在后台页面保持安静。
+            let announce = false;
+            const owner = installInformationHighlight(ports.document, preference, {scoreLocal, isCurrent, readTranslationRoot: ports.readTranslationRoot, changed(state) {
+                if (!announce || (state.phase !== 'error' && state.phase !== 'unsupported')) return;
+                announce = false;
+                ports.notice?.(state.phase === 'unsupported' ? 'unsupported' : state.errorCode?.includes('NOT_DOWNLOADED') ? 'modelNotReady' : 'error');
+            }});
             controller = owner;
             if (preference.enabled) owner.setEnabled(true);
             // 快捷键只切换这个页面的会话，不写配置；网站停用或页面挂起时不接管按键。
@@ -89,7 +72,10 @@ export function createInformationHighlightContentRuntime(ports: {
                 if (!event.isTrusted || event.repeat || controller !== owner || !isCurrent() || ports.canToggle?.() === false
                     || !preference.hotkeyEnabled || !matchesConfiguredHotkey(event, 'custom', preference.hotkey)) return;
                 event.preventDefault(); event.stopPropagation();
-                owner.setEnabled(!owner.getState().enabled);
+                const enable = !owner.getState().enabled;
+                announce = enable;
+                const state = owner.setEnabled(enable);
+                if (state.enabled === enable && state.phase !== 'unsupported') ports.notice?.(enable ? 'on' : 'off');
             }, {capture: true, signal});
             signal.addEventListener('abort', () => {owner.dispose(); if (controller === owner) controller = undefined;}, {once: true});
         },
@@ -109,12 +95,15 @@ export function createInformationHighlightContentRuntime(ports: {
 /** 页面组合根只注入配置和消息端口；正文/译文只读入口与注册表定义集中在此适配器。 */
 export function createPageInformationHighlightRuntime(ports: {
     document: Document;
-    config: {on: boolean; informationHighlight: InformationHighlightPreferences};
+    config: {on: boolean; uiLanguage?: string; informationHighlight: InformationHighlightPreferences};
     send(message: {type: string; text?: string; requestId: string}): Promise<unknown>;
     canToggle?(): boolean;
+    notice?(message: InformationHighlightNotice): void;
 }): InformationHighlightContentRuntime & {feature: ContentFeatureDefinition} {
     const runtime = createInformationHighlightContentRuntime({document: ports.document, preferences: ports.config.informationHighlight,
-        send: ports.send, readTranslationRoot: readVisibleTranslationRoot, canToggle: ports.canToggle});
+        send: ports.send, readTranslationRoot: readVisibleTranslationRoot, canToggle: ports.canToggle,
+        notice: ports.notice ?? (message => showPageNotice(translate(`informationHighlight.notice.${message}`, normalizeUiLanguage(ports.config.uiLanguage)),
+            message === 'on' || message === 'off' ? 'success' : 'error', {key: 'information-highlight'}))});
     return {...runtime, feature: {id: 'information-highlight', isEnabled: () => ports.config.on !== false,
         mount: activation => runtime.mount(activation.signal, activation.isCurrent), unmount: runtime.unmount}};
 }

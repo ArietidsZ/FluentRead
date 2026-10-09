@@ -405,6 +405,25 @@ describe('PDF reader information highlight composition', () => {
         expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
         mountedApp.unmount(); mountedApp = undefined; await componentFlush();
     });
+    it('toggles the current document with the configured shortcut and ignores it when disabled, repeated, untrusted or unavailable', async () => {
+        nativeInformationPaint(); const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const reader = mountReader(model(2), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, scoreLocal: score, available: true});
+        await componentFlush(); flushFrames(); await componentFlush();
+        const press = (init: Record<string, unknown> = {}, trusted = true) => {
+            const event = document.createEvent('Event'); event.initEvent('keydown', true, true);
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false, ...init});
+            Object.defineProperty(event, 'isTrusted', {value: trusted}); document.dispatchEvent(event); return event;
+        };
+        expect(press().defaultPrevented).toBe(true); await componentFlush(); expect(reader.state.informationState.enabled).toBe(true);
+        for (const ignored of [press({}, false), press({repeat: true}), press({key: 'j', code: 'KeyJ'})]) expect(ignored.defaultPrevented).toBe(false);
+        expect(reader.state.informationState.enabled).toBe(true);
+        press(); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, hotkeyEnabled: false}}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, available: false}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(press().defaultPrevented).toBe(false);
+    });
     it('aborts pending model scoring on document change and rejects stale text-layer results', async () => {
         const registry = nativeInformationPaint(), pending = deferred<any>(), signals: AbortSignal[] = [];
         const score = vi.fn((_text: string, signal: AbortSignal) => {signals.push(signal); return pending.promise;});

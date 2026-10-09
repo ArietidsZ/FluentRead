@@ -1,10 +1,13 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 const mocks = vi.hoisted(() => ({status: vi.fn(), prepare: vi.fn(), pause: vi.fn(), remove: vi.fn(), score: vi.fn(), translation: vi.fn(() => [{type: 'translation', handle: vi.fn()}]), tts: vi.fn(() => [{type: 'tts', handle: vi.fn()}])}));
+const extension = vi.hoisted(() => ({sendMessage: vi.fn()}));
+vi.mock('webextension-polyfill', () => ({default: {runtime: {sendMessage: extension.sendMessage}}}));
 vi.mock('@/src/features/information-highlight/background/offscreenAdapter', () => ({createInformationHighlightOffscreenAdapter: () => mocks}));
 vi.mock('@/src/features/local-translation/background/runtime', () => ({createLocalTranslationBackgroundRuntime: mocks.translation}));
 vi.mock('@/src/features/local-tts/background/runtime', () => ({createLocalTtsBackgroundRuntime: mocks.tts}));
 import {createInformationHighlightBackgroundRuntime} from '@/src/features/information-highlight/background/runtime';
 import {createLocalModelMessageHandlers} from '@/src/app/background/localModelMessageRuntime';
+import {scoreDocumentInformation} from '@/src/app/document-translation/informationHighlight';
 
 afterEach(() => {vi.unstubAllGlobals(); vi.clearAllMocks();});
 describe('information highlight background composition', () => {
@@ -20,5 +23,11 @@ describe('information highlight background composition', () => {
         const localHandlers = createLocalModelMessageHandlers();
         expect(localHandlers.map(handler => handler.type)).toEqual(['translation', ...handlers.map(handler => handler.type), 'tts']);
         expect(mocks.translation).toHaveBeenCalledOnce(); expect(mocks.tts).toHaveBeenCalledOnce();
+    });
+    it('routes document reader scoring through the extension runtime message port', async () => {
+        const result = {spans: [{start: 0, end: 1, score: 1}], engine: 'local'};
+        extension.sendMessage.mockResolvedValue({success: true, result});
+        await expect(scoreDocumentInformation('x', new AbortController().signal)).resolves.toEqual(result);
+        expect(extension.sendMessage).toHaveBeenCalledWith(expect.objectContaining({type: 'SCORE_INFORMATION_HIGHLIGHT', text: 'x', requestId: expect.any(String)}));
     });
 });

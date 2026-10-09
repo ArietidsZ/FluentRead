@@ -597,6 +597,8 @@ export default defineConfig({
             include: [
                 'src/app/background/localModelMessageRuntime.ts',
                 'src/app/content/informationHighlight.ts',
+                'src/app/content/informationHighlightScorePort.ts',
+                'src/app/document-translation/informationHighlight.ts',
                 'src/core/config/informationHighlight.ts',
                 'src/core/config/informationHighlightModel.ts',
                 'src/core/i18n/messages/informationHighlight.ts',

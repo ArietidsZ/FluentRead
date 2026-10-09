@@ -1,21 +1,21 @@
 <!--
 @file src/features/settings/ui/InformationHighlightPreview.vue
-文件职责：在自然段落中即时预览智能高亮的密度、六套配色和绘制方式。
+文件职责：在自然段落中即时预览智能高亮的密度、六套配色和绘制方式，并可切换到未高亮的原文对比。
 主要内容：固定示例词段使用循环示意分数，复用真实的词项分段、热力层级和透明度映射；长文本保留完整文字、空白与段落，色阶图例帮助直接比较浓淡效果。
 模块边界：纯展示组件，不访问网页正文、不调用评分模型、不写配置；示意分数不代表模型分析结果、词语重要性或阅读效果证据。
 -->
 <template>
   <figure class="information-highlight-preview" :class="[`style-${preferences.style}`, {'is-compact': compact}]" :style="{'--highlight-preview-rgb': palette.rgb}" :data-information-highlight-preview-color="preferences.color" :data-information-highlight-preview-style="preferences.style" :data-information-highlight-preview-density="preferences.density" data-testid="information-highlight-preview">
-    <div class="highlight-preview-heading"><span>{{ t('informationHighlight.preview.label') }}</span></div>
+    <div class="highlight-preview-heading"><span>{{ t('informationHighlight.preview.label') }}</span><span class="highlight-preview-compare" role="group" :aria-label="t('informationHighlight.preview.label')"><button v-for="item in views" :key="String(item.value)" type="button" :aria-pressed="original === item.value" :class="{selected: original === item.value}" :onClick="item.choose" :data-information-highlight-preview-view="item.value ? 'original' : 'highlighted'">{{ t(item.value ? 'informationHighlight.preview.original' : 'informationHighlight.preview.highlighted') }}</button></span></div>
     <div class="highlight-preview-page">
-      <p v-for="(paragraph, index) in paragraphs" :key="index" class="highlight-preview-text"><template v-for="(piece, pieceIndex) in paragraph" :key="pieceIndex"><mark v-if="piece.level !== undefined" :data-information-highlight-preview-level="piece.level" :style="{'--highlight-preview-opacity': informationHighlightOpacity(preferences.style, piece.level, preferences.intensity)}">{{ piece.text }}</mark><span v-else>{{ piece.text }}</span></template></p>
+      <p v-for="(paragraph, index) in paragraphs" :key="index" class="highlight-preview-text"><template v-for="(piece, pieceIndex) in paragraph" :key="pieceIndex"><mark v-if="piece.level !== undefined && !original" :data-information-highlight-preview-level="piece.level" :style="{'--highlight-preview-opacity': informationHighlightOpacity(preferences.style, piece.level, preferences.intensity)}">{{ piece.text }}</mark><span v-else>{{ piece.text }}</span></template></p>
     </div>
-    <div v-if="preferences.style === 'heatmap'" class="highlight-preview-legend" :aria-label="`${t('informationHighlight.preview.legend.low')} — ${t('informationHighlight.preview.legend.high')}`"><span>{{ t('informationHighlight.preview.legend.low') }}</span><span class="highlight-preview-ramp" aria-hidden="true"><i v-for="level in rampLevels" :key="level" :style="{backgroundColor: `rgb(${palette.rgb} / ${informationHighlightOpacity('heatmap', level, preferences.intensity)})`}" /></span><span>{{ t('informationHighlight.preview.legend.high') }}</span></div>
+    <div v-if="preferences.style === 'heatmap'" class="highlight-preview-legend" :class="{'is-hidden': original}" :aria-label="`${t('informationHighlight.preview.legend.low')} — ${t('informationHighlight.preview.legend.high')}`"><span>{{ t('informationHighlight.preview.legend.low') }}</span><span class="highlight-preview-ramp" aria-hidden="true"><i v-for="level in rampLevels" :key="level" :style="{backgroundColor: `rgb(${palette.rgb} / ${informationHighlightOpacity('heatmap', level, preferences.intensity)})`}" /></span><span>{{ t('informationHighlight.preview.legend.high') }}</span></div>
     <figcaption>{{ t('informationHighlight.preview.caption') }}</figcaption>
   </figure>
 </template>
 <script setup lang="ts">
-import {computed} from 'vue'
+import {computed, ref} from 'vue'
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight'
 import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, informationWordSpans, presentInformationHeatmap, selectInformationSpans} from '@/src/features/information-highlight/domain/public'
 import {useUiI18n} from '@/src/ui/i18n'
@@ -23,6 +23,9 @@ const props = defineProps<{preferences: InformationHighlightPreferences; compact
 const {t} = useUiI18n()
 const palette = computed(() => INFORMATION_HIGHLIGHT_PALETTES[props.preferences.color])
 const rampLevels = [0, 2, 3, 5, 7]
+// 只是本次查看的对比开关，不写入偏好。
+const original = ref(false)
+const views = [false, true].map(value => ({value, choose: () => {original.value = value}}))
 const demonstrationScores = [2, 5, 1, 8, 3, 6, 10, 4]
 const paragraphs = computed(() => t('informationHighlight.preview.story').split('\n\n').map(text => {
   const scored = informationWordSpans(text).map((word, index) => ({start: word.start, end: word.end, score: demonstrationScores[index % demonstrationScores.length]}))
@@ -42,6 +45,11 @@ const paragraphs = computed(() => t('informationHighlight.preview.story').split(
 <style scoped>
 .information-highlight-preview { margin: 0; overflow: hidden; border: 1px solid var(--line, #dce3eb); border-radius: 16px; color: var(--ink, #25354b); background: var(--surface, #fff); box-shadow: 0 4px 18px rgb(29 43 65 / .035); }
 .highlight-preview-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--line, #dce3eb); color: var(--muted, #637184); background: var(--surface-soft, #f6f8fb); font-size: 11px; }
+.highlight-preview-compare { display: inline-flex; padding: 2px; border: 1px solid var(--line, #dce3eb); border-radius: 8px; background: var(--surface, #fff); }
+.highlight-preview-compare button { min-width: 48px; padding: 3px 10px; border: 0; border-radius: 6px; color: var(--muted, #637184); background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
+.highlight-preview-compare button.selected { color: var(--brand-strong, #2464b8); background: var(--brand-soft, #edf5ff); font-weight: 600; }
+.highlight-preview-compare button:focus-visible { outline: 2px solid var(--brand, #3680dd); outline-offset: 1px; }
+.highlight-preview-legend.is-hidden { visibility: hidden; }
 .highlight-preview-page { padding: 20px 22px 16px; }
 .highlight-preview-text { margin: 0; font-size: 15px; line-height: 2.05; overflow-wrap: anywhere; }
 .highlight-preview-text + .highlight-preview-text { margin-top: 18px; }
