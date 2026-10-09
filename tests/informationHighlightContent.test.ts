@@ -46,11 +46,12 @@ function fixture(html = '<article><p id="paragraph">The extraordinary algorithm 
     }});
     Object.defineProperty(document, 'defaultView', {value: view});
     Object.defineProperty(window.HTMLElement.prototype, 'getBoundingClientRect', {configurable: true, value() {
-        const top = Number(this.getAttribute('data-top') || 20); return {top, bottom: top + 40};
+        const top = Number(this.getAttribute('data-top') || 20); return {top, bottom: top + Number(this.getAttribute('data-height') || 40)};
     }});
     document.createRange = () => {let node: Text, start = 0, end = 0; return {
         setStart(n: Text, s: number) {node = n; start = s;}, setEnd(_n: Text, e: number) {end = e;},
         toString() {return node.data.slice(start, end);},
+        getBoundingClientRect() {const top = Number(node.parentElement!.getAttribute('data-text-top') ?? 20); return {top, bottom: top + 20};},
     } as unknown as Range;};
     const flush = async () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0)); for (let i = 0; i < 6; i++) await Promise.resolve();};
     const settle = async () => {vi.advanceTimersByTime(180); for (let i = 0; i < 350; i++) await flush();};
@@ -72,11 +73,11 @@ describe('local keyword and Unicode coordinates', () => {
     it('keeps original UTF-16 positions, excludes common words and scores repeated distinctive terms deterministically', () => {
         const text = 'The extraordinary algorithm and extraordinary metrics in 2026. 中文信息与阅读理解。';
         const result = scoreInformationKeywords(text);
-        expect(result.engine).toBe('local-keyword-rules-v2');
+        expect(result.engine).toBe('local-keyword-rules-v3');
         expect(result.spans.map(span => text.slice(span.start, span.end))).toContain('extraordinary');
         expect(result.spans.map(span => text.slice(span.start, span.end))).not.toContain('The');
         expect(scoreInformationKeywords(text)).toEqual(result);
-        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v2', spans: []});
+        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v3', spans: []});
         const score = (source: string, word: string, occurrence = 0) => {
             const spans = scoreInformationKeywords(source).spans.filter(span => source.slice(span.start, span.end) === word); return spans[occurrence].score;
         };
@@ -290,7 +291,7 @@ describe('page-owned scoring, paint and cancellation', () => {
             f.document.querySelector('#far')!.setAttribute('data-top', '700'); f.document.dispatchEvent(new f.window.Event('scroll')); await f.settle();
             expect(ranges().some(isFar)).toBe(true); expect(ranges().filter(range => first.includes(range))).toEqual(kept);
             const near = f.document.querySelector('#near')!; near.firstChild!.textContent = 'mike november oscar papa quebec romeo'; f.mutate(near.firstChild!);
-            expect(ranges()).toEqual([]); await f.settle(); expect(ranges().some(range => 'mike november oscar papa quebec romeo'.includes(String(range)))).toBe(true); expect(ranges().some(isNear)).toBe(false);
+            expect(ranges().some(isFar)).toBe(true); await f.settle(); expect(ranges().some(isFar)).toBe(true); expect(ranges().some(range => 'mike november oscar papa quebec romeo'.includes(String(range)))).toBe(true); expect(ranges().some(isNear)).toBe(false);
             near.firstChild!.textContent = 'alpha bravo charlie delta echo foxtrot'; controller.dispose(); expect(f.registry.size).toBe(0);
         }
     });
@@ -347,7 +348,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         await f.settle(); expect(score).toHaveBeenCalledTimes(2); expect(f.painted()).toEqual(painted);
         expect(controller.getState().phase).toBe('active'); expect(f.frames.size).toBe(0); expect(vi.getTimerCount()).toBe(0);
         editor.removeAttribute('contenteditable'); attribute(editor, 'contenteditable', 'true');
-        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual([]);
+        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual(painted);
         await f.settle(); expect(score).toHaveBeenCalledTimes(3); expect(score).toHaveBeenLastCalledWith(editorText.data, expect.any(AbortSignal));
         expect(controller.getState().processedParagraphs).toBe(3);
         editor.setAttribute('contenteditable', 'true'); attribute(editor, 'contenteditable', null); await f.settle(); expect(controller.getState().processedParagraphs).toBe(2);
@@ -370,7 +371,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         attribute(paragraph.getAttribute('style')!); controller.updatePreferences({...defaults});
         expect(changed).toHaveBeenCalledTimes(count); expect(controller.getState().phase).toBe('active');
         const oldValue = paragraph.getAttribute('style')!; paragraph.setAttribute('style', '--pdf-page-width: 620px'); attribute(oldValue);
-        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual([]);
+        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual(['extraordinary']);
         const paused = changed.mock.calls.length;
         for (let i = 0; i < 20; i++) attribute(paragraph.getAttribute('style')!);
         expect(changed).toHaveBeenCalledTimes(paused);
@@ -382,7 +383,11 @@ describe('page-owned scoring, paint and cancellation', () => {
         const controller = installInformationHighlight(f.document, {...defaults}, {scoreLocal: score, changed});
         expect(controller.getState().enabled).toBe(false); expect(f.observers).toHaveLength(0);
         controller.setEnabled(true); controller.setEnabled(true);
-        vi.advanceTimersByTime(100); f.document.dispatchEvent(new f.window.Event('scroll'));
+        // 开启后立即扫描；扫描中的滚动不打断它，结束后的滚动才进入 180ms 稳定窗口。
+        vi.advanceTimersByTime(0); expect(f.frames.size).toBe(1);
+        f.document.dispatchEvent(new f.window.Event('scroll')); expect(f.frames.size).toBe(1);
+        await f.settle(); await f.settle(); expect(controller.getState().phase).toBe('active');
+        f.document.dispatchEvent(new f.window.Event('scroll')); vi.advanceTimersByTime(100); f.document.dispatchEvent(new f.window.Event('scroll'));
         vi.advanceTimersByTime(100); expect(f.frames.size).toBe(0);
         await f.settle(); expect(controller.getState()).toMatchObject({phase: 'active', processedParagraphs: 1, queuedParagraphs: 0});
         expect(f.painted().join('')).toContain('extraordinary'); expect(score).not.toHaveBeenCalled();
@@ -406,17 +411,75 @@ describe('page-owned scoring, paint and cancellation', () => {
         const invalid = installInformationHighlight(f.document, {...defaults}, {scoreLocal: vi.fn(), isCurrent: () => false});
         expect(invalid.setEnabled(true).enabled).toBe(false); invalid.dispose();
     });
-    it('aborts pending scores on scroll and rejects late same-text replacements even without an observer delivery', async () => {
+    it('finishes the paragraph being scored when the page scrolls or changes, then rescans from the new viewport', async () => {
+        const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary.</p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');
+        const first = deferred<InformationHighlightResult>(), second = deferred<InformationHighlightResult>(), signals: AbortSignal[] = [];
+        const score = vi.fn((_text: string, signal: AbortSignal) => {signals.push(signal); return signals.length === 1 ? first.promise : second.promise;});
+        const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle(); expect(controller.getState()).toMatchObject({phase: 'loading-model', queuedParagraphs: 2});
+        f.document.dispatchEvent(new f.window.Event('scroll')); f.mutate(f.document.querySelector('#b')!.firstChild!);
+        expect(signals[0].aborted).toBe(false); expect(controller.getState().phase).toBe('loading-model'); expect(vi.getTimerCount()).toBe(0);
+        first.resolve(scoreInformationKeywords(f.document.querySelector('#a')!.textContent!)); await f.flush();
+        const painted = f.painted(); expect(painted.length).toBeGreaterThan(0); expect(controller.getState().phase).toBe('paused'); expect(score).toHaveBeenCalledOnce();
+        await f.settle(); expect(score).toHaveBeenCalledTimes(2); expect(f.painted()).toEqual(painted);
+        second.resolve(scoreInformationKeywords(f.document.querySelector('#b')!.textContent!)); await f.settle();
+        expect(controller.getState()).toMatchObject({phase: 'active', processedParagraphs: 2}); expect(f.painted().length).toBeGreaterThan(painted.length);
+        controller.dispose();
+    });
+    it('starts a scan within 600ms of the first request even when the page keeps scrolling', async () => {
+        const f = fixture(); f.slow();
+        const controller = installInformationHighlight(f.document, {...defaults}, {scoreLocal: vi.fn()});
+        controller.setEnabled(true);
+        // 每次调度读取一次时钟（每次 +5）；持续滚动把 180ms 稳定窗口不断推后，直到最迟期限。
+        for (let i = 0; i < 130; i++) {vi.advanceTimersByTime(4); f.document.dispatchEvent(new f.window.Event('scroll'));}
+        expect(f.frames.size).toBe(1); await f.settle(); expect(f.painted().length).toBeGreaterThan(0);
+        controller.dispose();
+    });
+    it('culls text by its own position inside a block far taller than the reading area and scores visible text first', async () => {
+        const f = fixture('<article><div id="essay" data-top="-3000" data-height="9000">'
+            + '<span data-text-top="-900">Remote earlier paragraphs mention forgotten historical vocabulary.</span><br>'
+            + '<span data-text-top="900">Upcoming lookahead paragraphs mention anticipated vocabulary.</span><br>'
+            + '<span data-text-top="100">Visible distinctive <b data-text-top="100">algorithm</b> paragraphs stay readable.</span><br>'
+            + '<span data-text-top="5000">Distant unreachable paragraphs mention concluding vocabulary.</span></div></article>');
+        const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local', density: 'high'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle();
+        expect(score.mock.calls.map(call => call[0].split(' ')[0])).toEqual(['Visible', 'Upcoming']);
+        expect(f.painted()).toEqual(expect.arrayContaining(['distinctive', 'anticipated'])); expect(f.painted()).not.toContain('historical'); expect(f.painted()).not.toContain('concluding');
+        controller.dispose();
+    });
+    it('replaces paint that starts inside a re-segmented paragraph instead of stacking colours', async () => {
+        const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary. </p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');
+        const controller = installInformationHighlight(f.document, {...defaults, density: 'high'}, {scoreLocal: vi.fn()});
+        controller.setEnabled(true); await f.settle(); const separate = f.painted();
+        const a = f.document.querySelector('#a')!, b = f.document.querySelector('#b')!, moved = b.firstChild!;
+        a.append(moved); f.mutate(a, 'childList', [moved]);
+        // 新段落画到一半时，旧的第二段仍登记在被并入的 Text 上；它必须在叠色前被清除。
+        vi.advanceTimersByTime(180); await f.flush(); await f.flush();
+        const words = f.painted(); expect(new Set(words).size).toBe(words.length); expect(words.length).toBeGreaterThan(0);
+        await f.settle(); expect(f.painted()).toEqual(words); expect(separate.length).toBeGreaterThan(0);
+        controller.dispose();
+    });
+    it('drops a model result that arrives after an explicit refresh replaced its scan', async () => {
+        const f = fixture(), first = deferred<InformationHighlightResult>(), signals: AbortSignal[] = [];
+        const score = vi.fn((text: string, signal: AbortSignal) => {signals.push(signal); return signals.length === 1 ? first.promise : Promise.resolve(scoreInformationKeywords(text));});
+        const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle(); controller.refresh(); expect(signals[0].aborted).toBe(true);
+        first.resolve({engine: 'late', spans: [{start: 0, end: 3, score: 9}]}); await f.flush(); expect(f.painted()).toEqual([]);
+        await f.settle(); expect(score).toHaveBeenCalledTimes(2); expect(f.painted()).not.toContain('The'); expect(controller.getState().phase).toBe('active');
+        controller.dispose();
+    });
+    it('rejects late same-text replacements even without an observer delivery', async () => {
         const f = fixture(), first = deferred<InformationHighlightResult>(), second = deferred<InformationHighlightResult>();
         const signals: AbortSignal[] = [];
         const score = vi.fn((_text, signal: AbortSignal) => {signals.push(signal); return signals.length === 1 ? first.promise : second.promise;});
         const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: score});
         controller.setEnabled(true); await f.settle(); expect(controller.getState().phase).toBe('loading-model');
-        f.document.dispatchEvent(new f.window.Event('scroll')); expect(signals[0].aborted).toBe(true);
-        first.resolve(scoreInformationKeywords(f.document.querySelector('p')!.textContent!)); await f.flush(); expect(f.painted()).toEqual([]);
-        await f.settle(); const original = f.document.querySelector('p')!.firstChild!;
-        original.replaceWith(original.cloneNode()); second.resolve(scoreInformationKeywords(f.document.querySelector('p')!.textContent!)); await f.flush();
+        const original = f.document.querySelector('p')!.firstChild!;
+        original.replaceWith(original.cloneNode()); first.resolve(scoreInformationKeywords(f.document.querySelector('p')!.textContent!)); await f.flush();
         expect(f.painted()).toEqual([]); expect(controller.getState().phase).toBe('paused');
+        await f.settle(); expect(signals).toHaveLength(2); second.resolve(scoreInformationKeywords(f.document.querySelector('p')!.textContent!)); await f.settle();
+        expect(f.painted().length).toBeGreaterThan(0); expect(controller.getState().phase).toBe('active');
         controller.dispose();
     });
     it('uses text-only cache for new DOM owners, invalidates on real changes and exposes errors for explicit retry', async () => {
@@ -424,7 +487,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: score, changed: () => {throw new Error('subscription');}});
         controller.setEnabled(true); await f.settle(); expect(score).toHaveBeenCalledOnce();
         const original = f.document.querySelector('p')!.firstChild!; original.replaceWith(original.cloneNode()); f.mutate(f.document.querySelector('p')!, 'childList', [f.document.querySelector('p')!.firstChild!], [original]);
-        expect(f.painted()).toEqual([]); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(f.painted().length).toBeGreaterThan(0);
+        const kept = f.painted(); expect(kept.length).toBeGreaterThan(0); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(f.painted()).toEqual(kept);
         const text = f.document.querySelector('p')!.firstChild as Text; text.data = 'Changed scientific vocabulary offers entirely different paragraphs.';
         score.mockRejectedValueOnce(new Error('MODEL_NOT_DOWNLOADED')); f.mutate(text); await f.settle();
         expect(controller.getState()).toMatchObject({phase: 'error', errorCode: 'MODEL_NOT_DOWNLOADED'});

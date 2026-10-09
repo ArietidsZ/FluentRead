@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/content/runtime.ts
  * 文件职责：拥有单个阅读页面的信息高亮会话，协调只读分帧扫描、评分取消、文本缓存和原生 CSS Highlight 绘制。
- * 主要内容：滚动与动态内容经过 180ms 稳定窗口后扫描，每帧工作预算约 4ms；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动重扫时沿用未变化段落的绘制，扫描完成后再回收离开阅读区域的范围，避免闪烁；迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
+ * 主要内容：开启和改偏好立即扫描，滚动与动态内容经过 180ms 稳定窗口后扫描，连续变化最迟 600ms 开始一次，每帧工作预算约 4ms；整轮收集完成后按离视口的距离评分，可见段落最先出现；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动和页面自身变化都沿用未变化段落的绘制，进行中的扫描不被打断（模型评分完成当前段落后按新视口重排），扫描完成后再回收离开阅读区域的范围，避免闪烁和丢弃模型已做的工作；迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
  * 模块边界：不访问配置存储或扩展消息、不改变宿主原文、class 和布局；本地模型评分、翻译根及状态通知由应用组合根注入，无原生绘制支持时诚实返回 unsupported。
  */
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
@@ -45,6 +45,8 @@ export function installInformationHighlight(document: Document, initial: Informa
     let timer: number | undefined, frame: number | undefined, scoreAbort: AbortController | undefined;
     let work: Generator<InformationParagraph | undefined, InformationReadingScan> | undefined;
     let pending: InformationParagraph[] = [];
+    // active：正在收集或评分的扫描代次；wanted：其间又有滚动或页面变化；since：尚未开始扫描的最早一次请求。
+    let active = -1, wanted = false, since = 0;
     const styles = new Map<Document | ShadowRoot, HTMLStyleElement>(), observers = new Map<Document | ShadowRoot, MutationObserver>();
     const cache = new Map<string, CachedParagraph>();
     let cachedCharacters = 0;
@@ -78,7 +80,7 @@ export function installInformationHighlight(document: Document, initial: Informa
         generation++;
         if (timer !== undefined) view.clearTimeout(timer);
         if (frame !== undefined) view.cancelAnimationFrame(frame);
-        timer = frame = undefined;
+        timer = frame = undefined; wanted = false;
         work?.return({roots: [document]}); work = undefined; pending = [];
         scoreAbort?.abort(); scoreAbort = undefined;
     };
@@ -98,7 +100,7 @@ export function installInformationHighlight(document: Document, initial: Informa
             // Vue patchStyle 会重复写入相同 CSS 变量。排除实际值未变的属性记录，避免状态通知与观察器互相触发。
             if (records.every(record => (record.type === 'attributes' && record.oldValue === (record.target as Element).getAttribute(record.attributeName!)) || isInformationMutationExcluded(record) || irrelevant(record.target) || (record.type === 'childList'
                 && [...record.addedNodes, ...record.removedNodes].every(irrelevant)))) return;
-            schedule(true);
+            rescan();
         });
         observer.observe(root === document && ports.scope ? ports.scope : root, {subtree: true, childList: true, characterData: true, attributes: true, attributeOldValue: true,
             attributeFilter: ['hidden', 'aria-hidden', 'contenteditable', 'translate', 'class', 'style', 'inert']});
@@ -139,11 +141,12 @@ export function installInformationHighlight(document: Document, initial: Informa
             return {engine: first.engine, spans: [...first.spans, ...second.spans.map(span => ({...span, start: span.start + middle, end: span.end + middle}))]};
         }
     }
-    async function analyze(paragraphs: InformationParagraph[], version: number, started: number, completed?: InformationReadingScan): Promise<void> {
+    async function analyze(paragraphs: InformationParagraph[], version: number, started: number, completed: InformationReadingScan): Promise<void> {
         let budgetStarted = started;
         for (const paragraph of paragraphs) {observe(paragraph.root); styleRoot(paragraph.root);}
         notify({phase: paragraphs.length ? (preferences.mode === 'surprisal-local' ? 'loading-model' : 'analyzing') : 'active',
             queuedParagraphs: paragraphs.length, errorCode: undefined});
+        // 整轮段落按离视口的距离排序：可见正文最先评分，同距离保持文档顺序。
         for (const paragraph of paragraphs.sort((a, b) => a.distance - b.distance)) {
             if (!current() || version !== generation) return;
             const mode = preferences.mode, key = `${mode}:${paragraph.text}`, heat = preferences.style === 'heatmap';
@@ -158,9 +161,10 @@ export function installInformationHighlight(document: Document, initial: Informa
                     seen.add(previous); count = previous.spans;
                 } else {
                     let cached = cache.get(key);
-                    const result = cached?.result ?? (mode === 'keywords' ? scoreInformationKeywords(paragraph.text) : await scoreComplete(paragraph.text, signal));
-                    if (!current() || version !== generation || signal.aborted) return;
-                    if (!isInformationParagraphCurrent(paragraph)) {schedule(true); return;}
+                    const waited = !cached && mode !== 'keywords';
+                    const result = cached?.result ?? (waited ? await scoreComplete(paragraph.text, signal) : scoreInformationKeywords(paragraph.text));
+                    if (!current() || version !== generation) return;
+                    if (!isInformationParagraphCurrent(paragraph)) {schedule(); return;}
                     cached ??= remember(key, result);
                     const selection = `${heat ? 'heatmap' : 'flat'}:${preferences.density}`;
                     let spans = cached.selections.get(selection);
@@ -176,20 +180,26 @@ export function installInformationHighlight(document: Document, initial: Informa
                     }
                     const ranges: Array<[string, Range]> = [];
                     for (const [name, group] of groups) for (const range of informationRanges(document, paragraph, group)) ranges.push([name, range]);
-                    if (previous) {erase(previous); painted.get(first.node)!.delete(first.offset);}
+                    // 清除起点落在本段正文内的旧绘制：既替换同一位置的旧段，也避免分段变化后新旧范围叠色。
+                    for (const run of paragraph.runs) {
+                        const entries = painted.get(run.node);
+                        if (entries) for (const [offset, entry] of entries) if (!seen.has(entry) && offset >= run.offset && offset < run.offset + run.end - run.start) {erase(entry); entries.delete(offset);}
+                    }
                     if (paintedRanges + ranges.length > 4096) sweep();
-                    if (paintedRanges + ranges.length > 4096) {notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
+                    if (paintedRanges + ranges.length > 4096) {active = -1; notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
                     const entry: PaintedParagraph = {text: paragraph.text, signature, nodes: paragraph.runs.map(run => run.node), spans: spans.length,
                         ranges: ranges.map(([name, range]) => {const paint = bucket(name); paint.add(range); return [paint, range];})};
                     paintedRanges += ranges.length; seen.add(entry);
                     let entries = painted.get(first.node);
                     if (!entries) {entries = new Map(); painted.set(first.node, entries);}
                     entries.set(first.offset, entry); count = spans.length;
+                    // 等待模型期间页面滚动或变化过：这一段已画好，余下的按新的视口重新排序。
+                    if (waited && wanted) {schedule(); return;}
                 }
                 notify({phase: 'analyzing', processedParagraphs: state.processedParagraphs + 1,
                     queuedParagraphs: state.queuedParagraphs - 1, highlightedSpans: state.highlightedSpans + count});
                 if (!current() || version !== generation) return;
-                // 扫描与轻量选区共享 4ms 预算；已缓存段落无需无条件占用一整帧，单批仍最多 12 段。
+                // 扫描与轻量选区共享 4ms 预算；已缓存段落无需无条件占用一整帧。
                 if (view.performance.now() - budgetStarted >= 4) {
                     await new Promise<void>(resolve => {frame = view.requestAnimationFrame(() => {frame = undefined; resolve();}); signal.addEventListener('abort', () => resolve(), {once: true});});
                     budgetStarted = view.performance.now();
@@ -197,13 +207,13 @@ export function installInformationHighlight(document: Document, initial: Informa
             } catch (error) {
                 if (!current() || version !== generation || signal.aborted) return;
                 const errorCode = error instanceof Error ? error.message : 'INFORMATION_HIGHLIGHT_SCORE_FAILED';
-                notify({phase: 'error', errorCode: errorCode.slice(0, 120)}); return;
+                active = -1; notify({phase: 'error', errorCode: errorCode.slice(0, 120)}); return;
             }
         }
         if (current() && version === generation) {
-            scoreAbort = undefined;
-            if (completed) {sweep(); reconcileRoots(completed.roots); notify({phase: 'active'});}
-            else frame = view.requestAnimationFrame(() => step(version));
+            scoreAbort = undefined; sweep(); reconcileRoots(completed.roots); notify({phase: 'active'});
+            const again = wanted; active = -1;
+            if (again) schedule();
         }
     }
     function step(version: number): void {
@@ -214,25 +224,28 @@ export function installInformationHighlight(document: Document, initial: Informa
             const result = work.next();
             if (result.done) {work = undefined; const batch = pending; pending = []; void analyze(batch, version, started, result.value); return;}
             if (result.value) pending.push(result.value);
-            if (pending.length >= 12) {const batch = pending; pending = []; void analyze(batch, version, started); return;}
             if (view.performance.now() - started >= 4) break;
         }
         frame = view.requestAnimationFrame(() => step(version));
     }
-    function schedule(invalidate = false): void {
+    function schedule(invalidate = false, settle = 180): void {
         if (!current() || !supported) return;
+        // 持续滚动或不断变化的页面不会无限推迟：从最早一次请求起最迟 600ms 开始扫描。
+        const now = view.performance.now(); if (timer === undefined) since = now;
         cancel(); if (invalidate) clearPaint();
         notify({phase: 'paused', queuedParagraphs: 0, errorCode: undefined});
         const version = generation;
         timer = view.setTimeout(() => {
             timer = undefined;
             if (!current() || version !== generation) return;
-            seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
+            active = version; seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
             notify({phase: 'analyzing', processedParagraphs: 0, highlightedSpans: 0});
             frame = view.requestAnimationFrame(() => step(version));
-        }, 180);
+        }, Math.max(0, Math.min(settle, since + 600 - now)));
     }
-    const scroll = () => schedule(), refresh = () => schedule(true);
+    /** 滚动、尺寸与页面自身变化：保留现有绘制；进行中的扫描先完成，不丢弃已做的工作，也不会被持续滚动反复打断。 */
+    function rescan(): void {if (active === generation) wanted = true; else schedule();}
+    const scroll = () => rescan(), refresh = () => schedule(true);
     const teardown = () => {
         cancel(); clearPaint();
         for (const observer of observers.values()) observer.disconnect(); observers.clear();
@@ -253,14 +266,15 @@ export function installInformationHighlight(document: Document, initial: Informa
             observe(document);
             document.addEventListener('scroll', scroll, true); view.addEventListener('resize', scroll);
             for (const event of ['fluentread-shadow-root-attached', 'fluentread-translation-started', 'fluentread-translation-ended']) document.addEventListener(event, refresh);
-            schedule(); return snapshot();
+            // 用户刚按下开关：页面已稳定，不必再等稳定窗口。
+            schedule(false, 0); return snapshot();
         },
-        retry() {schedule(true); return snapshot();},
+        retry() {schedule(true, 0); return snapshot();},
         updatePreferences(next) {
             const rescore = preferences.mode !== next.mode || preferences.density !== next.density || (preferences.style === 'heatmap') !== (next.style === 'heatmap');
             preferences = {...next}; notify({});
             for (const root of styles.keys()) styleRoot(root);
-            if (rescore) schedule(true);
+            if (rescore) schedule(true, 0);
         },
         refresh,
         dispose() {if (disposed) return; enabled = false; disposed = true; teardown(); cache.clear(); cachedCharacters = 0; notify({phase: 'idle', queuedParagraphs: 0});},

@@ -59,12 +59,12 @@ describe('bounded causal inference ownership', () => {
     it('bounds warm result reuse by entry count and original UTF16 size, with true LRU promotion', () => {
         const result = {spans: [{start: 0, end: 1, score: 1}], engine: 'local'}, cache = createSurprisalResultCache();
         expect(cache.get('missing')).toBeUndefined();
-        for (let i=0;i<32;i++) cache.put(`text-${i}`, result);
+        for (let i=0;i<256;i++) cache.put(`text-${i}`, result);
         expect(cache.get('text-0')).toBe(result); cache.put('last', result); expect(cache.get('text-1')).toBeUndefined(); expect(cache.get('text-0')).toBe(result);
         const changed = {spans: [], engine: 'updated'}; cache.put('text-0', changed); expect(cache.get('text-0')).toBe(changed);
-        const sized = createSurprisalResultCache(); sized.put('a'.repeat(32000), result); sized.put('b'.repeat(32000), result); sized.put('x', result);
-        expect(sized.get('a'.repeat(32000))).toBeUndefined(); expect(sized.get('b'.repeat(32000))).toBe(result);
-        sized.put('a'.repeat(64001), result); expect(sized.get('a'.repeat(64001))).toBeUndefined(); expect(sized.get('x')).toBeUndefined();
+        const sized = createSurprisalResultCache(); sized.put('a'.repeat(200000), result); sized.put('b'.repeat(200000), result); sized.put('x', result);
+        expect(sized.get('a'.repeat(200000))).toBeUndefined(); expect(sized.get('b'.repeat(200000))).toBe(result);
+        sized.put('a'.repeat(400001), result); expect(sized.get('a'.repeat(400001))).toBeUndefined(); expect(sized.get('x')).toBeUndefined();
     });
     function fixture(text = 'a'.repeat(70)) {
         const tensors: ScoringTensor[] = [], forwardInputs: Array<{ids: number[]; length: number; past: unknown}> = [];

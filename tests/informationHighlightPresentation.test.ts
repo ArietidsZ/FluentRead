@@ -86,6 +86,19 @@ describe('词项热力呈现的评分与密度边界', () => {
         expect(levels.filter(level => level <= 3).length).toBeGreaterThan(levels.filter(level => level >= 5).length * 2);
         expect(levels).toEqual([...levels].sort((a, b) => a - b));
     });
+    it('grades Chinese and Japanese words by how common their characters are instead of leaving equal-length words tied', () => {
+        const score = (text: string) => new Map(scoreInformationKeywords(text).spans.map(span => [text.slice(span.start, span.end), span.score]));
+        const chinese = score('这里记录每周值得分享的科技内容，发布程序员招聘信息，家里养了一只猫。');
+        expect(chinese.get('招聘')!).toBeGreaterThan(chinese.get('科技')!); expect(chinese.get('科技')!).toBeGreaterThan(chinese.get('这里')!);
+        // 单个少见汉字可以成为候选，单个常用字不行。
+        expect(chinese.has('猫')).toBe(true); expect(chinese.has('了')).toBe(false); expect(chinese.has('只')).toBe(false);
+        const traditional = score('這個問題常見於兒童時期，我們透過藥物治療障礙。');
+        expect(traditional.has('這個')).toBe(false); expect(traditional.has('我們')).toBe(false); expect(traditional.get('障礙')!).toBeGreaterThan(traditional.get('問題')!);
+        const japanese = score('吾輩は猫である。コンピューターを使う。まだ鬱だ。');
+        expect(japanese.get('コンピューター')!).toBeGreaterThan(japanese.get('まだ')!); expect(japanese.has('鬱')).toBe(true);
+        const korean = score('스마트 강조는 smart 글을 읽습니다'); expect(korean.get('강조는')!).toBeGreaterThan(korean.get('smart')!);
+        expect(scoreInformationKeywords('招聘').engine).toBe('local-keyword-rules-v3');
+    });
     it('评分片段聚合到完整字素和词项，拒绝非法边界、标点、emoji及累加溢出', () => {
         const text = 'extraordinary cafe\u0301 👩‍💻，中文阅读。';
         const raw = [{start: 0, end: 5, score: 2}, {start: 5, end: 13, score: 3}, {start: 14, end: 19, score: 4},

@@ -29,7 +29,7 @@ export function createSurprisalResultCache() {
         put(text: string, result: InformationHighlightResult): void {
             if (!entries.delete(text)) characters += text.length;
             entries.set(text, result);
-            while (entries.size > 32 || characters > 64_000) {
+            while (entries.size > 256 || characters > 400_000) {
                 const oldest = entries.keys().next().value!;
                 characters -= oldest.length; entries.delete(oldest);
             }
