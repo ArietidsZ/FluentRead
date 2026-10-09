@@ -389,7 +389,7 @@ function popupSourceContract(){
       })));
       assert.equal(evidence.selected,'true');assert(evidence.ramp.length>=5,'Palette card must show a visible multi-level ramp');assert(new Set(evidence.ramp).size>=3,'Palette samples must show varying intensity');
       assert.equal(await step(`only-one-palette-selected:${color}`,()=>control.locator('#information-highlight-settings [data-information-highlight-color][aria-pressed="true"]').count()),1);
-      assert.equal((await step(`palette-stored:${color}`,()=>support.readStoredConfig(control))).informationHighlight.color,color);
+      await step(`palette-stored:${color}`,async()=>{for(const deadline=Date.now()+8000;;){const stored=(await support.readStoredConfig(control)).informationHighlight.color;if(stored===color)return;assert(Date.now()<deadline,`Palette was not persisted: ${stored}`);await delay(100);}},12000);
       report.cases.push({id:`native-settings-palette-${color}`,color,metrics,...evidence});
     }
     await settingButton('[data-information-highlight-color="rose"]','heatmap-rose');
