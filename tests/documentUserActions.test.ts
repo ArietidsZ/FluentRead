@@ -760,12 +760,14 @@ describe('document user actions: confirmation and task consumers', () => {
         const content = Array.from({length: 18}, (_, i) => `Paragraph ${i}`).join('\n\n');
         await importFiles(file('resume.txt', content));
         const late = deferred<string[]>(['late 16', 'late 17']);
-        ports.batch.mockResolvedValueOnce(Array.from({length: 16}, (_, i) => `kept ${i}`)).mockReturnValueOnce(late.promise);
+        // 每批 8 段、三批同时在途：前两批完成并保留，第三批在暂停之后才返回。
+        ports.batch.mockResolvedValueOnce(Array.from({length: 8}, (_, i) => `kept ${i}`)).mockResolvedValueOnce(Array.from({length: 8}, (_, i) => `kept ${i + 8}`)).mockReturnValueOnce(late.promise);
         await fire(translateButton(), 'click');
-        expect(ports.batch).toHaveBeenCalledTimes(2);
+        expect(ports.batch).toHaveBeenCalledTimes(3);
+        expect(ports.batch.mock.calls.map(call => call[0].length)).toEqual([8, 8, 2]);
         expect(labelled('文档翻译进度').props['aria-valuenow']).toBe(88);
         await fire(button('暂停翻译'), 'click');
-        const signal = ports.batch.mock.calls[1][2].signal;
+        const signal = ports.batch.mock.calls[2][2].signal;
         expect(signal.aborted).toBe(true);
         late.resolve(['late 16', 'late 17']); await flush();
         expect(textOf(taskbar())).toContain('已暂停');
