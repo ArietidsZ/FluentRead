@@ -1,114 +1,16 @@
 {
-  "schemaVersion": 3,
-  "baseCommit": "479402a276c4dcccc761728ac19f8c607fdfd246",
-  "validatedSourceCommit": "b8fa9d211d927aa47504c6356cff25c9a9bff218",
-  "fixedResourceCommit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
+  "schemaVersion": 4,
+  "baseCommit": "01d532056d44ecd6fc9e78b5fbb35befe435215e",
+  "validatedSourceCommit": "ee7655b36d75069e3f0f61c344529232e736b1e1",
+  "fixedResourceCommit": "3b347c40f7a928fffe562043049a514a67a876fe",
   "branch": "perf/gf-statistics-repositories-20261009",
-  "scope": "Two exact-version offline full-license fallbacks only; other fourteen package policies, runtime code, dependencies, GF algorithm and budget unchanged.",
-  "fallbacks": [
-    {
-      "package": "@ai-sdk/provider-utils",
-      "version": "4.0.46",
-      "spdx": "Apache-2.0",
-      "files": [
-        "provider-utils-Vercel.txt",
-        "Apache-2.0.txt",
-        "provider-utils-zod3-ISC.txt"
-      ],
-      "includedSubcomponentSpdx": "ISC",
-      "complete": true
-    },
-    {
-      "package": "franc-min",
-      "version": "6.2.0",
-      "spdx": "MIT",
-      "files": [
-        "franc-min-MIT.txt"
-      ],
-      "copyrightCount": 4,
-      "complete": true
-    }
-  ],
-  "texts": [
-    {
-      "file": "provider-utils-Vercel.txt",
-      "sourceUrl": "https://raw.githubusercontent.com/vercel/ai/85464f4e2026d9fc0274424c0171a25742836411/LICENSE",
-      "httpStatus": 200,
-      "rawBytes": 552,
-      "rawSha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529",
-      "normalizedSha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
-    },
-    {
-      "file": "provider-utils-zod3-ISC.txt",
-      "sourceUrl": "https://raw.githubusercontent.com/vercel/ai/85464f4e2026d9fc0274424c0171a25742836411/packages/provider-utils/src/to-json-schema/zod3-to-json-schema/LICENSE",
-      "httpStatus": 200,
-      "rawBytes": 777,
-      "rawSha256": "6dd0d97acd4d13f4608a0f530f0487e0ff20812888bd1803aecfaaa17ff0f849",
-      "normalizedSha256": "6dd0d97acd4d13f4608a0f530f0487e0ff20812888bd1803aecfaaa17ff0f849"
-    },
-    {
-      "file": "franc-min-MIT.txt",
-      "sourceUrl": "https://raw.githubusercontent.com/wooorm/franc/3f9f0b51a96c5df32a407dad865a3011ac0fa2d1/license",
-      "httpStatus": 200,
-      "rawBytes": 1227,
-      "rawSha256": "f5e0c5c44706ddda7ac2f9096f848222f1e0e90f88643955041c2735be84592b",
-      "normalizedSha256": "93fca2015edd5c54a13829179a37ee8bb48a9e1529a645bf2ce2bf563ff707d2"
-    },
-    {
-      "file": "Apache-2.0.txt",
-      "sourceUrl": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt",
-      "httpStatus": 200,
-      "rawBytes": 11358,
-      "rawSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
-      "normalizedSha256": "283ea6cc2997a1a70da0049e09adf9317bb60ca1b51279b65196b83a69e1996b"
-    }
-  ],
-  "licenseAudit": {
-    "completePackageLicenseBlocks": 16,
-    "otherFourteenBlocksByteIdentical": true,
-    "vendorExecutionCodeByteIdentical": true,
-    "vendorExecutionCodeBytes": 551443,
-    "vendorExecutionCodeSha256": "c85b19d837fadb9593804b4f6763d50aec2f4b5a49eedb4d5fe71dad8bd17247",
-    "subcomponentIscCompleteAndCopyrightPresent": true,
-    "artifactAuditSha256": "c3e27511a502d4b4604eddc1c936a7daa9f1e00199b13c999217c7639594d800"
-  },
-  "resources": [
-    {
-      "kind": "vendor",
-      "path": "userscript/resources/fluentread-vendor.v1.js",
-      "commit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
-      "bytes": 610343,
-      "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-      "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca/userscript/resources/fluentread-vendor.v1.js",
-      "cdnEqual": true,
-      "cdnHttpStatus": 200,
-      "cdnAttempts": 1,
-      "beforeBytes": 596048,
-      "byteIncrease": 14295
-    },
-    {
-      "kind": "data",
-      "path": "userscript/resources/fluentread-data.v1.js",
-      "commit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
-      "bytes": 868136,
-      "sha256": "85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981",
-      "gitBlobSha1": "b2ff18b411a6b78f2ca2ceb36aed907a81226187",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca/userscript/resources/fluentread-data.v1.js",
-      "cdnEqual": true,
-      "cdnHttpStatus": 200,
-      "cdnAttempts": 1,
-      "beforeBytes": 868136,
-      "byteIncrease": 0
-    }
-  ],
+  "scope": "GF-only pure strings in the existing fixed data object; original algorithms remain in main and original standard/standalone compression remains byte identical.",
   "artifacts": {
     "greasyfork": {
-      "bytes": 2233395,
-      "sha256": "57d6f95768fc06ca16102a0e48f90374e453752c681f99fd09c784b2175a0c11",
-      "byteIdenticalToBase": false
+      "bytes": 2180182,
+      "sha256": "34910ca6ca32751a3a036bd2c1cb3424604503682c170ec643f4c63ee6547d4c",
+      "beforeBytes": 2233395,
+      "actualByteSavings": 53213
     },
     "standard": {
       "bytes": 1957868,
@@ -121,43 +23,355 @@
       "byteIdenticalToBase": true
     }
   },
-  "mainMetadataComparison": {
-    "beforeResourceUrlBytes": [
+  "ablation": {
+    "control": {
+      "bytes": 2233395,
+      "sha256": "57d6f95768fc06ca16102a0e48f90374e453752c681f99fd09c784b2175a0c11"
+    },
+    "candidateSameFixedUrls": {
+      "bytes": 2180182,
+      "sha256": "4862205edf9e0d1f497f009a1618c3c6af7e0e39cd38e10d2989d783e5add3d6"
+    },
+    "candidateFinalEqualApartFromFixedCommit": true,
+    "finalNormalizedSha256": "d21edc62f6d91c912f3732585b525abcea88064130db33978263d0a9c142b0fe",
+    "actualMainByteSavings": 53213,
+    "originalStringByteCountIsNotSavings": 57926,
+    "beforeMainPlusTwoResourcesBytes": 3711874,
+    "afterMainPlusTwoResourcesBytes": 3721021,
+    "mainPlusTwoResourcesIncreaseBytes": 9147,
+    "fixedResourceUrlLengths": [
       135,
       133
     ],
-    "afterResourceUrlBytes": [
-      135,
-      133
+    "fixedUrlLengthDelta": 0
+  },
+  "resources": [
+    {
+      "kind": "vendor",
+      "path": "userscript/resources/fluentread-vendor.v1.js",
+      "commit": "3b347c40f7a928fffe562043049a514a67a876fe",
+      "bytes": 610343,
+      "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+      "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
+      "trackedBuiltGitRemoteEqual": true,
+      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@3b347c40f7a928fffe562043049a514a67a876fe/userscript/resources/fluentread-vendor.v1.js",
+      "cdnEqual": true,
+      "beforeBytes": 610343,
+      "byteIncrease": 0,
+      "cdnHttpStatus": 200,
+      "cdnAttempts": 1
+    },
+    {
+      "kind": "data",
+      "path": "userscript/resources/fluentread-data.v1.js",
+      "commit": "3b347c40f7a928fffe562043049a514a67a876fe",
+      "bytes": 930496,
+      "sha256": "f9c1f544603fc461d6d9c9d2b097f1dada2eeba3a875cf6a63a141f70d44263e",
+      "gitBlobSha1": "fba5c14b7343e178b67b57408a55a6cf999fc893",
+      "trackedBuiltGitRemoteEqual": true,
+      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@3b347c40f7a928fffe562043049a514a67a876fe/userscript/resources/fluentread-data.v1.js",
+      "cdnEqual": true,
+      "beforeBytes": 868136,
+      "byteIncrease": 62360,
+      "cdnHttpStatus": 200,
+      "cdnAttempts": 1
+    }
+  ],
+  "stringEquivalence": {
+    "count": 48,
+    "allExactBytesAndShaEqual": true,
+    "independentReference": "Independent TypeScript transpilation and evaluation of original source exports versus actual generated fixed data payload.",
+    "sources": [
+      {
+        "path": "src/core/language/chineseVariants.ts",
+        "sourceSha256": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
+        "exportCount": 3,
+        "stringUtf8Bytes": 48564
+      },
+      {
+        "path": "src/core/language/functionWordData.ts",
+        "sourceSha256": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f",
+        "exportCount": 45,
+        "stringUtf8Bytes": 9362
+      }
     ],
-    "urlLengthDelta": 0,
-    "mainByteIncrease": 0,
-    "mainNormalizedEqual": true,
-    "normalizedMainSha256": "08c9ce5d08263015ed45750cafa9acb4c91357660498f14bb8fed4edc571cc29"
+    "rowFormat": [
+      "utf8Bytes",
+      "sha256"
+    ],
+    "rows": {
+      "simplifiedOnlyCharacters": [
+        21822,
+        "67a26ac016bdab4ffc2a992d9c188979479fa7696e9e60d24a8c27e5b04ffcec"
+      ],
+      "traditionalOnlyCharacters": [
+        20760,
+        "cb37b99b6ac1d54aed534b7e1c9653fe8440d2cb50941e103bad7445d4fe74c5"
+      ],
+      "simplifiedChineseEvidenceCharacters": [
+        5982,
+        "ab05c48028c0baf6cd9781d75c07c02479d93010011c023ab0e4dff2cce68966"
+      ],
+      "latinEnWords": [
+        294,
+        "e8a9cbf74151e98e831a7c921d223d8e88080ce6479ce3fa6688786af397ca43"
+      ],
+      "latinFrWords": [
+        284,
+        "53e78a64969da59cff85097cc2ea75bb2e5893d6446f1bc044e782aca1b74fc5"
+      ],
+      "latinDeWords": [
+        307,
+        "f3b31d69eafe472b11a41cacbcb591f00aeea712641d860f98c98a074791ce2e"
+      ],
+      "latinEsWords": [
+        268,
+        "b4d67605713bf451ebcef1714c0b770a521cd9932d934f0a35c9a9afc32a7611"
+      ],
+      "latinPtWords": [
+        271,
+        "bb15b513a80c63ddaa8567ddba3cfc6058d496a45301b8544e709cfb86f29998"
+      ],
+      "latinItWords": [
+        237,
+        "731dbe58ebc93a7db7c778938c94b7b8d73c35c9743cb30e64faa1e21858a677"
+      ],
+      "latinNlWords": [
+        196,
+        "5f2a23fe6d5564c82435c67d7e00f35306b6d9128517e4bec83b76ce3fc9af3c"
+      ],
+      "latinPlWords": [
+        207,
+        "f9bc28367a6d775f1ef89fdf9589d14fbfff6505597cffb670f3298e02e45cae"
+      ],
+      "latinCsWords": [
+        199,
+        "aa08b88ca5d4be6a9179127dd8e5e9c1790b8c94e6098df7b2323e7a5cc7aad3"
+      ],
+      "latinSkWords": [
+        185,
+        "f037e2f982b6edb72b087345cd780b6fa1e1ea54da6e56b6a892171bd21b9e6b"
+      ],
+      "latinRoWords": [
+        158,
+        "64db29446ac34920962c1dab48a608fd9732647adef7ab424408ced29662294f"
+      ],
+      "latinHuWords": [
+        137,
+        "86585d149b240fd67d21c0340be9b4dd1b9e95f840ff2716a23d879ebcb427b9"
+      ],
+      "latinTrWords": [
+        139,
+        "3fc8e977c4ba9744888f771c0ed6612b660c2bc119101875cd9b7104da437675"
+      ],
+      "latinViWords": [
+        176,
+        "ccd966cee44b07c73ac3968ce4a50eb1b5f06736d3d5ed247b047f6dc4147109"
+      ],
+      "latinIdWords": [
+        179,
+        "c0a6018003f2e3cf3fb8bb40386668c394ff311a4d58a29501aabebfc02cc172"
+      ],
+      "latinMsWords": [
+        192,
+        "908e434069585913e547b448abf7787cd82ee28118bca8bc52c6d29c9ba7d447"
+      ],
+      "latinFilWords": [
+        116,
+        "b988c5fa32dbe24e913013b8d65e6e9e9579b0f4f197fde39228995a688db74f"
+      ],
+      "latinSwWords": [
+        118,
+        "405421144a35cba46c9540ecf2468f3ab8c5102df5927ea9334495841a4d182f"
+      ],
+      "latinSvWords": [
+        152,
+        "5adb581d10cb7cf230c0d446f2c88441089fb12fd668df8b9bb1382d221939ec"
+      ],
+      "latinDaWords": [
+        143,
+        "8f5584592a0b813b2ade4df4f639387d2b4bfd8b9f77265c8f86b3b6272c3227"
+      ],
+      "latinNbWords": [
+        153,
+        "f0a88430bc0f520ee594784be392939604a7db5702afade3d41c7fb2a5905729"
+      ],
+      "latinFiWords": [
+        160,
+        "62a1cc501a048698f22db5f2965192684738728072119260aec3ef4bfd2b06e5"
+      ],
+      "latinEtWords": [
+        122,
+        "c785756e17d6553c1e34dbad4c17698a8610c7d6f1a72655847accd89dab5479"
+      ],
+      "latinLvWords": [
+        140,
+        "109e5965750ad68387ddf32328ea1bb1249983e5dcc3f274b275cc262404394c"
+      ],
+      "latinLtWords": [
+        137,
+        "7d80bd00b8a596c7b7789c8071295b44661ce8a79ecc834fbd920e040c5ae43c"
+      ],
+      "latinSlWords": [
+        127,
+        "cdc402628501aa7f9ac45d4530404ac0a32df05a984613833c36d143bc484a1f"
+      ],
+      "latinHrWords": [
+        148,
+        "c82da93c7d705d852a036b9aedf9680a062037a0c9790a5c1f7aab6bdc027fd9"
+      ],
+      "latinBsWords": [
+        149,
+        "6c6b01361b86138c5f54738d8fa42bbca11f27acab88872fb7452108cf47cd65"
+      ],
+      "latinSrLatnWords": [
+        145,
+        "0645423ac555c4f295630ae9ecdb8281b106f1f108bb57920c982f97c9c546ee"
+      ],
+      "latinCaWords": [
+        245,
+        "a8b348855a1bb8a3461775bd6737b303961582864154b5b43f239ba74506cc2e"
+      ],
+      "latinGlWords": [
+        221,
+        "e3188f75a0df734d92d103b438d4b5258a4eb1c080b61ffea0f5a4e97f2f9464"
+      ],
+      "latinAfWords": [
+        155,
+        "b44b8a1e52d73408c231dfa47dfdb23938fc4593807ae7ef9a627f5564b3eb92"
+      ],
+      "cyrillicRuWords": [
+        376,
+        "0b435855cdf5e6b5a3ac10b372815e94e004b1d2cad8dba48c0f571a3bf735ba"
+      ],
+      "cyrillicUkWords": [
+        356,
+        "38c120e113acdc3b36041d1056cf0d727d6d6369f80f5b9e0c075488266a2533"
+      ],
+      "cyrillicBgWords": [
+        343,
+        "8e2f36e4ebeb4fefca50a560ad7c5691fefcd54d32405c5bc405a5500db51d54"
+      ],
+      "cyrillicSrWords": [
+        232,
+        "b262ad699e8518c47b865a65305cbd0ef11907dd33c95e5b8581220c0cf5abd9"
+      ],
+      "cyrillicBeWords": [
+        285,
+        "b3e4fbe33ae5c720271252ae25852d946ac0e866092590a4b4a128232155869e"
+      ],
+      "cyrillicKkWords": [
+        186,
+        "568e8d167274bec02ecee29d65ca348e3f32600243792012484f33e1ac78dcd8"
+      ],
+      "cyrillicMkWords": [
+        221,
+        "0b1595b1da53f0b1ffae9adcf8919ce470bbadb7f8a39a526aeb5a2c1d469d29"
+      ],
+      "arabicArWords": [
+        245,
+        "928332d9603c85a98a41bd07a32653ad68a1b60120a1aa902ff4c52376bc11b9"
+      ],
+      "arabicFaWords": [
+        202,
+        "2791aa228be9944b32eb8aca3143e5ed02bd12101e70107c4dd0840c2985f597"
+      ],
+      "arabicUrWords": [
+        186,
+        "7afd3df1d8c080766b70a4891f409034fe4c6aaf33a98eef866c98ed3edea4f0"
+      ],
+      "devanagariHiWords": [
+        297,
+        "351836893a59fcd5847c8779a89546e5431b1974f1e2fd472cdf5f41bac84280"
+      ],
+      "devanagariMrWords": [
+        304,
+        "bc9f4bada74cdad082d880fb0b97bab9bc6b77032331d8a6315fe2d16c9d603d"
+      ],
+      "devanagariNeWords": [
+        269,
+        "61875907e31072cb9ab1bb9f3fedf61dca72c192917fab563981a248ceb2b746"
+      ]
+    },
+    "sourceSha256": {
+      "src/core/language/chineseVariants.ts": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
+      "src/core/language/functionWordData.ts": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f"
+    },
+    "originalDataFieldsUnchanged": [
+      "english",
+      "zhCNMessages",
+      "siteCatalogs",
+      "css"
+    ],
+    "unicodeSourceHashesAndFullLicenseV3Present": true,
+    "unicodeNoticeSha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "auditSha256": "89e131957a08dbb086154425ba45fd31d4e89f9ec77fd7b0224a5dc65b15ed8a"
+  },
+  "gfGraphs": {
+    "entryModuleSetUnchanged": true,
+    "all48CompleteStringBodiesAbsentFromFinalMain": true,
+    "targets": {
+      "src/core/language/chineseVariants.ts": {
+        "included": true,
+        "beforeRenderedLength": 19618,
+        "afterRenderedLength": 573,
+        "transformedCodeSha256": "fe5440ee8c28dee2e8b152036965331a8b7a413f845a14ed7f2d07ea8d3cf394",
+        "transformedCodeUnchanged": false
+      },
+      "src/core/language/functionWordData.ts": {
+        "included": true,
+        "beforeRenderedLength": 8665,
+        "afterRenderedLength": 3281,
+        "transformedCodeSha256": "c1c2f5403e3af41b51f5201e1293416f518f16d19321eefe3f7ab2051105b275",
+        "transformedCodeUnchanged": false
+      },
+      "src/core/language/chinese.ts": {
+        "included": true,
+        "beforeRenderedLength": 3777,
+        "afterRenderedLength": 3777,
+        "transformedCodeSha256": "79d980ae93dab3719ca2cbd2c75d9bafdca49595827677aff77b04451253f96f",
+        "transformedCodeUnchanged": true
+      },
+      "src/core/language/lexicon.ts": {
+        "included": true,
+        "beforeRenderedLength": 2924,
+        "afterRenderedLength": 2924,
+        "transformedCodeSha256": "1b801223fe24eabd171e4ad0b6c8f12572fad3ae33f808f2207630ca828f5c98",
+        "transformedCodeUnchanged": true
+      }
+    },
+    "graphRenderedLengthsAreNotByteSavings": true,
+    "candidateGraphSha256": "3815fe312ebd6e494e59146e668131f39e7e5ee7b61ed6aefe76aac2f275ac7e",
+    "controlGraphSha256": "e6c4392cb522087f9b17fff2f779bd7aa50fe70c1e75533f799d40d572a723dd"
   },
   "contracts": {
-    "realProductionPluginGenerateBundleInvoked": true,
-    "redExecuted": 15,
-    "redPassed": 1,
-    "redExpectedFailures": 14,
-    "greenExecuted": 15,
-    "greenPassed": 15,
+    "redExecuted": 13,
+    "redPassed": 2,
+    "redExpectedFailures": 11,
+    "greenPinnedAndOriginalCompressionPassed": 20,
     "greenFailed": 0,
-    "unchangedCasesSkippedByNameFilter": 30,
-    "coverage": [
-      "both exact-version full texts and copyright",
-      "version and SPDX drift fail",
-      "all four files missing or wrong hash fail",
-      "fourteen other real installed package blocks unchanged"
-    ],
-    "redResultSha256": "d856b088f12e45f2a12b4bbf9e47adfd0c166c40bf7a679f83ae5691be7786b3",
-    "greenResultSha256": "9709ced4ef566f20168d553aa0d2707af7b178a24f27ed7db95d2dbd38b61fbf"
+    "greenSkippedByNameFilter": 38,
+    "pinnedCases": 13,
+    "originalCompressionCases": 7,
+    "languageAndRelatedCorpusPassed": 1161,
+    "languageAndRelatedCorpusFailed": 0,
+    "shippedDataRealmPassed": 1,
+    "missingFieldsAndWrongTypesFailSynchronously": true,
+    "supplementaryCharactersSpacesOrderEmptyAndLoneSurrogatesExact": true,
+    "actualChineseAndLexiconSynchronousInitializationTested": true,
+    "initialExportKeyEnumerationHarnessFailurePreservedAndCorrected": true,
+    "resultSha256": {
+      "red-character-contracts.json": "badf796516822dcddd4c41d61d8794148500ad0c2203603919e447afc8f612ec",
+      "green-exact-character-contracts.json": "08363187a9d3f8669c53fcff8de27052ea535318ee34c3d41eb4826f4b7535a8",
+      "language-corpus-results.json": "74891e6f6f0717e146bd306a006463caa90a1a0d195c61803157897bc53ca881",
+      "shipped-data-realm.json": "e3d9cc23584743347b58870ff9ebd1dbd151bdbba9f35488fa32555456b112de"
+    }
   },
   "formalGfGate": {
     "fixedTrackedBuiltGitCheckPassed": true,
     "exitCode": 1,
     "budgetBytes": 2000000,
-    "bytesOverBudget": 233395,
+    "bytesOverBudget": 180182,
     "failureLine": 15,
     "unexecutedFormalAssertionLines": [
       16,
@@ -183,78 +397,131 @@
       "postBudgetDiagnosticPassed": 16,
       "budgetIncludedAndStillFailing": true,
       "originalAssertionsUnchanged": true,
-      "resultSha256": "7793dfe4da345870f92ad0cf7344122bf04065a15edad59ba13724f9d1b44d59"
+      "resultSha256": "073c872ef776f20e067bd35ee659294aa25058ead58d83b00cf4f7e36cbb78dc"
     }
   },
+  "unadoptedPrepareVendor": {
+    "preparedBytes": 610387,
+    "preparedSha256": "5773982c241575f22a1f35d9efd4d2f65314c68f0fdecda371a79f72e9f06a69",
+    "retainedFixedBytes": 610343,
+    "retainedFixedSha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+    "unadoptedDeltaBytes": 44,
+    "allVendorInputsByteIdenticalToBase": true,
+    "reason": "Retain independently audited immutable vendor in a pure-language-data candidate; original prepare vendor output differed by 44 bytes despite unchanged inputs. Raw output preserved; no cause assumed or vendor algorithm change adopted. Formal original workflow copies tracked fixed vendor to built output."
+  },
   "unchangedFileSha256": {
+    "src/core/language/chineseVariants.ts": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
+    "src/core/language/functionWordData.ts": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f",
+    "src/core/language/chinese.ts": "90738858cfc020ea7a48ab299bf3034efeaf7faf5f820d8c0a496cc0270dc290",
+    "src/core/language/lexicon.ts": "2d54b75db24622e9df648526306e1879f8539e75c36c16a25f58789269a405bd",
+    "public/third-party-notices/unicode-17.0.0.txt": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
     "userscript/vendorEntry.ts": "d6d6ab20d6cdc5a2adb76e2fc873778448bccefcf5cea21ba6052f0b26b12ca3",
-    "userscript/vite.config.ts": "dc0af3ff17ca02c17decdc7fc615bcf071ae8cde1ef212e9e92c2930a99f0733",
-    "userscript/unsupportedCapabilities.ts": "747ecf6e49934436324a0a7e12bb7f5db9cdd4d7e71e5dc76070008c60bbe16a",
+    "userscript/vendor.vite.config.ts": "6252bde8d2fcfe7c0a20fb8d3a965be5becaaa75d8a50e6fc66f437f1652f451",
     "scripts/build-userscript-greasyfork.mjs": "c2e441c5749d48e317b90e0052c275e58b3f14cd9f55df9ae10ade78c96792c8",
     "scripts/verify-userscript-greasyfork-build.mjs": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
-    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
-    "package.json": "f85e975c3b1ab8daac188be87bec9e89fa14fb94493d8eed5c1e2a75072c4d58"
+    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a"
+  },
+  "sourceSha256": {
+    "userscript/characterDataPlugin.ts": "bc303e431b1cc2565de0f8cd0c673bf25d31b5203ad85670111be57f804a32c9",
+    "userscript/vite.config.ts": "d762891cc3a27bc5462f56d83b2649f559453c4eba60497644f15ea468740399",
+    "tests/userscriptViteConfig.test.ts": "5445c16c36fd1e91e994fb9b6cd70823f3260bd8d02bd145a762d8796777e559",
+    "tests/implementationAudit49G.test.ts": "b6f6710caca5193bcec9dedfa026789f4c41dada69870a486e73070f1c03add0"
   },
   "stages": [
     {
-      "id": "red-real-vendor-license-plugin",
-      "exitCode": 1,
-      "logSha256": "3113f1fb11e0e38e0bf396a2c786ff5287c0ca388d52616f05afb30749aeb43d"
-    },
-    {
-      "id": "green-real-vendor-license-plugin",
+      "id": "character-control-gf-build",
       "exitCode": 0,
-      "logSha256": "71a60757e3880eae010dfc518e72de7f4e6b7b6b9790629a687b8b29310ac04e"
+      "logSha256": "db5dd200978778796af94ca7859c161135c0d944eff7d223098fd4a1e0dd2e74"
     },
     {
-      "id": "license-fallback-types",
+      "id": "red-gf-pinned-character-contracts",
+      "exitCode": 1,
+      "logSha256": "b0e2ad6624bf06e29ba3c3247ea9efabdbf8de5e65f9ac5dafbb3c36ec8e9c7b"
+    },
+    {
+      "id": "green-gf-pinned-and-original-compression",
+      "exitCode": 1,
+      "logSha256": "afba5bf143f651b88450673318ff12f7002d87c5e0788d9cd07fced6f273f726"
+    },
+    {
+      "id": "green-gf-pinned-exact-values-and-compression",
+      "exitCode": 0,
+      "logSha256": "3c9de1e164931b4f1424cbf6913cab6e111295cbfc36605dcf181bfa236774cb"
+    },
+    {
+      "id": "character-candidate-types",
       "exitCode": 0,
       "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
     },
     {
-      "id": "license-fallback-test-audit",
+      "id": "character-candidate-original-prepare",
       "exitCode": 0,
-      "logSha256": "494a6c23280c5fc1328890a8e7fd42a542f48155a050242c576cfebbf8a97dbc"
+      "logSha256": "488c7ce669dd8ea824697dc15d898d006e148fe8da8c202e94fe91c617305205"
     },
     {
-      "id": "original-prepare-licensed-resources",
+      "id": "character-existing-language-corpora",
       "exitCode": 0,
-      "logSha256": "8dd905f33e644a5fe32f36dada9342f24f6d69079391847d1e14d8267dd0e2b6"
+      "logSha256": "ae1e20c3ff6c9b93982a842f03f949e3dee71ab60a79f1fea4a9e371d9dffb7d"
     },
     {
-      "id": "original-gf-licensed-formal",
+      "id": "character-shipped-data-realm",
+      "exitCode": 0,
+      "logSha256": "8da74711e216a089b3ab7a8e30ba583cd7f7d358f93947c098e2300e60938985"
+    },
+    {
+      "id": "character-exact-resource-equivalence",
       "exitCode": 1,
-      "logSha256": "a18199d15661967702951eb62e711100485365dd98c84368c649030392a51ae4"
+      "logSha256": "eaec6699b274d4296ecdd6cca622606556accd60e1cd3880da418b0867df0d83"
     },
     {
-      "id": "licensed-standard-actual-build",
+      "id": "character-exact-resource-equivalence-retained-vendor",
       "exitCode": 0,
-      "logSha256": "c75c029499b53a6ffa8680ab6f706555ac09d4168a8801b23292d42bd542f9a4"
+      "logSha256": "7177f57323db7d782579bd576ab9706db3cbc74f6bd64294d184abf47f96894d"
     },
     {
-      "id": "licensed-standard-original-verifier",
+      "id": "character-candidate-gf-graph",
+      "exitCode": 0,
+      "logSha256": "41902e427e404acd479a05a0a645e9717e935b736446739812ff6d64f614f82a"
+    },
+    {
+      "id": "character-standard-actual-build",
+      "exitCode": 0,
+      "logSha256": "2e6b013fa270a31ef9f7d0d892f39e37d5f3bfcba4b0e4d406e5c082f1e4e0c5"
+    },
+    {
+      "id": "character-standard-original-verifier",
       "exitCode": 0,
       "logSha256": "e955e147f71ed4a274c76be76b173e10c9a37694132186ab42e8c2623b2b7437"
     },
     {
-      "id": "licensed-standalone-actual-build",
+      "id": "character-standalone-actual-build",
       "exitCode": 0,
       "logSha256": "8b87111350e3430359b85c3ea4495c94578c202891d8ec6ca57d3304bfa26549"
     },
     {
-      "id": "licensed-standalone-original-verifier",
+      "id": "character-standalone-original-verifier",
       "exitCode": 0,
       "logSha256": "3808e6a238644edcda09ca90d4876c0bd020a74d26dbfc5192d85db471dc42cc"
     },
     {
-      "id": "licensed-independent-original-gf-assertions",
+      "id": "character-candidate-test-audit",
       "exitCode": 0,
-      "logSha256": "65735bc0f1334e9ace6102fa3db754db7a1286c55570838ffd1e7fbf21940c54"
+      "logSha256": "4946259db9c6705ea5aa602d4f83f4b72392f1840be8e57c3ef13a37c3fe0a24"
     },
     {
-      "id": "licensed-short-report-docs-build",
+      "id": "character-original-fixed-formal-gf",
+      "exitCode": 1,
+      "logSha256": "a2a341e79ef5c60dda976732f2006dac3cc5215d24a40436de9f0192ce15d3b1"
+    },
+    {
+      "id": "character-independent-original-gf-assertions",
       "exitCode": 0,
-      "logSha256": "d4fe2bbf46f1f9da45201be614c2e06c1e56c6a55679f4d5da7282e6a83cd345"
+      "logSha256": "f630fa6970549b708b7f41c0bb280fa49dfbaf2c5d22825111ce0a4f65c0b3be"
+    },
+    {
+      "id": "character-short-report-docs-build",
+      "exitCode": 0,
+      "logSha256": "cc9cf833e876bde1237f77e5b5a586cce708631c015546edd83933094aa3418b"
     }
   ],
   "delivery": {
@@ -264,7 +531,7 @@
     "browserAcceptanceTested": false,
     "dependencyInstalls": 0,
     "realModelSearchOrPaidApiCalls": 0,
-    "colorAndStatisticsFullSuitesRerun": false,
+    "unchangedLicenseColorStatisticsSuitesRerun": false,
     "largeGraphsOrLogsTracked": false,
     "unchangedProtectedHeads": {
       "pr912": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
