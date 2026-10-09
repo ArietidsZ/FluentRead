@@ -1,3 +1,4 @@
+import {createHash} from 'node:crypto';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {VideoAiFullCaptureController, type VideoAiFullCaptureProgress} from '@/src/features/video-subtitle/content/video-ai/fullCapture';
 import type {VideoAiAudioChunk} from '@/src/features/video-subtitle/content/video-ai/capture';
@@ -170,7 +171,7 @@ function speechAudio(durationMs = 1_000): Float32Array {
 }
 
 function makeInjectedController(options: {
-  model?: 'tiny' | 'base';
+  model?: 'tiny' | 'base' | 'small';
   audio?: Float32Array;
   transcribe?: (chunk: VideoAiAudioChunk) => Promise<Record<string, unknown>>;
   onComplete?: (cues: unknown[], session: number) => Promise<void>;
@@ -238,6 +239,7 @@ describe('完整 AI 字幕失败与取消边界', () => {
     expect(controller.getPhase()).toBe('transcribing');
     resolveNext({text: 'The following complete sentence.', segments: [{startMs: 2000, endMs: 4000, text: 'The following complete sentence.'}]});
     await tick(80);
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(onComplete).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(onComplete.mock.calls)).not.toContain('External mutation');
@@ -270,9 +272,9 @@ describe('完整 AI 字幕失败与取消边界', () => {
     })]);
   });
 
-  it('Base 识别空结果提示检查人声和原语言，不推荐已经使用的 Base', async () => {
+  it.each(['base', 'small'] as const)('%s 识别空结果提示检查人声和原语言，不推荐已经使用的 Base', async model => {
     installCustomAudioWindow();
-    const controller = makeInjectedController({model: 'base', transcribe: async () => ({text: '', segments: []})});
+    const controller = makeInjectedController({model, transcribe: async () => ({text: '', segments: []})});
     expect(controller.start()).toBe(true);
     await tick(50);
     expect(controller.getPhase()).toBe('error');
@@ -929,6 +931,7 @@ describe('完整 AI 字幕失败与取消边界', () => {
     vi.advanceTimersByTime(420);
     await tick(80);
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     const restartedChunk = chunks.find(chunk => chunk.sessionId === controller.getSessionId());
     expect(restartedChunk).toBeTruthy();
@@ -1068,6 +1071,7 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     expect(controller.getProgress().progress).toBeGreaterThanOrEqual(.45);
     resolveNext({text: 'The next scanned sentence.', segments: [{startMs: 0, endMs: 1000, text: 'The next scanned sentence.'}]});
     await tick(80);
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(controller.getProgress().progress).toBe(1);
   });
@@ -1114,6 +1118,7 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     scanVideo.emit('ended');
     vi.advanceTimersByTime(420);
     await tick(60);
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.map(chunk => [chunk.startMs, chunk.durationMs])).toEqual([[0, 9200], [9200, 800]]);
     expect(chunks[1].pcm.length).toBe(800 * 16);
@@ -1138,6 +1143,7 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     vi.advanceTimersByTime(420);
     await tick(60);
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.length).toBeGreaterThanOrEqual(2);
     expect(Math.round(chunks[0].startMs)).toBe(0);
@@ -1149,6 +1155,7 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
   it.each([
     ['tiny', [0, 8_800, 17_600], 10_000],
     ['base', [0, 12_800], 14_000],
+    ['small', [0, 12_800], 14_000],
   ] as const)('%s 连续语音窗口保持 1.2 秒重叠步长，并覆盖最终尾部', async (model, starts, windowMs) => {
     vi.useFakeTimers();
     const scanVideo = new FakeVideo();
@@ -1166,6 +1173,7 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     vi.advanceTimersByTime(420);
     await tick(80);
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.map((chunk) => Math.round(chunk.startMs))).toEqual(expect.arrayContaining([...starts]));
     expect(Math.max(...chunks.map((chunk) => Math.round(chunk.durationMs)))).toBeLessThanOrEqual(windowMs);
@@ -1222,8 +1230,169 @@ describe('完整 AI 字幕扫描窗口的暂停边界', () => {
     vi.advanceTimersByTime(420);
     await tick(80);
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.length).toBeGreaterThanOrEqual(2);
     controller.destroy();
+  });
+});
+
+
+describe('完整 AI 字幕的有界窗口生产', () => {
+  type CopiedWindow = {pcm: Float32Array; startMs: number; endMs: number};
+  function observeWindowCopies(controller: VideoAiFullCaptureController) {
+    // 记录实际 PCM 分配边界，不将所有窗口另存一份用于断言。
+    const boundary = controller as unknown as {createFullAudioWindowFromBlocks: (start: number, end: number) => CopiedWindow};
+    const copy = boundary.createFullAudioWindowFromBlocks.bind(boundary);
+    return vi.spyOn(boundary, 'createFullAudioWindowFromBlocks').mockImplementation(copy);
+  }
+  function pcmSha(pcm: Float32Array): string {
+    return createHash('sha256').update(new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)).digest('hex');
+  }
+  async function settleYieldedWindows(controller: VideoAiFullCaptureController): Promise<void> {
+    for (let index = 0; index < 200 && controller.getPhase() === 'transcribing'; index += 1) {
+      await vi.advanceTimersByTimeAsync(1);
+    }
+  }
+
+  it.each([
+    ['tiny', 10_000, 8_800, 137, 87_244_800],
+    ['base', 14_000, 12_800, 94, 83_942_400],
+    ['small', 14_000, 12_800, 94, 83_942_400],
+  ] as const)('%s 的 20 分钟全部窗口顺序和 PCM 不变，同时最多只保留两个窗副本', async (model, windowMs, stepMs, expectedCount, legacyCopiedBytes) => {
+    vi.useFakeTimers();
+    installCustomAudioWindow();
+    const source = speechAudio(1_200_000);
+    let resolveFirst!: () => void;
+    const first = new Promise<void>(resolve => { resolveFirst = resolve; });
+    const windows: Array<{startMs: number; durationMs: number; sequence: number; sha: string; bytes: number}> = [];
+    let completed = 0;
+    let peakCopiedBytes = 0;
+    let copiedBytes = 0;
+    const onComplete = vi.fn(async () => undefined);
+    const onError = vi.fn();
+    const video = new FakeVideo();
+    video.duration = 1_200;
+    const controller = new VideoAiFullCaptureController({
+      getVideo: () => video as unknown as HTMLVideoElement,
+      getAudio: async () => source, getModel: () => model, isSupported: () => true,
+      transcribe: async chunk => {
+        windows.push({startMs: chunk.startMs, durationMs: chunk.durationMs, sequence: chunk.sequence,
+          sha: pcmSha(chunk.pcm), bytes: chunk.pcm.byteLength});
+        if (chunk.sequence === 1) await first;
+        completed += 1;
+        copiedBytes -= chunk.pcm.byteLength;
+        const text = `Observation ${chunk.sequence} is complete.`;
+        return {text, segments: [{startMs: 0, endMs: 900, text}]};
+      },
+      onTranscriptionComplete: onComplete, onError, onStateChange: vi.fn(),
+    });
+    const copies = observeWindowCopies(controller);
+    const original = copies.getMockImplementation()!;
+    copies.mockImplementation((start, end) => {
+      const window = original(start, end);
+      copiedBytes += window.pcm.byteLength;
+      peakCopiedBytes = Math.max(peakCopiedBytes, copiedBytes);
+      expect(copies.mock.calls.length - completed).toBeLessThanOrEqual(2);
+      return window;
+    });
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(windows).toHaveLength(1);
+    expect(copies).toHaveBeenCalledTimes(2);
+    expect(peakCopiedBytes).toBe(windowMs * 16 * 4 * 2);
+    expect(onComplete).not.toHaveBeenCalled();
+    resolveFirst();
+    await tick(30);
+    await settleYieldedWindows(controller);
+    expect(controller.getPhase()).toBe('ready');
+    expect(onError).not.toHaveBeenCalled();
+    expect(onComplete).toHaveBeenCalledTimes(1);
+    expect(windows).toHaveLength(expectedCount);
+    expect(windows.reduce((sum, window) => sum + window.bytes, 0)).toBe(legacyCopiedBytes);
+    for (const [index, window] of windows.entries()) {
+      const startMs = index * stepMs;
+      const endMs = Math.min(startMs + windowMs, 1_200_000);
+      expect(window).toMatchObject({startMs, durationMs: endMs - startMs, sequence: index + 1,
+        sha: pcmSha(source.subarray(startMs * 16, endMs * 16))});
+    }
+    expect(peakCopiedBytes).toBe(windowMs * 16 * 4 * 2);
+    expect(controller.getProgress()).toMatchObject({capturedMs: 1_200_000, transcribedMs: 1_200_000,
+      windowIndex: expectedCount, windowCount: expectedCount, progress: 1});
+    controller.destroy();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('等待活动窗时取消立即清空预备 PCM，迟到结果不提交字幕或再复制窗口', async () => {
+    vi.useFakeTimers();
+    installCustomAudioWindow();
+    let resolveFirst!: (value: Record<string, unknown>) => void;
+    const first = new Promise<Record<string, unknown>>(resolve => { resolveFirst = resolve; });
+    const onComplete = vi.fn(async () => undefined);
+    const onPreview = vi.fn();
+    const transcribe = vi.fn(() => first);
+    const controller = makeInjectedController({audio: speechAudio(60_000), transcribe, onComplete, onCuesProgress: onPreview});
+    const copies = observeWindowCopies(controller);
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(copies).toHaveBeenCalledTimes(2);
+    const prepared = copies.mock.results[1].value as CopiedWindow;
+    expect(prepared.pcm.length).toBe(160_000);
+    controller.cancel();
+    expect(prepared.pcm.length).toBe(0);
+    resolveFirst({text: 'The cancelled result must not be published.'});
+    await tick(30);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(controller.getPhase()).toBe('idle');
+    expect(copies).toHaveBeenCalledTimes(2);
+    expect(transcribe).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(onPreview).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('页面可在两个识别窗口之间停止，取消会清除让出任务的 timer', async () => {
+    vi.useFakeTimers();
+    installCustomAudioWindow();
+    const transcribe = vi.fn(async () => ({text: 'The first complete sentence.'}));
+    const onComplete = vi.fn(async () => undefined);
+    const controller = makeInjectedController({audio: speechAudio(60_000), transcribe, onComplete});
+    const copies = observeWindowCopies(controller);
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    expect(transcribe).toHaveBeenCalledTimes(1);
+    expect(copies).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(1);
+    controller.cancel();
+    expect(vi.getTimerCount()).toBe(0);
+    await tick(30);
+    expect(controller.getPhase()).toBe('idle');
+    expect(transcribe).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+  });
+
+  it('后续窗失败可保留已发布预览，但不提交完整结果并释放预备窗', async () => {
+    vi.useFakeTimers();
+    installCustomAudioWindow();
+    const onComplete = vi.fn(async () => undefined);
+    const onPreview = vi.fn();
+    const onError = vi.fn();
+    const controller = makeInjectedController({audio: speechAudio(60_000), onComplete, onCuesProgress: onPreview, onError,
+      transcribe: async chunk => {
+        if (chunk.sequence > 1) throw new Error('The next window failed.');
+        return {text: 'The first complete sentence.', segments: [{startMs: 0, endMs: 900, text: 'The first complete sentence.'}]};
+      }});
+    const copies = observeWindowCopies(controller);
+    expect(controller.start()).toBe(true);
+    await tick(30);
+    await vi.advanceTimersByTimeAsync(1);
+    await tick(30);
+    expect(controller.getPhase()).toBe('error');
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onPreview).toHaveBeenCalledTimes(1);
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(copies).toHaveBeenCalledTimes(3);
+    expect(copies.mock.results.every(result => result.value.pcm.length === 0)).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

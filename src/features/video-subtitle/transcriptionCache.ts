@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcriptionCache.ts
  * 文件职责：定义视频 AI 字幕缓存的纯协议、稳定身份和完整 cue 规范化规则。
- * 主要内容：生成 status/media、poster 或稳定 direct source key，隔离模型/视频源语言/schema，并拒绝临时地址与 partial cue。
+ * 主要内容：生成 status/media、poster 或稳定 direct source key，隔离模型/视频源语言/识别策略版本，避免复用旧版固定语言的字幕，并拒绝临时地址与 partial cue。
  * 模块边界：只依赖纯视频字幕数据和模型归一化，不导入 Dexie、浏览器 API、后台 runtime 或音频数据。
  */
 import type {VideoSubtitleCue} from '@/src/features/video-subtitle/content/youtubeSubtitleData';
@@ -12,7 +12,8 @@ export const VIDEO_AI_SUBTITLE_CACHE_GET_MESSAGE = 'fluentReadGetVideoAiSubtitle
 export const VIDEO_AI_SUBTITLE_CACHE_SET_MESSAGE = 'fluentReadSetVideoAiSubtitleCache' as const;
 export const VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE = 'fluentReadGetVideoAiSubtitleCacheStats' as const;
 export const VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE = 'fluentReadClearVideoAiSubtitleCache' as const;
-export const VIDEO_AI_SUBTITLE_CACHE_SCHEMA_FINGERPRINT = 'video-ai-cues-v1' as const;
+// 逐窗语言检测及 Base/Small 解码容量变化后，旧版固定语言结果必须重新识别。
+export const VIDEO_AI_SUBTITLE_CACHE_SCHEMA_FINGERPRINT = 'video-ai-cues-v2' as const;
 export const VIDEO_AI_SUBTITLE_CACHE_MAX_CUES = 1_200 as const;
 
 export interface VideoAiSubtitleCacheSource {

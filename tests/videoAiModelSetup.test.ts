@@ -109,13 +109,13 @@ describe('video AI model setup', () => {
     expect(controller.choice).toBeNull();
   });
 
-  it('recommends Tiny, lets the user switch, and downloads before starting', async () => {
+  it('recommends Small, preserves the configured Tiny, lets the user switch and downloads before starting', async () => {
     const {controller, events, dependencies, sendMessage} = setup({responses: {
       fluentReadGetLocalVideoModelState: [{success: true, models: []}],
       fluentReadPrepareLocalVideoModel: [{success: true, models: ['tiny']}],
     }});
     await controller.request(() => true);
-    expect(controller.choice).toEqual({downloaded: [], recommended: 'tiny', selected: 'tiny'});
+    expect(controller.choice).toEqual({downloaded: [], recommended: 'small', selected: 'tiny'});
     controller.select('base');
     expect(controller.choice?.selected).toBe('base');
 
@@ -139,11 +139,11 @@ describe('video AI model setup', () => {
     expect(events.at(-1)).toBe('start');
   });
 
-  it('keeps the model chosen in settings selected while still marking Tiny as recommended', async () => {
+  it('keeps the model chosen in settings selected while marking Small as recommended', async () => {
     const {controller, configure} = setup({responses: {fluentReadGetLocalVideoModelState: [{success: true, models: []}]}});
     configure('base');
     await controller.request(() => true);
-    expect(controller.choice).toEqual({downloaded: [], recommended: 'tiny', selected: 'base'});
+    expect(controller.choice).toEqual({downloaded: [], recommended: 'small', selected: 'base'});
   });
 
   it('reports status failures only for current requests and never opens a stale choice', async () => {

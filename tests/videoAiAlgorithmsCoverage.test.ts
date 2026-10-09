@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   VideoAiStreamingResampler,
   measureVideoAiSpeechActivity,
+  getVideoAiStreamProfile,
+  getVideoAiAdaptiveSubmitStepMs,
 } from '@/src/features/video-subtitle/content/video-ai/audioWindow';
 import {
   getVisibleVideoAiCue,
@@ -19,6 +21,12 @@ import {
 } from '@/src/features/video-subtitle/content/video-ai/streamingTranscript';
 
 describe('Video AI algorithm boundary coverage', () => {
+  it('Small keeps the Base eight-second streaming profile and duty-cycle budget', () => {
+    expect(getVideoAiStreamProfile('small')).toEqual(getVideoAiStreamProfile('base'));
+    expect(getVideoAiStreamProfile('small').targetWindowMs).toBe(8_000);
+    expect(getVideoAiAdaptiveSubmitStepMs('small', 5_000)).toBe(getVideoAiAdaptiveSubmitStepMs('base', 5_000));
+    expect(getVideoAiAdaptiveSubmitStepMs('tiny', 5_000)).toBeLessThan(getVideoAiAdaptiveSubmitStepMs('small', 5_000));
+  });
   it('handles empty and malformed audio while preserving resampler phase', () => {
     expect(measureVideoAiSpeechActivity(new Float32Array())).toEqual({
       active: false,

@@ -339,7 +339,7 @@ describe('entire captured public template event belongs to its rendered config',
         const h = await mount('video'), original = h.state.config;
         const handler = control === 'radio' ? capture(event => event.tag === 'input' && event.props.name === 'video-local-model' && event.props.value === 'base', 'onUpdate:modelValue')
             : control === 'card' ? capture(event => event.tag === 'article' && event.props.key === 'base', 'onClick')
-            : capture(event => event.tag === 'button' && String(event.props['aria-label']).includes('video.modelDownloadAria') && String(event.props['aria-label']).includes(videoPublic.VIDEO_LOCAL_TRANSCRIPTION_MODELS.find(item => item.value === 'base')!.label), 'onClick');
+            : capture(event => event.tag === 'button' && String(event.props['aria-label']).includes('video.modelDownloadAria') && String(event.props['aria-label']).includes('video.modelBaseName'), 'onClick');
         h.state.config = normalizeConfig({videoTranslationEnabled: true, videoLocalModel: 'tiny'}); await settle();
         const current = h.state.config, calls = ports.send.mock.calls.length;
         handler(control === 'radio' ? 'base' : new dom.window.Event('click')); await settle();

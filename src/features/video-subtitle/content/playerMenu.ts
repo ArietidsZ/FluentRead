@@ -512,6 +512,7 @@ export interface VideoModelPromptState {
 const MODEL_NAME_KEYS: Record<VideoLocalTranscriptionModel, [name: string, hint: string]> = {
     tiny: ['video.modelTinyName', 'video.modelTinyHint'],
     base: ['video.modelBaseName', 'video.modelBaseHint'],
+    small: ['video.modelSmallName', 'video.modelSmallHint'],
 };
 
 function createModelPrompt(language: UiLanguage): HTMLElement {

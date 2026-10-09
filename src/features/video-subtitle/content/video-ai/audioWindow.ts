@@ -18,11 +18,11 @@ export interface VideoAiStreamProfile {
 /**
  * Whisper 的编码器每次都会处理固定长度的声学特征。首窗不能无限等待完整
  * 句子，否则语音已经播完，字幕才刚开始出现。Tiny 首窗只用于快速给出可读
- * 前缀，随后恢复 6 秒重叠窗口做准确校正；Base 保留更长上下文，明确标为
+ * 前缀，随后恢复 6 秒重叠窗口做准确校正；Base/Small 保留更长上下文，明确标为
  * 实验模式。
  */
 export function getVideoAiStreamProfile(model: unknown): VideoAiStreamProfile {
-  return normalizeVideoLocalTranscriptionModel(model) === 'base'
+  return normalizeVideoLocalTranscriptionModel(model) !== 'tiny'
     ? {
         initialWindowMs: 3_600,
         targetWindowMs: 8_000,
@@ -47,7 +47,7 @@ export function getVideoAiAdaptiveSubmitStepMs(
   profile = getVideoAiStreamProfile(model),
 ): number {
   if (!Number.isFinite(inferenceMs) || inferenceMs <= 0) return profile.submitStepMs;
-  const dutyCycleBudget = normalizeVideoLocalTranscriptionModel(model) === 'base' ? 0.62 : 0.72;
+  const dutyCycleBudget = normalizeVideoLocalTranscriptionModel(model) !== 'tiny' ? 0.62 : 0.72;
   return Math.min(
     profile.maxBufferedMs - 800,
     Math.max(profile.submitStepMs, inferenceMs / dutyCycleBudget),

@@ -1,13 +1,17 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.ts
  * 文件职责：在 Offscreen Document 中串行调度视频 Whisper Worker、PCM 解码和模型预热。
- * 主要内容：复用共享并行预算及排队任务代次保护，管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、取消清理与空闲释放；预下载时把模型文件的字节进度交给调用方。
+ * 主要内容：复用共享并行预算及排队任务代次保护，管理单待处理转写、prepare 去重、模型切换、GPU 生命周期失败后的单次 CPU 重建、超时终止、首窗等待的有界预热租期、取消清理与空闲释放；透传实际语言检测诊断，预下载时把模型文件的字节进度交给调用方。
  * 模块边界：只编排 Offscreen/Worker 资源，不解析字幕时间轴，也不管理后台 tab owner。
  */
 import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {
   normalizeVideoLocalTranscriptionModel,
+  getVideoLocalTranscriptionWorkerTimeoutMs,
+  VIDEO_LOCAL_TRANSCRIPTION_MODELS,
+  normalizeVideoAiRecognitionMetadata,
   resampleToWhisperAudio,
+  type VideoAiRecognitionMetadata,
 } from '@/src/features/video-subtitle/transcription';
 import { cacheVideoAiQ4ModelFiles, removeVideoAiModelFiles } from './modelCache';
 import type {DownloadProgress} from '@/src/core/download/progress';
@@ -20,7 +24,7 @@ export interface LocalVideoTranscriptionSegment {
   text: string;
 }
 
-export interface LocalVideoTranscriptionResult {
+export interface LocalVideoTranscriptionResult extends VideoAiRecognitionMetadata {
   text: string;
   segments: LocalVideoTranscriptionSegment[];
   model: string;
@@ -30,6 +34,14 @@ export interface LocalVideoTranscriptionResult {
   decodeMs?: number;
   inferenceMs?: number;
   audioDurationMs?: number;
+  threads?: number;
+  dtype?: 'q4' | 'q8';
+}
+
+export interface LocalVideoTranscriptionPreparation extends VideoAiRecognitionMetadata {
+  model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
+  backend?: LocalTranscriptionBackend;
+  gpuInfo?: string;
   threads?: number;
   dtype?: 'q4' | 'q8';
 }
@@ -78,24 +90,17 @@ interface PendingPrepareJob {
   keepWarm: boolean;
   streamId: string;
   onProgress?: (progress: DownloadProgress) => void;
-  resolve: (result: {
-    model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
-    backend?: LocalTranscriptionBackend;
-    gpuInfo?: string;
-    threads?: number;
-    dtype?: 'q4' | 'q8';
-  }) => void;
+  resolve: (result: LocalVideoTranscriptionPreparation) => void;
   reject: (error: unknown) => void;
 }
 
 type WorkerLifecycleError = Error & {retryableWorkerFailure?: true};
 
 const MODEL_IDLE_DISPOSE_MS = 30_000;
+// 覆盖 X 的 5 秒媒体发现、60 秒独立读取和 8 秒解码，首窗提交即消费。
+const MODEL_FIRST_AUDIO_WARM_LEASE_MS = 90_000;
 const MAX_WHISPER_AUDIO_SECONDS = 30;
 const MODEL_PREPARE_TIMEOUT_MS = 120_000;
-// 包含从浏览器 Cache API 初始化 ONNX session 的冷启动；真正 decoder 仍由
-// Worker 内部的 15 秒 stopping criteria 限制。
-const TRANSCRIPTION_TIMEOUT_MS = 32_000;
 const AUDIO_DECODE_TIMEOUT_MS = 8_000;
 
 let transcriptionWorker: Worker | null = null;
@@ -108,14 +113,9 @@ let removingModel = false;
 let workerDisposing = false;
 let pendingTranscription: PendingTranscriptionJob | null = null;
 const pendingPrepare: PendingPrepareJob[] = [];
-const pendingPreparePromises = new Map<string, Promise<{
-  model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
-  backend?: LocalTranscriptionBackend;
-  gpuInfo?: string;
-  threads?: number;
-  dtype?: 'q4' | 'q8';
-}>>();
+const pendingPreparePromises = new Map<string, Promise<LocalVideoTranscriptionPreparation>>();
 let idleDisposeTimer: number | undefined;
+let firstAudioWarmLease: {streamId: string; deadlineAt: number} | null = null;
 let activeStreamId = '';
 let workerGeneration = 0;
 let currentTranscriptionStreamId = '';
@@ -136,6 +136,8 @@ function toError(value: unknown, fallback: string): Error {
 }
 
 function terminateWorker(error?: Error, releaseStream = false): void {
+  firstAudioWarmLease = null;
+  clearIdleDisposal();
   workerGeneration++;
   const current = transcriptionWorker;
   transcriptionWorker = null;
@@ -332,7 +334,9 @@ function scheduleIdleDisposal(): void {
     idleDisposeTimer = undefined;
     if (queueRunning || pendingTranscription || pendingPrepare.length > 0 || workerDisposing) return;
     void disposeLoadedTranscriber();
-  }, MODEL_IDLE_DISPOSE_MS);
+  }, firstAudioWarmLease?.streamId === activeStreamId && firstAudioWarmLease.deadlineAt > Date.now()
+    ? firstAudioWarmLease.deadlineAt - Date.now()
+    : MODEL_IDLE_DISPOSE_MS);
 }
 
 function clearIdleDisposal(): void {
@@ -389,7 +393,8 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
     sourceLanguage: request.sourceLanguage,
     languageSessionKey: request.streamId,
     audio: retryAudio,
-  }, [workerAudio.buffer], [retryAudio.buffer], TRANSCRIPTION_TIMEOUT_MS, request.streamId);
+  }, [workerAudio.buffer], [retryAudio.buffer], getVideoLocalTranscriptionWorkerTimeoutMs(request.model), request.streamId);
+  if (activeStreamId === request.streamId) firstAudioWarmLease = {streamId: request.streamId!, deadlineAt: 0};
   return {
     text: typeof response.text === 'string' ? response.text : '',
     segments: Array.isArray(response.segments) ? response.segments : [],
@@ -403,6 +408,7 @@ async function transcribeLocalVideoAudioNow(request: LocalVideoTranscriptionRequ
     audioDurationMs: typeof response.audioDurationMs === 'number' ? response.audioDurationMs : undefined,
     threads: typeof response.threads === 'number' ? response.threads : undefined,
     dtype: response.dtype === 'q4' || response.dtype === 'q8' ? response.dtype : undefined,
+    ...normalizeVideoAiRecognitionMetadata(response),
   };
 }
 
@@ -411,24 +417,19 @@ async function prepareLocalVideoTranscriptionModelNow(
   keepWarm: boolean,
   streamId = '',
   onProgress?: (progress: DownloadProgress) => void,
-): Promise<{
-  model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
-  backend?: LocalTranscriptionBackend;
-  gpuInfo?: string;
-  threads?: number;
-  dtype?: 'q4' | 'q8';
-}> {
+): Promise<LocalVideoTranscriptionPreparation> {
   if (!keepWarm) {
     await cacheVideoAiQ4ModelFiles(model, onProgress);
     return { model, dtype: 'q4' };
   }
-  const response = await requestWorkerWithCpuFallback({ type: 'prepare', model }, { type: 'prepare', model }, [], [], MODEL_PREPARE_TIMEOUT_MS, streamId);
+  const response = await requestWorkerWithCpuFallback({ type: 'prepare', model }, { type: 'prepare', model }, [], [], model === 'small' ? 600_000 : MODEL_PREPARE_TIMEOUT_MS, streamId);
   const result = {
     model,
     backend: response.backend === 'webgpu' || response.backend === 'wasm' ? response.backend : undefined,
     gpuInfo: typeof response.gpuInfo === 'string' ? response.gpuInfo : undefined,
     threads: typeof response.threads === 'number' ? response.threads : undefined,
     dtype: response.dtype === 'q4' || response.dtype === 'q8' ? response.dtype : undefined,
+    ...normalizeVideoAiRecognitionMetadata(response),
   };
   return result;
 }
@@ -461,11 +462,17 @@ function drainQueue(): void {
           activeStreamId = prepareJob.streamId;
           currentTranscriptionStreamId = prepareJob.streamId;
         }
-        prepareJob.resolve(await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm, prepareJob.streamId, prepareJob.onProgress));
+        const prepared = await prepareLocalVideoTranscriptionModelNow(prepareJob.model, prepareJob.keepWarm, prepareJob.streamId, prepareJob.onProgress);
+        if (prepareJob.keepWarm && prepareJob.streamId && activeStreamId === prepareJob.streamId
+          && pendingTranscription?.request.streamId !== prepareJob.streamId && !firstAudioWarmLease) {
+          firstAudioWarmLease = {streamId: prepareJob.streamId, deadlineAt: Date.now() + MODEL_FIRST_AUDIO_WARM_LEASE_MS};
+        }
+        prepareJob.resolve(prepared);
       } else if (transcriptionJob) {
         transcriptionJob.resolve(await transcribeLocalVideoAudioNow(transcriptionJob.request));
       }
     } catch (error) {
+      firstAudioWarmLease = null;
       if (prepareJob) prepareJob.reject(error);
       else transcriptionJob?.reject(error);
     } finally {
@@ -483,13 +490,7 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
   streamId?: unknown;
   /** 仅预下载（keepWarm 为 false）时回报模型文件的真实字节进度；并发的相同请求共用首个调用者的回调。 */
   onProgress?: (progress: DownloadProgress) => void;
-}): Promise<{
-  model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
-  backend?: LocalTranscriptionBackend;
-  gpuInfo?: string;
-  threads?: number;
-  dtype?: 'q4' | 'q8';
-}> {
+}): Promise<LocalVideoTranscriptionPreparation> {
   if (removingModel) return Promise.reject(new Error('正在清除模型，请稍后重试'));
   const normalizedModel = normalizeVideoLocalTranscriptionModel(model);
   const keepWarm = options?.keepWarm === true;
@@ -498,13 +499,7 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
   const existing = pendingPreparePromises.get(requestKey);
   if (existing) return existing;
 
-  const request = new Promise<{
-    model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>;
-    backend?: LocalTranscriptionBackend;
-    gpuInfo?: string;
-    threads?: number;
-    dtype?: 'q4' | 'q8';
-  }>((resolve, reject) => {
+  const request = new Promise<LocalVideoTranscriptionPreparation>((resolve, reject) => {
     if (streamId && activeStreamId && activeStreamId !== streamId) {
       reject(new Error('另一个标签页正在使用本地 AI 字幕，请先停止后再试'));
       return;
@@ -529,7 +524,6 @@ export function prepareLocalVideoTranscriptionModel(model?: unknown, options?: {
 export function transcribeLocalVideoAudio(request: LocalVideoTranscriptionRequest): Promise<LocalVideoTranscriptionResult> {
   if (removingModel) return Promise.reject(new Error('正在清除模型，请稍后重试'));
   return new Promise((resolve, reject) => {
-    clearIdleDisposal();
     const streamId = typeof request.streamId === 'string' && request.streamId.trim()
       ? request.streamId.trim()
       : 'legacy-video-stream';
@@ -537,6 +531,9 @@ export function transcribeLocalVideoAudio(request: LocalVideoTranscriptionReques
       reject(new Error('另一个标签页正在使用本地 AI 字幕，请先停止后再试'));
       return;
     }
+    clearIdleDisposal();
+    // 保留已消费标记，重复的同 owner prepare 不能重新延长首窗租期。
+    firstAudioWarmLease = {streamId, deadlineAt: 0};
     activeStreamId = streamId;
     request.streamId = streamId;
     if (pendingTranscription) {
@@ -565,9 +562,12 @@ export async function cancelLocalVideoTranscription(
       || pendingTranscription?.request.streamId === normalizedStreamId
       || pendingPrepare.some((job) => job.streamId === normalizedStreamId)
     ) return;
+    firstAudioWarmLease = null;
     if (activeStreamId === normalizedStreamId) activeStreamId = '';
+    scheduleIdleDisposal();
     return;
   }
+  firstAudioWarmLease = null;
   if (currentTranscriptionStreamId === normalizedStreamId) transcriptionCancellationVersion += 1;
   if (activeStreamId === normalizedStreamId) activeStreamId = '';
   if (pendingTranscription?.request.streamId === normalizedStreamId) {
@@ -589,12 +589,16 @@ export async function cancelLocalVideoTranscription(
 
 /** 空闲时释放已加载 Worker，再删除指定模型；使用或下载过程中拒绝删除。 */
 export async function removeLocalVideoTranscriptionModel(model: unknown): Promise<void> {
-  if (model !== 'tiny' && model !== 'base') throw new Error('无效的本地字幕模型');
+  if (!VIDEO_LOCAL_TRANSCRIPTION_MODELS.some(item => item.value === model)) throw new Error('无效的本地字幕模型');
   if (removingModel || queueRunning || pendingTranscription || pendingPrepare.length || pendingPreparePromises.size || workerDisposing) throw new Error('模型正在使用或下载，请结束后再清除');
   removingModel = true;
   try {
     clearIdleDisposal();
+    firstAudioWarmLease = null;
     if (transcriptionWorkerModel === model) await disposeLoadedTranscriber();
     await removeVideoAiModelFiles(model);
-  } finally { removingModel = false; }
+  } finally {
+    removingModel = false;
+    if (transcriptionWorker) scheduleIdleDisposal();
+  }
 }

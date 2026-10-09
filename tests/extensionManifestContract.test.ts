@@ -251,7 +251,9 @@ describe('extension manifest capability contract', () => {
         const source = readFileSync(resolve(PROJECT_ROOT, 'wxt.config.ts'), 'utf8');
 
         expect(source).toContain("name: 'fluent-read'");
-        expect(source).toContain("excludeSources: ['coverage/**']");
+        // 验证排除 coverage 的契约，允许其他合法排除项与多行格式。
+        const excludedSources = source.match(/excludeSources:\s*\[([\s\S]*?)\]/)?.[1];
+        expect(excludedSources).toContain("'coverage/**'");
         expect(source).toContain("'build:publicAssets'");
         expect(source).not.toContain("files.splice(index, 1)");
     });
