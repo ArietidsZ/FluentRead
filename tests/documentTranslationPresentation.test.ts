@@ -68,7 +68,7 @@ describe('document translation presentation', () => {
         expect(isRichDocumentFormat('pdf')).toBe(false);
         expect(isRichDocumentFormat()).toBe(false);
 
-        expect(getDocumentEmptyReaderHint(parsed('pdf', {kind: 'pdf', bytes: new Uint8Array(), pages: []}))).toContain('原页面坐标');
+        expect(getDocumentEmptyReaderHint(parsed('pdf', {kind: 'pdf', bytes: new Uint8Array(), pages: []}))).toBe('document.pdfReading.startHint');
         expect(getDocumentEmptyReaderHint(parsed('ass'))).toContain('时间轴');
         expect(getDocumentEmptyReaderHint(parsed('json'))).toContain('JSON 路径');
         expect(getDocumentEmptyReaderHint(null)).toContain('阅读结构');

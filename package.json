@@ -37,6 +37,7 @@
     "test:document": "node scripts/testing/run-resource-safe.mjs -- vitest run tests/documentArchive.test.ts tests/documentTranslation.test.ts tests/documentTranslationApi.test.ts tests/documentTranslationBinary.test.ts tests/documentTranslationBinaryEdge.test.ts tests/documentTranslationEdge.test.ts tests/documentTranslationExamplesApi.test.ts tests/documentTranslationPresentation.test.ts tests/documentTranslationRegression.test.ts tests/translationDocumentCorpus.test.ts",
     "test:translation-core": "node scripts/testing/run-resource-safe.mjs -- vitest run tests/translationCore.test.ts tests/translationState.test.ts tests/serializationPerformance.test.ts tests/translateApiPerformance.test.ts tests/translateQueue.test.ts tests/pageContext.test.ts tests/pageContextDefuddle.test.ts",
     "test:selection-triggers": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-selection-trigger-test.cjs",
+    "test:pdf-selection": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-pdf-selection-test.cjs",
     "test:translation-sites": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-site-translation-matrix.cjs",
     "test:video:fixture": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-video-subtitle-fixture-test.cjs",
     "test:video:x-fixture": "node scripts/testing/run-resource-safe.mjs -- node scripts/run-x-subtitle-sync-test.cjs",

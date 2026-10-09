@@ -18,6 +18,7 @@ const ports = vi.hoisted(() => ({
     unsubscribe: vi.fn(), send: vi.fn(), tabs: vi.fn(), single: vi.fn(), batch: vi.fn(),
     download: vi.fn(), archive: vi.fn(),
 }));
+vi.mock('@/src/features/document-translation/ui/PdfReader.vue', () => ({default: {setup: () => () => h('div')}}));
 vi.mock('webextension-polyfill', () => ({default: {
     runtime: {sendMessage: ports.send, getURL: (path: string) => `chrome-extension://document-actions/${path}`},
     tabs: {create: ports.tabs},

@@ -6,6 +6,7 @@
  * 并保留参数化旧文案的安全回退，支持后续翻译者继续补齐未 key 化区域。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/en-US.json';
 import settingsCopyText from './settings-copy/en-US.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    ...pdfReadingMessages['en-US'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Remove source request headers",

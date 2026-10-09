@@ -19,6 +19,7 @@ import * as runtimeMessages from '@/src/platform/browser/runtimeMessages';
 import * as detect from '@/src/core/language/detect';
 import * as wordNormalization from '@/src/features/selection-translation/services/wordNormalization';
 import * as vocabularyProtocol from '@/src/features/vocabulary/protocol';
+import * as hotkey from '@/src/core/hotkey';
 
 vi.mock('webextension-polyfill', () => ({default: {}}));
 
@@ -30,7 +31,7 @@ const compiled = ts.transpileModule(compileScript(descriptor, {id: 'selection-li
 let app: Vue.App | undefined;
 afterEach(() => { app?.unmount(); app = undefined; vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
-function mountSelection(privateContext = false) {
+function mountSelection(privateContext = false, selectionAdapter?: Record<string, unknown>) {
     vi.useFakeTimers();
     const config = Object.assign(new Config(), {
         disableSelectionTranslator: false, selectionTranslatorMode: 'bilingual', theme: 'light',
@@ -65,6 +66,7 @@ function mountSelection(privateContext = false) {
         extension: {inIncognitoContext: privateContext},
     };
     const unsubscribeConfig = vi.fn(), releaseContextMenu = vi.fn();
+    const translateText = vi.fn().mockResolvedValue('这是译文'), translateTextBatch = vi.fn();
     let stopTts: MockInstance<(notifyRemote?: boolean) => void>;
     let ttsRequestId = 0;
     const modules: Record<string, unknown> = {
@@ -75,11 +77,13 @@ function mountSelection(privateContext = false) {
         'webextension-polyfill': browser,
         '@/src/platform/browser/runtimeMessages': runtimeMessages,
         '@/src/services/config/store': {config, subscribeConfig: () => unsubscribeConfig},
+        '@/src/app/translation/client': {translateText, translateTextBatch},
         '@/src/features/selection-translation/core': selectionCore,
         '@/src/features/selection-translation/services/wordNormalization': wordNormalization,
         '@/src/core/config/harness': harness,
         '@/src/core/language/detect': detect,
         '@/src/features/vocabulary/protocol': vocabularyProtocol,
+        '@/src/core/hotkey': hotkey,
         '@/src/features/share-card/public': {isShareCardMounted: () => false},
         '@/src/features/selection-translation/content/selectionTtsContentController': {
             createSelectionTtsContentController: (dependencies: Parameters<typeof createSelectionTtsContentController>[0]) => {
@@ -108,13 +112,13 @@ function mountSelection(privateContext = false) {
         createText: () => ({}), createComment: () => ({}), setText() {}, setElementText() {},
         parentNode: () => null, nextSibling: () => null,
     });
-    const currentApp = renderer.createApp(exports.default);
+    const currentApp = renderer.createApp(exports.default, {selectionAdapter});
     const lifecycleErrors = vi.fn();
     currentApp.config.errorHandler = lifecycleErrors;
     app = currentApp;
     const vm = currentApp.mount({});
     const state = (vm.$ as any).setupState as Record<string, any>;
-    return {state, event, browser, config, listeners, window, document, unsubscribeConfig, releaseContextMenu, stopTts: stopTts!,
+    return {state, event, browser, config, listeners, window, document, unsubscribeConfig, releaseContextMenu, translateText, translateTextBatch, stopTts: stopTts!,
         lifecycleErrors, unmount: () => { currentApp.unmount(); app = undefined; }};
 }
 
@@ -856,6 +860,102 @@ describe('selection card geometry across content changes', () => {
         window.innerWidth = 390; window.innerHeight = 400;
         state.applyManualPopupGeometry();
         expect(state.tooltipStyle).toMatchObject({left: '12px', top: '248px', width: '366px', height: '140px'});
+    });
+});
+
+describe('selection card on an extension PDF page', () => {
+    function preparePdf() {
+        const acceptsRange = vi.fn(() => true);
+        const context = vi.fn(() => ({text: 'The Transformer uses attention.', title: 'Attention Is All You Need', sourceUrl: 'https://arxiv.org/pdf/1706.03762'}));
+        const captureReading = vi.fn(() => ({text: 'Transformer models', context: 'The Transformer uses attention.', sentence: 'The Transformer uses attention.'}));
+        let invalidate = () => {};
+        const unsubscribeSource = vi.fn();
+        const extractText = vi.fn((_range: Range, text: string) => text);
+        const fixture = mountSelection(false, {acceptsRange, extractText, normalizeText: (text: string) => text.replace(/\s+/g, ' ').trim(), context, captureReading,
+            subscribeInvalidation: (listener: () => void) => {invalidate = listener; return unsubscribeSource;}});
+        class FakeElement {}
+        class FakeNode {}
+        vi.stubGlobal('Element', FakeElement);
+        vi.stubGlobal('Node', FakeNode);
+        const start = {}, end = {};
+        const range = {startContainer: start, endContainer: end, startOffset: 0, endOffset: 18,
+            getClientRects: () => [{left: 200, right: 380, top: 250, bottom: 270, width: 180, height: 20}],
+            cloneRange: () => range};
+        Vue.markRaw(range); // 原生 Range 不被 Vue 代理，测试对象也保持相同身份规则。
+        Object.assign(fixture.window, {getSelection: () => ({rangeCount: 1, isCollapsed: false,
+            anchorNode: start, anchorOffset: 0, getRangeAt: () => range, toString: () => 'Transformer\nmodels'})});
+        fixture.config.selectionTranslatorTrigger = 'direct';
+        fixture.config.selectionTranslatorDelay = 0;
+        fixture.state.selectionConfigVersion += 1;
+        return {...fixture, acceptsRange, extractText, context, captureReading, range, unsubscribeSource, invalidate: () => invalidate()};
+    }
+
+    it('only captures an adapter-approved source range and normalizes PDF wraps in the snapshot', () => {
+        const fixture = preparePdf();
+        fixture.acceptsRange.mockReturnValue(false);
+        expect(fixture.state.readSelectionSnapshot()).toBeNull();
+        expect(fixture.extractText).not.toHaveBeenCalled();
+        fixture.acceptsRange.mockReturnValue(true);
+        expect(fixture.state.readSelectionSnapshot()).toMatchObject({text: 'Transformer models', parts: [{kind: 'text', text: 'Transformer models'}]});
+        expect(fixture.extractText).toHaveBeenCalledWith(fixture.range, 'Transformer\nmodels');
+        fixture.extractText.mockReturnValue('First page footer.\nSecond page title.');
+        expect(fixture.state.readSelectionSnapshot()).toMatchObject({text: 'First page footer. Second page title.'});
+    });
+
+    it('waits for pointer release and sends PDF context through the existing translation client', async () => {
+        const fixture = preparePdf();
+        const getSelection = (fixture.window as any).getSelection;
+        (fixture.window as any).getSelection = () => null;
+        fixture.state.handlePointerDown({isTrusted: true, button: 0, target: null});
+        (fixture.window as any).getSelection = getSelection;
+        fixture.state.handleSelectionChange({isTrusted: true});
+        await vi.advanceTimersByTimeAsync(100);
+        expect(fixture.translateText).not.toHaveBeenCalled();
+        fixture.state.handlePointerUp({isTrusted: true, button: 0, target: null});
+        await vi.advanceTimersByTimeAsync(32); await Vue.nextTick();
+        expect(fixture.translateText).toHaveBeenCalledWith('Transformer models', 'Attention Is All You Need', expect.objectContaining({
+            pageContext: 'The Transformer uses attention.', signal: expect.any(AbortSignal),
+        }));
+        expect(fixture.state.translationResult).toBe('这是译文');
+    });
+
+    it('aborts source requests and ignores late translations after the source owner invalidates', async () => {
+        const fixture = preparePdf();
+        let finish!: (text: string) => void;
+        fixture.translateText.mockImplementation(() => new Promise(resolve => {finish = resolve;}));
+        fixture.state.snapshot = fixture.state.readSelectionSnapshot();
+        fixture.state.selectedText = 'Transformer models';
+        const request = fixture.state.beginSelectionContentRequest('Transformer models');
+        const pending = fixture.state.requestTranslation(request);
+        const controller = fixture.state.translationAbortController;
+        fixture.acceptsRange.mockReturnValue(false);
+        fixture.invalidate();
+        expect(controller.signal.aborted).toBe(true);
+        expect(fixture.state.snapshot).toBeNull();
+        finish('旧文件的迟到译文'); await pending;
+        expect(fixture.state.translationResult).toBe('');
+        fixture.unmount();
+        expect(fixture.unsubscribeSource).toHaveBeenCalledOnce();
+    });
+
+    it('uses the adapter for PDF reading and vocabulary source metadata', async () => {
+        const fixture = preparePdf();
+        fixture.config.harness.enabled = true;
+        fixture.config.vocabularyBookEnabled = true;
+        fixture.state.selectionConfigVersion += 1;
+        fixture.state.snapshot = fixture.state.readSelectionSnapshot();
+        fixture.state.selectedText = 'Transformer models';
+        const request = fixture.state.beginSelectionContentRequest('Transformer models');
+        fixture.state.translationAnswer = {...request, answer: '模型'};
+        fixture.state.translationResult = '模型';
+        fixture.state.openReadingCard();
+        expect(fixture.captureReading).toHaveBeenCalled();
+        expect(fixture.state.readingSelection.context).toBe('The Transformer uses attention.');
+        fixture.browser.runtime.sendMessage.mockResolvedValue({success: true, data: {id: 'saved'}});
+        await fixture.state.saveVocabularyEntry({isTrusted: true});
+        expect(fixture.browser.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({action: 'upsert', input: expect.objectContaining({context: expect.objectContaining({
+            text: 'The Transformer uses attention.', sourceUrl: 'https://arxiv.org/pdf/1706.03762', pageTitle: 'Attention Is All You Need',
+        })})}));
     });
 });
 

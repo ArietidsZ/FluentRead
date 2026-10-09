@@ -23,6 +23,27 @@ const onePixelPng = Uint8Array.from(Buffer.from(
 ));
 const testRasterizer: PdfPageRasterizer = async () => onePixelPng;
 
+it('reports PDF import page progress, yields to input, and supports page-boundary cancellation', async () => {
+    const pdf = await PDFDocument.create();
+    for (let index = 0; index < 10; index += 1) pdf.addPage().drawText(`Page ${index + 1} text`);
+    const bytes = await pdf.save();
+    const progress: Array<{completed: number; total: number}> = [];
+    let yielded = false;
+    const timer = setTimeout(() => {yielded = true;}, 0);
+    await parseBinaryDocument('progress.pdf', bytes, {onPdfProgress: value => progress.push(value)});
+    clearTimeout(timer);
+    expect(progress.map(value => value.completed)).toEqual(Array.from({length: 11}, (_, index) => index));
+    expect(progress.every(value => value.total === 10)).toBe(true);
+    expect(yielded).toBe(true);
+    const controller = new AbortController();
+    const completed: number[] = [];
+    await expect(parseBinaryDocument('cancel.pdf', bytes, {signal: controller.signal, onPdfProgress: ({completed: page}) => {
+        completed.push(page);
+        if (page === 3) controller.abort(new Error('Import canceled'));
+    }})).rejects.toThrow('Import canceled');
+    expect(completed).toEqual([0, 1, 2, 3]);
+});
+
 function loadBytes(fileName: string): Uint8Array {
     return Uint8Array.from(readFileSync(new URL(fileName, exampleRoot)));
 }
@@ -34,6 +55,49 @@ function copyArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 }
 
 describe('binary document translation formats', () => {
+    it.each(['bilingual', 'translated'] as const)('streams complete reading continuation pages in %s output', async mode => {
+        const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
+        const translations = parsed.segments.map(segment => `完整译文 ${segment.source} 尾文`);
+        const received: Array<{pageNumber: number; text: string}> = [];
+        const download = await createDocumentDownload(parsed, translations, mode, {
+            pdfReadingRasterizer: async function* ({pageNumber, plan}) {
+                received.push({pageNumber, text: plan.entries.filter(entry => entry.kind === 'text').map(entry => entry.text).join('')});
+                yield {bytes: onePixelPng, width: 612, height: 792};
+                yield {bytes: onePixelPng, width: 612, height: 792};
+            },
+        });
+        const result = await PDFDocument.load(download.data as Uint8Array);
+        expect(result.getPageCount()).toBe(mode === 'bilingual' ? 6 : 4);
+        expect(received.map(page => page.pageNumber)).toEqual([1, 2]);
+        const expected = parsed.binary!.kind === 'pdf' ? parsed.binary!.pages.flatMap(page => page.blocks)
+            .filter(block => block.segmentIndex >= 0)
+            .map(block => block.kind === 'metadata' || block.kind === 'footer' ? parsed.segments[block.segmentIndex].source : translations[block.segmentIndex]).join('') : '';
+        expect(received.map(page => page.text).join('')).toBe(expected);
+        expect(result.getPages().filter(page => page.getWidth() === 612).every(page => page.getHeight() === 792)).toBe(true);
+    });
+
+    it('keeps layout preview plus full reading pages and closes an active iterator on cancellation', async () => {
+        const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
+        const translations = parsed.segments.map(() => '完整尾文');
+        const raster = vi.fn(testRasterizer);
+        const controller = new AbortController();
+        let released = false;
+        await expect(createDocumentDownload(parsed, translations, 'translated', {
+            pdfPresentation: 'layout', pdfPageRasterizer: raster, signal: controller.signal,
+            pdfReadingRasterizer: async function* () {
+                try {yield {bytes: onePixelPng, width: 612, height: 792}; controller.abort(new Error('canceled')); yield {bytes: onePixelPng, width: 612, height: 792};}
+                finally {released = true;}
+            },
+        })).rejects.toThrow('canceled');
+        expect(released).toBe(true); expect(raster).toHaveBeenCalledOnce();
+        const download = await createDocumentDownload(parsed, translations, 'translated', {
+            pdfPresentation: 'layout', pdfPageRasterizer: raster,
+            pdfReadingRasterizer: async function* () {yield {bytes: onePixelPng, width: 612, height: 792};},
+        });
+        expect((await PDFDocument.load(download.data as Uint8Array)).getPageCount()).toBe(4);
+        expect(translations.every(value => value === '完整尾文')).toBe(true);
+    });
+
     it.each(['sample.epub', 'sample.docx'])('%s can cancel active compression and retry while preserving contents', async name => {
         const parsed = await parseBinaryDocument(name, loadBytes(name));
         const controller = new AbortController();
