@@ -1,0 +1,142 @@
+{
+  "baseHead": "b7f88830e3d47f595cb287f3833d5d001adcffc6",
+  "scope": "pakoBundled runtime import only; existing-signature ambient type declaration",
+  "rows": [
+    {
+      "mode": "standard",
+      "beforeArtifact": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "savedUtf8Bytes": 0,
+      "beforeModuleCount": 492,
+      "afterModuleCount": 492,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 451,
+          "afterCount": 451,
+          "removed": [],
+          "added": []
+        },
+        "css": {
+          "beforeCount": 41,
+          "afterCount": 41,
+          "removed": [],
+          "added": []
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      },
+      "afterCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      }
+    },
+    {
+      "mode": "standalone",
+      "beforeArtifact": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3615583,
+        "sha256": "2be11ea60a6fd9f8bdc1d0c56d54ac0b3813346acae090c0af3bd626b7d23e82"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3589291,
+        "sha256": "c05f02f3c907b575ec3e8ec4544872e830e050ccfaa56e401f60ef83e48db5a8"
+      },
+      "savedUtf8Bytes": 26292,
+      "beforeModuleCount": 1172,
+      "afterModuleCount": 1186,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 1044,
+          "afterCount": 1058,
+          "removed": [
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/dist/pako.esm.mjs"
+          ],
+          "added": [
+            "\u0000node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/utils/common.js?commonjs-exports",
+            "\u0000node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/utils/strings.js?commonjs-exports",
+            "\u0000node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/inflate.js?commonjs-exports",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/inflate.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/utils/common.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/utils/strings.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/adler32.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/constants.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/crc32.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/gzheader.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/inffast.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/inflate.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/inftrees.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/messages.js",
+            "node_modules/.pnpm/pako@2.1.0/node_modules/pako/lib/zlib/zstream.js"
+          ]
+        },
+        "css": {
+          "beforeCount": 128,
+          "afterCount": 128,
+          "removed": [],
+          "added": []
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 696217,
+        "sha256": "a099bb388bee6f21ec85228702e56358c67a0849bc1756545f657867b9b857c7"
+      },
+      "afterCssPayload": {
+        "bytes": 696217,
+        "sha256": "a099bb388bee6f21ec85228702e56358c67a0849bc1756545f657867b9b857c7"
+      }
+    },
+    {
+      "mode": "greasyfork",
+      "beforeArtifact": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2322749,
+        "sha256": "71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2322749,
+        "sha256": "71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5"
+      },
+      "savedUtf8Bytes": 0,
+      "beforeModuleCount": 385,
+      "afterModuleCount": 385,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 344,
+          "afterCount": 344,
+          "removed": [],
+          "added": []
+        },
+        "css": {
+          "beforeCount": 41,
+          "afterCount": 41,
+          "removed": [],
+          "added": []
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      },
+      "afterCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      }
+    }
+  ],
+  "completeArtifactByteSavings": 26292,
+  "standaloneBudget": 3600000,
+  "standaloneMarginBytes": 10709,
+  "summationOfRenderedLengthsIsNotArtifactSavings": true
+}

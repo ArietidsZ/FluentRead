@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec node scripts/verify-userscript-build.mjs
+Verified .output/userscript/fluent-read.user.js (1,959,993 bytes)
