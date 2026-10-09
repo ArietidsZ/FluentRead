@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/informationHighlight.ts
  * 文件职责：装配当前页面的信息高亮控制器，将扩展模型消息端口适配成可取消的纯文本评分函数。
- * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面并通过注入的通知端口反馈开启（本地模型方式说明正在分析）、关闭或不支持；本地模型尚未下载或设备无法运行时，本页改用关键词方式并说明原因，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
+ * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面（在输入框和编辑器里打字时不接管），并通过注入的通知端口反馈开启（本地模型方式说明正在分析）、关闭或不支持；本地模型尚未下载或设备无法运行时，本页改用关键词方式并说明原因，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
  * 模块边界：只通过 feature public 与纯数据 protocol 装配，不导入 Worker、模型或后台内部实现，不写配置，不接触宿主原文。
  */
 import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
@@ -76,6 +76,9 @@ export function createInformationHighlightContentRuntime(ports: {
             ports.document.addEventListener('keydown', event => {
                 if (!event.isTrusted || event.repeat || controller !== owner || !isCurrent() || ports.canToggle?.() === false
                     || !preference.hotkeyEnabled || !matchesConfiguredHotkey(event, 'custom', preference.hotkey)) return;
+                // 正在输入框或编辑器里打字：不带 Ctrl/Command 的组合键可能是在输入字符（macOS 的 Option 组合），不抢走。
+                const target = event.composedPath()[0] as Element | undefined;
+                if (!event.ctrlKey && !event.metaKey && target?.closest?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])')) return;
                 event.preventDefault(); event.stopPropagation();
                 const enable = !owner.getState().enabled;
                 // 上一次可能已临时改用关键词方式；重新开启时按设置再试一次。

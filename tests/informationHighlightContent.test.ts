@@ -692,6 +692,18 @@ describe('content composition and runtime score messages', () => {
             runtime.mount(new AbortController().signal, () => true); return {f, notice, runtime};
         };
         const keywords = await run({...defaults}, undefined);
+        // 在输入框里按不带 Ctrl/Command 的快捷键是在打字，不接管；带 Ctrl 的组合或正文里的按键照常生效。
+        const typing = await run({...defaults}, undefined), field = typing.f.document.createElement('textarea'); typing.f.document.body.append(field);
+        const type = (target: unknown, ctrlKey: boolean) => {
+            const event = new typing.f.window.Event('keydown', {bubbles: true, cancelable: true}) as KeyboardEvent;
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey, shiftKey: false, metaKey: false, repeat: false});
+            Object.defineProperty(event, 'isTrusted', {value: true}); Object.defineProperty(event, 'composedPath', {value: () => target === undefined ? [] : [target]});
+            typing.f.document.dispatchEvent(event); return event.defaultPrevented;
+        };
+        expect(type(field, false)).toBe(false); expect(typing.runtime.getState().enabled).toBe(false);
+        expect(type(undefined, false)).toBe(true); expect(typing.runtime.getState().enabled).toBe(true); expect(type(typing.f.document, false)).toBe(true); expect(type(typing.f.document, false)).toBe(true); expect(typing.runtime.getState().enabled).toBe(true);
+        expect(type(typing.f.document.querySelector('p'), false)).toBe(true); expect(typing.runtime.getState().enabled).toBe(false);
+        typing.runtime.updatePreferences({...defaults, hotkey: 'Ctrl+Alt+H'}); expect(type(field, true)).toBe(true); expect(typing.runtime.getState().enabled).toBe(true); typing.runtime.unmount();
         press(keywords.f); await keywords.f.settle(); press(keywords.f); expect(keywords.notice.mock.calls).toEqual([['on'], ['off']]); keywords.runtime.unmount();
         const missing = await run({...defaults, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
         press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls).toEqual([['onModel'], ['modelNotReady']]);
