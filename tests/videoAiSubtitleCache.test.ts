@@ -90,6 +90,23 @@ describe('video AI subtitle cache identity', () => {
 });
 
 describe('video AI subtitle cache repository', () => {
+  it('does not restore old fixed-language results after the recognition strategy changes, and separates Small', async () => {
+    const cache = repository();
+    for (const model of ['tiny', 'base']) {
+      await cache.set(request({model}), [cue('Old fixed-language result.')], 1_000);
+      const entry = (await cache.database.entries.toArray()).find(item => item.model === model)!;
+      await cache.database.entries.delete(entry.key);
+      const legacyKey = entry.key.replace('video-ai-cues-v2|', 'video-ai-cues-v1|');
+      await cache.database.entries.put({...entry, key: legacyKey, schemaFingerprint: 'video-ai-cues-v1'} as never);
+      await expect(cache.get(request({model}), 1_100)).resolves.toBeNull();
+    }
+    for (const model of ['tiny', 'base', 'small']) {
+      const text = `Current ${model} result.`;
+      await expect(cache.set(request({model}), [cue(text)], 1_200)).resolves.toBe(true);
+      await expect(cache.get(request({model}), 1_300)).resolves.toEqual([cue(text)]);
+    }
+  });
+
   it('stores only complete normalized cues and returns defensive copies', async () => {
     const repositoryInstance = repository();
     const value = [cue('  Complete   sentence.  '), cue('Partial sentence.', {startMs: 2_000, partial: true})];

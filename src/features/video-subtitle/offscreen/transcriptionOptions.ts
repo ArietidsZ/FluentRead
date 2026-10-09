@@ -1,10 +1,15 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcriptionOptions.ts
  * 文件职责：构建每次 Whisper 转写调用独立的 generation options，隔离显式语言与 auto 模式。
- * 主要内容：规范化视频源语言、读取语言置信度、计算有界 token 预算，固定 transcribe 任务并限制解码 n-gram 循环。
+ * 主要内容：规范化视频源语言、读取语言置信度、保留 Tiny 时长预算和 Base/Small 多语种解码容量，固定 transcribe 任务并限制 n-gram 循环。
  * 模块边界：只处理纯参数，不访问 Worker、模型、浏览器 API 或页面配置。
  */
-import {normalizeVideoLocalTranscriptionModel, type VideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+
+import {normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
+
+// Base/Small decoder context 为 448；当前 transcribe/timestamps prompt 为 3。
+// 留出 5 个位置；Tiny 保留已验证的时长预算，避免高容量放大弱模型的重复输出。
+const MAX_WHISPER_NEW_TOKENS = 440;
 
 export interface WhisperTranscriptionGenerationOptions {
   [key: string]: unknown;
@@ -95,19 +100,14 @@ export function buildWhisperTranscriptionGenerationOptions(
   audioSeconds: number,
   stoppingCriteria: unknown,
 ): WhisperTranscriptionGenerationOptions {
-  const normalizedModel: VideoLocalTranscriptionModel = normalizeVideoLocalTranscriptionModel(model);
-  const tokenBudget = normalizedModel === 'base'
-    ? {minimum: 32, maximum: 96, perSecond: 7}
-    : {minimum: 24, maximum: 64, perSecond: 6};
   const language = normalizeWhisperSourceLanguage(sourceLanguage);
-  // 中日韩单个字常占多个 Whisper token；英文预算会截断正常对白。仍保留总量与推理时间上限。
-  const effectiveBudget = language === 'zh' || language === 'ja' || language === 'ko'
-    ? normalizedModel === 'base' ? {minimum: 32, maximum: 160, perSecond: 12} : {minimum: 24, maximum: 128, perSecond: 10}
-    : tokenBudget;
-  const maxNewTokens = Math.min(
-    effectiveBudget.maximum,
-    Math.max(effectiveBudget.minimum, Math.ceil(Math.max(0, audioSeconds) * effectiveBudget.perSecond)),
-  );
+  const tinyBudget = language === 'zh' || language === 'ja' || language === 'ko'
+    ? {maximum: 128, perSecond: 10}
+    : {maximum: 64, perSecond: 6};
+  const seconds = Number.isFinite(audioSeconds) ? Math.max(0, audioSeconds) : 0;
+  const maxNewTokens = normalizeVideoLocalTranscriptionModel(model) === 'tiny'
+    ? Math.min(tinyBudget.maximum, Math.max(24, Math.ceil(seconds * tinyBudget.perSecond)))
+    : MAX_WHISPER_NEW_TOKENS;
   return {
     return_timestamps: true,
     force_full_sequences: false,

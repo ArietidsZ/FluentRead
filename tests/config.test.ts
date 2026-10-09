@@ -17,6 +17,27 @@ describe('单图本地识别方式配置', () => {
         }
     });
 });
+describe('多语种视频模型配置兼容', () => {
+    it('新配置推荐 Small，已有缺失或非法选择保留过去的 Tiny 默认', () => {
+        expect(new Config().videoLocalModel).toBe('small');
+        expect(normalizeConfig(undefined).videoLocalModel).toBe('small');
+        expect(normalizeConfig({}).videoLocalModel).toBe('small');
+        expect(normalizeConfig({on: true}).videoLocalModel).toBe('tiny');
+        for (const videoLocalModel of [undefined, null, 'large', {}, true]) {
+            expect(normalizeConfig({videoLocalModel}).videoLocalModel).toBe('tiny');
+        }
+    });
+    it('保留三种用户选择及导入导出，不把已下载的轻量偏好迁移到质量模型', () => {
+        for (const videoLocalModel of ['tiny', 'base', 'small'] as const) {
+            const source = {videoLocalModel, videoSourceLanguage: 'auto', videoTranslationEnabled: true};
+            const normalized = normalizeConfig(source);
+            expect(normalized.videoLocalModel).toBe(videoLocalModel);
+            expect(normalizeConfig(JSON.parse(JSON.stringify(normalized))).videoLocalModel).toBe(videoLocalModel);
+            expect(source.videoLocalModel).toBe(videoLocalModel);
+            expect(normalized.videoSourceLanguage).toBe('auto');
+        }
+    });
+});
 import { sanitizeConfigCredentials } from '@/src/core/config/credentials';
 import { customModelString, services } from '@/src/core/config/catalog';
 

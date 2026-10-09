@@ -121,14 +121,14 @@
       <div class="translate-action">
         <button class="translate-button" :class="{ translated: pageTranslated }" type="button"
           data-testid="page-translation" :aria-pressed="pageTranslated" :aria-busy="translating"
-          :title="t(pageTranslated ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage')"
+          :title="pageTranslationLabel"
           :disabled="!config.on || currentSiteExtensionDisabled || translating" :onClick="pageButtons.toggle">
           <span v-if="translating" class="spinner" aria-hidden="true" />
           <span v-else class="translate-glyph" aria-hidden="true">A↔译</span>
-          <span class="translate-label">{{ t(pageTranslated ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage') }}</span>
-          <kbd v-if="pageTranslationHotkey" class="translate-hotkey">{{ pageTranslationHotkey }}</kbd>
+          <span class="translate-label">{{ pageTranslationLabel }}</span>
+          <kbd v-if="pageTranslationHotkey && !currentPdfSource" class="translate-hotkey">{{ pageTranslationHotkey }}</kbd>
         </button>
-        <button v-if="!isThunderbird" class="section-translate-button" type="button" data-testid="section-translation"
+        <button v-if="!isThunderbird && !currentPdfSource" class="section-translate-button" type="button" data-testid="section-translation"
           :disabled="!config.on || currentSiteExtensionDisabled || translating" :aria-label="sectionTranslationLabel" :title="sectionTranslationLabel"
           :onClick="pageButtons.section">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15M10 10l7 2.6-3 1.1-1.1 3z" /></svg>
@@ -392,6 +392,7 @@ import {popupQuickFeatureIconPaths, popupQuickFeatureIconTones, type PopupQuickF
 import {useUiI18n} from '@/src/ui/i18n';
 import PopupSiteRule from './PopupSiteRule.vue';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
+import {createPdfReaderUrl, getPdfSourceUrl} from '@/src/features/document-translation/core/pdfSource';
 import {
   getTranslationServiceUnavailableMessage,
   isTranslationServiceAvailable,
@@ -426,6 +427,8 @@ const drawerMounted = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const pageState = reactive<PopupPageState>({tabId: null, url: '', domain: '', translated: false, busy: false});
 const {busy: translating, translated: pageTranslated, tabId: currentTabId, domain: currentSiteDomain} = toRefs(pageState);
+const currentPdfSource = computed(() => getPdfSourceUrl(pageState.url));
+const pageTranslationLabel = computed(() => t(currentPdfSource.value ? 'document.pdfReading.openReader' : pageTranslated.value ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage'));
 const clearingCache = ref(false);
 const donationVisible = ref(false);
 const donationQrEnlarged = ref(false);
@@ -704,6 +707,7 @@ const pageContext = useSettingsActionContext(() => popupContext.active.value, ()
 const cacheContext = useSettingsActionContext(() => popupContext.active.value, () => []);
 const pageActions = createPopupPageActions({state: pageState, config: () => config.value, active: () => pageContext.active.value,
   warning: () => credentialWarning.value || '', getTab: async () => (await browser.tabs.query({active: true, currentWindow: true}))[0],
+  openPdf: source => browser.tabs.create({url: createPdfReaderUrl(browser.runtime.getURL('document.html'), source)}),
   send: (id, message) => browser.tabs.sendMessage(id, message), notice: showNotice, close: () => window.close(), translate: t, thunderbird: isThunderbird});
 const {hydrate: hydrateCurrentSite, toggle: togglePageTranslation, section: startSectionTranslation,
   setAlways: setCurrentSiteAlwaysTranslated, setDisabled: setCurrentSiteExtensionDisabled} = pageActions;
@@ -935,7 +939,11 @@ async function openDocumentTranslation() {
   if (!popupContext.active.value || !config.value.on) return;
   const current = popupContext.capture();
   try {
-    await browser.tabs.create({ url: browser.runtime.getURL('document.html') });
+    const tab = (await browser.tabs.query({active: true, currentWindow: true}))[0];
+    if (!current()) return;
+    const source = getPdfSourceUrl(tab?.pendingUrl || tab?.url || '');
+    const readerUrl = browser.runtime.getURL('document.html');
+    await browser.tabs.create({ url: source ? createPdfReaderUrl(readerUrl, source) : readerUrl });
     if (current()) window.close();
   } catch {if (current()) showNotice(t('translationCenter.requestError'), 'error');}
 }

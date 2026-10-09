@@ -2,7 +2,7 @@
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
  * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；普通译文先于完整原文，单行可横向滚动的导航把高度留给正文；指针移动按帧合并并在结束时提交最后位置，已定位卡片不重复读取选区几何；富文本 UTF-16 跟读偏移一次计算并复用；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，手动尺寸下内容与播放状态变化只影响内部布局；闲置语音栏不占空间，自动卡生成与播放期间用独立临时高度保持外框，停止恢复自然尺寸；学习短回答自然收拢、长回答受高度上限约束，完整原文和译文按需对照并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
- * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
+ * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权；扩展 PDF 文档页通过可选来源适配器复用同一卡片、标题和阅读上下文，来源失效时取消当前请求，词书协议独立维护。
  -->
 <template>
   <div v-ui-i18n v-show="showIndicator || showTooltip || noticeMessage || copySuccess" class="fr-selection-translator-root" :data-display-delay="selectionSettings.delay" @pointerdown.stop @wheel.stop="handleUiWheel">
@@ -207,6 +207,15 @@ import {useUiI18n} from '@/src/ui/i18n';
 
 const props = defineProps<{
   onSelectionRangeChange?: (range: Range | null) => void;
+  /** 扩展自有文档页可提供更严格的来源范围及纯文本上下文；普通网页继续使用默认规则。 */
+  selectionAdapter?: {
+    acceptsRange: (range: Range) => boolean;
+    extractText?: (range: Range, nativeText: string) => string;
+    normalizeText?: (text: string) => string;
+    context?: (range: Range, text: string, limit: number) => {text: string; title: string; sourceUrl: string};
+    captureReading?: (range: Range, text: string, limit: number) => ReadingSelection;
+    subscribeInvalidation?: (listener: () => void) => () => void;
+  };
 }>();
 const {t, translateLegacy} = useUiI18n();
 const shareCardAvailable = isShareCardMounted();
@@ -328,6 +337,7 @@ let uiPointerInteraction = false;
 let suppressSelectionUntil = 0;
 let systemThemeMedia: MediaQueryList | null = null;
 let unsubscribeConfig: (() => void) | null = null;
+let unsubscribeSelectionSource: (() => void) | null = null;
 const runtimeMessageUnsubscribers: Array<() => void> = [];
 let releaseContextMenuHandler: (() => void) | null = null;
 let tooltipResizeObserver: ResizeObserver | null = null;
@@ -440,11 +450,14 @@ function readSelectionSnapshot(): SelectionSnapshot | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0 || selection.isCollapsed || isExtensionSelection(selection)) return null;
   const range = selection.getRangeAt(0).cloneRange();
-  const parts = readSelectionParts(range, selection.toString());
+  if (props.selectionAdapter ? !props.selectionAdapter.acceptsRange(range) : shouldIgnoreSelection(range)) return null;
+  const sourceText = props.selectionAdapter?.extractText?.(range, selection.toString()) ?? selection.toString();
+  const parts = props.selectionAdapter?.normalizeText
+    ? [{kind: 'text' as const, text: props.selectionAdapter.normalizeText(sourceText)}]
+    : readSelectionParts(range, sourceText);
   const text = parts.map(part => part.text).join('');
   if (!text || text.length > 4096) return null;
 
-  if (shouldIgnoreSelection(range)) return null;
   const rects = Array.from(range.getClientRects()).map(toSelectionRect).filter(rect => rect.width > 0 || rect.height > 0);
   const visualRects = rects.length > 0 ? rects : [toSelectionRect(range.getBoundingClientRect())];
   const isForward = selection.anchorNode === range.startContainer && selection.anchorOffset === range.startOffset;
@@ -963,7 +976,7 @@ function openReadingCard(): void {
   }
   stopAudio();
   if (!readingSelection.value) {
-    readingSelection.value = captureReadingSelection(snapshot.value.range, snapshot.value.text,
+    readingSelection.value = (props.selectionAdapter?.captureReading ?? captureReadingSelection)(snapshot.value.range, snapshot.value.text,
       readingPreferences.value.contextMode === 'paragraph' ? readingPreferences.value.maxContextChars : 0);
   }
   const wasVisible = showTooltip.value;
@@ -988,6 +1001,7 @@ function beginSelectionContentRequest(text: string): SelectionContentRequest {
 }
 
 function isContentRequestCurrent(request: SelectionContentRequest): boolean {
+  if (props.selectionAdapter && snapshot.value && !props.selectionAdapter.acceptsRange(snapshot.value.range)) return false;
   const current = currentContentRequest.value;
   return Boolean(current && current.generation === request.generation && current.text === request.text && current.targetLanguage === request.targetLanguage);
 }
@@ -1037,6 +1051,7 @@ async function refreshVocabularySaved(request: SelectionContentRequest): Promise
 function selectionContextText(): string {
   const range = snapshot.value?.range;
   if (!range) return '';
+  if (props.selectionAdapter?.context) return props.selectionAdapter.context(range, selectedText.value, 500).text;
   const boundary = range.startContainer.nodeType === Node.ELEMENT_NODE ? range.startContainer as Element : range.startContainer.parentElement;
   const prose = boundary?.closest('p, li, blockquote, dd, dt, figcaption, article') || boundary?.parentElement;
   let selectedIndex: number | undefined;
@@ -1052,12 +1067,21 @@ function selectionContextText(): string {
 }
 
 function pageSourceUrl(): string {
+  if (props.selectionAdapter?.context && snapshot.value) {
+    return props.selectionAdapter.context(snapshot.value.range, selectedText.value, 0).sourceUrl;
+  }
   try {
     const url = new URL(location.href);
     url.search = '';
     url.hash = '';
     return url.toString();
   } catch { return ''; }
+}
+
+function selectionPageTitle(): string {
+  return props.selectionAdapter?.context && snapshot.value
+    ? props.selectionAdapter.context(snapshot.value.range, selectedText.value, 0).title || document.title
+    : document.title;
 }
 
 async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
@@ -1079,7 +1103,7 @@ async function saveVocabularyEntry(event: MouseEvent): Promise<void> {
         translation: answer,
         phonetic: wordCard.value?.phonetics.find(item => item.text)?.text || '',
         partOfSpeech: wordCard.value?.meanings.map(meaning => meaning.partOfSpeech) || [],
-        context: {text: selectionContextText(), sourceUrl: pageSourceUrl(), pageTitle: document.title, capturedAt: Date.now()},
+        context: {text: selectionContextText(), sourceUrl: pageSourceUrl(), pageTitle: selectionPageTitle(), capturedAt: Date.now()},
       },
     }) as VocabularyBookResponse<unknown>;
     if (!vocabularySaveGate.isCurrent(requestToken) || !isContentRequestCurrent(contentRequest)) return;
@@ -1122,10 +1146,14 @@ async function requestTranslation(request: SelectionContentRequest): Promise<voi
   isLoading.value = true;
   error.value = '';
   try {
-    const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage, serviceOverride: selectionSettings.value.service};
+    const context = props.selectionAdapter?.context && snapshot.value
+      ? props.selectionAdapter.context(snapshot.value.range, text, 4000) : undefined;
+    const options = {signal: controller.signal, sourceLanguage: request.sourceLanguage, targetLanguage: request.targetLanguage, serviceOverride: selectionSettings.value.service,
+      ...(context ? {pageContext: context.text || text} : {})};
+    const title = context?.title || document.title;
     const translated = parts.some(part => part.kind === 'code')
-      ? await translateSelectionParts(parts, texts => translateTextBatch(texts, document.title, options))
-      : [{kind: 'text' as const, text: await translateText(text, document.title, options)}];
+      ? await translateSelectionParts(parts, texts => translateTextBatch(texts, title, options))
+      : [{kind: 'text' as const, text: await translateText(text, title, options)}];
     const result = translated.map(part => part.text).join('');
     if (requestId !== translationRequestId || !isContentRequestCurrent(request)) return;
     translationParts.value = translated;
@@ -1905,6 +1933,7 @@ onMounted(() => {
   void requestPageZoom();
   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
   unsubscribeConfig = subscribeConfig(() => { selectionConfigVersion.value += 1; });
+  unsubscribeSelectionSource = props.selectionAdapter?.subscribeInvalidation?.(hideAll) ?? null;
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
   document.addEventListener('pointercancel', handlePointerCancel, true);
@@ -2007,6 +2036,8 @@ onBeforeUnmount(() => {
   runtimeMessageUnsubscribers.splice(0).forEach(unsubscribe => unsubscribe());
   unsubscribeConfig?.();
   unsubscribeConfig = null;
+  unsubscribeSelectionSource?.();
+  unsubscribeSelectionSource = null;
   tooltipResizeObserver?.disconnect();
   tooltipResizeObserver = null;
   document.removeEventListener('pointerdown', handlePointerDown, true);

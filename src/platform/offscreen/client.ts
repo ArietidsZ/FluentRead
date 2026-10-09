@@ -77,7 +77,8 @@ export interface OffscreenClient {
 }
 
 const DEFAULT_PREPARATION_TIMEOUT_MS = 10_000;
-const MAX_OFFSCREEN_TIMEOUT_MS = 300_000;
+// 大模型下载可以显式申请十分钟；默认准备预算及其他请求的较短预算保持独立。
+const MAX_OFFSCREEN_TIMEOUT_MS = 600_000;
 
 function errorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);

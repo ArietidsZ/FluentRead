@@ -570,6 +570,7 @@ describe('本地 AI 完整生成控制器扫描与收尾', () => {
     vi.advanceTimersByTime(420);
     for (let index = 0; index < 12; index += 1) await Promise.resolve();
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(transcribe).toHaveBeenCalled();
     expect(onTranscriptionComplete).toHaveBeenCalledTimes(1);
@@ -615,6 +616,7 @@ describe('本地 AI 完整生成控制器扫描与收尾', () => {
     vi.advanceTimersByTime(420);
     for (let index = 0; index < 30; index += 1) await Promise.resolve();
 
+    await vi.waitFor(() => expect(controller.getPhase()).toBe('ready'));
     expect(controller.getPhase()).toBe('ready');
     expect(chunks.length).toBeGreaterThanOrEqual(3);
     expect(chunks.map((chunk) => Math.round(chunk.startMs))).toEqual(

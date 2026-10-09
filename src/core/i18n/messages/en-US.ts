@@ -6,6 +6,7 @@
  * 并保留参数化旧文案的安全回退，支持后续翻译者继续补齐未 key 化区域。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/en-US.json';
 import settingsCopyText from './settings-copy/en-US.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {translationStatsEnglishMessages} from './translationStats';
 import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
+    ...pdfReadingMessages['en-US'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Remove source request headers",
@@ -1131,6 +1133,10 @@ export const enUSMessages = {
     'video.modelTinyHint': 'Quicker, uses less memory',
     'video.modelBaseName': 'Base · Accurate',
     'video.modelBaseHint': 'More accurate, takes longer',
+    'video.modelSmallName': 'Small · Quality',
+    'video.modelSmallHint': 'More reliable across languages, uses more memory',
+    'video.modelChoiceHint': 'Small is recommended for multiple languages; choose Tiny or Base on lighter devices',
+    'video.modelDeviceHint': 'Desktop Chrome, Edge and Firefox are supported. The first download needs internet; Small is about 590 MB. Speed depends on GPU, CPU and memory.',
     'video.modelSize': '~{size} MB',
     'video.modelRecommended': 'Recommended',
     'video.modelDownloaded': 'Downloaded',
@@ -2945,6 +2951,8 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "Whisper Tiny（轻量模型）": "Whisper Tiny (lightweight)",
     "识别速度较快、内存占用较低，适合快速生成字幕。": "Faster recognition and lower memory use for quick subtitle generation.",
     "Whisper Base（标准模型）": "Whisper Base (standard)",
+    "Whisper Small（质量模型）": "Whisper Small (quality)",
+    "推荐用于多语种字幕，识别质量更高，下载、内存和处理开销更大。": "Recommended for multilingual subtitles, with better recognition and larger download, memory and processing costs.",
     "侧重识别质量，所需内存更多、处理时间更长。": "Prioritizes recognition quality, requiring more memory and processing time.",
     "所有网站自动翻译已开启，请在完整设置中关闭全局开关": "Automatic translation for all websites is enabled. Disable it in full settings first.",
     "已恢复刚才删除的词条": "The deleted entry was restored",

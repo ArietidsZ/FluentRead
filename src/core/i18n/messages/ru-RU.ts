@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供俄语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/ru-RU.json';
 import settingsCopyText from './settings-copy/ru-RU.json';
 import brandTaglines from './brand-taglines.json';
@@ -20,6 +21,7 @@ import {translationStatsRussianMessages} from './translationStats';
 import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
+    ...pdfReadingMessages['ru-RU'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Удаление заголовков источника",
@@ -903,6 +905,10 @@ export const ruRUMessages = {
     'video.modelTinyHint': 'Быстрее, меньше памяти',
     'video.modelBaseName': 'Base · Точная',
     'video.modelBaseHint': 'Точнее, но медленнее',
+    'video.modelSmallName': 'Small · Качество',
+    'video.modelSmallHint': 'Надёжнее для разных языков, требует больше памяти',
+    'video.modelChoiceHint': 'Для разных языков рекомендуется Small; на менее мощных устройствах выберите Tiny или Base',
+    'video.modelDeviceHint': 'Поддерживаются настольные Chrome, Edge и Firefox. Первая загрузка требует интернета; Small занимает около 590 МБ. Скорость зависит от GPU, CPU и памяти.',
     'video.modelSize': '~{size} МБ',
     'video.modelRecommended': 'Рекомендуется',
     'video.modelDownloaded': 'Загружена',
@@ -2940,6 +2946,8 @@ export const ruRULegacyText: Readonly<Record<string, string>> = {
     "Whisper Tiny（轻量模型）": "Whisper Tiny (лёгкая модель)",
     "识别速度较快、内存占用较低，适合快速生成字幕。": "Быстрое распознавание и небольшой расход памяти для быстрого создания субтитров.",
     "Whisper Base（标准模型）": "Whisper Base (стандартная модель)",
+    "Whisper Small（质量模型）": "Whisper Small (качество)",
+    "推荐用于多语种字幕，识别质量更高，下载、内存和处理开销更大。": "Рекомендуется для многоязычных субтитров: распознавание лучше, но загрузка, расход памяти и вычислений больше.",
     "侧重识别质量，所需内存更多、处理时间更长。": "Приоритет качества распознавания; требуется больше памяти и времени.",
     "所有网站自动翻译已开启，请在完整设置中关闭全局开关": "Автоперевод всех сайтов включён. Сначала выключите его в полных настройках.",
     "已恢复刚才删除的词条": "Удалённая запись восстановлена",

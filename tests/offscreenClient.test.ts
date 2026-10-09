@@ -747,6 +747,30 @@ describe('Offscreen platform client', () => {
         await expect(compatible).resolves.toEqual({success: true, value: '完成'});
     });
 
+    it('显式大模型预算能跨过五分钟并在十分钟内完成，过大预算仍有硬上限', async () => {
+        vi.useFakeTimers();
+        let callback: ((response: unknown) => void) | undefined;
+        const runtime: OffscreenRuntimeApi = {
+            getContexts: vi.fn(async () => [{}]),
+            sendMessage: vi.fn((message: unknown, respond: (response: unknown) => void) => {
+                if ((message as {type: string}).type === OFFSCREEN_READY_MESSAGE_TYPE) respond({success: true, ready: true});
+                else callback = respond;
+            }),
+        };
+        const client = createOffscreenClient({getRuntime: () => runtime, getOffscreen: () => ({createDocument: vi.fn()})});
+        const first = client.send({type: 'LARGE_MODEL_DOWNLOAD'}, {timeoutMs: 600_000});
+        let settled = false;
+        void first.then(() => { settled = true; }, () => { settled = true; });
+        await vi.advanceTimersByTimeAsync(599_999);
+        expect(settled).toBe(false);
+        callback?.({success: true});
+        await expect(first).resolves.toEqual({success: true});
+        const bounded = client.send({type: 'LARGE_MODEL_DOWNLOAD'}, {timeoutMs: Number.MAX_SAFE_INTEGER})
+            .then(() => null, error => error);
+        await vi.advanceTimersByTimeAsync(600_000);
+        await expect(bounded).resolves.toMatchObject({message: 'Offscreen 消息响应超时'});
+    });
+
     it('短预算 Chrome caller 不会缩短共享 prepare，后加入的长预算调用仍可成功', async () => {
         vi.useFakeTimers();
         const contexts = deferred<unknown[]>();

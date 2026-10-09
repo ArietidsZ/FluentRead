@@ -5,6 +5,7 @@
  * 主要内容：以 English 资源作为结构基线，逐项覆盖当前稳定 message key；旧版尚未 key 化的文案由 i18n 迁移层按显式映射处理。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/es-ES.json';
 import settingsCopyText from './settings-copy/es-ES.json';
 import brandTaglines from './brand-taglines.json';
@@ -20,6 +21,7 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    ...pdfReadingMessages['es-ES'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Eliminar cabeceras de origen",
@@ -903,6 +905,10 @@ export const esESMessages = {
     'video.modelTinyHint': 'Más rápido, menos memoria',
     'video.modelBaseName': 'Base · Preciso',
     'video.modelBaseHint': 'Más preciso, tarda más',
+    'video.modelSmallName': 'Small · Calidad',
+    'video.modelSmallHint': 'Más fiable entre idiomas, utiliza más memoria',
+    'video.modelChoiceHint': 'Se recomienda Small para varios idiomas; elige Tiny o Base en equipos menos potentes',
+    'video.modelDeviceHint': 'Compatible con Chrome, Edge y Firefox de escritorio. La primera descarga requiere internet; Small ocupa unos 590 MB. La velocidad depende de la GPU, la CPU y la memoria.',
     'video.modelSize': 'Unos {size} MB',
     'video.modelRecommended': 'Recomendado',
     'video.modelDownloaded': 'Descargado',
@@ -2942,6 +2948,8 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "Whisper Tiny（轻量模型）": "Whisper Tiny (modelo ligero)",
     "识别速度较快、内存占用较低，适合快速生成字幕。": "Reconocimiento rápido y bajo uso de memoria para generar subtítulos con rapidez.",
     "Whisper Base（标准模型）": "Whisper Base (modelo estándar)",
+    "Whisper Small（质量模型）": "Whisper Small (calidad)",
+    "推荐用于多语种字幕，识别质量更高，下载、内存和处理开销更大。": "Recomendado para subtítulos multilingües, con mejor reconocimiento y mayor descarga, uso de memoria y procesamiento.",
     "侧重识别质量，所需内存更多、处理时间更长。": "Prioriza la calidad y requiere más memoria y tiempo de procesamiento.",
     "所有网站自动翻译已开启，请在完整设置中关闭全局开关": "La traducción automática de todos los sitios está activa. Desactívala primero en los ajustes completos.",
     "已恢复刚才删除的词条": "Se restauró la entrada eliminada",

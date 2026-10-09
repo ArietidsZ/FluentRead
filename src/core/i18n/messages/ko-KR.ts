@@ -5,6 +5,7 @@
  * 主要内容：保持语言名称使用各自原生写法，并为尚未 key 化的旧 UI 提供韩语映射。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/ko-KR.json';
 import settingsCopyText from './settings-copy/ko-KR.json';
 import brandTaglines from './brand-taglines.json';
@@ -20,6 +21,7 @@ import {translationStatsKoreanMessages} from './translationStats';
 import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
+    ...pdfReadingMessages['ko-KR'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "출처 요청 헤더 제거",
@@ -903,6 +905,10 @@ export const koKRMessages = {
     'video.modelTinyHint': '빠르고 메모리를 적게 사용',
     'video.modelBaseName': 'Base · 표준',
     'video.modelBaseHint': '더 정확하지만 시간이 더 걸림',
+    'video.modelSmallName': 'Small · 고품질',
+    'video.modelSmallHint': '여러 언어에서 더 안정적이며 메모리를 더 사용함',
+    'video.modelChoiceHint': '여러 언어에는 Small을 권장합니다. 가벼운 기기에서는 Tiny 또는 Base를 선택하세요',
+    'video.modelDeviceHint': '데스크톱 Chrome, Edge, Firefox를 지원합니다. 첫 다운로드에는 인터넷이 필요하며 Small은 약 590 MB입니다. 속도는 GPU, CPU, 메모리에 따라 달라집니다.',
     'video.modelSize': '약 {size}MB',
     'video.modelRecommended': '추천',
     'video.modelDownloaded': '다운로드됨',
@@ -2940,6 +2946,8 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "Whisper Tiny（轻量模型）": "Whisper Tiny(경량 모델)",
     "识别速度较快、内存占用较低，适合快速生成字幕。": "인식이 빠르고 메모리 사용량이 적어 자막을 빠르게 만들기 좋습니다.",
     "Whisper Base（标准模型）": "Whisper Base(표준 모델)",
+    "Whisper Small（质量模型）": "Whisper Small(고품질 모델)",
+    "推荐用于多语种字幕，识别质量更高，下载、内存和处理开销更大。": "여러 언어의 자막에 권장합니다. 인식 품질이 높지만 다운로드, 메모리, 처리 비용이 더 큽니다.",
     "侧重识别质量，所需内存更多、处理时间更长。": "인식 품질에 중점을 두며 메모리와 처리 시간이 더 필요합니다.",
     "所有网站自动翻译已开启，请在完整设置中关闭全局开关": "모든 사이트 자동 번역이 켜져 있습니다. 전체 설정에서 먼저 끄세요.",
     "已恢复刚才删除的词条": "삭제한 항목을 복원했습니다",

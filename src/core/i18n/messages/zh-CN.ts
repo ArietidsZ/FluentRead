@@ -6,6 +6,7 @@
  * 现有中文用户在切换或升级配置后仍看到兼容文案。
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/zh-CN.json';
 import settingsCopyText from './settings-copy/zh-CN.json';
 import brandTaglines from './brand-taglines.json';
@@ -19,6 +20,7 @@ import {translationStatsChineseMessages} from './translationStats';
 import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
+    ...pdfReadingMessages['zh-CN'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "移除来源请求头",
@@ -1128,6 +1130,10 @@ export const zhCNMessages = {
     'video.modelTinyHint': '速度快，占用内存少',
     'video.modelBaseName': 'Base · 标准',
     'video.modelBaseHint': '识别更准确，耗时更长',
+    'video.modelSmallName': 'Small · 高质量',
+    'video.modelSmallHint': '多语种更可靠，内存占用更高',
+    'video.modelChoiceHint': '多语种推荐 Small；轻量设备可选 Tiny 或 Base',
+    'video.modelDeviceHint': '支持桌面版 Chrome、Edge 和 Firefox。首次下载需联网；Small 约 590 MB，识别速度取决于 GPU、CPU 和内存。',
     'video.modelSize': '约 {size} MB',
     'video.modelRecommended': '推荐',
     'video.modelDownloaded': '已下载',

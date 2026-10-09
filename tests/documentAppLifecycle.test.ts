@@ -5,7 +5,10 @@ import {parseDocument} from '@/src/features/document-translation/core/document';
 import DocumentApp from '@/src/app/document-translation/DocumentApp.vue';
 import DocumentSegmentEditor from '@/src/app/document-translation/DocumentSegmentEditor.vue';
 
-const ports = vi.hoisted(() => ({tasks: [] as any[], renderPending: undefined as any, pagePending: undefined as any, sendMessage: vi.fn(), translate: vi.fn(), unsubscribe: vi.fn(), observer: undefined as any, config: undefined as any}));
+const ports = vi.hoisted(() => ({tasks: [] as any[], renderPending: undefined as any, pagePending: undefined as any, pageProvider: undefined as undefined | ((pageNumber: number, page: any) => Promise<any>), pageCount: 1, fetchPdf: vi.fn(), i18n: vi.fn(), sendMessage: vi.fn(), translate: vi.fn(), unsubscribe: vi.fn(), observer: undefined as any, config: undefined as any}));
+vi.mock('@/src/features/document-translation/services/pdfSource', async () => ({...await vi.importActual<typeof import('@/src/features/document-translation/services/pdfSource')>('@/src/features/document-translation/services/pdfSource'), fetchOnlinePdf: ports.fetchPdf}));
+vi.mock('@/src/features/document-translation/ui/PdfReader.vue', () => ({default: {props: ['document', 'translations', 'mode', 'sourceUrl'], setup: () => () => h('div', {'data-document-reader': 'pdf'})}}));
+vi.mock('@/src/app/document-translation/selectionRuntime', () => ({mountDocumentSelectionTranslation: () => ({dispose: () => {}})}));
 vi.mock('webextension-polyfill', () => ({default: {runtime: {sendMessage: ports.sendMessage, getURL: (path: string) => `chrome-extension://fixture/${path}`}, tabs: {create: vi.fn()}}}));
 vi.mock('@/src/services/config/store', async () => {
     const {Config} = await import('@/src/core/config/model');
@@ -13,7 +16,7 @@ vi.mock('@/src/services/config/store', async () => {
     return {config, configReady: Promise.resolve(), subscribeConfig: (observer: any) => {ports.observer = observer; return ports.unsubscribe;}, requestConfigPatch: (patch: any, send: any) => send({patch})};
 });
 vi.mock('@/src/app/translation/client', () => ({translateText: ports.translate, translateTextBatch: vi.fn()}));
-vi.mock('@/src/ui/i18n', () => ({createUiI18nPlugin: (options: unknown) => options, useUiI18n: () => ({language: ref('zh-CN'), t: (key: string) => key, translateLegacy: (text: string) => text})}));
+vi.mock('@/src/ui/i18n', () => ({createUiI18nPlugin: (options: unknown) => options, useUiI18n: () => ({language: ref('zh-CN'), t: (key: string, values?: unknown) => {ports.i18n(key, values); return key;}, translateLegacy: (text: string) => text})}));
 vi.mock('@/src/ui/components/UiSelect.vue', () => ({default: {props: ['modelValue'], setup: (_props: any, {slots}: any) => () => h('select', slots.default?.())}}));
 vi.mock('@/src/ui/components/GlossaryLibrarySelect.vue', () => ({default: {setup: () => () => h('div')}}));
 vi.mock('element-plus/es/components/select/style/css', () => ({}));
@@ -24,9 +27,9 @@ vi.mock('pdfjs-dist/legacy/build/pdf.mjs', () => ({GlobalWorkerOptions: {}, getD
         getTextContent: async () => ({items: [{str: 'Original', transform: [1, 0, 0, 12, 5, 20], width: 50, height: 12, fontName: 'body'}], styles: {}}), cleanup: vi.fn(),
         render: vi.fn(() => {const pending = ports.renderPending; return {promise: pending?.promise ?? Promise.resolve(), cancel: vi.fn(() => pending?.reject(new Error('render canceled')))};}),
     }};
-    const getPage = vi.fn(() => ports.pagePending?.promise ?? Promise.resolve(task.page));
+    const getPage = vi.fn((pageNumber: number) => ports.pageProvider?.(pageNumber, task.page) ?? ports.pagePending?.promise ?? Promise.resolve(task.page));
     ports.tasks.push({...task, getPage});
-    return {promise: Promise.resolve({numPages: 1, getPage}), destroy: task.destroy};
+    return {promise: Promise.resolve({numPages: ports.pageCount, getPage}), destroy: task.destroy};
 }}));
 
 type HostNode = EventTarget & {type: string; props: Record<string, any>; children: HostNode[]; parent?: HostNode; text?: string; showModal: () => void; close: () => void; style: Record<string, string>};
@@ -52,7 +55,8 @@ let win: any;
 const windowTimers = new Set<ReturnType<typeof setTimeout>>();
 
 beforeEach(async () => {
-    ports.tasks = []; ports.renderPending = undefined; ports.pagePending = undefined;
+    ports.tasks = []; ports.renderPending = undefined; ports.pagePending = undefined; ports.pageProvider = undefined; ports.pageCount = 1;
+    ports.fetchPdf.mockReset().mockResolvedValue(file('online.pdf')); ports.i18n.mockClear();
     ports.sendMessage.mockReset().mockResolvedValue(undefined); ports.translate.mockReset().mockResolvedValue('translated'); ports.unsubscribe.mockReset();
     Object.assign(ports.config, new Config());
     win = Object.assign(new EventTarget(), {matchMedia: () => Object.assign(new EventTarget(), {matches: false}), document: {createElement: () => ({click: vi.fn()})}, location: {origin: 'chrome-extension://fixture'}, setTimeout: (callback: () => void, delay: number) => {
@@ -71,58 +75,118 @@ beforeEach(async () => {
 afterEach(async () => {ports.pagePending?.resolve(ports.tasks.find(value => value.role === 'preview')?.page); ports.renderPending?.resolve(); app?.unmount(); await flush(); await vi.dynamicImportSettled(); windowTimers.forEach(timer => clearTimeout(timer)); windowTimers.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('documentbinaryAudit actual DocumentApp SFC ownership', () => {
-    it('aborts a pending preview when switching files, cleans the late page, and never creates stale URLs', async () => {
-        await state.loadFiles([file('first.pdf'), file('second.txt')]);
-        await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
-        const first = ports.tasks.find(task => task.role === 'preview');
-        const late = deferred<any>(); ports.pagePending = late;
-        const work = state.refreshPdfPreviews();
-        await vi.waitFor(() => expect(first.getPage.mock.calls.length).toBeGreaterThan(1));
-        const count = createUrl.mock.calls.length;
-        const second = state.documentQueue[1]; state.selectDocument(second);
-        await work;
-        expect(first.destroy).toHaveBeenCalledOnce();
-        const cleanup = vi.fn(); late.resolve({cleanup});
-        await flush();
-        expect(cleanup).toHaveBeenCalledOnce();
-        expect(createUrl).toHaveBeenCalledTimes(count);
-        expect(state.parsedDocument.fileName).toBe('second.txt');
-        expect(state.pdfPreviewPageStates).toHaveLength(0);
-        expect(revokeUrl).toHaveBeenCalled();
+    it('opens a text-based formula-only PDF for source reading without provider requests or invalid progress', async () => {
+        ports.pageProvider = async (_pageNumber, page) => ({...page, getTextContent: async () => ({items: [{str: 'f(x)=x', transform: [1, 0, 0, 12, 20, 50], width: 60, height: 12, fontName: 'body'}], styles: {}})});
+        await state.loadFiles([file('formula-only.pdf')]); await flush();
+        expect(state.parsedDocument?.fileName).toBe('formula-only.pdf');
+        expect(state.parsedDocument.segments).toEqual([]);
+        expect(state.effectivePreviewMode).toBe('source');
+        expect(state.statusLabel).toBe('document.pdfReading.selectableSource');
+        expect(state.progress).toBe(0);
+        state.requestTranslation(); await state.startTranslation(); await flush();
+        expect(ports.translate).not.toHaveBeenCalled();
+        expect(state.translating).toBe(false);
+        expect(state.errorMessage).toBe('');
     });
-
-    it('cancels current render on reset and releases every queued file resource on unmount', async () => {
-        await state.loadFiles([file('first.pdf'), file('second.pdf')]);
-        await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
-        const pending = deferred<void>(); ports.renderPending = pending;
-        const work = state.refreshPdfPreviews();
-        await vi.waitFor(() => expect(ports.tasks.find(task => task.role === 'preview').page.render.mock.calls.length).toBeGreaterThan(1));
-        state.resetDocument();
-        await work;
-        expect(state.documentQueue).toHaveLength(0);
-        expect(state.pdfPreviewLoading).toBe(false);
-        expect(canvasPort.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
-        expect(ports.tasks.filter(task => task.role === 'preview').every(task => task.destroy.mock.calls.length === 1)).toBe(true);
-        expect(createUrl.mock.calls.length).toBe(revokeUrl.mock.calls.length);
-        ports.renderPending = undefined;
-        await state.loadFiles([file('again.pdf')]);
-        await vi.waitFor(() => expect(state.pdfPreviewPageStates[0]?.originalUrl).toBeTruthy());
-        app.unmount(); app = null;
-        expect(ports.unsubscribe).toHaveBeenCalledOnce();
+    it('imports the online PDF fragment on mount, retains its source metadata, and keeps translation user-triggered', async () => {
+        app.unmount(); await flush();
+        const source = 'https://arxiv.org/pdf/1706.03762';
+        win.location.hash = '#pdf=https%3A%2F%2Farxiv.org%2Fpdf%2F1706.03762';
+        ports.fetchPdf.mockImplementationOnce(async (_url: string, options: any) => {options.onProgress({received: 1024, total: 2048}); return file('1706.03762.pdf');});
+        root = node('fragment-root'); app = renderer.createApp(DocumentApp); app.mount(root); state = app._instance.setupState;
+        await vi.waitFor(() => expect(state.documentQueue).toHaveLength(1)); await flush();
+        expect(ports.fetchPdf).toHaveBeenCalledWith(source, expect.objectContaining({signal: expect.any(AbortSignal), onProgress: expect.any(Function)}));
+        expect(state.onlinePdfUrl).toBe(source);
+        expect(state.parsedDocument.fileName).toBe('1706.03762.pdf');
+        expect(state.documentQueue[0].sourceUrl).toBe(source);
+        expect(state.downloadingPdf).toBe(false); expect(state.openingFile).toBe(false); expect(state.importProgress).toBe('');
+        expect(ports.i18n).toHaveBeenCalledWith('document.pdfReading.downloadProgress', {size: '0.0', percent: 50});
+        expect(ports.translate).not.toHaveBeenCalled();
         expect(ports.tasks.every(task => task.destroy.mock.calls.length === 1)).toBe(true);
-        expect(createUrl.mock.calls.length).toBe(revokeUrl.mock.calls.length);
     });
 
-    it('removes the last PDF and cancels the queued preview timer without reviving a loading task', async () => {
+    it.each(['during retry', 'after retry'] as const)('keeps canceled online download ownership isolated when old completion arrives %s', async latePhase => {
+        const oldDownload = deferred<File>(); const retryDownload = deferred<File>();
+        ports.fetchPdf.mockReturnValueOnce(oldDownload.promise).mockReturnValueOnce(retryDownload.promise);
+        state.onlinePdfUrl = 'https://example.test/old.pdf';
+        const oldWork = state.openOnlinePdf(); const oldOptions = ports.fetchPdf.mock.calls[0][1];
+        oldOptions.onProgress({received: 2048, total: 4096});
+        expect(state.downloadingPdf).toBe(true); expect(state.queueBusy).toBe(true);
+        state.cancelImport(); expect(oldOptions.signal.aborted).toBe(true); expect(state.downloadingPdf).toBe(false); expect(state.queueBusy).toBe(false);
+        state.onlinePdfUrl = 'https://example.test/retry.pdf'; const retryWork = state.openOnlinePdf();
+        const retryOptions = ports.fetchPdf.mock.calls[1][1]; retryOptions.onProgress({received: 4096});
+        expect(state.importProgress).toBe('document.pdfReading.downloadBytes');
+        oldOptions.onProgress({received: 4096, total: 4096}); expect(state.importProgress).toBe('document.pdfReading.downloadBytes');
+        if (latePhase === 'during retry') {
+            oldDownload.resolve(file('old.pdf')); await oldWork;
+            expect(state.downloadingPdf).toBe(true); expect(state.importProgress).toBe('document.pdfReading.downloadBytes'); expect(state.documentQueue).toHaveLength(0);
+        }
+        retryDownload.resolve(file('retry.pdf')); await retryWork;
+        expect(state.parsedDocument.fileName).toBe('retry.pdf');
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['retry.pdf']);
+        expect(state.documentQueue[0].sourceUrl).toBe('https://example.test/retry.pdf');
+        const parsed = state.parsedDocument; const taskCount = ports.tasks.length;
+        if (latePhase === 'after retry') {oldDownload.resolve(file('old.pdf')); await oldWork;}
+        expect(state.parsedDocument).toBe(parsed); expect(ports.tasks).toHaveLength(taskCount);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['retry.pdf']);
+        expect(state.downloadingPdf).toBe(false); expect(state.openingFile).toBe(false); expect(state.importProgress).toBe(''); expect(state.errorMessage).toBe('');
+        expect(retryOptions.signal.aborted).toBe(false);
+    });
+
+    it('cancels PDF parsing after page progress, preserves existing reviewed files, and rejects a late page after a successful retry', async () => {
+        await state.loadFiles([file('reviewed.txt')]); state.editSegment(0, '保留校订');
+        const reviewed = state.parsedDocument; const pagePending = deferred<any>();
+        ports.pageCount = 2; ports.pageProvider = (pageNumber, page) => pageNumber === 1 ? Promise.resolve(page) : pagePending.promise;
+        const work = state.loadFiles([file('pending.pdf'), file('never-started.txt')]);
+        await vi.waitFor(() => expect(ports.i18n).toHaveBeenCalledWith('document.pdfReading.importPages', {completed: 1, total: 2}));
+        expect(state.importProgress).toBe('document.pdfReading.importPages'); expect(state.openingFile).toBe(true);
+        const oldTask = ports.tasks.at(-1); expect(oldTask.getPage).toHaveBeenLastCalledWith(2);
+        state.cancelImport(); await work;
+        expect(oldTask.destroy).toHaveBeenCalledOnce(); expect(state.openingFile).toBe(false); expect(state.importProgress).toBe('');
+        expect(state.parsedDocument).toBe(reviewed); expect(state.translatedSegments).toEqual(['保留校订']);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['reviewed.txt']);
+        ports.pageProvider = undefined; ports.pageCount = 1;
+        await state.loadFiles([file('retry.pdf')]);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['reviewed.txt', 'retry.pdf']);
+        const taskCount = ports.tasks.length; const cleanup = vi.fn();
+        pagePending.resolve({cleanup}); await flush();
+        expect(cleanup).toHaveBeenCalledOnce(); expect(ports.tasks).toHaveLength(taskCount);
+        expect(state.parsedDocument).toBe(reviewed); expect(state.translatedSegments).toEqual(['保留校订']);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['reviewed.txt', 'retry.pdf']);
+        expect(state.errorMessage).toBe(''); expect(state.importProgress).toBe('');
+    });
+
+    it('switches documents while preserving each file and its reviewed translation', async () => {
+        await state.loadFiles([file('first.pdf'), file('second.txt')]);
+        state.editSegment(0, '校订译文');
+        state.selectDocument(state.documentQueue[1]);
+        expect(state.parsedDocument.fileName).toBe('second.txt');
+        expect(state.documentQueue[0].translations[0]).toBe('校订译文');
+        state.selectDocument(state.documentQueue[0]);
+        expect(state.translatedSegments[0]).toBe('校订译文');
+        expect(ports.tasks.every(task => task.destroy.mock.calls.length === 1)).toBe(true);
+    });
+
+    it('cancels a pending file read, keeps completed imports and allows retry', async () => {
+        await state.loadFiles([file('first.txt')]);
+        const pending = deferred<ArrayBuffer>();
+        const work = state.loadFiles([{...file('pending.pdf'), arrayBuffer: () => pending.promise}]);
+        expect(state.openingFile).toBe(true);
+        state.cancelImport();
+        pending.resolve(new TextEncoder().encode('%PDF-late').buffer as ArrayBuffer);
+        await work;
+        expect(state.openingFile).toBe(false);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['first.txt']);
+        await state.loadFiles([file('retry.pdf')]);
+        expect(state.documentQueue.map((item: any) => item.name)).toEqual(['first.txt', 'retry.pdf']);
+    });
+
+    it('removes the last PDF and resets the document reader', async () => {
         await state.loadFiles([file('only.pdf')]);
-        await vi.waitFor(() => expect(createUrl).toHaveBeenCalled());
-        state.schedulePdfPreview();
-        const before = ports.tasks.length;
         state.removeDocument(state.documentQueue[0], true);
-        await new Promise(resolve => setTimeout(resolve, 380));
-        expect(ports.tasks).toHaveLength(before);
+        await flush();
         expect(state.parsedDocument).toBeNull();
-        expect(state.pdfPreviewPageStates).toHaveLength(0);
+        expect(state.documentQueue).toHaveLength(0);
         expect(ports.tasks.every(task => task.destroy.mock.calls.length === 1)).toBe(true);
     });
 
@@ -211,25 +275,27 @@ it('documentbinaryAudit keeps page config editing isolated from shared runtime c
     expect(nextState.hydrated).toBe(false);
 });
 
-it('documentbinaryAudit selecting the active PDF preserves its task and URLs', async () => {
+it('documentbinaryAudit selecting the active PDF preserves its task and reviewed state', async () => {
     await state.loadFiles([file('same.pdf')]);
-    await vi.waitFor(() => expect(createUrl).toHaveBeenCalledOnce());
-    const task = ports.tasks.find(value => value.role === 'preview');
+    const parsed = state.parsedDocument;
+    state.editSegment(0, '校订译文');
     state.selectDocument(state.documentQueue[0]); await flush();
-    expect(task.destroy).not.toHaveBeenCalled();
-    expect(createUrl).toHaveBeenCalledOnce();
-    expect(state.pdfPreviewPageStates[0].originalUrl).toBeTruthy();
+    expect(state.parsedDocument).toBe(parsed);
+    expect(state.translatedSegments[0]).toBe('校订译文');
+    expect(ports.tasks).toHaveLength(1);
 });
 
 it('documentbinaryAudit mounts the actual page assembly with its app, document theme and i18n plugin', async () => {
     const mount = vi.fn(); const use = vi.fn();
-    const create = vi.fn(() => ({mount, use}));
+    const onUnmount = vi.fn();
+    const create = vi.fn(() => ({mount, use, onUnmount}));
     vi.doMock('vue', async () => ({...await vi.importActual<typeof import('vue')>('vue'), createApp: create}));
     const {mountDocumentTranslationApp} = await import('@/src/app/document-translation/page');
     mountDocumentTranslationApp('#document-root');
     expect(create).toHaveBeenCalledWith(DocumentApp);
     expect(use).toHaveBeenCalledWith({documentRoot: (document as any).body, documentTitleKey: 'metadata.documentTitle'});
     expect(mount).toHaveBeenCalledWith('#document-root');
+    expect(onUnmount).toHaveBeenCalledWith(expect.any(Function));
     vi.doUnmock('vue');
 });
 
