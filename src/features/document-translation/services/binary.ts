@@ -944,9 +944,9 @@ async function renderPdf(
         const embedded = await outputPdf.embedPages(pages.map(({page}) => page), boundingBoxes);
         pages.forEach(({pageNumber}, index) => sourcePages.set(pageNumber, embedded[index]));
     }
-    // 调用方已把译文按片段逐一对齐，下标与片段一一对应。
+    // 导出进行中页面可能释放已解析的片段；找不到片段时按“没有原文”处理，不能让下载中断。
     const visibleTranslations = translations.map((translation, segmentIndex) =>
-        hasDistinctTranslation(document.segments[segmentIndex].source, translation) ? translation : '');
+        hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
     for (const [index, pageData] of binary.pages.entries()) {
         options.signal?.throwIfAborted();
         const pageChanged = pageData.segmentIndexes.some(segmentIndex =>
