@@ -192,7 +192,8 @@ async function main() {
       await dialog.getByRole('button', {name: '下载双语文件', exact: true}).click();
       await dialog.locator('.export-progress').filter({hasText: /\d+ \/ 100 页/}).waitFor();
       await shot('pdf-100-progress');
-      await dialog.getByRole('button', {name: '取消生成', exact: true}).click();
+      // 打包可能在对话框动画结束前就完成；不等待按钮位置稳定，按钮一出现就点击，避免与“已完成”竞争。
+      await dialog.getByRole('button', {name: '取消生成', exact: true}).click({force: true});
       await dialog.locator('.export-progress').filter({hasText: '已取消生成'}).waitFor();
       assert.equal(await dialog.getByRole('button', {name: '下载双语文件', exact: true}).isEnabled(), true);
       await shot('pdf-100-canceled');
@@ -573,7 +574,8 @@ async function main() {
         await dialog.getByRole('checkbox').check();
         await dialog.getByRole('button', {name: '下载双语文件', exact: true}).click();
         await dialog.locator('.export-progress').filter({hasText: '正在打包文件'}).waitFor();
-        await dialog.getByRole('button', {name: '取消生成', exact: true}).click();
+        // 打包可能在对话框动画结束前就完成；不等待按钮位置稳定，按钮一出现就点击，避免与“已完成”竞争。
+      await dialog.getByRole('button', {name: '取消生成', exact: true}).click({force: true});
         await dialog.locator('.export-progress').filter({hasText: '已取消生成'}).waitFor();
         assert.equal(await dialog.getByRole('button', {name: '下载双语文件', exact: true}).isEnabled(), true);
         await shot(`${format}-large-canceled`);
