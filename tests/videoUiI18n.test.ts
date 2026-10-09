@@ -312,10 +312,12 @@ describe('video player menu composition', () => {
     expect(prompt.hidden).toBe(false);
     expect(prompt.dataset.selectedModel).toBe('base');
     const options = [...prompt.querySelectorAll<HTMLElement>('[data-model-choice]')];
-    expect(options.map(option => [option.dataset.modelChoice, option.getAttribute('aria-checked')])).toEqual([['tiny', 'false'], ['base', 'true']]);
+    expect(options.map(option => [option.dataset.modelChoice, option.getAttribute('aria-checked')])).toEqual([['tiny', 'false'], ['base', 'true'], ['small', 'false']]);
     expect(options[0].textContent).toContain('约 100 MB');
     expect(options[1].textContent).toContain('推荐');
     expect(options[1].textContent).toContain('约 150 MB');
+    expect(options[2].textContent).toContain('约 590 MB');
+    expect(options[2].textContent).toContain('多语种');
     expect(prompt.querySelector('[data-action="model-prompt-confirm"]')?.textContent).toBe('下载并生成');
 
     const focusedOption = prompt.querySelector<HTMLElement>('[data-model-choice="tiny"]');
@@ -328,6 +330,7 @@ describe('video player menu composition', () => {
     expect(prompt.querySelector('[data-action="model-prompt-confirm"]')?.textContent).toBe('开始生成');
     refreshVideoUiText(menu, 'en-US');
     expect(prompt.querySelector('[data-model-choice="base"]')?.textContent).toContain('~150 MB');
+    expect(prompt.querySelector('[data-model-choice="small"]')?.textContent).toContain('Small · Quality');
     expect(prompt.querySelector('[data-action="model-prompt-confirm"]')?.textContent).toBe('Generate');
 
     renderVideoModelPrompt(menu, null, 'zh-CN');

@@ -79,6 +79,7 @@ export {
 import {parseXVideoBridgeMessage} from './xVideoSubtitleData';
 import {
   normalizeVideoLocalTranscriptionModel,
+  normalizeVideoAiRecognitionMetadata,
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
 } from '@/src/features/video-subtitle/transcription';
 import {
@@ -735,6 +736,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       audioDurationMs: response.audioDurationMs,
       threads: response.threads,
       dtype: response.dtype,
+      ...normalizeVideoAiRecognitionMetadata(response),
     };
   };
 
@@ -881,6 +883,7 @@ export function mountVideoSubtitleTranslation(): () => void {
           backend: diagnostic.backend,
           threads: diagnostic.threads,
           dtype: diagnostic.dtype,
+          ...normalizeVideoAiRecognitionMetadata(diagnostic),
           skipped: diagnostic.skipped === true,
           decodeMs: Math.round(diagnostic.decodeMs || 0),
           inferenceMs: Math.round(diagnostic.inferenceMs || 0),

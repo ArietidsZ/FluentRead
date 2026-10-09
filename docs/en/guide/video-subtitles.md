@@ -36,11 +36,11 @@ To correct captions that are late or early, open **Subtitle timing** in the Flue
 
 The desktop Chrome / Edge extension can try local AI transcription:
 
-1. Download the Tiny or Base speech model in video settings. Initial downloads are about 100 MB and 150 MB respectively; extra runtime files may be needed later. The model card shows a progress bar, percentage and downloaded size while downloading.
+1. Choose a speech model in video settings. Small is recommended for multiple languages, with an initial download of about 590 MB. Tiny (about 100 MB) and Base (about 150 MB) remain available for lighter devices. The model card shows a progress bar, percentage and downloaded size. Extra runtime files may be needed later.
 2. Return to the X player and choose to generate AI subtitles.
 3. Audio reading and recognition progress appear in the player menu. You can stop the job. Completed sentences appear while later windows are still being recognized, and translations are fetched near the playback position. The full timeline is cached and can be exported as SRT only after recognition succeeds; a later recognition failure clears the incomplete preview. Original-only mode does not request translations.
 
-Tiny and Base are multilingual models. For Chinese speech, choose **Video settings → Spoken language → Chinese**; Base is the available option that prioritizes recognition quality. Auto detection waits for two sufficiently long, confident audio windows to agree before fixing the language for the video. Repeated decoding output is retried once with stronger repetition controls; if it remains corrupt, the job reports an error rather than displaying or caching it.
+All three models support multiple languages. **Spoken language → Auto** detects the language again for every speech window, so later speech is not locked to the opening language. You can still specify a known single language. Existing model choices and downloads are preserved. Base and Small allow more decoding capacity for text and timestamps; Tiny keeps a shorter budget to limit poor long output. Repeated decoding output is retried once with stronger repetition controls; if it remains corrupt, the job reports an error rather than displaying or caching it.
 
 Audio recognition runs locally; recognized subtitle text still goes to your translation service. Model downloads require a network connection. Processing depends on video length and your computer. Videos up to 20 minutes are supported; some formats or restricted media cannot be read.
 
@@ -50,7 +50,7 @@ Moving the pointer away and back, rebuilding playback controls, temporarily hidi
 
 You can generate subtitles directly from the Home feed. FluentRead recovers loaded audio manifests for the current media without mixing other preloaded posts. It prefers the master playlist’s audio rendition and checks the initialization segment for an audio track before downloading media segments. Reading or decoding failures try alternate audio renditions and a lower bitrate complete MP4 belonging to the same video. Candidates come from loaded media and video metadata; the extension extracts only media URLs and bitrates. It requires a confirmed media identity before using metadata candidates. If audio remains unavailable, the menu suggests opening the post or refreshing the page and retrying. Switching videos clears the previous video’s error, progress and model prompt.
 
-Recognition skips digital silence and keeps quiet speech and short spoken tails. Long pauses do not cause the whole speech track to be skipped. Full recognition preserves recognized short phrases and continuations across windows. Trimming long silent edges preserves the original subtitle timing. This does not filter all music or noise, or guarantee accuracy across accents, mixed languages, and specialist vocabulary.
+Recognition skips digital silence and keeps quiet speech and short spoken tails. Long pauses do not cause the whole speech track to be skipped. Full recognition preserves recognized short phrases and continuations across windows. Trimming long silent edges preserves the original subtitle timing. Long videos prepare audio incrementally, retaining one active window and one waiting window; stopping releases the waiting audio. This does not filter all music or noise, or guarantee accuracy across accents, languages and specialist vocabulary.
 
 </details>
 
@@ -72,7 +72,7 @@ Use the menu to show or hide subtitles and download them. Completed X transcript
 
 Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and try specifying the spoken language.
 
-An empty transcription is a speech recognition result, separate from a translation failure. Try Base if you are using Tiny. If Base is already selected, check for clear speech and the correct spoken language before retrying. Audio without speech usually produces no readable subtitles.
+An empty transcription is a speech recognition result, separate from a translation failure. Try Small if you are using Tiny or Base. If Small is already selected, check for clear speech and retry. Use Auto when the spoken language is unknown. Audio without speech usually produces no readable subtitles.
 
 Recognition can mishear names or background audio, and translations can be wrong. Check important details against the original subtitles and audio.
 

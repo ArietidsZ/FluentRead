@@ -198,7 +198,7 @@ export * from './pageTranslation';
 export type DeepSeekApiType = 'auto' | 'responses' | 'chat';
 export type DeepSeekThinkingMode = 'enabled' | 'disabled';
 export type VideoSubtitleDisplayMode = 'bilingual' | 'translation-only' | 'original-only';
-export type VideoLocalTranscriptionModel = 'tiny' | 'base';
+export type VideoLocalTranscriptionModel = 'tiny' | 'base' | 'small';
 export type FullPageTranslationMode = 'viewport' | 'all';
 export const DEFAULT_VIDEO_SUBTITLE_FONT_SIZE = 100;
 export const DEFAULT_NEW_API_URL = 'http://localhost:3000';
@@ -564,7 +564,7 @@ export class Config {
         this.videoMeetingAutoEnabled = true;
         this.videoPreferHumanSubtitles = true;
         this.videoService = ''; // 默认跟随网页服务
-        this.videoLocalModel = 'tiny';
+        this.videoLocalModel = 'small';
         this.videoSourceLanguage = 'auto';
         this.videoServiceDefaultMigrated = true;
         this.videoSubtitleVisible = true; // 默认显示视频译文
@@ -1236,7 +1236,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
     normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
-    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base') {
+    // 已有配置没有这个字段时保留过去的轻量默认；新配置推荐多语种质量模型。
+    if (!hasOwn(source, 'videoLocalModel') && Object.keys(source).length > 0
+        || normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
         normalized.videoLocalModel = 'tiny';
     }
     if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {

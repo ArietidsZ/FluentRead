@@ -7,12 +7,21 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {IDBFactory} from 'fake-indexeddb';
 import {removeOcrModelFiles} from '@/src/features/image-translation/services/ocrModelCache';
-import {removeVideoAiModelFiles, cacheVideoAiQ4ModelFiles, getVideoAiModelFileUrl, VIDEO_AI_Q4_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
+import {removeVideoAiModelFiles, cacheVideoAiQ4ModelFiles, getVideoAiModelFileUrl, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
 import {createVideoSubtitleBackgroundHandlers} from '@/src/features/video-subtitle/background/handlers';
 import {createImageOcrLanguageRepository} from '@/src/features/image-translation/background/ocrLanguageRepository';
 
 afterEach(() => vi.unstubAllGlobals());
 describe('model removal', () => {
+ it('Small removal clears FP32/q4 and legacy precision files while preserving Tiny and Base', async () => {
+  const small = [...VIDEO_AI_SMALL_MODEL_FILES, 'onnx/encoder_model_q4.onnx', 'onnx/decoder_model_merged_quantized.onnx'].map(file => getVideoAiModelFileUrl('small', file));
+  const retained = [getVideoAiModelFileUrl('tiny', 'config.json'), getVideoAiModelFileUrl('base', 'config.json')];
+  const keys = new Set([...small, ...retained]);
+  const cache = {keys: async () => [...keys].map(url => new Request(url)), delete: async (request: Request) => keys.delete(request.url)};
+  vi.stubGlobal('caches', {open: async () => cache});
+  await removeVideoAiModelFiles('small');
+  expect([...keys]).toEqual(retained);
+ });
  it('removes only selected OCR traineddata and can store it again', async () => {
   vi.stubGlobal('indexedDB', new IDBFactory());
   await removeOcrModelFiles(['eng']);

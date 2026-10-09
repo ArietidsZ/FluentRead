@@ -19,7 +19,7 @@ export function modelDownloadSources(url: string, preference: ModelSourcePrefere
     if (parsed.origin === OFFICIAL) return huggingFaceDownloadOrigins(preference).map(origin => origin + parsed.pathname + parsed.search);
     if (parsed.origin === 'https://modelscope.cn' && parsed.pathname.startsWith('/models/')) {
         // 仅现有公开 Whisper 仓库在这两个平台使用相同仓库名、分支和文件清单。
-        if (/^\/models\/onnx-community\/whisper-(?:tiny|base)\/resolve\/master\//u.test(parsed.pathname)) {
+        if (/^\/models\/onnx-community\/whisper-(?:tiny|base|small)\/resolve\/master\//u.test(parsed.pathname)) {
             const hfPath = parsed.pathname.slice('/models'.length).replace('/resolve/master/', '/resolve/main/');
             return [url, ...huggingFaceDownloadOrigins(preference).map(origin => origin + hfPath + parsed.search)];
         }
@@ -33,10 +33,13 @@ export async function withModelDownload<T>(
     consume: (response: Response, source: string) => Promise<T>,
     options: {
         signal?: AbortSignal; timeoutMs?: number; idleTimeoutMs?: number; preference?: ModelSourcePreference;
+        /** 单文件解码后字节上限；即使没有响应长度也按实际接收字节拦截。 */
+        maxBytes?: number;
         /** 每个来源从 0 开始回报已接收字节；total 仅在响应给出未经压缩编码的 Content-Length 时提供。 */
         onProgress?: (loaded: number, total?: number) => void;
     } = {},
 ): Promise<T> {
+    if (options.maxBytes !== undefined && (!Number.isSafeInteger(options.maxBytes) || options.maxBytes <= 0)) throw new Error('模型文件大小上限无效');
     const active = () => {if (options.signal?.aborted) throw new DOMException('模型下载已取消', 'AbortError');};
     let failure: unknown;
     for (const source of modelDownloadSources(url, options.preference)) {
@@ -59,6 +62,7 @@ export async function withModelDownload<T>(
             // 压缩传输时 Content-Length 是编码后的大小，与流出的字节数不可比，此时不提供总量。
             const length = response.headers.get('Content-Encoding') ? NaN : Number(response.headers.get('Content-Length'));
             const total = Number.isFinite(length) && length > 0 ? length : undefined;
+            if (options.maxBytes !== undefined && total !== undefined && total > options.maxBytes) throw new Error('模型文件超过大小上限');
             let loaded = 0;
             const progress = () => {try {options.onProgress?.(loaded, total);} catch { /* 进度展示不能中断下载。 */ }};
             progress();
@@ -68,8 +72,14 @@ export async function withModelDownload<T>(
                         arm();
                         const chunk = await reader!.read();
                         if (controller.signal.aborted) throw new DOMException('模型下载超时', 'TimeoutError');
-                        if (chunk.done) {clearTimeout(idle); target.close();}
-                        else {arm(); loaded += chunk.value.byteLength; progress(); target.enqueue(chunk.value);}
+                        if (chunk.done) {
+                            if (total !== undefined && loaded !== total) throw new Error('模型文件响应长度不完整');
+                            clearTimeout(idle); target.close();
+                        } else {
+                            arm(); loaded += chunk.value.byteLength;
+                            if (options.maxBytes !== undefined && loaded > options.maxBytes) throw new Error('模型文件超过大小上限');
+                            progress(); target.enqueue(chunk.value);
+                        }
                     } catch (error) {target.error(error);}
                 },
                 cancel: reason => reader!.cancel(reason),

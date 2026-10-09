@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/fullCapture.ts
  * 文件职责：执行完整视频 AI 字幕的独立音频读取、分窗识别和最终 cue 整理。
- * 主要内容：支持 HLS PCM 注入、限额流式媒体读取与可取消的 16 kHz 原生解码、隐藏扫描副本、串行 Whisper 窗口、完整模式字幕整理和取消清理。
+ * 主要内容：支持 HLS PCM 注入、限额流式媒体读取与可取消的 16 kHz 原生解码、隐藏扫描副本、有界串行 Whisper 窗口、完整模式字幕整理和取消清理。
  * 模块边界：不得接管用户可见 video 的播放状态；页面源隔离由调用方通过选项注入。
  */
 import {
@@ -109,7 +109,7 @@ function getAudioContextConstructor(): AudioContextConstructor | undefined {
 }
 
 function getWindowLengthMs(model: unknown): number {
-  return normalizeVideoLocalTranscriptionModel(model) === 'base'
+  return normalizeVideoLocalTranscriptionModel(model) !== 'tiny'
     ? FULL_BASE_WINDOW_MS
     : FULL_TINY_WINDOW_MS;
 }
@@ -197,13 +197,14 @@ export class VideoAiFullCaptureController {
   private captureStartOffsetMs = 0;
   private expectedDurationMs = 0;
   // 完整模式逐窗发布稳定 cue；识别可以和隐藏扫描并行。
-  // 只维护一个串行 Promise 链，复用同一个 Whisper Worker，避免并发加载
-  // 第二份模型导致内存峰值翻倍。
+  // 单个 producer 只保留一个活动窗和一个预备窗；其余音频仍由连续
+  // blocks 持有，逐窗让出页面任务并复用同一个 Whisper Worker。
   private fullTranscriptionChain: Promise<void> | null = null;
   private readonly fullTranscriptionStabilizer = new VideoAiTranscriptStabilizer({mode: 'complete'});
   private readonly fullCuesById = new Map<string, VideoAiStabilizedCue>();
   private fullFallbackCues: VideoAiStabilizedCue[] = [];
   private fullTranscriptionError: Error | null = null;
+  private fullCaptureFinished = false;
   private fullNextWindowStartMs = 0;
   private fullNextWindowOverlapMs = 0;
   private fullWindowLengthMs = 0;
@@ -723,8 +724,8 @@ export class VideoAiFullCaptureController {
       return;
     }
 
-    // 结束时补上最后一个尾窗；前面的完整窗口已经在扫描期间排队，
-    // 这里只等待同一个串行链，不再从头重新识别整段 PCM。
+    // 标记音频完整，让同一个有界 producer 继续消费剩余完整窗和尾窗；
+    // 扫描期间已经识别的前缀不会再次从头提交。
     this.queueAvailableFullTranscriptionWindows(session, true);
     const transcriptionChain = this.fullTranscriptionChain;
     this.phase = 'transcribing';
@@ -757,7 +758,7 @@ export class VideoAiFullCaptureController {
         availableAtMs: 0,
         translationAvailableAtMs: 0,
       })) as unknown as VideoAiStabilizedCue[])) as unknown as VideoAiStabilizedCue[];
-      if (cues.length === 0) throw new Error(normalizeVideoLocalTranscriptionModel(this.options.getModel()) === 'base'
+      if (cues.length === 0) throw new Error(normalizeVideoLocalTranscriptionModel(this.options.getModel()) !== 'tiny'
         ? '本地 AI 没有识别出可读字幕，请确认视频有清晰人声并检查视频原语言后重试'
         : '本地 AI 没有识别出可读字幕，请换用 Base 模型重试');
       this.phase = 'translating';
@@ -842,7 +843,7 @@ export class VideoAiFullCaptureController {
         Math.floor(startMs * VIDEO_AI_SAMPLE_RATE / 1_000),
       ),
     );
-    if (targetSample <= this.audioBlocksStartSample) return;
+    // producer 只在消费完整窗或有效尾窗后调用，目标一定推进到新的 sample。
 
     let blockStartSample = this.audioBlocksStartSample;
     let removeCount = 0;
@@ -873,67 +874,95 @@ export class VideoAiFullCaptureController {
     this.bufferedSamples = Math.max(0, this.bufferedSamples - removedSamples);
   }
 
-  /**
-   * 在隐藏 video 仍然扫描时，把已经完整的窗口排进同一个串行 Worker
-   * 链。这样识别时间和后续扫描重叠，但不会创建第二个 Whisper session。
-   */
+  /** 音频继续扫描时也只启动一个 producer，不按整片时长扩张 Promise 链。 */
   private queueAvailableFullTranscriptionWindows(session: number, forceTail = false): void {
     if (!this.isCurrentSession(session) || this.phase !== 'capturing') return;
+    this.fullCaptureFinished ||= forceTail;
     if (this.fullWindowLengthMs <= 0) {
       this.fullWindowLengthMs = getWindowLengthMs(this.options.getModel());
-      this.fullWindowStepMs = Math.max(
-        FULL_MIN_WINDOW_MS,
-        this.fullWindowLengthMs - FULL_WINDOW_OVERLAP_MS,
-      );
+      this.fullWindowStepMs = Math.max(FULL_MIN_WINDOW_MS, this.fullWindowLengthMs - FULL_WINDOW_OVERLAP_MS);
     }
+    if (this.fullTranscriptionChain) return;
+    const capturedMs = (this.audioBlocksStartSample + this.bufferedSamples) * 1_000 / VIDEO_AI_SAMPLE_RATE;
+    if (!this.fullCaptureFinished && capturedMs + 1 < this.fullNextWindowStartMs + this.fullWindowLengthMs) return;
 
-    const capturedSamples = this.audioBlocksStartSample + this.bufferedSamples;
-    const capturedMs = capturedSamples * 1_000 / VIDEO_AI_SAMPLE_RATE;
-    const queueWindow = (startMs: number, endMs: number, candidate?: FullAudioWindow): void => {
-      const window = candidate ? {...candidate, endMs, pcm: candidate.pcm.subarray(0, Math.round((endMs - startMs) * VIDEO_AI_SAMPLE_RATE / 1000))}
-        : this.createFullAudioWindowFromBlocks(startMs, endMs);
-      window.overlapMs = this.fullNextWindowOverlapMs;
-      const sequence = this.fullWindowSequence;
-      this.fullWindowSequence += 1;
-      this.fullWindowCount += 1;
-      const previous = this.fullTranscriptionChain || Promise.resolve();
-      this.fullTranscriptionChain = previous
-        .then(() => this.transcribeFullAudioWindow(window, sequence, session))
-        .catch((error) => {
+    const signal = this.audioAbortController!.signal;
+    this.fullTranscriptionChain = Promise.resolve().then(async () => {
+      let prepared: {window: FullAudioWindow; sequence: number} | null = null;
+      const discardPrepared = () => { if (prepared) prepared.window.pcm = new Float32Array(); };
+      signal.addEventListener('abort', discardPrepared, {once: true});
+      try {
+        while (this.isCurrentSession(session)) {
+          prepared ||= this.takeNextFullAudioWindow();
+          if (!prepared) return;
+          const active = prepared;
+          prepared = this.takeNextFullAudioWindow();
+          await this.transcribeFullAudioWindow(active.window, active.sequence, session);
           if (!this.isCurrentSession(session)) return;
-          const normalized = toError(error, '本地视频完整 AI 字幕失败');
-          this.fullTranscriptionError ||= normalized;
-          this.fail(normalized);
-        });
-    };
+          // 扫描可能在当前识别期间追加了 PCM；重新读取可用范围，既不丢窗
+          // 也不把尚未结束的音频当作最终尾窗。数字静音窗同样让出任务。
+          prepared ||= this.takeNextFullAudioWindow();
+          if (prepared) await this.yieldFullTranscription(signal);
+        }
+      } finally {
+        signal.removeEventListener('abort', discardPrepared);
+        discardPrepared();
+      }
+    }).catch(error => {
+      if (!this.isCurrentSession(session)) return;
+      const normalized = toError(error, '本地视频完整 AI 字幕失败');
+      this.fullTranscriptionError ||= normalized;
+      this.fail(normalized);
+    }).finally(() => {
+      if (session === this.session) this.fullTranscriptionChain = null;
+    });
+  }
 
-    while (capturedMs + 1 >= this.fullNextWindowStartMs + this.fullWindowLengthMs) {
-      const startMs = this.fullNextWindowStartMs;
-      const endMs = startMs + this.fullWindowLengthMs;
-      const candidate = this.createFullAudioWindowFromBlocks(startMs, endMs);
-      const pauseMs = findVideoAiPauseBoundary(candidate.pcm);
-      queueWindow(startMs, pauseMs ? startMs + pauseMs : endMs, candidate);
+  private yieldFullTranscription(signal: AbortSignal): Promise<void> {
+    const timerWindow = window;
+    return new Promise(resolve => {
+      const finish = () => {
+        timerWindow.clearTimeout(timer);
+        signal.removeEventListener('abort', finish);
+        resolve();
+      };
+      const timer = timerWindow.setTimeout(finish, 0);
+      signal.addEventListener('abort', finish, {once: true});
+    });
+  }
+
+  /** 每次只复制一个原规则窗口；已复制前缀可以释放，未消费音频继续保留。 */
+  private takeNextFullAudioWindow(): {window: FullAudioWindow; sequence: number} | null {
+    const capturedMs = (this.audioBlocksStartSample + this.bufferedSamples) * 1_000 / VIDEO_AI_SAMPLE_RATE;
+    const startMs = this.fullNextWindowStartMs;
+    const overlapMs = this.fullNextWindowOverlapMs;
+    let window: FullAudioWindow;
+    if (capturedMs + 1 >= startMs + this.fullWindowLengthMs) {
+      window = this.createFullAudioWindowFromBlocks(startMs, startMs + this.fullWindowLengthMs);
+      const pauseMs = findVideoAiPauseBoundary(window.pcm);
+      window.endMs = startMs + (pauseMs || this.fullWindowLengthMs);
+      if (pauseMs) {
+        window.pcm = window.pcm.subarray(0, Math.round(pauseMs * VIDEO_AI_SAMPLE_RATE / 1_000));
+      }
       this.fullNextWindowStartMs = startMs + (pauseMs || this.fullWindowStepMs);
       this.fullNextWindowOverlapMs = pauseMs ? 0 : FULL_WINDOW_OVERLAP_MS;
-    }
-
-    if (forceTail && capturedMs > this.fullNextWindowStartMs + 1) {
-      const tailDurationMs = capturedMs - this.fullNextWindowStartMs;
-      const shortTail = tailDurationMs < FULL_MIN_WINDOW_MS
-        && this.fullWindowSequence > 0 && this.fullNextWindowOverlapMs === 0
-        ? this.createFullAudioWindowFromBlocks(this.fullNextWindowStartMs, capturedMs)
-        : undefined;
-      // 自然停顿之后的最后一个短词没有被任何重叠窗覆盖；有声时保留，
-      // 数字静音尾部仍跳过，不能只按时长丢掉整段可识别对白。
-      if (this.fullWindowSequence === 0 || tailDurationMs >= FULL_MIN_WINDOW_MS
-        || (shortTail && measureVideoAiSpeechActivity(shortTail.pcm).active)) {
-        queueWindow(this.fullNextWindowStartMs, capturedMs, shortTail);
-      }
+    } else {
+      if (!this.fullCaptureFinished || capturedMs <= startMs + 1) return null;
+      const durationMs = capturedMs - startMs;
+      window = this.createFullAudioWindowFromBlocks(startMs, capturedMs);
       this.fullNextWindowStartMs = capturedMs;
+      // 无重叠覆盖的停顿后短词必须保留；重叠覆盖或数字静音短尾沿用旧规则。
+      if (this.fullWindowSequence > 0 && durationMs < FULL_MIN_WINDOW_MS
+        && (overlapMs !== 0 || !measureVideoAiSpeechActivity(window.pcm).active)) {
+        this.trimAudioBlocksBefore(capturedMs);
+        return null;
+      }
     }
-    // 已完成窗口的 PCM 已经复制进独立的 Float32Array；只保留下一窗口
-    // 的重叠前缀，避免长视频把整个音频时间轴一直挂在页面内存中。
+    window.overlapMs = overlapMs;
+    const sequence = this.fullWindowSequence++;
+    this.fullWindowCount += 1;
     this.trimAudioBlocksBefore(this.fullNextWindowStartMs);
+    return {window, sequence};
   }
 
   private async transcribeFullAudioWindow(
@@ -942,7 +971,6 @@ export class VideoAiFullCaptureController {
     session: number,
   ): Promise<void> {
     try {
-      if (!this.isCurrentSession(session)) throw new Error(FULL_CANCELLED_ERROR);
       if (window.overlapMs === 0) {
         this.fullFallbackCues = this.absorbCues(this.fullTranscriptionStabilizer.flush(0, true), this.fullCuesById, this.fullFallbackCues);
         this.fullTranscriptionStabilizer.reset(true);
@@ -992,8 +1020,7 @@ export class VideoAiFullCaptureController {
         windowCount: this.fullWindowCount,
       });
     } finally {
-      // Promise 链仍会保留已完成窗口的闭包；及时丢掉 PCM，避免完整扫描
-      // 时每个重叠窗口都把一份音频留到最后才回收。
+      // producer 交接到预备窗之前释放活动 PCM；取消和失败也走同一清理。
       window.pcm = new Float32Array();
     }
   }
@@ -1004,6 +1031,7 @@ export class VideoAiFullCaptureController {
     this.fullCuesById.clear();
     this.fullFallbackCues = [];
     this.fullTranscriptionError = null;
+    this.fullCaptureFinished = false;
     this.fullNextWindowStartMs = 0;
     this.fullNextWindowOverlapMs = 0;
     this.fullWindowLengthMs = 0;

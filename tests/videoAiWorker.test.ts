@@ -19,14 +19,26 @@ const workerMocks = vi.hoisted(() => {
         interrupt(): void { this.interrupted = true; }
     }
     return {
-        env: {backends: {onnx: {wasm: {}}}},
+        env: {version: '3.8.1' as string | undefined, backends: {onnx: {wasm: {}}}},
         InterruptableStoppingCriteria: FakeStoppingCriteria,
         Tensor: FakeTensor,
         pipeline: vi.fn(),
     };
 });
 
-vi.mock('@huggingface/transformers', () => workerMocks);
+vi.mock('@huggingface/transformers', () => ({...workerMocks,
+    pipeline: async (...args: unknown[]) => {
+        const transcriber = await workerMocks.pipeline(...args);
+        transcriber.model ||= {};
+        transcriber.model.config ||= {};
+        transcriber.model.config.model_type ||= 'whisper';
+        transcriber.model._get_stopping_criteria ||= () => {
+            const criteria: unknown[] = [];
+            return {criteria, push(item: unknown) {criteria.push(item);}};
+        };
+        return transcriber;
+    },
+}));
 const wasmMocks = vi.hoisted(() => ({
     configureOnnxWasmBackend: vi.fn(),
     withCompressedWasmBinary: (_backend: unknown, _url: string, initialize: () => Promise<unknown>) => initialize(),
@@ -38,6 +50,12 @@ const webGpuMocks = vi.hoisted(() => ({
 }));
 
 vi.mock('@/src/shared/onnx/webgpu', () => webGpuMocks);
+const modelCacheMocks = vi.hoisted(() => ({cacheVideoAiQ8ModelFiles: vi.fn(async () => undefined)}));
+vi.mock('@/src/features/video-subtitle/offscreen/modelCache', () => ({
+    VIDEO_AI_MODEL_REMOTE_HOST: 'https://modelscope.cn',
+    VIDEO_AI_MODEL_REMOTE_PATH_TEMPLATE: 'models/{model}/resolve/{revision}/',
+    ...modelCacheMocks,
+}));
 
 function createWorkerScope(): Record<string, any> {
     return {
@@ -56,6 +74,172 @@ async function waitForWorkerMessages(scope: Record<string, any>, count: number):
 }
 
 describe('视频 AI Worker timestamp parser', () => {
+    it.each(['webgpu', 'wasm'])('Small 使用独立真实模型 ID 和固定混合精度，暖调用及模型切换诊断准确：%s', async backend => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: backend === 'webgpu', info: 'native GPU'});
+        const small: any = vi.fn(async () => ({text: 'A quality subtitle.', chunks: []}));
+        small.dispose = vi.fn(async () => undefined);
+        const base = vi.fn(async () => ({text: 'A standard subtitle.', chunks: []}));
+        workerMocks.pipeline.mockReset().mockResolvedValueOnce(small).mockResolvedValueOnce(base);
+        (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+        scope.onmessage({data: {requestId: 1, type: 'prepare', model: 'small'}});
+        await waitForWorkerMessages(scope, 1);
+        expect(workerMocks.pipeline).toHaveBeenCalledWith('automatic-speech-recognition', 'onnx-community/whisper-small', expect.objectContaining({
+            device: backend, dtype: {encoder_model: 'fp32', decoder_model_merged: 'q4'},
+            session_options: {enableCpuMemArena: false, enableMemPattern: false, executionMode: 'sequential'},
+        }));
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, model: 'small', backend, dtype: 'q4', encoderDtype: 'fp32', decoderDtype: 'q4'}));
+        scope.onmessage({data: {requestId: 2, type: 'prepare', model: 'small'}});
+        await waitForWorkerMessages(scope, 2);
+        scope.onmessage({data: {requestId: 3, type: 'transcribe', model: 'small', sourceLanguage: 'en', audio: new Float32Array(16_000).fill(.04)}});
+        await waitForWorkerMessages(scope, 3);
+        expect(workerMocks.pipeline).toHaveBeenCalledOnce();
+        expect(small).toHaveBeenCalledWith(expect.any(Float32Array), expect.objectContaining({language: 'en', max_new_tokens: 440}));
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, model: 'small', encoderDtype: 'fp32', decoderDtype: 'q4'}));
+        expect(scope.postMessage.mock.calls[2][0].detectedLanguage).toBeUndefined();
+        scope.onmessage({data: {requestId: 4, type: 'prepare', model: 'base'}});
+        await waitForWorkerMessages(scope, 4);
+        expect(small.dispose).toHaveBeenCalledOnce();
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, model: 'base', encoderDtype: 'q4', decoderDtype: 'q4'}));
+        // A silent Small request has not loaded Small and must not attribute Base's held session to it.
+        scope.onmessage({data: {requestId: 5, type: 'transcribe', model: 'small', audio: new Float32Array(16_000)}});
+        await waitForWorkerMessages(scope, 5);
+        expect(scope.postMessage.mock.calls[4][0].encoderDtype).toBeUndefined();
+        expect(scope.postMessage.mock.calls[4][0].decoderDtype).toBeUndefined();
+        vi.unstubAllGlobals();
+    });
+
+    it('Small WASM 混合精度初始化失败时不另下载全 q8 权重', async () => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+        modelCacheMocks.cacheVideoAiQ8ModelFiles.mockClear();
+        workerMocks.pipeline.mockReset().mockRejectedValue(new Error('Small mixed session failed'));
+        (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+        scope.onmessage({data: {requestId: 1, type: 'prepare', model: 'small'}});
+        await waitForWorkerMessages(scope, 1);
+        expect(workerMocks.pipeline).toHaveBeenCalledOnce();
+        expect(modelCacheMocks.cacheVideoAiQ8ModelFiles).not.toHaveBeenCalled();
+        expect(scope.postMessage).toHaveBeenLastCalledWith({requestId: 1, success: false, error: 'Small mixed session failed'});
+        vi.unstubAllGlobals();
+    });
+
+    it('Small 使用独立六十秒生成停止预算，中断循环后恢复 hook 并拒绝未完成结果', async () => {
+        vi.resetModules();
+        vi.useFakeTimers();
+        try {
+            const scope = createWorkerScope();
+            const configuredTimeouts: number[] = [];
+            scope.setTimeout = (callback: () => void, milliseconds: number) => {
+                configuredTimeouts.push(milliseconds);
+                return setTimeout(callback, milliseconds === 60_000 ? 4 : milliseconds);
+            };
+            vi.stubGlobal('self', scope);
+            vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+            webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+            let iterations = 0;
+            const originalHook = () => {
+                const criteria: any[] = [];
+                return {criteria, push(item: unknown) {criteria.push(item);}};
+            };
+            const transcriber: any = vi.fn(async (_audio, options) => {
+                const list = transcriber.model._get_stopping_criteria({max_length: 443});
+                expect(list.criteria).toContain(options.stopping_criteria);
+                while (iterations < 440 && !list.criteria.some((criterion: any) => criterion.interrupted)) {
+                    await new Promise(resolve => setTimeout(resolve, 2));
+                    iterations++;
+                }
+                return {text: 'Incomplete output.', chunks: []};
+            });
+            transcriber.model = {config: {model_type: 'whisper'}, _get_stopping_criteria: originalHook};
+            workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
+            (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+            scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'small', sourceLanguage: 'en', audio: new Float32Array(16_000).fill(.04)}});
+            await vi.advanceTimersByTimeAsync(30);
+            expect(configuredTimeouts).toEqual([60_000]);
+            expect(iterations).toBeGreaterThan(0);
+            expect(iterations).toBeLessThan(440);
+            expect(transcriber.model._get_stopping_criteria).toBe(originalHook);
+            expect(scope.postMessage).toHaveBeenLastCalledWith({requestId: 1, success: false, error: '本地视频 AI 推理超过 60 秒'});
+        } finally {
+            vi.useRealTimers();
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it.each(['tiny', 'base'])('旧模型的 WASM q8 恢复保留原优化器和真实双模块精度：%s', async model => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+        modelCacheMocks.cacheVideoAiQ8ModelFiles.mockClear();
+        workerMocks.pipeline.mockReset().mockRejectedValueOnce(new Error('q4 failed')).mockResolvedValueOnce(vi.fn());
+        (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+        scope.onmessage({data: {requestId: 1, type: 'prepare', model}});
+        await waitForWorkerMessages(scope, 1);
+        expect(modelCacheMocks.cacheVideoAiQ8ModelFiles).toHaveBeenCalledWith(model);
+        expect(workerMocks.pipeline).toHaveBeenLastCalledWith('automatic-speech-recognition', 'onnx-community/whisper-' + model, expect.objectContaining({
+            device: 'wasm', dtype: 'q8', session_options: expect.objectContaining({extra: {optimization: {disable_specified_optimizers: 'QDQSelectorActionTransformer'}}}),
+        }));
+        expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, model, backend: 'wasm', dtype: 'q8', encoderDtype: 'q8', decoderDtype: 'q8'}));
+        vi.unstubAllGlobals();
+    });
+
+    it.each(['explicit', 'auto-fallback', 'auto-shared'])('请求计时器中断实际生成循环并恢复停止 hook：%s', async mode => {
+        vi.resetModules();
+        vi.useFakeTimers();
+        try {
+            const scope = createWorkerScope();
+            scope.setTimeout = (callback: () => void, milliseconds: number) => setTimeout(callback, milliseconds === 15_000 ? 4 : milliseconds);
+            vi.stubGlobal('self', scope);
+            vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+            workerMocks.env.version = '3.8.1';
+            webGpuMocks.probeWebGpu.mockReset().mockResolvedValue({available: false, info: ''});
+            let iterations = 0;
+            const originalHook = vi.fn(() => {
+                const criteria: any[] = [];
+                return {criteria, push(item: unknown) {criteria.push(item);}};
+            });
+            const transcriber: any = vi.fn(async (_audio, options) => {
+                const list = transcriber.model._get_stopping_criteria({max_length: 443});
+                expect(list.criteria).toContain(options.stopping_criteria);
+                while (iterations < 440 && !list.criteria.some((criterion: any) => criterion.interrupted)) {
+                    await new Promise(resolve => setTimeout(resolve, 2));
+                    iterations++;
+                }
+                return {text: 'Unfinished temporary result.', chunks: []};
+            });
+            transcriber.processor = vi.fn(async () => ({input_features: new workerMocks.Tensor('float32', new Float32Array([0]), [1, 80, 3000])}));
+            transcriber.model = vi.fn(async () => ({logits: new workerMocks.Tensor('float32', new Float32Array([0, 8, 1]), [1, 1, 3])}));
+            transcriber.model.config = {model_type: 'whisper', is_encoder_decoder: true, is_multilingual: true, decoder_start_token_id: 0};
+            transcriber.model.generation_config = {lang_to_id: {'<|en|>': 1, '<|zh|>': 2}};
+            transcriber.model._get_stopping_criteria = originalHook;
+            if (mode === 'auto-shared') {
+                transcriber.model.main_input_name = 'input_features';
+                transcriber.model.forward_params = ['input_features', 'decoder_input_ids'];
+                transcriber.model._prepare_encoder_decoder_kwargs_for_generation = vi.fn(async () => ({encoder_outputs: new workerMocks.Tensor('float32', new Float32Array([0]), [1, 1500, 384])}));
+            }
+            workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
+            (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+            scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: mode === 'explicit' ? 'en' : 'auto', audio: new Float32Array(48_000).fill(.04)}});
+            await vi.advanceTimersByTimeAsync(30);
+            expect(iterations).toBeGreaterThan(0);
+            expect(iterations).toBeLessThan(440);
+            expect(transcriber).toHaveBeenCalledTimes(1);
+            expect(originalHook).toHaveBeenCalledOnce();
+            expect(transcriber.model._get_stopping_criteria).toBe(originalHook);
+            expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: '本地视频 AI 推理超过 15 秒'}));
+        } finally {
+            vi.useRealTimers();
+            vi.unstubAllGlobals();
+        }
+    });
     it('数字静音直接返回空字幕，不初始化模型或检测语言', async () => {
         vi.resetModules();
         const scope = createWorkerScope();
@@ -94,7 +278,7 @@ describe('视频 AI Worker timestamp parser', () => {
         vi.unstubAllGlobals();
     });
 
-    it('调用 Whisper 首步模型 logits 检测 auto 语言，并按 stream session 缓存后切换', async () => {
+    it('兼容路径逐窗调用 Whisper 首步 logits，两个相同语种窗后仍检测同一流的切换', async () => {
         vi.resetModules();
         const scope: Record<string, any> = {
             setTimeout,
@@ -150,7 +334,7 @@ describe('视频 AI Worker timestamp parser', () => {
         for (let index = 0; index < 10 && scope.postMessage.mock.calls.length < 1; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
         send(2, 'stream-ko');
         for (let index = 0; index < 10 && scope.postMessage.mock.calls.length < 2; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
-        send(3, 'stream-en');
+        send(3, 'stream-ko');
         for (let index = 0; index < 10 && scope.postMessage.mock.calls.length < 3; index += 1) await new Promise(resolve => setTimeout(resolve, 0));
         for (let index = 0; index < 16; index += 1) {
             send(10 + index, `stream-${index}`);
@@ -164,11 +348,12 @@ describe('视频 AI Worker timestamp parser', () => {
         expect(modelCalls[0].decoder_input_ids.data[0]).toBe(0n);
         expect(transcribeCalls.slice(0, 3).map((call) => call.language)).toEqual(['ko', 'ko', 'en']);
         expect(transcribeCalls.at(-1)?.language).toBe('en');
+        expect(scope.postMessage.mock.calls[2][0]).toMatchObject({detectedLanguage: 'en', languageConfidence: expect.any(Number), encoderReuse: false});
         expect(detectionTensors.every((tensor) => tensor.disposed)).toBe(true);
         vi.unstubAllGlobals();
     });
 
-    it('低置信度首窗不锁定错误语言，两个中文窗确认后复用；显式中文跳过检测', async () => {
+    it('短窗与低置信度如实回传，后续每窗继续检测；显式中文跳过检测', async () => {
         vi.resetModules();
         const scope = createWorkerScope();
         vi.stubGlobal('self', scope);
@@ -186,14 +371,74 @@ describe('视频 AI Worker timestamp parser', () => {
             scope.onmessage({data: {requestId, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', languageSessionKey: 'chinese', audio: new Float32Array(64_000).fill(0.04)}});
             await waitForWorkerMessages(scope, requestId);
         }
-        expect(transcriber.model).toHaveBeenCalledTimes(3);
+        expect(transcriber.model).toHaveBeenCalledTimes(4);
         expect(transcriber.mock.calls.map((call: any[]) => call[1].language)).toEqual(['en', 'zh', 'zh', 'zh']);
         scope.onmessage({data: {requestId: 5, type: 'transcribe', model: 'tiny', sourceLanguage: 'zh-Hans', audio: new Float32Array(64_000).fill(0.04)}});
         await waitForWorkerMessages(scope, 5);
-        expect(transcriber.model).toHaveBeenCalledTimes(3);
+        expect(transcriber.model).toHaveBeenCalledTimes(4);
         expect(transcriber.mock.calls.at(-1)[1]).toMatchObject({language: 'zh', task: 'transcribe', no_repeat_ngram_size: 8});
         expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, text: '我挟天子以令诸侯。'}));
+        expect(scope.postMessage.mock.calls[0][0].languageConfidence).toBeLessThan(.8);
+        expect(scope.postMessage.mock.calls[4][0].detectedLanguage).toBeUndefined();
         vi.unstubAllGlobals();
+    });
+
+    it.each(['success', 'decoder-failure', 'detection-failure'])('3.8.1 共享编码只属于当前请求，恢复生成白名单并释放张量（%s）', async outcome => {
+        vi.resetModules();
+        const scope = createWorkerScope();
+        vi.stubGlobal('self', scope);
+        vi.stubGlobal('navigator', {hardwareConcurrency: 1});
+        webGpuMocks.probeWebGpu.mockResolvedValue({available: false, info: ''});
+        workerMocks.env.version = '3.8.1';
+        const tensors: any[] = [];
+        const shared = new workerMocks.Tensor('float32', new Float32Array([.1]), [1, 1500, 384]);
+        const forwardParams = ['input_features', 'decoder_input_ids'];
+        const transcriber: any = vi.fn(async (_audio, options) => {
+            expect(options.encoder_outputs).toBe(shared);
+            expect(transcriber.model.forward_params).toEqual([...forwardParams, 'encoder_outputs']);
+            expect(shared.disposed).toBe(false);
+            if (outcome === 'decoder-failure') throw new Error('decoder failure');
+            await new Promise(resolve => setTimeout(resolve, 3));
+            return {text: 'A new sentence.', chunks: [{timestamp: [0, 1], text: 'A new sentence.'}]};
+        });
+        transcriber.processor = vi.fn(async () => {
+            await new Promise(resolve => setTimeout(resolve, 3));
+            const feature = new workerMocks.Tensor('float32', new Float32Array([0]), [1, 80, 3000]);
+            tensors.push(feature);
+            return {input_features: feature};
+        });
+        transcriber.model = vi.fn(async inputs => {
+            expect(inputs.encoder_outputs).toBe(shared);
+            expect(shared.disposed).toBe(false);
+            if (outcome === 'detection-failure') throw new Error('detection failure');
+            const logits = new workerMocks.Tensor('float32', new Float32Array([0, 9, 0]), [1, 1, 3]);
+            tensors.push(logits);
+            return {logits};
+        });
+        transcriber.model.config = {model_type: 'whisper', is_encoder_decoder: true, is_multilingual: true, decoder_start_token_id: 0};
+        transcriber.model.main_input_name = 'input_features';
+        transcriber.model.forward_params = forwardParams;
+        transcriber.model.generation_config = {lang_to_id: {'<|en|>': 1, '<|ja|>': 2}};
+        transcriber.model._prepare_encoder_decoder_kwargs_for_generation = vi.fn(async () => ({encoder_outputs: shared}));
+        workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
+        try {
+            (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
+            scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: 'auto', audio: new Float32Array(16_000).fill(.04)}});
+            await waitForWorkerMessages(scope, 1);
+            expect(transcriber.model._prepare_encoder_decoder_kwargs_for_generation).toHaveBeenCalledTimes(1);
+            expect(transcriber.model.forward_params).toBe(forwardParams);
+            expect(shared.disposed).toBe(true);
+            expect(tensors.every(tensor => tensor.disposed)).toBe(true);
+            if (outcome === 'success') {
+                const response = scope.postMessage.mock.calls[0][0];
+                expect(response).toMatchObject({success: true, detectedLanguage: 'en', languageConfidence: expect.any(Number), encoderReuse: true});
+                expect(response.languageDetectionMs).toBeGreaterThanOrEqual(3);
+                expect(response.inferenceMs).toBeGreaterThan(response.languageDetectionMs);
+            } else expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: outcome === 'decoder-failure' ? 'decoder failure' : 'detection failure'}));
+        } finally {
+            workerMocks.env.version = '3.8.1';
+            vi.unstubAllGlobals();
+        }
     });
 
     it.each([false, true])('长串中文重复只重试一次，失败给出恢复提示而不提交错误字幕（继续重复：%s）', async stillRepeated => {
@@ -213,7 +458,13 @@ describe('视频 AI Worker timestamp parser', () => {
         expect(transcriber).toHaveBeenCalledTimes(2);
         expect(transcriber.mock.calls[1][1]).toMatchObject({language: 'zh', no_repeat_ngram_size: 4, repetition_penalty: 1.15});
         if (stillRepeated) expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: false, error: expect.stringContaining('异常重复')}));
-        else expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, text: '我挟天子以令诸侯。'}));
+        else {
+            expect(scope.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({success: true, text: '我挟天子以令诸侯。'}));
+            const response = scope.postMessage.mock.calls[0][0];
+            expect(response.detectedLanguage).toBeUndefined();
+            expect(response.languageDetectionMs).toBeUndefined();
+            expect(response.encoderReuse).toBeUndefined();
+        }
         vi.unstubAllGlobals();
     });
 
@@ -482,18 +733,53 @@ describe('视频 AI Worker timestamp parser', () => {
         expect(normalizeWhisperSourceLanguage('  ko_KR ')).toBe('ko');
     });
 
-    it('按模型和音频时长限制 token 预算，不允许负时长扩大请求', () => {
-        expect(buildWhisperTranscriptionGenerationOptions('tiny', 'ko', -1, null).max_new_tokens).toBe(24);
-        expect(buildWhisperTranscriptionGenerationOptions('tiny', 'en', 20, null).max_new_tokens).toBe(64);
-        expect(buildWhisperTranscriptionGenerationOptions('base', 'en', 20, null).max_new_tokens).toBe(96);
-        expect(buildWhisperTranscriptionGenerationOptions('base', 'ko', 1, null).max_new_tokens).toBe(32);
+    it('解码容量不随模型、语言或异常时长越过448位置的decoder context', () => {
+        for (const model of ['tiny', 'base', 'small', undefined]) {
+            for (const seconds of [-1, 0, 1, 10, 14, 30, Infinity, NaN]) {
+                const options = buildWhisperTranscriptionGenerationOptions(model, 'auto', seconds, 'criteria');
+                expect(options.max_new_tokens + 3).toBeLessThan(448);
+                expect(options.stopping_criteria).toBe('criteria');
+            }
+        }
     });
 
-    it('中文与日韩对白获得足够 token 预算，长音频仍保持有界', () => {
+    it('多语种正文和timestamp不会被英文每秒token预算强制截尾', () => {
+        const counterexamples = [
+            {language: 'hi', seconds: 9.12, lexicalTokens: 119},
+            {language: 'hi', seconds: 13.8, lexicalTokens: 199},
+            {language: 'th', seconds: 8.82, lexicalTokens: 101},
+            {language: 'th', seconds: 7.2, lexicalTokens: 65},
+            {language: 'th', seconds: 9.54, lexicalTokens: 133},
+            {language: 'ar', seconds: 8.16, lexicalTokens: 55},
+        ];
+        for (const model of ['base', 'small']) {
+            for (const {language, seconds, lexicalTokens} of counterexamples) {
+                const options = buildWhisperTranscriptionGenerationOptions(model, language, seconds, null);
+                expect(options.max_new_tokens).toBeGreaterThan(lexicalTokens + 3);
+                expect(options).toMatchObject({no_repeat_ngram_size: 8, do_sample: false, num_beams: 1});
+            }
+        }
         expect(buildWhisperTranscriptionGenerationOptions('tiny', 'zh-Hans', 10, null).max_new_tokens).toBe(100);
-        expect(buildWhisperTranscriptionGenerationOptions('tiny', 'ja', 30, null).max_new_tokens).toBe(128);
-        expect(buildWhisperTranscriptionGenerationOptions('base', 'ko', 14, null).max_new_tokens).toBe(160);
-        expect(buildWhisperTranscriptionGenerationOptions('base', 'zh', 1, null).max_new_tokens).toBe(32);
+        expect(buildWhisperTranscriptionGenerationOptions('base', 'ja', 30, null).max_new_tokens).toBe(440);
+    });
+
+    it('Tiny 保留原时长与中日韩预算，高预算只用于 Base/Small', () => {
+        for (const language of ['auto', 'en', 'hi', 'th', 'ar']) {
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 10, null).max_new_tokens).toBe(60);
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 30, null).max_new_tokens).toBe(64);
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 0, null).max_new_tokens).toBe(24);
+        }
+        for (const language of ['zh-Hans', 'ja', 'ko-KR']) {
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 10, null).max_new_tokens).toBe(100);
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 30, null).max_new_tokens).toBe(128);
+        }
+        expect(buildWhisperTranscriptionGenerationOptions('unknown', 'hi', 9.12, null).max_new_tokens).toBe(55);
+        for (const seconds of [NaN, Infinity, -1]) {
+            expect(buildWhisperTranscriptionGenerationOptions('tiny', 'en', seconds, null).max_new_tokens).toBe(24);
+        }
+        for (const model of ['base', 'small']) {
+            expect(buildWhisperTranscriptionGenerationOptions(model, 'auto', 1, null).max_new_tokens).toBe(440);
+        }
     });
 
     it('从首个 decoder step 的多语语言 token logits 选择韩语并计算置信度', () => {
