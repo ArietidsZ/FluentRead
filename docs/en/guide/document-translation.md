@@ -20,6 +20,8 @@ Expand **No file yet? Try a sample** to open a local article, subtitle, or langu
 2. Check the preview, then start translation.
 3. Switch between original, bilingual, and translated views.
 
+You do not wait for the whole file: each finished batch appears as soon as it returns, starting from where you are reading (the current PDF page, ePub chapter, Word part, or subtitle/JSON page). Services that accept batches receive several at once, so the whole document finishes sooner.
+
 Pause a long job if needed. Completed passages remain available after a pause or request failure; continuing processes the remainder. Changing languages, services, models, or glossary settings requires a fresh translation, with a prompt first.
 
 Once translation finishes, the workspace focuses on reading, proofreading, and downloading. Open **Adjust settings** to retranslate, configure service connections, or replace files. Confirmation prompts protect results you have not downloaded.
@@ -41,6 +43,8 @@ Documents, translations and edits are stored in this browser: a refresh returns 
 Online and imported PDFs share the same reader. Select or copy text on the original page; translation follows your selection settings, including the icon, direct card, and keyboard shortcut. Selection uses your selection translation service, while translating the whole document uses the document translation service. Read continuously, jump to a page, or adjust zoom without translating the entire file first.
 
 The reader prioritizes visible pages and retains canvases and text layers for at most five pages. Pages outside that window are released and rendered again when needed. Zoom keeps your current page position. Import shows downloaded bytes or parsed pages and supports cancellation and retry.
+
+Papers, reports, slide decks exported to PDF, notes, and word-processor exports are each segmented by their own layout: text inside slide content frames and title bands is translated, and body text set at 1.5 to 2 line spacing still translates as whole paragraphs. A PDF may be up to 50 MB; other formats up to 10 MB.
 
 Use a PDF with selectable text. Scanned PDFs are not directly recognized; convert them to a text document first, or use image translation for a few pages.
 
