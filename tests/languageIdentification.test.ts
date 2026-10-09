@@ -199,6 +199,7 @@ describe('中文技术语境中的短术语边界', () => {
         '当前 SDK 的处理链是 intake→routing→normalized output/fallback，每个处理节点都会保留原始内容。',
         '当前 SDK 的共享调度使用 global/local 池，结束时由 requestHandler settle 释放占位。',
         '这个 SDK 的连接检查保留 scheduled FIFO，完成后统一清理缓存。',
+        '三个 pending 入口保留隐私、有效 Key 集合、轮换/恢复配置摘要，transport 按实际选择 Key，成功缓存规则不变。',
     ])('同句代码或缩写锚点与中文技术动作支撑短术语：%s', text => {
         expect(identifyTextLanguage(text)).toMatchObject({status: 'identified', languages: ['zh-Hans']});
         expect(shouldSkipTranslationForTarget(text, 'zh-Hans')).toBe(true);
@@ -221,6 +222,7 @@ describe('中文技术语境中的短术语边界', () => {
         '这段中文说明讨论 coffee 的含义，并保持原来的句子。',
         '这段中文说明把 apple orange banana 放在正文里供大家阅读。',
         '这个 SDK 的展示内容包含 apple orange banana，其中还有一些中文说明文字。',
+        '这里的缓存内容需要检查 Public Topic，其中包括英文标题。',
         '我们选择 apple/orange 作为水果名称，并保留原始说明。',
         '我们选择 apple、orange 作为水果名称，并保留原始说明。',
         '当前 SDK 的连接配置已修复，network connection failed后检查状态。',

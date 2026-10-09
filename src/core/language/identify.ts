@@ -74,7 +74,7 @@ function findChineseTechnicalTerms(copy: string, words: readonly ScriptWord[]): 
                     && /^[ \t]*[/、+→&|][ \t]*$/u.test(text.slice(word.end, sentenceWords[index + 1]!.start)))
                     || sentenceWords.some(word => word.script === 'Latin'
                     && (isAcronymWord(word.text) || isMixedCaseName(word.text)
-                        || /^[A-Z][a-z]{1,23}$/u.test(word.text) && CAPITALIZED_FIELD_CONTEXT.test(text.slice(word.end))))),
+                        || /^[A-Z][a-z]{1,23}$/u.test(word.text) && CAPITALIZED_FIELD_CONTEXT.test(text.slice(word.end).trimStart())))),
         };
     });
     let sentenceIndex = 0;

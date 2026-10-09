@@ -125,11 +125,13 @@ Popup 赞赏窗口内的微信二维码点击后原位从 164px 放大到 200px�
 
 `statistical.ts` 只把 franc-min 的候选分数当作同一文本内的排序和分差信号，并与功能词逆文档频率得分、正字法字母反证共同判断：功能词决定性领先、功能词领先且分差达标、功能词持平但分差更大、franc 前两位几乎并列时由功能词打破平局；franc-min 没有模型的目录语言只接受决定性功能词。分差阈值随文本长度缩放；单词、少于十个字母、名称、纯共享汉字、相近语言无法区分以及目录外相近语言（加泰罗尼亚语、加利西亚语、南非荷兰语等）都保留翻译。希腊文、希伯来文、泰文和印度诸文字按文字直接识别，并排除多调希腊文、意第绪连字和阿萨姆字母；日文与韩文分支会排除中文专用字形，韩文中连续八个以上汉字按中文句子处理。
 
-测试分组：`languageCodes`、`languageTechnicalTokens`、`languageScripts`、`languageStatistical`、`languageIdentification` 为单元测试；`languageIdentificationCorpus` 用真实 franc-min 在校准语料、留出语料和第二份只测量的留出语料上检查每个“文本 × 目录目标”的错误跳过为零、目标与排除语言等价，以及任意两种语言整段拼接不会吞掉其中一种；`sameTargetLanguageClient` 与 `sameTargetLanguageSlots` 验证客户端、标题、批量/文本包/逐槽/AI 合并/公式拆分路径的一致性、取消与失败重试；`sameTargetLanguageRegression` 保留旧实现失败条件（德/葡/意三字母代码、排除与目标不一致、短句、日韩模型名、未配置排除语言时富文本槽只做字符集快判）。全文运行时的翻译—恢复—再翻译、动态改写、目标与排除变化、取消和重试由 `fullPageVisibilityScheduling` 中的真实识别用例覆盖。
+测试分组：`languageCodes`、`languageTechnicalTokens`、`languageScripts`、`languageStatistical`、`languageIdentification` 为单元测试；`languageIdentificationCorpus` 用真实 franc-min 在校准语料、留出语料和第二份只测量的留出语料上检查每个“文本 × 目录目标”的错误跳过为零、目标与排除语言等价，以及任意两种语言整段拼接不会吞掉其中一种；`sameTargetLanguageClient` 与 `sameTargetLanguageSlots` 验证客户端、标题、批量/文本包/逐槽/AI 合并/公式拆分路径的一致性、取消与失败重试；`sameTargetLanguageRegression` 保留旧实现失败条件（德/葡/意三字母代码、排除与目标不一致、短句、日韩模型名、未配置排除语言时富文本槽只做字符集快判）。全文运行时的翻译—恢复—再翻译、动态改写、目标与排除变化、取消和重试由 `fullPageVisibilityScheduling` 中的真实识别用例覆盖；同段行内 `code` 只为语言预检提供上下文，仍受隐藏、禁止翻译与候选范围限制，不进入翻译请求或覆盖快照。
 
 识别器对比可复现运行 `node scripts/testing/evaluate-language-detectors.mjs --out <report.json>`；追加 `--franc-full <本地 franc 包目录>` 在同一判断链中替换统计库，`--old-root <旧源码目录>` 对比旧实现，`--browser --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径>` 在临时 profile 的后台 Edge 中测量 `chrome.i18n.detectLanguage`。结果只代表这些由项目编写的语料，不作为通用准确率。最近一次结论见 [语言识别报告](./reports/language-detection-20260916.md)。
 
 生产扩展构建后运行 `node scripts/testing/run-chinese-translation-test.cjs --multilingual-same-target --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。专项复用临时 Edge、后台可见且不抢焦点的窗口，对 de/pt/it/fr/en/ru/ja/ko/zh-Hans 分别验证同目标段落和标题在悬浮与全文中零请求、相邻外语悬浮 `[1,0,1,0]` 与全文 `[1,0,1]`、GitHub `li > a` 提交链接保持、宿主 `lang="en"` 不影响判断、全文会话中动态改写为外语后重新请求、恢复原文，以及同一页面从德文目标切到英文目标、以简体为目标并排除德文时的结论。页面与译文来自本地回环夹具，只证明扩展判断链与请求计数，不代表真实供应商质量，也不替代 Firefox 实机验证。
+
+PR #906 技术中文专项将上述模式参数替换为 `--technical-pr-906`，只验证反馈中的四段原文及相邻英文。它分别使用普通文本和交替 `code`/`strong` 包装，检查简体中文目标下悬浮、全文均零中文请求和零译文节点，恢复、再次触发、动态改写为英文与切换英文目标后按新文本及目标重新判断。结果和复现说明见 [技术中文重复翻译回归报告](./reports/chinese-technical-pr-906-20261009/README.md)。
 
 ## 原文回显与逐槽恢复
 

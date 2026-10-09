@@ -796,6 +796,7 @@ export default defineConfig({
                 'src/core/language/codes.ts',
                 'src/core/language/identify.ts',
                 'src/core/language/lexicon.ts',
+                'src/core/language/functionWordData.ts',
                 'src/core/language/scripts.ts',
                 'src/core/language/statistical.ts',
                 'src/core/language/technicalTokens.ts',

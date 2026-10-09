@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {parseHTML} from "linkedom";
 import chinesePosts from './fixtures/chinese-language-posts.json';
+import technicalPr906Posts from './fixtures/chinese-technical-pr-906.json';
 import type {TranslationSiteAdapter} from '@/src/core/translation/types';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
@@ -2138,6 +2139,14 @@ describe("全文翻译可见性锚点", () => {
         ['code', '当前 <code>SDK</code> 的并发队列由 <strong>arbiter token gate</strong> 负责入场，每个实际请求完成后释放槽位。'],
         ['strong', '当前 <strong>SDK</strong> 的并发队列由 <strong>arbiter token gate</strong> 负责入场，每个实际请求完成后释放槽位。'],
         ['camel-case-code', '后台 <code>messageRouter</code> 只从 <strong>origin</strong> 接收可信元数据，并让 <strong>session</strong> 状态保持独立。'],
+        ...technicalPr906Posts.map((source, index) => [`pr-906-paragraph-${index + 1}-split`, (() => {
+            let ordinal = 0;
+            // 重现生产浏览器夹具的包装边界：Key 与集合会成为不同 Text 片段。
+            return source.replace(/[A-Za-z][A-Za-z0-9_]*(?:[ +→][A-Za-z][A-Za-z0-9_]*)*/gu, token => {
+                const tag = ordinal++ % 2 ? 'strong' : 'code';
+                return `<${tag}>${token}</${tag}>`;
+            });
+        })()]),
     ])('真实候选、文本提取与语言识别：%s 行内包装不让中文技术段落重复请求，相邻外语仍请求', async (_kind, markup) => {
         const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
         runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
@@ -2197,6 +2206,31 @@ describe("全文翻译可见性锚点", () => {
             expect(document.querySelector('code')?.textContent).toBe('SDK');
             restoreOriginalContent();
             expect(technical.textContent).toBe(source + (protection === 'sibling' ? '' : 'SDK'));
+        },
+    );
+
+    it.each(['server status', '日本国立大学'])(
+        '受保护 code 不提供中文正文证据，可译外语正文 %s 仍请求',
+        async source => {
+            const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+            runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
+            runtime.realTextExtraction = true;
+            runtime.config.display = 1;
+            runtime.config.from = 'auto';
+            runtime.config.to = 'zh-Hans';
+            runtime.config.useCache = false;
+            runtime.config.fullPageTranslationMode = 'all';
+            const protectedSource = '当前 SDK 的连接配置与运行状态正常';
+            document.body.innerHTML = `<main><p id="foreign"><code>${protectedSource}</code>${source}</p></main>`;
+            const foreign = document.querySelector<HTMLElement>('#foreign')!;
+            setLayoutBox(foreign, 600, 80);
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: []});
+
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.requests.mock.calls.flat(2)).toEqual([source]);
+            expect(foreign.querySelector('code')?.textContent).toBe(protectedSource);
+            expect(foreign.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
         },
     );
 

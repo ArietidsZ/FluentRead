@@ -175,7 +175,7 @@ export function isTopLevelApplicationShell(element: Element): boolean {
 }
 
 export interface TranslationTextProtectionOptions {
-    /** 只供候选语言预检读取行内代码上下文；不得传入翻译槽、请求或渲染快照。 */
+    /** 只供候选语言预检读取无汉字的行内代码上下文；不得传入翻译槽、请求或渲染快照。 */
     includeInlineCodeForLanguage?: boolean;
     /** 已有翻译的精确来源槽；只穿过真实 host 的扩展标记和自有 translate=no，其他保护仍生效。 */
     sourceTextSlotHosts?: ReadonlySet<Element>;
@@ -268,7 +268,8 @@ export function isProtectedDescendantElement(
     return (!ignoreExtensionSelf && !ownSourceSlot && isExtensionElementSelf(element)) ||
         isForeignTranslationBoundary(element) ||
         (isProtectedTextElement(element) && !(options?.includeInlineCodeForLanguage === true
-            && getElementTagName(element) === 'code' && element.getAttribute('role') !== 'timer')) ||
+            && getElementTagName(element) === 'code' && element.getAttribute('role') !== 'timer'
+            && !/\p{Script=Han}/u.test(element.textContent!))) ||
         isMathRendererElement(element) ||
         (hasNoTranslateMarker(element) && !ownNoTranslateMarker &&
             !isDocumentSurfaceNoTranslateShell(element) &&
