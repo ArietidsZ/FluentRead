@@ -962,3 +962,5 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 ```
 
 使用临时 Edge profile 与不抢焦点的后台可见窗口。服务器先实际收到扩展 Origin，再验证启用名单后 Origin 消失且鉴权不变，独立 Referer 规则安装、另一域名隔离、网页原有 Origin/Referer 保留、关闭与删除恢复、设置重开与扩展重载后持久化、非法域名阻断和 820px 布局。仅使用本地模拟 OpenAI 服务及虚构凭据，不证明真实网关或 Firefox 运行行为。新配置、DNR 同步和请求等待屏障由 `requestHeaderRules.test.ts` 与 `requestHeaderRuntime.test.ts` 覆盖。
+
+Popup 服务概览显示默认、继承和独立功能实际使用的模型，包含自定义模型占位符解析；机器翻译行不显示模型，凭据或能力提醒仍优先。模型说明通过原本地化 modelScope 缓存在 rows 内，aria-label 保留服务/继承说明并追加模型，title 保留完整模型。`popupServiceModelClarity` 和 `popupServicesLifecycle` 的真实 Vue 模板验证继承/独立/自定义、搜索不改选模，以及活跃上下文、KeepAlive/卸载、配置替换、跨功能旧事件、已删除供应商和用户焦点保护；隔离浏览器结果另行绑定源码版本，普通扩展 tab 不代替工具栏 popup 验收。

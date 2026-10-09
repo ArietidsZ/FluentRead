@@ -37,7 +37,7 @@ beforeEach(async () => {
       if (id.endsWith('.vue') && !/\/(?:PopupServices)\.vue$/u.test(id)) return '\0prompt-display'
       return null
     }, load(id) {
-      if (id === '\0prompt-i18n') return "import {ref} from 'vue';export const useUiI18n = () => ({language: ref('zh-CN'), t: key => key, translateLegacy: text => text})"
+      if (id === '\0prompt-i18n') return "import {ref} from 'vue';export const useUiI18n = () => ({language: ref('zh-CN'), t: (key, params) => params?.model ? `${key} ${params.model}` : key, translateLegacy: text => text})"
       if (id === '\0prompt-element') return "import {h, getCurrentInstance} from 'vue';export const ElPopover = {setup(_, {attrs, slots}) {const instance = getCurrentInstance();return () => h('div', {...attrs, 'data-timing-port-key': instance.vnode.key}, [slots.reference?.(), slots.default?.()])}}"
       if (id === '\0feature-menu-capabilities') return 'export const browserCapabilities = globalThis.__featureMenuCapabilities;'
       if (id === '\0prompt-icons') return 'export const ArrowDown = {}, WarningFilled = {}'
