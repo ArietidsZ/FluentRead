@@ -1,6 +1,6 @@
 /** 真实设置 SFC→保存/原生文档 Port/typed handler/registry→共享 probe/broker/SDK；仅浏览器、本地存储和合成 HTTP 是边界。 */
 import 'fake-indexeddb/auto';
-import {readFileSync} from 'node:fs';
+import {appendFileSync,readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {parseHTML} from 'linkedom';
@@ -10,9 +10,9 @@ import * as vue from 'vue';
 import {Config} from '@/src/core/config/model';
 import {documentPortPair} from './helpers/imageDocumentPorts';
 
-const m=vi.hoisted(()=>({values:new Map<string,unknown>(),watchers:new Map<string,Set<(value:unknown)=>void>>(),contexts:vi.fn(),record:vi.fn(),api:{} as Record<string,any>,writes:vi.fn(),hold:undefined as undefined|((records:any[])=>Promise<void>)}));
+const m=vi.hoisted(()=>({values:new Map<string,unknown>(),watchers:new Map<string,Set<(value:unknown)=>void>>(),contexts:vi.fn(),record:vi.fn(),api:{} as Record<string,any>,writes:vi.fn(),hold:undefined as undefined|((records:any[])=>Promise<void>),cacheRead:undefined as undefined|(()=>Promise<unknown>)}));
 vi.mock('@/src/platform/storage/configStorageRuntime',()=>({configStorage:{writeOwner:true,getItem:async(key:string)=>m.values.get(key)??null,setItem:async(key:string,value:unknown)=>{m.values.set(key,structuredClone(value));},removeItem:async(key:string)=>{m.values.delete(key);},watch:()=>()=>{}}}));
-vi.mock('@wxt-dev/storage',()=>({storage:{getItem:async(key:string)=>m.values.get(key)??null,setItem:async(key:string,value:any[])=>{m.writes(key,structuredClone(value));await m.hold?.(value);m.values.set(key,structuredClone(value));for(const fn of m.watchers.get(key)??[])fn(value);},watch:(key:string,fn:(value:unknown)=>void)=>{const set=m.watchers.get(key)??new Set();set.add(fn);m.watchers.set(key,set);return()=>set.delete(fn);}}}));
+vi.mock('@wxt-dev/storage',()=>({storage:{getItem:async(key:string)=>key==='local:modelVisionProbe:v1'&&m.cacheRead?m.cacheRead():m.values.get(key)??null,setItem:async(key:string,value:any[])=>{m.writes(key,structuredClone(value));await m.hold?.(value);m.values.set(key,structuredClone(value));for(const fn of m.watchers.get(key)??[])fn(value);},watch:(key:string,fn:(value:unknown)=>void)=>{const set=m.watchers.get(key)??new Set();set.add(fn);m.watchers.set(key,set);return()=>set.delete(fn);}}}));
 vi.mock('webextension-polyfill',()=>({default:new Proxy({},{get:(_t,k)=>Reflect.get(m.api,k)})}));
 vi.mock('@/src/platform/storage/modelUsageRepository',()=>({modelUsageRepository:{captureGeneration:()=>1,recordMany:m.record}}));
 vi.mock('@/src/platform/storage/translationStatsRepository',()=>({translationStatsRepository:{captureGeneration:()=>1,record:m.record}}));
@@ -28,7 +28,7 @@ const storageKey='local:modelVisionProbe:v1';
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 async function settle(){await tick();await tick();await vue.nextTick();}
 async function pump(until:()=>boolean,rounds=300){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}expect(until()).toBe(true);}
-function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};}
+function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((done,fail)=>{resolve=done;reject=fail;});return {promise,resolve,reject};}
 function response(model=privateModel,content='ABCDEF'){return new Response(JSON.stringify({id:'synthetic',object:'chat.completion',model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});}
 let store:typeof import('@/src/services/config/store'),cache:typeof import('@/src/services/translation/cache'),shared:typeof import('@/src/app/translation/visionProbeRuntime');
 let handlers:ReturnType<typeof import('@/src/app/background/handlers/visionProbe').createVisionProbeHandlers>,registry:import('@/src/services/translation/requestRegistry').TranslationRequestRegistry;
@@ -63,7 +63,7 @@ async function mount(native=true,service=privateService,model=privateModel){
 function click(){host!.querySelector('[data-testid="model-vision-probe"]')!.dispatchEvent(new window.Event('click'));}
 function feedback(){return host!.querySelector('[data-testid="model-vision-probe-feedback"]')?.textContent??'';}
 beforeEach(async()=>{
- vi.resetModules();vi.clearAllMocks();m.values.clear();m.watchers.clear();m.hold=undefined;m.record.mockResolvedValue(undefined);calls=[];pairs=[];releases=[];functions=[];windowEvents=new Map();
+ vi.resetModules();vi.clearAllMocks();m.values.clear();m.watchers.clear();m.hold=undefined;m.cacheRead=undefined;m.record.mockResolvedValue(undefined);calls=[];pairs=[];releases=[];functions=[];windowEvents=new Map();
  vi.useFakeTimers({toFake:['Date','setTimeout','clearTimeout','setInterval','clearInterval']});
  const dom=parseHTML('<html><body></body></html>');for(const key of ['window','document','Node','Element','HTMLElement','Text'] as const)vi.stubGlobal(key,dom.window[key]);
  vi.stubGlobal('window',{Event:dom.window.Event,addEventListener:(name:string,fn:(event:any)=>void)=>windowEvents.set(name,fn),removeEventListener:(name:string)=>windowEvents.delete(name),setTimeout,clearTimeout});
@@ -208,5 +208,81 @@ describe('shared probe source and publication fences',()=>{
  });
  it('privacy-scoped identity separates unknown, private, regular, model and configured pair while preserving ordinary v1',()=>{
   const source=store.config,base=imports.core.createVisionProbeIdentity(source,privateService,privateModel);expect(imports.core.createVisionProbeIdentity(imports.core.scopeVisionProbeConfig(source,'regular'),privateService,privateModel)).toBe(base);const privateId=imports.core.createVisionProbeIdentity(imports.core.scopeVisionProbeConfig(source,'private'),privateService,privateModel);const unknownId=imports.core.createVisionProbeIdentity(imports.core.scopeVisionProbeConfig(source,'unknown'),privateService,privateModel);expect(new Set([base,privateId,unknownId]).size).toBe(3);expect(imports.core.createVisionProbeIdentity(imports.core.scopeVisionProbeConfig({...source,incognitoModel:'probe-next'},'private'),privateService,privateModel)).not.toBe(privateId);expect(imports.core.createVisionProbeIdentity(imports.core.scopeVisionProbeConfig(source,'private'),privateService,'probe-next')).not.toBe(privateId);
+ });
+});
+
+/** 委托真实 registry/handler/订阅；观测后台完成，不把 Port 客户端拒绝当作资源释放。 */
+async function observeCachePreparation(){
+ // 本组直接验证原生 Port；先卸载 UI，成功缓存反馈的刷新计时器不计入 handler 资源。
+ app?.unmount();app=undefined;
+ const subscriptions=new Set<()=>void>();let registryPending=0,handlerEnded=0;
+ const contexts:import('@/src/services/translation/requestRegistry').TranslationRequestContext[]=[];
+ const actualRegistry=registry;
+ const observed:typeof registry={
+  async run(id,context,operation){registryPending++;try{return await actualRegistry.run(id,context,operation);}finally{registryPending--; }},
+  cancel:(id,context)=>actualRegistry.cancel(id,context),releaseOwner:context=>actualRegistry.releaseOwner(context),
+ };
+ const local=(await import('@/src/app/background/handlers/visionProbe')).createVisionProbeHandlers({ready:store.configReady,getConfig:()=>store.config,runtime:m.api.runtime,requestRegistry:observed,
+  subscribeConfig:listener=>{const stop=store.subscribeConfig(listener);subscriptions.add(stop);return()=>{subscriptions.delete(stop);stop();};},
+  isSettingsUrl:url=>url.split(/[?#]/u)[0]==='moz-extension://ext/options.html',resolve:shared.modelVisionProbe.resolve});
+ const original=local[0].handle;
+ local[0]={...local[0],async handle(message,context){contexts.push(context);try{return await original(message,context);}finally{handlerEnded++;}}};
+ const router=(await import('@/src/app/background/messageRouter')).createBackgroundMessageRouter<any>(local);
+ dispatch=vi.fn((message,context)=>router.dispatch(message,context));
+ server=(await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId:'ext',dispatch,registries:[observed]});
+ const load=vi.spyOn((await import('@/src/platform/storage/visionProbeStorage')).visionProbeStorage,'load');
+ const lease=vi.spyOn((await import('@/src/app/translation/runtime')).translationRequestScheduler,'schedule');
+ const timerBaseline=vi.getTimerCount();
+ return {contexts,snapshot:()=>({handlerEnded,registryPending,subscriptions:subscriptions.size,timerDelta:vi.getTimerCount()-timerBaseline,loadCalls:load.mock.calls.length,providerLeases:lease.mock.calls.length,providerRequests:calls.length})};
+}
+function recordCachePreparation(value:Record<string,unknown>){
+ const path=process.env.FLUENTREAD_CACHE_PREPARATION_OBSERVATIONS;
+ if(path)appendFileSync(path,JSON.stringify(value)+'\n');
+}
+describe('shared native cache preparation cancellation',()=>{
+ it.each((['cancel','disconnect','deadline'] as const).flatMap(action=>(['resolve','reject'] as const).map(late=>({action,late}))))('held storage load on $action consumes late $late after releasing its native handler',async({action,late})=>{
+  const gate=deferred<unknown>(),observed=await observeCachePreparation();m.cacheRead=()=>gate.promise;releases.push(()=>gate.resolve([]));
+  const client=imports.client.translationDocumentClient(m.api.runtime),pending=client.request(directMessage()).catch(error=>error);
+  await pump(()=>observed.snapshot().loadCalls===1);
+  if(action==='cancel')await client.request({type:'fluentReadModelVisionProbeCancel',requestId:'probe-one',clientRequestId:'probe-one'});
+  else if(action==='disconnect')pairs[0].close();else await vi.advanceTimersByTimeAsync(30_001);
+  for(let i=0;i<5;i++)await settle();
+  const beforeRelease={action,late,gateReleased:false,...observed.snapshot()};recordCachePreparation({phase:'held',...beforeRelease});
+  if(late==='resolve')gate.resolve([]);else gate.reject(new Error('synthetic cache read failure'));
+  await complete(pending);for(let i=0;i<5;i++)await settle();
+  const afterRelease=observed.snapshot();recordCachePreparation({phase:'late',action,late,gateReleased:true,...afterRelease});
+  expect(beforeRelease).toMatchObject({gateReleased:false,handlerEnded:1,registryPending:0,subscriptions:0,timerDelta:0,loadCalls:1,providerLeases:0,providerRequests:0});
+  expect(afterRelease).toMatchObject({handlerEnded:1,registryPending:0,subscriptions:0,timerDelta:0,providerLeases:0,providerRequests:0});
+  if(action!=='disconnect')expect(registry.cancel('probe-one',observed.contexts[0]).cancelled).toBe(false);
+ });
+ it('one cancelled native subscriber leaves a shared load and another valid owner alive',async()=>{
+  const gate=deferred<unknown>(),observed=await observeCachePreparation();m.cacheRead=()=>gate.promise;releases.push(()=>gate.resolve([]));
+  const first=imports.client.translationDocumentClient(m.api.runtime),cancelled=first.request(directMessage()).catch(error=>error);
+  const pair=documentPortPair({...sender,documentId:'other-settings-document'});pairs.push(pair);server.connect({...pair.background,name:'fluentReadTranslationDocument:v1'});
+  const other=imports.client.createTranslationDocumentClient(()=>({...pair.client,name:'fluentReadTranslationDocument:v1'})),valid=other.request(directMessage());
+  await pump(()=>observed.snapshot().subscriptions===2);
+  await first.request({type:'fluentReadModelVisionProbeCancel',requestId:'probe-one',clientRequestId:'probe-one'});for(let i=0;i<5;i++)await settle();
+  const beforeRelease=observed.snapshot();recordCachePreparation({phase:'shared-held',gateReleased:false,...beforeRelease});
+  gate.resolve([]);await complete(cancelled);await expect(complete(valid)).resolves.toMatchObject({success:true,capability:'supported'});
+  recordCachePreparation({phase:'shared-late',gateReleased:true,...observed.snapshot()});
+  expect(beforeRelease).toMatchObject({handlerEnded:1,registryPending:1,subscriptions:1,loadCalls:1,providerLeases:0,providerRequests:0});
+  expect(observed.snapshot()).toMatchObject({handlerEnded:2,registryPending:0,subscriptions:0,timerDelta:0,loadCalls:1,providerLeases:1,providerRequests:1});
+ });
+ it.each(['resolve','reject'] as const)('standalone native preparation timeout consumes late %s and permits a fresh request',async late=>{
+  const gate=deferred<unknown>(),observed=await observeCachePreparation();m.cacheRead=()=>gate.promise;releases.push(()=>gate.resolve([]));
+  const source=imports.privacy.attachTranslationSourcePrivacy(store.config,'private');let finished=false;
+  const pending=shared.modelVisionProbe.resolve(source,privateService,privateModel,{force:true,timeoutMs:10}).catch(error=>error).finally(()=>{finished=true;});
+  await pump(()=>observed.snapshot().loadCalls===1);await vi.advanceTimersByTimeAsync(11);await settle();
+  const beforeRelease={finished,gateReleased:false,...observed.snapshot()};recordCachePreparation({phase:'standalone-held',late,...beforeRelease});
+  if(late==='resolve')gate.resolve([]);else gate.reject(new Error('synthetic cache read failure'));await complete(pending);await settle();
+  expect(beforeRelease).toMatchObject({finished:true,timerDelta:0,loadCalls:1,providerLeases:0,providerRequests:0});
+  await expect(pending).resolves.toMatchObject({message:'识图检测超时，请重试'});m.cacheRead=undefined;
+  await expect(complete(shared.modelVisionProbe.resolve(source,privateService,privateModel,{force:true}))).resolves.toMatchObject({capability:'supported'});
+  expect(observed.snapshot()).toMatchObject({loadCalls:late==='reject'?2:1,providerLeases:1,providerRequests:1,timerDelta:0});
+ });
+ it('an already cancelled native subscriber never starts the shared cache load',async()=>{
+  const observed=await observeCachePreparation(),controller=new AbortController();controller.abort();
+  await expect(shared.modelVisionProbe.resolve(imports.privacy.attachTranslationSourcePrivacy(store.config,'private'),privateService,privateModel,{force:true,signal:controller.signal})).rejects.toMatchObject({name:'AbortError'});
+  expect(observed.snapshot()).toMatchObject({loadCalls:0,providerLeases:0,providerRequests:0,timerDelta:0});
  });
 });

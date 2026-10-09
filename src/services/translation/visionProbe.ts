@@ -1,7 +1,7 @@
 /**
  * @file src/services/translation/visionProbe.ts
  * 文件职责：结合手动设置、有效探测缓存与内置规则决定当前模型识图能力，并复用共享翻译链路探测未知模型。
- * 主要内容：在规则和缓存前验证可信来源及明确测试目标，冻结配置与严格测试提示词，生成随机 PNG；原生缓存区分来源并串行提交，取消期间的迟到持久化恢复旧记录，只有匹配答案或明确图片输入拒绝落盘。
+ * 主要内容：在规则和缓存前验证可信来源及明确测试目标，冻结配置与严格测试提示词，生成随机 PNG；原生缓存准备等待可独立取消且有界，不中止共享读取；缓存区分来源并串行提交，取消期间的迟到持久化恢复旧记录，只有匹配答案或明确图片输入拒绝落盘。
  * 模块边界：通过注入的翻译和存储端口执行副作用，不实现厂商协议、不读取页面图片、不改写用户配置或提示词。
  */
 import {resolveAreaRecognitionRoute, resolveModelVisionCapability, supportsVisionTransport, type AreaRecognitionRouteInput} from '@/src/core/config/vision';
@@ -14,6 +14,7 @@ import type {TranslationConfigSource, TranslationRequestMessage} from './types';
 import {NATIVE_PRIVATE_ROUTE_SUPPORTED, lockIncognitoRoute, resolveIncognitoRoute} from '@/src/core/config/incognitoRoute';
 import {assertTranslationSourcePrivacy, attachTranslationSourcePrivacy, getTranslationSourcePrivacy, fullPageTranslationConfigKey} from './requestPrivacy';
 import type {Config} from '@/src/core/config/model';
+import {waitForTranslationRequestPreparation} from './requestRegistry';
 
 export interface VisionProbeConfig extends TranslationConfigSource {modelVision?: Record<string, Record<string, boolean>>;}
 export const VISION_PROBE_MESSAGE = 'fluentReadModelVisionProbe';
@@ -100,7 +101,16 @@ export function createModelVisionProbe(deps: {
         const rule = resolveModelVisionCapability(service, model, source.modelVision);
         if (!supportsVisionTransport(service, model)) return {capability: 'unsupported', source: 'rule'};
         if (!options.force && typeof explicit === 'boolean') return {capability: rule, source: 'override'};
-        await load();
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+            options.signal?.throwIfAborted();
+            let timer: ReturnType<typeof setTimeout>;
+            try {
+                await waitForTranslationRequestPreparation(Promise.race([load(), new Promise<never>((_, reject) => {
+                    timer = setTimeout(() => reject(new Error('识图检测超时，请重试')),
+                        Math.min(VISION_PROBE_TIMEOUT_MS, Math.max(1, options.timeoutMs ?? VISION_PROBE_TIMEOUT_MS)));
+                })]), options.signal);
+            } finally {clearTimeout(timer!);}
+        } else await load();
         options.signal?.throwIfAborted();
         if (!options.force) {
             const result = cached(identity);
