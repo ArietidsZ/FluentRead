@@ -73,10 +73,21 @@ describe('漫画局部神经修补',()=>{
         controller.abort();queuedController.abort();
         expect(mocks.workerRelease).not.toHaveBeenCalled();expect(mocks.workerRequest).toHaveBeenCalledOnce();
         pending.resolve(zero(patch));await cancelled;await queuedCancelled;
-        expect(mocks.workerRelease).toHaveBeenCalledWith('inpaint');expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        expect(mocks.workerRelease).not.toHaveBeenCalled();expect(mocks.workerRequest).toHaveBeenCalledOnce();
         expect(input.every(value=>value===255)).toBe(true);
         expect(await mangaInpaintingRuntime.repair(input,128,128,[region])).toBeInstanceOf(Uint8ClampedArray);
-        expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();
+        await mangaInpaintingRuntime.dispose();expect(mocks.workerRelease).toHaveBeenCalledWith('inpaint');
+    });
+
+    it('当前区域取消立即丢弃补丁，不执行剩余区域，下一页复用暖模型',async()=>{
+        const controller=new AbortController(),input=pixels(),progress=vi.fn();
+        mocks.workerRequest.mockImplementationOnce(async()=>{controller.abort();throw new DOMException('cancelled','AbortError');});
+        await expect(mangaInpaintingRuntime.repair(input,128,128,[region,region],controller.signal,undefined,progress)).rejects.toMatchObject({name:'AbortError'});
+        expect(mocks.workerRequest).toHaveBeenCalledOnce();expect(mocks.workerRelease).not.toHaveBeenCalled();
+        expect(progress.mock.calls).toEqual([[0,2]]);expect(input.every(value=>value===255)).toBe(true);
+        await mangaInpaintingRuntime.repair(input,128,128,[region]);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();expect(mocks.workerRequest).toHaveBeenCalledTimes(2);
     });
 
     it('浏览器修补按 COI 与共享内存选择两条 WASM 线程，每次 run 都经过 pacer',async()=>{

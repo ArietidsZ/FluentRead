@@ -2,14 +2,18 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {createMangaCanvas} from '@/src/features/image-translation/content/mangaCanvas';
 import {composeMangaPage} from '@/src/features/image-translation/content/mangaCompositor';
+import {encodeImageCanvas} from '@/src/features/image-translation/services/imageEncoding';
 vi.mock('@/src/features/image-translation/content/mangaCompositor', () => ({composeMangaPage: vi.fn()}));
+vi.mock('@/src/features/image-translation/services/imageEncoding', () => ({encodeImageCanvas: vi.fn()}));
 const compose = vi.mocked(composeMangaPage);
+const encode = vi.mocked(encodeImageCanvas);
 const packet = {width: 400, height: 300, patches: [{x: 0, y: 0, width: 1, height: 1, image: 'data:image/png;base64,AQ=='}]};
 const result = {mangaPatches: packet, lines: [{text: '译文', bbox: {x0: 0, y0: 0, x1: 1, y1: 1}, backgroundColor: '#fff'}]};
 const deferred = <T,>() => {let resolve!: (value: T) => void, reject!: (error: Error) => void;const promise = new Promise<T>((yes, no) => {resolve = yes;reject = no;});return {promise, resolve, reject};};
 const flush = async () => {for (let n = 0; n < 8; n++) await Promise.resolve();};
 
 function fixture() {
+    encode.mockResolvedValue('data:image/png;base64,AQ==');
     const {document, window} = parseHTML('<html><body><div id="reader"></div></body></html>');
     const create = document.createElement.bind(document);
     const snapshots: HTMLCanvasElement[] = [], outputs: HTMLCanvasElement[] = [];
@@ -71,6 +75,39 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
         const runtime=createMangaCanvas({...f.ports,source:{identity:()=> 'public-source',bounds:()=>f.bounds as DOMRect,capture:()=>capture.promise}});
         const task=runtime.translate(f.canvas);runtime.restore(f.canvas);capture.resolve();await task;
         expect(f.ports.translate).not.toHaveBeenCalled();runtime.dispose();f.runtime.dispose();
+    });
+    it.each(['redraw','configuration','remove','pause','reset','dispose','disable'])('异步编码迟到后复核所有权，不识别已失效快照 %s',async mode=>{
+        const f=fixture(),pending=deferred<string>();encode.mockReturnValue(pending.promise);
+        const task=f.runtime.translate(f.canvas);await flush();
+        const [snapshot,signal]=encode.mock.calls[0];
+        expect(snapshot).not.toBe(f.canvas);expect(snapshot.width).toBe(400);expect(snapshot.height).toBe(300);
+        expect(snapshot.toDataURL).not.toHaveBeenCalled();expect(f.ports.translate).not.toHaveBeenCalled();
+        if(mode==='redraw'){f.canvas.dataset.pixel='2';f.runtime.update();}
+        if(mode==='configuration'){f.ports.configurationIdentity.mockReturnValue('config-2');f.runtime.update();}
+        if(mode==='remove'){f.canvas.remove();f.runtime.update();}
+        if(mode==='pause')f.runtime.restore(f.canvas);
+        if(mode==='reset')f.runtime.resetCache();
+        if(mode==='dispose')f.runtime.dispose();
+        if(mode==='disable')f.ports.enabled.mockReturnValue(false);
+        pending.resolve('data:image/png;base64,late');await task;
+        expect(f.ports.translate).not.toHaveBeenCalled();expect(compose).not.toHaveBeenCalled();
+        expect(snapshot.width).toBe(0);expect(snapshot.height).toBe(0);expect(f.runtime.failed(f.canvas)).toBe(false);
+        if(mode!=='disable')expect(signal?.aborted).toBe(true);f.runtime.dispose();
+    });
+    it('编码中取消的拒绝不记录旧失败，完整快照及时释放',async()=>{
+        const f=fixture(),pending=deferred<string>();encode.mockReturnValue(pending.promise);
+        const task=f.runtime.translate(f.canvas);await flush();const [snapshot,signal]=encode.mock.calls[0];
+        f.runtime.restore(f.canvas);expect(signal?.aborted).toBe(true);
+        pending.reject(new DOMException('已取消','AbortError'));await task;
+        expect(f.ports.translate).not.toHaveBeenCalled();expect(f.runtime.failed(f.canvas)).toBe(false);
+        expect(snapshot.width).toBe(0);f.runtime.dispose();
+    });
+    it('当前编码失败保留原文并允许下一次重试',async()=>{
+        const f=fixture();encode.mockRejectedValueOnce(new Error('图片数据读取失败'));
+        await expect(f.runtime.translate(f.canvas)).rejects.toThrow('图片数据读取失败');
+        expect(f.runtime.failed(f.canvas)).toBe(true);expect(f.ports.translate).not.toHaveBeenCalled();
+        await f.runtime.translate(f.canvas);expect(f.ports.translate).toHaveBeenCalledOnce();
+        expect(f.ports.translate.mock.calls[0][0]).toBe('data:image/png;base64,AQ==');f.runtime.dispose();
     });
     it('识别重绘和配置变化，受污染或空画布不阻止后一张正常正文', () => {
         const f = fixture(), first = f.runtime.identity(f.canvas);
@@ -137,7 +174,7 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
     });
     it('取消后客户端拒绝不发布旧失败', async () => {
         const f = fixture(), pending = deferred<typeof result>();f.ports.translate.mockReturnValue(pending.promise);
-        const task = f.runtime.translate(f.canvas);f.runtime.release(f.canvas);pending.reject(new Error('cancelled'));await task;
+        const task = f.runtime.translate(f.canvas);await flush();f.runtime.release(f.canvas);pending.reject(new Error('cancelled'));await task;
         expect(f.runtime.failed(f.canvas)).toBe(false);f.runtime.release(f.canvas);f.runtime.restore(f.canvas);f.runtime.dispose();
     });
     it('缺少浏览器处理能力或有效结果时保留原文并允许显式重试', async () => {

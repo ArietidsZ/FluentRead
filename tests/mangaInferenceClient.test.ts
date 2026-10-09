@@ -1,7 +1,7 @@
 /**
  * @file tests/mangaInferenceClient.test.ts
  * 文件职责：验证漫画推理客户端的真实请求队列、Worker 重建与资源生命周期。
- * 主要内容：用可控消息端口和假时钟覆盖阶段超时、取消、失败回退、旧消息和释放；真实 Worker 处理器联测取消后的修补阶段时限，共享推理预算使用真实实现。
+ * 主要内容：用可控消息端口和假时钟覆盖阶段超时、立即取消与有界收尾、暖机复用和无人端口释放、失败回退、旧消息和释放；真实 Worker 处理器联测取消超时后的修补阶段时限，共享推理预算使用真实实现。
  * 模块边界：不下载模型、不模拟 GPU 算子；断言可观察结果与资源释放，不改生产代码或共享配置。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
@@ -245,7 +245,7 @@ describe('漫画独立 Worker 客户端', () => {
         await next;
     });
 
-    it('执行中取消硬终止 Worker，不回退 CPU，并移除两个 abort 监听器', async () => {
+    it('运行中取消立即结束调用方等待，超过 1.5 秒仍未收尾才硬终止，不回退 CPU', async () => {
         const {client, workers} = harness();
         const controller = new AbortController();
         const add = vi.spyOn(controller.signal, 'addEventListener');
@@ -255,6 +255,10 @@ describe('漫画独立 Worker 客户端', () => {
         controller.abort();
         await expect(result).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
         await flush();
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1_499);
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);
         expect(workers).toHaveLength(1);
         expect(workers[0].terminate).toHaveBeenCalledOnce();
         expect(remove.mock.calls.map(call => call[1])).toEqual(expect.arrayContaining(add.mock.calls.map(call => call[1])));
@@ -264,6 +268,147 @@ describe('漫画独立 Worker 客户端', () => {
         expect(workers[1].latest.cpu).toBe(false);
         workers[1].emit();
         await next;
+    });
+
+    it('已取消推理在收尾窗口内完成时丢弃结果和进度，保留 OCR 与修补模型并复用同一 Worker', async () => {
+        const {client, workers, createWorker} = harness();
+        for (const kind of ['ocr', 'inpaint'] as const) {
+            const prepared = client.prepare(kind);
+            await flush(); workers[0].emit(); await prepared;
+        }
+        const controller = new AbortController(), progress = vi.fn();
+        const canceled = observe(client.request({type: 'recognize', image: 'old-page'}, controller.signal, progress));
+        await flush();
+        const oldMessage = workers[0].onmessage!;
+        const oldError = workers[0].onerror!;
+        const oldId = workers[0].latest.requestId;
+        controller.abort();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        const next = client.request<Float32Array>({type: 'inpaint'});
+        await vi.advanceTimersByTimeAsync(1_000);
+        expect(workers[0].postMessage).toHaveBeenCalledTimes(3);
+        workers[0].emit({stage: 'recognizing', percent: 99});
+        workers[0].emit({success: true, result: {results: []}});
+        await flush();
+        expect(progress).not.toHaveBeenCalled();
+        expect(workers[0].latest.type).toBe('inpaint');
+        // 已完成的旧 handler 即使迟到也不能清除新请求的监听器。
+        oldMessage({data: {requestId: oldId, success: true}} as MessageEvent<MangaInferenceResponse>);
+        oldError({message: 'late error from canceled page'} as ErrorEvent);
+        const output = new Float32Array([0.5]);
+        workers[0].emit({success: true, result: output});
+        await expect(next).resolves.toBe(output);
+        expect(createWorker).toHaveBeenCalledOnce();
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+        const releaseOcr = client.release('ocr');
+        await flush(); workers[0].emit(); await releaseOcr;
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        const nextPainter = client.request({type: 'inpaint'});
+        await flush(); workers[0].emit(); await nextPainter;
+        expect(createWorker).toHaveBeenCalledOnce();
+        const releasePainter = client.release('inpaint');
+        await flush(); workers[0].emit(); await releasePainter;
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+    });
+
+    it('取消模型准备立即返回，原下载和初始化完成后下一页复用，不发布旧页进度', async () => {
+        const {client, workers, createWorker} = harness();
+        const controller = new AbortController(), progress = vi.fn();
+        const canceled = observe(client.prepare('ocr', controller.signal, progress));
+        await flush();
+        workers[0].emit({stage: 'preparing', percent: 10});
+        progress.mockClear(); controller.abort();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        const next = client.prepare('ocr');
+        await vi.advanceTimersByTimeAsync(10_000);
+        workers[0].emit({stage: 'initializing'});
+        workers[0].emit();
+        await flush();
+        expect(workers[0].latest.requestId).toBe(2);
+        workers[0].emit(); await next;
+        expect(progress).not.toHaveBeenCalled();
+        expect(createWorker).toHaveBeenCalledOnce();
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('取消准备的无人 Worker 仅空闲保留三分钟，下一次任务重置期限且 dispose 立即清理', async () => {
+        const {client, workers, createWorker} = harness();
+        const controller = new AbortController();
+        const canceled = observe(client.prepare('ocr', controller.signal));
+        await flush(); controller.abort();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        workers[0].emit(); await flush();
+        await vi.advanceTimersByTimeAsync(179_999);
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        const next = client.prepare('inpaint');
+        await flush();
+        await vi.advanceTimersByTimeAsync(1);
+        expect(workers[0].terminate).not.toHaveBeenCalled();
+        workers[0].emit(); await next;
+        expect(createWorker).toHaveBeenCalledOnce();
+        client.dispose();
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+        const orphan = new AbortController();
+        const pending = observe(client.prepare('ocr', orphan.signal));
+        await flush(); orphan.abort();
+        await expect(pending).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        workers[1].emit(); await flush();
+        await vi.advanceTimersByTimeAsync(180_000);
+        expect(workers[1].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+        const fresh = client.prepare('ocr');
+        await flush(); expect(workers[2].latest.cpu).toBe(false);
+        workers[2].emit(); await fresh;
+    });
+
+    it('取消后的模型阶段仍由超时看守，初始化失败硬终止且不重建 CPU', async () => {
+        const {client, workers} = harness();
+        const controller = new AbortController();
+        const canceled = observe(client.prepare('ocr', controller.signal));
+        await flush(); controller.abort();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        workers[0].emit({stage: 'initializing'});
+        await vi.advanceTimersByTimeAsync(15_000);
+        expect(workers).toHaveLength(1);
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('准备回复到达后同步取消仍留有空闲释放期限，已回复的旧代不能在 dispose 后取得端口', async () => {
+        const {client, workers} = harness();
+        const controller = new AbortController();
+        const canceled = observe(client.prepare('ocr', controller.signal));
+        await flush();
+        workers[0].emit(); controller.abort();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        await vi.advanceTimersByTimeAsync(180_000);
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        const oldGeneration = observe(client.prepare('ocr'));
+        await flush();
+        workers[1].emit(); client.dispose();
+        await expect(oldGeneration).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        expect(workers[1].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('下一条排队请求触发取消时，已完成 prepare 仍不得给旧调用方登记端口', async () => {
+        const {client, workers} = harness();
+        const controller = new AbortController();
+        const canceled = observe(client.prepare('ocr', controller.signal));
+        await flush();
+        workers[0].postMessage.mockImplementationOnce(() => {
+            controller.abort(); workers[0].emit();
+        });
+        const queued = client.request({type: 'recognize', image: 'next'});
+        workers[0].emit();
+        await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        await queued;
+        await vi.advanceTimersByTimeAsync(180_000);
+        expect(workers[0].terminate).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
     });
 
     it('GPU 失败与取消同时发生时，不创建 CPU Worker', async () => {
@@ -390,7 +535,7 @@ describe('漫画独立 Worker 客户端', () => {
 });
 
 describe('漫画推理阶段超时契约', () => {
-    it('真实 Worker 在 OCR 取消后重建修补端口，用 recognizing 重置 15 秒初始化期限为完整 60 秒', async () => {
+    it('真实 Worker 在 OCR 取消收尾超时后重建修补端口，用 recognizing 重置 15 秒初始化期限为完整 60 秒', async () => {
         const deferred = <T>() => {
             let resolve!: (value: T) => void;
             const promise = new Promise<T>(yes => { resolve = yes; });
@@ -438,6 +583,7 @@ describe('漫画推理阶段超时契约', () => {
         await flush();
         controller.abort();
         await expect(canceled).resolves.toMatchObject({status: 'rejected', reason: {name: 'AbortError'}});
+        await vi.advanceTimersByTimeAsync(1_500);
         recognizing.resolve({results: []});
         await flush();
         const progress = vi.fn();

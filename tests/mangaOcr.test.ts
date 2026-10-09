@@ -2,14 +2,14 @@ vi.mock('@/src/shared/onnx/resources', async original => ({...await original<any
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 const mocks = vi.hoisted(() => ({assets:vi.fn(),remove:vi.fn(),initialize:vi.fn(),recognize:vi.fn(),destroy:vi.fn(),options:vi.fn(),
     gpu:vi.fn(),cpuCreate:vi.fn(),sessions:[] as any[],inpaintDispose:vi.fn(),bitmapClose:vi.fn(),contexts:[] as any[],canvases:[] as any[],
-    workerPrepare:vi.fn(),workerRequest:vi.fn(),workerRelease:vi.fn(),pace:vi.fn((operation:()=>Promise<unknown>)=>operation()),
+    workerPrepare:vi.fn(),workerRequest:vi.fn(),workerRelease:vi.fn(),workerDispose:vi.fn(),pace:vi.fn((operation:()=>Promise<unknown>)=>operation()),
     wasm:{numThreads:0,wasmPaths:undefined as unknown,proxy:true}}));
 vi.mock('@/src/features/image-translation/services/mangaOcrAssets', async importOriginal => ({...await importOriginal<any>(),loadMangaOcrAssets:mocks.assets,removeMangaOcrAssets:mocks.remove}));
 vi.mock('onnxruntime-web/webgpu',()=>({env:{wasm:mocks.wasm},InferenceSession:{create:mocks.cpuCreate}}));
 vi.mock('@/src/shared/onnx/webgpu',()=>({probeWebGpu:mocks.gpu}));
 vi.mock('ppu-paddle-ocr/web',()=>({PaddleOcrService:class{constructor(options:unknown){mocks.options(options)}detectionSession=mocks.sessions[0];recognitionSession=mocks.sessions[1];async initialize(){return mocks.initialize();}recognize=mocks.recognize;destroy=mocks.destroy;}}));
 vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{dispose:mocks.inpaintDispose}}));
-vi.mock('@/src/features/image-translation/services/mangaInferenceClient',async original=>({...await original<any>(),mangaInferenceClient:{prepare:mocks.workerPrepare,request:mocks.workerRequest,release:mocks.workerRelease}}));
+vi.mock('@/src/features/image-translation/services/mangaInferenceClient',async original=>({...await original<any>(),mangaInferenceClient:{prepare:mocks.workerPrepare,request:mocks.workerRequest,release:mocks.workerRelease,dispose:mocks.workerDispose}}));
 import {createBrowserMangaOcr, createMangaOcrRuntime, mangaOcrRuntime, removeMangaModels, disposeMangaModels} from '@/src/features/image-translation/services/mangaOcr';
 const response = {results:[{text:'Hello world',confidence:0.99,box:{x:10,y:10,width:100,height:20}}]};
 const deferred = <T,>() => {let resolve!:(v:T)=>void,reject!:(e:unknown)=>void;const promise=new Promise<T>((a,b)=>{resolve=a;reject=b});return {promise,resolve,reject}};
@@ -57,7 +57,7 @@ describe('漫画本地神经 OCR 会话',()=>{
         expect(mocks.workerRelease).toHaveBeenCalledTimes(2);expect(mocks.remove).toHaveBeenCalledOnce();
     });
 
-    it('默认 Worker 排队取消不转发新请求，运行中取消丢弃迟到结果并释放端口',async()=>{
+    it('默认 Worker 排队取消不转发新请求，运行中取消丢弃迟到结果并保留暖模型端口',async()=>{
         const pending=deferred<typeof response>(),controller=new AbortController(),queuedController=new AbortController();
         mocks.workerRequest.mockReturnValueOnce(pending.promise);
         const first=mangaOcrRuntime.recognize('active','en',200,200,controller.signal);
@@ -67,10 +67,24 @@ describe('漫画本地神经 OCR 会话',()=>{
         queuedController.abort();await queuedCancelled;expect(mocks.workerRequest).toHaveBeenCalledOnce();
         const cancelled=expect(first).rejects.toMatchObject({name:'AbortError'});
         controller.abort();await cancelled;expect(mocks.workerRelease).not.toHaveBeenCalled();
-        pending.resolve(response);await mangaOcrRuntime.dispose();
-        expect(mocks.workerRelease).toHaveBeenCalledWith('ocr');expect(mocks.workerRequest).toHaveBeenCalledOnce();
+        pending.resolve(response);await tick();
+        expect(mocks.workerRelease).not.toHaveBeenCalled();expect(mocks.workerRequest).toHaveBeenCalledOnce();
         expect(await mangaOcrRuntime.recognize('retry','en',200,200)).toHaveLength(1);
-        expect(mocks.workerPrepare).toHaveBeenCalledTimes(2);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();
+        await mangaOcrRuntime.dispose();expect(mocks.workerRelease).toHaveBeenCalledWith('ocr');
+    });
+
+    it('Worker 正常取消错误不释放暖端口，页面销毁与模型删除硬清理共享 Worker',async()=>{
+        const controller=new AbortController();
+        mocks.workerRequest.mockImplementationOnce(async()=>{controller.abort();throw new DOMException('cancelled','AbortError');});
+        await expect(mangaOcrRuntime.recognize('old','en',200,200,controller.signal)).rejects.toMatchObject({name:'AbortError'});
+        expect(mocks.workerRelease).not.toHaveBeenCalled();
+        expect(await mangaOcrRuntime.recognize('next','en',200,200)).toHaveLength(1);
+        expect(mocks.workerPrepare).toHaveBeenCalledOnce();
+        disposeMangaModels();expect(mocks.workerDispose).toHaveBeenCalledOnce();
+        await tick();await removeMangaModels();
+        expect(mocks.workerDispose).toHaveBeenCalledTimes(2);
+        expect(mocks.remove).toHaveBeenCalledOnce();
     });
 
     it('Worker 上下文使用 OffscreenCanvas 识别整页和气泡，映射坐标并清空所有画布',async()=>{
