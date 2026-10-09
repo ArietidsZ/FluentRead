@@ -44,6 +44,7 @@
           <button type="button" class="pdf-tool-button" :class="{active: openMenu === 'style'}" aria-haspopup="dialog" :aria-expanded="openMenu === 'style'" :aria-label="t('document.pdfReading.style')" :title="t('document.pdfReading.style')" @click="openMenu = openMenu === 'style' ? null : 'style'"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 15.5 8.2 4.5h1.2l4.2 11M5.6 11.8h6.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 6.5v6M13 9.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
           <div v-if="openMenu === 'style'" class="pdf-menu-panel pdf-style-panel" role="dialog" :aria-label="t('document.pdfReading.style')">
             <div class="pdf-style-row"><span>{{ t('document.pdfReading.styleSize') }}</span><div class="pdf-style-stepper"><button type="button" :disabled="textScale <= 0.8" :aria-label="t('document.pdfReading.zoomOut')" @click="textScale = Math.max(0.8, Math.round((textScale - 0.05) * 100) / 100)">−</button><output>{{ Math.round(textScale * 100) }}%</output><button type="button" :disabled="textScale >= 1.3" :aria-label="t('document.pdfReading.zoomIn')" @click="textScale = Math.min(1.3, Math.round((textScale + 0.05) * 100) / 100)">+</button></div></div>
+            <label class="pdf-style-row pdf-style-switch"><span>{{ t('document.pdfReading.styleHighlight') }}</span><input v-model="hoverHighlight" type="checkbox" role="switch" /></label>
             <div class="pdf-style-row"><span>{{ t('document.pdfReading.styleFont') }}</span><div class="pdf-style-fonts" role="group"><button v-for="font in FONT_CHOICES" :key="font" type="button" :class="{selected: textFont === font}" :aria-pressed="textFont === font" @click="textFont = font">{{ t(`document.pdfReading.styleFont.${font}`) }}</button></div></div>
           </div>
         </div>
@@ -136,15 +137,17 @@ const openMenu = ref<'zoom' | 'presentation' | 'search' | 'style' | null>(null);
 /** 译文样式只影响原版排版里的译文文字：字号在原文字号上按比例调整，字体可以跟随原文或固定为宋体、黑体；选择保存在本机。 */
 const FONT_CHOICES = ['auto', 'serif', 'sans'] as const;
 const STYLE_KEY = 'fluentread.pdfReader.textStyle';
-function storedStyle(): {scale: number; font: typeof FONT_CHOICES[number]} {
+function storedStyle(): {scale: number; font: typeof FONT_CHOICES[number]; highlight: boolean} {
   try {
     const value = JSON.parse(globalThis.localStorage?.getItem(STYLE_KEY) || '{}');
-    return {scale: Number.isFinite(value.scale) ? Math.min(1.3, Math.max(0.8, value.scale)) : 1, font: FONT_CHOICES.includes(value.font) ? value.font : 'auto'};
-  } catch {return {scale: 1, font: 'auto'};}
+    return {scale: Number.isFinite(value.scale) ? Math.min(1.3, Math.max(0.8, value.scale)) : 1, font: FONT_CHOICES.includes(value.font) ? value.font : 'auto', highlight: value.highlight !== false};
+  } catch {return {scale: 1, font: 'auto', highlight: true};}
 }
+/** 悬停译文时在原文页标出对应段落；觉得干扰可以关掉。 */
+const hoverHighlight = ref(storedStyle().highlight);
 const textScale = ref(storedStyle().scale);
 const textFont = ref<typeof FONT_CHOICES[number]>(storedStyle().font);
-watch([textScale, textFont], ([scaleValue, font]) => {try {globalThis.localStorage?.setItem(STYLE_KEY, JSON.stringify({scale: scaleValue, font}));} catch { /* 无法写入时只在本次阅读生效。 */ }});
+watch([textScale, textFont, hoverHighlight], ([scaleValue, font, highlightValue]) => {if (!highlightValue) highlight.value = undefined; try {globalThis.localStorage?.setItem(STYLE_KEY, JSON.stringify({scale: scaleValue, font, highlight: highlightValue}));} catch { /* 无法写入时只在本次阅读生效。 */ }});
 /** 搜索同时匹配原文与译文，按阅读顺序列出命中的段落；回车跳到下一处，Shift+回车回到上一处。 */
 const searchInput = ref<HTMLInputElement>();
 const searchQuery = ref('');
@@ -323,7 +326,7 @@ function layerStyle(layout: PageLayout): Record<string, string> {
   return {width: px(width), height: px(height), ...(transform ? {transform} : {})};
 }
 function showHighlight(layout: PageLayout, entry: OverlayEntry): void {
-  if (props.mode !== 'bilingual' || layout.page.rotation) {highlight.value = undefined; return;}
+  if (!hoverHighlight.value || props.mode !== 'bilingual' || layout.page.rotation) {highlight.value = undefined; return;}
   const s = scale.value;
   highlight.value = {pageNumber: layout.page.pageNumber, style: {left: px(entry.rect.x * s - 3), top: px(entry.rect.y * s - 3), width: px(entry.rect.width * s + 6), height: px(entry.rect.height * s + 6)}};
 }
@@ -721,6 +724,11 @@ onBeforeUnmount(() => {
 .pdf-search-count {min-width: 44px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; text-align: center;}
 .pdf-style-panel {flex-direction: column; align-items: stretch; gap: 12px; width: max-content; min-width: 280px; padding: 14px;}
 .pdf-style-row {display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--muted); font-size: 12px; white-space: nowrap;}
+.pdf-style-switch {cursor: pointer;}
+.pdf-style-switch input {appearance: none; position: relative; width: 34px; height: 20px; margin: 0; border-radius: 10px; background: var(--line); cursor: pointer; transition: background .15s;}
+.pdf-style-switch input::after {content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px #10182833; transition: transform .15s;}
+.pdf-style-switch input:checked {background: var(--brand);}
+.pdf-style-switch input:checked::after {transform: translateX(14px);}
 .pdf-style-stepper {display: flex; align-items: center; gap: 4px; color: var(--ink);}
 .pdf-style-stepper output {min-width: 44px; text-align: center; font-variant-numeric: tabular-nums;}
 .pdf-style-fonts {display: flex; padding: 2px; border-radius: 8px; background: var(--surface-soft);}

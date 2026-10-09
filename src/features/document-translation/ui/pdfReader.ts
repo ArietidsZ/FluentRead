@@ -12,7 +12,8 @@ import {buildPdfReadingPlan, type PdfReadingPresentation, type PdfReadingRect} f
 
 export type PdfReaderMode = 'source' | DocumentRenderMode;
 export const PDF_READER_MAX_RESIDENT_PAGES = 5;
-export const PDF_READER_MAX_PAGE_PIXELS = 2_500_000;
+/** 一页的全部画布（对照阅读时是原文与译文两张）合计的像素上限：足够在高分屏上按 2 倍像素比渲染整页，又只有 PDF.js 默认单页上限的一半。 */
+export const PDF_READER_MAX_PAGE_PIXELS = 8_000_000;
 export const PDF_READER_MAX_CANVAS_EDGE = 8192;
 export const PDF_READER_RENDER_CONCURRENCY = 2;
 let pdfJsModule: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')>;
