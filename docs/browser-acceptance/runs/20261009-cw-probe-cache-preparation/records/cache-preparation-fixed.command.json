@@ -1,0 +1,21 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "held storage load",
+    "--reporter=json",
+    "--outputFile=../settings-probe-cache-preparation-20261009/cache-preparation-fixed.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:06:11.502129+00:00",
+  "finishedAt": "2026-10-09T00:06:13.176636+00:00",
+  "durationSeconds": 1.675,
+  "exitCode": 0
+}

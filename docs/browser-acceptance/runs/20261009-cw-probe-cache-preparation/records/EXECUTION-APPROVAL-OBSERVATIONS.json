@@ -1,0 +1,56 @@
+{
+  "scope": "Single execution sandbox exceptions for existing local read-only subprocess/loopback test fixtures, Git shared metadata writes and authorized branch remote read. No persistent product permissions.",
+  "observations": [
+    {
+      "action": "focused-coverage-complete",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": 77819,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:08:36.002174+00:00",
+      "finishedAt": "2026-10-09T00:08:42.427747+00:00"
+    },
+    {
+      "action": "architecture-final",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": 34548,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:09:20.005890+00:00",
+      "finishedAt": "2026-10-09T00:09:32.513749+00:00"
+    },
+    {
+      "action": "full-strict-final",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": 57645,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:09:13.495155+00:00",
+      "finishedAt": "2026-10-09T00:13:06.439376+00:00"
+    },
+    {
+      "action": "remote-pre-push",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": null,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:12:00.232281+00:00",
+      "finishedAt": "2026-10-09T00:12:00.904056+00:00"
+    },
+    {
+      "action": "stage-source",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": null,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:13:27.736864+00:00",
+      "finishedAt": "2026-10-09T00:13:27.741321+00:00"
+    },
+    {
+      "action": "source-commit",
+      "requestedSandboxMode": "require_escalated",
+      "toolSessionId": null,
+      "observedExitCode": 0,
+      "startedAt": "2026-10-09T00:13:33.388723+00:00",
+      "finishedAt": "2026-10-09T00:13:33.396400+00:00"
+    }
+  ],
+  "signedApprovalDecisionsExposedByTools": false,
+  "automaticApprovalRejectionsObserved": false,
+  "historyFabricated": false
+}

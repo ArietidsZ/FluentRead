@@ -1,0 +1,3 @@
+fix: cancel native vision cache preparation waits
+
+Bound each native subscriber cache-load wait by its abort signal and existing timeout, preserving the shared load and dispatched provider lifecycle. Cover native cancellation, disconnect, deadline, late completion and other valid subscribers through actual local entrypoints.

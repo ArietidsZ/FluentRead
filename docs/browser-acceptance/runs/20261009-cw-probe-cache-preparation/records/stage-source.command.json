@@ -1,0 +1,15 @@
+{
+  "command": [
+    "git",
+    "add",
+    "--",
+    "src/services/translation/visionProbe.ts",
+    "tests/settingsVisionPrivacyRoute.test.ts"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:13:27.736864+00:00",
+  "observationOutput": null,
+  "finishedAt": "2026-10-09T00:13:27.741321+00:00",
+  "durationSeconds": 0.004,
+  "exitCode": 0
+}

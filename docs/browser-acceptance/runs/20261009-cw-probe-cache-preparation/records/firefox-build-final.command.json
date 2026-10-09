@@ -1,0 +1,17 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/wxt/bin/wxt.mjs",
+    "build",
+    "-b",
+    "firefox"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:09:56.994935+00:00",
+  "finishedAt": "2026-10-09T00:10:17.668540+00:00",
+  "durationSeconds": 20.674,
+  "exitCode": 0
+}

@@ -1,0 +1,24 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "tests/visionProbe.test.ts",
+    "tests/backgroundVisionProbe.test.ts",
+    "tests/translationDocumentPort.test.ts",
+    "tests/imagePreparationCancellation.test.ts",
+    "tests/translationDocumentLifetime.test.ts",
+    "--no-cache",
+    "--reporter=json",
+    "--outputFile=../settings-probe-cache-preparation-20261009/native-checked.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:07:59.839730+00:00",
+  "finishedAt": "2026-10-09T00:08:05.501830+00:00",
+  "durationSeconds": 5.662,
+  "exitCode": 0
+}

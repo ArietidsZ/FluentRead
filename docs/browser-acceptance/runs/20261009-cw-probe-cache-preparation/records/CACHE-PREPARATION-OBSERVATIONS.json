@@ -1,0 +1,189 @@
+{
+  "baselineHeld": [
+    {
+      "phase": "held",
+      "action": "cancel",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 1,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "cancel",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 1,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "disconnect",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 1,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "disconnect",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 1,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "deadline",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "deadline",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 0,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    }
+  ],
+  "finalHeld": [
+    {
+      "phase": "held",
+      "action": "cancel",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "cancel",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "disconnect",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "disconnect",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "deadline",
+      "late": "resolve",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "held",
+      "action": "deadline",
+      "late": "reject",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    }
+  ],
+  "sharedLoad": [
+    {
+      "phase": "shared-held",
+      "gateReleased": false,
+      "handlerEnded": 1,
+      "registryPending": 1,
+      "subscriptions": 1,
+      "timerDelta": 2,
+      "loadCalls": 1,
+      "providerLeases": 0,
+      "providerRequests": 0
+    },
+    {
+      "phase": "shared-late",
+      "gateReleased": true,
+      "handlerEnded": 2,
+      "registryPending": 0,
+      "subscriptions": 0,
+      "timerDelta": 0,
+      "loadCalls": 1,
+      "providerLeases": 1,
+      "providerRequests": 1
+    }
+  ],
+  "measurement": "Native storage read gate remains unreleased at held observations; delegate real registry.run and handler.handle to observe their settlement. Configuration subscription calls through the real store. Actual storage.load and scheduler.schedule spies delegate, rather than replacing them.",
+  "registryActiveEvidence": "For still-live cancel/deadline owners, real registry.cancel after completion returns cancelled:false; disconnect owner is revoked, so completion of unchanged real registry.run finally is recorded instead.",
+  "lateRejectionEvidence": "All six late resolve/reject controls completed with success=true in the full strict run; Vitest reports no unhandled error."
+}

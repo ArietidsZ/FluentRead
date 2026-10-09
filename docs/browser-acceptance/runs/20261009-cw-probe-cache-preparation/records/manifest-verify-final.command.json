@@ -1,0 +1,11 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/verify-extension-manifests.mjs"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:10:17.902350+00:00",
+  "finishedAt": "2026-10-09T00:10:18.010608+00:00",
+  "durationSeconds": 0.108,
+  "exitCode": 0
+}

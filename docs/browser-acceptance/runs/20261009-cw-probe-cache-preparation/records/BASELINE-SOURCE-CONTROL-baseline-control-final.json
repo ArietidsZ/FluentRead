@@ -1,0 +1,10 @@
+{
+  "src/services/translation/visionProbe.ts": {
+    "baselineSha256": "96fc9a27677918ed7f57e433ecdb67ec850d92564f670c65e1e88f38f9e01b4e",
+    "workingSha256": "2d741f7ef57a43d2e62d5c2e293a9130bfe861f7c9ad86c8ff6a8d5530da3fca"
+  },
+  "baselineExitCode": 1,
+  "baselineCommit": "1dd97226dfb67fac5b4b43fd6625407ce155f06b",
+  "testSha256": "e7ccae74c1841db6eeb7c551bf1bc542983a5e4d5c788f277895d681d5fef090",
+  "restoredBytesIdentical": true
+}

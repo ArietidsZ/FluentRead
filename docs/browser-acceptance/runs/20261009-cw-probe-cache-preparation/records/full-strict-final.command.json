@@ -1,0 +1,24 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "--config",
+    "vitest.coverage.config.ts",
+    "--no-cache",
+    "--coverage",
+    "--coverage.reporter=json",
+    "--coverage.reporter=json-summary",
+    "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:09:13.495155+00:00",
+  "finishedAt": "2026-10-09T00:13:06.439376+00:00",
+  "durationSeconds": 232.944,
+  "exitCode": 0
+}

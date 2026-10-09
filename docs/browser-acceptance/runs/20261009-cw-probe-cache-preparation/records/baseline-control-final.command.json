@@ -1,0 +1,21 @@
+{
+  "command": [
+    "node",
+    "scripts/testing/run-resource-safe.mjs",
+    "--",
+    "node",
+    "node_modules/vitest/vitest.mjs",
+    "run",
+    "tests/settingsVisionPrivacyRoute.test.ts",
+    "--no-cache",
+    "-t",
+    "held storage load",
+    "--reporter=json",
+    "--outputFile=<CW-EVIDENCE>/baseline-control-final.results.json"
+  ],
+  "cwd": "<CW-REPO>",
+  "startedAt": "2026-10-09T00:08:10.141591+00:00",
+  "finishedAt": "2026-10-09T00:08:11.776066+00:00",
+  "durationSeconds": 1.634,
+  "exitCode": 1
+}

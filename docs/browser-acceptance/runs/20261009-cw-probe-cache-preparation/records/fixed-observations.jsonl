@@ -1,0 +1,12 @@
+{"phase":"held","action":"cancel","late":"resolve","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"cancel","late":"resolve","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"held","action":"disconnect","late":"resolve","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"disconnect","late":"resolve","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"held","action":"deadline","late":"resolve","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"deadline","late":"resolve","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"held","action":"cancel","late":"reject","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"cancel","late":"reject","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"held","action":"disconnect","late":"reject","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"disconnect","late":"reject","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"held","action":"deadline","late":"reject","gateReleased":false,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}
+{"phase":"late","action":"deadline","late":"reject","gateReleased":true,"handlerEnded":1,"registryPending":0,"subscriptions":0,"timerDelta":0,"loadCalls":1,"providerLeases":0,"providerRequests":0}

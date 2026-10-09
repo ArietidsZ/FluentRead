@@ -1,0 +1,323 @@
+{
+  "sourceCommit": "ba450ef270b9df420847608efe595468931ecf9d",
+  "baselineHead": "1dd97226dfb67fac5b4b43fd6625407ce155f06b",
+  "changedFiles": [
+    "src/services/translation/visionProbe.ts",
+    "tests/settingsVisionPrivacyRoute.test.ts"
+  ],
+  "productionFileCount": 1,
+  "settingsCaseCount": 66,
+  "newCases": 10,
+  "baselineNegative": {
+    "success": false,
+    "numTotalTests": 66,
+    "numPassedTests": 0,
+    "numFailedTests": 6,
+    "numPendingTests": 60,
+    "numTodoTests": 0,
+    "testFileCount": 1,
+    "exitCode": 1
+  },
+  "nativeEntryCheck": {
+    "success": true,
+    "numTotalTests": 175,
+    "numPassedTests": 175,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 6,
+    "exitCode": 0
+  },
+  "focusedDiagnostic": {
+    "success": true,
+    "numTotalTests": 108,
+    "numPassedTests": 108,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 5,
+    "exitCode": 0
+  },
+  "fullStrictFinal": {
+    "tests": {
+      "success": true,
+      "numTotalTests": 10369,
+      "numPassedTests": 10369,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0,
+      "testFileCount": 412,
+      "exitCode": 0
+    },
+    "coverage": {
+      "lines": {
+        "total": 66212,
+        "covered": 66212,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 66212,
+        "covered": 66212,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4619,
+        "covered": 4619,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 33938,
+        "covered": 33938,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      }
+    }
+  },
+  "architectureFinal": {
+    "success": true,
+    "numTotalTests": 1379,
+    "numPassedTests": 1379,
+    "numFailedTests": 0,
+    "numPendingTests": 0,
+    "numTodoTests": 0,
+    "testFileCount": 32,
+    "exitCode": 0
+  },
+  "testAudit": {
+    "status": "ok",
+    "groups": {
+      "architecture": 32,
+      "unit": 308,
+      "functional": 122,
+      "regression": 39
+    },
+    "files": 501,
+    "cases": 6965
+  },
+  "gateCommands": {
+    "test-audit-complete": {
+      "command": [
+        "node",
+        "scripts/testing/audit-test-suite.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:44.709051+00:00",
+      "finishedAt": "2026-10-09T00:09:45.593824+00:00",
+      "durationSeconds": 0.885,
+      "exitCode": 0
+    },
+    "architecture-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "tests/architecture/moduleBoundaries.test.ts",
+        "tests/architecture/providerBoundaries.test.ts",
+        "tests/architecture/sourceFileHeaders.test.ts",
+        "tests/architecture/verificationOwnership.test.ts",
+        "tests/backgroundConfigPersistenceHandler.test.ts",
+        "tests/backgroundConfigStorage.test.ts",
+        "tests/backgroundConnectionTestHandler.test.ts",
+        "tests/backgroundCoreHandlers.test.ts",
+        "tests/backgroundMessageRouter.test.ts",
+        "tests/backgroundProviderRuntime.test.ts",
+        "tests/freeTranslationWeightsHandler.test.ts",
+        "tests/backgroundRetiredContentScripts.test.ts",
+        "tests/backgroundTranslationHandler.test.ts",
+        "tests/selectionTtsBackgroundHandler.test.ts",
+        "tests/browserFocusSafety.test.ts",
+        "tests/harnessBackground.test.ts",
+        "tests/harnessAppRuntime.test.ts",
+        "tests/contentTrustBoundary.test.ts",
+        "tests/extensionManifestContract.test.ts",
+        "tests/fullRegressionRunner.test.ts",
+        "tests/imageTranslationSecurityContract.test.ts",
+        "tests/popupFeatureVisibility.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptMetadata.test.ts",
+        "tests/userscriptPrivacy.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "tests/freeTranslationSettings.test.ts",
+        "tests/writingBackground.test.ts",
+        "tests/requestLimitSettings.test.ts",
+        "tests/backgroundVisionProbe.test.ts",
+        "tests/requestHeaderRuntime.test.ts",
+        "tests/extensionSizeBudget.test.ts",
+        "--no-cache",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/architecture-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:20.005890+00:00",
+      "finishedAt": "2026-10-09T00:09:32.513749+00:00",
+      "durationSeconds": 12.508,
+      "exitCode": 0
+    },
+    "typecheck-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vue-tsc/bin/vue-tsc.js",
+        "--noEmit"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:21.509024+00:00",
+      "finishedAt": "2026-10-09T00:09:36.137641+00:00",
+      "durationSeconds": 14.629,
+      "exitCode": 0
+    },
+    "chrome-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:36.363673+00:00",
+      "finishedAt": "2026-10-09T00:09:56.764210+00:00",
+      "durationSeconds": 20.401,
+      "exitCode": 0
+    },
+    "firefox-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/wxt/bin/wxt.mjs",
+        "build",
+        "-b",
+        "firefox"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:56.994935+00:00",
+      "finishedAt": "2026-10-09T00:10:17.668540+00:00",
+      "durationSeconds": 20.674,
+      "exitCode": 0
+    },
+    "manifest-verify-final": {
+      "command": [
+        "node",
+        "scripts/testing/verify-extension-manifests.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:10:17.902350+00:00",
+      "finishedAt": "2026-10-09T00:10:18.010608+00:00",
+      "durationSeconds": 0.108,
+      "exitCode": 0
+    },
+    "userscript-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vite/bin/vite.js",
+        "build",
+        "--config",
+        "userscript/vite.config.ts"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:10:18.245827+00:00",
+      "finishedAt": "2026-10-09T00:10:22.020218+00:00",
+      "durationSeconds": 3.774,
+      "exitCode": 0
+    },
+    "userscript-verify-final": {
+      "command": [
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:10:22.256669+00:00",
+      "finishedAt": "2026-10-09T00:10:22.287081+00:00",
+      "durationSeconds": 0.03,
+      "exitCode": 0
+    },
+    "full-strict-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--config",
+        "vitest.coverage.config.ts",
+        "--no-cache",
+        "--coverage",
+        "--coverage.reporter=json",
+        "--coverage.reporter=json-summary",
+        "--coverage.reportsDirectory=<CW-EVIDENCE>/full-strict-final",
+        "--reporter=json",
+        "--outputFile=<CW-EVIDENCE>/full-strict-final.results.json"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:09:13.495155+00:00",
+      "finishedAt": "2026-10-09T00:13:06.439376+00:00",
+      "durationSeconds": 232.944,
+      "exitCode": 0
+    },
+    "docs-build-final": {
+      "command": [
+        "node",
+        "scripts/testing/run-resource-safe.mjs",
+        "--",
+        "node",
+        "node_modules/vitepress/bin/vitepress.js",
+        "build",
+        "docs"
+      ],
+      "cwd": "<CW-REPO>",
+      "startedAt": "2026-10-09T00:10:22.526106+00:00",
+      "finishedAt": "2026-10-09T00:10:25.436736+00:00",
+      "durationSeconds": 2.911,
+      "exitCode": 0
+    }
+  },
+  "userscriptProof": {
+    "baselineCommit": "09814056290d5b805717851b5a0244fdc97333d6",
+    "bytes": 1954998,
+    "sha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "source": "prior committed source-bound artifact proof and local byte-identical build",
+    "finalBytes": 1954998,
+    "finalSha256": "55aeef43aba4fcba6f4d54a16d9b8c5260f213b70b30fb19b8bd54b148c9febe",
+    "identicalSha256AndSize": true,
+    "byteDelta": 0,
+    "budget": 1955000,
+    "headroom": 2,
+    "budgetsAliasesDependenciesUnchanged": true,
+    "realUserscriptGuiAcceptance": false
+  },
+  "scope": "Only native shared capability-cache preparation waiting. Existing provider/lease/registry lifecycle remains unchanged.",
+  "behavior": "Each native subscriber can abort or time out while storage.load remains pending. Late shared load success/rejection is consumed. One cancelled subscriber preserves another valid subscriber and the shared cache load.",
+  "timeoutScope": "Bound the pre-provider cache wait by the existing timeout option and 30s cap. Existing active-probe timeout and outer manual handler deadline remain unchanged; no new total-deadline claim for standalone calls.",
+  "fixtureBoundary": "Actual native Port/client/server/router, typed manual handler, real registry/config subscription/storage adapter/shared singleton/broker/provider registry/AI SDK. Browser/storage/statistics/HTTP boundaries are synthetic. UI is unmounted only in these direct Port resource measurements to exclude its successful-cache refresh timer.",
+  "failedExperiments": "Initial success-path global timer assertion counted the existing UI cache refresh timer. Direct-Port fixture now unmounts UI before measurement; no production timer behavior changed. Both initial and final negative-control observations retained.",
+  "realApiGuiGpuOrModelDownloadAcceptance": false,
+  "pr883Operation": false,
+  "extraAgentsOrWorkTasksStarted": false,
+  "persistentProductPermissionsChanged": false,
+  "versionsDependenciesAliasesBudgetsChanged": false,
+  "remainingEntries": [
+    "online dictionary access/raw-cache privacy isolation"
+  ],
+  "approvalEvidence": "Per-execution requests and actual successful tool execution observed; no signed approval decisions exposed by tools and no historical approvals fabricated."
+}
