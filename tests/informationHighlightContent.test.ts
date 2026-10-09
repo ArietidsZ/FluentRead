@@ -629,9 +629,12 @@ describe('content composition and runtime score messages', () => {
         press(f); await f.settle(); press(f);
         expect(pageNotice.mock.calls.map(([message, tone, options]) => [message, tone, options.key])).toEqual([
             ['智能高亮已开启，正在用本地模型分析本页', 'success', 'information-highlight'],
-            ['请先在设置中下载本地模型，或改用关键词方式', 'error', 'information-highlight'],
+            ['本地模型尚未下载，本页先用关键词方式；可在设置中下载模型', 'success', 'information-highlight'],
             ['智能高亮已关闭', 'success', 'information-highlight']]);
         runtime.feature.unmount!(); pageNotice.mockClear();
+        const h = fixture(), broken = createPageInformationHighlightRuntime({document: h.document, config: {on: true, uiLanguage: 'zh-CN', informationHighlight: {...defaults, mode: 'surprisal-local'}}, send: vi.fn(async () => ({success: false}))});
+        broken.feature.mount({ctx: {} as never, signal: new AbortController().signal, isCurrent: () => true}); press(h); await h.settle();
+        expect(pageNotice.mock.calls.at(-1)!.slice(0, 2)).toEqual(['此页分析没有完成，可再按一次快捷键重试', 'error']); broken.feature.unmount!(); pageNotice.mockClear();
         const injected = vi.fn(), g = fixture(), custom = createPageInformationHighlightRuntime({document: g.document, config: {on: true, informationHighlight: {...defaults}}, send: vi.fn(), notice: injected});
         custom.feature.mount({ctx: {} as never, signal: new AbortController().signal, isCurrent: () => true}); press(g);
         expect(injected).toHaveBeenCalledWith('on'); expect(pageNotice).not.toHaveBeenCalled(); custom.feature.unmount!();
@@ -692,13 +695,23 @@ describe('content composition and runtime score messages', () => {
         press(keywords.f); await keywords.f.settle(); press(keywords.f); expect(keywords.notice.mock.calls).toEqual([['on'], ['off']]); keywords.runtime.unmount();
         const missing = await run({...defaults, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
         press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls).toEqual([['onModel'], ['modelNotReady']]);
-        missing.runtime.retry(); await missing.f.settle(); expect(missing.notice).toHaveBeenCalledTimes(2); missing.runtime.unmount();
+        // 本页已改用关键词方式并画出高亮；设置里的方式不变，关掉再按一次会重新尝试模型。
+        await missing.f.settle(); expect(missing.runtime.getState()).toMatchObject({enabled: true, phase: 'active', mode: 'keywords'}); expect(missing.f.painted().length).toBeGreaterThan(0);
+        press(missing.f); press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls.slice(2)).toEqual([['off'], ['onModel'], ['modelNotReady']]); missing.runtime.unmount();
+        for (const error of ['INFORMATION_HIGHLIGHT_WEBGPU_UNAVAILABLE', 'INFORMATION_HIGHLIGHT_F16_UNAVAILABLE']) {
+            const device = await run({...defaults, mode: 'surprisal-local'}, {success: false, error});
+            press(device.f); await device.f.settle(); await device.f.settle(); expect(device.notice.mock.calls).toEqual([['onModel'], ['modelUnsupported']]);
+            expect(device.runtime.getState().mode).toBe('keywords'); expect(device.f.painted().length).toBeGreaterThan(0); device.runtime.unmount();
+        }
+        // 回退安排好之后页面被关闭：迟到的回退不再生效。
+        const closed = await run({...defaults, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
+        press(closed.f); vi.advanceTimersByTime(0); await closed.f.flush(); closed.runtime.setEnabled(false); await closed.f.settle(); expect(closed.runtime.getState().enabled).toBe(false); closed.runtime.unmount();
         const failed = await run({...defaults, mode: 'surprisal-local'}, {success: false});
         press(failed.f); await failed.f.settle(); expect(failed.notice.mock.calls).toEqual([['onModel'], ['error']]); failed.runtime.unmount();
         const unsupported = await run({...defaults}, undefined, false);
         press(unsupported.f); expect(unsupported.notice.mock.calls).toEqual([['unsupported']]); unsupported.runtime.unmount();
         const automatic = await run({...defaults, enabled: true, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
-        await automatic.f.settle(); expect(automatic.runtime.getState().phase).toBe('error'); expect(automatic.notice).not.toHaveBeenCalled(); automatic.runtime.unmount();
+        await automatic.f.settle(); await automatic.f.settle(); expect(automatic.runtime.getState()).toMatchObject({phase: 'active', mode: 'keywords'}); expect(automatic.notice).not.toHaveBeenCalled(); automatic.runtime.unmount();
         const silent = fixture(), quiet = createInformationHighlightContentRuntime({document: silent.document, preferences: {...defaults, mode: 'surprisal-local'}, send: vi.fn(async () => ({success: false}))});
         quiet.mount(new AbortController().signal, () => true); press(silent); await silent.settle(); expect(quiet.getState().phase).toBe('error'); quiet.unmount();
     });

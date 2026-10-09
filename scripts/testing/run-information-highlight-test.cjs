@@ -305,11 +305,13 @@ function popupSourceContract(){
     // 模型尚未下载时用快捷键开启：页面给出明确提示，而不是毫无反应。
     await step('model-mode-before-download',()=>support.patchStoredConfig(control,{informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'surprisal-local',density:'medium',color:'amber',style:'background',intensity:'standard'}}));
     await delay(600);await step('hotkey-on-without-model',()=>page.keyboard.press('Alt+KeyH'));
-    await step('hotkey-model-not-ready-notice',()=>page.waitForFunction(()=>(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'').includes('请先在设置中下载本地模型'),null,{timeout:30000}));
+    await step('hotkey-model-not-ready-notice',()=>page.waitForFunction(()=>(document.querySelector('#fluent-read-page-notice-host')?.shadowRoot?.textContent||'').includes('本地模型尚未下载'),null,{timeout:30000}));
     const missingModelNotice=await step('hotkey-model-not-ready-text',noticeText);
+    // 没有模型时本页改用关键词方式，读者仍然得到高亮。
+    await step('hotkey-without-model-keyword-fallback',()=>page.waitForFunction(()=>[...CSS.highlights].some(([name,paint])=>name.startsWith('fluentread-information-highlight')&&paint.size>0),null,{timeout:30000}));
     await step('hotkey-off-without-model',()=>page.keyboard.press('Alt+KeyH'));
     await step('keywords-mode-restored',()=>support.patchStoredConfig(control,{informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'keywords',density:'medium',color:'amber',style:'background',intensity:'standard'}}));
-    await delay(600);report.cases.push({id:'hotkey-without-downloaded-model-shows-page-notice',missingModelNotice});
+    await delay(600);report.cases.push({id:'hotkey-without-downloaded-model-falls-back-to-keywords-with-notice',missingModelNotice});
     assert.equal(await step('hotkey-settings-row',()=>control.locator('#information-highlight-settings [data-information-highlight-hotkey]').innerText()),'Alt+H');
     const hotkeySwitch=control.locator('#information-highlight-settings [data-information-highlight-hotkey-enabled]').first();
     await step('hotkey-switch-off',async()=>{await hotkeySwitch.scrollIntoViewIfNeeded();await hotkeySwitch.click();});

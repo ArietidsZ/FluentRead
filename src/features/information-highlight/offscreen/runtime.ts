@@ -16,7 +16,8 @@ export async function probeInformationHighlightWebGpu(): Promise<InformationHigh
     if (!gpu) return {supported: false, reason: 'INFORMATION_HIGHLIGHT_WEBGPU_UNAVAILABLE'};
     try {
         const adapter = await gpu.requestAdapter();
-        return adapter?.features.has('shader-f16') ? {supported: true} : {supported: false, reason: 'INFORMATION_HIGHLIGHT_F16_UNAVAILABLE'};
+        if (!adapter) return {supported: false, reason: 'INFORMATION_HIGHLIGHT_WEBGPU_UNAVAILABLE'};
+        return adapter.features.has('shader-f16') ? {supported: true} : {supported: false, reason: 'INFORMATION_HIGHLIGHT_F16_UNAVAILABLE'};
     } catch {return {supported: false, reason: 'INFORMATION_HIGHLIGHT_WEBGPU_UNAVAILABLE'};}
 }
 export interface InformationHighlightRuntimeDependencies {
