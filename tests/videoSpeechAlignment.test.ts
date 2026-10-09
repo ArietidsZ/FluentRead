@@ -95,4 +95,30 @@ describe('音频停顿与完整字幕对齐', () => {
     expect(findVideoAiPauseBoundary(audio)).toBe(0);
   });
 
+  it('低音量词尾与原幅一样保留边界，数字停顿仍可作为分窗边界', () => {
+    const audio = pcm(10000, [[0, 6100], [7500, 10000]]);
+    const quiet = audio.map(sample => sample * 0.003);
+    expect(findVideoAiPauseBoundary(quiet)).toBe(findVideoAiPauseBoundary(audio));
+    const segments = [{startMs: 0, endMs: 6800, text: 'First original sentence.'},
+      {startMs: 6800, endMs: 10000, text: 'Quiet final word.'}];
+    expect(alignVideoAiSegmentsToSpeech(quiet, segments)).toEqual(alignVideoAiSegmentsToSpeech(audio, segments));
+    const quietTail = pcm(10400, [[0, 9200]]);
+    quietTail.fill(0.0001, 9700 * 16);
+    expect(findVideoAiPauseBoundary(quietTail.subarray(0, 10000 * 16))).toBe(9450);
+    expect(alignVideoAiSegmentsToSpeech(quietTail, [{startMs: 0, endMs: 10400, text: 'Keep the final word.'}])[0].endMs).toBe(10400);
+  });
+
+  it('稳定低量底噪有明显语音差距时仍自适应，恒定弱声不猜测停顿', () => {
+    const audio = new Float32Array(6000 * 16).fill(0.00008);
+    audio.fill(0.0008, 0, 1800 * 16);
+    audio.fill(0.0008, 3200 * 16, 5000 * 16);
+    expect(findVideoAiPauseBoundary(audio)).toBe(5500);
+    const constant = new Float32Array(6000 * 16).fill(0.00008);
+    expect(findVideoAiPauseBoundary(constant)).toBe(0);
+    const spike = new Float32Array(320);
+    spike[0] = 2 / 32768;
+    expect(alignVideoAiSegmentsToSpeech(spike, [{startMs: 0, endMs: 20}])).toEqual([{startMs: 0, endMs: 20}]);
+    expect(findVideoAiPauseBoundary(new Float32Array(10000 * 16).fill(1 / 32768))).toBe(0);
+  });
+
 });

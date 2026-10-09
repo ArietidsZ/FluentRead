@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.worker.ts
  * 文件职责：运行独立的 Whisper ONNX Worker，复用模型 session 并执行受限时长的本地音频推理。
- * 主要内容：配置 WASM/WebGPU 后端、串行处理请求、复用有界线程与计算间歇，线程失效请求单线程重建，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
+ * 主要内容：配置 WASM/WebGPU 后端、串行处理请求、复用有界线程与计算间歇，线程失效请求单线程重建，跳过数字静音并恢复裁剪偏移，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
  * 模块边界：只运行模型与 Worker 消息循环，不访问页面 DOM、后台消息或共享 Offscreen 业务状态。
  */
 import {forceSingleThreadInference, localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
@@ -10,6 +10,7 @@ import {
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
   isDegenerateVideoTranscript,
+  prepareWhisperAudioWindow,
 } from '@/src/features/video-subtitle/transcription';
 import {
   VIDEO_AI_MODEL_REMOTE_HOST,
@@ -354,6 +355,7 @@ async function transcribeAudioOnce(
   model: ReturnType<typeof normalizeVideoLocalTranscriptionModel>,
   boundedAudio: Float32Array,
   retryDegenerate = false,
+  generationAudioSeconds = boundedAudio.length / 16_000,
 ): Promise<WorkerTranscriptionResult> {
   const transcriber = await getLocalTranscriber(model);
   const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
@@ -368,7 +370,7 @@ async function transcribeAudioOnce(
   const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), MAX_REALTIME_INFERENCE_MS);
   let output: { text?: unknown; chunks?: unknown };
   try {
-    const options = buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, boundedAudio.length / 16_000, stoppingCriteria);
+    const options = buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, generationAudioSeconds, stoppingCriteria);
     if (retryDegenerate) {
       options.no_repeat_ngram_size = 4;
       options.repetition_penalty = 1.15;
@@ -386,7 +388,7 @@ async function transcribeAudioOnce(
     && output.chunks.some(chunk => isDegenerateVideoTranscript(chunk?.text)))) {
     const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
     if (sessionKey) detectedLanguages.delete(`${transcriberModelId}:${sessionKey}`);
-    if (!retryDegenerate) return transcribeAudioOnce(request, model, boundedAudio, true);
+    if (!retryDegenerate) return transcribeAudioOnce(request, model, boundedAudio, true, generationAudioSeconds);
     throw new Error('AI 字幕识别出现异常重复，请在视频设置中指定原语言或改用 Base 模型后重新识别');
   }
 
@@ -414,7 +416,10 @@ async function transcribeAudioOnce(
 async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscriptionResult> {
   const model = normalizeVideoLocalTranscriptionModel(request.model);
   const audio = request.audio || new Float32Array();
-  if (audio.length === 0) {
+  const maxSamples = MAX_WHISPER_AUDIO_SECONDS * 16_000;
+  const boundedAudio = audio.length > maxSamples ? audio.subarray(0, maxSamples) : audio;
+  const prepared = prepareWhisperAudioWindow(boundedAudio);
+  if (prepared.audio.length === 0) {
     return {
       text: '',
       segments: [],
@@ -422,13 +427,25 @@ async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscript
       backend: transcriberBackend || undefined,
       threads: transcriberBackend === 'wasm' ? transcriberThreads : undefined,
       dtype: transcriberDtype || undefined,
+      inferenceMs: 0,
+      audioDurationMs: prepared.sourceDurationMs,
     };
   }
 
-  const maxSamples = MAX_WHISPER_AUDIO_SECONDS * 16_000;
-  const boundedAudio = audio.length > maxSamples ? audio.subarray(0, maxSamples) : audio;
   try {
-    return await transcribeAudioOnce(request, model, boundedAudio);
+    // 静音裁剪不缩减原窗 token 预算，短促但快速的对白仍有足够解码空间。
+    const result = await transcribeAudioOnce(request, model, prepared.audio, false, boundedAudio.length / 16_000);
+    const segments = result.segments.map(segment => ({
+      ...segment,
+      startMs: segment.startMs + prepared.offsetMs,
+      endMs: segment.endMs + prepared.offsetMs,
+    }));
+    // 无 timestamp 的短句仍必须保留裁剪位置；否则调用方会把它铺满原窗静音。
+    if (segments.length === 0 && result.text
+      && prepared.audio.length !== boundedAudio.length) {
+      segments.push({startMs: prepared.offsetMs, endMs: prepared.offsetMs + prepared.audio.length / 16, text: result.text});
+    }
+    return {...result, segments, audioDurationMs: prepared.sourceDurationMs};
   } catch (error) {
     if (!(error instanceof WebGpuFallbackError)) throw error;
     disableWebGpu(error);

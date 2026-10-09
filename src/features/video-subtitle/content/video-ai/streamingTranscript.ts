@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/streamingTranscript.ts
- * 文件职责：把 Whisper 滑动窗口文本归并为可读、可修正且身份稳定的实时字幕 cue。
- * 主要内容：处理跨窗重叠、边界重复、否定语义保护、短片段暂存和原位校正。
+ * 文件职责：把 Whisper 滑动窗口文本归并为可读、可修正且身份稳定的实时或完整字幕 cue。
+ * 主要内容：处理跨窗重叠、边界重复、否定语义保护、实时短片段暂存、完整音频段提交和原位校正。
  * 模块边界：只处理转写文本与 spoken 时间，不调用模型、不管理音频节点或翻译服务。
  */
 import type { VideoSubtitleCue } from '../youtubeSubtitleData';
@@ -28,6 +28,11 @@ export interface VideoAiStabilizedCue extends VideoSubtitleCue {
   /** 播放器时间轴上，推理结果真正可用的时刻。 */
   availableAtMs: number;
   spokenEndMs: number;
+}
+
+export interface VideoAiTranscriptStabilizerOptions {
+  /** 完整模式的输入音频段已经读完；短句可提交，实时模式仍等待跨窗确认。 */
+  mode?: 'realtime' | 'complete';
 }
 
 interface TranscriptPhrase {
@@ -516,6 +521,11 @@ function isConfirmedShortSentence(phrase: TranscriptPhrase): boolean {
   return endsWithStrongPunctuation(phrase.text) && (words.length >= 2 || cjkCount >= 2);
 }
 
+function isCompletedShortPhrase(phrase: TranscriptPhrase): boolean {
+  const {words, cjkCount} = getPhraseUnits(phrase);
+  return phrase.endMs - phrase.startMs >= 300 && (words.length >= 2 || cjkCount >= 2);
+}
+
 /**
  * 首个短窗口不要等下一次完整确认才上屏。只放行至少四个英文词、六个
  * CJK 字符或足够长的可读前缀；“uh”“The screen.” 这类短片段仍由原来的
@@ -625,13 +635,16 @@ function toCue(
 
 /**
  * 把重叠 Whisper 窗口变成稳定、可读的 cue。短词先保留为候选，只有下一
- * 个窗口确认、与后文组成可读短语，或等待达到上限后才提交。
+ * 个窗口确认、与后文组成可读短语，或等待达到上限后才提交。完整音频段
+ * 必须显式传入 complete 模式，不能由 availableAtMs 推断提交策略。
  */
 export class VideoAiTranscriptStabilizer {
   private previousPhrases: TranscriptPhrase[] = [];
   private heldPhrase: TranscriptPhrase | null = null;
   private committedPhrases: TranscriptPhrase[] = [];
   private cueSequence = 0;
+
+  constructor(private readonly options: VideoAiTranscriptStabilizerOptions = {}) {}
 
   reset(keepCueSequence = false): void {
     this.previousPhrases = [];
@@ -735,7 +748,9 @@ export class VideoAiTranscriptStabilizer {
     if (combinedSpanMs > VIDEO_AI_MAX_CUE_MS) return null;
 
     const previousWithoutFalseStop = previous.text.replace(/[.!?。！？]+([”’"']?)$/, '$1');
-    const continuation = getVideoAiTranscriptNovelSuffix(previousWithoutFalseStop, phrase.text);
+    // prepareNovelPhrase 已经剥离重叠前缀。不能再拿新增后缀在完整前文里
+    // 做 contains 去重，否则前文出现过的合法句尾词会被第二次吞掉。
+    const continuation = phrase.text;
     previous.text = `${previousWithoutFalseStop} ${continuation}`
       .replace(/\s+([,.;!?，。；！？])/g, '$1')
       .trim();
@@ -810,7 +825,8 @@ export class VideoAiTranscriptStabilizer {
   ingest(window: VideoAiTranscriptWindow): VideoAiStabilizedCue[] {
     const phrases = normalizeWindowPhrases(window);
     const output: VideoAiStabilizedCue[] = [];
-    const shortWindow = window.durationMs < 2_000 && this.committedPhrases.length === 0;
+    const shortWindow = window.durationMs < 2_000 && this.committedPhrases.length === 0
+      && this.options.mode !== 'complete';
 
     if (phrases.length === 0 && this.heldPhrase
       && window.availableAtMs - this.heldPhrase.firstSeenAtMs >= VIDEO_AI_SHORT_FRAGMENT_HOLD_MS) {
@@ -870,7 +886,8 @@ export class VideoAiTranscriptStabilizer {
       const ready = (endsWithStrongPunctuation(novelPhrase.text) && isReadablePhrase(novelPhrase))
         || (confirmed && (isReadablePhrase(novelPhrase)
           || isConfirmedReadablePhrase(novelPhrase)
-          || isConfirmedShortSentence(novelPhrase)));
+          || isConfirmedShortSentence(novelPhrase)))
+        || (this.options.mode === 'complete' && isCompletedShortPhrase(novelPhrase));
       if (ready) {
         output.push(this.commit(novelPhrase, window.availableAtMs, shortWindow));
       } else if (isPreviewablePhrase(novelPhrase)) {

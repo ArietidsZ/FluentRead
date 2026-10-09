@@ -438,8 +438,18 @@ describe('video player menu composition', () => {
     const menu = createVideoPlayerMenu('zh-CN', true);
     const button = menu.querySelector<HTMLButtonElement>('[data-action="toggle-ai-subtitle"]')!;
 
-    renderVideoAiMenu(menu, state({active: true, fullActive: true, phase: 'capturing'}), 'zh-CN');
+    renderVideoAiMenu(menu, state({active: true, fullActive: true, phase: 'capturing',
+      progress: {...progress(0), capturedMs: 0, transcribedMs: 0}}), 'zh-CN');
     expect(button.textContent).toContain('读取音频中');
+    expect(button.dataset.progress).toBe('indeterminate');
+
+    renderVideoAiMenu(menu, state({active: true, fullActive: true, phase: 'capturing',
+      progress: {...progress(0.2), capturedMs: 4000, durationMs: 10000, transcribedMs: 0}}), 'zh-CN');
+    expect(button.textContent).toContain('20%');
+    expect(button.dataset.progress).toBe('determinate');
+    renderVideoAiMenu(menu, state({active: true, fullActive: true, phase: 'capturing',
+      progress: {...progress(0.3), capturedMs: 7000, durationMs: 10000, transcribedMs: 4000}}), 'zh-CN');
+    expect(button.textContent).toContain('识别 30%');
 
     renderVideoAiMenu(menu, state({active: true, fullActive: true, phase: 'transcribing', progress: progress(0.42)}), 'zh-CN');
     expect(button.textContent).toContain('识别 42%');

@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/cueTimeline.ts
  * 文件职责：合并 AI 字幕 cue、维护有限可变尾部并按 spoken 时间选择当前 cue。
- * 主要内容：处理重叠窗口、短暂时间孔洞、迟到识别元数据和严格播放头可见性。
+ * 主要内容：处理重叠窗口、短暂时间孔洞、迟到识别元数据和严格播放头可见性，将完成的识别字幕转换为可立即回放的原文时间轴。
  * 模块边界：只处理时间轴数据结构，不读取播放器、不触发翻译，也不修改页面 DOM。
  */
 import type { VideoSubtitleCue } from '../youtubeSubtitleData';
@@ -29,6 +29,22 @@ export const VIDEO_AI_MUTABLE_TAIL_MS = 12_000;
 type VideoAiTimelineCue = VideoSubtitleCue
   & Partial<Pick<VideoAiStabilizedCue, 'availableAtMs' | 'spokenEndMs'>>
   & { translationAvailableAtMs?: number };
+
+function normalizeCueText(text: string): string {
+  return text.replace(/[\s\u3000]+/g, ' ').trim();
+}
+
+/** 完整识别完成后立即回放原文；只使用 spoken 时长，不把译文预取当成可用门槛。 */
+export function finalizeVideoAiCuesForPlayback(cues: readonly VideoAiStabilizedCue[]): VideoSubtitleCue[] {
+  return cues.map(cue => ({
+    ...cue,
+    startMs: Math.max(0, cue.startMs),
+    durationMs: Math.max(1, cue.spokenEndMs - cue.startMs),
+    text: normalizeCueText(cue.text),
+    availableAtMs: 0,
+    translationAvailableAtMs: 0,
+  })).filter(cue => cue.text);
+}
 
 function getAiCueTranslationAvailableAtMs(cue: VideoSubtitleCue): number {
   const value = (cue as VideoAiTimelineCue).translationAvailableAtMs;
@@ -80,7 +96,7 @@ export function normalizeVideoAiSubtitleTimeline(cues: VideoSubtitleCue[]): Vide
       durationMs: Number.isFinite(cue.durationMs)
         ? Math.max(VIDEO_AI_CUE_MIN_DURATION_MS, cue.durationMs)
         : VIDEO_AI_CUE_MIN_DURATION_MS,
-      text: cue.text.replace(/[\s\u3000]+/g, ' ').trim(),
+      text: normalizeCueText(cue.text),
     }))
     .sort((left, right) => left.startMs - right.startMs);
 
@@ -135,7 +151,7 @@ export function mergeVideoAiSubtitleCues(cues: VideoSubtitleCue[]): VideoSubtitl
       durationMs: Number.isFinite(cue.durationMs)
         ? Math.max(VIDEO_AI_CUE_MIN_DURATION_MS, cue.durationMs)
         : VIDEO_AI_CUE_MIN_DURATION_MS,
-      text: cue.text.replace(/[\s\u3000]+/g, ' ').trim(),
+      text: normalizeCueText(cue.text),
     }))
     .sort((left, right) => left.startMs - right.startMs);
 

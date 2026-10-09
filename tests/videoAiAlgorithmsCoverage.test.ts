@@ -31,7 +31,7 @@ describe('Video AI algorithm boundary coverage', () => {
     sparse[1] = Number.NaN;
     const activity = measureVideoAiSpeechActivity(sparse, 1_000);
     expect(activity.peak).toBeCloseTo(0.01, 6);
-    expect(activity.active).toBe(false);
+    expect(activity.active).toBe(true);
 
     const resampler = new VideoAiStreamingResampler();
     expect(Array.from(resampler.process([new Float32Array([1])], 8_000, 16_000))).toEqual([1]);

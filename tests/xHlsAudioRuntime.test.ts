@@ -23,6 +23,94 @@ function fixture(urls: string[]) {
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); FakeContext.closed = 0; });
 
 describe('X 首页音轨恢复', () => {
+  it('uses metadata MP4 when no manifest was observed, preferring low bitrate and matching the current media', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    const mp4 = (id: string, name: string) => `https://video.twimg.com/ext_tw_video/${id}/pu/vid/${name}.mp4`;
+    reader.rememberMedia(mp4('111', 'large'), 2000000);
+    reader.rememberMedia(mp4('222', 'other'), 100000);
+    reader.rememberMedia(mp4('111', 'small'), 256000);
+    reader.rememberMedia('https://example.com/unsafe.mp4', 1);
+    fetcher.mockResolvedValue(new Response(audioInit));
+    expect(await reader.read(video, signal)).toHaveLength(16000);
+    expect(fetcher.mock.calls[0][0]).toBe(mp4('111', 'small'));
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it('does not assign the only timeline media candidate to a player whose identity is missing', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    video.poster = '';
+    reader.rememberMedia('https://video.twimg.com/ext_tw_video/111/pu/vid/video.mp4', 256000);
+    reader.rememberMedia(media('111'));
+    expect(await reader.read(video, signal)).toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it('tries the recovered low bitrate MP4 immediately after the primary HLS, ahead of another failing HLS', async () => {
+    const {reader, video, signal, fetcher} = fixture([]);
+    const mp4 = 'https://video.twimg.com/ext_tw_video/111/pu/vid/video.mp4';
+    reader.rememberMedia(mp4, 256000);
+    reader.remember(media('111'), manifest.replace('init.mp4', 'secondary-init.mp4'));
+    reader.remember(media('111').replace('audio.m3u8', 'primary.m3u8'), manifest.replace('init.mp4', 'primary-init.mp4'));
+    fetcher.mockImplementation(async url => new Response(url === mp4 ? audioInit : videoInit));
+    expect(await reader.read(video, signal)).toHaveLength(16000);
+    expect(fetcher.mock.calls.map(([url]) => url)).toEqual([media('111').replace('audio.m3u8', 'primary-init.mp4'), mp4]);
+  });
+  it('rejects video-only MP4 initialization, duration mismatch and oversized MP4 before retaining them', async () => {
+    const url = 'https://video.twimg.com/ext_tw_video/111/pu/vid/video.mp4';
+    const {reader, video, signal, fetcher} = fixture([url]);
+    fetcher.mockResolvedValueOnce(new Response(videoInit));
+    expect(await reader.read(video, signal)).toBeNull();
+    expect(FakeContext.closed).toBe(0);
+    fetcher.mockResolvedValueOnce(new Response(audioInit, {headers: {'content-length': String(33 * 1024 * 1024)}}));
+    expect(await reader.read(video, signal)).toBeNull();
+    fetcher.mockResolvedValueOnce(new Response(audioInit));
+    const decode = vi.spyOn(FakeContext.prototype, 'decodeAudioData').mockResolvedValueOnce({
+      duration: 5, numberOfChannels: 1, sampleRate: 16000, getChannelData: () => new Float32Array(80000),
+    });
+    try { expect(await reader.read(video, signal)).toBeNull(); }
+    finally { decode.mockRestore(); }
+  });
+  it('can discover a working manifest while another same-media discovery stalls', async () => {
+    vi.useFakeTimers();
+    const stalled = media('111').replace('audio.m3u8', 'stalled.m3u8');
+    const {reader, video, signal, fetcher} = fixture([media('111'), stalled]);
+    fetcher.mockImplementation((url, options?: RequestInit) => url === stalled
+      ? new Promise((_resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError'))))
+      : Promise.resolve(new Response(url.endsWith('.m3u8') ? manifest : url.endsWith('init.mp4') ? audioInit : new Uint8Array([1]))));
+    const reading = reader.read(video, signal);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(await reading).toHaveLength(16000);
+    expect(fetcher.mock.calls.some(([url]) => url === media('111'))).toBe(true);
+  });
+  it('retains a second candidate after the first HLS download reaches its own timeout', async () => {
+    vi.useFakeTimers();
+    const {reader, video, signal, fetcher} = fixture([]);
+    reader.remember(media('111'), manifest);
+    reader.remember(media('111').replace('audio.m3u8', 'stalled.m3u8'), manifest.replace('init.mp4', 'stalled-init.mp4'));
+    fetcher.mockImplementation((url, options?: RequestInit) => url.endsWith('stalled-init.mp4')
+      ? new Promise((_resolve, reject) => options?.signal?.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError'))))
+      : Promise.resolve(new Response(url.endsWith('init.mp4') ? audioInit : new Uint8Array([1]))));
+    const reading = reader.read(video, signal);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(await reading).toHaveLength(16000);
+    expect(FakeContext.closed).toBe(1);
+  });
+  it('cancels pending decoding immediately when the user leaves the current video', async () => {
+    const {reader, video} = fixture([]);
+    reader.remember(media('111'), manifest);
+    const controller = new AbortController();
+    let started!: () => void;
+    const decoding = new Promise<void>(resolve => {started = resolve;});
+    const decode = vi.spyOn(FakeContext.prototype, 'decodeAudioData').mockImplementation(() => {
+      started(); return new Promise(() => undefined);
+    });
+    try {
+      const reading = reader.read(video, controller.signal);
+      await decoding;
+      controller.abort();
+      expect(await reading).toBeNull();
+      expect(FakeContext.closed).toBe(1);
+    } finally { decode.mockRestore(); }
+  });
+
   it('prefers the audio master over the most recently captured video-only playlist', async () => {
     const {reader, video, signal, fetcher} = fixture([]);
     const master = media('111').replace('audio.m3u8', 'master.m3u8');

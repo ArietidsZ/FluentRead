@@ -197,8 +197,11 @@ describe('本地 AI 完整生成控制器的安全边界', () => {
       duration: 3,
       getChannelData: () => speech,
     };
+    const contextOptions: AudioContextOptions[] = [];
     class FastAudioContext {
       state: AudioContextState = 'running';
+
+      constructor(options: AudioContextOptions) { contextOptions.push(options); }
 
       async decodeAudioData(): Promise<AudioBuffer> {
         return decoded as unknown as AudioBuffer;
@@ -232,11 +235,7 @@ describe('本地 AI 完整生成控制器的安全边界', () => {
       setTimeout,
       clearTimeout,
     });
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      headers: { get: () => null },
-      arrayBuffer: async () => new ArrayBuffer(4),
-    })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(4))));
 
     const controller = new VideoAiFullCaptureController({
       getVideo: () => videoState as unknown as HTMLVideoElement,
@@ -259,6 +258,7 @@ describe('本地 AI 完整生成控制器的安全边界', () => {
       credentials: 'same-origin',
     }));
     expect(transcribe).toHaveBeenCalledTimes(1);
+    expect(contextOptions).toEqual([{sampleRate: 16_000}]);
     expect(onTranscriptionComplete).toHaveBeenCalledTimes(1);
     const completedCues = onTranscriptionComplete.mock.calls[0][0];
     expect(completedCues.length).toBeGreaterThan(0);
@@ -308,11 +308,7 @@ describe('本地 AI 完整生成控制器的安全边界', () => {
 
     expect(controller.start()).toBe(true);
     controller.cancel();
-    resolveFetch({
-      ok: true,
-      headers: { get: () => null } as unknown as Headers,
-      arrayBuffer: async () => new ArrayBuffer(4),
-    } as unknown as Response);
+    resolveFetch(new Response(new Uint8Array(4)));
     await Promise.resolve();
     await Promise.resolve();
 
@@ -552,7 +548,7 @@ describe('本地 AI 完整生成控制器扫描与收尾', () => {
     const onError = vi.fn();
     const progress: string[] = [];
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
 
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
@@ -597,7 +593,7 @@ describe('本地 AI 完整生成控制器扫描与收尾', () => {
       return { text: `Window ${chunk.sequence} is complete.` };
     });
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => scanVideo as unknown as HTMLVideoElement,
@@ -634,13 +630,13 @@ describe('本地 AI 完整模式快速解码边界', () => {
   it('拒绝错误响应、过大响应、空数据、解码异常和时长不匹配', async () => {
     vi.useFakeTimers();
     const cases = [
-      { response: { ok: false, headers: { get: () => null } }, decode: 'ok' },
-      { response: { ok: true, headers: { get: () => String(60 * 1024 * 1024) } }, decode: 'ok' },
-      { response: { ok: true, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(0) }, decode: 'ok' },
-      { response: { ok: true, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(4) }, decode: 'reject' },
-      { response: { ok: true, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(4) }, decode: 'mismatch' },
-      { response: { ok: true, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(4) }, decode: 'noduration' },
-      { response: { ok: true, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(4) }, decode: 'empty' },
+      { response: new Response(null, {status: 403}), decode: 'ok' },
+      { response: new Response(null, {headers: {'content-length': String(60 * 1024 * 1024)}}), decode: 'ok' },
+      { response: new Response(new Uint8Array(0)), decode: 'ok' },
+      { response: new Response(new Uint8Array(4)), decode: 'reject' },
+      { response: new Response(new Uint8Array(4)), decode: 'mismatch' },
+      { response: new Response(new Uint8Array(4)), decode: 'noduration' },
+      { response: new Response(new Uint8Array(4)), decode: 'empty' },
     ] as const;
     for (const item of cases) {
       class DecodeContext {
@@ -726,7 +722,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
       video.currentSrc = source.currentSrc;
       video.src = source.src;
       vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-      vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
       const controller = new VideoAiFullCaptureController({
         getVideo: () => video as unknown as HTMLVideoElement,
         getAudio: async () => null,
@@ -814,7 +810,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     };
     vi.stubGlobal('document', documentStub);
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getModel: () => 'tiny',
@@ -844,7 +840,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     };
     vi.stubGlobal('document', documentStub);
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getModel: () => 'tiny',
@@ -912,7 +908,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     };
     vi.stubGlobal('document', documentStub);
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => null,
@@ -942,7 +938,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     const errors = vi.fn();
     vi.stubGlobal('MediaStream', FullFakeMediaStream);
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => scanVideo as unknown as HTMLVideoElement,
@@ -977,7 +973,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     scanVideo.pauseError = new Error('pause blocked');
     scanVideo.srcObjectError = new Error('readonly srcObject');
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const errors = vi.fn();
     const controller = new VideoAiFullCaptureController({
       getVideo: () => sourceVideo as unknown as HTMLVideoElement,
@@ -996,7 +992,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
 
     const overflowVideo = new FullFakeVideo();
     const overflowScan = new FullFakeVideo();
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const overflow = new VideoAiFullCaptureController({
       getVideo: () => overflowVideo as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => overflowScan as unknown as HTMLVideoElement,
@@ -1214,7 +1210,7 @@ describe('本地 AI 完整模式入口与隐藏副本边界', () => {
     const video = new FullFakeVideo();
     const scan = new FullFakeVideo();
     vi.stubGlobal('window', { AudioContext: FullFakeContext, setTimeout, clearTimeout });
-    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, headers: { get: () => null } })));
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, {status: 403})));
     const controller = new VideoAiFullCaptureController({
       getVideo: () => video as unknown as HTMLVideoElement,
       getIsolatedVideo: async () => scan as unknown as HTMLVideoElement,

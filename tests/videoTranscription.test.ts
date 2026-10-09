@@ -6,6 +6,7 @@ import {
   normalizeVideoLocalTranscriptionModels,
   VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL,
   resampleToWhisperAudio,
+  prepareWhisperAudioWindow,
 } from '@/src/features/video-subtitle/transcription';
 import {
   getVideoAiModelFileUrl,
@@ -50,5 +51,39 @@ describe('视频 AI 字幕转写配置', () => {
 
     expect(result).toHaveLength(2);
     expect(Array.from(result)).toEqual([0, 0]);
+  });
+
+  it('只裁剪长数字静音外侧并保留偏移、上下文和句间停顿', () => {
+    const audio = new Float32Array(8 * 16_000);
+    audio.fill(0.02, 2 * 16_000, 3 * 16_000);
+    audio.fill(-0.02, 4 * 16_000, 5 * 16_000);
+    const result = prepareWhisperAudioWindow(audio);
+    expect(result.offsetMs).toBe(1840);
+    expect(result.sourceDurationMs).toBe(8000);
+    expect(result.audio.length / 16).toBe(3320);
+    expect(Array.from(result.audio.subarray(1160 * 16, 2160 * 16))).toEqual(new Array(16_000).fill(0));
+    expect(result.audio.buffer).toBe(audio.buffer);
+  });
+
+  it('保留低音量声音、短静音边缘和小于二十毫秒的语音窗', () => {
+    const quiet = new Float32Array(32_000).fill(0.00005);
+    expect(prepareWhisperAudioWindow(quiet).audio).toEqual(quiet);
+    const shortEdges = new Float32Array(16_000);
+    shortEdges.fill(0.04, 400 * 16, 700 * 16);
+    expect(prepareWhisperAudioWindow(shortEdges)).toMatchObject({audio: shortEdges, offsetMs: 0, sourceDurationMs: 1000});
+    expect(prepareWhisperAudioWindow(new Float32Array([0.01])).audio).toEqual(new Float32Array([0.01]));
+  });
+
+  it('空音频或 PCM16 一个量化步长内的数字静音不送入模型，非法采样置零', () => {
+    expect(prepareWhisperAudioWindow(new Float32Array())).toEqual({audio: new Float32Array(), offsetMs: 0, sourceDurationMs: 0});
+    const silent = new Float32Array(16_000).fill(1 / 32_768);
+    silent[1] = NaN;
+    silent[2] = Infinity;
+    expect(prepareWhisperAudioWindow(silent)).toEqual({audio: new Float32Array(), offsetMs: 0, sourceDurationMs: 1000});
+    const input = new Float32Array([0.02, NaN, Infinity, -0.03]);
+    const result = prepareWhisperAudioWindow(input);
+    expect(result.audio).toEqual(new Float32Array([0.02, 0, 0, -0.03]));
+    expect(result.audio.buffer).not.toBe(input.buffer);
+    expect(Number.isNaN(input[1])).toBe(true);
   });
 });

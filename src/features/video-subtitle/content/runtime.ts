@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/runtime.ts
  * 文件职责：装配视频及会议字幕运行时，并协调 YouTube/X 原生字幕、目标语言人工轨、逐条翻译、校时、菜单和下载。
- * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 分片加载尊重原生轨道优先级，同媒体布局变化保留时间轴，真正换视频才隔离旧会话。
+ * 主要内容：相同译文保留原文且不重复展示；协调字幕校时和预翻译；X 分片加载尊重原生轨道优先级，同媒体布局和身份补全保留请求资格，完整 AI 识别提前展示稳定句，完成后才缓存和导出。
  * 模块边界：本文件只在 content 页面编排，不拦截 fetch/XHR 也不实现翻译 provider；MAIN-world bridge 在独立模块捕获 timedtext，解析算法在 youtubeSubtitleData，翻译经 app client。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -23,7 +23,6 @@ import {
   VIDEO_DISPLAY_HIDDEN_CLASS,
   VIDEO_NORMALIZED_CAPTION_CLASS,
   VIDEO_NORMALIZED_CAPTION_ACTIVE_CLASS,
-  X_SUBTITLE_RESOURCE_MESSAGE,
   VIDEO_CAPTION_STABILITY_MS,
   VIDEO_CAPTION_MAX_WAIT_MS,
   normalizeVideoSubtitleDisplayMode,
@@ -77,12 +76,13 @@ export {
     getVideoPretranslationWindowMs,
     getVideoServiceLabel,
 } from './serviceProfile';
-import {isXSubtitleResourceUrl} from './xVideoSubtitleData';
+import {parseXVideoBridgeMessage} from './xVideoSubtitleData';
 import {
   normalizeVideoLocalTranscriptionModel,
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
 } from '@/src/features/video-subtitle/transcription';
 import {
+  finalizeVideoAiCuesForPlayback,
   upsertVideoAiSubtitleCue,
   VIDEO_AI_CUE_MIN_DURATION_MS,
 } from './video-ai/cueTimeline';
@@ -231,6 +231,9 @@ export function mountVideoSubtitleTranslation(): () => void {
   let observedMediaSource = '';
   let observedStableMediaKey = '';
   let observedMediaIdentity: VideoAiSubtitleCacheSource | null = null;
+  // 下载/缓存等待使用真实换媒体的代际；poster 与媒体 ID 的补全只更新缓存
+  // 身份，不能让用户刚完成的模型下载失去启动识别的资格。
+  let observedMediaEpoch = 0;
   let mediaMissingTimer: ReturnType<typeof setTimeout> | undefined;
   let activeVideoLanguage = config.videoSourceLanguage;
   const playerLocator = createVideoPlayerLocator();
@@ -556,23 +559,19 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const handleXSubtitleResourceMessage = (event: MessageEvent) => {
     if (event.source !== window || event.origin !== window.location.origin || !isXVideoPage()) return;
-    const data = event.data as {
-      source?: unknown;
-      type?: unknown;
-      url?: unknown;
-      responseText?: unknown;
-      pageHref?: unknown;
-    } | null;
-    if (data?.source !== 'fluent-read' || data.type !== X_SUBTITLE_RESOURCE_MESSAGE) return;
-    if (typeof data.url !== 'string' || typeof data.responseText !== 'string'
-      || data.responseText.length > 1_000_000 || !isXSubtitleResourceUrl(data.url)) return;
-    if (typeof data.pageHref === 'string' && getVideoPageKey(data.pageHref) !== videoPageKey) return;
+    const data = parseXVideoBridgeMessage(event.data, {
+      matchesPage: href => getVideoPageKey(href) === videoPageKey,
+      mediaSource: `${observedMediaSource} ${observedVideo?.poster || ''}`,
+      videoCount: () => document.querySelectorAll('video').length,
+    });
+    if (!data) return;
+    if (data.kind === 'media') {
+      for (const variant of data.variants) hlsAudio.rememberMedia(variant.url, variant.bitrate);
+      return;
+    }
     // 音轨读取器按媒体 ID 选择候选；MSE 使用海报的媒体 ID 关联，避免混入推荐视频。
     hlsAudio.remember(data.url, data.responseText);
-    const source = `${observedMediaSource} ${observedVideo?.poster || ''}`;
-    const mediaId = source.match(/(?:ext_tw_video|amplify_video|tweet_video)(?:_thumb)?\/(\d+)/)?.[1];
-    if (mediaId ? !data.url.includes(`/${mediaId}/`) : document.querySelectorAll('video').length > 1) return;
-    if (/WEBVTT|TYPE=SUBTITLES/i.test(data.responseText)) {
+    if (data.loadCaptions) {
       xSubtitleLoader.load({ url: data.url, offsetMs: 0 }, data.responseText);
     }
   };
@@ -661,6 +660,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     const {sameMedia, identity: nextObservedIdentity, key: nextObservedKey} = getVideoTranscriptionMediaTransition(
       observedMediaIdentity, nextIdentity, Boolean(previousVideo && previousVideo === nextVideo), observedMediaSource, nextSource);
     if (nextVideo === observedVideo && nextSource === observedMediaSource && nextObservedKey === observedStableMediaKey) return;
+    if (!sameMedia) observedMediaEpoch += 1;
     const identityChanged = nextObservedKey !== observedStableMediaKey;
     if (sameMedia && identityChanged && !isAiCaptureActive()) { cacheEpoch += 1; cacheLookup = undefined; }
     xCaptionSource.restoreTracks();
@@ -719,21 +719,7 @@ export function mountVideoSubtitleTranslation(): () => void {
       audioPcm16Base64: encodeVideoAiPcm16Base64(chunk.pcm),
       model: activeAiModel,
       sourceLanguage: activeVideoLanguage,
-    }) as {
-      success?: boolean;
-      text?: string;
-      segments?: Array<{ startMs?: number; endMs?: number; text?: string }>;
-      skipped?: boolean;
-      model?: string;
-      backend?: 'webgpu' | 'wasm';
-      gpuInfo?: string;
-      decodeMs?: number;
-      inferenceMs?: number;
-      audioDurationMs?: number;
-      threads?: number;
-      dtype?: 'q4' | 'q8';
-      error?: string;
-    } | undefined;
+    }) as (VideoAiTranscriptionResult & {success?: boolean; error?: string}) | undefined;
     if (!response?.success) {
       throw new Error(response?.error || 'AI 字幕接口没有返回文字');
     }
@@ -768,30 +754,24 @@ export function mountVideoSubtitleTranslation(): () => void {
     setPretranslationTrack('ai:capture', { url: 'ai:capture', cues: aiCues });
   };
 
+  const publishAiSubtitleCues = (cues: VideoSubtitleCue[]) => {
+    aiCues = cues;
+    setPretranslationTrack('ai:capture', {url: 'ai:capture', cues: aiCues});
+    aiCaptureError = '';
+    syncXVideoCaptionSource();
+    scheduleUpdate();
+    schedulePretranslation();
+    updatePlayerUiState();
+  };
+
   const prepareFullAiCues = async (cues: VideoAiStabilizedCue[], sessionId: number): Promise<void> => {
-    const normalizedCues = cues
-      .map((cue) => ({
-        ...cue,
-        startMs: Math.max(0, cue.startMs),
-        durationMs: Math.max(1, cue.spokenEndMs - cue.startMs),
-        text: normalizeVideoCaptionText(cue.text),
-        availableAtMs: 0,
-        translationAvailableAtMs: 0,
-      }))
-      .filter((cue) => cue.text);
+    const normalizedCues = finalizeVideoAiCuesForPlayback(cues);
     if (destroyed || !aiFullCapture?.isRequested() || aiFullCapture.getSessionId() !== sessionId) {
       throw new Error('本地视频完整 AI 字幕已取消');
     }
     if (activeAiCacheRequest) void transcriptCache.set(activeAiCacheRequest, normalizedCues);
-    // 已完成识别或缓存命中后立即恢复时间轴；当前句优先翻译，不等待整段预翻译。
-    aiCues = normalizedCues;
-    setPretranslationTrack('ai:capture', { url: 'ai:capture', cues: aiCues });
-    aiCaptureError = '';
-    syncXVideoCaptionSource();
-    scheduleUpdate();
-    // 识别就绪与翻译服务分开：按播放位置预取，不把全片译文当成字幕可用的门槛。
-    // 翻译失败仍保留原文、时间轴与缓存，由当前句重试处理，不触发再次识别。
-    schedulePretranslation();
+    // 识别就绪或缓存命中立即恢复时间轴；翻译按播放位置预取，失败保留原文。
+    publishAiSubtitleCues(normalizedCues);
   };
 
   aiFullCapture = new VideoAiFullCaptureController({
@@ -804,8 +784,18 @@ export function mountVideoSubtitleTranslation(): () => void {
     getModel: () => activeAiModel,
     isSupported: () => !destroyed && isXVideoPage(),
     transcribe: transcribeAiAudioChunk,
+    onCuesProgress: (cues, sessionId) => {
+      if (destroyed || !aiFullCapture?.isRequested() || aiFullCapture.getSessionId() !== sessionId) return;
+      // 前面的稳定句可以先看先译；整片完成前不写持久缓存，也不把下载
+      // 字幕入口当成完整时间轴。下个窗口的修正沿用 cue 的稳定身份。
+      publishAiSubtitleCues(cues.map(cue => ({...cue, availableAtMs: 0, translationAvailableAtMs: 0})));
+    },
     onTranscriptionComplete: prepareFullAiCues,
     onError: (error) => {
+      // 前段预览不能在后续识别失败后变成“完整字幕”；清理预览与待写
+      // 缓存身份，错误和重试入口由本次失败状态继续显示。
+      resetAiSubtitleCues();
+      activeAiCacheRequest = null;
       aiFullPhase = 'error';
       aiFullProgress = { ...aiFullProgress, phase: 'error', progress: 0 };
       aiCaptureError = /扫描副本.*X 视频音频|没有可复制的音频源/.test(error.message)
@@ -1108,7 +1098,9 @@ export function mountVideoSubtitleTranslation(): () => void {
 
   const downloads = createVideoSubtitleDownloads({
     config, document, location: window.location, request: (input, init) => fetch(input, init), isX: isXVideoPage, isDisposed: () => destroyed,
-    isAiActive: isAiCaptureActive, nativeX: () => xCaptionSource.readNativeTrack(), aiCues: () => aiCues,
+    isAiActive: isAiCaptureActive,
+    isAiComplete: () => aiFullPhase === 'ready' || (!isAiFullActive() && aiCues.length === 0),
+    nativeX: () => xCaptionSource.readNativeTrack(), aiCues: () => aiCues,
     captured: () => Array.from(capturedSubtitleTracks.values()).reverse(), human: humanCaptions,
     translate: source => videoTranslator.request(source), ui: videoUi, status: setVideoMenuDownloadStatus, save: downloadSubtitleSrt,
     remember: entry => { const key = getTimedTextCacheKey(entry.url); capturedSubtitleTracks.delete(key); capturedSubtitleTracks.set(key, entry);
@@ -1121,12 +1113,12 @@ export function mountVideoSubtitleTranslation(): () => void {
     captureRequest: () => {
       // 读取或下载期间换视频、改源语言或关闭翻译时，旧结果不能启动新一轮识别。
       const pageKey = getVideoPageKey();
-      const media = stableMediaKey(observedVideo);
+      const mediaEpoch = observedMediaEpoch;
       const language = activeVideoLanguage;
       const regenerating = regenerateAiRequested;
       return () => !destroyed && config.on && config.videoTranslationEnabled
         && (!isAiCaptureActive() || (regenerating && aiFullPhase === 'ready'))
-        && pageKey === getVideoPageKey() && media === stableMediaKey(observedVideo) && language === activeVideoLanguage;
+        && pageKey === getVideoPageKey() && mediaEpoch === observedMediaEpoch && observedVideo !== null && language === activeVideoLanguage;
     },
     persistModel: model => persistVideoConfig({videoLocalModel: model}),
     startGeneration: () => {
@@ -1144,10 +1136,10 @@ export function mountVideoSubtitleTranslation(): () => void {
     // 显式重新识别只绕过本视频缓存；不清除其他视频，也不清除已下载模型。
     regenerateAiRequested = regenerate;
     persistVideoConfig({videoTranslationEnabled: true, videoSubtitleVisible: true});
-    const media = stableMediaKey(observedVideo);
+    const mediaEpoch = observedMediaEpoch;
     if (!regenerate && await restoreCachedAiSubtitles()) return;
     // 缓存读取期间用户可能已关菜单、关闭功能或换视频；迟到结果不得打开下载弹层。
-    if (destroyed || menu.hidden || !canReadVideo() || media !== stableMediaKey(observedVideo)) return;
+    if (destroyed || menu.hidden || !canReadVideo() || mediaEpoch !== observedMediaEpoch) return;
     if (!browserCapabilities.extensionDom) { aiCaptureError = '当前浏览器不支持本地 AI 字幕'; return; }
     await aiModelSetup.request(() => !menu.hidden);
     if (aiModelSetup.choice) menu.querySelector<HTMLButtonElement>('[data-action="model-prompt-confirm"]')?.focus();
@@ -1182,6 +1174,11 @@ export function mountVideoSubtitleTranslation(): () => void {
 
     event.preventDefault();
     event.stopPropagation();
+
+    if (target.dataset.action?.startsWith('download-') && isAiFullActive() && aiFullPhase !== 'ready') {
+      setVideoMenuDownloadStatus(menu, videoUi('video.sourcePreparing'), 2400);
+      return;
+    }
 
     if (target.dataset.action === 'open-subtitle-tools' || target.dataset.action === 'close-subtitle-tools') {
       const open = target.dataset.action === 'open-subtitle-tools';
@@ -1846,6 +1843,7 @@ export function mountVideoSubtitleTranslation(): () => void {
     downloads.destroy();
     cacheEpoch += 1;
     unsubscribePlayer();
+    if (menuElement) setVideoMenuDownloadStatus(menuElement, '');
     playerBinding?.destroy();
     playerLocator.destroy();
     xSubtitleLoader.reset();
@@ -1855,7 +1853,6 @@ export function mountVideoSubtitleTranslation(): () => void {
     generation += 1;
     pendingTranslationSource = '';
     pendingTranslationOverlay = null;
-    downloads.cancel();
     if (mediaMissingTimer) clearTimeout(mediaMissingTimer);
     cancelStableCaption();
     clearPretranslationState(true);

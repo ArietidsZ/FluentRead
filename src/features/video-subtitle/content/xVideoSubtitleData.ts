@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/xVideoSubtitleData.ts
- * 文件职责：解析 X 原生 WebVTT/HLS 字幕，保留字幕与媒体共享的真实时间基准。
- * 主要内容：解析字幕文本、语言 playlist 与 MPEGTS 映射，限制桥接响应体积和资源地址。
+ * 文件职责：解析 X 原生 WebVTT/HLS 字幕与时间线中的已公开视频资源，保留字幕与媒体共享的真实时间基准。
+ * 主要内容：解析字幕文本、语言 playlist 与 MPEGTS 映射；从有界 video_info 提取同站媒体地址，并验证桥接消息、页面归属和字幕加载条件。
  * 模块边界：仅转换传入的文本和 URL，不发起网络请求、不选择播放器、不改变字幕显示时间。
  */
 import type { VideoSubtitleCue } from './youtubeSubtitleData';
@@ -19,6 +19,114 @@ export interface ParsedXSubtitleResource {
 
 const MAX_SUBTITLE_SOURCE_LENGTH = 1_000_000;
 const MAX_RESOURCE_URL_LENGTH = 8_192;
+export const X_VIDEO_MEDIA_RESOURCES_MESSAGE = 'fluent-read-x-video-media-resources';
+export interface XVideoMediaVariant {url: string; bitrate?: number}
+export type ParsedXVideoBridgeMessage = {kind: 'media'; variants: XVideoMediaVariant[]}
+  | {kind: 'subtitle'; url: string; responseText: string; loadCaptions: boolean};
+
+/** 信任边界在浏览器 runtime；这里只验证桥接数据，并通过纯上下文端口判断页面/媒体归属。 */
+export function parseXVideoBridgeMessage(input: unknown, context: {
+  matchesPage: (pageHref: string) => boolean;
+  mediaSource: string;
+  videoCount: () => number;
+}): ParsedXVideoBridgeMessage | null {
+  if (!input || typeof input !== 'object') return null;
+  const data = input as {source?: unknown; type?: unknown; url?: unknown; responseText?: unknown; pageHref?: unknown};
+  if (data.source !== 'fluent-read') return null;
+  if (typeof data.pageHref === 'string' && (data.pageHref.length > MAX_RESOURCE_URL_LENGTH || !context.matchesPage(data.pageHref))) return null;
+  if (data.type === X_VIDEO_MEDIA_RESOURCES_MESSAGE) {
+    if (typeof data.responseText !== 'string' || data.responseText.length > 100_000) return null;
+    let values: unknown;
+    try { values = JSON.parse(data.responseText); } catch { return null; }
+    if (!Array.isArray(values) || values.length > 96) return null;
+    const variants: XVideoMediaVariant[] = [];
+    for (const value of values) {
+      if (!value || typeof value !== 'object') continue;
+      const variant = value as {url?: unknown; bitrate?: unknown};
+      if (!isXVideoMediaVariantUrl(variant.url)) continue;
+      const bitrate = typeof variant.bitrate === 'number' && Number.isFinite(variant.bitrate) && variant.bitrate > 0 ? variant.bitrate : undefined;
+      variants.push({url: variant.url, ...(bitrate ? {bitrate} : {})});
+    }
+    return {kind: 'media', variants};
+  }
+  if (data.type !== 'fluent-read-x-video-subtitle-resource' || typeof data.url !== 'string'
+    || typeof data.responseText !== 'string' || data.responseText.length > MAX_SUBTITLE_SOURCE_LENGTH || !isXSubtitleResourceUrl(data.url)) return null;
+  // 所有已验证的 HLS 仍交给音轨 reader 自行按 ID 选择；只有当前播放器
+  // 的字幕旁路可进入原生字幕 loader，推荐视频的清单不能污染字幕时间轴。
+  const mediaId = context.mediaSource.match(/(?:ext_tw_video|amplify_video|tweet_video)(?:_thumb)?\/(\d+)/)?.[1];
+  const matchesMedia = mediaId ? data.url.includes(`/${mediaId}/`) : context.videoCount() <= 1;
+  return {kind: 'subtitle', url: data.url, responseText: data.responseText,
+    loadCaptions: matchesMedia && /WEBVTT|TYPE=SUBTITLES/i.test(data.responseText)};
+}
+
+/** 仅旁路 X 自己的时间线/详情响应，不请求 API、不读取或转发 headers 与正文。 */
+export function isXVideoMetadataUrl(value: string, pageHref: string): boolean {
+  try {
+    const page = new URL(pageHref);
+    const url = new URL(value, pageHref);
+    const isX = (host: string) => host === 'x.com' || host === 'twitter.com' || host === 'www.x.com' || host === 'www.twitter.com';
+    return page.protocol === 'https:' && isX(page.hostname) && url.protocol === 'https:' && isX(url.hostname)
+      && /^\/i\/api\/graphql\/[^/]+\/(?:TweetDetail|TweetResultByRestId|HomeTimeline|HomeLatestTimeline|UserTweets|UserTweetsAndReplies|UserMedia|SearchTimeline|Bookmarks|ListLatestTweetsTimeline)$/.test(url.pathname);
+  } catch { return false; }
+}
+
+export function isXVideoMediaVariantUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > MAX_RESOURCE_URL_LENGTH) return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && url.hostname === 'video.twimg.com' && !url.username && !url.password
+      && /\/(?:ext_tw_video|amplify_video|tweet_video)\/\d+\//.test(url.pathname)
+      && /\.(?:m3u8|mp4)$/i.test(url.pathname);
+  } catch { return false; }
+}
+
+/** video_info 可在多种 GraphQL 包装下；只输出 URL/码率，不把原 JSON 带出 MAIN world。 */
+export function parseXVideoMediaVariants(text: unknown): XVideoMediaVariant[] {
+  if (typeof text !== 'string' || text.length > 2_000_000) return [];
+  let root: unknown;
+  try { root = JSON.parse(text); } catch { return []; }
+  const pending: unknown[] = [root];
+  const variants = new Map<string, XVideoMediaVariant>();
+  let visited = 0;
+  while (pending.length && visited < 20_000 && variants.size < 96) {
+    const value = pending.pop();
+    visited += 1;
+    if (!value || typeof value !== 'object') continue;
+    const record = value as Record<string, unknown>;
+    const info = record.video_info;
+    if (info && typeof info === 'object' && Array.isArray((info as {variants?: unknown}).variants)) {
+      for (const variant of (info as {variants: unknown[]}).variants.slice(0, 12)) {
+        if (variants.size >= 96) break;
+        if (!variant || typeof variant !== 'object') continue;
+        const entry = variant as {url?: unknown; content_type?: unknown; bitrate?: unknown};
+        if (!isXVideoMediaVariantUrl(entry.url) || !['application/x-mpegURL', 'application/vnd.apple.mpegurl', 'video/mp4'].includes(String(entry.content_type))) continue;
+        const bitrate = typeof entry.bitrate === 'number' && Number.isFinite(entry.bitrate) && entry.bitrate > 0 ? entry.bitrate : undefined;
+        variants.set(entry.url, {url: entry.url, ...(bitrate ? {bitrate} : {})});
+      }
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (key === 'video_info') continue;
+      if (child && typeof child === 'object' && pending.length < 20_000) pending.push(child);
+    }
+  }
+  return [...variants.values()];
+}
+
+export function isXVideoBridgeResourceUrl(url: string, pageHref: string): boolean {
+  return isXSubtitleResourceUrl(url) || isXVideoMetadataUrl(url, pageHref);
+}
+
+export function createXVideoBridgeResourcePayload(url: string, responseText: unknown, pageHref: string) {
+  if (!isXVideoMetadataUrl(url, pageHref)) return createXSubtitleResourcePayload(url, responseText, pageHref);
+  if (pageHref.length > MAX_RESOURCE_URL_LENGTH) return null;
+  const variants = parseXVideoMediaVariants(responseText);
+  return variants.length ? {
+    source: 'fluent-read' as const, type: X_VIDEO_MEDIA_RESOURCES_MESSAGE,
+    // 不保留 GraphQL 地址的查询参数，其中可能包含用户级游标或状态。
+    url: new URL(url, pageHref).origin + new URL(url, pageHref).pathname,
+    responseText: JSON.stringify(variants), pageHref,
+  } : null;
+}
 
 export function decodeHtmlEntities(value: string, useDom = true): string {
   if (useDom && typeof document !== 'undefined') {

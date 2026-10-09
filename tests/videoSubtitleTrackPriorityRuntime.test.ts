@@ -27,6 +27,10 @@ vi.mock('@/src/app/translation/client', () => ({translateVideoText: ports.transl
 vi.mock('@/src/platform/browser/runtimeMessages', () => ({sendRuntimeMessage: ports.send}));
 vi.mock('webextension-polyfill', () => ({default: {runtime: {getURL: (path: string) => 'chrome-extension://fixture/' + path}}}));
 vi.mock('@/src/platform/storage/downloadProgress', () => ({watchDownloadProgress: () => () => undefined}));
+vi.mock('@/src/platform/browser/capabilities', async original => ({
+  ...await original<typeof import('@/src/platform/browser/capabilities')>(),
+  browserCapabilities: {extensionDom: true},
+}));
 
 import {Config} from '@/src/core/config/model';
 // 唯一 runtime import：移入 repo 后默认消费真实源码；私有 runner 可 alias 两份完整字节快照做同一测试对照。
@@ -37,6 +41,7 @@ import {
   VIDEO_TRANSLATION_BUTTON_ID, VIDEO_TRANSLATION_LAYER_ID, VIDEO_TRANSLATION_MENU_ID,
   VIDEO_TRANSLATION_OVERLAY_ID, X_SUBTITLE_RESOURCE_MESSAGE,
 } from '@/src/features/video-subtitle/content/ui';
+import {audioInit} from './fixtures/hlsAudio';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -175,8 +180,92 @@ function fixture(nativeText?: string) {
 }
 const settle = () => vi.advanceTimersByTimeAsync(0);
 const nativeSource = 'The native caption remains visible.';
+function clickMenu(f: ReturnType<typeof fixture>, selector: string) {
+  const event = new f.window.Event('click', {bubbles: true});
+  Object.defineProperty(event, 'isTrusted', {value: true});
+  f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.querySelector(selector)!.dispatchEvent(event);
+}
 
 describe('public mounted X subtitle track priority and lifecycle', () => {
+  it.each([false, true])('keeps a pending model request across same-video metadata enrichment (download: %s)', async download => {
+    const status = deferred<unknown>(), prepared = deferred<unknown>();
+    ports.send.mockImplementation(async (message: {type: string; keepWarm?: boolean}) => {
+      if (message.type === 'fluentReadGetLocalVideoModelState') return status.promise;
+      if (message.type === 'fluentReadPrepareLocalVideoModel') return message.keepWarm ? {success: true} : prepared.promise;
+      return {success: true, hit: false};
+    });
+    const f = fixture();
+    f.video.src = 'blob:same-media'; f.video.poster = '';
+    f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!;
+    menu.hidden = false;
+    clickMenu(f, '[data-action="toggle-ai-subtitle"]'); await settle();
+    if (download) {
+      status.resolve({success: true, models: []}); await settle();
+      clickMenu(f, '[data-action="model-prompt-confirm"]'); await settle();
+    }
+    f.video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/123/pu/img/poster.jpg';
+    f.emitVideo('loadedmetadata'); await settle();
+    if (download) prepared.resolve({success: true, models: ['tiny']});
+    else status.resolve({success: true, models: ['tiny']});
+    await settle();
+    expect(ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadPrepareLocalVideoModel' && message.keepWarm)).toHaveLength(1);
+  });
+
+  it.each(['media', 'language', 'off', 'dispose'])('rejects a late downloaded-model status after %s invalidates the request', async change => {
+    const status = deferred<unknown>();
+    ports.send.mockImplementation(async (message: {type: string}) => message.type === 'fluentReadGetLocalVideoModelState'
+      ? status.promise : {success: true, hit: false});
+    const f = fixture(); const dispose = f.start(); await settle();
+    f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.hidden = false;
+    clickMenu(f, '[data-action="toggle-ai-subtitle"]'); await settle();
+    if (change === 'media') {
+      f.video.src = 'https://video.twimg.com/ext_tw_video/456/pu/vid/new.mp4';
+      f.video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/456/pu/img/new.jpg';
+      f.emitVideo('loadedmetadata');
+    } else if (change === 'language') f.changeConfig({videoSourceLanguage: 'zh'});
+    else if (change === 'off') f.changeConfig({videoTranslationEnabled: false});
+    else dispose();
+    await settle(); status.resolve({success: true, models: ['tiny']}); await settle();
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadPrepareLocalVideoModel')).toBe(false);
+  });
+
+  it('displays completed AI sentences before the final window and clears an incomplete preview after failure', async () => {
+    const nextWindow = deferred<unknown>();
+    let count = 0;
+    const preview = 'The first completed AI sentence.';
+    ports.send.mockImplementation(async (message: {type: string}) => {
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: ['tiny']};
+      if (message.type === 'fluentReadTranscribeLocalVideoAudio') return ++count === 1
+        ? {success: true, text: preview, segments: [{startMs: 0, endMs: 4000, text: preview}]} : nextWindow.promise;
+      return {success: true, hit: false};
+    });
+    const f = fixture();
+    // 本例验证真实运行时接线；音频解码和模型消息是显式浏览器边界夹具。
+    class DecodeContext {
+      state = 'running';
+      async close() { this.state = 'closed'; }
+      async decodeAudioData() { return {duration: 20, numberOfChannels: 1, sampleRate: 16000,
+        getChannelData: () => new Float32Array(320000).fill(.08)}; }
+    }
+    vi.stubGlobal('AudioContext', DecodeContext);
+    defineBrowserPort(f.window, 'AudioContext', {configurable: true, value: DecodeContext});
+    Object.defineProperty(f.video, 'duration', {configurable: true, value: 20});
+    ports.fetch.mockResolvedValue(new Response(audioInit));
+    f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    clickMenu(f, '[data-action="toggle-ai-subtitle"]'); await settle();
+    expect(count).toBe(2);
+    expect(f.displayed()).toMatchObject({source: preview, translated: translation(preview), active: true, kind: 'ai'});
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadSetVideoAiSubtitleCache')).toBe(false);
+    clickMenu(f, '[data-action="download-subtitles"]'); await settle();
+    expect(menu.querySelector('[data-download-status]')?.textContent).toBe('正在生成字幕');
+    nextWindow.resolve({success: false, error: 'fixture later window failed'}); await settle();
+    expect(f.displayed().source || '').toBe('');
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadSetVideoAiSubtitleCache')).toBe(false);
+    expect(menu.querySelector('[data-action="toggle-ai-subtitle"]')?.getAttribute('data-error')).toBe('true');
+  });
+
   it('RT1: retains the already displayed native pair immediately across interleaved sidecar and cuechange', async () => {
     const f = fixture(nativeSource); f.start(); await settle();
     const initial = f.displayed();

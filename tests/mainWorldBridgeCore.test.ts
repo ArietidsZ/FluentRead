@@ -674,6 +674,87 @@ describe('YouTube timedtext MAIN world bridge core', () => {
         expect(fixture.posts).toHaveLength(0);
     });
 
+    it('显式允许的 X 清单可从 arraybuffer/blob XHR 回放；迟到 Blob、JSON 对象与超限二进制被丢弃', async () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/1');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: {...xReplayPolicy(), binaryText: true}});
+        const load = (response: unknown, responseType = 'arraybuffer') => {
+            const xhr = new FakeXhr();
+            Object.defineProperties(xhr, {
+                responseText: {get: () => { throw new DOMException('Not text', 'InvalidStateError'); }},
+                response: {value: response}, responseType: {value: responseType},
+            });
+            fixture.xhrOpen.value.call(xhr, 'GET', 'https://video.twimg.com/captions/en.vtt');
+            fixture.xhrSend.value.call(xhr); xhr.emit('load');
+            return xhr;
+        };
+        load(new TextEncoder().encode('WEBVTT').buffer);
+        load({video_info: {variants: []}}, 'json');
+        expect(fixture.posts).toHaveLength(1);
+        load(new Uint8Array(2_000_001).buffer);
+        load(new Blob(['x'.repeat(2_000_001)]), 'blob');
+        load(undefined);
+        const unreadable = new FakeXhr();
+        Object.defineProperties(unreadable, {
+            responseText: {get: () => {throw new Error('binary');}},
+            response: {get: () => {throw new Error('unreadable');}},
+        });
+        fixture.xhrOpen.value.call(unreadable, 'GET', 'https://video.twimg.com/captions/en.vtt');
+        fixture.xhrSend.value.call(unreadable); unreadable.emit('load');
+        expect(fixture.posts).toHaveLength(1);
+        load(new Blob(['WEBVTT blob']), 'blob');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(fixture.posts).toHaveLength(2);
+        const pending = load(new Blob(['WEBVTT late']), 'blob');
+        fixture.xhrOpen.value.call(pending, 'GET', 'https://example.com/reuse');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(fixture.posts).toHaveLength(2);
+        dispose();
+    });
+
+    it('X fetch limits the cloned stream without consuming or cancelling the original response', async () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/1');
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: {...xReplayPolicy(), maxResponseBytes: 16}});
+        const originalFetch = fixture.originalFetch as unknown as ReturnType<typeof vi.fn>;
+        const fetchText = async (text: string, contentLength?: string) => {
+            const original = new Response(text, {headers: contentLength ? {'content-length': contentLength} : {}});
+            originalFetch.mockResolvedValueOnce(original);
+            const returned = await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+            expect(returned).toBe(original);
+            expect(await original.text()).toBe(text);
+            await new Promise(resolve => setTimeout(resolve, 0));
+        };
+        await fetchText('WEBVTT');
+        // 原响应消费完不代表异步 tee 副本也已完成；等待旁路的可观察结果。
+        await vi.waitFor(() => expect(fixture.posts).toHaveLength(1));
+        await fetchText('WEBVTT'.repeat(4));
+        await fetchText('WEBVTT', '17');
+        expect(fixture.posts).toHaveLength(1);
+        originalFetch.mockResolvedValueOnce({clone: () => ({text: async () => 'WEBVTT'})});
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        await flush();
+        expect(fixture.posts).toHaveLength(2);
+        originalFetch.mockResolvedValueOnce({clone: () => ({text: async () => '界'.repeat(6)})});
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        await flush();
+        expect(fixture.posts).toHaveLength(2);
+        dispose();
+    });
+
+    it('unloading cancels only a pending bounded clone stream', async () => {
+        const fixture = youtubeFixture();
+        fixture.setHref('https://x.com/status/1');
+        const cancelled = vi.fn();
+        const stream = new ReadableStream<Uint8Array>({cancel: cancelled});
+        (fixture.originalFetch as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({clone: () => ({body: stream, text: async () => ''})});
+        const dispose = installYoutubeTimedTextBridgeCore({...fixture.environment, resourcePolicy: {...xReplayPolicy(), maxResponseBytes: 16}});
+        await fixture.fetch.value.call({}, 'https://video.twimg.com/captions/en.vtt');
+        dispose(); await flush();
+        expect(cancelled).toHaveBeenCalledTimes(1);
+        expect(fixture.posts).toHaveLength(0);
+    });
+
     it('X 回放缓存按 URL 替换并限制 16 条资源与 2M 字符', () => {
         const fixture = youtubeFixture();
         fixture.setHref('https://x.com/status/3');

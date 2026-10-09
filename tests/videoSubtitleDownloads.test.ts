@@ -23,6 +23,15 @@ function fixture(overrides: Partial<Ports> = {}) {
 }
 
 describe('字幕下载与人工轨优先', () => {
+    it('完整 AI 字幕的识别预览不导出，识别完成后才提供完整时间轴', async () => {
+        let complete = false;
+        const f = fixture({isX: () => true, isAiActive: () => true, isAiComplete: () => complete, aiCues: () => [cue]});
+        await expect(f.downloads.resolve()).rejects.toThrow('video.sourcePreparing');
+        expect(f.save).not.toHaveBeenCalled();
+        complete = true;
+        await expect(f.downloads.resolve()).resolves.toEqual({languageCode: 'ai', cues: [cue]});
+        f.downloads.destroy();
+    });
     it('原文选择当前捕获的原始轨，缺少语言时保留原文标记', async () => {
         const original = fixture({captured: () => [
             {url: 'https://www.youtube.com/api/timedtext?v=abc&lang=zh&tlang=zh', cues: [{...cue, text: '机器轨'}]},

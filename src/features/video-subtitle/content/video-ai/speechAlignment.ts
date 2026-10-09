@@ -5,6 +5,7 @@
  * 模块边界：只读音频和相对时间戳，不改变文本或全局播放头，不进行推理；仅在稳定低噪声平台与语音能量有明显差距时估计底噪；无法区分的连续声音保留模型边界。
  */
 import type {VideoAiTranscriptSegment} from './streamingTranscript';
+import {WHISPER_DIGITAL_SILENCE_PEAK} from '@/src/features/video-subtitle/transcription';
 
 const FRAME_SAMPLES = 320;
 const FRAME_MS = 20;
@@ -12,29 +13,35 @@ const TRAILING_SILENCE_MIN_MS = 160;
 const TRAILING_SILENCE_EDGE_TOLERANCE_MS = 200;
 function activeFrames(audio: Float32Array, maximumNoiseVariation = 1.5): boolean[] {
   const energies: number[] = [];
+  const peaks: number[] = [];
   for (let start = 0; start < audio.length; start += FRAME_SAMPLES) {
     const end = Math.min(audio.length, start + FRAME_SAMPLES);
     let energy = 0;
+    let peak = 0;
     for (let index = start; index < end; index += 1) {
       const value = Number.isFinite(audio[index]) ? audio[index] : 0;
       energy += value * value;
+      peak = Math.max(peak, Math.abs(value));
     }
     energies.push(Math.sqrt(energy / (end - start)));
+    peaks.push(peak);
   }
   // 固定绝对阈值会把持续风声/低背景音当成语音。只有至少一秒音频中
   // 较低能量帧形成稳定平台，且高能量语音明显高于它时才提高门槛。
   // 不对纯音乐、匀速变化的声音或不足以估计底噪的短片段猜测停顿。
-  let threshold = 0.0025;
+  // 未确证稳定底噪时只按数字静音峰值判停顿，低音量词尾不能被 RMS 门切掉。
+  let threshold: number | null = null;
   if (energies.length >= 50) {
     const ordered = [...energies].sort((left, right) => left - right);
     const floor = ordered[Math.floor(ordered.length * 0.1)];
     const plateau = ordered[Math.floor(ordered.length * 0.2)];
     const speech = ordered[Math.floor(ordered.length * 0.8)];
-    if (floor > threshold && plateau <= floor * maximumNoiseVariation && speech >= floor * 4) {
+    if (floor > WHISPER_DIGITAL_SILENCE_PEAK && plateau <= floor * maximumNoiseVariation && speech >= floor * 4) {
       threshold = floor * 1.8;
     }
   }
-  return energies.map((energy) => energy >= threshold);
+  return energies.map((energy, index) => threshold === null
+    ? peaks[index] > WHISPER_DIGITAL_SILENCE_PEAK : energy >= threshold);
 }
 
 /** 仅修剪模型边界内的外侧静音；保留一小段余量，避免吞掉轻声辅音。 */
