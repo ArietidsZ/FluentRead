@@ -5,7 +5,7 @@ const state = vi.hoisted(() => ({
     areaDispatch: async (_request: any): Promise<any> => undefined,
     config: {
         service: 'custom', from: 'en', to: 'zh-Hans', useCache: false, enableAIContext: false,
-        token: {custom: 'fixture-a', newapi: 'fixture-b'}, model: {custom: 'fixture-model', newapi: 'fixture-model'},
+        token: {custom: 'fixture-a', newapi: 'fixture-b', doubao: 'fixture-doubao'}, model: {custom: 'fixture-model', newapi: 'fixture-model', doubao: 'doubao-seed-1-6-250615'},
         customModel: {}, proxy: {}, custom: 'https://quota-a.test/v1', newApiUrl: 'https://healthy-b.test/v1',
         deeplx: '', azureOpenaiEndpoint: '', minimaxBillingPlan: 'payg', minimaxRegion: 'cn',
         mimoBillingPlan: 'payg', mimoRegion: 'cn', customBody: {}, customHeaders: {}, system_role: {}, user_role: {},
@@ -42,7 +42,7 @@ import {buildGlossaryRevision} from '@/src/core/glossary';
 import {translationPrivacyContext, createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
 import {runTranslationServiceConnectionTest, CONNECTION_TEST_ORIGIN} from '@/src/providers/translation/connectionTest';
 import {serializeTranslationError} from '@/src/services/translation/errors';
-import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
+import {servicesType, resolveConfiguredModel, customModelString} from '@/src/core/config/catalog';
 import {translateText, cancelAllTranslations} from '@/src/app/translation/client';
 import {setRuntimeFetch as installRuntimeFetch, type RuntimeFetch} from '@/src/platform/http/runtime';
 import {attachTranslationRequestControl} from '@/src/services/translation/requestSnapshot';
@@ -51,7 +51,8 @@ import type {TranslationConfigSource} from '@/src/services/translation/types';
 function setRuntimeFetch(transport?: RuntimeFetch) {
     installRuntimeFetch(transport ? async (input, init) => {
         if (!['https://quota-a.test/v1/chat/completions', 'https://quota-c.test/v1/chat/completions',
-            'https://healthy-b.test/v1/chat/completions'].includes(String(input))) throw new Error('Unmatched runtime network prohibited');
+            'https://healthy-b.test/v1/chat/completions', 'https://doubao.test/api/v3/responses',
+            'https://doubao.test/api/v3'].includes(String(input))) throw new Error('Unmatched runtime network prohibited');
         return transport(input, init);
     } : undefined);
 }
@@ -63,12 +64,12 @@ function response(status = 200, headers: Record<string, string> = {}) {
     } : {error: {message: 'synthetic response'}}), {status, headers: {'content-type': 'application/json', ...headers}});
 }
 
-function harness(provider?: (request: any) => Promise<any>) {
+function harness(provider?: (request: any) => Promise<any>, providerRegistry?: Record<string, any>) {
     const scheduler = createTranslationRequestScheduler(() => state.config);
     const writes: unknown[] = [];
     const broker = createTranslationBroker({
         ready: Promise.resolve(), getConfig: () => state.config as TranslationConfigSource,
-        providers: {custom: (provider ?? translateWithOpenAICompatibleAiSdk) as never, newapi: (provider ?? translateWithOpenAICompatibleAiSdk) as never},
+        providers: providerRegistry ?? {custom: (provider ?? translateWithOpenAICompatibleAiSdk) as never, newapi: (provider ?? translateWithOpenAICompatibleAiSdk) as never},
         cache: {get: async () => null, set: async (...args: unknown[]) => {writes.push(args); return true;}, clear: async () => undefined, cleanup: async () => undefined},
         serviceTypes: servicesType, endpointResolver: {resolveOpenAICompatibleEndpoint, aiSdkTransportProfile: AI_SDK_TRANSPORT_PROFILE},
         promptBuilder: {buildPageSummaryPrompt: () => '', buildPageSummarySystemPrompt: () => ''},
@@ -106,6 +107,7 @@ beforeEach(() => {
     state.config.model.custom = 'fixture-model'; state.config.token.custom = 'fixture-a';
     state.config.translationRequestsPerSecond = 0; state.config.translationRequestsPerMinute = 0;
     (state.config as any).serviceRequestLimits = {}; (state.config as any).modelRequestLimits = {};
+    state.config.proxy = {}; state.config.customBody = {};
     state.config.customHeaders = {}; (state.config as any).apiKeys = {}; (state.config as any).apiKeyRotationEnabled = {};
     state.config.translationMaxRetries = 2; state.config.maxConcurrentTranslations = 6;
     setRuntimeFetch(async () => {throw new Error('Unmatched runtime network prohibited');});
@@ -528,5 +530,82 @@ describe('mixed real connection probe and counted broker attempts', () => {
         expect((await queued).success).toBe(outcome === 'success');
         expect(attempts.filter(a => a.kind === 'broker')).toHaveLength(outcome === 'success' ? 1 : 0);
         expect(peak).toBe(1); expect(active).toBe(0);
+    });
+});
+
+
+describe('real registry Doubao route capacity', () => {
+    const routes = ['seed-config', 'seed-override', 'seed-custom-model', 'seed-body-chat', 'sdk-config', 'sdk-override', 'sdk-body-seed'];
+    it.each([1, 3].flatMap(cap => routes.map(route => [cap, route] as const)))
+    ('holds %s slots through ignored abort for the actual %s route', async (cap, route) => {
+        state.config.maxConcurrentTranslations = cap; (state.config.proxy as any).doubao = 'https://doubao.test/api/v3';
+        const seedModel = 'doubao-seed-translation-250915'; const sdkModel = 'doubao-seed-1-6-250615';
+        state.config.model.doubao = route.startsWith('seed') || route === 'sdk-override' ? seedModel : sdkModel;
+        let modelOverride: string | undefined;
+        if (route === 'seed-override') {state.config.model.doubao = sdkModel; modelOverride = seedModel;}
+        if (route === 'sdk-override') modelOverride = sdkModel;
+        if (route === 'seed-custom-model') {state.config.model.doubao = customModelString; (state.config.customModel as any).doubao = seedModel;}
+        if (route === 'seed-body-chat') (state.config.customBody as any).doubao = JSON.stringify({model: sdkModel});
+        if (route === 'sdk-body-seed') (state.config.customBody as any).doubao = JSON.stringify({model: seedModel});
+        const {translationProviderRegistry} = await vi.importActual<typeof import('@/src/providers/translation/registry')>('@/src/providers/translation/registry');
+        const {broker, writes, scheduler} = harness(undefined, translationProviderRegistry); const identities = vi.spyOn(scheduler, 'observeResponse');
+        const endpoint = 'https://doubao.test/api/v3' + (route.startsWith('seed') ? '/responses' : '');
+        const releases: Array<() => void> = []; const urls: string[] = []; let active = 0; let peak = 0;
+        setRuntimeFetch(async input => {
+            urls.push(String(input)); active += 1; peak = Math.max(peak, active);
+            try {
+                await new Promise<void>(resolve => {releases.push(resolve);});
+                return route.startsWith('seed') ? new Response(JSON.stringify({model: seedModel, output_text: '这是合成译文。'}), {headers: {'content-type': 'application/json'}}) : response();
+            } finally {active -= 1;}
+        });
+        const controllers = Array.from({length: cap + 1}, () => new AbortController());
+        const tasks = controllers.map((controller, i) => broker.translateWithCache(attachTranslationRequestControl({origin: 'synthetic doubao ' + i, serviceOverride: 'doubao', modelOverride, useCache: i === 0, requestTimeoutMs: 90_000}, {signal: controller.signal, ownershipKey: 'doubao-' + i}) as never).catch(error => error));
+        try {
+            await vi.advanceTimersByTimeAsync(10); expect(urls).toHaveLength(cap); expect(urls.every(url => url === endpoint)).toBe(true); expect(peak).toBe(cap);
+            controllers[0]!.abort(); await vi.advanceTimersByTimeAsync(10);
+            expect(urls).toHaveLength(cap); expect(active).toBe(cap); expect(writes).toEqual([]);
+            releases[0]!(); await vi.advanceTimersByTimeAsync(20);
+            expect(urls).toHaveLength(cap + 1); expect(peak).toBeLessThanOrEqual(cap);
+            for (const release of releases.slice(1)) release(); await vi.advanceTimersByTimeAsync(20); await Promise.all(tasks);
+            expect(active).toBe(0); expect(writes).toEqual([]);
+            expect(identities.mock.calls.every(([identity]) => Boolean(identity?.quotaScope) === !route.startsWith('seed'))).toBe(true);
+        } finally {
+            controllers.forEach(controller => controller.abort()); releases.forEach(release => release());
+            await vi.advanceTimersByTimeAsync(100); await Promise.all(tasks);
+        }
+    });
+});
+
+describe('real probe raw transport outlives caller timeout', () => {
+    it.each(['global', 'service', 'model'].flatMap(bucket => [false, true].map(retry => [bucket, retry] as const)))
+    ('keeps the actual network slot in %s after timeout with prior 429=%s', async (bucket, retry) => {
+        state.config.maxConcurrentTranslations = 1; state.config.token.custom = ''; (state.config as any).requireApiKey.custom = false;
+        if (bucket !== 'global') (state.config as any).serviceRequestLimits = {custom: {enabled: true, limits: {maxConcurrentTranslations: 1}}};
+        if (bucket === 'model') (state.config as any).modelRequestLimits = {custom: {'fixture-model': {enabled: true, limits: {maxConcurrentTranslations: 1}}}};
+        const {scheduler, broker, writes} = harness(); const start = Date.now(); let active = 0; let peak = 0; let probeCalls = 0;
+        let releaseRaw!: () => void; const attempts: Array<{kind: string; at: number}> = [];
+        setRuntimeFetch(async (_input, init) => {
+            const kind = String(init?.body).includes(CONNECTION_TEST_ORIGIN) ? 'probe' : 'broker';
+            attempts.push({kind, at: Date.now() - start}); active += 1; peak = Math.max(peak, active);
+            try {
+                if (kind === 'probe') {
+                    if (retry && ++probeCalls === 1) return response(429, {'retry-after': '2'});
+                    await new Promise<void>(resolve => {releaseRaw = resolve;}); // 故意忽略 init.signal。
+                }
+                return response();
+            } finally {active -= 1;}
+        });
+        const probe = runTranslationServiceConnectionTest('custom', {requestScheduler: scheduler, config: createTranslationProviderConfigSnapshot(state.config as never), countRate: false, effectiveModel: 'fixture-model'})
+            .then(() => 'success').catch(error => error.message);
+        await vi.advanceTimersByTimeAsync(10);
+        const next = broker.translateWithCache({origin: 'healthy after probe timeout', serviceOverride: 'custom', useCache: false, requestTimeoutMs: 60_000}).catch(error => error);
+        try {
+            await vi.advanceTimersByTimeAsync(30_100);
+            expect(await probe).toBe('翻译请求超时');
+            expect(attempts.filter(a => a.kind === 'broker'), JSON.stringify(attempts)).toEqual([]);
+            expect(active).toBe(1); expect(peak).toBe(1); expect(writes).toEqual([]);
+            releaseRaw(); await vi.advanceTimersByTimeAsync(10); await next;
+            expect(attempts.filter(a => a.kind === 'broker')).toHaveLength(1); expect(peak).toBe(1); expect(active).toBe(0); expect(writes).toEqual([]);
+        } finally {releaseRaw?.(); await vi.advanceTimersByTimeAsync(100); await next; await probe;}
     });
 });

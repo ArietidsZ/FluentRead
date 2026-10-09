@@ -402,13 +402,9 @@ export function createTranslationRequestScheduler(
                     const deadlineAt = pending[index]?.deadlineAt;
                     if (deadlineAt !== undefined && deadlineAt < nextDeadline) nextDeadline = deadlineAt;
                 }
-                const deadlineWait = nextDeadline === Number.POSITIVE_INFINITY
-                    ? Number.POSITIVE_INFINITY
-                    : Math.max(0, nextDeadline - current);
-                const nextWait = Math.min(earliest, deadlineWait);
-                let cooldownExpiry = Number.POSITIVE_INFINITY;
-                for (const until of cooldowns.values()) cooldownExpiry = Math.min(cooldownExpiry, until - current);
-                const wake = Math.min(nextWait, cooldownExpiry);
+                // readNow 保证 current 有限，无 deadline 时 Infinity - current 仍为 Infinity。
+                let wake = Math.min(earliest, Math.max(0, nextDeadline - current));
+                for (const until of cooldowns.values()) wake = Math.min(wake, until - current);
                 if (wake < Number.POSITIVE_INFINITY) arm(wake);
             } while (drainRequested);
         } finally {
@@ -416,11 +412,19 @@ export function createTranslationRequestScheduler(
         }
     }
 
-    function enqueue<T>(entry: PendingRequest<T>): Promise<T> {
-        if (entry.signal?.aborted) return Promise.reject(createAbortError());
+    function enqueue<T>(
+        task: (lease: TranslationRequestLease) => Promise<T>,
+        options: TranslationRequestSchedulerTaskOptions = {},
+        attemptOnly = false,
+    ): Promise<T> {
+        if (options.signal?.aborted) return Promise.reject(createAbortError());
         return new Promise<T>((resolve, reject) => {
-            (entry as {resolve: typeof resolve; reject: typeof reject}).resolve = resolve;
-            (entry as {resolve: typeof resolve; reject: typeof reject}).reject = reject;
+            const entry: PendingRequest<T> = {
+                ...options, task, attemptOnly,
+                countConcurrency: attemptOnly ? options.countConcurrency === true : options.countConcurrency !== false,
+                countRate: attemptOnly || options.countRate !== false,
+                resolve, reject, settled: false,
+            };
             if (entry.signal) {
                 const onAbort = () => {
                     entry.settled = true;
@@ -447,29 +451,7 @@ export function createTranslationRequestScheduler(
             cooldowns.set(scope, Math.max(cooldowns.get(scope) ?? 0, current + delay));
             drain();
         },
-        schedule: <T>(task: (lease: TranslationRequestLease) => Promise<T>, options: TranslationRequestSchedulerTaskOptions = {}) => enqueue({
-            task,
-            signal: options.signal,
-            deadlineAt: options.deadlineAt,
-            identity: options.identity,
-            attemptOnly: false,
-            countConcurrency: options.countConcurrency !== false,
-            countRate: options.countRate !== false,
-            resolve: undefined as never,
-            reject: undefined as never,
-            settled: false,
-        }),
-        scheduleAttempt: <T>(task: () => Promise<T>, options: TranslationRequestAttemptOptions = {}) => enqueue({
-            task: async () => task(),
-            signal: options.signal,
-            deadlineAt: options.deadlineAt,
-            identity: options.identity,
-            attemptOnly: true,
-            countConcurrency: options.countConcurrency === true,
-            countRate: true,
-            resolve: undefined as never,
-            reject: undefined as never,
-            settled: false,
-        }),
+        schedule: enqueue,
+        scheduleAttempt: <T>(task: () => Promise<T>, options?: TranslationRequestAttemptOptions) => enqueue(task, options, true),
     };
 }

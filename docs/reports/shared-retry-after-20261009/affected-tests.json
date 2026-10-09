@@ -10,7 +10,8 @@
     "src/providers/translation/ai-sdk/openai-compatible.ts",
     "src/services/translation/broker.ts",
     "src/services/translation/requestScheduler.ts",
-    "src/services/translation/requestSnapshot.ts"
+    "src/services/translation/requestSnapshot.ts",
+    "src/providers/translation/connectionTest.ts"
   ],
   "strictCoverageModules": [
     "src/app/background/handlers/translation.ts",
@@ -20,7 +21,8 @@
     "src/features/input-translation/background/handler.ts",
     "src/services/translation/broker.ts",
     "src/services/translation/requestScheduler.ts",
-    "src/services/translation/requestSnapshot.ts"
+    "src/services/translation/requestSnapshot.ts",
+    "src/providers/translation/connectionTest.ts"
   ],
   "tests": [
     "tests/aiSdkOpenAICompatible.test.ts",

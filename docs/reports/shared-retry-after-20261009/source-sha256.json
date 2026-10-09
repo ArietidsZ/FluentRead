@@ -6,14 +6,15 @@
   "src/features/area-translation/background/handlers.ts": "1951653f38c266bf5f1b41386f9c220c9d7380e584b818e56341805152554190",
   "src/features/area-translation/services/textTranslation.ts": "22ae4e5daf399116c752a607310c3dfa6c3f7355d109a414a91f43be1c9c51db",
   "src/features/input-translation/background/handler.ts": "57b9fddbbb4ece968279037636813ae135a1f308116e26b9f8ced2fc39e2f420",
-  "src/providers/translation/ai-sdk/openai-compatible.ts": "753ed18b47869e2ca3ab46dddd33809e0e22705f5e2aebfa192ee706879db138",
-  "src/services/translation/broker.ts": "e0274b6b0424836ad36aec0ab4199cb516fcc2ed3692e4f321cf1b8916f18a79",
-  "src/services/translation/requestScheduler.ts": "2c34393e1a17148fd83b0069e6c4b85aa95e512821e4b2a4e44633c20c1bb14a",
-  "src/services/translation/requestSnapshot.ts": "4c46d10b077407059c785c1d557c306207951123c04ba90e155f76fc9b9f4cd3",
-  "tests/translationRetryAfter.test.ts": "899078db223c7d0ad938424f66195af114df882ef6db3ff62b02d7a186fa5f16",
+  "src/providers/translation/ai-sdk/openai-compatible.ts": "180b3ffe02a59b1fc7f49fd97e188a50c7ddd1530a865ac3394ee71e2907c398",
+  "src/services/translation/broker.ts": "dd30a75e1595005bfb9630e834442f370008dc589f6e94704d127645e3e7301b",
+  "src/services/translation/requestScheduler.ts": "b1c0a8206c875763ef4ee0b3ae8227bf5fa37b85f4a3febe6833fbeb266ee43c",
+  "src/services/translation/requestSnapshot.ts": "a095169469ab9a51ef748307b5db628b378ec3776c21955b324625026407fa45",
+  "tests/translationRetryAfter.test.ts": "a97a2d2921c542b27953301eebbe8a4cb36fcc7505feaa47ef7a52f3e56cff40",
   "tests/backgroundMessageRuntimePrivacy.test.ts": "cddbc6268b330dd068ca2f6530119f09904067fae4df5f3c111c681f5541ee79",
   "tests/test-matrix.json": "cd7634ae5a2a0c76acde7ac4803569312f4d0e1cacf759a8a9941d31c4cfb2bf",
   "tests/implementationAudit48A.test.ts": "cd726727625c74fbb910a2a17dd1d3bcc44893e607c13b874d9ca994662441ef",
-  "tests/userscriptViteConfig.test.ts": "7be3fc8622fae73257583d7db85d6233641990f509141b6036bc056e9d1f288c",
-  "userscript/vite.config.ts": "5de4eb25ebb439c32626bb1ad8d32e5e7ddf8292c156b0b592965bb439e9d2d7"
+  "tests/userscriptViteConfig.test.ts": "06fd19b5637c9c3023a88594d0f86e3de61ad7cbffa82a7fbd305607a5005825",
+  "userscript/vite.config.ts": "e70f6e972bc3c9b472c9042c99395509782387ad629e289bc267a558f90f8834",
+  "src/providers/translation/connectionTest.ts": "2573c0b7e64abbed4079ba5f727467878b549d4b4f49a18e8d15364b1766048f"
 }

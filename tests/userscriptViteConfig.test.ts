@@ -125,6 +125,17 @@ describe('userscript browser shim injection', () => {
         expect(plugin.resolveId('./catalog/other.json', importer)).toBeNull();
     });
 
+    it('keeps the full Lobe license exactly when service SVG data is shipped', () => {
+        const withIcons = wrapUserscriptEntry('ENTRY_SENTINEL', 'BOOTSTRAP_SENTINEL', '', true);
+        const withoutIcons = wrapUserscriptEntry('ENTRY_SENTINEL', 'BOOTSTRAP_SENTINEL', '', false);
+        const notice = readFileSync(resolve(process.cwd(), 'public/third-party-notices/lobe-icons-MIT.txt'), 'utf8');
+        expect(withIcons).toContain(notice);
+        expect(withoutIcons).not.toContain('Lobe Icons static SVG paths');
+        expect(withoutIcons).toContain('UNICODE LICENSE V3');
+        expect(withoutIcons).toContain('@ctrl/tinycolor 3.6.1');
+        expect(withIcons.replace(`/*\n${notice}\n*/\n`, '')).toBe(withoutIcons);
+    });
+
     it('wraps the complete single-file runtime in a duplicate-injection guard', () => {
         const wrapped = wrapUserscriptEntry('ENTRY_SENTINEL', 'BOOTSTRAP_SENTINEL');
         const guardStart = wrapped.indexOf(executionGuardStart);
