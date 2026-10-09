@@ -4,6 +4,7 @@
  * 主要内容：使用真实 DOM Text 身份与可控原生绘制端口，覆盖内联链接、保护区域、开放及闭合译文、分帧/稳定窗口、异步取消与同文本替换，断言原文和宿主节点不变。
  * 模块边界：模型端口为可控响应，测试不声称真实模型速度或用户理解收益；真实浏览器 CSS 绘制由独立回归验证。
  */
+import {informationHighlightOpacity} from '@/src/features/information-highlight/domain/presentation';
 import {parseHTML} from 'linkedom';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {scoreInformationKeywords, selectInformationSpans} from '@/src/features/information-highlight/domain/keywords';
@@ -41,7 +42,7 @@ function fixture(html = '<article><p id="paragraph">The extraordinary algorithm 
         if (key === 'cancelAnimationFrame') return (id: number) => frames.delete(id);
         if (key === 'setTimeout') return (callback: () => void, ms: number) => setTimeout(callback, ms);
         if (key === 'clearTimeout') return (id: number) => clearTimeout(id);
-        if (key === 'getComputedStyle') return (element: HTMLElement) => ({display: element.style.display || 'inline', visibility: element.style.visibility || 'visible'});
+        if (key === 'getComputedStyle') return (element: HTMLElement) => ({display: element.style.display || 'inline', visibility: element.style.visibility || 'visible', color: element.getAttribute('data-color') ?? undefined});
         return Reflect.get(target, key);
     }});
     Object.defineProperty(document, 'defaultView', {value: view});
@@ -469,6 +470,16 @@ describe('page-owned scoring, paint and cancellation', () => {
         vi.advanceTimersByTime(360); await finish(); expect(f.painted()).not.toEqual(painted);
         restyle('f'); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(1); await finish();
         controller.dispose();
+    });
+    it('deepens background tints on pages with light text and follows the page when its theme changes', async () => {
+        const f = fixture(), controller = installInformationHighlight(f.document, {...defaults, style: 'heatmap'}, {scoreLocal: vi.fn()});
+        const top = () => Number(/-7\) \{ background-color: rgb\([^/]+\/ ([\d.]+)\)/u.exec(f.document.querySelector('[data-fr-information-highlight-style]')!.textContent!)![1]);
+        f.document.body.setAttribute('data-color', 'rgb(230, 232, 235)'); controller.setEnabled(true); await f.settle(); expect(top()).toBe(0.8);
+        f.document.body.setAttribute('data-color', 'rgba(20 20 20 / 1)'); f.document.dispatchEvent(new f.window.Event('scroll')); await f.settle(); expect(top()).toBe(0.5);
+        controller.updatePreferences({...defaults, style: 'underline'}); f.document.body.setAttribute('data-color', 'rgb(255, 255, 255)'); await f.settle();
+        expect(f.document.querySelector('[data-fr-information-highlight-style]')!.textContent).toContain('/ 0.8)');
+        controller.dispose();
+        expect(informationHighlightOpacity('heatmap', 0, 'standard', true)).toBe(0.068); expect(informationHighlightOpacity('background', undefined, 'strong', true)).toBe(0.762);
     });
     it('replaces paint that starts inside a re-segmented paragraph instead of stacking colours', async () => {
         const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary. </p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');

@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/domain/presentation.ts
  * 文件职责：定义智能高亮的共享色板、柔和强度与词项热力呈现，让真实阅读和设置预览使用相同绘制规则。
- * 主要内容：提供六套配色和八档透明度，以段内分数秩次抵抗极端值，并让深色集中在少数高分词上；三档密度按完整词项单调增加覆盖。
+ * 主要内容：提供六套配色和八档透明度，深色页面整体加浓，以段内分数秩次抵抗极端值，并让深色集中在少数高分词上；三档密度按完整词项单调增加覆盖。
  * 模块边界：纯呈现算法，不计算语言模型概率、不修改原文、不解释事实重要性或保证提速，不访问网页、网络、配置存储及浏览器绘制接口。
  */
 import type {InformationHighlightColor, InformationHighlightDensity, InformationHighlightIntensity, InformationHighlightStyle} from '@/src/core/config/informationHighlight';
@@ -23,11 +23,12 @@ const intensityScale: Readonly<Record<InformationHighlightIntensity, number>> = 
 export interface InformationHeatmapSpan extends InformationHighlightSpan {level: number}
 
 /** 原生高亮与示意预览共用；越界强度收敛到色阶，非法值回到中间柔和强度。 */
-export function informationHighlightOpacity(style: InformationHighlightStyle, level = INFORMATION_HIGHLIGHT_LEVELS - 1, intensity: InformationHighlightIntensity = 'standard'): number {
+export function informationHighlightOpacity(style: InformationHighlightStyle, level = INFORMATION_HIGHLIGHT_LEVELS - 1, intensity: InformationHighlightIntensity = 'standard', dark = false): number {
     const bounded = Number.isFinite(level) ? Math.max(0, Math.min(INFORMATION_HIGHLIGHT_LEVELS - 1, Math.round(level))) : 3;
     const base = style === 'background' ? 0.28 : style === 'underline' ? 0.8 : heatmapOpacity[bounded];
     // 用户选择的浓度整体缩放透明度；上限保证文字在深色档仍清晰可读。
-    return Math.round(Math.min(style === 'underline' ? 1 : 0.8, base * intensityScale[intensity]) * 1000) / 1000;
+    // 深色页面上同样的透明度显得更暗、浅档几乎看不见，底色整体加浓以保住层次；细线本身已足够醒目。
+    return Math.round(Math.min(style === 'underline' ? 1 : 0.8, base * intensityScale[intensity] * (dark && style !== 'underline' ? 1.7 : 1)) * 1000) / 1000;
 }
 
 /**

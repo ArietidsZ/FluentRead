@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/content/runtime.ts
  * 文件职责：拥有单个阅读页面的信息高亮会话，协调只读分帧扫描、评分取消、文本缓存和原生 CSS Highlight 绘制。
- * 主要内容：开启和改偏好立即扫描，滚动与动态内容经过 180ms 稳定窗口后扫描，连续变化最迟 600ms 开始一次，页面不断变化而正文没有变时逐步放慢到约 5 秒一次，每帧工作预算约 4ms；整轮收集完成后按离视口的距离评分，可见段落最先出现；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动和页面自身变化都沿用未变化段落的绘制，进行中的扫描不被打断（模型评分完成当前段落后按新视口重排），扫描完成后再回收离开阅读区域的范围，避免闪烁和丢弃模型已做的工作；迟到结果复验代次和 Text 身份，关闭时清理所有绘制、观察器、计时器和请求，样式表保留到释放时移除以免反复开关时整页重算样式。
+ * 主要内容：开启和改偏好立即扫描，滚动与动态内容经过 180ms 稳定窗口后扫描，连续变化最迟 600ms 开始一次，页面不断变化而正文没有变时逐步放慢到约 5 秒一次，每帧工作预算约 4ms；整轮收集完成后按离视口的距离评分，可见段落最先出现；评分与选区按纯文本缓存，热力按八档强度分桶绘制，每轮扫描按正文文字颜色判断深色页面并加浓；滚动和页面自身变化都沿用未变化段落的绘制，进行中的扫描不被打断（模型评分完成当前段落后按新视口重排），扫描完成后再回收离开阅读区域的范围，避免闪烁和丢弃模型已做的工作；迟到结果复验代次和 Text 身份，关闭时清理所有绘制、观察器、计时器和请求，样式表保留到释放时移除以免反复开关时整页重算样式。
  * 模块边界：不访问配置存储或扩展消息、不改变宿主原文、class 和布局；本地模型评分、翻译根及状态通知由应用组合根注入，无原生绘制支持时诚实返回 unsupported。
  */
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
@@ -49,6 +49,12 @@ export function installInformationHighlight(document: Document, initial: Informa
     let active = -1, wanted = false, since = 0;
     // touched：本轮扫描是否改动过绘制；quiet：连续多少轮什么都没改。动画、轮播等只改样式的页面据此放慢重扫。
     let touched = false, quiet = 0;
+    // 正文文字是浅色即视为深色页面（比背景色可靠：很多深色页面的 body 背景是透明的）。
+    let dark = false;
+    const readDark = () => {
+        const channels = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)/u.exec(String(view.getComputedStyle(ports.scope ?? document.body).color));
+        return Boolean(channels) && (0.2126 * Number(channels![1]) + 0.7152 * Number(channels![2]) + 0.0722 * Number(channels![3])) / 255 > 0.6;
+    };
     const styles = new Map<Document | ShadowRoot, HTMLStyleElement>(), observers = new Map<Document | ShadowRoot, MutationObserver>();
     const cache = new Map<string, CachedParagraph>();
     let cachedCharacters = 0;
@@ -89,10 +95,10 @@ export function installInformationHighlight(document: Document, initial: Informa
     const css = () => {
         const color = INFORMATION_HIGHLIGHT_PALETTES[preferences.color].rgb, style = preferences.style;
         if (style === 'heatmap') return Array.from({length: INFORMATION_HIGHLIGHT_LEVELS}, (_, level) =>
-            `::highlight(${INFORMATION_HIGHLIGHT_NAME}-${level}) { background-color: rgb(${color} / ${informationHighlightOpacity(style, level, preferences.intensity)}); }`).join('\n');
+            `::highlight(${INFORMATION_HIGHLIGHT_NAME}-${level}) { background-color: rgb(${color} / ${informationHighlightOpacity(style, level, preferences.intensity, dark)}); }`).join('\n');
         return `::highlight(${INFORMATION_HIGHLIGHT_NAME}) { ${style === 'underline'
-            ? `text-decoration-line: underline; text-decoration-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity)}); text-decoration-thickness: 2px;`
-            : `background-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity)});`} }`;
+            ? `text-decoration-line: underline; text-decoration-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity, dark)}); text-decoration-thickness: 2px;`
+            : `background-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity, dark)});`} }`;
     };
     const ownStyle = (node: Node) => [...styles.values()].some(style => node === style || style.contains(node));
     const irrelevant = (node: Node) => ownStyle(node) || Boolean((node.nodeType === 1 ? node as Element : node.parentElement)?.closest('[data-fluent-read-ui],[data-fluentread-pdf-decoration],[id^="fluent-read-"]'));
@@ -240,7 +246,7 @@ export function installInformationHighlight(document: Document, initial: Informa
         timer = view.setTimeout(() => {
             timer = undefined;
             if (!current() || version !== generation) return;
-            active = version; touched = false; seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
+            active = version; touched = false; dark = readDark(); seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
             notify({phase: 'analyzing', processedParagraphs: 0, highlightedSpans: 0});
             frame = view.requestAnimationFrame(() => step(version));
         }, Math.max(0, Math.min(settle, since + (600 << quiet) - now)));
