@@ -1,5 +1,7 @@
 # ContextMenu · 八声明提交后的独立增量
 
+> 历史基线：本目录记录旧18e→9b性能批次，原始数字和证据保留。新main175c5951上的产物、失败及浏览器未测状态见[新精确head报告](../../userscript-performance-clean-main-20261009/README.md)。这些历史产物不代表新独立PR的实测。
+
 本增量只给 SettingsSections.vue 的 ContextMenuSettings 异步声明添加既有编译常量 `import.meta.env.BROWSER === 'userscript' ? undefined : 原 defineAsyncComponent`；未改变模板。原模板在 userscript 分支明确渲染 `data-userscript-unavailable="context-menu"` 的 SettingsGroup，ContextMenuSettings 在 `v-else` 下，因此 userscript 加载声明不可达。本次不扩大到其他设置、不增加配置或新权限，LocalTts 保持原加载声明。
 
 [context-menu-only.patch](./context-menu-only.patch) 是相对于八声明源码的唯一生产增量。此处 before 是八声明提交，after 才包含 ContextMenu。完整原始基线→八声明证据在 [相邻目录](../eight-declarations/README.md)，没有重跑或混用旧量测。

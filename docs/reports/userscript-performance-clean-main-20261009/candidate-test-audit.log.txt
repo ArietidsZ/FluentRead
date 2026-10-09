@@ -1,0 +1,16 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs test:audit
+
+> FluentRead-流畅阅读@0.0.37 test:audit /home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-clean-20261009
+> node scripts/testing/audit-test-suite.mjs
+
+{
+  "status": "ok",
+  "groups": {
+    "architecture": 33,
+    "unit": 350,
+    "functional": 192,
+    "regression": 37
+  },
+  "files": 612,
+  "cases": 9862
+}

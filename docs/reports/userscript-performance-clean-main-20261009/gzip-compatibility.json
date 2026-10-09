@@ -1,0 +1,309 @@
+{
+  "passed": true,
+  "pakoVersion": "2.1.0",
+  "baselineWrapperHead": "175c59514b9ce4242b34b9f6bed1ac6a2ceb3545",
+  "fixtureSourceHead": "a9193cb40e809664b3f84ca3204876538e625cfa",
+  "browserIifeRuntimeTested": false,
+  "fixtureSourceArtifact": {
+    "bytes": 3595173,
+    "sha256": "6f28435bf48d43a35c51b65ea661784e83b6c6f99b362c28bea38cf4af0b77e7"
+  },
+  "afterArtifact": {
+    "bytes": 3595173,
+    "sha256": "6f28435bf48d43a35c51b65ea661784e83b6c6f99b362c28bea38cf4af0b77e7"
+  },
+  "actualWrapperSource": {
+    "beforeSha256": "bda52d7bb7351c7a49090611bfc98ac1d7b45cf0481d9ac948bd4a6bc197f13a",
+    "afterSha256": "fe6111535d14b46dedfbbd9c3210864a00f29654904883bb622a1b2ac05e2510"
+  },
+  "method": "Transpile the actual before/after wrapper sources without changing their function bodies; qualify only library import URLs to the actual installed package entries. Compare the exact gzip strings captured from this new candidate production artifact against Node zlib bytes, both pako library raw bytes and both real wrapper UTF-8 bytes. No function or library stubs.",
+  "fixtureCount": 8,
+  "typedInputCases": 24,
+  "rows": [
+    {
+      "index": 0,
+      "gzipBytes": 101806,
+      "gzipSha256": "fec86f0710c1bb6406b10d889afe7b680644a889d3f8bae3184335b8e6805e25",
+      "decodedBytes": 697973,
+      "decodedSha256": "276ada3aa7ec0d76178f9d246f82212d362e4ef1658dcbbe5f1e0fe0f008d7e2",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "gzipBytes": 7822,
+      "gzipSha256": "1f5ddbf95474ff6728bd2f31f37d24975e66f03ce72af5151da33b79f84b80d9",
+      "decodedBytes": 32514,
+      "decodedSha256": "609e41eb261020d108080238962e6fdd28ffe4a3f6ec879389ad44c2e0d396b6",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "gzipBytes": 4517,
+      "gzipSha256": "04c6877485df233c459eacbcf963f5b98ef3826bac71096f3d4826d73d8c0ee2",
+      "decodedBytes": 9498,
+      "decodedSha256": "64656377a9628167c88dc608cbc0b88643b698166c7948001953139e310fcfa8",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "gzipBytes": 3249,
+      "gzipSha256": "b04919f8b80dee3e655b5e3d5c8dba7404929442b1be935e6cf54558d60cac78",
+      "decodedBytes": 13378,
+      "decodedSha256": "a8350a4b3dd632e37a4ed668e1e6787f2016af858f27db3570f0556d451c99cf",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "gzipBytes": 7218,
+      "gzipSha256": "6b2a92e3b45a3abc15e49580adb0ba18e311e129de95bcf15efe9854e326f3ed",
+      "decodedBytes": 68705,
+      "decodedSha256": "f0580b893705463eeae33a044fd28efa9f9017b127b55fe5e76393da9e4a5909",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "gzipBytes": 1505,
+      "gzipSha256": "da197b87eaa9f4f69c7968e075e44381d5c4f06f7aa664ed0ce705c4c89e38f9",
+      "decodedBytes": 17244,
+      "decodedSha256": "76599767b169bf2efc629e97e3ffba8cce7d4e74dfa143a6df3d7f777b5d9590",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "gzipBytes": 46595,
+      "gzipSha256": "81b92945d71f109f56663fd3a0f69e772d9720685688142607feff6e5b29367a",
+      "decodedBytes": 162530,
+      "decodedSha256": "32dfb986f733af55bb2fe0952355ac5211dfbd04a24443d281e6fe32fc85bc9e",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "gzipBytes": 139373,
+      "gzipSha256": "970563ee7860e741757f3acb514c25313c34fa0263ea40c93f436b5d10fda669",
+      "decodedBytes": 456818,
+      "decodedSha256": "0e0eada5046388f637b86db2f3a3af16c3574633f4e8ef70e74256cc1cf004c8",
+      "contracts": [
+        {
+          "kind": "Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "Buffer",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        },
+        {
+          "kind": "offset Uint8Array",
+          "rawBytesEqual": true,
+          "wrapperUtf8BytesEqual": true,
+          "inputUnchanged": true
+        }
+      ]
+    }
+  ],
+  "invalidContracts": [
+    {
+      "kind": "invalid header",
+      "before": {
+        "status": "threw",
+        "type": "string",
+        "message": "incorrect header check"
+      },
+      "after": {
+        "status": "threw",
+        "type": "string",
+        "message": "incorrect header check"
+      }
+    },
+    {
+      "kind": "damaged checksum",
+      "before": {
+        "status": "threw",
+        "type": "string",
+        "message": "incorrect data check"
+      },
+      "after": {
+        "status": "threw",
+        "type": "string",
+        "message": "incorrect data check"
+      }
+    },
+    {
+      "kind": "empty",
+      "before": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      },
+      "after": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      }
+    },
+    {
+      "kind": "truncated header",
+      "before": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      },
+      "after": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      }
+    },
+    {
+      "kind": "truncated footer",
+      "before": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      },
+      "after": {
+        "status": "returned",
+        "type": "string",
+        "value": "undefined"
+      }
+    }
+  ],
+  "allCapturedCompressedStringsMatchArtifact": true,
+  "externalApiCalls": 0
+}

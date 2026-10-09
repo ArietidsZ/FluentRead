@@ -1,0 +1,207 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "phase": "before",
+      "unsupportedTrace": [
+        {
+          "requested": "settings-image-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-image-translation"
+        },
+        {
+          "requested": "settings-area-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-image-translation"
+        },
+        {
+          "requested": "settings-video",
+          "resolved": "settings-video",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-video"
+        },
+        {
+          "requested": "settings-writing",
+          "resolved": "settings-writing",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-writing"
+        },
+        {
+          "requested": "settings-translation-stats",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-translation-stats"
+        },
+        {
+          "requested": "settings-model-usage",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-translation-stats"
+        }
+      ],
+      "initialDeepLinks": [
+        {
+          "requested": "settings-image-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-area-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-video",
+          "resolved": "settings-video",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-writing",
+          "resolved": "settings-writing",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-translation-stats",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-model-usage",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "source": "actual OptionsApp, SettingsSections and SettingsGroup setup + client templates; real Vue KeepAlive and navigation resolver",
+      "ports": "config/browser/appearance and unrelated UI leaves; neither root, availability decision, routes, template, nor KeepAlive replaced",
+      "trace": [
+        {
+          "target": "context-menu",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "context-menu-settings",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "selectPanel(context-menu)",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "keepAliveSameInstance": true,
+      "draftPreserved": "fr",
+      "localTtsMounted": true,
+      "prohibitedChildMounts": [],
+      "externalCalls": 0,
+      "errors": []
+    },
+    {
+      "phase": "after",
+      "unsupportedTrace": [
+        {
+          "requested": "settings-image-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-image-translation"
+        },
+        {
+          "requested": "settings-area-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-image-translation"
+        },
+        {
+          "requested": "settings-video",
+          "resolved": "settings-video",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-video"
+        },
+        {
+          "requested": "settings-writing",
+          "resolved": "settings-writing",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-writing"
+        },
+        {
+          "requested": "settings-translation-stats",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-translation-stats"
+        },
+        {
+          "requested": "settings-model-usage",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription",
+          "deepLinkResolved": "settings-translation-stats"
+        }
+      ],
+      "initialDeepLinks": [
+        {
+          "requested": "settings-image-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-area-translation",
+          "resolved": "settings-image-translation",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-video",
+          "resolved": "settings-video",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-writing",
+          "resolved": "settings-writing",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-translation-stats",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "requested": "settings-model-usage",
+          "resolved": "settings-translation-stats",
+          "notice": "options.userscriptUnavailableTitleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "source": "actual OptionsApp, SettingsSections and SettingsGroup setup + client templates; real Vue KeepAlive and navigation resolver",
+      "ports": "config/browser/appearance and unrelated UI leaves; neither root, availability decision, routes, template, nor KeepAlive replaced",
+      "trace": [
+        {
+          "target": "context-menu",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "context-menu-settings",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        },
+        {
+          "target": "selectPanel(context-menu)",
+          "resolvedSection": "settings-translation",
+          "resolvedPanel": "context-menu",
+          "notice": "contextMenuSettings.titleoptions.userscriptUnavailableDescription"
+        }
+      ],
+      "keepAliveSameInstance": true,
+      "draftPreserved": "fr",
+      "localTtsMounted": true,
+      "prohibitedChildMounts": [],
+      "externalCalls": 0,
+      "errors": []
+    }
+  ]
+}

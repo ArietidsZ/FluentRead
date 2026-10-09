@@ -1,0 +1,153 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec node /home/arietids/Documents/Codex/2026-10-06/task/userscript-performance-clean-pr-20261009/record-build.mjs standalone baseline
+vite v5.4.19 building for production...
+transforming...
+✓ 2366 modules transformed.
+x Build failed in 2.69s
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts (102:2): "VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE" is not exported by "userscript/unsupportedCapabilities.ts", imported by "src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts".
+file: /home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts:102:2
+
+100:   VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,
+101:   VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE,
+102:   VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
+       ^
+103:   VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
+104:   normalizeVideoLocalTranscriptionModels,
+
+    at getRollupError (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/parseAst.js:396:41)
+    at error (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/parseAst.js:392:42)
+    at Module.error (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:15715:16)
+    at Module.traceVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:16164:29)
+    at ModuleScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:13886:39)
+    at ChildScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:5305:38)
+    at FunctionScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:5305:38)
+    at FunctionBodyScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:5305:38)
+    at FunctionScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:5305:38)
+    at FunctionBodyScope.findVariable (file:///home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/rollup@4.30.1/node_modules/rollup/dist/es/shared/node-entry.js:5305:38) {
+  binding: 'VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE',
+  code: 'MISSING_EXPORT',
+  exporter: '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/unsupportedCapabilities.ts',
+  id: '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts',
+  url: 'https://rollupjs.org/troubleshooting/#error-name-is-not-exported-by-module',
+  pos: 3549,
+  loc: {
+    column: 2,
+    file: '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts',
+    line: 102
+  },
+  frame: '100:   VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,\n' +
+    '101:   VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE,\n' +
+    '102:   VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,\n' +
+    '       ^\n' +
+    '103:   VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,\n' +
+    '104:   normalizeVideoLocalTranscriptionModels,',
+  watchFiles: [
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/main.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/package.json',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/browser.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/context.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/http.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/initialize.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/count.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/api.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/compression.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/settingsPage.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/storage.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/http/runtime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/platformFull.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/settingsFull.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/shadow-ui/pageBridge.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/pageLifecycle.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/entrypoints/content.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/features.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/services/config/store.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/pakoBundled.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/validation.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/customOpenAI.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/services/config/count.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/model.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/catalog.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/shadow-ui/index.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/options/OptionsApp.vue',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/options/index.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/runtime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/translation/visionProbeRuntime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/background/handlers/visionProbe.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/providers/translation/connectionTest.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/credentials.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/background/handlers/configPersistence.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/translation/runtime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/constants.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/input-translation/background/index.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/selection-translation/services/wordDictionary.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/services/translation/requestSnapshot.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/background/handlers/modelUsage.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/storage/modelUsageRepository.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/vocabulary/protocol.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/vocabulary/background/handler.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/full-page-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/vocabulary/repository.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/floating-ball/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/unsupportedCapabilities.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/input-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/hover-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/quick-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/paragraph-copy/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/section-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/selection-translation/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/share-card/public.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/shadow-ui/pageBridgeCore.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/shared/dom/documentType.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/platform/shadow-ui/vue.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/vue@3.5.13_typescript@5.7.3/node_modules/vue/dist/vue.runtime.esm-bundler.js',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/pako@2.1.0/node_modules/pako/dist/pako.esm.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/index.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/base/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/button/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/@element-plus+icons-vue@2.3.1_vue@3.5.13_typescript@5.7.3_/node_modules/@element-plus/icons-vue/dist/index.js',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/collapse/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/col/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/dialog/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/empty/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/divider/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/icon/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/input/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/input-number/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/link/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/option/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/option-group/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/popover/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/row/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/select/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/switch/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/text/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/tooltip/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/message/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/color-picker/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/element-plus@2.9.3_vue@3.5.13_typescript@5.7.3_/node_modules/element-plus/es/components/message-box/style/css.mjs',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/ui/components/UiSelect.vue',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/ui/interfaceAppearance.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/ui/i18n.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/features/settings/ui/settings-page.css',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/ui/styles/interface-skins.css',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/uiLanguageBundles.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/services/config/history.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/services/config/schema.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/credentialBinding.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/core/config/transfer.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/userscript/credentialContext.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/learningFeatures.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/featureRegistry.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/hotkeyRuntime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/messageRuntime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/quickTranslationRuntime.ts',
+    '/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-main-baseline-20261009/src/app/content/pageStyles.ts',
+    ... 2050 more items
+  ],
+  Symbol(augmented): true
+}
+
+Node.js v26.7.0

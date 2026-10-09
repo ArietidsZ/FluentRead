@@ -1,6 +1,6 @@
 # userscript 不可达设置 · 独立性能审计
 
-本性能分支 `perf/userscript-unreachable-settings-20261009` 从 `18e049003bffab6d2bd49220c48b569b0a70856e` 建立，独立于仍为 draft 的 [#906](https://github.com/FluentRead/FluentRead/pull/906)。本目录公开可复核的补丁、源码文本快照、完整三出口 entry.moduleIds/entry.modules、实际根组件导航和保留行为证据。没有发布性能 PR。
+本目录保留旧性能分支 `perf/userscript-unreachable-settings-20261009` 在 `18e049003bffab6d2bd49220c48b569b0a70856e`→`9b563da8` 上的历史测量。该旧分支祖先包含仍为 draft 的 [#906](https://github.com/FluentRead/FluentRead/pull/906)，不能直接作为独立性能PR基线。本目录公开可复核的补丁、源码文本快照、完整三出口 entry.moduleIds/entry.modules、实际根组件导航和保留行为证据。新独立分支从 upstream/main `175c5951` 仅移植三个性能提交；[新精确head证据与尚存阻塞](../userscript-performance-clean-main-20261009/README.md)为本次PR依据。以下全部数字是历史结果，不能当作新main实测。
 
 [八声明提交](./eight-declarations/README.md) 将既有 userscript 不可达的八个异步设置声明置于现有编译常量分支；standalone 从 3,797,330 降至 3,620,828 UTF-8 字节，减少 176,502。standard 仍为 1,959,993（余 7），GreasyFork 仍为 2,322,749（超 322,749）。该阶段 standalone 仍超 20,828。
 

@@ -1,0 +1,37 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs verify:extension-manifests
+
+> FluentRead-流畅阅读@0.0.37 verify:extension-manifests /home/arietids/Documents/Codex/2026-10-06/task/FluentRead-userscript-performance-clean-20261009
+> node scripts/testing/verify-extension-manifests.mjs
+
+{
+  "status": "ok",
+  "chrome": {
+    "manifestVersion": 3,
+    "offscreenPermission": true,
+    "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:chrome:mv3__",
+    "artifacts": [
+      "chunks/offscreen-D3H1J6kd.js",
+      "offscreen.html"
+    ],
+    "ocrAssets": 6
+  },
+  "firefox": {
+    "manifestVersion": 2,
+    "offscreenPermission": false,
+    "runtimeCapabilityMarker": "__FLUENTREAD_BROWSER_CAPABILITY_BUILD__:firefox:mv2__",
+    "artifacts": [
+      "chunks/offscreen-D3H1J6kd.js",
+      "offscreen.html"
+    ],
+    "ocrAssets": 6,
+    "geckoId": "{3096bd53-3bda-4556-b076-ebf47442a5c1}",
+    "strictMinVersion": "140.0",
+    "dataCollectionPermissions": [
+      "websiteContent",
+      "authenticationInfo",
+      "personalCommunications"
+    ],
+    "archives": [],
+    "archiveOcrAssets": 0
+  }
+}

@@ -1,5 +1,7 @@
 # Standalone 不可达设置 · 八声明独立提交
 
+> 历史基线：本目录记录旧18e→9b性能批次，原始数字和证据保留。新main175c5951上的产物、失败及浏览器未测状态见[新精确head报告](../../userscript-performance-clean-main-20261009/README.md)。这些历史产物不代表新独立PR的实测。
+
 本候选基于已推送并完成许可修复的18e049003bffab6d2bd49220c48b569b0a70856e，仅给SettingsSections.vue的8个异步组件声明添加既有编译常量 `import.meta.env.BROWSER === 'userscript' ? undefined : 原 defineAsyncComponent`。原OptionsApp已经对图片/圈选/视频/写作/翻译统计/模型用量六个请求入口展示不可用提示；编译分支排除的是此前依然被inlineDynamicImports带入standalone的不可达加载声明。
 
 生产只改8声明与职责注释；LocalTtsSettings、ContextMenuSettings、导航、不可用提示、语言及配置保存逻辑均未改。另适配3处源形状断言，仍精确检查原异步导入路径，并要求LocalTts等支持组件保留无分支原声明。交付[candidate.patch](./candidate.patch)及完整量测证据，作为独立性能分支 `perf/userscript-unreachable-settings-20261009` 的八声明提交；没有并入#906。产物按本目录的八声明补丁源码SHA绑定。本目录保存原始基线与八声明增量，后续 ContextMenu 增量另存，不能混用两个阶段的产物。

@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec vitest run tests/settingsUiArchitecture.test.ts -t owns settings, feature UI and shared components in their target layers --reporter=json --outputFile=/home/arietids/Documents/Codex/2026-10-06/task/userscript-performance-clean-pr-20261009/baseline-copy-failure.json
+JSON report written to /home/arietids/Documents/Codex/2026-10-06/task/userscript-performance-clean-pr-20261009/baseline-copy-failure.json

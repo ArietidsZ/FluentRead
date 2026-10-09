@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec node /home/arietids/Documents/Codex/2026-10-06/task/userscript-performance-clean-pr-20261009/gzip-compatibility.mjs
+{"passed":true,"existingGzipData":8,"typedInputCases":24,"invalidContracts":5,"allCompressedStringsUnchanged":true}

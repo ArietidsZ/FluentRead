@@ -1,5 +1,7 @@
 # pako inflate 入口 · b7f88830 后的独立消融
 
+> 历史基线：本目录记录旧18e→9b性能批次，原始数字和证据保留。新main175c5951上的产物、失败及浏览器未测状态见[新精确head报告](../../userscript-performance-clean-main-20261009/README.md)。这些历史产物不代表新独立PR的实测。
+
 基线为独立性能分支 `b7f88830e3d47f595cb287f3833d5d001adcffc6`，包含前两项不可达设置裁剪。本次生产只将 `userscript/pakoBundled.ts` 的运行时导入从 `pako` 改成 `pako/lib/inflate.js`，并在既有 ambient 类型文件增加同签名声明。函数体、pako 2.1.0、解压格式与算法不变；未增加包装、插件、依赖或环境。另在原压缩测试中增加偏移 Uint8Array 和错误头/校验和两个契约。[完整单项补丁](./candidate.patch)。
 
 官方 2.1.0 [package.json](https://github.com/nodeca/pako/blob/2.1.0/package.json) 的 exports 开放 `./lib/*`，[lib/inflate.js](https://github.com/nodeca/pako/blob/2.1.0/lib/inflate.js) 导出 `ungzip=inflate`，不依赖 deflate 编码器。本机安装清单、exports 和实际源码已经核对。本改动仅让构建选择该官方入口，构建期 `createRequire('pako').gzip` 和 standard/GF 的现有 pakoRuntime 全局入口保持原样。

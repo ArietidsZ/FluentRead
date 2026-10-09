@@ -1,0 +1,23 @@
+{
+  "status": "not-run",
+  "sourceHead": "a9193cb40e809664b3f84ca3204876538e625cfa",
+  "requestedScope": "Final standalone IIFE production CommonJS inflate binding in authorized CW isolated browser and localhost synthetic fixture",
+  "callableScopedBrowserToolAvailable": false,
+  "reviewedExistingHelper": "neo-native-headless-webgpu-20261009/execution/neo-native-headless-session.mjs (CW workspace)",
+  "reviewedExistingHelperSha256": "811098868e851a221113604e552b2afbccb06d2c2a9d545eb1b72e1d9bdebce2",
+  "specificConstraint": "Recovery HOLD forbids inspection/control of Recovery windows/processes/clients, including global read-only process scans. The existing helper uses a global /proc process scan and WinRects desktop inventory before browser control. It cannot be invoked under that constraint. No unknown browser sockets were connected.",
+  "browserLaunched": false,
+  "newExtensionsInstalled": 0,
+  "permissionChanges": 0,
+  "realModelApiCalls": 0,
+  "recoveryInspectedOrControlled": false,
+  "actualBrowserIifeInflateTested": false,
+  "nodeEntryOrLibraryTestsAreNotBrowserEvidence": true,
+  "standaloneArtifact": {
+    "bytes": 3595173,
+    "sha256": "6f28435bf48d43a35c51b65ea661784e83b6c6f99b362c28bea38cf4af0b77e7",
+    "matchesRecordedGraphArtifact": true,
+    "moduleCount": 1187,
+    "byteBudgetPassed": true
+  }
+}
