@@ -1,552 +1,1101 @@
 {
-  "schemaVersion": 4,
-  "baseCommit": "01d532056d44ecd6fc9e78b5fbb35befe435215e",
-  "validatedSourceCommit": "ee7655b36d75069e3f0f61c344529232e736b1e1",
-  "fixedResourceCommit": "3b347c40f7a928fffe562043049a514a67a876fe",
+  "schemaVersion": 1,
+  "baseCommit": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+  "validatedSourceCommit": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+  "fixedResourceCommit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
   "branch": "perf/gf-statistics-repositories-20261009",
-  "scope": "GF-only pure strings in the existing fixed data object; original algorithms remain in main and original standard/standalone compression remains byte identical.",
+  "scope": {
+    "onlyCwLocalExecution": true,
+    "onlySixExactInlineCssPorts": true,
+    "noProductConsumerSourceChange": true,
+    "browserExecuted": false,
+    "finalIifeBrowserAcceptance": false,
+    "dependenciesInstalled": false,
+    "permissionsAdded": false,
+    "realSearchOrModelApiCalled": false,
+    "newPrCreated": false
+  },
   "artifacts": {
-    "greasyfork": {
-      "bytes": 2180182,
-      "sha256": "34910ca6ca32751a3a036bd2c1cb3424604503682c170ec643f4c63ee6547d4c",
-      "beforeBytes": 2233395,
-      "actualByteSavings": 53213
+    "baseline": {
+      "main": {
+        "bytes": 2180182,
+        "sha256": "34910ca6ca32751a3a036bd2c1cb3424604503682c170ec643f4c63ee6547d4c"
+      },
+      "data": {
+        "bytes": 930496,
+        "sha256": "f9c1f544603fc461d6d9c9d2b097f1dada2eeba3a875cf6a63a141f70d44263e"
+      },
+      "total": 3721021
     },
-    "standard": {
-      "bytes": 1957868,
-      "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
-      "byteIdenticalToBase": true
+    "final": {
+      "main": {
+        "bytes": 2148481,
+        "sha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85"
+      },
+      "data": {
+        "bytes": 964406,
+        "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
+        "trackedBuiltGitEqual": true
+      },
+      "vendor": {
+        "bytes": 610343,
+        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+        "trackedBuiltGitEqual": true
+      },
+      "total": 3723230
     },
-    "standalone": {
-      "bytes": 3590688,
-      "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
-      "byteIdenticalToBase": true
+    "normal": {
+      "standard": {
+        "bytes": 1957868,
+        "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
+        "fullByteIdentical": true
+      },
+      "standalone": {
+        "bytes": 3590688,
+        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
+        "fullByteIdentical": true
+      }
+    },
+    "delta": {
+      "main": -31701,
+      "data": 33910,
+      "total": 2209
     }
   },
-  "ablation": {
-    "control": {
-      "bytes": 2233395,
-      "sha256": "57d6f95768fc06ca16102a0e48f90374e453752c681f99fd09c784b2175a0c11"
+  "resourceBindings": {
+    "resourceCommit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+    "mainMetadataComparison": {
+      "beforeResourceUrlBytes": [
+        135,
+        133
+      ],
+      "afterResourceUrlBytes": [
+        135,
+        133
+      ],
+      "urlLengthDelta": 0,
+      "mainByteIncrease": 0,
+      "mainNormalizedEqual": true
     },
-    "candidateSameFixedUrls": {
-      "bytes": 2180182,
-      "sha256": "4862205edf9e0d1f497f009a1618c3c6af7e0e39cd38e10d2989d783e5add3d6"
-    },
-    "candidateFinalEqualApartFromFixedCommit": true,
-    "finalNormalizedSha256": "d21edc62f6d91c912f3732585b525abcea88064130db33978263d0a9c142b0fe",
-    "actualMainByteSavings": 53213,
-    "originalStringByteCountIsNotSavings": 57926,
-    "beforeMainPlusTwoResourcesBytes": 3711874,
-    "afterMainPlusTwoResourcesBytes": 3721021,
-    "mainPlusTwoResourcesIncreaseBytes": 9147,
-    "fixedResourceUrlLengths": [
-      135,
-      133
-    ],
-    "fixedUrlLengthDelta": 0
-  },
-  "resources": [
-    {
-      "kind": "vendor",
-      "path": "userscript/resources/fluentread-vendor.v1.js",
-      "commit": "3b347c40f7a928fffe562043049a514a67a876fe",
-      "bytes": 610343,
-      "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-      "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@3b347c40f7a928fffe562043049a514a67a876fe/userscript/resources/fluentread-vendor.v1.js",
-      "cdnEqual": true,
-      "beforeBytes": 610343,
-      "byteIncrease": 0,
-      "cdnHttpStatus": 200,
-      "cdnAttempts": 1
-    },
-    {
-      "kind": "data",
-      "path": "userscript/resources/fluentread-data.v1.js",
-      "commit": "3b347c40f7a928fffe562043049a514a67a876fe",
-      "bytes": 930496,
-      "sha256": "f9c1f544603fc461d6d9c9d2b097f1dada2eeba3a875cf6a63a141f70d44263e",
-      "gitBlobSha1": "fba5c14b7343e178b67b57408a55a6cf999fc893",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@3b347c40f7a928fffe562043049a514a67a876fe/userscript/resources/fluentread-data.v1.js",
-      "cdnEqual": true,
-      "beforeBytes": 868136,
-      "byteIncrease": 62360,
-      "cdnHttpStatus": 200,
-      "cdnAttempts": 1
-    }
-  ],
-  "stringEquivalence": {
-    "count": 48,
-    "allExactBytesAndShaEqual": true,
-    "independentReference": "Independent TypeScript transpilation and evaluation of original source exports versus actual generated fixed data payload.",
-    "sources": [
+    "resources": [
       {
-        "path": "src/core/language/chineseVariants.ts",
-        "sourceSha256": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
-        "exportCount": 3,
-        "stringUtf8Bytes": 48564
+        "kind": "vendor",
+        "path": "userscript/resources/fluentread-vendor.v1.js",
+        "commit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+        "bytes": 610343,
+        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+        "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
+        "trackedBuiltGitRemoteEqual": true,
+        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-vendor.v1.js",
+        "cdnAttempts": [
+          {
+            "attempt": 1,
+            "at": "2026-10-09T19:58:33.055117+00:00",
+            "httpStatus": 200,
+            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-vendor.v1.js",
+            "bytes": 610343,
+            "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+            "byteEqual": true
+          }
+        ],
+        "cdnEqual": true
       },
       {
-        "path": "src/core/language/functionWordData.ts",
-        "sourceSha256": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f",
-        "exportCount": 45,
-        "stringUtf8Bytes": 9362
+        "kind": "data",
+        "path": "userscript/resources/fluentread-data.v1.js",
+        "commit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+        "bytes": 964406,
+        "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
+        "gitBlobSha1": "8b5ab78750d68f3525adf7bab5fd2f84ea4b5384",
+        "trackedBuiltGitRemoteEqual": true,
+        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-data.v1.js",
+        "cdnAttempts": [
+          {
+            "attempt": 1,
+            "at": "2026-10-09T19:58:35.245283+00:00",
+            "httpStatus": 200,
+            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-data.v1.js",
+            "bytes": 964406,
+            "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
+            "byteEqual": true
+          }
+        ],
+        "cdnEqual": true
       }
     ],
-    "rowFormat": [
-      "utf8Bytes",
-      "sha256"
-    ],
-    "rows": {
-      "simplifiedOnlyCharacters": [
-        21822,
-        "67a26ac016bdab4ffc2a992d9c188979479fa7696e9e60d24a8c27e5b04ffcec"
-      ],
-      "traditionalOnlyCharacters": [
-        20760,
-        "cb37b99b6ac1d54aed534b7e1c9653fe8440d2cb50941e103bad7445d4fe74c5"
-      ],
-      "simplifiedChineseEvidenceCharacters": [
-        5982,
-        "ab05c48028c0baf6cd9781d75c07c02479d93010011c023ab0e4dff2cce68966"
-      ],
-      "latinEnWords": [
-        294,
-        "e8a9cbf74151e98e831a7c921d223d8e88080ce6479ce3fa6688786af397ca43"
-      ],
-      "latinFrWords": [
-        284,
-        "53e78a64969da59cff85097cc2ea75bb2e5893d6446f1bc044e782aca1b74fc5"
-      ],
-      "latinDeWords": [
-        307,
-        "f3b31d69eafe472b11a41cacbcb591f00aeea712641d860f98c98a074791ce2e"
-      ],
-      "latinEsWords": [
-        268,
-        "b4d67605713bf451ebcef1714c0b770a521cd9932d934f0a35c9a9afc32a7611"
-      ],
-      "latinPtWords": [
-        271,
-        "bb15b513a80c63ddaa8567ddba3cfc6058d496a45301b8544e709cfb86f29998"
-      ],
-      "latinItWords": [
-        237,
-        "731dbe58ebc93a7db7c778938c94b7b8d73c35c9743cb30e64faa1e21858a677"
-      ],
-      "latinNlWords": [
-        196,
-        "5f2a23fe6d5564c82435c67d7e00f35306b6d9128517e4bec83b76ce3fc9af3c"
-      ],
-      "latinPlWords": [
-        207,
-        "f9bc28367a6d775f1ef89fdf9589d14fbfff6505597cffb670f3298e02e45cae"
-      ],
-      "latinCsWords": [
-        199,
-        "aa08b88ca5d4be6a9179127dd8e5e9c1790b8c94e6098df7b2323e7a5cc7aad3"
-      ],
-      "latinSkWords": [
-        185,
-        "f037e2f982b6edb72b087345cd780b6fa1e1ea54da6e56b6a892171bd21b9e6b"
-      ],
-      "latinRoWords": [
-        158,
-        "64db29446ac34920962c1dab48a608fd9732647adef7ab424408ced29662294f"
-      ],
-      "latinHuWords": [
-        137,
-        "86585d149b240fd67d21c0340be9b4dd1b9e95f840ff2716a23d879ebcb427b9"
-      ],
-      "latinTrWords": [
-        139,
-        "3fc8e977c4ba9744888f771c0ed6612b660c2bc119101875cd9b7104da437675"
-      ],
-      "latinViWords": [
-        176,
-        "ccd966cee44b07c73ac3968ce4a50eb1b5f06736d3d5ed247b047f6dc4147109"
-      ],
-      "latinIdWords": [
-        179,
-        "c0a6018003f2e3cf3fb8bb40386668c394ff311a4d58a29501aabebfc02cc172"
-      ],
-      "latinMsWords": [
-        192,
-        "908e434069585913e547b448abf7787cd82ee28118bca8bc52c6d29c9ba7d447"
-      ],
-      "latinFilWords": [
-        116,
-        "b988c5fa32dbe24e913013b8d65e6e9e9579b0f4f197fde39228995a688db74f"
-      ],
-      "latinSwWords": [
-        118,
-        "405421144a35cba46c9540ecf2468f3ab8c5102df5927ea9334495841a4d182f"
-      ],
-      "latinSvWords": [
-        152,
-        "5adb581d10cb7cf230c0d446f2c88441089fb12fd668df8b9bb1382d221939ec"
-      ],
-      "latinDaWords": [
-        143,
-        "8f5584592a0b813b2ade4df4f639387d2b4bfd8b9f77265c8f86b3b6272c3227"
-      ],
-      "latinNbWords": [
-        153,
-        "f0a88430bc0f520ee594784be392939604a7db5702afade3d41c7fb2a5905729"
-      ],
-      "latinFiWords": [
-        160,
-        "62a1cc501a048698f22db5f2965192684738728072119260aec3ef4bfd2b06e5"
-      ],
-      "latinEtWords": [
-        122,
-        "c785756e17d6553c1e34dbad4c17698a8610c7d6f1a72655847accd89dab5479"
-      ],
-      "latinLvWords": [
-        140,
-        "109e5965750ad68387ddf32328ea1bb1249983e5dcc3f274b275cc262404394c"
-      ],
-      "latinLtWords": [
-        137,
-        "7d80bd00b8a596c7b7789c8071295b44661ce8a79ecc834fbd920e040c5ae43c"
-      ],
-      "latinSlWords": [
-        127,
-        "cdc402628501aa7f9ac45d4530404ac0a32df05a984613833c36d143bc484a1f"
-      ],
-      "latinHrWords": [
-        148,
-        "c82da93c7d705d852a036b9aedf9680a062037a0c9790a5c1f7aab6bdc027fd9"
-      ],
-      "latinBsWords": [
-        149,
-        "6c6b01361b86138c5f54738d8fa42bbca11f27acab88872fb7452108cf47cd65"
-      ],
-      "latinSrLatnWords": [
-        145,
-        "0645423ac555c4f295630ae9ecdb8281b106f1f108bb57920c982f97c9c546ee"
-      ],
-      "latinCaWords": [
-        245,
-        "a8b348855a1bb8a3461775bd6737b303961582864154b5b43f239ba74506cc2e"
-      ],
-      "latinGlWords": [
-        221,
-        "e3188f75a0df734d92d103b438d4b5258a4eb1c080b61ffea0f5a4e97f2f9464"
-      ],
-      "latinAfWords": [
-        155,
-        "b44b8a1e52d73408c231dfa47dfdb23938fc4593807ae7ef9a627f5564b3eb92"
-      ],
-      "cyrillicRuWords": [
-        376,
-        "0b435855cdf5e6b5a3ac10b372815e94e004b1d2cad8dba48c0f571a3bf735ba"
-      ],
-      "cyrillicUkWords": [
-        356,
-        "38c120e113acdc3b36041d1056cf0d727d6d6369f80f5b9e0c075488266a2533"
-      ],
-      "cyrillicBgWords": [
-        343,
-        "8e2f36e4ebeb4fefca50a560ad7c5691fefcd54d32405c5bc405a5500db51d54"
-      ],
-      "cyrillicSrWords": [
-        232,
-        "b262ad699e8518c47b865a65305cbd0ef11907dd33c95e5b8581220c0cf5abd9"
-      ],
-      "cyrillicBeWords": [
-        285,
-        "b3e4fbe33ae5c720271252ae25852d946ac0e866092590a4b4a128232155869e"
-      ],
-      "cyrillicKkWords": [
-        186,
-        "568e8d167274bec02ecee29d65ca348e3f32600243792012484f33e1ac78dcd8"
-      ],
-      "cyrillicMkWords": [
-        221,
-        "0b1595b1da53f0b1ffae9adcf8919ce470bbadb7f8a39a526aeb5a2c1d469d29"
-      ],
-      "arabicArWords": [
-        245,
-        "928332d9603c85a98a41bd07a32653ad68a1b60120a1aa902ff4c52376bc11b9"
-      ],
-      "arabicFaWords": [
-        202,
-        "2791aa228be9944b32eb8aca3143e5ed02bd12101e70107c4dd0840c2985f597"
-      ],
-      "arabicUrWords": [
-        186,
-        "7afd3df1d8c080766b70a4891f409034fe4c6aaf33a98eef866c98ed3edea4f0"
-      ],
-      "devanagariHiWords": [
-        297,
-        "351836893a59fcd5847c8779a89546e5431b1974f1e2fd472cdf5f41bac84280"
-      ],
-      "devanagariMrWords": [
-        304,
-        "bc9f4bada74cdad082d880fb0b97bab9bc6b77032331d8a6315fe2d16c9d603d"
-      ],
-      "devanagariNeWords": [
-        269,
-        "61875907e31072cb9ab1bb9f3fedf61dca72c192917fab563981a248ceb2b746"
-      ]
-    },
-    "sourceSha256": {
-      "src/core/language/chineseVariants.ts": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
-      "src/core/language/functionWordData.ts": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f"
-    },
-    "originalDataFieldsUnchanged": [
-      "english",
-      "zhCNMessages",
-      "siteCatalogs",
-      "css"
-    ],
-    "unicodeSourceHashesAndFullLicenseV3Present": true,
-    "unicodeNoticeSha256": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
-    "auditSha256": "89e131957a08dbb086154425ba45fd31d4e89f9ec77fd7b0224a5dc65b15ed8a"
+    "allTrackedBuiltGitRemoteEqual": true,
+    "allExactCdnBytesEqual": true
   },
-  "gfGraphs": {
+  "cssEquivalence": {
+    "method": "independent real Vite artifact and synchronous Node VM CSS audit; no browser",
+    "originalProcessedStringBytes": 32608,
+    "styles": {
+      "notice": {
+        "path": "src/features/page-notice/content/notice.css",
+        "bytes": 4383,
+        "sha256": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 4309,
+        "afterRenderedLength": 186
+      },
+      "picker": {
+        "path": "src/features/section-translation/content/picker.css",
+        "bytes": 6642,
+        "sha256": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 6423,
+        "afterRenderedLength": 186
+      },
+      "translationDisplay": {
+        "path": "src/ui/styles/translation-display.css",
+        "bytes": 7091,
+        "sha256": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 6410,
+        "afterRenderedLength": 210
+      },
+      "page": {
+        "path": "src/app/content/page.css",
+        "bytes": 9795,
+        "sha256": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 9026,
+        "afterRenderedLength": 182
+      },
+      "sentenceHighlight": {
+        "path": "src/ui/styles/bilingual-sentence-highlight.css",
+        "bytes": 3971,
+        "sha256": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 3860,
+        "afterRenderedLength": 208
+      },
+      "vocabularyReencounter": {
+        "path": "src/ui/styles/vocabulary-reencounter.css",
+        "bytes": 726,
+        "sha256": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
+        "runtimeStringBytesShaExact": true,
+        "beforeRenderedLength": 541,
+        "afterRenderedLength": 212
+      }
+    },
+    "originalFiveFields": {
+      "english": {
+        "unchanged": true,
+        "sha256": "2d74b7e99c9f0ddd408577474a6ebe324d16e4b8d6ac1e80315cfaf9394ba417"
+      },
+      "zhCNMessages": {
+        "unchanged": true,
+        "sha256": "c170a01207b32fa7405a65645c4e54e8de7ec1165d7c5663638f1fb7c17bcc3b"
+      },
+      "siteCatalogs": {
+        "unchanged": true,
+        "sha256": "298a12c68943c8636ef46f8fd0fea5b30e775f3060e82b789ef471f340073b82"
+      },
+      "css": {
+        "unchanged": true,
+        "sha256": "c04bd1f521e5dca56e447bb18830b0e3d4b706611b2d43222964d52fd9321bde"
+      },
+      "characterData": {
+        "unchanged": true,
+        "sha256": "099cbd0631abda83eb92768bc464d63f49082abb6b772b6e3b6a5f080d33c8ad"
+      }
+    },
+    "licenseDataHeader": {
+      "byteIdentical": true,
+      "bytes": 3529,
+      "sha256": "d0b34a6050a05bd8b640a41ec5d6a150ea58c56edb8987bece9691f54288d18b"
+    },
+    "strictJsonAst": true,
+    "rawSourceCssUsedForRuntime": false
+  },
+  "gfGraph": {
+    "entryModuleCount": 364,
     "entryModuleSetUnchanged": true,
-    "all48CompleteStringBodiesAbsentFromFinalMain": true,
-    "targets": {
-      "src/core/language/chineseVariants.ts": {
-        "included": true,
-        "beforeRenderedLength": 19618,
-        "afterRenderedLength": 573,
-        "transformedCodeSha256": "fe5440ee8c28dee2e8b152036965331a8b7a413f845a14ed7f2d07ea8d3cf394",
-        "transformedCodeUnchanged": false
+    "consumers": {
+      "src/features/page-notice/content/notice.ts": {
+        "entryPresent": true,
+        "transformedCodeSha256": "c9d1754fc9ea9e42a6cd0ebdde5aab8b93568891b1f376b2dbc60ee82ad9444f",
+        "unchanged": true
       },
-      "src/core/language/functionWordData.ts": {
-        "included": true,
-        "beforeRenderedLength": 8665,
-        "afterRenderedLength": 3281,
-        "transformedCodeSha256": "c1c2f5403e3af41b51f5201e1293416f518f16d19321eefe3f7ab2051105b275",
-        "transformedCodeUnchanged": false
+      "src/features/section-translation/content/picker.ts": {
+        "entryPresent": true,
+        "transformedCodeSha256": "5b7e037fe2f52ebaa810481cb994873485c1086f4702adac9f2b49a489ce7dda",
+        "unchanged": true
       },
-      "src/core/language/chinese.ts": {
-        "included": true,
-        "beforeRenderedLength": 3777,
-        "afterRenderedLength": 3777,
-        "transformedCodeSha256": "79d980ae93dab3719ca2cbd2c75d9bafdca49595827677aff77b04451253f96f",
-        "transformedCodeUnchanged": true
-      },
-      "src/core/language/lexicon.ts": {
-        "included": true,
-        "beforeRenderedLength": 2924,
-        "afterRenderedLength": 2924,
-        "transformedCodeSha256": "1b801223fe24eabd171e4ad0b6c8f12572fad3ae33f808f2207630ca828f5c98",
-        "transformedCodeUnchanged": true
+      "src/app/content/pageStyles.ts": {
+        "entryPresent": true,
+        "transformedCodeSha256": "eee8f1fcd2ff98734ad61549bc7ef18ae0f98f881cd60fa9fac1c700ba9dd100",
+        "unchanged": true
       }
     },
-    "graphRenderedLengthsAreNotByteSavings": true,
-    "candidateGraphSha256": "3815fe312ebd6e494e59146e668131f39e7e5ee7b61ed6aefe76aac2f275ac7e",
-    "controlGraphSha256": "e6c4392cb522087f9b17fff2f779bd7aa50fe70c1e75533f799d40d572a723dd"
+    "completeCssStringLiterals": {
+      "before": {
+        "notice": 1,
+        "picker": 1,
+        "translationDisplay": 1,
+        "page": 1,
+        "sentenceHighlight": 1,
+        "vocabularyReencounter": 1
+      },
+      "after": {
+        "notice": 0,
+        "picker": 0,
+        "translationDisplay": 0,
+        "page": 0,
+        "sentenceHighlight": 0,
+        "vocabularyReencounter": 0
+      }
+    },
+    "evidenceSha256": {
+      "control-graph.json": "1b135faa3bd53490df6f67ff9588370b35ecec3525c640558a606b852f90f5cd",
+      "candidate-ordered-graph.json": "1a4afce7f14244fcfabc773c8093252bac211ba691d3ad4fa5d6121630748b16",
+      "CANDIDATE-ORDERED-AUDIT.json": "74d6e0e60f4afca3d0cef37389c7dbf81fdb6bce4db79f53dd40e904a7702ebe"
+    }
   },
   "contracts": {
-    "redExecuted": 13,
-    "redPassed": 2,
-    "redExpectedFailures": 11,
-    "greenPinnedAndOriginalCompressionPassed": 20,
-    "greenFailed": 0,
-    "greenSkippedByNameFilter": 38,
-    "pinnedCases": 13,
-    "originalCompressionCases": 7,
-    "languageAndRelatedCorpusPassed": 1161,
-    "languageAndRelatedCorpusFailed": 0,
-    "shippedDataRealmPassed": 1,
-    "missingFieldsAndWrongTypesFailSynchronously": true,
-    "supplementaryCharactersSpacesOrderEmptyAndLoneSurrogatesExact": true,
-    "actualChineseAndLexiconSynchronousInitializationTested": true,
-    "initialExportKeyEnumerationHarnessFailurePreservedAndCorrected": true,
-    "resultSha256": {
-      "red-character-contracts.json": "badf796516822dcddd4c41d61d8794148500ad0c2203603919e447afc8f612ec",
-      "green-exact-character-contracts.json": "08363187a9d3f8669c53fcff8de27052ea535318ee34c3d41eb4826f4b7535a8",
-      "language-corpus-results.json": "74891e6f6f0717e146bd306a006463caa90a1a0d195c61803157897bc53ca881",
-      "shipped-data-realm.json": "e3d9cc23584743347b58870ff9ebd1dbd151bdbba9f35488fa32555456b112de"
-    }
+    "red": {
+      "selected": 15,
+      "passed": 3,
+      "expectedFailed": 12
+    },
+    "orderRegression": {
+      "redFailed": 1,
+      "finalSelectedPassed": 16,
+      "firstFormalFailure": {
+        "failure": "fixed data serialized inlineStyles in transform completion order",
+        "formalFixedResourceChecksPassed": false,
+        "formalVerifierExecuted": false,
+        "bytesEqual": true,
+        "allPayloadValuesEqual": true,
+        "trackedStyleKeyOrder": [
+          "page",
+          "translationDisplay",
+          "sentenceHighlight",
+          "vocabularyReencounter",
+          "picker",
+          "notice"
+        ],
+        "builtStyleKeyOrder": [
+          "page",
+          "translationDisplay",
+          "vocabularyReencounter",
+          "sentenceHighlight",
+          "picker",
+          "notice"
+        ]
+      }
+    },
+    "syntheticDom": {
+      "passed": 88,
+      "browser": false,
+      "ports": {
+        "pageNotice.test.ts": {
+          "kind": "synthetic DOM with evaluated GF CSS ports",
+          "loadedPorts": {
+            "notice": {
+              "bytes": 4383,
+              "sha256": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
+              "loads": 1
+            }
+          }
+        },
+        "sectionTranslationPicker.test.ts": {
+          "kind": "synthetic DOM with evaluated GF CSS ports",
+          "loadedPorts": {
+            "picker": {
+              "bytes": 6642,
+              "sha256": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
+              "loads": 1
+            }
+          }
+        },
+        "pageStyles.test.ts": {
+          "kind": "synthetic DOM with evaluated GF CSS ports",
+          "loadedPorts": {
+            "translationDisplay": {
+              "bytes": 7091,
+              "sha256": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
+              "loads": 1
+            },
+            "page": {
+              "bytes": 9795,
+              "sha256": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
+              "loads": 1
+            },
+            "sentenceHighlight": {
+              "bytes": 3971,
+              "sha256": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
+              "loads": 1
+            },
+            "vocabularyReencounter": {
+              "bytes": 726,
+              "sha256": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
+              "loads": 1
+            }
+          }
+        }
+      },
+      "evaluatedGfDataPortBytesIdenticalToFinal": true
+    },
+    "normalSyntheticDomPassed": 88,
+    "finalShippedDataRealmPassed": 1,
+    "typesPassed": true,
+    "testAuditPassed": true
   },
   "formalGfGate": {
-    "fixedTrackedBuiltGitCheckPassed": true,
-    "exitCode": 1,
-    "budgetBytes": 2000000,
-    "bytesOverBudget": 180182,
+    "bytes": 2148481,
+    "sha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85",
+    "originalBudgetBytes": 2000000,
+    "overBudgetBytes": 148481,
+    "formalExitCode": 1,
+    "fixedResourceChecksPassedBeforeVerifier": true,
     "failureLine": 15,
-    "unexecutedFormalAssertionLines": [
-      16,
-      17,
-      18,
-      19,
-      20,
-      21,
-      22,
-      23,
-      24,
-      25,
-      26,
-      27,
-      28,
-      29,
-      30,
-      31
-    ],
-    "independentOriginalAssertions": {
-      "passed": 17,
-      "failed": 1,
-      "postBudgetDiagnosticPassed": 16,
-      "budgetIncludedAndStillFailing": true,
-      "originalAssertionsUnchanged": true,
-      "resultSha256": "073c872ef776f20e067bd35ee659294aa25058ead58d83b00cf4f7e36cbb78dc"
+    "formalPostBudgetAssertionsExecuted": false,
+    "candidateOnlyImmutableMetadataDiff": true,
+    "resources": {
+      "fluentread-vendor.v1.js": {
+        "bytes": 610343,
+        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+        "trackedBuiltGitEqual": true
+      },
+      "fluentread-data.v1.js": {
+        "bytes": 964406,
+        "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
+        "trackedBuiltGitEqual": true
+      }
+    }
+  },
+  "independentOriginalAssertions": {
+    "originalVerifierSha256": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
+    "artifactSha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85",
+    "formalVerifierStatus": "failed-budget-at-line-15",
+    "formalAssertionsAfterBudgetExecuted": false,
+    "diagnosticMethod": "Evaluate each original assertion unchanged with native node:assert/strict in one shared VM realm, with each assertion diagnosed independently. Budget assertion is included and remains failing. Original script and budget are untouched.",
+    "assertionCount": 18,
+    "diagnosticPassed": 17,
+    "diagnosticFailed": 1,
+    "allPostBudgetDiagnosticAssertionsPassed": true,
+    "rows": [
+      {
+        "line": 14,
+        "assertionSha256": "f9acd6f955c4e346dd7a49d18404fddd203e73b9bb0e96aa2af3919db7261908",
+        "passed": true
+      },
+      {
+        "line": 15,
+        "assertionSha256": "480c9d54c71897151c9197619f6204c26942c91f64b7ecc25bd1a789241e303a",
+        "passed": false,
+        "message": "Greasy Fork source exceeds 2 MB: 2148481 bytes"
+      },
+      {
+        "line": 16,
+        "assertionSha256": "b7b863596431acc974775a1ca34656b9a260cbfc583b0d9493f2696aaf0b2ac6",
+        "passed": true
+      },
+      {
+        "line": 17,
+        "assertionSha256": "fd7b289c2995b4c23fe1e742ddb9e1001aa2dfbcb06fa13e36c3e5ac5cad0983",
+        "passed": true
+      },
+      {
+        "line": 18,
+        "assertionSha256": "c54cd0bd305cedd985fde12e8b5fb30275e3b1639c281b9bbf1b835a00a76bc8",
+        "passed": true
+      },
+      {
+        "line": 19,
+        "assertionSha256": "ca102f4a529b9a2dda8cceb866cb10d700d7b5c55e7e1ffb9baf456ed91a38a6",
+        "passed": true
+      },
+      {
+        "line": 20,
+        "assertionSha256": "74764838ec5fb1aa9ea568c75688ff7984487b54ed26155abc81eb1cfd172d56",
+        "passed": true
+      },
+      {
+        "line": 21,
+        "assertionSha256": "e692211c0d844e4ad39c58b7006e9f9c9ad373468bdc403ef56d83b4bef8650d",
+        "passed": true
+      },
+      {
+        "line": 22,
+        "assertionSha256": "2d0c8f2fe54e176cba7372356d031cbf8843060d58e869927c7ccddbef75ba61",
+        "passed": true
+      },
+      {
+        "line": 23,
+        "assertionSha256": "c112a9300af6487f1cc4b0962092927706038c168971bbc69dd481e93486720d",
+        "passed": true
+      },
+      {
+        "line": 24,
+        "assertionSha256": "5a13cc89876e912351e0351b27838422eae904c433a3ddd00d8177cda3219a85",
+        "passed": true
+      },
+      {
+        "line": 25,
+        "assertionSha256": "284ce948a8fc22e4f0501e26cd9152529475c2460f2633012ed30b6796fc5fe4",
+        "passed": true
+      },
+      {
+        "line": 26,
+        "assertionSha256": "f4ff76d75d9380dd780885fa9d185fc6dcc83a02f401c51a1ea4b0cd35dfb4c6",
+        "passed": true
+      },
+      {
+        "line": 27,
+        "assertionSha256": "cb7443d47d4d608e9006b1fa589eb91e95e79c0d369817cf126ead4b2b64150f",
+        "passed": true
+      },
+      {
+        "line": 28,
+        "assertionSha256": "cc41326cd077dfd49ac6c9aff28423082e1785b9b614e9e0560fe55c29f4b58c",
+        "passed": true
+      },
+      {
+        "line": 29,
+        "assertionSha256": "4a573c5bdbac974eeee3ddf6900ab1efb8836e0b2a986e9f67e167f6e803ad1b",
+        "passed": true
+      },
+      {
+        "line": 30,
+        "assertionSha256": "f2eb31044f2c0205764f8df57c4690a5a55b352dc186627d467f4e6342777c0a",
+        "passed": true
+      },
+      {
+        "line": 31,
+        "assertionSha256": "81cd187aefd44105faca37cf20052326627b3627235b577e3e5011a50f2bae87",
+        "passed": true
+      }
+    ]
+  },
+  "standaloneBuildVariance": {
+    "observedIntermediate": {
+      "beforeBytes": 3590688,
+      "beforeSha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
+      "afterBytes": 3590643,
+      "afterSha256": "74f9dbe88f8fb20204510c8b8bf9770d39718cf64a87d387bce2d9d051b0b1e1",
+      "equal": false
+    },
+    "adjacentControl": {
+      "baseline": {
+        "bytes": 3590688,
+        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
+      },
+      "current": {
+        "bytes": 3590688,
+        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
+      }
+    },
+    "resolvedConfigExact": true,
+    "all1182TransformedCodesAndRenderedLengthsExact": true,
+    "finalOriginalBuildExact": true,
+    "unrelatedPolicyChangeAdopted": false,
+    "controlGraphsSha256": {
+      "standalone-baseline-control-graph.json": "9e09b5611a2dd58e2f33f36c7e676c78c01647177ba665838aeae0d45c505c6a",
+      "standalone-current-control-graph.json": "9e09b5611a2dd58e2f33f36c7e676c78c01647177ba665838aeae0d45c505c6a"
     }
   },
   "unadoptedPrepareVendor": {
-    "preparedBytes": 610387,
-    "preparedSha256": "5773982c241575f22a1f35d9efd4d2f65314c68f0fdecda371a79f72e9f06a69",
-    "retainedFixedBytes": 610343,
-    "retainedFixedSha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-    "unadoptedDeltaBytes": 44,
-    "allVendorInputsByteIdenticalToBase": true,
-    "reason": "Retain independently audited immutable vendor in a pure-language-data candidate; original prepare vendor output differed by 44 bytes despite unchanged inputs. Raw output preserved; no cause assumed or vendor algorithm change adopted. Formal original workflow copies tracked fixed vendor to built output."
+    "data": {
+      "bytes": 964406,
+      "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e"
+    },
+    "preparedVendorBytes": 610387,
+    "preparedVendorSha256": "5773982c241575f22a1f35d9efd4d2f65314c68f0fdecda371a79f72e9f06a69",
+    "retainedVendorBytes": 610343,
+    "retainedVendorSha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+    "vendorDeltaBytes": 44,
+    "checkedInputCount": 19,
+    "checkedInputsUnchanged": true,
+    "adoptedVendorChanges": false,
+    "reason": "Retain audited immutable vendor; rebuilt output differs with checked inputs unchanged. Raw output preserved and cause not assumed."
   },
   "unchangedFileSha256": {
-    "src/core/language/chineseVariants.ts": "a78b88e2bfb128aafdc4305dfca9f8f4114a04cc5eb62797b10b3d30b8e7087f",
-    "src/core/language/functionWordData.ts": "d568bcd08ee922c9eb90e3d92fe6014cdadb160efa4d477005850a3c6bdd4a5f",
-    "src/core/language/chinese.ts": "90738858cfc020ea7a48ab299bf3034efeaf7faf5f820d8c0a496cc0270dc290",
-    "src/core/language/lexicon.ts": "2d54b75db24622e9df648526306e1879f8539e75c36c16a25f58789269a405bd",
-    "public/third-party-notices/unicode-17.0.0.txt": "e7a93b009565cfce55919a381437ac4db883e9da2126fa28b91d12732bc53d96",
+    "src/features/page-notice/content/notice.css": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
+    "src/features/section-translation/content/picker.css": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
+    "src/ui/styles/translation-display.css": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
+    "src/app/content/page.css": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
+    "src/ui/styles/bilingual-sentence-highlight.css": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
+    "src/ui/styles/vocabulary-reencounter.css": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
+    "src/features/page-notice/content/notice.ts": "5487f44b4ec1228826f65de7e4da243f53704bd2e0389d05fd226bcf2a57cb26",
+    "src/features/section-translation/content/picker.ts": "f84281efc8f98052bbf7fbe2fecbeb9214abe5f357f120db1ce2026f2dc20119",
+    "src/app/content/pageStyles.ts": "74129728cc068e9774116f1b89b4bfc50b879e21430cb599ee9fd7aeb29a3b89",
+    "src/app/content/translationAppearance.ts": "00f6c410446f5632fa7e5641f37b3275abcf411f3d483e0d55e60066b4d942cb",
     "userscript/vendorEntry.ts": "d6d6ab20d6cdc5a2adb76e2fc873778448bccefcf5cea21ba6052f0b26b12ca3",
     "userscript/vendor.vite.config.ts": "6252bde8d2fcfe7c0a20fb8d3a965be5becaaa75d8a50e6fc66f437f1652f451",
-    "scripts/build-userscript-greasyfork.mjs": "c2e441c5749d48e317b90e0052c275e58b3f14cd9f55df9ae10ade78c96792c8",
-    "scripts/verify-userscript-greasyfork-build.mjs": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
     "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a"
   },
   "sourceSha256": {
-    "userscript/characterDataPlugin.ts": "bc303e431b1cc2565de0f8cd0c673bf25d31b5203ad85670111be57f804a32c9",
-    "userscript/vite.config.ts": "d762891cc3a27bc5462f56d83b2649f559453c4eba60497644f15ea468740399",
-    "tests/userscriptViteConfig.test.ts": "5445c16c36fd1e91e994fb9b6cd70823f3260bd8d02bd145a762d8796777e559",
-    "tests/implementationAudit49G.test.ts": "b6f6710caca5193bcec9dedfa026789f4c41dada69870a486e73070f1c03add0"
+    "userscript/vite.config.ts": "476b2d5036692901503dba23f9a267e9821ee75e7b93cf68696952825600ff38",
+    "vitest.config.ts": "3c7b0451118f2b55d2afddb99df145c20c70985b24c5e54579a5a96038709b78",
+    "tests/userscriptViteConfig.test.ts": "199563456c9e0bf988d971461b43f9b1ce8b71a1c305c1f983d42fbf81563635",
+    "tests/implementationAudit49G.test.ts": "5af98040761c165dedc613e8070dea7840e1f3fab4342bca58cd7c3aa5d3271c",
+    "tests/pageNotice.test.ts": "92ae56d9574818d28ea8e45121ff8a02d77eba863d61584645bdc0d54dd10c12",
+    "tests/sectionTranslationPicker.test.ts": "270cd0aad0c80d5374456164765db3772adf4171205bde17f817332f59da4cca",
+    "tests/pageStyles.test.ts": "54582d8c638dd15d9b6f44368646bb4d4575763c09a568a37f05cbc832a9d93e"
+  },
+  "delivery": {
+    "branch": "perf/gf-statistics-repositories-20261009",
+    "localAndRemoteHead": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+    "protectedPrs": {
+      "912": {
+        "head": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
+        "state": "open",
+        "draft": true,
+        "maintainerCanModify": false,
+        "unchanged": true
+      },
+      "905": {
+        "head": "f60b61908b1d5e806baf1c531f50be11e1958c9a",
+        "state": "open",
+        "draft": false,
+        "maintainerCanModify": false,
+        "unchanged": true
+      },
+      "906": {
+        "head": "18e049003bffab6d2bd49220c48b569b0a70856e",
+        "state": "open",
+        "draft": true,
+        "maintainerCanModify": false,
+        "unchanged": true
+      }
+    },
+    "protectedRefs": {
+      "perf/gf-tinycolor-vendor-20261009": {
+        "head": "cb07be3058266f80ab4f20cbc9c35e56a8598aa7",
+        "unchanged": true
+      },
+      "perf/userscript-unreachable-settings-20261009": {
+        "head": "9b563da892ea6d6c836166e7ee54c9c468c47c9e",
+        "unchanged": true
+      }
+    },
+    "candidatePrCounts": {
+      "ArietidsZ": 0,
+      "FluentRead": 0
+    },
+    "noNewPr": true
+  },
+  "documentation": {
+    "readmeSha256": "820f9662a297a486e856a9ca3b9e1ceb04ba540d4adf8a82f51ec94e7a6014d4",
+    "requiredBuild": "docs:build",
+    "status": "passed",
+    "exitCode": 0,
+    "logSha256": "8c172d6a4b17a4c240d3b435b353c1ed2720633d5d098773a6edf3e8ea798b11"
   },
   "stages": [
     {
-      "id": "character-control-gf-build",
+      "stage": "inline-control-gf-build",
+      "startedAt": "2026-10-09T19:33:35.392509+00:00",
+      "durationSeconds": 2.618,
       "exitCode": 0,
-      "logSha256": "db5dd200978778796af94ca7859c161135c0d944eff7d223098fd4a1e0dd2e74"
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
+        "control"
+      ],
+      "log": "inline-control-gf-build.log.txt",
+      "logSha256": "e37d37385f215d6e81778bf141ef7ab1a9d5bf3c0dcbdd2a83dd7acd96ba16ba"
     },
     {
-      "id": "red-gf-pinned-character-contracts",
+      "stage": "inline-red",
+      "startedAt": "2026-10-09T19:38:42.826205+00:00",
+      "durationSeconds": 1.616,
       "exitCode": 1,
-      "logSha256": "b0e2ad6624bf06e29ba3c3247ea9efabdbf8de5e65f9ac5dafbb3c36ec8e9c7b"
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "GF pinned Vite inline styles"
+      ],
+      "log": "inline-red.log.txt",
+      "logSha256": "420b9a3f38bd00af95933f7a6a73fc4aa969367cdac67196c0003092290e79ab"
     },
     {
-      "id": "green-gf-pinned-and-original-compression",
+      "stage": "inline-green",
+      "startedAt": "2026-10-09T19:39:18.637590+00:00",
+      "durationSeconds": 1.616,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "GF pinned Vite inline styles"
+      ],
+      "log": "inline-green.log.txt",
+      "logSha256": "5d1aa23ce180d4f7af3a60450b10120df85afd9ae618ed2be5aa30eb6f960867"
+    },
+    {
+      "stage": "inline-candidate-gf-build",
+      "startedAt": "2026-10-09T19:39:38.592912+00:00",
+      "durationSeconds": 2.617,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
+        "candidate"
+      ],
+      "log": "inline-candidate-gf-build.log.txt",
+      "logSha256": "51ca253f1012f826364c7100e5247f40a55b1caede12d6418e2e90ae41b93aa0"
+    },
+    {
+      "stage": "inline-gf-synthetic-dom",
+      "startedAt": "2026-10-09T19:41:14.321961+00:00",
+      "durationSeconds": 0.815,
       "exitCode": 1,
-      "logSha256": "afba5bf143f651b88450673318ff12f7002d87c5e0788d9cd07fced6f273f726"
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "../gf-inline-styles-evidence-20261009/gf-css-dom.config.ts",
+        "tests/pageNotice.test.ts",
+        "tests/sectionTranslationPicker.test.ts",
+        "tests/pageStyles.test.ts"
+      ],
+      "log": "inline-gf-synthetic-dom.log.txt",
+      "logSha256": "d9695eeefd86ec0bbe5075795fc47f5b6f97d064426a7cea39ed37735edbed8f"
     },
     {
-      "id": "green-gf-pinned-exact-values-and-compression",
+      "stage": "inline-gf-synthetic-dom-resolved",
+      "startedAt": "2026-10-09T19:41:37.407050+00:00",
+      "durationSeconds": 3.47,
       "exitCode": 0,
-      "logSha256": "3c9de1e164931b4f1424cbf6913cab6e111295cbfc36605dcf181bfa236774cb"
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "../gf-inline-styles-evidence-20261009/gf-css-dom.config.ts",
+        "tests/pageNotice.test.ts",
+        "tests/sectionTranslationPicker.test.ts",
+        "tests/pageStyles.test.ts"
+      ],
+      "log": "inline-gf-synthetic-dom-resolved.log.txt",
+      "logSha256": "99e7154f1d6a170f4d4c4564847d8a0a933f610e2bfaf7004d21383e8d1d7ba0"
     },
     {
-      "id": "character-candidate-types",
+      "stage": "inline-independent-css-audit",
+      "startedAt": "2026-10-09T19:42:42.635913+00:00",
+      "durationSeconds": 0.364,
+      "exitCode": 1,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/audit-css-candidate.mjs"
+      ],
+      "log": "inline-independent-css-audit.log.txt",
+      "logSha256": "cabb2189d786349c0171b190cb5b49b5f082280b3c63e3fec05ad36ee892ac73"
+    },
+    {
+      "stage": "inline-independent-css-audit-resolved",
+      "startedAt": "2026-10-09T19:42:59.474985+00:00",
+      "durationSeconds": 0.815,
       "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/audit-css-candidate.mjs"
+      ],
+      "log": "inline-independent-css-audit-resolved.log.txt",
+      "logSha256": "0aff369764c5a59e6563ab663124f66c65bd2655f98b106b35ad747537e55d81"
+    },
+    {
+      "stage": "inline-normal-synthetic-dom",
+      "startedAt": "2026-10-09T19:43:21.564600+00:00",
+      "durationSeconds": 2.417,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/pageNotice.test.ts",
+        "tests/sectionTranslationPicker.test.ts",
+        "tests/pageStyles.test.ts"
+      ],
+      "log": "inline-normal-synthetic-dom.log.txt",
+      "logSha256": "dfcf557dbb0bd56309a04e9fb8a88742011332a39d28eb8ca349b165d7b23367"
+    },
+    {
+      "stage": "inline-standard-build-and-original-verifier",
+      "startedAt": "2026-10-09T19:43:38.343620+00:00",
+      "durationSeconds": 3.87,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "test:userscript"
+      ],
+      "log": "inline-standard-build-and-original-verifier.log.txt",
+      "logSha256": "b76bed8cc7d32618ebe736aa1a15b616b452bc7fe0d097370c24cd1e93f7ccf3"
+    },
+    {
+      "stage": "inline-standalone-build-and-original-verifier",
+      "startedAt": "2026-10-09T19:43:56.410378+00:00",
+      "durationSeconds": 6.673,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "test:userscript:standalone"
+      ],
+      "log": "inline-standalone-build-and-original-verifier.log.txt",
+      "logSha256": "26934ec308d827dce298512671247d79ca2c6bfdd92dad37205330663b5a203a"
+    },
+    {
+      "stage": "inline-types",
+      "startedAt": "2026-10-09T19:44:14.329741+00:00",
+      "durationSeconds": 17.133,
+      "exitCode": 2,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "compile"
+      ],
+      "log": "inline-types.log.txt",
+      "logSha256": "9f1cbce761e6956b8be6f1394c33aa52bacc8ed765ba5063dd7896f7d1f632ed"
+    },
+    {
+      "stage": "inline-green-types-cast",
+      "startedAt": "2026-10-09T19:44:54.775258+00:00",
+      "durationSeconds": 1.616,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "GF pinned Vite inline styles"
+      ],
+      "log": "inline-green-types-cast.log.txt",
+      "logSha256": "e10e46b8c83c00c74602034b7fc941152c183498d460e4f862ec6389687bdc7d"
+    },
+    {
+      "stage": "inline-types-resolved",
+      "startedAt": "2026-10-09T19:45:07.567682+00:00",
+      "durationSeconds": 17.183,
+      "exitCode": 0,
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "compile"
+      ],
+      "log": "inline-types-resolved.log.txt",
       "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
     },
     {
-      "id": "character-candidate-original-prepare",
+      "stage": "inline-test-audit",
+      "startedAt": "2026-10-09T19:45:31.983954+00:00",
+      "durationSeconds": 1.215,
       "exitCode": 0,
-      "logSha256": "488c7ce669dd8ea824697dc15d898d006e148fe8da8c202e94fe91c617305205"
+      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "arguments": [
+        "test:audit"
+      ],
+      "log": "inline-test-audit.log.txt",
+      "logSha256": "108d7b9ddc737dabc0379c8bd15b54dfebe28881fa6deb9ded010462bb6f0067"
     },
     {
-      "id": "character-existing-language-corpora",
+      "stage": "inline-original-prepare",
+      "startedAt": "2026-10-09T19:46:15.201011+00:00",
+      "durationSeconds": 3.82,
       "exitCode": 0,
-      "logSha256": "ae1e20c3ff6c9b93982a842f03f949e3dee71ab60a79f1fea4a9e371d9dffb7d"
+      "head": "21db8b9880e76402a193692c0ddbbae7373817a5",
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/build-userscript-greasyfork.mjs",
+        "--prepare-resources"
+      ],
+      "log": "inline-original-prepare.log.txt",
+      "logSha256": "81b253c6de49eb8c1b88cb2724819b024afee37a449e0e220025e786a436d56b"
     },
     {
-      "id": "character-shipped-data-realm",
+      "stage": "inline-shipped-data-realm",
+      "startedAt": "2026-10-09T19:46:46.689356+00:00",
+      "durationSeconds": 0.715,
       "exitCode": 0,
-      "logSha256": "8da74711e216a089b3ab7a8e30ba583cd7f7d358f93947c098e2300e60938985"
+      "head": "21db8b9880e76402a193692c0ddbbae7373817a5",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/implementationAudit49G.test.ts",
+        "-t",
+        "publishes data into its manager realm"
+      ],
+      "log": "inline-shipped-data-realm.log.txt",
+      "logSha256": "9879b06324913160058af2be69edbbe438dc5467b81c3327cbd8113818f78c51"
     },
     {
-      "id": "character-exact-resource-equivalence",
+      "stage": "inline-original-formal-gf",
+      "startedAt": "2026-10-09T19:47:14.088993+00:00",
+      "durationSeconds": 2.869,
       "exitCode": 1,
-      "logSha256": "eaec6699b274d4296ecdd6cca622606556accd60e1cd3880da418b0867df0d83"
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/build-userscript-greasyfork.mjs"
+      ],
+      "log": "inline-original-formal-gf.log.txt",
+      "logSha256": "5d1b14850086a2212dc8fd9f964cd44957ef197a4900231833e7b9afbb0fdd0f"
     },
     {
-      "id": "character-exact-resource-equivalence-retained-vendor",
+      "stage": "inline-independent-original-assertions",
+      "startedAt": "2026-10-09T19:47:48.592715+00:00",
+      "durationSeconds": 0.314,
       "exitCode": 0,
-      "logSha256": "7177f57323db7d782579bd576ab9706db3cbc74f6bd64294d184abf47f96894d"
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/diagnose-original-gf-assertions.mjs"
+      ],
+      "log": "inline-independent-original-assertions.log.txt",
+      "logSha256": "e26ba4c1d777fc046ca3ac28fa9e4d154933c916e065e87512d90e216de02255"
     },
     {
-      "id": "character-candidate-gf-graph",
-      "exitCode": 0,
-      "logSha256": "41902e427e404acd479a05a0a645e9717e935b736446739812ff6d64f614f82a"
-    },
-    {
-      "id": "character-standard-actual-build",
-      "exitCode": 0,
-      "logSha256": "2e6b013fa270a31ef9f7d0d892f39e37d5f3bfcba4b0e4d406e5c082f1e4e0c5"
-    },
-    {
-      "id": "character-standard-original-verifier",
-      "exitCode": 0,
-      "logSha256": "e955e147f71ed4a274c76be76b173e10c9a37694132186ab42e8c2623b2b7437"
-    },
-    {
-      "id": "character-standalone-actual-build",
-      "exitCode": 0,
-      "logSha256": "8b87111350e3430359b85c3ea4495c94578c202891d8ec6ca57d3304bfa26549"
-    },
-    {
-      "id": "character-standalone-original-verifier",
-      "exitCode": 0,
-      "logSha256": "3808e6a238644edcda09ca90d4876c0bd020a74d26dbfc5192d85db471dc42cc"
-    },
-    {
-      "id": "character-candidate-test-audit",
-      "exitCode": 0,
-      "logSha256": "4946259db9c6705ea5aa602d4f83f4b72392f1840be8e57c3ef13a37c3fe0a24"
-    },
-    {
-      "id": "character-original-fixed-formal-gf",
+      "stage": "inline-order-red",
+      "startedAt": "2026-10-09T19:49:01.387333+00:00",
+      "durationSeconds": 1.516,
       "exitCode": 1,
-      "logSha256": "a2a341e79ef5c60dda976732f2006dac3cc5215d24a40436de9f0192ce15d3b1"
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "emits the same fixed JSON"
+      ],
+      "log": "inline-order-red.log.txt",
+      "logSha256": "adfd75a2f22eca6112fa18f555df35f5358c98e5e1a2cc92a2ffe6df21737f2c"
     },
     {
-      "id": "character-independent-original-gf-assertions",
+      "stage": "inline-order-green",
+      "startedAt": "2026-10-09T19:49:37.633714+00:00",
+      "durationSeconds": 1.717,
       "exitCode": 0,
-      "logSha256": "f630fa6970549b708b7f41c0bb280fa49dfbaf2c5d22825111ce0a4f65c0b3be"
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "GF pinned Vite inline styles"
+      ],
+      "log": "inline-order-green.log.txt",
+      "logSha256": "f68b902d8c679342538f0fe61769d2ff72628331ee8ff213dbcb457af7c84c21"
     },
     {
-      "id": "character-short-report-docs-build",
+      "stage": "inline-order-green-compact",
+      "startedAt": "2026-10-09T19:50:14.293526+00:00",
+      "durationSeconds": 1.667,
       "exitCode": 0,
-      "logSha256": "cc9cf833e876bde1237f77e5b5a586cce708631c015546edd83933094aa3418b"
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptViteConfig.test.ts",
+        "-t",
+        "GF pinned Vite inline styles"
+      ],
+      "log": "inline-order-green-compact.log.txt",
+      "logSha256": "0b4f67756a6907a44bfb6a35b31be24169997c0ba0ddc9872bf060d43e334deb"
+    },
+    {
+      "stage": "inline-final-types",
+      "startedAt": "2026-10-09T19:50:36.305370+00:00",
+      "durationSeconds": 17.195,
+      "exitCode": 0,
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "compile"
+      ],
+      "log": "inline-final-types.log.txt",
+      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
+    },
+    {
+      "stage": "inline-final-test-audit",
+      "startedAt": "2026-10-09T19:51:00.470328+00:00",
+      "durationSeconds": 1.216,
+      "exitCode": 0,
+      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "arguments": [
+        "test:audit"
+      ],
+      "log": "inline-final-test-audit.log.txt",
+      "logSha256": "2ceffd2436409be32ba7b88308fbc5e0b746e2f782f73f1fb42f3f894891d805"
+    },
+    {
+      "stage": "inline-ordered-candidate-gf-build",
+      "startedAt": "2026-10-09T19:51:29.771127+00:00",
+      "durationSeconds": 2.568,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
+        "candidate-ordered"
+      ],
+      "log": "inline-ordered-candidate-gf-build.log.txt",
+      "logSha256": "ae5345ab97ff5e2760d1ab3a05a77dc2d7eec3c492a7a8b50bf5c957aaa49b0d"
+    },
+    {
+      "stage": "inline-ordered-independent-css-audit",
+      "startedAt": "2026-10-09T19:52:01.815943+00:00",
+      "durationSeconds": 0.815,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/audit-css-ordered.mjs"
+      ],
+      "log": "inline-ordered-independent-css-audit.log.txt",
+      "logSha256": "cd863539aa12a24ce53096045ca25da7604bc7d418aa4dace493ba72eb98732a"
+    },
+    {
+      "stage": "inline-final-standard",
+      "startedAt": "2026-10-09T19:52:18.958759+00:00",
+      "durationSeconds": 3.819,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "test:userscript"
+      ],
+      "log": "inline-final-standard.log.txt",
+      "logSha256": "5e2581b249522ea637e67017ca1285116a04b6ce2581e28f2339975e26a0f8d1"
+    },
+    {
+      "stage": "inline-final-standalone",
+      "startedAt": "2026-10-09T19:52:31.344336+00:00",
+      "durationSeconds": 6.627,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "test:userscript:standalone"
+      ],
+      "log": "inline-final-standalone.log.txt",
+      "logSha256": "09e2719a2b90b69d7457394030d81c99d018088c2bd53245ea40819fcadad487"
+    },
+    {
+      "stage": "inline-ordered-original-prepare",
+      "startedAt": "2026-10-09T19:52:52.140010+00:00",
+      "durationSeconds": 3.77,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/build-userscript-greasyfork.mjs",
+        "--prepare-resources"
+      ],
+      "log": "inline-ordered-original-prepare.log.txt",
+      "logSha256": "349defbeeba7ba787c542764969763ff4d92acef629f1f12d2c5154810b5af8e"
+    },
+    {
+      "stage": "inline-standalone-baseline-current-control",
+      "startedAt": "2026-10-09T19:54:52.646905+00:00",
+      "durationSeconds": 12.328,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/build-standalone-control-pair.mjs"
+      ],
+      "log": "inline-standalone-baseline-current-control.log.txt",
+      "logSha256": "92a0b760a60a8b47f4c0800b52aa6e01352095a4f1f42c47a0516571790e5ba7"
+    },
+    {
+      "stage": "inline-standalone-after-causal-control",
+      "startedAt": "2026-10-09T19:55:49.785174+00:00",
+      "durationSeconds": 6.972,
+      "exitCode": 0,
+      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "arguments": [
+        "test:userscript:standalone"
+      ],
+      "log": "inline-standalone-after-causal-control.log.txt",
+      "logSha256": "c23c00d14ac39f7a8a121a58a6df3a8a20094023db207973597615eca7268ccd"
+    },
+    {
+      "stage": "inline-final-original-formal-gf",
+      "startedAt": "2026-10-09T19:56:54.701207+00:00",
+      "durationSeconds": 2.918,
+      "exitCode": 1,
+      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/build-userscript-greasyfork.mjs"
+      ],
+      "log": "inline-final-original-formal-gf.log.txt",
+      "logSha256": "af90268d3a33483215729e529b0c275c006a3965131aaa3b251139329c6ab5b2"
+    },
+    {
+      "stage": "inline-final-independent-original-assertions",
+      "startedAt": "2026-10-09T19:57:35.375887+00:00",
+      "durationSeconds": 0.364,
+      "exitCode": 0,
+      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "arguments": [
+        "exec",
+        "node",
+        "../gf-inline-styles-evidence-20261009/diagnose-original-gf-assertions-final.mjs"
+      ],
+      "log": "inline-final-independent-original-assertions.log.txt",
+      "logSha256": "16df92d2db259952022913063d55cf9221091fc649572caaacc7a20b637839e5"
+    },
+    {
+      "stage": "inline-final-shipped-data-realm",
+      "startedAt": "2026-10-09T19:58:00.046794+00:00",
+      "durationSeconds": 0.715,
+      "exitCode": 0,
+      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/implementationAudit49G.test.ts",
+        "-t",
+        "publishes data into its manager realm"
+      ],
+      "log": "inline-final-shipped-data-realm.log.txt",
+      "logSha256": "657aeec91688e98baa6593e20c777c6e61f32c18dcf3790d1dd8a817fd274c85"
+    },
+    {
+      "stage": "inline-documentation-build",
+      "startedAt": "2026-10-09T20:01:04.648421+00:00",
+      "durationSeconds": 2.817,
+      "exitCode": 0,
+      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "arguments": [
+        "docs:build"
+      ],
+      "log": "inline-documentation-build.log.txt",
+      "logSha256": "8c172d6a4b17a4c240d3b435b353c1ed2720633d5d098773a6edf3e8ea798b11"
     }
   ],
-  "delivery": {
-    "ordinaryPushOnly": true,
-    "newPrCreated": false,
-    "browserNewAttempts": 0,
-    "browserAcceptanceTested": false,
-    "dependencyInstalls": 0,
-    "realModelSearchOrPaidApiCalls": 0,
-    "unchangedLicenseColorStatisticsSuitesRerun": false,
-    "largeGraphsOrLogsTracked": false,
-    "unchangedProtectedHeads": {
-      "pr912": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
-      "pr905": "f60b61908b1d5e806baf1c531f50be11e1958c9a",
-      "pr906": "18e049003bffab6d2bd49220c48b569b0a70856e",
-      "perf/gf-tinycolor-vendor-20261009": "cb07be3058266f80ab4f20cbc9c35e56a8598aa7",
-      "perf/userscript-unreachable-settings-20261009": "9b563da892ea6d6c836166e7ee54c9c468c47c9e"
-    },
-    "candidatePrCounts": {
-      "FluentRead/FluentRead": 0,
-      "ArietidsZ/FluentRead": 0
-    }
-  },
-  "documentation": {
-    "docsBuildExitCode": 0,
-    "fullSiteOrStorybookCheckRerun": false
-  }
+  "stageArgumentPaths": "Paths in stage arguments are relative to the checkout; raw local logs remain on CW."
 }
