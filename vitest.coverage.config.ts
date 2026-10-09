@@ -142,6 +142,7 @@ export default defineConfig({
             'tests/documentHistory.test.ts',
             'tests/richPreviewSync.test.ts',
             'tests/pdfLayoutAnalysis.test.ts',
+            'tests/pdfPaperLayouts.test.ts',
             'tests/documentPdfLayoutParsing.test.ts',
             'tests/documentUserActions.test.ts',
             'tests/sharedUiComponentsLifecycle.test.ts',

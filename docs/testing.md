@@ -965,6 +965,27 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 
 `pnpm test:agent-bridge` 使用随机本机端口和模拟 ACP 子进程，验证 Chat Completions 到 ACP 的协议转换、OpenAI 兼容 SDK 解析、独立会话、模型选择、令牌与扩展来源检查、权限拒绝以及工具调用后的恢复。它不调用真实 Copilot/OpenCode 账号，不证明供应商额度或 CLI 版本兼容性；这些需要在用户已登录相应 CLI 的环境中另行确认。
 
+## 论文版式回归
+
+`tests/pdfPaperLayouts.test.ts` 用 pdf-lib 按真实字体度量现场生成典型论文版式，再走真实的 PDF.js 解析与版面分析，逐项断言送翻片段的文字与顺序。目前覆盖：
+
+- 单栏 LaTeX 文章：题目、作者署名、收窄的摘要、编号章节、独立公式、脚注、页码。
+- 双栏会议论文：罗马数字章节（`I. INTRODUCTION`）、图与图注、`TABLE I` 表题与三线表、脚注、页眉页码，以及先左栏后右栏的阅读顺序。
+- 双倍行距的投稿稿件：段落保持完整，标题单独成段。
+- 悬挂缩进的参考文献页：每条文献一个片段，跨两栏。
+
+夹具文字均为测试自拟。调整分段、分栏、标题或题注规则时先跑这一组：
+
+```bash
+pnpm exec vitest run tests/pdfPaperLayouts.test.ts tests/pdfLayoutAnalysis.test.ts
+```
+
+新增一种版式时，在该文件里加一个用 `build(...)` 排版的用例，并断言 `sources(document)` 的完整顺序。真实论文不进入仓库；需要用本地论文核对结构不变量（可翻译块互不重叠、被拆散的碎片段落不超过十分之一）时，把目录交给环境变量：
+
+```bash
+FLUENTREAD_PDF_CORPUS=/path/to/papers pnpm exec vitest run tests/pdfPaperLayouts.test.ts
+```
+
 ## PDF 在线与本地划词
 
 生产扩展构建后运行：

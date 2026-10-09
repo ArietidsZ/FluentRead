@@ -387,6 +387,7 @@
       "tests/documentHistory.test.ts",
       "tests/richPreviewSync.test.ts",
       "tests/pdfLayoutAnalysis.test.ts",
+      "tests/pdfPaperLayouts.test.ts",
       "tests/documentPdfLayoutParsing.test.ts",
       "tests/pdfSource.test.ts",
       "tests/pdfTextLayout.test.ts"

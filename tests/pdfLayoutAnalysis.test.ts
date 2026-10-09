@@ -327,6 +327,33 @@ describe('PDF layout analysis on real paper typography', () => {
         const twice = analyze([atom('n', 60, 100, 6), atom('First point', 75, 100, 100), atom('n', 60, 112, 6), atom('Second point', 75, 112, 100)]);
         expect(twice.blocks.map(block => block.source)).toEqual(['First point', 'Second point']);
     });
+    it('orders two columns by their body paragraphs: narrow labels join the column that covers them and a straddling block does not merge the columns', () => {
+        const body = (tag: string, x: number, top: number) => [0, 1, 2].map(row => atom(`${tag} body line ${row} is a full justified line of ordinary column text`, x, top + row * 12, 240));
+        const label = (tag: string, x: number) => [atom(`${tag} upper`, x, 70, 40, 8), atom(`${tag} lower`, x, 79, 40, 8)];
+        // 右栏顶部并排的两个两行小标注都被下方的正文段落盖住：它们属于右栏，按上下顺序排在段落之前。
+        const absorbed = analyze([...body('Left', 54, 100), ...label('Alpha', 330), ...label('Beta', 420), ...body('Right', 318, 110)]);
+        expect(absorbed.blocks.map(block => block.source.split(' ').slice(0, 2).join(' '))).toEqual(['Left body', 'Alpha upper', 'Beta upper', 'Right body']);
+        // 横跨两栏的两行说明只碰到两栏各一部分：归入左栏，两栏仍然先左后右。
+        const straddling = analyze([atom('A two line note that straddles the gutter between both of the columns', 150, 60, 310), atom('and continues on a second line of exactly the same width as before', 150, 72, 310), ...body('Left', 54, 100), ...body('Right', 318, 100), ...body('Left again', 54, 160), ...body('Right again', 318, 160)]);
+        expect(straddling.blocks.map(block => block.source.split(' ').slice(0, 2).join(' '))).toEqual(['A two', 'Left body', 'Left again', 'Right body', 'Right again']);
+    });
+    it('keeps radical-bar ligature runs as formula fragments and splits merged table cells that collide with a neighbour', () => {
+        const radical = analyze([atom('pkffiffiffiffiffiffiffiffi', 60, 100, 60), atom('Body text sets the page size and is long enough to be a real sentence here.', 60, 300, 420), atom('More body text follows on the next line of the very same body paragraph.', 60, 312, 420)]);
+        expect(radical.blocks.find(block => block.source.startsWith('pkffi'))).toMatchObject({kind: 'formula', preserveSource: true});
+        // 散落的上下标同样不是句子；带空格的中文单字和普通短语不受影响。
+        expect(analyze([atom('i k k 1 k word', 60, 100, 60)]).blocks[0]).toMatchObject({kind: 'formula', preserveSource: true});
+        expect(analyze([atom('a b', 60, 100, 20), atom('Plan B is ready', 60, 200, 80)]).blocks.map(block => block.kind)).toEqual(['formula', 'text']);
+        // 落在段落矩形里的小字号孤立短词是没有并回行内的下标；段落外的同样短词仍是正文。
+        const stray = analyze([atom('It will be easier to work with this after taking the logarithm of both', 60, 100, 420), atom('sides of the equation and moving the constant term over to the left', 60, 112, 420), atom('so that every remaining term of the model is a simple linear function.', 60, 124, 420), atom('word', 300, 106, 14, 6), atom('word', 300, 400, 14, 6)]);
+        expect(stray.blocks.filter(block => block.source === 'word').map(block => block.kind).sort()).toEqual(['formula', 'text']);
+        // 表头第一行“Diagnostic”与下一行以小写开头的“analysis”会并成一个两行单元格，它的矩形压到了旁边的“Always”，于是退回一行一个单元格。
+        const rules = [{kind: 'path' as const, x: 50, y: 90, width: 400, height: 0}, {kind: 'path' as const, x: 50, y: 150, width: 400, height: 0}];
+        const table = analyze([atom('Diagnostic', 200, 106, 60, 6), atom('analysis', 205, 115, 40, 6), atom('Always', 230, 111, 50, 6), atom('Body text sets the page size and is long enough to be a real sentence here.', 50, 300, 420), atom('More body text follows on the next line of the very same body paragraph.', 50, 312, 420)], rules);
+        expect(table.blocks.filter(block => block.kind === 'table').map(block => block.source).sort()).toEqual(['Always', 'Diagnostic', 'analysis']);
+        // 没有压到别的块时，续行仍并入同一个单元格。
+        const kept = analyze([atom('Diagnostic', 200, 106, 60, 6), atom('analysis', 205, 115, 40, 6), atom('Body text sets the page size and is long enough to be a real sentence here.', 50, 300, 420), atom('More body text follows on the next line of the very same body paragraph.', 50, 312, 420)], rules);
+        expect(kept.blocks.filter(block => block.kind === 'table').map(block => block.source)).toEqual(['Diagnostic analysis']);
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

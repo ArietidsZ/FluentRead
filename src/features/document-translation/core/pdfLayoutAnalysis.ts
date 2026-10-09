@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/pdfLayoutAnalysis.ts
  * 文件职责：从 PDF 原始字形和绘图操作推导阅读顺序、段落与必须保留的公式、表格、插图区域。
- * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按相邻行共同让出的竖带识别栏间距，松散的两端对齐行不被拆散；页眉页脚、编号标题、题注与公式碎片分别归类，图形在题注处断开，幻灯片内容框、段落底色和标题色带这类装文字的容器不算插图，原位重复描画的文字只读一次，表格按单元格切分且含词语的单元格可以翻译；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
+ * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按相邻行共同让出的竖带识别栏间距，松散的两端对齐行不被拆散；页眉页脚、数字/罗马数字/字母编号的标题、中英文题注与公式碎片分别归类，分栏由并排的正文段落确定、同栏内缩进不同的块按上下顺序阅读，图形在题注处断开，幻灯片内容框、段落底色和标题色带这类装文字的容器不算插图，原位重复描画的文字只读一次，表格按单元格切分且含词语的单元格可以翻译；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
  * 模块边界：纯几何分析，不加载 PDF.js、不访问 Canvas、网络或 DOM，不修改来源文字或文件。
  */
 import type {PdfDocumentBlock, PdfDocumentLine, PdfDocumentRun, PdfPreservedRegion} from './document';
@@ -165,8 +165,10 @@ const cjkEdge = new RegExp(`^[${CJK}，。、；：！？（）《》“”][${C
 const byline = /^(?=.*(?:,|[*†‡⇑]|\s[a-z\d]\b))(?:(?:[A-Z][\p{L}.'’-]*\s+){1,3}[A-Z][\p{L}'’-]+(?:\s*[a-z\d*†‡⇑](?:\s*,\s*[a-z\d*†‡⇑])*)?\s*(?:,|\band\b|&|$)\s*)+$/u;
 /** 一行的“词数”：按空白分出的词，加上不用空格分词的中日韩文字（两个字约合一个词）。 */
 const textUnits = (text: string) => text.split(/\s+/u).filter(Boolean).length + (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0) / 2;
-/** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译。 */
-const readable = (text: string) => /\p{L}{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text.replace(/\b(?:lim|min|max|log|exp|sin|cos|tan|arg|sup|inf)\b/giu, ''));
+/** 三个以上的词里多半是单个拉丁字母或数字（“i k k 1 k word”）：这是散落的上下标，不是句子。 */
+const looseSymbols = (text: string) => {const tokens = text.trim().split(/\s+/u); return tokens.length >= 3 && tokens.filter(token => /^[\p{Script=Latin}\d]$/u.test(token)).length >= tokens.length * 0.6;};
+/** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译；根号横线在部分数学字体里被读成一串 ffi，不是词语。 */
+const readable = (text: string) => !/(?:ffi){3,}/u.test(text) && !looseSymbols(text) && (/\p{L}{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text.replace(/\b(?:lim|min|max|log|exp|sin|cos|tan|arg|sup|inf)\b/giu, '')));
 function mergedFigures(shapes: readonly PdfGraphicsShape[], width: number, height: number, container: (box: Rectangle) => boolean): Rectangle[] {
     const figures: Rectangle[] = [];
     for (const shape of shapes.filter(shape => shape.width >= 24 && shape.height >= 24 && (shape.kind !== 'path' || shape.width * shape.height >= 900))) {
@@ -238,7 +240,8 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         }
     });
     const loose = bodyGaps.length >= 3 ? Math.max(1, median(bodyGaps) / (font * 1.25)) : 1;
-    const captionStart = /^(?:Figure|Table|Fig\.)\s+\d+[.:]/iu;
+    // 题注开头：“Figure 1.”“Fig. 2:”“Table 3.”，IEEE 版式独占一行的“TABLE I”，以及中文的“图 1 ……”“表 2-1 ……”。正文里的“Table 2 shows”没有紧随的标点，不算题注。
+    const captionStart = /^(?:(?:[Ff]igure|FIGURE|[Tt]able|TABLE|[Ff]ig\.|FIG\.)\s+\d+[.:]|TABLE\s+[IVXLC]+$|[图表]\s*\d+(?:[-.．]\d+)*[\s:：.．])/u;
     // 幻灯片的内容框、笔记的段落底色和标题色带都是“装文字的容器”而不是插图：成句的文字占去框内三成以上面积，
     // 或者框占页面三分之一以上且框内多半是成句的行、或字号明显大于图内标注时，框内文字按正文处理。
     const container = (box: Rectangle) => {
@@ -330,7 +333,9 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         const midParagraph = () => lines.some(near => near.baseline < line.baseline && line.baseline - near.baseline <= line.fontSize * 1.45 * loose
             && Math.abs(near.fontSize - line.fontSize) <= 0.6 && near.x <= line.x + 1 && right(near) >= right(line) - 2 && near.width >= line.width * 0.9 && !/[.!?:。！？：]$/u.test(near.text));
         if ((numbered && !/[-‐‑]$/u.test(line.text) && !midParagraph() && ((/^\d+(?:\.\d+)*\s+[A-Z]/u.test(line.text) && !(line.text.split(/\s+/u).length > 6 && listItem())) || (/^\d+(?:\.\d+)*\.\s+[A-Z]/u.test(line.text) && line.text.split(/\s+/u).length <= 9 && !/[.,;:]$/u.test(line.text) && !listItem())))
-            || (line.text.length < 80 && /^(?:Abstract|References|Acknowledge?ments?|Appendix(?:\s+[A-Z])?(?:\.\s.*)?)$/iu.test(line.text)) || (line.fontSize >= font * 1.32 && line.text.length < 100)) return 'heading';
+            || (line.text.length < 80 && /^(?:Abstract|References|Acknowledge?ments?|Appendix(?:\s+[A-Z])?(?:\.\s.*)?)$/iu.test(line.text))
+            // IEEE 等版式的章节用罗马数字或字母编号（“II. RELATED WORK”“A. Data Collection”），字号与正文相同；带有第二个姓名缩写的行是作者而不是标题。
+            || (numbered && /^(?:[IVXLC]+|[A-Z])\.\s+[A-Z]/u.test(line.text) && line.text.split(/\s+/u).length <= 10 && !/[.,;:]$/u.test(line.text) && !/\s[A-Z]\.\s/u.test(line.text) && !midParagraph() && !listItem()) || (line.fontSize >= font * 1.32 && line.text.length < 100)) return 'heading';
         if (line.text.includes('@') || (line.y >= authorStart && line.y <= authorEnd && line.width < input.width * 0.35 && line.text.length < 100)) return 'metadata';
         return 'text';
     };
@@ -376,6 +381,20 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         if (selected) {selected.lines.push(line); selected.bounds = union(selected.bounds, line);}
         else {const draft = {lines: [line], kind, region, bounds: line}; drafts.push(draft); active.push(draft);}
     }
+    // 密排表头里上下两行的单元格可能被当成一个单元格的续行；合并后的矩形一旦压到别的块上，就退回到一行一个单元格，译文才不会互相覆盖。
+    for (let index = drafts.length - 1; index >= 0; index -= 1) {
+        const draft = drafts[index];
+        if (draft.region?.kind !== 'table' || draft.lines.length < 2 || !drafts.some(other => other !== draft && overlaps(draft.bounds, other.bounds, -1))) continue;
+        drafts.splice(index, 1, ...draft.lines.map(line => ({...draft, lines: [line], bounds: line as Rectangle})));
+    }
+    // 落在正文段落矩形里、字号明显更小的孤立短词是没有并回所在行的上下标（“p word”里的 word），保留原样。
+    for (const draft of drafts) {
+        const line = draft.lines[0];
+        if (draft.kind !== 'text' || draft.lines.length > 1 || textUnits(line.text) >= 4) continue;
+        const centerX = line.x + line.width / 2, centerY = line.y + line.height / 2;
+        if (drafts.some(other => other !== draft && other.lines.length > 1 && (other.kind === 'text' || other.kind === 'caption') && line.fontSize <= other.lines[0].fontSize * 0.85
+            && centerX >= other.bounds.x && centerX <= right(other.bounds) && centerY >= other.bounds.y && centerY <= bottom(other.bounds))) draft.kind = 'formula';
+    }
     const blocks: PdfLayoutBlock[] = drafts.map(draft => {
         const first = draft.lines[0];
         const joined = draft.lines.reduce((text, line) => text ? /[-‐‑]$/u.test(text) && /^[a-z]/u.test(line.text) ? text.slice(0, -1) + line.text : cjkEdge.test(text.slice(-1) + line.text.slice(0, 1)) ? text + line.text : `${text} ${line.text}` : line.text, '');
@@ -396,8 +415,27 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const ordered: PdfLayoutBlock[] = [];
     let band: PdfLayoutBlock[] = [];
     const flush = () => {
-        const columns: number[] = [];
-        for (const block of [...band].sort((a, b) => a.x - b.x || a.y - b.y)) {let column = columns.findIndex(x => Math.abs(x - block.x) <= font * 2); if (column < 0) {column = columns.length; columns.push(block.x);} block.column = column;}
+        const columns: Array<{start: number; end: number}> = [];
+        // 并排的两栏在水平方向互不重叠；同一栏里缩进不同的块（收窄的摘要、居中的小标题、悬挂缩进）彼此重叠，仍按上下顺序阅读。
+        // 先由多行的正文段落与题注确定各栏，再安放标题、单行文字和表格单元格（多行的单元格很窄，不能用来定栏）；每一组里从窄到宽，横跨两栏的块（居中的题注、跨栏的小标题）归入它碰到的最左一栏，但不把两栏连成一栏。
+        const seed = (block: PdfLayoutBlock) => Number(!(block.lineCount > 1 && (block.kind === 'text' || block.kind === 'caption')));
+        for (const block of [...band].sort((a, b) => seed(a) - seed(b) || a.width - b.width || a.x - b.x || a.y - b.y)) {
+            const touched = columns.flatMap((range, index) => Math.min(right(block), range.end) - Math.max(block.x, range.start) > Math.min(block.width, range.end - range.start) * 0.5 ? [index] : []);
+            if (!touched.length) {block.column = columns.length; columns.push({start: block.x, end: right(block)}); continue;}
+            const target = touched.reduce((leftmost, index) => columns[index].start < columns[leftmost].start ? index : leftmost);
+            block.column = target;
+            // 正文段落完全盖住的几个窄栏（图旁的两行小标注、缩进的短段）其实都在这一栏里，并入同一栏。
+            const absorbed = touched.length > 1 && !seed(block) && touched.every(index => columns[index].start >= block.x - 2 && columns[index].end <= right(block) + 2);
+            if (absorbed) for (const index of touched) if (index !== target) {band.forEach(other => {if (other.column === index) other.column = target;}); columns[index] = {start: Infinity, end: -Infinity};}
+            if (touched.length === 1 || absorbed) columns[target] = {start: Math.min(columns[target].start, block.x), end: Math.max(columns[target].end, right(block))};
+        }
+        // 栏号按从左到右重排。
+        const rank = columns.map((_, index) => index).sort((a, b) => columns[a].start - columns[b].start);
+        band.forEach(block => {block.column = rank.indexOf(block.column!);});
+        // 真正的分栏是左右并排的；水平方向错开但一上一下的块（居中的题目与其下靠左的小标题）只是同一栏里的先后两块。
+        const extent = (index: number) => band.filter(block => block.column === index).reduce((range, block) => ({top: Math.min(range.top, block.y), bottom: Math.max(range.bottom, bottom(block))}), {top: Infinity, bottom: -Infinity});
+        const extents = columns.map((_, index) => extent(index)).filter(range => range.top < range.bottom);
+        if (!extents.some((one, index) => extents.some((other, otherIndex) => otherIndex > index && Math.min(one.bottom, other.bottom) - Math.max(one.top, other.top) > font * 0.5))) band.forEach(block => {block.column = 0;});
         ordered.push(...band.sort((a, b) => a.kind === 'metadata' && b.kind === 'metadata' ? a.y - b.y || a.x - b.x : a.column! - b.column! || a.y - b.y)); band = [];
     };
     for (const block of blocks.sort((a, b) => a.y - b.y || a.x - b.x)) {
