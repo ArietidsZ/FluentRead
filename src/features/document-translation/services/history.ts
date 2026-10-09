@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/history.ts
  * 文件职责：在浏览器本地保存最近翻译过的文档及其译文，使文档翻译首页可以列出记录并一键恢复阅读。
- * 主要内容：以文件内容摘要为稳定标识，在独立的 IndexedDB 库中保存原始文件字节、解析结果快照、译文、进度与设置指纹；列表只返回不含文件字节的摘要并按最近更新时间排序；超过条数或总字节上限时淘汰最旧的记录；数据库不可用或读写失败时安静降级为“没有记录”，不影响打开和翻译文档。
+ * 主要内容：以文件内容摘要为稳定标识，在独立的 IndexedDB 库中保存原始文件字节、解析结果快照、译文、进度与设置指纹；列表只返回不含文件字节的摘要并按最近更新时间排序；超过条数或总字节上限时淘汰最旧的记录；数据库不可用、被其他标签页占用而超时或读写失败时安静降级为“没有记录”，并在其他标签页需要升级或删除时让出连接，不影响打开和翻译文档。
  * 模块边界：只负责本地存取，不解析文档、不发起翻译、不读取配置，也不把任何内容发送到网络；页面状态与何时保存由文档页面组合根决定。
  */
 
@@ -60,19 +60,30 @@ function summary(record: DocumentHistoryRecord): DocumentHistorySummary {
     return {id, name, format, size, ...(sourceUrl ? {sourceUrl} : {}), total, completed, updatedAt};
 }
 
-export function createDocumentHistory(factory: IDBFactory | undefined = globalThis.indexedDB): DocumentHistory {
+export function createDocumentHistory(factory: IDBFactory | undefined = globalThis.indexedDB, timeoutMs = 3000): DocumentHistory {
     let opening: Promise<IDBDatabase> | undefined;
     const open = () => opening ??= new Promise<IDBDatabase>((resolve, reject) => {
         const opened = factory!.open(DATABASE, 1);
         opened.onupgradeneeded = () => {opened.result.createObjectStore(STORE, {keyPath: 'id'});};
-        opened.onsuccess = () => resolve(opened.result);
+        opened.onsuccess = () => {
+            const database = opened.result;
+            // 其他标签页要升级或删除这个库时主动让出连接，下次使用再重新打开。
+            database.onversionchange = () => {database.close(); opening = undefined;};
+            resolve(database);
+        };
         opened.onerror = () => reject(opened.error);
+        opened.onblocked = () => reject(new Error('blocked'));
     }).catch(error => {opening = undefined; throw error;});
     const store = async (mode: IDBTransactionMode) => (await open()).transaction(STORE, mode).objectStore(STORE);
     /** 历史记录是锦上添花：任何存储错误都退化为默认值，绝不打断文档流程。 */
     const guarded = async <T>(fallback: T, work: () => Promise<T>): Promise<T> => {
         if (!factory) return fallback;
-        try {return await work();} catch {return fallback;}
+        // 被其他标签页占用的数据库可能迟迟不响应；超过时限同样按“没有记录”处理，不能卡住打开文件。
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const expired = new Promise<T>(resolve => {timer = setTimeout(() => {opening = undefined; resolve(fallback);}, timeoutMs);});
+        const result = await Promise.race([work().catch(() => fallback), expired]);
+        clearTimeout(timer);
+        return result;
     };
     const all = async () => (await request((await store('readonly')).getAll()) as DocumentHistoryRecord[]).sort((left, right) => right.updatedAt - left.updatedAt);
     return {

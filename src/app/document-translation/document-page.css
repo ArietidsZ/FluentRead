@@ -582,3 +582,51 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 .taskbar-toast { position: absolute; top: calc(100% + 10px); left: 50%; z-index: 25; margin: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); box-shadow: 0 10px 28px #10182826; font-size: 12px; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
 .taskbar-toast { animation: taskbar-toast-in .2s ease-out; }
 @keyframes taskbar-toast-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+/* 导入中：进度条 + 次要的取消链接。 */
+.import-progress { width: min(320px, 80%); height: 6px; margin-top: 4px; overflow: hidden; border-radius: 6px; background: var(--brand-soft); }
+.import-progress i { display: block; height: 100%; border-radius: 6px; background: var(--brand); transition: width .2s; }
+.import-progress.indeterminate i { width: 35% !important; animation: import-slide 1.2s ease-in-out infinite alternate; }
+@keyframes import-slide { from { transform: translateX(-20%); } to { transform: translateX(210%); } }
+.import-cancel { margin-top: 12px; padding: 0; border: 0; color: var(--muted); background: none; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.import-cancel:hover { color: var(--brand-strong); }
+/* 工具栏提示：浮在工具栏下方的提示条，不占行、不推动正文。 */
+.taskbar-notices { position: absolute; top: calc(100% + 10px); left: 50%; z-index: 25; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: min(720px, calc(100% - 32px)); transform: translateX(-50%); pointer-events: none; }
+.taskbar-notices:empty { display: none; }
+.document-taskbar .taskbar-notices > * { position: static; flex: none; margin: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 28px #10182826; font-size: 12px; line-height: 1.5; white-space: normal; transform: none; pointer-events: auto; animation: taskbar-notice-in .2s ease-out; }
+.document-taskbar .taskbar-notices > .notice.warning { border-color: #f1dfb4; background: #fffaf0; }
+.document-taskbar .taskbar-notices > .notice.error { border-color: #f3c8d2; background: #fff5f7; }
+.dark .document-taskbar .taskbar-notices > .notice.warning, .dark .document-taskbar .taskbar-notices > .notice.error { background: var(--surface); }
+@keyframes taskbar-notice-in { from { opacity: 0; transform: translateY(-6px); } }
+/* 窄窗口：依次收起次要元素，尽量保持一行。 */
+.document-taskbar .workspace-heading { max-width: 300px; }
+@media (max-width: 1760px) {
+  .reader-controls-slot .pdf-zoom-control > button { display: none; }
+  .document-taskbar .workspace-heading { max-width: 230px; }
+}
+@media (max-width: 1600px) {
+  .document-taskbar .toolbar-field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .document-taskbar .toolbar-service { width: 140px; }
+}
+@media (max-width: 1400px) {
+  .document-taskbar .workspace-heading { max-width: 170px; }
+  .document-taskbar .document-status { display: none; }
+  .document-taskbar .toolbar-service { width: 118px; }
+  .document-taskbar .toolbar-language { width: 96px; }
+  .reader-controls-slot .pdf-page-total { display: none; }
+}
+@media (max-width: 1240px) {
+  .document-taskbar .taskbar-logo { display: none; }
+  .document-taskbar .workspace-heading { max-width: 130px; }
+  .document-taskbar .reader-tabs button:not(.selected) { display: none; }
+}
+@media (max-width: 1320px) {
+  .document-taskbar { gap: 6px 8px; padding-inline: 10px; }
+  .document-taskbar .taskbar-logo { display: none; }
+  .document-taskbar .workspace-heading { max-width: 120px; }
+  .document-taskbar .reader-toolbar { gap: 6px; padding-left: 8px; }
+  .document-taskbar .reader-controls-slot { padding-left: 6px; }
+  .document-taskbar .mode-buttons button { padding: 0 8px; }
+  .reader-controls-slot .pdf-viewer-toolbar { gap: 6px; }
+  .reader-controls-slot .pdf-style, .document-taskbar .focus-toggle { display: none; }
+  .reader-controls-slot .pdf-page-navigation > button { display: none; }
+}

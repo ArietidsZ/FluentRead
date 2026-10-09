@@ -74,10 +74,12 @@ function joinRuns(runs: readonly PdfLayoutAtom[]): string {
 
 /** 基线而非字形顶边决定同一行，上下标仍保留自己的矩形和文字。 */
 export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
-    const rows: Array<{runs: PdfLayoutAtom[]; font: number; baseline: number; samples: number}> = [];
+    const rows: Array<{runs: PdfLayoutAtom[]; font: number; baseline: number; samples: number; first: number}> = [];
     for (const atom of [...atoms].sort((a, b) => a.baseline - b.baseline || a.x - b.x)) {
         const row = rows.at(-1);
-        if (!row || Math.abs(atom.baseline - row.baseline) > Math.max(2, Math.max(row.font, atom.fontSize) * 0.55)) rows.push({runs: [atom], font: atom.fontSize, baseline: atom.baseline, samples: 1});
+        const tolerance = row ? Math.max(2, Math.max(row.font, atom.fontSize) * 0.55) : 0;
+        // 双栏行距不同时，一栏的基线会落在另一栏两行之间；只与行首基线比较，避免它把上下两行接力串成一行。
+        if (!row || Math.abs(atom.baseline - row.baseline) > tolerance || atom.baseline - row.first > tolerance) rows.push({runs: [atom], font: atom.fontSize, baseline: atom.baseline, samples: 1, first: atom.baseline});
         else {
             row.runs.push(atom);
             if (atom.fontSize > row.font * 1.15) {row.font = atom.fontSize; row.baseline = atom.baseline; row.samples = 1;}

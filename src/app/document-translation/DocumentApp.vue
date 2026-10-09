@@ -79,10 +79,12 @@
           <div class="upload-symbol" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M28 7H13a3 3 0 0 0-3 3v28a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3V17L28 7Z" stroke="currentColor" stroke-width="2"/><path d="M28 7v10h10M24 33V22m-5 5 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <h2>{{ openingFile || downloadingPdf ? '正在整理文档' : '把文件拖到这里' }}</h2>
           <p class="upload-description">{{ openingFile || downloadingPdf ? importProgress || '解析完成后，即可确认语言并开始翻译' : t('document.batch.pickMany') }}</p>
-          <button class="open-file-button" type="button" :disabled="queueBusy" @click.stop="openFilePicker">
+          <button v-show="!openingFile && !downloadingPdf" class="open-file-button" type="button" :disabled="queueBusy" @click.stop="openFilePicker">
             {{ openingFile ? '正在解析文件…' : '选择文件' }}
           </button>
-          <button v-if="openingFile || downloadingPdf" class="ghost-button" type="button" @click.stop="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button>
+          <!-- 导入中用进度条代替按钮；取消是次要操作，只留一个文字链接。 -->
+          <div v-if="openingFile || downloadingPdf" class="import-progress" :class="{indeterminate: !importRatio}" role="progressbar" :aria-valuenow="Math.round(importRatio * 100)" aria-valuemin="0" aria-valuemax="100"><i :style="{width: `${Math.max(4, importRatio * 100)}%`}" /></div>
+          <button v-if="openingFile || downloadingPdf" class="import-cancel" type="button" @click.stop="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button>
           <small>{{ t('document.fileLimitNote', {size: maxFileSizeLabel}) }}</small>
         </div>
 
@@ -153,11 +155,14 @@
             </div>
           </div>
           <div class="task-progress" :class="{ complete: translationComplete }" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{width: `${progress}%`}" /></div>
+          <!-- 提示统一浮在工具栏下方，出现和消失都不改变版面高度。 -->
+          <div class="taskbar-notices">
           <p v-if="openingFile || downloadingPdf" class="document-import-progress" role="status">{{ importProgress }} <button class="ghost-button" type="button" @click="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button></p>
           <p v-if="errorMessage || credentialWarning || configSaveError" class="notice error task-notice" role="alert">{{ errorMessage || credentialWarning || configSaveError }} <button v-if="credentialWarning || configSaveError" type="button" @click="documentSettingsDialog?.showModal()">调整设置</button></p>
           <p v-if="settingsChanged" class="notice warning task-notice">设置已更改。现有译文保留，按新设置翻译会从头开始。</p>
           <p v-if="retryNotice" class="notice warning task-notice" role="status" data-i18n-ignore>{{ retryNotice }}</p>
           <p v-if="downloadNotice" class="taskbar-toast" role="status">{{ downloadNotice }}</p>
+          </div>
         </section>
         <article class="document-reading-pane" aria-label="文档内容">
         <DocumentSegmentEditor :key="activeDocumentId ?? 0" v-show="readerTab === 'edit'" :document="parsedDocument" :translations="translatedSegments" :disabled="queueBusy" @update="editSegment" />
@@ -537,6 +542,8 @@ let downloadController: AbortController | null = null;
 const onlinePdfUrl = ref('');
 const downloadingPdf = ref(false);
 const importProgress = ref('');
+/** 导入进度 0–1：下载按字节、解析按页；未知时为 0，进度条显示为往复动画。 */
+const importRatio = ref(0);
 let onlinePdfController: AbortController | null = null;
 const epubChapterIndex = ref(0);
 const docxPartIndex = ref(0);
@@ -646,7 +653,7 @@ function scheduleHistorySave(): void {
 // 刷新后回到正在阅读的文档：当前标签页记住它在本地历史里的标识，新开的标签页仍从首页开始。
 const SESSION_KEY = 'fluentread.document.open';
 /** 版面分析或分段规则变化时递增：旧快照作废，改为按原始文件重新解析。 */
-const PARSED_VERSION = 1;
+const PARSED_VERSION = 2;
 function rememberOpenDocument(id: string | undefined | null): void {
   try {
     if (id) globalThis.sessionStorage?.setItem(SESSION_KEY, id);
@@ -1142,6 +1149,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
   fileLoadController = controller;
   openingFile.value = true;
   importProgress.value = '';
+  importRatio.value = 0;
   batchNotice.value = '';
   errorMessage.value = '';
   let opened = false;
@@ -1153,7 +1161,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
         if (!getDocumentFormat(file.name)) throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
         if (file.size > DOCUMENT_MAX_BYTES) throw new Error(`文件大小超过 ${maxFileSizeLabel}，请先拆分文件后再翻译。`);
         const parsed = await parseDocumentFile(file, {signal: controller.signal, onPdfProgress: ({completed, total}) => {
-          if (loadRequest.isCurrent()) importProgress.value = t('document.pdfReading.importPages', {completed, total});
+          if (loadRequest.isCurrent()) {importProgress.value = t('document.pdfReading.importPages', {completed, total}); importRatio.value = total ? completed / total : 0;}
         }});
         if (!loadRequest.isCurrent()) return;
         if (!parsed.segments.length && parsed.binary?.kind !== 'pdf') throw new Error('文件中没有找到可翻译的文本片段。');
@@ -1207,6 +1215,7 @@ async function openOnlinePdf(): Promise<void> {
     const file = await fetchOnlinePdf(sourceUrl, {signal: controller.signal, onProgress: ({received, total}) => {
       if (onlinePdfController !== controller) return;
       const size = (received / 1024 / 1024).toFixed(1);
+      importRatio.value = total ? received / total : 0;
       importProgress.value = total ? t('document.pdfReading.downloadProgress', {size, percent: Math.round(received / total * 100)})
         : t('document.pdfReading.downloadBytes', {size});
     }});

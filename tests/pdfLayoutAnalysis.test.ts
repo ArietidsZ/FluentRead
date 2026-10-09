@@ -239,6 +239,11 @@ describe('PDF layout analysis on real paper typography', () => {
         const footnote = analyze([atom('1 Note that the term frequency refers to something specific', 40, 100, 260), atom('and it continues on a second full line of the same footnote.', 40, 112, 260)]);
         expect(footnote.blocks).toHaveLength(1); expect(footnote.blocks[0]).toMatchObject({kind: 'text', lineCount: 2});
     });
+    it('does not chain two lines of one column into a row through a line of the other column with a different leading', () => {
+        // 右栏 6.4 号字、行距 8；左栏 8 号字的一行基线落在右栏两行之间。
+        const lines = pdfLayoutLines([atom('Learning and Verbal Behavior, 12, 335-359.', 294, 370.2, 130, 6.4), atom('left column line in a larger size', 41, 374.4, 220, 8), atom('Dahan, D., and Tanenhaus, M. K. (2004). Continuous mapping', 282, 378.2, 221, 6.4)]);
+        expect(lines.map(line => line.text)).toEqual(['Learning and Verbal Behavior, 12, 335-359.', 'left column line in a larger size', 'Dahan, D., and Tanenhaus, M. K. (2004). Continuous mapping']);
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

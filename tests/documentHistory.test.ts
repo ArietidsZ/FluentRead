@@ -64,6 +64,14 @@ describe('document history storage', () => {
         expect(await history.save(record('', 5))).toBe(false);
         expect((await history.list()).map(entry => entry.id)).toEqual(['third', 'second']);
     });
+    it('releases its connection when another tab upgrades or deletes the database and reopens on the next use', async () => {
+        const factory = new IDBFactory(); const history = createDocumentHistory(factory);
+        await history.save(record('a', 1));
+        // 另一个标签页删除数据库：本连接收到 versionchange 后关闭，删除得以完成而不被阻塞。
+        await new Promise<void>((resolve, reject) => {const removal = factory.deleteDatabase('FluentReadDocumentHistory'); removal.onsuccess = () => resolve(); removal.onerror = () => reject(removal.error); removal.onblocked = () => reject(new Error('blocked'));});
+        expect(await history.list()).toEqual([]);
+        expect(await history.save(record('b', 2))).toBe(true); expect((await history.list()).map(entry => entry.id)).toEqual(['b']);
+    });
     it('degrades to empty results when IndexedDB is missing, refuses to open or fails mid-request, and can recover afterwards', async () => {
         const absent = createDocumentHistory(null as never);
         expect(await absent.list()).toEqual([]); expect(await absent.load('a')).toBeNull(); expect(await absent.save(record('a', 1))).toBe(false);
@@ -88,6 +96,15 @@ describe('document history storage', () => {
         }} as unknown as IDBFactory);
         expect(await rejecting.list()).toEqual([]); expect(await rejecting.load('a')).toBeNull(); expect(await rejecting.save(record('a', 1))).toBe(false);
         await expect(rejecting.remove('a')).resolves.toBeUndefined(); await expect(rejecting.clear()).resolves.toBeUndefined();
+        // 被其他标签页占用：打开请求被阻塞或一直没有结果，都在时限内退化为空结果，之后可以恢复。
+        const blockedFactory = {open: () => {const pending = {} as unknown as IDBOpenDBRequest; queueMicrotask(() => pending.onblocked?.(new Event('blocked') as IDBVersionChangeEvent)); return pending;}} as unknown as IDBFactory;
+        expect(await createDocumentHistory(blockedFactory).list()).toEqual([]);
+        let silent = true; const later = new IDBFactory();
+        const hanging = createDocumentHistory({open: (name: string, version?: number) => silent ? {} as IDBOpenDBRequest : later.open(name, version)} as unknown as IDBFactory, 20);
+        const started = Date.now();
+        expect(await hanging.load('a')).toBeNull(); expect(await hanging.save(record('a', 1))).toBe(false); expect(Date.now() - started).toBeLessThan(1000);
+        silent = false;
+        expect(await hanging.save(record('a', 1))).toBe(true); expect((await hanging.list()).map(entry => entry.id)).toEqual(['a']);
         const broken = createDocumentHistory({open: () => {throw new Error('unavailable');}} as unknown as IDBFactory);
         expect(await broken.list()).toEqual([]); expect(await broken.load('a')).toBeNull();
     });
