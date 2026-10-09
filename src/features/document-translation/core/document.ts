@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
+ * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -156,6 +156,8 @@ interface SegmentPart {
     bilingualPrefix?: string;
     /** Markdown 源行分组，用于渲染一条结构完整的双语行。 */
     bilingualGroup?: number;
+    /** HTML 整句片段里行内标签的原文：送翻时写成编号占位符 `<gN>…</gN>`，渲染时按编号还原。 */
+    htmlTags?: Array<{open: string; close: string}>;
 }
 
 type DocumentPart = LiteralPart | SegmentPart;
@@ -646,27 +648,79 @@ function findNextHtmlToken(content: string, from: number): HtmlToken | null {
     return null;
 }
 
+/** 不打断句子的行内标签：它们两侧的文字属于同一句话，应当作为一个片段整体翻译。 */
+const INLINE_HTML_TAGS = new Set(['a', 'abbr', 'b', 'bdi', 'bdo', 'cite', 'del', 'dfn', 'em', 'font', 'i', 'ins', 'kbd', 'mark', 'q', 's', 'samp', 'small', 'span', 'strike', 'strong', 'sub', 'sup', 'time', 'u', 'var']);
+const HTML_PLACEHOLDER = /<\s*(\/?)\s*g\s*(\d+)\s*>/giu;
+type HtmlRunToken = {tag?: string; name?: string; closing?: boolean; text?: string};
+
+/**
+ * 处理一段只被行内标签隔开的连续文字。句子内部的行内标签（链接、强调）换成编号占位符后整句送翻；
+ * 包在整段文字外面的标签、无法配对的标签，或文字本身就含有占位符写法时，退回逐段文字翻译。
+ */
+function addHtmlRun(parts: DocumentPart[], segments: DocumentSegment[], run: HtmlRunToken[]): void {
+    const literal = (token: HtmlRunToken) => addLiteral(parts, token.tag ?? token.text!);
+    const blank = (token: HtmlRunToken) => token.tag !== undefined || !token.text!.trim();
+    let start = 0, end = run.length;
+    while (start < end && blank(run[start])) start += 1;
+    while (end > start && blank(run[end - 1])) end -= 1;
+    const core = run.slice(start, end);
+    const separately = () => run.forEach(token => token.tag === undefined ? addSegment(parts, segments, token.text!, {}, decodeHtmlEntities) : literal(token));
+    if (!core.some(token => token.tag !== undefined)) {separately(); return;}
+    // 按开闭顺序给行内标签配对编号；出现无法配对的标签就不合并。
+    const tags: Array<{open: string; close: string}> = [];
+    const open: Array<{name: string; id: number}> = [];
+    let source = '';
+    for (const token of core) {
+        if (token.tag === undefined) {source += decodeHtmlEntities(token.text!); continue;}
+        if (!token.closing) {
+            tags.push({open: token.tag, close: ''});
+            open.push({name: token.name!, id: tags.length});
+            source += `<g${tags.length}>`;
+            continue;
+        }
+        const last = open.pop();
+        if (!last || last.name !== token.name) {separately(); return;}
+        tags[last.id - 1].close = token.tag;
+        source += `</g${last.id}>`;
+    }
+    if (open.length || core.some(token => token.tag === undefined && HTML_PLACEHOLDER.test(decodeHtmlEntities(token.text!)))) {HTML_PLACEHOLDER.lastIndex = 0; separately(); return;}
+    HTML_PLACEHOLDER.lastIndex = 0;
+    run.slice(0, start).forEach(literal);
+    const first = core[0].text!, last = core.at(-1)!.text!;
+    const prefix = first.slice(0, first.length - first.trimStart().length), suffix = last.slice(last.trimEnd().length);
+    const raw = core.map(token => token.tag ?? token.text!).join('');
+    const segmentIndex = segments.length;
+    const trimmed = source.trim();
+    segments.push({id: segmentIndex, source: trimmed});
+    parts.push({kind: 'segment', segmentIndex, source: trimmed, rawSource: raw.slice(prefix.length, raw.length - suffix.length), prefix, suffix, htmlTags: tags});
+    run.slice(end).forEach(literal);
+}
+
 function parseHtmlDocument(content: string): Pick<ParsedDocument, 'parts' | 'segments'> {
     const parts: DocumentPart[] = [];
     const segments: DocumentSegment[] = [];
     let cursor = 0;
     let protectedTag = '';
+    let run: HtmlRunToken[] = [];
+    const flush = () => {if (run.length) addHtmlRun(parts, segments, run); run = [];};
 
     let match = findNextHtmlToken(content, 0);
     while (match) {
         const tag = match.value;
-        if (!protectedTag) addSegment(parts, segments, content.slice(cursor, match.index), {}, decodeHtmlEntities);
-        else addLiteral(parts, content.slice(cursor, match.index));
-        addLiteral(parts, tag);
+        const text = content.slice(cursor, match.index);
+        if (protectedTag) addLiteral(parts, text);
+        else if (text) run.push({text});
 
         const closing = tag.match(/^<\s*\/\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
-        if (closing && closing === protectedTag) {
-            protectedTag = '';
-        } else if (!closing && !protectedTag) {
-            const opening = tag.match(/^<\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
-            if (opening && PROTECTED_HTML_TAGS.has(opening) && !/\/\s*>$/u.test(tag)) {
-                protectedTag = opening;
-            }
+        const opening = closing ? undefined : tag.match(/^<\s*([a-z0-9-]+)/iu)?.[1]?.toLowerCase();
+        const name = closing ?? opening;
+        // 行内标签留在当前这句话里；其余标签（块级、换行、图片、注释）结束这句话。
+        if (!protectedTag && name && INLINE_HTML_TAGS.has(name) && !/\/\s*>$/u.test(tag)) run.push({tag, name, closing: Boolean(closing)});
+        else {
+            flush();
+            addLiteral(parts, tag);
+            if (closing && closing === protectedTag) protectedTag = '';
+            else if (opening && !protectedTag && PROTECTED_HTML_TAGS.has(opening) && !/\/\s*>$/u.test(tag)) protectedTag = opening;
         }
 
         cursor = match.index + tag.length;
@@ -675,9 +729,39 @@ function parseHtmlDocument(content: string): Pick<ParsedDocument, 'parts' | 'seg
 
     if (cursor < content.length) {
         if (protectedTag) addLiteral(parts, content.slice(cursor));
-        else addSegment(parts, segments, content.slice(cursor), {}, decodeHtmlEntities);
+        else run.push({text: content.slice(cursor)});
     }
+    flush();
     return {parts, segments};
+}
+
+/**
+ * 把整句译文里的编号占位符还原成原来的行内标签。占位符必须每个恰好开闭一次且嵌套正确；
+ * 翻译服务弄丢或弄乱占位符时去掉全部占位符，输出不带行内标签的整句译文，文字一个不少。
+ */
+function renderHtmlTranslation(part: SegmentPart, translation: string): string {
+    const tags = part.htmlTags;
+    if (!tags) return escapeHtml(translation);
+    // 有的翻译服务会把占位符的尖括号转成实体（&lt;g1&gt;）、全角尖括号或括号（（g1）、(g1)）再返回，先还原成占位符。
+    const pieces = translation.replace(/(?:&lt;|[＜〈（(])\s*([\/／]?)\s*g\s*(\d+)\s*(?:&gt;|[＞〉）)])/giu, (_, slash: string, id: string) => `<${slash ? '/' : ''}g${id}>`).split(/(<\s*\/?\s*g\s*\d+\s*>)/iu);
+    const stack: number[] = [];
+    const seen = new Set<number>();
+    let valid = true;
+    const output = pieces.map(piece => {
+        const marker = /^<\s*(\/?)\s*g\s*(\d+)\s*>$/iu.exec(piece);
+        if (!marker) return escapeHtml(piece);
+        const id = Number(marker[2]);
+        if (!tags[id - 1]) {valid = false; return '';}
+        if (!marker[1]) {
+            if (seen.has(id)) valid = false;
+            seen.add(id); stack.push(id);
+            return tags[id - 1].open;
+        }
+        if (stack.pop() !== id) valid = false;
+        return tags[id - 1].close;
+    });
+    if (valid && !stack.length && seen.size === tags.length) return output.join('');
+    return escapeHtml(pieces.filter(piece => !/^<\s*\/?\s*g\s*\d+\s*>$/iu.test(piece)).join(''));
 }
 
 function parseTimedSubtitleDocument(content: string, format: 'srt' | 'vtt'): Pick<ParsedDocument, 'parts' | 'segments'> {
@@ -950,7 +1034,7 @@ function formatBilingualTranslation(document: ParsedDocument, part: SegmentPart,
         ? preserveSubtitleMarkup(part.source, translation)
         : translation;
     if (document.format === 'html') {
-        return `${part.prefix}${source}${part.suffix}<br><span data-fluent-read-document-translation="true">${escapeHtml(translation)}</span>`;
+        return `${part.prefix}${source}${part.suffix}<br><span data-fluent-read-document-translation="true">${renderHtmlTranslation(part, translation)}</span>`;
     }
     if (document.format === 'markdown') {
         return `${part.prefix}${source}${part.suffix}\n> ${translation}`;
@@ -1020,7 +1104,7 @@ function renderParts(document: ParsedDocument, translations: readonly string[], 
             continue;
         }
         if (document.format === 'html') {
-            append(`${part.prefix}${escapeHtml(translation)}${part.suffix}`);
+            append(`${part.prefix}${renderHtmlTranslation(part, translation)}${part.suffix}`);
             continue;
         }
         const formattedTranslation = ['srt', 'vtt', 'ass'].includes(document.format)
