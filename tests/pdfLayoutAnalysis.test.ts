@@ -379,6 +379,9 @@ describe('PDF layout analysis on real paper typography', () => {
         const split = analyze([atom('Introduction', 100, 100, 60), atom(dots, 162, 100, 300), atom('7', 465, 100, 5)]);
         expect(split.blocks).toHaveLength(1);
         expect(split.blocks[0]).toMatchObject({source: 'Introduction', x: 100, width: 60});
+        // 行距宽松的目录里，相邻条目各自成段；带项目符号的条目同样如此，条目后面的普通行也不并入条目。
+        const listed = analyze([atom('•', 88, 100, 6, 10.5), ...[0, 1, 2, 3].map(row => atom(`《课程名称之${row}》${dots}`, 100, 100 + row * 18, 400, 10.5)), atom('附注说明', 100, 172, 42, 10.5)]);
+        expect(listed.blocks.map(block => block.source)).toEqual(['《课程名称之0》', '《课程名称之1》', '《课程名称之2》', '《课程名称之3》', '附注说明']);
         // 句末的省略号和少量的点不是引导点。
         expect(analyze([atom('He paused for a while...', 100, 100, 120)]).blocks[0].source).toBe('He paused for a while...');
     });

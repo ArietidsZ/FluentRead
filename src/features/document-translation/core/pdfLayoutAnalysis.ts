@@ -220,6 +220,8 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const bulleted = new Set<LayoutLine>();
     // 目录行“标题……页码”里的引导点和页码留在原页上：这一行只算到标题文字为止，译文不会带着一串点，页码也不会被盖掉。
     const glyphWeight = (text: string) => Array.from(text).reduce((sum, character) => sum + (/[.．·…‥\s]/u.test(character) ? 0.55 : cjkGlyph.test(character) || /[\uFF00-\uFFEF《》（）]/u.test(character) ? 2 : 1), 0);
+    // 每个目录条目自成一段，不与上下条目合并。
+    const tocEntries = new Set<LayoutLine>();
     const withoutLeader = (line: LayoutLine): LayoutLine => {
         const title = line.text.match(/^(.*?[^\s.．·…‥])\s*(?:[.．·…‥]\s?){6,}\s*\d{0,4}$/u)?.[1];
         if (!title) return line;
@@ -234,16 +236,19 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
             end = run.x + run.width * Math.min(1, glyphWeight(kept) / glyphWeight(run.text)) + line.fontSize * 0.3;
             remaining = 0;
         }
-        return {...line, text: title, width: Math.max(1, Math.min(right(line), end) - line.x), runs};
+        const entry = {...line, text: title, width: Math.max(1, Math.min(right(line), end) - line.x), runs};
+        tocEntries.add(entry);
+        if (bulleted.has(line)) bulleted.add(entry);
+        return entry;
     };
-    const lines = rawLines.map(withoutLeader).map(line => {
+    const lines = rawLines.map(line => {
         const glyph = bulletGlyph(line);
         if (!(/^[•◦▪■□◆◇●○▶►➢➤❖·§Ø\uE000-\uF8FF]$/u.test(glyph) || (/^[nlupqvw]$/u.test(glyph) && (letterBullets.get(glyph)! >= 2 || cjkLine(line.runs[1].text)) && !/^\s*\p{Ll}/u.test(line.runs[1].text)))) return line;
         const runs = line.runs.slice(1), x = runs[0].x;
         const stripped = {...line, x, width: right(line) - x, runs, text: joinRuns(runs as PdfLayoutAtom[])};
         bulleted.add(stripped);
         return stripped;
-    });
+    }).map(withoutLeader);
     // 正文字号按字符数加权取中位数：标题、脚注和页眉的行数再多，也不会改变一页的基准字号。
     const sized = input.atoms.filter(atom => atom.fontSize >= 6).sort((a, b) => a.fontSize - b.fontSize);
     let remaining = sized.reduce((sum, atom) => sum + atom.text.length, 0) / 2;
@@ -374,9 +379,10 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         const region = regions.find(region => inRegion(region, line));
         const kind = region ? region.kind === 'figure' ? 'figure-label' : region.kind : classify(line);
         let selected: Draft | undefined;
-        if (kind !== 'footer' && !/^\(\d+\)\s/u.test(line.text) && !bulleted.has(line)) {
+        if (kind !== 'footer' && !/^\(\d+\)\s/u.test(line.text) && !bulleted.has(line) && !tocEntries.has(line)) {
             for (const draft of active) {
                 const last = draft.lines.at(-1)!;
+                if (tocEntries.has(last)) continue;
                 const gap = line.baseline - last.baseline;
                 // 折行的标题与首行同字号、左对齐且更短；紧随其后的正文首行通常占满栏宽，不能并入标题。
                 const wrappedHeading = draft.kind === 'heading' && (kind === 'text' || kind === 'heading') && draft.lines.length < 3 && gap <= last.fontSize * 1.45 * loose
