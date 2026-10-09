@@ -32,8 +32,8 @@ Download starts with your current bilingual or translated reading mode. Reading 
 
 Translation-only subtitle output replaces the cue text while preserving numbering, timing, and formatting tags. Bilingual output keeps both texts in each cue. Downloads include your corrections. Confirm partial downloads explicitly; untranslated or cleared passages retain the source text. Changing settings does not retranslate existing results, so downloads still use the translations currently kept on the page.
 
-::: tip Download before leaving
-Results stay in the current page. Download what you want to keep before refreshing, closing, or opening another document.
+::: tip Refreshing keeps your progress
+Documents, translations and edits are stored in this browser: a refresh returns to the document you were reading, and **Recent translations** on the start page restores earlier ones. Download a file when you need to keep or share it.
 :::
 
 ## PDF limits
@@ -44,7 +44,7 @@ The reader prioritizes visible pages and retains canvases and text layers for at
 
 Use a PDF with selectable text. Scanned PDFs are not directly recognized; convert them to a text document first, or use image translation for a few pages.
 
-PDFs default to **Readable** presentation: complete paragraphs keep a readable font size and appear as translation progresses. You can select and copy the translation. Formulas, tables, and figures retain their original images; body text follows column and section order. Check complex layouts against the source. **Original layout** adds a position preview with the complete translation below it, so long text is not squeezed into tiny fonts or clipped.
+PDFs default to the **Original layout**, side by side: each translated paragraph is placed back at the position and size of its source paragraph and appears as it arrives, while waiting paragraphs show the loading style chosen in your interface settings. Formulas, figures and numeric table cells stay as they are; table headers, text cells and captions are translated. Hover a long translation to expand it; hovering also highlights the matching source paragraph (switch it off under **Translation style**). Translation starts from the page you are reading, retries automatically for up to two minutes when a service is briefly unavailable, and reports the reason if it still fails. Switch to **Reflowed text** for complete paragraphs at a fixed size. The toolbar also offers **Search** across source and translation, an **Outline** in the sidebar, and **Focus reading**.
 
 PDF downloads paginate the full translation at a fixed font size. Bilingual output keeps each original page followed by its translated pages; original-layout output also includes a position preview. Downloaded Chinese pages remain images, so copy translation from the reader. Progress counts source pages, followed by a saving stage. Choose **Cancel export** to stop generation; translations and edits are kept for retry. The reader retains nearby pages, while export encodes and releases one output canvas at a time to control memory use.
 
@@ -68,13 +68,13 @@ FluentRead also has an [experimental Obsidian desktop plugin](https://github.com
 
 ## Batch translation
 
-Select or drop multiple files, or use **Add files** at the top of the page to keep existing files and translations. Collapse the multi-file queue for more reading space. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.
+Select or drop multiple files, or use **Add files** in the sidebar's **Files** tab to keep existing files and translations; a newly added file becomes the current document. Confirm the service and target language, then use the batch action to translate the remaining files in order.
 
 Each file has its own progress. An import or translation failure does not stop other files. **Pause all** preserves completed segments; starting again resumes the remaining work. If settings change, confirm restarting each partially translated file before continuing the batch, so reviewed text is not silently replaced.
 
 When the queue stops, select a file to read, review or download it individually. Choose bilingual or translation-only output and click **Download completed files (ZIP)** to bundle completed documents. Incomplete files are excluded, and files with the same name use separate numbered folders. Switching files preserves your work; removing undownloaded translations asks for confirmation.
 
-Files and translations stay in this page only. Download your results before refreshing or closing it.
+Files and translations are stored in this browser and can be restored from **Recent translations**; download what you need to take with you.
 
 </details>
 
