@@ -1064,8 +1064,8 @@ async function main() {
         assert.equal(compact(block.text), compact(`测试译文：${block.source}`), `第 ${number} 页片段 ${block.segment} 的译文块必须完整等于夹具译文`);
         assert(block.left >= -2 && block.top >= -2 && block.right <= entry.frame.width + 2 && block.bottom <= entry.frame.height + 2, `第 ${number} 页译文块不能超出页面：${JSON.stringify({block, frame: entry.frame})}`);
       }
-      // 夹具每页的四行正文与图下说明都是可翻译段落，必须各有一个译文块。
-      for (const line of [...LINES, caption]) assert.equal(entry.blocks.filter(block => block.source === line).length, 1, `第 ${number} 页原文“${line}”必须恰好有一个译文块：${JSON.stringify(entry.blocks.map(block => block.source))}`);
+      // 夹具每页的四行正文与图下说明都必须恰好落在一个译文块里；行距宽松、句子排满栏宽的相邻行按同一段翻译，因此按“包含该行”核对而不要求一行一块。
+      for (const line of [...LINES, caption]) assert.equal(entry.blocks.filter(block => block.source.includes(line)).length, 1, `第 ${number} 页原文“${line}”必须恰好出现在一个译文块里：${JSON.stringify(entry.blocks.map(block => block.source))}`);
       assert.equal(new Set(entry.blocks.map(block => block.id)).size, entry.blocks.length, '同页译文块的来源标识不能重复');
     }
     const blockSources = layoutEvidence.flatMap(entry => entry.blocks.map(block => block.source));
