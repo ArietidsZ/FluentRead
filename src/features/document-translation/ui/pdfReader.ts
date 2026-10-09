@@ -58,14 +58,15 @@ export function pdfReaderPageWindow(pageCount: number, currentIndex: number, vis
     return [...new Set(candidates)].slice(0, PDF_READER_MAX_RESIDENT_PAGES);
 }
 
-/** 画布像素限制在源文与译文的合计预算中，CSS 缩放与文本层不受 DPR 上限影响。 */
+/** 画布像素限制在源文与译文的合计预算中；预算内固定按 2 倍像素比渲染，CSS 缩放与文本层不受影响。 */
 export function pdfReaderCanvasSize(width: number, height: number, devicePixelRatio: number, canvasCount = 1, pixelBudget = PDF_READER_MAX_PAGE_PIXELS): {width: number; height: number; outputScale: number} {
     if (!Number.isFinite(pixelBudget) || pixelBudget < 1) throw new RangeError('PDF 页面像素预算不足');
     const pixelLimit = Math.floor(pixelBudget);
     const safeWidth = Math.max(1, Number.isFinite(width) ? width : 1);
     const safeHeight = Math.max(1, Number.isFinite(height) ? height : 1);
     const outputScale = Math.min(
-        Math.max(1, Math.min(2, Number.isFinite(devicePixelRatio) ? devicePixelRatio : 1)),
+        // 至少按 2 倍超采样：1 倍屏上细小的论文字形经缩小后更锐利，窗口报告的像素比偏低时也不会发虚。
+        Math.max(2, Math.min(2, Number.isFinite(devicePixelRatio) ? devicePixelRatio : 2)),
         Math.sqrt(pixelLimit / Math.max(1, canvasCount) / safeWidth / safeHeight),
         PDF_READER_MAX_CANVAS_EDGE / Math.max(safeWidth, safeHeight),
         pixelLimit / Math.max(safeWidth, safeHeight),

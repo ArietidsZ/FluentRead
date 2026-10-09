@@ -322,10 +322,11 @@ describe('PDF reader actual PDF.js resource adapter', () => {
         const result = await reader.render(page, {...settings('canonical-crop', 1, 'bilingual'), presentation: 'readable'}, new AbortController().signal);
         const crop = [...result.regions!.values()][0]; const context = crop.getContext('2d')!;
         const rect = pdfReaderDisplayRect(page.preservedRegions[0], page);
-        expect(crop).toMatchObject({width: 200, height: 30});
-        expect(context.translate).toHaveBeenCalledWith(...(rotation === 90 ? [0, 30] : rotation === 180 ? [200, 30] : [200, 0]));
+        // 画布固定按 2 倍像素比渲染，即使窗口报告的像素比是 1。
+        expect(crop).toMatchObject({width: 400, height: 60});
+        expect(context.translate).toHaveBeenCalledWith(...(rotation === 90 ? [0, 60] : rotation === 180 ? [400, 60] : [400, 0]));
         expect(context.rotate).toHaveBeenCalledWith(rotation === 90 ? -Math.PI / 2 : rotation === 180 ? -Math.PI : Math.PI / 2);
-        expect(context.drawImage).toHaveBeenCalledWith(result.sourceCanvas, rect.x, rect.y, rect.width, rect.height, 0, 0, rotation === 180 ? 200 : 30, rotation === 180 ? 30 : 200);
+        expect(context.drawImage).toHaveBeenCalledWith(result.sourceCanvas, rect.x * 2, rect.y * 2, rect.width * 2, rect.height * 2, 0, 0, rotation === 180 ? 400 : 60, rotation === 180 ? 60 : 400);
         expect(context.save).toHaveBeenCalledOnce(); expect(context.restore).toHaveBeenCalledOnce();
         expect(pdfPage.render.mock.calls[0][0].viewport.rotation).toBe(rotation);
         expect(ports.textLayers[0].viewport.rotation).toBe(rotation);
