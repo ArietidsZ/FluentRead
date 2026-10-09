@@ -1,20 +1,22 @@
 /**
  * @file src/features/information-highlight/content/runtime.ts
  * 文件职责：拥有单个阅读页面的信息高亮会话，协调只读分帧扫描、评分取消、文本缓存和原生 CSS Highlight 绘制。
- * 主要内容：滚动与动态内容经过 180ms 稳定窗口后扫描，每帧工作预算约 4ms；评分与密度选择按纯文本缓存，轻量段落在有界批次内共享帧预算，迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
+ * 主要内容：滚动与动态内容经过 180ms 稳定窗口后扫描，每帧工作预算约 4ms；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动重扫时沿用未变化段落的绘制，扫描完成后再回收离开阅读区域的范围，避免闪烁；迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
  * 模块边界：不访问配置存储或扩展消息、不改变宿主原文、class 和布局；本地模型评分、翻译根及状态通知由应用组合根注入，无原生绘制支持时诚实返回 unsupported。
  */
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
 import type {InformationHighlightResult, InformationHighlightSpan, InformationHighlightState} from '../protocol';
 import {scoreInformationKeywords, selectInformationSpans} from '../domain/keywords';
+import {INFORMATION_HIGHLIGHT_LEVELS, INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap} from '../domain/presentation';
 import {informationSliceEnd} from '../domain/textBoundaries';
 import {collectInformationParagraphs, informationRanges, isInformationParagraphCurrent, isInformationMutationExcluded, type InformationReadingScan, type InformationParagraph} from './readingText';
 export const INFORMATION_HIGHLIGHT_NAME = 'fluentread-information-highlight';
 type PaintWindow = Window & typeof globalThis & {Highlight?: new (...ranges: Range[]) => Set<Range>; CSS?: {highlights?: Map<string, Set<Range>>}};
 interface CachedParagraph {
     result: InformationHighlightResult;
-    selections: Map<InformationHighlightPreferences['density'], InformationHighlightSpan[]>;
+    selections: Map<string, Array<InformationHighlightSpan & {level?: number}>>;
 }
+interface PaintedParagraph {text: string; signature: string; nodes: Text[]; spans: number; ranges: Array<[Set<Range>, Range]>}
 export interface InformationHighlightController {
     getState(): InformationHighlightState;
     setEnabled(enabled: boolean): InformationHighlightState;
@@ -33,8 +35,12 @@ export interface InformationHighlightPorts {
 
 /** 每个安装实例仅拥有自己的 registry 对象和样式节点，绝不删除同名的后来拥有者。 */
 export function installInformationHighlight(document: Document, initial: InformationHighlightPreferences, ports: InformationHighlightPorts): InformationHighlightController {
-    const view = document.defaultView as PaintWindow, registry = view.CSS?.highlights;
-    const paint = view.Highlight && registry ? new view.Highlight() : undefined;
+    const view = document.defaultView as PaintWindow, registry = view.CSS?.highlights as Map<string, Set<Range>> | undefined;
+    const supported = Boolean(view.Highlight && registry);
+    // 细线与底色使用基础名称；热力每档强度一个原生 Highlight，按需创建和注册。
+    const paints = new Map<string, Set<Range>>();
+    const painted = new Map<Text, Map<number, PaintedParagraph>>(), seen = new Set<PaintedParagraph>();
+    let paintedRanges = 0;
     let preferences = {...initial}, disposed = false, enabled = false, generation = 0, session = 0;
     let timer: number | undefined, frame: number | undefined, scoreAbort: AbortController | undefined;
     let work: Generator<InformationParagraph | undefined, InformationReadingScan> | undefined;
@@ -52,7 +58,22 @@ export function installInformationHighlight(document: Document, initial: Informa
         state = next;
         try {ports.changed?.(snapshot());} catch { /* 界面订阅失败不影响资源归属与清理。 */ }
     };
-    const clearPaint = () => {paint?.clear(); notify({highlightedSpans: 0});};
+    const bucket = (name: string) => {
+        let paint = paints.get(name);
+        if (!paint) {paint = new view.Highlight!() as unknown as Set<Range>; paints.set(name, paint);}
+        // 原生 Highlight.add 已触发重绘；同一对象不必为每段重复注册。
+        if (registry!.get(name) !== paint) registry!.set(name, paint);
+        return paint;
+    };
+    const erase = (entry: PaintedParagraph) => {for (const [paint, range] of entry.ranges) paint.delete(range); paintedRanges -= entry.ranges.length;};
+    const clearPaint = () => {for (const paint of paints.values()) paint.clear(); painted.clear(); seen.clear(); paintedRanges = 0; notify({highlightedSpans: 0});};
+    /** 回收本轮扫描未再遇到的段落；仍在阅读区域内的绘制对象保持不动。 */
+    const sweep = () => {
+        for (const [node, entries] of painted) {
+            for (const [offset, entry] of entries) if (!seen.has(entry)) {erase(entry); entries.delete(offset);}
+            if (!entries.size) painted.delete(node);
+        }
+    };
     const cancel = () => {
         generation++;
         if (timer !== undefined) view.clearTimeout(timer);
@@ -62,10 +83,12 @@ export function installInformationHighlight(document: Document, initial: Informa
         scoreAbort?.abort(); scoreAbort = undefined;
     };
     const css = () => {
-        const color = {amber: '245, 178, 45', mint: '39, 174, 132', blue: '65, 135, 225'}[preferences.color];
-        return `::highlight(${INFORMATION_HIGHLIGHT_NAME}) { ${preferences.style === 'underline'
-            ? `text-decoration-line: underline; text-decoration-color: rgba(${color}, .85); text-decoration-thickness: 2px;`
-            : `background-color: rgba(${color}, .27);`} }`;
+        const color = INFORMATION_HIGHLIGHT_PALETTES[preferences.color].rgb, style = preferences.style;
+        if (style === 'heatmap') return Array.from({length: INFORMATION_HIGHLIGHT_LEVELS}, (_, level) =>
+            `::highlight(${INFORMATION_HIGHLIGHT_NAME}-${level}) { background-color: rgb(${color} / ${informationHighlightOpacity(style, level, preferences.intensity)}); }`).join('\n');
+        return `::highlight(${INFORMATION_HIGHLIGHT_NAME}) { ${style === 'underline'
+            ? `text-decoration-line: underline; text-decoration-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity)}); text-decoration-thickness: 2px;`
+            : `background-color: rgb(${color} / ${informationHighlightOpacity(style, undefined, preferences.intensity)});`} }`;
     };
     const ownStyle = (node: Node) => [...styles.values()].some(style => node === style || style.contains(node));
     const irrelevant = (node: Node) => ownStyle(node) || Boolean((node.nodeType === 1 ? node as Element : node.parentElement)?.closest('[data-fluent-read-ui],[data-fluentread-pdf-decoration],[id^="fluent-read-"]'));
@@ -123,23 +146,48 @@ export function installInformationHighlight(document: Document, initial: Informa
             queuedParagraphs: paragraphs.length, errorCode: undefined});
         for (const paragraph of paragraphs.sort((a, b) => a.distance - b.distance)) {
             if (!current() || version !== generation) return;
-            const mode = preferences.mode, key = `${mode}:${paragraph.text}`;
+            const mode = preferences.mode, key = `${mode}:${paragraph.text}`, heat = preferences.style === 'heatmap';
+            const signature = `${mode}:${heat ? 'heatmap' : 'flat'}:${preferences.density}`;
+            const first = paragraph.runs[0], previous = painted.get(first.node)?.get(first.offset);
             scoreAbort = new AbortController(); const signal = scoreAbort.signal;
             try {
-                let cached = cache.get(key);
-                const result = cached?.result ?? (mode === 'keywords' ? scoreInformationKeywords(paragraph.text) : await scoreComplete(paragraph.text, signal));
-                if (!current() || version !== generation || signal.aborted) return;
-                if (!isInformationParagraphCurrent(paragraph)) {schedule(true); return;}
-                cached ??= remember(key, result);
-                let spans = cached.selections.get(preferences.density);
-                if (!spans) {spans = selectInformationSpans(paragraph.text, result.spans, preferences.density); cached.selections.set(preferences.density, spans);}
-                const ranges = informationRanges(document, paragraph, spans);
-                if (paint!.size + ranges.length > 4096) {notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
-                for (const range of ranges) paint!.add(range);
-                // 原生 Highlight.add 已触发重绘；同一对象不必为每段重复注册。
-                if (registry!.get(INFORMATION_HIGHLIGHT_NAME) !== paint) registry!.set(INFORMATION_HIGHLIGHT_NAME, paint!);
+                let count: number;
+                // 滚动后的重扫：正文、节点和呈现方式都未变化的段落直接沿用已有 Range，不重新评分和绘制。
+                if (previous && previous.text === paragraph.text && previous.signature === signature && previous.nodes.length === paragraph.runs.length
+                    && paragraph.runs.every((run, index) => run.node === previous.nodes[index]) && isInformationParagraphCurrent(paragraph)) {
+                    seen.add(previous); count = previous.spans;
+                } else {
+                    let cached = cache.get(key);
+                    const result = cached?.result ?? (mode === 'keywords' ? scoreInformationKeywords(paragraph.text) : await scoreComplete(paragraph.text, signal));
+                    if (!current() || version !== generation || signal.aborted) return;
+                    if (!isInformationParagraphCurrent(paragraph)) {schedule(true); return;}
+                    cached ??= remember(key, result);
+                    const selection = `${heat ? 'heatmap' : 'flat'}:${preferences.density}`;
+                    let spans = cached.selections.get(selection);
+                    if (!spans) {
+                        spans = heat ? presentInformationHeatmap(paragraph.text, result.spans, preferences.density)
+                            : selectInformationSpans(paragraph.text, result.spans, preferences.density);
+                        cached.selections.set(selection, spans);
+                    }
+                    const groups = new Map<string, InformationHighlightSpan[]>();
+                    for (const span of spans) {
+                        const name = heat ? `${INFORMATION_HIGHLIGHT_NAME}-${span.level}` : INFORMATION_HIGHLIGHT_NAME, group = groups.get(name);
+                        if (group) group.push(span); else groups.set(name, [span]);
+                    }
+                    const ranges: Array<[string, Range]> = [];
+                    for (const [name, group] of groups) for (const range of informationRanges(document, paragraph, group)) ranges.push([name, range]);
+                    if (previous) {erase(previous); painted.get(first.node)!.delete(first.offset);}
+                    if (paintedRanges + ranges.length > 4096) sweep();
+                    if (paintedRanges + ranges.length > 4096) {notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
+                    const entry: PaintedParagraph = {text: paragraph.text, signature, nodes: paragraph.runs.map(run => run.node), spans: spans.length,
+                        ranges: ranges.map(([name, range]) => {const paint = bucket(name); paint.add(range); return [paint, range];})};
+                    paintedRanges += ranges.length; seen.add(entry);
+                    let entries = painted.get(first.node);
+                    if (!entries) {entries = new Map(); painted.set(first.node, entries);}
+                    entries.set(first.offset, entry); count = spans.length;
+                }
                 notify({phase: 'analyzing', processedParagraphs: state.processedParagraphs + 1,
-                    queuedParagraphs: state.queuedParagraphs - 1, highlightedSpans: state.highlightedSpans + spans.length});
+                    queuedParagraphs: state.queuedParagraphs - 1, highlightedSpans: state.highlightedSpans + count});
                 if (!current() || version !== generation) return;
                 // 扫描与轻量选区共享 4ms 预算；已缓存段落无需无条件占用一整帧，单批仍最多 12 段。
                 if (view.performance.now() - budgetStarted >= 4) {
@@ -154,7 +202,7 @@ export function installInformationHighlight(document: Document, initial: Informa
         }
         if (current() && version === generation) {
             scoreAbort = undefined;
-            if (completed) {reconcileRoots(completed.roots); notify({phase: 'active'});}
+            if (completed) {sweep(); reconcileRoots(completed.roots); notify({phase: 'active'});}
             else frame = view.requestAnimationFrame(() => step(version));
         }
     }
@@ -172,15 +220,15 @@ export function installInformationHighlight(document: Document, initial: Informa
         frame = view.requestAnimationFrame(() => step(version));
     }
     function schedule(invalidate = false): void {
-        if (!current() || !paint) return;
+        if (!current() || !supported) return;
         cancel(); if (invalidate) clearPaint();
         notify({phase: 'paused', queuedParagraphs: 0, errorCode: undefined});
         const version = generation;
         timer = view.setTimeout(() => {
             timer = undefined;
             if (!current() || version !== generation) return;
-            clearPaint(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
-            notify({phase: 'analyzing', processedParagraphs: 0});
+            seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
+            notify({phase: 'analyzing', processedParagraphs: 0, highlightedSpans: 0});
             frame = view.requestAnimationFrame(() => step(version));
         }, 180);
     }
@@ -189,7 +237,8 @@ export function installInformationHighlight(document: Document, initial: Informa
         cancel(); clearPaint();
         for (const observer of observers.values()) observer.disconnect(); observers.clear();
         for (const style of styles.values()) style.remove(); styles.clear();
-        if (registry && registry.get(INFORMATION_HIGHLIGHT_NAME) === paint) registry.delete(INFORMATION_HIGHLIGHT_NAME);
+        for (const [name, paint] of paints) if (registry!.get(name) === paint) registry!.delete(name);
+        paints.clear();
         document.removeEventListener('scroll', scroll, true); view.removeEventListener('resize', scroll);
         for (const event of ['fluentread-shadow-root-attached', 'fluentread-translation-started', 'fluentread-translation-ended']) document.removeEventListener(event, refresh);
     };
@@ -200,7 +249,7 @@ export function installInformationHighlight(document: Document, initial: Informa
             if (enabled === value) return snapshot();
             enabled = value; session++; notify({sessionId: String(session), processedParagraphs: 0, queuedParagraphs: 0, errorCode: undefined});
             if (!enabled) {teardown(); notify({phase: 'idle'}); return snapshot();}
-            if (!paint) {notify({phase: 'unsupported', errorCode: 'INFORMATION_HIGHLIGHT_NATIVE_UNSUPPORTED'}); return snapshot();}
+            if (!supported) {notify({phase: 'unsupported', errorCode: 'INFORMATION_HIGHLIGHT_NATIVE_UNSUPPORTED'}); return snapshot();}
             observe(document);
             document.addEventListener('scroll', scroll, true); view.addEventListener('resize', scroll);
             for (const event of ['fluentread-shadow-root-attached', 'fluentread-translation-started', 'fluentread-translation-ended']) document.addEventListener(event, refresh);
@@ -208,7 +257,7 @@ export function installInformationHighlight(document: Document, initial: Informa
         },
         retry() {schedule(true); return snapshot();},
         updatePreferences(next) {
-            const rescore = preferences.mode !== next.mode || preferences.density !== next.density;
+            const rescore = preferences.mode !== next.mode || preferences.density !== next.density || (preferences.style === 'heatmap') !== (next.style === 'heatmap');
             preferences = {...next}; notify({});
             for (const root of styles.keys()) styleRoot(root);
             if (rescore) schedule(true);

@@ -15,6 +15,7 @@ import ts from 'typescript'
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {Config} from '@/src/core/config/model'
 import type {InformationHighlightModelStatus} from '@/src/features/information-highlight/protocol'
+import {INFORMATION_HIGHLIGHT_COLORS, INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity} from '@/src/features/information-highlight/domain/presentation'
 
 const runtime = createRequire(import.meta.url)('vue') as typeof import('vue')
 const key = '__fluentReadInformationHighlightSettingsLifecycle'
@@ -24,6 +25,7 @@ let server: ViteDevServer | undefined, app: import('vue').App | undefined
 let document: Document, state: Record<string, any>, props: {config: Config; active?: boolean}
 let shown: import('vue').Ref<boolean>, events: Map<Element, Record<string, any>>
 const tooltips: {props: Record<string, any>; hide: ReturnType<typeof vi.fn>; onClose: ReturnType<typeof vi.fn>}[] = []
+const previewStory = '认真阅读长文时，可以先观察段落中的观点与线索，再回到数字、条件和细节。文字依旧完整，颜色只是帮助视线停留，café 👨‍👩‍👧‍👦。\n\n同一段文字可以有不同侧重。试着调整配色与浓淡，找到自己舒服的阅读节奏。'
 const Tooltip = runtime.defineComponent({props: {content: String, trigger: [Array, String], disabled: Boolean, teleported: Boolean, persistent: Boolean,
   showAfter: Number, hideAfter: Number, placement: String, effect: String, popperClass: String}, setup(props, {slots, expose}) {
   const hide = vi.fn(), onClose = vi.fn(); tooltips.push({props, hide, onClose}); expose({hide, onClose})
@@ -48,7 +50,7 @@ beforeEach(async () => {
   vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']}); send.mockReset(); send.mockResolvedValue({success: true, status: model()})
   events = new Map(); tooltips.length = 0; document = parseHTML('<html><body><div id="app"></div></body></html>').document as unknown as Document
   Object.defineProperty(document, 'visibilityState', {configurable: true, value: 'visible'})
-  vi.stubGlobal('document', document); Object.assign(globalThis, {[key]: {send, Tooltip}})
+  vi.stubGlobal('document', document); Object.assign(globalThis, {[key]: {send, Tooltip, previewStory}})
   server = await createServer({appType: 'custom', configFile: false, logLevel: 'silent', root: process.cwd(),
     resolve: {alias: {'@': resolve(process.cwd())}}, ssr: {noExternal: ['webextension-polyfill', 'element-plus']},
     server: {hmr: false, middlewareMode: true}, plugins: [{name: 'information-highlight-settings-controlled-ports', enforce: 'pre', resolveId(id) {
@@ -60,8 +62,8 @@ beforeEach(async () => {
       return null
     }, load(id) {
       if (id === '\0highlight-settings-browser') return `export default {runtime: {sendMessage: globalThis.${key}.send}}`
-      if (id === '\0highlight-settings-i18n') return 'export const useUiI18n = () => ({t: key => key});'
-      if (id === '\0highlight-settings-options') return `export const ElOption = {render: () => null}; export const ElTooltip = globalThis.${key}.Tooltip;`
+      if (id === '\0highlight-settings-i18n') return `export const useUiI18n = () => ({t: key => key === 'informationHighlight.preview.story' ? globalThis.${key}.previewStory : key});`
+      if (id === '\0highlight-settings-options') return `import {h} from 'vue';export const ElOption = {render: () => null}; export const ElSwitch = {inheritAttrs: false, setup(_, {attrs}) {return () => h('button', attrs)}}; export const ElTooltip = globalThis.${key}.Tooltip;`
       if (id === '\0highlight-settings-select') return "import {h} from 'vue';export default {setup(_, {attrs, slots}) {return () => h('div', attrs, slots.default?.())}};"
       if (id === '\0highlight-settings-display') return 'export default {render: () => null};'
       return null
@@ -87,11 +89,12 @@ async function mount(mode: 'keywords' | 'surprisal-local' = 'surprisal-local', a
   }
   const component = await compile(`${folder}InformationHighlightSettings.vue`)
   props = runtime.reactive({config: new Config(), active}); props.config.on = false
-  props.config.informationHighlight = {mode, density: 'high', color: 'blue', style: 'underline'}; shown = runtime.ref(true)
+  props.config.informationHighlight = {enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode, density: 'high', color: 'blue', style: 'underline', intensity: 'standard'}; shown = runtime.ref(true)
   const renderer = runtime.createRenderer<Node, Element>({patchProp(el, name, _previous, value) {
     const handlers = events.get(el) || {}; events.set(el, handlers)
     if (/^on[A-Z]/u.test(name)) {handlers[name] = value; return}
     if (name === 'class') {el.setAttribute('class', value || ''); return}
+    if (name === 'style') {const style = (el as HTMLElement).style; style.cssText = ''; Object.assign(style, value || {}); return}
     if (value === false || value === undefined || value === null) el.removeAttribute(name); else el.setAttribute(name, String(value))
   }, insert: (child, parent, anchor = null) => parent.insertBefore(child, anchor), remove: child => child.parentNode?.removeChild(child),
     createElement: tag => document.createElement(tag), createText: text => document.createTextNode(text), createComment: text => document.createComment(text),
@@ -108,6 +111,74 @@ async function mount(mode: 'keywords' | 'surprisal-local' = 'surprisal-local', a
 }
 
 describe('信息高亮设置真实父子模板与生命周期', () => {
+  it('六套配色直接呈现真实浓淡色阶，单击后即时预览并只保存阅读偏好', async () => {
+    await mount('keywords'); event('[data-information-highlight-style="heatmap"]')(); await settle()
+    expect(document.querySelectorAll('[data-information-highlight-color]')).toHaveLength(6)
+    expect(document.querySelectorAll('[data-information-highlight-style]')).toHaveLength(3)
+    for (const color of INFORMATION_HIGHLIGHT_COLORS) {
+      const button = element(`[data-information-highlight-color="${color}"]`), shades = [...button.querySelectorAll('[data-information-highlight-palette-sample]')]
+      expect(shades).toHaveLength(5)
+      expect(new Set(shades.map(shade => shade.getAttribute('style'))).size).toBe(5)
+      event(`[data-information-highlight-color="${color}"]`)(); await settle()
+      expect(props.config.informationHighlight.color).toBe(color)
+      expect(button.getAttribute('aria-pressed')).toBe('true'); expect(button.querySelector('svg')).not.toBeNull()
+      expect(document.querySelectorAll('[data-information-highlight-color][aria-pressed="true"]')).toHaveLength(1)
+      const preview = element('[data-testid="information-highlight-preview"]') as HTMLElement
+      expect(preview.getAttribute('data-information-highlight-preview-color')).toBe(color)
+      expect(preview.style.getPropertyValue('--highlight-preview-rgb')).toBe(INFORMATION_HIGHLIGHT_PALETTES[color].rgb)
+    }
+    expect(send).not.toHaveBeenCalled(); expect(props.config.on).toBe(false)
+  })
+  it('首行开关只写入自动高亮偏好，不触发模型请求，停用视图后旧回调无效', async () => {
+    await mount('keywords'); const control = element('[data-information-highlight-enabled]')
+    expect(control.getAttribute('aria-label')).toBe('informationHighlight.enabled')
+    const toggle = event('[data-information-highlight-enabled]', 'onUpdate:modelValue')
+    toggle(true); await settle(); expect(props.config.informationHighlight).toEqual({enabled: true, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'blue', style: 'underline', intensity: 'standard'})
+    props.active = false; await settle(); toggle(false); expect(props.config.informationHighlight.enabled).toBe(true)
+    expect(send).not.toHaveBeenCalled()
+  })
+  it('颜色浓度三档即时改变预览、色阶卡与样例的透明度，只保存 intensity', async () => {
+    await mount('keywords'); event('[data-information-highlight-style="heatmap"]')(); await settle()
+    expect(document.querySelectorAll('[data-information-highlight-intensity]')).toHaveLength(3)
+    const top = () => Math.max(...[...document.querySelectorAll('[data-information-highlight-preview-level]')].map(mark => Number((mark as HTMLElement).style.getPropertyValue('--highlight-preview-opacity'))))
+    const seen: number[] = []
+    for (const intensity of ['soft', 'standard', 'strong'] as const) {
+      event(`[data-information-highlight-intensity="${intensity}"]`)(); await settle()
+      expect(props.config.informationHighlight.intensity).toBe(intensity)
+      expect(element(`[data-information-highlight-intensity="${intensity}"]`).getAttribute('aria-pressed')).toBe('true')
+      expect(document.querySelectorAll('[data-information-highlight-intensity][aria-pressed="true"]')).toHaveLength(1)
+      expect(top()).toBe(informationHighlightOpacity('heatmap', 7, intensity)); seen.push(top())
+      expect(element('[data-information-highlight-color="rose"] [data-information-highlight-palette-sample]:last-child').getAttribute('style')).toContain(String(informationHighlightOpacity('heatmap', 7, intensity)))
+    }
+    expect(seen[0]).toBeLessThan(seen[1]); expect(seen[1]).toBeLessThan(seen[2])
+    expect(props.config.informationHighlight).toMatchObject({mode: 'keywords', density: 'high', color: 'blue', style: 'heatmap'}); expect(send).not.toHaveBeenCalled()
+  })
+  it('热力预览按密度改变覆盖与浓淡，切换三种样式保留完整示意原文和 Unicode', async () => {
+    await mount('keywords'); event('[data-information-highlight-style="heatmap"]')(); await settle()
+    const passage = () => [...document.querySelectorAll('.highlight-preview-text')].map(paragraph => paragraph.textContent).join('\n\n')
+    const marks = () => [...document.querySelectorAll('[data-information-highlight-preview-level]')]
+    const counts: number[] = []
+    for (const density of ['low', 'medium', 'high']) {
+      event(`[data-information-highlight-density="${density}"]`)(); await settle(); counts.push(marks().length)
+      expect(passage()).toBe(previewStory)
+      expect(element('[data-testid="information-highlight-preview"]').getAttribute('data-information-highlight-preview-density')).toBe(density)
+    }
+    expect(counts[0]).toBeLessThan(counts[1]); expect(counts[1]).toBeLessThan(counts[2])
+    expect(new Set(marks().map(mark => mark.getAttribute('data-information-highlight-preview-level'))).size).toBeGreaterThan(4)
+    for (const mark of marks()) {
+      const level = Number(mark.getAttribute('data-information-highlight-preview-level'))
+      expect(String((mark as HTMLElement).style.getPropertyValue('--highlight-preview-opacity'))).toBe(String(informationHighlightOpacity('heatmap', level)))
+    }
+    expect(document.querySelector('.highlight-preview-legend')).not.toBeNull()
+    for (const style of ['background', 'underline']) {
+      event(`[data-information-highlight-style="${style}"]`)(); await settle()
+      expect(passage()).toBe(previewStory); expect(document.querySelector('.highlight-preview-legend')).toBeNull()
+      expect(element('[data-testid="information-highlight-preview"]').getAttribute('data-information-highlight-preview-style')).toBe(style)
+      expect(marks().every(mark => String((mark as HTMLElement).style.getPropertyValue('--highlight-preview-opacity')) === String(informationHighlightOpacity(style as 'background' | 'underline', 7)))).toBe(true)
+    }
+    expect(element('[data-testid="information-highlight-preview"] figcaption').textContent).toBe('informationHighlight.preview.caption')
+    expect(send).not.toHaveBeenCalled(); expect(props.config.on).toBe(false)
+  })
   it('标题辅助插槽保留原始标题，三个标签是原生按钮并声明悬停、聚焦和点击提示', async () => {
     await mount('keywords')
     const heading = element('#information-highlight-settings .settings-group-heading'), title = element('#information-highlight-settings h2')
@@ -165,7 +236,7 @@ describe('信息高亮设置真实父子模板与生命周期', () => {
   it('实际模型卡关键词按钮只替换偏好模式，保留其余设置并停止模型轮询', async () => {
     await mount(); const original = props.config.informationHighlight
     event('[data-information-highlight-fallback]')(); await settle()
-    expect(props.config.informationHighlight).toEqual({mode: 'keywords', density: 'high', color: 'blue', style: 'underline'})
+    expect(props.config.informationHighlight).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'blue', style: 'underline', intensity: 'standard'})
     expect(props.config.informationHighlight).not.toBe(original); expect(original.mode).toBe('surprisal-local'); expect(props.config.on).toBe(false)
     expect(document.querySelector('[data-testid="information-highlight-model-card"]')).toBeNull()
     vi.advanceTimersByTime(60000); await settle(); expect(messages()).toEqual(['GET_INFORMATION_HIGHLIGHT_MODEL_STATUS'])

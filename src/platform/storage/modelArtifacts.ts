@@ -95,7 +95,7 @@ export function createModelArtifactStore(cacheName: string, files: readonly Mode
             }
             if (offset !== file.size) throw new Error('MODEL_NETWORK');
             progress(offset, true); await verify(file, signal);
-        } finally {clearTimeout(timer); controller.abort(); await reader?.cancel().catch(() => undefined); reader?.releaseLock(); signal.removeEventListener('abort', abort);}
+        } finally {clearTimeout(timer); controller.abort(); void reader?.cancel().catch(() => undefined); reader?.releaseLock(); signal.removeEventListener('abort', abort);}
     };
     return {complete, downloaded, remove, blob,
         async match(request: string | Request): Promise<Response | undefined> {

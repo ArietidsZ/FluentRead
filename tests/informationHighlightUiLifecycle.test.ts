@@ -26,7 +26,7 @@ async function mount(name: 'InformationHighlightPreferences' | 'InformationHighl
   const component = (await server.ssrLoadModule(path)).default
   component.ssrRender = undefined; component.render = () => null
   const renderer = runtime.createRenderer<Record<string, never>, Record<string, unknown>>({patchProp: () => {}, insert: () => {}, remove: () => {}, createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: () => {}, setElementText: () => {}, parentNode: () => null, nextSibling: () => null, querySelector: () => null, setScopeId: () => {}, cloneNode: () => ({}), insertStaticContent: () => [{}, {}]})
-  props = runtime.reactive({active: true, config: {on: true, informationHighlight: {mode: 'keywords', density: 'medium', color: 'amber', style: 'background'}}, onReady: ready, onPreparing: preparing})
+  props = runtime.reactive({active: true, config: {on: true, informationHighlight: {enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'amber', style: 'background', intensity: 'standard'}}, onReady: ready, onPreparing: preparing})
   app = renderer.createApp({setup: () => () => runtime.h(component, {...props, ref: (vm: any) => {if (vm) state = vm.$.setupState}})})
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()}); app.config.warnHandler = () => {}; app.mount({}); await settle()
 }
@@ -63,15 +63,25 @@ describe('信息高亮真实偏好组件', () => {
     state.actions.mode('surprisal-local'); await settle()
     expect(props.config.informationHighlight).toMatchObject({mode: 'surprisal-local', density: 'medium'}); expect(props.config.informationHighlight).not.toBe(original); expect(send).not.toHaveBeenCalled()
     state.actions.mode('cloud'); expect(props.config.informationHighlight.mode).toBe('surprisal-local')
-    state.densityChoices[2].choose(); await settle(); state.colorChoices[1].choose(); await settle(); state.styleChoices[1].choose()
-    expect(props.config.informationHighlight).toEqual({mode: 'surprisal-local', density: 'high', color: 'mint', style: 'underline'})
+    expect(state.hotkeyDialog).toBe(false); state.actions.editHotkey(); expect(state.hotkeyDialog).toBe(true)
+    props.config.floatingBallHotkey = 'Alt+T'; expect(state.hotkeyConflict('option+t')).toBe('informationHighlight.hotkey.conflict'); expect(state.hotkeyConflict('Alt+J')).toBe(''); expect(state.hotkeyConflict('')).toBe('')
+    state.actions.hotkey('Alt+T'); expect(props.config.informationHighlight.hotkey).toBe('Alt+H'); expect(state.hotkeyDialog).toBe(true)
+    state.actions.hotkey('alt+shift+j'); await settle(); expect(props.config.informationHighlight.hotkey).toBe('Alt+Shift+J'); expect(state.hotkeyDialog).toBe(false)
+    state.actions.editHotkey(); state.actions.hotkey(undefined); await settle(); expect(props.config.informationHighlight.hotkey).toBe(''); expect(state.hotkeyDialog).toBe(false)
+    state.actions.hotkey('Alt+H'); await settle(); state.actions.editHotkey(); state.closeHotkey(); expect(state.hotkeyDialog).toBe(false)
+    state.actions.editHotkey(); state.actions.hotkeyEnabled(false); await settle(); expect(props.config.informationHighlight).toMatchObject({hotkeyEnabled: false, hotkey: 'Alt+H'}); expect(state.hotkeyDialog).toBe(false)
+    state.actions.hotkeyEnabled(true); await settle(); expect(props.config.informationHighlight.hotkeyEnabled).toBe(true)
+    state.actions.enabled(true); await settle(); expect(props.config.informationHighlight.enabled).toBe(true)
+    state.actions.enabled('yes'); await settle(); expect(props.config.informationHighlight.enabled).toBe(false)
+    state.densityChoices.find((item: any) => item.value === 'high').choose(); await settle(); state.colorChoices.find((item: any) => item.value === 'mint').choose(); await settle(); state.styleChoices.find((item: any) => item.value === 'underline').choose()
+    expect(props.config.informationHighlight).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'surprisal-local', density: 'high', color: 'mint', style: 'underline', intensity: 'standard'})
   })
   it('偏好更换、视图关闭又重开和卸载时，缓存控件不能借用新配置', async () => {
     await mount('InformationHighlightPreferences'); const oldMode = state.actions.mode, oldDensity = state.densityChoices[0].choose
     props.config.informationHighlight = {...props.config.informationHighlight, color: 'blue'}
     oldMode('surprisal-local'); oldDensity(); expect(props.config.informationHighlight.mode).toBe('keywords'); expect(props.config.informationHighlight.density).toBe('medium')
-    await settle(); const color = state.colorChoices[1].choose; props.active = false; await settle(); props.active = true; await settle(); color()
-    expect(props.config.informationHighlight.color).toBe('blue'); const style = state.styleChoices[1].choose; app.unmount(); style(); expect(props.config.informationHighlight.style).toBe('background')
+    await settle(); const color = state.colorChoices.find((item: any) => item.value === 'mint').choose; props.active = false; await settle(); props.active = true; await settle(); color()
+    expect(props.config.informationHighlight.color).toBe('blue'); const style = state.styleChoices.find((item: any) => item.value === 'underline').choose; app.unmount(); style(); expect(props.config.informationHighlight.style).toBe('background')
   })
 })
 describe('信息高亮真实本地模型组件', () => {

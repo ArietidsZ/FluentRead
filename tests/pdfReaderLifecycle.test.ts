@@ -373,7 +373,7 @@ function clickInformation(root: HTMLElement): void {const event = document.creat
 describe('PDF reader information highlight composition', () => {
     it('starts by explicit action, independently scores selectable original and translated text, and cleans paint across zoom and document replacement', async () => {
         const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
-        const reader = mountReader(model(8), 'bilingual', Array(8).fill('Translated paragraphs preserve readable scientific vocabulary.'), {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local'}, scoreLocal: score, available: true});
+        const reader = mountReader(model(8), 'bilingual', Array(8).fill('Translated paragraphs preserve readable scientific vocabulary.'), {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true});
         await componentFlush(); flushFrames(); await componentFlush();
         expect(score).not.toHaveBeenCalled(); expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('false');
         const before = reader.viewport.innerHTML;
@@ -389,10 +389,26 @@ describe('PDF reader information highlight composition', () => {
         reader.currentDocument.value = model(2); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false);
         mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(document.querySelector('[data-fr-information-highlight-style]')).toBeNull();
     });
+    it('follows the saved switch on open and on document replacement while the toolbar still toggles the current document', async () => {
+        const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const painted = () => [...registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME)).reduce((total, [, paint]) => total + paint.size, 0);
+        const reader = mountReader(model(2), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, enabled: true}, scoreLocal: score, available: true});
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('true'); expect(painted()).toBeGreaterThan(0);
+        expect(score).not.toHaveBeenCalled();
+        clickInformation(reader.root); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, color: 'mint'}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentDocument.value = model(2);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, enabled: false}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush();
+    });
     it('aborts pending model scoring on document change and rejects stale text-layer results', async () => {
         const registry = nativeInformationPaint(), pending = deferred<any>(), signals: AbortSignal[] = [];
         const score = vi.fn((_text: string, signal: AbortSignal) => {signals.push(signal); return pending.promise;});
-        const reader = mountReader(model(), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local'}, scoreLocal: score, available: true});
+        const reader = mountReader(model(), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true});
         await componentFlush(); flushFrames(); await componentFlush(); clickInformation(reader.root);
         await vi.waitFor(() => {flushFrames(); expect(score).toHaveBeenCalledOnce();});
         reader.currentDocument.value = model(); await componentFlush(); expect(signals[0].aborted).toBe(true);

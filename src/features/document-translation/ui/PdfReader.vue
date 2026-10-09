@@ -75,19 +75,23 @@ const presentation = ref<PdfReadingPresentation>(props.presentation);
 watch(() => props.presentation, value => {presentation.value = value;});
 const {t} = useUiI18n();
 const viewport = ref<HTMLElement>();
-let informationController: InformationHighlightController | undefined;
+let informationController: InformationHighlightController | undefined, informationWanted = false;
 const informationState = shallowRef<InformationHighlightState>({enabled: false, phase: 'idle', sessionId: '0', processedParagraphs: 0, queuedParagraphs: 0, highlightedSpans: 0, mode: props.informationHighlight?.preferences.mode ?? DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES.mode});
 function syncInformationHighlight(): void {
   const settings = props.informationHighlight;
-  if (!settings || !viewport.value) {informationController?.dispose(); informationController = undefined; return;}
+  if (!settings || !viewport.value) {informationController?.dispose(); informationController = undefined; informationWanted = false; return;}
   informationController ??= installInformationHighlight(viewport.value.ownerDocument, settings.preferences, {
     scope: viewport.value, isCurrent: () => !closed && Boolean(props.informationHighlight?.available),
     scoreLocal: (text, signal) => props.informationHighlight!.scoreLocal(text, signal), changed: state => {informationState.value = state;},
   });
   informationController.updatePreferences(settings.preferences);
+  // 设置中的开关决定文档打开时的初始状态；工具栏按钮只临时切换当前文档。
+  const wanted = settings.available && settings.preferences.enabled;
   if (!settings.available) informationController.setEnabled(false);
+  else if (wanted !== informationWanted) informationController.setEnabled(wanted);
+  informationWanted = wanted;
 }
-watch(() => [props.informationHighlight?.available, props.informationHighlight?.preferences.mode, props.informationHighlight?.preferences.density, props.informationHighlight?.preferences.color, props.informationHighlight?.preferences.style], syncInformationHighlight, {flush: 'post'});
+watch(() => [props.informationHighlight?.available, props.informationHighlight?.preferences.enabled, props.informationHighlight?.preferences.mode, props.informationHighlight?.preferences.density, props.informationHighlight?.preferences.color, props.informationHighlight?.preferences.style, props.informationHighlight?.preferences.intensity], syncInformationHighlight, {flush: 'post'});
 const zoom = ref('fit');
 const pageInput = ref(1);
 const currentPage = ref(1);
@@ -318,7 +322,7 @@ function createScheduler(): void {
   currentPage.value = pageInput.value = 1;
   updateViewport();
 }
-watch(() => props.document, () => {informationController?.setEnabled(false); if (mounted) createScheduler();}, {flush: 'post'});
+watch(() => props.document, () => {informationController?.setEnabled(false); informationWanted = false; if (mounted) {createScheduler(); syncInformationHighlight();}}, {flush: 'post'});
 watch([zoom, presentation, () => props.mode], () => informationController?.refresh(), {flush: 'pre'});
 watch([presentation, () => props.translations, () => props.mode], () => {if (mounted) scheduleViewport();}, {flush: 'post'});
 // 在 DOM 更新前记录可见段落；新译文或换行只移动其前后的内容，不能把同页阅读点按比例移走。

@@ -1,30 +1,57 @@
 <!--
 @file src/features/settings/ui/InformationHighlightPreview.vue
-文件职责：预览信息高亮密度、配色和绘制方式，让用户在示意文本上调整阅读外观。
-主要内容：固定示例按密度展示不同数量的标记，使用真实偏好生成无排版变化的柔和底色或下划线；明确示例不是模型分析结果。
-模块边界：纯展示组件，不访问网页正文、不调用评分模型、不写配置；示例分数和关键词不作为阅读效果证据。
+文件职责：在自然段落中即时预览智能高亮的密度、六套配色和绘制方式。
+主要内容：固定示例词段使用循环示意分数，复用真实的词项分段、热力层级和透明度映射；长文本保留完整文字、空白与段落，色阶图例帮助直接比较浓淡效果。
+模块边界：纯展示组件，不访问网页正文、不调用评分模型、不写配置；示意分数不代表模型分析结果、词语重要性或阅读效果证据。
 -->
 <template>
-  <figure class="information-highlight-preview" :class="[`color-${preferences.color}`, `style-${preferences.style}`, {'is-compact': compact}]" data-testid="information-highlight-preview">
-    <p class="highlight-preview-eyebrow">{{ t('informationHighlight.preview.label') }}</p>
-    <p class="highlight-preview-text"><span>{{ t('informationHighlight.preview.before') }}</span><mark>{{ t('informationHighlight.preview.first') }}</mark><span>{{ t('informationHighlight.preview.middle') }}</span><mark :class="{'is-plain': preferences.density === 'low'}">{{ t('informationHighlight.preview.second') }}</mark><span>{{ t('informationHighlight.preview.after') }}</span><mark :class="{'is-plain': preferences.density !== 'high'}">{{ t('informationHighlight.preview.third') }}</mark><span>{{ t('informationHighlight.preview.end') }}</span></p>
+  <figure class="information-highlight-preview" :class="[`style-${preferences.style}`, {'is-compact': compact}]" :style="{'--highlight-preview-rgb': palette.rgb}" :data-information-highlight-preview-color="preferences.color" :data-information-highlight-preview-style="preferences.style" :data-information-highlight-preview-density="preferences.density" data-testid="information-highlight-preview">
+    <div class="highlight-preview-heading"><span>{{ t('informationHighlight.preview.label') }}</span></div>
+    <div class="highlight-preview-page">
+      <p v-for="(paragraph, index) in paragraphs" :key="index" class="highlight-preview-text"><template v-for="(piece, pieceIndex) in paragraph" :key="pieceIndex"><mark v-if="piece.level !== undefined" :data-information-highlight-preview-level="piece.level" :style="{'--highlight-preview-opacity': informationHighlightOpacity(preferences.style, piece.level, preferences.intensity)}">{{ piece.text }}</mark><span v-else>{{ piece.text }}</span></template></p>
+    </div>
+    <div v-if="preferences.style === 'heatmap'" class="highlight-preview-legend" :aria-label="`${t('informationHighlight.preview.legend.low')} — ${t('informationHighlight.preview.legend.high')}`"><span>{{ t('informationHighlight.preview.legend.low') }}</span><span class="highlight-preview-ramp" aria-hidden="true"><i v-for="level in rampLevels" :key="level" :style="{backgroundColor: `rgb(${palette.rgb} / ${informationHighlightOpacity('heatmap', level, preferences.intensity)})`}" /></span><span>{{ t('informationHighlight.preview.legend.high') }}</span></div>
     <figcaption>{{ t('informationHighlight.preview.caption') }}</figcaption>
   </figure>
 </template>
 <script setup lang="ts">
+import {computed} from 'vue'
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight'
+import {informationWordSpans, selectInformationSpans} from '@/src/features/information-highlight/domain/keywords'
+import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap} from '@/src/features/information-highlight/domain/presentation'
 import {useUiI18n} from '@/src/ui/i18n'
-defineProps<{preferences: InformationHighlightPreferences; compact?: boolean}>()
+const props = defineProps<{preferences: InformationHighlightPreferences; compact?: boolean}>()
 const {t} = useUiI18n()
+const palette = computed(() => INFORMATION_HIGHLIGHT_PALETTES[props.preferences.color])
+const rampLevels = [0, 2, 3, 5, 7]
+const demonstrationScores = [2, 5, 1, 8, 3, 6, 10, 4]
+const paragraphs = computed(() => t('informationHighlight.preview.story').split('\n\n').map(text => {
+  const scored = informationWordSpans(text).map((word, index) => ({start: word.start, end: word.end, score: demonstrationScores[index % demonstrationScores.length]}))
+  const spans = props.preferences.style === 'heatmap'
+    ? presentInformationHeatmap(text, scored, props.preferences.density)
+    : selectInformationSpans(text, scored, props.preferences.density).map(span => ({...span, level: 7}))
+  const pieces: {text: string; level?: number}[] = []
+  let cursor = 0
+  for (const span of spans) {
+    if (span.start > cursor) pieces.push({text: text.slice(cursor, span.start)})
+    pieces.push({text: text.slice(span.start, span.end), level: span.level}); cursor = span.end
+  }
+  if (cursor < text.length) pieces.push({text: text.slice(cursor)})
+  return pieces
+}))
 </script>
 <style scoped>
-.information-highlight-preview { --highlight-fill: rgba(245, 178, 45, .27); --highlight-line: rgba(245, 178, 45, .85); margin: 0; border: 1px solid var(--line, #dce3eb); border-radius: 12px; padding: 18px; color: var(--ink, #25354b); background: var(--surface-soft, #f6f8fb); }
-.color-mint { --highlight-fill: rgba(39, 174, 132, .27); --highlight-line: rgba(39, 174, 132, .85); } .color-blue { --highlight-fill: rgba(65, 135, 225, .27); --highlight-line: rgba(65, 135, 225, .85); }
-.highlight-preview-eyebrow { margin: 0 0 10px; color: var(--muted, #637184); font-size: 11px; letter-spacing: .04em; }
-.highlight-preview-text { margin: 0; font-size: 14px; line-height: 1.95; overflow-wrap: anywhere; }
-mark { padding: 0; color: inherit; background: var(--highlight-fill); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
-.style-underline mark { background: transparent; text-decoration: underline; text-decoration-color: var(--highlight-line); text-decoration-thickness: 2px; text-underline-offset: 3px; }
-mark.is-plain { background: transparent; text-decoration: none; }
-figcaption { margin-top: 14px; color: var(--muted, #637184); font-size: 11px; line-height: 1.6; }
-.is-compact { padding: 12px; } .is-compact .highlight-preview-text { font-size: 12px; } .is-compact figcaption { margin-top: 8px; }
+.information-highlight-preview { margin: 0; overflow: hidden; border: 1px solid var(--line, #dce3eb); border-radius: 16px; color: var(--ink, #25354b); background: var(--surface, #fff); box-shadow: 0 4px 18px rgb(29 43 65 / .035); }
+.highlight-preview-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 14px 20px; border-bottom: 1px solid var(--line, #dce3eb); color: var(--muted, #637184); background: var(--surface-soft, #f6f8fb); font-size: 11px; }
+.highlight-preview-page { padding: 20px 22px 16px; }
+.highlight-preview-text { margin: 0; font-size: 15px; line-height: 2.05; overflow-wrap: anywhere; }
+.highlight-preview-text + .highlight-preview-text { margin-top: 18px; }
+mark { padding: 0; border-radius: 3px; color: inherit; background: rgb(var(--highlight-preview-rgb) / var(--highlight-preview-opacity)); box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+.style-underline mark { background: transparent; text-decoration: underline; text-decoration-color: rgb(var(--highlight-preview-rgb) / var(--highlight-preview-opacity)); text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.highlight-preview-legend { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 20px 10px; color: var(--muted, #637184); font-size: 10px; }
+.highlight-preview-ramp { display: flex; width: 94px; height: 9px; border-radius: 999px; overflow: hidden; }
+.highlight-preview-ramp i { flex: 1; min-width: 0; }
+figcaption { margin: 0; padding: 0 20px 16px; color: var(--muted, #637184); font-size: 10px; line-height: 1.6; text-align: center; }
+.is-compact .highlight-preview-heading { padding: 10px 12px; }.is-compact .highlight-preview-page { padding: 12px; }.is-compact .highlight-preview-text { font-size: 12px; }.is-compact figcaption { padding: 0 12px 10px; }
+@media (max-width: 480px) { .highlight-preview-heading { padding: 12px 14px; }.highlight-preview-page { padding: 16px 14px; }.highlight-preview-text { font-size: 14px; line-height: 2; }.highlight-preview-legend { padding-inline: 14px; }figcaption { padding-inline: 14px; } }
 </style>

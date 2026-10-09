@@ -1,13 +1,14 @@
 /**
  * @file src/app/content/informationHighlight.ts
  * 文件职责：装配当前页面的信息高亮控制器，将扩展模型消息端口适配成可取消的纯文本评分函数。
- * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求，配置更新与路由变化转交内容控制器；未激活页面始终返回关闭状态。
- * 模块边界：只通过 feature public 与纯数据 protocol 装配，不导入 Worker、模型或后台内部实现，不持久化按页开关，不接触宿主原文。
+ * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
+ * 模块边界：只通过 feature public 与纯数据 protocol 装配，不导入 Worker、模型或后台内部实现，不写配置，不接触宿主原文。
  */
 import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
 import type {InformationHighlightResult, InformationHighlightState} from '@/src/features/information-highlight/protocol';
 import {normalizeInformationHighlightPreferences, type InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
 import {readVisibleTranslationRoot} from '@/src/features/full-page-translation/content/public';
+import {matchesConfiguredHotkey} from '@/src/core/hotkey';
 import type {ContentFeatureDefinition} from './featureRegistry';
 export interface InformationHighlightContentRuntime {
     mount(signal: AbortSignal, isCurrent: () => boolean): void;
@@ -70,6 +71,7 @@ export function createInformationHighlightContentRuntime(ports: {
     preferences: InformationHighlightPreferences;
     send(message: {type: string; text?: string; requestId: string}): Promise<unknown>;
     readTranslationRoot?(host: Element): ShadowRoot | undefined;
+    canToggle?(): boolean;
 }): InformationHighlightContentRuntime {
     let controller: InformationHighlightController | undefined, preference = normalizeInformationHighlightPreferences(ports.preferences);
     const scoreLocal = createInformationHighlightScorePort(ports.send);
@@ -81,14 +83,27 @@ export function createInformationHighlightContentRuntime(ports: {
             if (signal.aborted || !isCurrent() || controller) return;
             const owner = installInformationHighlight(ports.document, preference, {scoreLocal, isCurrent, readTranslationRoot: ports.readTranslationRoot});
             controller = owner;
+            if (preference.enabled) owner.setEnabled(true);
+            // 快捷键只切换这个页面的会话，不写配置；网站停用或页面挂起时不接管按键。
+            ports.document.addEventListener('keydown', event => {
+                if (!event.isTrusted || event.repeat || controller !== owner || !isCurrent() || ports.canToggle?.() === false
+                    || !preference.hotkeyEnabled || !matchesConfiguredHotkey(event, 'custom', preference.hotkey)) return;
+                event.preventDefault(); event.stopPropagation();
+                owner.setEnabled(!owner.getState().enabled);
+            }, {capture: true, signal});
             signal.addEventListener('abort', () => {owner.dispose(); if (controller === owner) controller = undefined;}, {once: true});
         },
         unmount,
         getState: () => controller?.getState() ?? idle(),
         setEnabled: enabled => controller?.setEnabled(enabled) ?? idle(),
         retry: () => controller?.retry() ?? idle(),
-        updatePreferences(next) {preference = normalizeInformationHighlightPreferences(next); controller?.updatePreferences(preference);},
-        routeChanged() {controller?.setEnabled(false);},
+        updatePreferences(next) {
+            const toggled = preference.enabled !== (next?.enabled === true);
+            preference = normalizeInformationHighlightPreferences(next); controller?.updatePreferences(preference);
+            if (toggled) controller?.setEnabled(preference.enabled);
+        },
+        // 路由切换结束上一页的临时会话；保存为开启时在新正文上继续。
+        routeChanged() {controller?.setEnabled(false); if (preference.enabled) controller?.setEnabled(true);},
     };
 }
 /** 页面组合根只注入配置和消息端口；正文/译文只读入口与注册表定义集中在此适配器。 */
@@ -96,9 +111,10 @@ export function createPageInformationHighlightRuntime(ports: {
     document: Document;
     config: {on: boolean; informationHighlight: InformationHighlightPreferences};
     send(message: {type: string; text?: string; requestId: string}): Promise<unknown>;
+    canToggle?(): boolean;
 }): InformationHighlightContentRuntime & {feature: ContentFeatureDefinition} {
     const runtime = createInformationHighlightContentRuntime({document: ports.document, preferences: ports.config.informationHighlight,
-        send: ports.send, readTranslationRoot: readVisibleTranslationRoot});
+        send: ports.send, readTranslationRoot: readVisibleTranslationRoot, canToggle: ports.canToggle});
     return {...runtime, feature: {id: 'information-highlight', isEnabled: () => ports.config.on !== false,
         mount: activation => runtime.mount(activation.signal, activation.isCurrent), unmount: runtime.unmount}};
 }

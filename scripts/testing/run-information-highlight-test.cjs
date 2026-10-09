@@ -2,7 +2,7 @@
 /**
  * @file scripts/testing/run-information-highlight-test.cjs
  * 文件职责：在独立真实 Edge 中验证生产信息高亮的页面保护、启停、动态正文与设置持久化。
- * 主要内容：通过现有后台无焦点浏览器 helper 加载本地扩展和只读正文 fixture，在连续设置页真实点击智能高亮锚点与搜索结果、检查独立分组和说明标签的指针/键盘交互，再操作持久偏好与模型资源；分阶段保存证据，显式选择真实下载或校验后的本地导入。
+ * 主要内容：通过现有后台无焦点浏览器 helper 加载本地扩展和只读正文 fixture，在连续设置页真实点击锚点、搜索结果、说明标签、自动高亮开关及六套渐变配色，以真实按键验证快捷键只开关当前页面且不写入开关，验证开关即时作用于已打开网页、滚动时保留绘制、热力绘制的分档强度与偏好持久化；分阶段保存证据，显式选择真实下载或校验后的本地导入。
  * 模块边界：只清理本次 profile；本地导入与产品下载证据分开记录，下载后的推理和 PDF 复用已有页签；不修改共享焦点策略，超时和断开均失败，网络观察不冒充全机流量或阅读效果证明。
  */
 'use strict';
@@ -280,7 +280,7 @@ function popupSourceContract(){
       report.cases.push({id:`smart-highlight-help-tags-${language}-${viewportWidth}`,language,viewportWidth,layout,interactions:evidence,tooltip:narrowTooltip});
     },45000);
     await step('translation-anchors-ready',()=>control.locator('[data-settings-anchor-link="reading"]').waitFor());
-    await step('fixture-config',()=>support.patchStoredConfig(control,{on:true,disableFloatingBall:false,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,theme:'light',informationHighlight:{mode:'keywords',density:'medium',color:'amber',style:'background'}}));
+    await step('fixture-config',()=>support.patchStoredConfig(control,{on:true,disableFloatingBall:false,uiLanguage:'zh-CN',uiLanguageSetupCompleted:true,theme:'light',informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'keywords',density:'medium',color:'amber',style:'background',intensity:'standard'}}));
     const patchConfig=patch=>step('fixture-config-patch',()=>support.patchStoredConfig(control,patch));
     await openHighlightSettings(control,{verifyReading:true});report.cases.push({id:'smart-highlight-exact-title-zh',...await highlightTitle(control,'zh-CN')});
     await helpTags(control,'zh-CN',{screenshot:'smart-highlight-help-zh'});
@@ -291,6 +291,43 @@ function popupSourceContract(){
     const tabId=await step('article-tab-id',()=>control.evaluate(async url=>(await chrome.tabs.query({})).find(tab=>tab.url===url)?.id,fixtureUrl));assert(Number.isInteger(tabId));
     const send=(type,extra={})=>step(`article-rpc:${type}`,()=>control.evaluate(async({tabId,type,extra})=>chrome.tabs.sendMessage(tabId,{type,...extra}),{tabId,type,extra}));
     const initial=await send('GET_INFORMATION_HIGHLIGHT_STATE');assert.equal((initial.state||initial).enabled,false);
+    const paintedNow=()=>page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('fluentread-information-highlight')).reduce((total,[,paint])=>total+paint.size,0));
+    await step('hotkey-toggle-on',()=>page.keyboard.press('Alt+KeyH'));
+    await step('hotkey-paints-current-page',()=>page.waitForFunction(()=>[...CSS.highlights].some(([name,paint])=>name.startsWith('fluentread-information-highlight')&&paint.size>0),null,{timeout:30000}));
+    const hotkeyRanges=await step('hotkey-range-count',paintedNow);assert(hotkeyRanges>0);
+    const hotkeyStored=await step('hotkey-does-not-save-switch',()=>support.readStoredConfig(control));assert.equal(hotkeyStored.informationHighlight.enabled,false);assert.equal(hotkeyStored.informationHighlight.hotkey,'Alt+H');
+    await step('hotkey-toggle-off',()=>page.keyboard.press('Alt+KeyH'));
+    await step('hotkey-clears-current-page',()=>page.waitForFunction(()=>![...CSS.highlights.keys()].some(name=>name.startsWith('fluentread-information-highlight')),null,{timeout:30000}));
+    assert.equal(await step('hotkey-settings-row',()=>control.locator('#information-highlight-settings [data-information-highlight-hotkey]').innerText()),'Alt+H');
+    const hotkeySwitch=control.locator('#information-highlight-settings [data-information-highlight-hotkey-enabled]').first();
+    await step('hotkey-switch-off',async()=>{await hotkeySwitch.scrollIntoViewIfNeeded();await hotkeySwitch.click();});
+    await step('hotkey-switch-off-stored',async()=>{for(const deadline=Date.now()+8000;;){if((await support.readStoredConfig(control)).informationHighlight.hotkeyEnabled===false)return;assert(Date.now()<deadline,'Shortcut switch was not persisted');await delay(100);}},12000);
+    await delay(400);await step('hotkey-ignored-while-off',()=>page.keyboard.press('Alt+KeyH'));await delay(800);
+    assert.equal(await step('hotkey-off-leaves-page-unpainted',paintedNow),0);
+    await step('hotkey-switch-on',()=>hotkeySwitch.click());
+    await step('hotkey-switch-on-stored',async()=>{for(const deadline=Date.now()+8000;;){const stored=(await support.readStoredConfig(control)).informationHighlight;if(stored.hotkeyEnabled===true&&stored.hotkey==='Alt+H')return;assert(Date.now()<deadline,'Shortcut switch was not restored');await delay(100);}},12000);
+    report.cases.push({id:'hotkey-toggles-only-current-page-without-saving',switchOffIgnoresKey:true,hotkey:'Alt+H',hotkeyRanges,savedSwitch:false});
+    const autoSwitch=control.locator('#information-highlight-settings [data-information-highlight-enabled]').first();
+    const ownedPaint=()=>page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('fluentread-information-highlight')).reduce((total,[,paint])=>total+paint.size,0));
+    await step('settings-auto-switch-on',async()=>{await autoSwitch.scrollIntoViewIfNeeded();await autoSwitch.click();});
+    await step('auto-switch-paints-open-page',()=>page.waitForFunction(()=>[...CSS.highlights].some(([name,paint])=>name.startsWith('fluentread-information-highlight')&&paint.size>0),null,{timeout:30000}));
+    assert.equal((await step('auto-switch-stored-on',()=>support.readStoredConfig(control))).informationHighlight.enabled,true);
+    const autoState=await send('GET_INFORMATION_HIGHLIGHT_STATE');assert.equal((autoState.state||autoState).enabled,true);
+    const autoRanges=await step('auto-switch-range-count',ownedPaint);assert(autoRanges>0);
+    await step('auto-switch-reload-page',()=>page.reload({timeout:30000}),35000);
+    await step('auto-switch-paints-after-reload',()=>page.waitForFunction(()=>[...CSS.highlights].some(([name,paint])=>name.startsWith('fluentread-information-highlight')&&paint.size>0),null,{timeout:30000}));
+    const scrollEvidence=await step('auto-switch-scroll-keeps-paint',()=>page.evaluate(async()=>{
+      const total=()=>[...CSS.highlights].filter(([name])=>name.startsWith('fluentread-information-highlight')).reduce((sum,[,paint])=>sum+paint.size,0);
+      const before=total();let minimum=before,running=true;const sample=()=>{minimum=Math.min(minimum,total());if(running)requestAnimationFrame(sample);};sample();
+      window.scrollBy(0,400);await new Promise(resolve=>setTimeout(resolve,900));window.scrollBy(0,-400);await new Promise(resolve=>setTimeout(resolve,900));running=false;
+      return{before,minimum,after:total()};
+    }));
+    assert(scrollEvidence.before>0&&scrollEvidence.minimum>=scrollEvidence.before,'Scrolling must not clear paint that stays in the reading area');
+    await step('settings-auto-switch-off',()=>autoSwitch.click());
+    await step('auto-switch-clears-page',()=>page.waitForFunction(()=>![...CSS.highlights.keys()].some(name=>name.startsWith('fluentread-information-highlight')),null,{timeout:30000}));
+    assert.equal((await step('auto-switch-stored-off',()=>support.readStoredConfig(control))).informationHighlight.enabled,false);
+    await step('article-content-ready-after-reload',()=>page.waitForFunction(()=>Boolean(document.querySelector('#fluent-read-floating-ball-container')),null,{timeout:30000}));
+    report.cases.push({id:'settings-switch-auto-highlights-web-page',autoRanges,scrollEvidence,reloadKeepsHighlight:true,offClearsEveryOwnedPaint:true});
     await step('article-source-snapshot',()=>page.evaluate(()=>{window.__highlightFixture={nodes:[...document.querySelectorAll('#article p,#article em,#article a')],html:document.querySelector('#article').innerHTML,text:document.querySelector('#article').textContent,rect:document.querySelector('#article').getBoundingClientRect().toJSON()};}));
     await send('SET_INFORMATION_HIGHLIGHT_ENABLED',{enabled:true});
     await step('keywords-paint',()=>page.waitForFunction(()=>CSS.highlights&&[...CSS.highlights].some(([name,highlight])=>name.includes('information')&&highlight.size>0),null,{timeout:30000}));
@@ -331,6 +368,51 @@ function popupSourceContract(){
       assert(metrics.rect.width>0&&metrics.rect.height>0&&metrics.rect.x>=0&&metrics.rect.y>=0&&metrics.rect.right<=metrics.viewport.width+1&&metrics.rect.bottom<=metrics.viewport.height+1&&metrics.hit&&metrics.visibility==='visible','Settings control must be visible and clickable after normal scrolling');
       if(click)await control.mouse.click(metrics.rect.x+metrics.rect.width/2,metrics.rect.y+metrics.rect.height/2);return metrics;
     });
+    const paletteIds=['rose','amber','mint','blue','violet','slate'];
+    assert.equal(await step('settings-six-palette-cards',()=>control.locator('#information-highlight-settings [data-information-highlight-color]').count()),paletteIds.length);
+    for(const color of paletteIds){
+      const metrics=await settingButton(`[data-information-highlight-color="${color}"]`,`palette-${color}`);
+      const evidence=await step(`selected-palette-evidence:${color}`,()=>control.locator(`[data-information-highlight-color="${color}"]`).evaluate(element=>({
+        selected:element.getAttribute('aria-pressed'),ramp:[...element.querySelectorAll('[data-information-highlight-palette-sample]')].map(sample=>getComputedStyle(sample).backgroundColor)
+      })));
+      assert.equal(evidence.selected,'true');assert(evidence.ramp.length>=5,'Palette card must show a visible multi-level ramp');assert(new Set(evidence.ramp).size>=3,'Palette samples must show varying intensity');
+      assert.equal(await step(`only-one-palette-selected:${color}`,()=>control.locator('#information-highlight-settings [data-information-highlight-color][aria-pressed="true"]').count()),1);
+      assert.equal((await step(`palette-stored:${color}`,()=>support.readStoredConfig(control))).informationHighlight.color,color);
+      report.cases.push({id:`native-settings-palette-${color}`,color,metrics,...evidence});
+    }
+    await settingButton('[data-information-highlight-color="rose"]','heatmap-rose');
+    await settingButton('[data-information-highlight-density="high"]','heatmap-density-high');
+    await settingButton('[data-information-highlight-style="heatmap"]','heatmap-style');
+    await step('settings-reload-after-heatmap',()=>control.reload({timeout:30000}),35000);await openHighlightSettings(control);
+    for(const [selector,value]of [['color','rose'],['density','high'],['style','heatmap']])assert.equal(await step(`heatmap-preference-restored:${selector}`,()=>control.locator(`[data-information-highlight-${selector}="${value}"]`).getAttribute('aria-pressed')),'true');
+    const heatmapConfig=await step('heatmap-cross-page-config',()=>support.readStoredConfig(popup));
+    assert.equal(heatmapConfig.informationHighlight.color,'rose');assert.equal(heatmapConfig.informationHighlight.density,'high');assert.equal(heatmapConfig.informationHighlight.style,'heatmap');
+    report.cases.push({id:'native-settings-heatmap-persists-after-reload',preferences:heatmapConfig.informationHighlight,crossPageSync:true});
+    await step('article-multiple-heatmap-buckets',()=>page.waitForFunction(()=>CSS.highlights&&[...CSS.highlights].filter(([name,paint])=>name.startsWith('fluentread-information-highlight-')&&paint.size>0).length>=3,null,{timeout:30000}));
+    const heatmap=await step('article-heatmap-native-evidence',()=>page.evaluate(()=>{
+      const buckets=[...CSS.highlights].filter(([name,paint])=>name.startsWith('fluentread-information-highlight-')&&paint.size>0).map(([name,paint])=>({name,size:paint.size,text:[...paint].map(range=>range.toString())}));
+      const rules=[...document.querySelectorAll('[data-fr-information-highlight-style]')].flatMap(style=>[...style.sheet.cssRules]).filter(rule=>rule.selectorText?.startsWith('::highlight(fluentread-information-highlight-')).map(rule=>({selector:rule.selectorText,color:rule.style.backgroundColor}));
+      const before=window.__highlightFixture,article=document.querySelector('#article');
+      return{buckets,rules,rangeCount:buckets.reduce((total,bucket)=>total+bucket.size,0),protection:{textSame:before.text===article.textContent,htmlSame:before.html===article.innerHTML,nodeIdentity:before.nodes.every(node=>node.isConnected),rect:article.getBoundingClientRect().toJSON(),before:before.rect}};
+    }));
+    assert(heatmap.buckets.length>=3);assert(heatmap.rangeCount>0&&heatmap.rangeCount<=4096);assert(new Set(heatmap.rules.map(rule=>rule.color)).size>=3);
+    const alphas=heatmap.rules.map(rule=>Number(/,\s*([\d.]+)\)$/u.exec(rule.color)?.[1])).filter(Number.isFinite);
+    assert(alphas.length>=3&&alphas.every((alpha,index)=>index===0||alpha>alphas[index-1]),'Heatmap CSS levels must increase in opacity');
+    assert(heatmap.protection.textSame&&heatmap.protection.htmlSame&&heatmap.protection.nodeIdentity);assert.deepEqual(heatmap.protection.rect,heatmap.protection.before);
+    report.cases.push({id:'native-heatmap-multiple-intensities-and-original-page-preservation',...heatmap});await shot(page,'heatmap-rose-page');
+    const heatRuleAlphas=()=>page.evaluate(()=>[...document.querySelectorAll('[data-fr-information-highlight-style]')].flatMap(style=>[...style.sheet.cssRules]).map(rule=>rule.style.backgroundColor).filter(Boolean));
+    const intensityEvidence={};
+    for(const intensity of ['soft','strong','standard']){
+      const rangesBefore=await step(`intensity-ranges-before:${intensity}`,()=>page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('fluentread-information-highlight')).flatMap(([,paint])=>[...paint]).length));
+      await settingButton(`[data-information-highlight-intensity="${intensity}"]`,`intensity-${intensity}`);
+      await step(`intensity-stored:${intensity}`,async()=>{for(const deadline=Date.now()+8000;;){const stored=(await support.readStoredConfig(control)).informationHighlight.intensity;if(stored===intensity)return;assert(Date.now()<deadline,`Colour intensity was not persisted: ${stored}`);await delay(100);}},12000);
+      const expected={soft:'0.3',standard:'0.5',strong:'0.8'}[intensity];
+      await step(`intensity-page-rule:${intensity}`,()=>page.waitForFunction(alpha=>[...document.querySelectorAll('[data-fr-information-highlight-style]')].some(style=>[...style.sheet.cssRules].some(rule=>rule.style.backgroundColor.replace(/\s/g,'').endsWith(`,${alpha})`))),expected,{timeout:15000}));
+      const rangesAfter=await step(`intensity-ranges-after:${intensity}`,()=>page.evaluate(()=>[...CSS.highlights].filter(([name])=>name.startsWith('fluentread-information-highlight')).flatMap(([,paint])=>[...paint]).length));
+      assert.equal(rangesAfter,rangesBefore,'Changing colour intensity must restyle existing ranges without repainting');
+      intensityEvidence[intensity]={rules:await step(`intensity-rules:${intensity}`,heatRuleAlphas),ranges:rangesAfter};
+    }
+    report.cases.push({id:'native-settings-colour-intensity-restyles-open-page',intensityEvidence});
     await settingButton('[data-information-highlight-color="mint"]','mint-quick-close');
     await step('settings-close-after-color',()=>control.close());
     // 真关闭 Options 后重用已经存在的第二正文页签，避免为“重开”新增 CDP Target。
@@ -460,7 +542,7 @@ function popupSourceContract(){
         report.unverified=report.unverified.filter(item=>item!=='local model inference');save();
       }else report.model.gpuInferenceUnavailable=status.status.reason;
     }
-    networkStage='pdf-reading-tests';await patchConfig({informationHighlight:{mode:'keywords',density:'medium',color:'amber',style:'background'}});
+    networkStage='pdf-reading-tests';await patchConfig({informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'keywords',density:'medium',color:'amber',style:'background',intensity:'standard'}});
     // 同一现有 Options 页改为阅读器；仍通过正常导航、上传与阅读按钮完成产品流程。
     const documentReader=control;if(documentReader.url()!==`${origin}/document.html`)await navigate(documentReader,`${origin}/document.html`,'reuse-settings-tab-for-pdf');await activate(documentReader,'pdf-reader');
     await step('pdf-drop-zone',()=>documentReader.locator('.file-drop-zone').waitFor());
@@ -481,7 +563,7 @@ function popupSourceContract(){
     report.cases.push({id:'pdf-keywords-native-text-layer-preservation',ranges:pdfRanges,protection:pdfAfter});await shot(documentReader,'pdf-keywords');
     await step('pdf-keywords-disable',()=>pdfToggle.click());assert.equal((await step('pdf-disabled-ranges',()=>textRanges(documentReader))).length,0);report.cases.push({id:'pdf-disable-clears'});
     if(!report.unverified.includes('local model inference')){
-      await patchConfig({informationHighlight:{mode:'surprisal-local',density:'medium',color:'amber',style:'background'}});
+      await patchConfig({informationHighlight:{enabled:false,hotkey:'Alt+H',hotkeyEnabled:true,mode:'surprisal-local',density:'medium',color:'amber',style:'background',intensity:'standard'}});
       await step('pdf-local-toggle-ready',()=>documentReader.waitForFunction(()=>document.querySelector('.pdf-information-highlight')?.getAttribute('aria-pressed')==='false'));
       await step('pdf-local-enable',()=>pdfToggle.click());await step('pdf-local-paint',()=>documentReader.waitForFunction(()=>CSS.highlights?.get('fluentread-information-highlight')?.size>0,null,{timeout:120000}),125000);
       report.cases.push({id:'pdf-real-model-text-layer-highlights',ranges:await step('pdf-local-ranges',()=>textRanges(documentReader))});await shot(documentReader,'pdf-local-model');

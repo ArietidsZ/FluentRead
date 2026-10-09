@@ -10,10 +10,13 @@ import {scoreInformationKeywords, selectInformationSpans} from '@/src/features/i
 import {informationGraphemeBoundaries, informationSliceEnd} from '@/src/features/information-highlight/domain/textBoundaries';
 import {collectInformationParagraphs, informationRanges, isInformationParagraphCurrent} from '@/src/features/information-highlight/content/readingText';
 import {installInformationHighlight, INFORMATION_HIGHLIGHT_NAME} from '@/src/features/information-highlight/public';
-import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES as defaults} from '@/src/core/config/informationHighlight';
+import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES as defaultPreferences} from '@/src/core/config/informationHighlight';
 import {registerVisibleTranslationRoot, readVisibleTranslationRoot} from '@/src/features/full-page-translation/content/visibleTranslation';
 import {createInformationHighlightContentRuntime, createInformationHighlightScorePort, createPageInformationHighlightRuntime, handleInformationHighlightMessage} from '@/src/app/content/informationHighlight';
 import type {InformationHighlightResult} from '@/src/features/information-highlight/protocol';
+
+// 保留背景与下划线的既有选择行为；新默认热力外观另用真实多档绘制断言覆盖。
+const defaults = {...defaultPreferences, style: 'background' as const};
 
 function deferred<T>() {let resolve!: (value: T) => void; let reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no;}); return {promise, resolve, reject};}
 function fixture(html = '<article><p id="paragraph">The extraordinary algorithm preserves original paragraphs and inline links.</p></article>', native = true) {
@@ -53,7 +56,7 @@ function fixture(html = '<article><p id="paragraph">The extraordinary algorithm 
         for (const entry of observers) if (entry.root === target.getRootNode() && !entry.disconnect.mock.calls.length) entry.callback([{target, type, addedNodes, removedNodes} as unknown as MutationRecord], {} as MutationObserver);
     };
     return {document, window: view, registry, frames, observers, flush, settle, mutate, slow: () => {tick = 5;},
-        painted: () => [...registry.get(INFORMATION_HIGHLIGHT_NAME) ?? []].map(range => range.toString())};
+        painted: () => [...registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME)).flatMap(([, paint]) => [...paint].map(range => range.toString()))};
 }
 function collect(f: ReturnType<typeof fixture>, readRoot?: (host: Element) => ShadowRoot | undefined) {
     const work = collectInformationParagraphs(f.document, readRoot); const paragraphs = []; let result = work.next();
@@ -67,11 +70,21 @@ describe('local keyword and Unicode coordinates', () => {
     it('keeps original UTF-16 positions, excludes common words and scores repeated distinctive terms deterministically', () => {
         const text = 'The extraordinary algorithm and extraordinary metrics in 2026. 中文信息与阅读理解。';
         const result = scoreInformationKeywords(text);
-        expect(result.engine).toBe('local-keyword-rules-v1');
+        expect(result.engine).toBe('local-keyword-rules-v2');
         expect(result.spans.map(span => text.slice(span.start, span.end))).toContain('extraordinary');
         expect(result.spans.map(span => text.slice(span.start, span.end))).not.toContain('The');
         expect(scoreInformationKeywords(text)).toEqual(result);
-        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v1', spans: []});
+        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v2', spans: []});
+        const score = (source: string, word: string, occurrence = 0) => {
+            const spans = scoreInformationKeywords(source).spans.filter(span => source.slice(span.start, span.end) === word); return spans[occurrence].score;
+        };
+        const shapes = 'Later the ADHD group met Levy near 2013 while plain words stayed. Reading plain words again.';
+        expect(score(shapes, 'ADHD')).toBeGreaterThan(score(shapes, 'near') + 0.6); expect(score(shapes, 'Levy')).toBeGreaterThan(score(shapes, 'near'));
+        expect(score(shapes, '2013')).toBeGreaterThan(score(shapes, 'near')); expect(score(shapes, 'Later')).toBe(score(shapes, 'group'));
+        expect(score(shapes, 'Reading')).toBeLessThan(score(shapes, 'stayed') + 0.5);
+        expect(score(shapes, 'plain', 0)).toBeGreaterThan(score(shapes, 'plain', 1) + 0.6); expect(score(shapes, 'words', 1)).toBeLessThan(score(shapes, 'near'));
+        const mixed = '预测意外度 predicts 阅读';
+        expect(score(mixed, '阅读')).toBeGreaterThan(Math.log2(6)); expect(scoreInformationKeywords('我们已经可以通过这个').spans).toEqual([]);
     });
     it('fallback preserves composed accents and CJK units without Intl.Segmenter', () => {
         vi.stubGlobal('Intl', {...Intl, Segmenter: undefined});
@@ -173,6 +186,121 @@ describe('read-only body collection and native mapping', () => {
 });
 
 describe('page-owned scoring, paint and cancellation', () => {
+    it('paints score levels with monotonic density, reuses model scores and keeps legacy styles compatible', async () => {
+        const terms = Array.from({length: 30}, (_, index) => `term${String(index).padStart(2, '0')}`);
+        const f = fixture(`<article><p>${terms.join(' ')}</p></article>`), before = f.document.body.innerHTML;
+        const nodes = [...f.document.querySelectorAll('p')].map(paragraph => paragraph.firstChild);
+        const score = vi.fn(async (text: string) => ({engine: 'controlled-increasing-scores', spans: [...text.matchAll(/term\d{2}/gu)].map((match, index) => ({start: match.index!, end: match.index! + match[0].length, score: index + 1}))}));
+        const preferences = {...defaultPreferences, mode: 'surprisal-local' as const, style: 'heatmap' as const};
+        const controller = installInformationHighlight(f.document, {...preferences, density: 'low'}, {scoreLocal: score});
+        const populated = () => [...f.registry].filter(([name, paint]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME) && paint.size > 0);
+        controller.setEnabled(true); await f.settle(); const low = f.painted();
+        controller.updatePreferences({...preferences, density: 'medium'}); await f.settle(); const medium = f.painted();
+        controller.updatePreferences({...preferences, density: 'high'}); await f.settle(); const high = f.painted();
+        expect(low.length).toBeLessThan(medium.length); expect(medium.length).toBeLessThan(high.length);
+        expect(low.every(term => medium.includes(term))).toBe(true); expect(medium.every(term => high.includes(term))).toBe(true);
+        expect(new Set(high)).toEqual(new Set(terms)); expect(populated().length).toBeGreaterThanOrEqual(3);
+        const ranges = populated().flatMap(([, paint]) => [...paint]); expect(new Set(ranges).size).toBe(ranges.length);
+        const style = f.document.querySelector('[data-fr-information-highlight-style]')!;
+        const firstRules = style.textContent, originalPaints = new Map(populated());
+        controller.updatePreferences({...preferences, density: 'high', color: 'violet'}); await f.settle();
+        expect(style.textContent).not.toBe(firstRules); expect(f.painted()).toEqual(high);
+        const violetRules = style.textContent!; expect(violetRules).toContain('/ 0.5)');
+        controller.updatePreferences({...preferences, density: 'high', color: 'violet', intensity: 'strong'});
+        expect(style.textContent).toContain('/ 0.8)'); expect(style.textContent).not.toBe(violetRules); expect(f.painted()).toEqual(high); expect(controller.getState().phase).toBe('active');
+        controller.updatePreferences({...preferences, density: 'high', color: 'violet', intensity: 'soft'}); expect(style.textContent).toContain('/ 0.3)'); expect(f.painted()).toEqual(high);
+        for (const [name, paint] of originalPaints) expect(f.registry.get(name)).toBe(paint);
+        controller.updatePreferences({...preferences, density: 'high', style: 'underline'}); await f.settle();
+        expect(populated()).toHaveLength(1); expect(populated()[0][0]).toBe(INFORMATION_HIGHLIGHT_NAME);
+        expect(style.textContent).toContain('text-decoration-line: underline'); expect(f.painted().length).toBeLessThan(high.length);
+        controller.updatePreferences({...preferences, density: 'high', style: 'background'}); await f.settle();
+        expect(populated()).toHaveLength(1); expect(style.textContent).toContain('background-color');
+        controller.updatePreferences({...preferences, density: 'high'}); await f.settle();
+        expect(new Set(f.painted())).toEqual(new Set(terms)); expect(score).toHaveBeenCalledOnce();
+        expect(f.document.body.innerHTML).toBe(before); expect(nodes.every(node => node?.isConnected)).toBe(true);
+        controller.setEnabled(false); expect(f.painted()).toEqual([]); controller.dispose();
+    });
+    it('uses one neutral intensity for equal scores rather than inventing a contrast from word order', async () => {
+        const text = 'alpha beta gamma delta epsilon zeta theta iota kappa lambda';
+        const f = fixture(`<article><p>${text}</p></article>`);
+        const score = vi.fn(async (source: string) => ({engine: 'controlled-equal-scores', spans: [...source.matchAll(/[a-z]+/gu)].map(match => ({start: match.index!, end: match.index! + match[0].length, score: 4}))}));
+        const controller = installInformationHighlight(f.document, {...defaultPreferences, mode: 'surprisal-local', style: 'heatmap', density: 'high'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle();
+        const populated = [...f.registry].filter(([name, paint]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME) && paint.size > 0);
+        expect(populated).toHaveLength(1); expect(new Set(f.painted())).toEqual(new Set(text.split(' ')));
+        controller.dispose(); expect(f.registry.size).toBe(0);
+    });
+    it('keeps heatmap ranges read-only in shadow roots and PDF text layers and preserves every later registry owner', async () => {
+        const f = fixture('<article><p>alpha beta gamma delta epsilon zeta theta iota</p><span id="shadow"></span></article><div data-fluentread-pdf-text><span style="display:block">Original</span><span style="display:block">PDF</span><span style="display:block">words</span><span> ending</span></div>');
+        const shadowHost = f.document.querySelector('#shadow')!, shadow = shadowHost.attachShadow({mode: 'open'});
+        shadow.innerHTML = '<p>alpha beta gamma delta epsilon zeta theta iota</p>';
+        const body = f.document.body.innerHTML, pdf = f.document.querySelector('[data-fluentread-pdf-text]')!, pdfBefore = pdf.innerHTML;
+        const pdfNodes = [...pdf.querySelectorAll('span')].map(span => span.firstChild), shadowNodes = [...shadow.querySelectorAll('p')].map(p => p.firstChild);
+        const foreign = new Set<Range>(); f.registry.set('host-search', foreign);
+        const score = vi.fn(async (text: string) => ({engine: 'controlled-reading-scores', spans: [...text.matchAll(/[A-Za-z]+/gu)].map((match, index) => ({start: match.index!, end: match.index! + match[0].length, score: index + 1}))}));
+        const controller = installInformationHighlight(f.document, {...defaultPreferences, mode: 'surprisal-local', style: 'heatmap', density: 'high'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle();
+        const paints = [...f.registry].filter(([name, paint]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME) && paint.size > 0);
+        expect(paints.length).toBeGreaterThanOrEqual(3); expect(f.painted()).toEqual(expect.arrayContaining(['Original', 'PDF', 'words', 'ending']));
+        expect(f.document.body.innerHTML).toBe(body); expect(pdf.innerHTML).toBe(pdfBefore);
+        expect(pdfNodes.every(node => node?.isConnected && pdf.contains(node))).toBe(true); expect(shadowNodes.every(node => node?.isConnected && shadow.contains(node))).toBe(true);
+        expect(shadow.querySelector('[data-fr-information-highlight-style]')?.textContent).toBe(f.document.querySelector('[data-fr-information-highlight-style]')?.textContent);
+        shadowHost.remove(); f.mutate(f.document.querySelector('article')!, 'childList', [], [shadowHost]); await f.settle();
+        expect(shadow.querySelector('style')).toBeNull();
+        const laterOwners = new Map(paints.slice(0, 2).map(([name, paint]) => [name, new Set([...paint].slice(0, 1))]));
+        for (const [name, later] of laterOwners) f.registry.set(name, later);
+        controller.dispose();
+        for (const [name, later] of laterOwners) {expect(f.registry.get(name)).toBe(later); expect(later.size).toBe(1);}
+        expect(f.registry.get('host-search')).toBe(foreign); expect(f.registry.size).toBe(laterOwners.size + 1);
+        expect(f.document.querySelector('[data-fr-information-highlight-style]')).toBeNull();
+    });
+    it('applies one page range cap across all heatmap buckets and clears every owned bucket on disable', async () => {
+        const paragraph = '<p>' + Array.from({length: 80}, (_, index) => `<i>word${String(index).padStart(2, '0')} </i>`).join('') + '</p>';
+        const f = fixture(`<article>${paragraph.repeat(70)}</article>`), before = f.document.body.innerHTML;
+        const score = vi.fn(async (text: string) => ({engine: 'controlled-many-ranges', spans: [...text.matchAll(/word\d{2}/gu)].map((match, index) => ({start: match.index!, end: match.index! + match[0].length, score: index + 1}))}));
+        const controller = installInformationHighlight(f.document, {...defaultPreferences, mode: 'surprisal-local', style: 'heatmap', density: 'high'}, {scoreLocal: score});
+        controller.setEnabled(true); await f.settle();
+        const paints = [...f.registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME));
+        expect(paints.filter(([, paint]) => paint.size > 0).length).toBeGreaterThanOrEqual(3);
+        const rangeCount = paints.reduce((total, [, paint]) => total + paint.size, 0);
+        expect(rangeCount).toBeLessThanOrEqual(4096); expect(rangeCount).toBeGreaterThan(3500);
+        expect(controller.getState()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'});
+        expect(controller.getState().queuedParagraphs).toBeGreaterThan(0); expect(score).toHaveBeenCalledOnce();
+        expect(f.document.body.innerHTML).toBe(before); controller.setEnabled(false);
+        expect(f.painted()).toEqual([]); expect([...f.registry.keys()].some(name => name.startsWith(INFORMATION_HIGHLIGHT_NAME))).toBe(false); controller.dispose();
+    });
+    it('keeps unchanged paragraphs painted across scroll rescans and only releases text that left the reading area', async () => {
+        const f = fixture('<article><p id="near">alpha bravo charlie delta echo foxtrot</p><p id="far" data-top="700">golf hotel india juliet kilo lima</p></article>');
+        const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        for (const style of ['heatmap', 'background'] as const) {
+            const controller = installInformationHighlight(f.document, {...defaultPreferences, mode: 'surprisal-local', style, density: 'high'}, {scoreLocal: score});
+            const ranges = () => [...f.registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME)).flatMap(([, paint]) => [...paint]);
+            controller.setEnabled(true); await f.settle(); const first = ranges(), spans = controller.getState().highlightedSpans;
+            const isFar = (range: Range) => 'golf hotel india juliet kilo lima'.includes(String(range)), isNear = (range: Range) => 'alpha bravo charlie delta echo foxtrot'.includes(String(range));
+            expect(first.some(isFar)).toBe(true); expect(first.some(isNear)).toBe(true); const calls = score.mock.calls.length;
+            f.document.dispatchEvent(new f.window.Event('scroll')); expect(ranges()).toEqual(first); expect(controller.getState().phase).toBe('paused');
+            vi.advanceTimersByTime(180); expect(ranges()).toEqual(first); await f.settle();
+            expect(new Set(ranges())).toEqual(new Set(first)); expect(score).toHaveBeenCalledTimes(calls);
+            expect(controller.getState()).toMatchObject({phase: 'active', highlightedSpans: spans, processedParagraphs: 2});
+            f.document.querySelector('#far')!.setAttribute('data-top', '5000'); f.document.dispatchEvent(new f.window.Event('scroll')); await f.settle();
+            const kept = ranges(); expect(kept.length).toBeGreaterThan(0); expect(kept.every(range => first.includes(range))).toBe(true);
+            expect(kept.some(isFar)).toBe(false); expect(kept).toEqual(first.filter(isNear));
+            f.document.querySelector('#far')!.setAttribute('data-top', '700'); f.document.dispatchEvent(new f.window.Event('scroll')); await f.settle();
+            expect(ranges().some(isFar)).toBe(true); expect(ranges().filter(range => first.includes(range))).toEqual(kept);
+            const near = f.document.querySelector('#near')!; near.firstChild!.textContent = 'mike november oscar papa quebec romeo'; f.mutate(near.firstChild!);
+            expect(ranges()).toEqual([]); await f.settle(); expect(ranges().some(range => 'mike november oscar papa quebec romeo'.includes(String(range)))).toBe(true); expect(ranges().some(isNear)).toBe(false);
+            near.firstChild!.textContent = 'alpha bravo charlie delta echo foxtrot'; controller.dispose(); expect(f.registry.size).toBe(0);
+        }
+    });
+    it('replaces a kept paragraph whose visible text changed without a mutation record instead of stacking stale ranges', async () => {
+        const f = fixture('<article><p>alpha bravo charlie delta <b id="tail">echo foxtrot golf</b></p></article>');
+        const controller = installInformationHighlight(f.document, {...defaultPreferences, density: 'high'}, {scoreLocal: vi.fn()});
+        controller.setEnabled(true); await f.settle(); expect(f.painted()).toEqual(expect.arrayContaining(['alpha', 'golf']));
+        (f.document.querySelector('#tail') as HTMLElement).style.visibility = 'hidden';
+        f.document.dispatchEvent(new f.window.Event('scroll')); await f.settle();
+        expect(f.painted().sort()).toEqual(['alpha', 'bravo', 'charlie', 'delta']); expect(controller.getState().highlightedSpans).toBe(4);
+        controller.dispose(); expect(f.registry.size).toBe(0);
+    });
     it('bounds repeated paragraph work by text selection cache and scan frame budgets without redundant native registrations', async () => {
         const f = fixture('<article>' + '<p>Distinctive algorithm improves readable paragraph metrics.</p>'.repeat(100) + '</article>');
         const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
@@ -401,6 +529,47 @@ describe('content composition and runtime score messages', () => {
         runtime.feature.mount({ctx: {} as never, signal: activation.signal, isCurrent: () => true});
         expect(runtime.getState().enabled).toBe(false); runtime.setEnabled(true); await f.settle();
         expect(f.painted()).toContain('Bright'); runtime.feature.unmount!(); expect(runtime.getState().phase).toBe('idle'); activation.abort();
+    });
+    it('follows the saved switch on mount, setting changes and route changes, and normalizes malformed updates to off', async () => {
+        const f = fixture(), send = vi.fn(async (message: {type: string; text?: string}) => ({success: true, result: scoreInformationKeywords(message.text || '')}));
+        const runtime = createInformationHighlightContentRuntime({document: f.document, preferences: {...defaults, enabled: true}, send});
+        runtime.updatePreferences({...defaults, enabled: true}); expect(runtime.getState().enabled).toBe(false);
+        runtime.mount(new AbortController().signal, () => true); expect(runtime.getState().enabled).toBe(true);
+        await f.settle(); expect(runtime.getState().phase).toBe('active'); expect(f.painted().length).toBeGreaterThan(0); expect(send).not.toHaveBeenCalled();
+        runtime.updatePreferences({...defaults, enabled: true, color: 'mint'}); expect(runtime.getState().enabled).toBe(true); expect(f.painted().length).toBeGreaterThan(0);
+        runtime.routeChanged(); expect(runtime.getState().enabled).toBe(true); expect(f.painted()).toEqual([]);
+        await f.settle(); expect(f.painted().length).toBeGreaterThan(0);
+        runtime.updatePreferences({...defaults, enabled: false}); expect(runtime.getState()).toMatchObject({enabled: false, phase: 'idle'}); expect(f.painted()).toEqual([]);
+        runtime.setEnabled(true); await f.settle(); expect(f.painted().length).toBeGreaterThan(0);
+        runtime.updatePreferences({...defaults, enabled: false, density: 'high'}); expect(runtime.getState().enabled).toBe(true);
+        runtime.updatePreferences({...defaults, enabled: true}); runtime.updatePreferences(undefined as never); expect(runtime.getState().enabled).toBe(false);
+        runtime.unmount(); runtime.mount(new AbortController().signal, () => true); expect(runtime.getState().enabled).toBe(false); runtime.unmount();
+    });
+    it('toggles only the current page with the configured shortcut and never writes the saved switch', async () => {
+        const f = fixture(), send = vi.fn(), activation = new AbortController(); let allowed = true;
+        const runtime = createInformationHighlightContentRuntime({document: f.document, preferences: {...defaults}, send, canToggle: () => allowed});
+        const press = (init: {key: string; code: string; altKey?: boolean; shiftKey?: boolean; repeat?: boolean}, trusted = true) => {
+            const event = new f.window.Event('keydown', {bubbles: true, cancelable: true}) as KeyboardEvent;
+            Object.assign(event, {altKey: false, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false, ...init});
+            Object.defineProperty(event, 'isTrusted', {value: trusted}); f.document.dispatchEvent(event); return event;
+        };
+        const altH = {key: 'h', code: 'KeyH', altKey: true};
+        press(altH); expect(runtime.getState().enabled).toBe(false);
+        runtime.mount(activation.signal, () => true);
+        const first = press(altH); expect(first.defaultPrevented).toBe(true); expect(runtime.getState().enabled).toBe(true);
+        await f.settle(); expect(f.painted().length).toBeGreaterThan(0);
+        for (const ignored of [press(altH, false), press({...altH, repeat: true}), press({key: 'h', code: 'KeyH'}), press({key: 'j', code: 'KeyJ', altKey: true})]) expect(ignored.defaultPrevented).toBe(false);
+        expect(runtime.getState().enabled).toBe(true);
+        allowed = false; expect(press(altH).defaultPrevented).toBe(false); expect(runtime.getState().enabled).toBe(true); allowed = true;
+        press(altH); expect(runtime.getState().enabled).toBe(false); expect(f.painted()).toEqual([]);
+        runtime.updatePreferences({...defaults, hotkey: 'Alt+Shift+J'}); press(altH); expect(runtime.getState().enabled).toBe(false);
+        press({key: 'J', code: 'KeyJ', altKey: true, shiftKey: true}); expect(runtime.getState().enabled).toBe(true);
+        runtime.routeChanged(); expect(runtime.getState().enabled).toBe(false);
+        runtime.updatePreferences({...defaults, hotkeyEnabled: false}); expect(press(altH).defaultPrevented).toBe(false); expect(runtime.getState().enabled).toBe(false);
+        runtime.updatePreferences({...defaults, hotkey: ''}); press(altH); press({key: 'J', code: 'KeyJ', altKey: true, shiftKey: true}); expect(runtime.getState().enabled).toBe(false);
+        runtime.updatePreferences({...defaults}); activation.abort(); expect(press(altH).defaultPrevented).toBe(false); expect(runtime.getState().enabled).toBe(false);
+        const stale = new AbortController(); let current = true; runtime.mount(stale.signal, () => current); current = false;
+        expect(press(altH).defaultPrevented).toBe(false); runtime.unmount(); expect(send).not.toHaveBeenCalled();
     });
     it('mounts only current activation, owns abort, maps score messages and returns idle after route change', async () => {
         const f = fixture(), activation = new AbortController();

@@ -83,7 +83,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     let removePageStyles: (() => void) | null = null;
     let inputBoxConfigGeneration = 0;
     let previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
-    const informationHighlight = import.meta.env.BROWSER === 'userscript' ? undefined : createPageInformationHighlightRuntime({document, config, send: message => browser.runtime.sendMessage(message)});
+    const informationHighlight = import.meta.env.BROWSER === 'userscript' ? undefined : createPageInformationHighlightRuntime({document, config, send: message => browser.runtime.sendMessage(message), canToggle: () => !currentPageSiteDisabled && !pageLifecycle.isSuspended()});
     const hotkeys = createContentHotkeyRuntime(() => currentPageSiteDisabled);
     const inputTranslationFeature = createInputTranslationContentFeature({
         context: ctx,

@@ -81,6 +81,16 @@ describe('bounded causal inference ownership', () => {
         expect(forwardInputs.map(input => input.length)).toEqual([32,64,71]); expect(forwardInputs[0].past).toBeNull(); expect(forwardInputs[1].past).toBeTruthy();
         expect(tensors.every(tensor => vi.mocked(tensor.dispose).mock.calls.length === 1)).toBe(true);
     });
+    it('gives the context-free first token the median of the remaining scores and leaves single-token text untouched', async () => {
+        const {engine, tensor} = fixture('abcde');
+        // 行 r 的两路 logits 让目标 token 1 的意外度依次约为 17、1、3、2、5 bits；首行模拟仅有 BOS 时的先验。
+        const bits = [17, 1, 3, 2, 5, 1], row = (value: number) => [Math.log(2 ** value - 1), 0];
+        engine.forward = vi.fn(async (ids: number[], length: number) => ({logits: tensor([1, ids.length, 2], bits.slice(0, ids.length).flatMap(row)), 'present.0.key': tensor([1, 1, length, 1], [0])}));
+        const result = await scoreLocalSurprisal(engine, 'abcde', new AbortController().signal);
+        expect(result.spans.map(span => Math.round(span.score))).toEqual([3, 1, 3, 2, 5]);
+        const single = fixture('a'); single.engine.forward = vi.fn(async (ids: number[], length: number) => ({logits: single.tensor([1, ids.length, 2], [...row(17), ...row(1)]), 'present.0.key': single.tensor([1, 1, length, 1], [0])}));
+        expect(Math.round((await scoreLocalSurprisal(single.engine, 'a', new AbortController().signal)).spans[0].score)).toBe(17);
+    });
     it('skips only an unused extra block at exact token boundaries and preserves all other batch shapes', async () => {
         for (const count of [1,32,64]) {
             const {engine, tensors, forwardInputs} = fixture('a'.repeat(count)); const result = await scoreLocalSurprisal(engine, 'a'.repeat(count), new AbortController().signal);

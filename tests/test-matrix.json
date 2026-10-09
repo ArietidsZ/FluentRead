@@ -387,6 +387,7 @@
       "tests/pdfSource.test.ts",
       "tests/pdfTextLayout.test.ts",
       "tests/informationHighlightConfig.test.ts",
+      "tests/informationHighlightPresentation.test.ts",
       "tests/informationHighlightArtifacts.test.ts",
       "tests/informationHighlightBackend.test.ts",
       "tests/informationHighlightComposition.test.ts",
