@@ -200,10 +200,8 @@ function compatibilityFetch(
       const identity = {...schedulerContext?.identity,
         service: request.serviceOverride || schedulerContext?.identity?.service, model: requestedModel};
       const fetchAttempt = async () => {
-        const transport = runtimeFetch(endpoint.exactEndpoint || input, init);
-        // broker 的 attempt 直接 await 原始 transport，取消先拒绝等待者但不归还槽；旧直调复用外层 lease。
-        if (!schedulerContext?.identity?.quotaScope) schedulerContext?.lease?.holdUntil(transport);
-        const response = await transport;
+        // broker 的 counted attempt 等到原始 transport settle 后才归还槽；直调保持既有外层计数。
+        const response = await runtimeFetch(endpoint.exactEndpoint || input, init);
         schedulerContext?.scheduler.observeResponse(identity, response);
         return response;
       };

@@ -1,45 +1,49 @@
 # 共享 Retry-After 冷却 · 2026-10-09
 
-真实 HTTP 429 和有效 Retry-After 的 503 现在反馈到既有 requestScheduler，新的 broker 请求与 AI SDK 的真实 HTTP 重试共同等待。SDK 保留重试所有权和次数，provider、model、prompt、batch、token 与总 deadline 保持既有语义。
+真实 HTTP 429 和有效 Retry-After 的 503 反馈到既有 requestScheduler，新的 broker 请求与 AI SDK 的真实 HTTP 重试共同等待。SDK 保留重试所有权和次数，provider、model、prompt、batch、token 与总 deadline 保持既有语义。429 缺省/无效头复用首次 2 秒退避；503 无有效头、401、403 不新增共享冷却。支持数字秒、HTTP-date 和 retry-after-ms，极端等待上限 7 天且受原有 deadline 限制。
 
-本轮修复饱和容量下健康线路被冷却任务阻塞的问题：SDK 的外层逻辑任务只保留 deadline、取消与额度冷却，不计并发或速率；实际 scheduleAttempt 在同一既有池中计并发与速率，直到原始 runtimeFetch settle 才释放槽位，包括传输忽略 abort 的情况。非 SDK 和直接连接探测保持原有默认计数；实际尝试继续遵守 FIFO，没有另建资源池。
+SDK 外层逻辑任务保留 deadline、取消与额度冷却，不计并发/速率；真实 scheduleAttempt 在同一既有池中各计一次，直到原始 runtimeFetch settle 才释放 counted 槽位，包括传输忽略 abort 的情况。非 SDK 与连接 probe 保持既有外层计数和持槽，没有另建池。summary、single、batch 的 pending 摘要包含有效配置 Key 集合、轮换/恢复设置及隐私；真实 transport 摘要使用本次实际选择的 Key。成功缓存规则保持不变，摘要不输出凭据。
 
-可信后台元数据区分普通、私密与未知来源。typed input、图片活跃事务→offscreen 和 area 文字/识图都保留该身份；扩展自有无 tab 页面使用平台元数据，payload 中的隐私、sender 和额度字段不能提供权限。summary、single、batch 三类内存 pending 身份包含有效配置凭据集合、轮换/恢复设置及隐私摘要；真实 transport 摘要使用本次实际选择的 Key。成功缓存的共享规则保持不变，摘要不输出凭据。
+可信 sender.tab.incognito 区分普通与私密来源；无 tab、无明确布尔元数据均保持 unknown。spanning 后台自己的 inIncognitoContext 不能代表发送者，因此不再把它传入消息 context。typed input、图片活跃事务→offscreen 与 area text/vision 都保留该身份，payload 的 sender、隐私和额度字段不能授予权限。没有增加 tab 查询、平台权限或新的元数据框架。
 
-只处理真实 429 和带有效 Retry-After 的 503。429 缺省/无效头复用首次 2 秒退避；503 无有效头、401、403 不新增共享冷却。支持数字秒、HTTP-date 和 retry-after-ms，极端等待上限 7 天且受原有请求 deadline 限制。锁定 SDK 对 >=60 秒的头可能提前回退，实际传输入口仍受共享门控。
+## 本轮两项精确反例
 
-## 合成重放与反例
+当前批次从 10675d79f0a1f523e609ff48b7a2cca0e045b690 接续。真实 runTranslationServiceConnectionTest→锁定 SDK 与真实 broker 共用 scheduler：cap=1 的 probe 在 0ms 收到429，SDK于2000ms重试，broker真实 counted attempt 在10ms排队。旧 keepWaiting 把 counted attempt 也写进 waitingAttemptKeys，因而挡住已持有外层槽的 probe retry，直到 deadline 才解除。
 
-真实客户端、消息 handler、broker、调度器和锁定 AI SDK 6.0.264 连接严格白名单的 setRuntimeFetch；未匹配网络立即失败，外部模型/搜索 API 调用为 0。30 个固定种子使用相同到达时序和服务端 2/60/90 秒配额窗口。请求字节数为实际 UTF-8 body 大小，只作为载荷代理，不等同于供应商 token 计费。
+最小修复仅让 attemptOnly && !countConcurrency 进入该旧重试阻塞集合，counted FIFO 保留。global、service、model+service 三种同桶各测正常完成、队列取消和队列 deadline，共9项；probe的第二个原始传输受控保持未决，settle后健康B才恢复，实际inflight峰值为1，取消/超时B不迟到派发。旧实现有效红例为6失败、取消对照3通过：[红例](./mixed-probe-red.json)。夹具使用允许无Key的custom连接检测；指定非空Key的检查路径会有意禁用SDK重试，最初错误夹具不算有效红例。
 
-| 变体 | 成功任务 / 120 | HTTP attempts | 冷却窗口内额外 A 派发 | 健康 B attempts | 健康 B UTF-8 字节 |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| B0：未修改的上游 | 60 | 270 | 180 | 30 | 17511 |
-| B1-C：本轮候选只移除响应反馈 | 60 | 270 | 180 | 30 | 17511 |
-| C：本轮候选 | 120 | 150 | 0 | 30 | 17511 |
+真实 installBackgroundMessageRuntime 注册 browser.runtime.onMessage，实际 router→typed input/fallback 接收无tab扩展页面消息：后台普通/私密状态都应保持unknown，反向真实tab状态仍优先于后台和payload。旧实现4个无tab断言失败，4个真实tab对照通过：[红例](./message-runtime-red.json)。新测试不手工调用context factory，只替换无关feature构造器和翻译外部端口。
 
-复用已记录的上游 8467b6757affb4bc895d44fa8fbf12a65bee7479 B0，不重复未变基线。重新执行本轮 C 和 B1-C；B1-C 全部逐种子记录与 B0 相同，C 的健康 B 时点、状态、请求字节和次数也逐项相同：[对比](./replay-comparison.json)、[B0](./replay-B0.json)、[B1-C](./replay-B1-C.json)、[C](./replay-C.json)。这是离线合成结果，不证明真实供应商性能、翻译质量或 GPU/WebGPU。
+## Occam 核查与独立 SVG 候选
 
-74 项新契约覆盖原有格式、SDK retry count 和身份隔离，以及 max=1/max=3 饱和、90 秒冷却、健康 B 在 10ms 到达/40 秒 deadline、raw-inflight 上限、取消/超时后无迟到派发、速率与 FIFO、三个 pending 入口的隐私/Key/Key 集合/轮换变化、typed input、图片 offscreen、area text/vision 正反方向和伪造事务借用。其中 1 项使用小型真实 timer。饱和反例从独立页面的真实消息边界注入，未把多页面共用一个客户端队列；在原 #906 实现上 max=1/max=3 都直接断言失败：[有效红例](./saturation-red.json)。早期无效 PNG、过小区域和缺少 fixture 字段导致的失败已纠正，不计作有效红例。
+全仓TypeScript调用点核查确认：provider scheduler context 的第四个lease参数只由broker传入；唯一生产读取者是openai-compatible，其lease分支要求没有quotaScope，而broker SDK都有quotaScope。connectionTest和直调测试只传二/三参数。因此删除该无消费者字段、参数、broker传递和adapter空分支；fetchAttempt直接await原始runtimeFetch再observeResponse。[调用点审计](./provider-lease-call-audit.json)。scheduler/client/broker/probe自己的lease、broker counted attempt的真实传输持槽机制保留，既有取消与忽略abort容量契约继续执行。
 
-九项必要消融分别移除逻辑/实际容量分离、实际 transport 计数、typed input 隐私、图片事务隐私、area 隐私、pending 摘要、有效 Key 集合、轮换配置和 SVG 压缩，依次产生 2/2/3/2/4/12/6/3/1 项直接断言失败；每次随后字节一致恢复候选：[消融](./ablations.json)。旧候选中的外层 transport lease 消融不能替代本轮实际尝试容量证据。
+复用同一provider attempt中的三次isAiSdk检查。清理前标准产物1961680字节，清理后1961493，组合实测节省**187字节**；不把各处源码字符差当作独立产物收益：[实测](./occam-size.json)。
 
-## 验证与阻塞
+SVG压缩与冷却没有功能依赖，标准生产图也不引用ServiceIcon或serviceBrandPaths.json。本轮把userscript/vite.config.ts的SVG专项修改与新增专项测试从#906当前diff撤出，保存为CW本地独立候选，没有新建公开PR。原图标、JSON和许可保留。历史一次必要去压缩standalone构建3798107字节，对应10675中包含SVG压缩的3780639，收益**17468字节**仅适用于该独立候选：[历史实测](./svg-size-comparison.json)。它不作为标准包体积方案。
 
-56 个相关测试文件共 **1654/1654 通过**。既有严格范围中的 8 个改变模块，statements/branches/functions/lines 均 **100%**：[范围与测试](./affected-tests.json)、[覆盖率](./coverage-summary.json)、[源码 SHA256](./source-sha256.json)。SDK adapter、areaRuntime 和 messageRuntime 整文件原本不在该严格范围内；本次改变的传输和实际 composition 路径已执行，不声称这些整文件覆盖率 100%。
+## 验证
 
-implementationAudit48A 只修正过时断言：启动后恰有既有 Bilibili Origin 移除规则 id 2763000 / priority 2，匹配既定域名、initiatorDomains 和 xmlhttprequest；removeRuleIds 仅 2763000，外部规则 42 保留。hydration 前不读取、hydration 后同步和无 fetch 断言继续通过，DNR 生产实现未改。
+57个相关测试文件 **1669/1669通过**，包含83个scheduler/retry契约和8个真实安装messageRuntime隐私契约；8个既有严格模块statements/branches/functions/lines均**100%**：[范围与测试](./affected-tests.json)、[覆盖率](./coverage-summary.json)、[源码SHA256](./source-sha256.json)。SDK adapter、areaRuntime和messageRuntime整文件原本不在该严格范围，实际改变的传输和composition路径已执行，不声称这些整文件100%。TypeScript、测试审计、Chrome/Firefox构建通过，文档构建以[阶段记录](./validation.json)为准。
 
-TypeScript、测试审计和 Chrome/Firefox 构建通过。标准、standalone 的构建生成产物，但 verifier 因既有体积上限失败。GreasyFork 的 Vite 构建生成产物，外层固定资源检查失败，verifier 也因体积失败：
+既有implementationAudit48A仅在上一批修正过时Bilibili DNR规则断言，生产实现未改；精确规则、保留外部42、hydration前后和无fetch检查继续通过。原broker取消/超时、raw-inflight max1/max3、纯broker速率/FIFO、pending凭据集合与普通/私密隔离等契约全部保留。
 
-| 产物 | 实际字节 | 既有上限 | 超限字节 |
-| --- | ---: | ---: | ---: |
-| 标准 userscript | 1961932 | 1960000 | 1932 |
-| standalone userscript | 3780639 | 3600000 | 180639 |
-| GreasyFork source | 2325042 | 2000000 | 325042 |
+原30种子白名单setRuntimeFetch重放证据来自10675，并随本轮相关套件复验同一契约；没有重复未变B0基线或另跑30次构建。历史B0/B1-C为60/120成功、270 HTTP attempts、180次冷却内额外A派发；C为120/120、150、0。健康B时序/状态/17511实际UTF-8 body字节逐项一致：[B0](./replay-B0.json)、[B1-C](./replay-B1-C.json)、[C](./replay-C.json)。body字节是载荷代理，不等同供应商token计费，不证明真实供应商/GPU/WebGPU性能。
 
-SVG 只将精确白名单 src/ui/assets/serviceBrandPaths.json 接入已有 gzip/base64→inflateWithPako→JSON.parse，非 GreasyFork 生效；其他 JSON 不被拦截，站点目录和固定资源不改。真实 Vue ServiceIcon 的 @ 别名导入、绝对路径和生产构建经真实 pako 逐项还原，对象/数组顺序保持。GreasyFork 真实组件构建使用原生 JSON，许可声明保留。
+此前九项消融2/2/3/2/4/12/6/3/1失败及饱和消息边界红例仍保留为**10675历史证据**：[消融](./ablations.json)、[饱和红例](./saturation-red.json)。其中SVG已经拆出、provider context lease已经清理，不把旧消融冒充当前源码独立审计。
 
-一次必要的 standalone 去压缩构建为 3798107 字节，候选减少 **17468 字节**，仍不足以通过上限：[体积消融](./svg-size-comparison.json)。标准 userscript 使用精简设置界面，生产依赖图根本不含 ServiceIcon 或 SVG 表，因此此方案不降低标准体积：[真实依赖图](./standard-svg-dependency.json)。GreasyFork 另报固定资源 userscript/resources/fluentread-data.v1.js 与 af81332fb598f78b1199d103e0943e4e521a7f96 不一致；没有执行 --prepare-resources、改固定资源、提高上限或引入新的构建库。
+## 同工具链体积基线归因与阻塞
 
-PR 保持草稿：三类体积、GreasyFork 固定数据资源检查和独立审计仍阻塞 ready。文档构建及阶段时点/耗时以 [验证记录](./validation.json) 为准。所有检查使用现有资源保护器串行运行，CPU 目标 60%、单 worker、并发 1；CPU 目标是协作式限制。未执行真实供应商测试、GPU/WebGPU 或新增浏览器权限操作。
+在同一CW checkout、同一Node26.7.0/pnpm9.12.1/Vite5.4.19及原锁文件上，暂时恢复全部未修改的8467b6757affb4bc895d44fa8fbf12a65bee7479 tracked tree并验证无diff，各测一次标准/standalone/GreasyFork与原verifier，随后逐字节恢复候选。原标准入口复核与只读module归因hook产物SHA256完全一致。当前标准基线为1959494字节，余506；历史1959450记录单列，差44字节，未用历史数替代本次测量。[基线/候选原始字节与SHA](./size-attribution.json)。
+
+| 产物 | 未修改基线字节 | 当前候选字节 | 新增字节 | 既有上限 | 基线超限 | 候选超限 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 标准 userscript | 1959494 | 1961493 | 1999 | 1960000 | 0 | 1493 |
+| standalone | 3795702 | 3797668 | 1966 | 3600000 | 195702 | 197668 |
+| GreasyFork source | 2320196 | 2324257 | 4061 | 2000000 | 320196 | 324257 |
+
+标准verifier基线通过、候选因体积失败。standalone体积失败和GreasyFork体积/固定资源失败在未修改基线已经存在，候选的额外字节分开列出。GreasyFork的Vite阶段生成产物，外层构建因固定fluentread-data.v1.js不一致返回失败；候选生成数据SHA与本次未修改基线完全相同，证明本批没有新增这项资源差异。基线已有document.pdfReading词条而固定数据缺少对应键：[资源差异](./baseline-resource-diff.json)。未执行--prepare-resources、发布/替换固定URL、修改资源或提高budget。
+
+标准bundle没有新增module ID。Rollup未压缩tree-shaken renderedLength增量定位为requestScheduler+1924、broker+812、SDK adapter+308、requestSnapshot+171、typed input+79；这些是模块归因代理，不能相加当作最终minified字节。最终产物增量以表格为准：[模块归因](./standard-module-attribution.json)。本批未进行广泛压缩或框架调整。
+
+#906保持draft：标准新增体积回归、standalone/GreasyFork原有失败及新增字节、固定资源失败和当前独立审计仍阻塞ready。所有命令使用原资源保护器串行运行，CPU目标60%、worker1、并发1；CPU目标为协作式限制。外部模型/搜索API调用0，未新增依赖/权限/环境，Recovery全部窗口和进程未操作。真实供应商、GPU/WebGPU测试未运行。

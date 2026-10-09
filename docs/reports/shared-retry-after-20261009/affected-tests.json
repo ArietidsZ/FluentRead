@@ -28,6 +28,7 @@
     "tests/areaVisionRecognition.test.ts",
     "tests/backgroundCoreHandlers.test.ts",
     "tests/backgroundFeatureHandlers.test.ts",
+    "tests/backgroundMessageRuntimePrivacy.test.ts",
     "tests/backgroundProviderRuntime.test.ts",
     "tests/backgroundTranslationHandler.test.ts",
     "tests/bilibiliFreeTranslation.test.ts",

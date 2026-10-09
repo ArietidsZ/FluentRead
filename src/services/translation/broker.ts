@@ -698,9 +698,10 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
         const timeoutMs = normalizeDeadlineTimeoutMs(message.requestTimeoutMs as number);
         const providerDeadline = now() + timeoutMs;
         const model = getEffectiveRequestModel(execution.config, execution.service, message.modelOverride);
+        const isAiSdk = deps.serviceTypes.isAiSdk(execution.service);
         const identity = {
             service: execution.service, model,
-            ...(deps.serviceTypes.isAiSdk(execution.service) ? {quotaScope: quotaDigest(execution, model, true)} : {}),
+            ...(isAiSdk ? {quotaScope: quotaDigest(execution, model, true)} : {}),
         };
 
         try {
@@ -735,7 +736,7 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                             abortSignal: controller.signal,
                         }, (observation) => observations.push({...observation})),
                         (observation) => collectRouteAttempt(execution.trace, observation),
-                    ), requestScheduler, identity, lease);
+                    ), requestScheduler, identity);
 
                     let timer: ReturnType<typeof setTimeout>;
                     const timeout = new Promise<never>((_resolve, reject) => {
@@ -786,8 +787,8 @@ export function createTranslationBroker(deps: TranslationBrokerDependencies): Tr
                 signal: execution.abortSignal,
                 deadlineAt: providerDeadline,
                 identity,
-                countRate: !deps.serviceTypes.isAiSdk(execution.service),
-                countConcurrency: !deps.serviceTypes.isAiSdk(execution.service),
+                countRate: !isAiSdk,
+                countConcurrency: !isAiSdk,
             });
         } catch (error) {
             if (error instanceof TranslationRequestSchedulerDeadlineError) {

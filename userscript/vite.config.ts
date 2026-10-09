@@ -99,8 +99,6 @@ const projectRoot = `${normalizePath(root)}/`;
 const siteCatalogDir = resolve(root, 'src/core/site-adaptation/catalog');
 const siteCatalogFiles = new Set(['established.json', 'websites.json', 'profiles.json']
     .map((name) => resolve(siteCatalogDir, name)));
-const serviceBrandPathsFile = resolve(root, 'src/ui/assets/serviceBrandPaths.json');
-const compressedDataFiles = new Set([...siteCatalogFiles, serviceBrandPathsFile]);
 const siteCatalogData = Object.fromEntries([...siteCatalogFiles]
     .map((sourcePath) => [basename(sourcePath, '.json'), JSON.parse(fs.readFileSync(sourcePath, 'utf8'))]));
 // 构建目录提供权威规则；固定资源中未变的规则复用，新增或更新的规则随消费者补齐。
@@ -110,7 +108,7 @@ const pinnedSiteCatalogs = greasyForkSource
 const compressedCatalogPrefix = '\0fluentread-userscript-site-catalog:';
 const externalChineseMessagesId = '\0fluentread-userscript-zh-cn.js';
 
-/** 只压缩精确白名单的站点规则、SVG 路径表与中文文案数据；产品逻辑仍留在可审查的 userscript 主文件中。 */
+/** 只压缩站点规则与中文文案数据；产品逻辑仍留在可审查的 userscript 主文件中。 */
 export function createUserscriptCatalogCompressionPlugin(): Plugin {
     return {
         name: 'compress-userscript-site-catalog',
@@ -118,12 +116,10 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
         resolveId(source, importer) {
             if (source === './messages/zh-CN'
                 && importer?.split('?')[0] === resolve(root, 'src/core/i18n/index.ts')) return externalChineseMessagesId;
-            if (!source.endsWith('.json')) return null;
-            const sourcePath = source.startsWith('@/') ? resolve(root, source.slice(2))
-                : source.startsWith('/') ? resolve(source) : importer ? resolve(dirname(importer.split('?')[0]), source) : '';
-            if (sourcePath === serviceBrandPathsFile && greasyForkSource) return null;
+            if (!importer || !source.endsWith('.json')) return null;
+            const sourcePath = resolve(dirname(importer.split('?')[0]), source);
             // 以 .js 结尾，避免 Vite 的 JSON 插件再次尝试解析虚拟模块源码。
-            return compressedDataFiles.has(sourcePath) ? `${compressedCatalogPrefix}${sourcePath}.js` : null;
+            return siteCatalogFiles.has(sourcePath) ? `${compressedCatalogPrefix}${sourcePath}.js` : null;
         },
         load(id) {
             if (id === externalChineseMessagesId) {
@@ -139,8 +135,8 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
             }
             if (!id.startsWith(compressedCatalogPrefix)) return null;
             const sourcePath = id.slice(compressedCatalogPrefix.length, -'.js'.length);
-            if (!compressedDataFiles.has(sourcePath)) throw new Error(`Unexpected userscript site catalog: ${sourcePath}`);
-            if (greasyForkSource && siteCatalogFiles.has(sourcePath)) {
+            if (!siteCatalogFiles.has(sourcePath)) throw new Error(`Unexpected userscript site catalog: ${sourcePath}`);
+            if (greasyForkSource) {
                 const name = basename(sourcePath, '.json');
                 const current = siteCatalogData[name];
                 const pinned = pinnedSiteCatalogs?.[name];

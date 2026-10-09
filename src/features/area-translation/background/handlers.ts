@@ -17,7 +17,6 @@ export const AREA_TRANSLATE_CAPTURE_MESSAGE_TYPE = 'fluentReadAreaTranslateCaptu
 export const AREA_CANCEL_MESSAGE_TYPE = 'fluentReadAreaCancel' as const;
 
 export interface AreaTranslationBackgroundContext {
-    extensionContext?: {url: string; incognito?: boolean};
     sender?: {
         url?: string;
         frameId?: number;

@@ -24,6 +24,7 @@ vi.mock('@/src/app/translation/visionProbeRuntime', () => ({modelVisionProbe: {r
 vi.mock('@/src/features/area-translation/background/offscreenAdapter', () => ({areaTranslationOffscreenAdapter: {cropArea: async () => ({image: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a3mIAAAAASUVORK5CYII=', lines: []}), translateArea: async () => ({image: '', lines: []})}}));
 vi.mock('@/src/features/image-translation/background/offscreenAdapter', () => ({imageTranslationProgressTransport: {sendProgress: async () => undefined}}));
 vi.mock('@/src/app/background/handlers/areaTranslation', async importOriginal => ({...await importOriginal<any>(), createAreaTranslationBackgroundHandlers: (dependencies: any) => dependencies, createAreaCaptureOwnershipVerifier: () => async () => undefined}));
+vi.mock('@/src/providers/translation/registry', async () => ({translationProviderRegistry: {custom: (await import('@/src/providers/translation/ai-sdk/openai-compatible')).translateWithOpenAICompatibleAiSdk}}));
 vi.mock('webextension-polyfill', () => ({default: {
     runtime: {sendMessage: (message: unknown) => state.dispatch(message)}, extension: {inIncognitoContext: false},
 }}));
@@ -38,7 +39,8 @@ import {createInputBoxTranslationHandler} from '@/src/features/input-translation
 import {createImageGlossaryContext} from '@/src/app/background/imageGlossaryContext';
 import {createImageTranslationBackgroundHandlers, IMAGE_TRANSLATE_MESSAGE_TYPE, IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE} from '@/src/features/image-translation/background/handlers';
 import {buildGlossaryRevision} from '@/src/core/glossary';
-import {translationPrivacyContext} from '@/src/services/translation/requestSnapshot';
+import {translationPrivacyContext, createTranslationProviderConfigSnapshot} from '@/src/services/translation/requestSnapshot';
+import {runTranslationServiceConnectionTest, CONNECTION_TEST_ORIGIN} from '@/src/providers/translation/connectionTest';
 import {serializeTranslationError} from '@/src/services/translation/errors';
 import {servicesType, resolveConfiguredModel} from '@/src/core/config/catalog';
 import {translateText, cancelAllTranslations} from '@/src/app/translation/client';
@@ -103,6 +105,7 @@ beforeEach(() => {
     state.config.custom = 'https://quota-a.test/v1'; state.config.newApiUrl = 'https://healthy-b.test/v1';
     state.config.model.custom = 'fixture-model'; state.config.token.custom = 'fixture-a';
     state.config.translationRequestsPerSecond = 0; state.config.translationRequestsPerMinute = 0;
+    (state.config as any).serviceRequestLimits = {}; (state.config as any).modelRequestLimits = {};
     state.config.customHeaders = {}; (state.config as any).apiKeys = {}; (state.config as any).apiKeyRotationEnabled = {};
     state.config.translationMaxRetries = 2; state.config.maxConcurrentTranslations = 6;
     setRuntimeFetch(async () => {throw new Error('Unmatched runtime network prohibited');});
@@ -399,11 +402,11 @@ describe('trusted ordinary/private/unknown boundary', () => {
     it.each([
         [{sender: {tab: {incognito: false}}}, false], [{sender: {tab: {incognito: true}}}, true],
         [{sender: {tab: {incognito: 'false'}}}, undefined], [{}, undefined],
-        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: false}}, false],
-        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: true}}, true],
+        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: false}}, undefined],
+        [{sender: {url: 'chrome-extension://controlled/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: true}}, undefined],
         [{sender: {url: 'chrome-extension://other/options.html'}, extensionContext: {url: 'chrome-extension://controlled/', incognito: true}}, undefined],
         [{sender: {url: 'https://synthetic.test/'}}, undefined],
-    ])('resolves only trusted sender/platform metadata %j', (context, expected) => {
+    ])('resolves only trusted sender tab metadata %j', (context, expected) => {
         expect(translationPrivacyContext(context as never).privateContext).toBe(expected);
     });
     it('separates an unknown typed source from an ordinary sender despite payload claims', async () => {
@@ -484,5 +487,46 @@ describe('image transaction identity cannot be borrowed by content payloads', ()
         try {await vi.advanceTimersByTimeAsync(10); expect(attempts).toBe(2); await forged; expect(scopes.mock.calls[0]![0]!.quotaScope).not.toBe(scopes.mock.calls[1]![0]!.quotaScope);}
         finally {finish(); await active;}
         await expect(text.handle({type: IMAGE_TRANSLATE_TEXTS_MESSAGE_TYPE, requestId: 'private-active', texts: ['same alpha']} as never, {sender: {url: offscreenUrl}})).rejects.toThrow('上下文已失效');
+    });
+});
+
+
+describe('mixed real connection probe and counted broker attempts', () => {
+    it.each(['global', 'service', 'model'].flatMap(bucket => ['success', 'cancel', 'deadline'].map(outcome => [bucket, outcome])))
+    ('settles a held-slot probe retry before queued broker work in %s with %s', async (bucket, outcome) => {
+        state.config.maxConcurrentTranslations = 1;
+        // 检测指定非空 Key 会有意关闭 SDK 重试；无 Key 的 custom 路径才复现真实 SDK 退避。
+        state.config.token.custom = ''; (state.config as any).requireApiKey.custom = false;
+        if (bucket !== 'global') (state.config as any).serviceRequestLimits = {custom: {enabled: true, limits: {maxConcurrentTranslations: 1}}};
+        if (bucket === 'model') (state.config as any).modelRequestLimits = {custom: {'fixture-model': {enabled: true, limits: {maxConcurrentTranslations: 1}}}};
+        const {scheduler, broker} = harness(); const start = Date.now();
+        const attempts: Array<{kind: string; at: number}> = []; let active = 0; let peak = 0; let probeCalls = 0;
+        let releaseRetry: (() => void) | undefined;
+        setRuntimeFetch(async (_input, init) => {
+            const kind = String(init?.body).includes(CONNECTION_TEST_ORIGIN) ? 'probe' : 'broker';
+            attempts.push({kind, at: Date.now() - start}); active += 1; peak = Math.max(peak, active);
+            try {
+                if (kind === 'probe' && ++probeCalls === 1) return response(429, {'retry-after': '2'});
+                if (kind === 'probe') await new Promise<void>(resolve => {releaseRetry = resolve;});
+                return response();
+            } finally {active -= 1;}
+        });
+        const probe = runTranslationServiceConnectionTest('custom', {requestScheduler: scheduler,
+            config: createTranslationProviderConfigSnapshot(state.config as never), countRate: false, effectiveModel: 'fixture-model'})
+            .then(value => ({success: true, value})).catch(error => ({success: false, error}));
+        await vi.advanceTimersByTimeAsync(10); expect(attempts).toEqual([{kind: 'probe', at: 0}]);
+        const control = new AbortController();
+        const request = attachTranslationRequestControl({origin: 'queued synthetic broker', serviceOverride: 'custom', requestTimeoutMs: outcome === 'deadline' ? 4_000 : 10_000, useCache: false}, {signal: control.signal, ownershipKey: 'mixed-' + bucket});
+        const queued = broker.translateWithCache(request as never)
+            .then(value => ({success: true, value})).catch(error => ({success: false, error}));
+        await flush(); if (outcome === 'cancel') control.abort();
+        await vi.advanceTimersByTimeAsync(outcome === 'deadline' ? 4_100 : 2_100);
+        expect(attempts.filter(a => a.kind === 'probe'), JSON.stringify(attempts)).toEqual([{kind: 'probe', at: 0}, {kind: 'probe', at: 2_000}]);
+        expect(attempts.filter(a => a.kind === 'broker')).toEqual([]); expect(peak).toBe(1);
+        releaseRetry!(); await vi.advanceTimersByTimeAsync(100);
+        expect((await probe).success).toBe(true);
+        expect((await queued).success).toBe(outcome === 'success');
+        expect(attempts.filter(a => a.kind === 'broker')).toHaveLength(outcome === 'success' ? 1 : 0);
+        expect(peak).toBe(1); expect(active).toBe(0);
     });
 });

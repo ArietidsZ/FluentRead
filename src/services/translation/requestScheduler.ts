@@ -361,7 +361,7 @@ export function createTranslationRequestScheduler(
                 const keepWaiting = (entry: PendingRequest<unknown>, keys: readonly string[]) => {
                     for (const key of keys) {
                         waitingKeys.add(key);
-                        if (entry.attemptOnly) waitingAttemptKeys.add(key);
+                        if (entry.attemptOnly && !entry.countConcurrency) waitingAttemptKeys.add(key);
                     }
                 };
                 for (let index = head; index < pending.length; index += 1) {

@@ -1,0 +1,39 @@
+{
+  "note": "Rollup renderedLength measures unminified tree-shaken module source before final esbuild minification and wrapper/notices. These module deltas are attribution proxies, not additive final byte savings. Final artifact sizes are measured separately.",
+  "newModuleIds": [],
+  "changedModuleContributions": [
+    {
+      "module": "src/services/translation/requestScheduler.ts",
+      "baselineRenderedLength": 10054,
+      "candidateRenderedLength": 11978,
+      "deltaRenderedLength": 1924
+    },
+    {
+      "module": "src/services/translation/broker.ts",
+      "baselineRenderedLength": 59196,
+      "candidateRenderedLength": 60008,
+      "deltaRenderedLength": 812
+    },
+    {
+      "module": "src/providers/translation/ai-sdk/openai-compatible.ts",
+      "baselineRenderedLength": 9875,
+      "candidateRenderedLength": 10183,
+      "deltaRenderedLength": 308
+    },
+    {
+      "module": "src/services/translation/requestSnapshot.ts",
+      "baselineRenderedLength": 12388,
+      "candidateRenderedLength": 12559,
+      "deltaRenderedLength": 171
+    },
+    {
+      "module": "src/features/input-translation/background/handler.ts",
+      "baselineRenderedLength": 2441,
+      "candidateRenderedLength": 2520,
+      "deltaRenderedLength": 79
+    }
+  ],
+  "standardIncludesServiceIcon": false,
+  "standardIncludesSVGTable": false,
+  "unnecessaryProviderLeaseFunctionRemoved": true
+}

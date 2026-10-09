@@ -2,11 +2,11 @@
   "executionHost": "arietids-cw",
   "base": "8467b6757affb4bc895d44fa8fbf12a65bee7479",
   "lockedAiSdk": "6.0.264",
-  "affectedTestFiles": 56,
-  "passed": 1654,
+  "affectedTestFiles": 57,
+  "passed": 1669,
   "failed": 0,
   "knownUpstreamFailure": [],
-  "newContractTests": 74,
+  "newContractTests": 91,
   "strictCoverageModules": [
     "src/app/background/handlers/translation.ts",
     "src/app/background/imageGlossaryContext.ts",
@@ -21,305 +21,147 @@
   "providerChangedTransportPathsExecuted": true,
   "realExternalApiCalls": 0,
   "realTimerIntegrationCases": 1,
-  "userscriptBytes": 1961932,
+  "userscriptBytes": 1961493,
   "userscriptCapBytes": 1960000,
-  "userscriptOverrunBytes": 1932,
+  "userscriptOverrunBytes": 1493,
   "buildAndCheckStages": [
     {
-      "stage": "review-final-compile",
-      "startedAt": "2026-10-09T12:00:26.203377+00:00",
-      "durationSeconds": 16.996,
-      "exitCode": 0
+      "stage": "round2-pre-occam-standard-build",
+      "startedAt": "2026-10-09T12:45:46.616663+00:00",
+      "durationSeconds": 3.82,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "vite",
+        "build",
+        "--config",
+        ".vite-round2-size.config.ts"
+      ]
     },
     {
-      "stage": "review-affected-strict-coverage",
-      "startedAt": "2026-10-09T12:00:43.199730+00:00",
-      "durationSeconds": 33.869,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-test-audit",
-      "startedAt": "2026-10-09T12:01:17.072369+00:00",
-      "durationSeconds": 1.266,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-chrome-build",
-      "startedAt": "2026-10-09T12:01:18.338268+00:00",
-      "durationSeconds": 20.4,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-firefox-build",
-      "startedAt": "2026-10-09T12:01:38.738921+00:00",
-      "durationSeconds": 20.349,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-userscript-build",
-      "startedAt": "2026-10-09T12:01:59.088619+00:00",
-      "durationSeconds": 3.871,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-userscript-verifier",
-      "startedAt": "2026-10-09T12:02:02.959711+00:00",
-      "durationSeconds": 0.264,
-      "exitCode": 1
-    },
-    {
-      "stage": "review-svg-production-test",
-      "startedAt": "2026-10-09T12:11:00.782952+00:00",
-      "durationSeconds": 1.867,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-final-test-audit",
-      "startedAt": "2026-10-09T12:11:02.649821+00:00",
-      "durationSeconds": 1.216,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-svg-standard-evidence-build",
-      "startedAt": "2026-10-09T12:11:03.865888+00:00",
+      "stage": "round2-post-occam-standard-build",
+      "startedAt": "2026-10-09T12:47:38.855206+00:00",
       "durationSeconds": 3.87,
-      "exitCode": 0
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "vite",
+        "build",
+        "--config",
+        ".vite-round2-size.config.ts"
+      ]
     },
     {
-      "stage": "review-final-userscript-verifier",
-      "startedAt": "2026-10-09T12:11:07.736597+00:00",
+      "stage": "round2-affected-strict-coverage",
+      "startedAt": "2026-10-09T12:49:07.175342+00:00",
+      "durationSeconds": 34.008,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        ".vitest-round2-coverage.config.ts",
+        "--coverage",
+        "--reporter=json",
+        "--outputFile=/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round2-affected-vitest.json"
+      ]
+    },
+    {
+      "stage": "round2-compile",
+      "startedAt": "2026-10-09T12:49:41.243582+00:00",
+      "durationSeconds": 17.134,
+      "exitCode": 0,
+      "arguments": [
+        "compile"
+      ]
+    },
+    {
+      "stage": "round2-test-audit",
+      "startedAt": "2026-10-09T12:49:58.438611+00:00",
+      "durationSeconds": 1.216,
+      "exitCode": 0,
+      "arguments": [
+        "test:audit"
+      ]
+    },
+    {
+      "stage": "round2-chrome-build",
+      "startedAt": "2026-10-09T12:49:59.704329+00:00",
+      "durationSeconds": 19.989,
+      "exitCode": 0,
+      "arguments": [
+        "build"
+      ]
+    },
+    {
+      "stage": "round2-firefox-build",
+      "startedAt": "2026-10-09T12:50:19.745475+00:00",
+      "durationSeconds": 20.401,
+      "exitCode": 0,
+      "arguments": [
+        "build:firefox"
+      ]
+    },
+    {
+      "stage": "round2-standard-verifier",
+      "startedAt": "2026-10-09T12:50:40.184256+00:00",
       "durationSeconds": 0.264,
-      "exitCode": 1
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ]
     },
     {
-      "stage": "review-final-standalone-build",
-      "startedAt": "2026-10-09T12:11:08.001008+00:00",
-      "durationSeconds": 7.076,
-      "exitCode": 0
+      "stage": "round2-standalone-build",
+      "startedAt": "2026-10-09T12:50:40.498370+00:00",
+      "durationSeconds": 7.176,
+      "exitCode": 0,
+      "arguments": [
+        "build:userscript:standalone"
+      ]
     },
     {
-      "stage": "review-final-standalone-verifier",
-      "startedAt": "2026-10-09T12:11:15.077556+00:00",
+      "stage": "round2-standalone-verifier",
+      "startedAt": "2026-10-09T12:50:47.721550+00:00",
       "durationSeconds": 0.214,
-      "exitCode": 1
-    },
-    {
-      "stage": "review-ablation-logical-capacity",
-      "startedAt": "2026-10-09T12:12:59.222537+00:00",
-      "durationSeconds": 1.166,
       "exitCode": 1,
-      "removed": "logical-capacity",
-      "passed": 0,
-      "failed": 2,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity releases all 1 saturated logical leases during a 90-second quota wait",
-        "review counterexamples: physical capacity and trusted pending identity releases all 3 saturated logical leases during a 90-second quota wait"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "d17c38f0e7fc929159c1f094db977bd7542ec1d4f930a8a1935697262bacff83"
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-standalone-build.mjs"
+      ]
     },
     {
-      "stage": "review-ablation-physical-capacity",
-      "startedAt": "2026-10-09T12:13:00.388940+00:00",
-      "durationSeconds": 1.166,
+      "stage": "round2-greasyfork-build",
+      "startedAt": "2026-10-09T12:50:47.985225+00:00",
+      "durationSeconds": 2.969,
       "exitCode": 1,
-      "removed": "physical-capacity",
-      "passed": 0,
-      "failed": 2,
-      "failures": [
-        "physical attempt capacity, FIFO, and cancellation keeps 1 real in-flight slots until ignored-abort transports settle",
-        "physical attempt capacity, FIFO, and cancellation keeps 3 real in-flight slots until ignored-abort transports settle"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "02dfc3d58dad852458d43519d4ce5b6cd6c743de2b69a7aca6082442891e6c8c"
+      "arguments": [
+        "build:userscript:greasyfork"
+      ]
     },
     {
-      "stage": "review-ablation-typed-input",
-      "startedAt": "2026-10-09T12:13:01.555107+00:00",
-      "durationSeconds": 1.166,
-      "exitCode": 1,
-      "removed": "typed-input",
-      "passed": 0,
-      "failed": 3,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity binds typed input privacy from sender false and rejects payload claims",
-        "review counterexamples: physical capacity and trusted pending identity binds typed input privacy from sender true and rejects payload claims",
-        "trusted ordinary/private/unknown boundary separates an unknown typed source from an ordinary sender despite payload claims"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "57b9fddbbb4ece968279037636813ae135a1f308116e26b9f8ced2fc39e2f420"
-    },
-    {
-      "stage": "review-ablation-image-privacy",
-      "startedAt": "2026-10-09T12:13:02.721250+00:00",
-      "durationSeconds": 1.165,
-      "exitCode": 1,
-      "removed": "image-privacy",
-      "passed": 0,
-      "failed": 2,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity restores image offscreen privacy from the active transaction false",
-        "review counterexamples: physical capacity and trusted pending identity restores image offscreen privacy from the active transaction true"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "2da31075ea6111e88696db0f647a50a18fc29c9aa2f922eda9cf6e85a77a94cc"
-    },
-    {
-      "stage": "review-ablation-area-privacy",
-      "startedAt": "2026-10-09T12:13:03.887225+00:00",
-      "durationSeconds": 1.216,
-      "exitCode": 1,
-      "removed": "area-privacy",
-      "passed": 0,
-      "failed": 4,
-      "failures": [
-        "review counterexamples: area composition keeps trusted privacy isolates area text from trusted sender false",
-        "review counterexamples: area composition keeps trusted privacy isolates area text from trusted sender true",
-        "review counterexamples: area composition keeps trusted privacy isolates area vision from trusted sender false",
-        "review counterexamples: area composition keeps trusted privacy isolates area vision from trusted sender true"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "9e7d2096b9c3a3c0a9f15eac4e2a71842efa695198ffd8bd6a101778a4b3fbd7"
-    },
-    {
-      "stage": "review-ablation-pending-quota",
-      "startedAt": "2026-10-09T12:13:05.103692+00:00",
-      "durationSeconds": 1.115,
-      "exitCode": 1,
-      "removed": "pending-quota",
-      "passed": 0,
-      "failed": 12,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after privacy changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after key-set changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after rotation changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after privacy changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after key-set changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after rotation changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after privacy changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after key-set changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after rotation changes"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "d17c38f0e7fc929159c1f094db977bd7542ec1d4f930a8a1935697262bacff83"
-    },
-    {
-      "stage": "review-ablation-pending-key-set",
-      "startedAt": "2026-10-09T12:13:06.219942+00:00",
-      "durationSeconds": 1.115,
-      "exitCode": 1,
-      "removed": "pending-key-set",
-      "passed": 0,
-      "failed": 6,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after key-set changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after key-set changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after credential changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after key-set changes"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "d17c38f0e7fc929159c1f094db977bd7542ec1d4f930a8a1935697262bacff83"
-    },
-    {
-      "stage": "review-ablation-pending-rotation",
-      "startedAt": "2026-10-09T12:13:07.336180+00:00",
-      "durationSeconds": 1.115,
-      "exitCode": 1,
-      "removed": "pending-rotation",
-      "passed": 0,
-      "failed": 3,
-      "failures": [
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text single pending work separate after rotation changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text batch pending work separate after rotation changes",
-        "review counterexamples: physical capacity and trusted pending identity keeps concurrent same-text summary pending work separate after rotation changes"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "d17c38f0e7fc929159c1f094db977bd7542ec1d4f930a8a1935697262bacff83"
-    },
-    {
-      "stage": "review-ablation-svg",
-      "startedAt": "2026-10-09T12:13:08.452304+00:00",
-      "durationSeconds": 1.366,
-      "exitCode": 1,
-      "removed": "svg",
-      "passed": 0,
-      "failed": 1,
-      "failures": [
-        "review counterexample: lossless single SVG path table compression imports the authoritative SVG table through the real Vite and inflate pipeline"
-      ],
-      "assertionFailure": true,
-      "candidateSourceSha256": "3f2e0235d158b248dfedd6906acdc1276c2afd3bb4aba5640e38632ac2d9075f"
-    },
-    {
-      "stage": "review-C-replay",
-      "startedAt": "2026-10-09T12:13:09.818716+00:00",
-      "durationSeconds": 1.216,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-B1-C-replay",
-      "startedAt": "2026-10-09T12:13:11.034559+00:00",
-      "durationSeconds": 1.266,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-svg-ablated-standalone-build",
-      "startedAt": "2026-10-09T12:13:12.301744+00:00",
-      "durationSeconds": 7.276,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-restored-standalone-build",
-      "startedAt": "2026-10-09T12:13:19.578557+00:00",
-      "durationSeconds": 7.126,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-final-greasyfork-build",
-      "startedAt": "2026-10-09T12:13:26.704969+00:00",
-      "durationSeconds": 3.019,
-      "exitCode": 1
-    },
-    {
-      "stage": "review-final-greasyfork-verifier",
-      "startedAt": "2026-10-09T12:13:29.724140+00:00",
+      "stage": "round2-greasyfork-verifier",
+      "startedAt": "2026-10-09T12:50:51.002720+00:00",
       "durationSeconds": 0.264,
-      "exitCode": 1
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-greasyfork-build.mjs"
+      ]
     },
     {
-      "stage": "review-publication-affected-strict-coverage",
-      "startedAt": "2026-10-09T12:14:33.233616+00:00",
-      "durationSeconds": 34.018,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-publication-audit",
-      "startedAt": "2026-10-09T12:15:07.252263+00:00",
-      "durationSeconds": 1.216,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-publication-compile",
-      "startedAt": "2026-10-09T12:16:07.451625+00:00",
-      "durationSeconds": 17.037,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-publication-svg-test",
-      "startedAt": "2026-10-09T12:16:24.489129+00:00",
-      "durationSeconds": 1.916,
-      "exitCode": 0
-    },
-    {
-      "stage": "review-final-docs-build",
-      "startedAt": "2026-10-09T12:18:23.568784+00:00",
-      "durationSeconds": 2.768,
-      "exitCode": 0
+      "stage": "round2-final-docs-build",
+      "startedAt": "2026-10-09T12:57:55.350284+00:00",
+      "durationSeconds": 2.718,
+      "exitCode": 0,
+      "arguments": [
+        "docs:build"
+      ]
     }
   ],
   "syntheticReplay": {
@@ -352,14 +194,14 @@
     }
   },
   "baselineFailureReproducedOnUnmodifiedCurrentBase": true,
-  "priorCandidate": "db9fa9f74614a890f3d4409f34127414286936ee",
+  "priorCandidate": "10675d79f0a1f523e609ff48b7a2cca0e045b690",
   "strictCoverageAllFourDimensions": 100,
-  "standaloneBytes": 3780639,
+  "standaloneBytes": 3797668,
   "standaloneCapBytes": 3600000,
-  "standaloneOverrunBytes": 180639,
-  "greasyforkBytes": 2325042,
+  "standaloneOverrunBytes": 197668,
+  "greasyforkBytes": 2324257,
   "greasyforkCapBytes": 2000000,
-  "greasyforkOverrunBytes": 325042,
+  "greasyforkOverrunBytes": 324257,
   "greasyforkResourceFailure": "userscript/resources/fluentread-data.v1.js differs from the fixed resource at af81332fb598f78b1199d103e0943e4e521a7f96",
   "svgCompressionStandaloneReductionBytes": 17468,
   "standardIncludesSVGTable": false,
@@ -384,5 +226,137 @@
     "GreasyFork fixed data resource mismatch",
     "independent audit pending"
   ],
-  "docsBuildPassed": true
+  "docsBuildPassed": true,
+  "requestSchedulerAndRetryContractTests": 83,
+  "realInstalledMessageRuntimePrivacyTests": 8,
+  "baselineMeasurements": {
+    "base": "8467b6757affb4bc895d44fa8fbf12a65bee7479",
+    "previousCandidate": "10675d79f0a1f523e609ff48b7a2cca0e045b690",
+    "sameToolchain": {
+      "node": "v26.7.0",
+      "pnpm": "9.12.1",
+      "vite": "5.4.19",
+      "wxt": "0.20.18",
+      "lockSha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+      "cpuTarget": 60,
+      "maxWorkers": 1,
+      "concurrency": 1
+    },
+    "trackedBaselineVerifiedUnmodified": true,
+    "candidateRestoredByteExactAfterBaseline": true,
+    "historicalStandardBytes": 1959450,
+    "historicalDifferenceBytes": 44,
+    "originalEntryAndReadOnlyAttributionHookArtifactsEqual": true,
+    "measurementBasis": "Use the current original-entry artifact 1959494 bytes; retain historical 1959450 separately. No additional baseline reruns.",
+    "variants": {
+      "userscript": {
+        "baselineBytes": 1959494,
+        "candidateBytes": 1961493,
+        "candidateMinusBaselineBytes": 1999,
+        "capBytes": 1960000,
+        "baselineOverrunBytes": 0,
+        "candidateOverrunBytes": 1493,
+        "baselineSha256": "9052b50def9fa5e8802542417fdda3edc1228f50751454d50be92020ff47dc9c",
+        "candidateSha256": "1fecf889d9aabd28defd79b1a013f814fbdc44669726a8389cfb74eee90d175e"
+      },
+      "userscript-standalone": {
+        "baselineBytes": 3795702,
+        "candidateBytes": 3797668,
+        "candidateMinusBaselineBytes": 1966,
+        "capBytes": 3600000,
+        "baselineOverrunBytes": 195702,
+        "candidateOverrunBytes": 197668,
+        "baselineSha256": "ceacc16bd5e767df7e5e854295d9750f6fb6697709be719fae8dd92d4a08ba01",
+        "candidateSha256": "83c628cfdd6d69e05b5384fe00de41e9a67a206fd0d8637f40eca0f4e8429fd1"
+      },
+      "userscript-greasyfork": {
+        "baselineBytes": 2320196,
+        "candidateBytes": 2324257,
+        "candidateMinusBaselineBytes": 4061,
+        "capBytes": 2000000,
+        "baselineOverrunBytes": 320196,
+        "candidateOverrunBytes": 324257,
+        "baselineSha256": "c619efa5515b54d28400ad1e4f6c45f24952b659a2d8e1957014170b9faa40fd",
+        "candidateSha256": "c9e161a854e7af2482fa7f8195aad59c0b6be79e6993097e889975daf297ecb4"
+      }
+    },
+    "fixedResourceFailureExistsOnUnmodifiedBaseline": true,
+    "candidateDataEqualsBaseline": true,
+    "svgRemovedFromCurrentPR": true,
+    "svgIndependentLocalCandidateStandaloneSavingBytes": 17468,
+    "standalonePreviouslyCompressed10675Bytes": 3780639,
+    "oldCandidateWithoutSVGBytes": 3798107,
+    "localSvgCandidatePubliclyPublished": false,
+    "capsAndFixedResourcesChanged": false,
+    "stages": [
+      {
+        "stage": "round2-baseline-userscript-build",
+        "startedAt": "2026-10-09T12:31:53.508427+00:00",
+        "durationSeconds": 3.818,
+        "exitCode": 0
+      },
+      {
+        "stage": "round2-baseline-userscript-verifier",
+        "startedAt": "2026-10-09T12:31:57.327948+00:00",
+        "durationSeconds": 0.264,
+        "exitCode": 0
+      },
+      {
+        "stage": "round2-baseline-userscript-standalone-build",
+        "startedAt": "2026-10-09T12:31:57.592183+00:00",
+        "durationSeconds": 7.223,
+        "exitCode": 0
+      },
+      {
+        "stage": "round2-baseline-userscript-standalone-verifier",
+        "startedAt": "2026-10-09T12:32:04.818464+00:00",
+        "durationSeconds": 0.214,
+        "exitCode": 1
+      },
+      {
+        "stage": "round2-baseline-userscript-greasyfork-build",
+        "startedAt": "2026-10-09T12:32:05.032665+00:00",
+        "durationSeconds": 3.018,
+        "exitCode": 1
+      },
+      {
+        "stage": "round2-baseline-userscript-greasyfork-verifier",
+        "startedAt": "2026-10-09T12:32:08.052022+00:00",
+        "durationSeconds": 0.214,
+        "exitCode": 1
+      },
+      {
+        "stage": "round2-baseline-standard-original-entry",
+        "startedAt": "2026-10-09T12:35:26.229568+00:00",
+        "durationSeconds": 3.82,
+        "exitCode": 0
+      },
+      {
+        "stage": "round2-baseline-standard-original-verifier",
+        "startedAt": "2026-10-09T12:35:30.050102+00:00",
+        "durationSeconds": 0.264,
+        "exitCode": 0
+      }
+    ]
+  },
+  "providerContextLeaseRemovedAfterCallSiteAudit": true,
+  "schedulerBrokerProbeClientLeasesRetained": true,
+  "occamCleanupMeasuredStandardSavingBytes": 187,
+  "svgInCurrentPR": false,
+  "svgReductionEvidenceAppliesToIndependentLocalCandidate": true,
+  "unknownNoTabPrivacyConservative": true,
+  "mixedProbeDeadlockFixed": true,
+  "recoveryWindowOrProcessActions": 0,
+  "priorValidation": {
+    "head": "10675d79f0a1f523e609ff48b7a2cca0e045b690",
+    "passed": 1654,
+    "strictModules": 8,
+    "svgCompressionWasIncluded": true,
+    "standardBytes": 1961932,
+    "standaloneBytes": 3780639,
+    "greasyforkBytes": 2325042
+  },
+  "replayRawEvidenceHead": "10675d79f0a1f523e609ff48b7a2cca0e045b690",
+  "replayContractRevalidatedInAffectedSuite": true,
+  "baselineHeaderFailureFixedPreviouslyInTestExpectationOnly": true
 }

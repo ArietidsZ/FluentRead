@@ -25,7 +25,6 @@ export interface TranslationRequestHandlerDependencies {
 }
 
 export interface TranslationRequestContext {
-    extensionContext?: {url: string; incognito?: boolean};
     sender?: {
         id?: string;
         url?: string;

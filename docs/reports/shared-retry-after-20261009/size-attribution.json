@@ -1,0 +1,110 @@
+{
+  "base": "8467b6757affb4bc895d44fa8fbf12a65bee7479",
+  "previousCandidate": "10675d79f0a1f523e609ff48b7a2cca0e045b690",
+  "sameToolchain": {
+    "node": "v26.7.0",
+    "pnpm": "9.12.1",
+    "vite": "5.4.19",
+    "wxt": "0.20.18",
+    "lockSha256": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "cpuTarget": 60,
+    "maxWorkers": 1,
+    "concurrency": 1
+  },
+  "trackedBaselineVerifiedUnmodified": true,
+  "candidateRestoredByteExactAfterBaseline": true,
+  "historicalStandardBytes": 1959450,
+  "historicalDifferenceBytes": 44,
+  "originalEntryAndReadOnlyAttributionHookArtifactsEqual": true,
+  "measurementBasis": "Use the current original-entry artifact 1959494 bytes; retain historical 1959450 separately. No additional baseline reruns.",
+  "variants": {
+    "userscript": {
+      "baselineBytes": 1959494,
+      "candidateBytes": 1961493,
+      "candidateMinusBaselineBytes": 1999,
+      "capBytes": 1960000,
+      "baselineOverrunBytes": 0,
+      "candidateOverrunBytes": 1493,
+      "baselineSha256": "9052b50def9fa5e8802542417fdda3edc1228f50751454d50be92020ff47dc9c",
+      "candidateSha256": "1fecf889d9aabd28defd79b1a013f814fbdc44669726a8389cfb74eee90d175e"
+    },
+    "userscript-standalone": {
+      "baselineBytes": 3795702,
+      "candidateBytes": 3797668,
+      "candidateMinusBaselineBytes": 1966,
+      "capBytes": 3600000,
+      "baselineOverrunBytes": 195702,
+      "candidateOverrunBytes": 197668,
+      "baselineSha256": "ceacc16bd5e767df7e5e854295d9750f6fb6697709be719fae8dd92d4a08ba01",
+      "candidateSha256": "83c628cfdd6d69e05b5384fe00de41e9a67a206fd0d8637f40eca0f4e8429fd1"
+    },
+    "userscript-greasyfork": {
+      "baselineBytes": 2320196,
+      "candidateBytes": 2324257,
+      "candidateMinusBaselineBytes": 4061,
+      "capBytes": 2000000,
+      "baselineOverrunBytes": 320196,
+      "candidateOverrunBytes": 324257,
+      "baselineSha256": "c619efa5515b54d28400ad1e4f6c45f24952b659a2d8e1957014170b9faa40fd",
+      "candidateSha256": "c9e161a854e7af2482fa7f8195aad59c0b6be79e6993097e889975daf297ecb4"
+    }
+  },
+  "fixedResourceFailureExistsOnUnmodifiedBaseline": true,
+  "candidateDataEqualsBaseline": true,
+  "svgRemovedFromCurrentPR": true,
+  "svgIndependentLocalCandidateStandaloneSavingBytes": 17468,
+  "standalonePreviouslyCompressed10675Bytes": 3780639,
+  "oldCandidateWithoutSVGBytes": 3798107,
+  "localSvgCandidatePubliclyPublished": false,
+  "capsAndFixedResourcesChanged": false,
+  "stages": [
+    {
+      "stage": "round2-baseline-userscript-build",
+      "startedAt": "2026-10-09T12:31:53.508427+00:00",
+      "durationSeconds": 3.818,
+      "exitCode": 0
+    },
+    {
+      "stage": "round2-baseline-userscript-verifier",
+      "startedAt": "2026-10-09T12:31:57.327948+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 0
+    },
+    {
+      "stage": "round2-baseline-userscript-standalone-build",
+      "startedAt": "2026-10-09T12:31:57.592183+00:00",
+      "durationSeconds": 7.223,
+      "exitCode": 0
+    },
+    {
+      "stage": "round2-baseline-userscript-standalone-verifier",
+      "startedAt": "2026-10-09T12:32:04.818464+00:00",
+      "durationSeconds": 0.214,
+      "exitCode": 1
+    },
+    {
+      "stage": "round2-baseline-userscript-greasyfork-build",
+      "startedAt": "2026-10-09T12:32:05.032665+00:00",
+      "durationSeconds": 3.018,
+      "exitCode": 1
+    },
+    {
+      "stage": "round2-baseline-userscript-greasyfork-verifier",
+      "startedAt": "2026-10-09T12:32:08.052022+00:00",
+      "durationSeconds": 0.214,
+      "exitCode": 1
+    },
+    {
+      "stage": "round2-baseline-standard-original-entry",
+      "startedAt": "2026-10-09T12:35:26.229568+00:00",
+      "durationSeconds": 3.82,
+      "exitCode": 0
+    },
+    {
+      "stage": "round2-baseline-standard-original-verifier",
+      "startedAt": "2026-10-09T12:35:30.050102+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 0
+    }
+  ]
+}
