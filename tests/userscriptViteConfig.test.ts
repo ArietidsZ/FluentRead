@@ -28,6 +28,25 @@ const entrypointId = resolve(process.cwd(), 'entrypoints/userscript-injection-fi
 const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
 
+describe('GF Noble vendor boundary', () => {
+    it.each(['standard', 'standalone', 'greasyfork'] as const)('externalizes only the two existing imports in %s', async mode => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', mode === 'standalone' ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', mode === 'greasyfork' ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules();
+            const {default: config} = await import('@/userscript/vite.config');
+            const options = (config as {build: {rollupOptions: {external: string[]; output: {globals: Record<string, string>}}}}).build.rollupOptions;
+            for (const name of ['@noble/hashes/sha2', '@noble/hashes/utils']) {
+                expect(options.external.includes(name)).toBe(mode === 'greasyfork');
+                expect(options.output.globals[name]).toBe(mode === 'greasyfork' ? 'FluentReadUserscriptVendor.nobleHashes' : undefined);
+            }
+            expect(options.output.globals['crypto-js/sha256']).toBe(mode === 'greasyfork' ? 'FluentReadUserscriptVendor.sha256' : undefined);
+        } finally {vi.unstubAllEnvs();vi.resetModules();}
+    });
+});
+
 describe('GF pinned Vite inline styles', () => {
     const paths = {
         notice: 'src/features/page-notice/content/notice.css',

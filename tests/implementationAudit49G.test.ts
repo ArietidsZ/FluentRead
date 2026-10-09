@@ -8,6 +8,8 @@ import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import {IDBFactory, IDBKeyRange} from 'fake-indexeddb';
 import {parseHTML} from 'linkedom';
 import {TinyColor, names as colorNames} from '@ctrl/tinycolor';
+import {sha256 as installedNobleSha256} from '@noble/hashes/sha2';
+import {bytesToHex as installedBytesToHex} from '@noble/hashes/utils';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
 import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
@@ -77,6 +79,7 @@ type Vendor = {
     openAICompatible: Pick<typeof import('@ai-sdk/openai-compatible'), 'createOpenAICompatible'>;
     francMin: typeof import('franc-min');
     tinycolor: Pick<typeof import('@ctrl/tinycolor'), 'TinyColor'>;
+    nobleHashes: {sha256: typeof installedNobleSha256; bytesToHex: typeof installedBytesToHex};
     Dexie: typeof import('dexie')['default'];
 };
 
@@ -280,6 +283,40 @@ describe('audit 49G shipped userscript resources', () => {
         expect(control.discover(document).map(candidate => candidate.element.id)).toEqual(['prose']);
         const shipped = new TranslationCandidateCore({url: new URL('https://github.com/fixture'), adapters: compileSiteRulePack(shippedPack)});
         expect(shipped.discover(document).map(candidate => candidate.element.id)).toEqual(['prose']);
+    });
+
+    it.each([
+        {name: 'empty', input: ''}, {name: 'ASCII', input: 'abc'}, {name: 'Unicode UTF-8', input: '流畅阅读🙂\0e\u0301'},
+        ...[55, 56, 63, 64, 65, 127, 128, 129].map(length => ({name: `block boundary ${length}`, input: 'a'.repeat(length)})),
+        {name: 'offset typed array', input: new Uint8Array(Array.from({length: 90}, (_, index) => index)).subarray(7, 72)},
+    ])('shipped Noble preserves synchronous sha256/bytesToHex for $name without mutating input', ({input}) => {
+        const {vendor} = vendorRealm();
+        const before = typeof input === 'string' ? input : new Uint8Array(input.buffer).slice();
+        const digest = vendor.nobleHashes.sha256(input);
+        expect(digest).toBeInstanceOf(Uint8Array);
+        expect(digest.byteLength).toBe(32);
+        expect((digest as unknown as {then?: unknown}).then).toBeUndefined();
+        expect(Array.from(digest)).toEqual(Array.from(installedNobleSha256(input)));
+        const hex = vendor.nobleHashes.bytesToHex(digest);
+        expect(typeof hex).toBe('string');
+        expect(hex).toBe(installedBytesToHex(installedNobleSha256(input)));
+        expect(hex).toBe(createHash('sha256').update(input).digest('hex'));
+        expect(hex).toMatch(/^[a-f0-9]{64}$/u);
+        const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+        expect(vendor.nobleHashes.bytesToHex(bytes)).toBe(installedBytesToHex(bytes));
+        expect(vendor.nobleHashes.bytesToHex(bytes)).toBe(Buffer.from(bytes).toString('hex'));
+        expect(typeof input === 'string' ? input : new Uint8Array(input.buffer)).toEqual(before);
+    });
+
+    it('shipped Noble retains the installed precise-version full MIT notice and the separate CryptoJS SHA256 export', () => {
+        const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'node_modules/@noble/hashes/package.json'), 'utf8'));
+        expect(manifest.version).toBe('1.8.0');
+        expect(manifest.license).toBe('MIT');
+        const license = readFileSync(resolve(process.cwd(), 'node_modules/@noble/hashes/LICENSE'), 'utf8').trim().replace(/[ \t]+$/gmu, '');
+        expect(asset(vendorFile)).toContain(`/*\n@noble/hashes 1.8.0 — MIT\n${license}\n*/`);
+        const {vendor} = vendorRealm();
+        expect(vendor.nobleHashes.sha256).not.toBe(vendor.sha256);
+        expect(vendor.sha256('abc').toString()).toBe(createHash('sha256').update('abc').digest('hex'));
     });
 
     it('hashes UTF-8, empty and bounded large inputs through the shipped crypto exports', () => {

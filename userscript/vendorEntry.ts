@@ -15,10 +15,13 @@ import padPkcs7 from 'crypto-js/pad-pkcs7';
 import DexieImplementation from 'dexie/dist/dexie.min.js';
 import {franc, francAll} from 'franc-min';
 import {TinyColor} from '@ctrl/tinycolor';
+import {sha256 as nobleSha256} from '@noble/hashes/sha2';
+import {bytesToHex} from '@noble/hashes/utils';
 
 export const ai = {APICallError, RetryError, generateText};
 export const openAICompatible = {createOpenAICompatible};
 export const francMin = {franc, francAll};
 export const tinycolor = {TinyColor};
+export const nobleHashes = {sha256: nobleSha256, bytesToHex};
 export const Dexie = DexieImplementation;
 export {sha256, md5, hmacSha256, aes, encUtf8, encBase64, modeEcb, padPkcs7};
