@@ -39,6 +39,7 @@ const vendorGlobals: Record<string, string> = {
     'crypto-js/pad-pkcs7': 'FluentReadUserscriptVendor.padPkcs7',
     'dexie/dist/dexie.min.js': 'FluentReadUserscriptVendor.Dexie',
     'franc-min': 'FluentReadUserscriptVendor.francMin',
+    '@ctrl/tinycolor': 'FluentReadUserscriptVendor.tinycolor',
 };
 function installedVersion(name: string): string {
     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};

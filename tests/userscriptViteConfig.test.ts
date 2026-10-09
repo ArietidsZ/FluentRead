@@ -32,10 +32,10 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
         const vm = await vi.importActual<typeof import('node:vm')>('node:vm');
         const authoritative = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/site-adaptation/catalog/established.json'), 'utf8'));
         const data = vm.runInNewContext(readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 5000});
-        if (variant === 'unchanged' || variant === 'reordered' || variant === 'removed-rule') {
-            data.siteCatalogs.established = structuredClone(authoritative);
-        }
-        if (variant === 'reordered') data.siteCatalogs.established.reverse();
+        // 显式构造历史资产和重建分支，固定资源刷新后仍验证相同契约。
+        data.siteCatalogs.established = structuredClone(authoritative);
+        if (variant === 'old-asset') data.siteCatalogs.established.shift();
+        if (variant === 'reordered' || variant === 'missing-runtime-rule') data.siteCatalogs.established.reverse();
         if (variant === 'removed-rule') data.siteCatalogs.established.push({id: 'removed-pinned-rule', match: {hosts: ['removed.invalid']}});
         vi.doMock('node:vm', () => ({...vm, runInNewContext: () => data}));
         vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');

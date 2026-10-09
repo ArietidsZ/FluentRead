@@ -14,9 +14,11 @@ import modeEcb from 'crypto-js/mode-ecb';
 import padPkcs7 from 'crypto-js/pad-pkcs7';
 import DexieImplementation from 'dexie/dist/dexie.min.js';
 import {franc, francAll} from 'franc-min';
+import {TinyColor} from '@ctrl/tinycolor';
 
 export const ai = {APICallError, RetryError, generateText};
 export const openAICompatible = {createOpenAICompatible};
 export const francMin = {franc, francAll};
+export const tinycolor = {TinyColor};
 export const Dexie = DexieImplementation;
 export {sha256, md5, hmacSha256, aes, encUtf8, encBase64, modeEcb, padPkcs7};
