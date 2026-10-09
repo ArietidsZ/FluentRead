@@ -1,7 +1,7 @@
 /**
  * @file tests/popupKeyInformation.test.ts
  * 文件职责：执行真实 Popup 客户端模板，验证首页默认服务、配置模型与原有抽屉入口。
- * 主要内容：覆盖模型能力、请求体覆盖、自定义接口、外部同步、中英文无障碍名称，以及模块排序和隐藏栏目后站点规则的嵌套边界。
+ * 主要内容：覆盖模型能力、请求体覆盖、自定义接口、外部同步、中英文无障碍名称，以及模块排序、PDF 主入口与迟到标签页查询的模板边界。
  * 模块边界：浏览器、配置存储和展示组件为受控端口；不读取源码私有状态，不将 DOM 测试视为真实几何或在线服务证明。
  */
 import {createRequire} from 'node:module';
@@ -18,12 +18,16 @@ import {customModelString} from '@/src/core/config/catalog';
 import {LOCAL_TRANSLATION_MODEL_IDS} from '@/src/core/config/localTranslation';
 import {translate, translateLegacyText, type UiLanguage} from '@/src/core/i18n';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+import type {PopupActiveTab} from '@/src/app/popup/pageActions';
 
 const runtime = createRequire(import.meta.url)('vue') as typeof import('vue');
 const language = runtime.ref<UiLanguage>('zh-CN');
 const config = new Config();
 const listeners = new Set<(value: Config) => void>();
 const patches = vi.fn(), openOptions = vi.fn(), createTab = vi.fn();
+const queryTabs = vi.fn<() => Promise<PopupActiveTab[]>>();
+const send = vi.fn<(id: number, message: {type: string; action?: string}) => Promise<unknown>>();
+const tabUpdated = new Set<(id: number, change: {url?: string; status?: string}, tab: PopupActiveTab & {active?: boolean}) => void>();
 let server: ViteDevServer, component: Component, app: App | undefined, document: Document;
 let window: ReturnType<typeof parseHTML>['window'];
 
@@ -43,7 +47,7 @@ function model() {return summary().querySelector('.provider-summary-model');}
 
 beforeAll(async () => {
   registerAllUiLanguageBundles();
-  vi.stubGlobal('__popupSummaryFixture', {config, language, listeners, patches, openOptions, createTab,
+  vi.stubGlobal('__popupSummaryFixture', {config, language, listeners, patches, openOptions, createTab, queryTabs, send, tabUpdated,
     t: (key: string, params?: Parameters<typeof translate>[2]) => translate(key, language.value, params),
     translateLegacy: (text: string) => translateLegacyText(text, language.value)});
   server = await createServer({root: process.cwd(), configFile: false, appType: 'custom', logLevel: 'silent',
@@ -69,7 +73,8 @@ beforeAll(async () => {
         return ts.transpileModule(script.content, {compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext}}).outputText;
       }
       if (id === '\0summary-browser') return `const f=globalThis.__popupSummaryFixture;const event={addListener:()=>{},removeListener:()=>{}};
-        export default {tabs:{query:async()=>[{id:7,windowId:3,url:'https://example.test/a'}],sendMessage:async()=>({isTranslated:false}),create:f.createTab,onUpdated:event,onActivated:event,onRemoved:event},
+        export default {tabs:{query:f.queryTabs,sendMessage:f.send,create:f.createTab,
+          onUpdated:{addListener:fn=>f.tabUpdated.add(fn),removeListener:fn=>f.tabUpdated.delete(fn)},onActivated:event,onRemoved:event},
         runtime:{getManifest:()=>({version:'0.0.35'}),getURL:p=>'extension://'+p,sendMessage:async()=>({success:true}),openOptionsPage:f.openOptions}};`;
       if (id === '\0summary-config') return `const f=globalThis.__popupSummaryFixture;export const config=f.config;
         export const subscribeConfig=fn=>{f.listeners.add(fn);return()=>f.listeners.delete(fn)};
@@ -87,7 +92,10 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  vi.clearAllMocks();listeners.clear();language.value = 'zh-CN';
+  vi.clearAllMocks();listeners.clear();tabUpdated.clear();language.value = 'zh-CN';
+  queryTabs.mockReset().mockResolvedValue([{id: 7, windowId: 3, url: 'https://example.test/a'}]);
+  send.mockReset().mockImplementation(async (_id, message) => message.type === 'getFullPageTranslationState'
+    ? {isTranslated: false} : {status: 'success', isTranslated: message.action === 'fullPage'});
   Object.assign(config, normalizeConfig({...new Config(), uiLanguageSetupCompleted: true, on: true,
     service: 'openai', model: {...new Config().model, openai: 'saved-model'}, token: {openai: 'test-only-key'}}));
   const dom = parseHTML('<html><body><div id="app"></div></body></html>');
@@ -131,6 +139,66 @@ async function mount(plugin?: Plugin) {
 }
 
 describe('Popup 首页关键信息', () => {
+  it.each([['zh-CN', '打开 PDF 阅读器'], ['en-US', 'Open PDF reader']] as const)('%s PDF 主入口保留服务摘要并只打开携带原文地址的阅读器', async (locale, label) => {
+    language.value = locale;
+    queryTabs.mockResolvedValue([{id: 7, windowId: 3, url: 'https://example.test/docs/research.pdf?edition=2#page=5'}]);
+    const before = JSON.stringify(config);
+    await mount();
+    const button = document.querySelector<HTMLButtonElement>('[data-testid="page-translation"]')!;
+    expect(summary().querySelector('strong')?.textContent).toBe('OpenAI');
+    expect(model()?.textContent).toBe('saved-model');
+    expect(summary().getAttribute('aria-haspopup')).toBe('dialog');
+    expect(button.querySelector('.translate-label')?.textContent).toBe(label);
+    expect(button.getAttribute('title')).toBe(label);
+    expect(button.querySelector('.translate-hotkey')).toBeNull();
+    expect(document.querySelector('[data-testid="section-translation"]')).toBeNull();
+    expect(button.hasAttribute('disabled')).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+
+    button.dispatchEvent(new window.Event('click'));await settle();
+    expect(createTab.mock.calls).toEqual([[{url: 'extension://document.html#pdf=https%3A%2F%2Fexample.test%2Fdocs%2Fresearch.pdf%3Fedition%3D2'}]]);
+    expect(send).not.toHaveBeenCalled();
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.getAttribute('aria-busy')).toBe('false');
+    expect(JSON.stringify(config)).toBe(before);expect(patches).not.toHaveBeenCalled();
+  });
+
+  it('PDF 导航回普通页恢复实际主按钮与快捷键，旧 PDF 查询晚到不改写模板或创建阅读器', async () => {
+    language.value = 'en-US';
+    queryTabs.mockResolvedValue([{id: 7, windowId: 3, url: 'https://example.test/first.pdf'}]);
+    await mount();
+    expect(document.querySelector('.translate-label')?.textContent).toBe('Open PDF reader');
+    expect(tabUpdated.size).toBe(1);
+
+    let resolveOld!: (tabs: PopupActiveTab[]) => void;
+    queryTabs.mockReturnValueOnce(new Promise(resolve => {resolveOld = resolve;}));
+    const latePdf = {id: 7, windowId: 3, active: true, url: 'https://example.test/late.pdf'};
+    for (const listener of tabUpdated) listener(7, {url: latePdf.url}, latePdf);
+    const article = {id: 7, windowId: 3, active: true, url: 'https://example.test/article'};
+    queryTabs.mockResolvedValue([article]);
+    for (const listener of tabUpdated) listener(7, {url: article.url}, article);
+    await settle();
+
+    const button = document.querySelector<HTMLButtonElement>('[data-testid="page-translation"]')!;
+    expect(button.querySelector('.translate-label')?.textContent).toBe('Translate this page');
+    expect(button.querySelector('.translate-hotkey')?.textContent).toBeTruthy();
+    expect(document.querySelector('[data-testid="section-translation"]')).not.toBeNull();
+    expect(summary().querySelector('strong')?.textContent).toBe('OpenAI');
+    expect(model()?.textContent).toBe('saved-model');
+    resolveOld([latePdf]);await settle();
+    expect(button.getAttribute('title')).toBe('Translate this page');
+    expect(button.querySelector('.translate-hotkey')?.textContent).toBeTruthy();
+    expect(document.querySelector('[data-testid="section-translation"]')).not.toBeNull();
+    expect(createTab).not.toHaveBeenCalled();
+    expect(send.mock.calls).toEqual([[7, {type: 'getFullPageTranslationState'}]]);
+
+    button.dispatchEvent(new window.Event('click'));await settle();
+    expect(createTab).not.toHaveBeenCalled();
+    expect(send.mock.calls).toEqual([[7, {type: 'getFullPageTranslationState'}], [7, {type: 'contextMenuTranslate', action: 'fullPage'}]]);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(model()?.textContent).toBe('saved-model');expect(patches).not.toHaveBeenCalled();
+  });
+
   it('首页直接显示网页默认服务和配置模型，完整信息进入无障碍名称', async () => {
     await mount();
     expect(summary().querySelector('strong')?.textContent).toBe('OpenAI');
