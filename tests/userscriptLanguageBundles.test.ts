@@ -2,7 +2,8 @@ import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {UI_LANGUAGE_BUNDLES} from '@/src/core/i18n/bundles';
+// 脚本发布的语言资源不含智能高亮文案；摘要必须按脚本实际使用的投影计算。
+import {UI_LANGUAGE_BUNDLES} from '../userscript/languageBundles';
 
 const languageDir = resolve(process.cwd(), 'userscript/languages');
 const digest = createHash('sha256').update(JSON.stringify(UI_LANGUAGE_BUNDLES['fr-FR'])).digest('hex').slice(0, 16);

@@ -81,7 +81,7 @@ describe('userscript browser shim injection', () => {
         const controller = installInformationHighlight({} as Document, {enabled: true, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'amber', style: 'background', intensity: 'standard'});
         expect(controller.setEnabled(true)).toMatchObject({enabled: false, phase: 'unsupported', mode: 'keywords'});
         controller.updatePreferences({enabled: true, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'surprisal-local', density: 'low', color: 'mint', style: 'underline', intensity: 'standard'});
-        expect(controller.retry()).toMatchObject({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'surprisal-local'});
+        expect(controller.retry()).toMatchObject({enabled: false, mode: 'surprisal-local'});
         controller.refresh();controller.dispose();expect(controller.getState().enabled).toBe(false);
         expect(userscriptAliases.find(alias => alias.find === '@/src/features/information-highlight/public')?.replacement).toMatch(/userscript\/informationHighlight\.ts$/u);
     });

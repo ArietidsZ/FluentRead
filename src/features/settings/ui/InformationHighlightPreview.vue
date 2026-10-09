@@ -17,8 +17,7 @@
 <script setup lang="ts">
 import {computed} from 'vue'
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight'
-import {informationWordSpans, selectInformationSpans} from '@/src/features/information-highlight/domain/keywords'
-import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap} from '@/src/features/information-highlight/domain/presentation'
+import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, informationWordSpans, presentInformationHeatmap, selectInformationSpans} from '@/src/features/information-highlight/domain/public'
 import {useUiI18n} from '@/src/ui/i18n'
 const props = defineProps<{preferences: InformationHighlightPreferences; compact?: boolean}>()
 const {t} = useUiI18n()

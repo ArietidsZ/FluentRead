@@ -12,7 +12,7 @@
           <button type="button" :disabled="!context.active.value" :aria-label="t(`informationHighlight.tags.${tag}`)" :data-information-highlight-tag="tag" @keydown.esc.stop="tagTooltips.forEach(tooltip => {tooltip.onClose(); tooltip.hide()})">{{ t(`informationHighlight.tags.${tag}`) }}</button>
         </ElTooltip>
         <FieldHelp :content="t('informationHighlight.principle.help')" :label="t('informationHighlight.principle')" data-information-highlight-principle>
-          <template #content>{{ t('informationHighlight.principle.help') }} <a :href="paperUrl" target="_blank" rel="noopener noreferrer">{{ t('informationHighlight.principle.paper') }}</a></template>
+          <template #content>{{ t('informationHighlight.principle.help') }} <a class="information-highlight-paper" :href="paperUrl" target="_blank" rel="noopener noreferrer">{{ t('informationHighlight.principle.paper') }}</a></template>
         </FieldHelp>
       </span>
     </template>
@@ -49,6 +49,7 @@ const useKeywords = computed(() => {const current = context.capture(); return ()
 </script>
 <style scoped>
 .information-highlight-tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }.information-highlight-tags button { min-height: 28px; padding: 4px 9px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); background: var(--surface); font: inherit; font-size: 11px; line-height: 1.5; cursor: help; }.information-highlight-tags button:hover, .information-highlight-tags button:focus-visible { color: var(--brand-strong); border-color: var(--brand); background: var(--brand-soft); }.information-highlight-tags button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }.information-highlight-tags button:disabled { cursor: default; opacity: .55; }
+:global(.information-highlight-paper) { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
 :global(.fluentread-information-highlight-tag-popper) { max-width: min(320px, calc(100vw - 32px)); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
 .information-highlight-workspace { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 20px; align-items: start; }.information-highlight-example { min-width: 0; }
 @media (max-width: 850px) { .information-highlight-workspace { grid-template-columns: minmax(0, 1fr); gap: 20px; padding: 16px; } }
