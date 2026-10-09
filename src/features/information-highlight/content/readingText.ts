@@ -29,8 +29,14 @@ export function* collectInformationParagraphs(document: Document, readTranslatio
     let current: InformationParagraph | undefined, distance = 0;
     const stack: Frame[] = scope ? [{next: scope, endGroup: false, index: 0, translation: false, shortTranslation: false, tall: false}] : [];
     const height = view.innerHeight, away = (top: number, bottom: number) => top > height ? top - height : bottom < 0 ? -bottom : 0;
-    // 至少 16 个字符才算正文；带数字、不足四个词的短片段是日期、计数这类元信息，不上色。
-    const readable = (text: string) => text.length >= 16 && !(text.length < 40 && /\p{N}/u.test(text) && (text.match(/\p{L}{2,}/gu)?.length ?? 0) < 4);
+    // 至少 16 个字符才算正文。短于 40 个字符的片段里，带数字且不足四个词的是日期、计数这类元信息，
+    // 只有一个词的是单个标签或用户名（中日韩文字不靠空格分词，不按词数判断），都不上色。
+    const readable = (text: string) => {
+        if (text.length < 16) return false;
+        if (text.length >= 40) return true;
+        const words = text.match(/\p{L}{2,}/gu)?.length ?? 0;
+        return !(/\p{N}/u.test(text) && words < 4) && (words >= 2 || /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text));
+    };
     // 几乎全由三个以上链接组成的一段是标签、导航或相关链接列表，不是要读的句子；单个链接的标题仍然保留。
     const linkList = (paragraph: InformationParagraph) => {
         const links = new Set<Element>(); let linked = 0;

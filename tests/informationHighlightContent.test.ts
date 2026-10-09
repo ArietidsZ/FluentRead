@@ -486,12 +486,12 @@ describe('page-owned scoring, paint and cancellation', () => {
             + '<h2><a href="#story">Mitigating phantom executions across autonomous agents</a></h2>'
             + '<p id="tags"><a href="#a">#modulefederation</a> <a href="#b">#microfrontends</a> <a href="#c">#webperformance</a></p>'
             + '<p id="prose">Researchers compared <a href="#x">attention</a>, <a href="#y">inhibition</a> and <a href="#z">memory</a> across several long studies of adult readers.</p>'
-            + '<p id="figures">The 2013 study measured 4 groups of readers.</p><p id="bare">Bare paragraph without any anchors here.</p></article>');
+            + '<p id="tag"><a href="#t">#softwareengineering</a></p><p id="zh">这句话没有空格但确实是要读的正文。</p><p id="figures">The 2013 study measured 4 groups of readers.</p><p id="bare">Bare paragraph without any anchors here.</p></article>');
         const controller = installInformationHighlight(f.document, {...defaults, density: 'high', style: 'heatmap'}, {scoreLocal: vi.fn()});
         controller.setEnabled(true); await f.settle(); const words = f.painted();
         expect(words).toEqual(expect.arrayContaining(['phantom', 'inhibition', 'study', 'paragraph']));
-        for (const noise of ['Oct', 'hours', 'reactions', 'comments', 'modulefederation', 'microfrontends', 'webperformance']) expect(words).not.toContain(noise);
-        expect(controller.getState().processedParagraphs).toBe(4); controller.dispose();
+        for (const noise of ['Oct', 'hours', 'reactions', 'comments', 'modulefederation', 'microfrontends', 'webperformance', 'softwareengineering']) expect(words).not.toContain(noise);
+        expect(words).toContain('正文'); expect(controller.getState().processedParagraphs).toBe(5); controller.dispose();
     });
     it('replaces paint that starts inside a re-segmented paragraph instead of stacking colours', async () => {
         const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary. </p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');
@@ -561,7 +561,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         const original = f.document.querySelector('p')!.textContent!;
         const scored = texts.filter(text => text.length <= 24).join(''); expect(scored).toBe(original);
         expect(f.painted().every(text => original.includes(text))).toBe(true); controller.dispose();
-        const indivisible = fixture('<p>a' + '\u0301'.repeat(20) + '</p>');
+        const indivisible = fixture('<p>a' + '\u0301'.repeat(45) + '</p>');
         const blocked = installInformationHighlight(indivisible.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: async () => {throw new Error('INFORMATION_HIGHLIGHT_TEXT_LIMIT');}});
         blocked.setEnabled(true); await indivisible.settle(); expect(blocked.getState().errorCode).toBe('INFORMATION_HIGHLIGHT_TEXT_LIMIT'); blocked.dispose();
     });
