@@ -97,7 +97,7 @@ describe('PDF baseline and structural reading analysis', () => {
         const result = analyze([atom('Large title', 240, 50, 130, 18), atom('A regular sentence is not an equation.', 50, 80, 400), atom('F(x) = 1', 10, 120, 50), atom('G(x) = 2', 10, 133, 50), atom('∑x', 10, 190, 30), atom('Figure 3: x = y', 250, 230, 100)], [{kind: 'image', x: 300, y: 300, width: 50, height: 50}, {kind: 'form', x: 100, y: 300, width: 50, height: 50}]);
         expect(result.blocks[0].kind).toBe('heading');
         expect(result.preservedRegions.filter(region => region.kind === 'formula')).toHaveLength(1);
-        expect(result.blocks.find(block => block.source === '∑x')?.kind).toBe('text');
+        expect(result.blocks.find(block => block.source === '∑x')).toMatchObject({kind: 'formula', preserveSource: true});
         expect(result.blocks.find(block => block.source === 'Figure 3: x = y')?.kind).toBe('caption');
         expect(result.preservedRegions.filter(region => region.kind === 'figure').map(region => region.x)).toEqual([100, 300]);
     });
