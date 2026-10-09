@@ -427,7 +427,7 @@ function bundleUserscriptCss(): Plugin {
                 bootstrap,
                 bundleLibraries ? bundledLibraryNotices(entry.moduleIds) : '',
                 // 许可跟随实际打包的 SVG 模块；轻量出口不含此表，完整出口仍保留原许可全文。
-                entry.moduleIds.some((id) => normalizePath(id).split('?')[0] === resolve(root, 'src/ui/assets/serviceBrandPaths.json')),
+                entry.moduleIds.some((id) => normalizePath(id).split('?')[0] === normalizePath(resolve(root, 'src/ui/assets/serviceBrandPaths.json'))),
             );
 
             entry.code = entry.code.replace(/[\uFFFE\uFFFF]/gu, (character) => {

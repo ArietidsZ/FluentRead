@@ -14,7 +14,7 @@
   "tests/backgroundMessageRuntimePrivacy.test.ts": "cddbc6268b330dd068ca2f6530119f09904067fae4df5f3c111c681f5541ee79",
   "tests/test-matrix.json": "cd7634ae5a2a0c76acde7ac4803569312f4d0e1cacf759a8a9941d31c4cfb2bf",
   "tests/implementationAudit48A.test.ts": "cd726727625c74fbb910a2a17dd1d3bcc44893e607c13b874d9ca994662441ef",
-  "tests/userscriptViteConfig.test.ts": "06fd19b5637c9c3023a88594d0f86e3de61ad7cbffa82a7fbd305607a5005825",
-  "userscript/vite.config.ts": "e70f6e972bc3c9b472c9042c99395509782387ad629e289bc267a558f90f8834",
+  "tests/userscriptViteConfig.test.ts": "b71de2cfa298392ba4e048d5b9a6965bc1521022524dd62803b032e939256915",
+  "userscript/vite.config.ts": "223084ed968b815162f6ac085cd7a6956348de38f9adbfe93b97b829cade41fd",
   "src/providers/translation/connectionTest.ts": "2573c0b7e64abbed4079ba5f727467878b549d4b4f49a18e8d15364b1766048f"
 }

@@ -24,9 +24,19 @@ global、service、model+service 三种 cap=1 桶，分别测试首次 raw 与�
 
 此前SVG字符表压缩已撤出#906，仍仅是CW本地独立候选，没有新建公开PR。历史standalone收益17468字节不作为本次标准体积方案：[历史SVG实测](./svg-size-comparison.json)。上一批泛用lease调用审计与组合187字节收益是98e88历史记录，本轮建立了新的probe实际消费者：[历史调用点审计](./provider-lease-call-audit.json)、[历史Occam实测](./occam-size.json)。
 
+## 构建许可路径修复与当前模块图证据
+
+389a3f1独审发现：generateBundle左侧normalizePath(id)，右侧resolve(root, ...)未规范化，Windows原生反斜杠路径与Vite规范化模块ID不等，standalone实际含SVG却会漏附Lobe许可。现在仅给右侧增加同一个normalizePath，不改变翻译、scheduler或静态gzip逻辑。
+
+新增8项回归执行真实generateBundle handler：POSIX、Windows Vite正斜杠、Windows原生反斜杠以及query ID，各含SVG/无SVG；原实现3个Windows含SVG反例失败、5个对照通过，修复后的整份配置测试28/28通过。Windows路径端口按锁定Vite5.4.19的slash+posix.normalize行为模拟，没有声称在Windows操作系统上构建，也没有只传wrapper布尔值代替实际判定：[红例](./license-path-red.json)、[绿例](./license-path-green.json)、[本次验证](./license-path-validation.json)。
+
+用只读Vite observer记录真实生产entry.moduleIds与entry.modules，未改bundle。当前标准492个模块中SVG相关筛选为空，实际不附该许可；standalone1216个模块包含serviceBrandPaths.json及ServiceIcon，完整Lobe MIT许可字节存在。两份Linux产物与389a3f1逐字节一致：标准1959993、SHA256 7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5；standalone3797330、SHA256 e174bc76a8bd80c67bcd66de323b7324f091f40b6bd504d196abb64aec584a5e。原标准verifier通过，类型与测试审计通过。
+
+旧standard-svg-dependency中的1961932记录与旧standard-module-attribution已被本次实际图记录替换，每份明确绑定最终产物SHA/字节和当前配置源码SHA：[标准实际模块图](./standard-svg-dependency.json)、[standalone实际模块图](./standalone-svg-dependency.json)、[当前模块归因](./standard-module-attribution.json)。归因的renderedLength仍是未压缩tree-shaken值，不作为可相加的minified收益。此前pako解压字节一致与scheduler语义验证由389a3f1证据复用，功能源文件完全未改，不重新跑1690大套件或未变基线；本段之后的1690/覆盖数据明确指389a3f1已完成验证。
+
 ## 验证与剩余阻塞
 
-最终候选57个相关测试文件 **1690/1690通过**。9个原严格范围内模块（包括本轮改变的connectionTest）statements/branches/functions/lines均 **100%**；SDK adapter、areaRuntime和messageRuntime整文件原本不在该范围，实际改变路径已执行，不声称其整文件100%。TypeScript、测试审计、Chrome/Firefox构建和原标准userscript verifier通过：[测试范围](./affected-tests.json)、[覆盖率](./coverage-summary.json)、[源码SHA256](./source-sha256.json)、[阶段记录](./validation.json)。
+389a3f1候选57个相关测试文件 **1690/1690通过**；本次仅改构建路径判定，相关功能源文件未变。9个原严格范围内模块（包括本轮改变的connectionTest）statements/branches/functions/lines均 **100%**；SDK adapter、areaRuntime和messageRuntime整文件原本不在该范围，实际改变路径已执行，不声称其整文件100%。TypeScript、测试审计、Chrome/Firefox构建和原标准userscript verifier通过：[测试范围](./affected-tests.json)、[覆盖率](./coverage-summary.json)、[源码SHA256](./source-sha256.json)、[阶段记录](./validation.json)。
 
 | 产物 | 未修改8467基线字节 | 当前候选字节 | 本PR新增字节 | 原上限 | 基线超限 | 候选超限 |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
