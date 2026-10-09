@@ -1,7 +1,7 @@
 /**
  * @file src/app/content/informationHighlight.ts
  * 文件职责：装配当前页面的信息高亮控制器，将扩展模型消息端口适配成可取消的纯文本评分函数。
- * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面并通过注入的通知端口反馈开启、关闭、模型未下载或不支持，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
+ * 主要内容：持有激活实例、页面快照和请求身份，完整释放失效请求；快捷键只开关当前页面并通过注入的通知端口反馈开启（本地模型方式说明正在分析）、关闭、模型未下载或不支持，设置中的开关决定页面挂载、配置变化和路由切换后是否自动高亮，消息仍可临时开关当前页；未激活页面始终返回关闭状态。
  * 模块边界：只通过 feature public 与纯数据 protocol 装配，不导入 Worker、模型或后台内部实现，不写配置，不接触宿主原文。
  */
 import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
@@ -23,7 +23,7 @@ export interface InformationHighlightContentRuntime {
     updatePreferences(preferences: InformationHighlightPreferences): void;
     routeChanged(): void;
 }
-export type InformationHighlightNotice = 'on' | 'off' | 'modelNotReady' | 'error' | 'unsupported';
+export type InformationHighlightNotice = 'on' | 'onModel' | 'off' | 'modelNotReady' | 'error' | 'unsupported';
 export interface InformationHighlightMessageState {
     isSiteDisabled(): boolean;
     isPageSuspended?(): boolean;
@@ -75,7 +75,7 @@ export function createInformationHighlightContentRuntime(ports: {
                 const enable = !owner.getState().enabled;
                 announce = enable;
                 const state = owner.setEnabled(enable);
-                if (state.enabled === enable && state.phase !== 'unsupported') ports.notice?.(enable ? 'on' : 'off');
+                if (state.enabled === enable && state.phase !== 'unsupported') ports.notice?.(!enable ? 'off' : preference.mode === 'surprisal-local' ? 'onModel' : 'on');
             }, {capture: true, signal});
             signal.addEventListener('abort', () => {owner.dispose(); if (controller === owner) controller = undefined;}, {once: true});
         },
@@ -103,7 +103,7 @@ export function createPageInformationHighlightRuntime(ports: {
     const runtime = createInformationHighlightContentRuntime({document: ports.document, preferences: ports.config.informationHighlight,
         send: ports.send, readTranslationRoot: readVisibleTranslationRoot, canToggle: ports.canToggle,
         notice: ports.notice ?? (message => showPageNotice(translate(`informationHighlight.notice.${message}`, normalizeUiLanguage(ports.config.uiLanguage)),
-            message === 'on' || message === 'off' ? 'success' : 'error', {key: 'information-highlight'}))});
+            message.startsWith('o') ? 'success' : 'error', {key: 'information-highlight'}))});
     return {...runtime, feature: {id: 'information-highlight', isEnabled: () => ports.config.on !== false,
         mount: activation => runtime.mount(activation.signal, activation.isCurrent), unmount: runtime.unmount}};
 }

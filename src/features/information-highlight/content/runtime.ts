@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/content/runtime.ts
  * 文件职责：拥有单个阅读页面的信息高亮会话，协调只读分帧扫描、评分取消、文本缓存和原生 CSS Highlight 绘制。
- * 主要内容：开启和改偏好立即扫描，滚动与动态内容经过 180ms 稳定窗口后扫描，连续变化最迟 600ms 开始一次，每帧工作预算约 4ms；整轮收集完成后按离视口的距离评分，可见段落最先出现；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动和页面自身变化都沿用未变化段落的绘制，进行中的扫描不被打断（模型评分完成当前段落后按新视口重排），扫描完成后再回收离开阅读区域的范围，避免闪烁和丢弃模型已做的工作；迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
+ * 主要内容：开启和改偏好立即扫描，滚动与动态内容经过 180ms 稳定窗口后扫描，连续变化最迟 600ms 开始一次，页面不断变化而正文没有变时逐步放慢到约 5 秒一次，每帧工作预算约 4ms；整轮收集完成后按离视口的距离评分，可见段落最先出现；评分与选区按纯文本缓存，热力按八档强度分桶绘制；滚动和页面自身变化都沿用未变化段落的绘制，进行中的扫描不被打断（模型评分完成当前段落后按新视口重排），扫描完成后再回收离开阅读区域的范围，避免闪烁和丢弃模型已做的工作；迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
  * 模块边界：不访问配置存储或扩展消息、不改变宿主原文、class 和布局；本地模型评分、翻译根及状态通知由应用组合根注入，无原生绘制支持时诚实返回 unsupported。
  */
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
@@ -47,6 +47,8 @@ export function installInformationHighlight(document: Document, initial: Informa
     let pending: InformationParagraph[] = [];
     // active：正在收集或评分的扫描代次；wanted：其间又有滚动或页面变化；since：尚未开始扫描的最早一次请求。
     let active = -1, wanted = false, since = 0;
+    // touched：本轮扫描是否改动过绘制；quiet：连续多少轮什么都没改。动画、轮播等只改样式的页面据此放慢重扫。
+    let touched = false, quiet = 0;
     const styles = new Map<Document | ShadowRoot, HTMLStyleElement>(), observers = new Map<Document | ShadowRoot, MutationObserver>();
     const cache = new Map<string, CachedParagraph>();
     let cachedCharacters = 0;
@@ -72,7 +74,7 @@ export function installInformationHighlight(document: Document, initial: Informa
     /** 回收本轮扫描未再遇到的段落；仍在阅读区域内的绘制对象保持不动。 */
     const sweep = () => {
         for (const [node, entries] of painted) {
-            for (const [offset, entry] of entries) if (!seen.has(entry)) {erase(entry); entries.delete(offset);}
+            for (const [offset, entry] of entries) if (!seen.has(entry)) {erase(entry); entries.delete(offset); touched = true;}
             if (!entries.size) painted.delete(node);
         }
     };
@@ -189,7 +191,7 @@ export function installInformationHighlight(document: Document, initial: Informa
                     if (paintedRanges + ranges.length > 4096) {active = -1; notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
                     const entry: PaintedParagraph = {text: paragraph.text, signature, nodes: paragraph.runs.map(run => run.node), spans: spans.length,
                         ranges: ranges.map(([name, range]) => {const paint = bucket(name); paint.add(range); return [paint, range];})};
-                    paintedRanges += ranges.length; seen.add(entry);
+                    paintedRanges += ranges.length; seen.add(entry); touched = true;
                     let entries = painted.get(first.node);
                     if (!entries) {entries = new Map(); painted.set(first.node, entries);}
                     entries.set(first.offset, entry); count = spans.length;
@@ -212,8 +214,8 @@ export function installInformationHighlight(document: Document, initial: Informa
         }
         if (current() && version === generation) {
             scoreAbort = undefined; sweep(); reconcileRoots(completed.roots); notify({phase: 'active'});
-            const again = wanted; active = -1;
-            if (again) schedule();
+            const again = wanted; active = -1; quiet = touched ? 0 : Math.min(quiet + 1, 3);
+            if (again) schedule(false, 180 << quiet);
         }
     }
     function step(version: number): void {
@@ -238,14 +240,15 @@ export function installInformationHighlight(document: Document, initial: Informa
         timer = view.setTimeout(() => {
             timer = undefined;
             if (!current() || version !== generation) return;
-            active = version; seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
+            active = version; touched = false; seen.clear(); work = collectInformationParagraphs(document, ports.readTranslationRoot, ports.scope);
             notify({phase: 'analyzing', processedParagraphs: 0, highlightedSpans: 0});
             frame = view.requestAnimationFrame(() => step(version));
-        }, Math.max(0, Math.min(settle, since + 600 - now)));
+        }, Math.max(0, Math.min(settle, since + (600 << quiet) - now)));
     }
     /** 滚动、尺寸与页面自身变化：保留现有绘制；进行中的扫描先完成，不丢弃已做的工作，也不会被持续滚动反复打断。 */
-    function rescan(): void {if (active === generation) wanted = true; else schedule();}
-    const scroll = () => rescan(), refresh = () => schedule(true);
+    function rescan(): void {if (active === generation) wanted = true; else schedule(false, 180 << quiet);}
+    // 读者自己在滚动：恢复最快的响应。
+    const scroll = () => {quiet = 0; rescan();}, refresh = () => schedule(true);
     const teardown = () => {
         cancel(); clearPaint();
         for (const observer of observers.values()) observer.disconnect(); observers.clear();

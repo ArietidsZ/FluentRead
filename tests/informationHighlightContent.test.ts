@@ -54,7 +54,8 @@ function fixture(html = '<article><p id="paragraph">The extraordinary algorithm 
         getBoundingClientRect() {const top = Number(node.parentElement!.getAttribute('data-text-top') ?? 20); return {top, bottom: top + 20};},
     } as unknown as Range;};
     const flush = async () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0)); for (let i = 0; i < 6; i++) await Promise.resolve();};
-    const settle = async () => {vi.advanceTimersByTime(180); for (let i = 0; i < 350; i++) await flush();};
+    // 1440ms 覆盖页面只改样式时放慢后的最长稳定窗口。
+    const settle = async () => {vi.advanceTimersByTime(1440); for (let i = 0; i < 350; i++) await flush();};
     const mutate = (target: Node, type = 'characterData', addedNodes: Node[] = [], removedNodes: Node[] = []) => {
         for (const entry of observers) if (entry.root === target.getRootNode() && !entry.disconnect.mock.calls.length) entry.callback([{target, type, addedNodes, removedNodes} as unknown as MutationRecord], {} as MutationObserver);
     };
@@ -448,6 +449,25 @@ describe('page-owned scoring, paint and cancellation', () => {
         expect(f.painted()).toEqual(expect.arrayContaining(['distinctive', 'anticipated'])); expect(f.painted()).not.toContain('historical'); expect(f.painted()).not.toContain('concluding');
         controller.dispose();
     });
+    it('slows rescans down while the page keeps changing without touching the text, and speeds up again when the reader scrolls', async () => {
+        const f = fixture(), controller = installInformationHighlight(f.document, {...defaults}, {scoreLocal: vi.fn()});
+        const body = f.document.body, restyle = (value: string) => {const oldValue = body.getAttribute('class'); body.setAttribute('class', value);
+            f.observers[0].callback([{target: body, type: 'attributes', attributeName: 'class', oldValue} as unknown as MutationRecord], {} as MutationObserver);};
+        const finish = async () => {for (let i = 0; i < 20; i++) await f.flush();};
+        controller.setEnabled(true); await f.settle(); const painted = f.painted();
+        // 第一轮只改样式的重扫仍按 180ms 开始；它什么都没改，下一轮等 360ms，再下一轮 720ms。
+        restyle('a'); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(1); await finish(); expect(controller.getState().phase).toBe('active');
+        restyle('b'); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(0); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(1); await finish();
+        restyle('c'); vi.advanceTimersByTime(719); expect(f.frames.size).toBe(0); vi.advanceTimersByTime(1); expect(f.frames.size).toBe(1); await finish();
+        for (const value of ['d', 'e']) {restyle(value); vi.advanceTimersByTime(1439); expect(f.frames.size).toBe(0); vi.advanceTimersByTime(1); expect(f.frames.size).toBe(1); await finish();}
+        expect(f.painted()).toEqual(painted);
+        f.document.dispatchEvent(new f.window.Event('scroll')); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(1); await finish();
+        // 正文真的变了：这一轮改动了绘制，之后恢复最快的节奏。
+        const text = f.document.querySelector('p')!.firstChild as Text; text.data = 'Changed scientific vocabulary offers entirely different paragraphs.'; f.mutate(text);
+        vi.advanceTimersByTime(360); await finish(); expect(f.painted()).not.toEqual(painted);
+        restyle('f'); vi.advanceTimersByTime(180); expect(f.frames.size).toBe(1); await finish();
+        controller.dispose();
+    });
     it('replaces paint that starts inside a re-segmented paragraph instead of stacking colours', async () => {
         const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary. </p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');
         const controller = installInformationHighlight(f.document, {...defaults, density: 'high'}, {scoreLocal: vi.fn()});
@@ -606,7 +626,7 @@ describe('content composition and runtime score messages', () => {
         runtime.feature.mount({ctx: {} as never, signal: new AbortController().signal, isCurrent: () => true});
         press(f); await f.settle(); press(f);
         expect(pageNotice.mock.calls.map(([message, tone, options]) => [message, tone, options.key])).toEqual([
-            ['智能高亮已开启', 'success', 'information-highlight'],
+            ['智能高亮已开启，正在用本地模型分析本页', 'success', 'information-highlight'],
             ['请先在设置中下载本地模型，或改用关键词方式', 'error', 'information-highlight'],
             ['智能高亮已关闭', 'success', 'information-highlight']]);
         runtime.feature.unmount!(); pageNotice.mockClear();
@@ -669,10 +689,10 @@ describe('content composition and runtime score messages', () => {
         const keywords = await run({...defaults}, undefined);
         press(keywords.f); await keywords.f.settle(); press(keywords.f); expect(keywords.notice.mock.calls).toEqual([['on'], ['off']]); keywords.runtime.unmount();
         const missing = await run({...defaults, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
-        press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls).toEqual([['on'], ['modelNotReady']]);
+        press(missing.f); await missing.f.settle(); expect(missing.notice.mock.calls).toEqual([['onModel'], ['modelNotReady']]);
         missing.runtime.retry(); await missing.f.settle(); expect(missing.notice).toHaveBeenCalledTimes(2); missing.runtime.unmount();
         const failed = await run({...defaults, mode: 'surprisal-local'}, {success: false});
-        press(failed.f); await failed.f.settle(); expect(failed.notice.mock.calls).toEqual([['on'], ['error']]); failed.runtime.unmount();
+        press(failed.f); await failed.f.settle(); expect(failed.notice.mock.calls).toEqual([['onModel'], ['error']]); failed.runtime.unmount();
         const unsupported = await run({...defaults}, undefined, false);
         press(unsupported.f); expect(unsupported.notice.mock.calls).toEqual([['unsupported']]); unsupported.runtime.unmount();
         const automatic = await run({...defaults, enabled: true, mode: 'surprisal-local'}, {success: false, error: 'INFORMATION_HIGHLIGHT_NOT_DOWNLOADED'});
