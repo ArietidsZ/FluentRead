@@ -887,7 +887,8 @@ export async function parseDocumentFile(file: DocumentFileLike, options: ParseDo
     options.signal?.throwIfAborted();
     assertDocumentSize(source.length, file.name);
     assertDocumentSize(new TextEncoder().encode(source).byteLength, file.name);
-    return parseDocument(file.name, source);
+    // 文档翻译页面按整句翻译 Markdown：一句话不会被行内链接和代码拆散。
+    return parseDocument(file.name, source, {markdownSentences: true});
 }
 
 

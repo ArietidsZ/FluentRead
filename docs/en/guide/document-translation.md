@@ -24,7 +24,7 @@ You do not wait for the whole file: each finished batch appears as soon as it re
 
 The sidebar lists your files and, for PDFs and for Markdown, HTML, ePub, and Word documents that have headings, an outline you can show in the original or the translation and click to jump. Markdown, plain text, and Word show each paragraph beside its translation on wide windows and below it on narrow ones.
 
-In HTML and ePub, a sentence that contains links, bold, or italics is translated as one sentence, and the links and emphasis stay on the matching words in the translation; if a service does not keep those markers, you still get the complete sentence.
+In HTML, ePub, and Markdown, a sentence that contains links, bold, italics, or inline code is translated as one sentence: links and emphasis stay on the matching words, and in Markdown the link text is translated while link targets, inline code, and URLs are kept as they are. If a service does not keep those markers, you still get the complete sentence, with code and URLs appended at its end.
 
 Pause a long job if needed. Completed passages remain available after a pause or request failure; continuing processes the remainder. Changing languages, services, models, or glossary settings requires a fresh translation, with a prompt first.
 
