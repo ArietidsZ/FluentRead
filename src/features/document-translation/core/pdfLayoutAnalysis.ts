@@ -155,6 +155,12 @@ export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
     return result.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
+const CJK = '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}';
+const cjkGlyphs = new RegExp(`[${CJK}]`, 'gu');
+/** 以中日韩文字为主的一行：这些文字占去非空白字符的一半以上。 */
+const cjkLine = (text: string) => (text.match(cjkGlyphs)?.length ?? 0) * 2 >= text.replace(/\s/gu, '').length;
+/** 上一行以中日韩文字或全角标点结尾、下一行以它们开头时，折行处不应补空格。 */
+const cjkEdge = new RegExp(`^[${CJK}，。、；：！？（）《》“”][${CJK}，。、；：！？（）《》“”]$`, 'u');
 /** 一行的“词数”：按空白分出的词，加上不用空格分词的中日韩文字（两个字约合一个词）。 */
 const textUnits = (text: string) => text.split(/\s+/u).filter(Boolean).length + (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0) / 2;
 /** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译。 */
@@ -205,6 +211,17 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const sized = input.atoms.filter(atom => atom.fontSize >= 6).sort((a, b) => a.fontSize - b.fontSize);
     let remaining = sized.reduce((sum, atom) => sum + atom.text.length, 0) / 2;
     const font = sized.find(atom => (remaining -= atom.text.length) <= 0)?.fontSize ?? 10;
+    // 正文行距：同栏、正文字号的上下相邻两行之间最常见的基线距离。文字处理软件导出的文档常用 1.5 到 2 倍行距，
+    // 段落合并与标题折行的间距上限随它放宽；常见的单倍行距（不超过字号的 1.25 倍）保持原有上限。
+    const bodyGaps: number[] = [];
+    lines.forEach((line, index) => {
+        if (Math.abs(line.fontSize - font) > 0.6) return;
+        for (let next = index + 1; next < lines.length && lines[next].y - line.y <= font * 2.8; next += 1) {
+            const below = lines[next], gap = below.baseline - line.baseline;
+            if (gap > font * 0.9 && Math.abs(below.fontSize - font) <= 0.6 && Math.min(right(line), right(below)) - Math.max(line.x, below.x) >= Math.min(line.width, below.width) * 0.5) {bodyGaps.push(gap); break;}
+        }
+    });
+    const loose = bodyGaps.length >= 3 ? Math.max(1, median(bodyGaps) / (font * 1.25)) : 1;
     const captionStart = /^(?:Figure|Table|Fig\.)\s+\d+[.:]/iu;
     // 幻灯片的内容框、笔记的段落底色和标题色带都是“装文字的容器”而不是插图：成句的文字占去框内三成以上面积，
     // 或者框占页面三分之一以上且框内多半是成句的行、或字号明显大于图内标注时，框内文字按正文处理。
@@ -289,18 +306,25 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         if (!readable(line.text)) return 'formula';
         const numbered = line.fontSize >= font * 0.95 && line.text.length < 120;
         // “1. 标题”与编号列表同形：列表项的续行缩进或占满栏宽，标题下方则是空行或更短的折行。
-        const listItem = () => lines.some(near => near.baseline > line.baseline && near.baseline - line.baseline <= line.fontSize * 1.45
+        const listItem = () => lines.some(near => near.baseline > line.baseline && near.baseline - line.baseline <= line.fontSize * 1.45 * loose
             && (near.x > line.x + 2 ? near.x - line.x <= font * 4 : Math.abs(near.x - line.x) <= 1 && near.width >= line.width * 0.9));
         // 段落中间恰好以数字开头的一行（“4 PP stages …”“10 MB to …”）紧接在同栏的满行之后，不是标题。
-        const midParagraph = () => lines.some(near => near.baseline < line.baseline && line.baseline - near.baseline <= line.fontSize * 1.45
+        const midParagraph = () => lines.some(near => near.baseline < line.baseline && line.baseline - near.baseline <= line.fontSize * 1.45 * loose
             && Math.abs(near.fontSize - line.fontSize) <= 0.6 && near.x <= line.x + 1 && right(near) >= right(line) - 2 && near.width >= line.width * 0.9 && !/[.!?:。！？：]$/u.test(near.text));
         if ((numbered && !/[-‐‑]$/u.test(line.text) && !midParagraph() && ((/^\d+(?:\.\d+)*\s+[A-Z]/u.test(line.text) && !(line.text.split(/\s+/u).length > 6 && listItem())) || (/^\d+(?:\.\d+)*\.\s+[A-Z]/u.test(line.text) && line.text.split(/\s+/u).length <= 9 && !/[.,;:]$/u.test(line.text) && !listItem())))
             || (line.text.length < 80 && /^(?:Abstract|References|Acknowledge?ments?|Appendix(?:\s+[A-Z])?(?:\.\s.*)?)$/iu.test(line.text)) || (line.fontSize >= font * 1.32 && line.text.length < 100)) return 'heading';
         if (line.text.includes('@') || (line.y >= authorStart && line.y <= authorEnd && line.width < input.width * 0.35 && line.text.length < 100)) return 'metadata';
         return 'text';
     };
+    // 一栏的右边界：左缘相近的各行里最靠右的行尾，用来判断某一行有没有排满。
+    const columnEdges = new Map<number, number>();
+    const columnRight = (line: LayoutLine) => {
+        const key = Math.round(line.x);
+        if (!columnEdges.has(key)) columnEdges.set(key, lines.reduce((edge, other) => Math.abs(other.x - line.x) <= font * 3 && Math.abs(other.fontSize - line.fontSize) <= 0.6 ? Math.max(edge, right(other)) : edge, 0));
+        return columnEdges.get(key)!;
+    };
     for (const line of lines) {
-        active = active.filter(draft => line.baseline - draft.lines.at(-1)!.baseline <= Math.max(font, draft.lines.at(-1)!.fontSize) * 1.7);
+        active = active.filter(draft => line.baseline - draft.lines.at(-1)!.baseline <= Math.max(font, draft.lines.at(-1)!.fontSize) * 1.7 * loose);
         const region = regions.find(region => inRegion(region, line));
         const kind = region ? region.kind === 'figure' ? 'figure-label' : region.kind : classify(line);
         let selected: Draft | undefined;
@@ -309,7 +333,7 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
                 const last = draft.lines.at(-1)!;
                 const gap = line.baseline - last.baseline;
                 // 折行的标题与首行同字号、左对齐且更短；紧随其后的正文首行通常占满栏宽，不能并入标题。
-                const wrappedHeading = draft.kind === 'heading' && (kind === 'text' || kind === 'heading') && draft.lines.length < 3 && gap <= last.fontSize * 1.45
+                const wrappedHeading = draft.kind === 'heading' && (kind === 'text' || kind === 'heading') && draft.lines.length < 3 && gap <= last.fontSize * 1.45 * loose
                     && ((Math.abs(line.x - last.x) <= 1 && line.width < last.width * 0.9) || (kind === 'heading' && Math.abs(line.fontSize - last.fontSize) <= 0.2 && Math.abs(line.x + line.width / 2 - last.x - last.width / 2) <= 2))
                     && !/[.!?。！？]$/u.test(last.text) && !/^\d+(?:\.\d+)*\.?\s/u.test(line.text);
                 if (draft.region !== region || (kind === 'heading' ? !wrappedHeading : draft.kind !== kind && !(draft.kind === 'caption' && kind === 'text') && !wrappedHeading)) continue;
@@ -323,8 +347,11 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
                 const sameColumn = Math.abs(line.x - last.x) <= font * 2.2 || (overlap >= Math.min(line.width, last.width) * 0.72 && Math.abs(line.x + line.width / 2 - last.x - last.width / 2) <= font * 2);
                 if (gap <= 0 || !sameColumn) continue;
                 // 悬挂缩进条目的首行占满栏宽，其后缩进的续行仍属于同一条目。
-                const hangingContinuation = draft.lines.length === 1 && right(last) >= right(line) - 2 && line.x - last.x <= font * 3 && gap <= font * 1.32;
-                if (/[.!?。！？]["')\]}]*$/u.test(last.text) && !hangingContinuation && (line.x - last.x > font * 0.8 || gap > font * 1.32)) continue;
+                const hangingContinuation = draft.lines.length === 1 && right(last) >= right(line) - 2 && line.x - last.x <= font * 3 && gap <= font * 1.32 * loose;
+                if (/[.!?。！？]["')\]}]*$/u.test(last.text) && !hangingContinuation && (line.x - last.x > font * 0.8 || gap > font * 1.32 * loose)) continue;
+                // 中日韩文字可以在任意位置折行，段落中间的行都排满栏宽；上一行明显没有排满，说明它是上一段的末行或一个小标题。
+                // 以句末标点结束又没有排满的行同样是段落末行，不论文字种类。
+                if ((cjkLine(last.text) || /[.!?。！？]$/u.test(last.text)) && !(hangingContinuation && line.x > last.x + 1) && right(last) < Math.max(right(line), columnRight(last)) - font * 2) continue;
                 if (!selected || selected.lines.at(-1)!.baseline < last.baseline) selected = draft;
             }
         }
@@ -333,7 +360,10 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     }
     const blocks: PdfLayoutBlock[] = drafts.map(draft => {
         const first = draft.lines[0];
-        const source = draft.lines.reduce((text, line) => text ? /[-‐‑]$/u.test(text) && /^[a-z]/u.test(line.text) ? text.slice(0, -1) + line.text : `${text} ${line.text}` : line.text, '');
+        const joined = draft.lines.reduce((text, line) => text ? /[-‐‑]$/u.test(text) && /^[a-z]/u.test(line.text) ? text.slice(0, -1) + line.text : cjkEdge.test(text.slice(-1) + line.text.slice(0, 1)) ? text + line.text : `${text} ${line.text}` : line.text, '');
+        // 两端撑开排版的中文在每个字之间都留了空；逐字带空格的原文会被当成一串单字来翻译。
+        const spaced = joined.match(/[\p{Script=Han}] (?=[\p{Script=Han}])/gu)?.length ?? 0;
+        const source = spaced >= 3 && spaced >= (joined.match(/[\p{Script=Han}]/gu)!.length - 1) * 0.6 ? joined.replace(/(?<=[\p{Script=Han}，。、；：（）]) (?=[\p{Script=Han}，。、；：（）])/gu, '') : joined;
         const leading = draft.lines.slice(1).map((line, index) => line.baseline - draft.lines[index].baseline);
         const center = draft.bounds.x + draft.bounds.width / 2;
         const centered = (draft.kind === 'heading' || draft.kind === 'metadata' || draft.kind === 'footer') && Math.abs(center - input.width / 2) <= input.width * 0.045;

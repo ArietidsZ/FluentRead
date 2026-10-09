@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import {PDFDocument} from 'pdf-lib';
 import {createServer} from 'vite';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {DOCUMENT_MAX_BYTES, parseDocument, type ParsedDocument, type PdfDocumentBlock} from '@/src/features/document-translation/core/document';
+import {DOCUMENT_MAX_BYTES, PDF_MAX_BYTES, parseDocument, type ParsedDocument, type PdfDocumentBlock} from '@/src/features/document-translation/core/document';
 import {assertArchiveSafety, createDocumentDownload, parseBinaryDocument, parseDocumentFile, pdfTextBlocks, pdfTextLines} from '@/src/features/document-translation/services/binary';
 import {generateDocumentArchive} from '@/src/features/document-translation/services/archive';
 import {createPdfPagePreview, rasterizePdfTranslationPage, releasePdfDocument} from '@/src/features/document-translation/ui/pdfPreview';
@@ -61,7 +61,9 @@ describe('documentbinaryAudit actual import and package boundaries', () => {
         const read = vi.fn(async () => new ArrayBuffer(DOCUMENT_MAX_BYTES + 1));
         await expect(parseDocumentFile({name: 'fake.docx', size: 1, arrayBuffer: read, text: async () => ''})).rejects.toThrow('文件大小超过');
         await expect(parseDocumentFile({name: 'big.txt', size: DOCUMENT_MAX_BYTES + 1, text: vi.fn(), arrayBuffer: vi.fn()})).rejects.toThrow('文件大小超过');
-        await expect(parseBinaryDocument('big.pdf', new Uint8Array(DOCUMENT_MAX_BYTES + 1))).rejects.toThrow('文件大小超过');
+        // PDF 使用更宽的上限：超过通用上限的文件照常进入解析，超过 PDF 上限才按大小拒绝。
+        await expect(parseBinaryDocument('big.pdf', new Uint8Array(DOCUMENT_MAX_BYTES + 1))).rejects.toThrow('PDF 文件签名无效');
+        await expect(parseBinaryDocument('big.pdf', new Uint8Array(PDF_MAX_BYTES + 1))).rejects.toThrow('文件大小超过 50 MB');
         await expect(parseDocumentFile({name: 'utf8.txt', text: async () => '汉'.repeat(Math.ceil(DOCUMENT_MAX_BYTES / 3)), arrayBuffer: vi.fn()})).rejects.toThrow('文件大小超过');
         await expect(parseDocumentFile({name: 'invalid.txt', size: NaN, text: vi.fn(), arrayBuffer: vi.fn()})).rejects.toThrow('大小无效');
     });

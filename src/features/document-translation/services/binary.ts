@@ -13,7 +13,7 @@ import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom} from
 import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation} from '../core/pdfReadingPlan';
 
 import {
-    DOCUMENT_MAX_BYTES,
+    getDocumentMaxBytes,
     createDocumentDownloadName,
     getDocumentFormat,
     getDocumentFormatLabel,
@@ -103,9 +103,10 @@ function awaitDocumentRead<T>(promise: Promise<T>, signal?: AbortSignal, release
     });
 }
 
-function assertDocumentSize(size: number): void {
-    if (!Number.isFinite(size) || size < 0 || size > DOCUMENT_MAX_BYTES) {
-        throw new Error('文件大小超过 10 MB，或文件大小无效，请先拆分文件后再翻译');
+function assertDocumentSize(size: number, fileName: string): void {
+    const limit = getDocumentMaxBytes(fileName);
+    if (!Number.isFinite(size) || size < 0 || size > limit) {
+        throw new Error(`文件大小超过 ${Math.round(limit / 1024 / 1024)} MB，或文件大小无效，请先拆分文件后再翻译`);
     }
 }
 
@@ -863,7 +864,7 @@ export async function parseBinaryDocument(fileName: string, input: ArrayBuffer |
     if (!format || !isBinaryDocumentFormat(format)) {
         throw new Error('该文件不是 PDF、ePub 或 DOCX 二进制文档');
     }
-    assertDocumentSize(input.byteLength);
+    assertDocumentSize(input.byteLength, fileName);
     const bytes = toUint8Array(input);
     const parsed = await (format === 'pdf' ? parsePdf(fileName, bytes, options.signal, options.onPdfProgress)
         : format === 'epub' ? parseEpub(fileName, bytes, options.signal) : parseDocx(fileName, bytes, options.signal));
@@ -877,12 +878,12 @@ export async function parseDocumentFile(file: DocumentFileLike, options: ParseDo
     if (!format) {
         throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件');
     }
-    if (file.size !== undefined) assertDocumentSize(file.size);
+    if (file.size !== undefined) assertDocumentSize(file.size, file.name);
     if (isBinaryDocumentFormat(format)) return parseBinaryDocument(file.name, await awaitDocumentRead(file.arrayBuffer(), options.signal), options);
     const source = await awaitDocumentRead(file.text(), options.signal);
     options.signal?.throwIfAborted();
-    assertDocumentSize(source.length);
-    assertDocumentSize(new TextEncoder().encode(source).byteLength);
+    assertDocumentSize(source.length, file.name);
+    assertDocumentSize(new TextEncoder().encode(source).byteLength, file.name);
     return parseDocument(file.name, source);
 }
 

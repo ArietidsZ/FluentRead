@@ -4,7 +4,7 @@
  * 主要内容：逐块读取并在超限时停止下载，校验 PDF 文件签名，生成安全文件名，释放流读取器；原文件仅在当前扩展页面使用。
  * 模块边界：仅负责文件获取，不解析 PDF、不发起翻译；URL 校验归 core/pdfSource，解析沿用 binary 服务。
  */
-import {DOCUMENT_MAX_BYTES} from '../core/document';
+import {PDF_MAX_BYTES} from '../core/document';
 import {normalizeOnlinePdfUrl} from '../core/pdfSource';
 
 export interface PdfDownloadProgress {received: number; total?: number}
@@ -30,8 +30,8 @@ export async function fetchOnlinePdf(value: string, options: FetchPdfOptions = {
     if (!response.ok) throw new Error(`PDF 下载失败（HTTP ${response.status}），可下载文件后导入`);
     const size = Number(response.headers.get('content-length'));
     const total = Number.isFinite(size) && size > 0 ? size : undefined;
-    const sizeError = () => new Error(`PDF 超过 ${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB，请先拆分后导入`);
-    if (total && total > DOCUMENT_MAX_BYTES) {await response.body?.cancel(); throw sizeError();}
+    const sizeError = () => new Error(`PDF 超过 ${Math.round(PDF_MAX_BYTES / 1024 / 1024)} MB，请先拆分后导入`);
+    if (total && total > PDF_MAX_BYTES) {await response.body?.cancel(); throw sizeError();}
     const reader = response.body?.getReader();
     const chunks: Uint8Array[] = [];
     let received = 0;
@@ -45,7 +45,7 @@ export async function fetchOnlinePdf(value: string, options: FetchPdfOptions = {
                 options.signal?.throwIfAborted();
                 if (result.done) break;
                 received += result.value.byteLength;
-                if (received > DOCUMENT_MAX_BYTES) throw sizeError();
+                if (received > PDF_MAX_BYTES) throw sizeError();
                 chunks.push(result.value);
                 options.onProgress?.({received, total});
             }
@@ -53,7 +53,7 @@ export async function fetchOnlinePdf(value: string, options: FetchPdfOptions = {
             const bytes = new Uint8Array(await response.arrayBuffer());
             options.signal?.throwIfAborted();
             received = bytes.byteLength;
-            if (received > DOCUMENT_MAX_BYTES) throw sizeError();
+            if (received > PDF_MAX_BYTES) throw sizeError();
             chunks.push(bytes);
             options.onProgress?.({received, total});
         }

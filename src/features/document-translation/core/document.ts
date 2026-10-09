@@ -1,11 +1,13 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
+ * 主要内容：覆盖文本格式识别、片段切分、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
 export const DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+/** 带插图的论文与扫描件常超过 10 MB；PDF 按页解析、译文量只取决于文字，单独放宽上限。 */
+export const PDF_MAX_BYTES = 50 * 1024 * 1024;
 
 export const SUPPORTED_DOCUMENT_EXTENSIONS = [
     'pdf',
@@ -225,6 +227,11 @@ export function getDocumentFormat(fileName: string): DocumentFormat | null {
     if (extension === 'lrc') return 'lrc';
     if (extension === 'json') return 'json';
     return null;
+}
+
+/** 一个文件允许的最大字节数：PDF 使用更宽的上限，其余格式沿用通用上限。 */
+export function getDocumentMaxBytes(fileName: string): number {
+    return getDocumentFormat(fileName) === 'pdf' ? PDF_MAX_BYTES : DOCUMENT_MAX_BYTES;
 }
 
 export function getDocumentAcceptAttribute(): string {

@@ -276,6 +276,31 @@ describe('PDF layout analysis on real paper typography', () => {
         const prose = analyze([atom('这是一句写在插图范围里面的完整中文说明', 60, 120, 200, 8), atom('A', 70, 200, 5, 5), atom('B', 140, 200, 5, 5), atom('C', 210, 200, 5, 5), atom('D', 280, 200, 5, 5), atom('Body text below the figure is long enough to set the page body size here.', 60, 500, 420), atom('More body text follows so that the median body font stays at ten points.', 60, 512, 420)], [{kind: 'image', x: 40, y: 100, width: 300, height: 200}]);
         expect(prose.blocks.find(block => block.source.startsWith('这是一句'))).toMatchObject({kind: 'text', preserveSource: false});
     });
+    it('keeps loosely spaced word-processor paragraphs together and ends a paragraph at a line that does not reach the column edge', () => {
+        const wide = '本课程是计算机大类基础课其作用是将大一新生对计算机已有的感性认识提升';
+        const body = (text: string, x: number, baseline: number, width: number) => atom(text, x, baseline, width, 10.5);
+        const result = analyze([
+            body('1）成绩评定总则', 111, 100, 79),
+            body(wide, 111, 119.5, 394), body(wide, 90, 139, 415), body('以闭卷笔试为主。总成绩按以下公式计算：', 90, 158.5, 199),
+            body('总成绩＝平时成绩×20%＋实验成绩×20%＋期末成绩×60%', 111, 178, 265),
+            body('2）平时成绩评定', 111, 197.5, 79),
+            body('This course is a basic course of the computer major and its function', 90, 300, 415), body('is to lift perceptual knowledge into rational knowledge.', 90, 319.5, 300),
+            body('A second English paragraph starts right below the short closing line', 90, 339, 415), body('and it continues on a second full line of the very same paragraph here', 90, 358.5, 415),
+        ]);
+        expect(result.blocks.map(block => block.lineCount)).toEqual([1, 3, 1, 1, 2, 2]);
+        // 中文折行处不补空格。
+        expect(result.blocks[1].source).toBe(`${wide}${wide}以闭卷笔试为主。总成绩按以下公式计算：`);
+        expect(result.blocks[4].source).toContain('function is to lift');
+        // 悬挂缩进的条目：首行排满，缩进的续行即使更短也仍属于同一条目。
+        const hanging = analyze([atom('[1] A reference entry whose first line fills the whole column width.', 60, 100, 420), atom('Its continuation is indented.', 75, 112, 150), atom('[2] The next reference entry starts back at the left margin again.', 60, 124, 420)]);
+        expect(hanging.blocks.map(block => block.lineCount)).toEqual([2, 1]);
+    });
+    it('removes the spaces of letter-spaced CJK lines but keeps ordinary spacing', () => {
+        const spaced = analyze([atom('院 级 党 课 结 业 心 得', 200, 100, 200, 16), atom('学 院： 计 算 机 学 院', 200, 200, 200, 16)]);
+        expect(spaced.blocks.map(block => block.source)).toEqual(['院级党课结业心得', '学院：计算机学院']);
+        expect(analyze([atom('建议教材 吕云翔 傅尔也 译', 60, 100, 200)]).blocks[0].source).toBe('建议教材 吕云翔 傅尔也 译');
+        expect(analyze([atom('第 4 页', 60, 100, 60)]).blocks[0].source).toBe('第 4 页');
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

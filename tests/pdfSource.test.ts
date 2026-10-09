@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createPdfReaderUrl, getPdfSourceUrl, normalizeOnlinePdfUrl, readPdfSourceFragment} from '@/src/features/document-translation/core/pdfSource';
 import {fetchOnlinePdf} from '@/src/features/document-translation/services/pdfSource';
-import {DOCUMENT_MAX_BYTES} from '@/src/features/document-translation/core/document';
+import {PDF_MAX_BYTES} from '@/src/features/document-translation/core/document';
 
 const pdfBytes = new TextEncoder().encode('%PDF-1.7\nfixture');
 afterEach(() => vi.unstubAllGlobals());
@@ -78,13 +78,13 @@ describe('Online PDF streamed import ownership and memory', () => {
         await expect(fetchOnlinePdf('https://example.com/a.pdf', {fetch: vi.fn().mockRejectedValue(new Error('offline'))})).rejects.toThrow('offline');
     });
     it('cancels before reading a declared oversized body', async () => {
-        const response = new Response(stream([]), {headers: {'content-length': String(DOCUMENT_MAX_BYTES + 1)}});
+        const response = new Response(stream([]), {headers: {'content-length': String(PDF_MAX_BYTES + 1)}});
         const cancel = vi.spyOn(response.body!, 'cancel');
         await expect(fetchOnlinePdf('https://example.com/a.pdf', {fetch: download(response)})).rejects.toThrow('MB');
         expect(cancel).toHaveBeenCalledOnce();
     });
     it('rejects an oversized response without a body and releases cancellation errors', async () => {
-        const response = {ok: true, headers: new Headers({'content-length': String(DOCUMENT_MAX_BYTES + 1)}), body: null} as Response;
+        const response = {ok: true, headers: new Headers({'content-length': String(PDF_MAX_BYTES + 1)}), body: null} as Response;
         await expect(fetchOnlinePdf('https://example.com/a.pdf', {fetch: download(response)})).rejects.toThrow('MB');
         const controller = new AbortController();
         const failedCancel = new Response(new ReadableStream({start(c) {c.enqueue(pdfBytes);}, cancel() {throw new Error('cancel failed');}}));
@@ -94,12 +94,12 @@ describe('Online PDF streamed import ownership and memory', () => {
     });
     it('stops an unknown-length stream immediately when its real bytes exceed the limit', async () => {
         const cancel = vi.fn();
-        const response = new Response(new ReadableStream({start(c) {c.enqueue(new Uint8Array(DOCUMENT_MAX_BYTES + 1));}, cancel}));
+        const response = new Response(new ReadableStream({start(c) {c.enqueue(new Uint8Array(PDF_MAX_BYTES + 1));}, cancel}));
         await expect(fetchOnlinePdf('https://example.com/a.pdf', {fetch: download(response)})).rejects.toThrow('MB');
         expect(cancel).toHaveBeenCalledOnce();
     });
     it('checks fallback arrayBuffer size before creating the imported File', async () => {
-        const response = {ok: true, url: '', headers: new Headers(), body: null, arrayBuffer: async () => new ArrayBuffer(DOCUMENT_MAX_BYTES + 1)} as Response;
+        const response = {ok: true, url: '', headers: new Headers(), body: null, arrayBuffer: async () => new ArrayBuffer(PDF_MAX_BYTES + 1)} as Response;
         await expect(fetchOnlinePdf('https://example.com/a.pdf', {fetch: download(response)})).rejects.toThrow('MB');
     });
     it('cancels a stalled stream on abort, releases its lock, and never returns a partial PDF', async () => {

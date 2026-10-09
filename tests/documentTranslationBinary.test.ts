@@ -6,6 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {
     getDocumentAcceptAttribute,
+    getDocumentMaxBytes,
     getDocumentFormat,
     getDocumentMimeType,
 } from '@/src/features/document-translation/core/document';
@@ -187,6 +188,9 @@ describe('binary document translation formats', () => {
         expect(getDocumentMimeType('epub')).toBe('application/epub+zip');
         expect(getDocumentMimeType('docx')).toContain('wordprocessingml.document');
         expect(getDocumentAcceptAttribute()).toContain('.pdf');
+        // PDF 单独放宽到 50 MB，其余格式（含无法识别的扩展名）沿用 10 MB。
+        expect(getDocumentMaxBytes('paper.PDF')).toBe(50 * 1024 * 1024);
+        expect([getDocumentMaxBytes('book.epub'), getDocumentMaxBytes('notes.md'), getDocumentMaxBytes('unknown.bin')]).toEqual([10 * 1024 * 1024, 10 * 1024 * 1024, 10 * 1024 * 1024]);
         expect(getDocumentAcceptAttribute()).toContain('.epub');
         expect(getDocumentAcceptAttribute()).toContain('.docx');
     });

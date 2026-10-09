@@ -410,6 +410,8 @@ import {
   TranslationRequestError,
   buildGlossaryRevision,
   DOCUMENT_MAX_BYTES,
+  PDF_MAX_BYTES,
+  getDocumentMaxBytes,
   DOCUMENT_QUICK_SAMPLES,
   createDocumentDownload,
   documentRetryBackoff,
@@ -826,7 +828,8 @@ async function downloadBatch(): Promise<void> {
 }
 
 const accept = getDocumentAcceptAttribute();
-const maxFileSizeLabel = `${Math.round(DOCUMENT_MAX_BYTES / 1024 / 1024)} MB`;
+const megabytes = (bytes: number) => `${Math.round(bytes / 1024 / 1024)} MB`;
+const maxFileSizeLabel = `${megabytes(DOCUMENT_MAX_BYTES)} (PDF ${megabytes(PDF_MAX_BYTES)})`;
 const sourceLanguageOptions = options.from;
 const translationSettingsSummary = computed(() => {
   const label = (items: typeof options.from, value: string) => items.find(item => item.value === value)?.label || value;
@@ -1193,7 +1196,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
         translations: [], fingerprint: '', state: 'ready', revision: 0, downloaded: 0, error: ''};
       try {
         if (!getDocumentFormat(file.name)) throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
-        if (file.size > DOCUMENT_MAX_BYTES) throw new Error(`文件大小超过 ${maxFileSizeLabel}，请先拆分文件后再翻译。`);
+        if (file.size > getDocumentMaxBytes(file.name)) throw new Error(`文件大小超过 ${megabytes(getDocumentMaxBytes(file.name))}，请先拆分文件后再翻译。`);
         const parsed = await parseDocumentFile(file, {signal: controller.signal, onPdfProgress: ({completed, total}) => {
           if (loadRequest.isCurrent()) {importProgress.value = t('document.pdfReading.importPages', {completed, total}); importRatio.value = total ? completed / total : 0;}
         }});
