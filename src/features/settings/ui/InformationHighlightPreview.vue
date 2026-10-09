@@ -1,8 +1,8 @@
 <!--
 @file src/features/settings/ui/InformationHighlightPreview.vue
 文件职责：在自然段落中即时预览智能高亮的密度、六套配色和绘制方式，并可切换到未高亮的原文对比。
-主要内容：固定示例词段使用循环示意分数，复用真实的词项分段、热力层级和透明度映射；长文本保留完整文字、空白与段落，色阶图例帮助直接比较浓淡效果。
-模块边界：纯展示组件，不访问网页正文、不调用评分模型、不写配置；示意分数不代表模型分析结果、词语重要性或阅读效果证据。
+主要内容：示例段落用真实的关键词规则评分，复用真实的热力层级和透明度映射，看到的深浅就是关键词方式在这段文字上的结果；长文本保留完整文字、空白与段落，色阶图例帮助直接比较浓淡效果。
+模块边界：纯展示组件，不访问网页正文、不调用本地模型、不写配置；本地模型方式的结果会与预览不同，预览不代表词语重要性或阅读效果证据。
 -->
 <template>
   <figure class="information-highlight-preview" :class="[`style-${preferences.style}`, {'is-compact': compact}]" :style="{'--highlight-preview-rgb': palette.rgb}" :data-information-highlight-preview-color="preferences.color" :data-information-highlight-preview-style="preferences.style" :data-information-highlight-preview-density="preferences.density" data-testid="information-highlight-preview">
@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import {computed, ref} from 'vue'
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight'
-import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, informationWordSpans, presentInformationHeatmap, selectInformationSpans} from '@/src/features/information-highlight/domain/public'
+import {INFORMATION_HIGHLIGHT_PALETTES, informationHighlightOpacity, presentInformationHeatmap, scoreInformationKeywords, selectInformationSpans} from '@/src/features/information-highlight/domain/public'
 import {useUiI18n} from '@/src/ui/i18n'
 const props = defineProps<{preferences: InformationHighlightPreferences; compact?: boolean}>()
 const {t} = useUiI18n()
@@ -26,9 +26,8 @@ const rampLevels = [0, 2, 3, 5, 7]
 // 只是本次查看的对比开关，不写入偏好。
 const original = ref(false)
 const views = [false, true].map(value => ({value, choose: () => {original.value = value}}))
-const demonstrationScores = [2, 5, 1, 8, 3, 6, 10, 4]
 const paragraphs = computed(() => t('informationHighlight.preview.story').split('\n\n').map(text => {
-  const scored = informationWordSpans(text).map((word, index) => ({start: word.start, end: word.end, score: demonstrationScores[index % demonstrationScores.length]}))
+  const scored = scoreInformationKeywords(text).spans
   const spans = props.preferences.style === 'heatmap'
     ? presentInformationHeatmap(text, scored, props.preferences.density)
     : selectInformationSpans(text, scored, props.preferences.density).map(span => ({...span, level: 7}))
