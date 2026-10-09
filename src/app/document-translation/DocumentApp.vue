@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；没有文字层的扫描版 PDF 在开始翻译时先逐页识别文字并显示进度；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -158,7 +158,7 @@
             <button class="download-button" type="button" :disabled="!hasTranslation || queueBusy" @click="openDownload">下载文件 ↓</button>
             <div class="translation-actions">
               <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation"><i class="spinner dark-spinner" aria-hidden="true" />暂停翻译</button>
-              <button v-else-if="parsedDocument.segments.length && (!translationComplete || settingsChanged)" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
+              <button v-else-if="(parsedDocument.segments.length || needsOcr) && (!translationComplete || settingsChanged)" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
             </div>
           </div>
           <div class="task-progress" :class="{ complete: translationComplete }" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{width: `${progress}%`}" /></div>
@@ -419,6 +419,8 @@ import {
   scrollRichOutline,
   markRichPreviewBusy,
   richPreviewPosition,
+  pdfPagesNeedingOcr,
+  recognizePdfDocument,
   type RichOutlineItem,
   hasDistinctTranslation,
   TranslationRequestError,
@@ -428,6 +430,7 @@ import {
   getDocumentMaxBytes,
   DOCUMENT_QUICK_SAMPLES,
   createDocumentDownload,
+  createPdfPageRecognizer,
   documentRetryBackoff,
   generateDocumentArchive,
   createDocumentDownloadName,
@@ -527,6 +530,7 @@ function setFocusMode(value: boolean): void {
 function leaveFocusOnEscape(event: KeyboardEvent): void {if (event.key === 'Escape' && focusMode.value) setFocusMode(false);}
 function leaveFocusWithFullscreen(): void {if (!window.document.fullscreenElement && focusMode.value) focusMode.value = false;}
 const sidebarTab = ref<'files' | 'outline'>('outline');
+const recognitionProgress = ref('');
 const richOutline = ref<RichOutlineItem[]>([]);
 const richOutlineLanguage = ref<'source' | 'translated'>('translated');
 const pdfPage = ref(1);
@@ -946,7 +950,7 @@ const previewRows = computed(() => pageRows(parsedDocument.value?.segments || []
 const hasTranslation = computed(() => translatedSegments.value.some((item) => Boolean(item?.trim())));
 const completedSegments = computed(() => translating.value ? liveCompletedSegments.value
   : parsedDocument.value?.segments.filter(segment => translatedSegments.value[segment.id]?.trim()).length || 0);
-const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
+const translationComplete = computed(() => Boolean(parsedDocument.value?.segments.length && completedSegments.value === parsedDocument.value.segments.length));
 const progress = computed(() => parsedDocument.value?.segments.length ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 // PDF 打开即左右对照，其他格式从翻译开始进入所选方式：译文页先显示原页，各段译文到达后逐段替换。
 const canCompare = computed(() => translating.value || hasTranslation.value || (isPdfDocument.value && Boolean(parsedDocument.value?.segments.length)));
@@ -957,7 +961,7 @@ const currentFingerprint = computed(() => JSON.stringify({
 }));
 const settingsChanged = computed(() => Boolean(taskFingerprint.value && taskFingerprint.value !== currentFingerprint.value));
 const translationActionLabel = computed(() => settingsChanged.value ? '按新设置翻译' : translationComplete.value ? '重新翻译' : hasTranslation.value || runState.value === 'paused' ? '继续翻译' : runState.value === 'failed' ? '重试翻译' : '开始翻译');
-const statusLabel = computed(() => isPdfDocument.value && !parsedDocument.value?.segments.length ? t('document.pdfReading.selectableSource') : translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
+const statusLabel = computed(() => recognitionProgress.value ? recognitionProgress.value : needsOcr.value ? t('document.pdfReading.scanned') : isPdfDocument.value && !parsedDocument.value?.segments.length ? t('document.pdfReading.selectableSource') : translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
 const hasUnsavedWork = computed(() => translating.value || batchRunning.value || openingFile.value || editRevision.value > downloadedRevision.value
   || documentQueue.value.some(item => item.id !== activeDocumentId.value && item.revision > item.downloaded));
 const isPdfDocument = computed(() => parsedDocument.value?.binary?.kind === 'pdf');
@@ -1049,6 +1053,8 @@ async function jumpOutline(item: RichOutlineItem): Promise<void> {
   await nextTick();
   window.document.querySelector?.(`.docx-paragraph[data-segment="${item.index}"]`)?.scrollIntoView({block: 'start', behavior: 'smooth'});
 }
+/** 整份 PDF 都没有文字层（扫描件）：开始翻译时先识别文字。含文字的 PDF 里偶尔的空白页不触发识别。 */
+const needsOcr = computed(() => Boolean(parsedDocument.value && !parsedDocument.value.segments.length && pdfPagesNeedingOcr(parsedDocument.value).length));
 const hasOutline = computed(() => isPdfDocument.value || documentOutline.value.length > 0);
 const activeSidebarTab = computed(() => hasOutline.value ? sidebarTab.value : 'files');
 onUnmounted(() => clearTimeout(richPreviewTimer));
@@ -1398,7 +1404,7 @@ function requestReset(): void {
 }
 
 function requestTranslation(): void {
-  if (!config.on || queueBusy.value || !parsedDocument.value?.segments.length) return;
+  if (!config.on || queueBusy.value || !(parsedDocument.value?.segments.length || needsOcr.value)) return;
   if (translationComplete.value || (settingsChanged.value && hasTranslation.value)) {
     pendingAction.value = 'restart';
     confirmDialog.value?.showModal();
@@ -1433,8 +1439,10 @@ function pauseTranslation(): void {
 }
 
 async function startTranslation(restart = false): Promise<void> {
-  const document = parsedDocument.value;
-  if (!config.on || !document?.segments.length || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
+  let document = parsedDocument.value;
+  // 扫描版 PDF 还没有任何文字：先逐页识别，再翻译识别出的段落。
+  const scanned = needsOcr.value;
+  if (!config.on || !document || !(document.segments.length || scanned) || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
   if (restart) {
     translatedSegments.value = [];
     settledTranslations.value = [];
@@ -1451,6 +1459,25 @@ async function startTranslation(restart = false): Promise<void> {
   const requestId = ++translationRequestId;
   abortController = controller;
   try {
+    if (scanned) {
+      const source = document;
+      const recognized = await recognizePdfDocument(source, createPdfPageRecognizer(config.from), {
+        signal: controller.signal, startPage: pdfPage.value - 1,
+        onProgress: ({completed, total}) => { if (requestId === translationRequestId) recognitionProgress.value = t('document.pdfReading.recognizing', {completed, total}); },
+      });
+      if (requestId !== translationRequestId || parsedDocument.value !== source) return;
+      recognitionProgress.value = '';
+      if (!recognized.segments.length) throw new Error(t('document.pdfReading.ocrEmpty'));
+      // 识别结果成为这份文档新的解析结果；之后的翻译、校订、保存和下载都基于它。
+      document = markRaw(recognized);
+      const item = documentQueue.value.find(entry => entry.id === activeDocumentId.value);
+      if (item) item.document = document;
+      parsedDocument.value = document;
+      translatedSegments.value = [];
+      settledTranslations.value = [];
+      liveCompletedSegments.value = 0;
+    }
+    const current = document;
     await translateDocumentSegments(document.segments, {
       fileName: document.fileName,
       serviceOverride: effectiveDocumentService.value,
@@ -1468,7 +1495,7 @@ async function startTranslation(restart = false): Promise<void> {
       batchLimits: {items: 8, characters: 2400},
       prioritize: prioritizeReadingPosition,
       onSegment: ({id, translation}) => {
-        if (requestId !== translationRequestId || parsedDocument.value !== document || controller.signal.aborted) return;
+        if (requestId !== translationRequestId || parsedDocument.value !== current || controller.signal.aborted) return;
         retryNotice.value = '';
         liveCompletedSegments.value += Number(Boolean(translation.trim())) - Number(Boolean(translatedSegments.value[id]?.trim()));
         translatedSegments.value[id] = translation;
@@ -1489,6 +1516,7 @@ async function startTranslation(restart = false): Promise<void> {
     if (requestId === translationRequestId) {
       translating.value = false;
       retryNotice.value = '';
+      recognitionProgress.value = '';
       if (abortController === controller) abortController = null;
       persistHistory();
     }

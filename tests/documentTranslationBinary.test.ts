@@ -16,6 +16,7 @@ import {
     parseDocumentFile,
     type PdfPageRasterizer,
 } from '@/src/features/document-translation/services/binary';
+import {pdfPagesNeedingOcr} from '@/src/features/document-translation/services/pdfOcr';
 
 const exampleRoot = new URL('../examples/document-translation/', import.meta.url);
 const onePixelPng = Uint8Array.from(Buffer.from(
@@ -374,13 +375,14 @@ describe('binary document translation formats', () => {
         await expect(parseBinaryDocument('broken.docx', new TextEncoder().encode('not a zip'))).rejects.toThrow('DOCX 解析失败');
     });
 
-    it('扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR', async () => {
+    it('扫描版或空白 PDF 照常打开且不产生空译文，等待页面在开始翻译时识别文字', async () => {
         const pdf = await PDFDocument.create();
         pdf.addPage([320, 480]);
 
-        await expect(parseBinaryDocument('scanned.pdf', await pdf.save())).rejects.toThrow(
-            '扫描版 PDF 暂不支持 OCR',
-        );
+        const parsed = await parseBinaryDocument('scanned.pdf', await pdf.save());
+        expect(parsed.segments).toEqual([]);
+        expect(parsed.binary?.kind === 'pdf' && parsed.binary.pages.map(page => [page.width, page.height, page.blocks.length])).toEqual([[320, 480, 0]]);
+        expect(pdfPagesNeedingOcr(parsed)).toEqual([0]);
     });
 
     it('拒绝解压后单项过大的 ePub/DOCX 压缩包', async () => {

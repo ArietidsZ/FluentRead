@@ -416,6 +416,16 @@ export async function createPdfPagePreview(
     }
 }
 
+/** 把一页渲染成图像供文字识别使用；画布用完立即释放，只返回编码后的图像与它的像素尺寸。 */
+export async function renderPdfPageImage(bytes: Uint8Array, pageNumber: number, width: number, signal?: AbortSignal): Promise<{image: string; width: number; height: number}> {
+    const canvas = await renderPdfSourceCanvas(bytes, pageNumber, width, signal);
+    try {
+        return {image: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height};
+    } finally {
+        canvas.width = canvas.height = 0;
+    }
+}
+
 export async function rasterizePdfTranslationPage(input: PdfRasterPageInput): Promise<Uint8Array> {
     if (typeof globalThis.document === 'undefined') {
         throw new Error('当前环境无法生成 PDF 译文页面，请在浏览器扩展中下载');

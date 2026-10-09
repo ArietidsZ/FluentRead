@@ -386,6 +386,7 @@
       "tests/pdfBlockFit.test.ts",
       "tests/documentHistory.test.ts",
       "tests/richPreviewSync.test.ts",
+      "tests/pdfOcr.test.ts",
       "tests/pdfLayoutAnalysis.test.ts",
       "tests/pdfPaperLayouts.test.ts",
       "tests/documentPdfLayoutParsing.test.ts",

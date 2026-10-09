@@ -9,7 +9,7 @@ import type JSZip from 'jszip';
 import type {PDFEmbeddedPage} from 'pdf-lib';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {generateDocumentArchive} from './archive';
-import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom} from '../core/pdfLayoutAnalysis';
+import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom, type PdfLayoutBlock} from '../core/pdfLayoutAnalysis';
 import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation} from '../core/pdfReadingPlan';
 
 import {
@@ -601,25 +601,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     ? extractPdfGraphicsShapes(await awaitDocumentRead(page.getOperatorList(), signal), pdfJs.OPS, viewport) : [];
                 signal?.throwIfAborted();
                 const {blocks: layoutBlocks, preservedRegions} = analyzePdfPageLayout({atoms, graphics, width: viewport.width, height: viewport.height});
-                const segmentIndexes: number[] = [];
-                const blocks: PdfDocumentBlock[] = [];
-                layoutBlocks.forEach((block, blockIndex) => {
-                    // 表格里含词语的单元格作为独立片段翻译；数字、符号单元格与公式、图内文字保留原样。
-                    // 页眉页脚和作者信息在阅读与导出时都按原文显示，不占用翻译请求。
-                    if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label' || block.kind === 'footer' || block.kind === 'metadata') {
-                        blocks.push({...block, segmentIndex: -1});
-                        return;
-                    }
-                    const id = segments.length;
-                    segments.push({
-                        id,
-                        source: block.source,
-                        contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined,
-                        role: block.fontWeight === 700 ? 'heading' : 'paragraph',
-                    });
-                    segmentIndexes.push(id);
-                    blocks.push({...block, segmentIndex: id});
-                });
+                const {blocks, segmentIndexes} = pdfPageSegments(layoutBlocks, pageNumber, segments);
                 pages.push({
                     pageNumber,
                     width: displayViewport.width,
@@ -644,9 +626,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         await destroy();
     }
 
-    if (segments.length === 0 && !pages.some(page => page.blocks.length > 0)) {
-        throw new Error('PDF 中没有可提取的文字；扫描版 PDF 暂不支持 OCR，请上传包含文本层的 PDF');
-    }
+    // 没有文字层的扫描件照常打开：原页可以阅读，文字识别由页面在开始翻译时按页进行（见 services/pdfOcr）。
 
     return {
         fileName,
@@ -656,6 +636,26 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         segments,
         binary: {kind: 'pdf', bytes, pages},
     };
+}
+
+/**
+ * 把一页的版面块登记为待翻译片段：表格里含词语的单元格作为独立片段翻译，数字、符号单元格与公式、图内文字保留原样；
+ * 页眉页脚和作者信息在阅读与导出时都按原文显示，不占用翻译请求。片段追加到传入的列表末尾。
+ */
+export function pdfPageSegments(layoutBlocks: readonly PdfLayoutBlock[], pageNumber: number, segments: DocumentSegment[]): {blocks: PdfDocumentBlock[]; segmentIndexes: number[]} {
+    const segmentIndexes: number[] = [];
+    const blocks: PdfDocumentBlock[] = [];
+    layoutBlocks.forEach((block, blockIndex) => {
+        if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label' || block.kind === 'footer' || block.kind === 'metadata') {
+            blocks.push({...block, segmentIndex: -1});
+            return;
+        }
+        const id = segments.length;
+        segments.push({id, source: block.source, contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined, role: block.fontWeight === 700 ? 'heading' : 'paragraph'});
+        segmentIndexes.push(id);
+        blocks.push({...block, segmentIndex: id});
+    });
+    return {blocks, segmentIndexes};
 }
 
 export function chapterTitle(source: string, fallback: string): string {

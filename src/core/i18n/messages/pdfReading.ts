@@ -1,11 +1,14 @@
 /**
  * @file src/core/i18n/messages/pdfReading.ts
- * 文件职责：维护 PDF 在线导入、分页阅读、缩放和划词提示的七种界面语言文案。
+ * 文件职责：维护 PDF 在线导入、分页阅读、缩放、划词提示和扫描件文字识别的七种界面语言文案。
  * 主要内容：按稳定语义键组织状态和操作名称，动态页码与字节进度使用占位符。
  * 模块边界：仅提供静态资源，不读取文档、网络或用户配置。
  */
 export const pdfReadingMessages = {
     'zh-CN': {
+        "document.pdfReading.scanned": "扫描件 · 开始翻译时先识别文字",
+        "document.pdfReading.recognizing": "正在识别文字 {completed} / {total} 页",
+        "document.pdfReading.ocrEmpty": "没有识别出文字，请确认页面清晰并已选择正确的源语言",
         "document.pdfReading.exportBilingualHint": "原页后接完整译文",
         "document.pdfReading.exportHint": "译文自动续页，保留公式图表。下载译页为图像；阅读器可复制译文。",
         "document.pdfReading.layoutExportHint": "原版面预览后接完整译文续页。",
@@ -57,6 +60,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "重试本页",
     },
     'en-US': {
+        "document.pdfReading.scanned": "Scanned · text is recognized when translation starts",
+        "document.pdfReading.recognizing": "Recognizing text · page {completed} of {total}",
+        "document.pdfReading.ocrEmpty": "No text was recognized. Check that the pages are legible and the source language is correct.",
         "document.pdfReading.exportBilingualHint": "Original pages, then the full translation.",
         "document.pdfReading.exportHint": "Full text with original formulas and figures. PDF translations are images; copy text in the reader.",
         "document.pdfReading.layoutExportHint": "Original-layout preview, followed by the full translation.",
@@ -108,6 +114,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "Retry page",
     },
     'ja-JP': {
+        "document.pdfReading.scanned": "スキャン文書 · 翻訳開始時に文字を認識します",
+        "document.pdfReading.recognizing": "文字を認識中 {completed} / {total} ページ",
+        "document.pdfReading.ocrEmpty": "文字を認識できませんでした。ページの鮮明さと原文の言語を確認してください。",
         "document.pdfReading.exportBilingualHint": "原文ページと、その後に訳文全文",
         "document.pdfReading.exportHint": "訳文全文を自動改ページし、数式・図・表を保持。PDF 訳文は画像ですが、リーダーでコピーできます。",
         "document.pdfReading.layoutExportHint": "元のレイアウトの後に訳文全文を保存します。",
@@ -159,6 +168,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "このページを再試行",
     },
     'ko-KR': {
+        "document.pdfReading.scanned": "스캔 문서 · 번역을 시작하면 먼저 글자를 인식합니다",
+        "document.pdfReading.recognizing": "글자 인식 중 {completed} / {total}쪽",
+        "document.pdfReading.ocrEmpty": "인식된 글자가 없습니다. 페이지가 선명한지, 원문 언어가 맞는지 확인하세요.",
         "document.pdfReading.exportBilingualHint": "원본 페이지와 이어지는 전체 번역",
         "document.pdfReading.exportHint": "전체 번역을 자동 페이지로 나누고 수식·그림·표를 보존합니다. PDF 번역은 이미지이며, 리더에서 복사할 수 있습니다.",
         "document.pdfReading.layoutExportHint": "원본 레이아웃 뒤에 전체 번역을 저장합니다.",
@@ -210,6 +222,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "이 페이지 다시 시도",
     },
     'fr-FR': {
+        "document.pdfReading.scanned": "Document numérisé · le texte est reconnu au lancement de la traduction",
+        "document.pdfReading.recognizing": "Reconnaissance du texte · page {completed} sur {total}",
+        "document.pdfReading.ocrEmpty": "Aucun texte reconnu. Vérifiez la lisibilité des pages et la langue source.",
         "document.pdfReading.exportBilingualHint": "Pages originales suivies de la traduction complète",
         "document.pdfReading.exportHint": "Texte complet, formules et figures conservées. Le PDF traduit est une image ; copiez le texte dans le lecteur.",
         "document.pdfReading.layoutExportHint": "Mise en page originale, puis traduction complète.",
@@ -261,6 +276,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "Réessayer cette page",
     },
     'es-ES': {
+        "document.pdfReading.scanned": "Documento escaneado · el texto se reconoce al iniciar la traducción",
+        "document.pdfReading.recognizing": "Reconociendo texto · página {completed} de {total}",
+        "document.pdfReading.ocrEmpty": "No se reconoció texto. Comprueba que las páginas sean legibles y el idioma de origen.",
         "document.pdfReading.exportBilingualHint": "Páginas originales seguidas de la traducción completa",
         "document.pdfReading.exportHint": "Texto completo con fórmulas y figuras originales. El PDF traducido es una imagen; copia el texto en el lector.",
         "document.pdfReading.layoutExportHint": "Diseño original, seguido de la traducción completa.",
@@ -312,6 +330,9 @@ export const pdfReadingMessages = {
         "document.pdfReading.retryPage": "Reintentar esta página",
     },
     'ru-RU': {
+        "document.pdfReading.scanned": "Скан · текст распознаётся при запуске перевода",
+        "document.pdfReading.recognizing": "Распознавание текста · страница {completed} из {total}",
+        "document.pdfReading.ocrEmpty": "Текст не распознан. Проверьте чёткость страниц и исходный язык.",
         "document.pdfReading.exportBilingualHint": "Исходные страницы, затем полный перевод",
         "document.pdfReading.exportHint": "Полный текст с исходными формулами и рисунками. Перевод в PDF — изображение; копируйте текст в ридере.",
         "document.pdfReading.layoutExportHint": "Исходный макет, затем полный перевод.",
