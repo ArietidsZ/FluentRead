@@ -2,7 +2,7 @@
  * @file src/core/language/identify.ts
  *
  * 文件职责：对一段待翻译文本给出与目标语言无关的语言识别结论，是全文、悬浮、标题、划词和共享翻译客户端同目标跳过判断的唯一证据来源。
- * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合；结合汉字及中文技术角色语境辨别少量嵌入名称/术语和枚举，以完整中文操作句架识别短提示中的单个服务名称，保护外语句子、功能词和引述文本；把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重。中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。
+ * 主要内容：规范空白后生成技术标识符遮蔽副本并按文字切词；以非名称字母量确定主文字，把其他文字正文判为混合；结合汉字及中文技术角色语境辨别少量嵌入名称/术语和枚举，以同句代码或缩写证据及局部中文技术句架识别小写术语与操作符连接的表达式，以完整中文操作句架识别短提示中的单个服务名称，保护外语句子、功能词和引述文本；把缩写、内部大写名称、格式名和带版本名称限制为不能主导结论的少量权重。中日韩分别使用假名/谚文/汉字规则并以中文专用字形排除中日、中韩误判；单一语言文字直接给出结论；Latin、Cyrillic、Arabic、Devanagari 交给统计评估，并逐句检查是否夹带可信的其他语言句子；结果以文本为键做有界缓存，目标语言与排除列表不进入缓存。
  * 模块边界：本文件属于 core 纯算法，不比较目标语言、不读取配置或页面 lang、不修改原文与 DOM；配置语言匹配和各功能入口语义由 detect.ts 负责。
  */
 
@@ -39,10 +39,75 @@ const LATIN_FUNCTION_WORDS = new Set(Object.values(FUNCTION_WORDS.Latin).flatMap
 const TECHNICAL_ROLE_BEFORE = /(?:降为|降為|设为|設為|设置为|設置為|切换为|切換為|级别为|級別為|提示为|提示為|生产|生產|构建|構建|运行|運行|执行|執行|安装|安裝|启用|啟用|加载|加載|导入|導入|导出|導出|兼容|适配|適配|无|無)$/u;
 const TECHNICAL_ROLE_AFTER = /^(?:只|仅|僅)?(?:构建|構建|脚本|腳本|插件|扩展|擴展|浏览器|瀏覽器|模式|级别|級別|格式|版本|组件|組件|控件|缓存|緩存|配置|参数|參數|服务|服務|接口|模型|环境|環境|内核|內核|引擎|协议|協議|文件|资源|資源|平台|项目|項目|模块|模組|检测|檢測|测试|測試|校验|校驗|日志|日誌|错误|錯誤|异常|異常|提示|验证|驗證)/u;
 const EXPLICIT_FOREIGN_WORD_BEFORE = /(?:翻译|翻譯|解释|解釋|英文|外语|外語|单词|單詞|词语|詞語)(?:一下|为|為|是|的)?$/u;
-const FOREIGN_PROSE_MARKERS = new Set(['please', 'hello', 'welcome', 'goodbye', 'thanks', 'sorry', 'translate', 'click', 'retry']);
+const FOREIGN_PROSE_MARKERS = new Set(['please', 'hello', 'welcome', 'goodbye', 'thanks', 'sorry', 'translate', 'click', 'retry', 'open', 'restart', 'failed', 'crashed', 'broken', 'unavailable', 'denied', 'expired']);
 // 短操作提示只有一个服务名称和完整中文句架；不能把任意短中文旁的英文词当作名称。
 const SHORT_UI_NAME_BEFORE = /^(?:继续使用|繼續使用|通过|通過|透过|透過)$/u;
 const SHORT_UI_NAME_AFTER = /^(?:继续操作|繼續操作)?$/u;
+// 只描述软件执行、数据及测试语境，不维护某篇文章里的英文术语名单。
+const CHINESE_TECHNICAL_CONTEXT = /(?:连接|連接|持槽|排队|排隊|阻塞|互锁|互鎖|挡住|擋住|重试|重試|并发|併發|同桶|峰值|元数据|元資料|只传|只傳|传递|傳遞|查询|查詢|字段|欄位|参数|參數|变量|變量|集合|状态|狀態|分支|调用|呼叫|入口|响应|回應|缓存|緩存|配置|用例|回归|回歸|所有权|所有權|计数|計數|计一次|計一次|恢复|恢復|安装|安裝|运行|運行|执行|執行|构建|構建|测试|測試|调度|調度|处理链|處理鏈|释放|釋放|占位|按实际选择|按實際選擇|字节|位元組|标准方案|標準方案|产物|產物)/u;
+const CHINESE_CODE_CONTEXT = /(?:字段|欄位|参数|參數|变量|變量|元数据|元資料|调用|呼叫|缓存|緩存|并发|併發|调度|調度|处理链|處理鏈|持槽|阻塞|互锁|互鎖|安装|安裝|回归|回歸)/u;
+const CAPITALIZED_FIELD_CONTEXT = /^(?:字段|欄位|参数|參數|变量|變量|集合|状态|狀態)/u;
+const TECHNICAL_EXPRESSION_GAP = /^[ \t/、+→&|!-]+$/u;
+const TECHNICAL_CLAUSE_BOUNDARY = /[,.!?。！？;；:：，\n]/u;
+const TECHNICAL_SENTENCE_BOUNDARY = /(?<=[.!?。！？])\s*(?=\S)|\n+/u;
+
+/**
+ * 小写术语不能只凭中文占比获准：同一句至少有八个汉字、明确中文证据及代码/缩写锚点；
+ * 每个短语还须在含中文技术句架的局部子句中。箭头、斜杠及枚举按完整表达式判断，
+ * 各项最多三个词，总长有界；功能词、引文和明确要求解释的外语继续作为正文。
+ */
+function findChineseTechnicalTerms(copy: string, words: readonly ScriptWord[]): ReadonlyMap<ScriptWord, number> {
+    const terms = new Map<ScriptWord, number>();
+    if (!words.some(word => word.script === 'Han') || !words.some(word => word.script === 'Latin')
+        || classifyChineseHan(copy) === undefined) return terms;
+    let offset = 0;
+    const sentences = copy.split(TECHNICAL_SENTENCE_BOUNDARY).map(text => {
+        const start = copy.indexOf(text, offset);
+        offset = start + text.length;
+        const sentenceWords = segmentScriptWords(text);
+        const hanCount = sentenceWords.reduce((count, word) => count + (word.script === 'Han' ? word.letters : 0), 0);
+        return {
+            text, start, end: offset,
+            credible: hanCount >= 8
+                && (CHINESE_CODE_CONTEXT.test(text) && sentenceWords.some((word, index) => word.script === 'Latin'
+                    && sentenceWords[index + 1]?.script === 'Latin'
+                    && /^[ \t]*[/、+→&|][ \t]*$/u.test(text.slice(word.end, sentenceWords[index + 1]!.start)))
+                    || sentenceWords.some(word => word.script === 'Latin'
+                    && (isAcronymWord(word.text) || isMixedCaseName(word.text)
+                        || /^[A-Z][a-z]{1,23}$/u.test(word.text) && CAPITALIZED_FIELD_CONTEXT.test(text.slice(word.end).trimStart())))),
+        };
+    });
+    let sentenceIndex = 0;
+    for (let index = 0; index < words.length; index += 1) {
+        const first = words[index]!;
+        if (first.script !== 'Latin') continue;
+        while (sentenceIndex + 1 < sentences.length && first.start >= sentences[sentenceIndex]!.end) sentenceIndex += 1;
+        const sentence = sentences[sentenceIndex]!;
+        if (!sentence.credible) continue;
+        const start = index;
+        while (index + 1 < words.length && words[index + 1]!.script === 'Latin'
+            && TECHNICAL_EXPRESSION_GAP.test(copy.slice(words[index]!.end, words[index + 1]!.start))) index += 1;
+        const run = words.slice(start, index + 1);
+        const last = run.at(-1)!;
+        const expression = copy.slice(first.start, last.end);
+        if (expression.length > 128 || expression.split(/[/、+→&|!-]+/u).some(part => part.trim().split(/\s+/u).length > 3)) continue;
+        const sentenceText = sentence.text;
+        const localStart = first.start - sentence.start;
+        const localEnd = last.end - sentence.start;
+        const before = sentenceText.slice(Math.max(0, localStart - 64), localStart).split(TECHNICAL_CLAUSE_BOUNDARY).at(-1)!.trimEnd();
+        const after = sentenceText.slice(localEnd, localEnd + 64).split(TECHNICAL_CLAUSE_BOUNDARY)[0]!.trimStart();
+        if (!/\p{Script=Han}$/u.test(before) && !/^\p{Script=Han}/u.test(after)) continue;
+        if (!CHINESE_TECHNICAL_CONTEXT.test(before + after)
+            && !run.some(word => isAcronymWord(word.text) || isMixedCaseName(word.text))) continue;
+        if (EXPLICIT_FOREIGN_WORD_BEFORE.test(before) || /["'“‘「『]$/u.test(before) || /^["'”’」』]/u.test(after)) continue;
+        if (!run.every(word => /^[A-Za-z]{1,24}$/u.test(word.text)
+            && !LATIN_FUNCTION_WORDS.has(word.text.toLowerCase())
+            && (word.text === 'retry' || !FOREIGN_PROSE_MARKERS.has(word.text.toLowerCase())))) continue;
+        const items = expression.split(/[/、+→&|!-]+/u).filter(part => part.trim()).length;
+        for (const word of run) terms.set(word, 2 * items / run.length);
+    }
+    return terms;
+}
 
 const EMPTY: LanguageIdentification = Object.freeze({status: 'empty', languages: Object.freeze([])});
 const UNKNOWN: LanguageIdentification = Object.freeze({status: 'unknown', languages: Object.freeze([])});
@@ -210,7 +275,11 @@ function identifyUncached(value: string): LanguageIdentification {
     const detectionCopy = createLanguageDetectionCopy(value);
     const words = segmentScriptWords(detectionCopy.text);
     if (words.length === 0) return UNKNOWN;
-    const embeddedNames = findEmbeddedNames(detectionCopy.text, words);
+    const embeddedNames = new Map(findEmbeddedNames(detectionCopy.text, words));
+    for (const [word, weight] of findChineseTechnicalTerms(detectionCopy.text, words)) {
+        // 格式名仍保持零权重，已接纳的名称沿用原有预算；新规则只补足小写术语的正文误判。
+        if (!embeddedNames.has(word) && classifyEmbeddedLatinWord(word.text).role === 'prose') embeddedNames.set(word, weight);
+    }
 
     // 主文字按“非名称字母”决定：PDF、OpenAI 这类名称不能把中文句子变成 Latin 文本。
     const weights = new Map<string, number>();
