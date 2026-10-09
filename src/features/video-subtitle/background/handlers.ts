@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/background/handlers.ts
  * 文件职责：承载视频字幕本地 Whisper 的后台所有权、代际取消和 Offscreen 调度。
- * 主要内容：校验 tab/stream/generation，串行转发识别、预热与取消请求，并用真实缓存键核对模型下载登记后的可用状态。
+ * 主要内容：校验 tab/stream/generation 与预下载来源偏好，串行转发识别、预热与取消请求，并用真实缓存键核对模型下载登记后的可用状态。
  * 模块边界：只编排视频字幕与平台 Offscreen client，不实现 Whisper 推理，也不关闭共享 Offscreen 文档。
  */
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
@@ -96,7 +96,9 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
             const keepWarm = message.keepWarm === true;
             if (!keepWarm) {
                 const model = normalizeVideoLocalTranscriptionModel(message.model);
-                const response = await offscreen.send<any>({type: 'VIDEO_AI_PREPARE', model, keepWarm: false}, {timeoutMs: model === 'small' ? 600_000 : 120_000});
+                const preference = message.preference === 'official' || message.preference === 'mirror' ? message.preference : 'auto';
+                // 下载器总预算十分钟；RPC 留出关闭流和返回错误的余量，避免任务先丢失回包。
+                const response = await offscreen.send<any>({type: 'VIDEO_AI_PREPARE', model, keepWarm: false, preference}, {timeoutMs: 630_000});
                 if (response?.success !== true) return response;
                 const models = await rememberDownloadedModel(model);
                 return {...response, model, models};

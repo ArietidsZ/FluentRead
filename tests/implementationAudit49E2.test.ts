@@ -129,15 +129,14 @@ describe('E2 public manga resource ownership', () => {
     it('preserves the feature error when cache removal clears the last pending download snapshot', async () => {
         const entered = deferred<void>(), finalFetch = deferred<Response>();
         modelFetch.mockRejectedValueOnce(new Error('first controlled fetch failure'))
-            .mockRejectedValueOnce(new Error('second controlled fetch failure'))
             .mockImplementationOnce(() => {entered.resolve(); return finalFetch.promise;});
         const result = loadMangaInpaintAsset().then(() => undefined, error => error);
         await entered.promise;
         try {
-            // .net is now the final registered mirror, after the new .com mirror.
-            expect(modelFetch.mock.calls.map(([url]) => new URL(String(url)).host)).toEqual(['huggingface.co', 'hf-mirror.com', 'hf-mirror.net']);
+            // 仅当前注册来源进入网络；旧 .net 只保留已缓存文件的资格。
+            expect(modelFetch.mock.calls.map(([url]) => new URL(String(url)).host)).toEqual(['huggingface.co', 'hf-mirror.com']);
             expect(modelFetch.mock.calls.every(([url]) => new URL(String(url)).pathname === new URL(MANGA_INPAINT_ASSET.url).pathname)).toBe(true);
-            expect((await mangaOcrModelStatus()).download?.source).toBe('hf-mirror.net');
+            expect((await mangaOcrModelStatus()).download?.source).toBe('hf-mirror.com');
             await removeMangaOcrAssets();
             expect(caches.delete).toHaveBeenCalledWith(MANGA_OCR_CACHE);
         } finally {
@@ -154,7 +153,7 @@ describe('E2 public manga resource ownership', () => {
 
     it('does not let older failed attempts mark a newer download as failed', async () => {
         const lastA = deferred<Response>(), enteredA = deferred<void>(), pendingB = deferred<Response>(), enteredB = deferred<void>(), abortB = new AbortController();
-        modelFetch.mockRejectedValueOnce(new Error('A first')).mockRejectedValueOnce(new Error('A second')).mockImplementationOnce(() => {enteredA.resolve(); return lastA.promise;})
+        modelFetch.mockRejectedValueOnce(new Error('A first')).mockImplementationOnce(() => {enteredA.resolve(); return lastA.promise;})
             .mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;});
         const a = capture(loadMangaInpaintAsset()); await enteredA.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await enteredB.promise;
@@ -178,7 +177,7 @@ describe('E2 public manga resource ownership', () => {
     it('keeps newer ownership when an older request switches to its fallback source', async () => {
         const firstA = deferred<Response>(), enteredA = deferred<void>(), pendingB = deferred<Response>(), enteredB = deferred<void>(), fallbackA = deferred<Response>(), enteredFallback = deferred<void>(), abortB = new AbortController();
         modelFetch.mockImplementationOnce(() => {enteredA.resolve(); return firstA.promise;}).mockImplementationOnce((_url, options) => {enteredB.resolve(); options!.signal!.addEventListener('abort', () => pendingB.reject(new Error('B abort')), {once: true}); return pendingB.promise;})
-            .mockImplementationOnce(() => {enteredFallback.resolve(); return fallbackA.promise;}).mockRejectedValueOnce(new Error('A final mirror failure'));
+            .mockImplementationOnce(() => {enteredFallback.resolve(); return fallbackA.promise;});
         const a = capture(loadMangaInpaintAsset()); await enteredA.promise;
         const b = capture(loadMangaInpaintAsset(abortB.signal)); await enteredB.promise;
         firstA.reject(new Error('A first')); await enteredFallback.promise;
@@ -201,8 +200,7 @@ describe('E2 public manga resource ownership', () => {
         const detection = deferred<Response>(), detectionEntered = deferred<void>(), inpaintEntered = deferred<void>(), recognitionEntered = deferred<void>(), recognition = deferred<Response>(), abort = new AbortController();
         modelFetch.mockImplementationOnce(() => {detectionEntered.resolve(); return detection.promise;})
             .mockImplementationOnce((_url, options) => {inpaintEntered.resolve(); return new Promise((_resolve, reject) => options!.signal!.addEventListener('abort', () => reject(new Error('inpaint abort')), {once: true}));})
-            .mockImplementationOnce(() => {recognitionEntered.resolve(); return recognition.promise;}).mockRejectedValueOnce(new Error('recognition fallback failure'))
-            .mockRejectedValueOnce(new Error('recognition final mirror failure'));
+            .mockImplementationOnce(() => {recognitionEntered.resolve(); return recognition.promise;}).mockRejectedValueOnce(new Error('recognition fallback failure'));
         const ocr = capture(loadMangaOcrAssets()); await detectionEntered.promise;
         const inpaint = capture(loadMangaInpaintAsset(abort.signal)); await inpaintEntered.promise;
         detection.resolve(responseFor(MANGA_OCR_ASSETS[0])); await recognitionEntered.promise;

@@ -1236,10 +1236,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
     normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
-    // 已有配置没有这个字段时保留过去的轻量默认；新配置推荐多语种质量模型。
-    if (!hasOwn(source, 'videoLocalModel') && Object.keys(source).length > 0
-        || normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
-        normalized.videoLocalModel = 'tiny';
+    // 缺失或非法选择统一使用质量默认；明确保存的 Tiny/Base/Small 继续保留。
+    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
+        normalized.videoLocalModel = 'small';
     }
     if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {
         normalized.videoSourceLanguage = 'auto';

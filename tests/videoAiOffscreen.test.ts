@@ -61,6 +61,25 @@ function completeWorker(worker: FakeWorker, model: 'tiny' | 'base' | 'small' = '
 }
 
 describe('video AI offscreen queue', () => {
+    it.each([
+        ['official', 'huggingface.co'], ['mirror', 'modelscope.cn'], ['arbitrary-url', 'modelscope.cn'],
+    ])('cache preparation keeps preference %s through the queue and reuses every other cached file', async (preference, host) => {
+        vi.useFakeTimers(); installWorker();
+        vi.stubGlobal('navigator', {language: 'zh-CN'});
+        const put = vi.fn(async (_url: string, response: Response) => {await response.arrayBuffer();});
+        vi.stubGlobal('caches', {open: async () => ({match: async (url: string) => url.endsWith('/config.json') ? undefined : new Response(null), put})});
+        const fetcher = vi.fn(async (_url: string) => new Response('{}', {headers: {'Content-Length': '2', 'Content-Type': 'application/json'}}));
+        vi.stubGlobal('fetch', fetcher);
+        const reports: import('@/src/core/download/progress').DownloadProgress[] = [];
+        await expect(prepareLocalVideoTranscriptionModel('small', {preference, onProgress: progress => reports.push(progress)})).resolves.toMatchObject({model: 'small', dtype: 'q4'});
+        await drain();
+        expect(fetcher).toHaveBeenCalledOnce();
+        expect(new URL(fetcher.mock.calls[0][0]).hostname).toBe(host);
+        expect(put).toHaveBeenCalledOnce();
+        expect(put.mock.calls[0][0]).toBe('https://modelscope.cn/models/onnx-community/whisper-small/resolve/master/config.json');
+        expect(reports.some(progress => progress.transfer?.state === 'connecting')).toBe(true);
+        expect(reports.some(progress => progress.transfer?.state === 'receiving')).toBe(true);
+    });
     it('Small automatic recognition survives a 76.55-second first attempt without a duplicate Worker', async () => {
         vi.useFakeTimers();installWorker();
         const pending = transcribeLocalVideoAudio({streamId: 'small-long-first', audioPcm16Base64: audio, model: 'small'});
@@ -483,7 +502,7 @@ describe('模型预热的有界首音频租期', () => {
     it('陌生stream拒绝不能取消已消费租期后的30秒释放timer', async () => {
         vi.useFakeTimers();installWorker();
         const worker = await warm('lease-foreign-idle');
-        const first = transcribeLocalVideoAudio({streamId: 'lease-foreign-idle', audioPcm16Base64: audio});
+        const first = transcribeLocalVideoAudio({streamId: 'lease-foreign-idle', model: 'tiny', audioPcm16Base64: audio});
         await drain();completeWorker(worker);await first;await drain();
         await vi.advanceTimersByTimeAsync(20_000);
         await expect(transcribeLocalVideoAudio({streamId: 'foreign-idle', audioPcm16Base64: audio})).rejects.toThrow('另一个标签页');
