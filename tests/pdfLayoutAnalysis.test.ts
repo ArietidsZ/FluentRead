@@ -301,6 +301,19 @@ describe('PDF layout analysis on real paper typography', () => {
         expect(analyze([atom('建议教材 吕云翔 傅尔也 译', 60, 100, 200)]).blocks[0].source).toBe('建议教材 吕云翔 傅尔也 译');
         expect(analyze([atom('第 4 页', 60, 100, 60)]).blocks[0].source).toBe('第 4 页');
     });
+    it('keeps an author byline out of the headings and drops a raised footnote mark from the end of a title', () => {
+        const mark = {...atom('q', 130, 94, 8, 9), baseline: 94};
+        const page = [atom('The effect of word predictability is logarithmic', 41, 100, 88, 13.4), mark, atom('Nathaniel J. Smith a,⇑, Roger Levy b', 41, 130, 168, 10.6),
+            atom('Body text sets the page size and is long enough to be a real sentence here.', 41, 300, 420, 8), atom('More body text follows on the next line of the very same body paragraph.', 41, 310, 420, 8), atom('Kernel Activity and Trace Analysis', 41, 200, 200, 10.6)];
+        const result = analyze(page, [], 544, 742);
+        expect(result.blocks.find(block => block.source.startsWith('The effect'))).toMatchObject({kind: 'heading', source: 'The effect of word predictability is logarithmic'});
+        expect(result.blocks.find(block => block.source.startsWith('Nathaniel'))).toMatchObject({kind: 'metadata', preserveSource: true});
+        // 只用 and 连接的标题仍是标题；页面下半部分或上方没有更大标题时，逗号分隔的词组也不算署名。
+        expect(result.blocks.find(block => block.source.startsWith('Kernel'))?.kind).toBe('heading');
+        expect(analyze([atom('Ashish Vaswani, Noam Shazeer, Niki Parmar', 41, 130, 300, 14), atom('Body text sets the page size and is long enough to be a real sentence here.', 41, 300, 420, 8), atom('More body text follows on the next line of the very same body paragraph.', 41, 310, 420, 8)]).blocks[0].kind).toBe('heading');
+        // 标题末尾同一基线上的普通字母不是脚注标记。
+        expect(analyze([atom('Appendix', 41, 100, 60, 14), atom('B', 105, 100, 8, 9), atom('Body text sets the page size and is long enough to be a real sentence here.', 41, 300, 420, 8), atom('More body text follows on the next line of the very same body paragraph.', 41, 310, 420, 8)]).blocks[0].source).toBe('Appendix B');
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

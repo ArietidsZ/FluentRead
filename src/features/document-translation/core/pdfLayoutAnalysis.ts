@@ -161,6 +161,8 @@ const cjkGlyphs = new RegExp(`[${CJK}]`, 'gu');
 const cjkLine = (text: string) => (text.match(cjkGlyphs)?.length ?? 0) * 2 >= text.replace(/\s/gu, '').length;
 /** 上一行以中日韩文字或全角标点结尾、下一行以它们开头时，折行处不应补空格。 */
 const cjkEdge = new RegExp(`^[${CJK}，。、；：！？（）《》“”][${CJK}，。、；：！？（）《》“”]$`, 'u');
+/** 作者署名：以逗号分隔的多个“名 姓”，或带单位标记（上标字母、数字、星号等）的人名；只用 and 连接的两个词组更像标题，不算署名。 */
+const byline = /^(?=.*(?:,|[*†‡⇑]|\s[a-z\d]\b))(?:(?:[A-Z][\p{L}.'’-]*\s+){1,3}[A-Z][\p{L}'’-]+(?:\s*[a-z\d*†‡⇑](?:\s*,\s*[a-z\d*†‡⇑])*)?\s*(?:,|\band\b|&|$)\s*)+$/u;
 /** 一行的“词数”：按空白分出的词，加上不用空格分词的中日韩文字（两个字约合一个词）。 */
 const textUnits = (text: string) => text.split(/\s+/u).filter(Boolean).length + (text.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu)?.length ?? 0) / 2;
 /** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译。 */
@@ -302,6 +304,8 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         if ((header || trailer) && line.fontSize <= font * 1.05 && line.text.length < 120
             && !lines.some(near => header ? near.y >= bottom(line) - 1 && near.y - bottom(line) < font * 1.2 : bottom(near) <= line.y + 1 && line.y - bottom(near) < font * 1.2)) return 'footer';
         if (captionStart.test(line.text)) return 'caption';
+        // 标题下方的作者署名字号常大于正文，但它是人名与单位标记，既不该翻译也不该出现在目录里。
+        if (line.y < input.height * 0.45 && byline.test(line.text) && lines.some(above => above.baseline < line.baseline && above.fontSize > line.fontSize * 1.1)) return 'metadata';
         // 没有可读词语的短行（求和号、上下标、极限记号）是公式的碎片，翻译只会破坏它。
         if (!readable(line.text)) return 'formula';
         const numbered = line.fontSize >= font * 0.95 && line.text.length < 120;
@@ -361,9 +365,13 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const blocks: PdfLayoutBlock[] = drafts.map(draft => {
         const first = draft.lines[0];
         const joined = draft.lines.reduce((text, line) => text ? /[-‐‑]$/u.test(text) && /^[a-z]/u.test(line.text) ? text.slice(0, -1) + line.text : cjkEdge.test(text.slice(-1) + line.text.slice(0, 1)) ? text + line.text : `${text} ${line.text}` : line.text, '');
+        // 标题末尾抬高的小字是脚注标记（☆、*、a），不属于标题文字。
+        const lastLine = draft.lines.at(-1)!, mark = lastLine.runs.at(-1) as PdfLayoutAtom;
+        const marked = draft.kind === 'heading' && lastLine.runs.length > 1 && mark.fontSize <= lastLine.fontSize * 0.8 && mark.baseline < lastLine.baseline - lastLine.fontSize * 0.15
+            && /^[\p{L}\d*†‡⇑☆]{1,2}$/u.test(mark.text.trim()) && joined.endsWith(mark.text.trim());
         // 两端撑开排版的中文在每个字之间都留了空；逐字带空格的原文会被当成一串单字来翻译。
         const spaced = joined.match(/[\p{Script=Han}] (?=[\p{Script=Han}])/gu)?.length ?? 0;
-        const source = spaced >= 3 && spaced >= (joined.match(/[\p{Script=Han}]/gu)!.length - 1) * 0.6 ? joined.replace(/(?<=[\p{Script=Han}，。、；：（）]) (?=[\p{Script=Han}，。、；：（）])/gu, '') : joined;
+        const source = spaced >= 3 && spaced >= (joined.match(/[\p{Script=Han}]/gu)!.length - 1) * 0.6 ? joined.replace(/(?<=[\p{Script=Han}，。、；：（）]) (?=[\p{Script=Han}，。、；：（）])/gu, '') : marked ? joined.slice(0, -mark.text.trim().length).trimEnd() : joined;
         const leading = draft.lines.slice(1).map((line, index) => line.baseline - draft.lines[index].baseline);
         const center = draft.bounds.x + draft.bounds.width / 2;
         const centered = (draft.kind === 'heading' || draft.kind === 'metadata' || draft.kind === 'footer') && Math.abs(center - input.width / 2) <= input.width * 0.045;
