@@ -1,0 +1,97 @@
+diff --git a/tests/implementationAudit49G.test.ts b/tests/implementationAudit49G.test.ts
+index 20bb51ed..01a5b6e4 100644
+--- a/tests/implementationAudit49G.test.ts
++++ b/tests/implementationAudit49G.test.ts
+@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
+ import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
+ import {IDBFactory, IDBKeyRange} from 'fake-indexeddb';
+ import {parseHTML} from 'linkedom';
++import {TinyColor, names as colorNames} from '@ctrl/tinycolor';
+ import {TranslationCandidateCore} from '@/src/core/translation/engine';
+ import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
+ import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
+@@ -75,6 +76,7 @@ type Vendor = {
+     ai: Pick<typeof import('ai'), 'generateText' | 'APICallError' | 'RetryError'>;
+     openAICompatible: Pick<typeof import('@ai-sdk/openai-compatible'), 'createOpenAICompatible'>;
+     francMin: typeof import('franc-min');
++    tinycolor: Pick<typeof import('@ctrl/tinycolor'), 'TinyColor'>;
+     Dexie: typeof import('dexie')['default'];
+ };
+ 
+@@ -239,7 +241,7 @@ describe('audit 49G shipped userscript resources', () => {
+         const realm = createContext({});
+         runInContext(asset('userscript/resources/fluentread-data.v1.js'), realm, {filename: resolve(resourceRoot, 'userscript/resources/fluentread-data.v1.js'), timeout: 5_000});
+         const {catalogs, original} = await shippedCatalogs();
+-        expect(original.established).toHaveLength(17);
++        expect(original.established).toHaveLength(19);
+         expect(realm.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.established).toEqual(original.established);
+         for (const rule of original.established) {
+             const current = catalogs.established.find((candidate: any) => candidate.id === rule.id);
+@@ -289,6 +291,20 @@ describe('audit 49G shipped userscript resources', () => {
+         }
+     });
+ 
++    it('preserves named and boundary color results through the shipped TinyColor export', () => {
++        const {vendor} = vendorRealm();
++        const inputs = [...Object.keys(colorNames), '', 'transparent', 'banana', '#abc', '#aabbcc80',
++            'rgb(256, -1, 12)', 'rgba(1, 2, 3, 0.5)', 'hsl(360, 100%, 50%)', 'red; background: url(https://fixture.invalid)'];
++        for (const input of inputs) {
++            const expected = new TinyColor(input);
++            const actual = new vendor.tinycolor.TinyColor(input);
++            expect(actual.isValid).toBe(expected.isValid);
++            expect(actual.getAlpha()).toBe(expected.getAlpha());
++            expect(actual.toHexString()).toBe(expected.toHexString());
++            expect(actual.toRgbString()).toBe(expected.toRgbString());
++        }
++    });
++
+     it('encrypts with the shipped AES/ECB/PKCS7 exports and round-trips UTF-8', () => {
+         const {vendor} = vendorRealm();
+         const input = 'FluentRead 密文🙂';
+diff --git a/tests/userscriptViteConfig.test.ts b/tests/userscriptViteConfig.test.ts
+index 41d8f9c6..0d4bdba6 100644
+--- a/tests/userscriptViteConfig.test.ts
++++ b/tests/userscriptViteConfig.test.ts
+@@ -32,10 +32,10 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
+         const vm = await vi.importActual<typeof import('node:vm')>('node:vm');
+         const authoritative = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/site-adaptation/catalog/established.json'), 'utf8'));
+         const data = vm.runInNewContext(readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 5000});
+-        if (variant === 'unchanged' || variant === 'reordered' || variant === 'removed-rule') {
+-            data.siteCatalogs.established = structuredClone(authoritative);
+-        }
+-        if (variant === 'reordered') data.siteCatalogs.established.reverse();
++        // 显式构造历史资产和重建分支，固定资源刷新后仍验证相同契约。
++        data.siteCatalogs.established = structuredClone(authoritative);
++        if (variant === 'old-asset') data.siteCatalogs.established.shift();
++        if (variant === 'reordered' || variant === 'missing-runtime-rule') data.siteCatalogs.established.reverse();
+         if (variant === 'removed-rule') data.siteCatalogs.established.push({id: 'removed-pinned-rule', match: {hosts: ['removed.invalid']}});
+         vi.doMock('node:vm', () => ({...vm, runInNewContext: () => data}));
+         vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
+diff --git a/userscript/vendorEntry.ts b/userscript/vendorEntry.ts
+index 3b21615b..e7d77706 100644
+--- a/userscript/vendorEntry.ts
++++ b/userscript/vendorEntry.ts
+@@ -14,9 +14,11 @@ import modeEcb from 'crypto-js/mode-ecb';
+ import padPkcs7 from 'crypto-js/pad-pkcs7';
+ import DexieImplementation from 'dexie/dist/dexie.min.js';
+ import {franc, francAll} from 'franc-min';
++import {TinyColor} from '@ctrl/tinycolor';
+ 
+ export const ai = {APICallError, RetryError, generateText};
+ export const openAICompatible = {createOpenAICompatible};
+ export const francMin = {franc, francAll};
++export const tinycolor = {TinyColor};
+ export const Dexie = DexieImplementation;
+ export {sha256, md5, hmacSha256, aes, encUtf8, encBase64, modeEcb, padPkcs7};
+diff --git a/userscript/vite.config.ts b/userscript/vite.config.ts
+index cad433a3..e76cbbdd 100644
+--- a/userscript/vite.config.ts
++++ b/userscript/vite.config.ts
+@@ -39,6 +39,7 @@ const vendorGlobals: Record<string, string> = {
+     'crypto-js/pad-pkcs7': 'FluentReadUserscriptVendor.padPkcs7',
+     'dexie/dist/dexie.min.js': 'FluentReadUserscriptVendor.Dexie',
+     'franc-min': 'FluentReadUserscriptVendor.francMin',
++    '@ctrl/tinycolor': 'FluentReadUserscriptVendor.tinycolor',
+ };
+ function installedVersion(name: string): string {
+     const manifest = JSON.parse(fs.readFileSync(resolve(root, 'node_modules', name, 'package.json'), 'utf8')) as {version: string};

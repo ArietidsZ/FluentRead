@@ -1,0 +1,24 @@
+{
+  "original": {
+    "bytes": 2322749,
+    "metadataBytes": 2481,
+    "bodyBytes": 2320268,
+    "bodySha256": "7d123d7b18b64aa0b35730f29401ddabcadb76f883c418781f7c1d683881eae6"
+  },
+  "refreshed": {
+    "bytes": 2315805,
+    "metadataBytes": 2303,
+    "bodyBytes": 2313502,
+    "bodySha256": "8abaf6325761f0535afea253b74c07cc6607eb0f287e91d25968be4ff1bdedb7"
+  },
+  "tinycolorTemporary": {
+    "bytes": 2288713,
+    "metadataBytes": 2303,
+    "bodyBytes": 2286410,
+    "bodySha256": "d08d4dfcde1c92565424ed55b8f3442980a59d4ee91d2dc12a0a20f3db058c89"
+  },
+  "refreshOnlyBodySaved": 6766,
+  "temporaryUrlMetadataSaved": 178,
+  "tinycolorOnlySaved": 27092,
+  "temporaryMetadataIdenticalForTinycolorAblation": true
+}

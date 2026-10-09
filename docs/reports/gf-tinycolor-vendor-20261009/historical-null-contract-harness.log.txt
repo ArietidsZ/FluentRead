@@ -1,0 +1,17 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec node /home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/color-and-resource-audit.mjs
+/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/format-input.js:38
+        if (isValidCSSUnit(color.r) && isValidCSSUnit(color.g) && isValidCSSUnit(color.b)) {
+                                 ^
+
+TypeError: Cannot read properties of null (reading 'r')
+    at inputToRGB (/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/format-input.js:38:34)
+    at new TinyColor (/home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009/node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/index.js:22:49)
+    at file:///home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/color-and-resource-audit.mjs:18:43
+    at file:///home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/color-and-resource-audit.mjs:20:84
+    at Array.map (<anonymous>)
+    at file:///home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/color-and-resource-audit.mjs:20:19
+    at ModuleJob.run (node:internal/modules/esm/module_job:569:25)
+    at async node:internal/modules/esm/loader:650:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v26.7.0

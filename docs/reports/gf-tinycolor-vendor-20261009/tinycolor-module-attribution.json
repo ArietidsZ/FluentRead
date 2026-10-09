@@ -1,0 +1,61 @@
+{
+  "beforeFiveTinycolorModules": {
+    "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/util.js": {
+      "renderedLength": 2130,
+      "originalLength": 2180,
+      "renderedExports": [
+        "bound01",
+        "clamp01",
+        "isOnePointZero",
+        "isPercentage",
+        "boundAlpha",
+        "convertToPercentage",
+        "pad2"
+      ]
+    },
+    "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/conversion.js": {
+      "renderedLength": 5818,
+      "originalLength": 6388,
+      "renderedExports": [
+        "rgbToRgb",
+        "rgbToHsl",
+        "hslToRgb",
+        "rgbToHsv",
+        "hsvToRgb",
+        "rgbToHex",
+        "rgbaToHex",
+        "convertDecimalToHex",
+        "convertHexToDecimal",
+        "parseIntFromHex",
+        "numberInputToObject"
+      ]
+    },
+    "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/css-color-names.js": {
+      "renderedLength": 3954,
+      "originalLength": 3962,
+      "renderedExports": [
+        "names"
+      ]
+    },
+    "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/format-input.js": {
+      "renderedLength": 6544,
+      "originalLength": 6776,
+      "renderedExports": [
+        "inputToRGB",
+        "stringInputToObject",
+        "isValidCSSUnit"
+      ]
+    },
+    "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/index.js": {
+      "renderedLength": 17985,
+      "originalLength": 18401,
+      "renderedExports": [
+        "TinyColor"
+      ]
+    }
+  },
+  "afterTinycolorModules": {},
+  "beforeRenderedLength": 36431,
+  "actualCompleteSourceSavings": 27092,
+  "renderedLengthIsNotSavings": true
+}

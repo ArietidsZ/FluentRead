@@ -1,0 +1,159 @@
+{
+  "baseHead": "9b563da892ea6d6c836166e7ee54c9c468c47c9e",
+  "sourceCommit": "d9abfc98b8dd2df77ab5516f2e168e08ddd0e0df",
+  "resourceCommit": "323d3cb11f0e7dde655e5919d5558167e57499b5",
+  "rows": [
+    {
+      "mode": "standard",
+      "before": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "after": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "totalSavedUtf8Bytes": 0,
+      "beforeModuleCount": 492,
+      "afterModuleCount": 492,
+      "moduleIdDifference": {
+        "js": {
+          "removed": [],
+          "added": [],
+          "beforeCount": 451,
+          "afterCount": 451
+        },
+        "css": {
+          "removed": [],
+          "added": [],
+          "beforeCount": 41,
+          "afterCount": 41
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      },
+      "afterCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      }
+    },
+    {
+      "mode": "standalone",
+      "before": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3589291,
+        "sha256": "c05f02f3c907b575ec3e8ec4544872e830e050ccfaa56e401f60ef83e48db5a8"
+      },
+      "after": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3589291,
+        "sha256": "c05f02f3c907b575ec3e8ec4544872e830e050ccfaa56e401f60ef83e48db5a8"
+      },
+      "totalSavedUtf8Bytes": 0,
+      "beforeModuleCount": 1186,
+      "afterModuleCount": 1186,
+      "moduleIdDifference": {
+        "js": {
+          "removed": [],
+          "added": [],
+          "beforeCount": 1058,
+          "afterCount": 1058
+        },
+        "css": {
+          "removed": [],
+          "added": [],
+          "beforeCount": 128,
+          "afterCount": 128
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 696217,
+        "sha256": "a099bb388bee6f21ec85228702e56358c67a0849bc1756545f657867b9b857c7"
+      },
+      "afterCssPayload": {
+        "bytes": 696217,
+        "sha256": "a099bb388bee6f21ec85228702e56358c67a0849bc1756545f657867b9b857c7"
+      }
+    },
+    {
+      "mode": "greasyfork",
+      "before": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2322749,
+        "sha256": "71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5"
+      },
+      "after": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2288891,
+        "sha256": "179375379ffe19cb8cf351ae09b2477bf50c25137dfab0d9f7d250924e67da44"
+      },
+      "totalSavedUtf8Bytes": 33858,
+      "beforeModuleCount": 385,
+      "afterModuleCount": 380,
+      "moduleIdDifference": {
+        "js": {
+          "removed": [
+            "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/conversion.js",
+            "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/css-color-names.js",
+            "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/format-input.js",
+            "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/index.js",
+            "node_modules/.pnpm/@ctrl+tinycolor@3.6.1/node_modules/@ctrl/tinycolor/dist/module/util.js"
+          ],
+          "added": [],
+          "beforeCount": 344,
+          "afterCount": 339
+        },
+        "css": {
+          "removed": [],
+          "added": [],
+          "beforeCount": 41,
+          "afterCount": 41
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      },
+      "afterCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      }
+    }
+  ],
+  "tinycolorOnlySavedUtf8Bytes": 27092,
+  "resourceRefreshOnlyBodySavedBytes": 6766,
+  "temporaryMetadataSavedBytesExcludedFromFormalGain": 178,
+  "formalTotalSavedBytes": 33858,
+  "formalGreasyforkOverBudgetBytes": 288891,
+  "ablation": {
+    "original": {
+      "bytes": 2322749,
+      "metadataBytes": 2481,
+      "bodyBytes": 2320268,
+      "bodySha256": "7d123d7b18b64aa0b35730f29401ddabcadb76f883c418781f7c1d683881eae6"
+    },
+    "refreshed": {
+      "bytes": 2315805,
+      "metadataBytes": 2303,
+      "bodyBytes": 2313502,
+      "bodySha256": "8abaf6325761f0535afea253b74c07cc6607eb0f287e91d25968be4ff1bdedb7"
+    },
+    "tinycolorTemporary": {
+      "bytes": 2288713,
+      "metadataBytes": 2303,
+      "bodyBytes": 2286410,
+      "bodySha256": "d08d4dfcde1c92565424ed55b8f3442980a59d4ee91d2dc12a0a20f3db058c89"
+    },
+    "refreshOnlyBodySaved": 6766,
+    "temporaryUrlMetadataSaved": 178,
+    "tinycolorOnlySaved": 27092,
+    "temporaryMetadataIdenticalForTinycolorAblation": true
+  },
+  "formalMetadataBytes": 2481,
+  "formalBodySha256": "d08d4dfcde1c92565424ed55b8f3442980a59d4ee91d2dc12a0a20f3db058c89",
+  "formalArtifactByteIdenticalToOriginalCli": true
+}

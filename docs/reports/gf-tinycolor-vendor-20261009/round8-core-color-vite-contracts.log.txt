@@ -1,0 +1,2 @@
+[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec vitest run tests/translationAppearance.test.ts tests/userscriptViteConfig.test.ts --reporter=json --outputFile=/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/core-color-vite-tests.json
+JSON report written to /home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/GF-TINYCOLOR-CANDIDATE/core-color-vite-tests.json

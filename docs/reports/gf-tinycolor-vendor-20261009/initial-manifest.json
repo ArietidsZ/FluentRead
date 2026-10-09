@@ -1,0 +1,17 @@
+{
+  "baseHead": "9b563da892ea6d6c836166e7ee54c9c468c47c9e",
+  "branch": "perf/gf-tinycolor-vendor-20261009",
+  "oldResources": {
+    "fluentread-vendor.v1.js": {
+      "bytes": 580546,
+      "sha256": "5f9842e69eebcf23ead1a9807f366f4bbcb9833397b1b8e0ed7c7ec75b6a8283"
+    },
+    "fluentread-data.v1.js": {
+      "bytes": 668108,
+      "sha256": "2c14c754f6486dee45b6bfd91f2a3b7c9464b26cf8d4be2b172b2692ae0e6fa4"
+    }
+  },
+  "originalFormalResourceCommit": "af81332fb598f78b1199d103e0943e4e521a7f96",
+  "knownBaseCdnPathVerified": true,
+  "scope": "TinyColor only; no Noble/Unicode/stats changes"
+}
