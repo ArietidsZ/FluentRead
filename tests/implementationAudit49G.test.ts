@@ -7,6 +7,7 @@ import {createRequire} from 'node:module';
 import {afterAll, beforeAll, describe, expect, it, vi} from 'vitest';
 import {IDBFactory, IDBKeyRange} from 'fake-indexeddb';
 import {parseHTML} from 'linkedom';
+import {TinyColor, names as colorNames} from '@ctrl/tinycolor';
 import {TranslationCandidateCore} from '@/src/core/translation/engine';
 import {compileSiteRulePack} from '@/src/core/site-adaptation/compiler';
 import {builtinSiteRulePack} from '@/src/core/site-adaptation/catalog';
@@ -75,6 +76,7 @@ type Vendor = {
     ai: Pick<typeof import('ai'), 'generateText' | 'APICallError' | 'RetryError'>;
     openAICompatible: Pick<typeof import('@ai-sdk/openai-compatible'), 'createOpenAICompatible'>;
     francMin: typeof import('franc-min');
+    tinycolor: Pick<typeof import('@ctrl/tinycolor'), 'TinyColor'>;
     Dexie: typeof import('dexie')['default'];
 };
 
@@ -239,7 +241,7 @@ describe('audit 49G shipped userscript resources', () => {
         const realm = createContext({});
         runInContext(asset('userscript/resources/fluentread-data.v1.js'), realm, {filename: resolve(resourceRoot, 'userscript/resources/fluentread-data.v1.js'), timeout: 5_000});
         const {catalogs, original} = await shippedCatalogs();
-        expect(original.established).toHaveLength(17);
+        expect(original.established).toHaveLength(19);
         expect(realm.__FLUENTREAD_USERSCRIPT_DATA__.siteCatalogs.established).toEqual(original.established);
         for (const rule of original.established) {
             const current = catalogs.established.find((candidate: any) => candidate.id === rule.id);
@@ -286,6 +288,20 @@ describe('audit 49G shipped userscript resources', () => {
             expect(vendor.sha256(input).toString()).toBe(createHash('sha256').update(input).digest('hex'));
             expect(vendor.md5(input).toString()).toBe(createHash('md5').update(input).digest('hex'));
             expect(vendor.hmacSha256(input, 'synthetic-key').toString()).toBe(createHmac('sha256', 'synthetic-key').update(input).digest('hex'));
+        }
+    });
+
+    it('preserves named and boundary color results through the shipped TinyColor export', () => {
+        const {vendor} = vendorRealm();
+        const inputs = [...Object.keys(colorNames), '', 'transparent', 'banana', '#abc', '#aabbcc80',
+            'rgb(256, -1, 12)', 'rgba(1, 2, 3, 0.5)', 'hsl(360, 100%, 50%)', 'red; background: url(https://fixture.invalid)'];
+        for (const input of inputs) {
+            const expected = new TinyColor(input);
+            const actual = new vendor.tinycolor.TinyColor(input);
+            expect(actual.isValid).toBe(expected.isValid);
+            expect(actual.getAlpha()).toBe(expected.getAlpha());
+            expect(actual.toHexString()).toBe(expected.toHexString());
+            expect(actual.toRgbString()).toBe(expected.toRgbString());
         }
     });
 

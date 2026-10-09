@@ -69,15 +69,21 @@ describe('GF-only statistics repository boundary', () => {
 });
 
 describe('authoritative site catalogs with an external pinned data asset', () => {
-    it.each(['unchanged', 'old-asset', 'reordered', 'removed-rule', 'missing-runtime-rule'] as const)
+    it.each(['unchanged', 'old-asset', 'stale-non-id-field', 'reordered', 'removed-rule', 'missing-runtime-rule'] as const)
     ('reconciles %s without mutating the external asset', async variant => {
         const vm = await vi.importActual<typeof import('node:vm')>('node:vm');
         const authoritative = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/site-adaptation/catalog/established.json'), 'utf8'));
         const data = vm.runInNewContext(readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-data.v1.js'), 'utf8'), {}, {timeout: 5000});
-        if (variant === 'unchanged' || variant === 'reordered' || variant === 'removed-rule') {
-            data.siteCatalogs.established = structuredClone(authoritative);
+        // 历史夹具同时覆盖缺规则与同ID字段过期，刷新固定资源后也保留这两条更新路径。
+        data.siteCatalogs.established = structuredClone(authoritative);
+        if (variant === 'old-asset') data.siteCatalogs.established.shift();
+        if (variant === 'old-asset' || variant === 'stale-non-id-field') {
+            const stale = data.siteCatalogs.established.find((rule: {id: string}) => rule.id === authoritative[1].id);
+            expect(stale.id).toBe(authoritative[1].id);
+            stale.match = {hosts: ['outdated.fixture.invalid']};
+            expect(stale.match).not.toEqual(authoritative[1].match);
         }
-        if (variant === 'reordered') data.siteCatalogs.established.reverse();
+        if (variant === 'reordered' || variant === 'missing-runtime-rule') data.siteCatalogs.established.reverse();
         if (variant === 'removed-rule') data.siteCatalogs.established.push({id: 'removed-pinned-rule', match: {hosts: ['removed.invalid']}});
         vi.doMock('node:vm', () => ({...vm, runInNewContext: () => data}));
         vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', '1');
@@ -105,7 +111,11 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
                 if (variant === 'unchanged') expect(result).toBe(original);
                 for (const rule of original) {
                     const expected = authoritative.find((current: {id: string}) => current.id === rule.id);
-                    if (expected && JSON.stringify(rule) === JSON.stringify(expected)) expect(result.find((current: {id: string}) => current.id === rule.id)).toBe(rule);
+                    if (expected) {
+                        const current = result.find((item: {id: string}) => item.id === rule.id);
+                        if (JSON.stringify(rule) === JSON.stringify(expected)) expect(current).toBe(rule);
+                        else expect(current).not.toBe(rule);
+                    }
                 }
             }
             expect(JSON.stringify(data)).toBe(before);
