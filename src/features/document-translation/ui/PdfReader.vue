@@ -300,7 +300,7 @@ const overlayPages = computed(() => {
       const measure = measureText(serif ? SERIF_FAMILY : SANS_FAMILY);
       const fit = cached && cached.text === value && cached.scale === s && cached.style === styleKey ? cached.fit : fitPdfBlockText({
         text: value, width: width * 0.985, height: (block.height + spaceBelow) * s, fontSize: block.fontSize * s * textScale.value, lineHeight: (singleLine ? block.fontSize : block.lineHeight) * s * textScale.value,
-        minFontSize: Math.max(6, block.fontSize * s * 0.55), weight: block.fontWeight,
+        minFontSize: Math.max(6, block.fontSize * s * 0.5), weight: block.fontWeight,
       }, measure);
       fitCache.set(block, {text: value, scale: s, style: styleKey, fit});
       const colors = blockColors.value.get(id);

@@ -52,7 +52,7 @@ export function pdfOverlayBlocks(page: PdfDocumentPage): PdfOverlayBlock[] {
 
 /**
  * 字号只在放不下时收缩；每一步按“需要高度 / 可用高度”的平方根估计，通常两三步收敛。
- * 行距沿用原文的行距比例，并限制在适合中日韩文字阅读的范围内。
+ * 行距沿用原文的行距比例，并限制在适合中日韩文字阅读的范围内；字号缩到原来的四分之三以下后行距收紧到 1.12 倍。
  */
 export function fitPdfBlockText(input: PdfBlockFitInput, measure: PdfBlockMeasure): PdfBlockFit {
     const width = Math.max(1, input.width);
@@ -61,7 +61,8 @@ export function fitPdfBlockText(input: PdfBlockFitInput, measure: PdfBlockMeasur
     const ratio = Math.min(1.6, Math.max(1.25, input.lineHeight / start));
     let fontSize = start;
     for (let step = 0; ; step += 1) {
-        const lineHeight = fontSize * ratio;
+        // 字号已经明显缩小时收紧行距：原本一行高的位置可以排下两行小字，译文比原文长一倍的单行条目不必被截断。
+        const lineHeight = fontSize * (fontSize < start * 0.75 ? Math.min(ratio, 1.12) : ratio);
         const lines = wrapPdfReadingText(input.text, width, {size: fontSize, weight: input.weight, lineHeight}, (text, font) => measure(text, font.size, font.weight));
         const needed = lines.length * lineHeight;
         // 末行下方本就没有行间空白，允许超出四分之一行而不缩小字号。
