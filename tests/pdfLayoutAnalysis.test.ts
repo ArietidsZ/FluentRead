@@ -368,6 +368,24 @@ describe('PDF layout analysis on real paper typography', () => {
         const untitled = analyze([...row(['Jia Zhou', 'Long Zeng', 'Clavis Chen'], 140, 12), ...row(['Tencent', 'Tencent', 'Tencent'], 154, 12), ...body.map(entry => ({...entry, fontSize: 12}))]);
         expect(untitled.blocks.some(block => block.kind === 'metadata')).toBe(false);
     });
+    it('keeps table-of-contents leaders and page numbers on the page and translates only the entry title', () => {
+        const dots = '.'.repeat(40);
+        // 标题与引导点在同一个字形片段里：行宽收到标题文字为止；页码是单独的片段，不再进入任何版面块。
+        const single = analyze([atom(`《计算机导论》${dots}`, 100, 100, 400, 10.5), atom('12', 505, 100, 10, 10.5), atom(`Chapter 2 Data Structures ${dots}`, 100, 120, 400, 10.5), atom('34', 505, 120, 10, 10.5)]);
+        expect(single.blocks.map(block => block.source)).toEqual(['《计算机导论》', 'Chapter 2 Data Structures']);
+        expect(single.blocks[0].width).toBeGreaterThan(60); expect(single.blocks[0].width).toBeLessThan(200);
+        expect(single.blocks[1].width).toBeGreaterThan(90); expect(single.blocks[1].width).toBeLessThan(260);
+        // 标题、引导点分属不同片段：整段标题片段保留，引导点片段丢弃。
+        const split = analyze([atom('Introduction', 100, 100, 60), atom(dots, 162, 100, 300), atom('7', 465, 100, 5)]);
+        expect(split.blocks).toHaveLength(1);
+        expect(split.blocks[0]).toMatchObject({source: 'Introduction', x: 100, width: 60});
+        // 句末的省略号和少量的点不是引导点。
+        expect(analyze([atom('He paused for a while...', 100, 100, 120)]).blocks[0].source).toBe('He paused for a while...');
+    });
+    it('keeps a large journal name inside a paper header figure as part of the figure', () => {
+        const paper = analyze([atom('Cognition', 243, 95, 65, 13.9), atom('Body text sets the page size and is long enough to be a real sentence here.', 41, 300, 420, 8), atom('More body text follows on the next line of the very same body paragraph.', 41, 310, 420, 8)], [{kind: 'image', x: 41, y: 35, width: 466, height: 100}]);
+        expect(paper.blocks.find(block => block.source === 'Cognition')).toMatchObject({kind: 'figure-label', preserveSource: true});
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

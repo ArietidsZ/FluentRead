@@ -157,6 +157,7 @@ export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
 
 const CJK = '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}';
 const cjkGlyphs = new RegExp(`[${CJK}]`, 'gu');
+const cjkGlyph = new RegExp(`[${CJK}]`, 'u');
 /** 以中日韩文字为主的一行：这些文字占去非空白字符的一半以上。 */
 const cjkLine = (text: string) => (text.match(cjkGlyphs)?.length ?? 0) * 2 >= text.replace(/\s/gu, '').length;
 /** 上一行以中日韩文字或全角标点结尾、下一行以它们开头时，折行处不应补空格。 */
@@ -217,7 +218,25 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const letterBullets = new Map<string, number>();
     for (const line of rawLines) {const glyph = bulletGlyph(line); if (/^[nlupqvw]$/u.test(glyph) && !/^\s*\p{Ll}/u.test(line.runs[1].text)) letterBullets.set(glyph, (letterBullets.get(glyph) ?? 0) + 1);}
     const bulleted = new Set<LayoutLine>();
-    const lines = rawLines.map(line => {
+    // 目录行“标题……页码”里的引导点和页码留在原页上：这一行只算到标题文字为止，译文不会带着一串点，页码也不会被盖掉。
+    const glyphWeight = (text: string) => Array.from(text).reduce((sum, character) => sum + (/[.．·…‥\s]/u.test(character) ? 0.55 : cjkGlyph.test(character) || /[\uFF00-\uFFEF《》（）]/u.test(character) ? 2 : 1), 0);
+    const withoutLeader = (line: LayoutLine): LayoutLine => {
+        const title = line.text.match(/^(.*?[^\s.．·…‥])\s*(?:[.．·…‥]\s?){6,}\s*\d{0,4}$/u)?.[1];
+        if (!title) return line;
+        let remaining = title.replace(/\s/gu, '').length, end = line.x;
+        const runs: PdfDocumentRun[] = [];
+        for (const run of line.runs) {
+            const length = run.text.replace(/\s/gu, '').length;
+            if (!remaining) break;
+            runs.push(run);
+            if (length <= remaining) {end = right(run); remaining -= length; continue;}
+            const kept = Array.from(run.text.replace(/\s/gu, '')).slice(0, remaining).join('');
+            end = run.x + run.width * Math.min(1, glyphWeight(kept) / glyphWeight(run.text)) + line.fontSize * 0.3;
+            remaining = 0;
+        }
+        return {...line, text: title, width: Math.max(1, Math.min(right(line), end) - line.x), runs};
+    };
+    const lines = rawLines.map(withoutLeader).map(line => {
         const glyph = bulletGlyph(line);
         if (!(/^[•◦▪■□◆◇●○▶►➢➤❖·§Ø\uE000-\uF8FF]$/u.test(glyph) || (/^[nlupqvw]$/u.test(glyph) && (letterBullets.get(glyph)! >= 2 || cjkLine(line.runs[1].text)) && !/^\s*\p{Ll}/u.test(line.runs[1].text)))) return line;
         const runs = line.runs.slice(1), x = runs[0].x;
@@ -283,13 +302,13 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     }
     const tables = tableRegions(input.graphics, input.width, figures);
     const regions: PdfPreservedRegion[] = [...figures.map((box, index) => ({...box, id: `figure-${index + 1}`, kind: 'figure' as const})), ...tables.map((box, index) => ({...box, id: `table-${index + 1}`, kind: 'table' as const}))];
-    // 图形包围盒可能跨栏并圈入下方的正文：图内只有小字短标签属于图形，题注、成句的行、紧随成句行的续行以及 12 磅以上的大字（幻灯片流程图里的文字）仍是正文。
+    // 图形包围盒可能跨栏并圈入下方的正文：图内只有小字短标签属于图形，题注、成句的行、紧随成句行的续行以及幻灯片这类大字号页面上 12 磅以上的图内文字（流程图里的文字）仍是正文；论文页眉图里的期刊名等大字仍属于图。
     const prose = new Set<LayoutLine>();
     for (const line of lines) {
         if (captionStart.test(line.text) || textUnits(line.text) >= 7) prose.add(line);
         else if (lines.some(near => textUnits(near.text) >= 7 && near.baseline < line.baseline && line.baseline - near.baseline <= near.fontSize * 1.5 && Math.abs(near.fontSize - line.fontSize) <= 0.6 && line.x >= near.x - 1 && line.x - near.x <= font * 2.2 && right(line) <= right(near) + 2)) prose.add(line);
     }
-    const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && (prose.has(line) || (line.fontSize >= 12 && readable(line.text))));
+    const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && (prose.has(line) || (font >= 14 && line.fontSize >= 12 && readable(line.text))));
     const ordinary = lines.filter(line => !regions.some(region => inRegion(region, line)));
     const formulas = ordinary.filter(line => formulaLine(line, input.width, ordinary, font));
     for (const line of formulas) {
