@@ -1,5 +1,0 @@
-[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec wxt prepare
-
-WXT 0.20.18
-ℹ Generating types...
-✔ Finished in 990 ms

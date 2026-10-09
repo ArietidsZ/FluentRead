@@ -1,3 +1,0 @@
-[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs exec node /home/arietids/Documents/Codex/2026-10-06/task/userscript-performance-clean-pr-20261009/options-shell-audit.mjs
-[33mThe CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.[39m
-{"passed":true,"phases":2,"contextMenuRouteCases":6,"unsupportedRouteCases":36,"keepAlive":true,"localTts":true,"externalCalls":0}

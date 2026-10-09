@@ -1,6 +1,0 @@
-[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: node /tmp/fluentread-pnpm9-20261009-7fk3rsxw/package/bin/pnpm.cjs compile
-
-> FluentRead-流畅阅读@0.0.36 compile /home/arietids/Documents/Codex/2026-10-06/task/FluentRead-shared-retry-after-20261009
-> node scripts/testing/run-resource-safe.mjs -- vue-tsc --noEmit
-
-[resource-safe] CPU target 60%, maxWorkers 1, concurrency 1, command: vue-tsc --noEmit
