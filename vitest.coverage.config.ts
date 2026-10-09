@@ -791,6 +791,8 @@ export default defineConfig({
                 'src/features/selection-translation/background/wordLookupHandler.ts',
                 'src/features/selection-translation/services/edgeTtsPolicy.ts',
                 'src/features/selection-translation/services/wordNormalization.ts',
+                'src/app/background/selectionDictionaryRuntime.ts',
+                'src/core/i18n/messages/native-dictionary-feedback.ts',
                 'src/features/selection-translation/services/wordDictionary.ts',
                 'src/features/video-subtitle/content/youtubeSubtitleData.ts',
                 'src/features/video-subtitle/content/platforms.ts',

@@ -2,6 +2,7 @@
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
  * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；原生模型请求在预检前解析专用 pair，辅助释义复用文本通道，公开配置保存/页面离开/同文档 SPA 路由变更/关闭或更换选区取消等待并阻止旧响应覆盖新结果，路由监听随组件卸载清理；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+ * 原生词典边界：原文沿用文档 Port，由后台可信来源限制在线回退；保留本地词条并展示受限说明，关闭和导航释放文档词卡会话，模型辅助释义继续使用既有专用路由。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -189,7 +190,9 @@ import {openShareCard, isShareCardMounted} from '@/src/features/share-card/publi
 import { config, subscribeConfig } from '@/src/services/config/store';
 import {NATIVE_PRIVATE_ROUTE_SUPPORTED} from '@/src/core/config/incognitoRoute';
 import {fullPageTranslationConfigKey, resolvePageTranslationRouteHint} from '@/src/services/translation/requestPrivacy';
-import {translateVisibleWordCardFields} from '@/src/features/selection-translation/background/wordLookupHandler';
+import {translateVisibleWordCardFields, nativeDictionaryFeedback, localizeNativeDictionaryFeedback} from '@/src/features/selection-translation/background/wordLookupHandler';
+import {createTranslationDocumentClient} from '@/src/services/translation/documentClient';
+import {waitForTranslationRequestPreparation} from '@/src/services/translation/requestRegistry';
 import { translateText, translateTextBatch } from '@/src/app/translation/client';
 import {detectlang, shouldSkipChineseSelection, shouldSkipTranslationForTarget} from '@/src/core/language/detect';
 import { matchesConfiguredHotkey, matchesModifierOnlyHotkey, resolveConfiguredHotkey } from '@/src/core/hotkey';
@@ -292,6 +295,7 @@ let translationAbortController: AbortController | null = null;
 let translationRequestId = 0;
 let wordLookupRequestId = 0;
 let wordLookupAbortController: AbortController | null = null;
+let dictionaryDocumentClient: ReturnType<typeof createTranslationDocumentClient> | undefined;
 let copyTimer: number | null = null;
 const vocabularyLookupGate = new SelectionRequestTokenGate();
 const vocabularySaveGate = new SelectionRequestTokenGate();
@@ -512,6 +516,9 @@ function resetSelectionContentState(clearSelectionText = false): void {
   wordLookupRequestId += 1;
   wordLookupAbortController?.abort();
   wordLookupAbortController = null;
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+    if (clearSelectionText) {dictionaryDocumentClient?.dispose();dictionaryDocumentClient = undefined;}
+  }
   isLoading.value = false;
   activeContentRequest.value = null;
   translationAnswer.value = null;
@@ -1060,6 +1067,7 @@ function chooseSelectionTarget(targetLanguage: string): void {
 
 async function sendWordCardRequest(word: string, targetLanguage: string, translateFields: boolean, signal: AbortSignal): Promise<{success?: boolean; data?: WordCardData | null}> {
   if (signal.aborted) throw new DOMException('Lookup aborted', 'AbortError');
+  if (NATIVE_PRIVATE_ROUTE_SUPPORTED) return sendNativeWordCardRequest(word, targetLanguage, signal);
   let onAbort!: () => void;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const interrupted = new Promise<never>((_resolve, reject) => {
@@ -1073,6 +1081,18 @@ async function sendWordCardRequest(word: string, targetLanguage: string, transla
     clearTimeout(timer);
     signal.removeEventListener('abort', onAbort);
   }
+}
+
+async function sendNativeWordCardRequest(word: string, targetLanguage: string, signal: AbortSignal): Promise<{success?: boolean; data?: WordCardData | null; onlineDictionaryRestricted?: boolean}> {
+  const client = dictionaryDocumentClient ??= createTranslationDocumentClient(() => browser.runtime.connect({name: 'fluentReadTranslationDocument:v1'}));
+  const clientRequestId = createSelectionTtsClientRequestId();
+  const cancel = () => {void client.request({type: 'selectionWordLookupCancel', clientRequestId}).catch(() => {});};
+  signal.addEventListener('abort', cancel, {once: true});
+  let timer: ReturnType<typeof setTimeout>;
+  try {
+    return await Promise.race([waitForTranslationRequestPreparation(client.request({type: 'selectionWordLookup', word, targetLanguage, translateFields: false, clientRequestId}), signal),
+      new Promise<never>((_, reject) => {timer = setTimeout(() => {cancel();reject(new Error('Dictionary lookup timed out'));}, 3_500);})]) as {success?: boolean; data?: WordCardData | null; onlineDictionaryRestricted?: boolean};
+  } finally {clearTimeout(timer!);signal.removeEventListener('abort', cancel);}
 }
 
 function retryWordCard(): void {
@@ -1095,10 +1115,16 @@ async function requestWordCard(request: SelectionContentRequest): Promise<void> 
     const response = await sendWordCardRequest(word, request.targetLanguage, false, controller.signal);
     if (requestId !== wordLookupRequestId || !isContentRequestCurrent(request)) return;
     if (!response?.success) throw new Error('Dictionary response unavailable');
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+      if ((response as {onlineDictionaryRestricted?: boolean}).onlineDictionaryRestricted) wordCardError.value = localizeNativeDictionaryFeedback(nativeDictionaryFeedback('local'), config.uiLanguage)!;
+    }
     if (!response.data) {
       wordCard.value = null;
       dictionaryAnswer.value = null;
       wordCardError.value = '未查到词典条目，请检查拼写；也可能是名称或新词。';
+      if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {
+        if ((response as {onlineDictionaryRestricted?: boolean}).onlineDictionaryRestricted) wordCardError.value = localizeNativeDictionaryFeedback(nativeDictionaryFeedback('missing'), config.uiLanguage)!;
+      }
     } else {
       wordCard.value = response.data;
       dictionaryAnswer.value = {...request, answer: dictionaryDefinitions(response.data, request.targetLanguage)};
@@ -1784,7 +1810,7 @@ onMounted(() => {
   );
   void requestPageZoom();
   releaseContextMenuHandler = setSelectionContextMenuHandler(translateSelectionFromContextMenu);
-  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
+  unsubscribeConfig = subscribeConfig(() => { if (NATIVE_PRIVATE_ROUTE_SUPPORTED) {const note = localizeNativeDictionaryFeedback(wordCardError.value, config.uiLanguage); if (note) wordCardError.value = note; const next = JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]); if (next !== previousWordCardConfigKey) {previousWordCardConfigKey = next; resetSelectionContentState();}} selectionConfigVersion.value += 1; });
   document.addEventListener('pointerdown', handlePointerDown, true);
   document.addEventListener('pointerup', handlePointerUp, true);
   document.addEventListener('pointercancel', handlePointerCancel, true);

@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/services/ecdictAsset.ts
  * 文件职责：在词卡首次需要扩展词库时，下载固定版本的纯 JSON 数据并校验后缓存。
- * 主要内容：限制响应体积与下载时长、验证 SHA-256、复用 CacheStorage 中的可信副本，并允许镜像失败后重试。
+ * 主要内容：限制响应体积与下载时长、验证 SHA-256、复用 CacheStorage 中的可信副本，并允许镜像失败后重试；原生受限读取另用只读 match，不创建缓存、不删除副本、不下载。
  * 模块边界：只处理可选词库资产，不传输查询词、不解析词义，也不加载远程脚本或 WASM。
  */
 import {runtimeFetch} from '@/src/platform/http/runtime';
@@ -104,4 +104,13 @@ export async function downloadFullEcdict(): Promise<EcdictCompactRow[]> {
         }
     }
     throw new Error('Optional dictionary sources unavailable', {cause: lastError});
+}
+
+/** 原生受限查询只读现存副本；不创建 CacheStorage、不删除损坏数据、不启动下载。 */
+export async function readAvailableFullEcdict(): Promise<EcdictCompactRow[] | null> {
+    if (typeof globalThis.caches?.match !== 'function') return null;
+    try {
+        const response = await caches.match(CACHE_KEY, {cacheName: CACHE_NAME});
+        return response ? await verifiedRows(await readBounded(response)) : null;
+    } catch {return null;}
 }

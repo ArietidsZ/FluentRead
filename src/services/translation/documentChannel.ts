@@ -1,6 +1,6 @@
 /**
  * @file src/services/translation/documentChannel.ts
- * 文件职责：定义文本、批量文本、输入框和设置识图检测共用的原生文档长连接协议。
+ * 文件职责：定义文本、批量文本、输入框、设置识图检测和划词原文词典共用的原生文档长连接协议。
  * 主要内容：版本化端口名称以及严格限定的 start/cancel 消息集合；公开请求 ID 只用于同连接内定位，不提供文档身份。
  * 模块边界：不连接浏览器或供应商，不授予 capability；真实连接租约由 platform 后台 Port 工厂创建。
  */
@@ -15,7 +15,7 @@ export function isTranslationDocumentOperation(value: unknown): value is Record<
     const message = value as Record<string, unknown>;
     if (typeof message.clientRequestId !== 'string' || !/^[A-Za-z0-9._:-]{1,128}$/u.test(message.clientRequestId)) return false;
     if (Object.prototype.hasOwnProperty.call(message, 'type')) {
-        if (NATIVE_PRIVATE_ROUTE_SUPPORTED && ['fluentReadModelVisionProbe', 'fluentReadModelVisionProbeCancel'].includes(message.type as string)) return true;
+        if (NATIVE_PRIVATE_ROUTE_SUPPORTED && ['fluentReadModelVisionProbe', 'fluentReadModelVisionProbeCancel', 'selectionWordLookup', 'selectionWordLookupCancel'].includes(message.type as string)) return true;
         return ['fluentReadTranslationCancel', 'inputBoxTranslation', 'inputBoxTranslationCancel'].includes(message.type as string);
     }
     return Object.prototype.hasOwnProperty.call(message, 'origin');
@@ -23,11 +23,13 @@ export function isTranslationDocumentOperation(value: unknown): value is Record<
 export function translationDocumentCancelKey(message: Record<string, unknown>): string | undefined {
     const type = message.type;
     if (NATIVE_PRIVATE_ROUTE_SUPPORTED && type === 'fluentReadModelVisionProbeCancel') return `vision:${message.clientRequestId}`;
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED && type === 'selectionWordLookupCancel') return `dictionary:${message.clientRequestId}`;
     if (type !== 'fluentReadTranslationCancel' && type !== 'inputBoxTranslationCancel') return undefined;
     return `${type === 'inputBoxTranslationCancel' ? 'input' : 'text'}:${message.clientRequestId}`;
 }
 export function translationDocumentRequestKey(message: Record<string, unknown>): string {
     if (NATIVE_PRIVATE_ROUTE_SUPPORTED && message.type === 'fluentReadModelVisionProbe') return `vision:${message.clientRequestId}`;
+    if (NATIVE_PRIVATE_ROUTE_SUPPORTED && message.type === 'selectionWordLookup') return `dictionary:${message.clientRequestId}`;
     return `${message.type === 'inputBoxTranslation' ? 'input' : 'text'}:${message.clientRequestId}`;
 }
 

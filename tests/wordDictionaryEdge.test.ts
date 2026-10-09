@@ -2,12 +2,13 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {createHash, webcrypto} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
-import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict} from '@/src/features/selection-translation/services/ecdictAsset';
+import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, readAvailableFullEcdict} from '@/src/features/selection-translation/services/ecdictAsset';
 import {setRuntimeFetch} from '@/src/platform/http/runtime';
 import {
     clearWordDictionaryCache,
     createDefaultWordDictionaryProviders,
     createWordDictionaryLookup,
+    createNativeWordDictionaryLookup,
     lookupWord,
     mergeWordCardData,
     normalizeEnglishWord,
@@ -702,4 +703,60 @@ describe('word dictionary lookup orchestration', () => {
         await expect(dictionary.lookup('recovered')).rejects.toThrow('词典查询暂时不可用');
         expect(await dictionary.lookup('recovered')).not.toBeNull();
     });
+});
+
+describe('native dictionary document cache and subscriber lifetime',()=>{
+ const request=(ownerKey='document-a',signal=new AbortController().signal,privacy:'private'|'regular'|'unknown'='regular',onlineAllowed=true)=>({ownerKey,signal,privacy,onlineAllowed});
+ const deferred=<T>()=>{let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((done,fail)=>{resolve=done;reject=fail;});return{promise,resolve,reject};};
+ it('shares a live regular query and cancellation of one subscriber preserves the other',async()=>{
+  const gate=deferred<WordCardData|null>(),lookupBoundary=vi.fn((_word:string,_signal?:AbortSignal)=>gate.promise),lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:lookupBoundary}]});
+  const first=new AbortController(),second=new AbortController(),cancelled=lookup.lookup('fixture',request('same-owner',first.signal)).catch(error=>error),valid=lookup.lookup('fixture',request('same-owner',second.signal));
+  first.abort();await expect(cancelled).resolves.toMatchObject({name:'AbortError'});expect(lookupBoundary).toHaveBeenCalledOnce();expect(lookupBoundary.mock.calls[0][1]?.aborted).toBe(false);
+  gate.resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});lookup.clearCache();
+ });
+ it('owner release aborts only its scoped task and preserves another regular owner',async()=>{
+  const gates=[deferred<WordCardData|null>(),deferred<WordCardData|null>()],signals:AbortSignal[]=[];let next=0;
+  const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:(_word,signal)=>{signals.push(signal!);return gates[next++].promise;}}]});
+  const closed=lookup.lookup('fixture',request('closed')).catch(error=>error),valid=lookup.lookup('fixture',request('valid'));lookup.releaseOwner('closed');
+  await expect(closed).resolves.toMatchObject({name:'AbortError'});expect(signals[0].aborted).toBe(true);expect(signals[1].aborted).toBe(false);gates[0].reject(new Error('late closed provider failure'));gates[1].resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});lookup.clearCache();
+ });
+ it('clones cached raw data, scopes regular/private documents and clears positive and negative records',async()=>{
+  const boundary=vi.fn(async(word:string)=>word==='missing'?null:card(word));const lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});
+  const first=await lookup.lookup('fixture',request());first!.meanings[0].definitions[0].definition='mutated visible copy';expect((await lookup.lookup('fixture',request()))!.meanings[0].definitions[0].definition).toBe('an English definition');
+  await lookup.lookup('fixture',request('private-document',undefined,'private',false));await lookup.lookup('missing',request());await lookup.lookup('missing',request());expect(boundary).toHaveBeenCalledTimes(3);
+  lookup.clearCache();await lookup.lookup('fixture',request());await lookup.lookup('missing',request());expect(boundary).toHaveBeenCalledTimes(5);lookup.clearCache();
+ });
+ it('rejects an already cancelled lookup before providers and returns no card for non-words',async()=>{
+  const boundary=vi.fn(),lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});const controller=new AbortController();controller.abort();
+  await expect(lookup.lookup('fixture',request('doc',controller.signal))).rejects.toMatchObject({name:'AbortError'});expect(await lookup.lookup('two words',request())).toBeNull();expect(boundary).not.toHaveBeenCalled();
+ });
+ it('bounds each document to the existing 80 raw records and evicts its oldest word',async()=>{
+  const boundary=vi.fn(async(word:string)=>card(word)),lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});
+  const word=(i:number)=>'word'+String.fromCharCode(97+Math.floor(i/26),97+i%26);for(let i=0;i<81;i++)await lookup.lookup(word(i),request());await lookup.lookup(word(0),request());expect(boundary).toHaveBeenCalledTimes(82);lookup.clearCache();
+ });
+ it.each(['owner-close','subscriber-cancel'] as const)('%s at response completion cannot publish a raw card',async action=>{
+  let closeOnResponse=true;const controller=new AbortController();let lookup!:ReturnType<typeof createNativeWordDictionaryLookup>;
+  const boundary=vi.fn(async(word:string,signal?:AbortSignal)=>{signal!.addEventListener('abort',()=>{if(closeOnResponse){closeOnResponse=false;if(action==='owner-close')lookup.releaseOwner('doc');else controller.abort();}},{once:true});return card(word);});
+  lookup=createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:boundary}]});await expect(lookup.lookup('fixture',request('doc',controller.signal))).rejects.toMatchObject({name:'AbortError'});
+  await expect(lookup.lookup('fixture',request('doc'))).resolves.toMatchObject({word:'fixture'});expect(boundary).toHaveBeenCalledTimes(2);lookup.clearCache();
+ });
+ it('an old cancellation cannot delete a fresh same-owner task or turn late failure into cache',async()=>{
+  const old=deferred<WordCardData|null>(),fresh=deferred<WordCardData|null>();let next=0;const boundary=vi.fn(()=>[old,fresh][next++].promise);
+  const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:boundary}]}),controller=new AbortController();const cancelled=lookup.lookup('fixture',request('doc',controller.signal)).catch(error=>error);controller.abort();await expect(cancelled).resolves.toMatchObject({name:'AbortError'});const valid=lookup.lookup('fixture',request('doc'));
+  old.reject(new Error('late obsolete failure'));fresh.resolve(card('fixture'));await expect(valid).resolves.toMatchObject({word:'fixture'});expect(await lookup.lookup('fixture',request('doc'))).toMatchObject({word:'fixture'});expect(boundary).toHaveBeenCalledTimes(2);lookup.clearCache();
+ });
+ it('bounds unavailable and partial online lookups without caching a provider failure',async()=>{
+  vi.useFakeTimers();const gate=deferred<WordCardData|null>();const lookup=createNativeWordDictionaryLookup({providers:[{id:'free-dictionary',lookup:()=>gate.promise}]});const pending=lookup.lookup('fixture',request()).catch(error=>error);await vi.advanceTimersByTimeAsync(2501);await expect(pending).resolves.toMatchObject({message:'词典查询暂时不可用'});gate.reject(new Error('late timeout failure'));lookup.clearCache();
+  const partial=card('fixture','datamuse',{definition:'',phonetic:'/test/'}),never=deferred<WordCardData|null>();const phonetics=createNativeWordDictionaryLookup({providers:[{id:'datamuse',lookup:async()=>partial},{id:'free-dictionary',lookup:()=>never.promise}]});const partialRun=phonetics.lookup('fixture',request());await vi.advanceTimersByTimeAsync(2501);await expect(partialRun).resolves.toMatchObject({phonetics:[{text:'/test/'}],meanings:[]});never.resolve(null);phonetics.clearCache();
+ });
+ it('restricted readers use a verified existing full asset without any persistent operation',async()=>{
+  const match=vi.fn(async()=>new Response(fullEcdictBytes())),open=vi.fn(),put=vi.fn(),remove=vi.fn();vi.stubGlobal('caches',{match,open,put,delete:remove});vi.stubGlobal('crypto',webcrypto);
+  expect(await readAvailableFullEcdict()).toHaveLength(20_000);expect(open).not.toHaveBeenCalled();expect(put).not.toHaveBeenCalled();expect(remove).not.toHaveBeenCalled();
+  vi.stubGlobal('browser',{runtime:{getURL:()=> 'moz-extension://ext/ecdict-core.json'}});const fetch=vi.fn(async()=>new Response('[]'));setRuntimeFetch(fetch);const lookup=createNativeWordDictionaryLookup();await expect(lookup.lookup('puma',request('private',undefined,'private',false))).resolves.toMatchObject({word:'puma'});expect(fetch).toHaveBeenCalledOnce();lookup.clearCache();
+ });
+ it.each(['missing','malformed-core','missing-core','malformed-cache','cache-reject'] as const)('restricted local %s never creates cache or starts online fallback',async failure=>{
+  const open=vi.fn(),put=vi.fn(),remove=vi.fn(),match=vi.fn(async()=>failure==='cache-reject'?Promise.reject(new Error('cache unavailable')):failure==='malformed-cache'?new Response('corrupt'):undefined);
+  vi.stubGlobal('caches',{match,open,put,delete:remove});vi.stubGlobal('browser',failure==='missing'?undefined:{runtime:{getURL:()=> 'moz-extension://ext/ecdict-core.json'}});
+  const fetch=vi.fn(async()=>failure==='missing-core'?new Response('',{status:404}):new Response('{}'));setRuntimeFetch(fetch);const lookup=createNativeWordDictionaryLookup();expect(await lookup.lookup('fixture',request('private',undefined,'private',false))).toBeNull();expect(fetch.mock.calls.length).toBe(failure==='missing'?0:1);expect(open).not.toHaveBeenCalled();expect(put).not.toHaveBeenCalled();expect(remove).not.toHaveBeenCalled();lookup.clearCache();
+ });
 });

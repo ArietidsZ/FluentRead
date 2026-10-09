@@ -1,7 +1,7 @@
 /**
  * @file src/features/selection-translation/services/wordDictionary.ts
  * 文件职责：实现划词英文词典的本地优先查询、在线限时补充、数据清洗、发音选择和缓存，让已有释义及时返回。
- * 主要内容：支持 ECDICT 内置及可选词库与五种在线词典，本地释义直接返回，在线来源并发查询并共用截止时间；清理剩余请求，缓存确定结果，区分未命中与网络不可用。
+ * 主要内容：支持 ECDICT 内置及可选词库与五种在线词典，本地释义直接返回，在线来源并发查询并共用截止时间；原生原文缓存绑定可信文档/来源，受限查询只读现存词库，最后订阅者取消和会话失效阻止迟到写回；旧普通查询适配保持兼容。
  * 模块边界：本服务只获取和规范化词典数据，不渲染词卡、不翻译释义或加入词书；后台 wordLookupHandler 编排翻译，SelectionTranslator.vue 展示，HTTP 统一经过 platform/runtimeFetch。
  */
 import {describePartOfSpeech} from '@/src/core/language/partOfSpeech';
@@ -9,6 +9,9 @@ import {readJsonResponse} from '@/src/platform/http/errors';
 import {createRuntimeAbortContext, runtimeFetch} from '@/src/platform/http/runtime';
 import {canCacheOptionalEcdict, downloadFullEcdict, readCachedFullEcdict, type EcdictCompactRow} from './ecdictAsset';
 import {normalizeEnglishWord} from './wordNormalization';
+import {readAvailableFullEcdict} from './ecdictAsset';
+import {waitForTranslationRequestPreparation} from '@/src/services/translation/requestRegistry';
+import type {NativeSourcePrivacy} from '@/src/platform/browser/incognitoSource';
 
 export {isSingleEnglishWord, normalizeEnglishWord} from './wordNormalization';
 
@@ -895,4 +898,99 @@ export function lookupWord(value: string): Promise<WordCardData | null> {
 /** 清理默认查询实例的正/负结果缓存，不会中断已经发出的请求。 */
 export function clearWordDictionaryCache(): void {
     defaultWordDictionaryLookup.clearCache();
+}
+
+/** 原生受限路径只读打包词库与已校验的现存完整副本，原文缓存由下方文档会话管理。 */
+function createAvailableLocalDictionary(): WordDictionaryProvider {
+    let core: Promise<unknown[]> | undefined;
+    return {id: 'ecdict-local', async lookup(word) {
+        const url = localDictionaryUrl();
+        if (!url) return null;
+        core ??= runtimeFetch(url, {credentials: 'omit'}).then(async response => {
+            if (!response.ok) throw new Error('本地词典资源不可用');
+            const value = await readJsonResponse(response, '本地词典格式不可用');
+            return Array.isArray(value) ? value : [];
+        }).catch(error => {core = undefined; throw error;});
+        const find = (rows: unknown[]) => rows.find(row => Array.isArray(row) && row.length === 4
+            && row.every(value => typeof value === 'string') && row[0].toLowerCase() === word) as EcdictCompactRow | undefined;
+        let rows: unknown[];
+        try {rows = await core;} catch {rows = [];}
+        const entry = find(rows) ?? find(await readAvailableFullEcdict() ?? []);
+        return entry ? parseEcdictEntry({w: entry[0], p: entry[1], d: entry[2], t: entry[3]}, word) : null;
+    }};
+}
+
+export interface NativeWordLookupOptions {
+    readonly ownerKey: string; readonly privacy: NativeSourcePrivacy;
+    readonly onlineAllowed: boolean; readonly signal: AbortSignal;
+}
+/** 原生后台专用：可信文档/来源缓存独立；仅最后订阅者撤销 provider，关闭会话拒绝迟到写回。 */
+export function createNativeWordDictionaryLookup(options: {providers?: readonly WordDictionaryProvider[]} = {}) {
+    const providers = options.providers ? [...options.providers] : createDefaultWordDictionaryProviders();
+    const local = options.providers ? providers.filter(provider => provider.id === 'ecdict-local') : [createAvailableLocalDictionary()];
+    type Task = {controller: AbortController; users: number; promise: Promise<WordCardData | null>};
+    type Scope = {ownerKey: string; live: boolean; records: Map<string, WordCardData | null>; tasks: Map<string, Task>};
+    const scopes = new Map<string, Scope>();
+    const cancelled = () => new DOMException('词典查询已取消', 'AbortError');
+    const perform = (word: string, selected: readonly WordDictionaryProvider[], signal: AbortSignal) => new Promise<WordCardData | null>((resolve, reject) => {
+        const controller = new AbortController();let merged: WordCardData | null = null, settled = false, failed = false;
+        const finish = (unavailable = false, abort = false) => {
+            if (settled) return;
+            settled = true;clearTimeout(timer);signal.removeEventListener('abort', onAbort);controller.abort();
+            if (abort) reject(cancelled());
+            else if (unavailable && !merged) reject(new Error('词典查询暂时不可用'));
+            else resolve(finalizeWordCard(merged));
+        };
+        const onAbort = () => finish(false, true);
+        const timer = setTimeout(() => finish(true), LOOKUP_BUDGET_MS);
+        signal.addEventListener('abort', onAbort, {once: true});
+        const query = async (provider: WordDictionaryProvider) => {
+            try {
+                const result = await provider.lookup(word, controller.signal);
+                if (settled) return;
+                if (hasUsefulData(result)) merged = mergeWordCardData(merged, result);
+                if (merged?.meanings.length) finish();
+            } catch {
+                if (!settled) failed = true;
+            }
+        };
+        void (async () => {
+            for (const provider of selected.filter(item => item.id === 'ecdict-local')) {await query(provider);if (settled) return;}
+            await Promise.all(selected.filter(item => item.id !== 'ecdict-local').map(query));finish(failed);
+        })();
+    });
+    const releaseOwner = (ownerKey: string) => {
+        for (const [key, scope] of scopes) if (scope.ownerKey === ownerKey) {
+            scope.live = false;scope.records.clear();scopes.delete(key);
+            for (const task of scope.tasks.values()) task.controller.abort();
+        }
+    };
+    return {
+        async lookup(value: string, request: NativeWordLookupOptions): Promise<WordCardData | null> {
+            request.signal.throwIfAborted();
+            const word = normalizeEnglishWord(value);
+            if (!word) return null;
+            const key = JSON.stringify([request.ownerKey, request.privacy, request.onlineAllowed]);
+            let scope = scopes.get(key);
+            if (!scope) {scope = {ownerKey: request.ownerKey, live: true, records: new Map(), tasks: new Map()};scopes.set(key, scope);}
+            if (scope.records.has(word)) return structuredClone(scope.records.get(word)!);
+            const current = scope;
+            let task = current.tasks.get(word);
+            if (!task) {
+                const controller = new AbortController();
+                const promise = perform(word, request.onlineAllowed ? providers : local, controller.signal).then(card => {
+                    if (!current.live || controller.signal.aborted) throw cancelled();
+                    if (current.records.size >= DEFAULT_WORD_LOOKUP_CACHE_SIZE) current.records.delete(current.records.keys().next().value!);
+                    current.records.set(word, structuredClone(card));return card;
+                });
+                task = {controller, users: 0, promise};current.tasks.set(word, task);
+                void promise.finally(() => {if (current.tasks.get(word)?.promise === promise) current.tasks.delete(word);}).catch(() => undefined);
+            }
+            const active = task;active.users++;
+            try {return structuredClone(await waitForTranslationRequestPreparation(active.promise, request.signal));}
+            finally {if (--active.users === 0) {active.controller.abort();if (current.tasks.get(word) === active) current.tasks.delete(word);}}
+        },
+        releaseOwner,
+        clearCache() {for (const scope of [...scopes.values()]) releaseOwner(scope.ownerKey);},
+    };
 }

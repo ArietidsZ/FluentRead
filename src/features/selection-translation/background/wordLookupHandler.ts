@@ -1,11 +1,21 @@
 /**
  * @file src/features/selection-translation/background/wordLookupHandler.ts
  * 文件职责：处理划词词典查询消息，支持先返回词典原文、再限时补充目标语言辅助释义，失败时保留可读词卡。
- * 主要内容：定义 selectionWordLookup 协议和依赖，校验单词与查询阶段，隔离不匹配目标语言的辅助内容，深拷贝词卡并只翻译缺失的可见释义，按位置回填；补充翻译共用短时预算。
+ * 主要内容：定义 selectionWordLookup 协议和依赖，保留旧辅助释义编排；原生原文查询捕获文档 owner、解析可信三态来源、限制在线回退，配置变化和断连取消在途请求并清空所属缓存，回复明确标记受限路径。
  * 模块边界：该文件不直接请求任何词典站点或翻译 provider；词典 lookup 和 translateTexts 由后台注入，数据解析/缓存归 services/wordDictionary，组件只消费返回词卡。
  */
 import {normalizeChineseLanguageCode} from '@/src/core/language/chinese';
 import type {WordCardData} from '../services/wordDictionary';
+import {createNativeWordDictionaryLookup} from '../services/wordDictionary';
+import {captureTranslationRequestContext, createTranslationRequestRegistry, parseClientRequestId, waitForTranslationRequestPreparation,
+    type TranslationRequestContext, type TranslationRequestRegistry} from '@/src/services/translation/requestRegistry';
+import {getNativeDocumentSession} from '@/src/platform/browser/documentSession';
+import {resolveNativeSourcePrivacy, type IncognitoSourceRuntime} from '@/src/platform/browser/incognitoSource';
+import {fullPageTranslationConfigKey} from '@/src/services/translation/requestPrivacy';
+import type {Config} from '@/src/core/config/model';
+import {hasConfiguredIncognitoRoute} from '@/src/core/config/incognitoRoute';
+
+export {nativeDictionaryFeedback, localizeNativeDictionaryFeedback} from '@/src/core/i18n/messages/native-dictionary-feedback';
 
 export type {
     WordCardData,
@@ -172,4 +182,56 @@ export function createSelectionWordLookupHandler(
             };
         },
     };
+}
+
+/** 原生原文词卡独立准入：只接受原生来源，配置专用 pair 的 private/unknown 禁止在线词典回退。 */
+export function createNativeSelectionWordLookupRuntime(deps: {
+    ready: Promise<void>; getConfig(): Config; runtime: IncognitoSourceRuntime;
+    subscribeConfig(listener: (config: Config) => void): () => void;
+    requestRegistry?: TranslationRequestRegistry; lookup?: ReturnType<typeof createNativeWordDictionaryLookup>;
+}) {
+    const actual = deps.requestRegistry ?? createTranslationRequestRegistry(true);
+    const lookup = deps.lookup ?? createNativeWordDictionaryLookup();
+    const owners = new Map<string, TranslationRequestContext>();
+    const owner = (context: TranslationRequestContext) => getNativeDocumentSession(context)!.ownerKey;
+    const registry: TranslationRequestRegistry = {
+        run: (id, context, operation) => actual.run(id, context, operation),
+        cancel: (id, context) => actual.cancel(id, context),
+        releaseOwner(context) {actual.releaseOwner(context);const key = owner(context);lookup.releaseOwner(key);owners.delete(key);},
+    };
+    const configKey = (config: Config) => JSON.stringify([fullPageTranslationConfigKey(config), config.selectionTranslationService]);
+    let key = configKey(deps.getConfig());
+    const stop = deps.subscribeConfig(next => {
+        const value = configKey(next);
+        if (value === key) return;
+        key = value;for (const context of [...owners.values()]) registry.releaseOwner(context);lookup.clearCache();
+    });
+    const admit = (message: {clientRequestId?: unknown}, context: TranslationRequestContext) => {
+        if (!deps.runtime.id || context.sender?.id !== deps.runtime.id) throw new Error('词典查询来源不属于当前扩展');
+        if (!getNativeDocumentSession(context)) throw new Error('词典查询需要原生文档连接');
+        return parseClientRequestId(message.clientRequestId)!;
+    };
+    const handlers = [{type: SELECTION_WORD_LOOKUP_MESSAGE_TYPE, async handle(message: SelectionWordLookupMessage & {clientRequestId?: unknown}, context: TranslationRequestContext) {
+        const captured = captureTranslationRequestContext(context), id = admit(message, captured), word = parseWord(message.word);
+        if (message.translateFields !== false) throw new TypeError('原生词典查询只返回原文，辅助释义使用独立翻译入口');
+        return registry.run(id, captured, async signal => {
+            const ownerKey = owner(captured);owners.set(ownerKey, captured);
+            const timer = setTimeout(() => registry.cancel(id, captured), 3_500);
+            try {
+                await waitForTranslationRequestPreparation(deps.ready, signal);
+                const privacy = await waitForTranslationRequestPreparation(resolveNativeSourcePrivacy(captured.sender, deps.runtime), signal);
+                const config = deps.getConfig(), target = parseTargetLanguage(message.targetLanguage, config.to);
+                const configured = hasConfiguredIncognitoRoute(config);
+                const restricted = configured && privacy !== 'regular';
+                let card: WordCardData | null;
+                try {card = await lookup.lookup(word, {ownerKey, privacy, onlineAllowed: !restricted, signal});}
+                catch (error) {signal.throwIfAborted();if (!restricted) throw error;card = null;}
+                signal.throwIfAborted();
+                return {success: true, data: card ? prepareWordCardForTarget(card, target) : null, onlineDictionaryRestricted: restricted};
+            } finally {clearTimeout(timer);}
+        });
+    }}, {type: 'selectionWordLookupCancel', handle(message: {type?: string; clientRequestId?: unknown}, context: TranslationRequestContext) {
+        const captured = captureTranslationRequestContext(context);return registry.cancel(admit(message, captured), captured);
+    }}] as const;
+    return {handlers, registry, dispose() {stop();for (const context of [...owners.values()]) registry.releaseOwner(context);lookup.clearCache();}};
 }

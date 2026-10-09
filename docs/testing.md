@@ -978,12 +978,16 @@ node scripts/testing/run-custom-headers-ui-test.cjs \
 
 同文档 SPA 导航使用实际 `installShadowAndRouteBridge` 的 History 包装产生 document `fluentread-route-change`；组件仅在 URL 变化时复用关闭失效流程，随组件卸载移除监听。关闭卡片时保留已挂载组件的单一监听，供后续卡片使用。新增负控保持源 Text/选区有效，不触发 selectionchange、popstate 或 hashchange，延迟实际主/辅助 SDK，观察生产模板经 Vue 离线 renderer 得到的 DOM 与模型缓存；覆盖 pushState/replaceState、相同 URL、重复信号、新代次、关闭、重复卸载与重挂载，以及 native false 普通兼容。DOM/Range/History 平台边界是合成夹具，不代表实机浏览器验收。
 
-独立非模型 dictionary lookup 未迁移：ECDICT 本地优先，未命中可向五种在线词典发送单词，并使用现有后台共享原文内存缓存；专用模型路线不隔离该访问与缓存。旧 `selectionWordLookup translateFields:true` 后台直接 broker 的模型补充仍保留既有 unknown 闭锁；新原生 UI 只发送原文 lookup，模型补充改走现有文本通道。油猴保留其既有消息路径，原生辅助函数通过平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。历史 loopback 审批缺口仍见前批记录，未补造。
+原生非模型词典查询使用现有文档 Port 和可信三态来源。配置专用服务/模型对时，private/unknown 只读取打包 ECDICT 和已校验的现存完整词库，不自动查询五种在线词典或下载可选词库；卡片提示“仅显示本地词典，在线查询不可用”，未命中提示“本地暂无条目，在线查询不可用”。普通来源及两字段都为空保留正常在线回退，不新增设置。模型辅助释义继续走独立文本翻译通道，词典查询本身不转为模型请求。
+
+原文内存缓存按后台原生文档 owner、来源和是否允许在线查询隔离，不进入持久模型缓存或普通共享词典缓存；关闭、导航、断连及相关配置保存撤销所属查询并清除缓存。同文档有效订阅者可共用查询，取消一个保留另一个；最终订阅者取消后中止 HTTP，迟到结果不能发布。`wordCardPrivacyRoute` 使用实际默认词典适配器与原生 Port/handler/registry，离线 HTTP 边界观察请求、取消信号和重新查询；基线负控复现在线泄漏、跨文档共享缓存及仅前端取消。`wordDictionaryEdge` 验证只读完整词库、缓存容量、并发订阅及完成竞态。新增后台组装模块经聚焦四维 100% 后加入严格覆盖清单；既有执行列表、阈值、ignore、ownership 和预算保持原样。
+
+油猴保留既有消息路径，原生辅助函数通过既有平台 alias 排除；预算维持 1,955,000，不从同体积/不同 hash 推断仅变量重命名。以上是离线入口和边界验证，不代表真实 GUI、GPU 或外部词典服务验收。历史 loopback 审批缺口仍见前批记录，未补造。
 
 视频模型切片同时覆盖 `runtime.ts` 的 YouTube/X 与 `platformRuntime.ts` 的会议/Udemy/Disney+ 播放翻译；两个入口共用文本客户端，在 Thinking、上下文能力、模型请求与缓存决策前解析有效专用 pair，最终授权继续由 native sender/getContexts 三态、文本 Port/registry/handler 与 broker 完成。有效服务也用于 YouTube/X 的标签和预翻译窗口；无效 UI 提示可回退标签，但实际模型请求仍拒绝。原生配置键保守比较完整相关公开映射与视频服务/语言/人工轨/术语配置，因此普通模型或其他服务映射改变也撤销旧译文；计数/UI 保存不取消。
 
 已有译文/双语字幕导出只由 YouTube/X 运行时调用，platform runtime 没有导出入口，本切片不新增该功能。原生导出使用独立文本请求 ID 和 signal，不加入播放的前端等待任务；取消导出保持同源播放请求，切换仅原文取消播放而保持独立导出，可能增加同时未缓存请求的上游工作。相关保存、实际 route bridge 信号、媒体加载身份变化和卸载撤销旧翻译/导出，旧结果不能更新新视频 DOM、模型缓存或下载文件，旧导出反馈不能覆盖新代次。配置保存保留当前原字幕与已恢复 ASR 源时间轴；切换视频隔离当前源视图，现有持久 ASR 源缓存不被本切片删除。
 
-`videoPrivacyRoute` 从真实 root 进入两个运行时和实际导出菜单/控制器，执行真实配置保存、文本 Port/registry/handler、broker/cache/provider/AI SDK；仅浏览器/DOM/布局、合成 source cache、部分上下文捕获和 HTTP/文件保存使用离线边界。ASR 源控制从合成缓存恢复，不运行推理或模型下载；未验证 ASR 实机、GUI、GPU 或真实网络。原严格 owned 模块保持四维门禁，runtime 与 app client glue 不外推数值 100%。普通兼容由 native false 实际入口/导出及已有算法合同验证；userscript 继续通过既有平台 alias 关闭原生路径，预算与权限默认不改。独立设置页 probe 和在线 dictionary 仍是明确未迁移余项。
+`videoPrivacyRoute` 从真实 root 进入两个运行时和实际导出菜单/控制器，执行真实配置保存、文本 Port/registry/handler、broker/cache/provider/AI SDK；仅浏览器/DOM/布局、合成 source cache、部分上下文捕获和 HTTP/文件保存使用离线边界。ASR 源控制从合成缓存恢复，不运行推理或模型下载；未验证 ASR 实机、GUI、GPU 或真实网络。原严格 owned 模块保持四维门禁，runtime 与 app client glue 不外推数值 100%。普通兼容由 native false 实际入口/导出及已有算法合同验证；userscript 继续通过既有平台 alias 关闭原生路径，预算与权限默认不改。设置页 probe 与非模型词典由各自后续切片和证据记录验证。
 
 YouTube/X 原生媒体生命周期还同步调用现有 `playerLocator.sync()` 读取当前 DOM 选择，避免 video 节点替换后 `loadstart` 在 locator 下一帧前仍读旧 observedVideo。18 项追加控制真实替换节点（包括同媒体 URL），向既有 locator 的 MutationObserver 边界交付对应变更并保持其 RAF 未执行，在原生 Port 微任务完成后释放旧 SDK 响应；分别观察播放的 DOM/模型缓存和导出的文件保存。基线 `loadstart` 8 项负控复现迟到写入；`loadedmetadata` 8 项已由既有 timeline handler 保护，不将其通过误报为缺口。重复、分离节点、重新连接但未选中的旧节点与新旧事件交错不取消新播放，取消独立导出也保留新播放；实际 scheduler lease 的 holdUntil provider operation 最终结算。原标题、原字幕以及同媒体节点替换时的合成已恢复 ASR 时间轴保留。MutationObserver、RAF、DOM 和 HTTP 仍是离线平台边界，不能外推为真实浏览器或 ASR 推理通过。

@@ -2,11 +2,10 @@
  * @file src/app/background/messageRuntime.ts
  * 文件职责：构建并安装后台消息总运行时，把配置、翻译、OCR、TTS、生词本和标签页状态等公开 handler 连接到 browser.runtime。
  * 主要内容：向图片处理注入已保存的单图识别方式；创建图片 OCR 语言仓库和能力门控传输，绑定图片与圈选事务的真实页面及术语版本；为通用翻译装配原生 sender/context 三态来源解析，为图片和划词释义注入独立服务选择，注入配置、翻译、本机统计、划词卡片页面缩放和词典依赖，接入离屏下载进度转存，注册类型化 router，绑定独立文本文档 Port 的原生租约和断连取消，并管理响应与错误。
- * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期，不实现各 feature 的业务算法、provider 协议或存储事务；具体实现均来自 features、services、providers 与 platform。
+ * 模块边界：本文件是 composition root，只决定依赖装配和监听生命周期；原文词典装配归 selectionDictionaryRuntime，独立注册表绑定原生 Port，模型辅助沿用文本翻译链路；具体算法来自 features、services、providers 与 platform。
  */
 import {getFreeTranslationWeightSnapshot, createProviderTestRuntimeHandlers} from './providerRuntime';
 import {config, configReady} from '@/src/services/config/store';
-import {lookupWord} from '@/src/features/selection-translation/services/wordDictionary';
 import {createSelectionPageZoomBrowserPort, createSelectionPageZoomHandler} from '@/src/features/selection-translation/background/pageZoomHandler';
 import {synthesizeEdgeTts} from '@/src/features/selection-translation/services/edgeTts';
 import {vocabularyBook} from '@/src/features/vocabulary/repository';
@@ -31,7 +30,7 @@ import {createDownloadProgressHandler} from './handlers/downloadProgress';
 import {createTranslationCancelHandler, createNativeTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createTranslationDocumentPortHandler} from '@/src/services/translation/documentChannel';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
-import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
+import {createSelectionDictionaryRuntime} from './selectionDictionaryRuntime';
 import {isBrowserTabId, type TabTranslationStateStore} from './tabTranslationState';
 import {createBrowserVocabularyBookChangedBroadcaster, createVocabularyBackgroundHandlers, type VocabularyBackgroundContext} from './handlers/vocabulary';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
@@ -65,6 +64,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     const translationRequestRegistry = createTranslationRequestRegistry(true);
     const inputTranslationRequestRegistry = createTranslationRequestRegistry(true);
     const visionProbeRequestRegistry = createTranslationRequestRegistry(true);
+    const dictionaryRuntime = createSelectionDictionaryRuntime();
     const imageOcrLanguageRepository = createImageOcrLanguageRepository(createConfigImageOcrLanguageStorage());
     const selectionTtsTransport = createCapabilityGatedSelectionTtsTransport(capabilities, selectionTtsOffscreenAdapter);
     const selectionPageZoom = createSelectionPageZoomBrowserPort(browser.tabs);
@@ -116,12 +116,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             isTabId: isBrowserTabId,
             onStateChanged: options.onFullPageStateChanged,
         }),
-        createSelectionWordLookupHandler({
-            lookupWord,
-            getDefaultTargetLanguage: () => config.to,
-            translate: (request) => translateWithCache({...request, serviceOverride: config.selectionTranslationService || config.service}),
-            warn: (message, error) => console.warn(message, error),
-        }),
+        ...dictionaryRuntime.handlers,
         createSelectionPageZoomHandler(selectionPageZoom.getZoom),
         ...imageAreaRuntime.handlers,
         ...createSelectionTtsBackgroundHandlers({
@@ -163,7 +158,8 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
     browser.runtime.onMessage.addListener(createBackgroundRuntimeMessageListener(router, (sender) => ({sender}) as BackgroundRuntimeContext));
     const textPorts = createTranslationDocumentPortHandler({runtimeId: browser.runtime.id,
         dispatch: (message, context) => router.dispatch(message, context as BackgroundRuntimeContext),
-        registries: [translationRequestRegistry, inputTranslationRequestRegistry, visionProbeRequestRegistry]});
+        registries: [translationRequestRegistry, inputTranslationRequestRegistry, visionProbeRequestRegistry,
+            ...(dictionaryRuntime.registry ? [dictionaryRuntime.registry] : [])]});
     browser.runtime.onConnect.addListener(textPorts.connect);
     browser.runtime.onConnect.addListener(imageAreaRuntime.connect);
     selectionPageZoom.installZoomChangeListener();

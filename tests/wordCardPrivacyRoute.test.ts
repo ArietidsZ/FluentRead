@@ -1,6 +1,6 @@
 /** 真实 SelectionTranslator setup→词典原文/辅助编排→文本 client/原生 Port/handler/registry→broker/IndexedDB/SDK；仅布局、非模型 lookup provider、浏览器和合成 HTTP 使用边界。 */
 import 'fake-indexeddb/auto';
-import {readFileSync} from 'node:fs';
+import {appendFileSync,readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import {afterEach,beforeEach,describe,expect,it,vi,type MockInstance} from 'vitest';
 import {parseHTML} from 'linkedom';
@@ -28,7 +28,7 @@ const publicURL='https://public-document.synthetic.test/v1/chat/completions',pri
 const tick=()=>new Promise<void>(resolve=>setImmediate(resolve));
 const settle=async()=>{await tick();await tick();await vue.nextTick();};
 function response(model='document-private',content=`合成译文 ${model}`){return new Response(JSON.stringify({id:'synthetic',object:'chat.completion',model,choices:[{index:0,message:{role:'assistant',content},finish_reason:'stop'}]}),{headers:{'content-type':'application/json'}});}
-function deferred<T>(){let resolve!:(value:T)=>void;const promise=new Promise<T>(done=>{resolve=done;});return {promise,resolve};}
+function deferred<T>(){let resolve!:(value:T)=>void,reject!:(error:unknown)=>void;const promise=new Promise<T>((done,fail)=>{resolve=done;reject=fail;});return {promise,resolve,reject};}
 const card=()=>({word:'fixture',normalizedWord:'fixture',phonetics:[],sources:[{id:'free-dictionary' as const,label:'Synthetic non-model dictionary',url:'https://dictionary.synthetic.test'}],meanings:[{partOfSpeech:'noun',definitions:[{definition:'A readable dictionary definition.',example:'A readable dictionary example.'},{definition:'A readable dictionary definition.'}]}]});
 let store:typeof import('@/src/services/config/store'),cache:typeof import('@/src/services/translation/cache');
 let cacheRead:MockInstance,cacheWrite:MockInstance,cacheIdentity:MockInstance,transport:ReturnType<typeof vi.fn>,resetFetch:()=>void;
@@ -37,9 +37,11 @@ let server:ReturnType<typeof import('@/src/services/translation/documentChannel'
 let lookup:ReturnType<typeof import('@/src/features/selection-translation/services/wordDictionary').createWordDictionaryLookup>,lookupBoundary:ReturnType<typeof vi.fn>;
 let state:Record<string,any>,scope:vue.EffectScope,mounted:Array<()=>void>,unmounted:Array<()=>void>,windowEvents:Map<string,Set<(event:any)=>void>>;
 let domApp:vue.App|undefined,domHost:HTMLElement|undefined,bridgeDispose:(()=>void)|undefined;
+let fixtureNativeCapability=true;
 const routeEvent='fluentread-route-change';
 async function pump(until:()=>boolean=()=>false,rounds=400){for(let i=0;i<rounds&&!until();i++){await vi.advanceTimersByTimeAsync(10);await settle();}}
 async function mountPage(nativeCapability=true){
+ fixtureNativeCapability=nativeCapability;
  domApp?.unmount();domApp=undefined;domHost?.remove();domHost=undefined;unmounted?.forEach(fn=>fn());scope?.stop();mounted=[];unmounted=[];
  const modules:Record<string,unknown>={
   vue:{...vue,useTemplateRef:()=>vue.ref(null),onMounted:(fn:()=>void)=>mounted.push(fn),onBeforeUnmount:(fn:()=>void)=>unmounted.push(fn)},
@@ -48,6 +50,9 @@ async function mountPage(nativeCapability=true){
   '@/src/core/config/incognitoRoute':{...await import('@/src/core/config/incognitoRoute'),NATIVE_PRIVATE_ROUTE_SUPPORTED:nativeCapability},
   '@/src/services/translation/requestPrivacy':await import('@/src/services/translation/requestPrivacy'),
   '@/src/features/selection-translation/background/wordLookupHandler':await import('@/src/features/selection-translation/background/wordLookupHandler'),
+  '@/src/core/i18n/messages/native-dictionary-feedback':await import('@/src/core/i18n/messages/native-dictionary-feedback'),
+  '@/src/services/translation/documentClient':await import('@/src/services/translation/documentClient'),
+  '@/src/services/translation/requestRegistry':await import('@/src/services/translation/requestRegistry'),
   '@/src/features/share-card/public':{isShareCardMounted:()=>false},
   '@/src/features/reading-assistant/public':{ReadingPanel:{}},
   '@/src/features/selection-translation/content/contextMenuBridge':{setSelectionContextMenuHandler:()=>()=>{}},
@@ -128,11 +133,16 @@ beforeEach(async()=>{
     const word = await import('@/src/features/selection-translation/background/wordLookupHandler');
     const dictionary = await import('@/src/features/selection-translation/services/wordDictionary');
     lookup = dictionary.createWordDictionaryLookup({providers: [{id: 'free-dictionary', lookup: lookupBoundary}]});
-    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry), word.createSelectionWordLookupHandler({lookupWord: value => lookup.lookup(value), getDefaultTargetLanguage: () => store.config.to, translate: backend.translateWithCache, warn: vi.fn()})],
+    const legacyWord=word.createSelectionWordLookupHandler({lookupWord:value=>lookup.lookup(value),getDefaultTargetLanguage:()=>store.config.to,translate:backend.translateWithCache,warn:vi.fn()});
+    const nativeWord=(word as any).createNativeSelectionWordLookupRuntime?.({ready:store.configReady,getConfig:()=>store.config,runtime:browserBoundary.runtime,subscribeConfig:store.subscribeConfig,
+        lookup:(dictionary as any).createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:lookupBoundary}]})});
+    functionsForDictionaryCleanup.push(()=>nativeWord?.dispose());
+    const router = createBackgroundMessageRouter<any>([handlers.createTranslationCancelHandler(registry), ...(nativeWord?.handlers??[legacyWord])],
         handlers.createNativeTranslationRequestFallback(browserBoundary.runtime, {ready: store.configReady,
             translate: backend.translateWithCache, serializeError: serializeTranslationError, requestRegistry: registry, requireDocumentOwner: true}));
-    dispatch = vi.fn((message, context) => router.dispatch(message, context));
-    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry]});
+    dispatch = vi.fn(async(message, context) => !fixtureNativeCapability&&message.type==='selectionWordLookup'&&!message.clientRequestId
+        ? {handled:true,response:await legacyWord.handle(message)} : router.dispatch(message, context));
+    server = (await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId: 'ext', dispatch, registries: [registry,...(nativeWord?[nativeWord.registry]:[])]});
     await mountPage();
 });
 afterEach(async()=>{
@@ -205,7 +215,7 @@ describe('native word-card effective pair and lifetime',()=>{
   expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL&&call.body.model==='document-private')).toBe(true);
   expect(requests()[0]).toMatchObject({origin:['A readable dictionary definition.','A readable dictionary example.'],context:'',pageContext:undefined,enableAIContext:false,useCache:true,serviceOverride:privateService,modelOverride:'document-private'});
   expect(state.wordCard.meanings[0].definitions[0]).toMatchObject({definition:'A readable dictionary definition.',example:'A readable dictionary example.',translatedDefinition:'合成译文 document-private'});
-  expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');expect(browserBoundary.runtime.sendMessage.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false]);
+  expect(card().meanings[0].definitions[0]).not.toHaveProperty('translatedDefinition');expect(dispatch.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup').map(([message]:any)=>message.translateFields)).toEqual([false]);
  });
  it('selects the effective frontend pair before ordinary missing-model capability planning and preserves private prompt',async()=>{
   await store.requestConfigPatch({service:catalog.services.openai,selectionTranslationService:catalog.services.openai,model:{},customModel:{},system_role:{[privateService]:'PRIVATE_CARD_PROMPT',openai:'PUBLIC_CARD_PROMPT'}});
@@ -234,7 +244,7 @@ describe('word-card model safety and compatibility',()=>{
   browserBoundary.extension.inIncognitoContext=false;nativeSender.tab.incognito=false;await runWord();expect(calls).toHaveLength(2);
   browserBoundary.extension.inIncognitoContext=true;nativeSender.tab.incognito=true;await runWord();expect(calls).toHaveLength(4);await runWord();expect(calls).toHaveLength(4);
   await store.requestConfigPatch({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://next-private.synthetic.test/v1/chat/completions'}:p)});await runWord();expect(calls).toHaveLength(6);expect(calls.slice(-2).every(call=>call.url==='https://next-private.synthetic.test/v1/chat/completions')).toBe(true);
-  expect(lookupBoundary).toHaveBeenCalledOnce();expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
+  expect(lookupBoundary).toHaveBeenCalledTimes(2);expect(JSON.stringify(calls.map(call=>call.body))).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);expect(JSON.stringify(cacheIdentity.mock.calls)).not.toMatch(/clientRequestId|inIncognitoContext|incognitoService|trusted-private-source/u);
  });
  const patches={
   model:()=>({incognitoModel:'document-next'}),endpoint:()=>({customOpenAIProviders:store.config.customOpenAIProviders.map(p=>p.id===privateService?{...p,endpoint:'https://save-private.synthetic.test/v1/chat/completions'}:p)}),
@@ -280,6 +290,151 @@ describe('word-card native API and concurrent source controls',()=>{
   await runWord();expect(calls).toHaveLength(2);expect(requests()[0]).toMatchObject({serviceOverride:privateService,modelOverride:'document-private',thinkingOverride:true,context:'',enableAIContext:false,pageContext:undefined});expect(JSON.stringify(calls.map(call=>call.body))).toContain('DEDICATED_DICTIONARY_PROMPT');expect(JSON.stringify(calls.map(call=>call.body))).not.toContain('ORDINARY_DICTIONARY_PROMPT');expect(state.wordCard.meanings[0].definitions[0].translatedDefinition).toBe('合成译文 document-private');
  });
  it('Chrome direct runtime uses module API and actual native sender without global browser',async()=>{
-  m.target='chrome';vi.stubGlobal('browser',undefined);try{await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL)).toBe(true);expect(browserBoundary.runtime.connect).not.toHaveBeenCalled();}finally{vi.stubGlobal('browser',browserBoundary);}
+  m.target='chrome';vi.stubGlobal('browser',undefined);try{await runWord();expect(calls).toHaveLength(2);expect(calls.every(call=>call.url===privateURL)).toBe(true);expect(browserBoundary.runtime.connect).toHaveBeenCalledOnce();expect(dispatch.mock.calls.filter(([message]:any)=>message.type==='selectionWordLookup')).toHaveLength(1);}finally{vi.stubGlobal('browser',browserBoundary);}
+ });
+});
+
+/** 使用默认真实词典适配器；只把 extension 资源和 HTTP 响应放在离线边界。 */
+async function installActualDictionaryBoundary(hold=false,optionalCache=false){
+ Object.assign(window,{getSelection:()=>null});
+ const dictionary=await import('@/src/features/selection-translation/services/wordDictionary');
+ const word=await import('@/src/features/selection-translation/background/wordLookupHandler');
+ const requestModule=await import('@/src/services/translation/requestRegistry');
+ const registry=requestModule.createTranslationRequestRegistry(true);
+ const network:Array<{url:string;signal?:AbortSignal|null}>=[];let ended=0;
+ let held=hold;const gate=deferred<Response>();pendingResponses.push(()=>gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'old dictionary result'}]}]}]),{headers:{'content-type':'application/json'}})));
+ if(optionalCache)vi.stubGlobal('caches',{open:vi.fn(async()=>({match:vi.fn(async()=>undefined),put:vi.fn(),delete:vi.fn()})),match:vi.fn(async()=>undefined)});
+ const http=await import('@/src/platform/http/runtime');http.setRuntimeFetch(async(url,init)=>{
+  if(init?.body)return transport(url,init);
+  const value=String(url);network.push({url:value,signal:init?.signal});
+  if(value.startsWith('moz-extension://ext/'))return new Response(JSON.stringify([['fixture','/fixture/','n. local definition','n. 本地词义']]),{headers:{'content-type':'application/json'}});
+  if(held)return gate.promise.then(response=>response.clone());
+  if(value.includes('api.dictionaryapi.dev'))return new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'fresh dictionary result'}]}]}]),{headers:{'content-type':'application/json'}});
+  return new Response('[]',{headers:{'content-type':'application/json'},status:404});
+ });
+ const native=(word as any).createNativeSelectionWordLookupRuntime;
+ const runtime=native ? (await import('@/src/app/background/selectionDictionaryRuntime')).createSelectionDictionaryRuntime() : undefined;
+ const handlers:Array<{type:string;handle(message:any,context:any):any}>=[...(runtime?.handlers??[word.createSelectionWordLookupHandler({lookupWord:dictionary.lookupWord,getDefaultTargetLanguage:()=>store.config.to,translate:(await import('@/src/app/translation/runtime')).translateWithCache,warn:vi.fn()})])];
+ const original=handlers[0].handle;handlers[0]={...handlers[0],async handle(message:any,context:any){try{return await original(message,context);}finally{ended++;}}};
+ const router=(await import('@/src/app/background/messageRouter')).createBackgroundMessageRouter<any>(handlers);
+ dispatch=vi.fn((message,context)=>router.dispatch({...message,incognito:false,sourcePrivacy:'regular',documentId:'forged'},context));
+ server=(await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId:'ext',dispatch,registries:[runtime?.registry??registry]});
+ functionsForDictionaryCleanup.push(()=>{if(runtime && 'dispose' in runtime)runtime.dispose();});
+ return {network,gate,runtime,external:()=>network.filter(item=>!item.url.startsWith('moz-extension://')),ended:()=>ended,resume:()=>{held=false;}};
+}
+const functionsForDictionaryCleanup:Array<()=>void>=[];
+afterEach(()=>{functionsForDictionaryCleanup.splice(0).forEach(fn=>fn());});
+function recordDictionary(value:Record<string,unknown>){const path=process.env.FLUENTREAD_DICTIONARY_OBSERVATIONS;if(path)appendFileSync(path,JSON.stringify(value)+'\n');}
+function rawRequest(word='secretwordfixture'){state.snapshot={text:word,parts:[{kind:'text',text:word}]};state.selectedText=word;return state.beginSelectionContentRequest(word);}
+async function rawWord(word='secretwordfixture'){await complete(state.requestWordCard(rawRequest(word)));}
+
+describe('actual non-model dictionary privacy and document boundary',()=>{
+ it.each(['private','unknown'] as const)('restricted %s miss sends no word or optional download to external providers',async privacy=>{
+  nativeSender.tab.incognito=privacy==='private'?true:undefined;browserBoundary.extension.inIncognitoContext=false;
+  const boundary=await installActualDictionaryBoundary(false,true);await rawWord();
+  recordDictionary({phase:'restricted-miss',privacy,externalRequests:boundary.external().length,cardPresent:Boolean(state.wordCard),note:state.wordCardError});
+  expect(boundary.external()).toEqual([]);expect(state.wordCard).toBeNull();expect(state.wordCardError).toContain('在线查询');
+ });
+ it('restricted private source retains the actual bundled local provider result',async()=>{
+  const boundary=await installActualDictionaryBoundary(false,true);await rawWord('fixture');
+  expect(boundary.external()).toEqual([]);expect(state.wordCard.sources[0].id).toBe('ecdict-local');expect(state.wordCardError).toContain('在线查询');
+ });
+ it.each(['regular','private-empty','unknown-empty'] as const)('%s retains normal online dictionary fallback',async kind=>{
+  nativeSender.tab.incognito=kind==='regular'?false:kind==='private-empty'?true:undefined;
+  if(kind!=='regular')await store.requestConfigPatch({incognitoService:'',incognitoModel:''});
+  const boundary=await installActualDictionaryBoundary();await rawWord();expect(boundary.external().length).toBeGreaterThan(0);expect(state.wordCard.meanings[0].definitions[0].definition).toBe('fresh dictionary result');
+ });
+ it('regular raw cache cannot supply another native document',async()=>{
+  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary();await rawWord();const first=boundary.external().length;
+  state.closeTooltip();nativeSender.documentId='another-document';await rawWord();
+  recordDictionary({phase:'regular-documents',firstExternal:first,finalExternal:boundary.external().length});expect(boundary.external().length).toBeGreaterThan(first);
+ });
+ it('regular raw cache cannot supply a restricted private document',async()=>{
+  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary();await rawWord();const first=boundary.external().length;
+  state.closeTooltip();nativeSender.tab.incognito=true;nativeSender.documentId='private-document';await rawWord();
+  recordDictionary({phase:'profile-cache',firstExternal:first,finalExternal:boundary.external().length,cardPresent:Boolean(state.wordCard)});
+  expect(boundary.external()).toHaveLength(first);expect(state.wordCard).toBeNull();expect(state.wordCardError).toContain('在线查询');
+ });
+ it.each(['close','pagehide','config'] as const)('%s releases held online lookup and prevents late raw cache/card publication',async action=>{
+  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary(true);const pending=state.requestWordCard(rawRequest());
+  await pump(()=>boundary.external().length===5);expect(boundary.external()).toHaveLength(5);
+  if(action==='close')state.closeTooltip();else if(action==='pagehide')windowEvents.get('pagehide')?.forEach(fn=>fn({isTrusted:true}));else await store.requestConfigPatch({incognitoModel:'document-next'});
+  for(let i=0;i<5;i++)await settle();const held={phase:'cancel-held',action,gateReleased:false,handlerEnded:boundary.ended(),signalsAborted:boundary.external().every(item=>item.signal?.aborted),cardPresent:Boolean(state.wordCard)};recordDictionary(held);
+  boundary.gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'old dictionary result'}]}]}]),{headers:{'content-type':'application/json'}}));await complete(pending);await settle();
+  expect(held).toMatchObject({handlerEnded:1,signalsAborted:true,cardPresent:false});expect(state.wordCard).toBeNull();
+  boundary.resume();await rawWord();const definition=state.wordCard.meanings[0].definitions[0].definition;
+  recordDictionary({phase:'fresh-after-cancel',action,externalRequests:boundary.external().length,definition});
+  expect(boundary.external()).toHaveLength(10);expect(definition).toBe('fresh dictionary result');
+ });
+});
+
+describe('dictionary background composition compatibility',()=>{
+ it('legacy composition keeps configured target/service and reports enrichment failure',async()=>{
+  nativeSender.tab.incognito=false;await installActualDictionaryBoundary();
+  const compose=(await import('@/src/app/background/selectionDictionaryRuntime')).createSelectionDictionaryRuntime;
+  const legacy=compose(false);expect(legacy.registry).toBeUndefined();
+  const translate=vi.spyOn(await import('@/src/app/translation/runtime'),'translateWithCache').mockResolvedValueOnce(['兼容释义']);
+  const warn=vi.spyOn(console,'warn').mockImplementation(()=>undefined);
+  try {
+   await store.requestConfigPatch({selectionTranslationService:publicService});
+   const success:any=await legacy.handlers[0].handle({type:'selectionWordLookup',word:'secretwordfixture'} as any,{});
+   expect(success.data.meanings[0].definitions[0].translatedDefinition).toBe('兼容释义');expect(translate.mock.calls[0][0]).toMatchObject({serviceOverride:publicService,targetLanguage:store.config.to});
+   await store.requestConfigPatch({selectionTranslationService:''});translate.mockRejectedValueOnce(new Error('synthetic enrichment failure'));
+   const result:any=await legacy.handlers[0].handle({type:'selectionWordLookup',word:'secretwordfixture'} as any,{});expect(result.success).toBe(true);expect(warn).toHaveBeenCalled();expect(translate.mock.calls[1][0].serviceOverride).toBe(store.config.service);
+  } finally {warn.mockRestore();translate.mockRestore();}
+ });
+});
+
+describe('native dictionary admission and shared raw query',()=>{
+ const message=(clientRequestId='word-one')=>({type:'selectionWordLookup' as const,word:'fixture',translateFields:false,clientRequestId});
+ async function local(ready:Promise<void>=store.configReady,runtime:typeof browserBoundary.runtime=browserBoundary.runtime){
+  const dictionary=await import('@/src/features/selection-translation/services/wordDictionary');
+  const native=(await import('@/src/features/selection-translation/background/wordLookupHandler')).createNativeSelectionWordLookupRuntime({ready,getConfig:()=>store.config,runtime,subscribeConfig:store.subscribeConfig,
+   lookup:dictionary.createNativeWordDictionaryLookup({providers:[{id:'ecdict-local',lookup:lookupBoundary}]})});functionsForDictionaryCleanup.push(()=>native.dispose());
+  let context!:import('@/src/services/translation/requestRegistry').TranslationRequestContext;
+  const channel=(await import('@/src/services/translation/documentChannel')).createTranslationDocumentPortHandler({runtimeId:'ext',dispatch:async(_message,captured)=>{context=captured;return{handled:true,response:{success:true}};},registries:[native.registry]});
+  const pair=documentPortPair(nativeSender);pairs.push(pair);channel.connect({...pair.background,name:'fluentReadTranslationDocument:v1'});
+  const client=(await import('@/src/services/translation/documentClient')).createTranslationDocumentClient(()=>({...pair.client,name:'fluentReadTranslationDocument:v1'}));await client.request(message('capture'));functionsForDictionaryCleanup.push(()=>client.dispose());return{...native,context};
+ }
+ it.each(['foreign-extension','missing-extension','missing-port','bad-id','bad-word','translate-fields','target'] as const)('%s refuses raw lookup before any provider',async kind=>{
+  const runtime=await local(),msg:any=message();let context:any=(await import('@/src/services/translation/requestRegistry')).captureTranslationRequestContext(runtime.context);
+  if(kind==='foreign-extension')context.sender.id='foreign';if(kind==='missing-extension')delete browserBoundary.runtime.id;if(kind==='missing-port')context={sender:nativeSender};
+  if(kind==='bad-id')msg.clientRequestId='bad id';if(kind==='bad-word')msg.word=null;if(kind==='translate-fields')msg.translateFields=true;if(kind==='target')msg.targetLanguage=' ';
+  await expect(runtime.handlers[0].handle(msg,context)).rejects.toThrow();expect(lookupBoundary).not.toHaveBeenCalled();
+ });
+ it.each(['private','regular'] as const)('local provider failure is explicit and no online replacement occurs for %s',async privacy=>{
+  nativeSender.tab.incognito=privacy==='private';lookupBoundary.mockRejectedValue(new Error('synthetic local unavailable'));const runtime=await local();const pending=runtime.handlers[0].handle(message(),runtime.context);
+  if(privacy==='private')await expect(pending).resolves.toMatchObject({success:true,data:null,onlineDictionaryRestricted:true});else await expect(pending).rejects.toThrow('不可用');expect(lookupBoundary).toHaveBeenCalledOnce();expect(calls).toEqual([]);
+ });
+ it.each(['cancel','deadline','source-cancel'] as const)('%s releases native preparation before late readiness/source response',async action=>{
+  const gate=deferred<void>(),contextGate=deferred<unknown>();
+  if(action==='source-cancel'){delete nativeSender.tab;nativeSender.url='moz-extension://ext/popup.html';m.contexts.mockReturnValue(contextGate.promise);}
+  const runtime=await local(action==='source-cancel'?store.configReady:gate.promise),context=runtime.context,pending=runtime.handlers[0].handle(message(),context).catch(error=>error);await settle();
+  if(action==='deadline')await vi.advanceTimersByTimeAsync(3501);else runtime.handlers[1].handle({clientRequestId:'word-one'},context);
+  await expect(pending).resolves.toMatchObject({name:'AbortError'});expect(runtime.registry.cancel('word-one',context).cancelled).toBe(false);gate.resolve();if(action==='source-cancel')contextGate.reject(new Error('late context failure'));else contextGate.resolve([]);await settle();expect(lookupBoundary).not.toHaveBeenCalled();
+ });
+ it('real Port cancellation preserves the other subscriber and the shared HTTP query',async()=>{
+  nativeSender.tab.incognito=false;const boundary=await installActualDictionaryBoundary(true);const client=(await import('@/src/services/translation/documentClient')).createTranslationDocumentClient(()=>browserBoundary.runtime.connect({name:'fluentReadTranslationDocument:v1'}));
+  const first=client.request({...message('first'),word:'secretwordfixture'}),second=client.request({...message('second'),word:'secretwordfixture'});await pump(()=>boundary.external().length===5);expect(boundary.external()).toHaveLength(5);
+  await client.request({type:'selectionWordLookupCancel',clientRequestId:'first'});await expect(first).resolves.toMatchObject({success:false});expect(boundary.external().every(item=>!item.signal?.aborted)).toBe(true);
+  boundary.gate.resolve(new Response(JSON.stringify([{word:'secretwordfixture',meanings:[{partOfSpeech:'noun',definitions:[{definition:'valid shared result'}]}]}]),{headers:{'content-type':'application/json'}}));
+  await expect(second).resolves.toMatchObject({success:true,data:{word:'secretwordfixture'}});expect(boundary.external()).toHaveLength(5);client.dispose();
+ });
+ it('restricted cached data is displayed with a visible explicit limitation and never enters persistent raw storage',async()=>{
+  await installActualDictionaryBoundary();await rawWord('fixture');state.showTooltip=true;renderCardDOM();await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('仅显示本地词典，在线查询不可用');
+   await store.requestConfigPatch({uiLanguage:'en-US'});await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('Local dictionary only. Online lookup is unavailable.');await store.requestConfigPatch({uiLanguage:'zh-CN'});await vue.nextTick();expect(domHost!.querySelector('.fr-word-fallback-note')?.textContent).toContain('仅显示本地词典，在线查询不可用');
+  expect([...m.values.keys()].some(key=>/word|dictionary/iu.test(key))).toBe(false);expect(cacheWrite).not.toHaveBeenCalled();expect(calls).toEqual([]);
+ });
+});
+
+
+describe('native dictionary feedback localization',()=>{
+ it.each(['zh-CN','en-US','ja-JP','ko-KR','fr-FR','ru-RU','es-ES'] as const)('%s provides both short restriction notes',async language=>{
+  const {nativeDictionaryFeedback:source,localizeNativeDictionaryFeedback:localize}=await import('@/src/core/i18n/messages/native-dictionary-feedback');const copy={local:source('local'),missing:source('missing')};
+  const local=localize(copy.local,language),missing=localize(copy.missing,language);expect(local).toBeTruthy();expect(missing).toBeTruthy();expect(local).not.toBe(missing);
+  if(language!=='zh-CN')expect(local).not.toBe(copy.local);expect(localize(local!, 'zh-CN')).toBe(copy.local);expect(localize(missing!, 'zh-CN')).toBe(copy.missing);expect(localize('ordinary feedback',language)).toBeUndefined();
+ });
+ it('falls back to Chinese for an unrecognized interface language',async()=>{
+  const {nativeDictionaryFeedback:source,localizeNativeDictionaryFeedback:localize}=await import('@/src/core/i18n/messages/native-dictionary-feedback');const copy={local:source('local'),missing:source('missing')};expect(localize(copy.local,'invalid' as any)).toBe(copy.local);
  });
 });
