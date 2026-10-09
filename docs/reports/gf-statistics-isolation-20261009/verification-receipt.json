@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
+  "validatedSourceCommit": "b4e14534c01f4bf35ca2d2d4225f8dfb0196c3d4",
+  "sourceSha256": {
+    "tests/userscriptUnsupportedCapabilities.test.ts": "a89e05763cf8ade17a3e30d112cedd62a0ff47e4eb566cd123982147e613b280",
+    "tests/userscriptViteConfig.test.ts": "106c512e6a633b1383fe26a719f34da2c449d9202b31204aa452abfda606b26c",
+    "userscript/unsupportedCapabilities.ts": "747ecf6e49934436324a0a7e12bb7f5db9cdd4d7e71e5dc76070008c60bbe16a",
+    "userscript/vite.config.ts": "8a823393b2f6a7c085ae1276dd5c73414a07b1b6229f81e940f7fcc523212697"
+  },
+  "scope": {
+    "aliasMode": "GF source only; standalone overrides a conflicting GF flag",
+    "realRecordingProtocols": [
+      "chrome-extension:",
+      "moz-extension:",
+      "safari-web-extension:"
+    ],
+    "runtimeSourceUnchanged": true,
+    "platformFullAndRealBackgroundConsumersUnchanged": true,
+    "suppliersCacheCancellationCountSchemaUserDataChanged": false,
+    "dependencyInstalls": 0
+  },
+  "artifacts": {
+    "greasyfork": {
+      "utf8Bytes": 2267253,
+      "sha256": "38e1b8b9535fb2034aaf33d10bbce36921222fcf3d663975bd858fe56c0fb099",
+      "beforeUtf8Bytes": 2335647,
+      "beforeSha256": "6cd6a5da32c6745da726418eb138ebe02c88eaed0f1f68b7b0a5b7ec1fe8dbf3",
+      "actualByteSavings": 68394,
+      "byteIdenticalToBefore": false,
+      "budgetBytes": 2000000
+    },
+    "standard": {
+      "utf8Bytes": 1957868,
+      "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
+      "beforeUtf8Bytes": 1957868,
+      "beforeSha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
+      "actualByteSavings": 0,
+      "byteIdenticalToBefore": true,
+      "budgetBytes": 1964000
+    },
+    "standalone": {
+      "utf8Bytes": 3590688,
+      "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
+      "beforeUtf8Bytes": 3590688,
+      "beforeSha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
+      "actualByteSavings": 0,
+      "byteIdenticalToBefore": true,
+      "budgetBytes": 3600000
+    }
+  },
+  "gfGraphs": {
+    "targets": [
+      "src/platform/storage/modelUsageRepository.ts",
+      "src/services/model-usage/aggregation.ts",
+      "src/platform/storage/translationStatsRepository.ts",
+      "src/services/translation-stats/aggregation.ts"
+    ],
+    "beforeAllIncluded": true,
+    "afterLoadedTargets": [],
+    "afterEntryTargets": [],
+    "statisticsDatabaseNamesInFinalSource": [],
+    "standardRealTargetModulesRetained": [
+      "src/services/model-usage/aggregation.ts",
+      "src/platform/storage/modelUsageRepository.ts",
+      "src/services/translation-stats/aggregation.ts",
+      "src/platform/storage/translationStatsRepository.ts"
+    ],
+    "standaloneRealTargetModulesRetained": [
+      "src/services/model-usage/aggregation.ts",
+      "src/platform/storage/modelUsageRepository.ts",
+      "src/services/translation-stats/aggregation.ts",
+      "src/platform/storage/translationStatsRepository.ts"
+    ],
+    "standalonePlatformFullRetained": true,
+    "translationBrokerAndCacheRetained": true
+  },
+  "contracts": {
+    "redExecuted": 5,
+    "redPassed": 3,
+    "redExpectedFailures": 2,
+    "redSkippedByNameFilter": 27,
+    "greenTotal": 32,
+    "greenPassed": 32,
+    "greenFailed": 0,
+    "redResultSha256": "477b051422c925be48c640ec45d90da8c208bd401b55dcbdaea380a08f7243d8",
+    "greenResultSha256": "1d10ae9e4dbaccc76d9c8bf8ef6148315eb3aa21a856eb9c54b71d9fe3cf12d0",
+    "statisticsAdapterIndexedDbProbe": {
+      "scope": "actual adapter import and methods under Node IndexedDB open/delete guards",
+      "openCalls": 0,
+      "deleteCalls": 0,
+      "captureGeneration": 0,
+      "recordResult": "undefined",
+      "recordManyPromiseResult": 0,
+      "browserRuntimeTested": false
+    }
+  },
+  "formalGfGate": {
+    "exitCode": 1,
+    "failure": "fixed generated data mismatch at scripts/build-userscript-greasyfork.mjs:79",
+    "verifierStarted": false,
+    "verifierExitCode": null,
+    "readOnlyBudgetOverBytes": 267253,
+    "generatedData": {
+      "bytes": 868136,
+      "sha256": "85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981"
+    },
+    "generatedDataUnchangedFromBase": true,
+    "fixedRequiresAndNoticesUnchanged": true,
+    "resourcesRefreshed": false,
+    "budgetChanged": false
+  },
+  "stages": [
+    {
+      "id": "prepare-existing-wxt-types",
+      "exitCode": 0,
+      "logSha256": "7cd08b80843a195a16835d4295e7dac1859e5434979ed4668e0a4d2ba7072a52"
+    },
+    {
+      "id": "red-gf-statistics-contracts",
+      "exitCode": 1,
+      "logSha256": "d136a52e3184fe277d2defe45a5c233b604019cbf123b92b7c723ea3c203341f"
+    },
+    {
+      "id": "green-gf-statistics-contracts",
+      "exitCode": 0,
+      "logSha256": "8dc653e1dbc1105fe33a862a873977729e28e84a12eb7df6531b3df36098db8b"
+    },
+    {
+      "id": "candidate-types",
+      "exitCode": 0,
+      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
+    },
+    {
+      "id": "candidate-gf-graph",
+      "exitCode": 0,
+      "logSha256": "04d3b158c07fc63dfde0bed3377518aca3169dfe48ff4555569b77aaf3b3ee03"
+    },
+    {
+      "id": "candidate-standard-unchanged-proof",
+      "exitCode": 0,
+      "logSha256": "034169579c10ad11cc0761829f788531c2ac9eaf039e68b2bb5da3df5df0d51c"
+    },
+    {
+      "id": "candidate-standalone-unchanged-proof",
+      "exitCode": 0,
+      "logSha256": "239501a6eda892b80b03c9f056074272b9dd9f0ddd96531ce455715f73855ade"
+    },
+    {
+      "id": "candidate-original-gf-fixed-data-block",
+      "exitCode": 1,
+      "logSha256": "a425f93bdc4b813d9572110f44119299c88dde196bd1af8321db6b1f1f52693f"
+    },
+    {
+      "id": "candidate-test-audit",
+      "exitCode": 0,
+      "logSha256": "7274c9dff220506471df75c97c36cfc8f13634d42dcd1532a0d2ad938f8e85b6"
+    },
+    {
+      "id": "candidate-docs-build",
+      "exitCode": 0,
+      "logSha256": "5a22ca9d46f257d4d61c9838278530f73ddd0591fc510a8071322e414d275463"
+    }
+  ],
+  "browser": {
+    "status": "not-run; creation path stopped after prior rejection",
+    "newAttempts": 0,
+    "runtimeOrWholePageIndexedDbClaims": false
+  },
+  "delivery": {
+    "newPrCreated": false,
+    "pr912Changed": false,
+    "existingGfBranchChanged": false,
+    "otherPrsChanged": false,
+    "fullGraphsOrLogsIncluded": false
+  }
+}
