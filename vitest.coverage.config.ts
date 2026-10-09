@@ -90,8 +90,8 @@ export default defineConfig({
             'tests/informationHighlightConfig.test.ts',
             'tests/informationHighlightContent.test.ts',
             'tests/informationHighlightScoring.test.ts',
-            'tests/informationHighlightUiActions.test.ts',
             'tests/informationHighlightUiLifecycle.test.ts',
+            'tests/informationHighlightSettingsLifecycle.test.ts',
             'tests/informationHighlightWorker.test.ts',
 
             'tests/bilingualRemountPerformanceBoundaries.test.ts',
@@ -595,7 +595,6 @@ export default defineConfig({
             include: [
                 'src/app/background/localModelMessageRuntime.ts',
                 'src/app/content/informationHighlight.ts',
-                'src/app/popup/informationHighlightActions.ts',
                 'src/core/config/informationHighlight.ts',
                 'src/core/config/informationHighlightModel.ts',
                 'src/core/i18n/messages/informationHighlight.ts',

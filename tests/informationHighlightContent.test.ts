@@ -61,7 +61,7 @@ function collect(f: ReturnType<typeof fixture>, readRoot?: (host: Element) => Sh
     return {paragraphs, roots: result.value.roots};
 }
 beforeEach(() => vi.useFakeTimers());
-afterEach(() => {vi.useRealTimers(); vi.unstubAllGlobals();});
+afterEach(() => {vi.useRealTimers(); vi.unstubAllGlobals(); vi.restoreAllMocks();});
 
 describe('local keyword and Unicode coordinates', () => {
     it('keeps original UTF-16 positions, excludes common words and scores repeated distinctive terms deterministically', () => {
@@ -173,6 +173,22 @@ describe('read-only body collection and native mapping', () => {
 });
 
 describe('page-owned scoring, paint and cancellation', () => {
+    it('bounds repeated paragraph work by text selection cache and scan frame budgets without redundant native registrations', async () => {
+        const f = fixture('<article>' + '<p>Distinctive algorithm improves readable paragraph metrics.</p>'.repeat(100) + '</article>');
+        const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const register = vi.spyOn(f.registry, 'set'), segment = vi.spyOn(Intl.Segmenter.prototype, 'segment');
+        const controller = installInformationHighlight(f.document, {...defaults, mode: 'surprisal-local'}, {scoreLocal: score});
+        controller.setEnabled(true); vi.advanceTimersByTime(180);
+        let frames = 0;
+        for (let i = 0; i < 300 && (f.frames.size || controller.getState().phase !== 'active'); i++) {frames += f.frames.size; await f.flush();}
+        const metrics = {modelRequests: score.mock.calls.length, registrations: register.mock.calls.length, segmentations: segment.mock.calls.length, frames};
+        expect(metrics).toMatchObject({modelRequests: 1, registrations: 1, segmentations: 3});
+        expect(frames).toBeLessThan(25); expect(controller.getState().processedParagraphs).toBe(100);
+        const painted = f.painted(); controller.refresh(); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(segment).toHaveBeenCalledTimes(3); expect(f.painted()).toEqual(painted);
+        controller.updatePreferences({...defaults, mode: 'surprisal-local', density: 'high'}); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(segment).toHaveBeenCalledTimes(5);
+        controller.updatePreferences({...defaults, mode: 'surprisal-local'}); await f.settle(); expect(segment).toHaveBeenCalledTimes(5);
+        controller.dispose(); register.mockRestore(); segment.mockRestore();
+    });
     it('keeps screenshot caret and editor/code/form updates from interrupting reading, then rescans eligibility, body styles and controlled translation text', async () => {
         const f = fixture('<article><p>Scientific original paragraphs preserve readable vocabulary.</p><span class="fluent-read-single-slot" data-fr-translation-owned="true"></span></article>'
             + '<div id="editor" contenteditable="true"><p>Editable scientific paragraphs should initially be excluded.</p></div>'
@@ -317,8 +333,11 @@ describe('page-owned scoring, paint and cancellation', () => {
         const queued = [...f.frames.values()][0]; controller.dispose(); queued(0); await f.flush(); expect(f.painted()).toEqual([]);
         const huge = fixture('<p>' + '<i>word </i>'.repeat(9000) + '</p>');
         const chunks = installInformationHighlight(huge.document, {...defaults}, {scoreLocal: vi.fn()}); chunks.setEnabled(true); vi.advanceTimersByTime(180); await huge.flush(); chunks.setEnabled(false); await huge.flush(); expect(huge.frames.size).toBe(0); chunks.dispose();
-        const next = fixture(); const pending = installInformationHighlight(next.document, {...defaults}, {scoreLocal: vi.fn()}); pending.setEnabled(true); vi.advanceTimersByTime(180); await next.flush();
-        expect(next.frames.size).toBe(1); pending.dispose(); await next.flush(); expect(next.frames.size).toBe(0);
+        const next = fixture('<article><p>First scientific vocabulary paragraph.</p><p>Second scientific vocabulary paragraph.</p></article>'); next.slow();
+        const pending = installInformationHighlight(next.document, {...defaults}, {scoreLocal: vi.fn()}); pending.setEnabled(true); vi.advanceTimersByTime(180);
+        for (let i = 0; i < 200 && pending.getState().processedParagraphs === 0; i++) await next.flush();
+        expect(pending.getState().processedParagraphs).toBe(1); expect(next.frames.size).toBe(1);
+        pending.dispose(); await next.flush(); expect(next.frames.size).toBe(0); expect(pending.getState().processedParagraphs).toBe(1);
     });
     it('evicts only text cache and reports the paint bound without silently claiming a complete scan', async () => {
         const f = fixture('<article>' + Array.from({length: 100}, (_, i) => `<p>Unique${i} scientific vocabulary paragraph for reading.</p>`).join('') + '</article>');

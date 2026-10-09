@@ -38,6 +38,15 @@ function directive(element: TemplateElement, name: string, argument?: string): s
 }
 
 describe('popup feature visibility', () => {
+    it('keeps information highlight in settings with no Popup entry, drawer or messaging lifecycle', () => {
+        const popup = source('src/app/popup/PopupApp.vue');
+        const actions = source('src/app/popup/pageActions.ts');
+        expect(popupQuickFeatureOptions.map(feature => feature.id)).not.toContain('highlight');
+        expect(popup).not.toMatch(/PopupInformationHighlight|informationHighlight|INFORMATION_HIGHLIGHT|openDrawer\('highlight'\)/u);
+        expect(actions).not.toContain('informationHighlight');
+        expect(source('src/features/settings/ui/SettingsSections.vue')).toContain('<InformationHighlightSettings');
+        expect(source('src/features/settings/ui/InformationHighlightSettings.vue')).toContain('id="information-highlight-settings"');
+    });
     it('gives the toolbar popup an intrinsic width before the browser sizes its viewport', () => {
         const styles = source('src/app/popup/popup.css');
         const html = source('entrypoints/popup/index.html');
@@ -202,7 +211,7 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain("activeDrawer === 'floating'");
         expect(popup).not.toContain('全文悬浮球');
         expect(popup).not.toContain('启用或关闭全文翻译悬浮球');
-        expect(popupQuickFeatureOptions).toHaveLength(6);
+        expect(popupQuickFeatureOptions).toHaveLength(5);
         expect(popup).toContain('v-for="feature in visiblePopupQuickFeatures"');
         expect(popup).toContain(':data-popup-quick-feature="feature.id"');
     });
@@ -248,7 +257,7 @@ describe('popup feature visibility', () => {
 
     it('keeps page and section translation directly reachable without adding video/area cards', () => {
         const popup = source('src/app/popup/PopupApp.vue');
-        expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document', 'highlight']);
+        expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document']);
         expect(popup).toContain('data-testid="page-translation"');
         expect(popup).toContain(':onClick="pageButtons.toggle"');
         expect(popup).toContain('data-testid="section-translation"');

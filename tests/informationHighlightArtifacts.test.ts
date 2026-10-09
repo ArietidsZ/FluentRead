@@ -40,14 +40,15 @@ describe('fixed model artifacts integrity and bounded resumable cache', () => {
         await store.download(file, new AbortController().signal, () => {}); expect(fetcher.mock.calls[0][1]).toMatchObject({headers: {Range: `bytes=${MODEL_ARTIFACT_CHUNK_BYTES}-`}}); expect(await store.complete(file)).toBe(true);
         entries.delete(`${file.url}?fluent-read-verified=${file.sha256}`); await store.download(file, new AbortController().signal, () => {}); expect(fetcher).toHaveBeenCalledOnce();
     });
-    it('detects eviction or replacement between receipt validation and reading the artifact', async () => {
+    it('reads each prepared chunk only once and rejects eviction or replacement during reading', async () => {
         const body = new Uint8Array([1,2]), file = fileFor(body), store = createModelArtifactStore('models', [file]);
         const receipt = `${file.url}?fluent-read-verified=${file.sha256}`, chunk = `${file.url}?fluent-read-part=0`;
         entries.set(receipt, new Response(JSON.stringify({size: file.size, sha256: file.sha256}))); entries.set(chunk, new Response(body, {headers: {'Content-Length': '2'}}));
+        cache.match.mockClear(); expect(await (await store.match(file.url))!.arrayBuffer()).toEqual(body.buffer);
+        expect(cache.match.mock.calls.map(call => call[0])).toEqual([receipt, chunk]);
         for (const replacement of [undefined, new Response('x')]) {
-            let reads = 0;
-            cache.match.mockImplementation(async (key: string) => key === chunk && ++reads === 2 ? replacement?.clone() : entries.get(key)?.clone());
-            await expect(store.blob(file)).rejects.toThrow(replacement ? 'MODEL_INTEGRITY' : 'MODEL_NOT_DOWNLOADED');
+            cache.match.mockImplementation(async (key: string) => key === chunk ? replacement?.clone() : entries.get(key)?.clone());
+            await expect(store.blob(file)).rejects.toThrow('MODEL_NOT_DOWNLOADED'); expect(await store.match(file.url)).toBeUndefined();
         }
         cache.match.mockImplementation(async (key: string) => entries.get(key)?.clone()); entries.delete(receipt); entries.delete(chunk);
         cache.put.mockImplementation(async () => {entries.delete(chunk);});
@@ -66,6 +67,7 @@ describe('fixed model artifacts integrity and bounded resumable cache', () => {
             vi.stubGlobal('fetch', vi.fn(async () => response.clone())); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toThrow(); expect(await store.complete(file)).toBe(false); await store.remove(file);
         }
         cache.put.mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError')); const fetcher = vi.fn(async () => new Response(new Uint8Array([1,2]))); vi.stubGlobal('fetch', fetcher); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toMatchObject({name: 'QuotaExceededError'}); expect(fetcher).toHaveBeenCalledOnce();
+        vi.stubGlobal('fetch', vi.fn(async () => {throw null;})); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toBe(null);
     });
     it('pauses before fetch or during the stream, keeps other model entries and bounds stalled-network waiting', async () => {
         const body = new Uint8Array([1,2]), file = fileFor(body), store = createModelArtifactStore('models', [file]);

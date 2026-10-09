@@ -159,7 +159,7 @@ describe('实际界面字体设置与所属确认', () => {
     state.setPopupModuleVisibility('quickFeatures', false);state.setPopupQuickFeatureOrder(['image', 'image', 'unknown'])
     state.setPopupQuickFeatureVisibility('image', false)
     expect(props.config.popupModuleOrder[0]).toBe('footer');expect(props.config.popupModuleOrder).toHaveLength(4)
-    expect(props.config.interfaceVisibility.popupQuickFeatures).toBe(false);expect(props.config.popupQuickFeatureOrder).toHaveLength(6)
+    expect(props.config.interfaceVisibility.popupQuickFeatures).toBe(false);expect(props.config.popupQuickFeatureOrder).toHaveLength(5)
     expect(props.config.popupQuickFeatureVisibility.image).toBe(false)
   })
   it('布局键盘导航在隐藏时不抢焦点，激活后支持方向键和 Home/End', async () => {
@@ -174,17 +174,18 @@ describe('实际界面字体设置与所属确认', () => {
     state.handleLayoutTabKeydown(key('Escape'));expect(preventDefault).toHaveBeenCalledTimes(4)
     expect(state.activeLayoutPanel).toBe('popupModule')
   })
-  it('完整 userscript 设置隐藏不可用高亮入口，保留备份偏好、显隐与排序；扩展设置仍提供入口', async () => {
-    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(true)
+  it('扩展和 userscript 的 Popup 布局均隐藏历史高亮入口，不写回非法 id 或改动阅读偏好', async () => {
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
     const saved = JSON.stringify(props.config)
+    state.setPopupQuickFeatureVisibility('highlight', false); expect(JSON.stringify(props.config)).toBe(saved)
     capabilities.browser = 'userscript'; await settle()
     expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
     state.setPopupQuickFeatureVisibility('highlight', false)
     expect(JSON.stringify(props.config)).toBe(saved)
     capabilities.browser = 'chrome'; await settle()
-    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(true)
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
   })
-  it('userscript 皮肤样例与传入布局都不预览高亮入口，扩展预览保持可见', async () => {
+  it('所有皮肤样例与传入布局都不预览已移除的高亮或未知入口，保留传入对象', async () => {
     const component = (await server.ssrLoadModule('/src/features/settings/ui/components/PopupPreview.vue')).default
     component.ssrRender = undefined; component.render = () => null
     let preview: Record<string, any> = {}
@@ -193,14 +194,14 @@ describe('实际界面字体设置与所属确认', () => {
     previewApp.provide(runtime.ssrContextKey, {modules: new Set<string>()}); previewApp.config.warnHandler = () => {}
     try {
       previewApp.mount({}); await settle()
-      expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(true)
+      expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
       capabilities.browser = 'userscript'; await settle()
       expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
-      inputs.quickFeatures = [{id: 'highlight', label: 'Saved extension preference'}, {id: 'selection', label: 'Selection'}]; await settle()
+      inputs.quickFeatures = [{id: 'highlight', label: 'Saved extension preference'}, {id: 'selection', label: 'Selection'}, {id: 'future', label: 'Unknown'}]; await settle()
       expect(preview.orderedQuickFeatures.map((item: {id: string}) => item.id)).toEqual(['selection'])
       capabilities.browser = 'chrome'; await settle()
-      expect(preview.orderedQuickFeatures.map((item: {id: string}) => item.id)).toEqual(['highlight', 'selection'])
-      expect(inputs.quickFeatures.map(item => item.id)).toEqual(['highlight', 'selection'])
+      expect(preview.orderedQuickFeatures.map((item: {id: string}) => item.id)).toEqual(['selection'])
+      expect(inputs.quickFeatures.map(item => item.id)).toEqual(['highlight', 'selection', 'future'])
     } finally {previewApp.unmount()}
   })
   it('userscript 构建条件独立阻止高亮配置与预览，并移除专属图标数据', async () => {
@@ -222,7 +223,7 @@ describe('实际界面字体设置与所属确认', () => {
     try {
       previewApp.mount({}); await settle()
       expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
-      expect((await server.ssrLoadModule('/src/ui/popupQuickFeatureIcons.ts')).popupQuickFeatureIconPaths.highlight).toBe('')
+      expect((await server.ssrLoadModule('/src/ui/popupQuickFeatureIcons.ts')).popupQuickFeatureIconPaths).not.toHaveProperty('highlight')
     } finally {previewApp.unmount()}
   })
 })

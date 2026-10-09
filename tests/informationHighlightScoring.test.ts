@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {alignQwenByteTokens, floatLogits, scoreCausalChunk, scoredTokenSpans, surprisalBits} from '@/src/core/information-highlight/scoring';
-import {scoreLocalSurprisal, type CausalScoringEngine, type ScoringTensor} from '@/src/features/information-highlight/offscreen/scorer';
+import {createSurprisalResultCache, scoreLocalSurprisal, type CausalScoringEngine, type ScoringTensor} from '@/src/features/information-highlight/offscreen/scorer';
 
 describe('input-token surprisal and original UTF-16 alignment', () => {
     it('computes full-vocabulary likelihood in log space including extremely unlikely input tokens', () => {
@@ -56,6 +56,16 @@ describe('input-token surprisal and original UTF-16 alignment', () => {
 });
 
 describe('bounded causal inference ownership', () => {
+    it('bounds warm result reuse by entry count and original UTF16 size, with true LRU promotion', () => {
+        const result = {spans: [{start: 0, end: 1, score: 1}], engine: 'local'}, cache = createSurprisalResultCache();
+        expect(cache.get('missing')).toBeUndefined();
+        for (let i=0;i<32;i++) cache.put(`text-${i}`, result);
+        expect(cache.get('text-0')).toBe(result); cache.put('last', result); expect(cache.get('text-1')).toBeUndefined(); expect(cache.get('text-0')).toBe(result);
+        const changed = {spans: [], engine: 'updated'}; cache.put('text-0', changed); expect(cache.get('text-0')).toBe(changed);
+        const sized = createSurprisalResultCache(); sized.put('a'.repeat(32000), result); sized.put('b'.repeat(32000), result); sized.put('x', result);
+        expect(sized.get('a'.repeat(32000))).toBeUndefined(); expect(sized.get('b'.repeat(32000))).toBe(result);
+        sized.put('a'.repeat(64001), result); expect(sized.get('a'.repeat(64001))).toBeUndefined(); expect(sized.get('x')).toBeUndefined();
+    });
     function fixture(text = 'a'.repeat(70)) {
         const tensors: ScoringTensor[] = [], forwardInputs: Array<{ids: number[]; length: number; past: unknown}> = [];
         const tensor = (dims: number[], data: number[]) => {const value = {dims, type: 'float32', data, dispose: vi.fn()}; tensors.push(value); return value;};
@@ -70,6 +80,14 @@ describe('bounded causal inference ownership', () => {
         expect(result.spans).toHaveLength(70); expect(result.spans.every(span => span.score === 1)).toBe(true);
         expect(forwardInputs.map(input => input.length)).toEqual([32,64,71]); expect(forwardInputs[0].past).toBeNull(); expect(forwardInputs[1].past).toBeTruthy();
         expect(tensors.every(tensor => vi.mocked(tensor.dispose).mock.calls.length === 1)).toBe(true);
+    });
+    it('skips only an unused extra block at exact token boundaries and preserves all other batch shapes', async () => {
+        for (const count of [1,32,64]) {
+            const {engine, tensors, forwardInputs} = fixture('a'.repeat(count)); const result = await scoreLocalSurprisal(engine, 'a'.repeat(count), new AbortController().signal);
+            expect(result.spans).toHaveLength(count); expect(result.spans.every(span => span.score === 1)).toBe(true);
+            expect(forwardInputs.map(value => value.ids.length)).toEqual(count === 1 ? [2] : Array(count / 32).fill(32));
+            expect(forwardInputs.at(-1)!.length).toBe(count === 1 ? 2 : count); expect(tensors.every(tensor => vi.mocked(tensor.dispose).mock.calls.length === 1)).toBe(true);
+        }
     });
     it('cancels between chunks and after forward without leaking a cache or starting another chunk', async () => {
         for (const afterForward of [false, true]) {

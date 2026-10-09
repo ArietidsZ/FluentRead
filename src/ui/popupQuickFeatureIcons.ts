@@ -15,7 +15,6 @@ export const popupQuickFeatureIconPaths: Record<PopupQuickFeatureId, string> = {
   appearance: 'M3 19L9 5l6 14 M5 15h8 M16 12c5-3 6 1 5 7 M21 15c-7-2-6 6 0 3',
   image: 'M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M4 16l5-5 4 4 3-3 4 4 M16 8h.01',
   document: 'M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8l-5-5z M14 3v5h5 M9 12h6 M9 16h6',
-  highlight: import.meta.env.BROWSER === 'userscript' ? '' : 'M14 3l7 7-8 8-7-7 8-8z M6 11l-3 6 4 4 6-3 M3 21h8 M12 5l7 7',
 }
 
 export const popupQuickFeatureIconTones: Record<PopupQuickFeatureId, PopupQuickFeatureIconTone> = {
@@ -24,5 +23,4 @@ export const popupQuickFeatureIconTones: Record<PopupQuickFeatureId, PopupQuickF
   appearance: 'amber',
   image: 'teal',
   document: 'blue',
-  highlight: 'amber',
 }

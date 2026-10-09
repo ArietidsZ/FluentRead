@@ -423,10 +423,7 @@ const popupModuleEditorItems = computed(() => popupModuleOptions.map((module) =>
   required: module.required,
 })))
 
-// 信息高亮只有扩展页面与模型端口；过滤界面投影，不删 userscript 备份中的配置。
-const isQuickFeatureAvailable = (id: string) => id !== 'highlight'
-  || (import.meta.env.BROWSER !== 'userscript' && browserCapabilities.browser !== 'userscript')
-const popupQuickFeatureEditorItems = computed(() => popupQuickFeatureOptions.filter(feature => isQuickFeatureAvailable(feature.id)).map((feature) => ({
+const popupQuickFeatureEditorItems = computed(() => popupQuickFeatureOptions.map((feature) => ({
   id: feature.id,
   label: t(feature.labelKey),
   description: t(feature.descriptionKey),
@@ -456,7 +453,7 @@ function setPopupQuickFeatureOrder(order: string[]) {
 
 function setPopupQuickFeatureVisibility(featureId: string, visible: boolean) {
   if (!layoutEditorActive.value) return
-  const feature = popupQuickFeatureOptions.find((item) => item.id === featureId && isQuickFeatureAvailable(item.id))
+  const feature = popupQuickFeatureOptions.find((item) => item.id === featureId)
   if (!feature) return
   props.config.popupQuickFeatureVisibility = withPopupQuickFeatureVisibility(
     props.config.popupQuickFeatureVisibility,

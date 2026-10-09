@@ -150,6 +150,7 @@ import {Coffee, Setting} from '@element-plus/icons-vue'
 import {version} from '@/package.json'
 import ServiceIcon from '@/src/ui/components/ServiceIcon.vue'
 import {
+  POPUP_QUICK_FEATURE_IDS,
   popupModuleOptions,
   popupQuickFeatureOptions,
   type InterfaceSkinOption,
@@ -157,7 +158,6 @@ import {
 } from '@/src/core/config/interfaceAppearance'
 import {popupQuickFeatureIconPaths, popupQuickFeatureIconTones} from '@/src/ui/popupQuickFeatureIcons'
 import {useUiI18n} from '@/src/ui/i18n'
-import {browserCapabilities} from '@/src/platform/browser/capabilities'
 import PopupLayoutPreviewItem from './PopupLayoutPreviewItem.vue'
 import type {usePopupLayoutReorder} from '../usePopupLayoutReorder'
 
@@ -181,27 +181,24 @@ const {t, translateLegacy} = useUiI18n()
 
 // 固定范例用于比较外观，不表示这些服务、快捷键或开关已在用户配置中启用。
 const previewProviders = ['localTranslation', 'freeTranslation', 'microsoft', 'deepseek']
-const sampleQuickFeatureIds: PopupQuickFeatureId[] = ['hover', 'selection', 'image', 'document',
-  ...(import.meta.env.BROWSER === 'userscript' ? [] : ['highlight' as const])]
+const sampleQuickFeatureIds: PopupQuickFeatureId[] = ['hover', 'selection', 'image', 'document']
 const sampleSummaries: Record<PopupQuickFeatureId, string> = {
   hover: 'Ctrl',
   selection: '已关闭',
   appearance: '仅显示译文',
   image: 'Shift+Z',
   document: 'PDF / Word / …',
-  highlight: '已关闭',
 }
 const sampleStatus: Partial<Record<PopupQuickFeatureId, 'on' | 'off'>> = {hover: 'on', selection: 'off', image: 'on'}
 
 const orderedModules = computed<readonly PreviewLayoutItem[]>(() => props.modules
   ?? popupModuleOptions.map((module) => ({id: module.id, label: t(module.labelKey)})))
-// 同时过滤传入投影与皮肤样例，完整 userscript 设置不预览不可使用的扩展入口。
+// 只预览当前菜单的合法快捷入口，不把备份中的旧项投影回界面。
 const orderedQuickFeatures = computed<readonly PreviewLayoutItem[]>(() => (props.quickFeatures
   ?? sampleQuickFeatureIds.map((id) => {
     const feature = popupQuickFeatureOptions.find((item) => item.id === id)!
     return {id, label: t(feature.labelKey)}
-  })).filter(item => item.id !== 'highlight'
-    || (import.meta.env.BROWSER !== 'userscript' && browserCapabilities.browser !== 'userscript')))
+  })).filter(item => POPUP_QUICK_FEATURE_IDS.includes(item.id as PopupQuickFeatureId)))
 const siteModule = computed(() => orderedModules.value.find((item) => item.id === 'siteRule'))
 // 与真实菜单栏一致：站点开关紧跟翻译控制时并入同一张卡片，否则作为独立一行。
 const siteModuleNestedInTranslation = computed(() => {

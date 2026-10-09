@@ -17,6 +17,26 @@ export interface CausalScoringEngine {
 function active(signal: AbortSignal): void {if (signal.aborted) throw new DOMException('信息高亮已取消', 'AbortError');}
 function dispose(values: Record<string, ScoringTensor>): void {new Set(Object.values(values)).forEach(tensor => tensor.dispose());}
 
+/** 只随暖驻 Worker 存活的 LRU；精确原文作键，模型固定，postMessage 会复制结果，不保存到磁盘。 */
+export function createSurprisalResultCache() {
+    const entries = new Map<string, InformationHighlightResult>(); let characters = 0;
+    return {
+        get(text: string): InformationHighlightResult | undefined {
+            const result = entries.get(text);
+            if (result) {entries.delete(text); entries.set(text, result);}
+            return result;
+        },
+        put(text: string, result: InformationHighlightResult): void {
+            if (!entries.delete(text)) characters += text.length;
+            entries.set(text, result);
+            while (entries.size > 32 || characters > 64_000) {
+                const oldest = entries.keys().next().value!;
+                characters -= oldest.length; entries.delete(oldest);
+            }
+        },
+    };
+}
+
 export async function scoreLocalSurprisal(engine: CausalScoringEngine, text: string, signal: AbortSignal): Promise<InformationHighlightResult> {
     active(signal);
     if (!text || text.length > INFORMATION_HIGHLIGHT_MAX_CHARACTERS) throw new Error('INFORMATION_HIGHLIGHT_TEXT_LIMIT');
@@ -28,7 +48,8 @@ export async function scoreLocalSurprisal(engine: CausalScoringEngine, text: str
     const ids = [engine.bosId, ...encoded.ids], scores: number[] = [];
     let past: ScoringPast | null = null;
     try {
-        for (let start = 0; start < ids.length; start += INFORMATION_HIGHLIGHT_CHUNK_TOKENS) {
+        // 最后 token 若独占新块，其行没有下一评分目标；跳过空收益块，其余块保持原 batch 形状与数值。
+        for (let start = 0; start < encoded.ids.length; start += INFORMATION_HIGHLIGHT_CHUNK_TOKENS) {
             active(signal);
             const end = Math.min(start + INFORMATION_HIGHLIGHT_CHUNK_TOKENS, ids.length);
             const outputs = await engine.forward(ids.slice(start, end), end, past);

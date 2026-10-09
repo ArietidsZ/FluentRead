@@ -85,13 +85,13 @@ describe('bounded model runtime and explicit downloads', () => {
     });
     it('supports partial status, storage errors, pause, resume and targeted removal without source text', async () => {
         const partial = fixture(false); partial.store.downloaded.mockResolvedValue(1); expect(await partial.runtime.status()).toMatchObject({phase: 'paused', downloadedBytes: 6});
-        const failed = fixture(false); vi.stubGlobal('navigator', {storage: {estimate: async () => ({quota: 1, usage: 0})}}); await failed.runtime.prepare(); await flush(); expect(await failed.runtime.status()).toMatchObject({phase: 'error', errorCode: '模型存储空间不足'});
+        const failed = fixture(false); vi.stubGlobal('navigator', {storage: {estimate: async () => ({quota: 1, usage: 0})}}); await failed.runtime.prepare(); await flush(); expect(await failed.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_STORAGE_QUOTA'});
         vi.stubGlobal('navigator', {storage: {estimate: async () => ({quota: 10e9})}});
         const value = fixture(false); let reject!: (error: Error) => void;
         value.store.download.mockImplementationOnce((_file, signal) => new Promise((_resolve, no) => {reject = no; signal.addEventListener('abort', () => reject(new DOMException('paused', 'AbortError')));}));
         await value.runtime.prepare(); await flush(); await value.runtime.prepare(); expect(value.store.download).toHaveBeenCalledOnce(); await value.runtime.pause(); await flush(); expect(await value.runtime.status()).toMatchObject({phase: 'absent'});
         await value.runtime.prepare(); await flush(); expect(await value.runtime.status()).toMatchObject({downloaded: true}); await value.runtime.remove(); expect(value.store.remove).toHaveBeenCalledTimes(6); expect(await value.runtime.status()).toMatchObject({phase: 'absent'});
-        value.store.remove.mockRejectedValueOnce(new Error('disk')); await expect(value.runtime.remove()).rejects.toThrow('disk'); expect(await value.runtime.status()).toMatchObject({phase: 'error', errorCode: 'disk'});
+        value.store.remove.mockRejectedValueOnce(new Error('disk')); await expect(value.runtime.remove()).rejects.toThrow('disk'); expect(await value.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_REMOVE_FAILED'});
     });
     it('cancels immediately, lets a cooperative chunk drain, reuses warm worker and releases after idle', async () => {
         const {runtime, worker, createWorker, answer} = fixture(); const controller = new AbortController();
@@ -109,9 +109,15 @@ describe('bounded model runtime and explicit downloads', () => {
     it('isolates late response ids, worker faults and capability failures', async () => {
         const value = fixture(); const pending = value.runtime.score('a', new AbortController().signal); await flush();
         value.worker.onmessage?.({data: {requestId: -1, success: true, result}}); value.worker.onerror?.({message: 'GPU lost'}); await expect(pending).rejects.toThrow('GPU lost');
-        const fail = fixture(); const response = fail.runtime.score('a', new AbortController().signal); await flush(); fail.answer({success: false, error: 'TOKEN_LIMIT', initialized: true} as never); await expect(response).rejects.toThrow('TOKEN_LIMIT'); fail.runtime.dispose();
+        const fail = fixture(); const response = fail.runtime.score('a', new AbortController().signal); await flush(); const cachedReads = fail.store.complete.mock.calls.length;
+        fail.answer({success: false, error: 'INFORMATION_HIGHLIGHT_TOKEN_LIMIT', initialized: true} as never); await expect(response).rejects.toThrow('TOKEN_LIMIT'); expect(fail.worker.terminate).not.toHaveBeenCalled();
+        expect(await fail.runtime.status()).toMatchObject({phase: 'ready', initialized: true}); expect(fail.store.complete).toHaveBeenCalledTimes(cachedReads); fail.runtime.dispose();
         const evicted = fixture(); const missing = evicted.runtime.score('a', new AbortController().signal); await flush(); evicted.store.complete.mockResolvedValue(false); evicted.answer({success: false, error: 'MODEL_NOT_DOWNLOADED', initialized: false} as never);
-        await expect(missing).rejects.toThrow('MODEL_NOT_DOWNLOADED'); expect(await evicted.runtime.status()).toMatchObject({downloaded: false, phase: 'absent'}); evicted.runtime.dispose();
+        await expect(missing).rejects.toThrow('MODEL_NOT_DOWNLOADED'); expect(await evicted.runtime.status()).toMatchObject({downloaded: false, phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED'}); evicted.runtime.dispose();
+        const initialization = fixture(); const invalid = initialization.runtime.score('a', new AbortController().signal); await flush(); initialization.answer({success: false, error: 'ONNX init failed', initialized: false} as never);
+        await expect(invalid).rejects.toThrow('ONNX init failed'); expect(initialization.worker.terminate).toHaveBeenCalledOnce(); expect(await initialization.runtime.status()).toMatchObject({initialized: false});
+        expect(await initialization.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED', downloaded: true});
+        expect(await initialization.runtime.prepare()).toMatchObject({phase: 'ready', errorCode: undefined}); expect(initialization.store.download).not.toHaveBeenCalled();
         const unavailable = fixture(false); unavailable.probe.mockResolvedValue({supported: false, reason: 'unsupported'} as never); await expect(unavailable.runtime.prepare()).rejects.toThrow('unsupported'); await expect(unavailable.runtime.score('a', new AbortController().signal)).rejects.toThrow('unsupported');
         vi.stubGlobal('navigator', {}); expect(await probeInformationHighlightWebGpu()).toMatchObject({supported: false});
         for (const adapter of [null, {features: new Set()}, {features: new Set(['shader-f16'])}]) {vi.stubGlobal('navigator', {gpu: {requestAdapter: async () => adapter}}); expect((await probeInformationHighlightWebGpu()).supported).toBe(Boolean(adapter?.features.has('shader-f16')));}
@@ -123,10 +129,32 @@ describe('bounded model runtime and explicit downloads', () => {
         const task = value.runtime.score('a', controller.signal); await flush(); controller.abort(); await expect(task).rejects.toMatchObject({name: 'AbortError'});
         vi.advanceTimersByTime(1500); expect(value.worker.terminate).not.toHaveBeenCalled();
         const requestId = value.worker.postMessage.mock.calls[0][0].requestId;
-        value.worker.onmessage?.({data: {requestId, success: true, initialized: true, stage: 'scoring'}}); value.answer(); await flush(); expect(value.worker.terminate).not.toHaveBeenCalled();
+        value.worker.onmessage?.({data: {requestId, success: true, initialized: true, stage: 'scoring'}}); value.answer({success: false, initialized: true, error: '信息高亮已取消'} as never); await flush(); expect(value.worker.terminate).not.toHaveBeenCalled();
         const again = value.runtime.score('a', new AbortController().signal); await flush(); value.answer(); expect(await again).toEqual(result); value.runtime.dispose();
         const stalled = fixture(); stalled.worker.postMessage.mockImplementation(() => {});
         const pending = stalled.runtime.score('a', new AbortController().signal); await flush(); const assertion = expect(pending).rejects.toThrow('TIMEOUT'); vi.advanceTimersByTime(30_000); await assertion; expect(stalled.worker.terminate).toHaveBeenCalledOnce();
+    });
+    it('clears model failures after a direct successful score retry, while cancelled and removed owners cannot report recovery', async () => {
+        for (const outcome of ['success', 'cancelled', 'removed'] as const) {
+            const value = fixture(); const failed = value.runtime.score('a', new AbortController().signal); await flush();
+            value.answer({success: false, initialized: false, error: 'ONNX init failed'} as never); await expect(failed).rejects.toThrow('ONNX init failed');
+            expect(await value.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED'});
+            const controller = new AbortController(), retry = value.runtime.score('a', controller.signal); await flush();
+            expect(await value.runtime.status()).toMatchObject({phase: 'error'}); // 初始化/评分阶段消息还不能宣称恢复。
+            let removal: Promise<InformationHighlightModelStatus> | undefined;
+            if (outcome === 'cancelled') controller.abort();
+            if (outcome === 'removed') removal = value.runtime.remove();
+            value.answer();
+            if (outcome === 'cancelled') {
+                await expect(retry).rejects.toMatchObject({name: 'AbortError'}); await flush();
+                expect(await value.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED'});
+            } else {
+                expect(await retry).toEqual(result);
+                if (removal) {await removal; expect(await value.runtime.status()).toMatchObject({phase: 'absent', initialized: false, downloaded: false});}
+                else {expect(await value.runtime.status()).toMatchObject({phase: 'ready', initialized: true}); expect((await value.runtime.status()).errorCode).toBeUndefined();}
+            }
+            expect(value.store.download).not.toHaveBeenCalled(); value.runtime.dispose();
+        }
     });
     it('rejects active ownership on dispose, ignores captured late callbacks and handles failed worker posts', async () => {
         const disposed = fixture(); const task = disposed.runtime.score('a', new AbortController().signal); await flush(); const onmessage = disposed.worker.onmessage!, onerror = disposed.worker.onerror!;
@@ -137,7 +165,8 @@ describe('bounded model runtime and explicit downloads', () => {
         const cancelled = fixture(), controller = new AbortController(); const pending = cancelled.runtime.score('a', controller.signal); await flush(); cancelled.worker.postMessage.mockImplementation(() => {throw new Error('cancel failed');});
         controller.abort(); await expect(pending).rejects.toMatchObject({name: 'AbortError'}); await flush(); expect(cancelled.worker.terminate).toHaveBeenCalledOnce();
         const absent = fixture(); const noResult = absent.runtime.score('a', new AbortController().signal); await flush(); const callback = absent.worker.onmessage!;
-        absent.answer({success: true, initialized: true} as never); await expect(noResult).rejects.toThrow('FAILED'); callback({data: {requestId: 1, success: true, initialized: true, result}}); absent.runtime.dispose();
+        absent.answer({success: true, initialized: true} as never); await expect(noResult).rejects.toThrow('FAILED'); callback({data: {requestId: 1, success: true, initialized: true, result}}); expect(await absent.runtime.status()).toMatchObject({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_MODEL_RUNTIME_FAILED'}); absent.runtime.dispose();
+        const successful = fixture(); const success = successful.runtime.score('a', new AbortController().signal); await flush(); const repeated = successful.worker.onmessage!; successful.answer(); await success; repeated({data: {requestId: 1, success: true, initialized: true, result}}); successful.runtime.dispose();
     });
     it('serializes removal with an active download and rejects prepare or score during removal', async () => {
         const value = fixture(false); let started!: () => void;
@@ -155,5 +184,10 @@ describe('bounded model runtime and explicit downloads', () => {
         const retry = fixture(); retry.store.complete.mockRejectedValueOnce(new Error('cache failed')); await expect(retry.runtime.status()).rejects.toThrow('cache failed'); expect(await retry.runtime.status()).toMatchObject({downloaded: true});
         const value = fixture(), controller = new AbortController(); value.store.complete.mockImplementationOnce(async () => {controller.abort(); return true;});
         await expect(value.runtime.score('a', controller.signal)).rejects.toMatchObject({name: 'AbortError'}); await flush(); expect(value.createWorker).not.toHaveBeenCalled();
+    });
+    it('publishes finite download error codes instead of localized browser or arbitrary exception text', async () => {
+        for (const [error, code] of [[new Error('MODEL_INTEGRITY'), 'MODEL_INTEGRITY'], [new Error('MODEL_NETWORK'), 'MODEL_NETWORK'], [new TypeError('网络错误'), 'MODEL_NETWORK'], [new DOMException('read timed out', 'AbortError'), 'MODEL_NETWORK'], [new Error('arbitrary internal path'), 'DOWNLOAD_FAILED'], [{name: 'QuotaExceededError'}, 'STORAGE_QUOTA'], [null, 'DOWNLOAD_FAILED']] as const) {
+            const value = fixture(false); value.store.download.mockRejectedValueOnce(error); await value.runtime.prepare(); await flush(); expect(await value.runtime.status()).toMatchObject({phase: 'error', errorCode: `INFORMATION_HIGHLIGHT_${code}`});
+        }
     });
 });

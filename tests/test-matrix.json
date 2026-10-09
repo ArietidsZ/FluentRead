@@ -584,8 +584,8 @@
       "tests/translationSlotEchoRegression.test.ts",
       "tests/xModernSiteAdaptationRegression.test.ts",
       "tests/informationHighlightContent.test.ts",
-      "tests/informationHighlightUiActions.test.ts",
-      "tests/informationHighlightUiLifecycle.test.ts"
+      "tests/informationHighlightUiLifecycle.test.ts",
+      "tests/informationHighlightSettingsLifecycle.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

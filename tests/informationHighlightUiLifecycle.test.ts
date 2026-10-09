@@ -17,26 +17,26 @@ const runtime = createRequire(import.meta.url)('vue') as typeof import('vue')
 const key = '__informationHighlightUiFixture'
 let server: ViteDevServer, app: import('vue').App, state: Record<string, any>, props: Record<string, any>
 const send = vi.fn()
-const ready = vi.fn(), preparing = vi.fn(), retry = vi.fn()
+const ready = vi.fn(), preparing = vi.fn()
 const model = (overrides: Partial<InformationHighlightModelStatus> = {}): InformationHighlightModelStatus => ({phase: 'absent', downloaded: false, initialized: false, downloadedBytes: 0, totalBytes: 490043908, supported: true, modelName: 'Qwen2.5 0.5B', downloadSizeBytes: 490043908, ...overrides})
 function deferred<T = unknown>() {let resolve!: (value: T) => void, reject!: (error: unknown) => void; const promise = new Promise<T>((yes, no) => {resolve = yes; reject = no}); return {promise, resolve, reject}}
 async function settle() {for (let i = 0; i < 8; i++) {await Promise.resolve(); await runtime.nextTick()}}
-async function mount(name: 'InformationHighlightPreferences' | 'InformationHighlightModelCard' | 'PopupInformationHighlight') {
-  const path = name === 'PopupInformationHighlight' ? '/src/app/popup/PopupInformationHighlight.vue' : `/src/features/settings/ui/${name}.vue`
+async function mount(name: 'InformationHighlightPreferences' | 'InformationHighlightModelCard') {
+  const path = `/src/features/settings/ui/${name}.vue`
   const component = (await server.ssrLoadModule(path)).default
   component.ssrRender = undefined; component.render = () => null
   const renderer = runtime.createRenderer<Record<string, never>, Record<string, unknown>>({patchProp: () => {}, insert: () => {}, remove: () => {}, createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: () => {}, setElementText: () => {}, parentNode: () => null, nextSibling: () => null, querySelector: () => null, setScopeId: () => {}, cloneNode: () => ({}), insertStaticContent: () => [{}, {}]})
-  props = runtime.reactive({active: true, config: {informationHighlight: {mode: 'keywords', density: 'medium', color: 'amber', style: 'background'}}, state: {snapshot: {enabled: true, sessionId: 'page:7:1', phase: 'error'}}, blockedReason: '', toggle: () => {}, retry, openSettings: () => {}, onReady: ready, onPreparing: preparing})
+  props = runtime.reactive({active: true, config: {on: true, informationHighlight: {mode: 'keywords', density: 'medium', color: 'amber', style: 'background'}}, onReady: ready, onPreparing: preparing})
   app = renderer.createApp({setup: () => () => runtime.h(component, {...props, ref: (vm: any) => {if (vm) state = vm.$.setupState}})})
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()}); app.config.warnHandler = () => {}; app.mount({}); await settle()
 }
 beforeEach(async () => {
-  vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']}); ready.mockReset(); preparing.mockReset(); retry.mockReset(); send.mockReset(); send.mockResolvedValue({success: true, status: model()})
+  vi.useFakeTimers({toFake: ['setInterval', 'clearInterval']}); ready.mockReset(); preparing.mockReset(); send.mockReset(); send.mockResolvedValue({success: true, status: model()})
   Object.assign(globalThis, {[key]: {send}})
   server = await createServer({appType: 'custom', configFile: false, logLevel: 'silent', root: process.cwd(), resolve: {alias: {'@': resolve(process.cwd(), '.')}}, ssr: {noExternal: ['webextension-polyfill']}, server: {hmr: false, middlewareMode: true}, plugins: [{name: 'information-highlight-ui-mocks', enforce: 'pre', resolveId(id) {
     if (id === 'webextension-polyfill') return '\0information-browser'
     if (/\/src\/ui\/i18n(?:\.ts)?$/u.test(id)) return '\0information-i18n'
-    if (id.endsWith('.vue') && !/InformationHighlight(?:Preferences|ModelCard)\.vue$/u.test(id) && !id.endsWith('PopupInformationHighlight.vue')) return '\0information-child'
+    if (id.endsWith('.vue') && !/InformationHighlight(?:Preferences|ModelCard)\.vue$/u.test(id)) return '\0information-child'
     return null
   }, load(id) {
     if (id === '\0information-browser') return `export default {runtime: {sendMessage: globalThis.${key}.send}}`
@@ -45,10 +45,10 @@ beforeEach(async () => {
     return null
   }}, vue()]})
 })
-afterEach(async () => {app?.unmount(); await server?.close(); delete (globalThis as any)[key]; vi.useRealTimers()})
+afterEach(async () => {app?.unmount(); await server?.close(); delete (globalThis as any)[key]; vi.useRealTimers(); vi.unstubAllGlobals()})
 
 describe('信息高亮真实偏好组件', () => {
-  it('Popup 不依赖全局 Element Plus 注册：模式选择器与选项编译到明确的本地组件', () => {
+  it('设置偏好不依赖全局 Element Plus 注册：模式选择器与选项编译到明确的本地组件', () => {
     const filename = resolve(process.cwd(), 'src/features/settings/ui/InformationHighlightPreferences.vue')
     const {descriptor} = parse(readFileSync(filename, 'utf8'), {filename})
     const script = compileScript(descriptor, {id: 'information-highlight-preferences'})
@@ -75,6 +75,37 @@ describe('信息高亮真实偏好组件', () => {
   })
 })
 describe('信息高亮真实本地模型组件', () => {
+  it('稳定资源每15秒读取，下载时每秒读取；隐藏页面停止，重新显示立即刷新并卸载监听', async () => {
+    let visibilityChanged!: () => void
+    const document = {visibilityState: 'visible', addEventListener: vi.fn((_type, callback) => {visibilityChanged = callback}), removeEventListener: vi.fn()}
+    vi.stubGlobal('document', document)
+    await mount('InformationHighlightModelCard'); expect(send).toHaveBeenCalledOnce()
+    vi.advanceTimersByTime(14999); await settle(); expect(send).toHaveBeenCalledOnce()
+    send.mockResolvedValueOnce({success: true, status: model({phase: 'downloading', downloadedBytes: 20})})
+    vi.advanceTimersByTime(1); await settle(); expect(send).toHaveBeenCalledTimes(2)
+    vi.advanceTimersByTime(1000); await settle(); expect(send).toHaveBeenCalledTimes(3)
+    document.visibilityState = 'hidden'; visibilityChanged(); vi.advanceTimersByTime(60000); await settle(); expect(send).toHaveBeenCalledTimes(3)
+    document.visibilityState = 'visible'; visibilityChanged(); await settle(); expect(send).toHaveBeenCalledTimes(4)
+    app.unmount(); expect(document.removeEventListener).toHaveBeenCalledWith('visibilitychange', visibilityChanged)
+    vi.advanceTimersByTime(60000); await settle(); expect(send).toHaveBeenCalledTimes(4)
+  })
+  it('合法模型错误显示明确恢复原因和已有进度，完整文件重试不呈现下载中', async () => {
+    send.mockResolvedValueOnce({success: true, status: model({phase: 'error', downloadedBytes: 20, errorCode: 'INFORMATION_HIGHLIGHT_MODEL_NETWORK'})})
+    await mount('InformationHighlightModelCard')
+    expect(state.error).toBe(false); expect(state.hasError).toBe(true); expect(state.showProgress).toBe(true)
+    expect(state.errorLabel).toBe('informationHighlight.model.error.network')
+    send.mockResolvedValueOnce({success: true, status: model({phase: 'error', downloaded: true, downloadedBytes: 490043908, errorCode: 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED'})})
+    await state.actions.refresh(); expect(state.errorLabel).toBe('informationHighlight.model.error.runtime')
+    const command = deferred(); send.mockReturnValueOnce(command.promise); const preparing = state.actions.prepare()
+    expect(state.downloading).toBe(false); expect(state.displayPhase).toBe('error')
+    command.resolve({success: true, status: model({phase: 'ready', downloaded: true})}); await preparing
+  })
+  it('删除操作显示正在删除，保留旧文件真值直到实际回复', async () => {
+    send.mockResolvedValueOnce({success: true, status: model({phase: 'ready', downloaded: true})}); await mount('InformationHighlightModelCard')
+    const command = deferred(); send.mockReturnValueOnce(command.promise); const removing = state.actions.remove()
+    expect(state.displayPhase).toBe('removing'); expect(state.status.downloaded).toBe(true)
+    command.resolve({success: true, status: model()}); await removing
+  })
   it('首次挂载只读状态，合并慢查询；周期读取显示真实字节进度', async () => {
     const query = deferred(); send.mockReturnValueOnce(query.promise); await mount('InformationHighlightModelCard')
     await state.actions.refresh(); vi.advanceTimersByTime(2000); await settle(); expect(send).toHaveBeenCalledOnce(); expect(state.reading).toBe(true)
@@ -122,25 +153,5 @@ describe('信息高亮真实本地模型组件', () => {
   it('卸载后的查询异常和命令完成不再改变资源状态或启动轮询', async () => {
     await mount('InformationHighlightModelCard'); const query = deferred(); send.mockReturnValueOnce(query.promise); const pending = state.actions.refresh(); const old = state.actions.prepare
     app.unmount(); query.reject(Error('closed')); await pending; await old(); vi.advanceTimersByTime(3000); await settle(); expect(state.error).toBe(false); expect(send).toHaveBeenCalledTimes(2)
-  })
-})
-describe('信息高亮抽屉下载后使用归属', () => {
-  it('只有当前已开启本地模式的明确下载会重试一次，不把初次 GET ready 当作使用命令', async () => {
-    await mount('PopupInformationHighlight'); state.modelReady(); expect(retry).not.toHaveBeenCalled()
-    props.config.informationHighlight.mode = 'surprisal-local'; state.modelPreparing(); state.modelReady(); state.modelReady(); expect(retry).toHaveBeenCalledOnce()
-  })
-  it.each(['keywords', 'disabled', 'closed'])('%s 后迟到模型 ready 不开启页面', async reason => {
-    await mount('PopupInformationHighlight'); props.config.informationHighlight.mode = 'surprisal-local'; state.modelPreparing()
-    if (reason === 'keywords') props.config.informationHighlight.mode = 'keywords'
-    else if (reason === 'disabled') props.state.snapshot.enabled = false
-    else props.active = false
-    await settle()
-    state.modelReady(); expect(retry).not.toHaveBeenCalled()
-  })
-  it('下载开始时未开启不自动启页，新页回调也不能替换已捕获的旧页所有权', async () => {
-    await mount('PopupInformationHighlight'); props.config.informationHighlight.mode = 'surprisal-local'; props.state.snapshot.enabled = false
-    state.modelPreparing(); props.state.snapshot.enabled = true; state.modelReady(); expect(retry).not.toHaveBeenCalled()
-    let page = 'old'; const old = vi.fn(() => {if (page === 'old') retry()}); props.retry = old; await settle(); state.modelPreparing(); page = 'new'; props.retry = retry; await settle(); state.modelReady()
-    expect(old).toHaveBeenCalledOnce(); expect(retry).not.toHaveBeenCalled()
   })
 })

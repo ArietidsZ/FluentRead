@@ -18,6 +18,10 @@ export interface InformationHighlightState {
 }
 export interface InformationHighlightSpan {start: number; end: number; score: number}
 export interface InformationHighlightResult {spans: InformationHighlightSpan[]; engine: string}
+export type InformationHighlightModelErrorCode =
+    | 'INFORMATION_HIGHLIGHT_MODEL_NETWORK' | 'INFORMATION_HIGHLIGHT_MODEL_INTEGRITY'
+    | 'INFORMATION_HIGHLIGHT_STORAGE_QUOTA' | 'INFORMATION_HIGHLIGHT_DOWNLOAD_FAILED' | 'INFORMATION_HIGHLIGHT_REMOVE_FAILED'
+    | 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED' | 'INFORMATION_HIGHLIGHT_MODEL_RUNTIME_FAILED' | 'INFORMATION_HIGHLIGHT_MODEL_TIMEOUT';
 export interface InformationHighlightModelStatus {
     phase: 'absent' | 'queued' | 'downloading' | 'verifying' | 'paused' | 'ready' | 'error' | 'removing';
     downloaded: boolean;
@@ -28,7 +32,7 @@ export interface InformationHighlightModelStatus {
     modelName: string;
     downloadSizeBytes: number;
     reason?: string;
-    errorCode?: string;
+    errorCode?: InformationHighlightModelErrorCode;
 }
 export const INFORMATION_HIGHLIGHT_DOWNLOAD_ID = 'information-highlight:model';
 export const INFORMATION_HIGHLIGHT_MAX_CHARACTERS = 12_000;

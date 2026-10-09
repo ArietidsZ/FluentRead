@@ -21,7 +21,6 @@ export default defineConfig({
                 'src/app/background/localModelMessageRuntime.ts',
                 'src/app/content/informationHighlight.ts',
                 'src/app/offscreen/informationHighlightWorker.ts',
-                'src/app/popup/informationHighlightActions.ts',
                 'src/features/full-page-translation/content/visibleTranslation.ts',
             ],
             exclude: ['**/*.d.ts'],

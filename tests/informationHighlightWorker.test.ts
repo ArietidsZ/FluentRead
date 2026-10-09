@@ -30,7 +30,8 @@ describe('static model worker uses prepared files and serial cooperative cancell
         expect(mocks.model).toHaveBeenCalledWith('onnx-community/Qwen2.5-0.5B', expect.objectContaining({revision: 'bae5ceaee026f0d0592858b2bd27645a06f19c42', local_files_only: true, device: 'webgpu', dtype: 'q4f16', config: {'transformers.js_config': {kv_cache_dtype: 'float32'}, bos_token_id: 0}}));
         expect(post).toHaveBeenLastCalledWith(expect.objectContaining({success: true, initialized: true, result: {spans: [{start: 0,end: 1,score: 1}], engine: expect.stringContaining('local WebGPU')}}));
         expect(mocks.tensors.every(tensor => tensor.dispose.mock.calls.length === 1)).toBe(true);
-        send({type: 'score', requestId: 2, text: 'a'}); await flush(); expect(mocks.model).toHaveBeenCalledOnce(); expect(model).toHaveBeenCalledTimes(2);
+        send({type: 'score', requestId: 2, text: 'a'}); await flush(); expect(mocks.model).toHaveBeenCalledOnce(); expect(model).toHaveBeenCalledOnce();
+        startInformationHighlightWorker(); send({type: 'score', requestId: 3, text: 'a'}); await flush(); expect(mocks.model).toHaveBeenCalledTimes(2); expect(model).toHaveBeenCalledTimes(2);
     });
     it('rejects cancelled queued requests before initialization, ignores malformed messages and never starts duplicate ids', async () => {
         mocks.env.backends.onnx.wasm = undefined; startInformationHighlightWorker();
@@ -51,5 +52,12 @@ describe('static model worker uses prepared files and serial cooperative cancell
         send({type: 'score', requestId: 1, text: 'a'}); for(let i=0;i<40;i++) await Promise.resolve(); send({type: 'cancel', requestId: 1});
         done(await real(model.mock.calls[0][0])); await flush(); expect(post).toHaveBeenLastCalledWith(expect.objectContaining({success: false, initialized: true}));
         send({type: 'score', requestId: 2, text: 'a'}); await flush(); expect(post).toHaveBeenLastCalledWith(expect.objectContaining({success: true})); expect(mocks.model).toHaveBeenCalledOnce();
+    });
+    it('finishes cold preparation after cancellation, reuses the warm engine, and never caches a cancelled result', async () => {
+        let loaded!: (value: unknown) => void; mocks.model.mockImplementationOnce(() => new Promise(resolve => {loaded = resolve;}));
+        startInformationHighlightWorker(); send({type: 'score', requestId: 1, text: 'a'}); for(let i=0;i<40;i++) await Promise.resolve();
+        send({type: 'cancel', requestId: 1}); loaded(model); await flush(); expect(post).toHaveBeenLastCalledWith(expect.objectContaining({success: false, initialized: true})); expect(model).not.toHaveBeenCalled();
+        send({type: 'score', requestId: 2, text: 'a'}); await flush(); expect(post).toHaveBeenLastCalledWith(expect.objectContaining({success: true})); expect(mocks.model).toHaveBeenCalledOnce(); expect(model).toHaveBeenCalledOnce();
+        send({type: 'score', requestId: 3, text: 'a'}); await flush(); expect(model).toHaveBeenCalledOnce();
     });
 });

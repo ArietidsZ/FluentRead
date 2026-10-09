@@ -9,7 +9,7 @@ import {INFORMATION_HIGHLIGHT_MODEL, INFORMATION_HIGHLIGHT_MODEL_REVISION} from 
 import {localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
 import {configureOnnxWasmBackend} from '@/src/shared/onnx/wasmBinary';
 import {informationHighlightArtifactStore} from './artifacts';
-import {scoreLocalSurprisal, type CausalScoringEngine, type ScoringPast, type ScoringTensor} from './scorer';
+import {createSurprisalResultCache, scoreLocalSurprisal, type CausalScoringEngine, type ScoringPast, type ScoringTensor} from './scorer';
 import type {InformationHighlightResult} from '../protocol';
 export interface InformationHighlightWorkerRequest {requestId: number; type: 'score' | 'cancel'; text?: string}
 export interface InformationHighlightWorkerResponse {requestId: number; success: boolean; initialized: boolean; stage?: 'initializing' | 'scoring'; result?: InformationHighlightResult; error?: string}
@@ -27,6 +27,7 @@ export function startInformationHighlightWorker(): void {
     }
     let engine: CausalScoringEngine | undefined, creating: Promise<CausalScoringEngine> | undefined;
     const controllers = new Map<number, AbortController>();
+    const results = createSurprisalResultCache();
     let tail: Promise<void> = Promise.resolve();
     const getEngine = (): Promise<CausalScoringEngine> => creating ??= paceLocalInitialization(async () => {
         const options = {revision: INFORMATION_HIGHLIGHT_MODEL_REVISION, local_files_only: true};
@@ -65,8 +66,11 @@ export function startInformationHighlightWorker(): void {
                 if (controller.signal.aborted) throw new DOMException('信息高亮已取消', 'AbortError');
                 if (!engine) self.postMessage({requestId: request.requestId, success: true, initialized: false, stage: 'initializing'} satisfies InformationHighlightWorkerResponse);
                 const loaded = await getEngine();
+                if (controller.signal.aborted) throw new DOMException('信息高亮已取消', 'AbortError');
                 self.postMessage({requestId: request.requestId, success: true, initialized: true, stage: 'scoring'} satisfies InformationHighlightWorkerResponse);
-                const result = await scoreLocalSurprisal(loaded, request.text!, controller.signal);
+                const cached = results.get(request.text!);
+                const result = cached ?? await scoreLocalSurprisal(loaded, request.text!, controller.signal);
+                if (!cached) results.put(request.text!, result);
                 self.postMessage({requestId: request.requestId, success: true, initialized: true, result} satisfies InformationHighlightWorkerResponse);
             } catch (error) {
                 self.postMessage({requestId: request.requestId, success: false, initialized: Boolean(engine), error: error instanceof Error ? error.message : 'INFORMATION_HIGHLIGHT_FAILED'} satisfies InformationHighlightWorkerResponse);

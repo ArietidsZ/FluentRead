@@ -10,7 +10,6 @@ import {isBrowserTabId} from '@/src/platform/browser/ids'
 import {getPdfSourceUrl} from '@/src/features/document-translation/core/pdfSource'
 import type {PopupActiveTab} from './pageContracts'
 export type {PopupActiveTab} from './pageContracts'
-export {createPopupInformationHighlightActions, createPopupInformationHighlightState} from './informationHighlightActions'
 
 export interface PopupPageState {tabId: number | null; windowId?: number; url: string; domain: string; translated: boolean; busy: boolean}
 export interface PopupPagePorts {

@@ -1,16 +1,20 @@
 /**
  * @file src/features/information-highlight/content/runtime.ts
  * 文件职责：拥有单个阅读页面的信息高亮会话，协调只读分帧扫描、评分取消、文本缓存和原生 CSS Highlight 绘制。
- * 主要内容：滚动与动态内容经过 180ms 稳定窗口后扫描，每帧工作预算约 4ms；评分优先当前视口并逐段处理，迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
+ * 主要内容：滚动与动态内容经过 180ms 稳定窗口后扫描，每帧工作预算约 4ms；评分与密度选择按纯文本缓存，轻量段落在有界批次内共享帧预算，迟到结果复验代次和 Text 身份，退出时清理所有绘制、观察器、计时器和请求。
  * 模块边界：不访问配置存储或扩展消息、不改变宿主原文、class 和布局；本地模型评分、翻译根及状态通知由应用组合根注入，无原生绘制支持时诚实返回 unsupported。
  */
 import type {InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
-import type {InformationHighlightResult, InformationHighlightState} from '../protocol';
+import type {InformationHighlightResult, InformationHighlightSpan, InformationHighlightState} from '../protocol';
 import {scoreInformationKeywords, selectInformationSpans} from '../domain/keywords';
 import {informationSliceEnd} from '../domain/textBoundaries';
 import {collectInformationParagraphs, informationRanges, isInformationParagraphCurrent, isInformationMutationExcluded, type InformationReadingScan, type InformationParagraph} from './readingText';
 export const INFORMATION_HIGHLIGHT_NAME = 'fluentread-information-highlight';
 type PaintWindow = Window & typeof globalThis & {Highlight?: new (...ranges: Range[]) => Set<Range>; CSS?: {highlights?: Map<string, Set<Range>>}};
+interface CachedParagraph {
+    result: InformationHighlightResult;
+    selections: Map<InformationHighlightPreferences['density'], InformationHighlightSpan[]>;
+}
 export interface InformationHighlightController {
     getState(): InformationHighlightState;
     setEnabled(enabled: boolean): InformationHighlightState;
@@ -36,7 +40,7 @@ export function installInformationHighlight(document: Document, initial: Informa
     let work: Generator<InformationParagraph | undefined, InformationReadingScan> | undefined;
     let pending: InformationParagraph[] = [];
     const styles = new Map<Document | ShadowRoot, HTMLStyleElement>(), observers = new Map<Document | ShadowRoot, MutationObserver>();
-    const cache = new Map<string, InformationHighlightResult>();
+    const cache = new Map<string, CachedParagraph>();
     let cachedCharacters = 0;
     let state: InformationHighlightState = {enabled: false, phase: 'idle', sessionId: '0', processedParagraphs: 0, queuedParagraphs: 0, highlightedSpans: 0, mode: preferences.mode};
     const current = () => !disposed && enabled && (ports.isCurrent?.() ?? true);
@@ -90,12 +94,14 @@ export function installInformationHighlight(document: Document, initial: Informa
         for (const [root, style] of styles) if (!live.has(root)) {style.remove(); styles.delete(root);}
         for (const root of roots) {observe(root); styleRoot(root);}
     }
-    function remember(key: string, result: InformationHighlightResult): void {
-        // 缓存只保存纯数据；最多 96 段 / 160k 字符，永久不持有网页节点和 Range。
-        cache.set(key, {engine: result.engine, spans: result.spans.map(span => ({...span}))}); cachedCharacters += key.length;
+    function remember(key: string, result: InformationHighlightResult): CachedParagraph {
+        // 缓存只保存纯数据；最多 96 段 / 160k 字符，每段最多三种密度选区，永久不持有网页节点和 Range。
+        const paragraph: CachedParagraph = {result: {engine: result.engine, spans: result.spans.map(span => ({...span}))}, selections: new Map()};
+        cache.set(key, paragraph); cachedCharacters += key.length;
         while (cache.size > 96 || cachedCharacters > 160_000) {
             const oldest = cache.keys().next().value!; cachedCharacters -= oldest.length; cache.delete(oldest);
         }
+        return paragraph;
     }
     async function scoreComplete(text: string, signal: AbortSignal): Promise<InformationHighlightResult> {
         if (signal.aborted) throw new Error('INFORMATION_HIGHLIGHT_CANCELLED');
@@ -110,7 +116,8 @@ export function installInformationHighlight(document: Document, initial: Informa
             return {engine: first.engine, spans: [...first.spans, ...second.spans.map(span => ({...span, start: span.start + middle, end: span.end + middle}))]};
         }
     }
-    async function analyze(paragraphs: InformationParagraph[], version: number, completed?: InformationReadingScan): Promise<void> {
+    async function analyze(paragraphs: InformationParagraph[], version: number, started: number, completed?: InformationReadingScan): Promise<void> {
+        let budgetStarted = started;
         for (const paragraph of paragraphs) {observe(paragraph.root); styleRoot(paragraph.root);}
         notify({phase: paragraphs.length ? (preferences.mode === 'surprisal-local' ? 'loading-model' : 'analyzing') : 'active',
             queuedParagraphs: paragraphs.length, errorCode: undefined});
@@ -119,24 +126,26 @@ export function installInformationHighlight(document: Document, initial: Informa
             const mode = preferences.mode, key = `${mode}:${paragraph.text}`;
             scoreAbort = new AbortController(); const signal = scoreAbort.signal;
             try {
-                let result = cache.get(key);
-                const cached = Boolean(result);
-                if (!result) {
-                    result = mode === 'keywords' ? scoreInformationKeywords(paragraph.text) : await scoreComplete(paragraph.text, signal);
-                }
+                let cached = cache.get(key);
+                const result = cached?.result ?? (mode === 'keywords' ? scoreInformationKeywords(paragraph.text) : await scoreComplete(paragraph.text, signal));
                 if (!current() || version !== generation || signal.aborted) return;
                 if (!isInformationParagraphCurrent(paragraph)) {schedule(true); return;}
-                if (!cached) remember(key, result);
-                const spans = selectInformationSpans(paragraph.text, result.spans, preferences.density);
+                cached ??= remember(key, result);
+                let spans = cached.selections.get(preferences.density);
+                if (!spans) {spans = selectInformationSpans(paragraph.text, result.spans, preferences.density); cached.selections.set(preferences.density, spans);}
                 const ranges = informationRanges(document, paragraph, spans);
                 if (paint!.size + ranges.length > 4096) {notify({phase: 'error', errorCode: 'INFORMATION_HIGHLIGHT_PAGE_LIMIT'}); return;}
                 for (const range of ranges) paint!.add(range);
-                registry!.set(INFORMATION_HIGHLIGHT_NAME, paint!);
+                // 原生 Highlight.add 已触发重绘；同一对象不必为每段重复注册。
+                if (registry!.get(INFORMATION_HIGHLIGHT_NAME) !== paint) registry!.set(INFORMATION_HIGHLIGHT_NAME, paint!);
                 notify({phase: 'analyzing', processedParagraphs: state.processedParagraphs + 1,
                     queuedParagraphs: state.queuedParagraphs - 1, highlightedSpans: state.highlightedSpans + spans.length});
                 if (!current() || version !== generation) return;
-                // 下一段评分也让出一帧，关键词模式不会在同一个任务内累积整页计算。
-                await new Promise<void>(resolve => {frame = view.requestAnimationFrame(() => {frame = undefined; resolve();}); signal.addEventListener('abort', () => resolve(), {once: true});});
+                // 扫描与轻量选区共享 4ms 预算；已缓存段落无需无条件占用一整帧，单批仍最多 12 段。
+                if (view.performance.now() - budgetStarted >= 4) {
+                    await new Promise<void>(resolve => {frame = view.requestAnimationFrame(() => {frame = undefined; resolve();}); signal.addEventListener('abort', () => resolve(), {once: true});});
+                    budgetStarted = view.performance.now();
+                }
             } catch (error) {
                 if (!current() || version !== generation || signal.aborted) return;
                 const errorCode = error instanceof Error ? error.message : 'INFORMATION_HIGHLIGHT_SCORE_FAILED';
@@ -155,9 +164,9 @@ export function installInformationHighlight(document: Document, initial: Informa
         const started = view.performance.now(); let count = 0;
         while (count++ < 8192) {
             const result = work.next();
-            if (result.done) {work = undefined; const batch = pending; pending = []; void analyze(batch, version, result.value); return;}
+            if (result.done) {work = undefined; const batch = pending; pending = []; void analyze(batch, version, started, result.value); return;}
             if (result.value) pending.push(result.value);
-            if (pending.length >= 12) {const batch = pending; pending = []; void analyze(batch, version); return;}
+            if (pending.length >= 12) {const batch = pending; pending = []; void analyze(batch, version, started); return;}
             if (view.performance.now() - started >= 4) break;
         }
         frame = view.requestAnimationFrame(() => step(version));

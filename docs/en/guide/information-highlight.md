@@ -1,21 +1,21 @@
 # Information highlighting
 
-Information highlighting marks words worth noticing in longer passages. The complete text remains readable, selectable and copyable, with its original layout.
+Information highlighting marks words worth noticing in longer passages. The complete text remains readable, selectable and copyable, with its original layout. The current entry is in Settings; web pages stay off by default.
 
 ## Use it
 
-1. Open FluentRead's popup and choose **Information highlighting**.
-2. Enable it for the current page, then choose a mode and density.
-3. Text is analyzed near your reading position. Turn it off at any time to clear these highlights.
+1. Open **Settings → Translation settings → Reading assistance → Information highlighting**.
+2. Choose mode, density, colour and drawing style, and check the illustrative preview.
+3. Enable **Information highlighting** from the FluentRead PDF reader toolbar for the current document. Turn it off to clear the marks.
 
-The enabled state belongs to the current page. Mode, density and appearance are saved under **Settings → Translation settings → Reading assistance → Information highlighting** without enabling other pages.
+Preferences are saved in Settings. Changing preferences or downloading a model does not enable web-page highlighting. The popup has no information-highlighting entry.
 
 ## Modes
 
 | Mode | Purpose | Processing |
 | --- | --- | --- |
 | Keywords | Quickly spot topic words | Lightweight local algorithm; no model download |
-| Surprisal | Notice words that are less predictable in context | A local language model computes word probabilities; download required |
+| Surprisal | Notice words that are less predictable in context | FluentRead downloads Qwen on demand and computes probabilities on your device |
 
 Both modes process page text locally. Downloading a model contacts its hosting service; scoring does not send page text there.
 
@@ -23,9 +23,15 @@ Surprisal is `−log₂ P(word | preceding text)`. A higher value means the mode
 
 ## Appearance and performance
 
+Manage mode, density, colour and drawing style in **Settings → Translation settings → Reading assistance → Information highlighting**. In local-model mode, model status and download actions appear immediately after the mode selector. You can explicitly choose **Use keywords instead** when the model is unavailable. The preview illustrates appearance rather than model output.
+
 Choose low, medium or high density, amber, mint or blue, and a soft background or underline. Appearance and density changes reuse existing scores.
 
+The local model is downloaded and run by FluentRead. It does not depend on AI built into Edge, Firefox or another browser. The current Qwen2.5 0.5B model needs about 490 MB on first download. The extension uses ONNX Runtime Web in a dedicated Worker and your device's WebGPU to compute scores; analysis works offline once the files are downloaded.
+
 Model download starts only after you choose the download action. Model mode requires supported WebGPU capabilities. An unavailable page or model displays a reason; you can choose Keywords manually. Page text is never automatically sent to a cloud scorer.
+
+Saved parts are retained when a download is paused or interrupted, so you can resume it. Verification, storage and model-start errors display recovery guidance. Retrying when all model files are already complete does not download them again.
 
 Long pages prioritize nearby text and defer analysis during fast scrolling. Turning the feature off cancels work and discards late results. Changes to page text trigger fresh analysis. Editors, forms, code and formulas are excluded from normal body highlighting.
 

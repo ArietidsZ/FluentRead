@@ -13,17 +13,23 @@ export function createModelArtifactStore(cacheName: string, files: readonly Mode
     const part = (file: ModelArtifact, index: number) => `${file.url}?fluent-read-part=${index}`;
     const receipt = (file: ModelArtifact) => `${file.url}?fluent-read-verified=${file.sha256}`;
     const open = () => caches.open(cacheName);
-    const complete = async (file: ModelArtifact) => {
+    // 校验收据并读取实际块只做一遍；customCache.match 不再先 complete、再 blob 内 complete、再读第三遍。
+    const preparedBlob = async (file: ModelArtifact): Promise<Blob | undefined> => {
         const cache = await open(), response = await cache.match(receipt(file));
-        if (!response) return false;
+        if (!response) return undefined;
         const verified = await response.json().catch(() => undefined) as {size?: number; sha256?: string} | undefined;
-        if (verified?.size !== file.size || verified.sha256 !== file.sha256) return false;
+        if (verified?.size !== file.size || verified.sha256 !== file.sha256) return undefined;
+        const parts: Blob[] = [];
         for (let i = 0; i < Math.ceil(file.size / MODEL_ARTIFACT_CHUNK_BYTES); i++) {
             const value = await cache.match(part(file, i));
-            if (!value || (await value.blob()).size !== Math.min(MODEL_ARTIFACT_CHUNK_BYTES, file.size - i * MODEL_ARTIFACT_CHUNK_BYTES)) return false;
+            if (!value) return undefined;
+            const bytes = await value.blob();
+            if (bytes.size !== Math.min(MODEL_ARTIFACT_CHUNK_BYTES, file.size - i * MODEL_ARTIFACT_CHUNK_BYTES)) return undefined;
+            parts.push(bytes);
         }
-        return true;
+        return new Blob(parts);
     };
+    const complete = async (file: ModelArtifact) => Boolean(await preparedBlob(file));
     const downloaded = async (file: ModelArtifact) => {
         const cache = await open(); let bytes = 0;
         for (let index = 0; bytes < file.size; index++) {
@@ -38,15 +44,8 @@ export function createModelArtifactStore(cacheName: string, files: readonly Mode
         for (let i = 0; i < Math.ceil(file.size / MODEL_ARTIFACT_CHUNK_BYTES); i++) await cache.delete(part(file, i));
     };
     const blob = async (file: ModelArtifact) => {
-        if (!await complete(file)) throw new Error('MODEL_NOT_DOWNLOADED');
-        const cache = await open(), parts: Blob[] = [];
-        for (let i = 0; i < Math.ceil(file.size / MODEL_ARTIFACT_CHUNK_BYTES); i++) {
-            const value = await cache.match(part(file, i));
-            if (!value) throw new Error('MODEL_NOT_DOWNLOADED');
-            parts.push(await value.blob());
-        }
-        const result = new Blob(parts);
-        if (result.size !== file.size) throw new Error('MODEL_INTEGRITY');
+        const result = await preparedBlob(file);
+        if (!result) throw new Error('MODEL_NOT_DOWNLOADED');
         return result;
     };
     const verify = async (file: ModelArtifact, signal: AbortSignal) => {
@@ -101,14 +100,15 @@ export function createModelArtifactStore(cacheName: string, files: readonly Mode
     return {complete, downloaded, remove, blob,
         async match(request: string | Request): Promise<Response | undefined> {
             const key = typeof request === 'string' ? request : request.url, file = files.find(value => value.url === key);
-            return file && await complete(file) ? new Response(await blob(file), {headers: {'Content-Length': String(file.size)}}) : undefined;
+            const value = file && await preparedBlob(file);
+            return value ? new Response(value, {headers: {'Content-Length': String(file.size)}}) : undefined;
         },
         async download(file: ModelArtifact, signal: AbortSignal, progress: (bytes: number, verifying: boolean) => void): Promise<void> {
             active(signal); if (await complete(file)) {progress(file.size, false); return;}
             let failure: unknown;
             for (const origin of huggingFaceDownloadOrigins()) {
                 try {await receive(file, origin, signal, progress); return;}
-                catch (error) {active(signal); if (error instanceof Error && error.name === 'QuotaExceededError') throw error; failure = error;}
+                catch (error) {active(signal); if ((error as {name?: string} | null)?.name === 'QuotaExceededError') throw error; failure = error;}
             }
             throw failure;
         },

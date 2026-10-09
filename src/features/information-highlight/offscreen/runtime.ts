@@ -7,8 +7,9 @@
 import {INFORMATION_HIGHLIGHT_MODEL_BYTES, INFORMATION_HIGHLIGHT_MODEL_NAME} from '@/src/core/config/informationHighlightModel';
 import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {informationHighlightArtifacts, informationHighlightArtifactStore} from './artifacts';
-import type {InformationHighlightModelStatus, InformationHighlightResult} from '../protocol';
+import type {InformationHighlightModelErrorCode, InformationHighlightModelStatus, InformationHighlightResult} from '../protocol';
 import type {InformationHighlightWorkerRequest, InformationHighlightWorkerResponse} from './worker';
+const RECOVERABLE_INPUT_ERRORS = new Set(['INFORMATION_HIGHLIGHT_TOKEN_LIMIT', 'INFORMATION_HIGHLIGHT_TEXT_LIMIT', 'INFORMATION_HIGHLIGHT_ALIGNMENT']);
 export interface InformationHighlightCapability {supported: boolean; reason?: string}
 export async function probeInformationHighlightWebGpu(): Promise<InformationHighlightCapability> {
     const gpu = (navigator as unknown as {gpu?: {requestAdapter(): Promise<{features: ReadonlySet<string>} | null>}}).gpu;
@@ -25,8 +26,15 @@ export interface InformationHighlightRuntimeDependencies {
     notify(progress?: {loaded: number; total: number}): void;
     budget: typeof withLocalInferenceBudget;
 }
+function downloadErrorCode(error: unknown): InformationHighlightModelErrorCode {
+    const detail = error as {name?: string; message?: string} | null;
+    if (detail?.name === 'QuotaExceededError') return 'INFORMATION_HIGHLIGHT_STORAGE_QUOTA';
+    if (detail?.message === 'MODEL_INTEGRITY') return 'INFORMATION_HIGHLIGHT_MODEL_INTEGRITY';
+    if (detail?.message === 'MODEL_NETWORK' || detail?.name === 'TypeError' || detail?.name === 'AbortError') return 'INFORMATION_HIGHLIGHT_MODEL_NETWORK';
+    return 'INFORMATION_HIGHLIGHT_DOWNLOAD_FAILED';
+}
 export function createInformationHighlightModelRuntime(dependencies: InformationHighlightRuntimeDependencies) {
-    let phase: InformationHighlightModelStatus['phase'] = 'absent', errorCode: string | undefined;
+    let phase: InformationHighlightModelStatus['phase'] = 'absent', errorCode: InformationHighlightModelErrorCode | undefined;
     let capability: Promise<InformationHighlightCapability> | undefined;
     let job: {controller: AbortController; done: Promise<void>} | undefined;
     let removing = false, worker: Worker | undefined, initialized = false, sequence = 0, generation = 0;
@@ -54,7 +62,8 @@ export function createInformationHighlightModelRuntime(dependencies: Information
         const current = await status();
         if (!current.supported) throw new Error(current.reason);
         if (removing) throw new Error('INFORMATION_HIGHLIGHT_REMOVING');
-        if (current.downloaded || job) return current;
+        if (job) return current;
+        if (current.downloaded) {phase = 'ready'; errorCode = undefined; return {...current, phase, errorCode};}
         const controller = new AbortController(); phase = 'queued'; errorCode = undefined;
         const run = async () => {
             const bytes = new Map<string, number>();
@@ -73,7 +82,7 @@ export function createInformationHighlightModelRuntime(dependencies: Information
                 phase = 'ready';
             } catch (error) {
                 phase = controller.signal.aborted ? 'paused' : 'error';
-                errorCode = controller.signal.aborted ? undefined : error instanceof Error ? error.message : 'INFORMATION_HIGHLIGHT_DOWNLOAD_FAILED';
+                errorCode = controller.signal.aborted ? undefined : downloadErrorCode(error);
             } finally {if (job?.controller === controller) job = undefined; fileSnapshot = undefined; dependencies.notify();}
         };
         job = {controller, done: Promise.resolve().then(run)};
@@ -84,7 +93,7 @@ export function createInformationHighlightModelRuntime(dependencies: Information
         if (removing) return status();
         removing = true; phase = 'removing'; job?.controller.abort();
         try {await job?.done; stop(); for (const file of informationHighlightArtifacts) await dependencies.store.remove(file); phase = 'absent'; errorCode = undefined;}
-        catch (error) {phase = 'error'; errorCode = error instanceof Error ? error.message : 'INFORMATION_HIGHLIGHT_REMOVE_FAILED'; throw error;}
+        catch (error) {phase = 'error'; errorCode = 'INFORMATION_HIGHLIGHT_REMOVE_FAILED'; throw error;}
         finally {removing = false; fileSnapshot = undefined;}
         return status();
     };
@@ -94,11 +103,11 @@ export function createInformationHighlightModelRuntime(dependencies: Information
         return new Promise((resolve, reject) => {
             let drain: ReturnType<typeof setTimeout> | undefined, settled = false, initializing = !initialized;
             let timer: ReturnType<typeof setTimeout>;
-            const watch = (ms: number) => {clearTimeout(timer); timer = setTimeout(() => {finish(new Error('INFORMATION_HIGHLIGHT_TIMEOUT')); stop();}, ms);};
+            const watch = (ms: number) => {clearTimeout(timer); timer = setTimeout(() => {phase = 'error'; errorCode = 'INFORMATION_HIGHLIGHT_MODEL_TIMEOUT'; finish(new Error('INFORMATION_HIGHLIGHT_TIMEOUT')); stop();}, ms);};
             const finish = (error?: Error, result?: InformationHighlightResult) => {
                 if (settled) return; settled = true; clearTimeout(timer); clearTimeout(drain); signal.removeEventListener('abort', cancel);
                 current.onmessage = null; current.onerror = null; pending = undefined;
-                if (error && !signal.aborted) fileSnapshot = undefined;
+                if (error && !signal.aborted && !RECOVERABLE_INPUT_ERRORS.has(error.message)) fileSnapshot = undefined;
                 if (worker === current) warmTimer = setTimeout(() => {if (worker === current && !pending) stop();}, 180_000);
                 if (signal.aborted) reject(abortError()); else if (error) reject(error); else resolve(result!);
             };
@@ -113,13 +122,21 @@ export function createInformationHighlightModelRuntime(dependencies: Information
                 if (worker !== current || event.data?.requestId !== requestId) return;
                 const response = event.data; initialized = response.initialized;
                 if (response.stage) {initializing = response.stage === 'initializing'; watch(initializing ? 30_000 : 120_000); if (!initializing && signal.aborted) cancel(); return;}
-                finish(response.success && response.result ? undefined : new Error(response.error || 'INFORMATION_HIGHLIGHT_FAILED'), response.result);
+                const failure = !response.success || !response.result;
+                const recoverable = RECOVERABLE_INPUT_ERRORS.has(response.error!);
+                if (failure && !signal.aborted && !recoverable) {
+                    phase = 'error'; errorCode = response.initialized ? 'INFORMATION_HIGHLIGHT_MODEL_RUNTIME_FAILED' : 'INFORMATION_HIGHLIGHT_MODEL_INITIALIZATION_FAILED';
+                }
+                if (!failure && !signal.aborted && !removing && !settled) {phase = 'ready'; errorCode = undefined;}
+                finish(failure ? new Error(response.error || 'INFORMATION_HIGHLIGHT_FAILED') : undefined, response.result);
+                // 初始化失败后释放 Worker 中 ONNX 可能已分配的部分资源；输入限额和正常取消仍保留有效暖模型。
+                if (failure && (!response.initialized || (!signal.aborted && !recoverable))) stop();
             };
-            current.onerror = event => {if (worker === current) {finish(new Error(event.message)); stop();}};
+            current.onerror = event => {if (worker === current) {phase = 'error'; errorCode = 'INFORMATION_HIGHLIGHT_MODEL_RUNTIME_FAILED'; finish(new Error(event.message)); stop();}};
             signal.addEventListener('abort', cancel, {once: true});
             watch(initializing ? 30_000 : 120_000);
             try {current.postMessage({type: 'score', requestId, text} satisfies InformationHighlightWorkerRequest);}
-            catch (error) {finish(error instanceof Error ? error : new Error('INFORMATION_HIGHLIGHT_WORKER_FAILED')); stop();}
+            catch (error) {phase = 'error'; errorCode = 'INFORMATION_HIGHLIGHT_MODEL_RUNTIME_FAILED'; finish(error instanceof Error ? error : new Error('INFORMATION_HIGHLIGHT_WORKER_FAILED')); stop();}
         });
     };
     const score = (text: string, signal: AbortSignal): Promise<InformationHighlightResult> => {
