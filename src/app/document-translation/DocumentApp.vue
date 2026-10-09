@@ -418,6 +418,7 @@ import {
   collectRichOutline,
   scrollRichOutline,
   markRichPreviewBusy,
+  richPreviewPosition,
   type RichOutlineItem,
   hasDistinctTranslation,
   TranslationRequestError,
@@ -1094,8 +1095,12 @@ function prioritizeReadingPosition<T extends {id: number}>(pending: readonly T[]
   const offset = (readerPage.value - 1) * READER_PAGE_SIZE;
   const anchor = currentEpubChapter.value?.segmentOffset
     ?? (currentDocxPart.value ? currentDocxPart.value.paragraphSegments[offset]?.segmentIndex ?? 0 : isRichDocument.value ? 0 : offset);
-  if (!anchor) return [...pending];
-  const rank = (segment: T) => (segment.id - anchor + total) % total;
+  // 富文本预览是一整页长文：按滚动到的比例估算正在阅读的片段（ePub 在当前章节之内估算）。
+  const chapter = currentEpubChapter.value;
+  const scrolled = isRichDocument.value ? Math.floor(richPreviewPosition(richFrame.value) * (chapter ? chapter.segmentCount : total)) : 0;
+  const start = anchor + scrolled;
+  if (!start) return [...pending];
+  const rank = (segment: T) => (segment.id - start + total) % total;
   return [...pending].sort((left, right) => rank(left) - rank(right));
 }
 

@@ -6,7 +6,7 @@
  */
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {collectRichOutline, markRichPreviewBusy, richPreviewInterval, scrollRichOutline, syncPreviewChildren, syncRichPreview} from '@/src/features/document-translation/ui/richPreviewSync';
+import {collectRichOutline, markRichPreviewBusy, richPreviewInterval, richPreviewPosition, scrollRichOutline, syncPreviewChildren, syncRichPreview} from '@/src/features/document-translation/ui/richPreviewSync';
 
 const page = (body: string, attributes = '') => parseHTML(`<!doctype html><html><head></head><body${attributes}>${body}</body></html>`).document as unknown as Document;
 const parse = (html: string) => parseHTML(html).document as unknown as Document;
@@ -88,6 +88,16 @@ describe('rich preview in-place sync', () => {
         markRichPreviewBusy({contentDocument: current}, false);
         expect(current.body.hasAttribute('data-translating')).toBe(false);
         expect(() => markRichPreviewBusy(null, true)).not.toThrow();
+    });
+
+    it('reports how far the preview has been scrolled', () => {
+        const at = (scrollTop: number, scrollHeight: number) => ({contentDocument: {scrollingElement: {scrollTop, scrollHeight}} as unknown as Document});
+        expect(richPreviewPosition(at(3000, 12000))).toBe(0.25);
+        expect(richPreviewPosition(at(99999, 12000))).toBe(1);
+        expect(richPreviewPosition(at(-5, 12000))).toBe(0);
+        expect(richPreviewPosition(at(10, 0))).toBe(0);
+        expect(richPreviewPosition({contentDocument: {scrollingElement: null} as unknown as Document})).toBe(0);
+        expect(richPreviewPosition(null)).toBe(0);
     });
 
     it('slows the refresh down for long documents within fixed bounds', () => {

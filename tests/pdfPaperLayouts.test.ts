@@ -61,7 +61,7 @@ async function build(draw: (sheet: Sheet, addPage: () => Sheet) => void, size: [
 
 const sentence = (topic: string, count: number) => Array.from({length: count}, (_, index) =>
     `The ${topic} study reports result number ${index + 1} with enough ordinary words to fill a justified line of body text.`).join(' ');
-const pages = (document: ParsedDocument) => document.binary!.kind === 'pdf' ? document.binary.pages : [];
+const pages = (document: ParsedDocument) => document.binary?.kind === 'pdf' ? document.binary.pages : [];
 const sources = (document: ParsedDocument) => document.segments.map(segment => segment.source);
 const blockOf = (document: ParsedDocument, start: string, page = 0): PdfDocumentBlock & {source?: string} => {
     const found = pages(document)[page].blocks.find(block => (block.segmentIndex >= 0 ? document.segments[block.segmentIndex].source : (block as {source?: string}).source ?? '').startsWith(start));

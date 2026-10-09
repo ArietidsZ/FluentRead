@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/ui/richPreviewSync.ts
  * 文件职责：让 HTML、Markdown、纯文本与 ePub 章节的隔离预览在译文逐段到达时原位更新，而不是重新载入整页并丢失滚动位置。
- * 主要内容：把新生成的预览 HTML 解析成文档后，与预览框里现有的正文逐节点比对，只改写发生变化的文字、属性和子树；提供按文档规模放慢的节流间隔，避免长文档每到一段译文就整篇比对；从预览框的标题收集目录（原文与译文配对），并按目录项滚动到对应标题；标记预览是否处于翻译进行中，供预览样式显示等待占位。
+ * 主要内容：把新生成的预览 HTML 解析成文档后，与预览框里现有的正文逐节点比对，只改写发生变化的文字、属性和子树；提供按文档规模放慢的节流间隔，避免长文档每到一段译文就整篇比对；从预览框的标题收集目录（原文与译文配对），并按目录项滚动到对应标题；标记预览是否处于翻译进行中，供预览样式显示等待占位；读出预览滚动到全文的比例，供翻译从正在阅读的位置开始。
  * 模块边界：只做 DOM 同步与读取，不生成预览 HTML、不发起翻译、不决定何时刷新；预览框不允许执行脚本，无法访问其文档时返回 false，由页面退回整页载入。
  */
 
@@ -103,4 +103,10 @@ export function scrollRichOutline(frame: PreviewFrame | null | undefined, index:
 /** 在预览正文上标记翻译是否进行中；同步正文属性之后需要重新标记。 */
 export function markRichPreviewBusy(frame: PreviewFrame | null | undefined, busy: boolean): void {
     frame?.contentDocument?.body?.toggleAttribute('data-translating', busy);
+}
+
+/** 预览框当前滚动到全文的什么位置（0 到 1）；无法读取时按开头处理。 */
+export function richPreviewPosition(frame: PreviewFrame | null | undefined): number {
+    const scroller = frame?.contentDocument?.scrollingElement;
+    return scroller && scroller.scrollHeight > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / scroller.scrollHeight)) : 0;
 }
