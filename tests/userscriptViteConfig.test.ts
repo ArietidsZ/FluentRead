@@ -85,7 +85,7 @@ describe('userscript browser shim injection', () => {
             expect(committed).toBe(readFileSync(resolve(process.cwd(), path), 'utf8'));
         }
     });
-    it('embeds the complete Chinese fallback catalog as lossless static data', () => {
+    it('embeds the Chinese fallback catalog, minus the reader-only keys of the extension document page, as lossless static data', () => {
         const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {
             resolveId: (source: string, importer: string) => string | null;
             load: (id: string) => string | null;
@@ -96,10 +96,15 @@ describe('userscript browser shim injection', () => {
         const base64 = moduleSource?.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)?.[1];
         expect(base64).toBeTruthy();
         const restored = JSON.parse(gunzipSync(Buffer.from(base64!, 'base64')).toString('utf8'));
-        expect(restored).toEqual(zhCNMessages);
+        // PDF 阅读器只存在于扩展的文档翻译页面，油猴脚本不含该页面：内嵌目录恰好是全部中文文案去掉这一组键，其余一条不少、内容无损。
+        const readerOnly = Object.keys(zhCNMessages).filter(key => key.startsWith('document.pdfReading.'));
+        expect(readerOnly.length).toBeGreaterThan(0);
+        const embedded = Object.fromEntries(Object.entries(zhCNMessages).filter(([key]) => !key.startsWith('document.pdfReading.')));
+        expect(Object.keys(embedded)).toHaveLength(Object.keys(zhCNMessages).length - readerOnly.length);
+        expect(restored).toEqual(embedded);
         vi.stubGlobal('pako', {ungzip});
         try {
-            expect(JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(base64!, 'base64'))))).toEqual(zhCNMessages);
+            expect(JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(base64!, 'base64'))))).toEqual(embedded);
         } finally {
             vi.unstubAllGlobals();
         }
