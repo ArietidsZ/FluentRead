@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
 import {basename, dirname, resolve} from 'node:path';
 import {gzipSync} from 'node:zlib';
 import {runInNewContext} from 'node:vm';
@@ -48,7 +49,7 @@ function installedVersion(name: string): string {
 // 脚本管理器在安装时缓存固定版本的通用库；仓库资源固定到已发布提交，更新资源时同步换提交。
 const userscriptResourceCommit = '184a3d74f61b9d2a8d47080787f7e0180b98414d';
 // 语言文件的内容哈希来自合并后的消息目录，固定到首次包含这些文件的提交。
-const userscriptLanguageResourceCommit = '193c973352b851cd148d7b66f7ef773215b94143';
+const userscriptLanguageResourceCommit = '0062dddb85ca6d14fd251372251224988df53fe8';
 const iconMetaUrl = greasyForkSource
     ? `https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@${userscriptResourceCommit}/public/icon/64.png`
     : iconDataUrl;
@@ -69,11 +70,14 @@ function serializeUiMessages(value: unknown): string {
     return JSON.stringify(value, (_key, item) => item && typeof item === 'object' && !Array.isArray(item)
         ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) : item);
 }
+// 构建期复用已有 pako 编码中英界面词典，减少标准 gzip 数据；解压字节与运行时端口不变。
+const gzipUiMessages = createRequire(import.meta.url)('pako').gzip as
+    (data: Uint8Array, options: {level: number}) => Uint8Array;
 const compressedUiLanguageBundles = greasyForkSource ? {} : Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language === 'en-US')
     .map(([language, bundle]) => [
     language,
-    gzipSync(Buffer.from(serializeUiMessages(bundle)), {level: 9}).toString('base64'),
+    Buffer.from(gzipUiMessages(Buffer.from(serializeUiMessages(bundle)), {level: 9})).toString('base64'),
 ]));
 const remoteUiLanguageBundles = Object.fromEntries(Object.entries(UI_LANGUAGE_BUNDLES)
     .filter(([language]) => language !== 'en-US')
@@ -121,7 +125,7 @@ export function createUserscriptCatalogCompressionPlugin(): Plugin {
             if (id === externalChineseMessagesId) {
                 if (greasyForkSource) return 'export const zhCNMessages = globalThis.__FLUENTREAD_USERSCRIPT_DATA__.zhCNMessages;';
                 const contents = serializeUiMessages(zhCNMessages);
-                const compressed = gzipSync(Buffer.from(contents), {level: 9}).toString('base64');
+                const compressed = Buffer.from(gzipUiMessages(Buffer.from(contents), {level: 9})).toString('base64');
                 return [
                     `/* Non-code Chinese UI messages; sha256 ${createHash('sha256').update(contents).digest('hex')}. */`,
                     "import {inflateWithPako} from '@/userscript/pakoRuntime';",
