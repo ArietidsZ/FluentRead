@@ -179,6 +179,88 @@ describe('reading panel streaming resize boundaries through actual setup and tem
     expect(host.querySelector('.fr-reading-source p')?.textContent).toBe('Replacement.');
   });
 
+  it('keeps external source comparison collapsed while late translations and answer chunks preserve the user reading position',async()=>{
+    const {host,calls,props,panel,viewport,window,resize,finish}=await mountPanel({externalNavigation:true,
+      sourceTranslation:{source:'Practice helps.',text:'',pending:true}});
+    flushFrame();flushFrame();
+    const source=host.querySelector('.fr-reading-source') as unknown as HTMLElement;
+    expect(source.style.display).toBe('none');
+    expect(viewport.scrollTop).toBe(0);
+    calls[0].callbacks.progress({kind:'text',text:'First answer'});await tick();resize.mockClear();
+    viewport.scrollTop=37;viewport.dispatchEvent(new window.Event('wheel',{bubbles:true}));
+    Object.defineProperty(panel.answerBody,'offsetTop',{configurable:true,value:250});
+    props.sourceTranslation={source:'Practice helps.',text:'练习有帮助。'};await tick();
+    expect(viewport.scrollTop).toBe(37);
+    expect(source.style.display).toBe('none');
+    expect(host.querySelector('.fr-reading-source p')?.textContent).toBe('Practice helps.');
+    expect(host.querySelector('.fr-reading-translation p')?.textContent).toBe('练习有帮助。');
+    for(let index=0;index<8;index++){calls[0].callbacks.progress({kind:'text',text:`Answer paragraph ${index}`});await tick();expect(viewport.scrollTop).toBe(37);}
+    expect(resize).not.toHaveBeenCalled();
+    finish('Completed explanation');await tick();
+    expect(viewport.scrollTop).toBe(37);expect(source.style.display).toBe('none');expect(calls).toHaveLength(1);
+  });
+
+  it('expands and returns from the source through rendered controls without losing the answer or an unsent question',async()=>{
+    const {host,calls,viewport,window,finish,props}=await mountPanel({externalNavigation:true,
+      sourceTranslation:{source:'Practice helps.',text:'练习有帮助。'}});
+    flushFrame();flushFrame();finish('Completed explanation');await tick();
+    const source=host.querySelector('.fr-reading-source') as unknown as HTMLElement;
+    const input=host.querySelector('input[aria-label="继续追问"]') as unknown as HTMLInputElement;
+    const click=(element:Element)=>element.dispatchEvent(new window.Event('click',{bubbles:true,cancelable:true}));
+    const focus=vi.fn();viewport.focus=focus;
+    input.value='My unsent question';input.dispatchEvent(new window.Event('input',{bubbles:true}));await tick();
+    viewport.scrollTop=59;
+    click([...host.querySelectorAll('.fr-reading-tool-list button')].find(button=>button.textContent==='reading.viewSource')!);
+    await tick();
+    expect(source.style.display).not.toBe('none');
+    expect(viewport.scrollTop).toBe(0);expect(focus).toHaveBeenLastCalledWith({preventScroll:true});
+    expect(source.querySelector('p')?.textContent).toBe('Practice helps.');
+    expect(source.querySelector('.fr-reading-translation p')?.textContent).toBe('练习有帮助。');
+    expect(calls).toHaveLength(1);
+    props.sourceTranslation={source:'Practice helps.',text:'更新的完整译文。'};await tick();
+    expect(viewport.scrollTop).toBe(0);expect(source.querySelector('.fr-reading-translation p')?.textContent).toBe('更新的完整译文。');
+    click(host.querySelector('button[aria-label="返回当前阅读"]')!);await tick();
+    expect(source.style.display).toBe('none');expect(viewport.scrollTop).toBe(0);
+    expect(host.querySelector('[data-reading-answer]')?.textContent).toBe('Completed explanation');
+    expect(input.value).toBe('My unsent question');expect(calls).toHaveLength(1);
+    expect(host.querySelector('button[aria-label="返回当前阅读"]')).toBeNull();
+  });
+
+  it.each(['hidden','replacement','unmount'] as const)('rejects a queued source expansion after %s without focusing or scrolling the stale viewport',async reason=>{
+    const {host,props,viewport,window,unmount,calls}=await mountPanel({externalNavigation:true});
+    flushFrame();flushFrame();
+    const focus=vi.fn();viewport.focus=focus;viewport.scrollTop=61;
+    const sourceButton=[...host.querySelectorAll('.fr-reading-tool-list button')].find(button=>button.textContent==='reading.viewSource')!;
+    sourceButton.dispatchEvent(new window.Event('click',{bubbles:true,cancelable:true}));
+    if(reason==='hidden')props.active=false;
+    else if(reason==='replacement')props.selection={text:'Practice helps.',sentence:'Practice helps.',context:'A new captured context.'};
+    else unmount();
+    await tick();
+    expect(focus).not.toHaveBeenCalled();expect(viewport.scrollTop).toBe(61);
+    expect(calls[0].cancel).toHaveBeenCalledOnce();
+    if(reason==='replacement')expect((host.querySelector('.fr-reading-source') as unknown as HTMLElement).style.display).toBe('none');
+  });
+
+  it('collapses an explicitly opened source on a new action and preserves standalone source comparison',async()=>{
+    const {host,panel,calls,props,viewport,window,finish}=await mountPanel({externalNavigation:true,
+      sourceTranslation:{source:'Practice helps.',text:'练习有帮助。'}});
+    flushFrame();flushFrame();finish('Completed explanation');await tick();
+    viewport.focus=vi.fn();panel.showSource();await tick();
+    expect((host.querySelector('.fr-reading-source') as unknown as HTMLElement).style.display).not.toBe('none');
+    panel.startAction('grammar');await tick();flushFrame();flushFrame();
+    expect(calls).toHaveLength(2);expect(calls[1].request.intent).toBe('grammar');
+    expect((host.querySelector('.fr-reading-source') as unknown as HTMLElement).style.display).toBe('none');
+    expect(viewport.scrollTop).toBe(0);
+    props.externalNavigation=false;await tick();
+    const source=host.querySelector('.fr-reading-source') as unknown as HTMLElement;
+    expect(source.style.display).not.toBe('none');
+    expect(source.querySelector('p')?.textContent).toBe('Practice helps.');
+    expect(source.querySelector('.fr-reading-translation p')?.textContent).toBe('练习有帮助。');
+    expect(host.querySelector('button[aria-label="返回当前阅读"]')).toBeNull();
+    viewport.scrollTop=63;viewport.dispatchEvent(new window.Event('wheel',{bubbles:true}));
+    panel.showSource();expect(viewport.scrollTop).toBe(0);expect(calls).toHaveLength(2);
+  });
+
   it('renders every flushed chunk while only answer presence and completion notify the parent',async()=>{
     const {host,calls,resize,viewport,finish,errors}=await mountPanel();
     flushFrame();flushFrame();resize.mockClear();

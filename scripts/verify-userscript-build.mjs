@@ -8,8 +8,9 @@ const packageJson = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 
 const artifactPath = path.join(root, '.output/userscript/fluent-read.user.js');
 const source = fs.readFileSync(artifactPath, 'utf8');
 const artifactBytes = Buffer.byteLength(source);
-// 新增 B站匿名文本适配器后产物实测约 1.957 MB；预算增加 5 KB，保留所有协议和运行边界校验。
-const MAX_USERSCRIPT_BYTES = 1_960_000;
+// 划词短回答与独立语音高度锁使产物从 1,959,477 增至 1,961,367 字节；
+// 本轮预算仅增加 2.5 KB，继续校验协议、体积和运行边界。
+const MAX_USERSCRIPT_BYTES = 1_962_500;
 const preludeStartMarker = '/* FluentRead userscript compatibility prelude:start */';
 const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */';
 const preludeStart = source.indexOf(preludeStartMarker);

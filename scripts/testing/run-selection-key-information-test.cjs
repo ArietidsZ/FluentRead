@@ -31,6 +31,8 @@ const SOURCE = [
 const TRANSLATION = '不同的打印顺序会改变耗材切换顺序。先确认关键设置，再按需查看完整原文。';
 const ANSWER = '### 读懂\n\n打印顺序会影响耗材切换。关键设置和译文应先显示，完整原文仍可随时查看。\n\n' +
     '手动选择的卡片位置和尺寸应在流式解释期间保持稳定。 '.repeat(18);
+const SHORT_SOURCE = 'A curious reader explores new ideas.';
+const SHORT_ANSWER = '### 读懂\n\n这位读者好奇地探索新想法。';
 const FIXTURE_URL = 'https://example.com/fluentread-selection-key-information';
 const DRAG_TARGET = '.fr-tooltip-brand-icon';
 const TOOLBAR_LABELS = {
@@ -51,7 +53,7 @@ function argumentsFor(argv) {
     const runtime = arg('playwright-root', process.env.PLAYWRIGHT_ROOT);
     assert(runtime, 'Pass --playwright-root or set PLAYWRIGHT_ROOT');
     const result = {
-        phase, playwrightRoot: path.resolve(runtime), englishFirst:argv.includes('--english-first'),
+        phase, blankSpace:argv.includes('--blank-space'), playwrightRoot: path.resolve(runtime), englishFirst:argv.includes('--english-first'),
         extensionDir: path.resolve(arg('extension-dir', '.output/chrome-mv3')),
         artifactsDir: path.resolve(arg('artifacts-dir', path.join(os.tmpdir(), `fluentread-selection-key-information-${phase}`))),
         focusSafeHelper: path.resolve(arg('focus-safe-helper', path.join(__dirname, 'focus-safe-browser.cjs'))),
@@ -63,11 +65,11 @@ function argumentsFor(argv) {
     return result;
 }
 
-function fixtureHtml() {
+function fixtureHtml(source = SOURCE) {
     return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Selection card fixture</title>
 <style>html{color-scheme:light}body{margin:20px;font:13px/1.65 system-ui;color:#263248;background:#fff}
 #fixture{max-width:1120px}#target{margin:0 0 16px}#neighbor{margin:0 0 16px}#spacer{height:1800px}</style></head>
-<body><main id="fixture"><p id="target">${SOURCE}</p><p id="neighbor">This paragraph and the selected original must remain unchanged.</p><div id="spacer"></div></main></body></html>`;
+<body><main id="fixture"><p id="target">${source}</p><p id="neighbor">This paragraph and the selected original must remain unchanged.</p><div id="spacer"></div></main></body></html>`;
 }
 
 async function poll(predicate, message, timeout = 12000) {
@@ -216,6 +218,35 @@ async function readingBodyLayout(page) {
             resultClientHeight:result?.clientHeight, resultScrollHeight:result?.scrollHeight,
             status:this.querySelector('.fr-reading-status')?.textContent || ''};
     });
+}
+
+async function blankSpaceLayout(page) {
+    return ui(page, function() {
+        const box = element => {if (!element) return null; const r=element.getBoundingClientRect(); return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
+        const content=[...this.querySelectorAll('.fr-tooltip-content')].find(element=>getComputedStyle(element).display!=='none');
+        const status=this.querySelector('.fr-playing-status'), source=this.querySelector('.fr-reading-source');
+        const form=this.querySelector('.fr-reading-result .fr-reading-followup'), result=this.querySelector('.fr-reading-result');
+        const card=box(this), visible=box(content), followup=box(form);
+        return {card,content:visible,status:box(status),statusDisplay:status?getComputedStyle(status).display:null,
+            statusText:status?.textContent.trim()||'',preparing:status?.getAttribute('aria-busy')==='true',
+            idleBottomSpace:Math.max(0,card.bottom-1-visible.bottom),
+            spareAfterFollowup:followup?Math.max(0,visible.bottom-followup.bottom):null,
+            sourceVisible:!!source&&getComputedStyle(source).display!=='none',sourceText:source?.querySelector('p')?.textContent||'',
+            result:box(result),resultClientHeight:result?.clientHeight,resultScrollHeight:result?.scrollHeight,
+            hasReturn:!!this.querySelector('.fr-reading-source button'),scrollTop:result?.scrollTop};
+    });
+}
+
+function silentWav() {
+    const bytes=24000*10*2, buffer=Buffer.alloc(44+bytes);
+    buffer.write('RIFF',0); buffer.writeUInt32LE(36+bytes,4); buffer.write('WAVEfmt ',8); buffer.writeUInt32LE(16,16);
+    buffer.writeUInt16LE(1,20);buffer.writeUInt16LE(1,22);buffer.writeUInt32LE(24000,24);buffer.writeUInt32LE(48000,28);
+    buffer.writeUInt16LE(2,32);buffer.writeUInt16LE(16,34);buffer.write('data',36);buffer.writeUInt32LE(bytes,40);return buffer;
+}
+
+async function clickUi(page, selector) {
+    const point=await ui(page,function(selector){const element=this.querySelector(selector);if(!element)throw new Error('Missing '+selector);element.scrollIntoView({block:'nearest'});const r=element.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};},selector);
+    await page.mouse.click(point.x,point.y);
 }
 
 async function pointFor(page, selector) {
@@ -543,13 +574,14 @@ async function main(argv = process.argv.slice(2)) {
     const helper = require(args.focusSafeHelper);
     for (const name of ['launchFocusSafePersistentContext','newPageWithoutForeground','activateExtensionTabWithoutForeground']) assert(typeof helper[name] === 'function', `Missing focus-safe API ${name}`);
     fs.mkdirSync(args.artifactsDir, {recursive:true});
-    const report = {phase:args.phase, ok:false, extensionDir:args.extensionDir, englishFirst:args.englishFirst,
+    const report = {phase:args.phase, blankSpace:args.blankSpace, audio:{fixtureRequests:0,muted:true,listeningVerified:false}, ok:false, extensionDir:args.extensionDir, englishFirst:args.englishFirst,
         manifestSha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(args.extensionDir, 'manifest.json'))).digest('hex'),
         providerEvidence:'Production extension, controlled local translation and AI fixtures; no live provider, audio-quality, or account proof.',
         measurementLimits:'Trusted CDP input may be coalesced by Chromium. Requested moves are not delivered-event counts. DOM snapshots use main-world objects; read counters require a verified extension isolated world and positive controls. An unavailable probe fails this suite. Style MutationObserver records are not a per-frame work proof; fake-RAF lifecycle tests supply that proof.',
         cases:[], checks:[], screenshots:[], consoleErrors:[], consoleMessages:[], fixtureRequests:[], knownBaselineFailures:[], baselineContentMismatches:[], translationRequests:0, aiRequests:0,
         blockedExternalRequests:[], actualExternalResponses:[], cleanupErrors:[], focusSamples:[]};
     const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fluentread-selection-key-information-'));
+    let fixtureSource=SOURCE, fixtureAnswer=ANSWER;
     let session, context, worker, page, server, browserPid, launchAttempted = false, activeProbe;
     const check = (name, pass, details, afterOnly = false) => {
         const required = !afterOnly || args.phase === 'optimized';
@@ -586,6 +618,8 @@ async function main(argv = process.argv.slice(2)) {
         server = http.createServer(async (request, response) => {
             response.setHeader('access-control-allow-origin', '*');
             if (request.method === 'OPTIONS') {response.writeHead(204).end(); return;}
+            if (request.url === '/tts-token') {response.writeHead(200,{'content-type':'application/json'}).end(JSON.stringify({t:'fixture-tts-token',r:'fixture'}));return;}
+            if (request.url === '/audio') {report.audio.fixtureRequests++; for await(const chunk of request) {} await sleep(600); response.writeHead(200,{'content-type':'audio/wav'}).end(silentWav());return;}
             if (request.url === '/translate') {
                 report.translationRequests++; let body = '';
                 for await (const chunk of request) body += chunk;
@@ -599,7 +633,7 @@ async function main(argv = process.argv.slice(2)) {
             if (request.url === '/v1/chat/completions') {
                 report.aiRequests++; for await (const chunk of request) {};
                 response.writeHead(200, {'content-type':'text/event-stream'});
-                for (const part of ANSWER.match(/[\s\S]{1,28}/g)) {
+                for (const part of fixtureAnswer.match(/[\s\S]{1,28}/g)) {
                     if (response.destroyed) return;
                     response.write('data: ' + JSON.stringify({id:'key-info-fixture', choices:[{index:0, delta:{content:part}, finish_reason:null}]}) + '\n\n');
                     await sleep(35);
@@ -615,7 +649,7 @@ async function main(argv = process.argv.slice(2)) {
         session = await helper.launchFocusSafePersistentContext({chromium, profileDir,
             browserPath:args.browserPath, headless:false, background:true, displayTarget:args.displayTarget,
             viewport:{width:1440,height:960}, timeout:30000,
-            browserArgs:[`--disable-extensions-except=${args.extensionDir}`,`--load-extension=${args.extensionDir}`,'--no-first-run','--no-default-browser-check']});
+            browserArgs:[`--disable-extensions-except=${args.extensionDir}`,`--load-extension=${args.extensionDir}`,'--no-first-run','--no-default-browser-check','--mute-audio']});
         guardBrowserClose(session, profileDir);
         context = session.context;
         browserPid = await getGuardedBrowserPid(session);
@@ -626,7 +660,7 @@ async function main(argv = process.argv.slice(2)) {
             session.focusPolicy === 'launchservices-no-foreground' && session.windowPlacement?.browserFrontmost === false, session.windowPlacement);
         await context.route(/^https?:\/\//, async route => {
             const url = route.request().url();
-            if (url.startsWith(FIXTURE_URL)) return route.fulfill({contentType:'text/html', body:fixtureHtml()});
+            if (url.startsWith(FIXTURE_URL)) return route.fulfill({contentType:'text/html', body:fixtureHtml(fixtureSource)});
             if (url.startsWith(`http://127.0.0.1:${port}/`)) return route.continue();
             report.blockedExternalRequests.push({origin:new URL(url).origin, path:new URL(url).pathname});
             return route.abort('blockedbyclient');
@@ -650,6 +684,8 @@ async function main(argv = process.argv.slice(2)) {
                     globalThis.__frKeyInfoFetchStats.requests.push({sourceLanguage:wire.searchParams.get('from'),targetLanguage:wire.searchParams.get('to'),method:init?.method});
                     return native(translationUrl, init);
                 }
+                if (url.startsWith('https://dev.microsofttranslator.com/apps/endpoint')) return native(localOrigin+'/tts-token',init);
+                if (url.startsWith('https://fixture.tts.speech.microsoft.com/')) return native(localOrigin+'/audio',init);
                 if (!/^https?:/.test(url) || url.startsWith(localOrigin + '/')) return native(input, init);
                 const parsed = new URL(url);
                 globalThis.__frKeyInfoFetchStats.blocked.push({origin:parsed.origin, path:parsed.pathname});
@@ -671,20 +707,21 @@ async function main(argv = process.argv.slice(2)) {
             const verified = await support.patchStoredConfig(page, {on:true, uiLanguage:locale, uiLanguageSetupCompleted:true, theme,
                 service:'microsoft', from:'auto', to:'zh-Hans', selectionTranslatorMode:'bilingual',
                 selectionTranslatorPresentation:'card', selectionTranslatorTrigger:'icon', selectionTranslatorDelay:0,
-                hotkey:'none', floatingBallHotkey:'none', useCache:false,
+                hotkey:'none', floatingBallHotkey:'none', useCache:false, selectionTtsMode:'online-first',
                 harness:{...saved.harness, enabled:true, service:'custom:key-info-fixture', model:'key-info-fixture', trigger:'click', actions:['meaning','grammar','usage','practice']},
                 customOpenAIProviders:[{id:'custom:key-info-fixture', name:'Local key information fixture',
                     endpoint:`http://127.0.0.1:${port}/v1/chat/completions`, models:['key-info-fixture']}],
                 token:{'custom:key-info-fixture':'fixture-token'}, model:{...saved.model,'custom:key-info-fixture':'key-info-fixture'}});
             requestConfig = Object.fromEntries(['uiLanguage','theme','service','selectionTranslationService','from','to','selectionTranslatorMode','selectionTranslatorTrigger','selectionTranslatorBidirectional','__fluentConfigRevision'].map(key => [key,verified[key]]));
         };
-        const open = async () => {
+        const open = async (source=SOURCE) => {
+            fixtureSource=source;
             await page.goto(FIXTURE_URL);
             await page.locator('#fluent-read-selection-translator-container').waitFor({state:'attached', timeout:30000});
             const before = await hostState(page);
             await helper.activateExtensionTabWithoutForeground(context, page);
             await page.locator('#target').click({position:{x:5,y:5}});
-            await support.selectTextWithDomRange(page, '#target', SOURCE.length);
+            await support.selectTextWithDomRange(page, '#target', source.length);
             await poll(async () => support.findCdpNode((await support.getSelectionUiTree(page)).root, classNode('fr-selection-indicator')), 'Selection indicator missing');
             await support.clickSelectionIndicator(page);
             try {
@@ -899,6 +936,88 @@ async function main(argv = process.argv.slice(2)) {
         check('diagonal toolbar wheel moves its own horizontal scroll', diagonalWheel.cardPresent && diagonalWheel.afterScrollLeft > diagonalWheel.beforeScrollLeft, diagonalWheel, true);
         check('diagonal toolbar wheel leaves host scroll HTML and geometry unchanged', diagonalWheel.hostUnchanged, diagonalWheel, true);
         await screenshot('diagonal-toolbar-wheel');
+        if (args.blankSpace) {
+            report.blankSpaceCases=[];
+            fixtureAnswer=SHORT_ANSWER;
+            for (const locale of ['zh-CN','en-US']) for (const theme of ['light','dark']) {
+                for (const variant of ['auto','narrow-auto','manual-280','manual-360']) {
+                    const name=`short-${locale}-${theme}-${variant}`;
+                    await configure(locale,theme);
+                    await page.setViewportSize(variant==='auto'?{width:1440,height:960}:{width:390,height:800});
+                    const host=await open(SHORT_SOURCE);
+                    if (variant.startsWith('manual')) await manualCard(page,variant==='manual-280'?280:360,variant==='manual-280'?180:200);
+                    const ordinary=await blankSpaceLayout(page);
+                    check(`${name}: idle audio leaves no bottom strip`,ordinary.status.height<1&&ordinary.idleBottomSpace<2,ordinary,true);
+                    await screenshot(name+'-translation');
+                    const audioEvidence=[];
+                    if (locale==='zh-CN'&&theme==='light'&&['auto','manual-360'].includes(variant)) {
+                        for (const kind of ['source','translation']) {
+                            const before=await blankSpaceLayout(page);
+                            await beginStreamSamples(page);
+                            await clickUi(page,kind==='source'?'.fr-original-text .fr-text-audio-btn':'.fr-translation-result .fr-text-audio-btn');
+                            await poll(()=>ui(page,function(){return this.querySelector('.fr-playing-status')?.getAttribute('aria-busy')==='true';}),'Audio preparing UI missing');
+                            const preparing=await blankSpaceLayout(page);
+                            await screenshot(name+'-'+kind+'-preparing');
+                            await poll(()=>ui(page,function(){return !!this.querySelector('.fr-playing-status button[aria-label="停止播放"]');}),'Audio playback UI missing',20000);
+                            const playing=await blankSpaceLayout(page);
+                            await screenshot(name+'-'+kind+'-playing');
+                            await clickUi(page,'.fr-playing-status button[aria-label="停止播放"]');
+                            await poll(()=>ui(page,function(){return this.querySelector('.fr-playing-status')?.classList.contains('is-idle');}),'Audio did not stop');
+                            await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+                            const stopped=await blankSpaceLayout(page),frames=await finishStreamSamples(page);
+                            const maxDelta=Object.fromEntries(['left','top','width','height'].map(key=>[key,Math.max(...frames.map(frame=>Math.abs(frame[key]-before.card[key])))]));
+                            const evidence={kind,before,preparing,playing,stopped,frameCount:frames.length,maxDelta};audioEvidence.push(evidence);
+                            check(`${name}: ${kind} prepare play stop preserves every outer frame`,Object.values(maxDelta).every(value=>value<1),evidence);
+                            check(`${name}: ${kind} active dock leaves body above controls`,playing.status.height>=30&&playing.content.bottom<=playing.status.top+1&&playing.content.height>=32,playing);
+                            check(`${name}: ${kind} stop returns full content height`,Math.abs(before.content.height-stopped.content.height)<1&&stopped.idleBottomSpace<2,stopped,true);
+                        }
+                    }
+                    const before=ordinary.card;
+                    await beginStreamSamples(page);
+                    await ui(page,function(){this.querySelector('.fr-study-toolbar button').focus({preventScroll:true});});
+                    await page.keyboard.press('Tab');await page.keyboard.press('Enter');
+                    await poll(()=>ui(page,function(){return !!this.querySelector('.fr-reading-answer[aria-busy="false"]');}),'Short learning did not complete',20000);
+                    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+                    const reading=await blankSpaceLayout(page),body=await readingBodyLayout(page),frames=await finishStreamSamples(page);
+                    const geometryDelta=Object.fromEntries(['left','top','width','height'].map(key=>[key,Math.max(...frames.map(frame=>Math.abs(frame[key]-before[key])))]));
+                    check(`${name}: complete short answer survives render`,body.firstParagraphText==='这位读者好奇地探索新想法。',body);
+                    check(`${name}: complete answer first line visible`,body.visibleBodyWidth>=body.firstBodyLine.width-1&&body.visibleBodyHeight>=body.firstBodyLine.height-1,body,true);
+                    check(`${name}: learning has no idle bottom strip`,reading.idleBottomSpace<2,reading,true);
+                    check(`${name}: source is collapsed by default`,!reading.sourceVisible,reading,true);
+                    if (variant.startsWith('manual')) check(`${name}: manual stream keeps outer size`,Object.values(geometryDelta).every(value=>value<1),geometryDelta);
+                    else check(`${name}: short answer fits naturally without a vacant screen`,reading.card.height<330&&reading.spareAfterFollowup<24&&reading.resultScrollHeight<=reading.resultClientHeight+2,reading,true);
+                    await screenshot(name+'-learning');
+                    let sourceEvidence;
+                    if (args.phase==='optimized'&&locale==='zh-CN'&&theme==='light'&&variant==='auto') {
+                        await clickUi(page,'.fr-reading-tools summary');
+                        await clickUi(page,'.fr-reading-tools button:first-of-type');
+                        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+                        const expanded=await blankSpaceLayout(page);
+                        check('short learning: source comparison opens with exact original',expanded.sourceVisible&&expanded.sourceText===SHORT_SOURCE&&expanded.hasReturn&&expanded.scrollTop===0,expanded);
+                        await screenshot('short-source-comparison');
+                        await clickUi(page,'.fr-reading-source button');
+                        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+                        const returned=await blankSpaceLayout(page);
+                        check('short learning: return closes comparison and recovers compact answer',!returned.sourceVisible&&Math.abs(returned.card.height-reading.card.height)<1&&returned.scrollTop===0,returned);
+                        sourceEvidence={expanded,returned};
+                    }
+                    check(`${name}: all UI states preserve host`,hostUnchanged(host,await hostState(page)));
+                    report.blankSpaceCases.push({name,locale,theme,variant,ordinary,reading,body,geometryDelta,audioEvidence,sourceEvidence});
+                }
+            }
+            // Exercise auto long-content overflow independently of a manual resize.
+            fixtureAnswer=ANSWER;
+            await configure('zh-CN','light');await page.setViewportSize({width:1440,height:960});const host=await open();
+            await ui(page,function(){this.querySelectorAll('.fr-study-toolbar button')[1].click();});
+            await poll(()=>ui(page,function(){return !!this.querySelector('.fr-reading-answer[aria-busy="false"]');}),'Long auto learning missing',20000);
+            const long=await blankSpaceLayout(page),body=await readingBodyLayout(page);report.autoLongLearning={long,body};
+            check('long auto learning stays within viewport cap',long.card.height<=520&&long.card.bottom<=960,long);
+            check('long auto learning scrolls inside the reading viewport',long.resultScrollHeight>long.resultClientHeight+10&&body.visibleBodyHeight>=body.firstBodyLine.height-1,long);
+            await ui(page,function(){this.querySelector('.fr-reading-result').scrollTop=99999;});
+            const bottom=await blankSpaceLayout(page);
+            check('long auto learning follow-up is reachable without host scroll',bottom.spareAfterFollowup<24&&hostUnchanged(host,await hostState(page)),bottom);
+            await screenshot('auto-long-learning-bottom');
+        }
         report.workerFetch = await worker.evaluate(() => globalThis.__frKeyInfoFetchStats);
         check('no external page request was attempted', report.blockedExternalRequests.length === 0, report.blockedExternalRequests);
         check('no external provider fetch was attempted', report.workerFetch.blocked.length === 0, report.workerFetch.blocked);

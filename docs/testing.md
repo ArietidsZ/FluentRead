@@ -196,6 +196,8 @@ node scripts/testing/run-webdav-backup-ui-test.cjs \
 
 划词卡片定向回归使用 `tests/selectionTranslatorLifecycle.test.ts`、`tests/readingPanelLifecycle.test.ts` 与 `tests/readingPanelStreamingResize.test.ts`，检查单帧合并拖动、结束时刷新最后位置、取消与迟到帧、视口变化、UTF-16 朗读偏移和流式正文的尺寸通知。生产构建后执行 `node scripts/testing/run-selection-key-information-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --artifacts-dir <证据目录> --phase optimized`，在第二屏临时后台 Edge 中检查译文首屏、完整原文、单行工具栏的滚轮与键盘操作、手动拖动/缩放、流式阅读期间的卡片尺寸和网页内容保留。`--phase baseline` 允许记录优化前的关键内容失败，但仍要求基础交互、原文和清理契约通过。性能探针在核对扩展 ID 的隔离世界统计实际送达的受信指针事件与卡片几何读取；请求的输入数量不等于实际事件数量，也不代表 FPS。
 
+`--blank-space` 在同一划词专项中追加短原句与短回答的中英文、亮暗主题、自动/390px 窄屏/280×180/360×200 卡片。它量化闲置音频占位、回答之后的实际空白、长回答内部滚动和追问可达性；使用本机延迟音频夹具逐帧检查生成、播放与停止的外框稳定、正文与播放控件不重叠。静音 WAV 只验证布局，不证明可听性。原文对照另有展开与返回的实际界面检查。
+
 菜单使用 `tests/popupKeyInformation.test.ts` 及既有 Popup 生命周期、服务与页面操作测试。生产专项运行 `node scripts/testing/run-popup-key-information-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --artifacts-dir <证据目录> --phase optimized`，覆盖中英文、亮暗主题与三种皮肤，长名称、配置模型、本地/非模型服务、多服务分配、静态凭据提醒、模块排序及服务抽屉。仅使用合成配置，不执行翻译、连接检查或模型下载；普通扩展标签页尺寸不代表浏览器原生工具栏 Popup。
 
 学习卡片在正文出现与完成后分别验证首个非标题回答段落的完整首行及至少 48px 的阅读视口；保持卡片尺寸不能代替正文可读性。`tests/uiI18nOwnership.test.ts` 使用真实界面指令与语言资源，检查 PRE/CODE 等内容祖先内的跟读子节点、语言切换和迟到文本不会被旧文案扫描改写。
@@ -248,7 +250,7 @@ X 另覆盖未预取句子等待原译文成对显示、seek 后迟到结果丢�
 
 生产扩展构建后运行 `node scripts/run-reading-density-test.cjs --source-scroll-only --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir <证据目录>`。
 
-专项在临时 Edge profile、第二屏后台窗口中验证读懂、句法、用法和练习的完整原句保留在顶部，默认只滚过原句，真实向上滚轮可以直接查看。覆盖首次打开、短回答、长选区、流式生成期间向上滚动后保持位置、缓存动作切换、查看原文入口及键盘焦点、重复点击当前标签保留位置和未发送追问、追问、阅读记录往返与恢复、390px 窄屏和深色主题；检查页面本身不滚动、面板无横向溢出。网页与模型响应为确定性夹具，不代表在线模型质量或 Firefox 运行时验证。去掉 `--source-scroll-only` 可同时检查句法标注、键盘切词和次级操作。
+专项在临时 Edge profile、第二屏后台窗口中验证读懂、句法、用法和练习默认展示回答，完整原句与译文通过“查看原文”展开，返回当前阅读后收起对照。覆盖首次打开、短回答、长选区、流式生成期间向上滚动后保持位置、缓存动作切换、查看原文入口及键盘焦点、重复点击当前标签保留位置和未发送追问、追问、阅读记录往返与恢复、390px 窄屏和深色主题；检查页面本身不滚动、面板无横向溢出。网页与模型响应为确定性夹具，不代表在线模型质量或 Firefox 运行时验证。去掉 `--source-scroll-only` 可同时检查句法标注、键盘切词和次级操作。
 
 ## 阅读历史与学习选中状态
 

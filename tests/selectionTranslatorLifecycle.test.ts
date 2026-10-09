@@ -859,6 +859,123 @@ describe('selection card geometry across content changes', () => {
     });
 });
 
+describe('automatic card audio height ownership', () => {
+    async function audioCard() {
+        const fixture = mountSelection();
+        const cardRect = vi.fn(() => ({width: 388, height: 180}));
+        fixture.state.tooltipRef = {getBoundingClientRect: cardRect};
+        fixture.state.snapshot = {text: 'Practice helps.', range: {getClientRects: vi.fn(() => [])}};
+        fixture.state.selectedText = 'Practice helps.';
+        fixture.state.manualPopupPosition = {left: 200, top: 100};
+        fixture.state.showTooltip = true;
+        await Vue.nextTick(); await Vue.nextTick();
+        fixture.state.applyManualPopupGeometry();
+        return {...fixture, cardRect};
+    }
+
+    it.each(['source', 'word'] as const)('holds the automatic %s card during preparation and playback without adopting a manual size', async kind => {
+        const fixture = await audioCard(), response = deferredTts();
+        prepareTts(fixture, [response.promise]);
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+        const pending = kind === 'word' ? fixture.state.toggleWordAudio({text: 'Practice helps.'})
+            : fixture.state.toggleAudio('Practice helps.', 'source');
+        expect(fixture.state.isPreparingAudio).toBe(true);
+        expect(fixture.state.tooltipStyle).toMatchObject({left: '200px', top: '100px', height: '180px'});
+        expect(fixture.state.manualPopupSize).toBeNull();
+        const capturedReads = fixture.cardRect.mock.calls.length;
+        response.resolve({success: true, transport: 'offscreen'}); await pending;
+        const {clientRequestId} = ttsMessages(fixture, 'selectionTts')[0];
+        for (let index = 0; index < 20; index++) emitTtsState(fixture, clientRequestId, 'progress', {
+            progress: {start: 0, end: 8, fraction: index / 20, estimated: true},
+        });
+        expect(fixture.state.isPlaying).toBe(true);
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        expect(fixture.cardRect).toHaveBeenCalledTimes(capturedReads);
+        fixture.state.stopAudioFromUi();
+        expect(fixture.state.audioPopupHeight).toBeNull();
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+        expect(fixture.state.manualPopupSize).toBeNull();
+        expect(fixture.state.manualPopupPosition).toEqual({left: 200, top: 100});
+    });
+
+    it.each(['ended', 'stopped', 'error'] as const)('releases only the matching automatic audio height on %s', async terminal => {
+        const fixture = await audioCard();
+        prepareTts(fixture, [Promise.resolve({success: true, transport: 'offscreen'})]);
+        await fixture.state.toggleAudio('Practice helps.', 'source');
+        const {clientRequestId} = ttsMessages(fixture, 'selectionTts')[0];
+        emitTtsState(fixture, 'another-card', terminal, {error: 'Unrelated error'});
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        emitTtsState(fixture, clientRequestId, terminal, {error: 'Controlled decode failure'});
+        expect(fixture.state.audioPopupHeight).toBeNull();
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+        expect(fixture.state.manualPopupSize).toBeNull();
+    });
+
+    it('keeps a replacement height owned when the previous synthesis finishes late', async () => {
+        const fixture = await audioCard(), oldResponse = deferredTts(), replacement = deferredTts();
+        prepareTts(fixture, [oldResponse.promise, replacement.promise]);
+        const oldPending = fixture.state.toggleAudio('Old sentence.', 'source');
+        const newPending = fixture.state.toggleAudio('New sentence.', 'source');
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        oldResponse.resolve({success: true, transport: 'offscreen'}); await oldPending;
+        expect(fixture.state.isPreparingAudio).toBe(true);
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        expect(fixture.state.manualPopupSize).toBeNull();
+        replacement.resolve({success: true, transport: 'offscreen'}); await newPending;
+        emitTtsState(fixture, ttsMessages(fixture, 'selectionTts')[0].clientRequestId, 'ended');
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        fixture.state.stopAudio();
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+    });
+
+    it('keeps an existing user size authoritative through preparation playback and stop', async () => {
+        const fixture = await audioCard(), response = deferredTts();
+        fixture.state.manualPopupSize = {width: 450, height: 240};
+        fixture.state.applyManualPopupGeometry();
+        fixture.cardRect.mockClear();
+        prepareTts(fixture, [response.promise]);
+        const pending = fixture.state.toggleAudio('Practice helps.', 'source');
+        expect(fixture.state.audioPopupHeight).toBeNull();
+        response.resolve({success: true, transport: 'offscreen'}); await pending;
+        fixture.state.stopAudio();
+        expect(fixture.state.tooltipStyle).toMatchObject({left: '200px', top: '100px', width: '450px', height: '240px'});
+        expect(fixture.state.manualPopupSize).toEqual({width: 450, height: 240});
+        expect(fixture.cardRect).not.toHaveBeenCalled();
+    });
+
+    it.each(['stop', 'hide', 'unmount', 'failure'] as const)('does not retain or restore the audio layout after %s', async reason => {
+        const fixture = await audioCard(), response = deferredTts();
+        prepareTts(fixture, [response.promise]);
+        const pending = fixture.state.toggleAudio('Practice helps.', 'source');
+        expect(fixture.state.tooltipStyle.height).toBe('180px');
+        if (reason === 'stop') fixture.state.stopAudio();
+        else if (reason === 'hide') fixture.state.hideAll();
+        else if (reason === 'unmount') fixture.unmount();
+        response.resolve(reason === 'failure' ? {success: false, error: 'Controlled synthesis failure', errorCode: 'local-only-error'}
+            : {success: true, transport: 'offscreen'});
+        await pending; await Vue.nextTick();
+        expect(fixture.state.audioPopupHeight).toBeNull();
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+        expect(fixture.state.manualPopupSize).toBeNull();
+        expect(fixture.state.isPlaying).toBe(false);
+    });
+
+    it('clamps a temporary audio height to a smaller viewport without turning it into a user size', async () => {
+        const fixture = await audioCard();
+        prepareTts(fixture, [Promise.resolve({success: true, transport: 'offscreen'})]);
+        await fixture.state.toggleAudio('Practice helps.', 'source');
+        fixture.window.innerHeight = 180;
+        fixture.state.handleViewportResize();
+        await vi.advanceTimersByTimeAsync(20);
+        const top = parseFloat(fixture.state.tooltipStyle.top), height = parseFloat(fixture.state.tooltipStyle.height);
+        expect(top).toBeGreaterThanOrEqual(12);
+        expect(top + height).toBeLessThanOrEqual(168);
+        expect(fixture.state.manualPopupSize).toBeNull();
+        fixture.state.stopAudio();
+        expect(fixture.state.tooltipStyle.height).toBeUndefined();
+    });
+});
+
 it('相同译文隐藏后，切换选区与不同结果仍恢复显示', async () => {
     const {state, lifecycleErrors} = mountSelection();
     state.selectedText = 'Café'; state.translationResult = 'Cafe\u0301'; await Vue.nextTick();
@@ -932,6 +1049,20 @@ describe('selection card bounded layout work', () => {
         const settled = {...state.tooltipStyle};
         lateFrame(0);
         expect(state.tooltipStyle).toEqual(settled);
+    });
+
+    it('lets a real resize replace the temporary audio height and preserves that user size after audio stops', async () => {
+        const fixture = await gestureFixture('se');
+        prepareTts(fixture, [Promise.resolve({success: true, transport: 'offscreen'})]);
+        await fixture.state.toggleAudio('Practice helps.', 'source');
+        expect(fixture.state.audioPopupHeight).toBe(240);
+        fixture.state.movePopupGesture(fixture.pointer('pointermove', 255, 145));
+        fixture.state.stopPopupGesture(fixture.pointer('pointerup', 255, 145));
+        expect(fixture.state.manualPopupSize).toEqual({width: 438, height: 275});
+        expect(fixture.state.audioPopupHeight).toBeNull();
+        fixture.state.stopAudio();
+        expect(fixture.state.tooltipStyle).toMatchObject({left: '200px', top: '100px', width: '438px', height: '275px'});
+        expect(fixture.state.manualPopupSize).toEqual({width: 438, height: 275});
     });
 
     it.each(['pointercancel', 'lostpointercapture', 'blur', 'hide', 'unmount'])('discards pending moves after %s', async reason => {

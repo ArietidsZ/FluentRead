@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；普通译文先于完整原文，单行可横向滚动的导航把高度留给正文；指针移动按帧合并并在结束时提交最后位置，已定位卡片不重复读取选区几何；富文本 UTF-16 跟读偏移一次计算并复用；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；普通译文先于完整原文，单行可横向滚动的导航把高度留给正文；指针移动按帧合并并在结束时提交最后位置，已定位卡片不重复读取选区几何；富文本 UTF-16 跟读偏移一次计算并复用；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，手动尺寸下内容与播放状态变化只影响内部布局；闲置语音栏不占空间，自动卡生成与播放期间用独立临时高度保持外框，停止恢复自然尺寸；学习短回答自然收拢、长回答受高度上限约束，完整原文和译文按需对照并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权，词书协议独立维护。
  -->
 <template>
@@ -651,6 +651,9 @@ const popupResizeEdges = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
 const popupManipulating = ref(false);
 let manualPopupPosition: {left: number; top: number} | null = null;
 let manualPopupSize: {width: number; height: number} | null = null;
+// 自动卡只在生成和播放语音期间锁住当前外框；不能把临时高度记成用户手动尺寸。
+let audioPopupHeight: number | null = null;
+let audioPopupHeightRevision = 0;
 let popupGesture: {pointerId: number; x: number; y: number; rect: DOMRect; edge: string; element: HTMLElement} | null = null;
 let pendingPopupPoint: {x: number; y: number} | null = null;
 let popupGestureFrame: number | null = null;
@@ -673,8 +676,30 @@ function stopPopupGesture(event?: PointerEvent): void {
 function resetPopupGeometry(): void {
   stopPopupGesture();
   cancelPositionUpdate();
+  clearAudioPopupHeightLock();
   manualPopupPosition = null;
   manualPopupSize = null;
+}
+
+function clearAudioPopupHeightLock(): void {
+  audioPopupHeightRevision += 1;
+  const hadLock = audioPopupHeight !== null;
+  audioPopupHeight = null;
+  if (hadLock && !manualPopupSize) {
+    const {height: _height, ...naturalStyle} = tooltipStyle.value;
+    tooltipStyle.value = naturalStyle;
+  }
+}
+
+function beginAudioPopupHeightLock(): void {
+  const element = tooltipRef.value;
+  if (!showTooltip.value || !element || manualPopupSize || audioPopupHeight !== null) return;
+  const height = element.getBoundingClientRect().height;
+  if (!Number.isFinite(height) || height <= 0) return;
+  audioPopupHeightRevision += 1;
+  audioPopupHeight = height;
+  if (manualPopupPosition) applyManualPopupGeometry();
+  else tooltipStyle.value = {...tooltipStyle.value, height: `${height / popupScale.value}px`};
 }
 
 function applyManualPopupGeometry(measured?: Pick<DOMRect, 'width'>): void {
@@ -689,15 +714,36 @@ function applyManualPopupGeometry(measured?: Pick<DOMRect, 'width'>): void {
   const minHeight = Math.min(140 * scale, heightLimit);
   const top = Math.max(12, Math.min(manualPopupPosition.top, window.innerHeight - minHeight - 12));
   const availableHeight = Math.max(1, window.innerHeight - top - 12);
-  const height = manualPopupSize ? Math.min(manualPopupSize.height, availableHeight) : undefined;
+  const preferredHeight = manualPopupSize?.height ?? audioPopupHeight;
+  const height = preferredHeight !== null ? Math.min(preferredHeight, availableHeight) : undefined;
   manualPopupPosition = {left, top};
   if (manualPopupSize) manualPopupSize = {width, height: height!};
   tooltipStyle.value = {
     left: `${left}px`, top: `${top}px`, visibility: 'visible',
     maxWidth: `${widthLimit / scale}px`, maxHeight: `${Math.min(manualPopupSize ? availableHeight : 520 * scale, availableHeight) / scale}px`,
-    ...(manualPopupSize ? {width: `${width / scale}px`, height: `${height! / scale}px`} : {}),
+    ...(manualPopupSize ? {width: `${width / scale}px`} : {}),
+    ...(height !== undefined ? {height: `${height / scale}px`} : {}),
   };
 }
+
+// 同步捕获未出现语音栏时的自然高度；prepare -> play 不重新量，也不随着跟读进度变化。
+watch(() => isPreparingAudio.value || isPlaying.value, active => {
+  if (active) beginAudioPopupHeightLock();
+  else clearAudioPopupHeightLock();
+}, {flush: 'sync'});
+watch([readingMode, showTooltip], () => {
+  clearAudioPopupHeightLock();
+  if (!showTooltip.value || (!isPreparingAudio.value && !isPlaying.value)) return;
+  const revision = audioPopupHeightRevision;
+  const owner = snapshot.value;
+  const view = readingMode.value;
+  // 切换视图可使用新正文的自然尺寸；旧视图、旧音频和关闭后的 nextTick 不能重新锁高。
+  void nextTick(() => {
+    if (revision !== audioPopupHeightRevision || snapshot.value !== owner || readingMode.value !== view
+      || !showTooltip.value || (!isPreparingAudio.value && !isPlaying.value)) return;
+    beginAudioPopupHeightLock();
+  });
+}, {flush: 'sync'});
 
 function beginPopupGesture(event: PointerEvent): void {
   const element = tooltipRef.value;
@@ -751,6 +797,7 @@ function flushPopupGesture(gesture: NonNullable<typeof popupGesture>): void {
     if (edge.includes('s')) bottom = Math.min(window.innerHeight - 12, Math.max(rect.bottom + dy, top + minHeight));
     manualPopupPosition = {left, top};
     manualPopupSize = {width: right - left, height: bottom - top};
+    clearAudioPopupHeightLock();
   }
   // 手势从按下时的矩形算绝对位移，移动帧不用再读取写入后的卡片布局。
   applyManualPopupGeometry(rect);
@@ -820,6 +867,7 @@ function applyPageZoom(value: unknown): void {
     width: manualPopupSize.width * ratio,
     height: manualPopupSize.height * ratio,
   };
+  if (audioPopupHeight !== null) audioPopupHeight *= ratio;
   pageZoom.value = nextZoom;
   viewportSize.value = {width: window.innerWidth, height: window.innerHeight};
   schedulePositionUpdate();
@@ -1948,6 +1996,7 @@ onBeforeUnmount(() => {
   stopPopupGesture();
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
   cancelPositionUpdate();
+  clearAudioPopupHeightLock();
   // 悬停延迟可能跨过卸载；卸载后不能再按旧选区打开阅读卡片。
   cancelReadingHover();
   cancelSelectionLoss();
@@ -1998,9 +2047,11 @@ onBeforeUnmount(() => {
 .fr-popup-resize-se { bottom: 0; right: 0; cursor: nwse-resize; }
 .fr-popup-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
 .fr-popup-resize-se::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 5px; height: 5px; border-right: 2px solid #95858d; border-bottom: 2px solid #95858d; }
-.fr-reading-tooltip { display: flex; flex-direction: column; height: min(520px, calc(100vh - 24px)); }
+.fr-reading-tooltip { display: flex; flex-direction: column; height: auto; }
 .fr-reading-tooltip > .fr-tooltip-header { flex: none; }
-.fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
+.fr-reading-tooltip > .fr-reading-content { display: flex; flex-direction: column; flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
+/* 自动卡用内在高度收拢；达到外框上限后将收缩量传给真正的阅读滚动区。 */
+.fr-reading-content > :deep(.fr-reading) { flex: 1; height: auto; }
 .fr-tooltip-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap:6px; padding: 5px 8px; border-bottom: 1px solid rgba(44, 43, 53, .06); font-size: 12px; font-weight: 500; }
 .fr-pos-label { display:flex; gap:6px; align-items:center; }
 .fr-study-toolbar { flex:none; display:flex; flex-wrap:nowrap; overflow-x:auto; overscroll-behavior:contain; scrollbar-width:thin; gap:3px; padding:4px 8px; border-bottom:1px solid var(--fr-border, #eeedf0); }
@@ -2098,7 +2149,7 @@ onBeforeUnmount(() => {
 .fr-text-block pre { overflow-wrap:anywhere; margin:0; white-space:pre-wrap; word-break:break-word; font:inherit; font-size:14px; line-height:1.7; user-select:text; }
 .fr-original-text pre { font-size:12.5px; line-height:1.65; }
 .fr-playing-status { flex: none; box-sizing: border-box; height: 36px; padding: 4px 14px; display: flex; align-items: center; justify-content: space-between; gap:8px; color: #777780; font-size: 12px; }
-.fr-playing-status.is-idle { visibility: hidden; }
+.fr-playing-status.is-idle { display: none; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
 .fr-playing-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fr-playback-controls { display:flex; flex:none; align-items:center; gap:5px; }
