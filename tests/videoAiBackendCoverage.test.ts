@@ -230,13 +230,13 @@ describe('video transcription offscreen transport branches', () => {
     const worker = CoverageWorker.instances.at(-1)!;
     expect(Array.from(worker.lastMessage!.audio!)).toEqual([-1, 1]);
     worker.reply({requestId: worker.lastMessage!.requestId, success: true, text: null, segments: null, model: 1, backend: 'other', gpuInfo: 1, inferenceMs: '1', audioDurationMs: null, threads: null, dtype: 'other'});
-    await expect(signed).resolves.toMatchObject({text: '', segments: [], model: 'tiny'});
+    await expect(signed).resolves.toMatchObject({text: '', segments: [], model: 'small'});
   });
 
   it('rejects worker timeouts and decode timeouts', async () => {
     vi.useFakeTimers();
     installWorker({audio: CoverageAudioContext});
-    const pending = transcribeLocalVideoAudio({streamId: 'coverage-stream', audioPcm16Base64: 'AAAAAA=='});
+    const pending = transcribeLocalVideoAudio({streamId: 'coverage-stream', audioPcm16Base64: 'AAAAAA==', model: 'tiny'});
     const pendingResult = expect(pending).rejects.toThrow('超过 16 秒');
     await tick();
     const firstWorker = CoverageWorker.instances.at(-1)!;
@@ -269,11 +269,11 @@ describe('video transcription offscreen transport branches', () => {
   it('caches cold models, rejects stream conflicts, and cancels queued prepare jobs', async () => {
     installWorker();
     await expect(prepareLocalVideoTranscriptionModel('base')).resolves.toMatchObject({model: 'base', dtype: 'q4'});
-    expect(cacheVideoAiQ4ModelFiles).toHaveBeenCalledWith('base', undefined);
+    expect(cacheVideoAiQ4ModelFiles).toHaveBeenCalledWith('base', undefined, {preference: 'auto'});
     // 预下载把调用方的进度回调原样交给模型缓存。
     const onProgress = vi.fn();
     await prepareLocalVideoTranscriptionModel('tiny', {onProgress});
-    expect(cacheVideoAiQ4ModelFiles).toHaveBeenLastCalledWith('tiny', onProgress);
+    expect(cacheVideoAiQ4ModelFiles).toHaveBeenLastCalledWith('tiny', onProgress, {preference: 'auto'});
 
     const warm = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'warm-stream'});
     await tick();
@@ -585,7 +585,7 @@ describe('video transcription offscreen lifecycle branches', () => {
     await cancelLocalVideoTranscription('coverage-stream', 'complete');
     expect(worker.terminated).toBe(false);
 
-    const recovered = transcribeLocalVideoAudio({streamId: 'handoff-stream', audioPcm16Base64: 'AAAAAA=='});
+    const recovered = transcribeLocalVideoAudio({streamId: 'handoff-stream', audioPcm16Base64: 'AAAAAA==', model: 'tiny'});
     await tick();
     expect(CoverageWorker.instances).toHaveLength(1);
     worker.reply({requestId: worker.lastMessage!.requestId, success: true, text: 'handoff', segments: []});

@@ -43,6 +43,13 @@ async function settle() {for (let index = 0; index < 8; index++) await Promise.r
 
 describe('content-only background download progress query', () => {
     const context = {sender: {id: runtimeId, tab: {id: 7}}};
+    it('carries whitelisted connection status through trusted storage and content query', async () => {
+        const f = createHandler(), id = 'video-model:small';
+        const transfer = {source: 'hf-mirror', state: 'connecting', attempt: 2, attempts: 3};
+        await f.send({id, progress: {loaded: 0, total: 590_000_000, transfer: {...transfer, url: 'https://private.invalid/'}}});
+        await expect(f.query.handle({type: DOWNLOAD_PROGRESS_QUERY_MESSAGE, id, since: 0}, context)).resolves.toEqual({success: true, progress: {loaded: 0, total: 590_000_000, transfer}});
+        expect(f.values.get(downloadProgressKey(id))).toEqual(expect.objectContaining({transfer}));
+    });
     it('reads only the named progress key and returns normalized bytes without exposing other storage', async () => {
         const f = createHandler();
         const id = 'video-model:small', key = downloadProgressKey(id);

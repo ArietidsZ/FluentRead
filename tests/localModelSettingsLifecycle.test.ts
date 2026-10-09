@@ -1,7 +1,7 @@
 /**
  * @file tests/localModelSettingsLifecycle.test.ts
  * 文件职责：从真实 mounted client template 验证本地朗读与字幕模型设置的页面归属。
- * 主要内容：覆盖 cached/hidden 监听停用、真实字节进度接续、后台命令继续完成、迟到读写回包隔离，以及整个旧模板事件不能写入替换后的配置。
+ * 主要内容：覆盖 cached/hidden 监听停用、真实字节与连接/换源进度接续、后续请求来源偏好、失败重试、后台命令继续完成、迟到读写回包隔离，以及整个旧模板事件不能写入替换后的配置。
  * 模块边界：实际 SFC/setup/template、进度 watcher/display 和公共后台 handlers；只控制 DOM、存储、Offscreen 与回包传输端口，无浏览器、网络、GPU、native 或源码私有导出。
  */
 import {afterEach, describe, expect, it, vi} from 'vitest';
@@ -121,7 +121,7 @@ function backend() {
     const addVideoKeys = (model: string) => {for (const file of model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES) videoKeys.add(getVideoAiModelFileUrl(model, file));};
     vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => [...videoKeys].map(url => new Request(url))})});
     const writes: unknown[] = [];
-    const jobs = new Map<string, {done: ReturnType<typeof deferred<any>>; work: Promise<any>; received: number; report: (next: {loaded: number; total: number}) => void}>();
+    const jobs = new Map<string, {done: ReturnType<typeof deferred<any>>; work: Promise<any>; received: number; report: (next: progressModule.DownloadProgress) => void}>();
     const publishTasks = new Set<Promise<unknown>>();
     const reads: Array<{kind: Kind; gate: ReturnType<typeof deferred<any>>}> = [];
     const allReadGates: Array<ReturnType<typeof deferred<any>>> = [];
@@ -144,7 +144,7 @@ function backend() {
     };
     const progressHandler = createDownloadProgressHandler({runtimeId: 'owned-fixture', offscreenUrl: 'chrome-extension://owned-fixture/offscreen.html', storage});
     const start = (id: string) => {
-        const done = deferred<any>(); let report!: (next: {loaded: number; total: number}) => void;
+        const done = deferred<any>(); let report!: (next: progressModule.DownloadProgress) => void;
         const publisher = createDownloadProgressPublisher(message => {
             const task = Promise.resolve(progressHandler.handle(message, {sender: {id: 'owned-fixture', url: 'chrome-extension://owned-fixture/offscreen.html'}}));
             publishTasks.add(task); void task.finally(() => publishTasks.delete(task));
@@ -176,6 +176,9 @@ function backend() {
             const job = jobs.get(id)!; expect(job).toBeDefined();
             job.received += new Uint8Array(bytes).byteLength;
             job.report({loaded: job.received, total}); await Promise.all([...publishTasks]); await settle();
+        },
+        async transfer(id: string, transfer: progressModule.DownloadProgress['transfer'], loaded = 0, total = 800_000) {
+            jobs.get(id)!.report({loaded, total, transfer}); await Promise.all([...publishTasks]); await settle();
         },
         async finish(id: string, response: any = {success: true}) {const job = jobs.get(id)!; job.done.resolve(response); await job.work; await settle(); await Promise.all([...publishTasks]);},
         async close() {for (const gate of allReadGates) gate.resolve({success: false}); for (const job of jobs.values()) job.done.resolve({success: true}); await Promise.allSettled([...jobs.values()].map(job => job.work)); await Promise.allSettled([...publishTasks]);},
@@ -211,7 +214,7 @@ function listenerCapture(options?: boolean | EventListenerOptions): boolean {
 async function mount(kind: Kind) {
     vi.stubGlobal('browser', browser);
     fixture = backend(); renderedEvents.length = 0;
-    const state = Vue.reactive({config: normalizeConfig({videoTranslationEnabled: true, selectionTtsMode: 'online-first'}), active: true});
+    const state = Vue.reactive({config: normalizeConfig({videoTranslationEnabled: true, videoLocalModel: 'tiny', selectionTtsMode: 'online-first'}), active: true});
     const cached = Vue.ref(false);
     const host = dom.document.createElement('div'); dom.document.body.append(host);
     const component = loadClient(`src/features/settings/ui/${kind === 'tts' ? 'LocalTtsSettings' : 'VideoLocalModelSettings'}.vue`);
@@ -386,4 +389,106 @@ for (const kind of ['tts', 'video'] as const) it(`${kind} final ui-settings pend
     expect(downloadButton(h.host, kind).disabled).toBe(false);
     downloadButton(h.host, kind).click(); await settle();
     expect(prepare).toHaveBeenCalledTimes(2);
+});
+
+describe('video model download source feedback through the mounted public UI', () => {
+    function selectSource(h: Awaited<ReturnType<typeof mount>>, value: string) {
+        const select = h.host.querySelector<HTMLSelectElement>('[data-video-model-source]')!;
+        select.value = value; select.dispatchEvent(new dom.window.Event('change', {bubbles: true}));
+    }
+    function requestPreferences() {
+        return ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadPrepareLocalVideoModel').map(([message]) => message.preference);
+    }
+    it('keeps the source choice request-only and leaves an already running download unchanged', async () => {
+        const h = await mount('video'), originalConfig = JSON.stringify(h.state.config);
+        selectSource(h, 'mirror'); await settle();
+        expect(JSON.stringify(h.state.config)).toBe(originalConfig);
+        downloadButton(h.host, 'video', 'small').click(); await settle();
+        expect(requestPreferences()).toEqual(['mirror']);
+        expect(h.host.querySelector('[data-video-model-transfer="small"]')!.textContent).toBe('video.downloadWaiting');
+        selectSource(h, 'official'); await settle();
+        expect(requestPreferences()).toEqual(['mirror']);
+        await h.backend.finish(videoModelDownloadId('small'));
+        downloadButton(h.host, 'video', 'base').click(); await settle();
+        expect(requestPreferences()).toEqual(['mirror', 'official']);
+        const links = [...h.host.querySelectorAll<HTMLAnchorElement>('.video-model-source-links a')];
+        expect(links.map(link => [link.href, link.rel, link.target])).toEqual([
+            ['https://huggingface.co/onnx-community/whisper-base', 'noopener noreferrer', '_blank'],
+            ['https://hf-mirror.com/onnx-community/whisper-base', 'noopener noreferrer', '_blank'],
+            ['https://modelscope.cn/models/onnx-community/whisper-base', 'noopener noreferrer', '_blank'],
+        ]);
+    });
+    it('renders connecting, source fallback and receiving without inventing bytes or a speed', async () => {
+        const h = await mount('video'), id = videoModelDownloadId('small');
+        downloadButton(h.host, 'video', 'small').click(); await settle();
+        const status = () => h.host.querySelector('[data-video-model-transfer="small"]')!.textContent;
+        expect(status()).toBe('video.downloadWaiting');
+        await h.backend.transfer(id, {source: 'modelscope', attempt: 1, attempts: 3, state: 'connecting'});
+        expect(status()).toBe('video.downloadConnecting:{"source":"ModelScope","attempt":1,"attempts":3}');
+        expect(progress(h.host, 'video', 'small')?.getAttribute('value')).toBe('0');
+        await h.backend.transfer(id, {source: 'hf-mirror', attempt: 2, attempts: 3, state: 'connecting'});
+        expect(status()).toBe('video.downloadSwitching:{"source":"HF Mirror","attempt":2,"attempts":3}');
+        await h.backend.transfer(id, {source: 'huggingface', attempt: 3, attempts: 3, state: 'receiving'}, 200_000);
+        expect(status()).toBe('video.downloadReceiving:{"source":"Hugging Face","attempt":3,"attempts":3}');
+        expect(h.host.textContent).toContain('25% · 0.2 MB / 0.8 MB');
+        await h.backend.transfer(id, {source: 'other', attempt: 1, attempts: 1, state: 'receiving'}, 200_000);
+        expect(status()).toContain('"source":"video.downloadSourceOther"');
+        await h.backend.chunk(id);
+        expect(status()).toBe('video.downloadWaiting');
+        await h.backend.finish(id);
+        expect(h.host.querySelector('[data-video-model-transfer="small"]')).toBeNull();
+    });
+    it('releases a failed model for retry with the newly selected source and clears its old error', async () => {
+        const h = await mount('video'), id = videoModelDownloadId('small');
+        downloadButton(h.host, 'video', 'small').click(); await settle();
+        expect(requestPreferences()).toEqual(['auto']);
+        await h.backend.finish(id, {success: false, error: 'ALL_SOURCES_FAILED'});
+        const button = downloadButton(h.host, 'video', 'small');
+        expect(button.disabled).toBe(false); expect(button.textContent!.trim()).toBe('video.downloadRetry');
+        expect(h.host.querySelector('[role="alert"]')!.textContent).toContain('ALL_SOURCES_FAILED');
+        selectSource(h, 'official'); await settle(); button.click(); await settle();
+        expect(requestPreferences()).toEqual(['auto', 'official']);
+        expect(h.host.querySelector('[role="alert"]')).toBeNull();
+        expect(downloadButton(h.host, 'video', 'small').disabled).toBe(true);
+        await h.backend.finish(id);
+        expect(h.host.querySelector('[data-video-model-transfer="small"]')).toBeNull();
+    });
+    it('rejects old source-selection events after config replacement and rejects disabled or invalid choices', async () => {
+        const h = await mount('video');
+        const older = capture(event => event.tag === 'select' && Object.hasOwn(event.props, 'data-video-model-source'), 'onChange');
+        h.state.config = normalizeConfig({videoTranslationEnabled: true}); await settle();
+        older({target: {value: 'mirror'}}); await settle();
+        selectSource(h, 'invalid'); await settle();
+        downloadButton(h.host, 'video', 'tiny').click(); await settle();
+        expect(requestPreferences()).toEqual(['auto']);
+        await h.backend.finish(videoModelDownloadId('tiny'));
+        h.state.config.videoTranslationEnabled = false; await settle();
+        selectSource(h, 'official'); await settle();
+        h.state.config.videoTranslationEnabled = true; await settle();
+        downloadButton(h.host, 'video', 'base').click(); await settle();
+        expect(requestPreferences()).toEqual(['auto', 'auto']);
+    });
+    it('does not transfer an old source status or retry error into a reactivated view', async () => {
+        const h = await mount('video'), id = videoModelDownloadId('small');
+        downloadButton(h.host, 'video', 'small').click(); await settle();
+        await h.backend.transfer(id, {source: 'hf-mirror', attempt: 2, attempts: 3, state: 'connecting'});
+        const oldListeners = [...ports.listeners]; await hide(h, 'hidden'); await reopen(h);
+        for (const listener of oldListeners) listener({[downloadProgressKey(id)]: {newValue: {loaded: 0, total: 800_000, transfer: {source: 'huggingface', attempt: 3, attempts: 3, state: 'connecting'}}}}, 'local');
+        await settle();
+        expect(h.host.querySelector('[data-video-model-transfer="small"]')!.textContent).toBe('video.downloadWaiting');
+        await h.backend.finish(id, {success: false, error: 'OLD_SOURCE_FAILURE'});
+        expect(h.host.querySelector('[role="alert"]')).toBeNull();
+        expect(downloadButton(h.host, 'video', 'small').textContent).not.toBe('video.downloadRetry');
+    });
+    it('provides all source and transfer messages in the seven locale JSON bundles', () => {
+        const keys = ['downloadSourceLabel', 'downloadSourceAuto', 'downloadSourceMirror', 'downloadSourceOfficial', 'downloadSourceHint', 'downloadSourcePages', 'downloadSourceOther', 'downloadWaiting', 'downloadConnecting', 'downloadSwitching', 'downloadReceiving', 'downloadRetry'];
+        for (const locale of ['zh-CN', 'en-US', 'ja-JP', 'ko-KR', 'fr-FR', 'es-ES', 'ru-RU']) {
+            const {messages} = JSON.parse(readFileSync(path.resolve(process.cwd(), `src/core/i18n/messages/settings-copy/${locale}.json`), 'utf8'));
+            for (const key of keys) expect(messages[`video.${key}`]?.trim()).toBeTruthy();
+            for (const key of ['downloadConnecting', 'downloadSwitching']) {
+                for (const placeholder of ['{source}', '{attempt}', '{attempts}']) expect(messages[`video.${key}`]).toContain(placeholder);
+            }
+            expect(messages['video.downloadReceiving']).toContain('{source}');
+        }
+    });
 });

@@ -789,6 +789,12 @@ pnpm test:video:x-fixture -- \
 
 使用 `--prepare-after-load true --trusted-storage true --browser-path <新版 Chrome 可执行文件> --extension-install cdp` 验证播放器页面已打开后才下载模型，无需刷新即可生成字幕。该用例强制将本地存储设为 `TRUSTED_CONTEXTS`，通过 CDP 在扩展内容脚本上下文确认直接读取被拒绝，再验证后台模型查询与真实生成成功、没有误开设置页。旧浏览器没有此 API，不能作为这条权限回归的验证环境。`--extension-install cdp` 在独立临时 profile 中通过官方 DevTools `Extensions.loadUnpacked` 加载扩展，兼容不再接受命令行加载扩展的新 Chrome；不会使用日常 profile。追加 `--model-query-failure true` 可注入一次后台状态查询失败，检查提示重试、没有误开下载页，随后仍使用真实模型生成。生成前、生成中和就绪后的截图及 DOM 断言同时检查菜单分组、下载按钮并排和内容溢出。
 
+### X 模型下载来源与等待边界
+
+`modelDownloads`、`videoAiModelCache`、`downloadProgress`、`downloadProgressTransport`、`videoAiBackground` 和 `videoAiOffscreen` 测试覆盖国内/官方优先顺序、连接与首字节等待、忽略取消的底层请求和读取、完整响应后仍未返回的消费端、迟到流清理、总预算、完整文件复用及可信来源状态传输。共享 HTTP helper 变化同时覆盖本地 TTS、漫画、OCR 和本地翻译直接消费者，保留历史缓存的来源兼容性。`localModelSettingsLifecycle` 与 `implementationAudit49C` 执行实际 Vue 客户端模板，检查来源选择只影响后续请求、切源文字、失败重试和旧视图事件隔离。
+
+Small 默认配置另覆盖新配置、旧配置缺字段、非法值及保留明确 Tiny/Base 选择。下载来源的公网 HTTP 核验与隔离浏览器中的受控失败/流式接收必须分开报告；权重片段和服务端哈希元数据不能代替完整远端文件下载，也不能据单机结果保证中国、美国、欧洲的地域可达性。实际结果见[X 模型下载验证记录](./reports/x-model-download-sources-20261009/verification.md)。
+
 ### AI 字幕中文质量与性能基准
 
 `scripts/run-video-ai-recognition-benchmark.cjs` 在同一个临时 profile 中对照两份生产扩展，实际调用 Whisper Tiny/Base 转写三段确定性的普通话音频（含较快长句），分别测显式中文和自动检测。模型在本机执行，测量不使用用户日常浏览器配置。

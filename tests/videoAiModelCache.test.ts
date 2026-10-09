@@ -1,9 +1,31 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {cacheVideoAiModelFiles, cacheVideoAiQ4ModelFiles, cacheVideoAiQ8ModelFiles, getVideoAiModelFileUrl, readCachedVideoAiModels, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_Q8_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
+import type {DownloadProgress} from '@/src/core/download/progress';
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {vi.unstubAllGlobals(); vi.useRealTimers();});
 
 describe('video AI model cache', () => {
+    it('keeps canonical cache ownership after a timed out source and forwards official preference plus connecting/receiving metadata', async () => {
+        vi.useFakeTimers();
+        const model = 'small', canonical = getVideoAiModelFileUrl(model, 'tokenizer.json');
+        const saved: Array<{url: string; text: string}> = [];
+        const cache = {match: async (url: string) => url === canonical ? undefined : new Response('cached', {headers: {'Content-Length': '4'}}),
+            put: async (url: string, response: Response) => {saved.push({url, text: await response.text()});}};
+        vi.stubGlobal('caches', {open: async () => cache});
+        let resolveLate!: (response: Response) => void;
+        const late = new Promise<Response>(resolve => {resolveLate = resolve;});
+        const fetcher = vi.fn().mockImplementationOnce(() => late).mockResolvedValueOnce(new Response('verified'));
+        vi.stubGlobal('fetch', fetcher);
+        const reports: DownloadProgress[] = [];
+        const pending = cacheVideoAiQ4ModelFiles(model, progress => reports.push(progress), {preference: 'official'});
+        await vi.advanceTimersByTimeAsync(10_001); await pending;
+        expect(fetcher.mock.calls.map(([url]) => url)).toEqual(['https://huggingface.co/onnx-community/whisper-small/resolve/main/tokenizer.json', 'https://hf-mirror.com/onnx-community/whisper-small/resolve/main/tokenizer.json']);
+        expect(saved).toEqual([{url: canonical, text: 'verified'}]);
+        expect(reports.filter(item => item.transfer?.state === 'connecting').map(item => item.transfer?.source)).toContain('hf-mirror');
+        expect(reports.at(-1)).toMatchObject({transfer: {source: 'hf-mirror', attempt: 2, attempts: 3, state: 'receiving'}});
+        resolveLate(new Response('wrong late bytes')); await Promise.resolve(); await Promise.resolve();
+        expect(saved).toHaveLength(1); expect(vi.getTimerCount()).toBe(0);
+    });
     it('does not touch Cache Storage without a valid download receipt', async () => {
         const open = vi.fn(), has = vi.fn();
         vi.stubGlobal('caches', {open, has});
@@ -80,7 +102,7 @@ describe('video AI model cache', () => {
         const fetcher = vi.fn(async (_url: string) => new Response('tokenizer'));
         vi.stubGlobal('caches', {has: async () => true, open: async () => cache}); vi.stubGlobal('fetch', fetcher);
         await expect(readCachedVideoAiModels([model])).resolves.toEqual([]);
-        await cacheVideoAiQ4ModelFiles(model);
+        await cacheVideoAiQ4ModelFiles(model, undefined, {preference: 'mirror'});
         expect(fetcher).toHaveBeenCalledOnce(); expect(fetcher.mock.calls[0][0]).toBe(getVideoAiModelFileUrl(model, 'tokenizer.json'));
         await expect(readCachedVideoAiModels([model])).resolves.toEqual([model]);
         expect(entries.has(getVideoAiModelFileUrl(model, 'onnx/encoder_model_quantized.onnx'))).toBe(true);
@@ -96,19 +118,19 @@ describe('video AI model cache', () => {
             return new Response(new Uint8Array(4), {headers: {'Content-Length': '4'}});
         });
         vi.stubGlobal('caches', {open: async () => cache});vi.stubGlobal('fetch', fetcher);
-        const failed: Array<{loaded: number; total: number}> = [];
+        const failed: DownloadProgress[] = [];
         await expect(cacheVideoAiQ4ModelFiles('small', item => failed.push(item))).rejects.toThrow('last file');
         expect(entries.size).toBe(6);
-        expect(failed[0]).toEqual({loaded: 0, total: 590_000_000});
+        expect(failed[0]).toMatchObject({loaded: 0, total: 590_000_000, transfer: {source: 'huggingface', state: 'connecting', attempt: 1, attempts: 3}});
         expect(failed.at(-1)!.loaded).toBeLessThan(failed.at(-1)!.total);
         fetcher.mockClear().mockImplementation(async () => new Response(new Uint8Array(4), {headers: {'Content-Length': '4'}}));
-        const completed: Array<{loaded: number; total: number}> = [];
+        const completed: DownloadProgress[] = [];
         await cacheVideoAiQ4ModelFiles('small', item => completed.push(item));
         expect(fetcher).toHaveBeenCalledOnce();
         expect([...entries.keys()]).toEqual(VIDEO_AI_SMALL_MODEL_FILES.map(file => getVideoAiModelFileUrl('small', file)));
         expect(VIDEO_AI_SMALL_MODEL_FILES).toContain('onnx/encoder_model.onnx');
         expect(VIDEO_AI_SMALL_MODEL_FILES).not.toContain('onnx/encoder_model_q4.onnx');
-        expect(completed.at(-1)).toEqual({loaded: 28, total: 28});
+        expect(completed.at(-1)).toMatchObject({loaded: 28, total: 28, transfer: {state: 'receiving'}});
         await expect(cacheVideoAiQ8ModelFiles('small')).rejects.toThrow('FP32');
         expect(fetcher).toHaveBeenCalledOnce();
     });
@@ -150,6 +172,29 @@ describe('video AI model cache', () => {
         expect(vi.getTimerCount()).toBe(0);
         vi.useRealTimers();
     });
+    it.each(['tiny', 'base'])('gives %s slow continuous files one shared ten-minute budget without marking a partial sixth file cached', async model => {
+        vi.useFakeTimers();
+        const entries = new Map<string, Response>();
+        const cache = {match: async (url: string) => entries.get(url), put: async (url: string, response: Response) => {
+            const text = await response.text(); entries.set(url, new Response(text));
+        }};
+        vi.stubGlobal('caches', {open: async () => cache});
+        const fetched = vi.fn(async () => {
+            let interval: ReturnType<typeof setInterval>, finish: ReturnType<typeof setTimeout>;
+            const clean = () => {clearInterval(interval); clearTimeout(finish);};
+            return new Response(new ReadableStream<Uint8Array>({start(stream) {
+                interval = setInterval(() => stream.enqueue(new Uint8Array([1])), 10_000);
+                finish = setTimeout(() => {clearInterval(interval); stream.close();}, 110_000);
+            }, cancel: clean}));
+        });
+        vi.stubGlobal('fetch', fetched);
+        const pending = cacheVideoAiQ4ModelFiles(model), checked = expect(pending).rejects.toThrow('模型下载超过总等待时限');
+        await vi.advanceTimersByTimeAsync(599_999);
+        expect(entries.size).toBe(5); expect(fetched).toHaveBeenCalledTimes(6);
+        await vi.advanceTimersByTimeAsync(1); await checked;
+        expect([...entries.keys()]).toEqual(VIDEO_AI_Q4_MODEL_FILES.slice(0, 5).map(file => getVideoAiModelFileUrl(model, file)));
+        expect(vi.getTimerCount()).toBe(0);
+    });
     it('builds normalized model URLs and exposes both dtype manifests', () => {
         expect(getVideoAiModelFileUrl('base', VIDEO_AI_Q4_MODEL_FILES[0])).toContain('whisper-base');
         expect(VIDEO_AI_Q8_MODEL_FILES).toContain('onnx/encoder_model_quantized.onnx');
@@ -158,7 +203,7 @@ describe('video AI model cache', () => {
         const entries = new Set<string>();
         const cache = {
             match: vi.fn(async (url: string) => entries.has(url) ? new Response('cached') : undefined),
-            put: vi.fn(async (url: string) => { entries.add(url); }),
+            put: vi.fn(async (url: string, response: Response) => { await response.arrayBuffer(); entries.add(url); }),
         };
         vi.stubGlobal('caches', {open: vi.fn(async () => cache)});
         vi.stubGlobal('window', {setTimeout, clearTimeout});
@@ -177,12 +222,12 @@ describe('video AI model cache', () => {
         vi.stubGlobal('caches', {open: vi.fn(async () => cache)});
         vi.stubGlobal('window', {setTimeout, clearTimeout});
         vi.stubGlobal('fetch', vi.fn(async () => new Response(new Uint8Array(4), {headers: {'Content-Length': '4'}})));
-        const reports: Array<{loaded: number; total: number}> = [];
+        const reports: DownloadProgress[] = [];
         await cacheVideoAiQ4ModelFiles('tiny', progress => reports.push(progress));
         const exact = VIDEO_AI_Q4_MODEL_FILES.length * 4;
         // 最后一个文件开始前按界面标注的 100 MB 计算，全部大小已知后改用精确合计。
-        expect(reports[0]).toEqual({loaded: 0, total: 100_000_000});
-        expect(reports.at(-1)).toEqual({loaded: exact, total: exact});
+        expect(reports[0]).toMatchObject({loaded: 0, total: 100_000_000, transfer: {state: 'connecting'}});
+        expect(reports.at(-1)).toMatchObject({loaded: exact, total: exact, transfer: {state: 'receiving'}});
         expect(reports.every((item, index) => index === 0 || item.loaded >= reports[index - 1].loaded)).toBe(true);
 
         // 再次调用时文件都在缓存里：按缓存响应头的大小计入已完成部分。
@@ -192,10 +237,10 @@ describe('video AI model cache', () => {
         expect(fetch).toHaveBeenCalledTimes(VIDEO_AI_Q4_MODEL_FILES.length);
 
         // q8 回退没有预计体积：文件大小未全部确定前不给总量。
-        const q8: Array<{loaded: number; total: number}> = [];
+        const q8: DownloadProgress[] = [];
         await cacheVideoAiQ8ModelFiles('tiny', progress => q8.push(progress));
         expect(q8.some(item => item.total === 0)).toBe(true);
-        expect(q8.at(-1)).toEqual({loaded: exact, total: exact});
+        expect(q8.at(-1)).toMatchObject({loaded: exact, total: exact, transfer: {state: 'receiving'}});
     });
     it('fails clearly when Cache Storage is unavailable or fetch fails', async () => {
         vi.stubGlobal('caches', undefined);

@@ -4,7 +4,7 @@
  * 主要内容：只读缓存键核对已登记模型的完整七文件精度清单；按模型选择 Tiny/Base 的 q4/q8 或 Small 的 FP32 编码器加 q4 解码器，流式接收并在国内源、官方与镜像间有界回退，限制单文件大小、下载与断流等待，把完整文件清单合并成真实字节进度。
  * 模块边界：只处理模型文件缓存，不创建 Worker、不初始化 ONNX session，也不参与后台 owner 生命周期。
  */
-import {withModelDownload} from '@/src/platform/http/modelDownloads';
+import {withModelDownload, type ModelSourcePreference} from '@/src/platform/http/modelDownloads';
 import {createDownloadProgressTracker, type DownloadProgress} from '@/src/core/download/progress';
 import {
   getVideoLocalTranscriptionDownloadBytes,
@@ -91,6 +91,7 @@ export async function cacheVideoAiModelFiles(
   model: unknown,
   dtype: 'q4' | 'q8' = 'q4',
   onProgress?: (progress: DownloadProgress) => void,
+  options: {preference?: ModelSourcePreference} = {},
 ): Promise<void> {
   const normalizedModel = normalizeVideoLocalTranscriptionModel(model);
   if (normalizedModel === 'small' && dtype === 'q8') throw new Error('Small 模型只支持 FP32 编码器与 q4 解码器');
@@ -105,9 +106,9 @@ export async function cacheVideoAiModelFiles(
     dtype === 'q4' ? getVideoLocalTranscriptionDownloadBytes(model) : 0,
     progress => onProgress?.(progress),
   );
-  // Small 的大文件允许慢速持续接收，但所有来源和文件共用有限的总准备预算。
-  const controller = normalizedModel === 'small' ? new AbortController() : undefined;
-  const totalTimeout = controller ? setTimeout(() => controller.abort(), 600_000) : undefined;
+  // 所有模型允许慢速持续接收，但全部来源与文件共用十分钟总准备预算。
+  const controller = new AbortController();
+  const totalTimeout = setTimeout(() => controller.abort(), 600_000);
   try {
     for (const file of files) {
       const url = getVideoAiModelFileUrl(model, file);
@@ -121,25 +122,27 @@ export async function cacheVideoAiModelFiles(
       await withModelDownload(url, response => cache.put(url, response), {
         timeoutMs: normalizedModel === 'small' ? 300_000 : MODEL_FILE_DOWNLOAD_TIMEOUT_MS,
         maxBytes: (normalizedModel === 'small' && file === 'onnx/encoder_model.onnx' ? 384 : 256) * 1024 * 1024,
-        signal: controller?.signal,
+        signal: controller.signal,
         onProgress: progress.advance,
+        onSourceStatus: tracker.transfer,
+        preference: options.preference,
       });
       progress.complete();
     }
   } catch (error) {
-    if (controller?.signal.aborted) throw new Error('Small 模型下载超过总等待时限', {cause: error});
+    if (controller.signal.aborted) throw new Error('模型下载超过总等待时限', {cause: error});
     throw error;
   } finally {
-    if (totalTimeout !== undefined) clearTimeout(totalTimeout);
+    clearTimeout(totalTimeout);
   }
 }
 
-export function cacheVideoAiQ4ModelFiles(model: unknown, onProgress?: (progress: DownloadProgress) => void): Promise<void> {
-  return cacheVideoAiModelFiles(model, 'q4', onProgress);
+export function cacheVideoAiQ4ModelFiles(model: unknown, onProgress?: (progress: DownloadProgress) => void, options?: {preference?: ModelSourcePreference}): Promise<void> {
+  return cacheVideoAiModelFiles(model, 'q4', onProgress, options);
 }
 
-export function cacheVideoAiQ8ModelFiles(model: unknown, onProgress?: (progress: DownloadProgress) => void): Promise<void> {
-  return cacheVideoAiModelFiles(model, 'q8', onProgress);
+export function cacheVideoAiQ8ModelFiles(model: unknown, onProgress?: (progress: DownloadProgress) => void, options?: {preference?: ModelSourcePreference}): Promise<void> {
+  return cacheVideoAiModelFiles(model, 'q8', onProgress, options);
 }
 
 /** 只清除指定 Whisper 模型的缓存文件，保留其他模型及字幕结果。 */
