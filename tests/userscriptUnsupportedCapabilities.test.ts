@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {describe, expect, it, vi} from 'vitest';
 import {
     toggleMangaTranslation,
     openMangaEntry,
@@ -40,3 +40,24 @@ describe('userscript extension-only capability stubs', () => {
     expect(unmountMangaEntry()).toBeUndefined();
     expect(unsubscribe()).toBeUndefined();
  });
+
+it('GF statistics adapters preserve generation and write results without opening IndexedDB', async () => {
+    const open = vi.fn(() => {throw new Error('Statistics adapter must not open IndexedDB');});
+    const deleteDatabase = vi.fn(() => {throw new Error('Statistics adapter must not delete IndexedDB');});
+    vi.stubGlobal('indexedDB', {open, deleteDatabase});
+    try {
+        vi.resetModules();
+        const {modelUsageRepository, translationStatsRepository} = await import('@/userscript/unsupportedCapabilities');
+        expect(modelUsageRepository.captureGeneration()).toBe(0);
+        await expect(modelUsageRepository.recordMany([], 0)).resolves.toBe(0);
+        await expect(modelUsageRepository.recordMany([{serviceId: 'synthetic-local'}] as never, 11)).resolves.toBe(0);
+        expect(translationStatsRepository.captureGeneration()).toBe(0);
+        expect(translationStatsRepository.record({serviceId: 'synthetic-local'} as never, 11)).toBeUndefined();
+        expect(translationStatsRepository.captureGeneration()).toBe(0);
+        expect(open).not.toHaveBeenCalled();
+        expect(deleteDatabase).not.toHaveBeenCalled();
+    } finally {
+        vi.unstubAllGlobals();
+        vi.resetModules();
+    }
+});

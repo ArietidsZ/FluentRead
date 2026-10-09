@@ -1,4 +1,7 @@
 /** 构建期空适配器：明确隔离必须依赖扩展专属 API 的功能。 */
+import type {ModelUsageEvent} from '@/src/services/model-usage/types';
+import type {TranslationRequestStatsEvent} from '@/src/services/translation-stats/types';
+
 export function mountAreaTranslator(): undefined {
     return undefined;
 }
@@ -58,3 +61,14 @@ export function subscribeMangaTranslation(listener: (status: {available: boolean
     listener({available: false, active: false, pending: false, errors: 0});
     return () => undefined;
 }
+
+/** GF 的 HTTP(S) runtime 不持久化扩展后台统计；完整独立版继续使用真实仓库。 */
+export const modelUsageRepository = {
+    captureGeneration: (): number => 0,
+    recordMany: async (_events: readonly ModelUsageEvent[], _expectedGeneration = 0): Promise<number> => 0,
+};
+
+export const translationStatsRepository = {
+    captureGeneration: (): number => 0,
+    record(_event: TranslationRequestStatsEvent, _expectedGeneration = 0): void {},
+};

@@ -476,6 +476,11 @@ function unwrapWxtEntrypoints(): Plugin {
 
 export const userscriptAliases = [
     ...(bundleLibraries ? [{find: '@/userscript/pakoRuntime', replacement: resolve(root, 'userscript/pakoBundled.ts')}] : []),
+    // GF HTTP(S) 页面只保留统计调用接口，避免加载扩展后台专属数据库与聚合实现。
+    ...(greasyForkSource && !bundleLibraries ? [
+        {find: '@/src/platform/storage/modelUsageRepository', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+        {find: '@/src/platform/storage/translationStatsRepository', replacement: resolve(root, 'userscript/unsupportedCapabilities.ts')},
+    ] : []),
     // dexie 官方 ESM 入口把自身注册到跨 realm 共享的 globalThis[Symbol.for('Dexie')]，版本不一致时会在
     // 模块求值阶段直接抛错。脚本管理器（如 Safari 的 Userscripts）把脚本注入页面主 world，与宿主页面共享
     // 该注册表，必须换成不注册全局符号的入口，否则整个 bundle 会在入口处中断（issue #524）。

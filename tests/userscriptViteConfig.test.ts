@@ -46,6 +46,28 @@ describe('CommonJS initialization policy by userscript output', () => {
     });
 });
 
+describe('GF-only statistics repository boundary', () => {
+    it.each(['standard', 'standalone', 'greasyfork', 'standalone-with-gf-env'] as const)
+    ('keeps real repositories outside the GF source output (%s)', async mode => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', mode.startsWith('standalone') ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', mode.includes('gf') || mode === 'greasyfork' ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules();
+            const {userscriptAliases: aliases} = await import('@/userscript/vite.config');
+            for (const repository of ['modelUsageRepository', 'translationStatsRepository']) {
+                const alias = aliases.find(item => item.find === `@/src/platform/storage/${repository}`);
+                if (mode === 'greasyfork') expect(alias?.replacement).toMatch(/userscript\/unsupportedCapabilities\.ts$/u);
+                else expect(alias).toBeUndefined();
+            }
+        } finally {
+            vi.unstubAllEnvs();
+            vi.resetModules();
+        }
+    });
+});
+
 describe('authoritative site catalogs with an external pinned data asset', () => {
     it.each(['unchanged', 'old-asset', 'reordered', 'removed-rule', 'missing-runtime-rule'] as const)
     ('reconciles %s without mutating the external asset', async variant => {
