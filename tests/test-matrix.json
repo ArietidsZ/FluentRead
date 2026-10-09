@@ -235,6 +235,7 @@
       "tests/localModelReadiness.test.ts",
       "tests/videoSubtitleLanguage.test.ts",
       "tests/videoAiModelSetup.test.ts",
+      "tests/videoAiModelMenu.test.ts",
       "tests/videoUiI18n.test.ts",
       "tests/videoSubtitleAppearance.test.ts",
       "tests/videoAiBackground.test.ts",

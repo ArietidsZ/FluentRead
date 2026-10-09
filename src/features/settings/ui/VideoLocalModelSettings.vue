@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
  * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
- * 主要内容：模型卡片作为唯一选择入口，呈现 Tiny/Base/Small 的质量、体积、推荐与真实下载进度，同步播放器发起的下载；各模型命令状态独立，命令结束重读权威缓存，区分读取与命令错误；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
+ * 主要内容：模型卡片作为唯一选择入口，通过后台真实文件清单查询 Tiny/Base/Small 的可用状态，呈现质量、体积、推荐与真实下载进度，同步播放器发起的下载；各模型命令状态独立，命令结束重读权威缓存，区分读取与命令错误；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
  * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载权重或操作网页播放器；下载进度只读取后台转存的变化事件。
  -->
 <template>
@@ -69,6 +69,7 @@ import {Check, Cpu, Delete, Download, Files, Loading} from '@element-plus/icons-
 import {
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
   VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,
+  VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE,
   VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
   VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
   normalizeVideoLocalTranscriptionModels,
@@ -101,7 +102,6 @@ const modelCards = computed(() => {
     selection: computed({get: () => target.videoLocalModel, set: (value: VideoLocalTranscriptionModel) => selectModel(value, current, target)}),
     choose: () => selectModel(item.value, current, target),
     download: () => {
-      if (!current()) return;
       selectModel(item.value, current, target);
       return download(item.value, current);
     },
@@ -160,9 +160,10 @@ async function refresh(force = false): Promise<void> {
   if (!current() || !force && (downloading.value.length || removing.value.length)) return;
   const request = ++modelGeneration;
   try {
-    const stored = await browser.storage.local.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
+    const response = await browser.runtime.sendMessage({type: VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE}) as {success?: boolean; models?: unknown} | undefined;
     if (!current() || request !== modelGeneration) return;
-    downloaded.value = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
+    if (response?.success !== true || !Array.isArray(response.models)) throw new Error('无法读取模型缓存，请重试');
+    downloaded.value = normalizeVideoLocalTranscriptionModels(response.models);
     modelReadError.value = '';
   } catch {
     if (current() && request === modelGeneration) {
@@ -222,7 +223,6 @@ async function removeModel(model: VideoLocalTranscriptionModel, current = captur
 
 async function refreshCacheStats(): Promise<void> {
   const current = capture();
-  if (!current()) return;
   const request = ++cacheGeneration;
   try {
     const response = await browser.runtime.sendMessage({type: VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE}) as {success?: boolean; stats?: typeof cacheStats.value} | undefined;
@@ -271,9 +271,12 @@ watch(() => [mounted.value, revision.value], () => {
   const handleStorageChange = (changes: Record<string, browser.Storage.StorageChange>, areaName: string) => {
     if (current() && areaName === 'local' && changes[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]) void refresh();
   };
-  // 从播放页返回设置时重新读取 IndexedDB 统计，避免显示首次挂载的统计。
+  // 回到设置时重新核对模型文件与字幕统计；Cache Storage 丢失文件不会触发 storage.onChanged。
   const refreshVisibleCacheStats = () => {
-    if (current() && !clearingCache.value && document.visibilityState !== 'hidden') void refreshCacheStats();
+    if (current() && !clearingCache.value && document.visibilityState !== 'hidden') {
+      void refresh();
+      void refreshCacheStats();
+    }
   };
   browser.storage.onChanged.addListener(handleStorageChange);
   const stopProgress = watchDownloadProgress(modelOptions.map(item => videoModelDownloadId(item.value)), (id, next) => {
@@ -291,7 +294,7 @@ watch(() => [mounted.value, revision.value], () => {
   void refreshCacheStats();
 }, {flush: 'sync'});
 onMounted(() => {mounted.value = true;});
-onUnmounted(() => {mounted.value = false;stopObserving?.();});
+onUnmounted(() => {mounted.value = false;});
 </script>
 
 <style scoped>

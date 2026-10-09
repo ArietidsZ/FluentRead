@@ -1,9 +1,90 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
-import {cacheVideoAiModelFiles, cacheVideoAiQ4ModelFiles, cacheVideoAiQ8ModelFiles, getVideoAiModelFileUrl, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_Q8_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
+import {cacheVideoAiModelFiles, cacheVideoAiQ4ModelFiles, cacheVideoAiQ8ModelFiles, getVideoAiModelFileUrl, readCachedVideoAiModels, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_Q8_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('video AI model cache', () => {
+    it('does not touch Cache Storage without a valid download receipt', async () => {
+        const open = vi.fn(), has = vi.fn();
+        vi.stubGlobal('caches', {open, has});
+        await expect(readCachedVideoAiModels([])).resolves.toEqual([]);
+        await expect(readCachedVideoAiModels(['unknown'])).resolves.toEqual([]);
+        expect(has).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled();
+        vi.stubGlobal('caches', undefined);
+        await expect(readCachedVideoAiModels(undefined)).resolves.toEqual([]);
+    });
+    it('does not create an absent cache when registered models are checked', async () => {
+        const open = vi.fn(), has = vi.fn(async () => false);
+        vi.stubGlobal('caches', {open, has});
+        await expect(readCachedVideoAiModels(['tiny'])).resolves.toEqual([]);
+        expect(has).toHaveBeenCalledWith('transformers-cache'); expect(open).not.toHaveBeenCalled();
+    });
+    it('reads only Request keys for registered default models without response bodies, inference or network', async () => {
+        const urls = ['tiny', 'base', 'small'].flatMap(model => (model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES).map(file => getVideoAiModelFileUrl(model, file)));
+        const cache = {keys: vi.fn(async () => urls.map(url => new Request(url))), match: vi.fn(() => {throw new Error('body access forbidden');}), put: vi.fn(), delete: vi.fn()};
+        const open = vi.fn(async () => cache), fetcher = vi.fn(), worker = vi.fn();
+        vi.stubGlobal('caches', {has: async () => true, open}); vi.stubGlobal('fetch', fetcher); vi.stubGlobal('Worker', worker);
+        await expect(readCachedVideoAiModels(['small', 'tiny', 'tiny', 'unknown'])).resolves.toEqual(['small', 'tiny']);
+        expect(cache.keys).toHaveBeenCalledOnce(); expect(open).toHaveBeenCalledWith('transformers-cache');
+        expect(cache.match).not.toHaveBeenCalled(); expect(cache.put).not.toHaveBeenCalled(); expect(cache.delete).not.toHaveBeenCalled();
+        expect(fetcher).not.toHaveBeenCalled(); expect(worker).not.toHaveBeenCalled();
+    });
+    it.each(['tiny', 'base', 'small'].flatMap(model => (model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES).map(file => [model, file])))('rejects %s readiness when default required %s is missing', async (model, missing) => {
+        const files = model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES;
+        const urls = files.filter(file => file !== missing).map(file => getVideoAiModelFileUrl(model, file));
+        vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => urls.map(url => new Request(url))})});
+        await expect(readCachedVideoAiModels([model])).resolves.toEqual([]);
+    });
+    it.each(['tiny', 'base'])('keeps a complete %s q8 fallback ready without requiring another q4 download', async model => {
+        const urls = VIDEO_AI_Q8_MODEL_FILES.map(file => getVideoAiModelFileUrl(model, file));
+        const fetcher = vi.fn(), worker = vi.fn();
+        vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => urls.map(url => new Request(url))})});
+        vi.stubGlobal('fetch', fetcher); vi.stubGlobal('Worker', worker);
+        await expect(readCachedVideoAiModels([model])).resolves.toEqual([model]);
+        expect(fetcher).not.toHaveBeenCalled(); expect(worker).not.toHaveBeenCalled();
+    });
+    it.each(['tiny', 'base'].flatMap(model => [[model, 'q4', 'q8'], [model, 'q8', 'q4']]))('does not mix %s %s encoder with %s decoder into one complete precision manifest', async (model, encoder, decoder) => {
+        const files = [...VIDEO_AI_Q4_MODEL_FILES.slice(0, 5), encoder === 'q4' ? VIDEO_AI_Q4_MODEL_FILES[5] : VIDEO_AI_Q8_MODEL_FILES[5], decoder === 'q4' ? VIDEO_AI_Q4_MODEL_FILES[6] : VIDEO_AI_Q8_MODEL_FILES[6]];
+        vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => files.map(file => new Request(getVideoAiModelFileUrl(model, file)))})});
+        await expect(readCachedVideoAiModels([model])).resolves.toEqual([]);
+    });
+    it('does not substitute another model, revision, host or query keys for canonical files', async () => {
+        const retainedQ8 = VIDEO_AI_Q8_MODEL_FILES.map(file => getVideoAiModelFileUrl('tiny', file));
+        const urls = new Set([
+            ...retainedQ8.filter(url => !url.endsWith('encoder_model_quantized.onnx')),
+            ...VIDEO_AI_Q4_MODEL_FILES.map(file => getVideoAiModelFileUrl('base', file)),
+            ...VIDEO_AI_Q4_MODEL_FILES.flatMap(file => {
+                const url = getVideoAiModelFileUrl('tiny', file);
+                return [url.replace('/master/', '/old/'), url.replace('modelscope.cn/models', 'huggingface.co'), `${url}?version=other`];
+            }),
+        ]);
+        const keys = vi.fn(async () => [...urls].map(url => new Request(url)));
+        vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys})});
+        await expect(readCachedVideoAiModels(['tiny', 'base'])).resolves.toEqual(['base']);
+        for (const url of retainedQ8.slice(0, 5)) expect(urls.has(url)).toBe(true);
+    });
+    it.each(['has', 'open', 'keys'])('surfaces Cache Storage %s failures instead of reporting not downloaded', async failing => {
+        const fail = async () => {throw new Error('controlled storage failure');};
+        vi.stubGlobal('caches', {has: failing === 'has' ? fail : async () => true, open: failing === 'open' ? fail : async () => ({keys: fail})});
+        await expect(readCachedVideoAiModels(['tiny'])).rejects.toThrow('无法读取模型缓存');
+    });
+    it('reports unavailable Cache Storage when a registered model requires checking', async () => {
+        vi.stubGlobal('caches', undefined);
+        await expect(readCachedVideoAiModels(['tiny'])).rejects.toThrow('不支持本地模型缓存');
+    });
+    it('repairs only the missing required file and makes the existing receipt ready without deleting fallback files', async () => {
+        const model = 'tiny';
+        const files = [...VIDEO_AI_Q4_MODEL_FILES, ...VIDEO_AI_Q8_MODEL_FILES];
+        const entries = new Map(files.filter(file => file !== 'tokenizer.json').map(file => [getVideoAiModelFileUrl(model, file), new Response('cached')]));
+        const cache = {keys: async () => [...entries.keys()].map(url => new Request(url)), match: async (url: string) => entries.get(url), put: async (url: string, response: Response) => {await response.arrayBuffer(); entries.set(url, new Response('repaired'));}};
+        const fetcher = vi.fn(async (_url: string) => new Response('tokenizer'));
+        vi.stubGlobal('caches', {has: async () => true, open: async () => cache}); vi.stubGlobal('fetch', fetcher);
+        await expect(readCachedVideoAiModels([model])).resolves.toEqual([]);
+        await cacheVideoAiQ4ModelFiles(model);
+        expect(fetcher).toHaveBeenCalledOnce(); expect(fetcher.mock.calls[0][0]).toBe(getVideoAiModelFileUrl(model, 'tokenizer.json'));
+        await expect(readCachedVideoAiModels([model])).resolves.toEqual([model]);
+        expect(entries.has(getVideoAiModelFileUrl(model, 'onnx/encoder_model_quantized.onnx'))).toBe(true);
+    });
     it('Small completes only the seven mixed precision files and retries a missing final file', async () => {
         const entries = new Map<string, Response>();
         const cache = {

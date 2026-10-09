@@ -2,7 +2,7 @@
  * @file src/features/video-subtitle/content/ui.ts
  *
  * 文件职责：封装视频字幕 content UI 的界面语言转换与可访问名称刷新，避免 YouTube 播放器运行时承载重复的文案拼装。
- * 主要内容：提供视频菜单本地化、校时控件样式、节点创建、播放器定位，过滤 YouTube 滚动窗口裁掉的旧行，按 X 实际画面约束字幕几何与换行，并封装样式及字幕下载。
+ * 主要内容：提供视频菜单本地化、校时与就地模型选择控件样式、节点创建、播放器定位，过滤 YouTube 滚动窗口裁掉的旧行，按 X 实际画面约束字幕几何与换行，并封装样式及字幕下载。
  * 模块边界：只读取界面配置并操作视频 feature 拥有的节点、样式和下载链接，不发起翻译或识别请求；任务生命周期由 runtime 管理。
  */
 
@@ -970,6 +970,17 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       color: var(--fr-video-menu-muted) !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-more:hover { color: var(--fr-video-menu-text) !important; }
+    #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-model {
+      justify-content: space-between !important;
+      min-height: 32px !important;
+      padding: 2px 4px !important;
+      gap: 8px !important;
+      color: var(--fr-video-menu-text) !important;
+      text-align: left !important;
+      white-space: normal !important;
+    }
+    #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-model .fluent-read-video-menu-label { min-width: 0 !important; overflow-wrap: anywhere !important; }
+    #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-model .fluent-read-video-menu-icon { flex: none !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-back { width: 24px !important; height: 28px !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-export { display: grid !important; gap: 6px !important; }
     #${VIDEO_TRANSLATION_MENU_ID}[data-compact="true"] .fluent-read-video-menu-download { flex-direction: row !important; min-height: 32px !important; padding: 2px 4px !important; }
@@ -1237,7 +1248,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-model-options { display: grid !important; gap: 4px !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-model-option {
       display: grid !important;
-      grid-template-columns: 12px minmax(0, 1fr) auto !important;
+      grid-template-columns: 12px minmax(0, 1fr) !important;
       align-items: center !important;
       justify-items: start !important;
       column-gap: 8px !important;
@@ -1274,7 +1285,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
       color: var(--fr-video-menu-text) !important;
       font-size: 11.5px !important;
       font-weight: 600 !important;
-      white-space: nowrap !important;
+      white-space: normal !important;
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-model-option-badge {
       padding: 1px 5px !important;
@@ -1294,7 +1305,7 @@ export function installVideoSubtitleStyle(): HTMLStyleElement {
     }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-model-option-size.is-downloaded { color: #8fdcbf !important; }
     #${VIDEO_TRANSLATION_MENU_ID} .fluent-read-video-model-option-hint {
-      grid-column: 2 / 4 !important;
+      grid-column: 2 / -1 !important;
       color: var(--fr-video-menu-muted) !important;
       font-size: 10.5px !important;
       line-height: 1.3 !important;
