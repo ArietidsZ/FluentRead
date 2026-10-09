@@ -28,7 +28,7 @@ export {
     requestConfigPatch,
     subscribeConfig,
 } from '@/src/services/config/store';
-export {createDocumentDownload, translateDocumentSegments} from './runtime';
+export {createDocumentDownload, documentRetryBackoff, translateDocumentSegments} from './runtime';
 export {useUiI18n} from '@/src/ui/i18n';
 export {default as GlossaryLibrarySelect} from '@/src/ui/components/GlossaryLibrarySelect.vue';
 export {

@@ -25,16 +25,16 @@ describe('PDF layout overlay block selection', () => {
         ];
         const result = pdfOverlayBlocks(page(blocks, {preservedRegions: [{id: 'figure-1', kind: 'figure', x: 300, y: 300, width: 200, height: 100}]}));
         // 含词语的表格单元格（未标记保留）可以替换，数字单元格由版面分析标记为保留。
-        expect(result.map(entry => entry.block.segmentIndex)).toEqual([0, 3, 10]);
+        expect(result.map(entry => entry.block.segmentIndex)).toEqual([0, 3, 7, 10]);
         const table = page([block(0, 50, 100, 60, 10, {kind: 'table'}), block(1, 300, 100, 30, 10, {kind: 'table', preserveSource: true}), block(2, 50, 130, 200, 10)], {preservedRegions: [{id: 'table-1', kind: 'table', x: 40, y: 90, width: 400, height: 60}]});
-        expect(pdfOverlayBlocks(table).map(entry => entry.block.segmentIndex)).toEqual([0]);
+        expect(pdfOverlayBlocks(table).map(entry => entry.block.segmentIndex)).toEqual([0, 2]);
         expect(pdfOverlayBlocks(page([block(0, 40, 40, 200, 24)])).map(entry => entry.block.segmentIndex)).toEqual([0]);
     });
-    it('still replaces prose that merely touches an oversized figure bounding box', () => {
-        // 图形包围盒伸进右栏 24pt：右栏段落只有一成面积重叠，仍然显示译文；一半以上在图内的标签保留原样。
-        const blocks = [block(0, 318, 75, 242, 70), block(1, 100, 100, 200, 40), block(2, 250, 150, 100, 30), block(3, 60, 190, 200, 20)];
-        const result = pdfOverlayBlocks(page(blocks, {preservedRegions: [{id: 'figure-1', kind: 'figure', x: 0, y: 0, width: 342, height: 185}]}));
-        expect(result.map(entry => entry.block.segmentIndex)).toEqual([0, 3]);
+    it('leaves the figure/prose decision to layout analysis: prose inside an oversized figure box is still replaced', () => {
+        // 跨栏的图形包围盒会圈入下方正文；只有被标记为图内标签（figure-label）的块保留原样。
+        const blocks = [block(0, 318, 75, 242, 70), block(1, 100, 100, 200, 40), block(2, 250, 150, 100, 30, {kind: 'figure-label', preserveSource: true})];
+        const result = pdfOverlayBlocks(page(blocks, {preservedRegions: [{id: 'figure-1', kind: 'figure', x: 0, y: 0, width: 600, height: 185}]}));
+        expect(result.map(entry => entry.block.segmentIndex)).toEqual([0, 1]);
     });
     it('measures the free space below and to the right up to the nearest neighbouring content', () => {
         const blocks = [block(0, 40, 40, 200, 24), block(1, 40, 80, 200, 24), block(2, 320, 40, 200, 24), block(3, 320, 300, 200, 24)];

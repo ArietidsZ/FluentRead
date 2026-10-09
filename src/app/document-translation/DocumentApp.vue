@@ -6,8 +6,10 @@
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
 <template>
-  <div class="document-app" :class="{ dark: isDark, 'is-workspace': parsedDocument }">
-    <header v-if="!parsedDocument" class="document-header">
+  <div class="document-app" :class="{ dark: isDark, 'is-workspace': parsedDocument, 'is-restoring': restoring && !parsedDocument, 'is-focus': parsedDocument && focusMode }">
+    <!-- 专注阅读：隐藏工具栏与侧栏，只留下文档；指针移到顶部边缘或按 Esc 退出。 -->
+    <button v-if="parsedDocument && focusMode" class="focus-exit" type="button" @click="setFocusMode(false)">{{ translateLegacy('退出专注阅读') }}<kbd>Esc</kbd></button>
+    <header v-if="!parsedDocument && !restoring" class="document-header">
       <div class="document-brand" aria-label="流畅阅读文档翻译">
         <img src="/icon/128.png" alt="" />
         <span>
@@ -55,10 +57,11 @@
           <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
         </section>
         <div v-if="parsedDocument" v-show="sidebarTab === 'outline' && isPdfDocument" ref="outlineHost" class="sidebar-outline" />
-        <button v-if="parsedDocument" class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
+        <button v-if="parsedDocument" class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/></svg><strong>{{ translateLegacy('源语言与术语库') }}</strong><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
       </aside>
       <div class="document-content">
-      <section v-if="!parsedDocument" class="landing-section">
+      <section v-if="!parsedDocument && restoring" class="restoring-section" role="status" aria-live="polite"><i class="spinner dark-spinner" aria-hidden="true" /></section>
+      <section v-else-if="!parsedDocument" class="landing-section">
         <div class="landing-copy">
           <h1>文档换一种语言，阅读依然流畅</h1>
           <p>论文、电子书、工作资料与字幕，从打开文件到双语阅读。</p>
@@ -128,6 +131,7 @@
             </div>
             <!-- PDF 的页码、缩放和显示方式由阅读器传送到这里，与文档操作共用一行。 -->
             <div v-show="readerTab === 'read' && isPdfDocument" ref="readerControls" class="reader-controls-slot" />
+            <button class="focus-toggle" type="button" :aria-label="translateLegacy('专注阅读')" :title="translateLegacy('专注阅读')" @click="setFocusMode(true)"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7.5 3.5h-4v4M12.5 3.5h4v4M7.5 16.5h-4v-4M12.5 16.5h4v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
           </div>
           <div class="taskbar-actions">
             <!-- 服务、模型与目标语言直接在工具栏选择；源语言和术语库在侧栏底部的“调整设置”里。 -->
@@ -152,7 +156,8 @@
           <p v-if="openingFile || downloadingPdf" class="document-import-progress" role="status">{{ importProgress }} <button class="ghost-button" type="button" @click="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button></p>
           <p v-if="errorMessage || credentialWarning || configSaveError" class="notice error task-notice" role="alert">{{ errorMessage || credentialWarning || configSaveError }} <button v-if="credentialWarning || configSaveError" type="button" @click="documentSettingsDialog?.showModal()">调整设置</button></p>
           <p v-if="settingsChanged" class="notice warning task-notice">设置已更改。现有译文保留，按新设置翻译会从头开始。</p>
-          <p v-if="downloadNotice" class="notice task-notice" role="status">{{ downloadNotice }}</p>
+          <p v-if="retryNotice" class="notice warning task-notice" role="status" data-i18n-ignore>{{ retryNotice }}</p>
+          <p v-if="downloadNotice" class="taskbar-toast" role="status">{{ downloadNotice }}</p>
         </section>
         <article class="document-reading-pane" aria-label="文档内容">
         <DocumentSegmentEditor :key="activeDocumentId ?? 0" v-show="readerTab === 'edit'" :document="parsedDocument" :translations="translatedSegments" :disabled="queueBusy" @update="editSegment" />
@@ -375,7 +380,7 @@
       <p v-if="downloadError" class="notice error" role="alert">{{ downloadError }}</p>
       <div class="dialog-actions"><button v-if="preparingDownload" class="ghost-button" type="button" :disabled="cancelingDownload" @click="cancelDownload">{{ t(cancelingDownload ? 'document.export.canceling' : 'document.export.cancel') }}</button><button v-else class="ghost-button" type="button" :disabled="queueBusy" @click="downloadDialog?.close()">返回文档</button><button class="translate-document-button" type="button" :disabled="queueBusy || !hasTranslation || (!translationComplete && !partialExportAcknowledged)" @click="downloadDocument">{{ preparingDownload ? '正在生成文件…' : `下载${outputMode === 'bilingual' ? '双语' : '译文'}文件` }}</button></div>
     </dialog>
-    <footer v-if="!parsedDocument" class="document-footer">
+    <footer v-if="!parsedDocument && !restoring" class="document-footer">
       <span>让语言更近，让世界更大。</span>
       <a href="https://github.com/Bistutu/FluentRead" target="_blank" rel="noreferrer">开源项目 ↗</a>
     </footer>
@@ -386,7 +391,7 @@
 
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
-import {markRaw, computed, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
+import {markRaw, computed, onMounted, onUnmounted, reactive, ref, toRaw, watch} from 'vue';
 import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
 import browser from 'webextension-polyfill';
 import {
@@ -398,6 +403,7 @@ import {
   DOCUMENT_MAX_BYTES,
   DOCUMENT_QUICK_SAMPLES,
   createDocumentDownload,
+  documentRetryBackoff,
   generateDocumentArchive,
   createDocumentDownloadName,
   createDocumentFileLoadGuard,
@@ -484,6 +490,17 @@ const readerControls = ref<HTMLElement | null>(null);
 const outlineHost = ref<HTMLElement | null>(null);
 // 侧栏默认展开，PDF 先显示目录、其他格式显示文件；添加第二份文件或导入失败时切到文件页。
 const sidebarOpen = ref(true);
+// 专注阅读隐藏本页的全部控件，并尽量让浏览器进入全屏；退出全屏或按 Esc 即恢复。
+const focusMode = ref(false);
+function setFocusMode(value: boolean): void {
+  focusMode.value = value;
+  try {
+    if (value) void window.document.documentElement.requestFullscreen?.()?.catch?.(() => undefined);
+    else if (window.document.fullscreenElement) void window.document.exitFullscreen?.()?.catch?.(() => undefined);
+  } catch { /* 浏览器不允许全屏时仍然隐藏控件。 */ }
+}
+function leaveFocusOnEscape(event: KeyboardEvent): void {if (event.key === 'Escape' && focusMode.value) setFocusMode(false);}
+function leaveFocusWithFullscreen(): void {if (!window.document.fullscreenElement && focusMode.value) focusMode.value = false;}
 const sidebarTab = ref<'files' | 'outline'>('outline');
 const pdfPage = ref(1);
 const readerTab = ref<'read' | 'edit'>('read');
@@ -502,6 +519,7 @@ let pendingRemoval: DocumentQueueItem | null = null;
 const partialExportAcknowledged = ref(false);
 const downloadError = ref('');
 const downloadNotice = ref('');
+let downloadNoticeTimer: ReturnType<typeof setTimeout> | undefined;
 const editRevision = ref(0);
 const downloadedRevision = ref(0);
 const readingModes = [{value: 'source', label: '原文'}, {value: 'bilingual', label: '双语'}, {value: 'translated', label: '译文'}] as const;
@@ -510,6 +528,7 @@ const translating = ref(false);
 const liveCompletedSegments = ref(0);
 
 const errorMessage = ref('');
+const retryNotice = ref('');
 const openingFile = ref(false);
 const preparingDownload = ref(false);
 const cancelingDownload = ref(false);
@@ -576,6 +595,7 @@ function selectDocument(item: DocumentQueueItem): void {
   saveActiveDocument();
   releaseDocumentPreview(parsedDocument.value);
   activeDocumentId.value = item.id;
+  rememberOpenDocument(item.historyId);
   parsedDocument.value = item.document;
   translatedSegments.value = [...item.translations];
   settledTranslations.value = [...item.translations];
@@ -613,21 +633,53 @@ function persistHistory(): void {
   saveActiveDocument();
   for (const item of documentQueue.value) {
     const completed = item.translations.filter(text => text?.trim()).length;
-    if (!item.document || !item.historyId || !item.bytes || !completed || item.revision === item.savedRevision) continue;
+    if (!item.document || !item.historyId || !item.bytes || item.revision === item.savedRevision) continue;
     item.savedRevision = item.revision;
     void history.save({id: item.historyId, name: item.name, format: item.document.format, size: item.bytes.byteLength, sourceUrl: item.sourceUrl, mimeType: item.mimeType || '',
-      total: item.document.segments.length, completed, updatedAt: Date.now(), bytes: item.bytes, translations: [...item.translations], fingerprint: item.fingerprint}).then(refreshHistory);
+      total: item.document.segments.length, completed, updatedAt: Date.now(), bytes: item.bytes, translations: [...item.translations], fingerprint: item.fingerprint, parsed: toRaw(item.document), parsedVersion: PARSED_VERSION}).then(refreshHistory);
   }
 }
 function scheduleHistorySave(): void {
   if (!historyAvailable || historyTimer !== undefined) return;
   historyTimer = setTimeout(persistHistory, 2000);
 }
+// 刷新后回到正在阅读的文档：当前标签页记住它在本地历史里的标识，新开的标签页仍从首页开始。
+const SESSION_KEY = 'fluentread.document.open';
+/** 版面分析或分段规则变化时递增：旧快照作废，改为按原始文件重新解析。 */
+const PARSED_VERSION = 1;
+function rememberOpenDocument(id: string | undefined | null): void {
+  try {
+    if (id) globalThis.sessionStorage?.setItem(SESSION_KEY, id);
+    else globalThis.sessionStorage?.removeItem(SESSION_KEY);
+  } catch { /* 无法使用会话存储时刷新回到首页。 */ }
+}
+function openDocumentId(): string | null {
+  try {return historyAvailable ? globalThis.sessionStorage?.getItem(SESSION_KEY) ?? null : null;} catch {return null;}
+}
+// 刷新时先保持阅读界面的底色而不是闪回首页；本地快照还原后直接显示原来的文档。
+const restoring = ref(Boolean(openDocumentId()));
+async function restoreOpenDocument(): Promise<void> {
+  const id = openDocumentId();
+  try {
+    if (id && !parsedDocument.value) await openHistory({id} as DocumentHistorySummary);
+  } finally {restoring.value = false;}
+}
 async function openHistory(entry: DocumentHistorySummary): Promise<void> {
   if (queueBusy.value) return;
   const record = await history.load(entry.id);
   if (!record) {await refreshHistory(); return;}
-  await loadFiles([new File([record.bytes], record.name, {type: record.mimeType})], record.sourceUrl);
+  if (disposed || queueBusy.value) return;
+  const snapshot = record.parsedVersion === PARSED_VERSION ? record.parsed as ParsedDocument | undefined : undefined;
+  if (!snapshot?.segments) {
+    // 没有快照或解析规则已经更新：按原始文件重新解析，译文数量一致时仍会接上。
+    await loadFiles([new File([record.bytes], record.name, {type: record.mimeType})], record.sourceUrl);
+    return;
+  }
+  const item: DocumentQueueItem = {id: ++nextDocumentId, name: record.name, sourceUrl: record.sourceUrl, document: markRaw(snapshot), historyId: record.id, bytes: record.bytes, mimeType: record.mimeType,
+    translations: record.total === snapshot.segments.length ? [...record.translations] : [], fingerprint: record.fingerprint, state: 'ready', revision: 0, savedRevision: 0, downloaded: 0, error: ''};
+  documentQueue.value.push(item);
+  if (documentQueue.value.length > 1) {sidebarOpen.value = true; sidebarTab.value = 'files';}
+  selectDocument(item);
 }
 async function removeHistory(entry: DocumentHistorySummary): Promise<void> {
   await history.remove(entry.id);
@@ -642,7 +694,7 @@ function historyFormat(entry: DocumentHistorySummary): string {
 }
 function historyStatus(entry: DocumentHistorySummary): string {
   const date = new Date(entry.updatedAt).toLocaleDateString(language.value, {month: 'short', day: 'numeric'});
-  return `${entry.completed >= entry.total ? translateLegacy('翻译完成') : `${translateLegacy('已翻译')} ${entry.completed} / ${entry.total}`} · ${date}`;
+  return `${!entry.completed ? translateLegacy('尚未翻译') : entry.completed >= entry.total ? translateLegacy('翻译完成') : `${translateLegacy('已翻译')} ${entry.completed} / ${entry.total}`} · ${date}`;
 }
 
 function queueStatus(item: DocumentQueueItem): string {
@@ -698,6 +750,7 @@ function removeDocument(item: DocumentQueueItem, confirmed = false): void {
     const next = documentQueue.value.find(entry => entry.document);
     if (next) selectDocument(next);
     else {
+      rememberOpenDocument(null);
       activeDocumentId.value = null;
       parsedDocument.value = null;
       translatedSegments.value = [];
@@ -941,7 +994,6 @@ const subtitleRows = computed(() => previewRows.value);
 const jsonRows = computed(() => previewRows.value);
 const emptyReaderHint = computed(() => isPdfDocument.value ? t(parsedDocument.value?.segments.length ? 'document.pdfReading.startHint' : 'document.pdfReading.selectableSource') : getDocumentEmptyReaderHint(parsedDocument.value));
 const readerPageCount = computed(() => isPdfDocument.value || isRichDocument.value ? 1 : Math.max(1, Math.ceil((isDocxDocument.value ? currentDocxPart.value?.paragraphSegments.length || 0 : parsedDocument.value?.segments.length || 0) / READER_PAGE_SIZE)));
-const formatCode = computed(() => parsedDocument.value?.format === 'markdown' ? 'MD' : parsedDocument.value?.format.toUpperCase() || 'FILE');
 
 const pdfSegmentPages = computed(() => {
   const binary = parsedDocument.value?.binary;
@@ -1112,6 +1164,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
           const saved = historyId ? await history.load(historyId) : null;
           if (!loadRequest.isCurrent()) return;
           Object.assign(item, {historyId, bytes, mimeType: file.type});
+          if (item.id === activeDocumentId.value) rememberOpenDocument(historyId);
           // 译文数量与当前解析结果一致时才恢复；解析规则变化后的旧记录不能错位套用。
           if (saved && saved.total === parsed.segments.length) Object.assign(item, {translations: [...saved.translations], fingerprint: saved.fingerprint});
         }
@@ -1126,7 +1179,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
       if (item.document && !opened) {opened = true; selectDocument(item);}
     }
   } finally {
-    if (loadRequest.isCurrent()) {openingFile.value = false; importProgress.value = '';}
+    if (loadRequest.isCurrent()) {openingFile.value = false; importProgress.value = ''; persistHistory();}
     if (fileLoadController === controller) fileLoadController = null;
   }
 }
@@ -1186,6 +1239,7 @@ function handleDrop(event: DragEvent): void {
 
 function resetDocument(): void {
   persistHistory();
+  if (downloadNoticeTimer !== undefined) {clearTimeout(downloadNoticeTimer); downloadNoticeTimer = undefined;}
   cancelImport();
   releaseDocumentPreview(parsedDocument.value);
   documentQueue.value.forEach(item => releaseDocumentPreview(item.document));
@@ -1245,7 +1299,7 @@ function requestReset(): void {
   if (hasUnsavedWork.value) {
     pendingAction.value = 'reset';
     confirmDialog.value?.showModal();
-  } else resetDocument();
+  } else {rememberOpenDocument(null); resetDocument();}
 }
 
 function requestTranslation(): void {
@@ -1263,7 +1317,7 @@ function confirmAction(): void {
   confirmDialog.value?.close();
   if (action === 'remove' && removal) {
     removeDocument(removal, true);
-  } else if (action === 'reset') resetDocument();
+  } else if (action === 'reset') {rememberOpenDocument(null); resetDocument();}
   else if (action === 'restart') void startTranslation(true);
 }
 
@@ -1273,6 +1327,7 @@ function clearConfirmation(): void {
 }
 
 function pauseTranslation(): void {
+  retryNotice.value = '';
   batchGeneration += 1;
   batchRunning.value = false;
   translationRequestId += 1;
@@ -1309,9 +1364,15 @@ async function startTranslation(restart = false): Promise<void> {
       glossaryIds, glossaryRevision,
       initialTranslations: [...translatedSegments.value],
       signal: controller.signal,
+      // 服务限流或暂时不可用时自动退避重试，累计最多等两分钟；仍然失败才停下并显示原因。
+      retryBackoff: documentRetryBackoff,
+      onRetry: ({delayMs, reason}) => {
+        if (requestId === translationRequestId && !controller.signal.aborted) retryNotice.value = `${translateLegacy('翻译服务暂时没有响应，将自动重试')} · ${Math.ceil(delayMs / 1000)}s · ${reason}`;
+      },
       ...(pdfSegmentPages.value ? {batchLimits: {items: 8, characters: 2400}, prioritize: prioritizeVisiblePages} : {}),
       onSegment: ({id, translation}) => {
         if (requestId !== translationRequestId || parsedDocument.value !== document || controller.signal.aborted) return;
+        retryNotice.value = '';
         liveCompletedSegments.value += Number(Boolean(translation.trim())) - Number(Boolean(translatedSegments.value[id]?.trim()));
         translatedSegments.value[id] = translation;
         editRevision.value += 1;
@@ -1329,6 +1390,7 @@ async function startTranslation(restart = false): Promise<void> {
   } finally {
     if (requestId === translationRequestId) {
       translating.value = false;
+      retryNotice.value = '';
       if (abortController === controller) abortController = null;
       persistHistory();
     }
@@ -1393,6 +1455,10 @@ async function downloadDocument(): Promise<void> {
     saveDownloadBlob(new Blob([download.data], {type: download.mimeType}), download.fileName);
     downloadedRevision.value = revision;
     downloadNotice.value = '已生成下载文件，请在浏览器下载列表中查看。';
+    // 浮动提示几秒后自行消失，不占用工具栏的行高。
+    const shown = downloadNotice.value;
+    if (downloadNoticeTimer !== undefined) clearTimeout(downloadNoticeTimer);
+    downloadNoticeTimer = setTimeout(() => {downloadNoticeTimer = undefined; if (downloadNotice.value === shown) downloadNotice.value = '';}, 5000);
     downloadProgress.value = '';
     downloadDialog.value?.close();
   } catch (error) {
@@ -1427,9 +1493,12 @@ onMounted(() => {
   colorSchemeMedia.addEventListener?.('change', applyTheme);
   window.addEventListener('pagehide', resetDocument);
   window.addEventListener('beforeunload', guardBeforeUnload);
+  window.addEventListener('keydown', leaveFocusOnEscape);
+  window.document.addEventListener?.('fullscreenchange', leaveFocusWithFullscreen);
   void refreshHistory();
   const source = readPdfSourceFragment(window.location.hash || '');
   if (source) {onlinePdfUrl.value = source; void openOnlinePdf();}
+  else void restoreOpenDocument();
 });
 
 onUnmounted(() => {
@@ -1440,5 +1509,7 @@ onUnmounted(() => {
   colorSchemeMedia.removeEventListener?.('change', applyTheme);
   window.removeEventListener('pagehide', resetDocument);
   window.removeEventListener('beforeunload', guardBeforeUnload);
+  window.removeEventListener('keydown', leaveFocusOnEscape);
+  window.document.removeEventListener?.('fullscreenchange', leaveFocusWithFullscreen);
 });
 </script>

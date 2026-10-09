@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/history.ts
  * 文件职责：在浏览器本地保存最近翻译过的文档及其译文，使文档翻译首页可以列出记录并一键恢复阅读。
- * 主要内容：以文件内容摘要为稳定标识，在独立的 IndexedDB 库中保存原始文件字节、译文、进度与设置指纹；列表只返回不含文件字节的摘要并按最近更新时间排序；超过条数或总字节上限时淘汰最旧的记录；数据库不可用或读写失败时安静降级为“没有记录”，不影响打开和翻译文档。
+ * 主要内容：以文件内容摘要为稳定标识，在独立的 IndexedDB 库中保存原始文件字节、解析结果快照、译文、进度与设置指纹；列表只返回不含文件字节的摘要并按最近更新时间排序；超过条数或总字节上限时淘汰最旧的记录；数据库不可用或读写失败时安静降级为“没有记录”，不影响打开和翻译文档。
  * 模块边界：只负责本地存取，不解析文档、不发起翻译、不读取配置，也不把任何内容发送到网络；页面状态与何时保存由文档页面组合根决定。
  */
 
@@ -27,6 +27,9 @@ export interface DocumentHistoryRecord extends DocumentHistorySummary {
     translations: string[];
     /** 生成这些译文时的语言、服务与术语设置；恢复后据此判断设置是否已经改变。 */
     fingerprint: string;
+    /** 解析结果的快照与产生它的解析版本：版本一致时刷新可以直接还原，不必重新解析文件。 */
+    parsed?: unknown;
+    parsedVersion?: number;
 }
 export interface DocumentHistory {
     list(): Promise<DocumentHistorySummary[]>;

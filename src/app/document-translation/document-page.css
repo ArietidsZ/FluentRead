@@ -556,3 +556,29 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 .is-workspace .document-sidebar { overflow: hidden; }
 .is-workspace .document-sidebar .document-batch, .is-workspace .document-sidebar .sidebar-outline { flex: 1 1 0; min-height: 0; margin-bottom: 0; overflow-y: auto; scrollbar-width: thin; }
 .document-sidebar .document-settings-button { margin-top: 10px; background: var(--surface); }
+/* 专注阅读：只留文档；退出按钮平时隐去，指针移到顶部才出现。 */
+.focus-toggle { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; }
+.focus-toggle svg { width: 17px; height: 17px; }
+.focus-toggle:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.is-focus .document-taskbar, .is-focus .document-sidebar { display: none !important; }
+.is-focus .document-reading-pane { grid-column: 1 / -1; grid-row: 1 / -1; }
+.focus-exit { position: fixed; top: 0; left: 50%; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; color: var(--ink); background: var(--surface); box-shadow: 0 8px 24px #10182826; font-size: 12px; transform: translate(-50%, -100%); opacity: 0; transition: transform .18s, opacity .18s; cursor: pointer; }
+.focus-exit::before { content: ""; position: absolute; inset: 100% -200px -18px; }
+.focus-exit:hover, .focus-exit:focus-visible { transform: translate(-50%, 0); opacity: 1; }
+.focus-exit kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font: 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* 侧栏底部只留一行“源语言与术语库”入口；工具栏已能直接选服务与目标语言。 */
+.document-sidebar .document-settings-button { flex-direction: row; align-items: center; gap: 8px; height: 36px; margin-top: 8px; padding: 0 10px; border: 0; border-radius: 9px; color: var(--muted); font-size: 12px; }
+.document-sidebar .document-settings-button:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.document-sidebar .document-settings-button svg { flex: none; width: 16px; height: 16px; }
+.document-sidebar .document-settings-button strong { font-weight: 500; }
+.document-sidebar .document-settings-button > span, .document-sidebar .document-settings-button small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.is-workspace .document-sidebar { position: relative; }
+/* 刷新恢复期间保持阅读区底色；瞬时提示以浮层出现，不推动版面。 */
+.document-app.is-restoring { background: #eceff5; }
+.document-app.is-restoring.dark { background: #12161d; }
+.restoring-section { display: grid; place-items: center; min-height: 100dvh; }
+.restoring-section .spinner { width: 22px; height: 22px; margin: 0; }
+.is-restoring .document-main { width: 100%; padding: 0; }
+.taskbar-toast { position: absolute; top: calc(100% + 10px); left: 50%; z-index: 25; margin: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); box-shadow: 0 10px 28px #10182826; font-size: 12px; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
+.taskbar-toast { animation: taskbar-toast-in .2s ease-out; }
+@keyframes taskbar-toast-in { from { opacity: 0; transform: translate(-50%, -6px); } }

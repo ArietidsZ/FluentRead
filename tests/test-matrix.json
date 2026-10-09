@@ -383,6 +383,8 @@
       "tests/documentPdfRotation.test.ts",
       "tests/pdfReaderLifecycle.test.ts",
       "tests/pdfReadingPlan.test.ts",
+      "tests/pdfBlockFit.test.ts",
+      "tests/documentHistory.test.ts",
       "tests/pdfLayoutAnalysis.test.ts",
       "tests/documentPdfLayoutParsing.test.ts",
       "tests/pdfSource.test.ts",

@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/translation.ts
  * 文件职责：编排文档片段的批量翻译流程，在固定语言和服务快照下按数量及字符预算拆批，并向调用方持续报告确定性进度。
- * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，提交前移除服务凭空加入的表情符号，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
+ * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，提交前移除服务凭空加入的表情符号，请求失败时可按退避间隔自动重试并向页面报告原因，被服务原样返回的专名与短词保留原文而不中断全文，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
  * 模块边界：该层不解析文件、不持久化配置，也不直接绑定具体 provider；上层负责冻结用户设置并注入 gateway，文档结构由 core 提供，网络和缓存语义由应用翻译客户端承担。
  */
 import {TranslationRequestError} from '@/src/services/translation/errors';
@@ -29,6 +29,13 @@ export interface DocumentTranslationOptions {
     prioritize?: (pending: readonly DocumentSegment[]) => readonly DocumentSegment[];
     /** 收紧单批的片段数与字符数，译文可以更细地逐批显示；只能小于默认上限。 */
     batchLimits?: {items?: number; characters?: number};
+    /**
+     * 请求失败时按 2、4、8…秒（单次不超过 30 秒）退避重试，累计等待不超过 maxWaitMs；
+     * 不提供时保持“失败即停止”。sleep 仅供测试替换计时。
+     */
+    retryBackoff?: {maxWaitMs: number; sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>};
+    /** 每次退避开始前通知页面：第几次重试、要等多久、上一次失败的原因。 */
+    onRetry?: (retry: {attempt: number; delayMs: number; reason: string}) => void;
     onSegment?: (segment: {id: number; translation: string}) => void;
     onProgress?: (progress: DocumentTranslationProgress) => void;
 }
@@ -134,6 +141,40 @@ function prioritized(queue: DocumentSegment[], prioritize: DocumentTranslationOp
     return unique.size === queue.length && ordered.every(segment => known.has(segment)) ? [...ordered] : queue;
 }
 
+/**
+ * 专名、缩写、单位和表格里的短词译成目标语言后常与原文相同，翻译层会把“原样返回”报告为 UNTRANSLATED_RESPONSE。
+ * 对整篇文档来说这不是故障：这类片段保留原文即可，不能让它中断其余几百段的翻译。
+ */
+function untranslatedEcho(error: unknown): boolean {
+    return (error as {code?: unknown} | null)?.code === 'UNTRANSLATED_RESPONSE';
+}
+
+function abortableSleep(milliseconds: number, signal?: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+        const finish = () => {clearTimeout(timer); signal?.removeEventListener('abort', finish); resolve();};
+        const timer = setTimeout(finish, milliseconds);
+        signal?.addEventListener('abort', finish, {once: true});
+    });
+}
+
+/**
+ * 限流、网络抖动或服务原样返回原文多半是暂时的：隔一会儿再试往往就能继续，不必让读者反复手动点“继续翻译”。
+ * 暂停、取消与“翻译已关闭”不重试；等待预算用完后抛出最后一次的错误，由调用方给出失败原因。
+ */
+async function withRetryBackoff<T>(work: () => Promise<T>, options: DocumentTranslationOptions, attempt = 1, waited = 0): Promise<T> {
+    try {
+        return await work();
+    } catch (error) {
+        throwIfAborted(options.signal);
+        const delayMs = Math.min(30_000, 2_000 * 2 ** (attempt - 1), (options.retryBackoff?.maxWaitMs ?? 0) - waited);
+        if (delayMs <= 0 || untranslatedEcho(error) || (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED')) throw error;
+        options.onRetry?.({attempt, delayMs, reason: getErrorMessage(error)});
+        await (options.retryBackoff?.sleep ?? abortableSleep)(delayMs, options.signal);
+        throwIfAborted(options.signal);
+        return withRetryBackoff(work, options, attempt + 1, waited + delayMs);
+    }
+}
+
 const PICTOGRAPH = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
 
 /**
@@ -205,6 +246,7 @@ export function createDocumentSegmentTranslator(
                 queue = prioritized(queue, options.prioritize);
                 const batch = takeBatch(queue, itemLimit, characterLimit);
                 try {
+                    const result = await withRetryBackoff(async () => {
                     const result = await gateway.translateTextBatch(
                         batch.map((segment) => segment.source),
                         context,
@@ -224,10 +266,30 @@ export function createDocumentSegmentTranslator(
                     if (result.length !== batch.length || batch.some((_, index) => typeof result[index] !== 'string' || !result[index].trim())) {
                         throw new Error('翻译服务返回的片段不完整，请重试');
                     }
+                    return result;
+                    }, options);
                     result.forEach((translation, index) => commit(batch[index].id, translation));
                     reportProgress();
                 } catch (error) {
                     throwIfAborted(options.signal);
+                    if (untranslatedEcho(error)) {
+                        // 整批里只要有一段被原样返回就会整批报错；逐段重译，仍被原样返回的那几段保留原文。
+                        for (const segment of batch) {
+                            throwIfAborted(options.signal);
+                            let translation = segment.source;
+                            try {
+                                const received = await gateway.translateText(segment.source, context, {...glossaryOptions, signal: options.signal, pageContext,
+                                    serviceOverride: service, modelOverride: model, sourceLanguage, targetLanguage, maxRetries: options.maxRetries});
+                                if (typeof received === 'string' && received.trim()) translation = received;
+                            } catch (single) {
+                                throwIfAborted(options.signal);
+                                if (!untranslatedEcho(single)) throw new Error(`第 ${segment.id + 1} 段文档翻译失败：${getErrorMessage(single)}`);
+                            }
+                            commit(segment.id, translation);
+                            reportProgress();
+                        }
+                        continue;
+                    }
                     if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') throw error;
                     throw new Error(`第 ${batch[0].id + 1} 段文档翻译失败：${getErrorMessage(error)}`);
                 }
@@ -245,25 +307,30 @@ export function createDocumentSegmentTranslator(
                 if (!segment) return;
 
                 try {
-                    const translation = await gateway.translateText(segment.source, context, {
-                        ...glossaryOptions,
-                        signal: options.signal,
-                        pageContext,
-                        serviceOverride: service,
-                        modelOverride: model,
-                        sourceLanguage,
-                        targetLanguage,
-                        maxRetries: options.maxRetries,
-                    });
+                    const translation = await withRetryBackoff(async () => {
+                        const received = await gateway.translateText(segment.source, context, {
+                            ...glossaryOptions,
+                            signal: options.signal,
+                            pageContext,
+                            serviceOverride: service,
+                            modelOverride: model,
+                            sourceLanguage,
+                            targetLanguage,
+                            maxRetries: options.maxRetries,
+                        });
+                        // 其他 worker 已经失败时不再为这一段重试。
+                        if (!stopped && (typeof received !== 'string' || !received.trim())) throw new Error('翻译服务返回空译文，请重试');
+                        return received;
+                    }, options);
                     // Promise.all 会在首个 worker 失败时立即 reject；其余在途请求仍会稍后结束。
                     // 步骤 1：失败后不再上报过期进度，也不继续认领新的文档片段。
                     if (stopped) return;
                     throwIfAborted(options.signal);
-                    if (typeof translation !== 'string' || !translation.trim()) throw new Error('翻译服务返回空译文，请重试');
                     commit(segment.id, translation);
                     reportProgress();
                 } catch (error) {
                     if (stopped) return;
+                    if (!options.signal?.aborted && untranslatedEcho(error)) {commit(segment.id, segment.source); reportProgress(); continue;}
                     stopped = true;
                     if (options.signal?.aborted) throwIfAborted(options.signal);
                     if (error instanceof TranslationRequestError && error.code === 'TRANSLATION_DISABLED') throw error;

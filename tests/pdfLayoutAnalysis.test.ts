@@ -134,3 +134,112 @@ describe('PDF baseline and structural reading analysis', () => {
         expect(math.preservedRegions.find(region => region.kind === 'figure')?.y).toBe(84);
     });
 });
+
+describe('PDF layout analysis on real paper typography', () => {
+    const words = (text: string, x: number, baseline: number, gap: number, fontSize = 10) => {let at = x; return text.split(' ').map(word => {const item = atom(word, at, baseline, word.length * 5, fontSize); at += word.length * 5 + gap; return item;});};
+    it('keeps a loosely justified line whole between dense neighbours while still splitting real column gutters', () => {
+        const dense = (baseline: number) => atom('dense line of ordinary body text that fills the entire column', 50, baseline, 240);
+        const lines = pdfLayoutLines([dense(100), ...words('only reading times but also neural responses', 50, 112, 11), dense(124)]);
+        expect(lines.map(line => line.text)).toEqual(['dense line of ordinary body text that fills the entire column', 'only reading times but also neural responses', 'dense line of ordinary body text that fills the entire column']);
+        // 左栏松散、右栏正常：只有被上下行共同让出的栏间距才断开。
+        const columns = pdfLayoutLines([dense(100), atom('right column line one', 330, 100, 220), ...words('only reading times but also neural', 50, 112, 11), ...words('right column line two has many small gaps', 330, 112, 3), dense(124), atom('right column line three', 330, 124, 220)]);
+        expect(columns.filter(line => line.baseline === 112).map(line => line.text)).toEqual(['only reading times but also neural', 'right column line two has many small gaps']);
+    });
+    it('does not split an isolated numbered example at a small gap but splits isolated rows at wide gaps', () => {
+        const lines = pdfLayoutLines([atom('(2)', 45, 60, 11), atom('The children went outside to. . .', 65, 60, 120), atom('Running header', 200, 30, 140, 6), atom('303', 500, 30, 12, 6)]);
+        expect(lines.map(line => line.text)).toEqual(['Running header', '303', '(2) The children went outside to. . .']);
+        // 一侧被上方通栏内容占用、另一侧没有邻行：宽间距仍按栏间距处理，窄间距不拆。
+        const band = pdfLayoutLines([atom('A full width paragraph line that crosses the gutter completely here', 50, 100, 500), atom('Left start', 50, 112, 200), atom('Right start', 330, 112, 200)]);
+        expect(band.map(line => line.text)).toEqual(['A full width paragraph line that crosses the gutter completely here', 'Left start', 'Right start']);
+        const narrow = pdfLayoutLines([atom('A full width paragraph line that crosses the gutter completely here', 50, 100, 500), atom('word', 50, 112, 20), atom('next', 82, 112, 20)]);
+        expect(narrow.at(-1)!.text).toBe('word next');
+    });
+    it('classifies running headers and footers only when they are detached from the text block', () => {
+        const page = analyze([atom('N.J. Smith / Cognition 128 (2013)', 200, 36, 150, 6.4), atom('303', 500, 36, 12, 6.4), atom('Body paragraph starts well below the running header.', 40, 70, 400), atom('It continues on the next line of the same paragraph.', 40, 82, 400), atom('Downloaded from example.org', 40, 780, 150, 6.4)]);
+        expect(page.blocks.filter(block => block.kind === 'footer').map(block => block.source)).toEqual(['N.J. Smith / Cognition 128 (2013)', '303', 'Downloaded from example.org']);
+        expect(page.blocks.find(block => block.source.startsWith('Body'))).toMatchObject({kind: 'text', readingOrder: 2});
+        // 贴近页顶的正文首行、以及页顶的大号幻灯片标题都不是页眉。
+        const attached = analyze([atom('First body line sits near the top edge', 40, 40, 300), atom('and continues right below it.', 40, 52, 300)]);
+        expect(attached.blocks.map(block => block.kind)).toEqual(['text']);
+        const slide = analyze([atom('Slide title', 40, 40, 200, 24), atom('Body copy of the slide is much smaller than its title text.', 40, 200, 400), atom('Second line of body copy keeps the body font dominant.', 40, 212, 400)]);
+        expect(slide.blocks[0]).toMatchObject({kind: 'heading', source: 'Slide title'});
+    });
+    it('recognises dotted section numbers, appendix and acknowledgement headings, and rejects numbered list items and mid-paragraph numbers', () => {
+        const body = (text: string, baseline: number, x = 40, width = 240) => atom(text, x, baseline, width);
+        const result = analyze([atom('1. Introduction', 40, 100, 70), body('Making predictions about the future is a necessary part.', 121), body('It continues for another complete line of running text here', 133),
+            atom('2. Theories relating word predictability and reading', 40, 170, 230), atom('time', 40, 182, 20), body('The simplest curve relates the two quantities directly today.', 203),
+            atom('Acknowledgments', 40, 240, 80), body('This work was supported by a grant from a public agency.', 261),
+            atom('Appendix A. Supplementary material', 40, 300, 160), body('Supplementary data are available online for this article now.', 321),
+            atom('1. Omitting them could induce overconfidence in the', 44, 360, 236), atom('parametric form of the model.', 54, 372, 150),
+            body('We retrieved the trace and compared the durations of the', 420), atom('4 PP stages within the same group of ranks across', 40, 432, 236), body('PP group, as shown in the figure. The timeline exhibits', 444),
+            atom('1 Note that the term refers to something specific here', 40, 500, 200, 6.4), atom('10 MB to 2.7 KB per rank per step. Its progressive diagno-', 300, 100, 240), atom('sis framework isolates anomalous windows automatically.', 300, 112, 240)]);
+        const headings = result.blocks.filter(block => block.kind === 'heading').map(block => block.source);
+        expect(headings).toEqual(['1. Introduction', '2. Theories relating word predictability and reading time', 'Acknowledgments', 'Appendix A. Supplementary material']);
+        expect(result.blocks.find(block => block.source.startsWith('1. Omitting'))).toMatchObject({kind: 'text', lineCount: 2});
+        expect(result.blocks.find(block => block.source.includes('4 PP stages'))).toMatchObject({kind: 'text', lineCount: 3});
+        expect(result.blocks.find(block => block.source.startsWith('1 Note'))?.kind).toBe('text');
+        expect(result.blocks.find(block => block.source.startsWith('10 MB'))).toMatchObject({kind: 'text', lineCount: 2});
+    });
+    it('joins wrapped titles, including centred ones, without absorbing the next numbered heading or a full first body line', () => {
+        const left = analyze([atom('The effect of word predictability on reading time', 40, 100, 300, 14), atom('is logarithmic', 40, 117, 90, 14), atom('Nathaniel Smith, Roger Levy', 40, 140, 170, 10.6), atom('Department of Cognitive Science, University of California', 40, 156, 250, 6.4), atom('Department of Linguistics, University of California too', 40, 164, 250, 6.4),
+            ...Array.from({length: 6}, (_, index) => atom('Ordinary body text keeps the dominant font size of the page.', 40, 300 + index * 12, 300, 8))]);
+        expect(left.blocks[0]).toMatchObject({kind: 'heading', source: 'The effect of word predictability on reading time is logarithmic', lineCount: 2});
+        expect(left.blocks[1]).toMatchObject({source: 'Nathaniel Smith, Roger Levy', lineCount: 1});
+        expect(left.blocks[2]).toMatchObject({kind: 'text', lineCount: 2, fontSize: 6.4});
+        const centred = analyze([atom('ARGUS: Production-Scale Tracing and Performance', 150, 100, 312, 14), atom('Diagnosis for over 10,000-GPU Clusters', 186, 117, 240, 14), atom('2 Motivation and Design Space', 40, 200, 180, 12), atom('2.1 Motivation', 40, 216, 80, 12),
+            ...Array.from({length: 6}, (_, index) => atom('Ordinary body text keeps the dominant font size of the page.', 40, 300 + index * 12, 300, 8))]);
+        expect(centred.blocks.filter(block => block.kind === 'heading').map(block => block.source)).toEqual(['ARGUS: Production-Scale Tracing and Performance Diagnosis for over 10,000-GPU Clusters', '2 Motivation and Design Space', '2.1 Motivation']);
+    });
+    it('separates numbered examples and hanging-indent entries while keeping their continuation lines', () => {
+        const result = analyze([atom('(3) After the show, a performer who had really', 45, 100, 200), atom('impressed the audience bowed.', 65, 112, 130), atom('(4) After the show, a performer bowed who had', 45, 124, 200), atom('really impressed the audience.', 65, 136, 130),
+            atom('Frost, R. (1998). Toward a strong phonological theory of words.', 300, 100, 240), atom('Psychological Bulletin, 123(1), 71-99.', 312, 112, 160), atom('Genzel, D., and Charniak, E. (2002). Entropy rate constancy.', 300, 124, 240), atom('In Proceedings of the annual meeting of the association.', 312, 136, 228), atom('Hale, J. (2001). A probabilistic Earley parser as a model.', 300, 148, 240)]);
+        expect(result.blocks.map(block => block.source)).toEqual(['(3) After the show, a performer who had really impressed the audience bowed.', '(4) After the show, a performer bowed who had really impressed the audience.',
+            'Frost, R. (1998). Toward a strong phonological theory of words. Psychological Bulletin, 123(1), 71-99.', 'Genzel, D., and Charniak, E. (2002). Entropy rate constancy. In Proceedings of the annual meeting of the association.', 'Hale, J. (2001). A probabilistic Earley parser as a model.']);
+    });
+    it('preserves symbol-font equations and wordless fragments but keeps justified prose containing an equals sign', () => {
+        const prose = (text: string, baseline: number) => atom(text, 40, baseline, 240);
+        const result = analyze([prose('conditional probability then let us decompose the lexical', 100), atom('PðwhojCÞ ¼ Pðrel: clausejCÞ', 40, 124, 190), prose('The first term measures the syntactic predictability here', 148),
+            prose('processed as /kan-/, /-di/ then k = 2; processing it as /k-/,', 160), prose('uously gives k = 1.) And, let f(x) be the function that gives', 172), atom('lim', 300, 200, 14), atom('k!1', 300, 208, 14, 6), atom('Xk', 330, 200, 12), atom('续文', 300, 260, 24)]);
+        expect(result.preservedRegions.filter(region => region.kind === 'formula').map(region => region.source)).toEqual(['PðwhojCÞ ¼ Pðrel: clausejCÞ']);
+        expect(result.blocks.find(block => block.source.includes('processed as'))).toMatchObject({kind: 'text', preserveSource: false});
+        expect(result.blocks.filter(block => ['lim', 'k!1', 'Xk'].includes(block.source)).every(block => block.kind === 'formula' && block.preserveSource)).toBe(true);
+        expect(result.blocks.find(block => block.source === '续文')).toMatchObject({kind: 'text', preserveSource: false});
+    });
+    it('cuts figures at their captions, keeps the picture below as its own figure and treats sentences inside a figure box as prose', () => {
+        const atoms = [atom('axis label', 120, 140, 50, 6), atom('Figure 12. Case 2: trace of communication kernels. Rank 7', 100, 212, 300, 9), atom('shows longer operations in its own group.', 100, 223, 220, 9), atom('PP Stage 0', 110, 300, 50, 6),
+            atom('Figure 13. Case 3: a short caption.', 100, 362, 180, 9), atom('We further verified this through the trace, as shown in the figure above and', 100, 390, 300), atom('It reveals a gap.', 100, 402, 80)];
+        const result = analyze(atoms, [{kind: 'image', x: 100, y: 100, width: 300, height: 310}]);
+        expect(result.preservedRegions.map(region => [region.kind, Math.round(region.y), Math.round(region.height)])).toEqual([['figure', 100, 103], ['figure', 227, 126], ['figure', 366, 44]]);
+        expect(result.blocks.filter(block => block.kind === 'caption').map(block => block.source)).toEqual(['Figure 12. Case 2: trace of communication kernels. Rank 7 shows longer operations in its own group.', 'Figure 13. Case 3: a short caption.']);
+        expect(result.blocks.filter(block => block.kind === 'figure-label').map(block => block.source).sort()).toEqual(['PP Stage 0', 'axis label']);
+        expect(result.blocks.find(block => block.source.startsWith('We further verified'))).toMatchObject({kind: 'text', preserveSource: false, lineCount: 2});
+        // 题注下方不足一行高的残余不是另一张图。
+        const tail = analyze([atom('Figure 2. The caption sits at the very bottom of the box.', 100, 190, 280, 9)], [{kind: 'image', x: 100, y: 100, width: 300, height: 100}]);
+        expect(tail.preservedRegions).toHaveLength(1);
+    });
+    it('turns worded table cells into separate translatable cells and joins only hyphenated or lower-case continuations', () => {
+        const rules = [80, 100, 190].map(y => ({kind: 'path' as const, x: 40, y, width: 500, height: 0}));
+        const result = analyze([atom('Category', 50, 94, 50), atom('Symptom', 300, 94, 50), atom('PCIe bandwidth degrada-', 50, 114, 120), atom('tion', 50, 126, 20), atom('Hidden size', 50, 138, 60), atom('Sequence length', 50, 150, 80),
+            atom('Straggler rank identified', 300, 114, 130), atom('(via compute kernels)', 300, 126, 110), atom('2048', 300, 138, 20), atom('4096', 300, 150, 20)], rules);
+        expect(result.blocks.filter(block => block.kind === 'table').map(block => [block.source, block.preserveSource])).toEqual([['Category', false], ['PCIe bandwidth degradation', false], ['Hidden size', false], ['Sequence length', false], ['Symptom', false], ['Straggler rank identified (via compute kernels)', false], ['2048', true], ['4096', true]]);
+    });
+    it('splits a narrow but consistent gutter, rejoins a section number with its title and tolerates zero-size glyphs', () => {
+        // 栏间距只有 1.4 个字宽，但明显大于词距且上下行都让出这条竖带。
+        const row = (baseline: number) => [...words('left column words here', 50, baseline, 3), ...words('right column words here', 168, baseline, 3)];
+        const narrow = pdfLayoutLines([...row(100), ...row(112), ...row(124)]);
+        expect(narrow.filter(line => line.baseline === 112).map(line => line.text)).toEqual(['left column words here', 'right column words here']);
+        // 相邻两行的编号与标题之间都留白：先按竖带断开，再把编号并回标题。
+        const numbered = pdfLayoutLines([atom('1', 50, 80, 5, 12), atom('Introduction', 69, 80, 90, 12), atom('2', 50, 100, 5, 12), atom('Methods', 69, 100, 60, 12)]);
+        expect(numbered.map(line => line.text)).toEqual(['1 Introduction', '2 Methods']);
+        expect(pdfLayoutLines([atom('x', 0, 0, 5, 0)])).toHaveLength(1);
+    });
+    it('attaches a line to the most recent of two eligible paragraphs and rejects a long numbered line that continues below', () => {
+        const result = analyze([atom('First paragraph ends here.', 50, 100, 200), atom('indented note keeps going', 60, 106, 200), atom('and this line continues the note', 50, 112, 200)]);
+        expect(result.blocks.map(block => block.source)).toEqual(['First paragraph ends here.', 'indented note keeps going and this line continues the note']);
+        const footnote = analyze([atom('1 Note that the term frequency refers to something specific', 40, 100, 260), atom('and it continues on a second full line of the same footnote.', 40, 112, 260)]);
+        expect(footnote.blocks).toHaveLength(1); expect(footnote.blocks[0]).toMatchObject({kind: 'text', lineCount: 2});
+    });
+    it('falls back to a default body size when a page only has tiny glyphs', () => {
+        expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
+    });
+});

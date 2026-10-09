@@ -2058,11 +2058,11 @@ onBeforeUnmount(() => {
 <style scoped>
 .fr-selection-translator-root { position: fixed; inset: 0; z-index: 2147483647; width: 100vw; height: 100vh; pointer-events: none; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #25252a; }
 .fr-selection-indicator, .fr-translation-tooltip, .fr-copy-success-toast, .fr-action-toast { pointer-events: auto; }
-.fr-selection-indicator { position: fixed; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 1px solid #f3c3d2; border-radius: 7px; transform: translate(-50%, -50%); background: #fff; color: #d83160; box-shadow: 0 2px 8px rgba(40, 35, 43, .2), 0 0 0 2px rgba(255, 255, 255, .85); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; }
-.fr-selection-indicator--dot { width: 8px; height: 8px; border:0; border-radius:50%; background:#ef4b86; box-shadow: 0 1px 4px rgba(40, 35, 43, .14); }
+.fr-selection-indicator { position: fixed; width: 22px; height: 22px; padding: 0; border: 1px solid #f3c3d2; border-radius: 7px; transform: translate(-50%, -50%); background: #fff; color: #d83160; box-shadow: 0 2px 8px rgba(40, 35, 43, .2); cursor: pointer; transition: transform .14s ease, box-shadow .14s ease; }
+.fr-selection-indicator--dot { width: 8px; height: 8px; border:0; border-radius:50%; background:#ef4b86; }
 .fr-selection-indicator--dot .fr-selection-indicator-glyph { display: none; }
 .fr-selection-indicator:hover, .fr-selection-indicator:focus-visible { transform: translate(-50%, -50%) scale(1.1); color:#b8416b; border-color:#d889a5; box-shadow:0 2px 7px rgba(40, 35, 43, .18); outline:2px solid #f0cede; outline-offset:2px; }
-.fr-selection-indicator-glyph { font-size: 12px; font-weight: 700; line-height: 1; font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.fr-selection-indicator-glyph { font-size: 12px; font-weight: 700; line-height: 1; }
 .fr-translation-tooltip, .fr-translation-tooltip * { box-sizing: border-box; }
 .fr-translation-tooltip { position: fixed; display: flex; flex-direction: column; width: min(388px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 20px)); overflow: hidden; border: 1px solid rgba(35, 35, 43, .12); border-radius: 11px; background: #fff; box-shadow: 0 5px 20px rgba(35, 33, 43, .12); -webkit-user-select: none; user-select: none; }
 .fr-translation-tooltip > .fr-tooltip-header { cursor: move; touch-action: none; }

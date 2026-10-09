@@ -37,6 +37,12 @@ export const translateDocumentSegments = createDocumentSegmentTranslator({
     translateTextBatch,
 });
 
+/**
+ * 文档页的失败重试预算：限流或暂时不可用时自动退避，累计最多等两分钟。
+ * 作为可替换的组合根设置导出，测试可以把等待换成即时完成而不改变页面逻辑。
+ */
+export const documentRetryBackoff: {maxWaitMs: number; sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>} = {maxWaitMs: 120_000};
+
 /** 浏览器组合根为 PDF 下载注入 Canvas rasterizer；其他格式仍走同一纯二进制服务。 */
 export function createDocumentDownload(
     document: ParsedDocument,

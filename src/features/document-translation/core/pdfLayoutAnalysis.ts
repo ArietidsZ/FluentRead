@@ -215,7 +215,14 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     }
     const tables = tableRegions(input.graphics, input.width, figures);
     const regions: PdfPreservedRegion[] = [...figures.map((box, index) => ({...box, id: `figure-${index + 1}`, kind: 'figure' as const})), ...tables.map((box, index) => ({...box, id: `table-${index + 1}`, kind: 'table' as const}))];
-    const ordinary = lines.filter(line => !regions.some(region => coversLine(region, line)));
+    // 图形包围盒可能跨栏并圈入下方的正文：图内只有短标签属于图形，题注、成句的行以及紧随成句行的续行仍是正文。
+    const prose = new Set<LayoutLine>();
+    for (const line of lines) {
+        if (captionStart.test(line.text) || line.text.split(/\s+/u).length >= 7) prose.add(line);
+        else if (lines.some(near => near.text.split(/\s+/u).length >= 7 && near.baseline < line.baseline && line.baseline - near.baseline <= near.fontSize * 1.5 && Math.abs(near.fontSize - line.fontSize) <= 0.6 && line.x >= near.x - 1 && line.x - near.x <= font * 2.2 && right(line) <= right(near) + 2)) prose.add(line);
+    }
+    const inRegion = (region: PdfPreservedRegion, line: LayoutLine) => coversLine(region, line) && !(region.kind === 'figure' && prose.has(line));
+    const ordinary = lines.filter(line => !regions.some(region => inRegion(region, line)));
     const formulas = ordinary.filter(line => formulaLine(line, input.width, ordinary, font));
     for (const line of formulas) {
         let bounds: Rectangle = line;
@@ -229,7 +236,7 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         else regions.push({...bounds, id: `formula-${regions.filter(region => region.kind === 'formula').length + 1}`, kind: 'formula'});
     }
     // 记录原区域字形，阅读排版仍使用原页像素，不根据扁平字符串重建公式或表格。
-    regions.forEach(region => {region.source = lines.filter(line => coversLine(region, line)).map(line => line.text).join(' ');});
+    regions.forEach(region => {region.source = lines.filter(line => inRegion(region, line)).map(line => line.text).join(' ');});
     const authorRows = ordinary.filter(line => line.y < input.height * 0.45 && line.width < input.width * 0.35);
     const authorBuckets = new Map<number, LayoutLine[]>();
     for (const line of authorRows) {const key = Math.round(line.baseline / 2); const bucket = authorBuckets.get(key) || []; bucket.push(line); authorBuckets.set(key, bucket);}
@@ -262,7 +269,7 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     };
     for (const line of lines) {
         active = active.filter(draft => line.baseline - draft.lines.at(-1)!.baseline <= Math.max(font, draft.lines.at(-1)!.fontSize) * 1.7);
-        const region = regions.find(region => coversLine(region, line));
+        const region = regions.find(region => inRegion(region, line));
         const kind = region ? region.kind === 'figure' ? 'figure-label' : region.kind : classify(line);
         let selected: Draft | undefined;
         if (kind !== 'footer' && !/^\(\d+\)\s/u.test(line.text)) {

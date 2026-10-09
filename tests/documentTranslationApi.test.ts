@@ -445,3 +445,101 @@ describe('document translation reading-order priority and batch sizing', () => {
         expect(committed).toEqual(['如果 g~x 是线性函数']);
     });
 });
+
+describe('document translation retry backoff', () => {
+    const segments = [{id: 0, source: 'First'}, {id: 1, source: 'Second'}];
+    const sleeper = () => {const waits: number[] = []; return {waits, sleep: async (milliseconds: number) => {waits.push(milliseconds);}};};
+
+    it('retries a failing batch with growing waits and reports each retry before continuing', async () => {
+        mocks.translateTextBatch.mockRejectedValueOnce(new Error('429 rate limited')).mockResolvedValueOnce(['First']).mockResolvedValueOnce(['译一', '译二']);
+        const {waits, sleep} = sleeper(); const retries: Array<{attempt: number; delayMs: number; reason: string}> = [];
+        const result = await translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 120_000, sleep}, onRetry: retry => retries.push(retry)});
+        expect(result).toEqual(['译一', '译二']); expect(waits).toEqual([2000, 4000]);
+        expect(retries).toEqual([{attempt: 1, delayMs: 2000, reason: '429 rate limited'}, {attempt: 2, delayMs: 4000, reason: '翻译服务返回的片段不完整，请重试'}]);
+    });
+
+    it('caps a single wait at thirty seconds, spends at most the budget and then fails with the last reason', async () => {
+        mocks.translateTextBatch.mockRejectedValue(new Error('service unavailable'));
+        const {waits, sleep} = sleeper();
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 120_000, sleep}})).rejects.toThrow('第 1 段文档翻译失败：service unavailable');
+        expect(waits).toEqual([2000, 4000, 8000, 16000, 30000, 30000, 30000]); expect(waits.reduce((sum, value) => sum + value, 0)).toBe(120_000);
+        expect(mocks.translateTextBatch).toHaveBeenCalledTimes(8);
+    });
+
+    it('does not retry without a budget, after the user disables translation, or once the task is cancelled', async () => {
+        mocks.translateTextBatch.mockRejectedValue(new Error('offline'));
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf'})).rejects.toThrow('offline');
+        expect(mocks.translateTextBatch).toHaveBeenCalledTimes(1);
+        mocks.translateTextBatch.mockReset().mockRejectedValue(new TranslationRequestError({kind: 'config', retryable: false, message: 'off', code: 'TRANSLATION_DISABLED'} as never));
+        const {waits, sleep} = sleeper();
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 120_000, sleep}})).rejects.toMatchObject({code: 'TRANSLATION_DISABLED'});
+        expect(waits).toEqual([]);
+        mocks.translateTextBatch.mockReset().mockRejectedValue(new Error('offline'));
+        const controller = new AbortController();
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', signal: controller.signal, retryBackoff: {maxWaitMs: 120_000, sleep: async () => {controller.abort();}}})).rejects.toMatchObject({name: 'AbortError'});
+        expect(mocks.translateTextBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits on a real timer that an abort signal cuts short', async () => {
+        vi.useFakeTimers();
+        try {
+            mocks.translateTextBatch.mockRejectedValueOnce(new Error('busy')).mockResolvedValueOnce(['译一', '译二']);
+            const pending = translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 120_000}});
+            await vi.advanceTimersByTimeAsync(2000);
+            expect(await pending).toEqual(['译一', '译二']);
+            mocks.translateTextBatch.mockReset().mockRejectedValue(new Error('busy'));
+            const controller = new AbortController();
+            const cancelled = translateDocumentSegments(segments, {fileName: 'paper.pdf', signal: controller.signal, retryBackoff: {maxWaitMs: 120_000}});
+            const outcome = expect(cancelled).rejects.toMatchObject({name: 'AbortError'});
+            await vi.advanceTimersByTimeAsync(10); controller.abort(); await outcome;
+            expect(vi.getTimerCount()).toBe(0);
+        } finally {vi.useRealTimers();}
+    });
+
+    it('retries single-request services per segment, including empty answers, and stops retrying once another worker failed', async () => {
+        mocks.defaultService = 'openai';
+        let firstCalls = 0;
+        mocks.translateText.mockImplementation(async (source: string) => source === 'First' ? (firstCalls += 1) === 1 ? '' : '译一' : '译二');
+        const {waits, sleep} = sleeper();
+        expect(await translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 120_000, sleep}})).toEqual(['译一', '译二']);
+        expect(waits).toEqual([2000]); expect(firstCalls).toBe(2);
+        mocks.translateText.mockReset().mockImplementation(async (source: string) => {if (source === 'First') throw new Error('first failed'); return '';});
+        const second = sleeper();
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', retryBackoff: {maxWaitMs: 4000, sleep: second.sleep}})).rejects.toThrow('文档翻译失败');
+    });
+});
+
+describe('document translation keeps going when a service echoes names and short terms', () => {
+    const echo = () => Object.assign(new Error('翻译服务连续返回未翻译的原文'), {code: 'UNTRANSLATED_RESPONSE'});
+    const segments = [{id: 0, source: 'Latency'}, {id: 1, source: 'ARGUS'}, {id: 2, source: 'Seconds'}, {id: 3, source: 'A full sentence follows the table.'}];
+
+    it('re-translates an echoed batch segment by segment, keeps the source for terms that stay unchanged and continues with later batches', async () => {
+        mocks.translateTextBatch.mockRejectedValueOnce(echo()).mockResolvedValueOnce(['表格之后是一个完整的句子。']);
+        mocks.translateText.mockImplementation(async (source: string) => {if (source === 'ARGUS') throw echo(); return source === 'Seconds' ? '  ' : '延迟';});
+        const committed: Array<[number, string]> = []; const waits: number[] = [];
+        const result = await translateDocumentSegments(segments, {fileName: 'paper.pdf', batchLimits: {items: 3}, retryBackoff: {maxWaitMs: 120_000, sleep: async milliseconds => {waits.push(milliseconds);}}, onSegment: ({id, translation}) => committed.push([id, translation])});
+        expect(result).toEqual(['延迟', 'ARGUS', 'Seconds', '表格之后是一个完整的句子。']);
+        expect(committed).toEqual([[0, '延迟'], [1, 'ARGUS'], [2, 'Seconds'], [3, '表格之后是一个完整的句子。']]);
+        // 原样返回不是暂时性故障，不进入退避等待。
+        expect(waits).toEqual([]); expect(mocks.translateTextBatch).toHaveBeenCalledTimes(2);
+    });
+
+    it('still reports a real failure met while re-translating an echoed batch, and stops on cancellation', async () => {
+        mocks.translateTextBatch.mockRejectedValue(echo());
+        mocks.translateText.mockRejectedValue(new Error('quota exceeded'));
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf'})).rejects.toThrow('第 1 段文档翻译失败：quota exceeded');
+        const controller = new AbortController();
+        mocks.translateText.mockReset().mockImplementation(async () => {controller.abort(); throw new Error('late');});
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', signal: controller.signal})).rejects.toMatchObject({name: 'AbortError'});
+        const early = new AbortController();
+        mocks.translateTextBatch.mockReset().mockImplementation(async () => {throw echo();});
+        mocks.translateText.mockReset().mockImplementation(async () => {early.abort(); return '延迟';});
+        await expect(translateDocumentSegments(segments, {fileName: 'paper.pdf', signal: early.signal})).rejects.toMatchObject({name: 'AbortError'});
+    });
+
+    it('keeps the source for an echoed segment on single-request services without stopping the other workers', async () => {
+        mocks.defaultService = 'openai';
+        mocks.translateText.mockImplementation(async (source: string) => {if (source === 'ARGUS') throw echo(); return `译 ${source}`;});
+        expect(await translateDocumentSegments(segments, {fileName: 'paper.pdf'})).toEqual(['译 Latency', 'ARGUS', '译 Seconds', '译 A full sentence follows the table.']);
+    });
+});

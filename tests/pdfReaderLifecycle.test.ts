@@ -34,6 +34,7 @@ let frames: Map<number, FrameRequestCallback>;
 let resizeCallback: ResizeObserverCallback | undefined;
 let disconnect: ReturnType<typeof vi.fn>;
 let mountedApp: any;
+let storage: Map<string, string>;
 
 beforeEach(() => {
     ports.getDocument.mockReset(); ports.textLayers = []; ports.textPending = undefined;
@@ -51,6 +52,8 @@ beforeEach(() => {
     let nextFrame = 1;
     win = Object.assign(new EventTarget(), {location: {origin: 'chrome-extension://fixture'}, devicePixelRatio: 3, getSelection: () => selection, requestAnimationFrame: (callback: FrameRequestCallback) => {const id = nextFrame++; frames.set(id, callback); return id;}, cancelAnimationFrame: (id: number) => {frames.delete(id);}});
     disconnect = vi.fn();
+    // 译文样式保存在本机；每个用例使用独立的内存存储。
+    storage = new Map(); vi.stubGlobal('localStorage', {getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => {storage.set(key, value);}});
     vi.stubGlobal('ResizeObserver', class {constructor(callback: ResizeObserverCallback) {resizeCallback = callback;} observe = vi.fn(); unobserve = vi.fn(); disconnect = disconnect;});
     vi.stubGlobal('document', document); vi.stubGlobal('window', win);
     pdfPage = {getViewport: vi.fn(({scale}: {scale: number}) => ({width: 612 * scale, height: 792 * scale, scale, transform: [scale, 0, 0, -scale, 0, 792 * scale]})), cleanup: vi.fn(), streamTextContent: vi.fn(() => ({fixture: 'text stream'})), render: vi.fn(() => ({promise: Promise.resolve(), cancel: vi.fn()}))};
@@ -356,7 +359,7 @@ describe('PDF reader actual PDF.js resource adapter', () => {
     });
 });
 
-function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = [], options: {presentation?: 'readable' | 'layout'; translating?: boolean} = {}) {
+function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = [], options: {presentation?: 'readable' | 'layout'; translating?: boolean; outlineTarget?: HTMLElement} = {}) {
     const currentDocument = ref(value); const currentMode = ref(mode); const currentTranslations = ref(translations);
     // 不传 presentation 时使用组件默认的原版排版。
     const currentPresentation = ref<'readable' | 'layout' | undefined>(options.presentation); const presentations: string[] = [];
@@ -375,7 +378,7 @@ function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings
         },
     });
     const root = document.createElement('div'); document.body.append(root);
-    mountedApp = renderer.createApp({setup: () => () => h(PdfReader, {document: currentDocument.value, translations: currentTranslations.value, mode: currentMode.value, presentation: currentPresentation.value, translating: currentTranslating.value,
+    mountedApp = renderer.createApp({setup: () => () => h(PdfReader, {document: currentDocument.value, translations: currentTranslations.value, mode: currentMode.value, presentation: currentPresentation.value, translating: currentTranslating.value, outlineTarget: options.outlineTarget ?? null,
         'onUpdate:presentation': (value: 'readable' | 'layout') => {presentations.push(value); currentPresentation.value = value;}, onPageChange: (page: number) => {pageChanges.push(page);}, sourceUrl: 'https://arxiv.org/pdf/1706.03762'})});
     mountedApp.mount(root);
     const state = mountedApp._instance.subTree.component.setupState;
@@ -384,6 +387,8 @@ function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings
     return {root, viewport, state, currentDocument, currentMode, currentTranslations, currentPresentation, currentTranslating, presentations, pageChanges};
 }
 async function componentFlush(): Promise<void> {for (let index = 0; index < 12; index += 1) {await nextTick(); await Promise.resolve();}}
+const click = (element: Element | null | undefined): void => {element!.dispatchEvent(new document.defaultView!.Event('click'));};
+const classes = (element: Element | null | undefined): string[] => (element!.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 function flushFrames(): void {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0));}
 
 describe('PDF reader actual Vue component reading interaction', () => {
@@ -391,8 +396,8 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const translations = Array.from({length: 120}, () => '完整长译文。'.repeat(200));
         const {root, viewport, state, currentMode, currentPresentation} = mountReader(model(120), 'bilingual', translations, {presentation: 'readable'});
         await componentFlush();
-        // 窄屏下原文页高约 474px；视口取 540px，使末页顶部在滚动到底时仍能越过页码计数点（顶部下方 80px）。
-        Object.assign(viewport, {clientWidth: 390, clientHeight: 540});
+        // 窄屏下原文页高约 474px，短于 600px 视口；滚动到底时页码仍须报告末页。
+        Object.assign(viewport, {clientWidth: 390});
         const extent = () => Math.max(0, Number.parseFloat((root.querySelector('.pdf-page-list') as HTMLElement).style.height) - viewport.clientHeight);
         let top = 0;
         // 模拟浏览器对布局更新后的 scrollTop 自动限制；Linkedom 不提供真实滚动几何。
@@ -577,8 +582,12 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const {root, currentMode, currentPresentation, presentations, pageChanges, state} = mountReader(model(3), 'translated', [full, '', ''], {translating: true});
         await vi.waitFor(() => expect(root.querySelector('[data-pdf-resource="translation"]')).toBeTruthy()); await componentFlush();
         expect(currentPresentation.value).toBeUndefined(); expect(state.presentation).toBe('layout'); expect(root.querySelector('.pdf-layout-viewer')!.getAttribute('data-pdf-presentation')).toBe('layout');
-        const select = () => root.querySelector('.pdf-presentation-control select') as HTMLSelectElement;
-        expect(Array.from(select().options).map(option => option.value)).toEqual(['layout', 'readable']);
+        const menu = () => root.querySelector('.pdf-presentation-control.pdf-menu') as HTMLElement;
+        expect(root.querySelector('select')).toBeNull(); expect(menu().querySelector('.pdf-menu-list')).toBeNull();
+        expect(menu().querySelector('.pdf-menu-button')!.textContent).toBe('document.pdfReading.layoutPresentation');
+        click(menu().querySelector('.pdf-menu-button')); await componentFlush();
+        expect([...menu().querySelectorAll('ul.pdf-menu-list[role="listbox"] > li[role="option"]')].map(option => option.getAttribute('data-value'))).toEqual(['layout', 'readable']);
+        click(menu().querySelector('.pdf-menu-button')); await componentFlush(); expect(menu().querySelector('.pdf-menu-list')).toBeNull();
         // 仅译文：译文画布就是页面画布，没有原文栏与原文文字层；放不下的长译文标记溢出但文字完整。
         expect(root.querySelector('[data-pdf-resource="source"]')).toBeNull(); expect(root.querySelector('[data-fluentread-pdf-text]')).toBeNull(); expect(root.querySelectorAll('.pdf-page-column')).toHaveLength(root.querySelectorAll('.pdf-page-column.translated').length);
         const overlay = root.querySelector('.pdf-translation-layer[data-pdf-reading-page="1"] .pdf-translation-block[data-pdf-segment-index="0"]') as HTMLElement;
@@ -589,8 +598,10 @@ describe('PDF reader actual Vue component reading interaction', () => {
         state.jumpTo(3); await componentFlush(); state.jumpTo(3); await componentFlush();
         expect(pageChanges).toEqual([1, 3]); expect(state.currentPage).toBe(3);
         state.jumpTo(1); await componentFlush(); expect(pageChanges).toEqual([1, 3, 1]);
-        const choose = async (value: string) => {Array.from(select().options).find(option => option.value === value)!.selected = true; select().dispatchEvent(new document.defaultView!.Event('change')); await componentFlush(); flushFrames(); await componentFlush();};
-        await choose('readable');
+        const choose = async (value: string) => {click(menu().querySelector('.pdf-menu-button')); await componentFlush(); click(menu().querySelector(`li[data-value="${value}"]`)); await componentFlush(); flushFrames(); await componentFlush(); expect(menu().querySelector('.pdf-menu-list')).toBeNull();};
+        // 选择当前已选的显示方式只收起菜单，不重复发出事件。
+        await choose('layout'); expect(presentations).toEqual([]);
+        await choose('readable'); expect(menu().querySelector('.pdf-menu-button')!.textContent).toBe('document.pdfReading.readablePresentation');
         expect(presentations).toEqual(['readable']); expect(currentPresentation.value).toBe('readable'); expect(root.querySelector('.pdf-layout-viewer')!.getAttribute('data-pdf-presentation')).toBe('readable');
         expect(root.querySelector('.pdf-translation-layer')).toBeNull(); expect(root.querySelector('.pdf-reading-continuation')).toBeNull();
         expect(root.querySelector('.pdf-reading-sheet[data-pdf-reading-page="1"] [data-pdf-segment-index="0"]')!.textContent).toBe(full);
@@ -638,19 +649,22 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const input = root.querySelector('.pdf-page-navigation input') as HTMLInputElement;
         input.value = '3'; input.dispatchEvent(new document.defaultView!.Event('input')); input.dispatchEvent(new document.defaultView!.Event('change'));
         await componentFlush(); expect(state.currentPage).toBe(3);
-        const select = root.querySelector('.pdf-zoom-control select') as HTMLSelectElement;
-        expect(Array.from(select.options).map(option => option.value)).toEqual(['fit', 'page', '0.5', '0.75', '1', '1.25', '1.5', '2', '3']);
-        expect(root.querySelector('.pdf-selection-hint')).toBeNull(); expect(root.querySelector('.pdf-presentation-control')).toBeNull();
+        const menu = root.querySelector('.pdf-zoom-control .pdf-menu') as HTMLElement; const menuButton = menu.querySelector('.pdf-menu-button') as HTMLElement;
+        const pick = async (value: string) => {click(menuButton); await componentFlush(); click(menu.querySelector(`li[data-value="${value}"]`)); await componentFlush();};
+        expect(root.querySelector('select')).toBeNull(); expect(menu.querySelector('.pdf-menu-list')).toBeNull(); expect(menuButton.getAttribute('aria-label')).toBe('document.pdfReading.zoomLabel');
+        click(menuButton); await componentFlush();
+        expect([...menu.querySelectorAll('ul.pdf-menu-list[role="listbox"] > li[role="option"]')].map(option => option.getAttribute('data-value'))).toEqual(['fit', 'page', '0.5', '0.75', '1', '1.25', '1.5', '2', '3']);
+        click(menuButton); await componentFlush(); expect(menu.querySelector('.pdf-menu-list')).toBeNull();
+        expect(root.querySelector('.pdf-selection-hint')).toBeNull(); expect(root.querySelector('.pdf-presentation-control')).toBeNull(); expect(root.querySelector('.pdf-style')).toBeNull();
         // 适合宽度：(920 − 24) / 612 ≈ 1.46；＋ 进到下一档 150%，− 退到 125%；适合页面受 600px 视口高度限制。
-        const [zoomOut, zoomIn] = Array.from(root.querySelectorAll('.pdf-zoom-control button'));
-        expect(state.zoom).toBe('fit'); expect(state.scale).toBeCloseTo((920 - 24) / 612, 12);
-        zoomIn.dispatchEvent(new document.defaultView!.Event('click')); await componentFlush(); expect(state.zoom).toBe('1.5');
-        zoomOut.dispatchEvent(new document.defaultView!.Event('click')); await componentFlush(); expect(state.zoom).toBe('1.25'); expect(state.currentPage).toBe(3);
+        const [zoomOut, zoomIn] = Array.from(root.querySelectorAll('.pdf-zoom-control > button'));
+        expect(state.zoom).toBe('fit'); expect(state.scale).toBeCloseTo((920 - 24) / 612, 12); expect(menuButton.textContent).toBe('document.pdfReading.fitWidth');
+        click(zoomIn); await componentFlush(); expect(state.zoom).toBe('1.5'); expect(menuButton.textContent).toBe('150%');
+        click(zoomOut); await componentFlush(); expect(state.zoom).toBe('1.25'); expect(state.currentPage).toBe(3);
         resizeCallback!([], {} as ResizeObserver); await componentFlush();
-        Array.from(select.options).find(option => option.value === 'page')!.selected = true; select.dispatchEvent(new document.defaultView!.Event('change'));
-        await componentFlush(); expect(state.zoom).toBe('page'); expect(state.scale).toBeCloseTo((600 - 24) / 792, 12); expect(state.layouts[0].height).toBeCloseTo(576, 8); expect(state.currentPage).toBe(3);
-        Array.from(select.options).find(option => option.value === '1.25')!.selected = true; select.dispatchEvent(new document.defaultView!.Event('change'));
-        await componentFlush(); expect(state.zoom).toBe('1.25'); expect(state.currentPage).toBe(3);
+        await pick('page'); expect(menu.querySelector('.pdf-menu-list')).toBeNull(); expect(menuButton.textContent).toBe('document.pdfReading.fitPage');
+        expect(state.zoom).toBe('page'); expect(state.scale).toBeCloseTo((600 - 24) / 792, 12); expect(state.layouts[0].height).toBeCloseTo(576, 8); expect(state.currentPage).toBe(3);
+        await pick('1.25'); expect(state.zoom).toBe('1.25'); expect(menuButton.textContent).toBe('125%'); expect(state.currentPage).toBe(3);
         state.jumpTo(1); await componentFlush(); await vi.waitFor(() => expect(root.querySelector('[data-pdf-page-number="1"] span')).toBeTruthy());
         const span = root.querySelector('[data-pdf-page-number="1"] span')!;
         const textLayer = span.closest('[data-fluentread-pdf-text]') as HTMLElement;
@@ -744,5 +758,195 @@ describe('PDF reader actual Vue component reading interaction', () => {
         mountedApp.unmount(); mountedApp = undefined; flushFrames(); await componentFlush();
         expect(disconnect).toHaveBeenCalledOnce(); expect(canvases.every(canvas => canvas.width === 0 && canvas.height === 0)).toBe(true);
         document.dispatchEvent(new document.defaultView!.Event('selectionchange')); expect(frames.size).toBe(0);
+    });
+    it('opens one toolbar menu at a time and closes it on an outside pointerdown or Escape, never on a press inside the menu', async () => {
+        const {root, state} = mountReader(model(), 'bilingual', ['译文']); await componentFlush();
+        const zoom = root.querySelector('.pdf-zoom-control .pdf-menu') as HTMLElement; const presentation = root.querySelector('.pdf-presentation-control.pdf-menu') as HTMLElement;
+        const zoomButton = zoom.querySelector('.pdf-menu-button') as HTMLElement; const presentationButton = presentation.querySelector('.pdf-menu-button') as HTMLElement;
+        const open = () => ['zoom', 'presentation', 'search', 'style'].filter((_name, index) => classes([zoom, presentation, root.querySelector('.pdf-search'), root.querySelector('.pdf-style')][index]).includes('open'));
+        const press = (target: EventTarget) => target.dispatchEvent(new document.defaultView!.Event('pointerdown', {bubbles: true}));
+        const key = (value: string) => document.dispatchEvent(Object.assign(new document.defaultView!.Event('keydown', {bubbles: true}), {key: value}));
+        expect(open()).toEqual([]); expect(root.querySelectorAll('.pdf-menu-list, .pdf-menu-panel')).toHaveLength(0); expect(zoomButton.getAttribute('aria-expanded')).toBeNull();
+        click(zoomButton); await componentFlush();
+        expect(open()).toEqual(['zoom']); expect(zoomButton.getAttribute('aria-expanded')).toBe('true'); expect(zoom.querySelector('.pdf-menu-list')!.getAttribute('aria-label')).toBe('document.pdfReading.zoomLabel');
+        const selected = () => [...zoom.querySelectorAll('li')].filter(option => option.getAttribute('aria-selected') === 'true' && classes(option).includes('selected')).map(option => option.getAttribute('data-value'));
+        expect(selected()).toEqual(['fit']); expect([...zoom.querySelectorAll('li')].map(option => option.textContent)).toEqual(['document.pdfReading.fitWidth', 'document.pdfReading.fitPage', '50%', '75%', '100%', '125%', '150%', '200%', '300%']);
+        click(presentationButton); await componentFlush();
+        expect(open()).toEqual(['presentation']); expect(zoom.querySelector('.pdf-menu-list')).toBeNull(); expect(root.querySelectorAll('.pdf-menu-list')).toHaveLength(1);
+        expect([...presentation.querySelectorAll('li')].filter(option => option.getAttribute('aria-selected') === 'true').map(option => option.getAttribute('data-value'))).toEqual(['layout']);
+        click(root.querySelector('.pdf-search .pdf-tool-button')); await componentFlush(); expect(open()).toEqual(['search']); expect(root.querySelector('.pdf-search-panel')).toBeTruthy(); expect(root.querySelector('.pdf-menu-list')).toBeNull();
+        click(root.querySelector('.pdf-style .pdf-tool-button')); await componentFlush(); expect(open()).toEqual(['style']); expect(root.querySelector('.pdf-style-panel')).toBeTruthy(); expect(root.querySelector('.pdf-search-panel')).toBeNull();
+        click(zoomButton); await componentFlush(); expect(open()).toEqual(['zoom']);
+        // 菜单内部的按下不收起；按下阅读区或页面其他位置才收起。
+        press(zoom.querySelector('li[data-value="2"]')!); await componentFlush(); expect(open()).toEqual(['zoom']);
+        press(zoomButton); await componentFlush(); expect(open()).toEqual(['zoom']);
+        key('Enter'); await componentFlush(); expect(open()).toEqual(['zoom']);
+        press(root.querySelector('[data-pdf-scroll]')!); await componentFlush(); expect(open()).toEqual([]); expect(root.querySelector('.pdf-menu-list')).toBeNull(); expect(state.zoom).toBe('fit');
+        click(presentationButton); await componentFlush(); expect(open()).toEqual(['presentation']);
+        press(document.body); await componentFlush(); expect(open()).toEqual([]);
+        click(zoomButton); await componentFlush(); key('Escape'); await componentFlush(); expect(open()).toEqual([]); expect(zoomButton.getAttribute('aria-expanded')).toBeNull();
+        key('Escape'); press(document.body); await componentFlush(); expect(open()).toEqual([]);
+        click(zoomButton); await componentFlush(); click(zoom.querySelector('li[data-value="2"]')); await componentFlush();
+        expect(open()).toEqual([]); expect(state.zoom).toBe('2'); expect(state.scale).toBe(2); expect(zoomButton.textContent).toBe('200%');
+        click(zoomButton); await componentFlush(); expect(selected()).toEqual(['2']);
+        mountedApp.unmount(); mountedApp = undefined; key('Escape'); press(document.body);
+    });
+
+    it('searches source and translation text case-insensitively, steps through hits with wrap-around, jumps to the hit and highlights it while the panel is open', async () => {
+        const {root, viewport, state, pageChanges} = mountReader(model(3), 'bilingual', ['Alpha 译文', 'beta ALPHA', '']); await componentFlush();
+        const s = (920 - 36) / 2 / 612; const px = (value: number) => `${Math.round(value * 100) / 100}px`; const rowTop = (index: number) => 12 + index * (792 * s + 12);
+        const tool = root.querySelector('.pdf-search .pdf-tool-button') as HTMLElement;
+        expect(root.querySelector('.pdf-search-panel')).toBeNull(); expect(classes(tool)).not.toContain('active');
+        click(tool); await componentFlush();
+        const panel = root.querySelector('.pdf-search-panel[role="dialog"]') as HTMLElement; const input = panel.querySelector('input') as HTMLInputElement;
+        const [previous, next] = Array.from(panel.querySelectorAll('button')); const count = () => panel.querySelector('.pdf-search-count')!.textContent;
+        const type = async (value: string) => {input.value = value; input.dispatchEvent(new document.defaultView!.Event('input')); await componentFlush(); flushFrames(); await componentFlush();};
+        const enter = async (shiftKey = false) => {const event = Object.assign(new document.defaultView!.Event('keydown'), {key: 'Enter', shiftKey, preventDefault: vi.fn()}); input.dispatchEvent(event); await componentFlush(); return event;};
+        const marks = (page: number) => [...root.querySelectorAll(`.pdf-page-row[data-page-number="${page}"] .pdf-source-highlight.search`)] as HTMLElement[];
+        expect(count()).toBe(''); expect(previous.hasAttribute('disabled')).toBe(true); expect(next.hasAttribute('disabled')).toBe(true);
+        click(next); await enter(); expect(viewport.scrollTop).toBe(0); expect(root.querySelector('.pdf-source-highlight')).toBeNull();
+        await type('zzz'); expect(count()).toBe('0'); expect(next.hasAttribute('disabled')).toBe(true); expect(classes(tool)).toContain('active');
+        await type('   '); expect(count()).toBe('');
+        // “alpha” 只出现在第 1、2 页的译文里；命中段落位于页内 y=70，跳转停在其上方 24px。
+        await type('alpha');
+        expect(count()).toBe('1 / 2'); expect(previous.hasAttribute('disabled')).toBe(false); expect(next.hasAttribute('disabled')).toBe(false);
+        expect(viewport.scrollTop).toBeCloseTo(rowTop(0) + 70 * s - 24, 8); expect(state.currentPage).toBe(1);
+        // 双语对照时原文页和译文层各标一处，位置与段落矩形一致（四周各留 3px）。
+        expect(marks(1)).toHaveLength(2); expect(marks(1)[0].closest('.pdf-page-column:not(.translated)')).toBeTruthy(); expect(marks(1)[1].closest('.pdf-translation-layer')).toBeTruthy();
+        for (const mark of marks(1)) {expect(mark.style.left).toBe(px(50 * s - 3)); expect(mark.style.top).toBe(px(70 * s - 3)); expect(mark.style.width).toBe(px(200 * s + 6)); expect(mark.style.height).toBe(px(40 * s + 6));}
+        click(next); await componentFlush();
+        expect(count()).toBe('2 / 2'); expect(viewport.scrollTop).toBeCloseTo(rowTop(1) + 70 * s - 24, 8); expect(state.currentPage).toBe(2); expect(marks(2)).toHaveLength(2); expect(marks(1)).toHaveLength(0);
+        click(next); await componentFlush(); expect(count()).toBe('1 / 2'); expect(state.currentPage).toBe(1); expect(marks(1)).toHaveLength(2);
+        click(previous); await componentFlush(); expect(count()).toBe('2 / 2'); expect(state.currentPage).toBe(2);
+        expect((await enter()).preventDefault).toHaveBeenCalledOnce(); expect(count()).toBe('1 / 2'); expect(state.currentPage).toBe(1);
+        expect((await enter(true)).preventDefault).toHaveBeenCalledOnce(); expect(count()).toBe('2 / 2'); expect(state.currentPage).toBe(2);
+        expect(pageChanges).toEqual([1, 2, 1, 2, 1, 2]);
+        // 原文同样参与匹配；换词后回到第一处。
+        await type('SOURCE'); expect(count()).toBe('1 / 3'); expect(state.currentPage).toBe(1);
+        await enter(true); expect(count()).toBe('3 / 3'); expect(state.currentPage).toBe(3); expect(viewport.scrollTop).toBeCloseTo(rowTop(2) + 70 * s - 24, 8); expect(marks(3)).toHaveLength(2);
+        await type('source 2'); expect(count()).toBe('1 / 1'); expect(state.currentPage).toBe(2); await enter(); expect(count()).toBe('1 / 1'); expect(marks(2)).toHaveLength(2);
+        // 收起面板后不再标出命中位置，工具按钮仍提示有搜索结果。
+        document.dispatchEvent(Object.assign(new document.defaultView!.Event('keydown', {bubbles: true}), {key: 'Escape'})); await componentFlush();
+        expect(root.querySelector('.pdf-search-panel')).toBeNull(); expect(root.querySelector('.pdf-source-highlight')).toBeNull(); expect(classes(tool)).toContain('active');
+        click(tool); await componentFlush(); expect(root.querySelector('.pdf-search-count')!.textContent).toBe('1 / 1'); expect(marks(2)).toHaveLength(2);
+    });
+
+    it('scales and restyles overlay translation text from the style panel without redrawing pages, and restores the stored choice on the next mount', async () => {
+        const SERIF = '"Noto Serif CJK SC", "Source Han Serif SC", "Songti SC", STSong, SimSun, Georgia, "Times New Roman", serif'; const SANS = '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Arial Unicode MS", Arial, sans-serif';
+        const s = (920 - 36) / 2 / 612; const px = (value: number) => `${Math.round(value * 100) / 100}px`; const stored = () => JSON.parse(storage.get('fluentread.pdfReader.textStyle') ?? 'null');
+        const text = (root: Element) => root.querySelector('.pdf-translation-block[data-pdf-segment-index="0"] .pdf-translation-text') as HTMLElement;
+        const font = (root: Element) => ({size: text(root).style.getPropertyValue('fontSize'), family: text(root).style.getPropertyValue('fontFamily')});
+        const first = mountReader(model(), 'bilingual', ['第一段译文']);
+        await vi.waitFor(() => expect(first.root.querySelector('[data-pdf-resource="translation"]')).toBeTruthy()); await componentFlush();
+        const root = first.root; const draws = pdfPage.render.mock.calls.length;
+        expect(font(root)).toEqual({size: px(12 * s), family: SANS}); expect(stored()).toBeNull(); expect(root.querySelector('.pdf-style-panel')).toBeNull();
+        click(root.querySelector('.pdf-style .pdf-tool-button')); await componentFlush();
+        const [smaller, larger] = Array.from(root.querySelectorAll('.pdf-style-stepper button')); const percent = () => root.querySelector('.pdf-style-stepper output')!.textContent;
+        const fonts = Array.from(root.querySelectorAll('.pdf-style-fonts button')); const pressed = () => fonts.map(button => button.getAttribute('aria-pressed') === 'true' && classes(button).includes('selected'));
+        expect(fonts.map(button => button.textContent)).toEqual(['document.pdfReading.styleFont.auto', 'document.pdfReading.styleFont.serif', 'document.pdfReading.styleFont.sans']);
+        expect(percent()).toBe('100%'); expect(pressed()).toEqual([true, false, false]); expect(smaller.hasAttribute('disabled')).toBe(false); expect(larger.hasAttribute('disabled')).toBe(false);
+        click(larger); await componentFlush();
+        expect(percent()).toBe('105%'); expect(font(root).size).toBe(px(12 * s * 1.05)); expect(stored()).toEqual({scale: 1.05, font: 'auto'});
+        for (let step = 0; step < 5; step += 1) {click(larger); await componentFlush();}
+        expect(percent()).toBe('130%'); expect(font(root).size).toBe(px(12 * s * 1.3)); expect(larger.hasAttribute('disabled')).toBe(true); expect(stored()).toEqual({scale: 1.3, font: 'auto'});
+        click(larger); await componentFlush(); expect(percent()).toBe('130%');
+        for (let step = 0; step < 10; step += 1) {click(smaller); await componentFlush();}
+        expect(percent()).toBe('80%'); expect(font(root).size).toBe(px(12 * s * 0.8)); expect(smaller.hasAttribute('disabled')).toBe(true); expect(larger.hasAttribute('disabled')).toBe(false);
+        click(smaller); await componentFlush(); expect(percent()).toBe('80%'); expect(stored()).toEqual({scale: 0.8, font: 'auto'});
+        click(fonts[1]); await componentFlush(); expect(pressed()).toEqual([false, true, false]); expect(font(root)).toEqual({size: px(12 * s * 0.8), family: SERIF}); expect(stored()).toEqual({scale: 0.8, font: 'serif'});
+        click(fonts[2]); await componentFlush(); expect(pressed()).toEqual([false, false, true]); expect(font(root).family).toBe(SANS); expect(stored()).toEqual({scale: 0.8, font: 'sans'});
+        click(fonts[1]); await componentFlush();
+        expect(text(root).textContent).toBe('第一段译文'); expect(pdfPage.render).toHaveBeenCalledTimes(draws);
+        first.currentMode.value = 'source'; await componentFlush(); expect(root.querySelector('.pdf-style')).toBeNull(); expect(root.querySelector('.pdf-style-panel')).toBeNull();
+        mountedApp.unmount(); await componentFlush();
+        // 下次打开沿用保存的字号与字体；越界或无法解析的记录回到可用范围与默认值。
+        const second = mountReader(model(), 'translated', ['第一段译文']);
+        await vi.waitFor(() => expect(second.root.querySelector('[data-pdf-resource="translation"]')).toBeTruthy()); await componentFlush();
+        const single = (920 - 24) / 612;
+        expect(font(second.root)).toEqual({size: px(12 * single * 0.8), family: SERIF});
+        click(second.root.querySelector('.pdf-style .pdf-tool-button')); await componentFlush();
+        expect(second.root.querySelector('.pdf-style-stepper output')!.textContent).toBe('80%'); expect(Array.from(second.root.querySelectorAll('.pdf-style-fonts button')).map(button => button.getAttribute('aria-pressed'))).toEqual([null, 'true', null]);
+        mountedApp.unmount(); await componentFlush();
+        storage.set('fluentread.pdfReader.textStyle', JSON.stringify({scale: 9, font: 'comic'}));
+        const clamped = mountReader(model(), 'translated', ['第一段译文']); await componentFlush();
+        expect(clamped.state.textScale).toBe(1.3); expect(clamped.state.textFont).toBe('auto'); expect(font(clamped.root)).toEqual({size: px(12 * single * 1.3), family: SANS});
+        mountedApp.unmount(); await componentFlush();
+        storage.set('fluentread.pdfReader.textStyle', 'not json');
+        const fallback = mountReader(model(), 'translated', ['第一段译文']); await componentFlush();
+        expect(fallback.state.textScale).toBe(1); expect(fallback.state.textFont).toBe('auto'); expect(font(fallback.root)).toEqual({size: px(12 * single), family: SANS}); expect(storage.get('fluentread.pdfReader.textStyle')).toBe('not json');
+    });
+
+    it('lists headings in reading order with numbering-depth indentation, switches title language with a source fallback, jumps on click and marks the current section', async () => {
+        const doc = model(2);
+        const sources = ['1 Introduction', '1.1 Background', 'Body paragraph', '2.3.4.5 Deep dive', 'Appendix', 'L'.repeat(141), '   '];
+        const block = (segmentIndex: number, y: number, kind?: 'heading', x = 50) => ({...pageModel(1).blocks[0], segmentIndex, x, y, ...(kind ? {kind} : {})});
+        doc.segments = sources.map((source, id) => ({id, source}));
+        // 第 2 页是双栏：右栏的 Appendix 纵坐标更小，但阅读顺序在左栏的 Deep dive 之后；过长或空白的标题不进目录。
+        if (doc.binary?.kind === 'pdf') {
+            Object.assign(doc.binary.pages[0], {segmentIndexes: [0, 1, 2], blocks: [block(0, 70, 'heading'), block(1, 300, 'heading'), block(2, 400)]});
+            Object.assign(doc.binary.pages[1], {segmentIndexes: [3, 4, 5, 6], blocks: [block(3, 400, 'heading'), block(4, 100, 'heading', 320), block(5, 600, 'heading'), block(6, 700, 'heading')]});
+        }
+        const {root, viewport, state, currentTranslations} = mountReader(doc, 'bilingual', ['1 引言', '1.1 Background', '正文', '2.3.4.5 深入', '', '', '']); await componentFlush();
+        const s = (920 - 36) / 2 / 612; const secondTop = 12 + 792 * s + 12;
+        const toggle = root.querySelector('.pdf-outline-toggle') as HTMLElement;
+        expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBeNull(); expect(toggle.getAttribute('aria-label')).toBe('document.pdfReading.outline');
+        click(toggle); await componentFlush(); flushFrames(); await componentFlush();
+        const nav = root.querySelector('nav.pdf-reader-outline#pdf-reader-outline') as HTMLElement;
+        expect(toggle.getAttribute('aria-expanded')).toBe('true'); expect(toggle.getAttribute('aria-label')).toBe('document.pdfReading.outline'); expect(classes(toggle)).toContain('active'); expect(classes(nav)).not.toContain('hosted');
+        const items = () => [...nav.querySelectorAll('.pdf-outline-item')] as HTMLElement[];
+        const titles = () => items().map(item => item.querySelector('span')!.textContent);
+        const current = () => items().filter(item => classes(item).includes('current') && item.getAttribute('aria-current') === 'location').map(item => item.getAttribute('title'));
+        const languages = Array.from(nav.querySelectorAll('.pdf-outline-language button'));
+        expect(languages.map(button => button.textContent)).toEqual(['document.pdfReading.original', 'document.pdfReading.translated']);
+        expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual([null, 'true']);
+        // 默认显示译文标题；与原文相同或尚未译出的标题先显示原文。
+        expect(titles()).toEqual(['1 引言', '1.1 Background', '2.3.4.5 深入', 'Appendix']);
+        expect(items().map(item => item.getAttribute('title'))).toEqual(['1 Introduction', '1.1 Background', '2.3.4.5 Deep dive', 'Appendix']);
+        expect(items().map(item => item.querySelector('small')!.textContent)).toEqual(['1', '1', '2', '2']);
+        expect(items().map(item => item.style.getPropertyValue('paddingLeft'))).toEqual(['12px', '26px', '40px', '12px']);
+        expect(current()).toEqual(['1 Introduction']);
+        click(languages[0]); await componentFlush();
+        expect(titles()).toEqual(['1 Introduction', '1.1 Background', '2.3.4.5 Deep dive', 'Appendix']); expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual(['true', null]); expect(classes(languages[0])).toContain('selected');
+        click(languages[1]); await componentFlush(); expect(titles()).toEqual(['1 引言', '1.1 Background', '2.3.4.5 深入', 'Appendix']);
+        currentTranslations.value = ['1 引言', '1.1 背景', '正文', '2.3.4.5 深入', '附录', '', '']; await componentFlush(); flushFrames(); await componentFlush();
+        expect(titles()).toEqual(['1 引言', '1.1 背景', '2.3.4.5 深入', '附录']);
+        // 点击跳到标题上方 24px；阅读线（顶部下方 120px）之上最靠下的标题是当前章节。
+        click(items()[1]); await componentFlush();
+        expect(viewport.scrollTop).toBeCloseTo(12 + 300 * s - 24, 8); expect(state.currentPage).toBe(1); expect(current()).toEqual(['1.1 Background']);
+        click(items()[2]); await componentFlush();
+        expect(viewport.scrollTop).toBeCloseTo(secondTop + 400 * s - 24, 8); expect(state.currentPage).toBe(2); expect(current()).toEqual(['2.3.4.5 Deep dive']);
+        click(items()[3]); await componentFlush();
+        expect(viewport.scrollTop).toBeCloseTo(secondTop + 100 * s - 24, 8); expect(state.currentPage).toBe(2); expect(current()).toEqual(['Appendix']);
+        click(items()[0]); await componentFlush(); expect(viewport.scrollTop).toBeCloseTo(12 + 70 * s - 24, 8); expect(state.currentPage).toBe(1); expect(current()).toEqual(['1 Introduction']);
+        // 滚动同样更新当前章节；第一处标题之前没有当前项。
+        viewport.scrollTop = 12 + 300 * s - 100; viewport.dispatchEvent(new document.defaultView!.Event('scroll')); flushFrames(); await componentFlush(); expect(current()).toEqual(['1.1 Background']);
+        click(toggle); await componentFlush(); expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBeNull();
+    });
+
+    it('falls back to one outline item per page without headings and renders the outline into a host target without its own toggle', async () => {
+        const plain = mountReader(model(3)); await componentFlush();
+        click(plain.root.querySelector('.pdf-outline-toggle')); await componentFlush(); flushFrames(); await componentFlush();
+        const pageItems = () => [...plain.root.querySelectorAll('.pdf-reader-outline .pdf-outline-item')] as HTMLElement[];
+        expect(plain.root.querySelector('.pdf-outline-language')).toBeNull();
+        expect(pageItems().map(item => item.querySelector('span')!.textContent)).toEqual(['document.pdfReading.pageNumber:1', 'document.pdfReading.pageNumber:2', 'document.pdfReading.pageNumber:3']);
+        expect(pageItems().map(item => item.querySelector('small')!.textContent)).toEqual(['1', '2', '3']); expect(pageItems().map(item => item.style.getPropertyValue('paddingLeft'))).toEqual(['12px', '12px', '12px']);
+        expect(pageItems().map(item => item.getAttribute('aria-current'))).toEqual(['location', null, null]);
+        // 原文单栏：缩放 (920 − 24) / 612；跳到第 2 页页顶上方 24px 处。
+        const scale = (920 - 24) / 612; const top = 12 + 792 * scale + 12;
+        click(pageItems()[1]); await componentFlush();
+        expect(plain.viewport.scrollTop).toBeCloseTo(top - 24, 8); expect(plain.state.currentPage).toBe(2); expect(pageItems().map(item => item.getAttribute('aria-current'))).toEqual([null, 'location', null]);
+        mountedApp.unmount(); await componentFlush();
+        const host = document.createElement('aside'); document.body.append(host);
+        const doc = model(2); doc.segments = [doc.segments[0], {id: 1, source: '2 Method'}];
+        if (doc.binary?.kind === 'pdf') doc.binary.pages[1].blocks[0].kind = 'heading';
+        const hosted = mountReader(doc, 'source', [], {outlineTarget: host}); await componentFlush(); flushFrames(); await componentFlush();
+        expect(hosted.root.querySelector('.pdf-outline-toggle')).toBeNull(); expect(hosted.root.querySelector('.pdf-reader-outline')).toBeNull(); expect(hosted.state.outlineOpen).toBe(false);
+        const nav = host.querySelector('nav.pdf-reader-outline') as HTMLElement;
+        expect(classes(nav)).toContain('hosted'); expect(nav.querySelector('.pdf-outline-language')).toBeTruthy();
+        const item = nav.querySelector('.pdf-outline-item') as HTMLElement;
+        expect(nav.querySelectorAll('.pdf-outline-item')).toHaveLength(1); expect(item.querySelector('span')!.textContent).toBe('2 Method'); expect(item.querySelector('small')!.textContent).toBe('2'); expect(item.getAttribute('aria-current')).toBeNull();
+        click(item); await componentFlush();
+        expect(hosted.viewport.scrollTop).toBeCloseTo(top + 70 * scale - 24, 8); expect(hosted.state.currentPage).toBe(2); expect(item.getAttribute('aria-current')).toBe('location'); expect(classes(item)).toContain('current');
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(host.querySelector('.pdf-reader-outline')).toBeNull();
     });
 });

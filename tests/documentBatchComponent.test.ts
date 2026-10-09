@@ -48,6 +48,7 @@ beforeEach(async () => {
     fileName: documentCore.createDocumentDownloadName(document.fileName, mode), mimeType: 'text/plain'}));
   persist = vi.fn().mockResolvedValue(undefined);
   const api = {...catalog, ...documentCore, ...presentation, hasDistinctTranslation, Config, TranslationRequestError, createDocumentFileLoadGuard,
+    documentRetryBackoff: {maxWaitMs: 0},
     createDocumentHistory: () => ({list: async () => [], load: async () => null, save: async () => false, remove: async () => {}, clear: async () => {}}), documentHistoryId: async () => '',
     parseDocumentFile: parseFile, translateDocumentSegments: translate, createDocumentDownload: download, generateDocumentArchive,
     buildGlossaryRevision: () => '', runtimeConfig: new Config(), configReady: Promise.resolve(),

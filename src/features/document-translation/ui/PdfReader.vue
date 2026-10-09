@@ -1,14 +1,14 @@
 <!--
  @file src/features/document-translation/ui/PdfReader.vue
  文件职责：以左右对照的连续页面显示可划词的 PDF 原页和保持原版排版的译文页，并保留“重排阅读”作为可选的显示方式。
- 主要内容：页面占满阅读区且不再附带逐页标题；原版排版在原页像素上按段落叠加可选择的译文文字层，译文逐段到达时只更新对应段落，等待中的段落显示设置中选定的翻译加载样式；公式、图表和页眉页脚保持原样，放不下的段落悬停展开；悬停译文高亮对应原文；拖选原文时把选区终点钉在指针附近，避免划过空白选中整页；重排阅读按统一计划显示完整段落并保持阅读位置；目录按阅读顺序列出识别到的章节标题并标出当前位置，点击即跳转，可自行展开或传送到页面侧栏；缩放与显示方式使用与页面一致的菜单而非浏览器原生下拉；只挂载附近五页，目录开关、页码、缩放和显示方式控件可以传送到页面工具栏；卸载时释放全部页面资源。
+ 主要内容：页面占满阅读区且不再附带逐页标题；原版排版在原页像素上按段落叠加可选择的译文文字层，译文逐段到达时只更新对应段落，等待中的段落显示设置中选定的翻译加载样式；公式、图表和页眉页脚保持原样，放不下的段落悬停展开；悬停译文高亮对应原文；拖选原文时把选区终点钉在指针附近，避免划过空白选中整页；重排阅读按统一计划显示完整段落并保持阅读位置；目录按阅读顺序列出识别到的章节标题并标出当前位置，点击即跳转，可自行展开或传送到页面侧栏；缩放与显示方式使用与页面一致的菜单而非浏览器原生下拉；搜索同时匹配原文与译文并逐处跳转，译文样式可调字号与字体；只挂载附近五页，目录开关、页码、缩放和显示方式控件可以传送到页面工具栏；卸载时释放全部页面资源。
  模块边界：组件只组织阅读布局、叠加层与页面调度；文档由组合根导入、翻译由既有服务提供，划词卡片由页面组合根复用统一翻译卡。
 -->
 <template>
   <section class="pdf-layout-viewer" :aria-label="t('document.pdfReading.readerLabel')" data-document-reader="pdf" :data-pdf-presentation="presentation" :data-segment-count="document.segments.length" :data-fluentread-pdf-title="document.fileName" :data-fluentread-pdf-source-url="sourceUrl || undefined" :data-fluentread-pdf-document-id="documentIdentity">
     <Teleport :to="controlsTarget || 'body'" :disabled="!controlsTarget">
       <div class="pdf-viewer-toolbar" :class="{inline: !controlsTarget}" data-fluentread-pdf-decoration>
-        <button v-if="!outlineTarget" type="button" class="pdf-outline-toggle" :class="{active: outlineOpen}" :aria-label="t(outlineOpen ? 'document.pdfReading.hideOutline' : 'document.pdfReading.outline')" :title="t(outlineOpen ? 'document.pdfReading.hideOutline' : 'document.pdfReading.outline')" :aria-expanded="outlineOpen" aria-controls="pdf-reader-outline" @click="outlineOpen = !outlineOpen"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 3.5v13" stroke="currentColor" stroke-width="1.4"/></svg></button>
+        <button v-if="!outlineTarget" type="button" class="pdf-outline-toggle" :class="{active: outlineOpen}" :aria-label="t('document.pdfReading.outline')" :title="t('document.pdfReading.outline')" :aria-expanded="outlineOpen" aria-controls="pdf-reader-outline" @click="outlineOpen = !outlineOpen"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 3.5v13" stroke="currentColor" stroke-width="1.4"/></svg></button>
         <div class="pdf-page-navigation">
           <button type="button" :aria-label="t('document.pdfReading.previousPage')" :title="t('document.pdfReading.previousPage')" :disabled="currentPage <= 1" @click="jumpTo(currentPage - 1)">‹</button>
           <label><span class="pdf-control-label">{{ t('document.pdfReading.pageLabel') }}</span><input v-model="pageInput" type="number" inputmode="numeric" min="1" :max="pages.length" :aria-label="t('document.pdfReading.pageInput')" @input="editPageInput" @change="commitPageInput" @blur="commitPageInput" @keydown.enter.prevent="commitPageInput" /></label>
@@ -31,6 +31,22 @@
             <li v-for="value in PRESENTATIONS" :key="value" role="option" :aria-selected="presentation === value" :class="{selected: presentation === value}" :data-value="value" @click="choosePresentation(value)">{{ t(value === 'layout' ? 'document.pdfReading.layoutPresentation' : 'document.pdfReading.readablePresentation') }}</li>
           </ul>
         </div>
+        <div class="pdf-menu pdf-search" :class="{open: openMenu === 'search'}">
+          <button type="button" class="pdf-tool-button" :class="{active: openMenu === 'search' || searchHits.length > 0}" aria-haspopup="dialog" :aria-expanded="openMenu === 'search'" :aria-label="t('document.pdfReading.search')" :title="t('document.pdfReading.search')" @click="toggleSearch"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="5.5" stroke="currentColor" stroke-width="1.5"/><path d="m13.2 13.2 3.6 3.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+          <div v-if="openMenu === 'search'" class="pdf-menu-panel pdf-search-panel" role="dialog" :aria-label="t('document.pdfReading.search')">
+            <input ref="searchInput" v-model="searchQuery" type="search" :placeholder="t('document.pdfReading.searchPlaceholder')" :aria-label="t('document.pdfReading.search')" @keydown.enter.prevent="stepSearch($event.shiftKey ? -1 : 1)" />
+            <span class="pdf-search-count" role="status">{{ searchHits.length ? `${searchIndex + 1} / ${searchHits.length}` : searchQuery.trim() ? '0' : '' }}</span>
+            <button type="button" :disabled="!searchHits.length" :aria-label="t('document.pdfReading.searchPrevious')" :title="t('document.pdfReading.searchPrevious')" @click="stepSearch(-1)">‹</button>
+            <button type="button" :disabled="!searchHits.length" :aria-label="t('document.pdfReading.searchNext')" :title="t('document.pdfReading.searchNext')" @click="stepSearch(1)">›</button>
+          </div>
+        </div>
+        <div v-if="mode !== 'source'" class="pdf-menu pdf-style" :class="{open: openMenu === 'style'}">
+          <button type="button" class="pdf-tool-button" :class="{active: openMenu === 'style'}" aria-haspopup="dialog" :aria-expanded="openMenu === 'style'" :aria-label="t('document.pdfReading.style')" :title="t('document.pdfReading.style')" @click="openMenu = openMenu === 'style' ? null : 'style'"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 15.5 8.2 4.5h1.2l4.2 11M5.6 11.8h6.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M15.5 6.5v6M13 9.5h5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg></button>
+          <div v-if="openMenu === 'style'" class="pdf-menu-panel pdf-style-panel" role="dialog" :aria-label="t('document.pdfReading.style')">
+            <div class="pdf-style-row"><span>{{ t('document.pdfReading.styleSize') }}</span><div class="pdf-style-stepper"><button type="button" :disabled="textScale <= 0.8" :aria-label="t('document.pdfReading.zoomOut')" @click="textScale = Math.max(0.8, Math.round((textScale - 0.05) * 100) / 100)">−</button><output>{{ Math.round(textScale * 100) }}%</output><button type="button" :disabled="textScale >= 1.3" :aria-label="t('document.pdfReading.zoomIn')" @click="textScale = Math.min(1.3, Math.round((textScale + 0.05) * 100) / 100)">+</button></div></div>
+            <div class="pdf-style-row"><span>{{ t('document.pdfReading.styleFont') }}</span><div class="pdf-style-fonts" role="group"><button v-for="font in FONT_CHOICES" :key="font" type="button" :class="{selected: textFont === font}" :aria-pressed="textFont === font" @click="textFont = font">{{ t(`document.pdfReading.styleFont.${font}`) }}</button></div></div>
+          </div>
+        </div>
       </div>
     </Teleport>
     <div class="pdf-reader-body">
@@ -40,7 +56,6 @@
         <button type="button" :class="{selected: outlineLanguage === 'source'}" :aria-pressed="outlineLanguage === 'source'" @click="outlineLanguage = 'source'">{{ t('document.pdfReading.original') }}</button>
         <button type="button" :class="{selected: outlineLanguage === 'translated'}" :aria-pressed="outlineLanguage === 'translated'" @click="outlineLanguage = 'translated'">{{ t('document.pdfReading.translated') }}</button>
       </div>
-      <p v-if="!outline.length" class="pdf-outline-empty">{{ t('document.pdfReading.outlineEmpty') }}</p>
       <button v-for="item in outlineItems" :key="item.id" type="button" class="pdf-outline-item" :class="{current: item.id === activeOutlineId}" :style="{paddingLeft: `${12 + (item.level - 1) * 14}px`}" :aria-current="item.id === activeOutlineId ? 'location' : undefined" :title="item.source" data-i18n-ignore @click="jumpToPosition(item.pageIndex, item.y)"><span>{{ item.title }}</span><small>{{ item.pageIndex + 1 }}</small></button>
     </nav>
     </Teleport>
@@ -52,6 +67,7 @@
               <div class="pdf-page-frame">
                 <div :ref="element => setPageHost(layout.page.pageNumber, 'source', element)" class="pdf-canvas-host" />
                 <i v-if="highlight?.pageNumber === layout.page.pageNumber" class="pdf-source-highlight" :style="highlight.style" data-fluentread-pdf-decoration aria-hidden="true" />
+                <i v-if="searchHighlight?.pageNumber === layout.page.pageNumber" class="pdf-source-highlight search" :style="searchHighlight.style" data-fluentread-pdf-decoration aria-hidden="true" />
                 <span v-if="!states.has(layout.page.pageNumber) || states.get(layout.page.pageNumber)?.status === 'loading'" class="pdf-page-loading" data-fluentread-pdf-decoration role="status">{{ t('document.pdfReading.loadingSource') }}</span>
               </div>
             </figure>
@@ -67,6 +83,7 @@
               <div v-else class="pdf-page-frame">
                 <div :ref="element => setPageHost(layout.page.pageNumber, 'translated', element)" class="pdf-canvas-host" />
                 <div class="pdf-translation-layer" data-fluentread-pdf-translation :data-pdf-reading-page="layout.page.pageNumber" :style="layerStyle(layout)" @pointerleave="highlight = undefined">
+                  <i v-if="searchHighlight?.pageNumber === layout.page.pageNumber" class="pdf-source-highlight search" :style="searchHighlight.style" data-fluentread-pdf-decoration aria-hidden="true" />
                   <template v-for="entry in overlayPages.get(layout.page.pageNumber)" :key="entry.id">
                     <div v-if="entry.translated" class="pdf-translation-block" :class="{overflowing: entry.overflow, heading: entry.role === 'heading'}" :style="entry.boxStyle" :data-pdf-segment-index="entry.segmentIndex" :data-pdf-source-text="entry.source" :data-pdf-source-id="entry.id" :data-pdf-role="entry.role" data-i18n-ignore @pointerenter="showHighlight(layout, entry)">
                       <i v-for="(rect, index) in entry.eraseStyles" :key="index" class="pdf-translation-erase" :style="rect" aria-hidden="true" />
@@ -115,7 +132,50 @@ const {t} = useUiI18n();
 const viewport = ref<HTMLElement>();
 const zoom = ref('fit');
 /** 工具栏菜单同一时间只展开一个；点击别处或按 Esc 收起。 */
-const openMenu = ref<'zoom' | 'presentation' | null>(null);
+const openMenu = ref<'zoom' | 'presentation' | 'search' | 'style' | null>(null);
+/** 译文样式只影响原版排版里的译文文字：字号在原文字号上按比例调整，字体可以跟随原文或固定为宋体、黑体；选择保存在本机。 */
+const FONT_CHOICES = ['auto', 'serif', 'sans'] as const;
+const STYLE_KEY = 'fluentread.pdfReader.textStyle';
+function storedStyle(): {scale: number; font: typeof FONT_CHOICES[number]} {
+  try {
+    const value = JSON.parse(globalThis.localStorage?.getItem(STYLE_KEY) || '{}');
+    return {scale: Number.isFinite(value.scale) ? Math.min(1.3, Math.max(0.8, value.scale)) : 1, font: FONT_CHOICES.includes(value.font) ? value.font : 'auto'};
+  } catch {return {scale: 1, font: 'auto'};}
+}
+const textScale = ref(storedStyle().scale);
+const textFont = ref<typeof FONT_CHOICES[number]>(storedStyle().font);
+watch([textScale, textFont], ([scaleValue, font]) => {try {globalThis.localStorage?.setItem(STYLE_KEY, JSON.stringify({scale: scaleValue, font}));} catch { /* 无法写入时只在本次阅读生效。 */ }});
+/** 搜索同时匹配原文与译文，按阅读顺序列出命中的段落；回车跳到下一处，Shift+回车回到上一处。 */
+const searchInput = ref<HTMLInputElement>();
+const searchQuery = ref('');
+const searchIndex = ref(0);
+const searchHits = computed(() => {
+  const query = searchQuery.value.trim().toLocaleLowerCase();
+  if (!query) return [];
+  return pages.value.flatMap((page, pageIndex) => page.blocks.flatMap(block => {
+    const source = props.document.segments[block.segmentIndex]?.source ?? '';
+    const translation = props.translations[block.segmentIndex] ?? '';
+    return block.segmentIndex >= 0 && (source.toLocaleLowerCase().includes(query) || translation.toLocaleLowerCase().includes(query)) ? [{pageIndex, pageNumber: page.pageNumber, rotation: page.rotation, x: block.x, y: block.y, width: block.width, height: block.height}] : [];
+  }));
+});
+const searchHighlight = computed(() => {
+  const hit = searchHits.value[searchIndex.value];
+  if (!hit || hit.rotation || openMenu.value !== 'search') return undefined;
+  const s = scale.value;
+  return {pageNumber: hit.pageNumber, style: {left: px(hit.x * s - 3), top: px(hit.y * s - 3), width: px(hit.width * s + 6), height: px(hit.height * s + 6)}};
+});
+function showSearchHit(): void {const hit = searchHits.value[searchIndex.value]; if (hit) jumpToPosition(hit.pageIndex, hit.y);}
+function stepSearch(direction: 1 | -1): void {
+  const count = searchHits.value.length;
+  if (!count) return;
+  searchIndex.value = (searchIndex.value + direction + count) % count;
+  showSearchHit();
+}
+function toggleSearch(): void {
+  openMenu.value = openMenu.value === 'search' ? null : 'search';
+  if (openMenu.value === 'search') void nextTick(() => searchInput.value?.focus());
+}
+watch(searchQuery, () => {searchIndex.value = 0; showSearchHit();});
 const zoomOptions = computed(() => [{value: 'fit', label: t('document.pdfReading.fitWidth')}, {value: 'page', label: t('document.pdfReading.fitPage')}, ...ZOOM_STEPS.map(step => ({value: String(step), label: `${Math.round(step * 100)}%`}))]);
 const zoomLabel = computed(() => zoomOptions.value.find(option => option.value === zoom.value)?.label ?? `${Math.round(Number(zoom.value) * 100)}%`);
 function choosePresentation(value: PdfReadingPresentation): void {openMenu.value = null; if (presentation.value === value) return; presentation.value = value; emit('update:presentation', value);}
@@ -172,7 +232,7 @@ interface OverlayEntry {
   rect: {x: number; y: number; width: number; height: number};
 }
 const overlayBlocks = new WeakMap<PdfDocumentPage, PdfOverlayBlock[]>();
-const fitCache = new WeakMap<object, {text: string; scale: number; fit: PdfBlockFit}>();
+const fitCache = new WeakMap<object, {text: string; scale: number; style: string; fit: PdfBlockFit}>();
 const blockColors = shallowRef(new Map<string, {background: string; foreground: string}>());
 const highlight = ref<{pageNumber: number; style: Record<string, string>}>();
 /** 目录来自版面分析识别出的标题；编号的层数决定缩进，已有译文时显示译文标题。 */
@@ -231,14 +291,15 @@ const overlayPages = computed(() => {
       if (!translated) return entry;
       const singleLine = block.lineCount <= 1;
       const width = (block.width + (singleLine ? spaceRight : 0)) * s;
-      const serif = /serif|roman|times|song|ming/iu.test(block.fontFamily) && !/sans/iu.test(block.fontFamily);
+      const serif = textFont.value === 'auto' ? /serif|roman|times|song|ming/iu.test(block.fontFamily) && !/sans/iu.test(block.fontFamily) : textFont.value === 'serif';
+      const styleKey = `${textScale.value}|${textFont.value}`;
       const cached = fitCache.get(block);
       const measure = measureText(serif ? SERIF_FAMILY : SANS_FAMILY);
-      const fit = cached && cached.text === value && cached.scale === s ? cached.fit : fitPdfBlockText({
-        text: value, width: width * 0.985, height: (block.height + spaceBelow) * s, fontSize: block.fontSize * s, lineHeight: (singleLine ? block.fontSize : block.lineHeight) * s,
+      const fit = cached && cached.text === value && cached.scale === s && cached.style === styleKey ? cached.fit : fitPdfBlockText({
+        text: value, width: width * 0.985, height: (block.height + spaceBelow) * s, fontSize: block.fontSize * s * textScale.value, lineHeight: (singleLine ? block.fontSize : block.lineHeight) * s * textScale.value,
         minFontSize: Math.max(6, block.fontSize * s * 0.55), weight: block.fontWeight,
       }, measure);
-      fitCache.set(block, {text: value, scale: s, fit});
+      fitCache.set(block, {text: value, scale: s, style: styleKey, fit});
       const colors = blockColors.value.get(id);
       // 只把接近满行的行拉齐到栏宽；被长引文提前折断的短行保持自然字距，段落末行不拉齐。
       const justify = !singleLine && block.textAlign === 'left' && block.kind !== 'heading';
@@ -651,6 +712,21 @@ onBeforeUnmount(() => {
 .pdf-control-label {position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;}
 .pdf-page-total {color: var(--muted); white-space: nowrap;}
 .pdf-menu {position: relative; flex: none;}
+.pdf-viewer-toolbar .pdf-tool-button {display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; color: var(--muted);}
+.pdf-tool-button svg {width: 17px; height: 17px;}
+.pdf-viewer-toolbar .pdf-tool-button.active {color: var(--brand-strong); background: var(--brand-soft);}
+.pdf-menu-panel {position: absolute; top: calc(100% + 8px); left: 0; white-space: nowrap; z-index: 30; display: flex; align-items: center; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); box-shadow: 0 12px 32px #10182826;}
+.pdf-search-panel input {width: 220px; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink); font: inherit; font-size: 12.5px; outline: none;}
+.pdf-search-panel input:focus {border-color: var(--brand); box-shadow: 0 0 0 3px var(--brand-soft);}
+.pdf-search-count {min-width: 44px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; text-align: center;}
+.pdf-style-panel {flex-direction: column; align-items: stretch; gap: 12px; width: max-content; min-width: 280px; padding: 14px;}
+.pdf-style-row {display: flex; align-items: center; justify-content: space-between; gap: 20px; color: var(--muted); font-size: 12px; white-space: nowrap;}
+.pdf-style-stepper {display: flex; align-items: center; gap: 4px; color: var(--ink);}
+.pdf-style-stepper output {min-width: 44px; text-align: center; font-variant-numeric: tabular-nums;}
+.pdf-style-fonts {display: flex; padding: 2px; border-radius: 8px; background: var(--surface-soft);}
+.pdf-viewer-toolbar .pdf-style-fonts button {width: auto; height: 26px; padding: 0 11px; white-space: nowrap; border-radius: 6px; color: var(--muted); font-size: 12px;}
+.pdf-viewer-toolbar .pdf-style-fonts button.selected {color: var(--brand-strong); background: var(--surface); box-shadow: 0 1px 4px rgba(35, 47, 82, .1); font-weight: 700;}
+.pdf-source-highlight.search {background: color-mix(in srgb, #ffcf33, transparent 72%); outline: 2px solid #f0a800;}
 .pdf-viewer-toolbar .pdf-menu-button {display: inline-flex; align-items: center; gap: 6px; width: auto; height: 28px; padding: 0 8px 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: inherit; font: inherit; font-size: 12px; white-space: nowrap;}
 .pdf-viewer-toolbar .pdf-menu-button:hover, .pdf-menu.open .pdf-menu-button {border-color: var(--brand); background: var(--surface);}
 .pdf-menu.open .pdf-menu-button {box-shadow: 0 0 0 3px var(--brand-soft);}
@@ -673,7 +749,6 @@ onBeforeUnmount(() => {
 .pdf-outline-item small {flex: none; color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums;}
 .pdf-outline-item:hover {background: var(--surface-soft);}
 .pdf-outline-item.current {color: var(--brand-strong); background: var(--brand-soft); font-weight: 600;}
-.pdf-outline-empty {margin: 4px 10px 8px; color: var(--muted); font-size: 11.5px; line-height: 1.6;}
 .pdf-page-scroll {flex: 1; height: auto; min-width: 0; min-height: 0; overflow: auto; background: var(--reader-canvas, var(--surface-soft)); overscroll-behavior: contain; scrollbar-gutter: stable; overflow-anchor: none; outline: none;}
 .pdf-page-list {position: relative; min-width: 100%;}
 .pdf-page-row {position: absolute; left: 0; width: 100%; padding: 0 12px; box-sizing: border-box;}

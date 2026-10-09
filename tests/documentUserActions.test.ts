@@ -7,6 +7,7 @@ import {parseDocument, type ParsedDocument} from '@/src/features/document-transl
 import type {CreateDocumentDownloadOptions, DocumentDownload} from '@/src/features/document-translation/services/binary';
 import {TranslationRequestError, serializeTranslationError} from '@/src/services/translation/errors';
 import DocumentApp from '@/src/app/document-translation/DocumentApp.vue';
+import {documentRetryBackoff} from '@/src/app/document-translation/runtime';
 import DocumentSegmentEditor from '@/src/app/document-translation/DocumentSegmentEditor.vue';
 
 // Only external ports are controlled. Both original client SFC templates, the app adapter,
@@ -184,6 +185,8 @@ async function downloadReady() {
 }
 beforeEach(async () => {
     cleanups = []; actions = []; apps = []; anchors = []; blobs = []; revoked = []; browserTimers = new Set();
+    // 既有用例验证“失败即停止并可手动重试”；自动退避由专门的用例打开。
+    Object.assign(documentRetryBackoff, {maxWaitMs: 0, sleep: undefined});
     Object.assign(ports.config, new Config(), {service: 'microsoft'});
     ports.ready = Promise.resolve(); ports.observer = undefined;
     ports.send.mockReset().mockResolvedValue(undefined); ports.unsubscribe.mockReset(); ports.tabs.mockReset().mockResolvedValue(undefined);
@@ -784,6 +787,27 @@ describe('document user actions: confirmation and task consumers', () => {
         expect(textOf(taskbar())).toContain('翻译完成');
         expect(textOf(taskbar())).not.toContain('provider offline');
         expect(ports.batch).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits and retries by itself when the service is briefly unavailable, showing why, and only stops with the reason once the budget is spent', async () => {
+        let release: (() => void) | undefined; const waits: number[] = [];
+        Object.assign(documentRetryBackoff, {maxWaitMs: 120_000, sleep: (milliseconds: number) => new Promise<void>(resolve => {waits.push(milliseconds); release = resolve;})});
+        await importFiles(file('busy.txt'));
+        ports.batch.mockRejectedValueOnce(new Error('429 rate limited'));
+        await fire(translateButton(), 'click');
+        // 没有点击任何按钮：页面仍在翻译，并说明正在等待重试及原因。
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('429 rate limited'));
+        expect(textOf(taskbar())).toContain('翻译服务暂时没有响应，将自动重试'); expect(textOf(taskbar())).toContain('2s'); expect(textOf(taskbar())).toContain('正在翻译');
+        expect(waits).toEqual([2000]); expect(ports.batch).toHaveBeenCalledTimes(1);
+        release!(); await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(ports.batch).toHaveBeenCalledTimes(2); expect(textOf(taskbar())).not.toContain('429 rate limited');
+        // 预算用尽后停下，并给出最后一次失败的原因。
+        Object.assign(documentRetryBackoff, {maxWaitMs: 6000, sleep: async (milliseconds: number) => {waits.push(milliseconds);}});
+        await importFiles(file('down.txt'));
+        ports.batch.mockReset().mockRejectedValue(new Error('service unavailable'));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('第 1 段文档翻译失败：service unavailable'));
+        expect(waits.slice(1)).toEqual([2000, 4000]); expect(textOf(taskbar())).toContain('翻译中断'); expect(textOf(taskbar())).not.toContain('将自动重试');
     });
 
     it('turns a typed disabled-service result into pause before the configuration broadcast arrives', async () => {
