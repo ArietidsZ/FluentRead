@@ -1,0 +1,291 @@
+{
+  "baseHead": "18e049003bffab6d2bd49220c48b569b0a70856e",
+  "publishedPrHeadUnchanged": "18e049003bffab6d2bd49220c48b569b0a70856e",
+  "delivery": "Independent eight-declaration performance commit on perf/userscript-unreachable-settings-20261009; #906 unchanged",
+  "candidateFiles": {
+    "src/features/settings/ui/SettingsSections.vue": "1fabf5de790e782090bd429cf791447c19336f093774f74230e6c3414615ff55",
+    "tests/settingsUiArchitecture.test.ts": "25b48d912be763709be9471974e3ed29ed560972c0cc55a1e3a343eb0e20fa3e"
+  },
+  "patch": {
+    "bytes": 10815,
+    "sha256": "a097ba058850f9e544121850d93c74436a63fec41ac4f7fc6df2686b10382d77"
+  },
+  "stages": [
+    {
+      "stage": "round5-greasyfork-before-graph",
+      "startedAt": "2026-10-09T14:08:10.185797+00:00",
+      "durationSeconds": 2.769,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/round5-record-build.mjs",
+        "greasyfork",
+        "before"
+      ]
+    },
+    {
+      "stage": "round5-standard-after-graph",
+      "startedAt": "2026-10-09T14:09:24.517214+00:00",
+      "durationSeconds": 3.871,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round5-record-build.mjs",
+        "standard",
+        "after"
+      ]
+    },
+    {
+      "stage": "round5-standalone-after-graph",
+      "startedAt": "2026-10-09T14:09:28.436441+00:00",
+      "durationSeconds": 7.026,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round5-record-build.mjs",
+        "standalone",
+        "after"
+      ]
+    },
+    {
+      "stage": "round5-greasyfork-after-graph",
+      "startedAt": "2026-10-09T14:09:35.508974+00:00",
+      "durationSeconds": 2.768,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/round5-record-build.mjs",
+        "greasyfork",
+        "after"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-shell",
+      "startedAt": "2026-10-09T14:16:10.663317+00:00",
+      "durationSeconds": 0.965,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-shell-ports",
+      "startedAt": "2026-10-09T14:16:55.942289+00:00",
+      "durationSeconds": 0.965,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-shell-dom",
+      "startedAt": "2026-10-09T14:17:36.774213+00:00",
+      "durationSeconds": 0.915,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-shell-renderer",
+      "startedAt": "2026-10-09T14:18:23.352518+00:00",
+      "durationSeconds": 3.918,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-shell-bounded",
+      "startedAt": "2026-10-09T14:19:29.701590+00:00",
+      "durationSeconds": 4.269,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-existing-options-tests",
+      "startedAt": "2026-10-09T14:20:57.967043+00:00",
+      "durationSeconds": 6.372,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/userscriptFullOptions.test.ts",
+        "tests/settingsSectionsLifecycle.test.ts",
+        "tests/settingsUiArchitecture.test.ts",
+        "tests/userscriptViteConfig.test.ts",
+        "--reporter=json",
+        "--outputFile=/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/existing-options-tests.json"
+      ]
+    },
+    {
+      "stage": "round5-actual-options-initial-deep-links",
+      "startedAt": "2026-10-09T14:23:16.006811+00:00",
+      "durationSeconds": 4.371,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/options-shell-audit.mjs"
+      ]
+    },
+    {
+      "stage": "round5-updated-architecture-contracts",
+      "startedAt": "2026-10-09T14:23:59.716885+00:00",
+      "durationSeconds": 0.615,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/settingsUiArchitecture.test.ts",
+        "--reporter=json",
+        "--outputFile=../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/updated-architecture-tests.json"
+      ]
+    },
+    {
+      "stage": "round5-architecture-guard-contracts",
+      "startedAt": "2026-10-09T14:24:35.629533+00:00",
+      "durationSeconds": 0.665,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/settingsUiArchitecture.test.ts",
+        "--reporter=json",
+        "--outputFile=../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/updated-architecture-tests.json"
+      ]
+    },
+    {
+      "stage": "round5-architecture-guards-green",
+      "startedAt": "2026-10-09T14:25:05.145647+00:00",
+      "durationSeconds": 0.615,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/settingsUiArchitecture.test.ts",
+        "--reporter=json",
+        "--outputFile=../shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/updated-architecture-tests.json"
+      ]
+    },
+    {
+      "stage": "round5-baseline-ownership-only",
+      "startedAt": "2026-10-09T14:26:35.370448+00:00",
+      "durationSeconds": 0.615,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "vitest",
+        "run",
+        "tests/settingsUiArchitecture.test.ts",
+        "-t",
+        "owns settings, feature UI and shared components in their target layers",
+        "--reporter=json",
+        "--outputFile=/home/arietids/Documents/Codex/2026-10-06/task/shared-retry-after-pr-20261009/STANDALONE-UNREACHABLE-CANDIDATE/baseline-ownership-test.json"
+      ]
+    },
+    {
+      "stage": "round5-compile",
+      "startedAt": "2026-10-09T14:27:05.004258+00:00",
+      "durationSeconds": 16.935,
+      "exitCode": 0,
+      "arguments": [
+        "compile"
+      ]
+    },
+    {
+      "stage": "round5-chrome-build",
+      "startedAt": "2026-10-09T14:27:21.998140+00:00",
+      "durationSeconds": 19.695,
+      "exitCode": 0,
+      "arguments": [
+        "build"
+      ]
+    },
+    {
+      "stage": "round5-firefox-build",
+      "startedAt": "2026-10-09T14:27:41.746800+00:00",
+      "durationSeconds": 20.19,
+      "exitCode": 0,
+      "arguments": [
+        "build:firefox"
+      ]
+    },
+    {
+      "stage": "round5-standard-verifier",
+      "startedAt": "2026-10-09T14:28:01.996574+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 0,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-build.mjs"
+      ]
+    },
+    {
+      "stage": "round5-standalone-verifier",
+      "startedAt": "2026-10-09T14:28:02.311500+00:00",
+      "durationSeconds": 0.214,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-standalone-build.mjs"
+      ]
+    },
+    {
+      "stage": "round5-greasyfork-verifier",
+      "startedAt": "2026-10-09T14:28:02.574701+00:00",
+      "durationSeconds": 0.264,
+      "exitCode": 1,
+      "arguments": [
+        "exec",
+        "node",
+        "scripts/verify-userscript-greasyfork-build.mjs"
+      ]
+    }
+  ],
+  "actualOptionsBeforeAfterPassed": true,
+  "realModelSearchApiCalls": 0,
+  "newPermissionsDependenciesEnvironments": 0,
+  "recoveryOperations": 0,
+  "historicalFixtureFailureFile": "historical-fixture-async-leaf-failure.txt",
+  "generatedCandidateArtifactsNote": "Recorded outputs belong to the eight-declaration source SHA above, not base HEAD or the subsequent ContextMenu increment.",
+  "publishedSnapshotNames": {
+    "SettingsSections.before.vue": "SettingsSections.before.vue.txt",
+    "SettingsSections.candidate.vue": "SettingsSections.candidate.vue.txt",
+    "settingsUiArchitecture.candidate.test.ts": "settingsUiArchitecture.candidate.test.ts.txt"
+  },
+  "diffWhitespaceCheck": "All staged source, tests and reports checked; candidate.patch excluded only because two blank context lines contain the required unified-diff space marker. Patch is preserved byte-for-byte, with source index SHA verified.",
+  "moduleIdNormalization": "Full modules.json preserves raw observed keys. module-proof IDs remove the CW repository prefix wherever present, including virtual module IDs. After that same removal every observed attribution key matches an actual ID, with no missing or duplicate entries.",
+  "sourceArtifactAndFullModuleIdsVerified": true,
+  "baselineSourceBinding": {
+    "settingsSourceSha256": "d3e6f757ddc4cca265a9f1dc7b908a51026c9c40c72238e31a9f0c1b83d06289",
+    "basis": "standard/standalone before proofs reused from 18e0490 actual hook audit; their recorded Vite and test SHA match that Git HEAD. Settings source SHA was not recorded in those two old proof objects and is derived from the exact Git base blob and matching before snapshot here, without rebuilding."
+  },
+  "docsBuild": {
+    "stage": "round6-docs-build",
+    "exitCode": 0,
+    "scope": "Final working-tree reports for both independently staged increments; installed dependencies and CPU60/worker1/concurrency1"
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "candidateBase": "18e049003bffab6d2bd49220c48b569b0a70856e",
+  "productionScope": "8 compile-constant ternaries in SettingsSections.vue; LocalTtsSettings and ContextMenuSettings unchanged",
+  "candidateSourceSha256": "1fabf5de790e782090bd429cf791447c19336f093774f74230e6c3414615ff55",
+  "rows": [
+    {
+      "mode": "standard",
+      "beforeArtifact": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript/fluent-read.user.js",
+        "bytes": 1959993,
+        "sha256": "7ee7ff35d769ed383dfe1bfbf9983af1414414748fdb1a0bcaf7f940eac36ec5"
+      },
+      "savedUtf8Bytes": 0,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 451,
+          "afterCount": 451,
+          "removed": [],
+          "added": []
+        },
+        "css": {
+          "beforeCount": 41,
+          "afterCount": 41,
+          "removed": [],
+          "added": []
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      },
+      "afterCssPayload": {
+        "bytes": 165138,
+        "sha256": "8cdae65741aaa898ae77131788fb1dfca7406ad8814e77ba46a3b916c41e1f20"
+      },
+      "localTtsBefore": [],
+      "localTtsAfter": []
+    },
+    {
+      "mode": "standalone",
+      "beforeArtifact": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3797330,
+        "sha256": "e174bc76a8bd80c67bcd66de323b7324f091f40b6bd504d196abb64aec584a5e"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript-standalone/fluent-read.user.js",
+        "bytes": 3620828,
+        "sha256": "40822b4c26beb48fcc0e8b38f2b74befad919ce98f7c9f9c3d2ad9e2ddc0d046"
+      },
+      "savedUtf8Bytes": 176502,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 1080,
+          "afterCount": 1046,
+          "removed": [
+            "src/core/config/writingPreview.ts",
+            "src/core/config/writingReadiness.ts",
+            "src/core/i18n/numberFormat.ts",
+            "src/features/image-translation/ui/ImageOcrSettings.vue",
+            "src/features/image-translation/ui/ImageOcrSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/image-translation/ui/ImageTranslationSettingsPreview.vue",
+            "src/features/image-translation/ui/ImageTranslationSettingsPreview.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/image-translation/ui/MangaModelSettings.vue",
+            "src/features/image-translation/ui/MangaModelSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/image-translation/ui/MangaSettings.vue",
+            "src/features/image-translation/ui/MangaSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/model-usage/model/insights.ts",
+            "src/features/model-usage/model/tokenFormat.ts",
+            "src/features/model-usage/public.ts",
+            "src/features/model-usage/ui/ModelUsageDashboard.vue",
+            "src/features/model-usage/ui/ModelUsageDashboard.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/settings/ui/AreaTranslationSettings.vue",
+            "src/features/settings/ui/AreaTranslationSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/settings/ui/VideoLocalModelSettings.vue",
+            "src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/settings/ui/VideoSubtitleAppearanceSettings.vue",
+            "src/features/settings/ui/VideoSubtitleAppearanceSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/settings/ui/WritingSettings.vue",
+            "src/features/settings/ui/WritingSettings.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/settings/ui/components/WritingStylePreview.vue",
+            "src/features/settings/ui/components/WritingStylePreview.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/translation-stats/model/presentation.ts",
+            "src/features/translation-stats/public.ts",
+            "src/features/translation-stats/ui/TranslationStatsDashboard.vue",
+            "src/features/translation-stats/ui/TranslationStatsDashboard.vue?vue&type=script&setup=true&lang.ts",
+            "src/features/video-subtitle/transcription.ts",
+            "src/features/video-subtitle/transcriptionCache.ts",
+            "src/features/writing-assistant/ui/WritingChoices.vue",
+            "src/features/writing-assistant/ui/WritingChoices.vue?vue&type=script&setup=true&lang.ts"
+          ],
+          "added": []
+        },
+        "css": {
+          "beforeCount": 136,
+          "afterCount": 129,
+          "removed": [
+            "src/features/model-usage/ui/model-usage-dashboard.css?vue&type=style&index=0&src=56f514a2&scoped=56f514a2&lang.css",
+            "src/features/settings/ui/AreaTranslationSettings.vue?vue&type=style&index=0&scoped=83593f75&lang.css",
+            "src/features/settings/ui/VideoLocalModelSettings.vue?vue&type=style&index=0&scoped=27019747&lang.css",
+            "src/features/settings/ui/VideoSubtitleAppearanceSettings.vue?vue&type=style&index=0&scoped=129f5b4d&lang.css",
+            "src/features/settings/ui/WritingSettings.vue?vue&type=style&index=0&scoped=ee4a9cd3&lang.css",
+            "src/features/settings/ui/components/WritingStylePreview.vue?vue&type=style&index=0&scoped=1364f1c7&lang.css",
+            "src/features/settings/ui/settings-sections.css?vue&type=style&index=0&src=0806a250&scoped=0806a250&lang.css",
+            "src/features/translation-stats/ui/translation-stats-dashboard.css?vue&type=style&index=0&src=9755eebc&scoped=9755eebc&lang.css"
+          ],
+          "added": [
+            "src/features/settings/ui/settings-sections.css?vue&type=style&index=0&src=0fb091f7&scoped=0fb091f7&lang.css"
+          ]
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 775334,
+        "sha256": "e57c898f75ef090248902368e5e8e196b03439fadb13b6bec85a169ab90cd880"
+      },
+      "afterCssPayload": {
+        "bytes": 698500,
+        "sha256": "a45c0050fa6440e2455ddb6baf893d4da776849f033803cc073ac35bd03229be"
+      },
+      "localTtsBefore": [
+        "src/features/settings/ui/LocalTtsSettings.vue?vue&type=script&setup=true&lang.ts",
+        "src/features/settings/ui/LocalTtsSettings.vue?vue&type=style&index=0&scoped=10ca036c&lang.css",
+        "src/features/settings/ui/LocalTtsSettings.vue"
+      ],
+      "localTtsAfter": [
+        "src/features/settings/ui/LocalTtsSettings.vue?vue&type=script&setup=true&lang.ts",
+        "src/features/settings/ui/LocalTtsSettings.vue?vue&type=style&index=0&scoped=10ca036c&lang.css",
+        "src/features/settings/ui/LocalTtsSettings.vue"
+      ]
+    },
+    {
+      "mode": "greasyfork",
+      "beforeArtifact": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2322749,
+        "sha256": "71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5"
+      },
+      "afterArtifact": {
+        "path": ".output/userscript-greasyfork/fluent-read.user.js",
+        "bytes": 2322749,
+        "sha256": "71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5"
+      },
+      "savedUtf8Bytes": 0,
+      "moduleIdDifference": {
+        "js": {
+          "beforeCount": 344,
+          "afterCount": 344,
+          "removed": [],
+          "added": []
+        },
+        "css": {
+          "beforeCount": 41,
+          "afterCount": 41,
+          "removed": [],
+          "added": []
+        }
+      },
+      "beforeCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      },
+      "afterCssPayload": {
+        "bytes": 178794,
+        "sha256": "dd270c046a0109ea7abb8e37274afa5767ff27113cec21a2c11d7a286caefeeb"
+      },
+      "localTtsBefore": [],
+      "localTtsAfter": [],
+      "dataBefore": "34bcb22e60894c88d3b45f4b23c3c6e1c03d1e21614a23caf896ad7333140951",
+      "dataAfter": "34bcb22e60894c88d3b45f4b23c3c6e1c03d1e21614a23caf896ad7333140951"
+    }
+  ],
+  "bytesAre": "Actual complete UTF-8 artifact bytes, not summation of renderedLength or raw CSS savings"
+}
