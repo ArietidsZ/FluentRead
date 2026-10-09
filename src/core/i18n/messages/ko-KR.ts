@@ -144,6 +144,7 @@ export const koKRMessages = {
     "settings.general.masterHelp": "끄면 번역과 글쓰기 도우미가 멈추고 웹페이지와 동영상의 기능 버튼이 숨겨집니다. 다시 켜면 기존 설정으로 재개됩니다.",
     "popup.providers.title": "번역 서비스",
     "featureServices.followDefault": "기본값 따르기",
+    "featureServices.configuredModel": "설정된 모델: {model}",
     "featureServices.back": "번역 서비스 선택으로 돌아가기",
     "featureServices.needsSetup": "설정 필요",
     "popup.clearSearch": "검색 지우기",

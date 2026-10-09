@@ -144,6 +144,7 @@ export const jaJPMessages = {
     "settings.general.masterHelp": "オフにすると翻訳と文章作成アシスタントが停止し、ウェブページや動画の操作ボタンが非表示になります。オンに戻すと以前の設定で再開します。",
     "popup.providers.title": "翻訳サービス",
     "featureServices.followDefault": "既定に従う",
+    "featureServices.configuredModel": "設定モデル：{model}",
     "featureServices.back": "翻訳サービスの選択に戻る",
     "featureServices.needsSetup": "要設定",
     "popup.clearSearch": "検索をクリア",

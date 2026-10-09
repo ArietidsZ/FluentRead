@@ -99,13 +99,13 @@ function mount(savedConfig?: Config) {
   return {root, config, options, find, click, search, key, close, focused: () => focused};
 }
 
-describe('Popup effective model overview', () => {
-  it('shows the effective model for the default, inherited and explicitly assigned feature', async () => {
+describe('Popup configured model overview', () => {
+  it('shows the configured model for the default, inherited and explicitly assigned feature', async () => {
     const {config, find} = mount();
-    expect(find('[data-feature-service="default"] small').textContent).toBe('当前模型：saved-openai-model');
-    expect(find('[data-feature-service="hover"] small').textContent).toBe('当前模型：saved-openai-model');
+    expect(find('[data-feature-service="default"] small').textContent).toBe('配置模型：saved-openai-model');
+    expect(find('[data-feature-service="hover"] small').textContent).toBe('配置模型：saved-openai-model');
     expect(find('[data-feature-service="hover"] .assignment-value').textContent).toBe('跟随默认');
-    expect(find('[data-feature-service="hover"]').getAttribute('aria-label')).toBe('鼠标悬浮 · 跟随默认 · OpenAI · 当前模型：saved-openai-model');
+    expect(find('[data-feature-service="hover"]').getAttribute('aria-label')).toBe('鼠标悬浮 · 跟随默认 · OpenAI · 配置模型：saved-openai-model');
     config.inputBoxTranslationService = 'deepseek'; config.inputBoxTranslationModel = 'input-override';
     config.documentService = 'deepseek'; config.documentModel.deepseek = 'document-override';
     await runtime.nextTick();
@@ -118,11 +118,33 @@ describe('Popup effective model overview', () => {
     config.documentModel.deepseek = customModelString;
     config.documentCustomModel.deepseek = 'document/custom';
     await runtime.nextTick();
-    expect(find('[data-feature-service="document"] small').textContent).toBe('当前模型：document/custom');
-    expect(find('[data-feature-service="document"]').getAttribute('aria-label')).toContain('当前模型：document/custom');
+    expect(find('[data-feature-service="document"] small').textContent).toBe('配置模型：document/custom');
+    expect(find('[data-feature-service="document"]').getAttribute('aria-label')).toContain('配置模型：document/custom');
     config.documentService = '';
     await runtime.nextTick();
-    expect(find('[data-feature-service="document"] small').textContent).toBe('当前模型：custom/active');
+    expect(find('[data-feature-service="document"] small').textContent).toBe('配置模型：custom/active');
+  });
+
+  it('labels configuration rather than claiming the final request model when custom bodies override it', async () => {
+    const {config, find} = mount();
+    config.customBody.openai = '{"model":"request-body-model"}';
+    config.inputBoxTranslationModel = 'configured-input-model';
+    config.documentService = 'deepseek';
+    config.documentModel.deepseek = 'configured-document-model';
+    config.customBody.deepseek = '{"model":"request-document-model"}';
+    const before = JSON.stringify({model: config.model, customBody: config.customBody,
+      inputModel: config.inputBoxTranslationModel, documentModel: config.documentModel});
+    await runtime.nextTick();
+    for (const [feature, model] of [['default', 'saved-openai-model'], ['hover', 'saved-openai-model'],
+      ['input', 'configured-input-model'], ['document', 'configured-document-model']]) {
+      const row = find(`[data-feature-service="${feature}"]`);
+      expect(find(`[data-feature-service="${feature}"] small`).textContent).toBe(`配置模型：${model}`);
+      expect(find(`[data-feature-service="${feature}"] small`).getAttribute('title')).toBe(model);
+      expect(row.getAttribute('aria-label')).toContain(`配置模型：${model}`);
+      expect(row.getAttribute('aria-label')).not.toContain('当前模型');
+    }
+    expect(JSON.stringify({model: config.model, customBody: config.customBody,
+      inputModel: config.inputBoxTranslationModel, documentModel: config.documentModel})).toBe(before);
   });
 
   it('keeps reading, writing and input model overrides when their provider follows the default', async () => {
@@ -135,8 +157,8 @@ describe('Popup effective model overview', () => {
       await runtime.nextTick();
       for (const [feature, model] of [['reading', 'inherited-reading-override'], ['writing', 'inherited-writing-override'], ['input', 'inherited-input-override']]) {
         expect(find(`[data-feature-service="${feature}"] .assignment-value`).textContent).toBe('跟随默认');
-        expect(find(`[data-feature-service="${feature}"] small`).textContent).toBe(`当前模型：${model}`);
-        expect(find(`[data-feature-service="${feature}"]`).getAttribute('aria-label')).toContain(`跟随默认 · ${service === 'openai' ? 'OpenAI' : 'DeepSeek'} · 当前模型：${model}`);
+        expect(find(`[data-feature-service="${feature}"] small`).textContent).toBe(`配置模型：${model}`);
+        expect(find(`[data-feature-service="${feature}"]`).getAttribute('aria-label')).toContain(`跟随默认 · ${service === 'openai' ? 'OpenAI' : 'DeepSeek'} · 配置模型：${model}`);
       }
     }
   });
@@ -151,7 +173,7 @@ describe('Popup effective model overview', () => {
     await click('[data-service-choice="deepseek"]');
     expect(config.service).toBe('deepseek');
     expect(config.model.deepseek).toBe('saved-deepseek-model');
-    expect(find('[data-feature-service="default"] small').textContent).toBe('当前模型：saved-deepseek-model');
+    expect(find('[data-feature-service="default"] small').textContent).toBe('配置模型：saved-deepseek-model');
     expect(root.querySelector('.popup-service-picker')).toBeNull();
     expect(JSON.stringify({model: config.model, customModel: config.customModel, customModels: config.customModels,
       documentModel: config.documentModel, documentCustomModel: config.documentCustomModel})).toBe(before);
@@ -185,9 +207,9 @@ describe('Popup effective model overview', () => {
     expect(find('[data-service-choice="custom:private"] small').textContent).toBe('private-search-only');
     await click('[data-service-choice="custom:private"]');
     expect(config.service).toBe('custom:private');
-    expect(find('[data-feature-service="default"] small').textContent).toBe('当前模型：private-active');
+    expect(find('[data-feature-service="default"] small').textContent).toBe('配置模型：private-active');
     expect(find('[data-feature-service="hover"]').getAttribute('aria-label')).toContain('跟随默认 · Private endpoint');
-    expect(find('[data-feature-service="hover"] small').textContent).toBe('当前模型：private-active');
+    expect(find('[data-feature-service="hover"] small').textContent).toBe('配置模型：private-active');
     expect(config.model).toEqual(modelsBefore);
     expect(config.customModel).toEqual(customModelsBefore);
   });
@@ -197,8 +219,8 @@ describe('Popup effective model overview', () => {
     config.harness.service = 'deepseek'; config.harness.model = 'reading-override';
     config.writing.service = 'openai'; config.writing.model = 'writing-override';
     await runtime.nextTick();
-    expect(find('[data-feature-service="reading"] small').textContent).toBe('当前模型：reading-override');
-    expect(find('[data-feature-service="writing"] small').textContent).toBe('当前模型：writing-override');
+    expect(find('[data-feature-service="reading"] small').textContent).toBe('配置模型：reading-override');
+    expect(find('[data-feature-service="writing"] small').textContent).toBe('配置模型：writing-override');
     const modelsBefore = {...config.model};
     await click('[data-feature-service="reading"]');
     expect(root.querySelector('[data-service-choice="microsoft"]')).toBeNull();
@@ -206,17 +228,17 @@ describe('Popup effective model overview', () => {
     await click('[data-service-choice="openai"]');
     expect(config.harness.service).toBe('openai');
     expect(config.harness.model).toBe('');
-    expect(find('[data-feature-service="reading"] small').textContent).toBe('当前模型：saved-openai-model');
+    expect(find('[data-feature-service="reading"] small').textContent).toBe('配置模型：saved-openai-model');
     await click('[data-feature-service="writing"]');
     await search('search-only-model');
     await click('[data-service-choice="deepseek"]');
     expect(config.writing.service).toBe('deepseek');
     expect(config.writing.model).toBe('');
-    expect(find('[data-feature-service="writing"] small').textContent).toBe('当前模型：saved-deepseek-model');
+    expect(find('[data-feature-service="writing"] small').textContent).toBe('配置模型：saved-deepseek-model');
     await click('[data-feature-service="writing"]');
     await click('[data-service-choice=""]');
     expect(config.writing.service).toBe('');
-    expect(find('[data-feature-service="writing"] small').textContent).toBe('当前模型：saved-openai-model');
+    expect(find('[data-feature-service="writing"] small').textContent).toBe('配置模型：saved-openai-model');
     expect(config.model).toEqual(modelsBefore);
   });
 
@@ -282,8 +304,8 @@ describe('Popup effective model overview', () => {
     expect(first.close.count).toBe(1);
     app.unmount();
     const reopened = mount(first.config);
-    expect(reopened.find('[data-feature-service="default"] small').textContent).toBe('当前模型：saved-deepseek-model');
-    expect(reopened.find('[data-feature-service="hover"] small').textContent).toBe('当前模型：saved-deepseek-model');
+    expect(reopened.find('[data-feature-service="default"] small').textContent).toBe('配置模型：saved-deepseek-model');
+    expect(reopened.find('[data-feature-service="hover"] small').textContent).toBe('配置模型：saved-deepseek-model');
     await reopened.click('[data-feature-service="hover"]');
     expect((reopened.find('input[type="search"]') as HTMLInputElement).value).toBe('');
     expect(reopened.config.model.openai).toBe('saved-openai-model');
@@ -301,11 +323,11 @@ describe('Popup effective model overview', () => {
     expect(config.inputBoxTranslationService).toBe('deepseek');
     expect(config.inputBoxTranslationModel).toBe('');
     expect(config.model.deepseek).toBe('saved-deepseek-model');
-    expect(find('[data-feature-service="input"] small').textContent).toBe('当前模型：saved-deepseek-model');
+    expect(find('[data-feature-service="input"] small').textContent).toBe('配置模型：saved-deepseek-model');
     await click('[data-feature-service="input"]');
     await click('[data-service-choice=""]');
     expect(config.inputBoxTranslationService).toBe('');
-    expect(find('[data-feature-service="input"] small').textContent).toBe('当前模型：saved-openai-model');
+    expect(find('[data-feature-service="input"] small').textContent).toBe('配置模型：saved-openai-model');
   });
 
   it('preserves assignments when returning from the picker and reopening it', async () => {
@@ -326,28 +348,30 @@ describe('Popup effective model overview', () => {
     const {config, root, find} = mount();
     config.service = 'microsoft'; await runtime.nextTick();
     expect(root.querySelector('[data-feature-service="default"] small')).toBeNull();
-    expect(find('[data-feature-service="default"]').getAttribute('aria-label')).not.toContain('当前模型');
+    expect(find('[data-feature-service="default"]').getAttribute('aria-label')).not.toContain('配置模型');
     config.service = 'openai'; config.token.openai = ''; await runtime.nextTick();
     expect(find('[data-feature-service="default"] .assignment-warning').getAttribute('aria-label')).toContain('API Key');
     expect(root.querySelector('[data-feature-service="default"] small')).toBeNull();
   });
 
-  it('uses the existing native modelScope template in all seven interface languages', () => {
+  it('labels configured models in all seven interface languages without changing the shared current-model label', () => {
     registerAllUiLanguageBundles();
+    expect(translate('settings.organization.modelScope', 'zh-CN', {model: 'unique-model'})).toBe('当前模型：unique-model');
+    expect(translate('settings.organization.modelScope', 'en-US', {model: 'unique-model'})).toBe('Current model: unique-model');
     const expected = {
-      'zh-CN': '当前模型：unique-model',
-      'en-US': 'Current model: unique-model',
-      'es-ES': 'Modelo actual: unique-model',
-      'fr-FR': 'Modèle actuel : unique-model',
-      'ja-JP': '現在のモデル：unique-model',
-      'ko-KR': '현재 모델: unique-model',
-      'ru-RU': 'Текущая модель: unique-model',
+      'zh-CN': '配置模型：unique-model',
+      'en-US': 'Configured model: unique-model',
+      'es-ES': 'Modelo configurado: unique-model',
+      'fr-FR': 'Modèle configuré : unique-model',
+      'ja-JP': '設定モデル：unique-model',
+      'ko-KR': '설정된 모델: unique-model',
+      'ru-RU': 'Настроенная модель: unique-model',
     };
     for (const language of Object.keys(expected) as (keyof typeof expected)[]) {
       const messages = language === 'zh-CN' ? zhCNMessages : UI_LANGUAGE_BUNDLES[language].messages;
-      expect(Object.hasOwn(messages, 'settings.organization.modelScope')).toBe(true);
-      expect(messages['settings.organization.modelScope']).toContain('{model}');
-      expect(translate('settings.organization.modelScope', language, {model: 'unique-model'})).toBe(expected[language]);
+      expect(Object.hasOwn(messages, 'featureServices.configuredModel')).toBe(true);
+      expect(messages['featureServices.configuredModel']).toContain('{model}');
+      expect(translate('featureServices.configuredModel', language, {model: 'unique-model'})).toBe(expected[language]);
     }
   });
 });
