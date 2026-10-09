@@ -354,6 +354,20 @@ describe('PDF layout analysis on real paper typography', () => {
         const kept = analyze([atom('Diagnostic', 200, 106, 60, 6), atom('analysis', 205, 115, 40, 6), atom('Body text sets the page size and is long enough to be a real sentence here.', 50, 300, 420), atom('More body text follows on the next line of the very same body paragraph.', 50, 312, 420)], rules);
         expect(kept.blocks.filter(block => block.kind === 'table').map(block => block.source)).toEqual(['Diagnostic analysis']);
     });
+    it('keeps an author grid without e-mail addresses as source when names and affiliations sit in columns under the title', () => {
+        const row = (texts: string[], baseline: number, size: number) => texts.map((text, index) => atom(text, 150 + index * 130, baseline, 70, size));
+        const body = [atom('Abstract', 100, 300, 50, 12), atom('Large scale training needs always-on observability for effective diagnosis of slow jobs.', 100, 320, 240), atom('Coarse monitors cannot localise root causes and fine profilers cost far too much to keep.', 100, 332, 240)];
+        const grid = analyze([atom('A Production Scale Tracing System', 150, 100, 320, 20), ...row(['Jia Zhou', 'Long Zeng', 'Clavis Chen'], 140, 12), ...row(['Tencent', 'Tencent', 'Tencent'], 154, 10), atom('Ray Ying', 215, 180, 70, 12), atom('Key Zhang', 345, 180, 70, 12), ...body]);
+        // 姓名与紧贴其下的单位并成一个作者块；整块保留原样，网格下方落单的两位作者同样属于作者区。
+        expect(grid.blocks.filter(block => block.kind === 'metadata').map(block => block.source).sort()).toEqual(['Clavis Chen Tencent', 'Jia Zhou Tencent', 'Key Zhang', 'Long Zeng Tencent', 'Ray Ying']);
+        expect(grid.blocks.filter(block => block.kind === 'metadata').every(block => block.preserveSource)).toBe(true);
+        expect(grid.blocks.find(block => block.source === 'Abstract')?.preserveSource).toBe(false);
+        // 只有一行三列的短词，或者上方没有更大的标题，都不是作者区。
+        const single = analyze([atom('A Production Scale Tracing System', 150, 100, 320, 20), ...row(['Reliability', 'Performance', 'Cost'], 140, 12), ...body]);
+        expect(single.blocks.some(block => block.kind === 'metadata')).toBe(false);
+        const untitled = analyze([...row(['Jia Zhou', 'Long Zeng', 'Clavis Chen'], 140, 12), ...row(['Tencent', 'Tencent', 'Tencent'], 154, 12), ...body.map(entry => ({...entry, fontSize: 12}))]);
+        expect(untitled.blocks.some(block => block.kind === 'metadata')).toBe(false);
+    });
     it('falls back to a default body size when a page only has tiny glyphs', () => {
         expect(analyze([atom('tiny', 40, 100, 20, 4)]).blocks).toHaveLength(1);
     });

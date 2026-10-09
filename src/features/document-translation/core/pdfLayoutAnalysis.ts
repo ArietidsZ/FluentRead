@@ -308,7 +308,11 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const authorRows = ordinary.filter(line => line.y < input.height * 0.45 && line.width < input.width * 0.35);
     const authorBuckets = new Map<number, LayoutLine[]>();
     for (const line of authorRows) {const key = Math.round(line.baseline / 2); const bucket = authorBuckets.get(key) || []; bucket.push(line); authorBuckets.set(key, bucket);}
-    const authorGrid = ordinary.some(line => line.text.includes('@')) ? [...authorBuckets.values()].filter(bucket => bucket.length >= 3).flat() : [];
+    // 作者区是标题下方按列排开的姓名与单位：有邮箱时三列以上的行即是；没有邮箱时要求至少两行都是三列以上、每格都是首字母大写的短名称，且上方有更大的标题。
+    const nameLike = (line: LayoutLine) => /^[\p{Lu}][\p{L}.'’-]*(?:\s+[\p{Lu}][\p{L}.'’-]*){0,3}$/u.test(line.text);
+    const gridRows = [...authorBuckets.values()].filter(bucket => bucket.length >= 3);
+    const namedRows = gridRows.filter(bucket => bucket.every(nameLike) && lines.some(above => above.baseline < bucket[0].baseline && above.fontSize > bucket[0].fontSize * 1.3));
+    const authorGrid = ordinary.some(line => line.text.includes('@')) ? gridRows.flat() : namedRows.length >= 2 ? namedRows.flat() : [];
     const authorStart = authorGrid.reduce((start, line) => Math.min(start, line.y), Infinity);
     const authorEnd = authorGrid.reduce((end, line) => Math.max(end, bottom(line)), -Infinity) + font * 4.5;
     type Draft = {lines: LayoutLine[]; kind: NonNullable<PdfDocumentBlock['kind']>; region?: PdfPreservedRegion; bounds: Rectangle};
