@@ -117,6 +117,43 @@ const pinnedCharacterSources = greasyForkSource && !bundleLibraries
 const pinnedCharacterData = Object.fromEntries(pinnedCharacterSources.flatMap(({names, values}) =>
     names.map((name, index) => [name, values[index]])));
 
+// 只捕获 Vite CSS post 阶段处理完的六个 inline 端口；注入时机和 DOM 生命周期留在消费者。
+const inlineStyleIds = new Map(Object.entries({
+    notice: 'src/features/page-notice/content/notice.css',
+    picker: 'src/features/section-translation/content/picker.css',
+    translationDisplay: 'src/ui/styles/translation-display.css',
+    page: 'src/app/content/page.css',
+    sentenceHighlight: 'src/ui/styles/bilingual-sentence-highlight.css',
+    vocabularyReencounter: 'src/ui/styles/vocabulary-reencounter.css',
+}).map(([name, path]) => [`${normalizePath(resolve(root, path))}?inline`, name]));
+const pinnedInlineStyles: Record<string, string> = {};
+
+export function createUserscriptInlineStylesPlugin(styles: Record<string, string> = pinnedInlineStyles): Plugin {
+    return {
+        name: 'pin-gf-inline-styles',
+        enforce: 'post',
+        apply: 'build',
+        buildStart() {
+            for (const name of inlineStyleIds.values()) delete styles[name];
+        },
+        transform(code, id) {
+            const name = inlineStyleIds.get(id);
+            if (!name) return null;
+            const source = ts.createSourceFile(id, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+            const statement = source.statements[0];
+            const diagnostics = (source as ts.SourceFile & {parseDiagnostics: readonly ts.Diagnostic[]}).parseDiagnostics;
+            if (diagnostics.length || source.statements.length !== 1 || !ts.isExportAssignment(statement)
+                || statement.isExportEquals || (!ts.isStringLiteral(statement.expression) && !ts.isNoSubstitutionTemplateLiteral(statement.expression))) {
+                throw new Error(`Pinned userscript inline style requires one default string export: ${id}`);
+            }
+            styles[name] = statement.expression.text;
+            return {code: `const inlineStyle=globalThis.__FLUENTREAD_USERSCRIPT_DATA__?.inlineStyles?.${name};\n`
+                + `if(typeof inlineStyle!=="string")throw new Error(${JSON.stringify('Missing pinned userscript inline style: ' + name)});\n`
+                + 'export default inlineStyle;', map: null};
+        },
+    };
+}
+
 
 /** 只压缩站点规则与中文文案数据；产品逻辑仍留在可审查的 userscript 主文件中。 */
 export function createUserscriptCatalogCompressionPlugin(): Plugin {
@@ -398,12 +435,18 @@ function bundleUserscriptCss(): Plugin {
 
             if (greasyForkSource) {
                 // Greasy Fork 的源码文件保留产品逻辑，静态词条、站点规则和样式单独随固定版本缓存。
+                if (!bundleLibraries) {
+                    for (const name of inlineStyleIds.values()) {
+                        if (typeof pinnedInlineStyles[name] !== 'string') throw new Error(`Vite inline style was not captured: ${name}`);
+                    }
+                }
                 const data = {
                     english: UI_LANGUAGE_BUNDLES['en-US'],
                     zhCNMessages,
                     siteCatalogs: siteCatalogData,
                     css,
                     characterData: pinnedCharacterData,
+                    ...(!bundleLibraries ? {inlineStyles: pinnedInlineStyles} : {}),
                 };
                 this.emitFile({
                     type: 'asset',
@@ -520,7 +563,8 @@ export const userscriptAliases = [
 export default defineConfig({
     root,
     publicDir: false,
-    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), createUserscriptCharacterDataCompressionPlugin(root, true, greasyForkSource && !bundleLibraries), injectUserscriptBrowserShim(), vue(), bundleUserscriptCss()],
+    plugins: [unwrapWxtEntrypoints(), createUserscriptCatalogCompressionPlugin(), createUserscriptCharacterDataCompressionPlugin(root, true, greasyForkSource && !bundleLibraries), injectUserscriptBrowserShim(), vue(),
+        ...(greasyForkSource && !bundleLibraries ? [createUserscriptInlineStylesPlugin()] : []), bundleUserscriptCss()],
     resolve: {
         alias: userscriptAliases,
     },

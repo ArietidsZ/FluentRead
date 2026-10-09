@@ -5,6 +5,7 @@ import {parseHTML} from 'linkedom';
 import {sendErrorMessage, showPageNotice} from '@/src/features/page-notice/public';
 import {config} from '@/src/services/config/store';
 import {registerAllUiLanguageBundles} from '@/src/core/i18n/bundles';
+import noticeStyles from '@/src/features/page-notice/content/notice.css?inline';
 
 const originalDocument = globalThis.document;
 const originalWindow = globalThis.window;
@@ -213,6 +214,8 @@ describe('page error notice', () => {
         expect(host.style.getPropertyValue('pointer-events')).toBe('none');
 
         const shadow = host.shadowRoot!;
+        expect(noticeStyles.length).toBeGreaterThan(0);
+        expect(shadow.querySelector('style')?.textContent).toBe(noticeStyles);
         expect(shadow.querySelector('.notice-stack')).not.toBeNull();
         expect(noticeCss).toMatch(/\.notice-stack\s*\{[^}]*position:\s*fixed/s);
         expect(notice.getAttribute('role')).toBe('alert');

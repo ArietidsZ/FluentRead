@@ -230,7 +230,7 @@ describe('audit 49G shipped userscript resources', () => {
         const realm = createContext({window: host});
         runInContext(asset('userscript/resources/fluentread-data.v1.js'), realm, {filename: resolve(resourceRoot, 'userscript/resources/fluentread-data.v1.js'), timeout: 5_000});
         const data = realm.__FLUENTREAD_USERSCRIPT_DATA__;
-        expect(Object.keys(data).sort()).toEqual(['characterData', 'css', 'english', 'siteCatalogs', 'zhCNMessages']);
+        expect(Object.keys(data).sort()).toEqual(['characterData', 'css', 'english', 'inlineStyles', 'siteCatalogs', 'zhCNMessages']);
         expect(data.english.messages['settings.excludedLanguages.title']).toBe('Languages to skip');
         expect(data.zhCNMessages['settings.excludedLanguages.title']).toBe('不翻译的语言');
         expect(Object.keys(data.siteCatalogs).sort()).toEqual(['established', 'profiles', 'websites']);

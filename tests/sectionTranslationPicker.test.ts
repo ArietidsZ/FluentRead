@@ -2,6 +2,7 @@ import {parseHTML} from 'linkedom';
 import {isEditingInPage} from '@/src/shared/dom/editingTarget';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import type {SectionLabelSummary} from '@/src/features/section-translation/core';
+import pickerStyles from '@/src/features/section-translation/content/picker.css?inline';
 
 type Listener = {type: string; listener: (event: any) => void; signal?: AbortSignal};
 
@@ -235,6 +236,8 @@ describe('局部翻译选择模式', () => {
 
         harness.flushFrames();
         const shadow = harness.shadow();
+        expect(pickerStyles.length).toBeGreaterThan(0);
+        expect(shadow.querySelector('style')?.textContent).toBe(pickerStyles);
         const box = query(shadow, '.fr-section-box');
         expect(box.classList.contains('is-visible')).toBe(true);
         expect(box.classList.contains('is-following')).toBe(false);

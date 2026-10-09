@@ -78,7 +78,7 @@ export default defineConfig({
         maxWorkers,
         minWorkers: 1,
         fileParallelism: false,
-        // 页内样式契约执行四份实际 CSS，避免空 inline 样式掩盖命名或所有权回归。
-        css: {include: [/(?:src\/app\/content\/page|src\/ui\/styles\/(?:translation-display|bilingual-sentence-highlight|vocabulary-reencounter))\.css(?:\?|$)/]},
+        // 页内样式契约执行六份实际 CSS，覆盖页面与两类 Shadow Root 的样式端口。
+        css: {include: [/(?:src\/features\/(?:page-notice\/content\/notice|section-translation\/content\/picker)|src\/app\/content\/page|src\/ui\/styles\/(?:translation-display|bilingual-sentence-highlight|vocabulary-reencounter))\.css(?:\?|$)/]},
     },
 });

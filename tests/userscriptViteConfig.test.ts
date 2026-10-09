@@ -11,6 +11,7 @@ import {inflateWithPako} from '@/userscript/pakoRuntime';
 import * as chineseCharacterData from '@/src/core/language/chineseVariants';
 import * as functionWordData from '@/src/core/language/functionWordData';
 import {createUserscriptCharacterDataCompressionPlugin} from '@/userscript/characterDataPlugin';
+import * as userscriptConfigModule from '@/userscript/vite.config';
 import {
     default as userscriptConfig,
     executionGuardEnd,
@@ -26,6 +27,82 @@ import {
 const entrypointId = resolve(process.cwd(), 'entrypoints/userscript-injection-fixture.ts');
 const sourceModuleId = resolve(process.cwd(), 'src/app/content/runtime.ts');
 const vueScriptModuleId = `${resolve(process.cwd(), 'src/features/selection-translation/ui/SelectionTranslator.vue')}?vue&type=script&setup=true&lang.ts`;
+
+describe('GF pinned Vite inline styles', () => {
+    const paths = {
+        notice: 'src/features/page-notice/content/notice.css',
+        picker: 'src/features/section-translation/content/picker.css',
+        translationDisplay: 'src/ui/styles/translation-display.css',
+        page: 'src/app/content/page.css',
+        sentenceHighlight: 'src/ui/styles/bilingual-sentence-highlight.css',
+        vocabularyReencounter: 'src/ui/styles/vocabulary-reencounter.css',
+    };
+    const createPlugin = (styles: Record<string, string> = {}) => {
+        const factory = Reflect.get(userscriptConfigModule, 'createUserscriptInlineStylesPlugin') as unknown as (styles: Record<string, string>) => {
+            buildStart: () => void;
+            transform: (code: string, id: string) => {code: string; map: null} | null;
+        };
+        return factory(styles);
+    };
+    const evaluate = async (source: string, data: unknown) => {
+        const {transformWithEsbuild} = await import('vite');
+        const compiled = await transformWithEsbuild(source, 'pinned-inline-style.js', {format: 'cjs', target: 'es2018'});
+        const realm = {module: {exports: {} as any}, __FLUENTREAD_USERSCRIPT_DATA__: data,
+            fetch: () => {throw new Error('Unexpected CSS network');}};
+        runInNewContext(compiled.code, realm, {timeout: 5000});
+        return realm.module.exports.default;
+    };
+    it.each(Object.entries(paths))('captures the processed %s default string and exports identical UTF-8 synchronously', async (name, path) => {
+        const styles: Record<string, string> = {}, value = `/* processed ${name} */\n.x{content:"  𱊯\\ ";}\0\ud800\r\n`;
+        const transformed = createPlugin(styles).transform(`export default ${JSON.stringify(value)};`, resolve(process.cwd(), path) + '?inline')!.code;
+        expect(styles).toEqual({[name]: value});
+        expect(transformed).toContain('globalThis.__FLUENTREAD_USERSCRIPT_DATA__');
+        expect(transformed).not.toMatch(/\b(?:await|eval|fetch|atob|inflateWithPako)\b/u);
+        const restored = await evaluate(transformed, {inlineStyles: styles});
+        expect(restored).toBe(value);
+        expect(Buffer.from(restored, 'utf8')).toEqual(Buffer.from(value, 'utf8'));
+        expect(createHash('sha256').update(restored).digest('hex')).toBe(createHash('sha256').update(value).digest('hex'));
+        expect(await evaluate(transformed, {inlineStyles: {[name]: ''}})).toBe('');
+    });
+    it.each(['missing-object', 'missing-field', 'wrong-type'])('fails immediately for %s at every CSS port', async failure => {
+        for (const [name, path] of Object.entries(paths)) {
+            const transformed = createPlugin().transform('export default "processed";', resolve(process.cwd(), path) + '?inline')!.code;
+            const data = failure === 'missing-object' ? {} : {inlineStyles: failure === 'missing-field' ? {} : {[name]: 1}};
+            await expect(evaluate(transformed, data)).rejects.toThrow('Missing pinned userscript inline style: ' + name);
+        }
+    });
+    it('rejects anything except one parsed string default export', () => {
+        const plugin = createPlugin(), id = resolve(process.cwd(), paths.notice) + '?inline';
+        for (const code of ['export default getStyle();', 'const css="x"; export default css;',
+            'export default `x${sideEffect()}`;', 'export = "x";', 'export default "x"; sideEffect();', 'export default "unterminated']) {
+            expect(() => plugin.transform(code, id)).toThrow('one default string export');
+        }
+        expect(plugin.transform('/* processed */ export default `x`;', id)).not.toBeNull();
+    });
+    it('requires the six exact absolute IDs with only the inline query and clears captured build state', () => {
+        const styles: Record<string, string> = {}, plugin = createPlugin(styles), id = resolve(process.cwd(), paths.notice);
+        for (const other of [id, id + '?inline&x=1', id + '?raw', id + '?inline=true', id + '.other?inline', 'notice.css?inline']) {
+            expect(plugin.transform('export default "x";', other)).toBeNull();
+        }
+        plugin.transform('export default "x";', id + '?inline');
+        plugin.buildStart();
+        expect(styles).toEqual({});
+    });
+    it.each(['standard', 'standalone', 'greasyfork', 'standalone-with-gf-env'] as const)
+    ('registers the post-transform exclusively for the GF source output (%s)', async mode => {
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_STANDALONE', mode.startsWith('standalone') ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_GREASYFORK_SOURCE', mode.includes('gf') || mode === 'greasyfork' ? '1' : '0');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_VENDOR_URL', 'https://fixture.invalid/vendor.js');
+        vi.stubEnv('FLUENTREAD_USERSCRIPT_DATA_URL', 'https://fixture.invalid/data.js');
+        try {
+            vi.resetModules();
+            const {default: config} = await import('@/userscript/vite.config');
+            const plugin = (config as {plugins: Array<{name?: string; enforce?: string}>}).plugins.find(item => item.name === 'pin-gf-inline-styles');
+            if (mode === 'greasyfork') expect(plugin?.enforce).toBe('post');
+            else expect(plugin).toBeUndefined();
+        } finally {vi.unstubAllEnvs();vi.resetModules();}
+    });
+});
 
 describe('CommonJS initialization policy by userscript output', () => {
     it.each(['standard', 'standalone', 'greasyfork'] as const)
