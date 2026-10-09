@@ -53,7 +53,7 @@ async function main() {
   const extensionDir = path.resolve(arg('extension-dir', '.output/chrome-mv3'));
   const artifactsDir = path.resolve(arg('artifacts-dir', '/private/tmp/fluentread-document-experience'));
   const suite = arg('suite', 'full');
-  assert(['full', 'formats', 'archives', 'experience', 'pdf-export'].includes(suite), 'suite 仅支持 full、formats、archives、experience 或 pdf-export');
+  assert(['full', 'formats', 'archives', 'experience', 'pdf-export', 'scanned'].includes(suite), 'suite 仅支持 full、formats、archives、experience、pdf-export 或 scanned');
   const formats = arg('formats', 'sample.pdf,sample.epub,sample.docx,sample.html,sample.txt,sample.md,sample.srt,sample.vtt,sample.ass,sample.ssa,sample.lrc,sample.json').split(',');
   const exampleDir = path.resolve(arg('example-dir', 'examples/document-translation'));
   const packages = arg('playwright-root');
@@ -219,6 +219,49 @@ async function main() {
       await page.getByRole('button', {name: '下载文件 ↓', exact: true}).click();
       await noOverflow(); await shot('pdf-100-export-mobile');
       report.cases.push('100-page bilingual and translated-only downloads reopen with every original page, translated pages and original page dimensions');
+      assert.equal(report.consoleErrors.length, 0);
+      report.ok = true;
+      return;
+    }
+    if (suite === 'scanned') {
+      // 扫描版 PDF：页面只有图像、没有文字层。本套件需要联网下载一次英文识别语言包，因此不在默认的 full 套件里。
+      const {PDFDocument} = require('pdf-lib');
+      const printed = ['Scanned pages carry no text layer at all.', 'Recognition must find these printed sentences.', 'The translated page keeps the original picture.'];
+      const png = await page.evaluate(lines => {
+        const canvas = document.createElement('canvas'); canvas.width = 1240; canvas.height = 1754;
+        const context = canvas.getContext('2d'); context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#111111'; context.font = '44px Georgia, serif';
+        lines.forEach((line, index) => context.fillText(line, 110, 260 + index * 150));
+        return canvas.toDataURL('image/png').split(',')[1];
+      }, printed);
+      const scan = await PDFDocument.create();
+      const picture = await scan.embedPng(Buffer.from(png, 'base64'));
+      for (let index = 0; index < 2; index++) scan.addPage([595, 842]).drawImage(picture, {x: 0, y: 0, width: 595, height: 842});
+      const requestsBeforeScan = fixture.state.requests.length;
+      await load('scanned.pdf', Buffer.from(await scan.save()));
+      await page.locator('.pdf-page-row[data-page-number="1"]').waitFor();
+      assert.match(await page.locator('.document-status').innerText(), /扫描件/, '没有文字层的 PDF 应提示开始翻译时先识别文字');
+      assert.equal(await page.locator('.pdf-translation-block').count(), 0, '识别之前不能有译文块');
+      assert.equal(fixture.state.requests.length, requestsBeforeScan, '打开扫描件不得发送翻译请求');
+      await shot('scanned-opened');
+      await page.locator('.translation-actions .translate-document-button').click();
+      await page.locator('.document-status').filter({hasText: '正在识别文字'}).waitFor({timeout: 60000});
+      assert.equal(fixture.state.requests.length, requestsBeforeScan, '识别进行中还没有可翻译的文字');
+      await page.locator('.document-status').filter({hasText: '翻译完成'}).waitFor({timeout: 240000});
+      const recognized = fixture.state.requests.slice(requestsBeforeScan);
+      // 识别允许个别字符有出入，但三句印刷文字都必须被认出并送去翻译。
+      for (const phrase of [/scanned pages carry/iu, /recognition must find/iu, /translated page keeps/iu]) assert(recognized.some(source => phrase.test(source)), `识别结果缺少印刷文字 ${phrase}：${JSON.stringify(recognized)}`);
+      await page.locator('.pdf-page-row[data-page-number="1"] .pdf-translation-block').first().waitFor();
+      const scannedBlocks = await page.locator('.pdf-page-row[data-page-number="1"] .pdf-translation-block').evaluateAll(blocks => blocks.map(block => {
+        const frame = block.closest('.pdf-page-frame, .pdf-page-column').getBoundingClientRect(), box = block.getBoundingClientRect();
+        return {text: block.innerText.trim(), inside: box.left >= frame.left - 2 && box.right <= frame.right + 2 && box.top >= frame.top - 2 && box.bottom <= frame.bottom + 2};
+      }));
+      assert(scannedBlocks.length >= 3, `扫描页上应有三段译文：${JSON.stringify(scannedBlocks)}`);
+      assert(scannedBlocks.every(block => block.text && block.inside), `译文块必须有内容且不超出页面：${JSON.stringify(scannedBlocks)}`);
+      assert.equal(await page.locator('.pdf-translation-spinner, .pdf-translation-block.pending').count(), 0, '翻译完成后不能残留等待动画');
+      await shot('scanned-translated');
+      report.scanned = {pages: 2, recognizedSources: [...new Set(recognized)], blocksOnFirstPage: scannedBlocks.length};
+      report.cases.push('a scanned PDF opens without requests, recognises text page by page when translation starts, and shows translations inside the scanned page');
       assert.equal(report.consoleErrors.length, 0);
       report.ok = true;
       return;
