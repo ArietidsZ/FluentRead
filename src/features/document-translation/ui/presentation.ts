@@ -44,7 +44,7 @@ export function isRichDocumentFormat(format?: DocumentFormat): boolean {
 
 export function getDocumentEmptyReaderHint(document: ParsedDocument | null): string {
     if (document?.binary?.kind === 'pdf') {
-        return '点击“开始翻译”，译文会按原页面坐标写回并生成可下载 PDF。';
+        return 'document.pdfReading.startHint';
     }
     if (isSubtitleDocumentFormat(document?.format)) {
         return '点击“开始翻译”，译文会出现在对应时间轴行中。';

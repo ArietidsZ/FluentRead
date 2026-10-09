@@ -55,6 +55,31 @@ export interface DocumentSegment {
     markdownLineStart?: boolean;
 }
 
+export interface PdfDocumentRun {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text: string;
+    baseline?: number;
+    fontSize?: number;
+    fontFamily?: string;
+}
+
+export interface PdfDocumentLine extends PdfDocumentRun {
+    runs?: PdfDocumentRun[];
+}
+
+export interface PdfPreservedRegion {
+    id: string;
+    kind: 'figure' | 'table' | 'formula';
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    source?: string;
+}
+
 export interface PdfDocumentBlock {
     segmentIndex: number;
     /** PDF 在缩放比例 1、页面旋转 0 下的左上角内容坐标；页面展示旋转由 PdfDocumentPage.rotation 决定。 */
@@ -70,6 +95,11 @@ export interface PdfDocumentBlock {
     fontFamily: string;
     fontWeight: 400 | 600 | 700;
     textAlign: 'left' | 'center' | 'right';
+    kind?: 'text' | 'heading' | 'caption' | 'metadata' | 'formula' | 'table' | 'figure-label' | 'footer';
+    column?: number;
+    readingOrder?: number;
+    preserveSource?: boolean;
+    lines?: PdfDocumentLine[];
 }
 
 export interface PdfDocumentPage {
@@ -81,6 +111,7 @@ export interface PdfDocumentPage {
     height: number;
     segmentIndexes: number[];
     blocks: PdfDocumentBlock[];
+    preservedRegions?: PdfPreservedRegion[];
 }
 
 export interface EpubDocumentChapter {

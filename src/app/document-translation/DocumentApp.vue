@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 阅读器按视口渲染可选择文字层，切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -97,7 +97,7 @@
             <button class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
             <div class="translation-actions">
               <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation">暂停翻译</button>
-              <button v-else-if="!translationComplete || settingsChanged" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
+              <button v-else-if="parsedDocument.segments.length && (!translationComplete || settingsChanged)" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
             </div>
           </div>
           <div class="task-progress" :class="{ complete: translationComplete }" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{width: `${progress}%`}" /></div>
@@ -121,7 +121,8 @@
           v-if="isPdfDocument"
           :key="activeDocumentId ?? 0"
           :document="parsedDocument"
-          :translations="settledTranslations"
+          :translations="translatedSegments"
+          v-model:presentation="pdfPresentation"
           :mode="effectivePreviewMode"
           :source-url="documentQueue.find(item => item.id === activeDocumentId)?.sourceUrl"
         />
@@ -311,7 +312,7 @@
     <dialog ref="downloadDialog" class="document-dialog download-dialog" aria-labelledby="download-document-heading" :aria-busy="preparingDownload" @close="downloadOpen = false" @cancel="preparingDownload && $event.preventDefault()">
       <h2 id="download-document-heading">下载翻译结果</h2><p>按原格式另存一份文件。下载内容包含你的校订。</p>
       <div class="export-options" role="group" aria-label="下载内容">
-        <button type="button" :disabled="queueBusy" :aria-pressed="outputMode === 'bilingual'" :class="{ selected: outputMode === 'bilingual' }" @click="outputMode = 'bilingual'"><strong>双语对照</strong><span>{{ isPdfDocument ? '原页与译页左右并排' : '同时保留原文和译文' }}</span></button>
+        <button type="button" :disabled="queueBusy" :aria-pressed="outputMode === 'bilingual'" :class="{ selected: outputMode === 'bilingual' }" @click="outputMode = 'bilingual'"><strong>双语对照</strong><span>{{ isPdfDocument ? t('document.pdfReading.exportBilingualHint') : '同时保留原文和译文' }}</span></button>
         <button type="button" :disabled="queueBusy" :aria-pressed="outputMode === 'translated'" :class="{ selected: outputMode === 'translated' }" @click="outputMode = 'translated'"><strong>仅译文</strong><span>适合直接阅读和分享</span></button>
       </div>
       <p class="export-file-name" data-i18n-ignore>{{ downloadFileName }}</p>
@@ -322,7 +323,7 @@
       <label v-if="!translationComplete" class="partial-export"><input v-model="partialExportAcknowledged" type="checkbox" :disabled="queueBusy" />我已了解，下载当前结果</label>
       <p v-if="settingsChanged" class="notice warning">设置已更改，本次下载仍是当前保留的译文。</p>
       <p v-if="isSubtitleDocument" class="export-note">保留字幕序号和时间轴。仅译文替换字幕文字，双语在同一时间段内保留原文和译文。</p>
-      <p v-if="isPdfDocument" class="export-note">PDF 译页以图像呈现，适合保留版面阅读，暂不支持复制译文。</p>
+      <p v-if="isPdfDocument" class="export-note">{{ pdfPresentation === 'layout' ? t('document.pdfReading.layoutExportHint') : '' }}{{ t('document.pdfReading.exportHint') }}</p>
       <p v-if="downloadProgress" class="notice export-progress" role="status" aria-live="polite">{{ downloadProgress }}</p>
       <p v-if="downloadError" class="notice error" role="alert">{{ downloadError }}</p>
       <div class="dialog-actions"><button v-if="preparingDownload" class="ghost-button" type="button" :disabled="cancelingDownload" @click="cancelDownload">{{ t(cancelingDownload ? 'document.export.canceling' : 'document.export.cancel') }}</button><button v-else class="ghost-button" type="button" :disabled="queueBusy" @click="downloadDialog?.close()">返回文档</button><button class="translate-document-button" type="button" :disabled="queueBusy || !hasTranslation || (!translationComplete && !partialExportAcknowledged)" @click="downloadDocument">{{ preparingDownload ? '正在生成文件…' : `下载${outputMode === 'bilingual' ? '双语' : '译文'}文件` }}</button></div>
@@ -389,6 +390,7 @@ import {
   supportsTranslationGlossary,
   useUiI18n,
   type DocumentRenderMode,
+  type PdfReadingPresentation,
   type ParsedDocument,
   ElSelect,
 } from '@/src/app/document-translation';
@@ -427,6 +429,7 @@ const parsedDocument = ref<ParsedDocument | null>(null);
 const translatedSegments = ref<string[]>([]);
 const outputMode = ref<DocumentRenderMode>('bilingual');
 const previewMode = ref<'source' | DocumentRenderMode>('bilingual');
+const pdfPresentation = ref<PdfReadingPresentation>('readable');
 const readerTab = ref<'read' | 'edit'>('read');
 const readerPage = ref(1);
 const runState = ref<'ready' | 'paused' | 'failed'>('ready');
@@ -528,6 +531,7 @@ function selectDocument(item: DocumentQueueItem): void {
 
 function queueStatus(item: DocumentQueueItem): string {
   if (!item.document) return t('document.batch.importFailed');
+  if (!item.document.segments.length && item.document.binary?.kind === 'pdf') return t('document.pdfReading.selectableSource');
   if (item.id === activeDocumentId.value) return `${translateLegacy(statusLabel.value)} · ${progress.value}%`;
   if (completeItem(item)) return translateLegacy('翻译完成');
   const done = item.translations.filter(text => text?.trim()).length;
@@ -604,6 +608,7 @@ async function downloadBatch(): Promise<void> {
     const zip = new JSZip();
     for (const [index, item] of items.entries()) {
       const download = await createDocumentDownload(item.document!, item.translations, mode, {
+        pdfPresentation: pdfPresentation.value,
         signal: controller.signal,
         onPdfProgress: progress => { if (!controller.signal.aborted && downloadController === controller) batchNotice.value = `${item.name} · ${pdfExportProgress(progress)}`; },
         onArchiveProgress: percent => { if (!controller.signal.aborted && downloadController === controller) batchNotice.value = `${item.name} · ${archiveExportProgress(percent)}`; },
@@ -738,7 +743,7 @@ const hasTranslation = computed(() => translatedSegments.value.some((item) => Bo
 const completedSegments = computed(() => translating.value ? liveCompletedSegments.value
   : parsedDocument.value?.segments.filter(segment => translatedSegments.value[segment.id]?.trim()).length || 0);
 const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
-const progress = computed(() => parsedDocument.value ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
+const progress = computed(() => parsedDocument.value?.segments.length ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
 const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
 const currentFingerprint = computed(() => JSON.stringify({
   from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
@@ -746,7 +751,7 @@ const currentFingerprint = computed(() => JSON.stringify({
 }));
 const settingsChanged = computed(() => Boolean(taskFingerprint.value && taskFingerprint.value !== currentFingerprint.value));
 const translationActionLabel = computed(() => settingsChanged.value ? '按新设置翻译' : translationComplete.value ? '重新翻译' : hasTranslation.value || runState.value === 'paused' ? '继续翻译' : runState.value === 'failed' ? '重试翻译' : '开始翻译');
-const statusLabel = computed(() => translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
+const statusLabel = computed(() => isPdfDocument.value && !parsedDocument.value?.segments.length ? t('document.pdfReading.selectableSource') : translating.value ? '正在翻译' : translationComplete.value ? '翻译完成' : runState.value === 'paused' ? '已暂停' : runState.value === 'failed' ? '翻译中断' : hasTranslation.value ? '部分完成' : '准备就绪');
 const hasUnsavedWork = computed(() => translating.value || batchRunning.value || openingFile.value || editRevision.value > downloadedRevision.value
   || documentQueue.value.some(item => item.id !== activeDocumentId.value && item.revision > item.downloaded));
 const isPdfDocument = computed(() => parsedDocument.value?.binary?.kind === 'pdf');
@@ -811,7 +816,7 @@ const currentDocxRows = computed(() => {
 });
 const subtitleRows = computed(() => previewRows.value);
 const jsonRows = computed(() => previewRows.value);
-const emptyReaderHint = computed(() => getDocumentEmptyReaderHint(parsedDocument.value));
+const emptyReaderHint = computed(() => isPdfDocument.value ? t(parsedDocument.value?.segments.length ? 'document.pdfReading.startHint' : 'document.pdfReading.selectableSource') : getDocumentEmptyReaderHint(parsedDocument.value));
 const readerPageCount = computed(() => isPdfDocument.value || isRichDocument.value ? 1 : Math.max(1, Math.ceil((isDocxDocument.value ? currentDocxPart.value?.paragraphSegments.length || 0 : parsedDocument.value?.segments.length || 0) / READER_PAGE_SIZE)));
 const formatCode = computed(() => parsedDocument.value?.format === 'markdown' ? 'MD' : parsedDocument.value?.format.toUpperCase() || 'FILE');
 
@@ -959,7 +964,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
           if (loadRequest.isCurrent()) importProgress.value = t('document.pdfReading.importPages', {completed, total});
         }});
         if (!loadRequest.isCurrent()) return;
-        if (!parsed.segments.length) throw new Error('文件中没有找到可翻译的文本片段。');
+        if (!parsed.segments.length && parsed.binary?.kind !== 'pdf') throw new Error('文件中没有找到可翻译的文本片段。');
         item.document = markRaw(parsed);
       } catch (error) {
         if (!loadRequest.isCurrent()) return;
@@ -1092,7 +1097,7 @@ function requestReset(): void {
 }
 
 function requestTranslation(): void {
-  if (!config.on || queueBusy.value) return;
+  if (!config.on || queueBusy.value || !parsedDocument.value?.segments.length) return;
   if (translationComplete.value || (settingsChanged.value && hasTranslation.value)) {
     pendingAction.value = 'restart';
     confirmDialog.value?.showModal();
@@ -1127,7 +1132,7 @@ function pauseTranslation(): void {
 
 async function startTranslation(restart = false): Promise<void> {
   const document = parsedDocument.value;
-  if (!config.on || !document || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
+  if (!config.on || !document?.segments.length || translating.value || !hydrated.value || preparingDownload.value || credentialWarning.value) return;
   if (restart) {
     translatedSegments.value = [];
     settledTranslations.value = [];
@@ -1222,6 +1227,7 @@ async function downloadDocument(): Promise<void> {
   const requestId = translationRequestId;
   try {
     const download = await createDocumentDownload(document, [...translatedSegments.value], outputMode.value, {
+      pdfPresentation: pdfPresentation.value,
       signal: controller.signal,
       onPdfProgress: progress => { if (!controller.signal.aborted && downloadController === controller) downloadProgress.value = pdfExportProgress(progress); },
       onArchiveProgress: percent => { if (!controller.signal.aborted && downloadController === controller) downloadProgress.value = archiveExportProgress(percent); },

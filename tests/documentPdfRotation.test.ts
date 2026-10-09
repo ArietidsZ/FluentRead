@@ -1,3 +1,9 @@
+/**
+ * @file tests/documentPdfRotation.test.ts
+ * 文件职责：以真实 PDF.js 解析验证旋转和页面裁剪在 PDF 导入、光栅端口与矢量原页导出之间保持一致。
+ * 主要内容：四种页面旋转、有效 CropBox 与 MediaBox 交集、非零原点、空交集回退；验证原始字节不变、裁掉的字形不可见以及显示尺寸和字形矩阵精确保持。
+ * 模块边界：实际生成并读取 PDF 文件，不以 Canvas 端口模拟原页字形几何，不调用浏览器或翻译服务。
+ */
 import {degrees, PDFDocument} from 'pdf-lib';
 import {describe, expect, it, vi} from 'vitest';
 
@@ -49,6 +55,42 @@ async function outputText(bytes: Uint8Array): Promise<Array<Array<{str: string; 
     } finally {
         await task.destroy();
     }
+}
+
+async function displayedText(bytes: Uint8Array): Promise<Array<{width: number; height: number; text: Array<{str: string; transform: number[]}>}>> {
+    const {getDocument} = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    const task = getDocument({data: bytes.slice(), disableFontFace: true, isEvalSupported: false, useWorkerFetch: false});
+    try {
+        const pdf = await task.promise;
+        const pages = [];
+        for (let number = 1; number <= pdf.numPages; number += 1) {
+            const page = await pdf.getPage(number);
+            try {
+                const viewport = page.getViewport({scale: 1}), content = await page.getTextContent();
+                const [a, b, c, d, e, f] = viewport.transform;
+                pages.push({width: viewport.width, height: viewport.height, text: content.items.flatMap(item => {
+                    if (!('str' in item) || !item.str.trim()) return [];
+                    const [A, B, C, D, E, F] = item.transform;
+                    return [{str: item.str, transform: [a * A + c * B, b * A + d * B, a * C + c * D, b * C + d * D, a * E + c * F + e, b * E + d * F + f]}];
+                })});
+            } finally {page.cleanup();}
+        }
+        return pages;
+    } finally {await task.destroy();}
+}
+
+async function croppedPdf(box: 'inside' | 'intersection' | 'empty'): Promise<Uint8Array> {
+    const pdf = await PDFDocument.create();
+    for (const rotation of rotations) {
+        const page = pdf.addPage([600, 800]);
+        if (box === 'inside') page.setCropBox(100, 100, 400, 600);
+        else if (box === 'intersection') {page.setMediaBox(100, 200, 600, 800); page.setCropBox(-100, 400, 500, 800);}
+        else page.setCropBox(800, 900, 100, 100);
+        page.drawText('Visible source target', {x: 200, y: 500, size: 12});
+        page.drawText('Outside cropped page', {x: box === 'intersection' ? 650 : 20, y: box === 'intersection' ? 500 : 20, size: 12});
+        page.setRotation(degrees(rotation));
+    }
+    return pdf.save();
 }
 
 function expectRotatedSources(pages: Awaited<ReturnType<typeof outputText>>): void {
@@ -145,5 +187,30 @@ describe('real rotated PDF import and download', () => {
         expectRotatedSources(await outputText(download.data as Uint8Array));
         expect(bytes).toEqual(originalBytes);
         expect(parsed.binary?.bytes).toEqual(originalBytes);
+    });
+
+    it.each(['inside', 'intersection', 'empty'] as const)('preserves effective %s crop geometry and visible glyphs at all rotations without changing source bytes', async box => {
+        const bytes = await croppedPdf(box), originalBytes = bytes.slice();
+        const parsed = await parseBinaryDocument('cropped.pdf', bytes), rasterizer = vi.fn(async () => onePixelPng);
+        const download = await createDocumentDownload(parsed, [], 'bilingual', {pdfPageRasterizer: rasterizer});
+        expect(rasterizer).not.toHaveBeenCalled();
+        const readableDownload = await createDocumentDownload(parsed, parsed.segments.map(segment => `Translated: ${segment.source}`), 'bilingual', {
+            pdfReadingRasterizer: async function* () {yield {bytes: onePixelPng, width: 612, height: 792};},
+        });
+        const original = await displayedText(bytes);
+        for (const result of [download, readableDownload]) {
+            const exported = (await displayedText(result.data as Uint8Array)).filter(page => page.text.length > 0);
+            expect(exported).toHaveLength(rotations.length);
+            for (const [index, page] of exported.entries()) {
+                expect([page.width, page.height]).toEqual([original[index].width, original[index].height]);
+                expect(page.text.map(item => item.str)).toEqual(original[index].text.map(item => item.str));
+                expect(page.text.some(item => item.str === 'Outside cropped page')).toBe(box === 'empty');
+                expect(page.text.some(item => item.str === 'Visible source target')).toBe(true);
+                for (const [textIndex, item] of page.text.entries()) {
+                    for (const [coordinate, value] of item.transform.entries()) expect(value).toBeCloseTo(original[index].text[textIndex].transform[coordinate], 6);
+                }
+            }
+        }
+        expect(bytes).toEqual(originalBytes); expect(parsed.binary?.bytes).toEqual(originalBytes);
     });
 });

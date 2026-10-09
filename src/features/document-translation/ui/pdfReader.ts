@@ -8,6 +8,7 @@ import type {PDFPageProxy, TextLayer} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {hasDistinctTranslation} from '@/src/core/translation/result';
 import type {DocumentRenderMode, ParsedDocument, PdfDocumentPage} from '@/src/features/document-translation/core/document';
 import {acquirePdfDocument, paintPdfTranslation} from '@/src/features/document-translation/ui/pdfPreview';
+import {buildPdfReadingPlan, type PdfReadingPresentation, type PdfReadingRect} from '@/src/features/document-translation/core/pdfReadingPlan';
 
 export type PdfReaderMode = 'source' | DocumentRenderMode;
 export const PDF_READER_MAX_RESIDENT_PAGES = 5;
@@ -20,6 +21,7 @@ export interface PdfReaderSettings {
     scale: number;
     mode: PdfReaderMode;
     translations: readonly string[];
+    presentation?: PdfReadingPresentation;
     /** 单页源文及译文变化才使该页失效，不在流式翻译时重绘无关页面。 */
     key: string;
 }
@@ -28,6 +30,7 @@ export interface PdfReaderRenderedPage {
     sourceCanvas?: HTMLCanvasElement;
     sourceText?: HTMLElement;
     translatedCanvas?: HTMLCanvasElement;
+    regions?: ReadonlyMap<string, HTMLCanvasElement>;
     dispose: () => void;
 }
 
@@ -56,13 +59,16 @@ export function pdfReaderPageWindow(pageCount: number, currentIndex: number, vis
 }
 
 /** 画布像素限制在源文与译文的合计预算中，CSS 缩放与文本层不受 DPR 上限影响。 */
-export function pdfReaderCanvasSize(width: number, height: number, devicePixelRatio: number, canvasCount = 1): {width: number; height: number; outputScale: number} {
+export function pdfReaderCanvasSize(width: number, height: number, devicePixelRatio: number, canvasCount = 1, pixelBudget = PDF_READER_MAX_PAGE_PIXELS): {width: number; height: number; outputScale: number} {
+    if (!Number.isFinite(pixelBudget) || pixelBudget < 1) throw new RangeError('PDF 页面像素预算不足');
+    const pixelLimit = Math.floor(pixelBudget);
     const safeWidth = Math.max(1, Number.isFinite(width) ? width : 1);
     const safeHeight = Math.max(1, Number.isFinite(height) ? height : 1);
     const outputScale = Math.min(
         Math.max(1, Math.min(2, Number.isFinite(devicePixelRatio) ? devicePixelRatio : 1)),
-        Math.sqrt(PDF_READER_MAX_PAGE_PIXELS / Math.max(1, canvasCount) / safeWidth / safeHeight),
+        Math.sqrt(pixelLimit / Math.max(1, canvasCount) / safeWidth / safeHeight),
         PDF_READER_MAX_CANVAS_EDGE / Math.max(safeWidth, safeHeight),
+        pixelLimit / Math.max(safeWidth, safeHeight),
     );
     return {width: Math.max(1, Math.floor(safeWidth * outputScale)), height: Math.max(1, Math.floor(safeHeight * outputScale)), outputScale};
 }
@@ -72,8 +78,17 @@ export function pdfReaderPageHasTranslation(document: ParsedDocument, page: PdfD
 }
 
 /** 使用片段索引编码避免全数组比较；流式译文只失效自己所在的一页。 */
-export function pdfReaderPageKey(page: PdfDocumentPage, scale: number, mode: PdfReaderMode, translations: readonly string[]): string {
+export function pdfReaderPageKey(page: PdfDocumentPage, scale: number, mode: PdfReaderMode, translations: readonly string[], presentation?: PdfReadingPresentation): string {
+    if (presentation === 'readable') return JSON.stringify([scale, mode, presentation, page.blocks, (page as PdfDocumentPage & {preservedRegions?: unknown}).preservedRegions]);
     return JSON.stringify([scale, mode, mode === 'source' ? [] : page.segmentIndexes.map(index => translations[index] || '')]);
+}
+
+/** 原坐标裁剪映射到实际展示旋转，不改变原画布或源文件。 */
+export function pdfReaderDisplayRect(rect: PdfReadingRect, page: PdfDocumentPage): PdfReadingRect {
+    if (page.rotation === 90) return {x: page.width - rect.y - rect.height, y: rect.x, width: rect.height, height: rect.width};
+    if (page.rotation === 180) return {x: page.width - rect.x - rect.width, y: page.height - rect.y - rect.height, width: rect.width, height: rect.height};
+    if (page.rotation === 270) return {x: rect.y, y: page.height - rect.x - rect.width, width: rect.height, height: rect.width};
+    return rect;
 }
 
 function abortable<T>(promise: Promise<T>, signal: AbortSignal, releaseLate?: (value: T) => void): Promise<T> {
@@ -127,6 +142,7 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
             let translatedCanvas: HTMLCanvasElement | undefined;
             let text: HTMLElement | undefined;
             let textLayer: TextLayer | undefined;
+            const regions = new Map<string, HTMLCanvasElement>();
             let renderTask: ReturnType<PDFPageProxy['render']> | undefined;
             let released = false;
             let completed = false;
@@ -137,7 +153,7 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                 textLayer?.cancel();
                 text?.replaceChildren();
                 text?.remove();
-                for (const entry of [canvas, translatedCanvas]) {
+                for (const entry of [canvas, translatedCanvas, ...regions.values()]) {
                     if (!entry) continue;
                     entry.width = entry.height = 0;
                     entry.remove();
@@ -151,15 +167,22 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                 const module = await abortable(pdfJsModule ||= import('pdfjs-dist/legacy/build/pdf.mjs'), controller.signal);
                 controller.signal.throwIfAborted();
                 const viewport = page.getViewport({scale: settings.scale});
+                const readable = settings.presentation === 'readable';
                 const hasTranslation = settings.mode !== 'source' && pdfReaderPageHasTranslation(document, model, settings.translations);
-                const showSource = settings.mode !== 'translated' || !hasTranslation;
-                const size = pdfReaderCanvasSize(viewport.width, viewport.height, window.devicePixelRatio, hasTranslation && showSource ? 2 : 1);
+                const showSource = settings.mode !== 'translated' || (!readable && !hasTranslation);
+                const plan = readable && settings.mode !== 'source' ? buildPdfReadingPlan(document, model, []) : undefined;
+                const regionEntries = plan?.entries.filter(entry => entry.kind === 'region') ?? [];
+                const regionArea = regionEntries.reduce((sum, entry) => sum + entry.sourceRect.width * entry.sourceRect.height * settings.scale ** 2, 0);
+                const canvasCount = readable ? 1 + regionArea / Math.max(1, viewport.width * viewport.height) : hasTranslation && showSource ? 2 : 1;
+                // 每个原图至少占一个像素；先预留，防止超细区域的向上取整累积突破上限。
+                const size = pdfReaderCanvasSize(viewport.width, viewport.height, window.devicePixelRatio, canvasCount, PDF_READER_MAX_PAGE_PIXELS - regionEntries.length);
                 canvas = globalThis.document.createElement('canvas');
                 canvas.width = size.width;
                 canvas.height = size.height;
                 canvas.style.width = `${viewport.width}px`;
                 canvas.style.height = `${viewport.height}px`;
                 canvas.setAttribute('aria-hidden', 'true');
+                canvas.setAttribute('data-pdf-resource', 'source');
                 const context = canvas.getContext('2d', {alpha: false});
                 if (!context) throw new Error('浏览器 Canvas 初始化失败');
                 renderTask = page.render({canvasContext: context, viewport, transform: [size.outputScale, 0, 0, size.outputScale, 0, 0], background: '#ffffff'});
@@ -176,7 +199,40 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                 await Promise.all(work);
                 controller.signal.throwIfAborted();
                 if (text && textLayer) text.setAttribute('data-fluentread-pdf-page-text', textLayer.textContentItemsStr.join(' '));
-                if (hasTranslation) {
+                if (readable) {
+                    let remainingPixels = PDF_READER_MAX_PAGE_PIXELS - canvas.width * canvas.height;
+                    for (const [index, entry] of regionEntries.entries()) {
+                        controller.signal.throwIfAborted();
+                        const rect = pdfReaderDisplayRect(entry.sourceRect, model);
+                        const crop = globalThis.document.createElement('canvas');
+                        regions.set(entry.id, crop);
+                        const width = Math.max(1, Math.floor(entry.sourceRect.width * settings.scale * size.outputScale));
+                        const height = Math.max(1, Math.floor(entry.sourceRect.height * settings.scale * size.outputScale));
+                        const availablePixels = remainingPixels - (regionEntries.length - index - 1);
+                        const limit = Math.min(1, Math.sqrt(availablePixels / (width * height)), availablePixels / Math.max(width, height));
+                        crop.width = Math.max(1, Math.floor(width * limit));
+                        crop.height = Math.max(1, Math.floor(height * limit));
+                        remainingPixels -= crop.width * crop.height;
+                        const cropContext = crop.getContext('2d', {alpha: false});
+                        if (!cropContext) throw new Error('浏览器 Canvas 初始化失败');
+                        // 原页维持 PDF 的展示旋转，阅读流与导出把公式、图表恢复到解析时的正常朝向。
+                        cropContext.save();
+                        try {
+                            if (model.rotation === 90) {cropContext.translate(0, crop.height); cropContext.rotate(-Math.PI / 2);}
+                            else if (model.rotation === 180) {cropContext.translate(crop.width, crop.height); cropContext.rotate(-Math.PI);}
+                            else if (model.rotation === 270) {cropContext.translate(crop.width, 0); cropContext.rotate(Math.PI / 2);}
+                            const quarterTurn = model.rotation === 90 || model.rotation === 270;
+                            cropContext.drawImage(canvas, rect.x * settings.scale * size.outputScale, rect.y * settings.scale * size.outputScale,
+                                rect.width * settings.scale * size.outputScale, rect.height * settings.scale * size.outputScale,
+                                0, 0, quarterTurn ? crop.height : crop.width, quarterTurn ? crop.width : crop.height);
+                        } finally {cropContext.restore();}
+                        crop.style.width = '100%'; crop.style.height = 'auto';
+                        crop.setAttribute('role', 'img');
+                        crop.setAttribute('data-pdf-resource', 'region');
+                        crop.setAttribute('data-pdf-region-id', entry.id);
+                    }
+                    if (!showSource) canvas.width = canvas.height = 0;
+                } else if (hasTranslation) {
                     if (showSource) {
                         translatedCanvas = globalThis.document.createElement('canvas');
                         translatedCanvas.width = canvas.width;
@@ -184,10 +240,11 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                         translatedCanvas.style.width = canvas.style.width;
                         translatedCanvas.style.height = canvas.style.height;
                         translatedCanvas.setAttribute('aria-hidden', 'true');
+                        translatedCanvas.setAttribute('data-pdf-resource', 'translation');
                         const translatedContext = translatedCanvas.getContext('2d', {alpha: false});
                         if (!translatedContext) throw new Error('浏览器 Canvas 初始化失败');
                         translatedContext.drawImage(canvas, 0, 0);
-                    } else translatedCanvas = canvas;
+                    } else {translatedCanvas = canvas; translatedCanvas.setAttribute('data-pdf-resource', 'translation');}
                     const visibleTranslations: string[] = [];
                     model.segmentIndexes.forEach(index => {if (hasDistinctTranslation(document.segments[index]?.source ?? '', settings.translations[index])) visibleTranslations[index] = settings.translations[index];});
                     paintPdfTranslation(translatedCanvas, {
@@ -197,7 +254,7 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                 }
                 controller.signal.throwIfAborted();
                 completed = true;
-                return {sourceCanvas: showSource ? canvas : undefined, sourceText: text, translatedCanvas, dispose};
+                return {sourceCanvas: showSource ? canvas : undefined, sourceText: text, translatedCanvas, ...(readable ? {regions} : {}), dispose};
             } finally {
                 controller.signal.removeEventListener('abort', dispose);
                 signal.removeEventListener('abort', abort);

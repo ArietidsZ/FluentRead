@@ -44,11 +44,11 @@ The reader prioritizes visible pages and retains canvases and text layers for at
 
 Use a PDF with selectable text. Scanned PDFs are not directly recognized; convert them to a text document first, or use image translation for a few pages.
 
-Translated PDF pages are rendered as images for visual reading. Copying text from those translated pages is not currently supported. Check complex tables, formulas, and unusual fonts carefully.
+PDFs default to **Readable** presentation: complete paragraphs keep a readable font size and appear as translation progresses. You can select and copy the translation. Formulas, tables, and figures retain their original images; body text follows column and section order. Check complex layouts against the source. **Original layout** adds a position preview with the complete translation below it, so long text is not squeezed into tiny fonts or clipped.
 
-PDF downloads show the number of completed pages, followed by a saving stage. Longer documents take more time. Choose **Cancel export** to stop generation; translations and edits are kept so you can download again. Very large or tall pages use a lower image resolution to limit memory use while preserving the original page dimensions.
+PDF downloads paginate the full translation at a fixed font size. Bilingual output keeps each original page followed by its translated pages; original-layout output also includes a position preview. Downloaded Chinese pages remain images, so copy translation from the reader. Progress counts source pages, followed by a saving stage. Choose **Cancel export** to stop generation; translations and edits are kept for retry. The reader retains nearby pages, while export encodes and releases one output canvas at a time to control memory use.
 
-ePub, DOCX and batch ZIP downloads show packaging progress and allow cancellation without losing translations or edits. Large JSON download previews show text excerpts while the exported file keeps its complete structure. Text download previews only encode the excerpt needed by the dialog. Reading previews refresh after translation pauses or finishes to reduce repeated work on long documents.
+ePub, DOCX and batch ZIP downloads show packaging progress and allow cancellation without losing translations or edits. Large JSON download previews show text excerpts while the exported file keeps its complete structure. Text download previews only encode the excerpt needed by the dialog. PDF translation appears as it progresses; other reading previews refresh after translation pauses or finishes to reduce repeated work on long documents.
 
 ## Does the file leave my computer?
 

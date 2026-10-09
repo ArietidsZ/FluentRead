@@ -75,6 +75,19 @@ beforeEach(async () => {
 afterEach(async () => {ports.pagePending?.resolve(ports.tasks.find(value => value.role === 'preview')?.page); ports.renderPending?.resolve(); app?.unmount(); await flush(); await vi.dynamicImportSettled(); windowTimers.forEach(timer => clearTimeout(timer)); windowTimers.clear(); vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('documentbinaryAudit actual DocumentApp SFC ownership', () => {
+    it('opens a text-based formula-only PDF for source reading without provider requests or invalid progress', async () => {
+        ports.pageProvider = async (_pageNumber, page) => ({...page, getTextContent: async () => ({items: [{str: 'f(x)=x', transform: [1, 0, 0, 12, 20, 50], width: 60, height: 12, fontName: 'body'}], styles: {}})});
+        await state.loadFiles([file('formula-only.pdf')]); await flush();
+        expect(state.parsedDocument?.fileName).toBe('formula-only.pdf');
+        expect(state.parsedDocument.segments).toEqual([]);
+        expect(state.effectivePreviewMode).toBe('source');
+        expect(state.statusLabel).toBe('document.pdfReading.selectableSource');
+        expect(state.progress).toBe(0);
+        state.requestTranslation(); await state.startTranslation(); await flush();
+        expect(ports.translate).not.toHaveBeenCalled();
+        expect(state.translating).toBe(false);
+        expect(state.errorMessage).toBe('');
+    });
     it('imports the online PDF fragment on mount, retains its source metadata, and keeps translation user-triggered', async () => {
         app.unmount(); await flush();
         const source = 'https://arxiv.org/pdf/1706.03762';

@@ -379,7 +379,11 @@
       "tests/documentSelectionRuntime.test.ts",
       "tests/documentPdfRotation.test.ts",
       "tests/pdfReaderLifecycle.test.ts",
-      "tests/pdfSource.test.ts"
+      "tests/pdfReadingPlan.test.ts",
+      "tests/pdfLayoutAnalysis.test.ts",
+      "tests/documentPdfLayoutParsing.test.ts",
+      "tests/pdfSource.test.ts",
+      "tests/pdfTextLayout.test.ts"
     ],
     "functional": [
       "tests/finalCoveragePublicBoundariesA.test.ts",
