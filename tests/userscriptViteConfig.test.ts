@@ -1,4 +1,4 @@
-import {readFileSync} from 'node:fs';
+import fs, {readFileSync, realpathSync, readdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {resolve} from 'node:path';
@@ -358,5 +358,83 @@ describe('userscript lossless Unicode character data', () => {
         expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/chinese.ts'))).toBeNull();
         expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/lexicon.ts'))).toBeNull();
         expect(createPlugin().transform(original, wordDataPath + '.backup')).toBeNull();
+    });
+});
+
+
+describe('offline precise-version vendor license fallbacks', () => {
+    const licenseRoot = resolve(process.cwd(), 'userscript/licenses');
+    const fallbackPackages = [
+        {name: '@ai-sdk/provider-utils', version: '4.0.46', license: 'Apache-2.0',
+            files: ['provider-utils-Vercel.txt', 'Apache-2.0.txt', 'provider-utils-zod3-ISC.txt']},
+        {name: 'franc-min', version: '6.2.0', license: 'MIT', files: ['franc-min-MIT.txt']},
+    ];
+    const normalize = (text: string) => text.trim().replace(/[ \t]+$/gmu, '');
+    const installedRoot = (name: string, version: string) => {
+        const pnpm = resolve(realpathSync(resolve(process.cwd(), 'node_modules')), '.pnpm');
+        const prefix = name.replace('/', '+') + '@' + version;
+        const folder = readdirSync(pnpm).find(item => item === prefix || item.startsWith(prefix + '_'));
+        if (!folder) throw new Error(`Missing existing fixture dependency: ${name}@${version}`);
+        return resolve(pnpm, folder, 'node_modules', name);
+    };
+    const generate = async (roots: string[]) => {
+        const {default: config} = await import('@/userscript/vendor.vite.config');
+        const plugin = (config as {plugins: {generateBundle: Function | {handler: Function}}[]}).plugins[0];
+        const hook = typeof plugin.generateBundle === 'function' ? plugin.generateBundle : plugin.generateBundle.handler;
+        const chunk = {type: 'chunk', isEntry: true, moduleIds: roots.map(root => root + '/index.js'), code: 'globalThis.fixtureExecuted = 17;'};
+        await Reflect.apply(hook, {}, [{}, {'vendor.js': chunk}, false]);
+        return chunk.code;
+    };
+    it.each(fallbackPackages)('includes every complete official text for $name@$version', async item => {
+        const source = await generate([installedRoot(item.name, item.version)]);
+        expect(source).toContain(`${item.name} ${item.version} — ${item.license}`);
+        for (const file of item.files) expect(source).toContain(normalize(readFileSync(resolve(licenseRoot, file), 'utf8')));
+        if (item.name === '@ai-sdk/provider-utils') {
+            expect(source).toContain('Copyright 2023 Vercel, Inc.');
+            expect(source).toContain('Copyright (c) 2020, Stefan Terdell');
+            expect(source).toContain('Copyright (c) 2025, Vercel Inc.');
+            expect(source).toContain('TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION');
+        } else {
+            expect(source.match(/Copyright/gu)).toHaveLength(4);
+        }
+    });
+    it.each(fallbackPackages.flatMap(item => ['version', 'license'].map(field => ({...item, field}))))
+    ('rejects $field drift for $name', async item => {
+        const root = installedRoot(item.name, item.version), original = fs.readFileSync;
+        const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((file: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+            if (String(file) === resolve(root, 'package.json')) {
+                const manifest = JSON.parse(original(file, 'utf8'));
+                manifest[item.field] = item.field === 'version' ? '0.0.0' : 'UNLICENSED';
+                return JSON.stringify(manifest);
+            }
+            return Reflect.apply(original, fs, [file, ...args]);
+        }) as typeof fs.readFileSync);
+        try {await expect(generate([root])).rejects.toThrow(/vendor license fallback.*mismatch/iu);}
+        finally {spy.mockRestore();}
+    });
+    it.each(['provider-utils-Vercel.txt', 'Apache-2.0.txt', 'provider-utils-zod3-ISC.txt', 'franc-min-MIT.txt'].flatMap(file =>
+        ['missing', 'bad-hash'].map(failure => ({file, failure}))))
+    ('rejects $failure for offline $file', async ({file, failure}) => {
+        const item = fallbackPackages.find(item => item.files.includes(file))!, original = fs.readFileSync;
+        const spy = vi.spyOn(fs, 'readFileSync').mockImplementation(((path: fs.PathOrFileDescriptor, ...args: unknown[]) => {
+            if (String(path) === resolve(licenseRoot, file)) {
+                if (failure === 'missing') throw new Error('Fixture missing pinned license file');
+                return Buffer.from('Fixture corrupted license');
+            }
+            return Reflect.apply(original, fs, [path, ...args]);
+        }) as typeof fs.readFileSync);
+        try {await expect(generate([installedRoot(item.name, item.version)])).rejects.toThrow(failure === 'missing' ? /missing pinned license/iu : /vendor license fallback.*hash/iu);}
+        finally {spy.mockRestore();}
+    });
+    it('preserves the other fourteen real installed package declarations byte for byte', async () => {
+        const current = readFileSync(resolve(process.cwd(), 'userscript/resources/fluentread-vendor.v1.js'), 'utf8');
+        const blocks = [...current.matchAll(/\/\*\n([^\s]+) ([^\s]+) — ([^\n]+)\n([\s\S]*?)\n\*\//gu)]
+            .filter(match => !fallbackPackages.some(item => item.name === match[1]));
+        expect(blocks).toHaveLength(14);
+        const source = await generate(blocks.map(match => installedRoot(match[1], match[2])));
+        for (const block of blocks) expect(source).toContain(block[0]);
+        const realm: Record<string, unknown> = {};
+        runInNewContext(source, realm);
+        expect(realm.fixtureExecuted).toBe(17);
     });
 });
