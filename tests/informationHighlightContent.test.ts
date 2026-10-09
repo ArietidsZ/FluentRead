@@ -74,11 +74,11 @@ describe('local keyword and Unicode coordinates', () => {
     it('keeps original UTF-16 positions, excludes common words and scores repeated distinctive terms deterministically', () => {
         const text = 'The extraordinary algorithm and extraordinary metrics in 2026. 中文信息与阅读理解。';
         const result = scoreInformationKeywords(text);
-        expect(result.engine).toBe('local-keyword-rules-v4');
+        expect(result.engine).toBe('local-keyword-rules-v5');
         expect(result.spans.map(span => text.slice(span.start, span.end))).toContain('extraordinary');
         expect(result.spans.map(span => text.slice(span.start, span.end))).not.toContain('The');
         expect(scoreInformationKeywords(text)).toEqual(result);
-        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v4', spans: []});
+        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v5', spans: []});
         const score = (source: string, word: string, occurrence = 0) => {
             const spans = scoreInformationKeywords(source).spans.filter(span => source.slice(span.start, span.end) === word); return spans[occurrence].score;
         };
@@ -398,9 +398,11 @@ describe('page-owned scoring, paint and cancellation', () => {
         expect(style.textContent).not.toMatch(/(?:opacity:|font-size|position|padding)/u);
         expect(f.document.body.innerHTML).toBe(before);
         controller.updatePreferences({...defaults, density: 'high'}); await f.settle();
-        controller.setEnabled(false); expect(f.painted()).toEqual([]); expect(style.isConnected).toBe(false);
+        // 关闭只清除绘制；样式表留到释放，再次开启沿用同一个节点。
+        controller.setEnabled(false); expect(f.painted()).toEqual([]); expect(style.isConnected).toBe(true);
         expect(f.registry.get('host-search')).toBe(foreign); expect(f.observers.every(o => o.disconnect.mock.calls.length)).toBe(true);
-        controller.setEnabled(true); await f.settle(); controller.dispose(); controller.dispose(); controller.refresh(); controller.retry(); controller.setEnabled(true);
+        controller.setEnabled(true); await f.settle(); expect(f.document.querySelectorAll('[data-fr-information-highlight-style]')).toHaveLength(1); expect(f.document.querySelector('[data-fr-information-highlight-style]')).toBe(style);
+        controller.dispose(); expect(style.isConnected).toBe(false); controller.dispose(); controller.refresh(); controller.retry(); controller.setEnabled(true);
         expect(controller.getState()).toMatchObject({enabled: false, phase: 'idle'}); expect(f.frames.size).toBe(0); expect(vi.getTimerCount()).toBe(0);
     });
     it('reports missing native paint and refuses invalid owners without observers, requests or DOM fallback', async () => {

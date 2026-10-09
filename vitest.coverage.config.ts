@@ -609,6 +609,7 @@ export default defineConfig({
                 'src/features/information-highlight/background/runtime.ts',
                 'src/features/information-highlight/content/readingText.ts',
                 'src/features/information-highlight/content/runtime.ts',
+                'src/features/information-highlight/domain/frequencyData.ts',
                 'src/features/information-highlight/domain/keywords.ts',
                 'src/features/information-highlight/domain/presentation.ts',
                 'src/features/information-highlight/domain/textBoundaries.ts',

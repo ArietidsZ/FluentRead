@@ -94,10 +94,10 @@ describe('词项热力呈现的评分与密度边界', () => {
         expect(chinese.has('猫')).toBe(true); expect(chinese.has('了')).toBe(false); expect(chinese.has('只')).toBe(false);
         const traditional = score('這個問題常見於兒童時期，我們透過藥物治療障礙。');
         expect(traditional.has('這個')).toBe(false); expect(traditional.has('我們')).toBe(false); expect(traditional.get('障礙')!).toBeGreaterThan(traditional.get('問題')!);
-        const japanese = score('吾輩は猫である。コンピューターを使う。まだ鬱だ。');
-        expect(japanese.get('コンピューター')!).toBeGreaterThan(japanese.get('まだ')!); expect(japanese.has('鬱')).toBe(true);
+        const japanese = score('吾輩は猫である。コンピューターを使う。まだ龘だ。');
+        expect(japanese.get('コンピューター')!).toBeGreaterThan(japanese.get('まだ')!); expect(japanese.has('龘')).toBe(true);
         const korean = score('스마트 강조는 people 글을 읽습니다'); expect(korean.get('강조는')!).toBeGreaterThan(korean.get('people')!);
-        expect(scoreInformationKeywords('招聘').engine).toBe('local-keyword-rules-v4');
+        expect(scoreInformationKeywords('招聘').engine).toBe('local-keyword-rules-v5');
     });
     it('grades English words by how common they are, looking through common endings', () => {
         const text = 'Researchers studied arbitrary mechanisms while people created things, making plans and asking questions about stories.';
