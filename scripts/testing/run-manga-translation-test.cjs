@@ -34,6 +34,7 @@ const readingPauseMs=Number(arg('reading-pause-ms','0'));
 const skipFirstCancel=process.argv.includes('--skip-first-cancel');
 const readAheadTest=process.argv.includes('--prefetch-pages');
 const scrollStabilityTest=process.argv.includes('--scroll-stability');
+const scrollIntentTest=process.argv.includes('--scroll-intent');
 const cacheNavigationTest=process.argv.includes('--cache-navigation');
 const tieredCacheTest=process.argv.includes('--tiered-cache');
 const pageFeedbackTest=process.argv.includes('--page-feedback');
@@ -202,7 +203,7 @@ window.addPage=(text,id)=>{
  canvas.toBlob(blob=>{image.src=URL.createObjectURL(blob)});
  return image;
 };addPage('Welcome to FluentRead','page-one');addPage('Second manga page','page-two');addPage('Third manga page','page-three');
-${readAheadTest || scrollStabilityTest || cacheNavigationTest || tieredCacheTest || pageFeedbackTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
+${readAheadTest || scrollStabilityTest || scrollIntentTest || cacheNavigationTest || tieredCacheTest || pageFeedbackTest ? "addPage('Fourth manga page','page-four');addPage('Fifth manga page','page-five');addPage('Sixth manga page','page-six');" : ''}
 </script></body></html>`;
 async function ui(hostId, code) {
     const tree = await cdp.send('DOM.getDocument', {depth: -1, pierce: true}); let host;
@@ -771,6 +772,97 @@ async function verifyPipelinePerformance(extensionId) {
     auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
 }
 
+/** 仅此模式验证停留调度与初始化取消复用；真实模型推理，文字传输受控，不把返显时间当作 OCR 性能。 */
+async function verifyScrollIntent() {
+    assert.equal(liveSite,false,'Scroll intent uses the owned six-page fixture');
+    assert.equal(prefetchPages,0,'Fast pass checks exclude intentionally configured prefetch');
+    await page.setViewportSize({width:1280,height:700});
+    const images=page.locator(readerSelector),first=images.first(),last=images.nth(4);
+    await page.waitForFunction(()=>document.querySelectorAll('.zao-image').length===6 && [...document.querySelectorAll('.zao-image')].every(i=>i.complete&&i.naturalWidth));
+    const readDiagnostics=async()=>{
+        const result=await modelObserver.command('Runtime.evaluate',{expression:'JSON.stringify(globalThis.__mangaResidency)',returnByValue:true});
+        return JSON.parse(result.result.value);
+    };
+    await toggle();
+    // 已展开入口的坐标提前读取；普通 toggle helper 有 650 ms 悬停等待，不适合验证 180 ms 内暂停。
+    const togglePoint=await ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
+    const toggleNow=()=>page.mouse.click(togglePoint.x,togglePoint.y);
+    if(process.argv.includes('--skip-initialization-cancel')) {
+        await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));
+    } else {
+        report.currentCase='pause during cold model initialization preserves one bounded warm worker for immediate resume';
+        await wait(async()=>(await readDiagnostics()).events.at(-1)?.stage==='initializing',30000);
+        report.pauseStage=(await readDiagnostics()).events.at(-1)?.stage;
+        await toggleNow();
+        assert.equal(await first.evaluate(i=>i.style.opacity==='0'),false,'Pause shows the original immediately');
+        await page.waitForTimeout(100);
+        await toggleNow();
+        await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));
+        report.initializationResidency=await readDiagnostics();
+        assert.equal(report.initializationResidency.created,1,'Resume shares the worker that was already initializing');
+        assert.equal(report.initializationResidency.terminated,0,'Normal cancellation does not discard initialization');
+        report.cases.push(report.currentCase);
+    }
+    await wait(async()=>await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'));
+    const before=await ops();
+    report.currentCase='rapidly passing three untranslated pages starts only the page where reading stops';
+    report.passStart=Date.now();
+    await images.evaluateAll(async items=>{
+        for(const index of [1,2,3,4]) {
+            items[index].scrollIntoView({block:'start',behavior:'instant'});
+            await new Promise(resolve=>setTimeout(resolve,45));
+        }
+    });
+    await wait(async()=>await last.evaluate(i=>i.style.opacity==='0'));
+    await wait(async()=>await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'));
+    report.fastPassOperations=(await ops())-before;
+    assert.equal(report.fastPassOperations,1,'Only the settled fifth page issues OCR');
+    assert.equal(await images.evaluateAll(items=>[1,2,3].every(index=>items[index].style.opacity!=='0')),true,'Passed pages retain their originals');
+    report.cases.push(report.currentCase);await screenshot('settled-page-translated');
+    report.currentCase='returning to a completed page displays its bitmap during the scroll gate without new OCR';
+    report.cachedReturnMs=await first.evaluate(async i=>{
+        const start=performance.now();i.scrollIntoView({block:'start',behavior:'instant'});
+        for(let frame=0;frame<8;frame++) {await new Promise(requestAnimationFrame);if(i.style.opacity==='0')return performance.now()-start;}
+        throw new Error('Cached page missed immediate frame handoff');
+    });
+    assert.ok(report.cachedReturnMs<180,'Cached display is not delayed until scroll settling');
+    assert.equal(await ops(),before+1);report.cases.push(report.currentCase);
+    report.currentCase='scrolling then pausing before settle cancels pending work and keeps every host image original';
+    // 截图已把指针移开并收起入口，先完成真实悬停展开，再发出本次滚动与立即暂停。
+    const exposed=await ball(`const b=this.querySelector('.floating-ball-manga'),r=b.getBoundingClientRect(),left=this.querySelector('.fr-floating-ball').dataset.position==='left';return {x:r.x+r.width*(left ? .75 : .25),y:r.y+r.height/2}`);
+    await page.mouse.move(exposed.x,exposed.y);
+    await wait(async()=>await ball('return this.querySelector(".fr-floating-ball").classList.contains("floating-ball-expanded")'),3000);
+    await page.waitForTimeout(500);
+    const pausePoint=await ball(`const r=this.querySelector('.floating-ball-manga').getBoundingClientRect();return {x:r.x+r.width/2,y:r.y+r.height/2}`);
+    await page.mouse.move(pausePoint.x,pausePoint.y);await page.waitForTimeout(150);
+    await images.nth(2).evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await page.mouse.click(pausePoint.x,pausePoint.y);await page.waitForTimeout(400);
+    assert.equal(await ops(),before+1);
+    assert.equal(await images.evaluateAll(items=>items.every(i=>i.style.opacity!=='0')),true);
+    await assertQuietReading();report.cases.push(report.currentCase);await screenshot('paused-original');
+    report.currentCase='settled far jump cancels a distant held page and starts the current page before its late response';
+    await first.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));await toggle();
+    await wait(async()=>await first.evaluate(i=>i.style.opacity==='0'));
+    await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});
+    const beforeHeld=await ops(),third=images.nth(2),sixth=images.nth(5);
+    await third.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await wait(async()=>(await ops())===beforeHeld+1,15000);
+    await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+    const heldRequest=await worker.evaluate(()=>globalThis.__mangaTest.operations.at(-1));
+    await sixth.evaluate(i=>i.scrollIntoView({block:'start',behavior:'instant'}));
+    await wait(async()=>(await ops())===beforeHeld+2,10000);
+    assert.equal(await worker.evaluate(id=>globalThis.__mangaTest.cancellations.includes(id),heldRequest),true,'Distant request is canceled before its text transport returns');
+    await worker.evaluate(()=>globalThis.__mangaTest.releaseHeld?.());
+    await wait(async()=>await sixth.evaluate(i=>i.style.opacity==='0'));
+    assert.equal(await third.evaluate(i=>i.style.opacity==='0'),false,'Late canceled result cannot revive its old page');
+    await assertQuietReading();report.cases.push(report.currentCase);await screenshot('far-jump-current-translated');
+    report.engineResidency=await readDiagnostics();
+    report.progress=await worker.evaluate(()=>globalThis.__mangaTest.progress);
+    report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
+    if(blockedAll)assert.equal(report.modelRequests.length,0);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);
+}
+
 async function verifyScrollStability() {
     assert.equal(prefetchPages,0,'Scroll overlap test processes visible pages only');
     const images=page.locator(readerSelector);
@@ -874,6 +966,7 @@ async function verifyScrollStability() {
         report.currentCase='returning from outside the two-page retention window restores a cached bitmap during another request';
         await worker.evaluate(()=>{globalThis.__mangaTest.holdNext=true;});await scroll(far);
         await wait(async()=>await worker.evaluate(()=>!!globalThis.__mangaTest.releaseHeld),90000);
+        const heldFarRequest=await worker.evaluate(()=>globalThis.__mangaTest.operations.at(-1));
         assert.equal(await near.evaluate(i=>i.style.opacity),'','Offscreen original is restored after release');
         await returnFirst(near);await noVisibleReversion(near);assert.equal(await ops(),before+2);
         report.cases.push(report.currentCase);await screenshot('cached-return-during-next-page');
@@ -881,14 +974,15 @@ async function verifyScrollStability() {
         await near.evaluate(i=>{i.src=document.querySelector('#page-three').src;});
         await wait(async()=>await near.evaluate(i=>i.complete&&i.style.opacity!=='0'),10000);
         await page.waitForTimeout(300);assert.equal(await near.evaluate(i=>i.style.opacity),'');
-        assert.equal(await ops(),before+2,'New source waits behind actual in-flight work rather than receiving a stale bitmap');
+        await wait(async()=>(await ops())===before+3,10000);
+        assert.equal(await worker.evaluate(id=>globalThis.__mangaTest.cancellations.includes(id),heldFarRequest),true,'New visible source takes priority over obsolete distant work');
         report.cases.push(report.currentCase);
         report.currentCase='chapter change cancels the old request and ignores its late provider result';
         await page.evaluate(()=>{history.pushState(null,'','/viewer/1024051');document.dispatchEvent(new Event('fluentread-route-change'));});
         await wait(async()=>(await ball('return this.querySelector(".floating-ball-manga")?.getAttribute("aria-pressed")'))==='false',10000);
         await worker.evaluate(()=>{globalThis.__mangaTest.releaseHeld?.();});await page.waitForTimeout(1000);
         assert.equal(await imageUi('return this.querySelectorAll(".fluent-read-image-translation-bitmap").length'),0);
-        assert.equal(await ops(),before+2);report.cases.push(report.currentCase);
+        assert.equal(await ops(),before+3);report.cases.push(report.currentCase);
     }
     report.progress=await worker.evaluate(()=>globalThis.__mangaTest.progress);
     report.cancellations=await worker.evaluate(()=>globalThis.__mangaTest.cancellations);
@@ -1057,7 +1151,7 @@ async function verifyReadAhead() {
     assert.equal(await images.evaluateAll(items=>items.every(i=>i.style.opacity!== '0')),true);
     report.cases.push(report.currentCase);
     await gotoVisible(popup,`chrome-extension://${new URL(worker.url()).host}/options.html#settings-image-translation`);
-    const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});await select.press('Enter');await popup.getByRole('option',{name:'只翻译当前页面',exact:true}).click();await popup.reload();assert.match(await select.locator('xpath=ancestor::div[contains(@class,"el-select")][1]').textContent(),/只翻译当前页面/);report.cases.push('upcoming-page setting persists and allows current-page-only mode');
+    const select=popup.getByRole('combobox',{name:'提前翻译后续页面',exact:true});await select.press('Enter');await popup.getByRole('option',{name:'只翻译当前页面',exact:true}).click();await popup.reload();await wait(async()=>/只翻译当前页面/.test(await select.locator('xpath=ancestor::div[contains(concat(" ",normalize-space(@class)," ")," el-select ")][1]').textContent() || ""),10000);report.cases.push('upcoming-page setting persists and allows current-page-only mode');
     report.textBatches=await worker.evaluate(()=>globalThis.__mangaTest.textBatches);
     assert.ok(!(report.offscreenDiagnostics || []).some(d=>['warning','error'].includes(d.level)&&d.text.includes('Unknown CPU vendor')),'Known WASM CPU diagnostic is not a warning or error');
     if(blockedAll){assert.equal(report.modelRequests.length,0);report.cases.push('no model downloads during prepared local reading');}
@@ -1164,6 +1258,23 @@ await import('./mangaInferenceWorker.real.js');self.removeEventListener('message
     },{live:liveTranslation,trace:traceReader,traceLayout});
     await worker.evaluate(async()=>{await chrome.offscreen.createDocument({url:chrome.runtime.getURL('offscreen.html'),reasons:['DOM_PARSER'],justification:'Verify local manga processing in an isolated test profile'});});
     modelObserver=await observeModelDownloads(extensionId);
+    if(scrollIntentTest)await modelObserver.command('Runtime.evaluate',{expression:`(()=>{
+        const diagnostic=globalThis.__mangaResidency={created:0,terminated:0,events:[]};
+        const NativeWorker=globalThis.Worker;
+        globalThis.Worker=class extends NativeWorker {
+            constructor(url,options) {
+                super(url,options);
+                if(!String(url).includes('mangaInferenceWorker'))return;
+                const id=++diagnostic.created;
+                this.addEventListener('message',event=>{
+                    const {requestId,stage,success}=event.data||{};
+                    diagnostic.events.push({id,at:Date.now(),requestId,stage,success});
+                });
+                const terminate=this.terminate.bind(this);
+                this.terminate=()=>{diagnostic.terminated++;return terminate();};
+            }
+        };
+    })()`});
     if(preloadModels){
         await gotoVisible(modelSettings,`chrome-extension://${extensionId}/options.html#settings-image-translation`);
 
@@ -1265,6 +1376,7 @@ await import('./mangaInferenceWorker.real.js');self.removeEventListener('message
     if(pageFeedbackTest){await verifyPageFeedback();report.status='passed';focusGuard();return;}
     if(tieredCacheTest){await verifyTieredCache(extensionId);report.status='passed';focusGuard();return;}
     if(cacheNavigationTest){await verifyCacheNavigation();report.status='passed';focusGuard();return;}
+    if(scrollIntentTest){await verifyScrollIntent();report.status='passed';focusGuard();return;}
     if(scrollStabilityTest){await verifyScrollStability();report.status='passed';focusGuard();return;}
     if(readAheadTest){await verifyReadAhead();report.status='passed';focusGuard();return;}
     report.currentCase='one click activates and translates only visible pages';

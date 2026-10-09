@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaOcr.ts
  * 文件职责：在扩展独立 Worker 中按需运行 PaddleOCR 漫画识别，并隔离排队、取消、失败和空闲释放。
- * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，用频繁读取的画布完成 OCR 预处理，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；取消由外部 owner 终止 Worker，GPU 挂起重建一次 CPU 后端，空闲三分钟释放会话，统一清理 OCR 与修补会话。
+ * 主要内容：延迟导入浏览器 OCR 和本地 ONNX WASM，用频繁读取的画布完成 OCR 预处理，读取已校验模型并融合 ONNX 执行图，硬件可用时加速识别，GPU 故障有界切换 CPU；气泡外旁白与放大的独立气泡识别后按漫画策略分组，普通图片保留物理行供严格段落策略使用；滚动取消保留轻量模型端口，Worker owner 有界收尾，GPU 挂起重建一次 CPU 后端，空闲三分钟释放会话，统一清理 OCR 与修补会话。
  * 模块边界：不访问宿主 DOM、不翻译文本、不处理译图；仅漫画及显式选择 PaddleOCR 的单张图片使用本模型；通用识别与圈选继续由 Tesseract 负责。
  */
 import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
@@ -50,6 +50,8 @@ export function createMangaOcrRuntime(create: (signal?: AbortSignal, progress?: 
                         assertMangaOcrActive(signal);
                         return collectMangaRegions(response, language, width, height, profile);
                     })().catch(async error => {
+                        // 滚动取消只丢弃本页结果；端口仍可复用，由 Worker owner 看守原生推理收尾。
+                        if (signal?.aborted && (error as Error | undefined)?.name === 'AbortError') throw error;
                         const current=service;service=undefined;
                         await Promise.resolve().then(()=>current?.destroy()).catch(()=>undefined);
                         throw error;
@@ -174,7 +176,14 @@ export function removeMangaModels():Promise<void>{
     return withMangaModelRemoval(async () => {
         // 先等修补队列退出，再由 OCR 队列清除缓存；释放失败仍须尝试剩余清理。
         try { await mangaInpaintingRuntime.dispose(); }
-        finally { await mangaOcrRuntime.removeModels(); }
+        finally {
+            try { await mangaOcrRuntime.dispose(); }
+            finally {
+                // 两个运行队列退出后，清除取消准备留下的无人端口，避免删除后重新写入模型缓存。
+                mangaInferenceClient.dispose();
+                await mangaOcrRuntime.removeModels();
+            }
+        }
     });
 }
-export function disposeMangaModels():void{void mangaOcrRuntime.dispose().catch(()=>undefined);void mangaInpaintingRuntime.dispose().catch(()=>undefined);}
+export function disposeMangaModels():void{mangaInferenceClient.dispose();void mangaOcrRuntime.dispose().catch(()=>undefined);void mangaInpaintingRuntime.dispose().catch(()=>undefined);}

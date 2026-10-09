@@ -2,10 +2,13 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 import {parseHTML} from 'linkedom';
 import {createMangaBackground} from '@/src/features/image-translation/content/mangaBackground';
 import {composeMangaPage} from '@/src/features/image-translation/content/mangaCompositor';
+import {encodeImageCanvas} from '@/src/features/image-translation/services/imageEncoding';
 vi.mock('@/src/features/image-translation/content/mangaCompositor', () => ({composeMangaPage: vi.fn()}));
+vi.mock('@/src/features/image-translation/services/imageEncoding', () => ({encodeImageCanvas: vi.fn()}));
 const flush = async () => {for (let n=0;n<20;n++) await Promise.resolve();};
 
 function fixture() {
+    vi.mocked(encodeImageCanvas).mockResolvedValue('data:image/png;base64,AQ==');
     const {document}=parseHTML('<html><body><div id="page-1" style="background-image:url(blob:https://palcy.jp/page-1)"></div></body></html>');
     const element=document.getElementById('page-1')! as HTMLElement;
     const rect={left:0,top:0,right:640,bottom:900,width:640,height:900};element.getBoundingClientRect=()=>rect as DOMRect;

@@ -17,9 +17,64 @@ function sessionFixture(extra: {reuse?: (image: HTMLImageElement) => boolean} = 
     const start = () => {session.toggle(); session.refresh(snapshot);};
     return {session, ports, one, two, snapshot, start};
 }
-afterEach(() => {vi.restoreAllMocks(); vi.unstubAllGlobals();});
+afterEach(() => {vi.useRealTimers();vi.restoreAllMocks(); vi.unstubAllGlobals();});
 
 describe('漫画会话所有权与可见页调度', () => {
+    it('移动关闸同步阻止下一页启动，停留后按最新可见页继续；缓存交接仍立即执行', async () => {
+        const reuse = vi.fn().mockReturnValue(false), f = sessionFixture({reuse}), pending = deferred();
+        f.snapshot.pages[1].prefetch = true;
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.start();await flush();
+        f.session.deferScheduling();pending.resolve();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        f.snapshot.deferNewWork = true;f.snapshot.pages[0].visible = false;f.snapshot.pages[1].visible = true;
+        f.session.refresh(f.snapshot);await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        reuse.mockImplementation(image => image === f.one);f.snapshot.pages[0].visible = true;
+        f.session.refresh(f.snapshot);
+        expect(reuse).toHaveBeenCalledWith(f.one);expect(f.session.status()).toMatchObject({completed:1,pending:false});
+        f.snapshot.deferNewWork = false;f.session.refresh(f.snapshot);await flush();
+        expect(f.ports.translate.mock.calls.map(c => c[0])).toEqual([f.one,f.two]);f.session.dispose();
+        f.session.deferScheduling();
+    });
+    it('首个请求的微任务前开始移动不会识别或虚报完成，显式开关和重试立即恢复调度', async () => {
+        const f = sessionFixture();f.start();f.session.deferScheduling();await flush();
+        expect(f.ports.translate).not.toHaveBeenCalled();expect(f.session.status().completed).toBe(0);
+        f.snapshot.deferNewWork = true;f.session.refresh(f.snapshot);await flush();
+        expect(f.ports.translate).not.toHaveBeenCalled();
+        f.session.toggle();f.session.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        f.session.deferScheduling();f.session.refresh(f.snapshot);
+        expect(f.session.retry(f.one)).toBe(true);await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.session.dispose();
+    });
+    it('远距离跳页停稳后取消旧识别，移动、后台隐藏和附近保留期间不抢占串行槽', async () => {
+        const f = sessionFixture();let cancel!: (error: Error) => void;
+        f.ports.translate.mockReturnValueOnce(new Promise<void>((_, reject) => {cancel = reject;}));
+        f.ports.release.mockImplementation(image => {if (image === f.one) cancel(new Error('aborted'));});
+        f.start();await flush();f.snapshot.pages[0].visible = false;f.snapshot.pages[1].visible = true;
+        f.snapshot.deferNewWork = true;f.session.refresh(f.snapshot);expect(f.ports.release).not.toHaveBeenCalled();
+        f.snapshot.deferNewWork = false;f.snapshot.suspended = true;f.session.refresh(f.snapshot);
+        expect(f.ports.release).not.toHaveBeenCalled();
+        f.snapshot.suspended = false;f.snapshot.pages[0].retain = true;f.session.refresh(f.snapshot);
+        expect(f.ports.release).not.toHaveBeenCalled();
+        f.snapshot.pages[0].retain = false;f.session.refresh(f.snapshot);
+        expect(f.ports.release).toHaveBeenCalledWith(f.one);expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        expect(f.session.status().pending).toBe(true);await flush();
+        expect(f.ports.translate.mock.calls.map(c => c[0])).toEqual([f.one,f.two]);
+        expect(f.session.status()).toMatchObject({errors:0,completed:1,pending:false});f.session.dispose();
+    });
+    it('返回已译缓存立即显示，不取消远处在途任务；取消后的迟到结果不能复活旧页', async () => {
+        const reuse = vi.fn().mockReturnValue(false), f = sessionFixture({reuse}), pending = deferred();
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.start();await flush();
+        reuse.mockImplementation(image => image === f.two);
+        f.snapshot.pages[0].visible = false;f.snapshot.pages[1].visible = true;f.session.refresh(f.snapshot);
+        expect(f.ports.release).not.toHaveBeenCalled();expect(f.session.status()).toMatchObject({completed:1,pending:true});
+        pending.resolve();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);f.session.dispose();
+        const late = sessionFixture(), stale = deferred();late.ports.translate.mockReturnValueOnce(stale.promise);
+        late.ports.failed.mockImplementation(image => image === late.one);late.start();await flush();
+        late.snapshot.pages[0].visible = false;late.snapshot.pages[1].visible = true;late.session.refresh(late.snapshot);
+        expect(late.ports.release).toHaveBeenCalledTimes(1);expect(late.ports.translate).toHaveBeenCalledTimes(1);
+        stale.resolve();await flush();expect(late.ports.translate.mock.calls.map(c => c[0])).toEqual([late.one,late.two]);
+        expect(late.ports.release).toHaveBeenCalledTimes(1);expect(late.session.status()).toMatchObject({errors:0,completed:1});late.session.dispose();
+    });
     it('失败不自动循环请求，显式单页重试发布进度并在成功后清除会话错误',async()=>{
         const reuse=vi.fn().mockReturnValue(false),f=sessionFixture({reuse});f.ports.failed.mockReturnValue(true);
         f.start();await flush();expect(f.session.status().errors).toBe(1);
@@ -73,11 +128,12 @@ describe('漫画会话所有权与可见页调度', () => {
         expect(f.ports.translate).toHaveBeenCalledTimes(3);expect(f.session.status().ahead).toBe(0);
         f.session.toggle();expect(f.ports.restore).toHaveBeenCalledTimes(3);
     });
-    it('滚动离开窗口的在途页不取消、不重做；最终释放，真实移除仍及时取消', async () => {
+    it('附近在途页不取消、不重做，完成后保留；离开保留窗口与真实移除仍及时释放', async () => {
         const f=sessionFixture(),pending=deferred();f.ports.translate.mockReturnValueOnce(pending.promise);
-        f.start();await flush();f.snapshot.pages[0].visible=false;f.snapshot.pages[1].visible=true;
+        f.start();await flush();f.snapshot.pages[0].visible=false;f.snapshot.pages[0].retain=true;f.snapshot.pages[1].visible=true;
         f.session.refresh(f.snapshot);expect(f.ports.release).not.toHaveBeenCalled();
         expect(f.session.status().prefetching).toBe(true);pending.resolve();await flush();
+        expect(f.ports.release).not.toHaveBeenCalled();f.snapshot.pages[0].retain=false;f.session.refresh(f.snapshot);
         expect(f.ports.release).toHaveBeenCalledWith(f.one);expect(f.ports.translate.mock.calls.map(c=>c[0])).toEqual([f.one,f.two]);
         const again=deferred();f.snapshot.pages[0].visible=true;f.ports.translate.mockReturnValueOnce(again.promise);
         f.session.refresh(f.snapshot);await flush();f.snapshot.pages.shift();f.session.refresh(f.snapshot);
@@ -184,11 +240,77 @@ function readerFixture(withIntersection = true, initialUrl = 'https://mangaplus.
     const reader = createMangaReader({...ports, siteRules, prefetchPages, warm, canvas, ...cachePorts});
     const run = () => {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(c => c(0));};
     const intersect = (yes: boolean) => {io.callback([{target: image, isIntersecting: yes} as unknown as IntersectionObserverEntry], {} as IntersectionObserver); run();};
-    return {reader, ports, image, io, mo, window, dom, document, run, intersect,
+    const scroll = () => {events.get('scroll')!();run();};
+    return {reader, ports, image, io, mo, window, dom, document, run, intersect, scroll,
         setRect: (v: Partial<typeof bounds>) => Object.assign(bounds, v), setStyle: (v: Partial<typeof style>) => Object.assign(style, v),
         setHidden: (v: boolean) => {hidden = v;}};
 }
 describe('漫画站点适配与 DOM 生命周期', () => {
+    it('快速掠过页面不启动识别或预译，在途完成不穿过关闸，停下才处理最终视口', async () => {
+        vi.useFakeTimers();let ahead = 0, anchor = 0;
+        const f = readerFixture(true,undefined,undefined,() => ahead), images = [f.image], pending = deferred();
+        for (let index = 1; index < 4; index++) {
+            const image = f.document.createElement('img') as HTMLImageElement;image.className = 'zao-image';image.src = `blob:skip-${index}`;
+            Object.defineProperties(image,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+            image.getBoundingClientRect = () => ({left:0,right:800,top:(index-anchor)*1300,bottom:(index-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+            f.image.parentElement!.append(image);images.push(image);
+        }
+        f.image.getBoundingClientRect = () => ({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.ports.translate.mockReturnValueOnce(pending.promise);f.reader.toggle();await flush();ahead = 1;
+        anchor = 1;f.scroll();pending.resolve();await flush();
+        expect(f.ports.translate.mock.calls.map(c => c[0])).toEqual([images[0]]);
+        vi.advanceTimersByTime(120);anchor = 2;f.scroll();f.io.callback([],{} as IntersectionObserver);f.run();await flush();
+        vi.advanceTimersByTime(179);f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(1);f.run();await flush();
+        expect(f.ports.translate.mock.calls.map(c => c[0])).toEqual([images[0],images[2],images[3]]);
+        expect(f.reader.status()).toMatchObject({completed:3,ahead:1});f.reader.dispose();
+    });
+    it('IO 翻页也需停留；已有位图进入视口立即复用，不等停留或另一页 OCR', async () => {
+        vi.useFakeTimers();let anchor = 0;
+        const reuse = vi.fn().mockReturnValue(false), f = readerFixture(true,undefined,undefined,undefined,undefined,undefined,{reuse});
+        const next = f.document.createElement('img') as HTMLImageElement;next.className = 'zao-image';next.src = 'blob:cached-next';
+        Object.defineProperties(next,{complete:{value:true},naturalWidth:{value:800},naturalHeight:{value:1200}});
+        next.getBoundingClientRect = () => ({left:0,right:800,top:(1-anchor)*1300,bottom:(1-anchor)*1300+1200,width:800,height:1200}) as DOMRect;
+        f.image.getBoundingClientRect = () => ({left:0,right:800,top:-anchor*1300,bottom:-anchor*1300+1200,width:800,height:1200}) as DOMRect;
+        f.image.parentElement!.append(next);f.reader.toggle();await flush();
+        anchor = 1;f.io.callback([],{} as IntersectionObserver);f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        reuse.mockImplementation(image => image === next);f.io.callback([],{} as IntersectionObserver);f.run();
+        expect(reuse).toHaveBeenCalledWith(next);expect(f.reader.status().completed).toBe(2);
+        vi.advanceTimersByTime(180);f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(1);f.reader.dispose();
+    });
+    it('普通图片的持续滚动复用 IO 通知，不逐帧遍历正文；停留测量不被无关样式变更延后', async () => {
+        vi.useFakeTimers();const f = readerFixture(), bounds = vi.fn(f.image.getBoundingClientRect);
+        f.image.getBoundingClientRect = bounds;f.reader.toggle();await flush();bounds.mockClear();
+        f.scroll();const first = bounds.mock.calls.length;expect(first).toBeGreaterThan(0);
+        for (let index = 0; index < 5; index++) f.scroll();
+        expect(bounds).toHaveBeenCalledTimes(first);
+        expect(f.window.addEventListener).toHaveBeenCalledWith('scroll',expect.any(Function),true);
+        vi.advanceTimersByTime(120);
+        f.mo.callback([{target:f.image.parentElement,type:'attributes',attributeName:'style'} as unknown as MutationRecord],{} as MutationObserver);f.run();
+        bounds.mockClear();vi.advanceTimersByTime(59);f.run();expect(bounds).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);f.run();expect(bounds).toHaveBeenCalled();f.reader.dispose();
+    });
+    it('没有 IO 时仍随滚动更新位置，单页重试和重新开启绕过停留，卸载清理停留计时器', async () => {
+        vi.useFakeTimers();const f = readerFixture(false), bounds = vi.fn(f.image.getBoundingClientRect);
+        f.image.getBoundingClientRect = bounds;f.ports.failed.mockReturnValue(true);f.reader.toggle();await flush();
+        f.scroll();bounds.mockClear();f.scroll();expect(bounds).toHaveBeenCalled();
+        f.ports.failed.mockReturnValue(false);expect(f.reader.retry(f.image)).toBe(true);await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(2);expect(vi.getTimerCount()).toBe(0);
+        f.scroll();f.reader.toggle();f.reader.toggle();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(3);
+        expect(vi.getTimerCount()).toBe(0);f.scroll();expect(vi.getTimerCount()).toBe(1);
+        f.reader.dispose();bounds.mockClear();vi.advanceTimersByTime(200);f.run();
+        expect(vi.getTimerCount()).toBe(0);expect(bounds).not.toHaveBeenCalled();f.scroll();
+        expect(vi.getTimerCount()).toBe(0);
+    });
+    it('后台隐藏时取消停留并停止新页请求，回到页面才恢复最终视口', async () => {
+        vi.useFakeTimers();const f = readerFixture();f.reader.toggle();await flush();
+        f.image.src = 'blob:after-scroll';f.scroll();expect(vi.getTimerCount()).toBe(1);
+        f.setHidden(true);f.document.dispatchEvent(new f.dom.Event('visibilitychange'));f.run();
+        expect(vi.getTimerCount()).toBe(0);vi.advanceTimersByTime(200);f.run();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(1);
+        f.setHidden(false);f.document.dispatchEvent(new f.dom.Event('visibilitychange'));f.run();await flush();
+        expect(f.ports.translate).toHaveBeenCalledTimes(2);f.reader.dispose();
+    });
     it.each(['chapter', 'query'])('Hentaizap 逐页替换保留阅读，%s 变化结束旧章并释放缓存', async change => {
         const resetCache = vi.fn(), reuse = vi.fn().mockReturnValue(false);
         const f = readerFixture(false, 'https://hentaizap.com/g/1655925/1', undefined, undefined, undefined, undefined, {resetCache, reuse});
@@ -795,11 +917,12 @@ describe('漫画站点适配与 DOM 生命周期', () => {
         expect(mangaReaderSelector(href)).toBeNull();
     });
     it('观察可见正文、不处理 logo，关闭后释放观察器与事件', async () => {
+        vi.useFakeTimers();
         const f = readerFixture(); expect(f.io.observe).toHaveBeenCalledWith(f.image);
         f.reader.toggle(); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(1);
         f.intersect(true); await flush(); expect(f.ports.translate).toHaveBeenCalledWith(f.image);
         f.setRect({top:-1200,bottom:0});f.intersect(false); expect(f.ports.release).toHaveBeenCalledWith(f.image);
-        f.setRect({top:0,bottom:1200});f.intersect(true); await flush(); expect(f.ports.translate).toHaveBeenCalledTimes(2);
+        f.setRect({top:0,bottom:1200});f.intersect(true);vi.advanceTimersByTime(180);f.run();await flush();expect(f.ports.translate).toHaveBeenCalledTimes(2);
         f.reader.schedule(); f.reader.schedule(); f.reader.dispose(); f.run(); f.reader.schedule();
         expect(f.window.cancelAnimationFrame).toHaveBeenCalled(); expect(f.io.disconnect).toHaveBeenCalled();
         expect(f.mo.disconnect).toHaveBeenCalled(); expect(f.window.removeEventListener).toHaveBeenCalledTimes(2);

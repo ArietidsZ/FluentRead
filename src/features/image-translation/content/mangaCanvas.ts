@@ -1,10 +1,11 @@
 /**
  * @file src/features/image-translation/content/mangaCanvas.ts
  * 文件职责：把可读正文画布、背景图片和长图分段快照接入既有漫画识别与局部译图合成，保留宿主正文及翻页交互。
- * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立快照；注入正文锚点、绘制范围及核心裁切支持背景与分段；会话端口负责串行调度，暂停、来源变化和卸载取消旧结果；隔离译图跟随原正文与祖先裁切，缓存只保留有界压缩图块。
+ * 主要内容：小尺寸像素指纹识别画布重绘，任务使用独立快照并异步无损编码；注入正文锚点、绘制范围及核心裁切支持背景与分段；会话端口负责串行调度，编码后复核所有权，暂停、来源变化和卸载取消旧结果；隔离译图跟随原正文与祖先裁切，缓存只保留有界压缩图块。
  * 模块边界：只读取公开 DOM 画布或注入的已展示正文快照，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
  */
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage, type MangaPatchPacket} from '../mangaPatchResult';
+import {encodeImageCanvas} from '../services/imageEncoding';
 import {composeMangaPage} from './mangaCompositor';
 
 interface CanvasState {
@@ -152,7 +153,9 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
             }
             let page = ports.cacheEnabled() ? lightCache.get(owner) : undefined;
             if (!page) {
-                const result = await ports.translate(original.toDataURL('image/png'), controller.signal);
+                const image = await encodeImageCanvas(original, controller.signal);
+                if (!current()) return;
+                const result = await ports.translate(image, controller.signal);
                 if (!current()) return;
                 if (result.lines.length === 0) page = {width: original.width, height: original.height, patches: [], lines: []};
                 else {

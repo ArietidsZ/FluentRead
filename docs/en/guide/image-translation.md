@@ -20,6 +20,10 @@ After translation, the **Original / Text** controls hide when the pointer leaves
 
 ## Continuous manga translation
 
+With continuous translation enabled, new pages wait until scrolling has settled for about 180 ms before recognition starts. Quickly passed pages do not build up in the queue; completed translations still appear immediately. After a distant jump to an untranslated page, an old task outside the retention window is canceled so the current page can proceed. Manual activation and retry run immediately. Configured page prefetch resumes after scrolling settles.
+
+Local manga models are reused during reading and brief pauses, then released after about three idle minutes. Pausing during initialization restores the original immediately while model preparation can finish for reuse when you resume. Timeouts and failures stop the worker and allow retry. Initial preparation, complex page recognition and the text translation service can still take time.
+
 The manga reader on [MANGA Plus by SHUEISHA](https://mangaplus.shueisha.co.jp/) and artwork pages on [Pixiv](https://www.pixiv.net/) have dedicated adapters. Click the manga button to start. No reading panel opens automatically. On first use with missing resources, a confirmation explains about 30 MB for recognition and an optional 197 MB for text removal. Confirming closes it and starts preparation. Choosing **Later** or closing it starts no download.
 
 The right-side controls stay visible by default: webpage translation above, a circular brand icon in the middle, and a 32-pixel manga button below on reader pages. Moving away, waiting or pressing Escape does not retract them. An explicit hover preference remains available in floating-button settings; only that mode retracts manga controls after about 2.5 seconds. With the ordinary floating button hidden, the optional standalone manga button also stays visible by default. Use **Image/manga translation → Standalone manga button** to control it. Saved visibility preferences are preserved. The master and manga switches control availability.
