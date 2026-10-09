@@ -621,5 +621,11 @@
   "screenshotSha256": {
     "browser-ui-connecting-official.png": "862c938ad4d13bc51ed2898687aaff90d7c415b8b42c3b0195370bac52c3394a",
     "browser-ui-source-settings-zh-390.png": "39abe23ed172eeb6a8bd78406a39ee6b279e0bab55cc9f656b8b8147cf882490"
-  }
+  },
+  "provenanceHashScope": "SHA captured at browser preflight; finalized metadata was subsequently enriched without changing the source identity or Chrome bytes.",
+  "finalizedProvenanceSha256": "23ba489f869506437a8e20555a6694ffaebd5d4e3bd10dd9811c73a77e8ee7d5",
+  "finalizedProvenanceAddedFields": [
+    "firefoxManifestSha256",
+    "verifiedTargets"
+  ]
 }
