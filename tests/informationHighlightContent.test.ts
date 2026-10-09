@@ -74,17 +74,17 @@ describe('local keyword and Unicode coordinates', () => {
     it('keeps original UTF-16 positions, excludes common words and scores repeated distinctive terms deterministically', () => {
         const text = 'The extraordinary algorithm and extraordinary metrics in 2026. 中文信息与阅读理解。';
         const result = scoreInformationKeywords(text);
-        expect(result.engine).toBe('local-keyword-rules-v3');
+        expect(result.engine).toBe('local-keyword-rules-v4');
         expect(result.spans.map(span => text.slice(span.start, span.end))).toContain('extraordinary');
         expect(result.spans.map(span => text.slice(span.start, span.end))).not.toContain('The');
         expect(scoreInformationKeywords(text)).toEqual(result);
-        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v3', spans: []});
+        expect(scoreInformationKeywords('the and 的 是 a I')).toEqual({engine: 'local-keyword-rules-v4', spans: []});
         const score = (source: string, word: string, occurrence = 0) => {
             const spans = scoreInformationKeywords(source).spans.filter(span => source.slice(span.start, span.end) === word); return spans[occurrence].score;
         };
         const shapes = 'Later the ADHD group met Levy near 2013 while plain words stayed. Reading plain words again.';
         expect(score(shapes, 'ADHD')).toBeGreaterThan(score(shapes, 'near') + 0.6); expect(score(shapes, 'Levy')).toBeGreaterThan(score(shapes, 'near'));
-        expect(score(shapes, '2013')).toBeGreaterThan(score(shapes, 'near')); expect(score(shapes, 'Later')).toBe(score(shapes, 'group'));
+        expect(score(shapes, '2013')).toBeGreaterThan(score(shapes, 'near')); expect(score(shapes, 'Later')).toBeLessThan(score(shapes, 'Levy'));
         expect(score(shapes, 'Reading')).toBeLessThan(score(shapes, 'stayed') + 0.5);
         expect(score(shapes, 'plain', 0)).toBeGreaterThan(score(shapes, 'plain', 1) + 0.6); expect(score(shapes, 'words', 1)).toBeLessThan(score(shapes, 'near'));
         const mixed = '预测意外度 predicts 阅读';

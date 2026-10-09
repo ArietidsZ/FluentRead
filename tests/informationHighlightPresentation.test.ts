@@ -96,8 +96,18 @@ describe('词项热力呈现的评分与密度边界', () => {
         expect(traditional.has('這個')).toBe(false); expect(traditional.has('我們')).toBe(false); expect(traditional.get('障礙')!).toBeGreaterThan(traditional.get('問題')!);
         const japanese = score('吾輩は猫である。コンピューターを使う。まだ鬱だ。');
         expect(japanese.get('コンピューター')!).toBeGreaterThan(japanese.get('まだ')!); expect(japanese.has('鬱')).toBe(true);
-        const korean = score('스마트 강조는 smart 글을 읽습니다'); expect(korean.get('강조는')!).toBeGreaterThan(korean.get('smart')!);
-        expect(scoreInformationKeywords('招聘').engine).toBe('local-keyword-rules-v3');
+        const korean = score('스마트 강조는 people 글을 읽습니다'); expect(korean.get('강조는')!).toBeGreaterThan(korean.get('people')!);
+        expect(scoreInformationKeywords('招聘').engine).toBe('local-keyword-rules-v4');
+    });
+    it('grades English words by how common they are, looking through common endings', () => {
+        const text = 'Researchers studied arbitrary mechanisms while people created things, making plans and asking questions about stories.';
+        const scores = new Map(scoreInformationKeywords(text).spans.map(span => [text.slice(span.start, span.end), span.score]));
+        expect(scores.get('arbitrary')!).toBeGreaterThan(scores.get('questions')!); expect(scores.get('mechanisms')!).toBeGreaterThan(scores.get('stories')!);
+        // 原形、-ies、去词尾、补 e 四种查法都落在常用词上；长度相同的少见词更高。
+        for (const [common, rare] of [['people', 'brumal'], ['stories', 'zephyrs'], ['asking', 'quokka'], ['created', 'zymurgy'], ['making', 'fjords']]) {
+            const pair = `Some ${rare} and ${common}.`, values = new Map(scoreInformationKeywords(pair).spans.map(span => [pair.slice(span.start, span.end), span.score]));
+            expect(values.get(rare)!).toBeGreaterThan(values.get(common)!);
+        }
     });
     it('评分片段聚合到完整字素和词项，拒绝非法边界、标点、emoji及累加溢出', () => {
         const text = 'extraordinary cafe\u0301 👩‍💻，中文阅读。';

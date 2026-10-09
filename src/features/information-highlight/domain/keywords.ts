@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/domain/keywords.ts
  * 文件职责：以可解释的本地词项规则生成信息高亮候选，不依赖语言模型、词典下载或网络服务。
- * 主要内容：保留 UTF-16 原文坐标，以标准词分段及有界后备分词排除常见虚词，结合词长、数字、专名与缩写形态以及段内首次出现排序；中日文词长几乎相同，另按内置常用字表估计用字的常见程度，让常见词浅、少见词深，繁体字先折算为简体再查表；密度选择只决定绘制覆盖，不把规则分数解释为理解收益或事实可信度。
+ * 主要内容：保留 UTF-16 原文坐标，以标准词分段及有界后备分词排除常见虚词，结合词长、数字、专名与缩写形态以及段内首次出现排序；中日文词长几乎相同，另按内置常用字表估计用字的常见程度，英文另按内置常用词表区分等长的常见词与少见词，让常见词浅、少见词深，繁体字先折算为简体再查表；密度选择只决定绘制覆盖，不把规则分数解释为理解收益或事实可信度。
  * 模块边界：纯文本算法，不读取 DOM、不写配置、不导入浏览器平台；调用方负责文本规模、页面所有权和原生 Range 绘制。
  */
 import type {InformationHighlightDensity} from '@/src/core/config/informationHighlight';
@@ -29,6 +29,15 @@ function characterRarity(key: string): number {
         count++;
     }
     return sum / count;
+}
+// 英语常用词，大致按使用频率排列，不含上面的虚词。只用来区分长度相近的常见词与少见词，不是词典。
+const commonEnglish = 'said new time people year way day man thing get make go know take see come think look want give use find tell ask work seem feel try leave call good first last long great little own old right big high different small large next early young important few public bad able back still now never always often again really already however world life hand part child eye woman place case week company system program question government number night point home water room mother area money story fact month lot study book job word business issue side kind head house service friend father power hour game line end member law car city community name president team minute idea kid body information parent face others level office door health person art war history party result change morning reason research girl guy moment air teacher force education need become mean keep let begin help talk turn start show hear play run move like live believe hold bring happen write provide sit stand lose pay meet include continue set learn lead understand watch follow stop create speak read allow add spend grow open walk win offer remember love consider appear buy wait serve die send expect build stay fall cut reach kill remain suggest raise pass sell require report decide pull best better sure free real full special easy clear recent certain personal red hard ready simple left late general whole white black short possible second third major local social national political economic human true strong low main common poor natural significant similar hot dead central happy serious final nice today together once away around later ago almost enough far yet probably ever least quite soon maybe perhaps actually usually finally simply rather food foot age policy music market sense nation plan college interest death experience effect class control field development role effort rate heart drug leader light voice wife police mind price decision son hope view relationship town road arm difference value building action season society tax director position player record paper space ground form event official matter center couple site project activity star table court produce land material computer type figure street image phone data picture practice piece product doctor wall patient worker news test movie north step film tree source truth kitchen daughter term cost rule south floor campaign answer brother industry media size window choice skill blood attention language example note list page letter account fire future bank west sport board subject officer rest behavior performance top goal bed order author discussion century summer hospital church risk evening unit staff opportunity pressure dog technology range amount design model million thousand hundred two three four five six seven eight nine ten half per each every another both either since until while though although during against among within across along toward upon above below behind near off whether why else thus therefore instead indeed also even just only very much many most more some any such same other going being having doing done made got went came took seen known given used found told asked called tried looked thought wanted support check base fill deal return save join agree pick wear cover catch draw choose cause sign develop carry break receive visit explain share prepare push close drive hit eat sleep enjoy travel finish drop mention notice describe improve avoid manage wish thank worry lie throw touch teach increase apply contain available likely current single particular private past present various entire legal medical popular traditional financial physical environmental cultural sometimes especially quickly clearly recently nearly directly exactly certainly generally mostly easily completely particularly internet web website online user email software app code file search click link video photo post message content version update feature tool option'.split(' ');
+const englishRank = new Map(commonEnglish.map((word, index) => [word, index]));
+/** 英文词越少见数值越高（0–1）：先查原形，再去掉常见词尾查一次；词表以外的词最少见。 */
+function englishRarity(key: string): number {
+    const rank = englishRank.get(key) ?? englishRank.get(key.replace(/(?:ies|ied)$/u, 'y')) ?? englishRank.get(key.replace(/(?:ing|ed|es|ly|s|d)$/u, ''))
+        ?? englishRank.get(key.replace(/(?:ing|ed)$/u, 'e'));
+    return rank === undefined ? 1 : Math.sqrt(rank / englishRank.size) * 0.8;
 }
 export interface InformationWordSpan {start: number; end: number; key: string}
 
@@ -61,7 +70,7 @@ export function informationWordSpans(text: string): InformationWordSpan[] {
 /**
  * 轻量规则评分是候选排序，不是概率、模型意外度或语义重要性的标定值。
  * 词越长、越少见的形态（数字、专名、缩写）分数越高；同一词在段内再次出现时更容易预料，分数降低。
- * 中日文按用字的常见程度加分，单个少见汉字也可成为候选。
+ * 中日文按用字的常见程度加分，单个少见汉字也可成为候选；英文按常用词表加分。
  */
 export function scoreInformationKeywords(text: string): InformationHighlightResult {
     const ideographic = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u;
@@ -69,7 +78,7 @@ export function scoreInformationKeywords(text: string): InformationHighlightResu
         .filter(word => !stopWords.has(word.key) && ([...word.key].length >= 2 || (/^\p{Script=Han}$/u.test(word.key) && characterRarity(word.key) >= 0.6)));
     const counts = new Map<string, number>(), seen = new Set<string>();
     for (const word of candidates) counts.set(word.key, (counts.get(word.key) ?? 0) + 1);
-    return {engine: 'local-keyword-rules-v3', spans: candidates.map(word => {
+    return {engine: 'local-keyword-rules-v4', spans: candidates.map(word => {
         const original = text.slice(word.start, word.end), length = [...word.key].length, repeated = seen.has(word.key);
         seen.add(word.key);
         // 表意文字的单字信息量高于字母：韩文按约 2.5 个字母折算；中日文的词长差别很小且长词多为常用短语，
@@ -77,7 +86,8 @@ export function scoreInformationKeywords(text: string): InformationHighlightResu
         const weight = ideographic.test(word.key) ? length * 1.5 : /^\p{Script=Hangul}/u.test(word.key) ? length * 2.5 : length;
         let score = Math.log2(2 + Math.min(weight, 12)) + (repeated ? -0.6 : Math.log2(counts.get(word.key)!) * 0.35);
         if (ideographic.test(word.key)) score += characterRarity(word.key) * 2.4;
-        if (/\p{N}/u.test(word.key)) score += 0.6;
+        else if (/^[a-z]+$/u.test(word.key)) score += englishRarity(word.key) * 1.2;
+        if (/\p{N}/u.test(word.key)) score += 1.4;
         if (/^\p{Lu}[\p{Lu}\p{N}]+$/u.test(original)) score += 0.7;
         // 句中首字母大写多为专名；句首大写不提供信息。
         else if (/^\p{Lu}/u.test(original) && /[^\s.!?。！？:：\n]\s+$/u.test(text.slice(Math.max(0, word.start - 3), word.start))) score += 0.5;
