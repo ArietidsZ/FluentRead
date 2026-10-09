@@ -143,6 +143,7 @@ export const zhCNMessages = {
     "settings.general.masterHelp": "关闭后会暂停翻译和写作助手，并隐藏网页及视频中的功能入口；重新开启时恢复原有偏好",
     "popup.providers.title": "翻译服务",
     "featureServices.followDefault": "跟随默认",
+    "featureServices.configuredModel": "配置模型：{model}",
     "featureServices.back": "返回翻译服务选择",
     "featureServices.needsSetup": "待配置",
     "popup.clearSearch": "清除搜索",

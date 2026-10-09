@@ -144,6 +144,7 @@ export const ruRUMessages = {
     "settings.general.masterHelp": "Отключение приостанавливает перевод и помощника по письму и скрывает их кнопки на страницах и в видео. При включении прежние настройки восстанавливаются.",
     "popup.providers.title": "Сервисы перевода",
     "featureServices.followDefault": "По умолчанию",
+    "featureServices.configuredModel": "Настроенная модель: {model}",
     "featureServices.back": "Назад к выбору сервисов перевода",
     "featureServices.needsSetup": "Требует настройки",
     "popup.clearSearch": "Очистить поиск",

@@ -146,6 +146,7 @@ export const enUSMessages = {
     "settings.general.masterHelp": "Turn off to pause translation and the writing assistant and hide their controls on webpages and videos. Turn back on to restore your preferences.",
     "popup.providers.title": "Translation services",
     "featureServices.followDefault": "Follow default",
+    "featureServices.configuredModel": "Configured model: {model}",
     "featureServices.back": "Back to translation service selection",
     "featureServices.needsSetup": "Needs setup",
     "popup.clearSearch": "Clear search",

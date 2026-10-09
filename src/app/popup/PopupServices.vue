@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupServices.vue
  文件职责：在 Popup 翻译服务抽屉中展示功能分配概览，以独立选择面板替代层叠下拉菜单，让窄弹窗里的服务选择更直观。
- 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、有效模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择，缓存默认、继承或独立行的有效模型及本地化说明，只让当前活跃配置和所属面板的事件修改草稿；焦点返回复验面板与用户焦点。
+ 主要内容：突出网页默认服务，以紧凑列表展示各功能的独立服务或继承状态，以统一状态标签呈现服务并让多语言名称完整换行，保留本地图标、配置模型和配置提醒；选择面板合并功能标题、返回与关闭操作，将主要空间用于常用/更多服务、模型搜索及键盘导航，保留不可用的旧选择，缓存默认、继承或独立行的配置模型及本地化说明，避免将设置中的模型声明为最终请求模型；只让当前活跃配置和所属面板的事件修改草稿，焦点返回复验面板与用户焦点。
  模块边界：复用功能服务映射、模型解析及供应商能力，只修改父级配置草稿；保存由 PopupApp 负责，不请求翻译或处理连接密钥。
 -->
 <template>
@@ -22,7 +22,7 @@
             <ServiceIcon v-if="!row.field.feature?.inherit || row.selected" :service="row.service" :label="label(row.service)" size="small" />
             <span>{{ row.field.feature?.inherit && !row.selected ? t('featureServices.followDefault') : label(row.service) }}</span>
           </span>
-          <small v-if="!row.warning && row.model" :title="row.model">{{ row.modelScope }}</small>
+          <small v-if="!row.warning && row.model" :title="row.model">{{ row.modelLabel }}</small>
         </span>
         <span class="assignment-chevron" aria-hidden="true">›</span>
       </button>
@@ -120,10 +120,10 @@ const rows = computed(() => {
     const value = selected(field.feature), service = value || config.service;
     const model = !servicesType.isUseModel(service) ? '' : field.feature ? getFeatureModel(config, field.feature)
       : resolveConfiguredModel(config.model[service], config.customModel[service]);
-    const modelScope = model ? t('settings.organization.modelScope', {model}) : '';
+    const modelLabel = model ? t('featureServices.configuredModel', {model}) : '';
     const selectedLabel = field.feature?.inherit && !value ? t('featureServices.follow', {service: label(config.service)}) : label(service);
-    return {field, selected: value, service, model, modelScope,
-      selectedLabel: modelScope ? `${selectedLabel} · ${modelScope}` : selectedLabel,
+    return {field, selected: value, service, model, modelLabel,
+      selectedLabel: modelLabel ? `${selectedLabel} · ${modelLabel}` : selectedLabel,
       warning: warning(field.feature), open: () => {
         if (current() && token === viewRevision.value && !session.value && selectionMatches(config, field, value, service)) openPicker(field);
       }};

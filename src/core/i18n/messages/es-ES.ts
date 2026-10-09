@@ -144,6 +144,7 @@ export const esESMessages = {
     "settings.general.masterHelp": "Al desactivar, se pausan la traducción y el asistente de escritura y se ocultan sus botones en páginas y vídeos. Al activar de nuevo, se restauran tus preferencias.",
     "popup.providers.title": "Servicios de traducción",
     "featureServices.followDefault": "Seguir predeterminado",
+    "featureServices.configuredModel": "Modelo configurado: {model}",
     "featureServices.back": "Volver a la selección de servicios de traducción",
     "featureServices.needsSetup": "Por configurar",
     "popup.clearSearch": "Borrar búsqueda",

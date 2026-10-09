@@ -144,6 +144,7 @@ export const frFRMessages = {
     "settings.general.masterHelp": "Désactiver met en pause la traduction et l’assistant de rédaction et masque leurs boutons sur les pages et vidéos. Réactiver rétablit vos préférences.",
     "popup.providers.title": "Services de traduction",
     "featureServices.followDefault": "Suivre le défaut",
+    "featureServices.configuredModel": "Modèle configuré : {model}",
     "featureServices.back": "Retour au choix des services de traduction",
     "featureServices.needsSetup": "À configurer",
     "popup.clearSearch": "Effacer la recherche",
