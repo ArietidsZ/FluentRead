@@ -610,6 +610,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     segmentIndexes,
                     blocks,
                     preservedRegions,
+                    // 没有任何文字、且有一张图像盖住半页以上：这是扫描页。空白页和只有矢量图形的页不算。
+                    ...(atoms.length === 0 && graphics.some(shape => shape.kind === 'image' && shape.width * shape.height >= viewport.width * viewport.height * 0.5) ? {scanned: true} : {}),
                 });
                 onProgress?.({completed: pageNumber, total: pdf.numPages});
             } finally {
@@ -942,8 +944,9 @@ async function renderPdf(
         const embedded = await outputPdf.embedPages(pages.map(({page}) => page), boundingBoxes);
         pages.forEach(({pageNumber}, index) => sourcePages.set(pageNumber, embedded[index]));
     }
+    // 调用方已把译文按片段逐一对齐，下标与片段一一对应。
     const visibleTranslations = translations.map((translation, segmentIndex) =>
-        hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
+        hasDistinctTranslation(document.segments[segmentIndex].source, translation) ? translation : '');
     for (const [index, pageData] of binary.pages.entries()) {
         options.signal?.throwIfAborted();
         const pageChanged = pageData.segmentIndexes.some(segmentIndex =>

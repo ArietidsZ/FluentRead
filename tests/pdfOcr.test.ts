@@ -1,7 +1,7 @@
 /**
  * @file tests/pdfOcr.test.ts
  * 文件职责：验证扫描版 PDF 的逐页文字识别结果能重建成可翻译的段落，并与已有文字的页一起得到连续的片段编号。
- * 主要内容：只识别没有版面块且未旋转的页，从阅读位置开始并回绕；识别行经版面分析合并成段落；已有文字页的块与片段原样保留并重排编号；空白与无效识别行被丢弃；进度逐页上报；取消与识别失败不改动原文档；没有可识别的页或不是 PDF 时原样返回。
+ * 主要内容：只识别标记为扫描页且未旋转的页（空白页不识别），识别后取消标记，从阅读位置开始并回绕；识别行经版面分析合并成段落；已有文字页的块与片段原样保留并重排编号；空白与无效识别行被丢弃；进度逐页上报；取消与识别失败不改动原文档；没有可识别的页或不是 PDF 时原样返回。
  * 模块边界：识别器由测试注入，不渲染页面也不加载识别引擎；版面规则本身由版面分析测试覆盖。
  */
 import {describe, expect, it, vi} from 'vitest';
@@ -9,14 +9,16 @@ import type {ParsedDocument, PdfDocumentBlock, PdfDocumentPage} from '@/src/feat
 import {pdfPagesNeedingOcr, recognizePdfDocument, type PdfOcrLine} from '@/src/features/document-translation/services/pdfOcr';
 
 const block = (segmentIndex: number, overrides: Partial<PdfDocumentBlock> = {}): PdfDocumentBlock => ({segmentIndex, x: 50, y: 60, width: 300, height: 12, fontSize: 10, lineHeight: 12, lineCount: 1, fontFamily: 'serif', fontWeight: 400, textAlign: 'left', ...overrides});
-const page = (pageNumber: number, blocks: PdfDocumentBlock[] = [], extra: Partial<PdfDocumentPage> = {}): PdfDocumentPage => ({pageNumber, width: 600, height: 800, segmentIndexes: blocks.filter(entry => entry.segmentIndex >= 0).map(entry => entry.segmentIndex), blocks, ...extra});
+// 没有版面块的页默认是扫描页；需要空白页时显式传入 scanned: false。
+const page = (pageNumber: number, blocks: PdfDocumentBlock[] = [], extra: Partial<PdfDocumentPage> = {}): PdfDocumentPage => ({pageNumber, width: 600, height: 800, segmentIndexes: blocks.filter(entry => entry.segmentIndex >= 0).map(entry => entry.segmentIndex), blocks, ...(blocks.length ? {} : {scanned: true}), ...extra});
 const pdf = (pages: PdfDocumentPage[], sources: string[] = []): ParsedDocument => ({fileName: 'scan.pdf', format: 'pdf', label: 'PDF', parts: [],
     segments: sources.map((source, id) => ({id, source, role: 'paragraph' as const})), binary: {kind: 'pdf', bytes: new Uint8Array([1, 2, 3]), pages}} as unknown as ParsedDocument);
 const paragraph = (tag: string): PdfOcrLine[] => [0, 1, 2].map(row => ({text: `${tag} line ${row} is a complete recognised line of ordinary body text`, x: 60, y: 100 + row * 14, width: 440, height: 12}));
 
 describe('scanned PDF recognition', () => {
     it('lists only empty, unrotated PDF pages', () => {
-        expect(pdfPagesNeedingOcr(pdf([page(1, [block(0)]), page(2), page(3, [], {rotation: 90}), page(4)], ['kept']))).toEqual([1, 3]);
+        // 文字页、旋转的扫描页和空白页都不识别；夹在文字页之间的扫描页要识别。
+        expect(pdfPagesNeedingOcr(pdf([page(1, [block(0)]), page(2), page(3, [], {rotation: 90}), page(4), page(5, [], {scanned: false})], ['kept']))).toEqual([1, 3]);
         expect(pdfPagesNeedingOcr({fileName: 'a.txt', format: 'txt', segments: [], parts: []} as unknown as ParsedDocument)).toEqual([]);
         expect(pdfPagesNeedingOcr(null)).toEqual([]);
     });
@@ -43,6 +45,9 @@ describe('scanned PDF recognition', () => {
         expect(pages[0].blocks[0]).toMatchObject({segmentIndex: 0, lineCount: 3});
         expect(pages[1].blocks.map(entry => [entry.segmentIndex, entry.kind, entry.y])).toEqual([[1, undefined, 60], [-1, 'formula', 60], [2, undefined, 200]]);
         expect(pages[2].blocks.find(entry => entry.segmentIndex === 3)?.kind).toBe('heading');
+        // 识别过的页不再是扫描页，已有文字的页与旋转页的标记不变。
+        expect(pages.map(entry => entry.scanned)).toEqual([false, undefined, false, true]);
+        expect(pdfPagesNeedingOcr(result)).toEqual([]);
         expect(JSON.stringify(source)).toBe(before);
     });
 

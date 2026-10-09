@@ -679,7 +679,7 @@ function scheduleHistorySave(): void {
 // 刷新后回到正在阅读的文档：当前标签页记住它在本地历史里的标识，新开的标签页仍从首页开始。
 const SESSION_KEY = 'fluentread.document.open';
 /** 版面分析或分段规则变化时递增：旧快照作废，改为按原始文件重新解析。 */
-const PARSED_VERSION = 3;
+const PARSED_VERSION = 4;
 function rememberOpenDocument(id: string | undefined | null): void {
   try {
     if (id) globalThis.sessionStorage?.setItem(SESSION_KEY, id);
@@ -1053,8 +1053,8 @@ async function jumpOutline(item: RichOutlineItem): Promise<void> {
   await nextTick();
   window.document.querySelector?.(`.docx-paragraph[data-segment="${item.index}"]`)?.scrollIntoView({block: 'start', behavior: 'smooth'});
 }
-/** 整份 PDF 都没有文字层（扫描件）：开始翻译时先识别文字。含文字的 PDF 里偶尔的空白页不触发识别。 */
-const needsOcr = computed(() => Boolean(parsedDocument.value && !parsedDocument.value.segments.length && pdfPagesNeedingOcr(parsedDocument.value).length));
+/** PDF 里还有没识别的扫描页（整份扫描件，或文字 PDF 里夹着的扫描页）：开始翻译时先识别文字。空白页不触发识别。 */
+const needsOcr = computed(() => pdfPagesNeedingOcr(parsedDocument.value).length > 0);
 const hasOutline = computed(() => isPdfDocument.value || documentOutline.value.length > 0);
 const activeSidebarTab = computed(() => hasOutline.value ? sidebarTab.value : 'files');
 onUnmounted(() => clearTimeout(richPreviewTimer));
@@ -1467,7 +1467,14 @@ async function startTranslation(restart = false): Promise<void> {
       });
       if (requestId !== translationRequestId || parsedDocument.value !== source) return;
       recognitionProgress.value = '';
-      if (!recognized.segments.length) throw new Error(t('document.pdfReading.ocrEmpty'));
+      if (!recognized.segments.length) {
+        // 一个字也没认出来：仍然采用识别后的文档（扫描页不再反复识别），并说明原因。
+        const empty = markRaw(recognized);
+        const item = documentQueue.value.find(entry => entry.id === activeDocumentId.value);
+        if (item) item.document = empty;
+        parsedDocument.value = empty;
+        throw new Error(t('document.pdfReading.ocrEmpty'));
+      }
       // 识别结果成为这份文档新的解析结果；之后的翻译、校订、保存和下载都基于它。
       document = markRaw(recognized);
       const item = documentQueue.value.find(entry => entry.id === activeDocumentId.value);

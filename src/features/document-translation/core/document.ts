@@ -114,6 +114,8 @@ export interface PdfDocumentPage {
     segmentIndexes: number[];
     blocks: PdfDocumentBlock[];
     preservedRegions?: PdfPreservedRegion[];
+    /** 整页是一张图像且没有任何文字（扫描页），等待文字识别；识别之后不再标记。 */
+    scanned?: boolean;
 }
 
 export interface EpubDocumentChapter {

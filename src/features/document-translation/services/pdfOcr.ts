@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/pdfOcr.ts
  * 文件职责：让没有文字层的扫描版 PDF 也能进入同一套版面分析与翻译流程：把逐页文字识别的结果换算成版面分析所需的字形，重建各页的段落与待翻译片段。
- * 主要内容：找出还没有任何文字的页；按给定顺序逐页调用注入的识别器，报告进度并响应取消；识别出的文字行按页面坐标转成字形后交给版面分析，与已有文字的页一起重排全文片段编号；识别失败或取消时不改动原文档。
+ * 主要内容：找出解析时标记为扫描页的页（含文字 PDF 里夹着的扫描页）；按给定顺序逐页调用注入的识别器，报告进度并响应取消；识别出的文字行按页面坐标转成字形后交给版面分析，与已有文字的页一起重排全文片段编号；识别失败或取消时不改动原文档。
  * 模块边界：不渲染页面、不加载识别引擎、不发起翻译；页面图像与识别引擎由应用层注入，旋转页暂不识别，版面规则归 core/pdfLayoutAnalysis。
  */
 import type {DocumentSegment, ParsedDocument, PdfDocumentPage} from '../core/document';
@@ -19,10 +19,10 @@ export interface RecognizePdfOptions {
     onProgress?: (progress: {completed: number; total: number}) => void;
 }
 
-/** 需要文字识别的页：没有任何版面块，且不是旋转页。 */
+/** 需要文字识别的页：解析时标记为扫描页（整页图像、没有文字），且不是旋转页。文字 PDF 里夹着的扫描页同样在内，空白页不在内。 */
 export function pdfPagesNeedingOcr(document: ParsedDocument | null | undefined): number[] {
     if (document?.binary?.kind !== 'pdf') return [];
-    return document.binary.pages.flatMap((page, index) => page.blocks.length === 0 && !page.rotation ? [index] : []);
+    return document.binary.pages.flatMap((page, index) => page.scanned && !page.rotation ? [index] : []);
 }
 
 /** 识别框的高度包含上伸与下伸部分；字号约为框高的八成半，基线在框底向上约两成处。 */
@@ -57,7 +57,8 @@ export async function recognizePdfDocument(document: ParsedDocument, recognize: 
     const segments: DocumentSegment[] = [];
     const pages: PdfDocumentPage[] = binary.pages.map((page, index) => {
         const layout = recognized.get(index);
-        if (layout) return {...page, ...pdfPageSegments(layout.blocks, page.pageNumber, segments), preservedRegions: layout.preservedRegions};
+        // 识别过的页不再标记为扫描页：即使一个字也没认出来，也不会反复识别。
+        if (layout) return {...page, ...pdfPageSegments(layout.blocks, page.pageNumber, segments), preservedRegions: layout.preservedRegions, scanned: false};
         const segmentIndexes: number[] = [];
         const blocks = page.blocks.map(block => {
             if (block.segmentIndex < 0) return block;

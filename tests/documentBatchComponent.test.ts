@@ -11,6 +11,7 @@ import * as documentCore from '@/src/features/document-translation/core/document
 import * as presentation from '@/src/features/document-translation/ui/presentation';
 import * as preview from '@/src/features/document-translation/core/preview';
 import * as richPreviewSync from '@/src/features/document-translation/ui/richPreviewSync';
+import * as pdfOcr from '@/src/features/document-translation/services/pdfOcr';
 import {createDocumentFileLoadGuard} from '@/src/features/document-translation/services/translation';
 import {generateDocumentArchive} from '@/src/features/document-translation/services/archive';
 import {TranslationRequestError} from '@/src/services/translation/errors';
@@ -49,7 +50,7 @@ beforeEach(async () => {
   download = vi.fn(async (document, translations, mode) => ({data: documentCore.renderDocument(document, translations, mode),
     fileName: documentCore.createDocumentDownloadName(document.fileName, mode), mimeType: 'text/plain'}));
   persist = vi.fn().mockResolvedValue(undefined);
-  const api = {...catalog, ...documentCore, ...presentation, ...preview, ...richPreviewSync, hasDistinctTranslation, Config, TranslationRequestError, createDocumentFileLoadGuard,
+  const api = {...catalog, ...documentCore, ...presentation, ...preview, ...richPreviewSync, ...pdfOcr, createPdfPageRecognizer: () => async () => [], hasDistinctTranslation, Config, TranslationRequestError, createDocumentFileLoadGuard,
     documentRetryBackoff: {maxWaitMs: 0},
     createDocumentHistory: () => ({list: async () => [], load: async () => null, save: async () => false, remove: async () => {}, clear: async () => {}}), documentHistoryId: async () => '',
     parseDocumentFile: parseFile, translateDocumentSegments: translate, createDocumentDownload: download, generateDocumentArchive,
