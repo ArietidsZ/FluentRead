@@ -1,69 +1,131 @@
 {
   "schemaVersion": 1,
-  "baseCommit": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-  "validatedSourceCommit": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
-  "fixedResourceCommit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+  "baseCommit": "3bf04b23181baec4ae0d1596d948e715974d86bf",
+  "productionSourceCommit": "964cedecc4932c363f017e1c82e86d973b9869da",
+  "fixedResourceCommit": "9c2780d84ab885d6723d591b109bcba895f78bf3",
+  "validatedTestCommit": "5f975fa7f2557109ed121b49a018fc79378f17d4",
   "branch": "perf/gf-statistics-repositories-20261009",
   "scope": {
     "onlyCwLocalExecution": true,
-    "onlySixExactInlineCssPorts": true,
-    "noProductConsumerSourceChange": true,
-    "browserExecuted": false,
-    "finalIifeBrowserAcceptance": false,
+    "onlyExistingTwoNobleImportsExternalized": true,
+    "packageVersion": "1.8.0",
+    "group": "nobleHashes",
+    "cryptoJsSha256Group": "sha256",
     "dependenciesInstalled": false,
     "permissionsAdded": false,
-    "realSearchOrModelApiCalled": false,
+    "browserExecuted": false,
+    "finalIifeBrowserAcceptance": false,
+    "realModelOrSearchApiCalled": false,
     "newPrCreated": false
   },
   "artifacts": {
     "baseline": {
-      "main": {
-        "bytes": 2180182,
-        "sha256": "34910ca6ca32751a3a036bd2c1cb3424604503682c170ec643f4c63ee6547d4c"
-      },
-      "data": {
-        "bytes": 930496,
-        "sha256": "f9c1f544603fc461d6d9c9d2b097f1dada2eeba3a875cf6a63a141f70d44263e"
-      },
-      "total": 3721021
-    },
-    "final": {
-      "main": {
+      "greasyfork": {
         "bytes": 2148481,
         "sha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85"
       },
-      "data": {
-        "bytes": 964406,
-        "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
-        "trackedBuiltGitEqual": true
+      "standard": {
+        "bytes": 1957868,
+        "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f"
+      },
+      "standalone": {
+        "bytes": 3590688,
+        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
       },
       "vendor": {
         "bytes": 610343,
-        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-        "trackedBuiltGitEqual": true
+        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601"
       },
-      "total": 3723230
+      "data": {
+        "bytes": 964406,
+        "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e"
+      }
+    },
+    "finalMain": {
+      "bytes": 2139535,
+      "sha256": "bf0365985376f8588be04a280138921900e259592f81944ea0cd900af4e48cc6"
+    },
+    "finalVendor": {
+      "bytes": 616497,
+      "sha256": "73de333d5f3310d20252b8a516acb151c2f700a014aad53c19ee48a5202698a7",
+      "deltaBytes": 6154
+    },
+    "dataUnchanged": {
+      "bytes": 964406,
+      "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e"
     },
     "normal": {
       "standard": {
         "bytes": 1957868,
         "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
-        "fullByteIdentical": true
+        "fullByteIdentical": true,
+        "deltaBytes": 0
       },
       "standalone": {
         "bytes": 3590688,
         "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
-        "fullByteIdentical": true
+        "fullByteIdentical": true,
+        "deltaBytes": 0
       }
     },
-    "delta": {
-      "main": -31701,
-      "data": 33910,
-      "total": 2209
-    }
+    "total": {
+      "beforeBytes": 3723230,
+      "afterBytes": 3720438,
+      "deltaBytes": -2792
+    },
+    "actualMainDeltaBytes": -8946
+  },
+  "ablation": {
+    "actualBeforeMainBytes": 2148481,
+    "actualFinalMainBytes": 2139535,
+    "mainDeltaBytes": -8946,
+    "oldRenderedLengthOnlyLocator": 13445,
+    "nobleModulesBefore": [
+      {
+        "id": "node_modules/@noble/hashes/esm/utils.js",
+        "renderedLength": 4011,
+        "transformedCodeSha256": "4cf4c1e05affedcb4fd584a43d76ae1a3711e34a36e2251b90c27e33ecc74fad"
+      },
+      {
+        "id": "node_modules/@noble/hashes/esm/_md.js",
+        "renderedLength": 5114,
+        "transformedCodeSha256": "cefb1557e7715cb2117c83f82ef3e3175c7e0391c80bd5795b2d4effc45fc582"
+      },
+      {
+        "id": "node_modules/@noble/hashes/esm/sha2.js",
+        "renderedLength": 4320,
+        "transformedCodeSha256": "e729088b82e5450bff54c3a0013582aa42e1fe8f58dd31f5967f6ebe34c52299"
+      }
+    ],
+    "nobleModulesAfter": [],
+    "onlyThreeEntryModulesRemoved": true,
+    "consumerGraphUnchanged": true,
+    "consumers": {
+      "src/shared/function/sha256.ts": {
+        "entryPresent": true,
+        "codeSha256": "88e5b9c152e76e8055fa79ea91f5843e089350c7b989df079e56a87a66c883f3"
+      },
+      "src/services/translation/cache.ts": {
+        "entryPresent": true,
+        "codeSha256": "eddad5d66804d33e2095cd6ed9c838cf639fa351a6c644d3c7b1085efe84295e"
+      },
+      "src/services/translation/broker.ts": {
+        "entryPresent": true,
+        "codeSha256": "f346303b1d3e9b705dde5a26b367094549c28cd2ab0ebc717b5ac8e458eac107"
+      },
+      "src/core/glossary/model.ts": {
+        "entryPresent": true,
+        "codeSha256": "a4c5af2595a6987f20a345490e4cf404113bb4393a7d4bfb56393656963e93de"
+      }
+    },
+    "mainNormalizedEqualToCandidate": true,
+    "equalResourceUrlLengths": [
+      135,
+      133
+    ]
   },
   "resourceBindings": {
-    "resourceCommit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+    "resourceCommit": "9c2780d84ab885d6723d591b109bcba895f78bf3",
     "mainMetadataComparison": {
       "beforeResourceUrlBytes": [
         135,
@@ -81,20 +143,20 @@
       {
         "kind": "vendor",
         "path": "userscript/resources/fluentread-vendor.v1.js",
-        "commit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
-        "bytes": 610343,
-        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-        "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
+        "commit": "9c2780d84ab885d6723d591b109bcba895f78bf3",
+        "bytes": 616497,
+        "sha256": "73de333d5f3310d20252b8a516acb151c2f700a014aad53c19ee48a5202698a7",
+        "gitBlobSha1": "ae6a89e637dfd11c74db430588657eb611ac5fc7",
         "trackedBuiltGitRemoteEqual": true,
-        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-vendor.v1.js",
+        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@9c2780d84ab885d6723d591b109bcba895f78bf3/userscript/resources/fluentread-vendor.v1.js",
         "cdnAttempts": [
           {
             "attempt": 1,
-            "at": "2026-10-09T19:58:33.055117+00:00",
+            "at": "2026-10-09T20:19:20.612072+00:00",
             "httpStatus": 200,
-            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-vendor.v1.js",
-            "bytes": 610343,
-            "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@9c2780d84ab885d6723d591b109bcba895f78bf3/userscript/resources/fluentread-vendor.v1.js",
+            "bytes": 616497,
+            "sha256": "73de333d5f3310d20252b8a516acb151c2f700a014aad53c19ee48a5202698a7",
             "byteEqual": true
           }
         ],
@@ -103,18 +165,18 @@
       {
         "kind": "data",
         "path": "userscript/resources/fluentread-data.v1.js",
-        "commit": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+        "commit": "9c2780d84ab885d6723d591b109bcba895f78bf3",
         "bytes": 964406,
         "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
         "gitBlobSha1": "8b5ab78750d68f3525adf7bab5fd2f84ea4b5384",
         "trackedBuiltGitRemoteEqual": true,
-        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-data.v1.js",
+        "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@9c2780d84ab885d6723d591b109bcba895f78bf3/userscript/resources/fluentread-data.v1.js",
         "cdnAttempts": [
           {
             "attempt": 1,
-            "at": "2026-10-09T19:58:35.245283+00:00",
+            "at": "2026-10-09T20:19:22.882912+00:00",
             "httpStatus": 200,
-            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@adb33392e7bb8bb8e79fdb8c1147b287c0673793/userscript/resources/fluentread-data.v1.js",
+            "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@9c2780d84ab885d6723d591b109bcba895f78bf3/userscript/resources/fluentread-data.v1.js",
             "bytes": 964406,
             "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e",
             "byteEqual": true
@@ -126,228 +188,203 @@
     "allTrackedBuiltGitRemoteEqual": true,
     "allExactCdnBytesEqual": true
   },
-  "cssEquivalence": {
-    "method": "independent real Vite artifact and synchronous Node VM CSS audit; no browser",
-    "originalProcessedStringBytes": 32608,
-    "styles": {
-      "notice": {
-        "path": "src/features/page-notice/content/notice.css",
-        "bytes": 4383,
-        "sha256": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 4309,
-        "afterRenderedLength": 186
-      },
-      "picker": {
-        "path": "src/features/section-translation/content/picker.css",
-        "bytes": 6642,
-        "sha256": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 6423,
-        "afterRenderedLength": 186
-      },
-      "translationDisplay": {
-        "path": "src/ui/styles/translation-display.css",
-        "bytes": 7091,
-        "sha256": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 6410,
-        "afterRenderedLength": 210
-      },
-      "page": {
-        "path": "src/app/content/page.css",
-        "bytes": 9795,
-        "sha256": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 9026,
-        "afterRenderedLength": 182
-      },
-      "sentenceHighlight": {
-        "path": "src/ui/styles/bilingual-sentence-highlight.css",
-        "bytes": 3971,
-        "sha256": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 3860,
-        "afterRenderedLength": 208
-      },
-      "vocabularyReencounter": {
-        "path": "src/ui/styles/vocabulary-reencounter.css",
-        "bytes": 726,
-        "sha256": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
-        "runtimeStringBytesShaExact": true,
-        "beforeRenderedLength": 541,
-        "afterRenderedLength": 212
-      }
+  "licenseAudit": {
+    "version": "1.8.0",
+    "spdx": "MIT",
+    "installedPackageManifestSha256": "7c4657c5e616c22cefa2691cc30670824a639dc71d97bf83925be2d239dc60e3",
+    "installedRawLicenseBytes": 1109,
+    "installedRawLicenseSha256": "4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec",
+    "fullCanonicalLicenseInVendor": true,
+    "nobleLicenseBlockSha256": "c31af3aee2c226af877b7f9121741a24cb26d88bd4ff6fd67f850c4f08ae20c3",
+    "previous16BlocksByteIdentical": true,
+    "licenseBlockCountBefore": 16,
+    "after": 17,
+    "previousBlockSha256": {
+      "@ai-sdk/gateway 3.0.179": "9d997e0c91d02b2753c8e3aaaf6768cd61461252a435b7cd69d82e932242b2a9",
+      "@ai-sdk/openai-compatible 2.0.70": "1a9f8257f6f1525a67986760380454c810fa42b62e46694f068f9eab7cba0564",
+      "@ai-sdk/provider-utils 4.0.46": "97f917aa97ae700c4fc530d95221665b31f0a631ab900b4691dbbba419ae7be1",
+      "@ai-sdk/provider 3.0.15": "153b07c639a9271f66e4c9a0b36a838740139ffeeb51d29eeb16dc9a2d1f49d6",
+      "@ctrl/tinycolor 3.6.1": "8cf2cafd209f7c288e2df7c25aac29a95a925c8bf04b022c1099a56aac8549ad",
+      "@opentelemetry/api 1.9.1": "2e4d9dc2eb43d2bbe14c2ce00b053801eed215746a48fdfe56a6f04ece10c403",
+      "@vercel/oidc 3.2.0": "5dd965d1e88c4e90e486bdb6066b0550be08fefbe30aa568a56bb7b469d096b2",
+      "ai 6.0.264": "6e97040f29170b9bb9afad45be57a7f74fb358544861c1f5fc5161849aa61557",
+      "collapse-white-space 2.1.0": "56c19853b48bbb385b6fccc606f42263fc4b3224dd4cae6618171f32249b5d06",
+      "crypto-js 4.2.0": "bcaf06cdeed358e5e7b4085c8dd701bdb99f99f1b02a694bd5939691efeea004",
+      "dexie 4.4.5": "5a9fec257923f6afee097e3aa8d1c361f06dbebeb88343486dcb549fa3cf6687",
+      "eventsource-parser 3.1.1": "efeae2962bd081330d8d30f7ea261bbcfb73d1f667a1d697deb1ff37adff6f2f",
+      "franc-min 6.2.0": "94866e67329a0671b5a2f79b2972d0f5345420dc40e4932e42c8638e0875c18d",
+      "n-gram 2.0.2": "85f528a6d1613d63feb958bb2ad457c565c3e14ba66bb49d9fa7422fa40fed4c",
+      "trigram-utils 2.0.1": "76d6ed20f9924700446258a2ca703265391f3c365de26367939d6c9b905528bb",
+      "zod 3.25.76": "4b0fb6fc70bd205342226ffcf78951b0f296c540667e5657977cb2d4b9795e2a"
     },
-    "originalFiveFields": {
-      "english": {
-        "unchanged": true,
-        "sha256": "2d74b7e99c9f0ddd408577474a6ebe324d16e4b8d6ac1e80315cfaf9394ba417"
-      },
-      "zhCNMessages": {
-        "unchanged": true,
-        "sha256": "c170a01207b32fa7405a65645c4e54e8de7ec1165d7c5663638f1fb7c17bcc3b"
-      },
-      "siteCatalogs": {
-        "unchanged": true,
-        "sha256": "298a12c68943c8636ef46f8fd0fea5b30e775f3060e82b789ef471f340073b82"
-      },
-      "css": {
-        "unchanged": true,
-        "sha256": "c04bd1f521e5dca56e447bb18830b0e3d4b706611b2d43222964d52fd9321bde"
-      },
-      "characterData": {
-        "unchanged": true,
-        "sha256": "099cbd0631abda83eb92768bc464d63f49082abb6b772b6e3b6a5f080d33c8ad"
-      }
+    "vendor": {
+      "bytes": 616497,
+      "sha256": "73de333d5f3310d20252b8a516acb151c2f700a014aad53c19ee48a5202698a7",
+      "deltaBytes": 6154
     },
-    "licenseDataHeader": {
-      "byteIdentical": true,
-      "bytes": 3529,
-      "sha256": "d0b34a6050a05bd8b640a41ec5d6a150ea58c56edb8987bece9691f54288d18b"
-    },
-    "strictJsonAst": true,
-    "rawSourceCssUsedForRuntime": false
-  },
-  "gfGraph": {
-    "entryModuleCount": 364,
-    "entryModuleSetUnchanged": true,
-    "consumers": {
-      "src/features/page-notice/content/notice.ts": {
-        "entryPresent": true,
-        "transformedCodeSha256": "c9d1754fc9ea9e42a6cd0ebdde5aab8b93568891b1f376b2dbc60ee82ad9444f",
-        "unchanged": true
-      },
-      "src/features/section-translation/content/picker.ts": {
-        "entryPresent": true,
-        "transformedCodeSha256": "5b7e037fe2f52ebaa810481cb994873485c1086f4702adac9f2b49a489ce7dda",
-        "unchanged": true
-      },
-      "src/app/content/pageStyles.ts": {
-        "entryPresent": true,
-        "transformedCodeSha256": "eee8f1fcd2ff98734ad61549bc7ef18ae0f98f881cd60fa9fac1c700ba9dd100",
-        "unchanged": true
-      }
-    },
-    "completeCssStringLiterals": {
-      "before": {
-        "notice": 1,
-        "picker": 1,
-        "translationDisplay": 1,
-        "page": 1,
-        "sentenceHighlight": 1,
-        "vocabularyReencounter": 1
-      },
-      "after": {
-        "notice": 0,
-        "picker": 0,
-        "translationDisplay": 0,
-        "page": 0,
-        "sentenceHighlight": 0,
-        "vocabularyReencounter": 0
-      }
-    },
-    "evidenceSha256": {
-      "control-graph.json": "1b135faa3bd53490df6f67ff9588370b35ecec3525c640558a606b852f90f5cd",
-      "candidate-ordered-graph.json": "1a4afce7f14244fcfabc773c8093252bac211ba691d3ad4fa5d6121630748b16",
-      "CANDIDATE-ORDERED-AUDIT.json": "74d6e0e60f4afca3d0cef37389c7dbf81fdb6bce4db79f53dd40e904a7702ebe"
+    "dataByteIdentical": true,
+    "data": {
+      "bytes": 964406,
+      "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e"
     }
   },
   "contracts": {
-    "red": {
-      "selected": 15,
-      "passed": 3,
-      "expectedFailed": 12
-    },
-    "orderRegression": {
-      "redFailed": 1,
-      "finalSelectedPassed": 16,
-      "firstFormalFailure": {
-        "failure": "fixed data serialized inlineStyles in transform completion order",
-        "formalFixedResourceChecksPassed": false,
-        "formalVerifierExecuted": false,
-        "bytesEqual": true,
-        "allPayloadValuesEqual": true,
-        "trackedStyleKeyOrder": [
-          "page",
-          "translationDisplay",
-          "sentenceHighlight",
-          "vocabularyReencounter",
-          "picker",
-          "notice"
-        ],
-        "builtStyleKeyOrder": [
-          "page",
-          "translationDisplay",
-          "vocabularyReencounter",
-          "sentenceHighlight",
-          "picker",
-          "notice"
-        ]
+    "redSelected": 16,
+    "redExpectedFailed": 14,
+    "redPassed": 2,
+    "greenSelectedPassed": 16,
+    "finalHexInputPreservationSelectedPassed": 13,
+    "installedPackageAndNativeVectors": [
+      {
+        "name": "empty",
+        "inputBytes": 0,
+        "expectedSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "ASCII",
+        "inputBytes": 3,
+        "expectedSha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "Unicode UTF-8",
+        "inputBytes": 20,
+        "expectedSha256": "9bf3e677506ac1e7ec36613de6fb7d0600b009fd4e3e7b5499659c991aa06e03",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 55",
+        "inputBytes": 55,
+        "expectedSha256": "9f4390f8d30c2dd92ec9f095b65e2b9ae9b0a925a5258e241c9f1e910f734318",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 56",
+        "inputBytes": 56,
+        "expectedSha256": "b35439a4ac6f0948b6d6f9e3c6af0f5f590ce20f1bde7090ef7970686ec6738a",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 63",
+        "inputBytes": 63,
+        "expectedSha256": "7d3e74a05d7db15bce4ad9ec0658ea98e3f06eeecf16b4c6fff2da457ddc2f34",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 64",
+        "inputBytes": 64,
+        "expectedSha256": "ffe054fe7ae0cb6dc65c3af9b61d5209f439851db43d0ba5997337df154668eb",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 65",
+        "inputBytes": 65,
+        "expectedSha256": "635361c48bb9eab14198e76ea8ab7f1a41685d6ad62aa9146d301d4f17eb0ae0",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 127",
+        "inputBytes": 127,
+        "expectedSha256": "c57e9278af78fa3cab38667bef4ce29d783787a2f731d4e12200270f0c32320a",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 128",
+        "inputBytes": 128,
+        "expectedSha256": "6836cf13bac400e9105071cd6af47084dfacad4e5e302c94bfed24e013afb73e",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "block boundary 129",
+        "inputBytes": 129,
+        "expectedSha256": "c12cb024a2e5551cca0e08fce8f1c5e314555cc3fef6329ee994a3db752166ae",
+        "offset": 0,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
+      },
+      {
+        "name": "offset typed array",
+        "inputBytes": 65,
+        "expectedSha256": "4535859b49ea5b00478cfd424f1a1990630098324f0673ff7e911deea3a4f934",
+        "offset": 7,
+        "shippedEqualsInstalledAndNative": true,
+        "synchronousUint8Array32": true,
+        "hexLowercaseString": true,
+        "shaAndHexInputsUnchanged": true
       }
-    },
-    "syntheticDom": {
-      "passed": 88,
-      "browser": false,
-      "ports": {
-        "pageNotice.test.ts": {
-          "kind": "synthetic DOM with evaluated GF CSS ports",
-          "loadedPorts": {
-            "notice": {
-              "bytes": 4383,
-              "sha256": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
-              "loads": 1
-            }
-          }
-        },
-        "sectionTranslationPicker.test.ts": {
-          "kind": "synthetic DOM with evaluated GF CSS ports",
-          "loadedPorts": {
-            "picker": {
-              "bytes": 6642,
-              "sha256": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
-              "loads": 1
-            }
-          }
-        },
-        "pageStyles.test.ts": {
-          "kind": "synthetic DOM with evaluated GF CSS ports",
-          "loadedPorts": {
-            "translationDisplay": {
-              "bytes": 7091,
-              "sha256": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
-              "loads": 1
-            },
-            "page": {
-              "bytes": 9795,
-              "sha256": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
-              "loads": 1
-            },
-            "sentenceHighlight": {
-              "bytes": 3971,
-              "sha256": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
-              "loads": 1
-            },
-            "vocabularyReencounter": {
-              "bytes": 726,
-              "sha256": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
-              "loads": 1
-            }
-          }
+    ],
+    "originalHashAndTranslationCacheIdentityPassed": 14,
+    "actualVendorPortLoads": {
+      "sha256.test.ts": {
+        "kind": "actual shipped synchronous vendor ports in original tests; no browser",
+        "loads": {
+          "sha2": 1,
+          "utils": 1
         }
       },
-      "evaluatedGfDataPortBytesIdenticalToFinal": true
+      "translationCache.test.ts": {
+        "kind": "actual shipped synchronous vendor ports in original tests; no browser",
+        "loads": {
+          "sha2": 1,
+          "utils": 1
+        }
+      }
     },
-    "normalSyntheticDomPassed": 88,
-    "finalShippedDataRealmPassed": 1,
-    "typesPassed": true,
-    "testAuditPassed": true
+    "initialMockLoadCountFailurePreserved": true,
+    "typeChecksPassed": true,
+    "testAuditPassed": true,
+    "originalStandardBuildCount": 1,
+    "originalStandaloneBuildCount": 1,
+    "normalOutputVarianceObservedThisBatch": false
   },
   "formalGfGate": {
-    "bytes": 2148481,
-    "sha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85",
+    "bytes": 2139535,
+    "sha256": "bf0365985376f8588be04a280138921900e259592f81944ea0cd900af4e48cc6",
     "originalBudgetBytes": 2000000,
-    "overBudgetBytes": 148481,
+    "overBudgetBytes": 139535,
     "formalExitCode": 1,
     "fixedResourceChecksPassedBeforeVerifier": true,
     "failureLine": 15,
@@ -355,8 +392,8 @@
     "candidateOnlyImmutableMetadataDiff": true,
     "resources": {
       "fluentread-vendor.v1.js": {
-        "bytes": 610343,
-        "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+        "bytes": 616497,
+        "sha256": "73de333d5f3310d20252b8a516acb151c2f700a014aad53c19ee48a5202698a7",
         "trackedBuiltGitEqual": true
       },
       "fluentread-data.v1.js": {
@@ -368,7 +405,7 @@
   },
   "independentOriginalAssertions": {
     "originalVerifierSha256": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
-    "artifactSha256": "b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85",
+    "artifactSha256": "bf0365985376f8588be04a280138921900e259592f81944ea0cd900af4e48cc6",
     "formalVerifierStatus": "failed-budget-at-line-15",
     "formalAssertionsAfterBudgetExecuted": false,
     "diagnosticMethod": "Evaluate each original assertion unchanged with native node:assert/strict in one shared VM realm, with each assertion diagnosed independently. Budget assertion is included and remains failing. Original script and budget are untouched.",
@@ -386,7 +423,7 @@
         "line": 15,
         "assertionSha256": "480c9d54c71897151c9197619f6204c26942c91f64b7ecc25bd1a789241e303a",
         "passed": false,
-        "message": "Greasy Fork source exceeds 2 MB: 2148481 bytes"
+        "message": "Greasy Fork source exceeds 2 MB: 2139535 bytes"
       },
       {
         "line": 16,
@@ -470,75 +507,36 @@
       }
     ]
   },
-  "standaloneBuildVariance": {
-    "observedIntermediate": {
-      "beforeBytes": 3590688,
-      "beforeSha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
-      "afterBytes": 3590643,
-      "afterSha256": "74f9dbe88f8fb20204510c8b8bf9770d39718cf64a87d387bce2d9d051b0b1e1",
-      "equal": false
-    },
-    "adjacentControl": {
-      "baseline": {
-        "bytes": 3590688,
-        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
-      },
-      "current": {
-        "bytes": 3590688,
-        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
-      }
-    },
-    "resolvedConfigExact": true,
-    "all1182TransformedCodesAndRenderedLengthsExact": true,
-    "finalOriginalBuildExact": true,
-    "unrelatedPolicyChangeAdopted": false,
-    "controlGraphsSha256": {
-      "standalone-baseline-control-graph.json": "9e09b5611a2dd58e2f33f36c7e676c78c01647177ba665838aeae0d45c505c6a",
-      "standalone-current-control-graph.json": "9e09b5611a2dd58e2f33f36c7e676c78c01647177ba665838aeae0d45c505c6a"
-    }
-  },
-  "unadoptedPrepareVendor": {
-    "data": {
-      "bytes": 964406,
-      "sha256": "86974c8736a73d9b6a50a6cf8bb44ea64591bf8870fa5683e457c9a139005e9e"
-    },
-    "preparedVendorBytes": 610387,
-    "preparedVendorSha256": "5773982c241575f22a1f35d9efd4d2f65314c68f0fdecda371a79f72e9f06a69",
-    "retainedVendorBytes": 610343,
-    "retainedVendorSha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
-    "vendorDeltaBytes": 44,
-    "checkedInputCount": 19,
-    "checkedInputsUnchanged": true,
-    "adoptedVendorChanges": false,
-    "reason": "Retain audited immutable vendor; rebuilt output differs with checked inputs unchanged. Raw output preserved and cause not assumed."
-  },
   "unchangedFileSha256": {
-    "src/features/page-notice/content/notice.css": "fe009c700a2bd2a1b07f45cc99a33127add987b55cc590c56ab3a39d3259bde7",
-    "src/features/section-translation/content/picker.css": "26ecef729b61240a810157c9daf05f27d9cfe69430352989193dbb5ff54d5f86",
-    "src/ui/styles/translation-display.css": "a42978135570399e1b19d4f96a4e9842df16f2ded0e36dcfa882bcec50e4c3ce",
-    "src/app/content/page.css": "91d0937f9c85329565d04b864b1e0817804576f98dbf32dc1a2e397cc2ee8d8d",
-    "src/ui/styles/bilingual-sentence-highlight.css": "b2a8bbe64d57177e1b274a5adf8b8fa25b2729188cd17e9907336543a1e5566a",
-    "src/ui/styles/vocabulary-reencounter.css": "2d511e2d81c876b32edfea07ad4d6f4b369e0bdc78c15815f0b9a817613ebd13",
-    "src/features/page-notice/content/notice.ts": "5487f44b4ec1228826f65de7e4da243f53704bd2e0389d05fd226bcf2a57cb26",
-    "src/features/section-translation/content/picker.ts": "f84281efc8f98052bbf7fbe2fecbeb9214abe5f357f120db1ce2026f2dc20119",
-    "src/app/content/pageStyles.ts": "74129728cc068e9774116f1b89b4bfc50b879e21430cb599ee9fd7aeb29a3b89",
-    "src/app/content/translationAppearance.ts": "00f6c410446f5632fa7e5641f37b3275abcf411f3d483e0d55e60066b4d942cb",
-    "userscript/vendorEntry.ts": "d6d6ab20d6cdc5a2adb76e2fc873778448bccefcf5cea21ba6052f0b26b12ca3",
     "userscript/vendor.vite.config.ts": "6252bde8d2fcfe7c0a20fb8d3a965be5becaaa75d8a50e6fc66f437f1652f451",
-    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a"
+    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "package.json": "f85e975c3b1ab8daac188be87bec9e89fa14fb94493d8eed5c1e2a75072c4d58",
+    "src/shared/function/sha256.ts": "b6c83a561dddaac262a2537886b0d8fe8f78b6b97218e6b576f9a6128e9b6442",
+    "src/services/translation/cache.ts": "dee132804685258cf8ed4821666052ec1e517017cb40248d7c28bcfa6bf04845",
+    "src/services/translation/broker.ts": "9f095e6abb9b16e226a8b3ff1f7e2a5b29165174622afbaaff4bb89007929910",
+    "src/core/glossary/model.ts": "4791901ee0a51518f9d7edd76f470e1fcb38e985b739770c8ca4fb3d1fe2fdd5",
+    "src/core/glossary/protection.ts": "7129857240453fd072bb05b93544b456a0f67d3362bcb22fd542d646e90b6340",
+    "src/core/config/apiKeyCheckIdentity.ts": "dbff74736fd047aff773d821313a70fbfe57c0b4862b52652f286650a1ce728b",
+    "src/core/config/visionProbe.ts": "9a9032f1a989463bd7131f47eadda27a7b26530384277dc49c1920217008e157",
+    "src/services/translation/apiKeyRotation.ts": "ab78d488a9cf2e2596210250cafa1d5bb24c92a98c153287fb8d4b90cf5ddfc8",
+    "src/providers/translation/youdao.ts": "e2b926b9025bb6cbf7494a916f2215d9b18a74ef5d97093ce91f58a6291bd85e",
+    "src/providers/translation/free-translation.ts": "15eaa6e52e745996c47de24920d8ddba1fd8cf9863ee4a941e385af942c73759",
+    "tests/sha256.test.ts": "e138f1fa3d91733e6142fb91609c02d5dbfcf38613070dc51e3a428f0d4869de",
+    "tests/translationCache.test.ts": "c90ece8166033f642abe46f0d7452dbcb159a12e1645310203a8926cbc4e5b0b"
   },
   "sourceSha256": {
-    "userscript/vite.config.ts": "476b2d5036692901503dba23f9a267e9821ee75e7b93cf68696952825600ff38",
-    "vitest.config.ts": "3c7b0451118f2b55d2afddb99df145c20c70985b24c5e54579a5a96038709b78",
-    "tests/userscriptViteConfig.test.ts": "199563456c9e0bf988d971461b43f9b1ce8b71a1c305c1f983d42fbf81563635",
-    "tests/implementationAudit49G.test.ts": "5af98040761c165dedc613e8070dea7840e1f3fab4342bca58cd7c3aa5d3271c",
-    "tests/pageNotice.test.ts": "92ae56d9574818d28ea8e45121ff8a02d77eba863d61584645bdc0d54dd10c12",
-    "tests/sectionTranslationPicker.test.ts": "270cd0aad0c80d5374456164765db3772adf4171205bde17f817332f59da4cca",
-    "tests/pageStyles.test.ts": "54582d8c638dd15d9b6f44368646bb4d4575763c09a568a37f05cbc832a9d93e"
+    "userscript/vendorEntry.ts": "ac5b2da8b095433fdbc73176d37b77529947e59836381353081cf79bbdc2ab9d",
+    "userscript/vite.config.ts": "683ba0b860e0685fbcfbd10e2ee07cd31991eb8a04a1f9be9d524e04c0cdf5cd",
+    "tests/userscriptViteConfig.test.ts": "46a8d2ceb98bd3ae8ff028dfd8c4dc7972ad4a524ed49ff68e0799de3a606742",
+    "tests/implementationAudit49G.test.ts": "31bc748e0de102f8c59d6f8f2775e000ff6d0acc848a2198a00c54c212746fc5"
   },
-  "delivery": {
+  "graphEvidenceSha256": {
+    "control-graph.json": "e0cd18c5e870a043fcf9d8d58a2df57c46c2918b08bf9211101297458e6a7997",
+    "candidate-graph.json": "fbddc83b6a0d76e5f4a64b97891aee046af469a6e16e13da003a79db40a63b48"
+  },
+  "deliveryAfterResourcePush": {
     "branch": "perf/gf-statistics-repositories-20261009",
-    "localAndRemoteHead": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+    "localAndRemoteHead": "9c2780d84ab885d6723d591b109bcba895f78bf3",
     "protectedPrs": {
       "912": {
         "head": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
@@ -578,524 +576,225 @@
     },
     "noNewPr": true
   },
+  "executionTransportInterruption": {
+    "testCommitCommandInitiallyNotStarted": true,
+    "sameCwReadOnlyStatusConfirmed": true,
+    "testCommitCompleted": "5f975fa7f2557109ed121b49a018fc79378f17d4",
+    "noRebuildOrPrepareRepeated": true
+  },
   "documentation": {
-    "readmeSha256": "820f9662a297a486e856a9ca3b9e1ceb04ba540d4adf8a82f51ec94e7a6014d4",
+    "readmeSha256": "c34dcc9b0e455e8d182a7fd4091fb7f832ad4545ac81018e85bdeb516e0a309b",
     "requiredBuild": "docs:build",
     "status": "passed",
     "exitCode": 0,
-    "logSha256": "8c172d6a4b17a4c240d3b435b353c1ed2720633d5d098773a6edf3e8ea798b11"
+    "logSha256": "663dc7ddd677164fc14487be78358a2c3587bb29edce50c08d6dd35446cd2034"
   },
   "stages": [
     {
-      "stage": "inline-control-gf-build",
-      "startedAt": "2026-10-09T19:33:35.392509+00:00",
-      "durationSeconds": 2.618,
+      "stage": "noble-control-gf-build",
       "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "node",
-        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
+        "../gf-noble-vendor-evidence-20261009/build-gf-proof.mjs",
         "control"
       ],
-      "log": "inline-control-gf-build.log.txt",
-      "logSha256": "e37d37385f215d6e81778bf141ef7ab1a9d5bf3c0dcbdd2a83dd7acd96ba16ba"
+      "log": "noble-control-gf-build.log.txt",
+      "logSha256": "e91f104e556a28d657e9d88de28fcb3ef9805af70c08d46d7025506917cf2e58"
     },
     {
-      "stage": "inline-red",
-      "startedAt": "2026-10-09T19:38:42.826205+00:00",
-      "durationSeconds": 1.616,
+      "stage": "noble-red",
       "exitCode": 1,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "vitest",
         "run",
+        "tests/implementationAudit49G.test.ts",
         "tests/userscriptViteConfig.test.ts",
         "-t",
-        "GF pinned Vite inline styles"
+        "shipped Noble|GF Noble vendor boundary"
       ],
-      "log": "inline-red.log.txt",
-      "logSha256": "420b9a3f38bd00af95933f7a6a73fc4aa969367cdac67196c0003092290e79ab"
+      "log": "noble-red.log.txt",
+      "logSha256": "103d3fd9568ae742f7365c93fb039577d9a6304d39e858247571166dec994065"
     },
     {
-      "stage": "inline-green",
-      "startedAt": "2026-10-09T19:39:18.637590+00:00",
-      "durationSeconds": 1.616,
+      "stage": "noble-candidate-gf-build",
       "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "tests/userscriptViteConfig.test.ts",
-        "-t",
-        "GF pinned Vite inline styles"
-      ],
-      "log": "inline-green.log.txt",
-      "logSha256": "5d1aa23ce180d4f7af3a60450b10120df85afd9ae618ed2be5aa30eb6f960867"
-    },
-    {
-      "stage": "inline-candidate-gf-build",
-      "startedAt": "2026-10-09T19:39:38.592912+00:00",
-      "durationSeconds": 2.617,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "node",
-        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
+        "../gf-noble-vendor-evidence-20261009/build-gf-proof.mjs",
         "candidate"
       ],
-      "log": "inline-candidate-gf-build.log.txt",
-      "logSha256": "51ca253f1012f826364c7100e5247f40a55b1caede12d6418e2e90ae41b93aa0"
+      "log": "noble-candidate-gf-build.log.txt",
+      "logSha256": "9520d97495ba9b724f3f55ac48fe9a37c7ed9d49a916b5af7288e9e1167adff0"
     },
     {
-      "stage": "inline-gf-synthetic-dom",
-      "startedAt": "2026-10-09T19:41:14.321961+00:00",
-      "durationSeconds": 0.815,
-      "exitCode": 1,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "--config",
-        "../gf-inline-styles-evidence-20261009/gf-css-dom.config.ts",
-        "tests/pageNotice.test.ts",
-        "tests/sectionTranslationPicker.test.ts",
-        "tests/pageStyles.test.ts"
-      ],
-      "log": "inline-gf-synthetic-dom.log.txt",
-      "logSha256": "d9695eeefd86ec0bbe5075795fc47f5b6f97d064426a7cea39ed37735edbed8f"
-    },
-    {
-      "stage": "inline-gf-synthetic-dom-resolved",
-      "startedAt": "2026-10-09T19:41:37.407050+00:00",
-      "durationSeconds": 3.47,
+      "stage": "noble-original-prepare",
       "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "--config",
-        "../gf-inline-styles-evidence-20261009/gf-css-dom.config.ts",
-        "tests/pageNotice.test.ts",
-        "tests/sectionTranslationPicker.test.ts",
-        "tests/pageStyles.test.ts"
-      ],
-      "log": "inline-gf-synthetic-dom-resolved.log.txt",
-      "logSha256": "99e7154f1d6a170f4d4c4564847d8a0a933f610e2bfaf7004d21383e8d1d7ba0"
-    },
-    {
-      "stage": "inline-independent-css-audit",
-      "startedAt": "2026-10-09T19:42:42.635913+00:00",
-      "durationSeconds": 0.364,
-      "exitCode": 1,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/audit-css-candidate.mjs"
-      ],
-      "log": "inline-independent-css-audit.log.txt",
-      "logSha256": "cabb2189d786349c0171b190cb5b49b5f082280b3c63e3fec05ad36ee892ac73"
-    },
-    {
-      "stage": "inline-independent-css-audit-resolved",
-      "startedAt": "2026-10-09T19:42:59.474985+00:00",
-      "durationSeconds": 0.815,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/audit-css-candidate.mjs"
-      ],
-      "log": "inline-independent-css-audit-resolved.log.txt",
-      "logSha256": "0aff369764c5a59e6563ab663124f66c65bd2655f98b106b35ad747537e55d81"
-    },
-    {
-      "stage": "inline-normal-synthetic-dom",
-      "startedAt": "2026-10-09T19:43:21.564600+00:00",
-      "durationSeconds": 2.417,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "tests/pageNotice.test.ts",
-        "tests/sectionTranslationPicker.test.ts",
-        "tests/pageStyles.test.ts"
-      ],
-      "log": "inline-normal-synthetic-dom.log.txt",
-      "logSha256": "dfcf557dbb0bd56309a04e9fb8a88742011332a39d28eb8ca349b165d7b23367"
-    },
-    {
-      "stage": "inline-standard-build-and-original-verifier",
-      "startedAt": "2026-10-09T19:43:38.343620+00:00",
-      "durationSeconds": 3.87,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "test:userscript"
-      ],
-      "log": "inline-standard-build-and-original-verifier.log.txt",
-      "logSha256": "b76bed8cc7d32618ebe736aa1a15b616b452bc7fe0d097370c24cd1e93f7ccf3"
-    },
-    {
-      "stage": "inline-standalone-build-and-original-verifier",
-      "startedAt": "2026-10-09T19:43:56.410378+00:00",
-      "durationSeconds": 6.673,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "test:userscript:standalone"
-      ],
-      "log": "inline-standalone-build-and-original-verifier.log.txt",
-      "logSha256": "26934ec308d827dce298512671247d79ca2c6bfdd92dad37205330663b5a203a"
-    },
-    {
-      "stage": "inline-types",
-      "startedAt": "2026-10-09T19:44:14.329741+00:00",
-      "durationSeconds": 17.133,
-      "exitCode": 2,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "compile"
-      ],
-      "log": "inline-types.log.txt",
-      "logSha256": "9f1cbce761e6956b8be6f1394c33aa52bacc8ed765ba5063dd7896f7d1f632ed"
-    },
-    {
-      "stage": "inline-green-types-cast",
-      "startedAt": "2026-10-09T19:44:54.775258+00:00",
-      "durationSeconds": 1.616,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "tests/userscriptViteConfig.test.ts",
-        "-t",
-        "GF pinned Vite inline styles"
-      ],
-      "log": "inline-green-types-cast.log.txt",
-      "logSha256": "e10e46b8c83c00c74602034b7fc941152c183498d460e4f862ec6389687bdc7d"
-    },
-    {
-      "stage": "inline-types-resolved",
-      "startedAt": "2026-10-09T19:45:07.567682+00:00",
-      "durationSeconds": 17.183,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "compile"
-      ],
-      "log": "inline-types-resolved.log.txt",
-      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
-    },
-    {
-      "stage": "inline-test-audit",
-      "startedAt": "2026-10-09T19:45:31.983954+00:00",
-      "durationSeconds": 1.215,
-      "exitCode": 0,
-      "head": "9874f0d58d006c7bc883597fe38623b0c70349a9",
-      "arguments": [
-        "test:audit"
-      ],
-      "log": "inline-test-audit.log.txt",
-      "logSha256": "108d7b9ddc737dabc0379c8bd15b54dfebe28881fa6deb9ded010462bb6f0067"
-    },
-    {
-      "stage": "inline-original-prepare",
-      "startedAt": "2026-10-09T19:46:15.201011+00:00",
-      "durationSeconds": 3.82,
-      "exitCode": 0,
-      "head": "21db8b9880e76402a193692c0ddbbae7373817a5",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "node",
         "scripts/build-userscript-greasyfork.mjs",
         "--prepare-resources"
       ],
-      "log": "inline-original-prepare.log.txt",
-      "logSha256": "81b253c6de49eb8c1b88cb2724819b024afee37a449e0e220025e786a436d56b"
+      "log": "noble-original-prepare.log.txt",
+      "logSha256": "ecd0685e7e216df3461b08ed216105ea205fecdb00b4f4d481120fecf750da55"
     },
     {
-      "stage": "inline-shipped-data-realm",
-      "startedAt": "2026-10-09T19:46:46.689356+00:00",
-      "durationSeconds": 0.715,
+      "stage": "noble-green",
       "exitCode": 0,
-      "head": "21db8b9880e76402a193692c0ddbbae7373817a5",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "vitest",
         "run",
         "tests/implementationAudit49G.test.ts",
+        "tests/userscriptViteConfig.test.ts",
         "-t",
-        "publishes data into its manager realm"
+        "shipped Noble|GF Noble vendor boundary"
       ],
-      "log": "inline-shipped-data-realm.log.txt",
-      "logSha256": "9879b06324913160058af2be69edbbe438dc5467b81c3327cbd8113818f78c51"
+      "log": "noble-green.log.txt",
+      "logSha256": "c79d56ff2ca407e883a1a8c5fbde41ccad1cd7e8eba85d0a896f55bc73839dfe"
     },
     {
-      "stage": "inline-original-formal-gf",
-      "startedAt": "2026-10-09T19:47:14.088993+00:00",
-      "durationSeconds": 2.869,
+      "stage": "noble-shipped-key-contracts",
       "exitCode": 1,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
-      "arguments": [
-        "exec",
-        "node",
-        "scripts/build-userscript-greasyfork.mjs"
-      ],
-      "log": "inline-original-formal-gf.log.txt",
-      "logSha256": "5d1b14850086a2212dc8fd9f964cd44957ef197a4900231833e7b9afbb0fdd0f"
-    },
-    {
-      "stage": "inline-independent-original-assertions",
-      "startedAt": "2026-10-09T19:47:48.592715+00:00",
-      "durationSeconds": 0.314,
-      "exitCode": 0,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
-      "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/diagnose-original-gf-assertions.mjs"
-      ],
-      "log": "inline-independent-original-assertions.log.txt",
-      "logSha256": "e26ba4c1d777fc046ca3ac28fa9e4d154933c916e065e87512d90e216de02255"
-    },
-    {
-      "stage": "inline-order-red",
-      "startedAt": "2026-10-09T19:49:01.387333+00:00",
-      "durationSeconds": 1.516,
-      "exitCode": 1,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "vitest",
         "run",
-        "tests/userscriptViteConfig.test.ts",
+        "--config",
+        "../gf-noble-vendor-evidence-20261009/gf-noble-key.config.ts",
+        "tests/sha256.test.ts",
+        "tests/translationCache.test.ts",
         "-t",
-        "emits the same fixed JSON"
+        "shared synchronous SHA-256 identities|translation cache identity"
       ],
-      "log": "inline-order-red.log.txt",
-      "logSha256": "adfd75a2f22eca6112fa18f555df35f5358c98e5e1a2cc92a2ffe6df21737f2c"
+      "log": "noble-shipped-key-contracts.log.txt",
+      "logSha256": "da3d80342d55bbff2da2b692f98bd8eb7401de49f08056ef8b309797874ad070"
     },
     {
-      "stage": "inline-order-green",
-      "startedAt": "2026-10-09T19:49:37.633714+00:00",
-      "durationSeconds": 1.717,
+      "stage": "noble-shipped-key-contracts-resolved",
       "exitCode": 0,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "exec",
         "vitest",
         "run",
-        "tests/userscriptViteConfig.test.ts",
+        "--config",
+        "../gf-noble-vendor-evidence-20261009/gf-noble-key.config.ts",
+        "tests/sha256.test.ts",
+        "tests/translationCache.test.ts",
         "-t",
-        "GF pinned Vite inline styles"
+        "shared synchronous SHA-256 identities|translation cache identity"
       ],
-      "log": "inline-order-green.log.txt",
-      "logSha256": "f68b902d8c679342538f0fe61769d2ff72628331ee8ff213dbcb457af7c84c21"
+      "log": "noble-shipped-key-contracts-resolved.log.txt",
+      "logSha256": "9d8fe9d8666145a1105fae252db5c4f9f0384e5624413387a4daabfefa765866"
     },
     {
-      "stage": "inline-order-green-compact",
-      "startedAt": "2026-10-09T19:50:14.293526+00:00",
-      "durationSeconds": 1.667,
+      "stage": "noble-standard-original",
       "exitCode": 0,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
-      "arguments": [
-        "exec",
-        "vitest",
-        "run",
-        "tests/userscriptViteConfig.test.ts",
-        "-t",
-        "GF pinned Vite inline styles"
-      ],
-      "log": "inline-order-green-compact.log.txt",
-      "logSha256": "0b4f67756a6907a44bfb6a35b31be24169997c0ba0ddc9872bf060d43e334deb"
-    },
-    {
-      "stage": "inline-final-types",
-      "startedAt": "2026-10-09T19:50:36.305370+00:00",
-      "durationSeconds": 17.195,
-      "exitCode": 0,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
-      "arguments": [
-        "compile"
-      ],
-      "log": "inline-final-types.log.txt",
-      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
-    },
-    {
-      "stage": "inline-final-test-audit",
-      "startedAt": "2026-10-09T19:51:00.470328+00:00",
-      "durationSeconds": 1.216,
-      "exitCode": 0,
-      "head": "b9a95b33552a15878311aaef94d2c3dae7fbe6fb",
-      "arguments": [
-        "test:audit"
-      ],
-      "log": "inline-final-test-audit.log.txt",
-      "logSha256": "2ceffd2436409be32ba7b88308fbc5e0b746e2f782f73f1fb42f3f894891d805"
-    },
-    {
-      "stage": "inline-ordered-candidate-gf-build",
-      "startedAt": "2026-10-09T19:51:29.771127+00:00",
-      "durationSeconds": 2.568,
-      "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
-      "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/build-gf-proof.mjs",
-        "candidate-ordered"
-      ],
-      "log": "inline-ordered-candidate-gf-build.log.txt",
-      "logSha256": "ae5345ab97ff5e2760d1ab3a05a77dc2d7eec3c492a7a8b50bf5c957aaa49b0d"
-    },
-    {
-      "stage": "inline-ordered-independent-css-audit",
-      "startedAt": "2026-10-09T19:52:01.815943+00:00",
-      "durationSeconds": 0.815,
-      "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
-      "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/audit-css-ordered.mjs"
-      ],
-      "log": "inline-ordered-independent-css-audit.log.txt",
-      "logSha256": "cd863539aa12a24ce53096045ca25da7604bc7d418aa4dace493ba72eb98732a"
-    },
-    {
-      "stage": "inline-final-standard",
-      "startedAt": "2026-10-09T19:52:18.958759+00:00",
-      "durationSeconds": 3.819,
-      "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "test:userscript"
       ],
-      "log": "inline-final-standard.log.txt",
-      "logSha256": "5e2581b249522ea637e67017ca1285116a04b6ce2581e28f2339975e26a0f8d1"
+      "log": "noble-standard-original.log.txt",
+      "logSha256": "a8e4195999c784ef4e4389c36e6b91039ed4a5d9e9a194655e5e79626455aa37"
     },
     {
-      "stage": "inline-final-standalone",
-      "startedAt": "2026-10-09T19:52:31.344336+00:00",
-      "durationSeconds": 6.627,
+      "stage": "noble-standalone-original",
       "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
         "test:userscript:standalone"
       ],
-      "log": "inline-final-standalone.log.txt",
-      "logSha256": "09e2719a2b90b69d7457394030d81c99d018088c2bd53245ea40819fcadad487"
+      "log": "noble-standalone-original.log.txt",
+      "logSha256": "3833d76e21fb5b42f13485f52f3d81942cc7b541cfad294286053b7d9b97dfac"
     },
     {
-      "stage": "inline-ordered-original-prepare",
-      "startedAt": "2026-10-09T19:52:52.140010+00:00",
-      "durationSeconds": 3.77,
+      "stage": "noble-types",
       "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
-        "exec",
-        "node",
-        "scripts/build-userscript-greasyfork.mjs",
-        "--prepare-resources"
+        "compile"
       ],
-      "log": "inline-ordered-original-prepare.log.txt",
-      "logSha256": "349defbeeba7ba787c542764969763ff4d92acef629f1f12d2c5154810b5af8e"
+      "log": "noble-types.log.txt",
+      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
     },
     {
-      "stage": "inline-standalone-baseline-current-control",
-      "startedAt": "2026-10-09T19:54:52.646905+00:00",
-      "durationSeconds": 12.328,
+      "stage": "noble-test-audit",
       "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
+      "head": "3bf04b23181baec4ae0d1596d948e715974d86bf",
       "arguments": [
-        "exec",
-        "node",
-        "../gf-inline-styles-evidence-20261009/build-standalone-control-pair.mjs"
+        "test:audit"
       ],
-      "log": "inline-standalone-baseline-current-control.log.txt",
-      "logSha256": "92a0b760a60a8b47f4c0800b52aa6e01352095a4f1f42c47a0516571790e5ba7"
+      "log": "noble-test-audit.log.txt",
+      "logSha256": "debd3a8956b30bd54c92f599e1a25e18ee70230d4bc0e2b323836d77d3664270"
     },
     {
-      "stage": "inline-standalone-after-causal-control",
-      "startedAt": "2026-10-09T19:55:49.785174+00:00",
-      "durationSeconds": 6.972,
-      "exitCode": 0,
-      "head": "42ebf213de39d82c9ea8c755888b2f96e58c95f8",
-      "arguments": [
-        "test:userscript:standalone"
-      ],
-      "log": "inline-standalone-after-causal-control.log.txt",
-      "logSha256": "c23c00d14ac39f7a8a121a58a6df3a8a20094023db207973597615eca7268ccd"
-    },
-    {
-      "stage": "inline-final-original-formal-gf",
-      "startedAt": "2026-10-09T19:56:54.701207+00:00",
-      "durationSeconds": 2.918,
+      "stage": "noble-original-formal-gf",
       "exitCode": 1,
-      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "head": "9c2780d84ab885d6723d591b109bcba895f78bf3",
       "arguments": [
         "exec",
         "node",
         "scripts/build-userscript-greasyfork.mjs"
       ],
-      "log": "inline-final-original-formal-gf.log.txt",
-      "logSha256": "af90268d3a33483215729e529b0c275c006a3965131aaa3b251139329c6ab5b2"
+      "log": "noble-original-formal-gf.log.txt",
+      "logSha256": "82fa42ca824ba1b304ff1531713360d2f2abb71a681ca676133751f33dc46033"
     },
     {
-      "stage": "inline-final-independent-original-assertions",
-      "startedAt": "2026-10-09T19:57:35.375887+00:00",
-      "durationSeconds": 0.364,
+      "stage": "noble-independent-original-assertions",
       "exitCode": 0,
-      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "head": "9c2780d84ab885d6723d591b109bcba895f78bf3",
       "arguments": [
         "exec",
         "node",
-        "../gf-inline-styles-evidence-20261009/diagnose-original-gf-assertions-final.mjs"
+        "../gf-noble-vendor-evidence-20261009/diagnose-original-gf-assertions.mjs"
       ],
-      "log": "inline-final-independent-original-assertions.log.txt",
-      "logSha256": "16df92d2db259952022913063d55cf9221091fc649572caaacc7a20b637839e5"
+      "log": "noble-independent-original-assertions.log.txt",
+      "logSha256": "6b5a06269f3756b84f410bf0f80c5d2be9d9b044a71f2d2433ef8aa76b53c8bb"
     },
     {
-      "stage": "inline-final-shipped-data-realm",
-      "startedAt": "2026-10-09T19:58:00.046794+00:00",
-      "durationSeconds": 0.715,
+      "stage": "noble-hex-input-preservation",
       "exitCode": 0,
-      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "head": "9c2780d84ab885d6723d591b109bcba895f78bf3",
       "arguments": [
         "exec",
         "vitest",
         "run",
         "tests/implementationAudit49G.test.ts",
         "-t",
-        "publishes data into its manager realm"
+        "shipped Noble"
       ],
-      "log": "inline-final-shipped-data-realm.log.txt",
-      "logSha256": "657aeec91688e98baa6593e20c777c6e61f32c18dcf3790d1dd8a817fd274c85"
+      "log": "noble-hex-input-preservation.log.txt",
+      "logSha256": "024d980661751a20ccd975950863464426e599dda9a83a8a916f692a5ad70d91"
     },
     {
-      "stage": "inline-documentation-build",
-      "startedAt": "2026-10-09T20:01:04.648421+00:00",
-      "durationSeconds": 2.817,
+      "stage": "noble-final-test-types",
       "exitCode": 0,
-      "head": "adb33392e7bb8bb8e79fdb8c1147b287c0673793",
+      "head": "9c2780d84ab885d6723d591b109bcba895f78bf3",
+      "arguments": [
+        "compile"
+      ],
+      "log": "noble-final-test-types.log.txt",
+      "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
+    },
+    {
+      "stage": "noble-documentation",
+      "exitCode": 0,
+      "head": "5f975fa7f2557109ed121b49a018fc79378f17d4",
       "arguments": [
         "docs:build"
       ],
-      "log": "inline-documentation-build.log.txt",
-      "logSha256": "8c172d6a4b17a4c240d3b435b353c1ed2720633d5d098773a6edf3e8ea798b11"
+      "log": "noble-documentation.log.txt",
+      "logSha256": "663dc7ddd677164fc14487be78358a2c3587bb29edce50c08d6dd35446cd2034"
     }
-  ],
-  "stageArgumentPaths": "Paths in stage arguments are relative to the checkout; raw local logs remain on CW."
+  ]
 }

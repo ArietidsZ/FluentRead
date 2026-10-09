@@ -1,30 +1,26 @@
-# GF 六份 inline CSS 固定资源候选
+# GF Noble 同步摘要 vendor 候选
 
-基线 `9874f0d58d006c7bc883597fe38623b0c70349a9`；最终源码 `42ebf213de39d82c9ea8c755888b2f96e58c95f8`；固定资源 `adb33392e7bb8bb8e79fdb8c1147b287c0673793`。普通推送同一 `perf/gf-statistics-repositories-20261009` 候选分支，无新 PR；前批审查留在提交历史。
+基线 `3bf04b23181baec4ae0d1596d948e715974d86bf`；生产源码 `964cedecc4932c363f017e1c82e86d973b9869da`；固定资源 `9c2780d84ab885d6723d591b109bcba895f78bf3`；补齐输入不变测试 `5f975fa7f2557109ed121b49a018fc79378f17d4`。同一 `perf/gf-statistics-repositories-20261009` 分支普通推送，无新 PR；前批 CSS/语言/许可证记录留在提交历史。
 
-GF 专用 post transform 只匹配六个完整路径加 `?inline`：notice、picker、translation-display、page、bilingual-sentence-highlight、vocabulary-reencounter。使用 AST 捕获 **Vite 处理后的单个字符串 default export**，额外语句、表达式或解析错误立即拒绝。没有从原 CSS 文件读取运行时值。具名 `inlineStyles` 加入既有固定 data JSON，六个模块同步读取字符串，缺值/非 string 明确失败；独立于原全局 `css`。序列化按六端口固定键序。
+确认现有同步 helper 实际导入 `@noble/hashes/sha2.sha256` 和 `@noble/hashes/utils.bytesToHex`，锁文件及精确安装源均为 **1.8.0**。仅在已有 vendorEntry 添加这两函数的 `nobleHashes` 分组，并把两个进口加入既有 GF external 映射；保留 CryptoJS 顶层 `sha256`，无名称冲突。未改为 CryptoJS/WebCrypto，未改消费者、其他算法、依赖、版本或标准/独立版策略。
 
-notice/picker 的 ShadowRoot、挂载与关闭时机，pageStyles 的四份样式顺序、停用/卸载，以及动态外观 CSS 均留在原消费者。真实 GF entry 模块集合不变，三个消费者转换代码 SHA 与基线相同；六个完整 CSS 字符串正文不再留在主文件。源 CSS、三个消费者及 translationAppearance 文件字节未改。standard/standalone 不注册新插件。
-
-| 产物 | 基线实际字节 | 最终实际字节 | 实际变化 |
+| 产物 | 基线实际 UTF-8 字节 | 最终实际 UTF-8 字节 | 实际变化 |
 | --- | ---: | ---: | ---: |
-| GF 主文件 | 2,180,182 | **2,148,481** | **-31,701** |
+| GF 主文件 | 2,148,481 | **2,139,535** | **-8,946** |
+| vendor | 610,343 | 616,497 | +6,154 |
+| data | 964,406 | 964,406 | 完整字节及 SHA 相同 |
+| 主文件 + 两资源 | 3,723,230 | 3,720,438 | **-2,792** |
 | standard | 1,957,868 | 1,957,868 | 完整字节及 SHA 相同 |
-| standalone | 3,590,688 | 3,590,688 | 最终原构建完整字节及 SHA 相同 |
-| data | 930,496 | 964,406 | +33,910 |
-| vendor | 610,343 | 610,343 | 完整字节及 SHA 相同 |
-| 主文件 + 两资源 | 3,721,021 | 3,723,230 | **+2,209** |
+| standalone | 3,590,688 | 3,590,688 | 完整字节及 SHA 相同 |
 
-独立 control/candidate 使用同长度固定 URL；最终正式主文件与最终独立候选仅两个 40 字符资源提交号不同，URL 长度 135/133 不变。31,701 是实际主文件减量；六份原字符串合计 32,608 只是数据计数。最终 GF SHA `b8dddc9da6e86f47d0453ab2eb6663d334f13ccddaddd749187db4380363cf85`。
+收益只用独立控制与最终实际完整主文件计量；旧 13,445 renderedLength 仅定位。真实 GF entry 只移除 utils/_md/sha2 三模块，shared hash、翻译 cache/broker 和 glossary 消费者转换代码 SHA 不变。最终原构建与独立候选仅两个等长 40 字符资源提交号不同，URL 长度 135/133 不变。最终 GF SHA `bf0365985376f8588be04a280138921900e259592f81944ea0cd900af4e48cc6`。
 
-六份实际 Vite 值与固定 data、GF 同步端口逐项精确字符串/UTF-8 字节/SHA 相等。原 english、zhCNMessages、siteCatalogs、css、characterData 五字段未变；完整 Unicode 来源/许可证和 data 头部字节保留，已审查 vendor 全部字节保留。
+复用原许可采集器，从精确安装源携带 **完整 Noble 1.8.0 MIT（Paul Miller 2022）**，原 LICENSE 1,109 字节、SHA `4f221aee6e072336700c408c68ab3b96a3fc09f6aebe6f48f1bd99e5ef13faec`；按采集器已有空白处理进入注释。新 vendor 17 个许可块，原 16 块逐字节不变，未添加 URL/SPDX 占位。data 原字节保留。
 
-最小红契约 15 项：12 预期失败、3 通过；最终同步/AST/输出隔离契约 **16/16**。首次正式流程发现 transform 完成顺序导致 data SHA 不稳定，未执行 verifier；补充逆序完成的红契约后，固定六键序修复，最终原流程的 fixed-resource 检查通过。notice、picker、pageStyles 原契约用求值后的实际 GF CSS 端口执行 **88/88 合成 DOM**，另正常 CSS 路径 88/88；最终 shipped data realm 1 项、类型和测试归类通过。辅助工具解析/类型错误的原失败日志保留，文档执行结果见收据。
+红契约 16 项：14 预期失败、2 通过；绿契约 **16/16**。真实 shipped vendor 的空、ASCII、Unicode UTF-8、55/56/63/64/65/127/128/129 边界及 offset typed array 共 12 向量与原包和 Node 固定结果相等；同步 Uint8Array32、lowercase hex string 和 sha/hex 输入不变均核对。追加输入不变断言后的 13 项再次通过。原 SHA 与翻译缓存 identity 契约通过实际 vendor 端口运行 **14/14**，两端口加载计数各 1；首轮辅助 mock 未命中而加载计数失败，改为精确安装文件路径后通过，原日志保留。原契约源码未改。类型、测试归类通过，文档结果见收据。
 
-一次 standalone 原重建为 3,590,643（-45），原输出留 CW。相邻基线/当前控制的 resolved config、全部 1,182 模块代码 SHA 和 renderedLength 完全相同，两份产物均等于原基线 SHA；随后最终原构建也等于基线。记录构建波动，不改 standalone 策略、不将中间输出作为最终成果。最终 prepare 的 vendor 多 44 字节，19 个已检查输入未变；保留原输出且不推测成因，未采用此无关变更，正式原流程按既有行为复制固定 vendor。
+standard/standalone 各仅一次原构建与原 verifier，完整 SHA 均等于基线，本批无自动包装波动、无择取重建。原 prepare 仅一次，固定新 vendor 提交后原正式流程通过 built/tracked/Git；两精确 CDN URL 均首次 HTTP 200，tracked/built/固定 Git/远端 blob/CDN 字节与 SHA 全等。执行服务短暂断连后只确认同一 CW 状态并补交测试，未重建或重新准备资源。
 
-最终两资源 tracked/built/固定 Git/远端 GitHub blob/主文件精确 CDN 响应均逐字节及 SHA 一致，两个 URL 首次 HTTP 200。原 GF 第 15 行预算仍失败，超 **148,481**；后续正式断言未执行。逐个未改原 assertion 的独立诊断 18 项中 17 通过、仅预算失败，后续 16 项诊断通过，**不代表正式 GF 通过**。
+原 GF 第 15 行 **2 MB 预算仍失败，超 139,535**；后续正式断言未执行。每个未改原 assertion 的独立诊断 18 中 17 通过、仅预算失败，后续 16 项诊断通过，不代表正式 GF 通过。未运行浏览器/最终 IIFE、未新增权限或真实模型/搜索 API。#912、cb07 等受保护引用未改。
 
-未运行浏览器或最终 IIFE 实测，未新增依赖、权限或真实搜索/模型调用。剩余阻塞是 2 MB 预算与浏览器实测。#912、cb07 及其他受保护引用保持不变。
-
-[小型收据](./verification-receipt.json)保存六项 SHA、真实图/资源绑定和阶段哈希；完整图、日志、未采用产物仅留 CW。
+[小型收据](./verification-receipt.json)保存精确向量、许可/产物/阶段 SHA 和资源绑定；大日志及图仅留 CW。
