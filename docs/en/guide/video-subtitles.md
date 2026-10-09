@@ -36,11 +36,15 @@ To correct captions that are late or early, open **Subtitle timing** in the Flue
 
 The desktop Chrome / Edge extension can try local AI transcription:
 
-1. Choose a speech model in video settings. Small is recommended for multiple languages, with an initial download of about 590 MB. Tiny (about 100 MB) and Base (about 150 MB) remain available for lighter devices. The model card shows a progress bar, percentage and downloaded size. Extra runtime files may be needed later.
+1. Choose a speech model when generating subtitles or use **Subtitle options → Recognition model** in the player. Small is recommended for multiple languages, with an initial download of about 590 MB. Tiny (about 100 MB) and Base (about 150 MB) remain available for lighter devices. The model card in video settings shows a progress bar, percentage and downloaded size. Extra runtime files may be needed later.
 2. Return to the X player and choose to generate AI subtitles.
 3. Audio reading and recognition progress appear in the player menu. You can stop the job. Completed sentences appear while later windows are still being recognized, and translations are fetched near the playback position. The full timeline is cached and can be exported as SRT only after recognition succeeds; a later recognition failure clears the incomplete preview. Original-only mode does not request translations.
 
 All three models support multiple languages. **Spoken language → Auto** detects the language again for every speech window, so later speech is not locked to the opening language. You can still specify a known single language. Existing model choices and downloads are preserved. Base and Small allow more decoding capacity for text and timestamps; Tiny keeps a shorter budget to limit poor long output. Repeated decoding output is retried once with stronger repetition controls; if it remains corrupt, the job reports an error rather than displaying or caching it.
+
+The model selector keeps the current model selected. Cancel or press Escape to return without changing existing subtitles. Confirm to save the choice and recognize the video again; cached models do not need another download. Model selection is disabled during recognition or downloading. Completed sentences can appear as a preview while recognition continues, and export becomes available when the complete transcript is ready.
+
+Model status checks the complete file list in the local cache. If the browser removes some files, the download action becomes available again; confirming it reuses the remaining files and downloads the missing ones. A cache read failure is shown separately. Reopen settings or return to the page to check again.
 
 Audio recognition runs locally; recognized subtitle text still goes to your translation service. Model downloads require a network connection. Processing depends on video length and your computer. Videos up to 20 minutes are supported; some formats or restricted media cannot be read.
 
@@ -70,7 +74,7 @@ Use the menu to show or hide subtitles and download them. Completed X transcript
 
 ## Missing or inaccurate subtitles
 
-Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and try specifying the spoken language.
+Check that subtitles are enabled and the video has a native track. For X AI subtitles, confirm the model download and use Auto when the spoken language is unknown or changes during the video.
 
 An empty transcription is a speech recognition result, separate from a translation failure. Try Small if you are using Tiny or Base. If Small is already selected, check for clear speech and retry. Use Auto when the spoken language is unknown. Audio without speech usually produces no readable subtitles.
 

@@ -27,7 +27,7 @@ import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createLocalInsightsHandlers} from './localInsightsHandlers';
 import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWeights';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
-import {createDownloadProgressHandler} from './handlers/downloadProgress';
+import {createDownloadProgressHandler, createDownloadProgressQueryHandler} from './handlers/downloadProgress';
 import {createTranslationCancelHandler, createTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
@@ -162,7 +162,7 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
         ...createVideoSubtitleBackgroundRuntime(),
         ...createLocalTranslationBackgroundRuntime(),
         ...createLocalTtsBackgroundRuntime(),
-        createDownloadProgressHandler({runtimeId: browser.runtime.id, offscreenUrl: browser.runtime.getURL('/offscreen.html'), storage: browser.storage.local}),
+        createDownloadProgressHandler({runtimeId: browser.runtime.id, offscreenUrl: browser.runtime.getURL('/offscreen.html'), storage: browser.storage.local}), createDownloadProgressQueryHandler({runtimeId: browser.runtime.id, storage: browser.storage.local}),
     ];
     const router = createBackgroundMessageRouter(
         handlers,

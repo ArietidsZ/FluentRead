@@ -1,12 +1,13 @@
 /**
  * @file src/features/video-subtitle/background/handlers.ts
  * 文件职责：承载视频字幕本地 Whisper 的后台所有权、代际取消和 Offscreen 调度。
- * 主要内容：校验 tab/stream/generation，串行转发识别、预热与取消请求，并同步模型缓存状态。
+ * 主要内容：校验 tab/stream/generation，串行转发识别、预热与取消请求，并用真实缓存键核对模型下载登记后的可用状态。
  * 模块边界：只编排视频字幕与平台 Offscreen client，不实现 Whisper 推理，也不关闭共享 Offscreen 文档。
  */
 import type {OffscreenClient} from '@/src/platform/offscreen/client';
 import {VIDEO_LOCAL_TRANSCRIPTION_MODELS, VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE, getVideoLocalTranscriptionRequestTimeoutMs, normalizeVideoLocalTranscriptionModels, normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
 import {VideoAiCanceledGenerationRegistry} from '@/src/features/video-subtitle/content/video-ai/generationRegistry';
+import {readCachedVideoAiModels} from '@/src/features/video-subtitle/offscreen/modelCache';
 import type {BackgroundMessageHandler} from '@/src/app/background/messageRouter';
 
 type Owner = {tabId: number; streamId: string; generation: number};
@@ -143,7 +144,7 @@ export function createVideoSubtitleBackgroundHandlers(dependencies: VideoSubtitl
         async handle() {
             await stateWriteQueue;
             const stored = await readStore.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
-            const models = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
+            const models = await readCachedVideoAiModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
             return {
                 success: true,
                 models,

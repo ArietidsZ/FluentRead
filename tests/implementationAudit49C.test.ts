@@ -21,12 +21,28 @@ const ports = vi.hoisted(() => ({
     history: {} as any, historyListeners: new Set<(history: any) => void>(), messages: vi.fn(),
     delayDialogClosed: false, pendingDialogClosed: new Set<() => void>(),
     send: vi.fn(), patch: vi.fn(), confirm: vi.fn(), get: vi.fn(),
+    browserCapabilities: {extensionDom: true},
+    renderedEvents: [] as Array<{tag: unknown; props: any; node: any}>,
 }));
+// 记录真实 SFC 向 Vue 公开 render API 交出的完整事件，模拟排队后迟到的旧模板事件。
+// 不读取 setupState、DOM 私有 invoker，也不复写组件内部业务函数。
+vi.mock('vue', async () => {
+    const actual = await vi.importActual<typeof import('vue')>('vue');
+    const exposed: any = {...actual};
+    for (const key of ['createVNode', 'createBlock', 'createElementVNode', 'createElementBlock'] as const) {
+        exposed[key] = (...args: any[]) => {
+            const node = (actual[key] as any)(...args);
+            if (args[1]) ports.renderedEvents.push({tag: args[0], props: {...args[1]}, node});
+            return node;
+        };
+    }
+    return exposed;
+});
 vi.mock('@/src/ui/i18n', async () => {
     const {ref} = await import('vue');
     return {useUiI18n: () => ({t: (key: string) => key, translateLegacy: (value: string) => value, language: ref('zh-CN')})};
 });
-vi.mock('@/src/platform/browser/capabilities', () => ({browserCapabilities: {extensionDom: true}}));
+vi.mock('@/src/platform/browser/capabilities', () => ({browserCapabilities: ports.browserCapabilities}));
 vi.mock('element-plus/es/components/select/style/css', () => ({}));
 vi.mock('element-plus/es/components/message-box/style/css', () => ({}));
 vi.mock('webextension-polyfill', () => ({default: {runtime: {sendMessage: (...args: unknown[]) => ports.send(...args)},
@@ -84,7 +100,7 @@ import LearningMemoryManager from '@/src/features/settings/ui/LearningMemoryMana
 import VideoLocalModelSettings from '@/src/features/settings/ui/VideoLocalModelSettings.vue';
 import ConfigManagement from '@/src/features/settings/ui/ConfigManagement.vue';
 import TranslationCacheSettings from '@/src/features/settings/ui/TranslationCacheSettings.vue';
-import {normalizeConfig} from '@/src/core/config/model';
+import {normalizeConfig, type Config} from '@/src/core/config/model';
 import {createGlossaryLibrary} from '@/src/core/glossary';
 import {LOCAL_TTS_MODEL_STATE_KEY} from '@/src/core/config/localTts';
 import {createDriveAuth, DriveError, type DriveAuthPorts} from '@/src/platform/google-drive/auth';
@@ -93,10 +109,12 @@ import {GOOGLE_DRIVE_SCOPES, GOOGLE_DRIVE_DEFAULT_CLIENT_ID, GOOGLE_DRIVE_EXTENS
 import {createWebDavApi} from '@/src/platform/webdav/api';
 import {createWebDavSession, type WebDavConnection} from '@/src/platform/webdav/connection';
 import {listSitePreferences, previewSitePreferences, type SitePreferences} from '@/src/features/settings/model/sitePreferences';
-import {VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY} from '@/src/features/video-subtitle/transcription';
+import {VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY, VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE} from '@/src/features/video-subtitle/transcription';
+import {getVideoAiModelFileUrl, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
 import {VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE, VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE} from '@/src/features/video-subtitle/transcriptionCache';
 import {createVideoSubtitleBackgroundHandlers} from '@/src/features/video-subtitle/background/handlers';
 import {createBackgroundMessageRouter, createBackgroundRuntimeMessageListener} from '@/src/app/background/messageRouter';
+import {downloadProgressKey, videoModelDownloadId} from '@/src/core/download/progress';
 import {appendConfigHistorySnapshot, toRestorableConfig} from '@/src/services/config/history';
 import {appendConfigAutoBackup} from '@/src/services/config/autoBackup';
 import {getConfigAutoBackupsSnapshot} from '@/src/services/config/autoBackupStore';
@@ -128,6 +146,7 @@ beforeEach(() => {
     vi.stubGlobal('browser', browser);
     ports.send.mockReset(); ports.patch.mockReset(); ports.confirm.mockReset(); ports.get.mockReset(); ports.messages.mockReset();
     ports.delayDialogClosed = false;
+    ports.browserCapabilities.extensionDom = true; ports.renderedEvents.length = 0;
     for (const key of Object.keys(ports.config)) delete ports.config[key];
     Object.assign(ports.config, normalizeConfig({glossaryEnabled: true, glossaryLibraries: [{...createGlossaryLibrary([]), name: 'Original'}]}));
     ports.history = {schemaVersion: 1, cursor: 1, nextVersion: 3, entries: [
@@ -143,6 +162,7 @@ afterEach(async () => {
     expect(ports.historyListeners.size).toBe(0);
     expect(ports.pendingDialogClosed.size).toBe(0);
     dom.document.body.replaceChildren(); vi.useRealTimers(); vi.unstubAllGlobals();
+    ports.renderedEvents.length = 0;
 });
 
 function authFixture() {
@@ -357,40 +377,46 @@ describe('audit49C learning-memory confirmation lifetime', () => {
 describe('audit49C video model and cache lifecycle in the client template', () => {
     const stats = (entries: number) => ({success: true, stats: {entries, bytes: entries * 100, maxEntries: 32, ttlMs: 1000}});
     it.each(['download', 'remove'] as const)('does not let a stale storage snapshot undo completed %s', async operation => {
-        ports.get.mockResolvedValue({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: operation === 'remove' ? ['tiny'] : []});
+        let state = operation === 'remove' ? ['tiny'] : [];
         ports.send.mockImplementation(async (message: any) => {
             if (message.type === VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE) return stats(0);
+            if (message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE) return {success: true, models: state};
             const models = operation === 'remove' ? [] : ['tiny'];
-            ports.get.mockResolvedValue({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: models});
+            state = models;
             return {success: true, models};
         });
         const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
-        const stale = deferred<unknown>(); ports.get.mockImplementationOnce(() => stale.promise);
+        const stale = deferred<unknown>(); ports.send.mockImplementationOnce(() => stale.promise);
         for (const listener of ports.storageListeners) listener({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: {}}, 'local'); await settle();
         host.querySelector<HTMLButtonElement>('.video-model-card button')!.click(); await settle();
-        stale.resolve({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: operation === 'remove' ? ['tiny'] : []}); await settle();
+        stale.resolve({success: true, models: operation === 'remove' ? ['tiny'] : []}); await settle();
         expect(host.querySelector('.video-model-card .video-model-availability')!.textContent).toContain(operation === 'download' ? '可离线使用' : '尚未下载');
     });
     it('keeps post-clear cache statistics when an older focus read returns later', async () => {
-        ports.get.mockResolvedValue({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: []}); ports.send.mockResolvedValue(stats(5));
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? {success: true, models: []} : stats(5));
         const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
-        const stale = deferred<unknown>(); ports.send.mockImplementationOnce(() => stale.promise);
+        const stale = deferred<unknown>(); ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? {success: true, models: []} : stale.promise);
         window.dispatchEvent(new Event('focus')); await settle();
-        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE ? {success: true} : stats(0));
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? {success: true, models: []} : message.type === VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE ? {success: true} : stats(0));
         host.querySelector<HTMLButtonElement>('.video-ai-cache-clear')!.click(); await settle();
         stale.resolve(stats(5)); await settle(); expect(host.querySelector<HTMLButtonElement>('.video-ai-cache-clear')!.disabled).toBe(true);
     });
     it('clears an old cache-read error on a newer success and removes focus listeners on unmount', async () => {
-        ports.get.mockResolvedValue({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: []}); ports.send.mockResolvedValue(stats(0));
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? {success: true, models: []} : stats(0));
         const {host, stop} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
-        const stale = deferred<unknown>(); ports.send.mockImplementationOnce(() => stale.promise); window.dispatchEvent(new Event('focus')); await settle();
+        const stale = deferred<unknown>(); let holdCacheRead = true;
+        ports.send.mockImplementation(async (message: any) => {
+            if (message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE) return {success: true, models: []};
+            if (holdCacheRead) {holdCacheRead = false; return stale.promise;}
+            return stats(0);
+        }); window.dispatchEvent(new Event('focus')); await settle();
         window.dispatchEvent(new Event('focus')); await settle(); stale.reject(new Error('old cache read')); await settle();
         expect(host.querySelector('.video-ai-cache-panel [role="alert"]')).toBeNull(); stop();
         const calls = ports.send.mock.calls.length; window.dispatchEvent(new Event('focus')); document.dispatchEvent(new Event('visibilitychange')); await settle();
         expect(ports.send).toHaveBeenCalledTimes(calls);
     });
     it('retains a model-download error when another storage state read succeeds', async () => {
-        ports.get.mockResolvedValue({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: []}); ports.send.mockResolvedValue(stats(0));
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? {success: true, models: []} : stats(0));
         const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
         ports.send.mockResolvedValueOnce({success: false, error: 'controlled command failure'});
         host.querySelector<HTMLButtonElement>('.video-model-card button')!.click(); await settle();
@@ -405,6 +431,9 @@ describe('audit49C video model and cache lifecycle in the client template', () =
 function videoHandlerFixture(initial: string[] = []) {
     let values: Record<string, unknown> = {[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: [...initial]};
     const events: unknown[] = [];
+    const stateReplies: Array<() => Promise<unknown>> = [];
+    const cacheUrls = new Set(['tiny', 'base', 'small'].flatMap(model => (model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES).map(file => getVideoAiModelFileUrl(model, file))));
+    vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => [...cacheUrls].map(url => new Request(url))})});
     const storage = {
         get: vi.fn(async (_key: string) => structuredClone(values)),
         set: vi.fn(async (next: Record<string, unknown>) => {
@@ -424,6 +453,7 @@ function videoHandlerFixture(initial: string[] = []) {
     ports.get.mockImplementation((key: string) => storage.get(key));
     ports.send.mockImplementation(async (message: any) => {
         if (message.type === VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE) return {success: true, stats: {entries: 0, bytes: 0, maxEntries: 32, ttlMs: 1000}};
+        if (message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE && stateReplies.length) return stateReplies.shift()!();
         const id = `${message.type}:${message.model}`;
         const gate = gates.get(id); gates.delete(id);
         const response = await listener(message, {});
@@ -431,7 +461,9 @@ function videoHandlerFixture(initial: string[] = []) {
         if (gate) {gate.captured.resolve(response); await gate.release.promise;}
         return response;
     });
-    return {storage, offscreen, listener, events, models: () => structuredClone(values[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]),
+    return {storage, offscreen, listener, events, cacheUrls, models: () => structuredClone(values[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]),
+        holdState(promise: Promise<unknown>) {stateReplies.push(() => promise);},
+        failState(error: Error) {stateReplies.push(async () => {throw error;});},
         hold(type: string, model: string) {
             const gate = {captured: deferred<any>(), release: deferred<void>()}; gates.set(`${type}:${model}`, gate); return gate;
         },
@@ -450,6 +482,157 @@ function expectVideoModels(host: HTMLElement, models: string[]) {
     for (const model of ['tiny', 'base']) expect(videoCard(host, model).querySelector('.video-model-availability')!.textContent)
         .toContain(models.includes(model) ? '可离线使用' : '尚未下载');
 }
+
+function capturedModelEvent(model: string, tag: string, name = 'onClick'): (...args: any[]) => unknown {
+    const root = ports.renderedEvents.findLast(event => event.tag === 'article' && event.props.key === model)?.node;
+    const find = (node: any): any => {
+        if (node?.type === tag && typeof node.props?.[name] === 'function') return node.props[name];
+        if (Array.isArray(node?.children)) for (const child of node.children) {const event = find(child); if (event) return event;}
+    };
+    const event = find(root); expect(event, `actual ${model} template ${tag}.${name}`).toBeTypeOf('function'); return event;
+}
+function capturedCacheClear(): (event: Event) => unknown {
+    const event = ports.renderedEvents.findLast(item => item.tag === 'button' && String(item.props.class).includes('video-ai-cache-clear'))?.props.onClick;
+    expect(event).toBeTypeOf('function'); return event;
+}
+function emitVideoProgress(model: string, next?: {loaded: number; total: number}, listeners = [...ports.storageListeners]) {
+    for (const listener of listeners) listener({[downloadProgressKey(videoModelDownloadId(model))]: {newValue: next}}, 'local');
+}
+
+describe('video settings real template recovery boundaries', () => {
+    const stats = {success: true, stats: {entries: 1, bytes: 4, maxEntries: 32, ttlMs: 1000}};
+    const installReplies = (command: () => Promise<unknown> = async () => ({success: true})) => {
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE
+            ? {success: true, models: []} : message.type === VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE ? stats : command());
+    };
+    it('selects a model by its actual radio/card and ignores the old rendered controls after a config replacement', async () => {
+        installReplies();
+        const config = normalizeConfig({videoTranslationEnabled: true});
+        const page = await mount(VideoLocalModelSettings, {config, active: true});
+        const state = page.state as {config: Config; active: boolean};
+        videoCard(page.host, 'base').dispatchEvent(new Event('click', {bubbles: true})); await settle();
+        expect(state.config.videoLocalModel).toBe('base');
+        const radio = videoCard(page.host, 'small').querySelector<HTMLInputElement>('input')!;
+        radio.checked = true; radio.dispatchEvent(new Event('change', {bubbles: true})); await settle();
+        expect(state.config.videoLocalModel).toBe('small');
+        const oldChoose = capturedModelEvent('base', 'article'), oldDownload = capturedModelEvent('base', 'button');
+        state.config = normalizeConfig({videoTranslationEnabled: true, videoLocalModel: 'tiny'}); await settle();
+        const messages = ports.send.mock.calls.length;
+        oldChoose(new Event('click')); await oldDownload(new Event('click')); await settle();
+        expect(config.videoLocalModel).toBe('small'); expect(state.config.videoLocalModel).toBe('tiny'); expect(ports.send).toHaveBeenCalledTimes(messages);
+        state.config.videoTranslationEnabled = false; await settle();
+        videoCard(page.host, 'base').dispatchEvent(new Event('click', {bubbles: true})); await settle();
+        expect(state.config.videoLocalModel).toBe('tiny');
+    });
+    it('rejects a programmatically dispatched disabled download when extension DOM support is unavailable', async () => {
+        installReplies(); ports.browserCapabilities.extensionDom = false;
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        const button = videoCard(host, 'tiny').querySelector<HTMLButtonElement>('button')!;
+        expect(button.disabled).toBe(true); button.dispatchEvent(new Event('click', {bubbles: true})); await settle();
+        expect(host.textContent).toContain('当前浏览器不支持本地 AI 字幕');
+        expect(ports.send.mock.calls.map(([message]) => message.type)).not.toContain('fluentReadPrepareLocalVideoModel');
+    });
+    it('checks Small files on focus, accepts external byte progress and repairs the missing tokenizer through the real button', async () => {
+        const fixture = videoHandlerFixture(['small']);
+        const {host, state} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true}), active: true});
+        const tokenizer = getVideoAiModelFileUrl('small', 'tokenizer.json');
+        fixture.cacheUrls.delete(tokenizer); window.dispatchEvent(new Event('focus')); await settle();
+        expect(videoCard(host, 'small').querySelector('.video-model-availability')!.textContent).toContain('尚未下载');
+        expect(fixture.models()).toEqual(['small']); expect(fixture.offscreen.send).not.toHaveBeenCalled();
+        emitVideoProgress('small', {loaded: 10, total: 100}); await settle();
+        expect(host.querySelector('[data-video-model-progress="small"] progress')!.getAttribute('value')).toBe('10');
+        emitVideoProgress('small', {loaded: 20, total: 100}); await settle();
+        expect(host.querySelector('[data-video-model-progress="small"] progress')!.getAttribute('value')).toBe('20');
+        emitVideoProgress('small'); await settle();
+        expect(videoCard(host, 'small').querySelector('.video-model-availability')!.textContent).toContain('尚未下载');
+        fixture.offscreen.send.mockImplementationOnce(async () => {fixture.cacheUrls.add(tokenizer); return {success: true};});
+        await clickVideoModel(host, 'small');
+        expect(videoCard(host, 'small').querySelector('.video-model-availability')!.textContent).toContain('可离线使用');
+        const oldProgress = [...ports.storageListeners]; state.active = false; await settle();
+        emitVideoProgress('small', {loaded: 90, total: 100}, oldProgress); await settle();
+        expect(host.querySelector('[data-video-model-progress="small"]')).toBeNull();
+    });
+    it('keeps one download despite repeated queued events and ignores a stale success after the view becomes inactive', async () => {
+        const gate = deferred<unknown>(); installReplies(() => gate.promise);
+        const page = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true}), active: true});
+        const event = capturedModelEvent('tiny', 'button');
+        event(new Event('click')); event(new Event('click')); await settle();
+        expect(ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadPrepareLocalVideoModel')).toHaveLength(1);
+        page.state.active = false; await settle(); gate.resolve({success: true}); await settle();
+        expect(page.host.querySelector('.video-model-management [role="alert"]')).toBeNull();
+    });
+    it('does not repeat a completed download from its old still-owned button event', async () => {
+        const fixture = videoHandlerFixture(); await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        const download = capturedModelEvent('tiny', 'button');
+        await download(new Event('click')); await settle(); await download(new Event('click')); await settle();
+        expect(fixture.offscreen.send).toHaveBeenCalledOnce();
+    });
+    it.each([undefined, {success: true, models: undefined}])('shows a status error for an invalid central state reply %j', async reply => {
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? reply : stats);
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        expect(host.querySelector('.video-model-management [role="alert"]')!.textContent).toContain('无法读取模型缓存');
+    });
+    it('shows a generic download error when a transport rejects with a non-Error value', async () => {
+        installReplies(async () => {throw 'PORT_CLOSED';});
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        await clickVideoModel(host, 'tiny'); expect(host.querySelector('.video-model-management [role="alert"]')!.textContent).toContain('模型下载失败，请检查网络后重试');
+    });
+    it('keeps one remove despite queued duplicate events and ignores a stale reply and old remove event after deactivation', async () => {
+        const gate = deferred<unknown>();
+        ports.send.mockImplementation(async (message: any) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE
+            ? {success: true, models: ['tiny']} : message.type === VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE ? stats : gate.promise);
+        const page = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true}), active: true});
+        const event = capturedModelEvent('tiny', 'button'); event(new Event('click')); event(new Event('click')); await settle();
+        expect(ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadRemoveLocalVideoModel')).toHaveLength(1);
+        page.state.active = false; await settle(); gate.resolve({success: true}); await settle();
+        const messages = ports.send.mock.calls.length; event(new Event('click')); await settle();
+        expect(ports.send).toHaveBeenCalledTimes(messages); expect(page.host.querySelector('.video-model-management [role="alert"]')).toBeNull();
+    });
+    it.each(['empty', 'non-Error'])('shows a clear remove failure for a %s transport response', async mode => {
+        ports.send.mockImplementation(async (message: any) => {
+            if (message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE) return {success: true, models: ['tiny']};
+            if (message.type === VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE) return stats;
+            if (mode === 'non-Error') throw 'PORT_CLOSED';
+        });
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        await clickVideoModel(host, 'tiny'); expect(host.querySelector('.video-model-management [role="alert"]')!.textContent).toContain('modelCache.removeFailed');
+    });
+    it.each(['invalid', 'non-Error'])('shows a cache-statistics failure for %s replies', async mode => {
+        ports.send.mockImplementation(async (message: any) => {
+            if (message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE) return {success: true, models: []};
+            if (mode === 'non-Error') throw 'PORT_CLOSED';
+            return {success: true};
+        });
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        expect(host.querySelector('.video-ai-cache-panel [role="alert"]')!.textContent).toContain('无法读取已识别字幕缓存');
+        expect(host.querySelector('.video-ai-cache-status')!.textContent).toContain('读取失败');
+    });
+    it.each(['empty', 'Error', 'non-Error', 'reported'])('preserves visible cache entries and allows retry after %s clear failure', async mode => {
+        installReplies(async () => {
+            if (mode === 'Error') throw new Error('controlled clear failure');
+            if (mode === 'non-Error') throw 'PORT_CLOSED';
+            if (mode === 'reported') return {success: false, error: 'controlled clear failure'};
+        });
+        const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
+        host.querySelector<HTMLButtonElement>('.video-ai-cache-clear')!.click(); await settle();
+        expect(host.querySelector('.video-ai-cache-panel [role="alert"]')!.textContent).toContain(mode === 'Error' || mode === 'reported' ? 'controlled clear failure' : '清除已识别字幕失败');
+        expect(host.querySelector<HTMLButtonElement>('.video-ai-cache-clear')!.disabled).toBe(false);
+    });
+    it('does not repeat cache clear or apply its late result after deactivation, and rejects an old queued clear event', async () => {
+        const gate = deferred<unknown>(); installReplies(() => gate.promise);
+        const page = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true}), active: true});
+        const event = capturedCacheClear(); event(new Event('click')); event(new Event('click')); await settle();
+        expect(page.host.textContent).toContain('清除中…');
+        expect(ports.send.mock.calls.filter(([message]) => message.type === VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE)).toHaveLength(1);
+        page.state.active = false; await settle(); gate.resolve({success: true}); await settle();
+        const messages = ports.send.mock.calls.length; event(new Event('click')); await settle();
+        expect(ports.send).toHaveBeenCalledTimes(messages); expect(page.host.querySelector('.video-ai-cache-panel [role="alert"]')).toBeNull();
+    });
+    it('mounts inactive without installing listeners or reading model files', async () => {
+        installReplies(); const page = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true}), active: false});
+        expect(ports.send).not.toHaveBeenCalled(); expect(ports.storageListeners.size).toBe(0); page.stop();
+    });
+});
 describe('audit49C followup1 cross-model convergence through public handlers and real client buttons', () => {
     it('keeps both successful concurrent downloads when the earlier captured reply is delivered last', async () => {
         const fixture = videoHandlerFixture(); const tinyWorker = deferred<{success: boolean}>(); const baseWorker = deferred<{success: boolean}>();
@@ -507,14 +690,14 @@ describe('audit49C followup1 cross-model convergence through public handlers and
     });
     it('ignores a stale terminal read when a new command starts before that read is delivered', async () => {
         const fixture = videoHandlerFixture(); const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
-        const stale = deferred<unknown>(); ports.get.mockImplementationOnce(() => stale.promise);
+        const stale = deferred<unknown>(); fixture.holdState(stale.promise);
         await clickVideoModel(host, 'tiny'); await clickVideoModel(host, 'base');
-        expect(fixture.models()).toEqual(['tiny', 'base']); stale.resolve({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: ['tiny']}); await settle();
+        expect(fixture.models()).toEqual(['tiny', 'base']); stale.resolve({success: true, models: ['tiny']}); await settle();
         expectVideoModels(host, ['tiny', 'base']);
     });
     it('recovers from a terminal state-read failure through a later storage event', async () => {
         const fixture = videoHandlerFixture(); const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
-        ports.get.mockRejectedValueOnce(new Error('controlled terminal read failure'));
+        fixture.failState(new Error('controlled terminal read failure'));
         await clickVideoModel(host, 'tiny');
         expect(host.querySelector('.video-model-management [role="alert"]')!.textContent).toContain('无法读取模型缓存');
         await fixture.storage.set({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: ['tiny', 'base']}); await settle();
@@ -524,15 +707,15 @@ describe('audit49C followup1 cross-model convergence through public handlers and
         const fixture = videoHandlerFixture(); const reply = fixture.hold('fluentReadPrepareLocalVideoModel', 'tiny');
         const first = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
         await clickVideoModel(first.host, 'tiny'); await reply.captured.promise; first.stop();
-        const reads = ports.get.mock.calls.length; reply.release.resolve(); await settle();
-        expect(ports.get).toHaveBeenCalledTimes(reads); expect(ports.storageListeners.size).toBe(0);
+        const reads = ports.send.mock.calls.filter(([message]) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE).length; reply.release.resolve(); await settle();
+        expect(ports.send.mock.calls.filter(([message]) => message.type === VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE)).toHaveLength(reads); expect(ports.storageListeners.size).toBe(0);
         const second = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
         expectVideoModels(second.host, ['tiny']); second.stop(); expect(ports.storageListeners.size).toBe(0);
     });
     it('keeps a command error after a failed terminal read is later recovered', async () => {
         const fixture = videoHandlerFixture(); const {host} = await mount(VideoLocalModelSettings, {config: normalizeConfig({videoTranslationEnabled: true})});
         fixture.offscreen.send.mockResolvedValueOnce({success: false});
-        ports.get.mockRejectedValueOnce(new Error('read failed after command failure'));
+        fixture.failState(new Error('read failed after command failure'));
         await clickVideoModel(host, 'tiny');
         await fixture.storage.set({[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: ['base']}); await settle();
         expectVideoModels(host, ['base']); expect(host.querySelector('.video-model-management [role="alert"]')!.textContent).toContain('video.modelDownloadError');

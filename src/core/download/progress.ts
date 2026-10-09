@@ -12,6 +12,8 @@ export interface DownloadProgress {
 }
 
 export const DOWNLOAD_PROGRESS_MESSAGE = 'fluentReadDownloadProgress' as const;
+/** content 无权读取受信本地存储，只能向后台查询单项下载的字节进度。 */
+export const DOWNLOAD_PROGRESS_QUERY_MESSAGE = 'fluentReadDownloadProgressQuery' as const;
 /** 进度只作为跨页面的事件通道写入扩展本地存储；界面只消费变化事件，不把存量值当作“正在下载”。 */
 export const DOWNLOAD_PROGRESS_KEY_PREFIX = 'fluentReadDownloadProgress:' as const;
 
