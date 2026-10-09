@@ -272,7 +272,7 @@
                   <td class="subtitle-timing"><time>{{ row.timeStart || '—' }}</time><span aria-hidden="true"> → </span><time>{{ row.timeEnd || '—' }}</time></td>
                   <td v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(readerText(row.source), readerText(row.translation)))" :colspan="effectivePreviewMode === 'bilingual' && row.translation && !hasDistinctTranslation(readerText(row.source), readerText(row.translation)) ? 2 : 1"><p class="subtitle-source document-source" data-i18n-ignore>{{ readerText(row.source) }}</p></td>
                   <td v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(readerText(row.source), readerText(row.translation)))">
-                    <p class="subtitle-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
+                    <p class="subtitle-translation document-translation" data-i18n-ignore>{{ row.translation ? readerText(row.translation) : translateLegacy('等待翻译…') }}</p>
                   </td>
                 </tr>
               </tbody>
@@ -301,7 +301,7 @@
             <div v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(row.source, row.translation))" class="reader-source document-source" data-i18n-ignore :class="readerSourceClass(row.source)">
               {{ readerText(row.source) }}
             </div>
-            <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="reader-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
+            <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="reader-translation document-translation" data-i18n-ignore>{{ row.translation ? readerText(row.translation) : translateLegacy('等待翻译…') }}</p>
           </article>
         </div>
         <p v-if="!hasTranslation && !isPdfDocument" class="reader-empty">
