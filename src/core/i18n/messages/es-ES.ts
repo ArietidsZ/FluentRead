@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/es-ES.json';
 import settingsCopyText from './settings-copy/es-ES.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     ...pdfReadingMessages['es-ES'],
+    ...informationHighlightMessages['es-ES'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Eliminar cabeceras de origen",

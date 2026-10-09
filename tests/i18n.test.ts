@@ -953,7 +953,9 @@ describe('i18n 全量界面扫描', () => {
     const common = new Set(['inputTranslation.intervalUnit', 'common.brand', 'metadata.popupTitle', 'settings.advanced.translationLoadingStyleOptionAria', 'reading.generatingAction',
       // 品牌名与纯排版模板在多数语言下与英文一致，强行改写反而破坏菜单文案。
       'settings.interface.font.options.inter.label',
-      'contextMenu.groupPlain', 'contextMenu.standalone', 'contextMenu.withShortcut', 'contextMenu.withLanguage', 'contextMenuSettings.withReason']);
+      'contextMenu.groupPlain', 'contextMenu.standalone', 'contextMenu.withShortcut', 'contextMenu.withLanguage', 'contextMenuSettings.withReason',
+      // 示例句子的句号是多语言共用标点，不是未翻译的词语。
+      'informationHighlight.preview.end']);
     // “Original” 在法语与西班牙语中拼写与英文相同，视频字幕菜单的短标签沿用该词。
     const videoOriginalLabels = ['video.modeOriginal', 'video.downloadOriginalShort'];
     const frenchCognates = new Set(['learning.memoryNote', 'document.progressSegments', 'document.pageCount', 'document.pageNumber', 'options.aboutDocs', 'settings.advanced.animations', 'settings.advanced.translationLoadingStyle.minimal.label',
@@ -962,7 +964,9 @@ describe('i18n 全量界面扫描', () => {
       // Page、Zoom 与 Original 也是 PDF 阅读器中自然的法语短标签。
       'document.pdfReading.pageLabel', 'document.pdfReading.pageNumber', 'document.pdfReading.zoom', 'document.pdfReading.original',
       'translationStats.filter.service', 'translationStats.source.network', 'translationStats.log.image', 'translationStats.routes.column.route', ...videoOriginalLabels]);
-    const spanishCognates = new Set([...videoOriginalLabels, 'shareCard.original', 'shareCard.theme.coral', 'document.pdfReading.zoom', 'document.pdfReading.original']);
+    const spanishCognates = new Set([...videoOriginalLabels, 'shareCard.original', 'shareCard.theme.coral', 'document.pdfReading.zoom', 'document.pdfReading.original',
+      // Color 是自然的西班牙语短标签，与英文同形。
+      'informationHighlight.color']);
     for (const [locale, catalog] of Object.entries({'ja-JP': jaJPMessages, 'ko-KR': koKRMessages, 'fr-FR': frFRMessages, 'ru-RU': ruRUMessages, 'es-ES': esESMessages})) {
       const untranslated = Object.entries(enUSMessages).filter(([key, source]) => (
         !key.startsWith('language.') && !common.has(key) && !(locale === 'fr-FR' && frenchCognates.has(key))

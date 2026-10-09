@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/zh-CN.json';
 import settingsCopyText from './settings-copy/zh-CN.json';
 import brandTaglines from './brand-taglines.json';
@@ -21,6 +22,7 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     ...pdfReadingMessages['zh-CN'],
+    ...informationHighlightMessages['zh-CN'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "移除来源请求头",

@@ -1,0 +1,77 @@
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {sha256} from '@noble/hashes/sha256';
+import {createModelArtifactStore, MODEL_ARTIFACT_CHUNK_BYTES, type ModelArtifact} from '@/src/platform/storage/modelArtifacts';
+import {INFORMATION_HIGHLIGHT_MODEL_FILES, INFORMATION_HIGHLIGHT_MODEL_REVISION, INFORMATION_HIGHLIGHT_MODEL_BYTES} from '@/src/core/config/informationHighlightModel';
+
+describe('fixed model artifacts integrity and bounded resumable cache', () => {
+    let entries: Map<string, Response>, cache: {match: ReturnType<typeof vi.fn>; put: ReturnType<typeof vi.fn>; delete: ReturnType<typeof vi.fn>};
+    beforeEach(() => {
+        entries = new Map(); cache = {match: vi.fn(async (key: string) => entries.get(key)?.clone()), put: vi.fn(async (key: string, value: Response) => {entries.set(key, value.clone());}), delete: vi.fn(async (key: string) => entries.delete(key))};
+        vi.stubGlobal('caches', {open: vi.fn(async () => cache)}); vi.stubGlobal('navigator', {language: 'en'});
+    });
+    afterEach(() => {vi.useRealTimers(); vi.unstubAllGlobals();});
+    const fileFor = (body: Uint8Array, path = 'model.onnx'): ModelArtifact => ({url: `https://huggingface.co/org/model/resolve/pinned/${path}`, size: body.length, sha256: Array.from(sha256(body), value => value.toString(16).padStart(2,'0')).join('')});
+    it('pins six verified files with actual size and content SHA-256, not a parameter-count estimate', () => {
+        expect(INFORMATION_HIGHLIGHT_MODEL_REVISION).toMatch(/^[a-f0-9]{40}$/u); expect(INFORMATION_HIGHLIGHT_MODEL_BYTES).toBe(490043908);
+        expect(INFORMATION_HIGHLIGHT_MODEL_FILES).toHaveLength(6); expect(INFORMATION_HIGHLIGHT_MODEL_FILES.every(file => /^[a-f0-9]{64}$/u.test(file.sha256))).toBe(true);
+        expect(INFORMATION_HIGHLIGHT_MODEL_FILES.at(-1)).toMatchObject({size: 483003582, sha256: '30a39f89fab8f30d0f99aa1e28d3e3be6fca66a3fab915f77584ac52a8361d25'});
+    });
+    it('streams verified bytes, emits verifying progress and serves only canonical prepared artifacts', async () => {
+        const body = new TextEncoder().encode('fixed bytes'), file = fileFor(body), store = createModelArtifactStore('models', [file]), progress = vi.fn();
+        await expect(store.blob(file)).rejects.toThrow('NOT_DOWNLOADED'); expect(await store.complete(file)).toBe(false); expect(await store.downloaded(file)).toBe(0);
+        const fetcher = vi.fn(async () => new Response(body)); vi.stubGlobal('fetch', fetcher);
+        await store.download(file, new AbortController().signal, progress); expect(await store.complete(file)).toBe(true); expect(await store.downloaded(file)).toBe(body.length); expect(await (await store.blob(file)).text()).toBe('fixed bytes');
+        expect(await (await store.match(file.url))!.text()).toBe('fixed bytes'); expect(await store.match(new Request(file.url))).toBeInstanceOf(Response); expect(await store.match('https://elsewhere')).toBeUndefined();
+        expect(progress).toHaveBeenCalledWith(body.length, true); await store.download(file, new AbortController().signal, progress); expect(fetcher).toHaveBeenCalledOnce();
+        await store.remove(file); expect(await store.complete(file)).toBe(false);
+    });
+    it('requires a valid receipt plus all actual chunks; stale/corrupt receipts cannot claim ready', async () => {
+        const body = new Uint8Array([1,2]), file = fileFor(body), store = createModelArtifactStore('models', [file]);
+        const receipt = `${file.url}?fluent-read-verified=${file.sha256}`, chunk = `${file.url}?fluent-read-part=0`;
+        for (const value of ['invalid JSON', JSON.stringify({size: 1, sha256: file.sha256}), JSON.stringify({size: 2, sha256: 'bad'}), JSON.stringify({size: 2, sha256: file.sha256})]) {entries.set(receipt, new Response(value)); expect(await store.complete(file)).toBe(false);}
+        entries.set(chunk, new Response('x', {headers: {'Content-Length': '2'}})); expect(await store.complete(file)).toBe(false); expect(await store.downloaded(file)).toBe(2); await expect(store.blob(file)).rejects.toThrow('NOT_DOWNLOADED');
+        entries.set(chunk, new Response(body, {headers: {'Content-Length': '2'}})); expect(await store.complete(file)).toBe(true);
+        cache.match.mockImplementation(async (key: string) => key === chunk ? undefined : entries.get(key)?.clone()); await expect(store.blob(file)).rejects.toThrow('NOT_DOWNLOADED');
+    });
+    it('resumes a whole 4MiB prefix using exact Range, and verifies a fully downloaded unverified file offline', async () => {
+        const body = new Uint8Array(MODEL_ARTIFACT_CHUNK_BYTES + 3).fill(7), file = fileFor(body), store = createModelArtifactStore('models', [file]);
+        entries.set(`${file.url}?fluent-read-part=0`, new Response(body.subarray(0, MODEL_ARTIFACT_CHUNK_BYTES), {headers: {'Content-Length': String(MODEL_ARTIFACT_CHUNK_BYTES)}}));
+        const fetcher = vi.fn(async (_url: string, _options: RequestInit) => new Response(body.subarray(MODEL_ARTIFACT_CHUNK_BYTES), {status: 206, headers: {'Content-Range': `bytes ${MODEL_ARTIFACT_CHUNK_BYTES}-${body.length - 1}/${body.length}`}})); vi.stubGlobal('fetch', fetcher);
+        await store.download(file, new AbortController().signal, () => {}); expect(fetcher.mock.calls[0][1]).toMatchObject({headers: {Range: `bytes=${MODEL_ARTIFACT_CHUNK_BYTES}-`}}); expect(await store.complete(file)).toBe(true);
+        entries.delete(`${file.url}?fluent-read-verified=${file.sha256}`); await store.download(file, new AbortController().signal, () => {}); expect(fetcher).toHaveBeenCalledOnce();
+    });
+    it('detects eviction or replacement between receipt validation and reading the artifact', async () => {
+        const body = new Uint8Array([1,2]), file = fileFor(body), store = createModelArtifactStore('models', [file]);
+        const receipt = `${file.url}?fluent-read-verified=${file.sha256}`, chunk = `${file.url}?fluent-read-part=0`;
+        entries.set(receipt, new Response(JSON.stringify({size: file.size, sha256: file.sha256}))); entries.set(chunk, new Response(body, {headers: {'Content-Length': '2'}}));
+        for (const replacement of [undefined, new Response('x')]) {
+            let reads = 0;
+            cache.match.mockImplementation(async (key: string) => key === chunk && ++reads === 2 ? replacement?.clone() : entries.get(key)?.clone());
+            await expect(store.blob(file)).rejects.toThrow(replacement ? 'MODEL_INTEGRITY' : 'MODEL_NOT_DOWNLOADED');
+        }
+        cache.match.mockImplementation(async (key: string) => entries.get(key)?.clone()); entries.delete(receipt); entries.delete(chunk);
+        cache.put.mockImplementation(async () => {entries.delete(chunk);});
+        vi.stubGlobal('fetch', vi.fn(async () => new Response(body))); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toThrow('MODEL_INTEGRITY');
+    });
+    it('restarts when a source ignores Range and discards corrupt bytes before trying another source', async () => {
+        const body = new Uint8Array(MODEL_ARTIFACT_CHUNK_BYTES + 1).fill(3), file = fileFor(body), store = createModelArtifactStore('models', [file]);
+        entries.set(`${file.url}?fluent-read-part=0`, new Response(body.subarray(0, MODEL_ARTIFACT_CHUNK_BYTES), {headers: {'Content-Length': String(MODEL_ARTIFACT_CHUNK_BYTES)}}));
+        const fetcher = vi.fn(async () => new Response(body)); vi.stubGlobal('fetch', fetcher); await store.download(file, new AbortController().signal, () => {}); expect(await store.complete(file)).toBe(true);
+        const small = fileFor(new TextEncoder().encode('good'), 'small'), other = createModelArtifactStore('models', [small]); vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response('evil')).mockResolvedValueOnce(new Response('good')));
+        await other.download(small, new AbortController().signal, () => {}); expect(await other.complete(small)).toBe(true); expect(await store.complete(file)).toBe(true);
+    });
+    it('rejects invalid ranges, short/oversized files, HTML bodies and quota errors without accepting incomplete data', async () => {
+        const file = fileFor(new Uint8Array([1,2])), store = createModelArtifactStore('models', [file]);
+        for (const response of [new Response('x', {status: 206}), new Response('x', {status: 206, headers: {'Content-Range': 'bytes 1-1/2'}}), new Response('x'), new Response('xxx'), new Response('page', {status: 500}), new Response(null), new Response('x', {status: 201})]) {
+            vi.stubGlobal('fetch', vi.fn(async () => response.clone())); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toThrow(); expect(await store.complete(file)).toBe(false); await store.remove(file);
+        }
+        cache.put.mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError')); const fetcher = vi.fn(async () => new Response(new Uint8Array([1,2]))); vi.stubGlobal('fetch', fetcher); await expect(store.download(file, new AbortController().signal, () => {})).rejects.toMatchObject({name: 'QuotaExceededError'}); expect(fetcher).toHaveBeenCalledOnce();
+    });
+    it('pauses before fetch or during the stream, keeps other model entries and bounds stalled-network waiting', async () => {
+        const body = new Uint8Array([1,2]), file = fileFor(body), store = createModelArtifactStore('models', [file]);
+        const controller = new AbortController(); controller.abort(); await expect(store.download(file, controller.signal, () => {})).rejects.toMatchObject({name: 'AbortError'});
+        const during = new AbortController(); vi.stubGlobal('fetch', vi.fn(async () => {during.abort(); return new Response(body);})); await expect(store.download(file, during.signal, () => {})).rejects.toMatchObject({name: 'AbortError'});
+        vi.useFakeTimers(); const fetcher = vi.fn((_url, {signal}: {signal: AbortSignal}) => new Promise<Response>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('stalled'))))); vi.stubGlobal('fetch', fetcher);
+        const stalled = store.download(file, new AbortController().signal, () => {}); const expectation = expect(stalled).rejects.toThrow('stalled'); await vi.runAllTimersAsync(); await expectation; expect(fetcher).toHaveBeenCalledTimes(3);
+    });
+});

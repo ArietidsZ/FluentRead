@@ -37,6 +37,10 @@ export type SettingsSearchTarget = {
 /** 表单内的直达入口与真实控件共用 targetId，避免搜索只停在长分区顶部。 */
 export const settingsSearchTargets: readonly SettingsSearchTarget[] = [
   {
+    id: 'information-highlight', sectionId: 'settings-translation', targetId: 'information-highlight-settings',
+    label: '信息高亮', description: '阅读辅助', searchTerms: '重点高亮、意外度、surprisal、关键词、密度、本地模型、隐私',
+  },
+  {
     id: 'feature-services', sectionId: 'settings-general', targetId: 'feature-services',
     label: '翻译服务选择', description: '通用设置', searchTerms: '按功能选择服务、默认服务、提供商、功能分配',
   },
@@ -255,7 +259,7 @@ export const settingsPagePanels: Readonly<Record<string, readonly SettingsPagePa
     {id: 'connections', labelKey: 'featureServices.connections', searchTerms: '连接 服务 密钥 API 模型', targetIds: []},
   ],
   'settings-translation': [
-    {id: 'reading', labelKey: 'options.panel.reading', searchTerms: '阅读辅助 双语逐句高亮 原文译文 句子对应', targetIds: ['translation-sentence-highlight']},
+    {id: 'reading', labelKey: 'options.panel.reading', searchTerms: '阅读辅助 双语逐句高亮 原文译文 句子对应 信息高亮 意外度 关键词 本地模型 密度', targetIds: ['translation-sentence-highlight', 'information-highlight-settings']},
     {"id": "hover", "labelKey": "options.panel.hover", "searchTerms": "鼠标悬浮 快捷键 延迟", "targetIds": []},
     {"id": "input", "labelKey": "options.panel.input", "searchTerms": "输入框 连按 空格", "targetIds": []},
     {id: 'page', labelKey: 'options.panel.page', searchTerms: '全文 快捷键 多段 范围', targetIds: []},

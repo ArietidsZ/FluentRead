@@ -72,6 +72,25 @@ async function mount(){
   app=renderer.createApp({setup:()=>()=>runtime.h(runtime.KeepAlive,null,{default:()=>shown.value?runtime.h(component,{ref:(vm:any)=>{if(vm)state=vm.$.setupState}}):runtime.h({render:()=>null},{key:'other'})})});app.component('OwnedTransition',{setup:(_:unknown,{slots}:any)=>()=>slots.default?.()});app.config.warnHandler=()=>{};app.mount(document.getElementById('app')!);await drain()
 }
 describe('实际 Popup 缓存模板与页面操作',()=>{
+  it('信息高亮快捷入口读取当前页真值，开关与完整设置属于当前抽屉会话',async()=>{
+    const snap=(enabled=false)=>({enabled,phase:enabled?'active':'idle',sessionId:'page:7:1',processedParagraphs:2,queuedParagraphs:0,highlightedSpans:3,mode:'keywords'})
+    send.mockImplementation(async(_id,message)=>message.type==='GET_INFORMATION_HIGHLIGHT_STATE'?{success:true,state:snap()}:message.type==='SET_INFORMATION_HIGHLIGHT_ENABLED'?{success:true,state:snap(message.enabled)}:{isTranslated:false})
+    await mount();await openFeature('highlight');expect(state.informationHighlightState.snapshot.enabled).toBe(false)
+    const toggle=state.highlightButtons.toggle;await toggle();await drain();expect(state.informationHighlightState.snapshot.enabled).toBe(true)
+    await toggle();expect(send.mock.calls.filter(call=>call[1].type==='SET_INFORMATION_HIGHLIGHT_ENABLED')).toHaveLength(1)
+    expect(Object.keys(state.config.informationHighlight)).toEqual(['mode','density','color','style'])
+    const closed=state.highlightButtons.toggle;state.drawerVisible=false;await drain();await closed();await openFeature('highlight');await closed()
+    expect(send.mock.calls.filter(call=>call[1].type==='SET_INFORMATION_HIGHLIGHT_ENABLED')).toHaveLength(1)
+    await state.highlightButtons.settings();expect(createTab).toHaveBeenLastCalledWith({url:'extension://options.html?target=information-highlight-settings#settings-translation'})
+  })
+  it('关闭扩展仍能进入信息高亮解释，当前页关闭不锁在正在分析状态',async()=>{
+    const snap=(enabled=true)=>({enabled,phase:enabled?'analyzing':'idle',sessionId:'page:7:1',processedParagraphs:0,queuedParagraphs:12,highlightedSpans:0,mode:'keywords'})
+    send.mockImplementation(async(_id,message)=>message.type==='GET_INFORMATION_HIGHLIGHT_STATE'?snap():message.type==='SET_INFORMATION_HIGHLIGHT_ENABLED'?snap(message.enabled):{isTranslated:false})
+    await mount();state.config.on=false;await drain();await openFeature('highlight');expect(state.drawerVisible).toBe(true)
+    expect(state.informationHighlightBlockedReason).toBe('informationHighlight.extensionOff');await state.highlightButtons.toggle();await drain()
+    expect(send).toHaveBeenLastCalledWith(7,{type:'SET_INFORMATION_HIGHLIGHT_ENABLED',enabled:false});expect(state.informationHighlightState.snapshot.enabled).toBe(false)
+    await state.highlightButtons.toggle();expect(state.informationHighlightState.snapshot.enabled).toBe(false)
+  })
   it('启动状态晚到不覆盖完成的翻译；原有站点规则也不让读取自行失效',async()=>{
     config.alwaysTranslateDomains=['example.com'];const old=deferred();send.mockImplementationOnce(()=>old.promise);await mount();await eventOf(button('page-translation'))();old.resolve({isTranslated:false});await drain();expect(button('page-translation').getAttribute('aria-pressed')).toBe('true');expect(commands()).toHaveLength(1)
   })

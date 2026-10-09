@@ -202,7 +202,7 @@ describe('popup feature visibility', () => {
         expect(popup).not.toContain("activeDrawer === 'floating'");
         expect(popup).not.toContain('全文悬浮球');
         expect(popup).not.toContain('启用或关闭全文翻译悬浮球');
-        expect(popupQuickFeatureOptions).toHaveLength(5);
+        expect(popupQuickFeatureOptions).toHaveLength(6);
         expect(popup).toContain('v-for="feature in visiblePopupQuickFeatures"');
         expect(popup).toContain(':data-popup-quick-feature="feature.id"');
     });
@@ -248,7 +248,7 @@ describe('popup feature visibility', () => {
 
     it('keeps page and section translation directly reachable without adding video/area cards', () => {
         const popup = source('src/app/popup/PopupApp.vue');
-        expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document']);
+        expect(popupQuickFeatureOptions.map(feature => feature.id)).toEqual(['hover', 'selection', 'appearance', 'image', 'document', 'highlight']);
         expect(popup).toContain('data-testid="page-translation"');
         expect(popup).toContain(':onClick="pageButtons.toggle"');
         expect(popup).toContain('data-testid="section-translation"');

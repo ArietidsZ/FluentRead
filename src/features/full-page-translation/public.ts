@@ -35,3 +35,4 @@ export {
 export {getTranslationToolbarStatus} from './content/stateNotification';
 
 export {readBilingualExcerpt} from './content/excerpt';
+export {readVisibleTranslationRoot} from './content/public';

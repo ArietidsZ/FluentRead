@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/en-US.json';
 import settingsCopyText from './settings-copy/en-US.json';
 import brandTaglines from './brand-taglines.json';
@@ -24,6 +25,7 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     ...pdfReadingMessages['en-US'],
+    ...informationHighlightMessages['en-US'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Remove source request headers",

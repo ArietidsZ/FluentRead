@@ -6,7 +6,9 @@ import {gunzipSync} from 'node:zlib';
 import {runInNewContext} from 'node:vm';
 import {describe, expect, it, vi} from 'vitest';
 import {ungzip} from 'pako';
-import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
+import {zhCNMessages, userscriptMessages} from '@/userscript/languageBundles';
+import {zhCNMessages as extensionChinese} from '@/src/core/i18n/messages/zh-CN';
+import {installInformationHighlight} from '@/userscript/informationHighlight';
 import {inflateWithPako} from '@/userscript/pakoRuntime';
 import * as chineseCharacterData from '@/src/core/language/chineseVariants';
 import {createUserscriptCharacterDataCompressionPlugin} from '@/userscript/characterDataPlugin';
@@ -72,6 +74,16 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
 });
 
 describe('userscript browser shim injection', () => {
+    it('excludes unreachable highlight code and copy while keeping an explicitly unavailable state', () => {
+        expect(userscriptMessages(extensionChinese)).toEqual(zhCNMessages);
+        expect(Object.keys(zhCNMessages).some(key => key.startsWith('informationHighlight.'))).toBe(false);
+        const controller = installInformationHighlight({} as Document, {mode: 'keywords', density: 'medium', color: 'amber', style: 'background'});
+        expect(controller.setEnabled(true)).toMatchObject({enabled: false, phase: 'unsupported', mode: 'keywords'});
+        controller.updatePreferences({mode: 'surprisal-local', density: 'low', color: 'mint', style: 'underline'});
+        expect(controller.retry()).toMatchObject({enabled: false, mode: 'surprisal-local'});
+        controller.refresh();controller.dispose();expect(controller.getState().enabled).toBe(false);
+        expect(userscriptAliases.find(alias => alias.find === '@/src/features/information-highlight/public')?.replacement).toMatch(/userscript\/informationHighlight\.ts$/u);
+    });
     it('pins each remote language file to a commit containing exactly its built contents', () => {
         const defines = (userscriptConfig as {define: Record<string, string>}).define;
         const commit = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__);

@@ -164,7 +164,7 @@
           :data-feature="feature.dataFeature"
           :data-popup-quick-feature="feature.id"
           type="button"
-          :disabled="!config.on"
+          :disabled="!config.on && feature.id !== 'highlight'"
           :aria-label="feature.ariaLabel || `${translateLegacy(feature.label)} · ${translateLegacy(feature.summary)}`"
           :title="`${translateLegacy(feature.label)} · ${translateLegacy(feature.summary)}`"
           @click="feature.open()"
@@ -255,6 +255,8 @@
         <button class="secondary-action" type="button" data-testid="ai-context-settings" :onClick="drawerActions.serviceSettings">{{ t('popup.aiContext.configure') }} ↗</button>
       </div>
 
+      <PopupInformationHighlight v-else-if="activeDrawer === 'highlight'" :config="config" :state="informationHighlightState" :active="highlightContext.active.value" :blocked-reason="informationHighlightBlockedReason" :toggle="highlightButtons.toggle" :retry="highlightButtons.retry" :open-settings="highlightButtons.settings" />
+
       <div v-else-if="activeDrawer === 'hover'" class="drawer-content">
         <div class="setting-row quick-enable-row">
           <span>
@@ -330,7 +332,7 @@
       </div>
 
         <p v-if="notice && noticeType === 'error'" class="notice error" role="alert">{{ notice }}</p>
-        <button v-if="!['aiContext', 'services'].includes(activeDrawer)" class="drawer-settings-link" type="button" data-i18n-ignore :onClick="drawerActions.options">
+        <button v-if="!['aiContext', 'services', 'highlight'].includes(activeDrawer)" class="drawer-settings-link" type="button" data-i18n-ignore :onClick="drawerActions.options">
           <span><strong>{{ t('popup.quickSettings.moreSettings') }}</strong></span>
           <span aria-hidden="true">↗</span>
         </button>
@@ -380,7 +382,7 @@ import {
   type PopupQuickFeatureId,
 } from '@/src/core/config/interfaceAppearance';
 import { resolveAIContextPresentation } from '@/src/ui/view-model/aiContext';
-import {createPopupPageActions, type PopupPageState} from './pageActions';
+import {createPopupPageActions, createPopupInformationHighlightActions, createPopupInformationHighlightState, type PopupPageState} from './pageActions';
 import {useSettingsActionContext} from '@/src/features/settings/model/useSettingsActionContext';
 import {applyInterfaceFont, applyInterfaceSkin} from '@/src/ui/interfaceAppearance';
 import { requestTranslationCacheClear } from './cache';
@@ -395,7 +397,7 @@ import {
   isTranslationServiceAvailable,
 } from '@/src/services/translation/capabilities';
 
-type DrawerName = 'services' | 'hover' | 'selection' | 'appearance' | 'image' | 'aiContext';
+type DrawerName = 'services' | 'hover' | 'selection' | 'appearance' | 'image' | 'aiContext' | 'highlight';
 type SettingsSection = 'settings-selection' | 'settings-general' | 'settings-interface' | 'settings-image-translation' | 'settings-area-translation' | 'settings-translation' | 'settings-services' | 'settings-sites' | 'settings-video' | 'settings-vocabulary';
 interface PopupQuickFeatureViewModel {
   id: PopupQuickFeatureId;
@@ -412,6 +414,7 @@ interface PopupQuickFeatureViewModel {
 }
 import {featureServiceDefinitions, getFeatureService} from '@/src/core/config/featureServices';
 const PopupServices = defineAsyncComponent(() => import('./PopupServices.vue'));
+const PopupInformationHighlight = defineAsyncComponent(() => import('./PopupInformationHighlight.vue'));
 const ElDrawer = defineAsyncComponent(() => import('./PopupDrawer'));
 const UiLanguageOnboarding = defineAsyncComponent(() => import('@/src/ui/components/UiLanguageOnboarding.vue'));
 const {t, translateLegacy} = useUiI18n();
@@ -423,6 +426,8 @@ const drawerVisible = ref(false);
 const drawerMounted = ref(false);
 const activeDrawer = ref<DrawerName>('hover');
 const pageState = reactive<PopupPageState>({tabId: null, url: '', domain: '', translated: false, busy: false});
+const informationHighlightState = reactive(createPopupInformationHighlightState());
+let informationHighlightTimer: ReturnType<typeof setInterval> | undefined;
 const {busy: translating, translated: pageTranslated, tabId: currentTabId, domain: currentSiteDomain} = toRefs(pageState);
 const currentPdfSource = computed(() => getPdfSourceUrl(pageState.url));
 const pageTranslationLabel = computed(() => t(currentPdfSource.value ? 'document.pdfReading.openReader' : pageTranslated.value ? 'popup.restoreCurrentPage' : 'popup.translateCurrentPage'));
@@ -447,6 +452,7 @@ const drawerSettingsSection: Record<DrawerName, SettingsSection> = {
   selection: 'settings-selection',
   appearance: 'settings-interface',
   image: 'settings-image-translation',
+  highlight: 'settings-translation',
 };
 const sendConfigMessage = browser.runtime.sendMessage.bind(browser.runtime);
 const persistConfigPatch = (value: unknown) => requestConfigPatch(value, sendConfigMessage);
@@ -666,10 +672,18 @@ const popupQuickFeatureViewModels = computed<Record<PopupQuickFeatureId, PopupQu
     ariaLabel: '打开文档翻译',
     open: () => {if (current()) return openDocumentTranslation()},
   },
+  highlight: {
+    id: 'highlight', label: t('informationHighlight.title'),
+    summary: informationHighlightState.loading ? t('informationHighlight.stateReading')
+      : informationHighlightState.snapshot ? t(`informationHighlight.phase.${informationHighlightState.snapshot.enabled ? informationHighlightState.snapshot.phase : 'idle'}`) : t('informationHighlight.unavailable'),
+    icon: '✎', iconTone: popupQuickFeatureIconTones.highlight, showStatus: true,
+    active: informationHighlightState.snapshot?.enabled === true,
+    dataFeature: 'information-highlight', open: () => {if (current()) openDrawer('highlight')},
+  },
 };});
 const visiblePopupQuickFeatures = computed(() => visiblePopupQuickFeatureIds.value
   .map((featureId) => popupQuickFeatureViewModels.value[featureId]));
-const drawerTitle = computed(() => ({ services: t('popup.providers.title'), aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译' }[activeDrawer.value]));
+const drawerTitle = computed(() => ({ services: t('popup.providers.title'), aiContext: t('popup.aiContext.title'), hover: '鼠标悬停翻译设置', selection: '划词翻译设置', appearance: '译文显示设置', image: '图片翻译', highlight: t('informationHighlight.title') }[activeDrawer.value]));
 const drawerDescription = computed(() => ({
   services: '',
   aiContext: t('popup.aiContext.intro'),
@@ -677,6 +691,7 @@ const drawerDescription = computed(() => ({
   selection: '选中网页文字，按你的偏好获取译文。',
   appearance: t('popup.quickSettings.appearanceDescription'),
   image: '把鼠标移到图片上，从图片左下角打开翻译入口。',
+  highlight: t('informationHighlight.description'),
 }[activeDrawer.value]));
 const selectionModes = [
   { value: 'bilingual', label: '双语显示' },
@@ -698,6 +713,30 @@ const pageActions = createPopupPageActions({state: pageState, config: () => conf
   warning: () => credentialWarning.value || '', getTab: async () => (await browser.tabs.query({active: true, currentWindow: true}))[0],
   openPdf: source => browser.tabs.create({url: createPdfReaderUrl(browser.runtime.getURL('document.html'), source)}),
   send: (id, message) => browser.tabs.sendMessage(id, message), notice: showNotice, close: () => window.close(), translate: t, thunderbird: isThunderbird});
+const informationHighlightActions = createPopupInformationHighlightActions({state: informationHighlightState,
+  config: () => config.value, active: () => popupContext.active.value,
+  getTab: async () => (await browser.tabs.query({active: true, currentWindow: true}))[0],
+  send: (id, message) => browser.tabs.sendMessage(id, message)});
+const informationHighlightBlockedReason = computed(() => !config.value.on ? t('informationHighlight.extensionOff')
+  : currentSiteExtensionDisabled.value ? t('informationHighlight.siteDisabled')
+  : informationHighlightState.errorCode === 'page-unavailable' || informationHighlightState.snapshot?.phase === 'unsupported' ? t('informationHighlight.pageUnavailable') : '');
+const highlightContext = useSettingsActionContext(() => popupContext.active.value && drawerVisible.value && activeDrawer.value === 'highlight',
+  () => [config.value, config.value.on, informationHighlightState.tabId, informationHighlightState.url,
+    informationHighlightState.snapshot?.enabled, informationHighlightState.snapshot?.sessionId, config.value.informationHighlight.mode]);
+const highlightButtons = computed(() => {
+  const current = highlightContext.capture(), tabId = informationHighlightState.tabId, url = informationHighlightState.url;
+  const owns = () => current() && tabId === informationHighlightState.tabId && url === informationHighlightState.url;
+  return {toggle: () => {if (owns() && (informationHighlightState.snapshot?.enabled || !informationHighlightBlockedReason.value)) return informationHighlightActions.setEnabled(!informationHighlightState.snapshot?.enabled)},
+    retry: () => {if (owns()) return informationHighlightState.snapshot ? informationHighlightActions.retry() : informationHighlightActions.hydrate()},
+    settings: () => {if (owns()) return openOptions('settings-translation', 'information-highlight-settings')}};
+});
+watch(() => [pageState.tabId, pageState.url], () => {
+  informationHighlightActions.invalidate();
+  if (popupContext.active.value && pageState.tabId !== null) void informationHighlightActions.hydrate();
+}, {flush: 'sync'});
+watch(() => [config.value.on, config.value.disabledExtensionDomains.join(','), config.value.informationHighlight.mode], () => {
+  if (popupContext.active.value) void informationHighlightActions.hydrate();
+});
 const {hydrate: hydrateCurrentSite, toggle: togglePageTranslation, section: startSectionTranslation,
   setAlways: setCurrentSiteAlwaysTranslated, setDisabled: setCurrentSiteExtensionDisabled} = pageActions;
 watch(pageContext.revision, () => {pageActions.invalidate();if (!config.value.on || currentSiteExtensionDisabled.value) pageTranslated.value = false}, {flush: 'sync'});
@@ -749,7 +788,7 @@ const drawerDisplayModes = computed(() => {
     choose: () => {if (current() && config.value.on && (config.value.service !== 'google' || item.value !== 0)) config.value.display = item.value}}));
 });
 watch(popupContext.active, enabled => {if (!enabled) {drawerVisible.value = false;donationVisible.value = false;notice.value = '';if (noticeTimer) clearTimeout(noticeTimer)}}, {flush: 'sync'});
-watch(() => config.value.on, enabled => {if (!enabled && activeDrawer.value !== 'services' && activeDrawer.value !== 'aiContext') drawerVisible.value = false}, {flush: 'sync'});
+watch(() => config.value.on, enabled => {if (!enabled && activeDrawer.value !== 'services' && activeDrawer.value !== 'aiContext' && activeDrawer.value !== 'highlight') drawerVisible.value = false}, {flush: 'sync'});
 watch(cacheContext.active, enabled => {if (!enabled) clearingCache.value = false}, {flush: 'sync'});
 
 function applyTheme(theme: string) {
@@ -862,12 +901,15 @@ function handleTabRemoved(tabId: number) {
   if (popupContext.active.value && tabId === currentTabId.value) void hydrateCurrentSite();
 }
 onMounted(() => {
+  informationHighlightTimer = setInterval(() => {if (popupContext.active.value && (activeDrawer.value === 'highlight' && drawerVisible.value || informationHighlightState.snapshot?.enabled)) void informationHighlightActions.hydrate()}, 1000);
   document.addEventListener('keydown', handleDonationKeydown);
   browser.tabs.onUpdated.addListener(handleTabUpdated);
   browser.tabs.onActivated.addListener(handleTabActivated);
   browser.tabs.onRemoved.addListener(handleTabRemoved);
 });
 onUnmounted(() => {
+  informationHighlightActions.invalidate();
+  if (informationHighlightTimer) clearInterval(informationHighlightTimer);
   persistOnPageExit();
   pageExited.value = true;
   window.removeEventListener('pagehide', saveOnPageHide);
@@ -908,13 +950,13 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
 }
 
 // 配置订阅是内容功能的唯一状态来源；避免无 revision 的广播晚到后覆盖新快照。
-function openDrawer(name: DrawerName) {if (!popupContext.active.value || (!config.value.on && name !== 'services' && name !== 'aiContext')) return;activeDrawer.value = name;drawerMounted.value = true;drawerVisible.value = true;}
-async function openOptions(section?: SettingsSection) {
+function openDrawer(name: DrawerName) {if (!popupContext.active.value || (!config.value.on && name !== 'services' && name !== 'aiContext' && name !== 'highlight')) return;activeDrawer.value = name;drawerMounted.value = true;drawerVisible.value = true;}
+async function openOptions(section?: SettingsSection, target?: string) {
   if (!popupContext.active.value) return;
   const current = popupContext.capture();
   try {
     if (section) {
-      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}#${section}` });
+      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}${target ? `?target=${encodeURIComponent(target)}` : ''}#${section}` });
     } else {
       await browser.runtime.openOptionsPage();
     }

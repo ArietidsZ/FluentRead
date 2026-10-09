@@ -267,6 +267,7 @@
     <section v-if="hasVisitedSection('settings-translation')" v-show="props.activeSection === 'settings-translation'" id="settings-translation" class="settings-section">
 <SettingsPanel name="reading" :active="props.activePanel">
   <ReadingAssistanceSettings :config="config" @configure-style="openSettingsSection('settings-interface', 'translation-sentence-highlight-style')" />
+  <InformationHighlightSettings v-if="browserCapabilities.browser !== 'userscript' && props.activeSection === 'settings-translation' && (!props.activePanel || props.activePanel === 'reading')" :config="config" :active="viewActive && props.activeSection === 'settings-translation'" />
 </SettingsPanel>
 <SettingsPanel name="hover" :active="props.activePanel">
     <SettingsGroup title="鼠标悬浮翻译" description="按住快捷键并把鼠标移到文本上，等待设定时间后开始翻译">
@@ -594,6 +595,8 @@ const TranslationCenter = defineAsyncComponent(() => import('@/src/features/tran
 const openInputServiceSettings = (service: string) => { setConfigurationService(service); openSettingsSection('settings-services', 'connections'); };
 const openWritingServiceSettings = () => openInputServiceSettings(config.value.writing.service || config.value.service);
 const WritingSettings = defineAsyncComponent(() => import('./WritingSettings.vue'));
+// 单文件 userscript 没有扩展模型端口，构建期移除不可用组件与下载 UI。
+const InformationHighlightSettings = import.meta.env.BROWSER === 'userscript' ? null : defineAsyncComponent(() => import('./InformationHighlightSettings.vue'));
 const SelectionSettings = defineAsyncComponent(() => import('./SelectionSettings.vue'));
 const GlossarySettings = defineAsyncComponent(() => import('@/src/features/glossary/public').then(module => module.GlossarySettings));
 const FloatingBallSettings = defineAsyncComponent(() => import('./FloatingBallSettings.vue'));

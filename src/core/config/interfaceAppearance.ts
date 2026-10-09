@@ -276,6 +276,7 @@ export const POPUP_QUICK_FEATURE_IDS = [
   'appearance',
   'image',
   'document',
+  'highlight',
 ] as const
 
 export type PopupQuickFeatureId = typeof POPUP_QUICK_FEATURE_IDS[number]
@@ -381,6 +382,13 @@ export const popupQuickFeatureOptions: readonly PopupQuickFeatureOption[] = [
     labelKey: 'settings.interface.popupQuickFeatures.modules.document.label',
     descriptionKey: 'settings.interface.popupQuickFeatures.modules.document.description',
   },
+  ...(import.meta.env.BROWSER === 'userscript' ? [] : [{
+    id: 'highlight' as const,
+    label: '信息高亮',
+    description: '在当前页面按需突出正文词语',
+    labelKey: 'informationHighlight.title',
+    descriptionKey: 'informationHighlight.description',
+  }]),
 ] as const
 
 export const interfaceVisibilityOptions = INTERFACE_VISIBILITY_KEYS.map((key) => {

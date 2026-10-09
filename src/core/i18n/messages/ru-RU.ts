@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/ru-RU.json';
 import settingsCopyText from './settings-copy/ru-RU.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationRussianMessages} from './localTranslation';
 
 export const ruRUMessages = {
     ...pdfReadingMessages['ru-RU'],
+    ...informationHighlightMessages['ru-RU'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Удаление заголовков источника",

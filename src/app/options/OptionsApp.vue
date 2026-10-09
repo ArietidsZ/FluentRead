@@ -321,7 +321,7 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
-const localizedSearchTargets = computed(() => settingsSearchTargets.map((target) => ({
+const localizedSearchTargets = computed(() => settingsSearchTargets.filter(target => target.id !== 'information-highlight' || (import.meta.env.BROWSER !== 'userscript' && browserCapabilities.browser !== 'userscript')).map((target) => ({
   ...target,
   label: translateLegacy(target.label),
   description: translateLegacy(target.description),
@@ -490,7 +490,12 @@ function handleMobileNavigationChange() {
 }
 
 function syncSectionFromHash() {
-  selectSection(sectionFromHash(window.location.hash))
+  const requested = sectionFromHash(window.location.hash)
+  const section = resolveRequestedSection(requested)
+  const targetId = new URLSearchParams(window.location.search).get('target')
+  // 仅允许导航目录中登记且属于当前分区的目标；不把 URL 当任意 CSS 选择器。
+  const target = localizedSearchTargets.value.find(item => item.sectionId === section && item.targetId === targetId)
+  selectSection(requested, target?.targetId)
 }
 
 onMounted(() => {

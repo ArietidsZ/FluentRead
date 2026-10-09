@@ -18,6 +18,11 @@ import type {
     DocumentRenderMode,
     ParsedDocument,
 } from '@/src/features/document-translation/core/document';
+import browser from 'webextension-polyfill';
+import {createInformationHighlightScorePort} from '@/src/app/content/informationHighlight';
+
+/** 文档组合根注入同一可取消模型消息端口；PdfReader 只接触文本与 AbortSignal。 */
+export const scoreDocumentInformation = createInformationHighlightScorePort(message => browser.runtime.sendMessage(message));
 
 const BATCH_DOCUMENT_SERVICES = new Set<string>([
     services.microsoft,
