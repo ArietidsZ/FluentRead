@@ -1,7 +1,7 @@
 /**
  * @file tests/serviceDirectoryLifecycle.test.ts
  * 文件职责：验证服务目录和免费权重设置的实际组件生命周期、缓存模板及有界读取。
- * 主要内容：覆盖停用与切换、迟到后台快照、轮询合并、目录焦点、搜索计算、分组导航与尺寸观察的旧 DOM 事件。
+ * 主要内容：覆盖停用与切换、迟到后台快照、轮询合并、目录焦点、搜索计算、显式设置默认服务、分组导航与尺寸观察的旧 DOM 事件。
  * 模块边界：编译真实客户端 Vue setup 和缓存模板并实际 mount，模块加载器只解析导入；浏览器消息、DOM 几何与观察器使用受控端口，不复制目录业务；真实 UI 另行验证。
  */
 import {createRequire} from 'node:module'
@@ -37,7 +37,7 @@ function queryInput(): Node {return publicNode(n => n.tag === 'input' && n.props
 async function search(value: string) {queryInput().props.onInput({currentTarget: {value}});await settle()}
 function observer() {const current = observers.at(-1);expect(current).toBeDefined();return current!}
 
-const focus = vi.fn(), scroll = vi.fn(), emitted = vi.fn(), send = vi.fn()
+const focus = vi.fn(), scroll = vi.fn(), emitted = vi.fn(), defaultEmitted = vi.fn(), send = vi.fn()
 const intervals = new Map<number, () => void>(), timeouts = new Map<number, () => void>()
 let timerId = -1
 const timerCount = () => intervals.size + timeouts.size
@@ -133,7 +133,7 @@ async function mount(name: string, values: Record<string, unknown>, listeners: R
 }
 async function mountFree(values: Record<string, unknown> = {}) {await mount('FreeTranslationSettings', {config: runtime.reactive(new Config()), ...values})}
 async function mountCatalog(values: Record<string, unknown> = {}) {await mount('ServiceCatalog', {service: 'microsoft', defaultService: 'microsoft', services: catalog,
-  favoriteServices: [], configuredServices: [], modelOptions: [], showModel: false, maximumModels: 5, maximumModelLength: 50, customModelCount: 0, allowCustomModels: false, ...values}, {'onUpdate:service': emitted, 'onAdd:service': emitted})}
+  favoriteServices: [], configuredServices: [], modelOptions: [], showModel: false, maximumModels: 5, maximumModelLength: 50, customModelCount: 0, allowCustomModels: false, ...values}, {'onUpdate:service': emitted, 'onUpdate:default-service': defaultEmitted, 'onAdd:service': emitted})}
 function invalidate(reason: string) {
   if (reason === 'hidden') props.active = false
   if (reason === 'cached') shown.value = false
@@ -261,6 +261,55 @@ describe('服务目录的搜索和导航归属', () => {
   it('拒绝目录标题、未知服务和停用动作，配置选择与默认服务保持分离', async () => {
     await mountCatalog();state.selectService('machine');state.selectService('missing');expect(emitted).not.toHaveBeenCalled();state.selectService('google');expect(emitted).toHaveBeenCalledWith('google');expect(props.defaultService).toBe('microsoft')
     emitted.mockClear();props.active = false;await settle();state.selectService('google');expect(emitted).not.toHaveBeenCalled()
+  })
+})
+
+describe('服务详情的显式默认服务动作', () => {
+  it.each(['google', 'freeTranslation', 'localTranslation', 'openai', 'custom:fixture'])('仅显式点击把正在配置的%s设为默认，不复用目录选择事件', async service => {
+    await mountCatalog({service, services: [...catalog, {value: 'freeTranslation', label: 'Free'}, {value: 'localTranslation', label: 'Local'}, {value: 'openai', label: 'OpenAI'}, {value: 'custom:fixture', label: 'Fixture'}]})
+    expect(defaultEmitted).not.toHaveBeenCalled()
+    const button = publicNode(n => n.props['data-set-default-service-button'] !== undefined)
+    expect(button.props.disabled).toBeFalsy()
+    button.props.onClick()
+    expect(defaultEmitted).toHaveBeenCalledOnce();expect(defaultEmitted).toHaveBeenCalledWith(service)
+    expect(emitted).not.toHaveBeenCalled()
+    expect(props.defaultService).toBe('microsoft')
+    expect(send).not.toHaveBeenCalled()
+    source.defaultService = service;await settle()
+    expect(publicNode(n => n.props['data-set-default-service-button'] !== undefined).props.disabled).toBe(true)
+    state.actions.setDefaultService();expect(defaultEmitted).toHaveBeenCalledOnce()
+  })
+  it.each(['microsoft', 'missing', 'machine'])('当前默认、未知或停用的%s不能触发设置默认服务', async service => {
+    await mountCatalog({service})
+    state.actions.setDefaultService()
+    expect(defaultEmitted).not.toHaveBeenCalled()
+    expect(emitted).not.toHaveBeenCalled()
+  })
+  it('停用的实际服务按钮不可用，直接调用也不设置默认', async () => {
+    await mountCatalog({service: 'google', services: catalog.map(item => item.value === 'google' ? {...item, disabled: true} : item)})
+    expect(publicNode(n => n.props['data-set-default-service-button'] !== undefined).props.disabled).toBe(true)
+    state.actions.setDefaultService()
+    expect(defaultEmitted).not.toHaveBeenCalled()
+  })
+  it('浏览目录仍仅切换配置服务，停用后直接调用默认动作也无效', async () => {
+    await mountCatalog({service: 'google'})
+    publicNode(n => n.props['data-directory-port'] === 'microsoft').props.onSelect('microsoft')
+    expect(emitted).toHaveBeenCalledOnce();expect(emitted).toHaveBeenCalledWith('microsoft')
+    expect(defaultEmitted).not.toHaveBeenCalled()
+    source.active = false;await settle()
+    state.actions.setDefaultService()
+    expect(defaultEmitted).not.toHaveBeenCalled()
+  })
+  it.each(['hidden', 'cached', 'unmount', 'context', 'service'])('%s后旧默认按钮不能修改当前服务，重新激活的当前按钮可用', async reason => {
+    await mountCatalog({defaultService: 'freeTranslation', services: [...catalog, {value: 'freeTranslation', label: 'Free'}]})
+    const old = publicNode(n => n.props['data-set-default-service-button'] !== undefined).props.onClick
+    invalidatePublic(reason);await settle();await reopenPublic(reason)
+    old()
+    expect(defaultEmitted).not.toHaveBeenCalled()
+    if (reason !== 'unmount') {
+      publicNode(n => n.props['data-set-default-service-button'] !== undefined).props.onClick()
+      expect(defaultEmitted).toHaveBeenCalledOnce();expect(defaultEmitted).toHaveBeenCalledWith(source.service)
+    }
   })
 })
 
