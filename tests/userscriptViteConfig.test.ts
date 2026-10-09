@@ -9,6 +9,7 @@ import {ungzip} from 'pako';
 import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
 import {inflateWithPako} from '@/userscript/pakoRuntime';
 import * as chineseCharacterData from '@/src/core/language/chineseVariants';
+import * as functionWordData from '@/src/core/language/functionWordData';
 import {createUserscriptCharacterDataCompressionPlugin} from '@/userscript/characterDataPlugin';
 import {
     default as userscriptConfig,
@@ -228,6 +229,7 @@ describe('userscript browser shim injection', () => {
 
 describe('userscript lossless Unicode character data', () => {
     const dataPath = resolve(process.cwd(), 'src/core/language/chineseVariants.ts');
+    const wordDataPath = resolve(process.cwd(), 'src/core/language/functionWordData.ts');
     const createPlugin = (enabled = true) => createUserscriptCharacterDataCompressionPlugin(process.cwd(), enabled) as unknown as {
         transform: (code: string, id: string) => {code: string; map: null} | null;
     };
@@ -260,10 +262,29 @@ describe('userscript lossless Unicode character data', () => {
         }
     });
 
-    it('preserves unsorted strings, repeated characters, surrogate pairs and empty exports', () => {
+    it('restores all 45 function-word strings byte for byte and preserves the original lexicon digest', () => {
+        const entries = Object.entries(functionWordData).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0);
+        expect(entries).toHaveLength(45);
+        // 提取前四组功能词原始字符串的摘要；按导出名排序，不依赖 module namespace 的枚举实现。
+        expect(createHash('sha256').update(JSON.stringify(entries)).digest('hex'))
+            .toBe('6b56ec4873ca9ec2f137f93f32987c438a5b54ba6024e64e9de33ff314b77131');
+        const transformed = createPlugin().transform(readFileSync(wordDataPath, 'utf8'), wordDataPath)!;
+        vi.stubGlobal('pako', {ungzip});
+        try {
+            const restored = restoreExports(transformed.code, Object.keys(functionWordData));
+            expect(restored).toEqual({...functionWordData});
+            for (const [name, value] of entries) {
+                expect(Buffer.from(restored[name], 'utf8')).toEqual(Buffer.from(value, 'utf8'));
+            }
+        } finally {
+            vi.unstubAllGlobals();
+        }
+    });
+
+    it.each([dataPath, wordDataPath])('preserves unsorted strings, repeated characters, surrogate pairs and empty exports in %s', currentPath => {
         const values = {sample: 'A𱊯A\0\ud800', empty: ''};
         const original = Object.entries(values).map(([name, value]) => 'export const ' + name + ' = ' + JSON.stringify(value) + ';').join('\n');
-        const transformed = createPlugin().transform(original, dataPath)!;
+        const transformed = createPlugin().transform(original, currentPath)!;
         vi.stubGlobal('pako', {ungzip});
         try {
             expect(restoreExports(transformed.code, Object.keys(values))).toEqual(values);
@@ -272,16 +293,19 @@ describe('userscript lossless Unicode character data', () => {
         }
     });
 
-    it('rejects executable additions to the data file instead of dropping or compressing them', () => {
-        const original = readFileSync(dataPath, 'utf8');
-        expect(() => createPlugin().transform(original + '\nsideEffect();', dataPath)).toThrow('only exported const strings');
-        expect(() => createPlugin().transform('export const data = makeData();', dataPath)).toThrow('only exported const strings');
-        expect(() => createPlugin().transform('const privateData = "data";', dataPath)).toThrow('only exported const strings');
+    it.each([dataPath, wordDataPath])('rejects executable additions to %s instead of dropping or compressing them', currentPath => {
+        const original = readFileSync(currentPath, 'utf8');
+        expect(() => createPlugin().transform(original + '\nsideEffect();', currentPath)).toThrow('only exported const strings');
+        expect(() => createPlugin().transform('export const data = makeData();', currentPath)).toThrow('only exported const strings');
+        expect(() => createPlugin().transform('const privateData = "data";', currentPath)).toThrow('only exported const strings');
     });
 
     it('leaves Greasy Fork source and every other module untouched', () => {
         const original = readFileSync(dataPath, 'utf8');
         expect(createPlugin(false).transform(original, dataPath)).toBeNull();
+        expect(createPlugin(false).transform(readFileSync(wordDataPath, 'utf8'), wordDataPath)).toBeNull();
         expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/chinese.ts'))).toBeNull();
+        expect(createPlugin().transform(original, resolve(process.cwd(), 'src/core/language/lexicon.ts'))).toBeNull();
+        expect(createPlugin().transform(original, wordDataPath + '.backup')).toBeNull();
     });
 });
