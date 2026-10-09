@@ -27,8 +27,18 @@ const context = (id: number) => ({sender: {tab: {id}}});
 const find = (handlers: readonly {type: string; handle: Function}[], type: string) => handlers.find((item) => item.type === type)!;
 
 describe('video subtitle background ownership', () => {
+    it.each(['official', 'mirror', 'auto', 'https://untrusted.invalid', undefined])('validates cache-download source preference %s before forwarding', async preference => {
+        const {handlers, offscreen} = setup();
+        await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({model: 'small', preference}, context(1));
+        expect(offscreen.send).toHaveBeenCalledWith({type: 'VIDEO_AI_PREPARE', model: 'small', keepWarm: false, preference: preference === 'official' || preference === 'mirror' ? preference : 'auto'}, {timeoutMs: 630_000});
+    });
+    it.each(['tiny', 'base'])('gives %s the downloader total budget plus cleanup time', async model => {
+        const {handlers, offscreen} = setup();
+        await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({model}, context(1));
+        expect(offscreen.send).toHaveBeenCalledWith({type: 'VIDEO_AI_PREPARE', model, keepWarm: false, preference: 'auto'}, {timeoutMs: 630_000});
+    });
     it.each([
-        ['tiny', 'tiny', 40_000], ['base', 'base', 40_000], ['small', 'small', 200_000], ['unknown', 'tiny', 40_000],
+        ['tiny', 'tiny', 40_000], ['base', 'base', 40_000], ['small', 'small', 200_000], ['unknown', 'small', 200_000],
     ])('transcription request %s uses its bounded model budget without enlarging invalid models', async (model, normalized, timeoutMs) => {
         const {handlers, offscreen} = setup({success: true, text: 'bounded result'});
         await find(handlers, 'fluentReadTranscribeLocalVideoAudio').handle({model, streamId: 'budget', generation: 1, audioPcm16Base64: 'AAAAAA=='}, context(1));
@@ -116,7 +126,7 @@ describe('video subtitle background ownership', () => {
         const handlers = createVideoSubtitleBackgroundHandlers({offscreen: offscreen as any, storage});
         const prepare = find(handlers, 'fluentReadPrepareLocalVideoModel');
         await prepare.handle({model: 'small'}, context(1));
-        expect(offscreen.send).toHaveBeenLastCalledWith(expect.objectContaining({model: 'small', keepWarm: false}), {timeoutMs: 600_000});
+        expect(offscreen.send).toHaveBeenLastCalledWith(expect.objectContaining({model: 'small', keepWarm: false}), {timeoutMs: 630_000});
         await expect(find(handlers, 'fluentReadGetLocalVideoModelState').handle({}, context(1))).resolves.toMatchObject({available: {tiny: true, base: true, small: true}});
         await prepare.handle({model: 'small', keepWarm: true, streamId: 'small-owner', generation: 1}, context(1));
         expect(offscreen.send).toHaveBeenLastCalledWith(expect.objectContaining({model: 'small', keepWarm: true}), expect.objectContaining({timeoutMs: 600_000}));

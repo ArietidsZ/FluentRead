@@ -18,13 +18,13 @@ describe('单图本地识别方式配置', () => {
     });
 });
 describe('多语种视频模型配置兼容', () => {
-    it('新配置推荐 Small，已有缺失或非法选择保留过去的 Tiny 默认', () => {
+    it('新配置、已有缺失字段和非法选择统一使用 Small 默认', () => {
         expect(new Config().videoLocalModel).toBe('small');
         expect(normalizeConfig(undefined).videoLocalModel).toBe('small');
         expect(normalizeConfig({}).videoLocalModel).toBe('small');
-        expect(normalizeConfig({on: true}).videoLocalModel).toBe('tiny');
-        for (const videoLocalModel of [undefined, null, 'large', {}, true]) {
-            expect(normalizeConfig({videoLocalModel}).videoLocalModel).toBe('tiny');
+        expect(normalizeConfig({on: true}).videoLocalModel).toBe('small');
+        for (const videoLocalModel of [undefined, null, '', 'large', {}, [], true, 1]) {
+            expect(normalizeConfig({videoLocalModel}).videoLocalModel).toBe('small');
         }
     });
     it('保留三种用户选择及导入导出，不把已下载的轻量偏好迁移到质量模型', () => {
@@ -556,7 +556,7 @@ describe('统一配置存储', () => {
         expect(configStore.config.selectionAreaEnabled).toBe(true);
         expect(configStore.config.disableImageTranslator).toBe(true);
         expect(configStore.config.videoService).toBe('');
-        expect(configStore.config.videoLocalModel).toBe('tiny');
+        expect(configStore.config.videoLocalModel).toBe('small');
         expect(configStore.config.videoSubtitleVisible).toBe(true);
         expect(configStore.config.videoSubtitleDisplayMode).toBe('bilingual');
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
@@ -635,12 +635,12 @@ describe('统一配置存储', () => {
         expect(configStore.config.videoSubtitleFontSize).toBe(100);
     });
 
-    it('非法的本地视频 Whisper 模型回退到 Tiny', async () => {
+    it('非法的本地视频 Whisper 模型回退到 Small', async () => {
         const configStore = await loadConfigModule({ ...storedConfig, videoLocalModel: 'large' });
 
         await configStore.configReady;
 
-        expect(configStore.config.videoLocalModel).toBe('tiny');
+        expect(configStore.config.videoLocalModel).toBe('small');
     });
 
     it('存储内容损坏时回退到默认配置，并保持初始化 Promise 可用', async () => {

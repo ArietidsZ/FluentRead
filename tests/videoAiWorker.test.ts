@@ -231,7 +231,7 @@ describe('视频 AI Worker timestamp parser', () => {
         const scope = await loadProtocolWorker(transcriber, 'webgpu');
         scope.setTimeout = (fn: () => void) => setTimeout(fn, 1);
         try {
-            scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: 'en', audio: new Float32Array(16_000).fill(.04)}});
+            scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: 'en', audio: new Float32Array(16_000).fill(.04)}});
             await vi.advanceTimersByTimeAsync(10);
             expect(scope.postMessage).toHaveBeenLastCalledWith({requestId: 1, success: false, error: '本地视频 AI 推理超过 15 秒', retryWithCpu: true});
         } finally {vi.useRealTimers();vi.unstubAllGlobals();}
@@ -389,7 +389,7 @@ describe('视频 AI Worker timestamp parser', () => {
             }
             workerMocks.pipeline.mockReset().mockResolvedValue(transcriber);
             (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
-            scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: mode === 'explicit' ? 'en' : 'auto', audio: new Float32Array(48_000).fill(.04)}});
+            scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: mode === 'explicit' ? 'en' : 'auto', audio: new Float32Array(48_000).fill(.04)}});
             await vi.advanceTimersByTimeAsync(30);
             expect(iterations).toBeGreaterThan(0);
             expect(iterations).toBeLessThan(440);
@@ -429,7 +429,7 @@ describe('视频 AI Worker timestamp parser', () => {
         (await import('@/src/features/video-subtitle/offscreen/transcription.worker')).startVideoTranscriptionWorker();
         const audio = new Float32Array(5 * 16_000);
         audio.fill(.04, 2 * 16_000, 3 * 16_000);
-        scope.onmessage({data: {requestId: 1, type: 'transcribe', sourceLanguage: 'en', audio}});
+        scope.onmessage({data: {requestId: 1, type: 'transcribe', model: 'tiny', sourceLanguage: 'en', audio}});
         await waitForWorkerMessages(scope, 1);
         expect(transcriber.mock.calls[0][0].length).toBe(1320 * 16);
         expect(transcriber.mock.calls[0][1]).toMatchObject({max_new_tokens: 30, language: 'en'});
@@ -1019,7 +1019,7 @@ describe('视频 AI Worker timestamp parser', () => {
             expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 10, null).max_new_tokens).toBe(100);
             expect(buildWhisperTranscriptionGenerationOptions('tiny', language, 30, null).max_new_tokens).toBe(128);
         }
-        expect(buildWhisperTranscriptionGenerationOptions('unknown', 'hi', 9.12, null).max_new_tokens).toBe(55);
+        expect(buildWhisperTranscriptionGenerationOptions('unknown', 'hi', 9.12, null).max_new_tokens).toBe(440);
         for (const seconds of [NaN, Infinity, -1]) {
             expect(buildWhisperTranscriptionGenerationOptions('tiny', 'en', seconds, null).max_new_tokens).toBe(24);
         }
