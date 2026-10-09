@@ -1,37 +1,35 @@
 # #912 精简验证说明
 
-基线 upstream/main `175c59514b9ce4242b34b9f6bed1ac6a2ceb3545`；验证源码 `a9193cb40e809664b3f84ca3204876538e625cfa`。仅移植 f76f6aa、b7f88830、9b563da8，五个源码/测试文件。后续仅精简报告，源码与已验证树逐字节相同。#912 保持 draft。
+基线 upstream/main `175c59514b9ce4242b34b9f6bed1ac6a2ceb3545`。原性能移植源码为 `a9193cb40e809664b3f84ca3204876538e625cfa`；本次追加最小预算修正与两处受影响测试，#912 保持 draft。PR 只保留必要源码/测试和本说明，详细报告不重新加入。
 
-完整历史源码审查、三出口模块图、构建/测试原始证据固定保留于 [19f2ac4f](https://github.com/ArietidsZ/FluentRead/tree/19f2ac4ffe587868ef2f73c52b3cdea32941920f/docs/reports/userscript-performance-clean-main-20261009)。删除只影响本分支新引入的报告文件，用普通后续提交完成；没有重写历史或改其他分支。旧3,589,291字节仍是18e→9b的历史测量。
+完整历史源码审查、三出口模块图与原始构建/测试证据固定保留于 [19f2ac4f](https://github.com/ArietidsZ/FluentRead/tree/19f2ac4ffe587868ef2f73c52b3cdea32941920f/docs/reports/userscript-performance-clean-main-20261009)。报告精简采用普通后续提交，未重写历史或改其他分支；旧3,589,291字节仅是18e→9b的历史测量。
 
-| 实际出口 | main | 性能候选 | 结果 |
+## 最终产物与最小修正
+
+删除 `userscript/unsupportedCapabilities.ts` 的两个无消费者 UI re-export：`ImageOcrSettings`、`MangaSettings`。全部 runtime/state stubs、VIDEO_* 导出、alias 和扩展原 public.ts 两项 UI 导出保持不变，组件、CSS、资源和许可源文件没有删除。仅 standard userscript 出口配置 `strictRequires:true`；standalone、GF 和扩展不改变此策略，没有模块名单、全局 side-effects 关闭、预算增加或可执行源码压缩。
+
+| 出口 | main / 修正前性能候选 | 最终候选 UTF-8 字节 | 原门禁结果 |
 | --- | ---: | ---: | --- |
-| standard | 1,963,967 | 1,964,011 | 原1,964,000预算超11；main通过 |
-| standalone | 缺少既有别名导出，构建失败 | 3,595,173 | 原门禁通过，余4,827 |
-| GF | 2,336,321 | 2,336,321 | 相同SHA；固定数据检查失败 |
+| standard | 1,963,967 / 1,964,011 | **1,957,868** | 原1,964,000预算通过，余6,132 |
+| standalone | main缺少既有别名导出 / 3,595,173 | **3,590,688** | 原3,600,000预算通过，余9,312 |
+| GF | 2,336,321 / 2,336,321 | 2,335,647 | 原正式脚本固定data检查停止，verifier未启动 |
 
-standard SHA256 `e30fc1031c2feea9dd242883272009225ca251b0c5fd17e733e7c64f5f46bf61`；standalone `6f28435bf48d43a35c51b65ea661784e83b6c6f99b362c28bea38cf4af0b77e7`。类型、Chrome/Firefox构建、manifest、测试归类、42次实际根组件合成导航通过；当前八份gzip的24组typed输入与5组失败契约通过。受影响测试120/121通过，唯一“CPU 和内存”文案断言在main单项重放也失败。生产源码未改，未重跑这些完整验证。
+standard SHA256 `5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f`；standalone `19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5`。两出口原CLI构建的SHA与只读模块图观察构建一致，原verifier均通过。
 
-GF原正式脚本在第79行固定数据检查停止，verifier未启动；其预算、可读性、URL、UI、Dexie和许可断言均未执行。此项及文案失败另列为基线问题，不混入修复。
+最小消融保留实际原文件：修正前auto为1,964,011，修正前strict=true为1,964,355；只删re-export为1,957,524；删除并采用standard strict=true为1,957,868。确定性策略下删除死链实际减少 **6,487字节**，当前包装开销 **344字节**，净减6,143字节。三出口的loaded/entry图中两项专属CSS及 `mangaOcrAssets` 均消失；共享OCR语言契约自然保留，standalone完整设置及LocalTts仍在图中。standard解压CSS为166,821→136,867字节；此值是CSS数据大小，不作为最终压缩收益。
 
-## 44字节最终归因与实证
+## 机制、契约与范围
 
-比较保留的最终JS，而非先重复全量构建。CSS相同；实际UTF-8语句区间的精确账目如下，renderedLength不作为最终收益：
+此前44字节最终JS归因仍为：MD5初始化+10、AES调用+2、互操作绑定+28、局部标识符宽度+4。实际同源CryptoJS小图复现auto加载顺序竞态，两侧MD5与固定盐AES输出相同；strict=true两种顺序SHA一致。renderedLength不作为最终字节收益，也不据此宣称性能源码存在语义回归。[官方26.0.1说明](https://raw.githubusercontent.com/rollup/plugins/commonjs-v26.0.1/packages/commonjs/README.md)记录该auto混合require竞态。
 
-| 最终JS变化区间 | 净字节 |
-| --- | ---: |
-| MD5初始化区由hoist改为缓存require函数 | +10 |
-| AES从MD5值改为require调用 | +2 |
-| CommonJS互操作绑定 | +28 |
-| 其余对应AST仅局部标识符长度变化 | +4 |
-| 合计 | **+44** |
+本次类型、测试归类及42次实际根组件合成导航通过；受影响契约测试 **54/55通过**。唯一免费池顺序断言在固定main单项重放同样失败（期望仅sogou，实际含bilibili与sogou），没有扩大修复。既有“CPU 和内存”文案基线失败仍保留。未重跑不变的完整套件或扩展构建；原Chrome/Firefox证据属于此前源码验证。
 
-本机使用现有Vite内嵌CommonJS插件和同一真实CryptoJS 4.2.0源码，只改变两个导入分支的到达顺序：`auto`得到95,520/95,886字节小图，MD5分别导出`default/__moduleExports`与`__require`；MD5与固定盐AES结果两侧完全一致。另一个四模块同源微型复现也得到相同分类切换。这证实当前已安装转换器存在加载顺序竞态，不能把44字节未经控制实验归为性能源码的语义回归。[官方26.0.1说明](https://raw.githubusercontent.com/rollup/plugins/commonjs-v26.0.1/packages/commonjs/README.md)也明确记录`auto`的混合require竞态。
+GF原正式脚本在第79行固定data检查停止，verifier未启动，其预算、可读性、URL、UI、Dexie和许可断言均未执行。当前GF主文件SHA `6cd6a5da32c6745da726418eb138ebe02c88eaed0f1f68b7b0a5b7ec1fe8dbf3`；新生成data为868,136字节、SHA `85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981`，不等于已提交固定资源。静态大小比较2,335,647仍大于原2,000,000预算，但未称其为已执行的verifier结果。未prepare/提交资源、刷新URL或许可，GF问题独立保留。
 
-安全选项`strictRequires:true`在真实CryptoJS小图两种顺序下SHA完全一致。仅一次standard诊断构建实测 **1,964,355字节**、超预算355，SHA256 `9d88be157cba5832995af1ade47cc27ef3a11042845ee7e44ad5b9ff007b8c80`；它未通过体积约束，未采用、未改变生产配置或原产物，也未宣称该诊断产物通过其他门禁。当前没有验证到符合本批限制且过预算的稳定修复。可验证的下一方案是采用该确定性策略并独立解决至少355字节的真实依赖开销；若保持`auto`，需先修正或升级其竞态实现并验证，而不能靠重试、导入顺序或缩小可执行源码取得一次通过。本批没有硬编码模块名单、关闭strictRequires、改预算或增加插件/依赖。
+## 浏览器验收阻塞与本地证据
 
-## 浏览器证据缺口与日志定位
+18份历史Neo会话均已清理。本次获批改用新建专用CW隔离会话，已准备只追踪自身spawn PID/startTicks及子进程的独立启动器，不使用全局/proc、桌面/端口盘点或Recovery。Neo二进制SHA与既有核验记录一致；最终standalone八份生产gzip已重新捕获，七份非CSS字符串不变。
 
-只读18份现有FluentRead Neo owner记录及对应cleanup：均声明剩余PID/监听器为空。历史target与浏览器socket已经退役；缺少当前有效隔离owner/session和精确owned page websocket记录。未连接旧/未知socket、未枚举进程/窗口/端口、未启动新浏览器或操作Recovery。最终原样standalone IIFE的真实浏览器ungzip绑定仍未测，Node库/入口验证不代替它。
+**自动审批审查在执行命令前拒绝新建 Neo/Xvfb/私有D-Bus**，理由仍引用上一轮“只复用活动会话、不得启动新浏览器”的范围。按指令停止，没有重试、进程创建、socket连接或权限变更。原样最终IIFE的真实浏览器ungzip、24组typed offset输入及5项异常契约均未执行，不能把Node或静态核验当作浏览器通过。
 
-本批诊断与原始日志留在同一CW工作区 `userscript-performance-clean-pr-20261009/minimal-followup/`，索引为`DIAGNOSTIC-INDEX.json`。关键结果：`final-js-byte-attribution.json`、`actual-crypto-race.json`、`strict-true-standard-result.json`、`browser-records-ineligible.json`；命令/退出码与日志在上层`STAGES.json`及`followup-*.log.txt`。串行、CPU目标60%、单worker；无新增权限、依赖、模型/搜索API调用。本次后续提交仅报告精简，保留standard预算与浏览器证据缺口为合并阻塞。
+详细证据保存在CW工作区 `userscript-performance-clean-pr-20261009/minimal-followup/final-budget-candidate/`：`FINAL-ARTIFACT-INPUTS.json`、三出口`final-*-result.json`/`*-graph.json`、`contracts.json`、`baseline-free-settings.json`、`BROWSER-CREATION-BLOCKED.json`。上层保留字节归因与竞态诊断，命令/退出码在`STAGES.json`及独立`followup-final-*`日志。串行CPU目标60%、单worker；无新依赖、扩展、凭据、模型或搜索API调用。standard预算已通过；真实浏览器IIFE验收与独立GF问题仍阻塞合并。
