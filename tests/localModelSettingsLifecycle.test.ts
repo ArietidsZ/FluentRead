@@ -40,6 +40,7 @@ import * as videoPublic from '@/src/features/video-subtitle/public';
 import * as settingsActionContext from '@/src/features/settings/model/useSettingsActionContext';
 import {createLocalTtsBackgroundHandlers} from '@/src/features/local-tts/background/handlers';
 import {createVideoSubtitleBackgroundHandlers} from '@/src/features/video-subtitle/background/handlers';
+import {getVideoAiModelFileUrl, VIDEO_AI_Q4_MODEL_FILES, VIDEO_AI_SMALL_MODEL_FILES} from '@/src/features/video-subtitle/offscreen/modelCache';
 import {createBackgroundMessageRouter, createBackgroundRuntimeMessageListener} from '@/src/app/background/messageRouter';
 import {createDownloadProgressHandler} from '@/src/app/background/handlers/downloadProgress';
 import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
@@ -116,6 +117,9 @@ import * as progressModule from '@/src/core/download/progress';
 
 function backend() {
     const values: Record<string, any> = {};
+    const videoKeys = new Set<string>();
+    const addVideoKeys = (model: string) => {for (const file of model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES) videoKeys.add(getVideoAiModelFileUrl(model, file));};
+    vi.stubGlobal('caches', {has: async () => true, open: async () => ({keys: async () => [...videoKeys].map(url => new Request(url))})});
     const writes: unknown[] = [];
     const jobs = new Map<string, {done: ReturnType<typeof deferred<any>>; work: Promise<any>; received: number; report: (next: {loaded: number; total: number}) => void}>();
     const publishTasks = new Set<Promise<unknown>>();
@@ -151,24 +155,22 @@ function backend() {
     const ttsOffscreen = {prepare: vi.fn(() => start(LOCAL_TTS_DOWNLOAD_ID)), status: vi.fn(async () => ({models: [values[ttsModel.LOCAL_TTS_MODEL_STATE_KEY] || {
         model: ttsModel.LOCAL_TTS_MODEL_ID, downloaded: false, downloadSizeMb: ttsModel.LOCAL_TTS_MODEL.downloadSizeMb,
     }]})), remove: vi.fn(async () => undefined)};
-    const videoOffscreen = {send: vi.fn((message: any) => start(videoModelDownloadId(message.model))), sendIfPresent: vi.fn(async () => ({success: true}))};
+    const videoOffscreen = {send: vi.fn((message: any) => start(videoModelDownloadId(message.model)).then(response => {if (response?.success) addVideoKeys(message.model); return response;})), sendIfPresent: vi.fn(async () => ({success: true}))};
     const listener = createBackgroundRuntimeMessageListener(createBackgroundMessageRouter<any>([
         ...createLocalTtsBackgroundHandlers({storage, offscreen: ttsOffscreen}),
         ...createVideoSubtitleBackgroundHandlers({storage, offscreen: videoOffscreen as any}),
     ]), () => ({}));
     const stats = () => ({success: true, stats: {entries: 2, bytes: 1234, maxEntries: 32, ttlMs: 7 * 86400000}});
     ports.send.mockImplementation(async (message: any) => {
-        const hold = message.type === 'fluentReadGetLocalTtsModelState' ? reads.findIndex(read => read.kind === 'tts') : -1;
+        const kind = message.type === 'fluentReadGetLocalTtsModelState' ? 'tts' : message.type === videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE ? 'video' : undefined;
+        const hold = kind ? reads.findIndex(read => read.kind === kind) : -1;
         const gate = hold < 0 ? undefined : reads.splice(hold, 1)[0].gate;
         const response = message.type === videoPublic.VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE ? stats()
             : message.type === videoPublic.VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE ? {success: true} : await listener(message, {});
         return gate ? gate.promise : response;
     });
-    ports.get.mockImplementation(async (key: string | string[]) => {
-        const hold = key === videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY ? reads.findIndex(read => read.kind === 'video') : -1;
-        return hold < 0 ? storage.get(key) : reads.splice(hold, 1)[0].gate.promise;
-    });
-    return {values, writes, jobs, ttsOffscreen, videoOffscreen, storage,
+    ports.get.mockImplementation((key: string | string[]) => storage.get(key));
+    return {values, writes, jobs, ttsOffscreen, videoOffscreen, storage, videoKeys, addVideoKeys,
         holdRead(kind: Kind) {const gate = deferred<any>(); reads.push({kind, gate}); allReadGates.push(gate); return gate;},
         async chunk(id: string, bytes = 200_000, total = 800_000) {
             const job = jobs.get(id)!; expect(job).toBeDefined();
@@ -236,7 +238,7 @@ function downloadButton(host: HTMLElement, kind: Kind, model = 'tiny') {
     const node = host.querySelector(selector)!;
     expect(node).not.toBeNull(); return (kind === 'tts' ? node : node.closest('.video-model-card')!.querySelector('button')) as HTMLButtonElement;
 }
-function uiReads(kind: Kind) {return kind === 'tts' ? ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadGetLocalTtsModelState').length : ports.get.mock.calls.length;}
+function uiReads(kind: Kind) {return ports.send.mock.calls.filter(([message]) => message.type === (kind === 'tts' ? 'fluentReadGetLocalTtsModelState' : videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE)).length;}
 function progress(host: HTMLElement, kind: Kind, model = 'tiny') {return host.querySelector(kind === 'tts' ? '[data-testid="local-tts-progress"] progress' : `[data-video-model-progress="${model}"] progress`);}
 async function hide(h: Awaited<ReturnType<typeof mount>>, reason: string) {if (reason === 'cached') h.cached.value = true; else h.state.active = false; await settle();}
 async function reopen(h: Awaited<ReturnType<typeof mount>>) {h.cached.value = false; h.state.active = true; await settle();}
@@ -294,6 +296,27 @@ for (const kind of ['tts', 'video'] as const) describe(`${kind} actual mounted l
         await h.backend.finish(id, {success: false, error: 'OLD_CONTEXT_COMMAND_FAILED'});
         expect(h.host.querySelector('[role="alert"]')).toBeNull();
     });
+});
+
+it('rechecks missing Small tokenizer on return and offers the existing repair download without erasing its receipt', async () => {
+    const h = await mount('video');
+    const model = 'small', id = videoModelDownloadId(model);
+    h.backend.addVideoKeys(model);
+    await h.backend.storage.set({[videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]: [model]}); await settle();
+    const card = h.host.querySelector('input[value="small"]')!.closest('.video-model-card')!;
+    expect(card.querySelector('.video-model-availability')!.textContent).toContain('可离线使用');
+    h.backend.videoKeys.delete(getVideoAiModelFileUrl(model, 'tokenizer.json'));
+    dom.window.dispatchEvent(new dom.window.Event('focus')); await settle();
+    expect(card.querySelector('.video-model-availability')!.textContent).toContain('尚未下载');
+    expect(h.backend.values[videoPublic.VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]).toEqual([model]);
+    expect(h.backend.videoOffscreen.send).not.toHaveBeenCalled();
+    expect(card.querySelector('button')!.textContent).toContain('下载模型');
+    downloadButton(h.host, 'video', model).click(); await settle(); await h.backend.chunk(id);
+    expect(progress(h.host, 'video', model)?.getAttribute('value')).toBe('200000');
+    await h.backend.finish(id);
+    expect(card.querySelector('.video-model-availability')!.textContent).toContain('可离线使用');
+    expect(h.backend.videoKeys.has(getVideoAiModelFileUrl(model, 'tokenizer.json'))).toBe(true);
+    expect(h.backend.videoOffscreen.send).toHaveBeenCalledOnce();
 });
 
 describe('entire captured public template event belongs to its rendered config', () => {

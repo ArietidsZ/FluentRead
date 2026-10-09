@@ -10,7 +10,7 @@ import {parseHTML} from 'linkedom';
 const ports = vi.hoisted(() => ({
   config: {} as Record<string, unknown>,
   subscribers: new Set<(value: unknown) => void>(),
-  translate: vi.fn(), send: vi.fn(), fetch: vi.fn(),
+  translate: vi.fn(), send: vi.fn(), fetch: vi.fn(), watchProgress: vi.fn(), stopProgress: vi.fn(),
 }));
 vi.mock('@/src/services/config/store', () => ({
   config: ports.config,
@@ -26,7 +26,7 @@ vi.mock('@/src/services/config/store', () => ({
 vi.mock('@/src/app/translation/client', () => ({translateVideoText: ports.translate}));
 vi.mock('@/src/platform/browser/runtimeMessages', () => ({sendRuntimeMessage: ports.send}));
 vi.mock('webextension-polyfill', () => ({default: {runtime: {getURL: (path: string) => 'chrome-extension://fixture/' + path}}}));
-vi.mock('@/src/platform/storage/downloadProgress', () => ({watchDownloadProgress: () => () => undefined}));
+vi.mock('@/src/platform/storage/downloadProgress', () => ({watchContentDownloadProgress: ports.watchProgress}));
 vi.mock('@/src/platform/browser/capabilities', async original => ({
   ...await original<typeof import('@/src/platform/browser/capabilities')>(),
   browserCapabilities: {extensionDom: true},
@@ -75,6 +75,7 @@ beforeEach(() => {
     throw new Error('Unexpected model/runtime boundary: ' + message.type);
   });
   ports.fetch.mockReset().mockRejectedValue(new Error('Unexpected network request in subtitle fixture'));
+  ports.stopProgress.mockReset(); ports.watchProgress.mockReset().mockReturnValue(ports.stopProgress);
 });
 afterEach(async () => {
   try {
@@ -187,6 +188,111 @@ function clickMenu(f: ReturnType<typeof fixture>, selector: string) {
 }
 
 describe('public mounted X subtitle track priority and lifecycle', () => {
+  it('opens the model selector with the configured cached model and cancels without replacing ready captions', async () => {
+    const saved = 'Ready captions should remain until confirmation.';
+    ports.send.mockImplementation(async (message: {type: string}) => {
+      if (message.type === 'fluentReadGetVideoAiSubtitleCache') return {
+        success: true, hit: true, cues: [{startMs: 0, durationMs: 20000, text: saved}],
+      };
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: ['tiny', 'small']};
+      return {success: true};
+    });
+    const f = fixture(); f.start(); await settle();
+    const before = f.displayed();
+    expect(before.source).toBe(saved);
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    clickMenu(f, '[data-action="open-subtitle-tools"]');
+    clickMenu(f, '[data-action="select-ai-model"]'); await settle();
+    expect(menu.dataset.view).toBe('model-prompt');
+    expect(menu.querySelector('[data-model-choice="tiny"]')?.getAttribute('aria-checked')).toBe('true');
+    expect(f.displayed()).toEqual(before);
+    clickMenu(f, '[data-model-choice="small"]');
+    expect(ports.config.videoLocalModel).toBe('tiny');
+    clickMenu(f, '[data-action="model-prompt-cancel"]'); await settle();
+    expect(menu.dataset.view).toBe('main');
+    expect(menu.dataset.panel).toBe('tools');
+    expect(f.displayed()).toEqual(before);
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadPrepareLocalVideoModel'
+      || message.type === 'fluentReadTranscribeLocalVideoAudio')).toBe(false);
+  });
+
+  it('confirms a cached Small model in the player and generates with automatic language without another download', async () => {
+    const oldText = 'The old cached subtitle.';
+    const newText = 'The newly recognized subtitle.';
+    ports.send.mockImplementation(async (message: {type: string}) => {
+      if (message.type === 'fluentReadGetVideoAiSubtitleCache') return {
+        success: true, hit: true, cues: [{startMs: 0, durationMs: 20000, text: oldText}],
+      };
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: ['tiny', 'small']};
+      if (message.type === 'fluentReadTranscribeLocalVideoAudio') return {
+        success: true, text: newText, segments: [{startMs: 0, endMs: 4000, text: newText}],
+      };
+      return {success: true};
+    });
+    const f = fixture();
+    class DecodeContext {
+      state = 'running';
+      async close() { this.state = 'closed'; }
+      async decodeAudioData() { return {duration: 20, numberOfChannels: 1, sampleRate: 16000,
+        getChannelData: () => new Float32Array(320000).fill(.08)}; }
+    }
+    vi.stubGlobal('AudioContext', DecodeContext);
+    defineBrowserPort(f.window, 'AudioContext', {configurable: true, value: DecodeContext});
+    Object.defineProperty(f.video, 'duration', {configurable: true, value: 20});
+    ports.fetch.mockResolvedValue(new Response(audioInit));
+    f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    clickMenu(f, '[data-action="open-subtitle-tools"]');
+    clickMenu(f, '[data-action="select-ai-model"]'); await settle();
+    clickMenu(f, '[data-model-choice="small"]');
+    clickMenu(f, '[data-action="model-prompt-confirm"]'); await settle();
+    expect(ports.config.videoLocalModel).toBe('small');
+    expect(ports.config.videoSourceLanguage).toBe('auto');
+    const transcriptions = ports.send.mock.calls.filter(([message]) => message.type === 'fluentReadTranscribeLocalVideoAudio');
+    expect(transcriptions.length).toBeGreaterThan(0);
+    for (const [message] of transcriptions) expect(message).toMatchObject({model: 'small', sourceLanguage: 'auto'});
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadPrepareLocalVideoModel' && !message.keepWarm)).toBe(false);
+    expect(f.displayed().source).toBe(newText);
+    expect(menu.querySelector('[data-action="select-ai-model"]')?.getAttribute('data-model')).toBe('small');
+  });
+
+  it('offers the model selector before any subtitle exists without starting recognition', async () => {
+    ports.send.mockImplementation(async (message: {type: string}) => message.type === 'fluentReadGetLocalVideoModelState'
+      ? {success: true, models: ['tiny']} : {success: true, hit: false});
+    const f = fixture(); f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    expect((menu.querySelector('[data-action="open-subtitle-tools"]') as HTMLButtonElement).hidden).toBe(false);
+    clickMenu(f, '[data-action="open-subtitle-tools"]');
+    clickMenu(f, '[data-action="select-ai-model"]'); await settle();
+    expect(menu.dataset.view).toBe('model-prompt');
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadTranscribeLocalVideoAudio')).toBe(false);
+  });
+
+  it('ignores a late old-model subtitle cache when the user explicitly opens model selection', async () => {
+    const cached = deferred<unknown>();
+    ports.send.mockImplementation(async (message: {type: string}) => {
+      if (message.type === 'fluentReadGetVideoAiSubtitleCache') return cached.promise;
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: ['tiny', 'small']};
+      return {success: true};
+    });
+    const f = fixture(); f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    clickMenu(f, '[data-action="open-subtitle-tools"]');
+    clickMenu(f, '[data-action="select-ai-model"]'); await settle();
+    expect(menu.dataset.view).toBe('model-prompt');
+    cached.resolve({success: true, hit: true, cues: [{startMs: 0, durationMs: 20000, text: 'Late old-model subtitle.'}]});
+    await settle();
+    expect(f.displayed().source || '').toBe('');
+    expect(menu.dataset.view).toBe('model-prompt');
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadTranscribeLocalVideoAudio')).toBe(false);
+    const escape = new f.window.Event('keydown', {bubbles: true});
+    Object.defineProperties(escape, {isTrusted: {value: true}, key: {value: 'Escape'}});
+    f.document.dispatchEvent(escape); await settle();
+    expect(menu.dataset.view).toBe('main');
+    expect(menu.dataset.panel).toBe('tools');
+    expect(ports.config.videoLocalModel).toBe('tiny');
+  });
+
   it.each([false, true])('keeps a pending model request across same-video metadata enrichment (download: %s)', async download => {
     const status = deferred<unknown>(), prepared = deferred<unknown>();
     ports.send.mockImplementation(async (message: {type: string; keepWarm?: boolean}) => {
@@ -230,6 +336,71 @@ describe('public mounted X subtitle track priority and lifecycle', () => {
     expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadPrepareLocalVideoModel')).toBe(false);
   });
 
+  it.each(['media', 'off', 'dispose'])('stops pending download progress immediately after %s invalidates the player', async change => {
+    const prepared = deferred<unknown>();
+    ports.send.mockImplementation(async (message: {type: string; keepWarm?: boolean}) => {
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: []};
+      if (message.type === 'fluentReadPrepareLocalVideoModel') return prepared.promise;
+      return {success: true, hit: false};
+    });
+    const f = fixture(); const dispose = f.start(); await settle();
+    f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!.hidden = false;
+    clickMenu(f, '[data-action="toggle-ai-subtitle"]'); await settle();
+    clickMenu(f, '[data-action="model-prompt-confirm"]'); await settle();
+    expect(ports.watchProgress).toHaveBeenCalledWith('video-model:tiny', expect.any(Function));
+    expect(ports.stopProgress).not.toHaveBeenCalled();
+    if (change === 'media') {
+      f.video.src = 'https://video.twimg.com/ext_tw_video/456/pu/vid/new.mp4';
+      f.video.poster = 'https://pbs.twimg.com/ext_tw_video_thumb/456/pu/img/new.jpg';
+      f.emitVideo('loadedmetadata');
+    } else if (change === 'off') f.changeConfig({videoTranslationEnabled: false});
+    else dispose();
+    await settle(); expect(ports.stopProgress).toHaveBeenCalledOnce();
+    prepared.resolve({success: true, models: ['tiny']}); await settle();
+    expect(ports.stopProgress).toHaveBeenCalledOnce();
+    expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadPrepareLocalVideoModel' && message.keepWarm)).toBe(false);
+  });
+
+  it.each(['download-subtitles', 'download-translated-subtitles', 'download-bilingual-subtitles'])('keeps preview exports disabled after an old %s feedback timer ends', async action => {
+    const nextWindow = deferred<unknown>();
+    let count = 0;
+    const saved = 'The previously completed subtitle.';
+    const preview = 'A new completed preview sentence.';
+    ports.send.mockImplementation(async (message: {type: string}) => {
+      if (message.type === 'fluentReadGetVideoAiSubtitleCache') return {success: true, hit: true,
+        cues: [{startMs: 0, durationMs: 20000, text: saved}]};
+      if (message.type === 'fluentReadGetLocalVideoModelState') return {success: true, models: ['tiny']};
+      if (message.type === 'fluentReadTranscribeLocalVideoAudio') return ++count === 1
+        ? {success: true, text: preview, segments: [{startMs: 0, endMs: 4000, text: preview}]} : nextWindow.promise;
+      return {success: true};
+    });
+    const f = fixture();
+    class DecodeContext {
+      state = 'running';
+      async close() { this.state = 'closed'; }
+      async decodeAudioData() { return {duration: 20, numberOfChannels: 1, sampleRate: 16000,
+        getChannelData: () => new Float32Array(320000).fill(.08)}; }
+    }
+    vi.stubGlobal('AudioContext', DecodeContext);
+    defineBrowserPort(f.window, 'AudioContext', {configurable: true, value: DecodeContext});
+    Object.defineProperty(f.video, 'duration', {configurable: true, value: 20});
+    ports.fetch.mockResolvedValue(new Response(audioInit));
+    f.start(); await settle();
+    const menu = f.document.getElementById(VIDEO_TRANSLATION_MENU_ID)!; menu.hidden = false;
+    clickMenu(f, '[data-action="open-subtitle-tools"]');
+    const download = menu.querySelector<HTMLButtonElement>(`[data-action="${action}"]`)!;
+    expect(download.disabled).toBe(false);
+    clickMenu(f, `[data-action="${action}"]`); await settle();
+    expect(menu.querySelector('[data-download-status]')?.textContent).toContain('已下载');
+    clickMenu(f, '[data-action="regenerate-ai-subtitle"]'); await settle();
+    expect(count).toBe(2);
+    expect(f.displayed().source).toBe(preview);
+    await vi.advanceTimersByTimeAsync(2450);
+    expect(count).toBe(2);
+    for (const button of menu.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')) expect(button.disabled).toBe(true);
+    nextWindow.resolve({success: false, error: 'fixture stops after timer proof'}); await settle();
+  });
+
   it('displays completed AI sentences before the final window and clears an incomplete preview after failure', async () => {
     const nextWindow = deferred<unknown>();
     let count = 0;
@@ -258,8 +429,10 @@ describe('public mounted X subtitle track priority and lifecycle', () => {
     expect(count).toBe(2);
     expect(f.displayed()).toMatchObject({source: preview, translated: translation(preview), active: true, kind: 'ai'});
     expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadSetVideoAiSubtitleCache')).toBe(false);
+    for (const button of menu.querySelectorAll<HTMLButtonElement>('.fluent-read-video-menu-download')) expect(button.disabled).toBe(true);
+    expect((menu.querySelector('[data-action="select-ai-model"]') as HTMLButtonElement).disabled).toBe(true);
     clickMenu(f, '[data-action="download-subtitles"]'); await settle();
-    expect(menu.querySelector('[data-download-status]')?.textContent).toBe('正在生成字幕');
+    expect(menu.querySelector('[data-download-status]')?.textContent).toBe('');
     nextWindow.resolve({success: false, error: 'fixture later window failed'}); await settle();
     expect(f.displayed().source || '').toBe('');
     expect(ports.send.mock.calls.some(([message]) => message.type === 'fluentReadSetVideoAiSubtitleCache')).toBe(false);

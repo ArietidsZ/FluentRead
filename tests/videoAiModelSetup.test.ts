@@ -87,6 +87,46 @@ describe('video AI model setup', () => {
     expect(dependencies.startGeneration).not.toHaveBeenCalled();
   });
 
+  it('reset stops the old view immediately, and its late download completion cannot stop a new watcher', async () => {
+    const first = deferred<unknown>(), second = deferred<unknown>();
+    const firstStop = vi.fn(), secondStop = vi.fn();
+    const listeners: Array<(progress: {loaded: number; total: number} | undefined) => void> = [];
+    const watchDownload = vi.fn((_model: VideoLocalTranscriptionModel, next: typeof listeners[number]) => {
+      listeners.push(next);
+      return listeners.length === 1 ? firstStop : secondStop;
+    });
+    let downloads = 0;
+    const {controller, dependencies} = setup({watchDownload, sendMessage: vi.fn((message: {type: string}) =>
+      message.type === 'fluentReadPrepareLocalVideoModel'
+        ? (++downloads === 1 ? first.promise : second.promise) : Promise.resolve({success: true, models: []}))});
+    await controller.request(() => true);
+    const a = controller.confirm();
+    listeners[0]!({loaded: 1, total: 100});
+    controller.reset();
+    expect(firstStop).toHaveBeenCalledOnce();
+    controller.reset();
+    expect(firstStop).toHaveBeenCalledOnce();
+    expect(controller.downloading).toBe(false);
+    await controller.request(() => true);
+    const b = controller.confirm();
+    expect(watchDownload).toHaveBeenCalledTimes(2);
+    listeners[1]!({loaded: 10, total: 100});
+    first.resolve({success: true});
+    await a;
+    expect(firstStop).toHaveBeenCalledOnce();
+    expect(secondStop).not.toHaveBeenCalled();
+    expect(controller.downloading).toBe(true);
+    expect(controller.downloadProgress).toEqual({loaded: 10, total: 100});
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+    second.resolve({success: true});
+    await b;
+    expect(secondStop).toHaveBeenCalledOnce();
+    expect(controller.downloading).toBe(false);
+    expect(dependencies.startGeneration).toHaveBeenCalledOnce();
+    controller.reset();
+    expect(secondStop).toHaveBeenCalledOnce();
+  });
+
   it('starts immediately when the configured model is already downloaded', async () => {
     const {controller, events, dependencies} = setup({responses: {fluentReadGetLocalVideoModelState: [{success: true, models: ['tiny']}]}});
     const pending = controller.request(() => true);
@@ -96,6 +136,56 @@ describe('video AI model setup', () => {
     expect(controller.choice).toBeNull();
     expect(events).toEqual(['error:', 'start']);
     expect(dependencies.onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('explicit model selection waits for confirmation even when the current model is downloaded', async () => {
+    const {controller, dependencies, sendMessage} = setup({responses: {
+      fluentReadGetLocalVideoModelState: [{success: true, models: ['tiny', 'base', 'small']}],
+    }});
+    await controller.request(() => true, true);
+    expect(controller.choice).toMatchObject({selected: 'tiny', purpose: 'selection'});
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+    expect(dependencies.persistModel).not.toHaveBeenCalled();
+    controller.select('small');
+    expect(dependencies.persistModel).not.toHaveBeenCalled();
+    await controller.confirm();
+    expect(dependencies.persistModel).toHaveBeenCalledTimes(1);
+    expect(dependencies.persistModel).toHaveBeenCalledWith('small');
+    expect(dependencies.startGeneration).toHaveBeenCalledTimes(1);
+    expect(sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it('explicit model selection preserves the configured model ahead of other cached choices', async () => {
+    const {controller, dependencies, configure} = setup({responses: {
+      fluentReadGetLocalVideoModelState: [{success: true, models: ['tiny']}],
+    }});
+    // Small remains selected even when Tiny could start without any download.
+    configure('small');
+    await controller.request(() => true, true);
+    expect(controller.choice?.selected).toBe('small');
+    controller.cancel();
+    expect(dependencies.persistModel).not.toHaveBeenCalled();
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+  });
+
+  it('closing an explicit selector during readiness does not open it from a late response', async () => {
+    const status = deferred<unknown>();
+    const {controller, dependencies} = setup({sendMessage: vi.fn(() => status.promise)});
+    const pending = controller.request(() => true, true);
+    controller.cancel();
+    status.resolve({success: true, models: ['tiny', 'small']});
+    await pending;
+    expect(controller.choice).toBeNull();
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
+  });
+
+  it('explicit model selection respects the visibility gate despite a cached model', async () => {
+    const {controller, dependencies} = setup({responses: {
+      fluentReadGetLocalVideoModelState: [{success: true, models: ['tiny']}],
+    }});
+    await controller.request(() => false, true);
+    expect(controller.choice).toBeNull();
+    expect(dependencies.startGeneration).not.toHaveBeenCalled();
   });
 
   it('closing during a pending model check never starts recognition from a late result', async () => {

@@ -23,6 +23,54 @@ function fixture(overrides: Partial<Ports> = {}) {
 }
 
 describe('字幕下载与人工轨优先', () => {
+    it('销毁先取消已有反馈，并拒绝迟到原文导出的按钮恢复', async () => {
+        const refreshButtons = vi.fn();
+        const f = fixture({refreshButtons});
+        f.button.disabled = true;
+        f.downloads.restoreButton(f.button, 2400);
+        expect(vi.getTimerCount()).toBe(1);
+        f.downloads.destroy();
+        f.downloads.destroy();
+        expect(vi.getTimerCount()).toBe(0);
+        // 原文 resolve 的 finally 可迟于卸载；本地销毁状态不能依赖外部端口同步变化。
+        expect(f.ports.isDisposed()).toBe(false);
+        f.downloads.restoreButton(f.button, 3200);
+        expect(vi.getTimerCount()).toBe(0);
+        await vi.advanceTimersByTimeAsync(3200);
+        expect(refreshButtons).not.toHaveBeenCalled();
+        expect(f.button.disabled).toBe(true);
+    });
+    it('外部页面在反馈期间失效时不刷新界面或重新登记反馈', async () => {
+        let disposed = false;
+        const refreshButtons = vi.fn();
+        const f = fixture({refreshButtons, isDisposed: () => disposed});
+        f.button.disabled = true;
+        f.downloads.restoreButton(f.button);
+        disposed = true;
+        await vi.advanceTimersByTimeAsync(2200);
+        expect(refreshButtons).not.toHaveBeenCalled();
+        expect(f.button.disabled).toBe(true);
+        expect(vi.getTimerCount()).toBe(0);
+        f.downloads.restoreButton(f.button);
+        expect(vi.getTimerCount()).toBe(0);
+        f.downloads.destroy();
+    });
+    it('旧导出反馈交还当前菜单状态，不强制启用重新识别中的按钮', async () => {
+        const refreshButtons = vi.fn();
+        const f = fixture({refreshButtons});
+        await f.downloads.translated(f.menu, f.button, false);
+        expect(f.save).toHaveBeenCalledOnce();
+        expect(f.button.disabled).toBe(true);
+        await vi.advanceTimersByTimeAsync(2200);
+        expect(refreshButtons).toHaveBeenCalledOnce();
+        expect(f.button.disabled).toBe(true);
+        // 原文也复用相同的反馈归属；卸载取消尚未结束的反馈。
+        f.downloads.restoreButton(f.button, 2400);
+        f.downloads.destroy();
+        await vi.advanceTimersByTimeAsync(2400);
+        expect(refreshButtons).toHaveBeenCalledOnce();
+        expect(vi.getTimerCount()).toBe(0);
+    });
     it('完整 AI 字幕的识别预览不导出，识别完成后才提供完整时间轴', async () => {
         let complete = false;
         const f = fixture({isX: () => true, isAiActive: () => true, isAiComplete: () => complete, aiCues: () => [cue]});

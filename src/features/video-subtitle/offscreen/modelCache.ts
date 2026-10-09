@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/offscreen/modelCache.ts
  * 文件职责：维护 Transformers.js Whisper 模型文件的远程地址、q4/q8 清单与 Cache Storage 下载。
- * 主要内容：按模型选择 Tiny/Base 的 q4/q8 或 Small 的 FP32 编码器加 q4 解码器，流式接收并在国内源、官方与镜像间有界回退，限制单文件大小、下载与断流等待，把完整文件清单合并成真实字节进度。
+ * 主要内容：只读缓存键核对已登记模型的完整七文件精度清单；按模型选择 Tiny/Base 的 q4/q8 或 Small 的 FP32 编码器加 q4 解码器，流式接收并在国内源、官方与镜像间有界回退，限制单文件大小、下载与断流等待，把完整文件清单合并成真实字节进度。
  * 模块边界：只处理模型文件缓存，不创建 Worker、不初始化 ONNX session，也不参与后台 owner 生命周期。
  */
 import {withModelDownload} from '@/src/platform/http/modelDownloads';
@@ -10,7 +10,9 @@ import {
   getVideoLocalTranscriptionDownloadBytes,
   getVideoLocalTranscriptionModelId,
   normalizeVideoLocalTranscriptionModel,
+  normalizeVideoLocalTranscriptionModels,
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
+  type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/transcription';
 
 export const VIDEO_AI_MODEL_REMOTE_HOST = 'https://modelscope.cn/models/';
@@ -55,6 +57,30 @@ const MODEL_FILE_DOWNLOAD_TIMEOUT_MS = 120_000;
 export function getVideoAiModelFileUrl(model: unknown, file: string): string {
   const modelId = getVideoLocalTranscriptionModelId(normalizeVideoLocalTranscriptionModel(model));
   return `${VIDEO_AI_MODEL_REMOTE_HOST}${modelId}/resolve/${VIDEO_AI_MODEL_REVISION}/${file}`;
+}
+
+/**
+ * 下载登记只代表过去成功；可用状态还需同一精度清单的全部精确缓存键。
+ * Tiny/Base 保留实际 Worker 支持的完整 q4 或 q8，Small 仅 FP32 encoder/q4 decoder。
+ * 后台可直接读取同扩展 origin 的 Request 元数据，不读取模型响应体、
+ * 不创建缺失缓存，也不删除登记或 q8 回退文件，避免与进行中的下载竞态。
+ */
+export async function readCachedVideoAiModels(receipts: unknown): Promise<VideoLocalTranscriptionModel[]> {
+  const models = normalizeVideoLocalTranscriptionModels(receipts);
+  if (!models.length) return [];
+  if (typeof caches === 'undefined') throw new Error('当前浏览器不支持本地模型缓存');
+  try {
+    if (!await caches.has(TRANSFORMERS_CACHE_NAME)) return [];
+    const cache = await caches.open(TRANSFORMERS_CACHE_NAME);
+    const urls = new Set((await cache.keys()).map(request => request.url));
+    return models.filter(model => {
+      const complete = (files: readonly string[]) => files.every(file => urls.has(getVideoAiModelFileUrl(model, file)));
+      return complete(model === 'small' ? VIDEO_AI_SMALL_MODEL_FILES : VIDEO_AI_Q4_MODEL_FILES)
+        || model !== 'small' && complete(VIDEO_AI_Q8_MODEL_FILES);
+    });
+  } catch (error) {
+    throw new Error('无法读取模型缓存，请重试', {cause: error});
+  }
 }
 
 /**
