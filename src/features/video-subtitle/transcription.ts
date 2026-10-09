@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/transcription.ts
  * 文件职责：定义本地 Whisper 模型选项与音频转换的公共契约，统一界面和识别端使用的默认值。
- * 主要内容：规范化模型配置与下载状态列表，给出下载进度使用的预计体积，拦截识别退化的长串重复文本，把多声道 PCM 按目标采样率混音和重采样，并保守移除 Whisper 输入外侧的数字静音。
+ * 主要内容：规范化模型配置、实际语言与分模块精度诊断，统一生成停止、Worker 墙钟终止和请求预算，给出预计下载体积，拦截异常重复，把多声道 PCM 混音重采样并保守移除外侧数字静音。
  * 模块边界：只处理传入数据，不读取配置仓库、不调用浏览器音频设备，也不下载或初始化模型。
  */
 
@@ -22,9 +22,48 @@ export const VIDEO_LOCAL_TRANSCRIPTION_MODELS = [
     downloadSizeMb: 150,
     description: '侧重识别质量，所需内存更多、处理时间更长。',
   },
+  {
+    value: 'small',
+    label: 'Whisper Small（质量模型）',
+    modelId: 'onnx-community/whisper-small',
+    // FP32 encoder + q4 decoder 下载清单共约 588.7 MB；不代表运行内存占用。
+    downloadSizeMb: 590,
+    description: '推荐用于多语种字幕，识别质量更高，下载、内存和处理开销更大。',
+  },
 ] as const;
 
 export type VideoLocalTranscriptionModel = typeof VIDEO_LOCAL_TRANSCRIPTION_MODELS[number]['value'];
+export type VideoAiModelDtype = 'fp32' | 'q4' | 'q8';
+
+/** 实际模型调用的诊断；语言 token 概率不能解释为字幕准确率。 */
+export interface VideoAiRecognitionMetadata {
+  detectedLanguage?: string;
+  languageConfidence?: number;
+  languageDetectionMs?: number;
+  encoderReuse?: boolean;
+  encoderDtype?: VideoAiModelDtype;
+  decoderDtype?: VideoAiModelDtype;
+}
+
+/** 消息边界只保留真实、有限的诊断值；缺失字段不补造检测结果。 */
+export function normalizeVideoAiRecognitionMetadata(value: unknown): VideoAiRecognitionMetadata {
+  if (!value || typeof value !== 'object') return {};
+  const input = value as Record<string, unknown>;
+  const result: VideoAiRecognitionMetadata = {};
+  if (typeof input.detectedLanguage === 'string' && /^[a-z]{2,3}$/u.test(input.detectedLanguage)) {
+    result.detectedLanguage = input.detectedLanguage;
+    if (typeof input.languageConfidence === 'number' && Number.isFinite(input.languageConfidence)
+      && input.languageConfidence >= 0 && input.languageConfidence <= 1) {
+      result.languageConfidence = input.languageConfidence;
+    }
+  }
+  if (typeof input.languageDetectionMs === 'number' && Number.isFinite(input.languageDetectionMs)
+    && input.languageDetectionMs >= 0) result.languageDetectionMs = input.languageDetectionMs;
+  if (typeof input.encoderReuse === 'boolean') result.encoderReuse = input.encoderReuse;
+  if (input.encoderDtype === 'fp32' || input.encoderDtype === 'q4' || input.encoderDtype === 'q8') result.encoderDtype = input.encoderDtype;
+  if (input.decoderDtype === 'fp32' || input.decoderDtype === 'q4' || input.decoderDtype === 'q8') result.decoderDtype = input.decoderDtype;
+  return result;
+}
 
 /**
  * 只记录“模型所需文件已经完整写入浏览器缓存”的状态；真正的 ONNX
@@ -48,10 +87,10 @@ export function normalizeVideoLocalTranscriptionModel(value: unknown): VideoLoca
 }
 
 /**
- * 首次生成 AI 字幕时默认推荐 Tiny：下载最小、识别最快，能在普通电脑上跑完整段视频。
- * 语音不清楚时用户可在确认框或设置中改用 Base。
+ * 首次生成 AI 字幕推荐多语种质量更好的 Small；用户已选的有效模型继续保留。
+ * 非法配置仍由 normalizer 回退到 Tiny，与首次推荐分开，避免隐式迁移。
  */
-export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptionModel = 'tiny';
+export const VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL: VideoLocalTranscriptionModel = 'small';
 
 export function getVideoLocalTranscriptionModelId(value: unknown): string {
   const model = normalizeVideoLocalTranscriptionModel(value);
@@ -64,12 +103,28 @@ export function getVideoLocalTranscriptionDownloadBytes(value: unknown): number 
   return VIDEO_LOCAL_TRANSCRIPTION_MODELS.find((item) => item.value === model)!.downloadSizeMb * 1_000_000;
 }
 
+/** 生成循环的协作停止上限；实际墙钟终止由独立的 Offscreen Worker owner 执行。 */
+export function getVideoLocalTranscriptionInferenceTimeoutMs(value: unknown): number {
+  return normalizeVideoLocalTranscriptionModel(value) === 'small' ? 60_000 : 15_000;
+}
+
+/** Worker 请求含自动语言检测；首轮分配一半预算，超时后由 owner 终止线程。 */
+export function getVideoLocalTranscriptionWorkerTimeoutMs(value: unknown): number {
+  return normalizeVideoLocalTranscriptionModel(value) === 'small' ? 180_000 : 32_000;
+}
+
+/** 外层消息请求的最终墙钟预算；留出 Worker 调度和失败恢复的余量。 */
+export function getVideoLocalTranscriptionRequestTimeoutMs(value: unknown): number {
+  return normalizeVideoLocalTranscriptionModel(value) === 'small' ? 200_000 : 40_000;
+}
+
 /** 拒绝解码循环产生的长串重复字/短语；正常叠词、强调和短句重复仍可保留。 */
 export function isDegenerateVideoTranscript(value: unknown): boolean {
   if (typeof value !== 'string') return false;
   const compact = value.replace(/<\|[^|]+\|>/gu, '').replace(/[\s\p{P}\p{S}]/gu, '');
-  if (/([\p{L}\p{N}])\1{15,}/u.test(compact)) return true;
-  const repeated = compact.match(/([\p{L}\p{N}]{2,24})\1{5,}/u);
+  // 元音/重音等附着标记属于同一个书写字符，不能让带标记的循环绕过保护。
+  if (/([\p{L}\p{N}]\p{M}*)\1{15,}/u.test(compact)) return true;
+  const repeated = compact.match(/([\p{L}\p{N}\p{M}]{2,24})\1{5,}/u);
   return Boolean(repeated && repeated[0].length >= 48);
 }
 

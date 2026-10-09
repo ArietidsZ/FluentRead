@@ -56,11 +56,53 @@ function requestVideoWorker(kind: 'transcribe' | 'prepare', streamId: string, mo
         : prepareLocalVideoTranscriptionModel(model, {keepWarm: true, streamId});
 }
 
-function completeWorker(worker: FakeWorker, model: 'tiny' | 'base' = 'tiny'): void {
+function completeWorker(worker: FakeWorker, model: 'tiny' | 'base' | 'small' = 'tiny'): void {
     worker.reply({requestId: worker.messages.at(-1).requestId, success: true, text: 'budget result', segments: [], model, backend: 'wasm'});
 }
 
 describe('video AI offscreen queue', () => {
+    it('Small automatic recognition survives a 76.55-second first attempt without a duplicate Worker', async () => {
+        vi.useFakeTimers();installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'small-long-first', audioPcm16Base64: audio, model: 'small'});
+        await drain();
+        const worker = FakeWorker.instances[0];
+        await vi.advanceTimersByTimeAsync(76_551);
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(worker.terminated).toBe(false);
+        completeWorker(worker, 'small');
+        await expect(pending).resolves.toMatchObject({model: 'small'});
+        await cancelLocalVideoTranscription('small-long-first');
+    });
+    it('Small remains bounded to one 90-second primary and one remaining CPU retry', async () => {
+        vi.useFakeTimers();installWorker();
+        const pending = transcribeLocalVideoAudio({streamId: 'small-total-budget', audioPcm16Base64: audio, model: 'small'});
+        const checked = expect(pending).rejects.toThrow('超过 90 秒');
+        await drain();
+        await vi.advanceTimersByTimeAsync(90_000);
+        expect(FakeWorker.instances).toHaveLength(2);
+        expect(FakeWorker.instances[0].terminated).toBe(true);
+        expect(FakeWorker.instances[1].messages[0].device).toBe('wasm');
+        await vi.advanceTimersByTimeAsync(90_000);
+        await checked;
+        expect(FakeWorker.instances[1].terminated).toBe(true);
+        await cancelLocalVideoTranscription('small-total-budget');
+    });
+    it('Small prepare survives the previous two-minute bound and its loaded Worker can be deleted', async () => {
+        vi.useFakeTimers();installWorker();
+        const preparing = prepareLocalVideoTranscriptionModel('small', {keepWarm: true, streamId: 'small-warm'});
+        await drain();
+        const worker = FakeWorker.instances[0];
+        expect(worker.messages[0]).toMatchObject({model: 'small', type: 'prepare'});
+        await vi.advanceTimersByTimeAsync(120_001);
+        expect(worker.terminated).toBe(false);
+        expect(FakeWorker.instances).toHaveLength(1);
+        worker.reply({requestId: worker.messages.at(-1).requestId, success: true, model: 'small', backend: 'wasm', dtype: 'q4', encoderDtype: 'fp32', decoderDtype: 'q4'});
+        await expect(preparing).resolves.toMatchObject({model: 'small', encoderDtype: 'fp32', decoderDtype: 'q4'});await drain();
+        vi.stubGlobal('caches', {open: async () => ({keys: async () => []})});
+        await removeLocalVideoTranscriptionModel('small');
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('small-warm');
+    });
     it('reuses one worker and resolves a successful transcription', async () => {
         installWorker();
         const pending = transcribeLocalVideoAudio({streamId: 's', audioPcm16Base64: audio, model: 'tiny'});
@@ -69,13 +111,15 @@ describe('video AI offscreen queue', () => {
         const worker = FakeWorker.instances[0];
         expect((worker as any).lastMessage.languageSessionKey).toBe('s');
         const requestId = (worker as any).lastMessage.requestId;
-        worker.reply({requestId, success: true, text: 'hello', segments: [{startMs: 0, endMs: 500, text: 'hello'}], model: 'tiny', inferenceMs: 10});
-        await expect(pending).resolves.toMatchObject({text: 'hello', model: 'tiny'});
+        worker.reply({requestId, success: true, text: 'hello', segments: [{startMs: 0, endMs: 500, text: 'hello'}], model: 'tiny', inferenceMs: 10,
+            detectedLanguage: 'ja', languageConfidence: .82, languageDetectionMs: 3, encoderReuse: true});
+        await expect(pending).resolves.toMatchObject({text: 'hello', model: 'tiny',
+            detectedLanguage: 'ja', languageConfidence: .82, languageDetectionMs: 3, encoderReuse: true});
         const second = transcribeLocalVideoAudio({streamId: 's', audioPcm16Base64: audio, model: 'tiny'});
         await tick();
         expect(FakeWorker.instances).toHaveLength(1);
         FakeWorker.instances[0].reply({requestId: (FakeWorker.instances[0] as any).lastMessage.requestId, success: true, text: '', segments: [], model: 'tiny'});
-        await second;
+        await expect(second).resolves.not.toHaveProperty('detectedLanguage');
         await cancelLocalVideoTranscription('s');
     });
     it('cancel rejects active work and terminates only the worker', async () => {
@@ -370,4 +414,177 @@ it('删除模型拒绝活跃工作并在失败后恢复可用状态', async () =
  await expect(removeLocalVideoTranscriptionModel('tiny')).rejects.toThrow('正在');
  const worker=FakeWorker.instances[0]; worker.reply({requestId:(worker as any).lastMessage.requestId,success:true,text:'hello',segments:[],model:'tiny'});await pending;
  await removeLocalVideoTranscriptionModel('tiny');expect(worker.terminated).toBe(true);
+ await cancelLocalVideoTranscription('loaded');
+});
+
+
+describe('模型预热的有界首音频租期', () => {
+    async function warm(streamId?: string, model: 'tiny' | 'base' = 'tiny'): Promise<FakeWorker> {
+        const preparing = prepareLocalVideoTranscriptionModel(model, {keepWarm: true, streamId});
+        await drain();
+        const worker = FakeWorker.instances.at(-1)!;
+        completeWorker(worker, model);
+        await preparing;
+        await drain();
+        return worker;
+    }
+
+    it('等音频40秒仍复用已准备的Worker，首窗完成后恢复30秒空闲释放', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm('lease-40s', 'base');
+        await vi.advanceTimersByTimeAsync(40_000);
+        expect(worker.terminated).toBe(false);
+        const nonzeroPcm = Buffer.from(new Int16Array(16_000).fill(1310).buffer).toString('base64');
+        const first = transcribeLocalVideoAudio({streamId: 'lease-40s', model: 'base', audioPcm16Base64: nonzeroPcm});
+        await drain();
+        expect(FakeWorker.instances).toHaveLength(1);
+        expect(worker.messages).toHaveLength(2);
+        expect(worker.messages[1].audio[0]).toBeGreaterThan(0);
+        completeWorker(worker, 'base');await first;await drain();
+        await vi.advanceTimersByTimeAsync(29_999);
+        expect(worker.terminated).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-40s');
+    });
+
+    it('租期从prepare成功算起，无首音频90秒后一定释放', async () => {
+        vi.useFakeTimers();installWorker();
+        const preparing = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'lease-deadline'});
+        await drain();
+        const worker = FakeWorker.instances[0];
+        await vi.advanceTimersByTimeAsync(10_000);
+        completeWorker(worker);await preparing;await drain();
+        await vi.advanceTimersByTimeAsync(89_999);
+        expect(worker.terminated).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(worker.terminated).toBe(true);
+        expect(vi.getTimerCount()).toBe(0);
+        await cancelLocalVideoTranscription('lease-deadline');
+    });
+
+    it('同owner重复prepare不会续租，陌生转写/prepare/取消也不延长租期', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm('lease-no-renew');
+        await vi.advanceTimersByTimeAsync(40_000);
+        await expect(transcribeLocalVideoAudio({streamId: 'stranger', model: 'tiny', audioPcm16Base64: audio})).rejects.toThrow('另一个标签页');
+        await expect(prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'stranger'})).rejects.toThrow('另一个标签页');
+        await cancelLocalVideoTranscription('stranger');
+        expect(vi.getTimerCount()).toBe(1);
+        await vi.advanceTimersByTimeAsync(40_000);
+        expect(await warm('lease-no-renew')).toBe(worker);
+        await vi.advanceTimersByTimeAsync(9_999);
+        expect(worker.terminated).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-no-renew');
+    });
+
+    it('陌生stream拒绝不能取消已消费租期后的30秒释放timer', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm('lease-foreign-idle');
+        const first = transcribeLocalVideoAudio({streamId: 'lease-foreign-idle', audioPcm16Base64: audio});
+        await drain();completeWorker(worker);await first;await drain();
+        await vi.advanceTimersByTimeAsync(20_000);
+        await expect(transcribeLocalVideoAudio({streamId: 'foreign-idle', audioPcm16Base64: audio})).rejects.toThrow('另一个标签页');
+        expect(vi.getTimerCount()).toBe(1);
+        await vi.advanceTimersByTimeAsync(10_000);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-foreign-idle');
+    });
+
+    it('首窗提交即消费租期，prepare期间排队的首窗也不能获得新90秒租期', async () => {
+        vi.useFakeTimers();installWorker();
+        const preparing = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'lease-queued-first'});
+        await drain();
+        const worker = FakeWorker.instances[0];
+        const first = transcribeLocalVideoAudio({streamId: 'lease-queued-first', model: 'tiny', audioPcm16Base64: audio});
+        completeWorker(worker);await preparing;await drain();
+        expect(worker.messages).toHaveLength(2);
+        completeWorker(worker);await first;await drain();
+        await warm('lease-queued-first');
+        // 已发生首音频的会话即使再次prepare，也只维持通常的30秒空闲期。
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-queued-first');
+    });
+
+    it.each(['cancel', 'complete'] as const)('owner %s及时结束租期，complete保留通常30秒交接时间', async reason => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm(`lease-${reason}`);
+        await vi.advanceTimersByTimeAsync(40_000);
+        await cancelLocalVideoTranscription(`lease-${reason}`, reason);
+        if (reason === 'cancel') {
+            expect(worker.terminated).toBe(true);
+            expect(vi.getTimerCount()).toBe(0);
+        } else {
+            expect(worker.terminated).toBe(false);
+            await vi.advanceTimersByTimeAsync(30_000);
+            expect(worker.terminated).toBe(true);
+        }
+    });
+
+    it('owner重复prepare失败会结束已有租期，保留Worker仅到通常30秒', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm('lease-failed');
+        await vi.advanceTimersByTimeAsync(20_000);
+        const failing = prepareLocalVideoTranscriptionModel('tiny', {keepWarm: true, streamId: 'lease-failed'});
+        await drain();
+        worker.reply({requestId: worker.messages.at(-1).requestId, success: false, error: 'prepare failed'});
+        await expect(failing).rejects.toThrow('prepare failed');await drain();
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-failed');
+    });
+
+    it('首窗失败同样消费租期，不把错误会话保温到90秒', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm('lease-invalid-pcm');
+        await expect(transcribeLocalVideoAudio({streamId: 'lease-invalid-pcm', audioPcm16Base64: 'AA=='})).rejects.toThrow('PCM');
+        await drain();await vi.advanceTimersByTimeAsync(30_000);
+        expect(worker.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-invalid-pcm');
+    });
+
+    it('换模型释放旧租期与Worker，新模型的首次租期独立计算', async () => {
+        vi.useFakeTimers();installWorker();
+        const previous = await warm('lease-model');
+        await vi.advanceTimersByTimeAsync(10_000);
+        const next = await warm('lease-model', 'base');
+        expect(previous.terminated).toBe(true);
+        expect(next).not.toBe(previous);
+        await vi.advanceTimersByTimeAsync(89_999);
+        expect(next.terminated).toBe(false);
+        await vi.advanceTimersByTimeAsync(1);
+        expect(next.terminated).toBe(true);
+        await cancelLocalVideoTranscription('lease-model');
+    });
+
+    it.each(['tiny', 'base'] as const)('删除%s模型结束首窗租期，未删除的Worker仍按30秒释放', async removedModel => {
+        vi.useFakeTimers();installWorker();
+        vi.stubGlobal('caches', {open: async () => ({keys: async () => []})});
+        const worker = await warm('lease-remove');
+        await removeLocalVideoTranscriptionModel(removedModel);
+        if (removedModel === 'tiny') expect(worker.terminated).toBe(true);
+        else {
+            expect(worker.terminated).toBe(false);
+            await vi.advanceTimersByTimeAsync(30_000);
+            expect(worker.terminated).toBe(true);
+        }
+        expect(vi.getTimerCount()).toBe(0);
+        await cancelLocalVideoTranscription('lease-remove');
+    });
+
+    it('无owner预热保持原30秒，纯缓存准备不会创建Worker或首窗租期', async () => {
+        vi.useFakeTimers();installWorker();
+        const worker = await warm();
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(worker.terminated).toBe(true);
+        vi.stubGlobal('caches', {open: async () => ({match: async () => new Response(null)})});
+        await expect(prepareLocalVideoTranscriptionModel('tiny', {streamId: 'not-warm-owner'})).resolves.toMatchObject({dtype: 'q4'});
+        await drain();
+        expect(FakeWorker.instances).toHaveLength(1);
+        await vi.advanceTimersByTimeAsync(30_000);
+        expect(vi.getTimerCount()).toBe(0);
+    });
 });

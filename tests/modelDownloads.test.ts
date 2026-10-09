@@ -22,9 +22,35 @@ describe('model download source and stream boundaries', () => {
             'https://huggingface.co/onnx-community/whisper-tiny/resolve/main/config.json',
             'https://hf-mirror.com/onnx-community/whisper-tiny/resolve/main/config.json',
             'https://hf-mirror.net/onnx-community/whisper-tiny/resolve/main/config.json']);
+        const small = 'https://modelscope.cn/models/onnx-community/whisper-small/resolve/master/onnx/encoder_model.onnx';
+        expect(modelDownloadSources(small)[1]).toBe('https://huggingface.co/onnx-community/whisper-small/resolve/main/onnx/encoder_model.onnx');
         for (const other of ['https://example.com/model', 'https://modelscope.cn/models/other/model/resolve/master/config.json', 'https://modelscope.cn/other']) {
             expect(modelDownloadSources(other)).toEqual([other]);
         }
+    });
+    it('bounds declared and streamed file sizes and rejects invalid bounds before fetching', async () => {
+        const fetched = vi.fn();vi.stubGlobal('fetch', fetched);
+        for (const maxBytes of [0, -1, Number.NaN, 1.5]) {
+            await expect(withModelDownload(url, response => response.text(), {maxBytes})).rejects.toThrow('上限无效');
+        }
+        expect(fetched).not.toHaveBeenCalled();
+        const cancel = vi.fn();
+        fetched.mockResolvedValueOnce(new Response(new ReadableStream({cancel}), {headers: {'Content-Length': '11'}}));
+        await expect(withModelDownload('https://example.com/model', response => response.text(), {maxBytes: 10})).rejects.toThrow('大小上限');
+        expect(cancel).toHaveBeenCalledOnce();
+        const stream = () => new ReadableStream<Uint8Array>({start(controller) {controller.enqueue(new Uint8Array([1, 2]));controller.enqueue(new Uint8Array([3, 4]));controller.close();}});
+        fetched.mockResolvedValueOnce(new Response(stream()));
+        await expect(withModelDownload('https://example.com/model', response => response.arrayBuffer(), {maxBytes: 3})).rejects.toThrow('大小上限');
+        fetched.mockResolvedValueOnce(new Response(stream(), {headers: {'Content-Encoding': 'gzip', 'Content-Length': '2'}}));
+        expect((await withModelDownload('https://example.com/model', response => response.arrayBuffer(), {maxBytes: 4})).byteLength).toBe(4);
+    });
+    it('truncated declared bodies fall back and never count as a complete file', async () => {
+        vi.stubGlobal('navigator', {language: 'en-US'});
+        const fetched = vi.fn().mockResolvedValueOnce(new Response('cut', {headers: {'Content-Length': '10'}}))
+            .mockResolvedValueOnce(new Response('whole', {headers: {'Content-Length': '5'}}));
+        vi.stubGlobal('fetch', fetched);
+        await expect(withModelDownload(url, response => response.text(), {maxBytes: 10})).resolves.toBe('whole');
+        expect(fetched).toHaveBeenCalledTimes(2);
     });
     it('streams through cache, keeps source headers, and never buffers or copies the whole model', async () => {
         const original = new Response(new Uint8Array([1,2,3]), {headers: {'Content-Type':'application/octet-stream'}});

@@ -1,16 +1,19 @@
 /**
  * @file src/features/video-subtitle/offscreen/transcription.worker.ts
  * 文件职责：运行独立的 Whisper ONNX Worker，复用模型 session 并执行受限时长的本地音频推理。
- * 主要内容：配置 WASM/WebGPU 后端、串行处理请求、复用有界线程与计算间歇，线程失效请求单线程重建，跳过数字静音并恢复裁剪偏移，跨音频窗确认自动语言，对解码重复进行一次受限重试并拒绝损坏字幕。
+ * 主要内容：配置 WASM/WebGPU 和分模块精度、串行复用模型，每窗检测语言并共享编码，跳过数字静音、恢复裁剪偏移并拒绝异常重复。生成计时器协作停止解码；独立 Offscreen owner 的墙钟超时负责终止 Worker，同线程计时器不保证原生算子中的实时中断。
  * 模块边界：只运行模型与 Worker 消息循环，不访问页面 DOM、后台消息或共享 Offscreen 业务状态。
  */
 import {forceSingleThreadInference, localWasmThreads, paceLocalInference, paceLocalInitialization} from '@/src/shared/onnx/resources';
 import { env, InterruptableStoppingCriteria, pipeline, Tensor } from '@huggingface/transformers';
 import {
   getVideoLocalTranscriptionModelId,
+  getVideoLocalTranscriptionInferenceTimeoutMs,
   normalizeVideoLocalTranscriptionModel,
   isDegenerateVideoTranscript,
   prepareWhisperAudioWindow,
+  type VideoAiRecognitionMetadata,
+  type VideoAiModelDtype,
 } from '@/src/features/video-subtitle/transcription';
 import {
   VIDEO_AI_MODEL_REMOTE_HOST,
@@ -21,6 +24,7 @@ import {parseWhisperChunkTimestamps} from './timestampParser';
 import {buildWhisperTranscriptionGenerationOptions, chooseWhisperSourceLanguage, normalizeWhisperSourceLanguage, type WhisperDetectedLanguage} from './transcriptionOptions';
 import {configureOnnxWasmBackend, withCompressedWasmBinary} from '@/src/shared/onnx/wasmBinary';
 import {probeWebGpu} from '@/src/shared/onnx/webgpu';
+import {prepareWhisperEncoderReuse, withWhisperStoppingCriteria, type WhisperEncoderReuse, type WhisperEncoderReuseModel} from './whisperEncoderReuse';
 
 type LocalTranscriber = ((
   audio: Float32Array,
@@ -28,8 +32,8 @@ type LocalTranscriber = ((
 ) => Promise<unknown>) & {
   dispose?: () => Promise<void>;
   processor?: (audio: Float32Array) => Promise<Record<string, unknown>>;
-  model?: ((inputs: Record<string, unknown>) => Promise<{logits?: {data: ArrayLike<number>; dims?: readonly number[]}}>) & {
-    config?: {is_multilingual?: unknown; decoder_start_token_id?: unknown};
+  model?: ((inputs: Record<string, unknown>) => Promise<{logits?: {data: ArrayLike<number>; dims?: readonly number[]}}>) & WhisperEncoderReuseModel & {
+    config?: {model_type?: unknown; is_encoder_decoder?: unknown; is_multilingual?: unknown; decoder_start_token_id?: unknown};
     generation_config?: {is_multilingual?: unknown; decoder_start_token_id?: unknown; lang_to_id?: unknown};
   };
 };
@@ -42,7 +46,7 @@ interface LocalVideoTranscriptionSegment {
   text: string;
 }
 
-interface WorkerTranscriptionResult {
+interface WorkerTranscriptionResult extends VideoAiRecognitionMetadata {
   text: string;
   segments: LocalVideoTranscriptionSegment[];
   model: string;
@@ -80,18 +84,14 @@ let transcriberBackend: LocalTranscriptionBackend | '' = '';
 let transcriberGpuInfo = '';
 let transcriberThreads = 1;
 let transcriberDtype: 'q4' | 'q8' | '' = '';
+let transcriberEncoderDtype: VideoAiModelDtype | '' = '';
 let wasmRuntimeThreads: number | null = null;
 let webGpuProbePromise: Promise<{available: boolean; info: string}> | null = null;
 let webGpuProbeInfo = '';
 let webGpuDisabled = false;
 let workerTaskQueue: Promise<void> = Promise.resolve();
-const detectedLanguages = new Map<string, {language: string; confirmed: boolean}>();
-const MAX_DETECTED_LANGUAGE_SESSIONS = 16;
-const MIN_LANGUAGE_CONFIDENCE = 0.8;
-const MIN_LANGUAGE_CONFIRMATION_SAMPLES = 3 * 16_000;
 
 const MAX_WHISPER_AUDIO_SECONDS = 30;
-const MAX_REALTIME_INFERENCE_MS = 15_000;
 const ENABLE_VIDEO_WHISPER_WEBGPU = true;
 
 function configureEnvironment(): void {
@@ -165,7 +165,7 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
         executionMode: 'sequential',
       },
       device: 'wasm',
-      dtype,
+      dtype: model === 'small' ? {encoder_model: 'fp32', decoder_model_merged: dtype} : dtype,
       revision: 'master',
     }) as unknown as Promise<LocalTranscriber>;
     const wasm = env.backends.onnx.wasm;
@@ -173,12 +173,15 @@ async function createWasmTranscriber(modelId: string, model: ReturnType<typeof n
       ? withCompressedWasmBinary(wasm, extensionUrl('fluent-read-ai/ort-wasm-simd-threaded.asyncify.wasm'), createPipeline)
       : createPipeline());
     transcriberDtype = dtype;
+    transcriberEncoderDtype = model === 'small' ? 'fp32' : dtype;
     return transcriber;
   };
 
   try {
     return await create('q4');
   } catch (q4Error) {
+    // Small 的质量档位固定 FP32 encoder/q4 decoder；失败不偷偷下载另一整组精度。
+    if (model === 'small') throw q4Error;
     console.warn('[FluentRead] Worker WASM/q4 Whisper 初始化失败，退回 WASM/q8', q4Error);
     // q8 是真实 fallback；先写入同一 Cache Storage，后续重建 worker 不会再次下载。
     await cacheVideoAiQ8ModelFiles(model);
@@ -200,7 +203,7 @@ async function createLocalTranscriber(
           executionMode: 'sequential',
         },
         device: 'webgpu',
-        dtype: 'q4',
+        dtype: model === 'small' ? {encoder_model: 'fp32', decoder_model_merged: 'q4'} : 'q4',
         revision: 'master',
       }) as unknown as Promise<LocalTranscriber>;
       const wasm = env.backends.onnx.wasm;
@@ -209,6 +212,7 @@ async function createLocalTranscriber(
         : createPipeline());
       transcriberBackend = 'webgpu';
       transcriberDtype = 'q4';
+      transcriberEncoderDtype = model === 'small' ? 'fp32' : 'q4';
       transcriberGpuInfo = webGpuProbeInfo;
       transcriberThreads = 0;
       console.info('[FluentRead] 本地视频 Worker 使用 WebGPU/q4 推理', transcriberGpuInfo);
@@ -223,6 +227,7 @@ async function createLocalTranscriber(
       transcriberBackend = '';
       transcriberGpuInfo = '';
       transcriberDtype = '';
+      transcriberEncoderDtype = '';
       console.warn('[FluentRead] Worker WebGPU Whisper 初始化失败，请求 fresh WASM Worker', error);
       throw new WebGpuFallbackError(error);
     }
@@ -242,7 +247,6 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
   if (transcriberPromise && transcriberModelId === modelId) return transcriberPromise;
 
   if (transcriberPromise && transcriberModelId !== modelId) {
-    detectedLanguages.clear();
     const previousPromise = transcriberPromise;
     transcriberPromise = null;
     transcriberModelId = '';
@@ -256,12 +260,12 @@ async function getLocalTranscriber(model: unknown): Promise<LocalTranscriber> {
 
   transcriberModelId = modelId;
   transcriberPromise = createLocalTranscriber(modelId, normalizedModel).catch((error) => {
-    detectedLanguages.clear();
     transcriberPromise = null;
     transcriberModelId = '';
     transcriberBackend = '';
     transcriberGpuInfo = '';
     transcriberDtype = '';
+    transcriberEncoderDtype = '';
     throw error;
   });
   return transcriberPromise;
@@ -279,7 +283,7 @@ async function runModelInference<T>(operation: () => Promise<T>): Promise<T> {
 async function detectWhisperSourceLanguage(
   transcriber: LocalTranscriber,
   audio: Float32Array,
-): Promise<WhisperDetectedLanguage | null> {
+): Promise<{detected: WhisperDetectedLanguage; encoder: WhisperEncoderReuse | null} | null> {
   const processor = transcriber.processor;
   const model = transcriber.model;
   const generationConfig = model?.generation_config;
@@ -306,15 +310,21 @@ async function detectWhisperSourceLanguage(
     Object.values(value).forEach((child) => disposeTensorTree(child, seen));
   };
   let output: {logits?: {data: ArrayLike<number>; dims?: readonly number[]}} | undefined;
+  let encoder: WhisperEncoderReuse | null = null;
   try {
-    output = await runModelInference(() => model({...processed, decoder_input_ids: decoderInputIds}));
+    encoder = await runModelInference(() => prepareWhisperEncoderReuse(model, processed, env.version));
+    output = await runModelInference(() => model({...processed, ...encoder?.modelInputs, decoder_input_ids: decoderInputIds}));
     const detected = chooseWhisperSourceLanguage(output.logits, {isMultilingual, langToId});
     if (!detected) throw new Error('Whisper 首步没有可用的语言 token logits');
-    return detected;
+    return {detected, encoder};
+  } catch (error) {
+    encoder?.dispose();
+    throw error;
   } finally {
     // A direct model forward bypasses pipeline's normal generation cleanup;
     // release logits, KV tensors and processed features immediately after the
-    // single language-token step to avoid retaining a full encoder window.
+    // single language-token step. The explicit shared encoder remains owned
+    // by this request until generation's finally, never by the language cache.
     disposeTensorTree(output);
     disposeTensorTree(processed);
     decoderInputIds.dispose?.();
@@ -323,26 +333,14 @@ async function detectWhisperSourceLanguage(
 
 async function resolveWhisperSourceLanguage(
   transcriber: LocalTranscriber,
-  request: WorkerRequest,
   audio: Float32Array,
-): Promise<string> {
-  const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
-  const cacheKey = sessionKey ? `${transcriberModelId}:${sessionKey}` : '';
-  const previous = cacheKey ? detectedLanguages.get(cacheKey) : undefined;
-  if (previous?.confirmed) return previous.language;
-  const detected = await detectWhisperSourceLanguage(transcriber, audio);
-  if (!detected) throw new Error('无法自动检测本地视频音频语言，请在视频字幕设置中选择源语言后重试');
-  if (cacheKey && detected.confidence >= MIN_LANGUAGE_CONFIDENCE && audio.length >= MIN_LANGUAGE_CONFIRMATION_SAMPLES) {
-    if (detectedLanguages.size >= MAX_DETECTED_LANGUAGE_SESSIONS) {
-      const oldest = detectedLanguages.keys().next().value;
-      if (typeof oldest === 'string') detectedLanguages.delete(oldest);
-    }
-    // 首窗可能是音乐、片头或模糊人声；至少两个足够长的窗一致后才固定全片语言。
-    detectedLanguages.set(cacheKey, {language: detected.language, confirmed: previous?.language === detected.language});
-  } else if (cacheKey) {
-    detectedLanguages.delete(cacheKey);
-  }
-  return detected.language;
+): Promise<{language: string; confidence: number; detectionMs: number; encoder: WhisperEncoderReuse | null}> {
+  const detectionStartedAt = performance.now();
+  const detection = await detectWhisperSourceLanguage(transcriber, audio);
+  if (!detection) throw new Error('无法自动检测本地视频音频语言，请在视频字幕设置中选择源语言后重试');
+  const {detected, encoder} = detection;
+  // 混合语种视频可能在任意窗口切换；置信度只描述当前窗口，不永久锁定后续音频。
+  return {language: detected.language, confidence: detected.confidence, detectionMs: performance.now() - detectionStartedAt, encoder};
 }
 
 function cleanTranscriptText(value: unknown): string {
@@ -358,16 +356,16 @@ async function transcribeAudioOnce(
   generationAudioSeconds = boundedAudio.length / 16_000,
 ): Promise<WorkerTranscriptionResult> {
   const transcriber = await getLocalTranscriber(model);
-  const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
-  const effectiveSourceLanguage = explicitSourceLanguage
-    || await resolveWhisperSourceLanguage(transcriber, request, boundedAudio);
-  // Sentence timestamps consume decoder tokens too. Full-generation windows
-  // are bounded (Tiny ~10s / Base ~14s); the old 96/128 cap made Whisper
-  // spend too long decoding silence/repetition after the useful sentence had
-  // already ended. Keep enough room for timestamps, but stop earlier.
-  const stoppingCriteria = new InterruptableStoppingCriteria();
   const inferenceStartedAt = performance.now();
-  const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), MAX_REALTIME_INFERENCE_MS);
+  const explicitSourceLanguage = normalizeWhisperSourceLanguage(request.sourceLanguage);
+  const languageDetection = explicitSourceLanguage ? undefined
+    : await resolveWhisperSourceLanguage(transcriber, boundedAudio);
+  const effectiveSourceLanguage = explicitSourceLanguage || languageDetection!.language;
+  // 正文、timestamp 和 EOS 共用 decoder 预算。Base/Small 保留多字节语言所需容量；
+  // Tiny 使用已验证的有界时长预算，所有模型仍受独立停止条件约束。
+  const stoppingCriteria = new InterruptableStoppingCriteria();
+  const inferenceTimeoutMs = getVideoLocalTranscriptionInferenceTimeoutMs(model);
+  const timeout = self.setTimeout(() => stoppingCriteria.interrupt(), inferenceTimeoutMs);
   let output: { text?: unknown; chunks?: unknown };
   try {
     const options = buildWhisperTranscriptionGenerationOptions(model, effectiveSourceLanguage, generationAudioSeconds, stoppingCriteria);
@@ -375,21 +373,31 @@ async function transcribeAudioOnce(
       options.no_repeat_ngram_size = 4;
       options.repetition_penalty = 1.15;
     }
-    output = await runModelInference(() => transcriber(boundedAudio, options)) as { text?: unknown; chunks?: unknown };
+    const operation = (generationOptions: Record<string, unknown>) => withWhisperStoppingCriteria(
+      transcriber.model, stoppingCriteria, env.version,
+      () => runModelInference(() => transcriber(boundedAudio, generationOptions)),
+    );
+    output = await (languageDetection?.encoder
+      ? languageDetection.encoder.transcribe(options, operation)
+      : operation(options)) as { text?: unknown; chunks?: unknown };
   } finally {
     self.clearTimeout(timeout);
+    languageDetection?.encoder?.dispose();
   }
   if (stoppingCriteria.interrupted) {
-    const error = new Error(`本地视频 AI 推理超过 ${MAX_REALTIME_INFERENCE_MS / 1000} 秒`);
+    const error = new Error(`本地视频 AI 推理超过 ${inferenceTimeoutMs / 1000} 秒`);
     throw transcriberBackend === 'webgpu' ? new WebGpuFallbackError(error) : error;
   }
 
   if (isDegenerateVideoTranscript(output?.text) || (Array.isArray(output?.chunks)
     && output.chunks.some(chunk => isDegenerateVideoTranscript(chunk?.text)))) {
-    const sessionKey = typeof request.languageSessionKey === 'string' ? request.languageSessionKey.trim() : '';
-    if (sessionKey) detectedLanguages.delete(`${transcriberModelId}:${sessionKey}`);
-    if (!retryDegenerate) return transcribeAudioOnce(request, model, boundedAudio, true, generationAudioSeconds);
-    throw new Error('AI 字幕识别出现异常重复，请在视频设置中指定原语言或改用 Base 模型后重新识别');
+    if (!retryDegenerate) {
+      const retried = await transcribeAudioOnce(request, model, boundedAudio, true, generationAudioSeconds);
+      retried.inferenceMs = performance.now() - inferenceStartedAt;
+      if (languageDetection) retried.languageDetectionMs = languageDetection.detectionMs + (retried.languageDetectionMs || 0);
+      return retried;
+    }
+    throw new Error('AI 字幕识别出现异常重复，请确认有人声并重新识别，或尝试其他模型');
   }
 
   const audioDurationMs = boundedAudio.length / 16;
@@ -409,6 +417,12 @@ async function transcribeAudioOnce(
     audioDurationMs,
     threads: transcriberBackend === 'wasm' ? transcriberThreads : undefined,
     dtype: transcriberDtype || undefined,
+    encoderDtype: transcriberEncoderDtype || undefined,
+    decoderDtype: transcriberDtype || undefined,
+    detectedLanguage: languageDetection?.language,
+    languageConfidence: languageDetection?.confidence,
+    languageDetectionMs: languageDetection?.detectionMs,
+    encoderReuse: languageDetection ? Boolean(languageDetection.encoder) : undefined,
   };
   return result;
 }
@@ -433,7 +447,7 @@ async function transcribeAudio(request: WorkerRequest): Promise<WorkerTranscript
   }
 
   try {
-    // 静音裁剪不缩减原窗 token 预算，短促但快速的对白仍有足够解码空间。
+    // 保留原窗时长作为 generation 参数，静音裁剪不改变完整窗的时间基准。
     const result = await transcribeAudioOnce(request, model, prepared.audio, false, boundedAudio.length / 16_000);
     const segments = result.segments.map(segment => ({
       ...segment,
@@ -459,10 +473,10 @@ async function disposeTranscriber(): Promise<void> {
   const current = transcriberPromise;
   transcriberPromise = null;
   transcriberModelId = '';
-  detectedLanguages.clear();
   transcriberBackend = '';
   transcriberGpuInfo = '';
   transcriberDtype = '';
+  transcriberEncoderDtype = '';
   transcriberThreads = wasmRuntimeThreads ?? 1;
   try {
     const transcriber = current ? await current : null;
@@ -507,6 +521,8 @@ workerScope.onmessage = (event) => {
           gpuInfo: transcriberGpuInfo || undefined,
           threads: transcriberBackend === 'wasm' ? transcriberThreads : undefined,
           dtype: transcriberDtype || undefined,
+          encoderDtype: transcriberEncoderDtype || undefined,
+          decoderDtype: transcriberDtype || undefined,
         });
         return;
       }

@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
  * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
- * 主要内容：模型卡片作为唯一选择入口，保留推荐、Tiny/Base 状态和真实进度条、百分比及已下载体积，同步播放器发起的下载；各模型命令状态独立，命令结束重读权威缓存，区分读取与命令错误；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
+ * 主要内容：模型卡片作为唯一选择入口，呈现 Tiny/Base/Small 的质量、体积、推荐与真实下载进度，同步播放器发起的下载；各模型命令状态独立，命令结束重读权威缓存，区分读取与命令错误；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
  * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载权重或操作网页播放器；下载进度只读取后台转存的变化事件。
  -->
 <template>
@@ -9,7 +9,7 @@
     <div class="video-model-download-heading">
       <div>
         <h3 id="video-model-management-title">本地 AI 字幕模型</h3>
-        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成' : '一般选择 Tiny；语音不清楚时可换 Base' }}</p>
+        <p class="video-model-status" role="status">{{ !modelStateLoaded ? '正在读取模型状态…' : downloaded.includes(config.videoLocalModel) ? '当前模型已下载，可直接生成' : t('video.modelChoiceHint') }}</p>
       </div>
       <span class="video-model-local-badge"><Cpu aria-hidden="true" />本地运行</span>
     </div>
@@ -41,7 +41,7 @@
         </div>
       </article>
     </div>
-    <p class="video-model-guidance">支持桌面版 Chrome、Edge 和 Firefox，首次下载需联网，识别速度取决于 CPU 和内存</p>
+    <p class="video-model-guidance">{{ t('video.modelDeviceHint') }}</p>
     <p v-if="downloadError || modelReadError" class="video-model-error" role="alert">{{ downloadError || modelReadError }}</p>
   </section>
   <section class="video-ai-cache-panel" data-video-ai-cache aria-labelledby="video-ai-cache-title">
@@ -87,10 +87,17 @@ const props = withDefaults(defineProps<{config: Config; active?: boolean; contex
 const config = computed(() => props.config);
 const {active, capture, revision} = useSettingsActionContext(() => props.active, () => [props.config, props.context]);
 const modelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
+const modelCopy: Record<VideoLocalTranscriptionModel, [string, string]> = {
+  tiny: ['video.modelTinyName', 'video.modelTinyHint'],
+  base: ['video.modelBaseName', 'video.modelBaseHint'],
+  small: ['video.modelSmallName', 'video.modelSmallHint'],
+};
 const modelCards = computed(() => {
   const current = capture(), target = props.config;
   return modelOptions.map(item => ({
     ...item,
+    label: t(modelCopy[item.value][0]),
+    description: t(modelCopy[item.value][1]),
     selection: computed({get: () => target.videoLocalModel, set: (value: VideoLocalTranscriptionModel) => selectModel(value, current, target)}),
     choose: () => selectModel(item.value, current, target),
     download: () => {

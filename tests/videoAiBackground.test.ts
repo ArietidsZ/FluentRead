@@ -17,6 +17,13 @@ const context = (id: number) => ({sender: {tab: {id}}});
 const find = (handlers: readonly {type: string; handle: Function}[], type: string) => handlers.find((item) => item.type === type)!;
 
 describe('video subtitle background ownership', () => {
+    it.each([
+        ['tiny', 'tiny', 40_000], ['base', 'base', 40_000], ['small', 'small', 200_000], ['unknown', 'tiny', 40_000],
+    ])('transcription request %s uses its bounded model budget without enlarging invalid models', async (model, normalized, timeoutMs) => {
+        const {handlers, offscreen} = setup({success: true, text: 'bounded result'});
+        await find(handlers, 'fluentReadTranscribeLocalVideoAudio').handle({model, streamId: 'budget', generation: 1, audioPcm16Base64: 'AAAAAA=='}, context(1));
+        expect(offscreen.send).toHaveBeenCalledWith(expect.objectContaining({type: 'VIDEO_AI_TRANSCRIBE', model: normalized}), expect.objectContaining({timeoutMs, cancelMessage: expect.objectContaining({type: 'VIDEO_AI_CANCEL'})}));
+    });
     it('cache prepare does not require stream/generation', async () => {
         const {handlers, storage} = setup();
         const result = await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny', keepWarm: false}, context(1));
@@ -26,7 +33,7 @@ describe('video subtitle background ownership', () => {
     it('returns normalized downloaded model state through a background-only query', async () => {
         const {handlers} = setup();
         const result = await find(handlers, 'fluentReadGetLocalVideoModelState').handle({type: 'fluentReadGetLocalVideoModelState'}, context(1));
-        expect(result).toEqual({success: true, models: [], available: {tiny: false, base: false}});
+        expect(result).toEqual({success: true, models: [], available: {tiny: false, base: false, small: false}});
     });
 
     it('serializes concurrent cache writes so Tiny and Base state are merged', async () => {
@@ -41,19 +48,36 @@ describe('video subtitle background ownership', () => {
         };
         const handlers = createVideoSubtitleBackgroundHandlers({offscreen, storage});
         const prepare = find(handlers, 'fluentReadPrepareLocalVideoModel');
-        const [tiny, base] = await Promise.all([
+        const [tiny, base, small] = await Promise.all([
             prepare.handle({model: 'tiny'}, context(1)),
             prepare.handle({model: 'base'}, context(1)),
+            prepare.handle({model: 'small'}, context(1)),
         ]);
         expect(tiny.models).toEqual(['tiny']);
         expect(base.models).toEqual(['tiny', 'base']);
-        expect(stored.fluentReadVideoLocalTranscriptionModels).toEqual(['tiny', 'base']);
+        expect(small.models).toEqual(['tiny', 'base', 'small']);
+        expect(stored.fluentReadVideoLocalTranscriptionModels).toEqual(['tiny', 'base', 'small']);
     });
-    it('does not mark failed prepare as downloaded', async () => {
+    it.each(['tiny', 'small'])('does not mark failed %s prepare as downloaded', async model => {
         const {handlers, storage} = setup({success: false, error: 'failed'});
-        const result = await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({type: 'fluentReadPrepareLocalVideoModel', model: 'tiny'}, context(1));
+        const result = await find(handlers, 'fluentReadPrepareLocalVideoModel').handle({type: 'fluentReadPrepareLocalVideoModel', model}, context(1));
         expect(result.success).toBe(false);
         expect(storage.set).not.toHaveBeenCalled();
+    });
+    it('Small prepares use ten minutes, expose availability, and delete only their state receipt', async () => {
+        const state: Record<string, unknown> = {fluentReadVideoLocalTranscriptionModels: ['tiny', 'base']};
+        const {offscreen} = setup();
+        const storage = {get: async () => ({...state}), set: async (value: Record<string, unknown>) => {Object.assign(state, value);}};
+        const handlers = createVideoSubtitleBackgroundHandlers({offscreen: offscreen as any, storage});
+        const prepare = find(handlers, 'fluentReadPrepareLocalVideoModel');
+        await prepare.handle({model: 'small'}, context(1));
+        expect(offscreen.send).toHaveBeenLastCalledWith(expect.objectContaining({model: 'small', keepWarm: false}), {timeoutMs: 600_000});
+        await expect(find(handlers, 'fluentReadGetLocalVideoModelState').handle({}, context(1))).resolves.toMatchObject({available: {tiny: true, base: true, small: true}});
+        await prepare.handle({model: 'small', keepWarm: true, streamId: 'small-owner', generation: 1}, context(1));
+        expect(offscreen.send).toHaveBeenLastCalledWith(expect.objectContaining({model: 'small', keepWarm: true}), expect.objectContaining({timeoutMs: 600_000}));
+        await find(handlers, 'fluentReadCancelLocalVideoTranscription').handle({streamId: 'small-owner', generation: 1}, context(1));
+        await expect(find(handlers, 'fluentReadRemoveLocalVideoModel').handle({model: 'small'})).resolves.toMatchObject({models: ['tiny', 'base']});
+        expect(offscreen.send).toHaveBeenLastCalledWith({type: 'VIDEO_AI_REMOVE_MODEL', model: 'small'}, {timeoutMs: 30_000});
     });
     it('rejects another tab while an owner is warm', async () => {
         const {handlers} = setup();

@@ -1,10 +1,10 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/capture.ts
  * 文件职责：驱动 X 视频实时 AI 字幕的 PCM 采集、滚动窗口提交与会话失效。
- * 主要内容：协调 AudioContext、暂停/seek/ratechange 生命周期、播放器时钟连续性和迟到识别结果。
+ * 主要内容：协调 AudioContext、暂停/seek/ratechange 生命周期、播放器时钟连续性和迟到识别结果，保留实际语言检测与推理诊断。
  * 模块边界：只管理实时捕获状态和音频窗口，不负责页面控件、字幕 DOM 或翻译缓存。
  */
-import { normalizeVideoLocalTranscriptionModel } from '@/src/features/video-subtitle/transcription';
+import { getVideoLocalTranscriptionRequestTimeoutMs, normalizeVideoLocalTranscriptionModel, type VideoAiRecognitionMetadata } from '@/src/features/video-subtitle/transcription';
 import {
   getVideoAiAdaptiveSubmitStepMs,
   getVideoAiStreamProfile,
@@ -37,7 +37,7 @@ export interface VideoAiTranscriptionSegment {
   text?: string;
 }
 
-export interface VideoAiTranscriptionResult {
+export interface VideoAiTranscriptionResult extends VideoAiRecognitionMetadata {
   text?: string;
   segments?: VideoAiTranscriptionSegment[];
   /** 当 offscreen 正在处理另一条流时，旧请求被丢弃；这不是识别错误。 */
@@ -319,7 +319,7 @@ export class VideoAiCaptureController {
    */
   pause(): void {
     if (!this.running) return;
-    const pauseContextMs = normalizeVideoLocalTranscriptionModel(this.options.getModel()) === 'base'
+    const pauseContextMs = normalizeVideoLocalTranscriptionModel(this.options.getModel()) !== 'tiny'
       ? VIDEO_AI_BASE_PAUSE_CONTEXT_MS
       : VIDEO_AI_TINY_PAUSE_CONTEXT_MS;
     const pauseContextSamples = Math.round(pauseContextMs * VIDEO_AI_SAMPLE_RATE / 1_000);
@@ -408,9 +408,9 @@ export class VideoAiCaptureController {
       const session = this.session;
       this.finishingAtEnd = true;
       this.stopAudioGraph();
-      const timeoutMs = normalizeVideoLocalTranscriptionModel(this.options.getModel()) === 'base'
-        ? 5_000
-        : 3_500;
+      const model = normalizeVideoLocalTranscriptionModel(this.options.getModel());
+      const timeoutMs = model === 'small' ? getVideoLocalTranscriptionRequestTimeoutMs(model)
+        : model === 'base' ? 5_000 : 3_500;
       this.endFinalizationTimer = window.setTimeout(() => {
         this.finalizeEndedSession(session);
       }, timeoutMs);

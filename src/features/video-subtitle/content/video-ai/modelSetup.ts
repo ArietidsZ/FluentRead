@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/modelSetup.ts
  * 文件职责：编排首次请求 X 本地 AI 字幕时的模型确认：读取已下载模型，缺失时提供带推荐的模型选择，确认后下载并启动识别。
- * 主要内容：维护检查中、下载中与待确认选择三种状态，下载期间记录后台回报的真实字节进度供菜单显示；默认推荐 Tiny，读取与下载期间的视频、源语言或模型变化会作废旧结果，失败时交给运行时展示错误。
+ * 主要内容：维护检查中、下载中与待确认选择三种状态，下载期间记录后台回报的真实字节进度供菜单显示；推荐多语种质量模型并保留用户现有选择，读取与下载期间的视频、源语言或模型变化会作废旧结果，失败时交给运行时展示错误。
  * 模块边界：只通过注入的消息端口、进度订阅与回调工作，不读写 DOM、配置存储或播放器；菜单渲染、焦点和识别会话由 runtime 与 playerMenu 负责。
  */
 import {
@@ -92,7 +92,7 @@ export function createVideoAiModelSetup(dependencies: VideoAiModelSetupDependenc
                 return;
             }
             if (!canShowChoice()) return;
-            // 已下载的其他模型无需等待下载；否则沿用设置中的模型，默认即推荐的 Tiny。
+            // 已下载的其他模型无需等待下载；否则沿用设置中的模型，不覆盖现有偏好。
             choice = {downloaded, recommended: VIDEO_LOCAL_TRANSCRIPTION_RECOMMENDED_MODEL, selected: downloaded[0] ?? model};
             dependencies.onChange();
         },

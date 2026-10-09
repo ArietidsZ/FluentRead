@@ -248,6 +248,56 @@ afterEach(() => {
 });
 
 describe('VideoAiCaptureController 生命周期', () => {
+  it('Small 视频结束后的在途识别超过五秒仍能写回自然尾句', async () => {
+    const pending = deferred<VideoAiTranscriptionResult>();
+    const harness = createHarness(async () => pending.promise);
+    (harness.controller as unknown as { options: { getModel: () => unknown } }).options.getModel = () => 'small';
+    expect(harness.controller.start()).toBe(true);
+    const profile = getVideoAiStreamProfile('small');
+    harness.video.currentTime = profile.initialWindowMs / 1_000;
+    emitInProcessorBlocks(FakeAudioContext.instances[0], speech(profile.initialWindowMs));
+    expect(harness.transcribe).toHaveBeenCalledOnce();
+    harness.video.ended = true;
+    harness.video.paused = true;
+    harness.controller.end(false);
+    await vi.advanceTimersByTimeAsync(76_551);
+    expect(harness.onInvalidate).not.toHaveBeenCalledWith('ended', 1);
+    pending.resolve({text: 'The final complete sentence is retained.'});
+    await flushPromises();
+    expect(harness.onCue).toHaveBeenCalledWith(expect.objectContaining({text: 'The final complete sentence is retained.'}));
+    expect(harness.onInvalidate).toHaveBeenCalledWith('ended', 1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['deadline', 'cancel'] as const)('Small 的长尾等待保持有限预算，%s 会清理并拒绝迟到结果', async reason => {
+    const pending = deferred<VideoAiTranscriptionResult>();
+    const harness = createHarness(async () => pending.promise);
+    (harness.controller as unknown as { options: { getModel: () => unknown } }).options.getModel = () => 'small';
+    expect(harness.controller.start()).toBe(true);
+    const profile = getVideoAiStreamProfile('small');
+    harness.video.currentTime = profile.initialWindowMs / 1_000;
+    emitInProcessorBlocks(FakeAudioContext.instances[0], speech(profile.initialWindowMs));
+    harness.video.ended = true;
+    harness.controller.end(false);
+    await vi.advanceTimersByTimeAsync(reason === 'deadline' ? 199_999 : 5_001);
+    expect(harness.onInvalidate).not.toHaveBeenCalledWith('ended', 1);
+    if (reason === 'cancel') {
+      harness.controller.cancel();
+      expect(harness.controller.isRequested()).toBe(false);
+      expect(harness.onInvalidate).toHaveBeenCalledWith('cancel', 1);
+    } else {
+      await vi.advanceTimersByTimeAsync(1);
+      expect(harness.onInvalidate).toHaveBeenCalledWith('ended', 1);
+    }
+    expect(vi.getTimerCount()).toBe(0);
+    expect(FakeAudioContext.instances[0].state).toBe('closed');
+    pending.resolve({text: 'A stale late sentence must be ignored.'});
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(200_000);
+    expect(harness.onCue).not.toHaveBeenCalled();
+    expect(harness.onError).not.toHaveBeenCalled();
+    if (reason === 'cancel') expect(harness.onInvalidate).not.toHaveBeenCalledWith('ended', 1);
+  });
   it('视频结束时等待在途尾窗写回，再取消 generation 并释放音频图', async () => {
     const finalResult = deferred<VideoAiTranscriptionResult>();
     const harness = createHarness(async () => finalResult.promise);
@@ -584,12 +634,12 @@ describe('VideoAiCaptureController 公共边界路径', () => {
     expect(FakeAudioContext.instances[0].closeCount).toBe(1);
   });
 
-  it('Base 暂停保留更长上下文，结束在途识别使用五秒收尾计时器', async () => {
+  it.each(['base', 'small'])('%s 暂停保留更长上下文，结束在途识别使用对应有限预算', async model => {
     const result = deferred<VideoAiTranscriptionResult>();
     const harness = createHarness(async () => result.promise);
-    (harness.controller as unknown as { options: { getModel: () => unknown } }).options.getModel = () => 'base';
+    (harness.controller as unknown as { options: { getModel: () => unknown } }).options.getModel = () => model;
     expect(harness.controller.start()).toBe(true);
-    const profile = getVideoAiStreamProfile('base');
+    const profile = getVideoAiStreamProfile(model);
     harness.video.currentTime = profile.initialWindowMs / 1_000;
     emitInProcessorBlocks(FakeAudioContext.instances[0], speech(profile.initialWindowMs));
     expect(harness.transcribe).toHaveBeenCalledTimes(1);
@@ -602,7 +652,7 @@ describe('VideoAiCaptureController 公共边界路径', () => {
     harness.video.ended = true;
     harness.video.paused = true;
     harness.controller.end(false);
-    vi.advanceTimersByTime(5_000);
+    vi.advanceTimersByTime(model === 'small' ? 200_000 : 5_000);
     expect(harness.onInvalidate).toHaveBeenCalledWith('ended', 2);
     result.resolve({ text: 'Base final sentence.' });
     await flushPromises();
