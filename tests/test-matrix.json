@@ -553,6 +553,7 @@
       "tests/imageClientRecoveryBudget.test.ts",
       "tests/imageOcrStatusCancellation.test.ts",
       "tests/localModelSettingsLifecycle.test.ts",
+      "tests/localTranslationModelSettingsLifecycle.test.ts",
       "tests/promptSyncLifecycle.test.ts",
       "tests/settingsUiFixtureCli.test.ts",
       "tests/testSuiteAuditCli.test.ts",

@@ -663,6 +663,10 @@ node scripts/testing/run-service-catalog-ui-test.cjs \
 
 `run-service-library-ui-test.cjs` 覆盖按类别展示服务、查看配置不改默认服务、标题栏检查连接、首个自定义服务出现前不显示自定义分类、20 个长名称自定义服务的分类筛选，以及 1440/1024/820/390px、深色和英文界面。`run-service-design-ui-test.cjs` 检查免费接口卡片、可选邮箱字段、默认收起的云服务额度指引，以及 DeepLX 检查期间的布局稳定性、匿名检查和占位符地址必填密钥，连接结果使用本地夹具。`run-service-catalog-ui-test.cjs` 锁定机器翻译、云服务厂商、模型服务商和聚合平台的分类顺序与计数，检查免密钥候选不泄漏为独立服务、跨分类搜索和窄屏布局，并验证免费翻译默认自动均衡、DeepLX 默认停用且其他候选默认启用，以及切换优先顺序后的启停、排序和重载持久化。目录脚本默认不请求翻译服务；只有显式 `--live true` 才逐一检查三个免密钥候选的真实连接，结果需与本地断言分开报告。
 
+`run-service-workspace-density-test.cjs` 是服务工作区空间与滚动的独立专项：先对保留的基础生产包运行 `--phase baseline`，再对优化生产包运行 `--phase optimized --baseline-report <基线证据目录>/report.json`，两次均传入 `--extension-dir`、`--playwright-root` 和独立的 `--artifacts-dir`。它使用一个临时后台 Edge 页面，检查五种视口、中文/英文、浅色/深色共 20 组布局；比较首个 API Key 在内容区的位置、单行目录的命中高度以及目录滚动时逐帧 `getBoundingClientRect` 调用数。长服务名称自然增高，不能为通过密度断言而截断名称。搜索、折叠、导航、模型弹层和窄屏配置可达性仍须通过；基线行为失败会明确记录，优化包不允许跳过。数据仅代表当前环境中的布局读取成本，不能用来宣称全页面帧率、真实服务速度或模型推理性能。专项不检查连接、不下载模型。
+
+`tests/serviceDirectoryLifecycle.test.ts` 验证实际 Vue 模板的帧合并、布局缓存失效、旧帧取消和用户接管；`tests/localTranslationModelSettingsLifecycle.test.ts` 验证隐藏页退订、返回刷新、试译取消、旧确认与回包隔离，并通过公共后台路由证明页面离开不会暂停下载。
+
 目录的分组标题可以收起或展开，目录上方的分组导航点击后展开并滚动到对应分组，并随目录滚动同步高亮；搜索时展开全部匹配分组，搜索中点击导航回到完整目录。收起状态只在本次打开的设置页内有效。`node scripts/testing/run-service-group-navigation-test.cjs --extension-dir .output/chrome-mv3 --playwright-root <Node包目录> --focus-safe-helper <focus-safe-browser.cjs路径> --artifacts-dir /private/tmp/fluentread-service-group-navigation` 验证导航与分组一一对应、滚动同步高亮、收起只影响自身、导航展开并定位已收起的分组、搜索期间的展开与导航稳定、从通用设置直达服务时展开所在分组，以及 820px 无横向溢出、390px 隐藏导航并保留目录内的收起。
 
 ## 菜单栏首帧与快速关闭

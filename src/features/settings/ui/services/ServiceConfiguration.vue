@@ -13,7 +13,7 @@
   >
     <FreeTranslationSettings v-if="service === services.freeTranslation" :active="active" :config="config" :advanced="false" :checks="freeProviderChecks" />
 
-    <LocalTranslationModelSettings v-if="service === services.localTranslation" :config="config" :service="service" />
+    <LocalTranslationModelSettings v-if="service === services.localTranslation" :active="active" :context="config" :config="config" :service="service" />
 
     <Teleport v-if="connectionActionTarget" :to="connectionActionTarget">
     <section class="service-connection-action">
