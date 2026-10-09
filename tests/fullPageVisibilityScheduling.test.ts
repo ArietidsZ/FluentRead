@@ -9,6 +9,7 @@ import {DEFAULT_EAGER_TRANSLATION_CHARACTERS} from '@/src/core/config/pageTransl
 
 const runtime = vi.hoisted(() => ({
     realCore: null as TranslationCandidateCore | null,
+    realTextExtraction: false,
     adapters: [] as TranslationSiteAdapter[],
     candidateEligible: vi.fn<(element: Element) => boolean>(() => true),
     ignoreMutation: vi.fn<(element: Element) => boolean>(() => false),
@@ -220,12 +221,15 @@ vi.mock("@/src/core/translation/public", async (importOriginal) => {
         normalizeTranslationText: actual.normalizeTranslationText,
         createCurrentTranslationResolverBatch: () => (start: Node, scope = 'content') => runtime.realCore
             ? runtime.realCore.resolve(start) : resolveCandidate(scope)(start),
-        extractTranslationText: (element: HTMLElement, keepOriginal?: (element: Element) => boolean) => {
-            runtime.sourceReads(element);
-            return textSlots(element, keepOriginal).map(({source}) => source).join("");
+        extractTranslationText: (...args: Parameters<typeof actual.extractTranslationText>) => {
+            const [element, keepOriginal] = args;
+            runtime.sourceReads(element as HTMLElement);
+            if (runtime.realTextExtraction) return actual.extractTranslationText(...args);
+            return textSlots(element as HTMLElement, keepOriginal).map(({source}) => source).join("");
         },
-        extractTranslationTextFromNodes: (nodes: readonly Node[]) =>
-            nodes.map((node) => node.textContent ?? "").join(""),
+        extractTranslationTextFromNodes: (...args: Parameters<typeof actual.extractTranslationTextFromNodes>) =>
+            runtime.realTextExtraction ? actual.extractTranslationTextFromNodes(...args)
+                : args[0].map((node) => node.textContent ?? "").join(""),
         applyTranslationsToSnapshot: (_snapshot: unknown, translations: readonly string[]) => translations.join(""),
         collectLiveTranslationTextSlots: textSlots,
         createTranslationTextProtectionCache: () => new WeakMap<Element, {
@@ -500,6 +504,7 @@ describe("全文翻译可见性锚点", () => {
         TestMutationObserver.instances = [];
         runtime.adapters = [];
         runtime.realCore = null;
+        runtime.realTextExtraction = false;
         runtime.candidateEligible.mockReset().mockReturnValue(true);
         runtime.ignoreMutation.mockReset().mockReturnValue(false);
         runtime.sourceReads.mockClear();
@@ -2128,6 +2133,72 @@ describe("全文翻译可见性锚点", () => {
         expect(runtime.requests.mock.calls.flat(2)).toEqual([russian]);
         expect([translations(de!), translations(en!), translations(ru!)]).toEqual([0, 0, 1]);
     });
+
+    it.each([
+        ['code', '当前 <code>SDK</code> 的并发队列由 <strong>arbiter token gate</strong> 负责入场，每个实际请求完成后释放槽位。'],
+        ['strong', '当前 <strong>SDK</strong> 的并发队列由 <strong>arbiter token gate</strong> 负责入场，每个实际请求完成后释放槽位。'],
+        ['camel-case-code', '后台 <code>messageRouter</code> 只从 <strong>origin</strong> 接收可信元数据，并让 <strong>session</strong> 状态保持独立。'],
+    ])('真实候选、文本提取与语言识别：%s 行内包装不让中文技术段落重复请求，相邻外语仍请求', async (_kind, markup) => {
+        const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+        runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
+        runtime.realTextExtraction = true;
+        runtime.config.display = 1;
+        runtime.config.from = 'auto';
+        runtime.config.to = 'zh-Hans';
+        runtime.config.useCache = false;
+        runtime.config.fullPageTranslationMode = 'all';
+        const english = 'This neighboring paragraph still needs a translation for the reader.';
+        document.body.innerHTML = `<main><p id="technical">${markup}</p><p id="foreign">${english}</p></main>`;
+        const technical = document.querySelector<HTMLElement>('#technical')!;
+        const foreign = document.querySelector<HTMLElement>('#foreign')!;
+        [technical, foreign].forEach(element => setLayoutBox(element, 600, 80));
+        runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: []});
+        expect(runtime.realCore.inspect(technical).candidate?.element).toBe(technical);
+        const originalMarkup = technical.innerHTML;
+
+        for (let pass = 0; pass < 2; pass += 1) {
+            runtime.requests.mockClear();
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.requests.mock.calls.flat(2)).toEqual([english]);
+            expect(technical.querySelector('[data-fr-translation-owned]')).toBeNull();
+            expect(technical.innerHTML).toBe(originalMarkup);
+            expect(foreign.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            restoreOriginalContent();
+            expect(technical.innerHTML).toBe(originalMarkup);
+            expect(foreign.textContent).toBe(english);
+        }
+    });
+
+    it.each(['hidden', 'notranslate', 'sibling'] as const)(
+        '真实候选语言上下文不借用 %s code 的锚点，可译槽与行内代码边界保持独立',
+        async protection => {
+            const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
+            runtime.clearlyTargetLanguage.mockImplementation(actualDetect.shouldSkipTranslationForTarget);
+            runtime.realTextExtraction = true;
+            runtime.config.display = 1;
+            runtime.config.from = 'auto';
+            runtime.config.to = 'zh-Hans';
+            runtime.config.useCache = false;
+            runtime.config.fullPageTranslationMode = 'all';
+            const source = '这里的并发队列需要 arbiter token gate 负责入场，每个请求完成后释放槽位。';
+            const protectedCode = protection === 'hidden' ? '<span hidden><code>SDK</code></span>'
+                : protection === 'notranslate' ? '<code class="notranslate">SDK</code>' : '';
+            const sibling = protection === 'sibling' ? '<p id="unrelated"><code>SDK</code></p>' : '';
+            document.body.innerHTML = `<main><p id="technical">${source}${protectedCode}</p>${sibling}</main>`;
+            const technical = document.querySelector<HTMLElement>('#technical')!;
+            setLayoutBox(technical, 600, 80);
+            runtime.realCore = new TranslationCandidateCore({url: new URL('https://example.com'), adapters: []});
+
+            autoTranslateEnglishPage();
+            await finishScheduledWork();
+            expect(runtime.requests.mock.calls.flat(2)).toEqual([source]);
+            expect(technical.querySelectorAll('.fluent-read-bilingual-content')).toHaveLength(1);
+            expect(document.querySelector('code')?.textContent).toBe('SDK');
+            restoreOriginalContent();
+            expect(technical.textContent).toBe(source + (protection === 'sibling' ? '' : 'SDK'));
+        },
+    );
 
     it('真实语言识别：外语请求在途时恢复原文会取消，失败后重试只请求外语段落', async () => {
         const actualDetect = await vi.importActual<typeof import('@/src/core/language/detect')>('@/src/core/language/detect');
