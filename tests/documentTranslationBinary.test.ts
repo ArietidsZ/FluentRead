@@ -23,6 +23,27 @@ const onePixelPng = Uint8Array.from(Buffer.from(
 ));
 const testRasterizer: PdfPageRasterizer = async () => onePixelPng;
 
+it('reports PDF import page progress, yields to input, and supports page-boundary cancellation', async () => {
+    const pdf = await PDFDocument.create();
+    for (let index = 0; index < 10; index += 1) pdf.addPage().drawText(`Page ${index + 1} text`);
+    const bytes = await pdf.save();
+    const progress: Array<{completed: number; total: number}> = [];
+    let yielded = false;
+    const timer = setTimeout(() => {yielded = true;}, 0);
+    await parseBinaryDocument('progress.pdf', bytes, {onPdfProgress: value => progress.push(value)});
+    clearTimeout(timer);
+    expect(progress.map(value => value.completed)).toEqual(Array.from({length: 11}, (_, index) => index));
+    expect(progress.every(value => value.total === 10)).toBe(true);
+    expect(yielded).toBe(true);
+    const controller = new AbortController();
+    const completed: number[] = [];
+    await expect(parseBinaryDocument('cancel.pdf', bytes, {signal: controller.signal, onPdfProgress: ({completed: page}) => {
+        completed.push(page);
+        if (page === 3) controller.abort(new Error('Import canceled'));
+    }})).rejects.toThrow('Import canceled');
+    expect(completed).toEqual([0, 1, 2, 3]);
+});
+
 function loadBytes(fileName: string): Uint8Array {
     return Uint8Array.from(readFileSync(new URL(fileName, exampleRoot)));
 }

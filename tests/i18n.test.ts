@@ -959,8 +959,10 @@ describe('i18n 全量界面扫描', () => {
     const frenchCognates = new Set(['learning.memoryNote', 'document.progressSegments', 'document.pageCount', 'document.pageNumber', 'options.aboutDocs', 'settings.advanced.animations', 'settings.advanced.translationLoadingStyle.minimal.label',
       // Style、Format、Original 同样是自然的法语短标签。
       'shareCard.style', 'shareCard.format', 'shareCard.original',
+      // Page、Zoom 与 Original 也是 PDF 阅读器中自然的法语短标签。
+      'document.pdfReading.pageLabel', 'document.pdfReading.pageNumber', 'document.pdfReading.zoom', 'document.pdfReading.original',
       'translationStats.filter.service', 'translationStats.source.network', 'translationStats.log.image', 'translationStats.routes.column.route', ...videoOriginalLabels]);
-    const spanishCognates = new Set([...videoOriginalLabels, 'shareCard.original', 'shareCard.theme.coral']);
+    const spanishCognates = new Set([...videoOriginalLabels, 'shareCard.original', 'shareCard.theme.coral', 'document.pdfReading.zoom', 'document.pdfReading.original']);
     for (const [locale, catalog] of Object.entries({'ja-JP': jaJPMessages, 'ko-KR': koKRMessages, 'fr-FR': frFRMessages, 'ru-RU': ruRUMessages, 'es-ES': esESMessages})) {
       const untranslated = Object.entries(enUSMessages).filter(([key, source]) => (
         !key.startsWith('language.') && !common.has(key) && !(locale === 'fr-FR' && frenchCognates.has(key))

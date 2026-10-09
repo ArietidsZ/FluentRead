@@ -1,12 +1,13 @@
 /**
  * @file src/app/popup/pageActions.ts
  * 文件职责：管理 Popup 的标签页状态读取、全文/局部操作和站点规则即时翻译归属。
- * 主要内容：区分状态读取与用户操作版本，独占在途操作；等待后复验页面和活跃上下文，关闭、配置切换和导航使旧回复失效。
+ * 主要内容：区分状态读取与用户操作版本，独占在途操作；原生在线 PDF 交给扩展阅读器，等待后复验页面和活跃上下文，关闭、配置切换和导航使旧回复失效。
  * 模块边界：只通过注入端口读取标签页、发送已有消息和修改界面状态/配置，不持久化、创建观察器或实现网页翻译。
  */
 import type {Config} from '@/src/core/config/model'
 import {getSiteBaseDomain} from '@/src/core/site-rules/domain'
 import {isBrowserTabId} from '@/src/platform/browser/ids'
+import {getPdfSourceUrl} from '@/src/features/document-translation/core/pdfSource'
 
 export interface PopupPageState {tabId: number | null; windowId?: number; url: string; domain: string; translated: boolean; busy: boolean}
 export interface PopupActiveTab {id?: number; windowId?: number; url?: string; pendingUrl?: string}
@@ -17,6 +18,7 @@ export interface PopupPagePorts {
   warning: () => string
   getTab: () => Promise<PopupActiveTab | undefined>
   send: (tabId: number, message: {type: string; action?: string}) => Promise<unknown>
+  openPdf?: (sourceUrl: string) => Promise<unknown>
   notice: (message: string, type?: 'success' | 'error') => void
   close: () => void
   translate: (key: string) => string
@@ -40,6 +42,7 @@ export function createPopupPageActions(ports: PopupPagePorts) {
       const tab = await ports.getTab()
       if (!current() || sequence !== readSequence || !isBrowserTabId(tab?.id)) return
       bindTab(tab as PopupActiveTab & {id: number});const statusVersion = stateSequence
+      if (ports.openPdf && getPdfSourceUrl(state.url)) return
       try {
         const response = await ports.send(tab.id, {type: 'getFullPageTranslationState'}) as {isTranslated?: unknown} | undefined
         if (current() && sequence === readSequence && statusVersion === stateSequence) state.translated = response?.isTranslated === true
@@ -62,10 +65,19 @@ export function createPopupPageActions(ports: PopupPagePorts) {
     }
     bindTab(tab as PopupActiveTab & {id: number});return tab.id
   }
-  async function translate(action: 'fullPage' | 'restore' | 'section', success: (response: {isTranslated?: unknown}) => void, failure: string) {
+  async function translate(action: 'fullPage' | 'restore' | 'section', success: (response: {isTranslated?: unknown}) => void, failure: string, allowPdf = false) {
     const task = begin();if (!task) return
     try {
       const tabId = await target(task.current);if (tabId === undefined || !task.current()) return
+      const pdfSource = allowPdf ? getPdfSourceUrl(state.url) : null
+      if (pdfSource && ports.openPdf) {
+        await ports.openPdf(pdfSource)
+        if (task.current()) ports.close()
+        return
+      }
+      if (allowPdf && action !== 'restore') {
+        const warning = ports.warning();if (warning) {ports.notice(warning, 'error');return}
+      }
       const response = await ports.send(tabId, {type: 'contextMenuTranslate', action}) as {status?: unknown; isTranslated?: unknown} | undefined
       if (!task.current()) return
       if (response?.status !== 'success') throw new Error('Translation failed')
@@ -75,15 +87,13 @@ export function createPopupPageActions(ports: PopupPagePorts) {
   }
   function toggle() {
     if (!ports.active() || state.busy || !ports.config().on || disabled()) return
-    const action = state.translated ? 'restore' : 'fullPage', warning = ports.warning()
-    if (action !== 'restore' && warning) {ports.notice(warning, 'error');return}
+    const action = state.translated ? 'restore' : 'fullPage'
     return translate(action, response => {state.translated = typeof response.isTranslated === 'boolean' ? response.isTranslated : action === 'fullPage'},
-      ports.thunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试')
+      ports.thunderbird ? '请先打开一封邮件，然后重试翻译' : '当前页面暂不支持翻译，请刷新后重试', true)
   }
   function section() {
     if (!ports.active() || state.busy || !ports.config().on || disabled()) return
-    const warning = ports.warning();if (warning) {ports.notice(warning, 'error');return}
-    return translate('section', () => ports.close(), ports.translate('popup.sectionTranslationUnavailable'))
+    return translate('section', () => ports.close(), ports.translate('popup.sectionTranslationUnavailable'), true)
   }
   function setDisabled(enabled: boolean) {
     if (!ports.active() || !state.domain || state.tabId === null || typeof enabled !== 'boolean') return

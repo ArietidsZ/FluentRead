@@ -5,6 +5,7 @@
  * 主要内容：以 English 资源作为结构基线，逐项覆盖当前稳定 message key；旧版尚未 key 化的文案由 i18n 迁移层按显式映射处理。
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
+import {pdfReadingMessages} from './pdfReading';
 import reencounterText from './reencounter/es-ES.json';
 import settingsCopyText from './settings-copy/es-ES.json';
 import brandTaglines from './brand-taglines.json';
@@ -20,6 +21,7 @@ import {translationStatsSpanishMessages} from './translationStats';
 import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
+    ...pdfReadingMessages['es-ES'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Eliminar cabeceras de origen",

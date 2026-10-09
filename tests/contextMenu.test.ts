@@ -307,6 +307,54 @@ describe('右键菜单设置快照', () => {
 });
 
 describe('右键菜单动作执行', () => {
+    it.each(['success', 'disabled'] as const)('文档页划词右键通过带目标页 ID 的 runtime 消息回复 %s', async status => {
+        const sendMessage = vi.fn(async () => ({status})), tabMessage = vi.fn();
+        vi.stubGlobal('browser', {tabs: {sendMessage: tabMessage}, runtime: {sendMessage, getURL: () => 'chrome-extension://test/document.html'}});
+        expect(await runContextMenuAction('translateSelection', 12, {}, {url: 'chrome-extension://test/document.html#pdf=source'}, false)).toEqual({handled: status === 'success'});
+        expect(sendMessage).toHaveBeenCalledWith({type: 'documentSelectionTranslate', tabId: 12});
+        expect(tabMessage).not.toHaveBeenCalled();
+    });
+    it.each(['translatePage', 'translateSelection'] as const)('原生在线 PDF 的 %s 打开阅读器，不向受限查看器发消息或自动翻译', async action => {
+        const sendMessage = vi.fn(), create = vi.fn().mockResolvedValue({id: 8});
+        vi.stubGlobal('browser', {tabs: {sendMessage, create}, runtime: {getURL: () => 'chrome-extension://test/document.html'}});
+        const source = 'https://arxiv.org/pdf/1706.03762';
+        expect(await runContextMenuAction(action, 7, {pageUrl: 'chrome-extension://native-pdf/index.html'}, {id: 7, url: source}, false))
+            .toEqual({handled: true});
+        expect(create).toHaveBeenCalledWith({url: `chrome-extension://test/document.html#pdf=${encodeURIComponent(source)}`});
+        expect(sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('嵌入 PDF 的选区入口使用 frame 源，整页入口继续作用于普通宿主页', async () => {
+        const sendMessage = vi.fn().mockResolvedValue({status: 'success', isTranslated: true}), create = vi.fn().mockResolvedValue({});
+        vi.stubGlobal('browser', {tabs: {sendMessage, create}, runtime: {getURL: () => 'chrome-extension://test/document.html'}});
+        const source = 'https://cdn.example.com/book.pdf?download=1', pageUrl = 'https://example.com/article';
+        await runContextMenuAction('translateSelection', 7, {frameId: 3, frameUrl: source, pageUrl}, {id: 7, url: pageUrl}, false);
+        expect(create).toHaveBeenCalledWith({url: `chrome-extension://test/document.html#pdf=${encodeURIComponent(source)}`});
+        expect(sendMessage).not.toHaveBeenCalled();
+        await runContextMenuAction('translatePage', 7, {frameId: 3, frameUrl: source, pageUrl}, {id: 7, url: pageUrl}, false);
+        expect(create).toHaveBeenCalledTimes(1);
+        expect(sendMessage).toHaveBeenCalledWith(7, {type: 'contextMenuTranslate', action: 'fullPage'}, {frameId: 0});
+    });
+
+    it('图片、圈选和本地 file PDF 不借原生 PDF 分流发起跨域加载', async () => {
+        const sendMessage = vi.fn().mockResolvedValue({status: 'success'}), create = vi.fn();
+        vi.stubGlobal('browser', {tabs: {sendMessage, create}});
+        for (const action of ['translateImage', 'translateArea'] as const) {
+            await runContextMenuAction(action, 7, {pageUrl: 'https://example.com/book.pdf'}, {id: 7}, false);
+        }
+        await runContextMenuAction('translatePage', 7, {pageUrl: 'file:///Users/test/book.pdf'}, {id: 7}, false);
+        expect(create).not.toHaveBeenCalled();
+        expect(sendMessage).toHaveBeenCalledTimes(3);
+    });
+
+    it('PDF 阅读器创建失败向调用方传递失败，不伪造原页翻译状态', async () => {
+        const sendMessage = vi.fn(), create = vi.fn().mockRejectedValue(new Error('Tab creation failed'));
+        vi.stubGlobal('browser', {tabs: {sendMessage, create}, runtime: {getURL: () => 'chrome-extension://test/document.html'}});
+        await expect(runContextMenuAction('translatePage', 7, {pageUrl: 'https://example.com/book.pdf'}, {id: 7}, true))
+            .rejects.toThrow('Tab creation failed');
+        expect(sendMessage).not.toHaveBeenCalled();
+    });
+
     it('划词、圈选和图片只发往用户右键所在的 frame', async () => {
         const sendMessage = vi.fn().mockResolvedValue({});
         vi.stubGlobal('browser', {tabs: {sendMessage}});

@@ -375,7 +375,11 @@
       "tests/translationBrokerSharedDeadlineRecovery.test.ts",
       "tests/bilingualRemountPerformanceBoundaries.test.ts",
       "tests/chineseUiNamesRegression.test.ts",
-      "tests/bilibiliFreeTranslation.test.ts"
+      "tests/bilibiliFreeTranslation.test.ts",
+      "tests/documentSelectionRuntime.test.ts",
+      "tests/documentPdfRotation.test.ts",
+      "tests/pdfReaderLifecycle.test.ts",
+      "tests/pdfSource.test.ts"
     ],
     "functional": [
       "tests/finalCoveragePublicBoundariesA.test.ts",

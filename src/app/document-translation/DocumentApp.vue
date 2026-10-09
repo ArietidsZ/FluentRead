@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译、增量统计和人工校订；导入与 PDF 预览绑定独立取消所有权，切换、删除、重置及卸载释放 PDF 任务、计时器和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 阅读器按视口渲染可选择文字层，切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -62,14 +62,20 @@
           @drop.prevent="handleDrop"
         >
           <div class="upload-symbol" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M28 7H13a3 3 0 0 0-3 3v28a3 3 0 0 0 3 3h22a3 3 0 0 0 3-3V17L28 7Z" stroke="currentColor" stroke-width="2"/><path d="M28 7v10h10M24 33V22m-5 5 5-5 5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <h2>{{ openingFile ? '正在整理文档' : '把文件拖到这里' }}</h2>
-          <p class="upload-description">{{ openingFile ? '解析完成后，即可确认语言并开始翻译' : t('document.batch.pickMany') }}</p>
-          <button class="open-file-button" type="button" :disabled="openingFile" @click.stop="openFilePicker">
+          <h2>{{ openingFile || downloadingPdf ? '正在整理文档' : '把文件拖到这里' }}</h2>
+          <p class="upload-description">{{ openingFile || downloadingPdf ? importProgress || '解析完成后，即可确认语言并开始翻译' : t('document.batch.pickMany') }}</p>
+          <button class="open-file-button" type="button" :disabled="queueBusy" @click.stop="openFilePicker">
             {{ openingFile ? '正在解析文件…' : '选择文件' }}
           </button>
+          <button v-if="openingFile || downloadingPdf" class="ghost-button" type="button" @click.stop="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button>
           <small>{{ t('document.fileLimitNote', {size: maxFileSizeLabel}) }}</small>
         </div>
 
+        <form class="online-pdf-form" @submit.prevent="openOnlinePdf">
+          <label for="online-pdf-url">{{ t('document.pdfReading.onlineLabel') }}</label>
+          <div><input id="online-pdf-url" v-model="onlinePdfUrl" type="url" inputmode="url" required placeholder="https://arxiv.org/pdf/1706.03762" :disabled="queueBusy" /><button class="ghost-button" type="submit" :disabled="queueBusy">{{ t('document.pdfReading.openOnline') }}</button></div>
+          <small>{{ t('document.pdfReading.onlineHint') }}</small>
+        </form>
         <div class="format-list" aria-label="支持的文件格式">
           <span v-for="item in formatCards" :key="item.code" class="format-card"><b :class="item.tone">{{ item.code }}</b>{{ item.label }}</span>
         </div>
@@ -86,6 +92,7 @@
           <div class="workspace-heading">
             <div class="file-heading"><span class="task-file-format">{{ formatCode }}</span><div><h1 data-i18n-ignore>{{ parsedDocument.fileName }}</h1><p class="document-status" role="status">{{ statusLabel }}<span v-if="hasTranslation"> · {{ completedSegments }} / {{ parsedDocument.segments.length }}</span></p></div></div>
           </div>
+          <p v-if="openingFile || downloadingPdf" class="document-import-progress" role="status">{{ importProgress }} <button class="ghost-button" type="button" @click="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button></p>
           <div class="taskbar-actions">
             <button class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
             <div class="translation-actions">
@@ -109,72 +116,15 @@
           <button class="download-button" type="button" :disabled="!hasTranslation || queueBusy" @click="openDownload">下载文件 ↓</button>
         </div>
         <DocumentSegmentEditor :key="activeDocumentId ?? 0" v-show="readerTab === 'edit'" :document="parsedDocument" :translations="translatedSegments" :disabled="queueBusy" @update="editSegment" />
-        <div v-show="readerTab === 'read'" class="reading-content">
-        <section
+        <div v-show="readerTab === 'read'" class="reading-content" :class="{'reading-pdf': isPdfDocument}">
+        <PdfReader
           v-if="isPdfDocument"
-          class="pdf-layout-viewer"
-          aria-label="PDF 版式翻译预览"
-          data-document-reader="pdf"
-          :data-segment-count="parsedDocument.segments.length"
-        >
-          <div class="pdf-viewer-toolbar">
-            <div class="pdf-page-summary" aria-label="PDF 连续页面阅读状态">
-              <strong>{{ t('document.pageCount', {count: pdfPageCount}) }}</strong>
-              <span>按页面连续阅读，可切换原文与译文</span>
-            </div>
-            <label class="pdf-zoom-control">
-              <span>缩放</span>
-              <ElSelect class="document-select"  append-to=".document-app" v-model="pdfZoom" aria-label="PDF 预览缩放">
-                <ElOption :value="1" :label="translateLegacy('适合宽度')" />
-                <ElOption :value="1.25" label="125%" />
-                <ElOption :value="1.5" label="150%" />
-              </ElSelect>
-            </label>
-          </div>
-
-          <div class="pdf-page-scroll" data-pdf-scroll>
-            <article
-              v-for="pdfPage in pdfPreviewPageStates"
-              :key="pdfPage.pageNumber"
-              class="pdf-page-row"
-              :data-page-number="pdfPage.pageNumber"
-            >
-              <div class="pdf-page-row-heading">
-                <strong>{{ t('document.pageNumber', {page: pdfPage.pageNumber}) }}</strong>
-                <span>{{ pdfPage.loading ? '正在渲染…' : '版式已保留' }}</span>
-              </div>
-              <div
-                class="pdf-page-stage"
-                :class="{ single: effectivePreviewMode !== 'bilingual' || (!pdfPage.loading && !pdfPage.translatedUrl) }"
-                :style="{ '--pdf-zoom': pdfZoom, '--pdf-page-max-width': `${720 * pdfZoom}px` }"
-              >
-                <figure v-if="effectivePreviewMode !== 'translated' || (!pdfPage.loading && !pdfPage.translatedUrl)" class="pdf-page-column">
-                  <figcaption><span>原文</span><strong>{{ t('document.pageNumber', {page: pdfPage.pageNumber}) }}</strong></figcaption>
-                  <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
-                    <img v-if="pdfPage.originalUrl" :src="pdfPage.originalUrl" :alt="t('document.pdfOriginalPage', {page: pdfPage.pageNumber})" />
-                    <span v-else class="pdf-page-loading">正在渲染原页…</span>
-                  </div>
-                </figure>
-                <figure v-if="effectivePreviewMode !== 'source' && (pdfPage.loading || pdfPage.translatedUrl)" class="pdf-page-column translated">
-                  <figcaption><span>译文</span><strong>保留原版式</strong></figcaption>
-                  <div class="pdf-page-frame" :style="{ aspectRatio: `${pdfPage.width} / ${pdfPage.height}` }">
-                    <img v-if="pdfPage.translatedUrl" :src="pdfPage.translatedUrl" :alt="t('document.pdfTranslatedPage', {page: pdfPage.pageNumber})" />
-                    <div v-else class="pdf-page-pending">
-                      <span v-if="pdfPage.loading || pdfPreviewLoading" class="spinner dark-spinner" />
-                      <strong>{{ translating ? '正在翻译并重排本页' : '等待生成译页' }}</strong>
-                      <small>译文会写回对应文本框，图表与页面布局保持原位</small>
-                    </div>
-                  </div>
-                </figure>
-              </div>
-
-            </article>
-            <div v-if="!pdfPreviewPageStates.length" class="pdf-page-empty">
-              <span class="spinner dark-spinner" />
-              <strong>正在准备 PDF 连续阅读页…</strong>
-            </div>
-          </div>
-        </section>
+          :key="activeDocumentId ?? 0"
+          :document="parsedDocument"
+          :translations="settledTranslations"
+          :mode="effectivePreviewMode"
+          :source-url="documentQueue.find(item => item.id === activeDocumentId)?.sourceUrl"
+        />
 
         <section
           v-else-if="isRichDocument"
@@ -393,6 +343,7 @@ import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
 import browser from 'webextension-polyfill';
 import {
   Config,
+  PdfReader,
   hasDistinctTranslation,
   TranslationRequestError,
   buildGlossaryRevision,
@@ -403,7 +354,8 @@ import {
   createDocumentDownloadName,
   createDocumentFileLoadGuard,
   createDocumentPreviewHtml,
-  createPdfPagePreview,
+  fetchOnlinePdf,
+  readPdfSourceFragment,
   releasePdfDocument,
   filterAvailableTranslationServices,
   formatDocumentReaderText,
@@ -442,15 +394,6 @@ import {
 } from '@/src/app/document-translation';
 
 const READER_PAGE_SIZE = 80;
-
-interface PdfPreviewPageState {
-  pageNumber: number;
-  width: number;
-  height: number;
-  originalUrl: string;
-  translatedUrl: string;
-  loading: boolean;
-}
 
 type DocumentConfigPatch = Partial<Pick<Config,
   'from' | 'to' | 'documentService' | 'documentModel' | 'documentCustomModel' | 'documentGlossaryIds'
@@ -513,9 +456,10 @@ const preparingDownload = ref(false);
 const cancelingDownload = ref(false);
 const downloadProgress = ref('');
 let downloadController: AbortController | null = null;
-const pdfZoom = ref(1);
-const pdfPreviewLoading = ref(false);
-const pdfPreviewPageStates = ref<PdfPreviewPageState[]>([]);
+const onlinePdfUrl = ref('');
+const downloadingPdf = ref(false);
+const importProgress = ref('');
+let onlinePdfController: AbortController | null = null;
 const epubChapterIndex = ref(0);
 const docxPartIndex = ref(0);
 const hydrated = ref(false);
@@ -528,9 +472,6 @@ let lastSerialized = '';
 let applyingExternalConfig = false;
 let configSaveRequest = 0;
 let unsubscribeConfig: (() => void) | undefined;
-let pdfPreviewTimer: ReturnType<typeof setTimeout> | undefined;
-let pdfPreviewRequest = 0;
-let pdfPreviewController: AbortController | null = null;
 let fileLoadController: AbortController | null = null;
 let disposed = false;
 const downloadUrls = new Map<string, ReturnType<typeof setTimeout>>();
@@ -538,6 +479,7 @@ const downloadUrls = new Map<string, ReturnType<typeof setTimeout>>();
 interface DocumentQueueItem {
   id: number;
   name: string;
+  sourceUrl?: string;
   document: ParsedDocument | null;
   translations: string[];
   fingerprint: string;
@@ -552,7 +494,7 @@ const batchRunning = ref(false);
 const batchNotice = ref('');
 let nextDocumentId = 0;
 let batchGeneration = 0;
-const queueBusy = computed(() => translating.value || batchRunning.value || openingFile.value || preparingDownload.value);
+const queueBusy = computed(() => translating.value || batchRunning.value || openingFile.value || downloadingPdf.value || preparingDownload.value);
 const completeItem = (item: DocumentQueueItem) => Boolean(item.document && item.document.segments.every(segment => item.translations[segment.id]?.trim()));
 const batchCompletedCount = computed(() => documentQueue.value.filter(item => item.id === activeDocumentId.value ? translationComplete.value : completeItem(item)).length);
 const batchPendingCount = computed(() => documentQueue.value.filter(item => item.document && !(item.id === activeDocumentId.value ? translationComplete.value : completeItem(item))).length);
@@ -567,9 +509,7 @@ function saveActiveDocument(): void {
 function selectDocument(item: DocumentQueueItem): void {
   if (!item.document || item.id === activeDocumentId.value) return;
   saveActiveDocument();
-  cancelPdfPreview();
   releaseDocumentPreview(parsedDocument.value);
-  clearPdfPreviewUrls();
   activeDocumentId.value = item.id;
   parsedDocument.value = item.document;
   translatedSegments.value = [...item.translations];
@@ -584,8 +524,6 @@ function selectDocument(item: DocumentQueueItem): void {
   readerTab.value = 'read';
   epubChapterIndex.value = 0;
   docxPartIndex.value = 0;
-  pdfZoom.value = 1;
-  pdfPreviewLoading.value = false;
 }
 
 function queueStatus(item: DocumentQueueItem): string {
@@ -645,8 +583,6 @@ function removeDocument(item: DocumentQueueItem, confirmed = false): void {
       translatedSegments.value = [];
       settledTranslations.value = [];
       editRevision.value = downloadedRevision.value = 0;
-      cancelPdfPreview();
-      clearPdfPreviewUrls();
     }
   }
 }
@@ -819,7 +755,6 @@ const isDocxDocument = computed(() => parsedDocument.value?.binary?.kind === 'do
 const isSubtitleDocument = computed(() => isSubtitleDocumentFormat(parsedDocument.value?.format));
 const isJsonDocument = computed(() => parsedDocument.value?.format === 'json');
 const isRichDocument = computed(() => isRichDocumentFormat(parsedDocument.value?.format));
-const pdfPageCount = computed(() => parsedDocument.value?.binary?.kind === 'pdf' ? parsedDocument.value.binary.pages.length : 0);
 const epubChapters = computed(() => parsedDocument.value?.binary?.kind === 'epub'
   ? parsedDocument.value.binary.chapters
   : []);
@@ -880,29 +815,6 @@ const emptyReaderHint = computed(() => getDocumentEmptyReaderHint(parsedDocument
 const readerPageCount = computed(() => isPdfDocument.value || isRichDocument.value ? 1 : Math.max(1, Math.ceil((isDocxDocument.value ? currentDocxPart.value?.paragraphSegments.length || 0 : parsedDocument.value?.segments.length || 0) / READER_PAGE_SIZE)));
 const formatCode = computed(() => parsedDocument.value?.format === 'markdown' ? 'MD' : parsedDocument.value?.format.toUpperCase() || 'FILE');
 
-function pngObjectUrl(bytes: Uint8Array): string {
-  const buffer = new ArrayBuffer(bytes.byteLength);
-  new Uint8Array(buffer).set(bytes);
-  return URL.createObjectURL(new Blob([buffer], {type: 'image/png'}));
-}
-
-function clearPdfPreviewUrls(): void {
-  pdfPreviewPageStates.value.forEach((page) => {
-    if (page.originalUrl) URL.revokeObjectURL(page.originalUrl);
-    if (page.translatedUrl) URL.revokeObjectURL(page.translatedUrl);
-  });
-  pdfPreviewPageStates.value = [];
-}
-
-function cancelPdfPreview(): void {
-  pdfPreviewRequest += 1;
-  pdfPreviewController?.abort();
-  pdfPreviewController = null;
-  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
-  pdfPreviewTimer = undefined;
-  pdfPreviewLoading.value = false;
-}
-
 function releaseDocumentPreview(document: ParsedDocument | null): void {
   if (document?.binary?.kind === 'pdf') releasePdfDocument(document.binary.bytes);
 }
@@ -931,66 +843,6 @@ function saveDownloadBlob(blob: Blob, fileName: string): void {
     URL.revokeObjectURL(url);
     throw error;
   }
-}
-
-async function refreshPdfPreviews(): Promise<void> {
-  cancelPdfPreview();
-  const document = parsedDocument.value;
-  if (disposed || document?.binary?.kind !== 'pdf') {
-    clearPdfPreviewUrls();
-    return;
-  }
-  // 每轮预览刷新取得独立代次；旧渲染在创建或写入 Object URL 前都必须放弃提交权。
-  const request = pdfPreviewRequest;
-  const controller = new AbortController();
-  pdfPreviewController = controller;
-  pdfPreviewLoading.value = true;
-
-  const previousPages = new Map(pdfPreviewPageStates.value.map((page) => [page.pageNumber, page]));
-  previousPages.forEach((page) => {
-    if (page.translatedUrl) URL.revokeObjectURL(page.translatedUrl);
-  });
-  pdfPreviewPageStates.value = document.binary.pages.map((page) => {
-    const previous = previousPages.get(page.pageNumber);
-    return {
-      pageNumber: page.pageNumber,
-      width: page.width,
-      height: page.height,
-      // 仅译文栅格变化时复用原始页面，避免重复创建和释放相同的 Object URL。
-      originalUrl: previous?.originalUrl || '',
-      translatedUrl: '',
-      loading: true,
-    };
-  });
-
-  try {
-    for (const page of document.binary.pages) {
-      if (request !== pdfPreviewRequest) return;
-      const preview = await createPdfPagePreview(
-        document,
-        page.pageNumber,
-        hasTranslation.value ? translatedSegments.value : undefined,
-        controller.signal,
-      );
-      if (request !== pdfPreviewRequest) return;
-      const state = pdfPreviewPageStates.value.find((entry) => entry.pageNumber === page.pageNumber);
-      if (!state) continue;
-      if (!state.originalUrl) state.originalUrl = pngObjectUrl(preview.original);
-      if (preview.translated) state.translatedUrl = pngObjectUrl(preview.translated);
-      state.loading = false;
-    }
-  } catch (error) {
-    if (request === pdfPreviewRequest && !controller.signal.aborted) showError(error instanceof Error ? error.message : String(error));
-  } finally {
-    if (request === pdfPreviewRequest) pdfPreviewLoading.value = false;
-    if (pdfPreviewController === controller) pdfPreviewController = null;
-  }
-}
-
-function schedulePdfPreview(): void {
-  if (disposed) return;
-  if (pdfPreviewTimer) clearTimeout(pdfPreviewTimer);
-  pdfPreviewTimer = setTimeout(() => { pdfPreviewTimer = undefined; void refreshPdfPreviews(); }, 350);
 }
 
 function readerText(value: string): string {
@@ -1067,15 +919,10 @@ watch(config, (value) => {
   });
 }, {deep: true, flush: 'post'});
 
-watch(parsedDocument, () => {
-  if (isPdfDocument.value) void refreshPdfPreviews();
-}, {flush: 'post'});
-
 // 翻译期间不订阅整份数组，避免每个片段都触发 O(n) 的深度遍历。
 watch(() => translating.value ? null : [...translatedSegments.value], (translations) => {
   if (!translations) return;
   settledTranslations.value = translations;
-  if (isPdfDocument.value) schedulePdfPreview();
 });
 watch(docxPartIndex, () => { readerPage.value = 1; });
 
@@ -1092,22 +939,25 @@ function showError(message: string): void {
 
 }
 
-async function loadFiles(files: File[]): Promise<void> {
+async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
   if (disposed || queueBusy.value || !files.length) return;
   const loadRequest = documentFileLoads.begin();
   const controller = new AbortController();
   fileLoadController = controller;
   openingFile.value = true;
+  importProgress.value = '';
   batchNotice.value = '';
   errorMessage.value = '';
   try {
     for (const file of files) {
-      const item: DocumentQueueItem = {id: ++nextDocumentId, name: file.name, document: null,
+      const item: DocumentQueueItem = {id: ++nextDocumentId, name: file.name, sourceUrl, document: null,
         translations: [], fingerprint: '', state: 'ready', revision: 0, downloaded: 0, error: ''};
       try {
         if (!getDocumentFormat(file.name)) throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件。');
         if (file.size > DOCUMENT_MAX_BYTES) throw new Error(`文件大小超过 ${maxFileSizeLabel}，请先拆分文件后再翻译。`);
-        const parsed = await parseDocumentFile(file, {signal: controller.signal});
+        const parsed = await parseDocumentFile(file, {signal: controller.signal, onPdfProgress: ({completed, total}) => {
+          if (loadRequest.isCurrent()) importProgress.value = t('document.pdfReading.importPages', {completed, total});
+        }});
         if (!loadRequest.isCurrent()) return;
         if (!parsed.segments.length) throw new Error('文件中没有找到可翻译的文本片段。');
         item.document = markRaw(parsed);
@@ -1120,8 +970,50 @@ async function loadFiles(files: File[]): Promise<void> {
       if (item.document && activeDocumentId.value === null) selectDocument(item);
     }
   } finally {
-    if (loadRequest.isCurrent()) openingFile.value = false;
+    if (loadRequest.isCurrent()) {openingFile.value = false; importProgress.value = '';}
     if (fileLoadController === controller) fileLoadController = null;
+  }
+}
+
+function cancelImport(): void {
+  onlinePdfController?.abort();
+  onlinePdfController = null;
+  downloadingPdf.value = false;
+  documentFileLoads.invalidate();
+  fileLoadController?.abort();
+  fileLoadController = null;
+  openingFile.value = false;
+  importProgress.value = '';
+}
+
+async function openOnlinePdf(): Promise<void> {
+  if (disposed || queueBusy.value) return;
+  const sourceUrl = onlinePdfUrl.value;
+  const controller = new AbortController();
+  onlinePdfController = controller;
+  downloadingPdf.value = true;
+  errorMessage.value = '';
+  importProgress.value = t('document.pdfReading.downloading');
+  try {
+    const file = await fetchOnlinePdf(sourceUrl, {signal: controller.signal, onProgress: ({received, total}) => {
+      if (onlinePdfController !== controller) return;
+      const size = (received / 1024 / 1024).toFixed(1);
+      importProgress.value = total ? t('document.pdfReading.downloadProgress', {size, percent: Math.round(received / total * 100)})
+        : t('document.pdfReading.downloadBytes', {size});
+    }});
+    if (disposed || onlinePdfController !== controller) return;
+    downloadingPdf.value = false;
+    await loadFiles([file], sourceUrl);
+  } catch (error) {
+    if (!disposed && onlinePdfController === controller && !controller.signal.aborted) {
+      showError(error instanceof Error ? error.message : String(error));
+    }
+  } finally {
+    if (onlinePdfController === controller) {
+      onlinePdfController = null;
+      downloadingPdf.value = false;
+      importProgress.value = '';
+    }
   }
 }
 
@@ -1137,7 +1029,7 @@ function handleDrop(event: DragEvent): void {
 }
 
 function resetDocument(): void {
-  cancelPdfPreview();
+  cancelImport();
   releaseDocumentPreview(parsedDocument.value);
   documentQueue.value.forEach(item => releaseDocumentPreview(item.document));
   clearDownloadUrls();
@@ -1173,11 +1065,8 @@ function resetDocument(): void {
   errorMessage.value = '';
   openingFile.value = false;
   preparingDownload.value = false;
-  pdfZoom.value = 1;
   epubChapterIndex.value = 0;
   docxPartIndex.value = 0;
-  pdfPreviewLoading.value = false;
-  clearPdfPreviewUrls();
 }
 
 function changeDocument(): void {
@@ -1376,6 +1265,8 @@ onMounted(() => {
   colorSchemeMedia.addEventListener?.('change', applyTheme);
   window.addEventListener('pagehide', resetDocument);
   window.addEventListener('beforeunload', guardBeforeUnload);
+  const source = readPdfSourceFragment(window.location.hash || '');
+  if (source) {onlinePdfUrl.value = source; void openOnlinePdf();}
 });
 
 onUnmounted(() => {

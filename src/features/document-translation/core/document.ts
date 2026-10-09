@@ -57,7 +57,7 @@ export interface DocumentSegment {
 
 export interface PdfDocumentBlock {
     segmentIndex: number;
-    /** PDF 视口在缩放比例 1 下的左上角坐标。 */
+    /** PDF 在缩放比例 1、页面旋转 0 下的左上角内容坐标；页面展示旋转由 PdfDocumentPage.rotation 决定。 */
     x: number;
     y: number;
     width: number;
@@ -74,6 +74,9 @@ export interface PdfDocumentBlock {
 
 export interface PdfDocumentPage {
     pageNumber: number;
+    /** 保留 PDF 页面的实际展示方向；旧模型与未旋转页面可以省略。 */
+    rotation?: 0 | 90 | 180 | 270;
+    /** 展示方向的尺寸；90/270 度时，内容坐标系的宽高与这里交换。 */
     width: number;
     height: number;
     segmentIndexes: number[];

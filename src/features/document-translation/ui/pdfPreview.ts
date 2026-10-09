@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/ui/pdfPreview.ts
  * 文件职责：在浏览器 Canvas 环境中为 PDF 文档生成页面预览，并把译文按原页面文本块位置绘制成可嵌入导出 PDF 的 PNG 光栅页。
- * 主要内容：空或相同译文仅保留原文；按需加载 PDF.js，限制页面像素与边长并复用单页 Canvas；取消、卸载或显式释放时销毁加载任务，迟到加载不得复活缓存；预览与导出 PNG 编码可取消，并在成功、失败或取消时释放画布。
+ * 主要内容：空或相同译文仅保留原文；按需加载 PDF.js，限制页面像素与边长并复用单页 Canvas；采样映射到实际旋转像素，译文在原内容坐标中按页面旋转绘制且释放矩阵状态；阅读器通过租约共用文档加载并阻止单页取消销毁仍在阅读的文件；取消、卸载或显式释放时销毁加载任务，迟到加载不得复活缓存；预览与导出 PNG 编码可取消，并在成功、失败或取消时释放画布。
  * 模块边界：这里负责视觉光栅化而不决定片段翻译或文件结构；PDF 文本块来自 binary 服务，领域类型来自 core，Canvas/PDF.js 仅应在文档 UI 环境调用，不能进入通用纯算法层。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -142,6 +142,27 @@ function browserPdfDocument(bytes: Uint8Array): BrowserPdfResource {
     browserPdfCache.set(bytes, resource);
     window.addEventListener?.('pagehide', resource.unload, {once: true});
     return resource;
+}
+
+/** 阅读器持有文档而单页任务可以取消；最后一个阅读租约关闭时释放不再使用的缓存。 */
+export function acquirePdfDocument(bytes: Uint8Array): {
+    promise: Promise<PDFDocumentProxy>;
+    signal: AbortSignal;
+    release: () => void;
+} {
+    const resource = browserPdfDocument(bytes);
+    resource.users += 1;
+    let released = false;
+    return {
+        promise: resource.promise,
+        signal: resource.controller.signal,
+        release: () => {
+            if (released) return;
+            released = true;
+            resource.users -= 1;
+            if (resource.users === 0 && browserPdfCache.get(bytes) === resource) releasePdfDocument(bytes);
+        },
+    };
 }
 
 function awaitPdfTask<T>(promise: Promise<T>, signal: AbortSignal, releaseLateValue?: (value: T) => void): Promise<T> {
@@ -288,7 +309,7 @@ function sampledForegroundColor(
     return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
 }
 
-function paintPdfTranslation(
+export function paintPdfTranslation(
     sourceCanvas: HTMLCanvasElement,
     input: PdfRasterPageInput,
 ): HTMLCanvasElement {
@@ -296,85 +317,104 @@ function paintPdfTranslation(
     const canvas = sourceCanvas;
     const context = canvas.getContext('2d', {alpha: false});
     if (!context) throw new Error('浏览器 Canvas 初始化失败');
-    const scaleX = canvas.width / input.width;
-    const scaleY = canvas.height / input.height;
-
-    const paintedBlocks = input.blocks.flatMap((block) => {
-        const translation = input.translations[block.segmentIndex] || '';
-        if (!translation.trim()) return [];
-        const x = Math.max(0, block.x * scaleX);
-        const y = Math.max(0, block.y * scaleY);
-        const width = Math.max(8, Math.min(canvas.width - x, block.width * scaleX));
-        const height = Math.max(8, Math.min(canvas.height - y, block.height * scaleY));
-        // 步骤 1：只遮盖文字块，保留周围图表和分隔线，再用采样到的前景色绘制译文。
-        const padding = Math.max(2, Math.min(scaleX, scaleY) * 1.2);
-        const background = sampledBackgroundRgb(context, x, y, width, height);
-        const foreground = sampledForegroundColor(context, x, y, width, height, background);
-        return [{block, translation, x, y, width, height, padding, background, foreground}];
-    });
-
-    const familyForBlock = (block: PdfDocumentBlock): string => /serif/iu.test(block.fontFamily)
-        ? '"Noto Serif CJK SC", "Songti SC", Georgia, "Times New Roman", serif'
-        : '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Arial Unicode MS", Arial, sans-serif';
-
-    type MeasuredBlock = (typeof paintedBlocks)[number] & {
-        fontSize: number;
-        lines: string[];
-        lineHeight: number;
+    const rotation = input.rotation ?? 0;
+    const quarterTurn = rotation === 90 || rotation === 270;
+    const virtualWidth = quarterTurn ? canvas.height : canvas.width;
+    const virtualHeight = quarterTurn ? canvas.width : canvas.height;
+    const scaleX = virtualWidth / (quarterTurn ? input.height : input.width);
+    const scaleY = virtualHeight / (quarterTurn ? input.width : input.height);
+    // getImageData 不应用 Canvas 当前矩阵，采样必须显式映射到实际旋转后的画布。
+    const sampleRectangle = (x: number, y: number, width: number, height: number) => {
+        if (rotation === 90) return {x: canvas.width - y - height, y: x, width: height, height: width};
+        if (rotation === 180) return {x: canvas.width - x - width, y: canvas.height - y - height, width, height};
+        if (rotation === 270) return {x: y, y: canvas.height - x - width, width: height, height: width};
+        return {x, y, width, height};
     };
 
-    const layout: MeasuredBlock[] = paintedBlocks.map((painted) => {
-        const family = familyForBlock(painted.block);
-        const maxWidth = Math.max(6, painted.width - painted.padding * 1.5);
-        const maxHeight = Math.max(
-            6,
-            painted.height - painted.padding * 0.55,
-            painted.block.lineHeight * scaleY * Math.max(1, painted.block.lineCount) - painted.padding * 0.4,
-        );
-        let fontSize = Math.max(5, painted.block.fontSize * Math.min(scaleX, scaleY));
-        let lines: string[] = [];
-        let lineHeight = Math.max(4, fontSize * 1.14);
-        while (fontSize >= 3.5) {
-            context.font = `${painted.block.fontWeight} ${fontSize}px ${family}`;
-            lines = wrapCanvasText(context, painted.translation, maxWidth);
-            lineHeight = Math.max(4, fontSize * 1.14);
-            if (lines.length * lineHeight <= maxHeight * 1.02) break;
-            fontSize -= Math.max(0.35, fontSize * 0.045);
-        }
-        return {...painted, fontSize, lines, lineHeight};
-    });
-
-    // 步骤 2：先统一擦除全部原文字块，避免重叠块把已绘制的译文再次遮住。
-    paintedBlocks.forEach(({x, y, width, height, padding, background}) => {
-        context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
-        const left = Math.max(0, x - padding);
-        const top = Math.max(0, y - padding);
-        const right = Math.min(canvas.width, x + width + padding);
-        const bottom = Math.min(canvas.height, y + height + padding);
-        context.fillRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
-    });
-
-    // 步骤 3：在裁剪后的原坐标区域中绘制译文，保证多栏与图文混排不串位。
-    layout.forEach(({block, x, y, width, height, padding, foreground, fontSize, lines, lineHeight}) => {
-        const family = familyForBlock(block);
-        const maxWidth = Math.max(6, width - padding * 1.5);
-        context.save();
-        context.beginPath();
-        context.rect(x, y, width, height);
-        context.clip();
-        context.fillStyle = foreground;
-        context.textBaseline = 'top';
-        context.textAlign = block.textAlign;
-        context.font = `${block.fontWeight} ${fontSize}px ${family}`;
-        const textX = block.textAlign === 'center' ? x + width / 2 : block.textAlign === 'right' ? x + width : x;
-        const contentHeight = lines.length * lineHeight;
-        let textY = y + Math.max(padding * 0.2, (height - contentHeight) / 2);
-        lines.forEach((line) => {
-            context.fillText(line, textX, textY, maxWidth);
-            textY += lineHeight;
+    if (rotation) context.save();
+    try {
+        const paintedBlocks = input.blocks.flatMap((block) => {
+            const translation = input.translations[block.segmentIndex] || '';
+            if (!translation.trim()) return [];
+            const x = Math.max(0, Math.min(virtualWidth - 1, block.x * scaleX));
+            const y = Math.max(0, Math.min(virtualHeight - 1, block.y * scaleY));
+            const width = Math.max(1, Math.min(virtualWidth - x, Math.max(8, block.width * scaleX)));
+            const height = Math.max(1, Math.min(virtualHeight - y, Math.max(8, block.height * scaleY)));
+            // 步骤 1：只遮盖文字块，保留周围图表和分隔线，再用采样到的前景色绘制译文。
+            const padding = Math.max(2, Math.min(scaleX, scaleY) * 1.2);
+            const sample = sampleRectangle(x, y, width, height);
+            const background = sampledBackgroundRgb(context, sample.x, sample.y, sample.width, sample.height);
+            const foreground = sampledForegroundColor(context, sample.x, sample.y, sample.width, sample.height, background);
+            return [{block, translation, x, y, width, height, padding, background, foreground}];
         });
-        context.restore();
-    });
+
+        const familyForBlock = (block: PdfDocumentBlock): string => /serif/iu.test(block.fontFamily)
+            ? '"Noto Serif CJK SC", "Songti SC", Georgia, "Times New Roman", serif'
+            : '"Noto Sans CJK SC", "PingFang SC", "Microsoft YaHei", "Arial Unicode MS", Arial, sans-serif';
+
+        type MeasuredBlock = (typeof paintedBlocks)[number] & {
+            fontSize: number;
+            lines: string[];
+            lineHeight: number;
+        };
+
+        const layout: MeasuredBlock[] = paintedBlocks.map((painted) => {
+            const family = familyForBlock(painted.block);
+            const maxWidth = Math.max(6, painted.width - painted.padding * 1.5);
+            const maxHeight = Math.max(
+                6,
+                painted.height - painted.padding * 0.55,
+                painted.block.lineHeight * scaleY * Math.max(1, painted.block.lineCount) - painted.padding * 0.4,
+            );
+            let fontSize = Math.max(5, painted.block.fontSize * Math.min(scaleX, scaleY));
+            let lines: string[] = [];
+            let lineHeight = Math.max(4, fontSize * 1.14);
+            while (fontSize >= 3.5) {
+                context.font = `${painted.block.fontWeight} ${fontSize}px ${family}`;
+                lines = wrapCanvasText(context, painted.translation, maxWidth);
+                lineHeight = Math.max(4, fontSize * 1.14);
+                if (lines.length * lineHeight <= maxHeight * 1.02) break;
+                fontSize -= Math.max(0.35, fontSize * 0.045);
+            }
+            return {...painted, fontSize, lines, lineHeight};
+        });
+
+        if (rotation === 90) context.transform(0, 1, -1, 0, canvas.width, 0);
+        else if (rotation === 180) context.transform(-1, 0, 0, -1, canvas.width, canvas.height);
+        else if (rotation === 270) context.transform(0, -1, 1, 0, 0, canvas.height);
+        // 步骤 2：先统一擦除全部原文字块，避免重叠块把已绘制的译文再次遮住。
+        paintedBlocks.forEach(({x, y, width, height, padding, background}) => {
+            context.fillStyle = `rgb(${background[0]}, ${background[1]}, ${background[2]})`;
+            const left = Math.max(0, x - padding);
+            const top = Math.max(0, y - padding);
+            const right = Math.min(virtualWidth, x + width + padding);
+            const bottom = Math.min(virtualHeight, y + height + padding);
+            context.fillRect(left, top, Math.max(1, right - left), Math.max(1, bottom - top));
+        });
+
+        // 步骤 3：在裁剪后的原坐标区域中绘制译文，保证多栏与图文混排不串位。
+        layout.forEach(({block, x, y, width, height, padding, foreground, fontSize, lines, lineHeight}) => {
+            const family = familyForBlock(block);
+            const maxWidth = Math.max(6, width - padding * 1.5);
+            context.save();
+            try {
+                context.beginPath();
+                context.rect(x, y, width, height);
+                context.clip();
+                context.fillStyle = foreground;
+                context.textBaseline = 'top';
+                context.textAlign = block.textAlign;
+                context.font = `${block.fontWeight} ${fontSize}px ${family}`;
+                const textX = block.textAlign === 'center' ? x + width / 2 : block.textAlign === 'right' ? x + width : x;
+                const contentHeight = lines.length * lineHeight;
+                let textY = y + Math.max(padding * 0.2, (height - contentHeight) / 2);
+                lines.forEach((line) => {
+                    context.fillText(line, textX, textY, maxWidth);
+                    textY += lineHeight;
+                });
+            } finally {context.restore();}
+        });
+    } finally {if (rotation) context.restore();}
     return canvas;
 }
 

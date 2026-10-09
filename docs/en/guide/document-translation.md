@@ -8,6 +8,8 @@ Import a document to read alongside its translation, edit passages as needed and
 
 Choose **Document translation** in the extension menu and drop a file onto the page, or use the file picker.
 
+For an online PDF such as [Attention Is All You Need](https://arxiv.org/pdf/1706.03762), open the extension menu and choose **Open PDF reader** or **Document translation**. You can also paste a direct PDF link on the document page. Browser PDF viewers restrict content scripts, so FluentRead opens the original file in its own reader without changing it. If a download requires a login and cannot be opened, download the file and import it.
+
 Supported formats include PDF, ePub, Word DOCX, HTML, TXT, Markdown, JSON, and SRT, VTT, ASS, SSA, and LRC subtitle files. Convert older `.doc` files to `.docx` first.
 
 Expand **No file yet? Try a sample** to open a local article, subtitle, or language-file sample. Importing a sample does not start translation automatically. Confirm settings, then use the same reading, proofreading, and download flow as with your own files.
@@ -35,6 +37,10 @@ Results stay in the current page. Download what you want to keep before refreshi
 :::
 
 ## PDF limits
+
+Online and imported PDFs share the same reader. Select or copy text on the original page; translation follows your selection settings, including the icon, direct card, and keyboard shortcut. Selection uses your selection translation service, while translating the whole document uses the document translation service. Read continuously, jump to a page, or adjust zoom without translating the entire file first.
+
+The reader prioritizes visible pages and retains canvases and text layers for at most five pages. Pages outside that window are released and rendered again when needed. Zoom keeps your current page position. Import shows downloaded bytes or parsed pages and supports cancellation and retry.
 
 Use a PDF with selectable text. Scanned PDFs are not directly recognized; convert them to a text document first, or use image translation for a few pages.
 
