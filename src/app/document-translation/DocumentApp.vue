@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档在侧栏提供可按原文或译文显示的目录；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -57,12 +57,12 @@
           <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
         </section>
         <div v-if="parsedDocument" v-show="activeSidebarTab === 'outline' && isPdfDocument" ref="outlineHost" class="sidebar-outline" />
-        <nav v-if="parsedDocument && !isPdfDocument && richOutline.length" v-show="activeSidebarTab === 'outline'" class="sidebar-outline document-outline" :aria-label="t('document.pdfReading.outline')">
+        <nav v-if="parsedDocument && !isPdfDocument && documentOutline.length" v-show="activeSidebarTab === 'outline'" class="sidebar-outline document-outline" :aria-label="t('document.pdfReading.outline')">
           <div class="document-outline-language" role="group" :aria-label="t('document.pdfReading.outline')">
             <button type="button" :class="{selected: richOutlineLanguage === 'source'}" :aria-pressed="richOutlineLanguage === 'source'" @click="richOutlineLanguage = 'source'">{{ t('document.pdfReading.original') }}</button>
             <button type="button" :class="{selected: richOutlineLanguage === 'translated'}" :aria-pressed="richOutlineLanguage === 'translated'" @click="richOutlineLanguage = 'translated'">{{ t('document.pdfReading.translated') }}</button>
           </div>
-          <button v-for="item in richOutline" :key="item.index" type="button" class="document-outline-item" :style="{paddingLeft: `${12 + (item.level - 1) * 14}px`}" :title="item.source" data-i18n-ignore @click="scrollRichOutline(richFrame, item.index)">{{ richOutlineLanguage === 'translated' && item.translation ? item.translation : item.source }}</button>
+          <button v-for="item in documentOutline" :key="item.index" type="button" class="document-outline-item" :style="{paddingLeft: `${12 + (item.level - 1) * 14}px`}" :title="item.source" data-i18n-ignore @click="jumpOutline(item)">{{ richOutlineLanguage === 'translated' && item.translation ? item.translation : item.source }}</button>
         </nav>
         <button v-if="parsedDocument" class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/></svg><strong>{{ translateLegacy('源语言与术语库') }}</strong><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
       </aside>
@@ -222,6 +222,7 @@
         <section
           v-else-if="isDocxDocument"
           class="docx-document-reader"
+          :class="{bilingual: effectivePreviewMode === 'bilingual'}"
           data-document-reader="docx"
           :data-segment-count="parsedDocument.segments.length"
           aria-label="Word 文档页面预览"
@@ -245,6 +246,7 @@
                 :key="row.index"
                 class="docx-paragraph"
                 :class="`docx-role-${row.role || 'paragraph'}`"
+                :data-segment="row.index"
               >
                 <p v-if="effectivePreviewMode !== 'translated' || (row.translation && !hasDistinctTranslation(row.source, row.translation))" class="docx-source document-source" data-i18n-ignore>{{ row.source }}</p>
                 <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="docx-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
@@ -405,7 +407,7 @@
 
 import {ElOption} from 'element-plus';
 import 'element-plus/es/components/select/style/css';
-import {markRaw, computed, onMounted, onUnmounted, reactive, ref, toRaw, watch} from 'vue';
+import {markRaw, computed, nextTick, onMounted, onUnmounted, reactive, ref, toRaw, watch} from 'vue';
 import DocumentSegmentEditor from './DocumentSegmentEditor.vue';
 import browser from 'webextension-polyfill';
 import {
@@ -1024,7 +1026,29 @@ watch([richPreviewDocument, isDark], () => {
 }, {immediate: true});
 watch([settledTranslations, effectivePreviewMode, translating], refreshRichPreview);
 // 只有带目录的文档才有“目录”页；其余文档始终显示文件页，避免停在不存在的页签上。
-const hasOutline = computed(() => isPdfDocument.value || richOutline.value.length > 0);
+/** Word 文档的目录取自标题样式的段落；翻译停下后显示它们的译文。 */
+const docxOutline = computed<RichOutlineItem[]>(() => {
+  const document = parsedDocument.value;
+  if (document?.binary?.kind !== 'docx') return [];
+  return document.binary.parts.flatMap(part => part.paragraphSegments).flatMap(({segmentIndex}) => {
+    const segment = document.segments[segmentIndex];
+    return segment?.role === 'title' || segment?.role === 'heading'
+      ? [{index: segmentIndex, level: segment.role === 'title' ? 1 : 2, source: segment.source, translation: settledTranslations.value[segmentIndex] || ''}] : [];
+  });
+});
+const documentOutline = computed(() => isDocxDocument.value ? docxOutline.value : richOutline.value);
+/** 跳到目录项：富文本预览滚动到对应标题；Word 先切到标题所在的部分和分页，再滚动到该段落。 */
+async function jumpOutline(item: RichOutlineItem): Promise<void> {
+  if (!isDocxDocument.value) {scrollRichOutline(richFrame.value, item.index); return;}
+  const partIndex = docxParts.value.findIndex(part => part.paragraphSegments.some(paragraph => paragraph.segmentIndex === item.index));
+  if (partIndex < 0) return;
+  docxPartIndex.value = partIndex;
+  await nextTick();
+  readerPage.value = Math.floor(docxParts.value[partIndex].paragraphSegments.findIndex(paragraph => paragraph.segmentIndex === item.index) / READER_PAGE_SIZE) + 1;
+  await nextTick();
+  window.document.querySelector?.(`.docx-paragraph[data-segment="${item.index}"]`)?.scrollIntoView({block: 'start', behavior: 'smooth'});
+}
+const hasOutline = computed(() => isPdfDocument.value || documentOutline.value.length > 0);
 const activeSidebarTab = computed(() => hasOutline.value ? sidebarTab.value : 'files');
 onUnmounted(() => clearTimeout(richPreviewTimer));
 const docxParts = computed(() => parsedDocument.value?.binary?.kind === 'docx'

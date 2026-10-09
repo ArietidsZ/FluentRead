@@ -22,6 +22,8 @@ Expand **No file yet? Try a sample** to open a local article, subtitle, or langu
 
 You do not wait for the whole file: each finished batch appears as soon as it returns, starting from where you are reading (the current PDF page, ePub chapter, Word part, or subtitle/JSON page). Services that accept batches receive several at once, so the whole document finishes sooner.
 
+The sidebar lists your files and, for PDFs and for Markdown, HTML, ePub, and Word documents that have headings, an outline you can show in the original or the translation and click to jump. Markdown, plain text, and Word show each paragraph beside its translation on wide windows and below it on narrow ones.
+
 Pause a long job if needed. Completed passages remain available after a pause or request failure; continuing processes the remainder. Changing languages, services, models, or glossary settings requires a fresh translation, with a prompt first.
 
 Once translation finishes, the workspace focuses on reading, proofreading, and downloading. Open **Adjust settings** to retranslate, configure service connections, or replace files. Confirmation prompts protect results you have not downloaded.

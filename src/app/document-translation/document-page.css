@@ -644,3 +644,15 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 .is-workspace .document-reading-pane .rich-document-reader { display: flex; flex: 1; flex-direction: column; min-height: 0; border: 0; border-radius: 0; }
 .is-workspace .document-reading-pane .rich-document-reader .rich-preview-frame { flex: 1; height: auto; min-height: 0; }
 .is-workspace .document-reading-pane .reading-content:has(> .rich-document-reader) > .reader-empty { flex: none; margin: 0; padding: 8px 20px; }
+
+/* Word 文档：阅读区铺满，双语在宽窗口按段落左右对照。 */
+.is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.is-workspace .document-reading-pane .docx-document-reader { display: flex; flex: 1; flex-direction: column; min-height: 0; border: 0; border-radius: 0; }
+.is-workspace .document-reading-pane .docx-document-reader .docx-page-stage { flex: 1; min-height: 0; padding: 20px 20px 32px; }
+.is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) > .reader-empty, .is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) > .reader-pagination { flex: none; margin: 0; padding: 8px 20px; }
+@media (min-width: 1100px) {
+  .docx-document-reader.bilingual .docx-page { width: min(1360px, 100%); padding: 56px 60px 72px; }
+  .docx-document-reader.bilingual .docx-paragraph { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 44px; align-items: start; }
+  .docx-document-reader.bilingual .docx-source, .docx-document-reader.bilingual .docx-translation { margin: 0; }
+  .docx-document-reader.bilingual .docx-role-paragraph .docx-translation, .docx-document-reader.bilingual .docx-role-list-item .docx-translation { font-weight: 500; }
+}
