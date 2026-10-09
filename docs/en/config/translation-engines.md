@@ -13,11 +13,13 @@ FluentRead displays translations produced by your selected service. Use the defa
 
 ## Configure a service
 
-The service directory is organized by category: click a category heading to collapse or expand it, use the category names at the top of the page to jump to a category, or search the list. Selecting an entry opens its settings; choose the default service later from General settings or the extension menu.
+The service directory is organized by category: click a category heading to collapse or expand it, use the category names at the top of the page to jump to a category, or search the list. Selecting an entry opens its settings; **Set as default translation service** in the details title bar changes the default explicitly.
 
 The model and connection fields stay visible. **Key management** sits beside the API Key fields. **Model preferences**, **Prompt templates**, **Request limits**, and **API compatibility** expand independently as needed. Collapsing a section keeps its settings active and saved. Cloud services show a quota summary; expand the setup guide for instructions. Eligibility and overage behavior depend on the provider and plan.
 
 In General settings, **Configure service** beside the default service opens its configuration directly. On narrow screens, the service directory opens with **Switch service to configure** and closes after selection.
+
+Compact directory rows keep full service names visible and leave more room for model and connection fields. The directory and details scroll separately on desktop; on narrow screens, connection fields and advanced options share one scroll area after the directory closes. Leaving local model settings stops that page's progress subscription and cancels its trial translation. Background downloads continue, and returning reads the current progress again.
 
 </details>
 
@@ -46,10 +48,10 @@ FluentRead is free and open source. Third-party services may charge separately. 
 1. Open translation services in settings and select the service to configure.
 2. Enter its key and address when available; select a model for AI services. Use details supplied by the provider. **Check connection** remains available with an empty API Key; services that require credentials report missing credentials or authentication failure in the result.
 3. Check the connection from the right side of the service details title bar. This sends a short request and may use a small amount of your allowance.
-4. Return to General settings or the extension menu, select the service as the default, and try a sentence.
+4. Select **Set as default translation service** to the left of **Check connection**, then try a sentence. General settings and the extension menu update to the same default service.
 
 ::: tip Configuring is not selecting the default
-Clicking a service in the directory only opens its configuration. The **Check connection** action is on the right side of the service details title bar. It does not change the webpage default; choose the default service from General settings or the extension menu. Documents, subtitles, and the reading card have their own selections.
+Clicking a service in the directory only opens its configuration. Choose **Set as default translation service** to the left of **Check connection** to change the webpage default. You can also choose it from General settings or the extension menu. Documents, subtitles, and the reading card have their own selections.
 :::
 
 <figure class="doc-figure"><a href="/screenshots/ui/en-US/settings-services.webp" target="_blank" rel="noopener"><img class="doc-screenshot" src="/screenshots/ui/en-US/settings-services.webp" width="2560" height="1600" alt="Translation service directory and connection settings" loading="lazy" /></a><figcaption>Configure a connection, then select the service you want to use.</figcaption></figure>
