@@ -1,6 +1,6 @@
 # #912 精简验证说明
 
-基线 upstream/main `175c59514b9ce4242b34b9f6bed1ac6a2ceb3545`。原性能移植源码为 `a9193cb40e809664b3f84ca3204876538e625cfa`；本次追加最小预算修正与两处受影响测试，#912 保持 draft。PR 只保留必要源码/测试和本说明，详细报告不重新加入。
+基线 upstream/main `175c59514b9ce4242b34b9f6bed1ac6a2ceb3545`。原性能移植源码为 `a9193cb40e809664b3f84ca3204876538e625cfa`；本次追加最小预算修正与两处受影响测试，#912 保持 draft。PR 只保留必要源码/测试、本说明和一份小型核验收据，详细报告不重新加入。
 
 完整历史源码审查、三出口模块图与原始构建/测试证据固定保留于 [19f2ac4f](https://github.com/ArietidsZ/FluentRead/tree/19f2ac4ffe587868ef2f73c52b3cdea32941920f/docs/reports/userscript-performance-clean-main-20261009)。报告精简采用普通后续提交，未重写历史或改其他分支；旧3,589,291字节仅是18e→9b的历史测量。
 
@@ -30,6 +30,8 @@ GF原正式脚本在第79行固定data检查停止，verifier未启动，其预�
 
 18份历史Neo会话均已清理。本次获批改用新建专用CW隔离会话，已准备只追踪自身spawn PID/startTicks及子进程的独立启动器，不使用全局/proc、桌面/端口盘点或Recovery。Neo二进制SHA与既有核验记录一致；最终standalone八份生产gzip已重新捕获，七份非CSS字符串不变。
 
-**自动审批审查在执行命令前拒绝新建 Neo/Xvfb/私有D-Bus**，理由仍引用上一轮“只复用活动会话、不得启动新浏览器”的范围。按指令停止，没有重试、进程创建、socket连接或权限变更。原样最终IIFE的真实浏览器ungzip、24组typed offset输入及5项异常契约均未执行，不能把Node或静态核验当作浏览器通过。
+**自动审批审查在执行命令前拒绝新建 Neo/Xvfb/私有D-Bus**。补充原用户授权、明确撤销旧reuse-only范围后，完全相同的工具调用仅重试一次，仍被拒绝，理由继续引用“只复用活动会话、禁止新建Neo/Xvfb/D-Bus”。按指令停止，未进一步重试，没有进程创建、socket连接或权限变更。原样最终standalone IIFE的真实浏览器ungzip、24组typed offset输入及5项异常契约均未执行；原样standard最终IIFE的实际初始化、基本设置和必要CJS固定输入smoke同样未执行。配置单测、CryptoJS小图和Node/静态核验均不证明两个最终IIFE的浏览器运行通过。
 
 详细证据保存在CW工作区 `userscript-performance-clean-pr-20261009/minimal-followup/final-budget-candidate/`：`FINAL-ARTIFACT-INPUTS.json`、三出口`final-*-result.json`/`*-graph.json`、`contracts.json`、`baseline-free-settings.json`、`BROWSER-CREATION-BLOCKED.json`。上层保留字节归因与竞态诊断，命令/退出码在`STAGES.json`及独立`followup-final-*`日志。串行CPU目标60%、单worker；无新依赖、扩展、凭据、模型或搜索API调用。standard预算已通过；真实浏览器IIFE验收与独立GF问题仍阻塞合并。
+
+最新源码/产物SHA、消融数字、阶段退出码及原日志SHA、54/55与main个案失败、浏览器未执行及两次拒绝证据SHA见 [机器可读核验收据](./verification-receipt.json)。收据绑定源码提交 `64108a3a1078a3d42432f2dc301bd36abff0f263`；后续仅添加证据，不重跑构建或测试。浏览器没有运行日志，以审批拒绝记录SHA单独标识，不虚构退出码。
