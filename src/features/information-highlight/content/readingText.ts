@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/content/readingText.ts
  * 文件职责：以只读、有界工作迭代器收集页面可见正文和独立译文，并保存原生 Text 到 UTF-16 段落坐标的映射。
- * 主要内容：保留内联链接与强调文字，排除交互界面、编辑器、代码和公式；按块及翻译边界流式分段，限制单段字符与映射节点，不截去长段剩余正文；块按自身位置裁剪到阅读区域，超高的块（整篇文章只用换行分段的页面）再按文字片段的位置裁剪，检查原节点身份与快照后才生成 Range。
+ * 主要内容：保留内联链接与强调文字，排除交互界面、编辑器、代码和公式，以及过短的片段和由多个链接组成的标签或导航列表；按块及翻译边界流式分段，限制单段字符与映射节点，不截去长段剩余正文；块按自身位置裁剪到阅读区域，超高的块（整篇文章只用换行分段的页面）再按文字片段的位置裁剪，检查原节点身份与快照后才生成 Range。
  * 模块边界：不监听页面、不改写宿主属性或原文、不调用模型；闭合译文根由调用方通过只读端口提供，评分与生命周期由 content runtime 管理。
  */
 import type {InformationHighlightSpan} from '../protocol';
@@ -29,7 +29,15 @@ export function* collectInformationParagraphs(document: Document, readTranslatio
     let current: InformationParagraph | undefined, distance = 0;
     const stack: Frame[] = scope ? [{next: scope, endGroup: false, index: 0, translation: false, shortTranslation: false, tall: false}] : [];
     const height = view.innerHeight, away = (top: number, bottom: number) => top > height ? top - height : bottom < 0 ? -bottom : 0;
-    const end = () => {if (current && current.text.trim() && (current.text.trim().length >= 16 || current.continuation)) pending.push(current); current = undefined;};
+    // 至少 16 个字符才算正文；带数字、不足四个词的短片段是日期、计数这类元信息，不上色。
+    const readable = (text: string) => text.length >= 16 && !(text.length < 40 && /\p{N}/u.test(text) && (text.match(/\p{L}{2,}/gu)?.length ?? 0) < 4);
+    // 几乎全由三个以上链接组成的一段是标签、导航或相关链接列表，不是要读的句子；单个链接的标题仍然保留。
+    const linkList = (paragraph: InformationParagraph) => {
+        const links = new Set<Element>(); let linked = 0;
+        for (const run of paragraph.runs) {const link = run.node.parentElement?.closest('a'); if (link) {links.add(link); linked += run.end - run.start;}}
+        return links.size >= 3 && linked >= paragraph.text.trim().length * 0.8;
+    };
+    const end = () => {if (current && current.text.trim() && (current.continuation || (readable(current.text.trim()) && !linkList(current)))) pending.push(current); current = undefined;};
     while (stack.length) {
         while (pending.length) yield pending.shift()!;
         yield undefined;

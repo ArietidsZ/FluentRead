@@ -481,6 +481,18 @@ describe('page-owned scoring, paint and cancellation', () => {
         controller.dispose();
         expect(informationHighlightOpacity('heatmap', 0, 'standard', true)).toBe(0.068); expect(informationHighlightOpacity('background', undefined, 'strong', true)).toBe(0.762);
     });
+    it('leaves dates, counters and tag or navigation link lists unpainted while keeping linked headlines and prose with links', async () => {
+        const f = fixture('<article><p id="date">Oct 9 (3 hours ago)</p><p id="count">12 reactions · 4 comments</p><p id="symbols">2026-10-10 / 08:30 / v1.2.3 !!</p>'
+            + '<h2><a href="#story">Mitigating phantom executions across autonomous agents</a></h2>'
+            + '<p id="tags"><a href="#a">#modulefederation</a> <a href="#b">#microfrontends</a> <a href="#c">#webperformance</a></p>'
+            + '<p id="prose">Researchers compared <a href="#x">attention</a>, <a href="#y">inhibition</a> and <a href="#z">memory</a> across several long studies of adult readers.</p>'
+            + '<p id="figures">The 2013 study measured 4 groups of readers.</p><p id="bare">Bare paragraph without any anchors here.</p></article>');
+        const controller = installInformationHighlight(f.document, {...defaults, density: 'high', style: 'heatmap'}, {scoreLocal: vi.fn()});
+        controller.setEnabled(true); await f.settle(); const words = f.painted();
+        expect(words).toEqual(expect.arrayContaining(['phantom', 'inhibition', 'study', 'paragraph']));
+        for (const noise of ['Oct', 'hours', 'reactions', 'comments', 'modulefederation', 'microfrontends', 'webperformance']) expect(words).not.toContain(noise);
+        expect(controller.getState().processedParagraphs).toBe(4); controller.dispose();
+    });
     it('replaces paint that starts inside a re-segmented paragraph instead of stacking colours', async () => {
         const f = fixture('<article><p id="a">Scientific original paragraphs preserve readable vocabulary. </p><p id="b">Distinctive algorithm improves readable paragraph metrics.</p></article>');
         const controller = installInformationHighlight(f.document, {...defaults, density: 'high'}, {scoreLocal: vi.fn()});
