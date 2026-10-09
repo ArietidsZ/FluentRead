@@ -1,0 +1,111 @@
+{
+  "executionHost": "arietids-cw",
+  "base": "8467b6757affb4bc895d44fa8fbf12a65bee7479",
+  "lockedAiSdk": "6.0.264",
+  "affectedTestFiles": 51,
+  "passed": 1468,
+  "failed": 1,
+  "knownUpstreamFailure": [
+    "audit48 A controlled public boundaries startup removes persisted obsolete request-header rules without an HTTP request"
+  ],
+  "newContractTests": 37,
+  "strictCoverageModules": [
+    "src/app/background/handlers/translation.ts",
+    "src/services/translation/broker.ts",
+    "src/services/translation/requestScheduler.ts",
+    "src/services/translation/requestSnapshot.ts"
+  ],
+  "providerWholeFileIsOutsideExistingStrictCoverageScope": true,
+  "providerChangedTransportPathsExecuted": true,
+  "realExternalApiCalls": 0,
+  "realTimerIntegrationCases": 1,
+  "userscriptBytes": 1960956,
+  "userscriptCapBytes": 1960000,
+  "userscriptOverrunBytes": 956,
+  "buildAndCheckStages": [
+    {
+      "stage": "updated-base-compile",
+      "startedAt": "2026-10-09T11:09:15.679180+00:00",
+      "durationSeconds": 17.394,
+      "exitCode": 0
+    },
+    {
+      "stage": "updated-base-affected-coverage",
+      "startedAt": "2026-10-09T11:09:33.073598+00:00",
+      "durationSeconds": 27.108,
+      "exitCode": 1
+    },
+    {
+      "stage": "updated-base-test-audit",
+      "startedAt": "2026-10-09T11:10:00.185167+00:00",
+      "durationSeconds": 1.266,
+      "exitCode": 0
+    },
+    {
+      "stage": "updated-base-chrome-build",
+      "startedAt": "2026-10-09T11:10:01.451149+00:00",
+      "durationSeconds": 20.652,
+      "exitCode": 0
+    },
+    {
+      "stage": "updated-base-firefox-build",
+      "startedAt": "2026-10-09T11:10:22.103452+00:00",
+      "durationSeconds": 20.299,
+      "exitCode": 0
+    },
+    {
+      "stage": "updated-base-userscript-verifier",
+      "startedAt": "2026-10-09T11:10:42.402946+00:00",
+      "durationSeconds": 0.064,
+      "exitCode": 1
+    },
+    {
+      "stage": "updated-base-docs-build",
+      "startedAt": "2026-10-09T11:10:42.466908+00:00",
+      "durationSeconds": 2.769,
+      "exitCode": 0
+    },
+    {
+      "stage": "updated-base-userscript-build",
+      "startedAt": "2026-10-09T11:07:32.052167+00:00",
+      "durationSeconds": 3.87,
+      "exitCode": 0
+    },
+    {
+      "stage": "final-report-docs-build",
+      "startedAt": "2026-10-09T11:16:56.613540+00:00",
+      "durationSeconds": 2.768,
+      "exitCode": 0
+    }
+  ],
+  "syntheticReplay": {
+    "B0": {
+      "seeds": 30,
+      "jobs": 120,
+      "successfulJobs": 60,
+      "httpAttempts": 270,
+      "healthyAttempts": 30,
+      "healthyUtf8RequestBytes": 17511,
+      "extraDispatchesDuringCooldown": 180
+    },
+    "B1-C": {
+      "seeds": 30,
+      "jobs": 120,
+      "successfulJobs": 60,
+      "httpAttempts": 270,
+      "healthyAttempts": 30,
+      "healthyUtf8RequestBytes": 17511,
+      "extraDispatchesDuringCooldown": 180
+    },
+    "C": {
+      "seeds": 30,
+      "jobs": 120,
+      "successfulJobs": 120,
+      "httpAttempts": 150,
+      "healthyAttempts": 30,
+      "healthyUtf8RequestBytes": 17511,
+      "extraDispatchesDuringCooldown": 0
+    }
+  },
+  "baselineFailureReproducedOnUnmodifiedCurrentBase": true
+}

@@ -1,0 +1,71 @@
+{
+  "mutants": [
+    {
+      "removed": "private-scope",
+      "startedAt": "2026-10-09T11:04:32.901785+00:00",
+      "durationSeconds": 1.115,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay separates trusted quota identity after private changes",
+      "assertionFailure": true,
+      "sourceSha256": "fd49d9f11e99ea3332de6d2cdeb7242181f575de01446e9c67dad06e255d04ed"
+    },
+    {
+      "removed": "endpoint-scope",
+      "startedAt": "2026-10-09T11:04:34.019282+00:00",
+      "durationSeconds": 1.116,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay separates trusted quota identity after endpoint changes",
+      "assertionFailure": true,
+      "sourceSha256": "3edb4d8f33c9854fce7a22616fabc67136e69f395bed6907d58ed911822026b5"
+    },
+    {
+      "removed": "credential-scope",
+      "startedAt": "2026-10-09T11:04:35.137046+00:00",
+      "durationSeconds": 1.065,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay separates trusted quota identity after credential changes",
+      "assertionFailure": true,
+      "sourceSha256": "4b9a59be35c44a3da3cbce69bcce03a72ed306e4b49c083523950528391aaad2"
+    },
+    {
+      "removed": "model-scope",
+      "startedAt": "2026-10-09T11:04:36.204536+00:00",
+      "durationSeconds": 1.116,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay separates trusted quota identity after model changes",
+      "assertionFailure": true,
+      "sourceSha256": "e1e1ca102ad2f31727a1ffc9f6b7df628469ebcd87b1a903c39711f1f47998e0"
+    },
+    {
+      "removed": "header-scope",
+      "startedAt": "2026-10-09T11:04:37.322163+00:00",
+      "durationSeconds": 1.116,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay separates trusted quota identity after header changes",
+      "assertionFailure": true,
+      "sourceSha256": "fb11a689edcf8e3388215c929adb6379172a78561aff97dbe94f1113508951a0"
+    },
+    {
+      "removed": "transport-lease",
+      "startedAt": "2026-10-09T11:04:38.438767+00:00",
+      "durationSeconds": 1.116,
+      "exitCode": 1,
+      "passed": 0,
+      "failed": 1,
+      "failure": "shared Retry-After real client/broker/SDK transport replay keeps the outer lease until a cancelled real transport actually settles",
+      "assertionFailure": true,
+      "sourceSha256": "c79cd45da1847a32681f170bb00f67903b8c763e75aeb61b4cbf7b071baff707"
+    }
+  ],
+  "exactCandidateRestored": true
+}
