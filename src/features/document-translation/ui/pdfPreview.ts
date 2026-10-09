@@ -211,7 +211,7 @@ async function renderPdfSourceCanvas(bytes: Uint8Array, pageNumber: number, widt
     }
 }
 
-function sampledBackgroundRgb(
+export function sampledBackgroundRgb(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -241,7 +241,7 @@ function sampledBackgroundRgb(
     ];
 }
 
-function sampledForegroundColor(
+export function sampledForegroundColor(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,

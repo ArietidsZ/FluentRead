@@ -653,9 +653,11 @@ describe('document user actions: confirmation and task consumers', () => {
         await fire(input, 'change', {files: [file('picked-second.txt')], value: 'fake-path'});
         expect(input.value).toBe('');
         await vi.waitFor(() => expect(textOf(root)).toContain('picked-second.txt'));
-        expect(textOf(taskbar())).toContain('picked-first.txt');
-        await selectFile('picked-second.txt');
+        // 新添加的文件立即成为当前文档；先前的文件留在侧栏文件列表里，可以随时切回。
         expect(textOf(taskbar())).toContain('picked-second.txt');
+        expect(textOf(taskbar())).not.toContain('picked-first.txt');
+        await selectFile('picked-first.txt');
+        expect(textOf(taskbar())).toContain('picked-first.txt');
     });
 
     it('continues the queue after a file fails and retries only that file through the batch action', async () => {

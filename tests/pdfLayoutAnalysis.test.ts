@@ -52,7 +52,8 @@ describe('PDF baseline and structural reading analysis', () => {
         const result = analyze(atoms, graphics);
         expect(result.preservedRegions.map(region => region.kind)).toEqual(['table', 'figure']);
         expect(result.preservedRegions[1]).toMatchObject({x: 170, y: 200, width: 170, height: 65});
-        expect(result.blocks.find(block => block.source.startsWith('Model'))?.preserveSource).toBe(true);
+        // 含词语的单元格各自成段并可翻译；纯数字单元格保留原样。
+        expect(result.blocks.filter(block => block.kind === 'table').map(block => [block.source, block.preserveSource])).toEqual([['Model', false], ['Baseline', false], ['Score', false], ['24.9', true]]);
         expect(result.blocks.find(block => block.source === 'Image label')?.kind).toBe('figure-label');
         expect(result.blocks.filter(block => block.kind === 'caption').every(block => !block.preserveSource)).toBe(true);
         expect(result.blocks.find(block => block.source === 'A paragraph after the table.')?.textAlign).toBe('left');

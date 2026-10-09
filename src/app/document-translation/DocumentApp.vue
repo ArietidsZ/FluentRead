@@ -1,13 +1,13 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，从正在阅读的页开始翻译；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
 <template>
   <div class="document-app" :class="{ dark: isDark, 'is-workspace': parsedDocument }">
-    <header class="document-header">
+    <header v-if="!parsedDocument" class="document-header">
       <div class="document-brand" aria-label="流畅阅读文档翻译">
         <img src="/icon/128.png" alt="" />
         <span>
@@ -16,36 +16,48 @@
         </span>
       </div>
       <div class="header-actions">
-        <button v-if="parsedDocument" class="ghost-button" type="button" :disabled="queueBusy" @click="openFilePicker">添加文件</button>
-        <button v-if="!parsedDocument" class="header-settings" type="button" aria-label="打开翻译设置" @click="openSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.4"/></svg><span>设置</span></button>
+        <button class="header-settings" type="button" aria-label="打开翻译设置" @click="openSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.4"/></svg><span>设置</span></button>
       </div>
     </header>
 
     <input ref="fileInput" class="visually-hidden" type="file" multiple :accept="accept" tabindex="-1" @change="handleFileInput" />
     <main class="document-main">
       <p v-if="hydrated && !config.on" class="notice" role="status" data-testid="document-translation-paused">{{ t('popup.heroDisabled') }} · <button type="button" @click="openGeneralSettings">通用设置</button></p>
-      <section v-if="documentQueue.length > 1 || documentQueue.some(item => item.error && !item.document)" class="document-batch" :aria-label="t('document.batch.queue')" :aria-busy="openingFile">
-        <div class="batch-toolbar">
+      <!-- 打开文档后，文件与目录收进左侧可折叠的侧栏；未打开文档时这里只显示导入失败的文件。 -->
+      <div class="document-layout">
+      <aside v-show="!parsedDocument || sidebarOpen" class="document-sidebar" :aria-label="parsedDocument ? translateLegacy('文件与目录') : undefined">
+        <div v-if="parsedDocument" class="sidebar-tabs" role="tablist">
+          <button type="button" role="tab" :aria-selected="sidebarTab === 'files'" :class="{selected: sidebarTab === 'files'}" @click="sidebarTab = 'files'">{{ translateLegacy('文件') }}<small v-if="documentQueue.length > 1">{{ documentQueue.length }}</small></button>
+          <button v-if="isPdfDocument" type="button" role="tab" :aria-selected="sidebarTab === 'outline'" :class="{selected: sidebarTab === 'outline'}" @click="sidebarTab = 'outline'">{{ t('document.pdfReading.outline') }}</button>
+        </div>
+      <section v-if="parsedDocument || documentQueue.length > 1 || documentQueue.some(item => item.error && !item.document)" v-show="!parsedDocument || sidebarTab === 'files'" class="document-batch" :aria-label="t('document.batch.queue')" :aria-busy="openingFile">
+          <div class="batch-toolbar">
           <button class="batch-toggle" type="button" :aria-expanded="queueExpanded" aria-controls="document-queue-files" @click="queueExpanded = !queueExpanded"><strong>{{ t('document.batch.queue') }} · {{ documentQueue.length }}</strong><span aria-hidden="true">{{ queueExpanded ? '−' : '+' }}</span></button>
-          <span role="status">{{ batchRunning ? t('document.batch.running') : openingFile ? t('document.batch.importing') : t('document.batch.completed', {count: batchCompletedCount}) }}</span>
+          <span class="batch-status" :class="{idle: !batchRunning && !openingFile}" role="status">{{ batchRunning ? t('document.batch.running') : openingFile ? t('document.batch.importing') : t('document.batch.completed', {count: batchCompletedCount}) }}</span>
           <button v-if="batchRunning" type="button" @click="pauseTranslation">{{ t('document.batch.pause') }}</button>
-          <button v-else-if="batchPendingCount" type="button" :disabled="!config.on || queueBusy || !hydrated || Boolean(credentialWarning)" @click="startBatch">{{ t('document.batch.start') }}</button>
+          <button v-else-if="batchPendingCount && (!parsedDocument || documentQueue.length > 1)" class="batch-start" type="button" :disabled="!config.on || queueBusy || !hydrated || Boolean(credentialWarning)" @click="startBatch">{{ t('document.batch.start') }}</button>
           <span v-if="!queueExpanded && documentQueue.some(item => !item.document)" class="queue-error">有文件导入失败，请展开查看</span>
-          <label v-if="queueExpanded && batchCompletedCount">{{ t('document.batch.output') }}<ElSelect class="batch-output" v-model="outputMode" :disabled="queueBusy" :aria-label="t('document.batch.output')" append-to=".document-app"><ElOption value="bilingual" :label="translateLegacy('双语')" /><ElOption value="translated" :label="translateLegacy('仅译文')" /></ElSelect></label>
-          <button v-if="queueExpanded && batchCompletedCount" type="button" :disabled="queueBusy" @click="downloadBatch">{{ t('document.batch.zip') }}</button>
+          <label v-if="(queueExpanded || (parsedDocument && documentQueue.length > 1)) && batchCompletedCount">{{ t('document.batch.output') }}<ElSelect class="batch-output" v-model="outputMode" :disabled="queueBusy" :aria-label="t('document.batch.output')" append-to=".document-app"><ElOption value="bilingual" :label="translateLegacy('双语')" /><ElOption value="translated" :label="translateLegacy('仅译文')" /></ElSelect></label>
+          <button v-if="(queueExpanded || (parsedDocument && documentQueue.length > 1)) && batchCompletedCount" type="button" :disabled="queueBusy" @click="downloadBatch">{{ t('document.batch.zip') }}</button>
           <button v-if="preparingDownload && !downloadOpen" type="button" :disabled="cancelingDownload" @click="cancelDownload">{{ t(cancelingDownload ? 'document.export.canceling' : 'document.export.cancel') }}</button>
         </div>
         <ul v-show="queueExpanded" id="document-queue-files" class="batch-files">
-          <li v-for="item in documentQueue" :key="item.id" :class="{ selected: item.id === activeDocumentId }">
-            <button class="batch-file" type="button" :disabled="queueBusy || !item.document" :aria-pressed="item.id === activeDocumentId" @click="selectDocument(item)">
-              <span data-i18n-ignore>{{ item.name }}</span><small>{{ queueStatus(item) }}</small>
+            <li v-for="item in documentQueue" :key="item.id" :class="{ selected: item.id === activeDocumentId }">
+              <button class="batch-file" type="button" :disabled="queueBusy || !item.document" :aria-pressed="item.id === activeDocumentId" @click="selectDocument(item)">
+                <span data-i18n-ignore :title="item.name">{{ item.name }}</span><small>{{ queueStatus(item) }}</small>
+              <i v-if="item.document?.segments.length" class="batch-progress" aria-hidden="true"><b :style="{width: `${queueProgress(item)}%`}" /></i>
             </button>
-            <button type="button" :disabled="queueBusy" :aria-label="`${t('document.batch.remove')} ${item.name}`" @click="removeDocument(item)">{{ t('document.batch.remove') }}</button>
-            <p v-if="item.error" class="notice error" role="alert" data-i18n-ignore>{{ item.error }}</p>
-          </li>
-        </ul>
-        <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
-      </section>
+              <button class="batch-remove" type="button" :disabled="queueBusy" :aria-label="`${t('document.batch.remove')} ${item.name}`" :title="t('document.batch.remove')" @click="removeDocument(item)">{{ t('document.batch.remove') }}</button>
+              <p v-if="item.error" class="notice error" role="alert" data-i18n-ignore>{{ item.error }}</p>
+            </li>
+          </ul>
+          <button v-if="parsedDocument" class="ghost-button sidebar-add-file" type="button" :disabled="queueBusy" @click="openFilePicker">添加文件</button>
+          <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
+        </section>
+        <div v-if="parsedDocument" v-show="sidebarTab === 'outline' && isPdfDocument" ref="outlineHost" class="sidebar-outline" />
+        <button v-if="parsedDocument" class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
+      </aside>
+      <div class="document-content">
       <section v-if="!parsedDocument" class="landing-section">
         <div class="landing-copy">
           <h1>文档换一种语言，阅读依然流畅</h1>
@@ -76,6 +88,18 @@
           <div><input id="online-pdf-url" v-model="onlinePdfUrl" type="url" inputmode="url" required placeholder="https://arxiv.org/pdf/1706.03762" :disabled="queueBusy" /><button class="ghost-button" type="submit" :disabled="queueBusy">{{ t('document.pdfReading.openOnline') }}</button></div>
           <small>{{ t('document.pdfReading.onlineHint') }}</small>
         </form>
+        <section v-if="historyEntries.length" class="document-history" aria-label="最近翻译">
+          <header><h2>最近翻译</h2><button type="button" :disabled="queueBusy" @click="clearHistory">清空记录</button></header>
+          <ul>
+            <li v-for="entry in historyEntries" :key="entry.id">
+              <button class="history-open" type="button" :disabled="queueBusy" @click="openHistory(entry)">
+                <b>{{ historyFormat(entry) }}</b>
+                <span><strong data-i18n-ignore :title="entry.name">{{ entry.name }}</strong><small>{{ historyStatus(entry) }}</small></span>
+              </button>
+              <button class="history-remove" type="button" :disabled="queueBusy" :aria-label="`移除记录 ${entry.name}`" title="移除记录" @click="removeHistory(entry)">×</button>
+            </li>
+          </ul>
+        </section>
         <div class="format-list" aria-label="支持的文件格式">
           <span v-for="item in formatCards" :key="item.code" class="format-card"><b :class="item.tone">{{ item.code }}</b>{{ item.label }}</span>
         </div>
@@ -90,31 +114,47 @@
       <section v-else class="workspace-section">
         <section class="document-taskbar" aria-label="当前文档与翻译任务">
           <div class="workspace-heading">
-            <div class="file-heading"><span class="task-file-format">{{ formatCode }}</span><div><h1 data-i18n-ignore>{{ parsedDocument.fileName }}</h1><p class="document-status" role="status">{{ statusLabel }}<span v-if="hasTranslation"> · {{ completedSegments }} / {{ parsedDocument.segments.length }}</span></p></div></div>
+            <button class="sidebar-toggle" type="button" :class="{active: sidebarOpen}" :aria-expanded="sidebarOpen" :aria-label="translateLegacy(sidebarOpen ? '收起侧栏' : '展开文件与目录')" :title="translateLegacy(sidebarOpen ? '收起侧栏' : '展开文件与目录')" @click="sidebarOpen = !sidebarOpen"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><rect x="2.5" y="3.5" width="15" height="13" rx="2.5" stroke="currentColor" stroke-width="1.4"/><path d="M7.5 3.5v13" stroke="currentColor" stroke-width="1.4"/></svg><small v-if="documentQueue.length > 1">{{ documentQueue.length }}</small></button>
+            <img class="taskbar-logo" src="/icon/128.png" alt="" />
+            <div class="file-heading"><div><h1 data-i18n-ignore :title="parsedDocument.fileName">{{ parsedDocument.fileName }}</h1><p class="document-status" role="status">{{ statusLabel }}<span v-if="hasTranslation"> · {{ completedSegments }} / {{ parsedDocument.segments.length }}</span></p></div></div>
           </div>
-          <p v-if="openingFile || downloadingPdf" class="document-import-progress" role="status">{{ importProgress }} <button class="ghost-button" type="button" @click="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button></p>
+          <div class="reader-toolbar">
+            <div class="mode-buttons reader-tabs" role="group" aria-label="文档工作区">
+              <button type="button" :class="{ selected: readerTab === 'read' }" :aria-pressed="readerTab === 'read'" @click="readerTab = 'read'">阅读</button>
+              <button type="button" :class="{ selected: readerTab === 'edit' }" :aria-pressed="readerTab === 'edit'" @click="readerTab = 'edit'">校订译文</button>
+            </div>
+            <div v-if="readerTab === 'read'" class="mode-buttons" role="group" aria-label="阅读方式">
+              <button v-for="mode in readingModes" :key="mode.value" type="button" :class="{ selected: effectivePreviewMode === mode.value }" :aria-pressed="effectivePreviewMode === mode.value" :disabled="!canCompare && mode.value !== 'source'" @click="previewMode = mode.value">{{ mode.label }}</button>
+            </div>
+            <!-- PDF 的页码、缩放和显示方式由阅读器传送到这里，与文档操作共用一行。 -->
+            <div v-show="readerTab === 'read' && isPdfDocument" ref="readerControls" class="reader-controls-slot" />
+          </div>
           <div class="taskbar-actions">
-            <button class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
+            <!-- 服务、模型与目标语言直接在工具栏选择；源语言和术语库在侧栏底部的“调整设置”里。 -->
+            <label class="toolbar-field"><span>翻译服务</span><ElSelect class="document-select toolbar-select toolbar-service" :wrap-label="false" :show-search-icon="false" append-to=".document-app" v-model="config.documentService" :empty-values="[null, undefined]" :disabled="queueBusy" aria-label="翻译服务" filterable>
+              <ElOption :label="followDefaultLabel" value="" />
+              <ElOption v-if="config.documentService && documentServiceUnavailableMessage" :value="config.documentService" disabled :label="translateLegacy('Chrome内置AI翻译（当前浏览器不可用）')" />
+              <ElOption v-for="item in serviceOptions" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
+            </ElSelect></label>
+            <label class="toolbar-field"><span>目标语言</span><ElSelect class="document-select toolbar-select toolbar-language" :wrap-label="false" :show-search-icon="false" append-to=".document-app" v-model="config.to" :disabled="queueBusy" aria-label="目标语言" filterable>
+              <ElOption v-for="item in options.to" :key="item.value" :value="item.value" :label="translateLegacy(item.label)" />
+            </ElSelect></label>
+            <label v-if="documentUsesModel" class="toolbar-field"><span>模型</span><ElSelect class="document-select toolbar-select toolbar-model" :wrap-label="false" :show-search-icon="false" append-to=".document-app" v-model="selectedDocumentModel" :disabled="queueBusy" aria-label="模型" filterable>
+              <ElOption v-for="model in documentModelOptions" :key="model" :value="model" data-i18n-ignore :label="model" />
+            </ElSelect></label>
+            <button class="download-button" type="button" :disabled="!hasTranslation || queueBusy" @click="openDownload">下载文件 ↓</button>
             <div class="translation-actions">
-              <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation">暂停翻译</button>
+              <button v-if="translating" class="ghost-button pause-button" type="button" @click="pauseTranslation"><i class="spinner dark-spinner" aria-hidden="true" />暂停翻译</button>
               <button v-else-if="parsedDocument.segments.length && (!translationComplete || settingsChanged)" class="translate-document-button" type="button" :disabled="!config.on || !hydrated || queueBusy || Boolean(credentialWarning)" @click="requestTranslation">{{ translationActionLabel }}</button>
             </div>
           </div>
           <div class="task-progress" :class="{ complete: translationComplete }" role="progressbar" aria-label="文档翻译进度" :aria-valuenow="progress" :aria-valuemin="0" :aria-valuemax="100"><i :style="{width: `${progress}%`}" /></div>
+          <p v-if="openingFile || downloadingPdf" class="document-import-progress" role="status">{{ importProgress }} <button class="ghost-button" type="button" @click="cancelImport">{{ t('document.pdfReading.cancelImport') }}</button></p>
           <p v-if="errorMessage || credentialWarning || configSaveError" class="notice error task-notice" role="alert">{{ errorMessage || credentialWarning || configSaveError }} <button v-if="credentialWarning || configSaveError" type="button" @click="documentSettingsDialog?.showModal()">调整设置</button></p>
           <p v-if="settingsChanged" class="notice warning task-notice">设置已更改。现有译文保留，按新设置翻译会从头开始。</p>
+          <p v-if="downloadNotice" class="notice task-notice" role="status">{{ downloadNotice }}</p>
         </section>
         <article class="document-reading-pane" aria-label="文档内容">
-        <div class="reader-toolbar">
-          <div class="mode-buttons reader-tabs" role="group" aria-label="文档工作区">
-            <button type="button" :class="{ selected: readerTab === 'read' }" :aria-pressed="readerTab === 'read'" @click="readerTab = 'read'">阅读</button>
-            <button type="button" :class="{ selected: readerTab === 'edit' }" :aria-pressed="readerTab === 'edit'" @click="readerTab = 'edit'">校订译文</button>
-          </div>
-          <div v-if="readerTab === 'read'" class="mode-buttons" role="group" aria-label="阅读方式">
-            <button v-for="mode in readingModes" :key="mode.value" type="button" :class="{ selected: effectivePreviewMode === mode.value }" :aria-pressed="effectivePreviewMode === mode.value" :disabled="!hasTranslation && mode.value !== 'source'" @click="previewMode = mode.value">{{ mode.label }}</button>
-          </div>
-          <button class="download-button" type="button" :disabled="!hasTranslation || queueBusy" @click="openDownload">下载文件 ↓</button>
-        </div>
         <DocumentSegmentEditor :key="activeDocumentId ?? 0" v-show="readerTab === 'edit'" :document="parsedDocument" :translations="translatedSegments" :disabled="queueBusy" @update="editSegment" />
         <div v-show="readerTab === 'read'" class="reading-content" :class="{'reading-pdf': isPdfDocument}">
         <PdfReader
@@ -124,7 +164,13 @@
           :translations="translatedSegments"
           v-model:presentation="pdfPresentation"
           :mode="effectivePreviewMode"
+          :translating="translating"
+          :loading-style="config.translationLoadingStyle"
+          :animated="config.animations"
+          :controls-target="readerControls"
+          :outline-target="outlineHost"
           :source-url="documentQueue.find(item => item.id === activeDocumentId)?.sourceUrl"
+          @page-change="pdfPage = $event"
         />
 
         <section
@@ -237,14 +283,15 @@
             <p v-if="effectivePreviewMode !== 'source' && (!row.translation || hasDistinctTranslation(row.source, row.translation))" class="reader-translation document-translation" data-i18n-ignore>{{ row.translation || translateLegacy('等待翻译…') }}</p>
           </article>
         </div>
-        <p v-if="!hasTranslation" class="reader-empty">
+        <p v-if="!hasTranslation && !isPdfDocument" class="reader-empty">
           {{ emptyReaderHint }}
         </p>
         <nav v-if="readerPageCount > 1" class="reader-pagination" aria-label="文档阅读分页"><button type="button" :disabled="readerPage === 1" @click="readerPage--">上一页</button><span>第 {{ readerPage }} / {{ readerPageCount }} 页</span><button type="button" :disabled="readerPage === readerPageCount" @click="readerPage++">下一页</button></nav>
         </div>
-        <p v-if="hasTranslation || downloadNotice" class="reader-save-note" role="status">{{ downloadNotice || '译文仅保留在本页，请下载后再离开。' }}</p>
         </article>
       </section>
+      </div>
+      </div>
     </main>
 
     <dialog ref="documentSettingsDialog" class="document-dialog document-settings-dialog" aria-labelledby="document-settings-heading">
@@ -354,6 +401,8 @@ import {
   generateDocumentArchive,
   createDocumentDownloadName,
   createDocumentFileLoadGuard,
+  createDocumentHistory,
+  documentHistoryId,
   createDocumentPreviewHtml,
   fetchOnlinePdf,
   readPdfSourceFragment,
@@ -390,6 +439,7 @@ import {
   supportsTranslationGlossary,
   useUiI18n,
   type DocumentRenderMode,
+  type DocumentHistorySummary,
   type PdfReadingPresentation,
   type ParsedDocument,
   ElSelect,
@@ -429,7 +479,13 @@ const parsedDocument = ref<ParsedDocument | null>(null);
 const translatedSegments = ref<string[]>([]);
 const outputMode = ref<DocumentRenderMode>('bilingual');
 const previewMode = ref<'source' | DocumentRenderMode>('bilingual');
-const pdfPresentation = ref<PdfReadingPresentation>('readable');
+const pdfPresentation = ref<PdfReadingPresentation>('layout');
+const readerControls = ref<HTMLElement | null>(null);
+const outlineHost = ref<HTMLElement | null>(null);
+// 侧栏默认展开，PDF 先显示目录、其他格式显示文件；添加第二份文件或导入失败时切到文件页。
+const sidebarOpen = ref(true);
+const sidebarTab = ref<'files' | 'outline'>('outline');
+const pdfPage = ref(1);
 const readerTab = ref<'read' | 'edit'>('read');
 const readerPage = ref(1);
 const runState = ref<'ready' | 'paused' | 'failed'>('ready');
@@ -482,6 +538,12 @@ const downloadUrls = new Map<string, ReturnType<typeof setTimeout>>();
 interface DocumentQueueItem {
   id: number;
   name: string;
+  /** 原始文件内容的摘要与字节，仅在浏览器支持本地历史时保留，用于“最近翻译”。 */
+  historyId?: string;
+  bytes?: Uint8Array;
+  mimeType?: string;
+  /** 已写入本地历史的修订号，避免没有变化时重复保存。 */
+  savedRevision?: number;
   sourceUrl?: string;
   document: ParsedDocument | null;
   translations: string[];
@@ -527,6 +589,60 @@ function selectDocument(item: DocumentQueueItem): void {
   readerTab.value = 'read';
   epubChapterIndex.value = 0;
   docxPartIndex.value = 0;
+}
+
+function queueProgress(item: DocumentQueueItem): number {
+  if (item.id === activeDocumentId.value) return progress.value;
+  const total = item.document?.segments.length || 0;
+  return total ? Math.floor(item.translations.filter(text => text?.trim()).length / total * 100) : 0;
+}
+
+// 最近翻译：只在浏览器提供 IndexedDB 时启用；记录留在本机，重新打开同一份文件会接着上次的译文继续。
+const historyAvailable = typeof indexedDB !== 'undefined';
+const history = createDocumentHistory();
+const historyEntries = ref<DocumentHistorySummary[]>([]);
+let historyTimer: ReturnType<typeof setTimeout> | undefined;
+async function refreshHistory(): Promise<void> {
+  if (!historyAvailable) return;
+  const entries = await history.list();
+  if (!disposed) historyEntries.value = entries;
+}
+function persistHistory(): void {
+  if (historyTimer !== undefined) {clearTimeout(historyTimer); historyTimer = undefined;}
+  if (!historyAvailable) return;
+  saveActiveDocument();
+  for (const item of documentQueue.value) {
+    const completed = item.translations.filter(text => text?.trim()).length;
+    if (!item.document || !item.historyId || !item.bytes || !completed || item.revision === item.savedRevision) continue;
+    item.savedRevision = item.revision;
+    void history.save({id: item.historyId, name: item.name, format: item.document.format, size: item.bytes.byteLength, sourceUrl: item.sourceUrl, mimeType: item.mimeType || '',
+      total: item.document.segments.length, completed, updatedAt: Date.now(), bytes: item.bytes, translations: [...item.translations], fingerprint: item.fingerprint}).then(refreshHistory);
+  }
+}
+function scheduleHistorySave(): void {
+  if (!historyAvailable || historyTimer !== undefined) return;
+  historyTimer = setTimeout(persistHistory, 2000);
+}
+async function openHistory(entry: DocumentHistorySummary): Promise<void> {
+  if (queueBusy.value) return;
+  const record = await history.load(entry.id);
+  if (!record) {await refreshHistory(); return;}
+  await loadFiles([new File([record.bytes], record.name, {type: record.mimeType})], record.sourceUrl);
+}
+async function removeHistory(entry: DocumentHistorySummary): Promise<void> {
+  await history.remove(entry.id);
+  await refreshHistory();
+}
+async function clearHistory(): Promise<void> {
+  await history.clear();
+  await refreshHistory();
+}
+function historyFormat(entry: DocumentHistorySummary): string {
+  return entry.format === 'markdown' ? 'MD' : entry.format.toUpperCase();
+}
+function historyStatus(entry: DocumentHistorySummary): string {
+  const date = new Date(entry.updatedAt).toLocaleDateString(language.value, {month: 'short', day: 'numeric'});
+  return `${entry.completed >= entry.total ? translateLegacy('翻译完成') : `${translateLegacy('已翻译')} ${entry.completed} / ${entry.total}`} · ${date}`;
 }
 
 function queueStatus(item: DocumentQueueItem): string {
@@ -676,6 +792,11 @@ const serviceOptions = computed(() => filterAvailableTranslationServices(withCus
   description: item.description ? translateLegacy(item.description) : item.description,
 })));
 const effectiveDocumentService = computed(() => config.documentService || config.service);
+// “跟随默认”后面写明当前默认的是哪个服务，读者不必去设置页确认。
+const followDefaultLabel = computed(() => {
+  const name = serviceOptions.value.find(item => item.value === config.service)?.label;
+  return name ? `${t('featureServices.followDefault')} · ${name}` : t('featureServices.followDefault');
+});
 const activeDocumentModels = computed(() => config.documentService ? config.documentModel : config.model);
 const activeDocumentCustomModels = computed(() => config.documentService ? config.documentCustomModel : config.customModel);
 const documentServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(effectiveDocumentService.value));
@@ -744,7 +865,9 @@ const completedSegments = computed(() => translating.value ? liveCompletedSegmen
   : parsedDocument.value?.segments.filter(segment => translatedSegments.value[segment.id]?.trim()).length || 0);
 const translationComplete = computed(() => Boolean(parsedDocument.value && completedSegments.value === parsedDocument.value.segments.length));
 const progress = computed(() => parsedDocument.value?.segments.length ? Math.floor(completedSegments.value / parsedDocument.value.segments.length * 100) : 0);
-const effectivePreviewMode = computed(() => hasTranslation.value ? previewMode.value : 'source');
+// PDF 打开即左右对照，其他格式从翻译开始进入所选方式：译文页先显示原页，各段译文到达后逐段替换。
+const canCompare = computed(() => hasTranslation.value || translating.value || (isPdfDocument.value && Boolean(parsedDocument.value?.segments.length)));
+const effectivePreviewMode = computed(() => canCompare.value ? previewMode.value : 'source');
 const currentFingerprint = computed(() => JSON.stringify({
   from: config.from, to: config.to, service: effectiveDocumentService.value, model: selectedDocumentModel.value,
   glossaryIds: config.documentGlossaryIds, glossaryRevision: buildGlossaryRevision(config.glossaryLibraries, config.glossaryEnabled),
@@ -819,6 +942,22 @@ const jsonRows = computed(() => previewRows.value);
 const emptyReaderHint = computed(() => isPdfDocument.value ? t(parsedDocument.value?.segments.length ? 'document.pdfReading.startHint' : 'document.pdfReading.selectableSource') : getDocumentEmptyReaderHint(parsedDocument.value));
 const readerPageCount = computed(() => isPdfDocument.value || isRichDocument.value ? 1 : Math.max(1, Math.ceil((isDocxDocument.value ? currentDocxPart.value?.paragraphSegments.length || 0 : parsedDocument.value?.segments.length || 0) / READER_PAGE_SIZE)));
 const formatCode = computed(() => parsedDocument.value?.format === 'markdown' ? 'MD' : parsedDocument.value?.format.toUpperCase() || 'FILE');
+
+const pdfSegmentPages = computed(() => {
+  const binary = parsedDocument.value?.binary;
+  if (binary?.kind !== 'pdf') return null;
+  const map = new Map<number, number>();
+  binary.pages.forEach((page, index) => page.segmentIndexes.forEach(segment => { if (!map.has(segment)) map.set(segment, index); }));
+  return {map, count: binary.pages.length};
+});
+/** 从正在阅读的页开始向后翻译，读到哪里先译哪里；前面的页排在全文末尾之后。 */
+function prioritizeVisiblePages<T extends {id: number}>(pending: readonly T[]): T[] {
+  const pages = pdfSegmentPages.value;
+  if (!pages) return [...pending];
+  const current = pdfPage.value - 1;
+  const rank = (segment: T) => ((pages.map.get(segment.id) ?? 0) - current + pages.count) % pages.count;
+  return [...pending].sort((left, right) => rank(left) - rank(right) || left.id - right.id);
+}
 
 function releaseDocumentPreview(document: ParsedDocument | null): void {
   if (document?.binary?.kind === 'pdf') releasePdfDocument(document.binary.bytes);
@@ -953,6 +1092,7 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
   importProgress.value = '';
   batchNotice.value = '';
   errorMessage.value = '';
+  let opened = false;
   try {
     for (const file of files) {
       const item: DocumentQueueItem = {id: ++nextDocumentId, name: file.name, sourceUrl, document: null,
@@ -966,13 +1106,24 @@ async function loadFiles(files: File[], sourceUrl?: string): Promise<void> {
         if (!loadRequest.isCurrent()) return;
         if (!parsed.segments.length && parsed.binary?.kind !== 'pdf') throw new Error('文件中没有找到可翻译的文本片段。');
         item.document = markRaw(parsed);
+        if (historyAvailable) {
+          const bytes = parsed.binary?.bytes ?? new Uint8Array(await file.arrayBuffer());
+          const historyId = await documentHistoryId(bytes);
+          const saved = historyId ? await history.load(historyId) : null;
+          if (!loadRequest.isCurrent()) return;
+          Object.assign(item, {historyId, bytes, mimeType: file.type});
+          // 译文数量与当前解析结果一致时才恢复；解析规则变化后的旧记录不能错位套用。
+          if (saved && saved.total === parsed.segments.length) Object.assign(item, {translations: [...saved.translations], fingerprint: saved.fingerprint});
+        }
       } catch (error) {
         if (!loadRequest.isCurrent()) return;
         item.error = error instanceof Error ? error.message : String(error);
       }
       documentQueue.value.push(item);
       if (item.error) queueExpanded.value = true;
-      if (item.document && activeDocumentId.value === null) selectDocument(item);
+      if (item.error || documentQueue.value.length > 1) {sidebarOpen.value = true; sidebarTab.value = 'files';}
+      // 新添加的文件立即成为当前文档；一次添加多份时停在第一份，其余在文件列表中等待。
+      if (item.document && !opened) {opened = true; selectDocument(item);}
     }
   } finally {
     if (loadRequest.isCurrent()) {openingFile.value = false; importProgress.value = '';}
@@ -1034,6 +1185,7 @@ function handleDrop(event: DragEvent): void {
 }
 
 function resetDocument(): void {
+  persistHistory();
   cancelImport();
   releaseDocumentPreview(parsedDocument.value);
   documentQueue.value.forEach(item => releaseDocumentPreview(item.document));
@@ -1157,11 +1309,13 @@ async function startTranslation(restart = false): Promise<void> {
       glossaryIds, glossaryRevision,
       initialTranslations: [...translatedSegments.value],
       signal: controller.signal,
+      ...(pdfSegmentPages.value ? {batchLimits: {items: 8, characters: 2400}, prioritize: prioritizeVisiblePages} : {}),
       onSegment: ({id, translation}) => {
         if (requestId !== translationRequestId || parsedDocument.value !== document || controller.signal.aborted) return;
         liveCompletedSegments.value += Number(Boolean(translation.trim())) - Number(Boolean(translatedSegments.value[id]?.trim()));
         translatedSegments.value[id] = translation;
         editRevision.value += 1;
+        scheduleHistorySave();
       },
     });
   } catch (error) {
@@ -1176,6 +1330,7 @@ async function startTranslation(restart = false): Promise<void> {
     if (requestId === translationRequestId) {
       translating.value = false;
       if (abortController === controller) abortController = null;
+      persistHistory();
     }
   }
 }
@@ -1186,6 +1341,7 @@ function editSegment(index: number, value: string): void {
   translatedSegments.value[index] = value;
   editRevision.value += 1;
   downloadNotice.value = '';
+  scheduleHistorySave();
 }
 
 function openDownload(): void {
@@ -1271,6 +1427,7 @@ onMounted(() => {
   colorSchemeMedia.addEventListener?.('change', applyTheme);
   window.addEventListener('pagehide', resetDocument);
   window.addEventListener('beforeunload', guardBeforeUnload);
+  void refreshHistory();
   const source = readPdfSourceFragment(window.location.hash || '');
   if (source) {onlinePdfUrl.value = source; void openOnlinePdf();}
 });

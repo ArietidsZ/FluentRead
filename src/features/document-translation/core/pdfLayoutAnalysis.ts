@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/pdfLayoutAnalysis.ts
  * 文件职责：从 PDF 原始字形和绘图操作推导阅读顺序、段落与必须保留的公式、表格、插图区域。
- * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
+ * 主要内容：在未旋转内容坐标中追踪绘图矩阵；按相邻行共同让出的竖带识别栏间距，松散的两端对齐行不被拆散；页眉页脚、编号标题、题注与公式碎片分别归类，图形在题注处断开，表格按单元格切分且含词语的单元格可以翻译；按基线关联上下标，先识别图表和独立公式，再按列与段落边界组织正文；保留逐行字形几何供阅读和导出使用。
  * 模块边界：纯几何分析，不加载 PDF.js、不访问 Canvas、网络或 DOM，不修改来源文字或文件。
  */
 import type {PdfDocumentBlock, PdfDocumentLine, PdfDocumentRun, PdfPreservedRegion} from './document';
@@ -138,6 +138,8 @@ export function pdfLayoutLines(atoms: readonly PdfLayoutAtom[]): LayoutLine[] {
     return result.sort((a, b) => a.y - b.y || a.x - b.x);
 }
 
+/** 含有可读词语（至少三个连续字母或一个中日韩文字，数学函数名除外）的文字才值得翻译。 */
+const readable = (text: string) => /\p{L}{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text.replace(/\b(?:lim|min|max|log|exp|sin|cos|tan|arg|sup|inf)\b/giu, ''));
 function mergedFigures(shapes: readonly PdfGraphicsShape[], width: number, height: number): Rectangle[] {
     const figures: Rectangle[] = [];
     for (const shape of shapes.filter(shape => shape.width >= 24 && shape.height >= 24 && (shape.kind !== 'path' || shape.width * shape.height >= 900))) {
@@ -185,11 +187,21 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
     const font = sized.find(atom => (remaining -= atom.text.length) <= 0)?.fontSize ?? 10;
     const captionStart = /^(?:Figure|Table|Fig\.)\s+\d+[.:]/iu;
     const figures = mergedFigures(input.graphics, input.width, input.height);
-    // 图形对象的包围盒常把下方题注一并圈入；题注是需要翻译的正文，图形区域止于题注之上。
-    for (const figure of figures) {
-        const caption = lines.find(line => captionStart.test(line.text) && line.y > figure.y + figure.height / 2 && bottom(line) <= bottom(figure) + 2
-            && line.x >= figure.x - 2 && right(line) <= right(figure) + 2 && line.width >= figure.width * 0.5);
-        if (caption) figure.height = Math.max(1, caption.y - 2 - figure.y);
+    // 图形对象的包围盒常把题注一并圈入，上下相邻的两张图还会连同中间的题注并成一个区域；题注是需要翻译的正文，图形在题注处断开。
+    for (let index = 0; index < figures.length; index += 1) {
+        const figure = figures[index];
+        const start = lines.find(line => captionStart.test(line.text) && line.y > figure.y + 12 && bottom(line) <= bottom(figure) + 2
+            && line.x >= figure.x - 2 && right(line) <= right(figure) + 2 && line.width >= figure.width * 0.4);
+        if (!start) continue;
+        let end = bottom(start), baseline = start.baseline;
+        for (const line of lines) {
+            if (line.baseline <= baseline || line.baseline - baseline > start.fontSize * 1.5 || Math.abs(line.fontSize - start.fontSize) > 0.6 || line.x < start.x - 2 || right(line) > right(start) + start.fontSize * 2) continue;
+            baseline = line.baseline; end = bottom(line);
+        }
+        const below = bottom(figure) - end - 2;
+        figure.height = Math.max(1, start.y - 2 - figure.y);
+        // 题注下方剩余的部分是另一张图，继续按同样的规则检查它自己的题注。
+        if (below >= 24) figures.splice(index + 1, 0, {x: figure.x, y: end + 2, width: figure.width, height: below});
     }
     // 插图上方的短居中标签属于图形本身；保留它们能让左右子图在裁剪后仍有完整标题。
     for (let index = 0; index < figures.length; index += 1) {
@@ -235,12 +247,15 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
             && !lines.some(near => header ? near.y >= bottom(line) - 1 && near.y - bottom(line) < font * 1.2 : bottom(near) <= line.y + 1 && line.y - bottom(near) < font * 1.2)) return 'footer';
         if (captionStart.test(line.text)) return 'caption';
         // 没有可读词语的短行（求和号、上下标、极限记号）是公式的碎片，翻译只会破坏它。
-        if (!/\p{L}{3,}|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(line.text.replace(/\b(?:lim|min|max|log|exp|sin|cos|tan|arg|sup|inf)\b/giu, ''))) return 'formula';
+        if (!readable(line.text)) return 'formula';
         const numbered = line.fontSize >= font * 0.95 && line.text.length < 120;
         // “1. 标题”与编号列表同形：列表项的续行缩进或占满栏宽，标题下方则是空行或更短的折行。
         const listItem = () => lines.some(near => near.baseline > line.baseline && near.baseline - line.baseline <= line.fontSize * 1.45
             && (near.x > line.x + 2 ? near.x - line.x <= font * 4 : Math.abs(near.x - line.x) <= 1 && near.width >= line.width * 0.9));
-        if ((numbered && (/^\d+(?:\.\d+)*\s+[A-Z]/u.test(line.text) || (/^\d+(?:\.\d+)*\.\s+[A-Z]/u.test(line.text) && line.text.split(/\s+/u).length <= 9 && !/[.,;:]$/u.test(line.text) && !listItem())))
+        // 段落中间恰好以数字开头的一行（“4 PP stages …”“10 MB to …”）紧接在同栏的满行之后，不是标题。
+        const midParagraph = () => lines.some(near => near.baseline < line.baseline && line.baseline - near.baseline <= line.fontSize * 1.45
+            && Math.abs(near.fontSize - line.fontSize) <= 0.6 && near.x <= line.x + 1 && right(near) >= right(line) - 2 && near.width >= line.width * 0.9 && !/[.!?:。！？：]$/u.test(near.text));
+        if ((numbered && !/[-‐‑]$/u.test(line.text) && !midParagraph() && ((/^\d+(?:\.\d+)*\s+[A-Z]/u.test(line.text) && !(line.text.split(/\s+/u).length > 6 && listItem())) || (/^\d+(?:\.\d+)*\.\s+[A-Z]/u.test(line.text) && line.text.split(/\s+/u).length <= 9 && !/[.,;:]$/u.test(line.text) && !listItem())))
             || (line.text.length < 80 && /^(?:Abstract|References|Acknowledge?ments?|Appendix(?:\s+[A-Z])?(?:\.\s.*)?)$/iu.test(line.text)) || (line.fontSize >= font * 1.32 && line.text.length < 100)) return 'heading';
         if (line.text.includes('@') || (line.y >= authorStart && line.y <= authorEnd && line.width < input.width * 0.35 && line.text.length < 100)) return 'metadata';
         return 'text';
@@ -256,10 +271,13 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
                 const gap = line.baseline - last.baseline;
                 // 折行的标题与首行同字号、左对齐且更短；紧随其后的正文首行通常占满栏宽，不能并入标题。
                 const wrappedHeading = draft.kind === 'heading' && (kind === 'text' || kind === 'heading') && draft.lines.length < 3 && gap <= last.fontSize * 1.45
-                    && Math.abs(line.x - last.x) <= 1 && line.width < last.width * 0.9 && !/[.!?。！？]$/u.test(last.text) && !/^\d+(?:\.\d+)*\.?\s/u.test(line.text);
+                    && ((Math.abs(line.x - last.x) <= 1 && line.width < last.width * 0.9) || (kind === 'heading' && Math.abs(line.fontSize - last.fontSize) <= 0.2 && Math.abs(line.x + line.width / 2 - last.x - last.width / 2) <= 2))
+                    && !/[.!?。！？]$/u.test(last.text) && !/^\d+(?:\.\d+)*\.?\s/u.test(line.text);
                 if (draft.region !== region || (kind === 'heading' ? !wrappedHeading : draft.kind !== kind && !(draft.kind === 'caption' && kind === 'text') && !wrappedHeading)) continue;
                 // 悬挂缩进的条目（参考文献、编号列表）以回到左边界的新行开头。
                 if (draft.lines.length >= 2 && line.x < last.x - font * 0.8) continue;
+                // 表格的每一行是独立的单元格；只有断词续行或以小写、括号开头的续行才并入上一行所在的单元格。
+                if (region?.kind === 'table' && !(/[-‐‑]$/u.test(last.text) || /^[\p{Ll}(]/u.test(line.text))) continue;
                 // 作者与单位、正文与脚注字号不同，即使左对齐也属于不同段落。
                 if (Math.abs(line.fontSize - last.fontSize) > Math.max(0.6, last.fontSize * 0.18)) continue;
                 const overlap = Math.min(right(line), right(last)) - Math.max(line.x, last.x);
@@ -280,7 +298,7 @@ export function analyzePdfPageLayout(input: {atoms: readonly PdfLayoutAtom[]; gr
         const leading = draft.lines.slice(1).map((line, index) => line.baseline - draft.lines[index].baseline);
         const center = draft.bounds.x + draft.bounds.width / 2;
         const centered = (draft.kind === 'heading' || draft.kind === 'metadata' || draft.kind === 'footer') && Math.abs(center - input.width / 2) <= input.width * 0.045;
-        return {...draft.bounds, source, fontSize: median(draft.lines.map(line => line.fontSize)), lineHeight: leading.length ? median(leading) : first.fontSize, lineCount: draft.lines.length, fontFamily: first.fontFamily, fontWeight: draft.kind === 'heading' ? 700 : 400, textAlign: centered ? 'center' : 'left', kind: draft.kind, preserveSource: Boolean(draft.region) || draft.kind === 'metadata' || draft.kind === 'footer' || draft.kind === 'formula', lines: draft.lines};
+        return {...draft.bounds, source, fontSize: median(draft.lines.map(line => line.fontSize)), lineHeight: leading.length ? median(leading) : first.fontSize, lineCount: draft.lines.length, fontFamily: first.fontFamily, fontWeight: draft.kind === 'heading' ? 700 : 400, textAlign: centered ? 'center' : 'left', kind: draft.kind, preserveSource: (draft.region ? draft.region.kind !== 'table' || !readable(source) : false) || draft.kind === 'metadata' || draft.kind === 'footer' || draft.kind === 'formula', lines: draft.lines};
     });
     // 每个连续排版带先读左列再读右列；通栏标题/正文充当列带之间的分隔。
     let readingOrder = 0;

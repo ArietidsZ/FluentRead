@@ -603,7 +603,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                 const segmentIndexes: number[] = [];
                 const blocks: PdfDocumentBlock[] = [];
                 layoutBlocks.forEach((block, blockIndex) => {
-                    if (block.kind === 'formula' || block.kind === 'table' || block.kind === 'figure-label') {
+                    // 表格里含词语的单元格作为独立片段翻译；数字、符号单元格与公式、图内文字保留原样。
+                    if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label') {
                         blocks.push({...block, segmentIndex: -1});
                         return;
                     }

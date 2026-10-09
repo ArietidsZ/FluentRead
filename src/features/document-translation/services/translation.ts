@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/translation.ts
  * 文件职责：编排文档片段的批量翻译流程，在固定语言和服务快照下按数量及字符预算拆批，并向调用方持续报告确定性进度。
- * 主要内容：定义进度与逐段提交契约，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
+ * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，提交前移除服务凭空加入的表情符号，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
  * 模块边界：该层不解析文件、不持久化配置，也不直接绑定具体 provider；上层负责冻结用户设置并注入 gateway，文档结构由 core 提供，网络和缓存语义由应用翻译客户端承担。
  */
 import {TranslationRequestError} from '@/src/services/translation/errors';
@@ -25,6 +25,10 @@ export interface DocumentTranslationOptions {
     maxRetries?: number;
     /** 同一文档和设置下已完成或人工校订的译文；空白位置继续翻译。 */
     initialTranslations?: readonly string[];
+    /** 每次领取下一批之前重排尚未翻译的片段，让阅读器把正在看的页排到前面；返回值必须恰好是传入的那些片段。 */
+    prioritize?: (pending: readonly DocumentSegment[]) => readonly DocumentSegment[];
+    /** 收紧单批的片段数与字符数，译文可以更细地逐批显示；只能小于默认上限。 */
+    batchLimits?: {items?: number; characters?: number};
     onSegment?: (segment: {id: number; translation: string}) => void;
     onProgress?: (progress: DocumentTranslationProgress) => void;
 }
@@ -110,24 +114,39 @@ function throwIfAborted(signal?: AbortSignal): void {
     }
 }
 
-function splitBatches(segments: readonly DocumentSegment[]): DocumentSegment[][] {
-    const batches: DocumentSegment[][] = [];
-    let current: DocumentSegment[] = [];
-    let currentCharacters = 0;
+/** 从队首取出一批：至少一个片段，其后在数量与字符预算内尽量多取。 */
+function takeBatch(queue: DocumentSegment[], itemLimit: number, characterLimit: number): DocumentSegment[] {
+    let count = 0;
+    let characters = 0;
+    while (count < queue.length && (count === 0 || (count < itemLimit && characters + queue[count].source.length <= characterLimit))) {
+        characters += queue[count].source.length;
+        count += 1;
+    }
+    return queue.splice(0, count);
+}
 
-    segments.forEach((segment) => {
-        const nextCharacters = currentCharacters + segment.source.length;
-        if (current.length > 0 && (current.length >= BATCH_ITEM_LIMIT || nextCharacters > BATCH_CHARACTER_LIMIT)) {
-            batches.push(current);
-            current = [];
-            currentCharacters = 0;
-        }
-        current.push(segment);
-        currentCharacters += segment.source.length;
-    });
+/** 重排结果只有在与待译片段一一对应时才采用，调用方的失误不能丢失或重复片段。 */
+function prioritized(queue: DocumentSegment[], prioritize: DocumentTranslationOptions['prioritize']): DocumentSegment[] {
+    const ordered = prioritize?.(queue);
+    if (!ordered || ordered.length !== queue.length) return queue;
+    const known = new Set(queue);
+    const unique = new Set(ordered);
+    return unique.size === queue.length && ordered.every(segment => known.has(segment)) ? [...ordered] : queue;
+}
 
-    if (current.length > 0) batches.push(current);
-    return batches;
+const PICTOGRAPH = /\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic})*/gu;
+
+/**
+ * 翻译服务偶尔会把公式残片或乱码“译”成表情符号。原文没有的图形符号不属于译文，提交前移除；
+ * 原文本身带有的符号（如 ©、™ 或作者写下的表情）原样保留，清理后为空时保留服务返回的内容。
+ */
+export function stripInventedPictographs(source: string, translation: string): string {
+    const cleaned = translation.replace(PICTOGRAPH, match => source.includes(match) ? match : '');
+    return cleaned.trim() ? cleaned : translation;
+}
+
+function boundedLimit(value: number | undefined, fallback: number): number {
+    return Number.isFinite(value) && value! >= 1 ? Math.min(fallback, Math.floor(value!)) : fallback;
 }
 
 function buildDocumentContext(segments: readonly DocumentSegment[], fileName: string, supplied?: string): string {
@@ -167,17 +186,24 @@ export function createDocumentSegmentTranslator(
         const model = options.modelOverride;
         let completed = segments.length - pending.length;
         const reportProgress = () => options.onProgress?.({completed, total: segments.length});
-        const commit = (id: number, translation: string) => {
+        const sources = new Map(segments.map(segment => [segment.id, segment.source]));
+        const commit = (id: number, received: string) => {
             throwIfAborted(options.signal);
+            const translation = stripInventedPictographs(sources.get(id)!, received);
             translations[id] = translation;
             completed += 1;
             options.onSegment?.({id, translation});
         };
         reportProgress();
 
+        let queue = [...pending];
         if (gateway.supportsBatch(service)) {
-            for (const batch of splitBatches(pending)) {
+            const itemLimit = boundedLimit(options.batchLimits?.items, BATCH_ITEM_LIMIT);
+            const characterLimit = boundedLimit(options.batchLimits?.characters, BATCH_CHARACTER_LIMIT);
+            while (queue.length > 0) {
                 throwIfAborted(options.signal);
+                queue = prioritized(queue, options.prioritize);
+                const batch = takeBatch(queue, itemLimit, characterLimit);
                 try {
                     const result = await gateway.translateTextBatch(
                         batch.map((segment) => segment.source),
@@ -209,16 +235,14 @@ export function createDocumentSegmentTranslator(
             return translations;
         }
 
-        let nextIndex = 0;
         let stopped = false;
         const workerCount = Math.min(3, pending.length);
         const worker = async () => {
             while (true) {
                 throwIfAborted(options.signal);
-                const index = nextIndex;
-                nextIndex += 1;
-                if (index >= pending.length) return;
-                const segment = pending[index];
+                queue = prioritized(queue, options.prioritize);
+                const segment = queue.shift();
+                if (!segment) return;
 
                 try {
                     const translation = await gateway.translateText(segment.source, context, {

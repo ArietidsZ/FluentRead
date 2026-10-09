@@ -18,6 +18,7 @@ export {
 } from './services/binary';
 export * from './services/translation';
 export {generateDocumentArchive} from './services/archive';
+export * from './services/history';
 export {
     createPdfPagePreview,
     releasePdfDocument,

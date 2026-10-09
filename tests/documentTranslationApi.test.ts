@@ -4,6 +4,7 @@ import {beforeEach, describe, expect, it, vi} from 'vitest';
 import {
     createDocumentFileLoadGuard,
     createDocumentSegmentTranslator,
+    stripInventedPictographs,
 } from '@/src/features/document-translation/services/translation';
 
 const mocks = {
@@ -371,4 +372,76 @@ it.each(['microsoft', 'openai'])('服务 %s 的全局暂停不被包装为片段
         translateText: async () => {throw error;}, translateTextBatch: async () => {throw error;},
     });
     await expect(translate([{id: 0, source: 'Source text'}], {fileName: 'sample.txt'})).rejects.toBe(error);
+});
+
+describe('document translation reading-order priority and batch sizing', () => {
+    const segments = Array.from({length: 6}, (_, id) => ({id, source: `Source ${id}`}));
+    const echo = async (sources: string[]) => sources.map(source => `译 ${source}`);
+
+    it('re-orders the remaining segments before every batch and honours tighter batch limits', async () => {
+        mocks.translateTextBatch.mockImplementation(echo);
+        let focus = 4;
+        const order: number[] = [];
+        const result = await translateDocumentSegments(segments, {
+            fileName: 'paper.pdf', batchLimits: {items: 2},
+            prioritize: pending => [...pending].sort((left, right) => Math.abs(left.id - focus) - Math.abs(right.id - focus) || left.id - right.id),
+            onSegment: ({id}) => {order.push(id); if (id === 3) focus = 0;},
+        });
+        // 先译阅读位置附近的两段；读者翻回开头后，下一批立即改从开头继续。
+        expect(order).toEqual([4, 3, 0, 1, 2, 5]);
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0])).toEqual([['Source 4', 'Source 3'], ['Source 0', 'Source 1'], ['Source 2', 'Source 5']]);
+        expect(result).toEqual(segments.map(segment => `译 ${segment.source}`));
+    });
+
+    it('limits a batch by characters, always takes at least one segment and ignores invalid or loosened limits', async () => {
+        mocks.translateTextBatch.mockImplementation(echo);
+        const long = [{id: 0, source: 'a'.repeat(30)}, {id: 1, source: 'b'.repeat(30)}, {id: 2, source: 'c'.repeat(5)}];
+        await translateDocumentSegments(long, {fileName: 'paper.pdf', batchLimits: {characters: 40}});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0].length)).toEqual([1, 2]);
+        mocks.translateTextBatch.mockClear();
+        await translateDocumentSegments(long, {fileName: 'paper.pdf', batchLimits: {characters: 10}});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0].length)).toEqual([1, 1, 1]);
+        mocks.translateTextBatch.mockClear();
+        const many = Array.from({length: 20}, (_, id) => ({id, source: 'x'}));
+        await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 0, characters: Number.NaN}});
+        await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 500, characters: 1e9}});
+        await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 2.9}});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0].length)).toEqual([16, 4, 16, 4, ...Array.from({length: 10}, () => 2)]);
+    });
+
+    it('keeps every segment when a prioritizer drops, duplicates or invents segments', async () => {
+        mocks.translateTextBatch.mockImplementation(echo);
+        for (const prioritize of [
+            (pending: readonly typeof segments[number][]) => pending.slice(1),
+            (pending: readonly typeof segments[number][]) => pending.map(() => pending[0]),
+            (pending: readonly typeof segments[number][]) => pending.map((segment, index) => index === 0 ? {...segment} : segment),
+        ]) {
+            const order: number[] = [];
+            const result = await translateDocumentSegments(segments, {fileName: 'paper.pdf', prioritize, onSegment: ({id}) => order.push(id)});
+            expect(order).toEqual([0, 1, 2, 3, 4, 5]);
+            expect(result.every(Boolean)).toBe(true);
+        }
+    });
+
+    it('lets single-request services claim the most relevant remaining segment', async () => {
+        mocks.defaultService = 'openai';
+        mocks.translateText.mockImplementation(async (source: string) => `译 ${source}`);
+        const order: number[] = [];
+        await translateDocumentSegments(segments, {fileName: 'paper.pdf', prioritize: pending => [...pending].reverse(), onSegment: ({id}) => order.push(id)});
+        // 三个并发 worker 每次领取都重排；反转两次即恢复，领取顺序在首尾之间交替。
+        expect([...order].sort()).toEqual([0, 1, 2, 3, 4, 5]);
+        expect(order[0]).toBe(5);
+    });
+
+    it('removes pictographs a service invents while keeping the ones the author wrote', async () => {
+        expect(stripInventedPictographs('g(x) is linear', 'g😍~x 是线性函数')).toBe('g~x 是线性函数');
+        expect(stripInventedPictographs('© 2013 The Authors ™', '© 2013 作者 ™ ✅')).toBe('© 2013 作者 ™ ');
+        expect(stripInventedPictographs('Family 👨‍👩‍👧 trip ❤️', '家庭 👨‍👩‍👧 旅行 ❤️ 🎉')).toBe('家庭 👨‍👩‍👧 旅行 ❤️ ');
+        expect(stripInventedPictographs('Smile', '😀')).toBe('😀');
+        expect(stripInventedPictographs('Plain', '普通译文')).toBe('普通译文');
+        mocks.translateTextBatch.mockResolvedValue(['如果 g😍~x 是线性函数']);
+        const committed: string[] = [];
+        expect(await translateDocumentSegments([{id: 0, source: 'if g(x) were the linear function'}], {fileName: 'paper.pdf', onSegment: ({translation}) => committed.push(translation)})).toEqual(['如果 g~x 是线性函数']);
+        expect(committed).toEqual(['如果 g~x 是线性函数']);
+    });
 });
