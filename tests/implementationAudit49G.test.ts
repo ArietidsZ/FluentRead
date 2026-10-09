@@ -298,13 +298,16 @@ describe('audit 49G shipped userscript resources', () => {
         expect((digest as unknown as {then?: unknown}).then).toBeUndefined();
         expect(Array.from(digest)).toEqual(Array.from(installedNobleSha256(input)));
         const hex = vendor.nobleHashes.bytesToHex(digest);
+        expect(Array.from(digest)).toEqual(Array.from(installedNobleSha256(input)));
         expect(typeof hex).toBe('string');
         expect(hex).toBe(installedBytesToHex(installedNobleSha256(input)));
         expect(hex).toBe(createHash('sha256').update(input).digest('hex'));
         expect(hex).toMatch(/^[a-f0-9]{64}$/u);
         const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+        const originalBytes = bytes.slice();
         expect(vendor.nobleHashes.bytesToHex(bytes)).toBe(installedBytesToHex(bytes));
         expect(vendor.nobleHashes.bytesToHex(bytes)).toBe(Buffer.from(bytes).toString('hex'));
+        expect(bytes).toEqual(originalBytes);
         expect(typeof input === 'string' ? input : new Uint8Array(input.buffer)).toEqual(before);
     });
 
