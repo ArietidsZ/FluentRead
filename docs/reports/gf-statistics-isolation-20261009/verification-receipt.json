@@ -1,50 +1,127 @@
 {
-  "schemaVersion": 2,
-  "baseCommit": "353e87939e2c3ab59f3a9a405f2b83695098c41c",
-  "auditedTinycolorSourceCommit": "d9abfc98b8dd2df77ab5516f2e168e08ddd0e0df",
-  "validatedSourceCommit": "b23b6e4cbb2d20ba63ae67570a7bf3bec7d6341b",
-  "fixedResourceCommit": "d11862b4268e21598607bebc793e61f8a53782ff",
+  "schemaVersion": 3,
+  "baseCommit": "479402a276c4dcccc761728ac19f8c607fdfd246",
+  "validatedSourceCommit": "b8fa9d211d927aa47504c6356cff25c9a9bff218",
+  "fixedResourceCommit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
   "branch": "perf/gf-statistics-repositories-20261009",
+  "scope": "Two exact-version offline full-license fallbacks only; other fourteen package policies, runtime code, dependencies, GF algorithm and budget unchanged.",
+  "fallbacks": [
+    {
+      "package": "@ai-sdk/provider-utils",
+      "version": "4.0.46",
+      "spdx": "Apache-2.0",
+      "files": [
+        "provider-utils-Vercel.txt",
+        "Apache-2.0.txt",
+        "provider-utils-zod3-ISC.txt"
+      ],
+      "includedSubcomponentSpdx": "ISC",
+      "complete": true
+    },
+    {
+      "package": "franc-min",
+      "version": "6.2.0",
+      "spdx": "MIT",
+      "files": [
+        "franc-min-MIT.txt"
+      ],
+      "copyrightCount": 4,
+      "complete": true
+    }
+  ],
+  "texts": [
+    {
+      "file": "provider-utils-Vercel.txt",
+      "sourceUrl": "https://raw.githubusercontent.com/vercel/ai/85464f4e2026d9fc0274424c0171a25742836411/LICENSE",
+      "httpStatus": 200,
+      "rawBytes": 552,
+      "rawSha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529",
+      "normalizedSha256": "b4f9adb7c568904834d0dd6cc98d16c390d21ca32fc17ae7a267715269bd5529"
+    },
+    {
+      "file": "provider-utils-zod3-ISC.txt",
+      "sourceUrl": "https://raw.githubusercontent.com/vercel/ai/85464f4e2026d9fc0274424c0171a25742836411/packages/provider-utils/src/to-json-schema/zod3-to-json-schema/LICENSE",
+      "httpStatus": 200,
+      "rawBytes": 777,
+      "rawSha256": "6dd0d97acd4d13f4608a0f530f0487e0ff20812888bd1803aecfaaa17ff0f849",
+      "normalizedSha256": "6dd0d97acd4d13f4608a0f530f0487e0ff20812888bd1803aecfaaa17ff0f849"
+    },
+    {
+      "file": "franc-min-MIT.txt",
+      "sourceUrl": "https://raw.githubusercontent.com/wooorm/franc/3f9f0b51a96c5df32a407dad865a3011ac0fa2d1/license",
+      "httpStatus": 200,
+      "rawBytes": 1227,
+      "rawSha256": "f5e0c5c44706ddda7ac2f9096f848222f1e0e90f88643955041c2735be84592b",
+      "normalizedSha256": "93fca2015edd5c54a13829179a37ee8bb48a9e1529a645bf2ce2bf563ff707d2"
+    },
+    {
+      "file": "Apache-2.0.txt",
+      "sourceUrl": "https://raw.githubusercontent.com/apache/www-site/01b1be9fbc5cd93b6794f5653a58b9b863807f84/content/licenses/LICENSE-2.0.txt",
+      "httpStatus": 200,
+      "rawBytes": 11358,
+      "rawSha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+      "normalizedSha256": "283ea6cc2997a1a70da0049e09adf9317bb60ca1b51279b65196b83a69e1996b"
+    }
+  ],
+  "licenseAudit": {
+    "completePackageLicenseBlocks": 16,
+    "otherFourteenBlocksByteIdentical": true,
+    "vendorExecutionCodeByteIdentical": true,
+    "vendorExecutionCodeBytes": 551443,
+    "vendorExecutionCodeSha256": "c85b19d837fadb9593804b4f6763d50aec2f4b5a49eedb4d5fe71dad8bd17247",
+    "subcomponentIscCompleteAndCopyrightPresent": true,
+    "artifactAuditSha256": "c3e27511a502d4b4604eddc1c936a7daa9f1e00199b13c999217c7639594d800"
+  },
+  "resources": [
+    {
+      "kind": "vendor",
+      "path": "userscript/resources/fluentread-vendor.v1.js",
+      "commit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
+      "bytes": 610343,
+      "sha256": "0f5010de8ffa8dd3a39e27fcd554b0ad25d880a142edc374fbec0798ba15f601",
+      "gitBlobSha1": "702569ceed83dd5a4f2302c1df1ad237a2f18fb0",
+      "trackedBuiltGitRemoteEqual": true,
+      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca/userscript/resources/fluentread-vendor.v1.js",
+      "cdnEqual": true,
+      "cdnHttpStatus": 200,
+      "cdnAttempts": 1,
+      "beforeBytes": 596048,
+      "byteIncrease": 14295
+    },
+    {
+      "kind": "data",
+      "path": "userscript/resources/fluentread-data.v1.js",
+      "commit": "f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca",
+      "bytes": 868136,
+      "sha256": "85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981",
+      "gitBlobSha1": "b2ff18b411a6b78f2ca2ceb36aed907a81226187",
+      "trackedBuiltGitRemoteEqual": true,
+      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@f92a1e91a41e8a2a2e9d8c895bb62c756906c9ca/userscript/resources/fluentread-data.v1.js",
+      "cdnEqual": true,
+      "cdnHttpStatus": 200,
+      "cdnAttempts": 1,
+      "beforeBytes": 868136,
+      "byteIncrease": 0
+    }
+  ],
   "artifacts": {
     "greasyfork": {
       "bytes": 2233395,
-      "sha256": "be4924732d06323a927cdc9b4cf260e83ccd8606e2590805d9258ab33026ef90",
-      "before": {
-        "bytes": 2267253,
-        "sha256": "38e1b8b9535fb2034aaf33d10bbce36921222fcf3d663975bd858fe56c0fb099"
-      },
-      "actualMainByteSavings": 33858,
-      "budgetBytes": 2000000,
+      "sha256": "57d6f95768fc06ca16102a0e48f90374e453752c681f99fd09c784b2175a0c11",
       "byteIdenticalToBase": false
     },
     "standard": {
       "bytes": 1957868,
       "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f",
-      "before": {
-        "bytes": 1957868,
-        "sha256": "5ed2858fca0faf87eb9469bfb1073a7f5081c6aa49affdfb22f8588dec08676f"
-      },
-      "actualMainByteSavings": 0,
-      "budgetBytes": 1964000,
       "byteIdenticalToBase": true
     },
     "standalone": {
       "bytes": 3590688,
       "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5",
-      "before": {
-        "bytes": 3590688,
-        "sha256": "19afc0bc9260e07de9f9318a3088ef3713277bbd6f55c78b103a34747f62e3a5"
-      },
-      "actualMainByteSavings": 0,
-      "budgetBytes": 3600000,
       "byteIdenticalToBase": true
     }
   },
-  "tinycolorOnlyMeasurement": {
-    "bytes": 2240161,
-    "sha256": "3d01775881b925f51cfdc1cdafc67653e67aa872f283b912bb9f773403845853"
-  },
-  "attribution": {
+  "mainMetadataComparison": {
     "beforeResourceUrlBytes": [
       135,
       133
@@ -54,122 +131,34 @@
       133
     ],
     "urlLengthDelta": 0,
-    "tinycolorSavings": 27092,
-    "resourceRefreshSavings": 6766,
-    "totalMainSavings": 33858,
-    "mainPlusTwoResourcesBeforeBytes": 3515907,
-    "mainPlusTwoResourcesAfterBytes": 3697579,
-    "mainPlusTwoResourcesIncreaseBytes": 181672
-  },
-  "resources": [
-    {
-      "kind": "vendor",
-      "path": "userscript/resources/fluentread-vendor.v1.js",
-      "commit": "d11862b4268e21598607bebc793e61f8a53782ff",
-      "bytes": 596048,
-      "sha256": "3e7a86f3566595d37610bbb48901ac4911a75b6ad4dbcdada4c932a04fd7b248",
-      "gitBlobSha1": "f72f48d4210897188f6a70d33ab784f68a0073ae",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@d11862b4268e21598607bebc793e61f8a53782ff/userscript/resources/fluentread-vendor.v1.js",
-      "cdnEqual": true,
-      "before": {
-        "bytes": 580546,
-        "sha256": "5f9842e69eebcf23ead1a9807f366f4bbcb9833397b1b8e0ed7c7ec75b6a8283"
-      },
-      "resourceByteIncrease": 15502,
-      "cdnAttempts": [
-        {
-          "attempt": 1,
-          "at": "2026-10-09T18:36:31.958014+00:00",
-          "httpStatus": 200,
-          "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@d11862b4268e21598607bebc793e61f8a53782ff/userscript/resources/fluentread-vendor.v1.js",
-          "bytes": 596048,
-          "sha256": "3e7a86f3566595d37610bbb48901ac4911a75b6ad4dbcdada4c932a04fd7b248",
-          "byteEqual": true
-        }
-      ]
-    },
-    {
-      "kind": "data",
-      "path": "userscript/resources/fluentread-data.v1.js",
-      "commit": "d11862b4268e21598607bebc793e61f8a53782ff",
-      "bytes": 868136,
-      "sha256": "85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981",
-      "gitBlobSha1": "b2ff18b411a6b78f2ca2ceb36aed907a81226187",
-      "trackedBuiltGitRemoteEqual": true,
-      "exactArtifactCdnUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@d11862b4268e21598607bebc793e61f8a53782ff/userscript/resources/fluentread-data.v1.js",
-      "cdnEqual": true,
-      "before": {
-        "bytes": 668108,
-        "sha256": "2c14c754f6486dee45b6bfd91f2a3b7c9464b26cf8d4be2b172b2692ae0e6fa4"
-      },
-      "resourceByteIncrease": 200028,
-      "cdnAttempts": [
-        {
-          "attempt": 1,
-          "at": "2026-10-09T18:36:34.795255+00:00",
-          "httpStatus": 200,
-          "finalUrl": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@d11862b4268e21598607bebc793e61f8a53782ff/userscript/resources/fluentread-data.v1.js",
-          "bytes": 868136,
-          "sha256": "85be944ad2d1f97ae94badf3a8e8f77e282beaf1f217ed472ef2e73050ae0981",
-          "byteEqual": true
-        }
-      ]
-    }
-  ],
-  "licenses": {
-    "complete": false,
-    "packageCount": 16,
-    "fullLicenseCount": 14,
-    "missingFullLicenses": [
-      {
-        "name": "@ai-sdk/provider-utils",
-        "version": "4.0.46",
-        "license": "Apache-2.0",
-        "fullLicensePresent": false,
-        "repositoryReferenceOnly": true,
-        "reference": "https://github.com/vercel/ai"
-      },
-      {
-        "name": "franc-min",
-        "version": "6.2.0",
-        "license": "MIT",
-        "fullLicensePresent": false,
-        "repositoryReferenceOnly": true,
-        "reference": "https://github.com/wooorm/franc/tree/main/packages/franc-min"
-      }
-    ],
-    "missingFullLicenseReferencesAlreadyPresentInBase": true,
-    "tinycolor": {
-      "name": "@ctrl/tinycolor",
-      "version": "3.6.1",
-      "license": "MIT",
-      "fullLicenseUtf8Bytes": 1071,
-      "fullLicenseSha256": "eed2808fbe00db8412d1ae34e4ed1b2857a5dbb086e2ef81f6d61026d7608b5c",
-      "fullLicensePresent": true
-    },
-    "auditSha256": "0d88084a224c8a03f17fd8a6cf5aa780650fd882facc94aa44a9f79ebd414d04"
+    "mainByteIncrease": 0,
+    "mainNormalizedEqual": true,
+    "normalizedMainSha256": "08c9ce5d08263015ed45750cafa9acb4c91357660498f14bb8fed4edc571cc29"
   },
   "contracts": {
-    "beforeRefreshViteConfigPassed": 30,
-    "afterRefreshExecuted": 27,
-    "afterRefreshPassed": 27,
-    "afterRefreshFailed": 0,
-    "afterRefreshSkippedByNameFilter": 41,
-    "oldAssetFixtureCoversMissingRuleAndSameIdStaleNonIdFields": true,
-    "separateStaleNonIdFieldCase": true,
-    "authoritativeCatalogRuleCount": 19,
-    "nodeVmShippedVendorAndDataTested": true,
-    "browserAcceptanceTested": false,
-    "resultSha256": "f10b3edb2b7996d4d970ae853ef221b71ce8fb669f8cadd69aeecf411feacb86"
+    "realProductionPluginGenerateBundleInvoked": true,
+    "redExecuted": 15,
+    "redPassed": 1,
+    "redExpectedFailures": 14,
+    "greenExecuted": 15,
+    "greenPassed": 15,
+    "greenFailed": 0,
+    "unchangedCasesSkippedByNameFilter": 30,
+    "coverage": [
+      "both exact-version full texts and copyright",
+      "version and SPDX drift fail",
+      "all four files missing or wrong hash fail",
+      "fourteen other real installed package blocks unchanged"
+    ],
+    "redResultSha256": "d856b088f12e45f2a12b4bbf9e47adfd0c166c40bf7a679f83ae5691be7786b3",
+    "greenResultSha256": "9709ced4ef566f20168d553aa0d2707af7b178a24f27ed7db95d2dbd38b61fbf"
   },
   "formalGfGate": {
+    "fixedTrackedBuiltGitCheckPassed": true,
     "exitCode": 1,
-    "fixedResourcesTrackedBuiltGitCheckPassed": true,
-    "failure": "unchanged original verifier budget at line 15",
+    "budgetBytes": 2000000,
     "bytesOverBudget": 233395,
-    "originalScriptsAndBudgetUnchanged": true,
-    "formalAssertionsAfterLine15Executed": false,
+    "failureLine": 15,
     "unexecutedFormalAssertionLines": [
       16,
       17,
@@ -188,142 +177,95 @@
       30,
       31
     ],
-    "independentDiagnostic": {
-      "assertionCount": 18,
+    "independentOriginalAssertions": {
       "passed": 17,
       "failed": 1,
-      "postBudgetAssertionsPassed": 16,
-      "includesFailingOriginalBudget": true,
+      "postBudgetDiagnosticPassed": 16,
+      "budgetIncludedAndStillFailing": true,
       "originalAssertionsUnchanged": true,
-      "harness": "single VM realm; each original assertion diagnosed independently",
-      "initialCrossRealmHarnessErrorPreservedAndCorrected": true,
-      "resultSha256": "70cd46466f597ec0c78f7cee58b2ad2c1f8882543bfc599477ddfb7138f1aecf"
+      "resultSha256": "7793dfe4da345870f92ad0cf7344122bf04065a15edad59ba13724f9d1b44d59"
     }
   },
-  "boundaries": {
-    "gfStatisticsEntryModules": [],
-    "gfStatisticsLoadedModules": [],
-    "gfStatisticsDatabaseNames": [],
-    "gfTinycolorEntryModules": [],
-    "gfTinycolorVendorReferencePresent": true,
-    "standardRealStatisticsModulesRetained": true,
-    "standaloneRealStatisticsModulesRetained": true,
-    "standalonePlatformFullRetained": true,
-    "translationBrokerAndCacheRetained": true
-  },
   "unchangedFileSha256": {
-    "scripts/build-userscript-greasyfork.mjs": "c2e441c5749d48e317b90e0052c275e58b3f14cd9f55df9ae10ade78c96792c8",
-    "scripts/verify-userscript-greasyfork-build.mjs": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
-    "userscript/vendor.vite.config.ts": "d8c8f930a0dfa33dc06fd0fc4f5a147c9ad8bce3165f7856803e24974a570e1c",
-    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a"
-  },
-  "sourceSha256": {
     "userscript/vendorEntry.ts": "d6d6ab20d6cdc5a2adb76e2fc873778448bccefcf5cea21ba6052f0b26b12ca3",
     "userscript/vite.config.ts": "dc0af3ff17ca02c17decdc7fc615bcf071ae8cde1ef212e9e92c2930a99f0733",
-    "tests/implementationAudit49G.test.ts": "f7ccf4a37c6d66c511afe077688915dcd24e2079c7b914692be189ce190e75fe",
-    "tests/userscriptViteConfig.test.ts": "9603c85dce56b6562d81dfabe45d9296d60724acabb550f9668438958289a3b4"
+    "userscript/unsupportedCapabilities.ts": "747ecf6e49934436324a0a7e12bb7f5db9cdd4d7e71e5dc76070008c60bbe16a",
+    "scripts/build-userscript-greasyfork.mjs": "c2e441c5749d48e317b90e0052c275e58b3f14cd9f55df9ae10ade78c96792c8",
+    "scripts/verify-userscript-greasyfork-build.mjs": "f732027c097fd87b87e57c24d29bd84740d66057f037ba1f722ac9e4970e0d83",
+    "pnpm-lock.yaml": "cc8f1bc716a81df2b3af60174bac8ba7515924884483e0b7888b61c3d5330a0a",
+    "package.json": "f85e975c3b1ab8daac188be87bec9e89fa14fb94493d8eed5c1e2a75072c4d58"
   },
   "stages": [
     {
-      "id": "tinycolor-before-resource-refresh-gf",
-      "exitCode": 0,
-      "logSha256": "6aafea78405ea8e001cd435968477ca102c90dd64628841065dfaa1d8d486665"
+      "id": "red-real-vendor-license-plugin",
+      "exitCode": 1,
+      "logSha256": "3113f1fb11e0e38e0bf396a2c786ff5287c0ca388d52616f05afb30749aeb43d"
     },
     {
-      "id": "catalog-stale-fields-contract",
+      "id": "green-real-vendor-license-plugin",
       "exitCode": 0,
-      "logSha256": "4062d9403c8cf230e591071c0e3b5a73e31d040610b64571db194f6a8203eb3e"
+      "logSha256": "71a60757e3880eae010dfc518e72de7f4e6b7b6b9790629a687b8b29310ac04e"
     },
     {
-      "id": "original-prepare-fixed-resources",
-      "exitCode": 0,
-      "logSha256": "e2499bfd4624487a461fbc4eb6877f0f8c75a879d3b57e0d2a41b516136fe87c"
-    },
-    {
-      "id": "affected-resource-contracts",
-      "exitCode": 0,
-      "logSha256": "299a89853b3a9f69d294416b75801b73fda8b8193c0e2ba16280d80d3b4883f8"
-    },
-    {
-      "id": "tinycolor-resource-types",
+      "id": "license-fallback-types",
       "exitCode": 0,
       "logSha256": "7cdd1a489eeb63319d5173c5e8a523d3225a716f08c441c73a0ff3cdcacae189"
     },
     {
-      "id": "full-resource-licenses",
+      "id": "license-fallback-test-audit",
+      "exitCode": 0,
+      "logSha256": "494a6c23280c5fc1328890a8e7fd42a542f48155a050242c576cfebbf8a97dbc"
+    },
+    {
+      "id": "original-prepare-licensed-resources",
+      "exitCode": 0,
+      "logSha256": "8dd905f33e644a5fe32f36dada9342f24f6d69079391847d1e14d8267dd0e2b6"
+    },
+    {
+      "id": "original-gf-licensed-formal",
       "exitCode": 1,
-      "logSha256": "09d8179e9e36e83ef8a2f015ea57ba7a887a73132589b6c935cc2db50f1301e5"
+      "logSha256": "a18199d15661967702951eb62e711100485365dd98c84368c649030392a51ae4"
     },
     {
-      "id": "resource-license-inventory",
-      "exitCode": 1,
-      "logSha256": "d5d471a36a6aa849acfc45adff7fb42c547ba9d4d85ceeca1a207a46d2d0bc25"
-    },
-    {
-      "id": "original-gf-formal-fixed-resources",
-      "exitCode": 1,
-      "logSha256": "e27f76394053e1dce62a14c072000263730d56e0ea92b65628b13a66a91b96b0"
-    },
-    {
-      "id": "final-gf-graph",
+      "id": "licensed-standard-actual-build",
       "exitCode": 0,
-      "logSha256": "b3a0aa58b50ec6cfb557d8ee883c4d8e0fa636b5b8a7dd1e5579aa7ce3df3a78"
+      "logSha256": "c75c029499b53a6ffa8680ab6f706555ac09d4168a8801b23292d42bd542f9a4"
     },
     {
-      "id": "final-standard-unchanged-proof",
-      "exitCode": 0,
-      "logSha256": "0851666d9c0c4aa786d3b6b5de4a181e7c4c27f17a289aea4c051c1460070efb"
-    },
-    {
-      "id": "final-standalone-unchanged-proof",
-      "exitCode": 0,
-      "logSha256": "dc41fd8c10d370609c6fc45f01e01c3135c218fc300a085b15fc9e701267f079"
-    },
-    {
-      "id": "independent-original-gf-assertions",
-      "exitCode": 0,
-      "logSha256": "4e011c0a07d01d419c4bda83447b45808ef0507f8e36c84e707cbbae8e68f3c2"
-    },
-    {
-      "id": "current-test-audit",
-      "exitCode": 0,
-      "logSha256": "217d717035d8751625566637320d887957280db606fe961a1bc0c5c74cbc4242"
-    },
-    {
-      "id": "independent-original-gf-assertions-correct-realm",
-      "exitCode": 0,
-      "logSha256": "ed0ebef5edf15cb34ec3b1f75c0be2ad0f37cf08bbd68d0061a15e8c423d84b7"
-    },
-    {
-      "id": "final-original-standard-verifier",
+      "id": "licensed-standard-original-verifier",
       "exitCode": 0,
       "logSha256": "e955e147f71ed4a274c76be76b173e10c9a37694132186ab42e8c2623b2b7437"
     },
     {
-      "id": "final-original-standalone-verifier",
+      "id": "licensed-standalone-actual-build",
+      "exitCode": 0,
+      "logSha256": "8b87111350e3430359b85c3ea4495c94578c202891d8ec6ca57d3304bfa26549"
+    },
+    {
+      "id": "licensed-standalone-original-verifier",
       "exitCode": 0,
       "logSha256": "3808e6a238644edcda09ca90d4876c0bd020a74d26dbfc5192d85db471dc42cc"
     },
     {
-      "id": "current-short-report-docs-build",
+      "id": "licensed-independent-original-gf-assertions",
       "exitCode": 0,
-      "logSha256": "ab04a9439b1ca47ee78283385682c715878c4f6405e3116f7b2b7dee2a6dca02"
+      "logSha256": "65735bc0f1334e9ace6102fa3db754db7a1286c55570838ffd1e7fbf21940c54"
     },
     {
-      "id": "current-short-report-docs-check",
-      "exitCode": 1,
-      "logSha256": "1392b8f0b3b459b4f5b3392f0dbe4cf1f7e66b389b9e7a1890f813a78698214f"
+      "id": "licensed-short-report-docs-build",
+      "exitCode": 0,
+      "logSha256": "d4fe2bbf46f1f9da45201be614c2e06c1e56c6a55679f4d5da7282e6a83cd345"
     }
   ],
   "delivery": {
     "ordinaryPushOnly": true,
     "newPrCreated": false,
-    "protectedRefsVerification": "recorded separately; no protected branch writes",
     "browserNewAttempts": 0,
-    "browserStatus": "not run; creation path stopped by parent",
+    "browserAcceptanceTested": false,
     "dependencyInstalls": 0,
-    "paidOrSearchOrModelApiCalls": 0,
-    "fullGraphsAndLogsTracked": false,
+    "realModelSearchOrPaidApiCalls": 0,
+    "colorAndStatisticsFullSuitesRerun": false,
+    "largeGraphsOrLogsTracked": false,
     "unchangedProtectedHeads": {
       "pr912": "dd2d2e210275e952cb3af9c07640b5878d92c8af",
       "pr905": "f60b61908b1d5e806baf1c531f50be11e1958c9a",
@@ -332,15 +274,12 @@
       "perf/userscript-unreachable-settings-20261009": "9b563da892ea6d6c836166e7ee54c9c468c47c9e"
     },
     "candidatePrCounts": {
-      "ArietidsZ/FluentRead": 0,
-      "FluentRead/FluentRead": 0
+      "FluentRead/FluentRead": 0,
+      "ArietidsZ/FluentRead": 0
     }
   },
   "documentation": {
     "docsBuildExitCode": 0,
-    "docsCheckExitCode": 1,
-    "failure": "Missing /storybook/?path=/docs/foundations-colors--docs in en/guide/design-system.html at original verifier line 113",
-    "storybookBuildRun": false,
-    "fullSiteVerificationPassed": false
+    "fullSiteOrStorybookCheckRerun": false
   }
 }
