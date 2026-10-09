@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/downloads.ts
  * 文件职责：协调原文、译文与双语字幕导出，避免播放器运行时继续承载下载与人工轨回退细节。
- * 主要内容：选择 X 原生或完整 AI、YouTube 捕获或初始化轨道，拒绝把识别中的预览导出为完整字幕，优先人工目标时间轴，仅翻译缺失区间，并管理取消和按钮反馈。
+ * 主要内容：选择 X 原生或完整 AI、YouTube 捕获或初始化轨道，拒绝把识别中的预览导出为完整字幕，优先人工目标时间轴，仅翻译缺失区间；集中管理反馈计时器，结束时由当前状态恢复按钮，销毁后拒绝迟到恢复。
  * 模块边界：网络、配置、界面文案、状态提示和文件下载由注入端口提供，不直接访问全局页面或存储。
  */
 import type {Config} from '@/src/core/config/model';
@@ -29,13 +29,23 @@ interface VideoDownloadPorts {
     ui(key: string, params?: Record<string, string | number>): string;
     status(menu: HTMLElement, message: string, delay?: number): void;
     save(cues: VideoSubtitleCue[], language: string): void;
+    /** 菜单状态拥有者重算当前资格，防止旧反馈把新识别中的导出重新启用。 */
+    refreshButtons?(): void;
 }
 
 export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
     let controller: AbortController | undefined;
+    let destroyed = false;
+    const isDisposed = () => destroyed || ports.isDisposed();
     const timers = new Set<ReturnType<typeof setTimeout>>();
-    const restoreButton = (button: HTMLButtonElement) => {
-        const timer = setTimeout(() => { timers.delete(timer); button.disabled = false; }, 2200);
+    const restoreButton = (button: HTMLButtonElement, delay = 2200) => {
+        if (isDisposed()) return;
+        const timer = setTimeout(() => {
+            timers.delete(timer);
+            if (isDisposed()) return;
+            if (ports.refreshButtons) ports.refreshButtons();
+            else button.disabled = false;
+        }, delay);
         timers.add(timer);
     };
     const resolve = async (): Promise<SubtitleTrack> => {
@@ -101,7 +111,8 @@ export function createVideoSubtitleDownloads(ports: VideoDownloadPorts) {
             if (!ports.isDisposed()) { ports.status(menu, feedback, 2200); restoreButton(button); }
         }
     };
-    return {resolve, translated, cancel: () => controller?.abort(), destroy: () => {
+    return {resolve, translated, restoreButton, cancel: () => controller?.abort(), destroy: () => {
+        destroyed = true;
         controller?.abort(); timers.forEach(clearTimeout); timers.clear();
     }};
 }

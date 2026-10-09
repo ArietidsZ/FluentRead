@@ -1,7 +1,7 @@
 <!--
  * @file src/features/settings/ui/VideoLocalModelSettings.vue
  * 文件职责：提供 X 本地视频字幕模型选择与下载管理，向用户呈现模型推荐、可用状态和缓存操作。
- * 主要内容：模型卡片作为唯一选择入口，呈现 Tiny/Base/Small 的质量、体积、推荐与真实下载进度，同步播放器发起的下载；各模型命令状态独立，命令结束重读权威缓存，区分读取与命令错误；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
+ * 主要内容：模型卡片作为唯一选择入口，通过后台真实文件清单查询 Tiny/Base/Small 的可用状态，呈现质量、体积、推荐、真实下载字节和连接/换源状态；本页选择下载优先来源，仅传给后续请求，不写持久化配置；失败模型可重试，命令结束重读权威缓存；停用时移除 UI 监听，回页重读模型和识别缓存，旧配置事件及迟到回包不进入新视图。
  * 模块边界：通过视频 feature 公共配置和后台消息获取模型，不直接执行识别、下载权重或操作网页播放器；下载进度只读取后台转存的变化事件。
  -->
 <template>
@@ -14,6 +14,23 @@
       <span class="video-model-local-badge"><Cpu aria-hidden="true" />本地运行</span>
     </div>
     <p v-if="!browserCapabilities.extensionDom" class="capability-warning" role="status">当前浏览器不支持本地 AI 字幕，无法下载或运行本地模型</p>
+    <div class="video-model-source-settings">
+      <label class="video-model-source-choice">
+        <span>{{ t('video.downloadSourceLabel') }}</span>
+        <select :value="sourcePreference" :onChange="sourceControls.choose" data-video-model-source :disabled="!active || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" aria-describedby="video-model-source-hint">
+          <option value="auto">{{ t('video.downloadSourceAuto') }}</option>
+          <option value="mirror">{{ t('video.downloadSourceMirror') }}</option>
+          <option value="official">{{ t('video.downloadSourceOfficial') }}</option>
+        </select>
+      </label>
+      <p id="video-model-source-hint" class="video-model-guidance">{{ t('video.downloadSourceHint') }}</p>
+      <p class="video-model-source-links">
+        <span>{{ t('video.downloadSourcePages') }}</span>
+        <a :href="`https://huggingface.co/onnx-community/whisper-${config.videoLocalModel}`" target="_blank" rel="noopener noreferrer" @click.stop>Hugging Face ↗</a>
+        <a :href="`https://hf-mirror.com/onnx-community/whisper-${config.videoLocalModel}`" target="_blank" rel="noopener noreferrer" @click.stop>HF Mirror ↗</a>
+        <a :href="`https://modelscope.cn/models/onnx-community/whisper-${config.videoLocalModel}`" target="_blank" rel="noopener noreferrer" @click.stop>ModelScope ↗</a>
+      </p>
+    </div>
     <div class="video-model-list" role="radiogroup" aria-label="本地 AI 字幕模型">
       <article v-for="item in modelCards" :key="item.value" class="video-model-card" :class="{ selected: item.value === config.videoLocalModel, disabled: !active || !config.videoTranslationEnabled || !browserCapabilities.extensionDom }" :onClick="item.choose">
         <label class="video-model-choice">
@@ -28,7 +45,10 @@
         <p class="video-model-description">{{ item.description }}</p>
         <p class="video-model-size">{{ t('modelCache.downloadSize', {size: item.downloadSizeMb}) }}</p>
         <div class="video-model-card-footer">
-          <DownloadProgress v-if="isDownloading(item.value)" class="video-model-progress" :progress="progress[item.value]" :label="t('video.aiDownloadingModel')" :data-video-model-progress="item.value" />
+          <div v-if="isDownloading(item.value)" class="video-model-progress">
+            <DownloadProgress :progress="progress[item.value]" :label="t('video.aiDownloadingModel')" :data-video-model-progress="item.value" />
+            <p class="video-model-transfer-status" role="status" :data-video-model-transfer="item.value">{{ downloadStatus(item.value) }}</p>
+          </div>
           <span v-else class="video-model-availability" role="status">
             <Check v-if="downloaded.includes(item.value)" aria-hidden="true" />
             {{ !modelStateLoaded ? '读取中…' : downloaded.includes(item.value) ? '可离线使用' : '尚未下载' }}
@@ -36,7 +56,7 @@
           <button v-if="downloaded.includes(item.value)" type="button" class="video-model-download-button" :disabled="!active || removing.includes(item.value)" :aria-label="t('modelCache.removeNamed', {name: translateLegacy(item.label)})" @click.stop="item.remove()"><Delete aria-hidden="true" />{{ t(removing.includes(item.value) ? 'modelCache.removing' : 'modelCache.remove') }}</button>
           <button v-else type="button" class="video-model-download-button" :aria-label="t('video.modelDownloadAria', {model: translateLegacy(item.label)})" :disabled="!active || !modelStateLoaded || isDownloading(item.value) || !config.videoTranslationEnabled || !browserCapabilities.extensionDom" @click.stop="item.download()">
             <component :is="isDownloading(item.value) ? Loading : Download" :class="{ 'is-loading': isDownloading(item.value) }" aria-hidden="true" />
-            {{ isDownloading(item.value) ? '下载中…' : '下载模型' }}
+            {{ isDownloading(item.value) ? '下载中…' : failedDownloads.includes(item.value) ? t('video.downloadRetry') : '下载模型' }}
           </button>
         </div>
       </article>
@@ -69,6 +89,7 @@ import {Check, Cpu, Delete, Download, Files, Loading} from '@element-plus/icons-
 import {
   VIDEO_LOCAL_TRANSCRIPTION_MODELS,
   VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY,
+  VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE,
   VIDEO_AI_SUBTITLE_CACHE_CLEAR_MESSAGE,
   VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE,
   normalizeVideoLocalTranscriptionModels,
@@ -76,6 +97,7 @@ import {
   type VideoLocalTranscriptionModel,
 } from '@/src/features/video-subtitle/public';
 import type {Config} from '@/src/core/config/model';
+import type {ModelSourcePreference} from '@/src/platform/http/modelDownloads';
 import {videoModelDownloadId, type DownloadProgress as DownloadProgressValue} from '@/src/core/download/progress';
 import {browserCapabilities} from '@/src/platform/browser/capabilities';
 import {watchDownloadProgress} from '@/src/platform/storage/downloadProgress';
@@ -87,6 +109,15 @@ const props = withDefaults(defineProps<{config: Config; active?: boolean; contex
 const config = computed(() => props.config);
 const {active, capture, revision} = useSettingsActionContext(() => props.active, () => [props.config, props.context]);
 const modelOptions = VIDEO_LOCAL_TRANSCRIPTION_MODELS;
+// 来源偏好只属于本设置视图；旧模板事件不得改变新视图后续请求的来源。
+const sourcePreference = ref<ModelSourcePreference>('auto');
+const sourceControls = computed(() => {
+  const current = capture(), target = props.config;
+  return {choose: (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value;
+    if (current() && target.videoTranslationEnabled && browserCapabilities.extensionDom && ['auto', 'official', 'mirror'].includes(value)) sourcePreference.value = value as ModelSourcePreference;
+  }};
+});
 const modelCopy: Record<VideoLocalTranscriptionModel, [string, string]> = {
   tiny: ['video.modelTinyName', 'video.modelTinyHint'],
   base: ['video.modelBaseName', 'video.modelBaseHint'],
@@ -101,7 +132,6 @@ const modelCards = computed(() => {
     selection: computed({get: () => target.videoLocalModel, set: (value: VideoLocalTranscriptionModel) => selectModel(value, current, target)}),
     choose: () => selectModel(item.value, current, target),
     download: () => {
-      if (!current()) return;
       selectModel(item.value, current, target);
       return download(item.value, current);
     },
@@ -121,6 +151,7 @@ const downloading = ref<VideoLocalTranscriptionModel[]>([]);
 const observedDownloads = ref<VideoLocalTranscriptionModel[]>([]);
 const progress = ref<Partial<Record<VideoLocalTranscriptionModel, DownloadProgressValue>>>({});
 const downloadError = ref('');
+const failedDownloads = ref<VideoLocalTranscriptionModel[]>([]);
 let stopObserving: (() => void) | undefined;
 const modelReadError = ref('');
 const removing = ref<VideoLocalTranscriptionModel[]>([]);
@@ -142,6 +173,14 @@ function isDownloading(model: VideoLocalTranscriptionModel): boolean {
   return !downloaded.value.includes(model) && (downloading.value.includes(model) || observedDownloads.value.includes(model) || pendingDownloads.value.has(model));
 }
 
+function downloadStatus(model: VideoLocalTranscriptionModel): string {
+  const transfer = progress.value[model]?.transfer;
+  if (!transfer) return t('video.downloadWaiting');
+  const names = {modelscope: 'ModelScope', huggingface: 'Hugging Face', 'hf-mirror': 'HF Mirror', other: t('video.downloadSourceOther')};
+  const key = transfer.state === 'receiving' ? 'video.downloadReceiving' : transfer.attempt > 1 ? 'video.downloadSwitching' : 'video.downloadConnecting';
+  return t(key, {source: names[transfer.source], attempt: transfer.attempt, attempts: transfer.attempts});
+}
+
 function handleDownloadProgress(id: string, next: DownloadProgressValue | undefined): void {
   const model = modelOptions.find(item => videoModelDownloadId(item.value) === id)!.value;
   progress.value = {...progress.value, [model]: next};
@@ -160,9 +199,10 @@ async function refresh(force = false): Promise<void> {
   if (!current() || !force && (downloading.value.length || removing.value.length)) return;
   const request = ++modelGeneration;
   try {
-    const stored = await browser.storage.local.get(VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY);
+    const response = await browser.runtime.sendMessage({type: VIDEO_LOCAL_TRANSCRIPTION_STATE_MESSAGE}) as {success?: boolean; models?: unknown} | undefined;
     if (!current() || request !== modelGeneration) return;
-    downloaded.value = normalizeVideoLocalTranscriptionModels(stored[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]);
+    if (response?.success !== true || !Array.isArray(response.models)) throw new Error('无法读取模型缓存，请重试');
+    downloaded.value = normalizeVideoLocalTranscriptionModels(response.models);
     modelReadError.value = '';
   } catch {
     if (current() && request === modelGeneration) {
@@ -182,15 +222,19 @@ async function download(model: VideoLocalTranscriptionModel, current = capture()
   if (pendingDownloads.value.has(model) || downloaded.value.includes(model) || isDownloading(model)) return;
   modelGeneration++;
   downloadError.value = '';
+  failedDownloads.value = failedDownloads.value.filter(item => item !== model);
   progress.value = {...progress.value, [model]: undefined};
   downloading.value = [...downloading.value, model];
   pendingDownloads.value.add(model);
   try {
-    const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalVideoModel', model}) as {success?: boolean; models?: unknown; error?: string} | undefined;
+    const response = await browser.runtime.sendMessage({type: 'fluentReadPrepareLocalVideoModel', model, preference: sourcePreference.value}) as {success?: boolean; models?: unknown; error?: string} | undefined;
     if (!current()) return;
     if (!response?.success) throw new Error(response?.error || '模型下载失败');
   } catch (error) {
-    if (current()) downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试';
+    if (current()) {
+      failedDownloads.value = [...failedDownloads.value, model];
+      downloadError.value = error instanceof Error ? t('video.modelDownloadError', {error: translateLegacy(error.message)}) : '模型下载失败，请检查网络后重试';
+    }
   } finally {
     pendingDownloads.value.delete(model);
     if (current()) {
@@ -207,6 +251,7 @@ async function removeModel(model: VideoLocalTranscriptionModel, current = captur
   modelGeneration++;
   removing.value.push(model);
   downloadError.value = '';
+  failedDownloads.value = failedDownloads.value.filter(item => item !== model);
   try {
     const response = await browser.runtime.sendMessage({type: 'fluentReadRemoveLocalVideoModel', model}) as {success?: boolean; error?: string; models?: unknown} | undefined;
     if (!current()) return;
@@ -222,7 +267,6 @@ async function removeModel(model: VideoLocalTranscriptionModel, current = captur
 
 async function refreshCacheStats(): Promise<void> {
   const current = capture();
-  if (!current()) return;
   const request = ++cacheGeneration;
   try {
     const response = await browser.runtime.sendMessage({type: VIDEO_AI_SUBTITLE_CACHE_STATS_MESSAGE}) as {success?: boolean; stats?: typeof cacheStats.value} | undefined;
@@ -262,6 +306,7 @@ watch(() => [mounted.value, revision.value], () => {
   observedDownloads.value = [];
   progress.value = {};
   downloadError.value = '';
+  failedDownloads.value = [];
   modelReadError.value = '';
   modelStateLoaded.value = false;
   clearingCache.value = false;
@@ -271,9 +316,12 @@ watch(() => [mounted.value, revision.value], () => {
   const handleStorageChange = (changes: Record<string, browser.Storage.StorageChange>, areaName: string) => {
     if (current() && areaName === 'local' && changes[VIDEO_LOCAL_TRANSCRIPTION_STATE_KEY]) void refresh();
   };
-  // 从播放页返回设置时重新读取 IndexedDB 统计，避免显示首次挂载的统计。
+  // 回到设置时重新核对模型文件与字幕统计；Cache Storage 丢失文件不会触发 storage.onChanged。
   const refreshVisibleCacheStats = () => {
-    if (current() && !clearingCache.value && document.visibilityState !== 'hidden') void refreshCacheStats();
+    if (current() && !clearingCache.value && document.visibilityState !== 'hidden') {
+      void refresh();
+      void refreshCacheStats();
+    }
   };
   browser.storage.onChanged.addListener(handleStorageChange);
   const stopProgress = watchDownloadProgress(modelOptions.map(item => videoModelDownloadId(item.value)), (id, next) => {
@@ -291,7 +339,7 @@ watch(() => [mounted.value, revision.value], () => {
   void refreshCacheStats();
 }, {flush: 'sync'});
 onMounted(() => {mounted.value = true;});
-onUnmounted(() => {mounted.value = false;stopObserving?.();});
+onUnmounted(() => {mounted.value = false;});
 </script>
 
 <style scoped>
@@ -353,6 +401,13 @@ svg { width: 15px; height: 15px; flex: none; }
 .video-model-description { flex: 1; margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
 .video-model-availability { justify-content: flex-start; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
 .video-model-progress { flex: 1 1 auto; }
+.video-model-transfer-status { margin: 5px 0 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; overflow-wrap: anywhere; }
+.video-model-source-settings { display: grid; gap: 7px; min-width: 0; }
+.video-model-source-choice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--ink); font-size: 11px; }
+.video-model-source-choice select { max-width: 100%; min-height: 32px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: var(--surface); font: inherit; }
+.video-model-source-choice select:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+.video-model-source-links { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.5; }
+.video-model-source-links a { color: var(--brand-strong); }
 .video-model-download-button {
   flex: none;
   min-height: 32px;

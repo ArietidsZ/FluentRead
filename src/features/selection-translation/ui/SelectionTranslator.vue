@@ -1,7 +1,7 @@
 <!--
  * @file src/features/selection-translation/ui/SelectionTranslator.vue
  * 文件职责：实现划词翻译的主要页面组件，覆盖选区捕获、图标/小点/悬停/快捷键/仅右键菜单/直接弹出、翻译与词卡展示、朗读、收藏选中的单词/表达/句子、双语分享卡片、重试和关闭。
- * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，内容与播放状态变化只影响内部布局；学习视图保留原文和译文并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
+ * 主要内容：相同译文保留原文且不重复展示；组件管理可信手势、已关闭选区与选择丢失宽限、继续阅读或复制原文时自动收起、请求 token、行内代码保护与纯文本安全渲染、按标签页页面缩放补偿的弹窗定位、空白拖动、边角缩放、主题及可换行的多语言标题；普通译文先于完整原文，单行可横向滚动的导航把高度留给正文；指针移动按帧合并并在结束时提交最后位置，已定位卡片不重复读取选区几何；富文本 UTF-16 跟读偏移一次计算并复用；默认过滤同语言选区，按配置开放中英反向入口，并在卡片内仅对本次翻译切换译文语言；统一卡片默认显示翻译并以同一导航进入学习；首次定位后保持弹窗锚点，手动尺寸下内容与播放状态变化只影响内部布局；闲置语音栏不占空间，自动卡生成与播放期间用独立临时高度保持外框，停止恢复自然尺寸；学习短回答自然收拢、长回答受高度上限约束，完整原文和译文按需对照并允许翻译继续完成；单词先展示原文与可用词卡，再补充辅助释义，以紧凑状态提示等待、未命中与网络失败；关闭或更换选区取消等待并阻止旧响应覆盖新结果；区分语音生成和播放，按实际音频时钟或浏览器词边界显示完整词高亮，并提供真实音频时间与前后 5 秒跳转。
  * 模块边界：组件只通过公共客户端和 runtime 消息触达后台，不直接持有 provider、IndexedDB 或 Offscreen 资源；纯选区算法在 core，活动 Range 通过回调交给 content/runtime 管理 modal 挂载所有权；扩展 PDF 文档页通过可选来源适配器复用同一卡片、标题和阅读上下文，来源失效时取消当前请求，词书协议独立维护。
  -->
 <template>
@@ -37,7 +37,7 @@
         </div>
       </header>
 
-      <div class="fr-study-toolbar" role="group" aria-label="划词卡片内容" :title="isWordSelection ? '词典释义 · 按词性分类' : '先看译文，按需深入'">
+      <div class="fr-study-toolbar" role="group" aria-label="划词卡片内容" :title="isWordSelection ? '词典释义 · 按词性分类' : '先看译文，按需深入'" @focusin="handleStudyToolbarFocus">
         <button type="button" :aria-pressed="!readingMode" @click="openTooltip()">翻译</button>
         <template v-if="readingEnabled">
           <button v-for="action in readingActions" :key="action.id" type="button" :title="action.description" :aria-pressed="readingMode && !readingHistoryOnly && readingInitialAction === action.id" @click="openReading(action.id)">{{ action.id === 'grammar' ? '词性与句法' : action.label }}</button>
@@ -90,7 +90,7 @@
                     <span>{{ isCopied('translation') ? '已复制' : '复制' }}</span>
                   </button>
                 </div>
-                <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(translationParts,index)" :progress="audioProgressFor('translation')" /></template></pre>
+                <pre><template v-for="(part, index) in translatedTextParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="part.offset" :progress="translationAudioProgress" /></template></pre>
               </div>
               <div v-else-if="isLoading" class="fr-word-translation-loading">正在翻译释义…</div>
               <div v-if="wordCard.meanings.length > 0" class="fr-word-meaning-toolbar">
@@ -121,23 +121,6 @@
             </template>
           </section>
           <div v-if="isWordSelection && wordCardError" class="fr-word-fallback-note" role="status"><span>{{ wordCardError }}</span><button type="button" @click="retryWordCard">重查词典</button></div>
-          <div v-if="(selectionSettings.mode === 'bilingual' || (translationResult && !hasDistinctTranslationResult)) && !isWordCardVisible" class="fr-text-block fr-original-text">
-            <div class="fr-text-block-header">
-              <span class="fr-text-label">原文</span>
-              <div class="fr-text-actions">
-                <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('source') }" data-copy-kind="source" type="button" :title="copyButtonTitle('source')" :aria-label="copyButtonTitle('source')" @click="copyText(selectedText, 'source')">
-                  <svg v-if="isCopied('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
-                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                  <span>{{ isCopied('source') ? '已复制' : '复制' }}</span>
-                </button>
-                <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
-                  <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
-                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
-                </button>
-              </div>
-            </div>
-            <pre><template v-for="(part, index) in snapshot?.parts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(snapshot?.parts,index)" :progress="audioProgressFor('source')" /></template></pre>
-          </div>
           <div v-if="(selectionSettings.mode === 'bilingual' || selectionSettings.mode === 'translation-only') && hasDistinctTranslationResult && !isWordCardVisible" class="fr-text-block fr-translation-result">
             <div class="fr-text-block-header">
               <span class="fr-text-label">译文</span>
@@ -153,7 +136,24 @@
                 </button>
               </div>
             </div>
-            <pre><template v-for="(part, index) in translationParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="partOffset(translationParts,index)" :progress="audioProgressFor('translation')" /></template></pre>
+            <pre><template v-for="(part, index) in translatedTextParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="part.offset" :progress="translationAudioProgress" /></template></pre>
+          </div>
+          <div v-if="(selectionSettings.mode === 'bilingual' || (translationResult && !hasDistinctTranslationResult)) && !isWordCardVisible" class="fr-text-block fr-original-text">
+            <div class="fr-text-block-header">
+              <span class="fr-text-label">原文</span>
+              <div class="fr-text-actions">
+                <button class="fr-text-copy-btn" :class="{ 'fr-copied': isCopied('source') }" data-copy-kind="source" type="button" :title="copyButtonTitle('source')" :aria-label="copyButtonTitle('source')" @click="copyText(selectedText, 'source')">
+                  <svg v-if="isCopied('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                  <span>{{ isCopied('source') ? '已复制' : '复制' }}</span>
+                </button>
+                <button class="fr-text-audio-btn" type="button" :aria-label="audioLabel('source')" :title="audioLabel('source')" @click="toggleAudio(selectedText, 'source')">
+                  <svg v-if="isCurrentAudio('source')" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6v12M16 6v12" /></svg>
+                  <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z" /><path d="M16 9.5a4.5 4.5 0 0 1 0 5M18.5 7a8 8 0 0 1 0 10" /></svg>
+                </button>
+              </div>
+            </div>
+            <pre><template v-for="(part, index) in sourceTextParts" :key="index"><code v-if="part.kind === 'code'" class="fr-inline-code">{{ part.text }}</code><SpeechFollowText v-else :text="part.text" :offset="part.offset" :progress="sourceAudioProgress" /></template></pre>
           </div>
           <div v-if="error && (translationResult || wordCard)" class="fr-inline-error"><span>{{ error }}</span><button type="button" @click="retryTranslation">重试</button></div>
         </div>
@@ -266,11 +266,23 @@ const audioProgress = ref<SpeechProgress | null>(null);
 const audioPosition = ref<SpeechPlaybackPosition | null>(null);
 const seekControls = [{offset:-5, label:'后退 5 秒'}, {offset:5, label:'前进 5 秒'}] as const;
 const audioTextOffset = ref(0);
-function partOffset(parts: readonly {text:string}[] | undefined, index:number) {return parts?.slice(0,index).reduce((sum,part)=>sum+part.text.length,0) ?? 0;}
+// 一次遍历计算 UTF-16 偏移；音频每帧更新只复用这些片段，不重新切片累计。
+function textPartsWithOffsets(parts: readonly SelectionTextPart[] | undefined) {
+  let offset = 0;
+  return (parts ?? []).map(part => {
+    const positioned = {...part, offset};
+    offset += part.text.length;
+    return positioned;
+  });
+}
+const sourceTextParts = computed(() => textPartsWithOffsets(snapshot.value?.parts));
+const translatedTextParts = computed(() => textPartsWithOffsets(translationParts.value));
 function audioProgressFor(kind: AudioKind) {
   const progress = isPlaying.value && currentAudioKind.value === kind ? audioProgress.value : null;
   return progress ? {...progress,start:progress.start+audioTextOffset.value,end:progress.end+audioTextOffset.value} : null;
 }
+const sourceAudioProgress = computed(() => audioProgressFor('source'));
+const translationAudioProgress = computed(() => audioProgressFor('translation'));
 const currentAudioKind = ref<AudioKind | null>(null);
 const currentAudioText = ref('');
 const currentAudioKey = ref('');
@@ -288,6 +300,7 @@ let readingHoverTimer: number | null = null;
 let entryDismissTimer: number | null = null;
 let selectionFrame: number | null = null;
 let positionFrame: number | null = null;
+let positionRevision = 0;
 let zoomRequestGeneration = 0;
 let selectionLossTimer: number | null = null;
 let selectionPresentationTimer: number | null = null;
@@ -651,11 +664,23 @@ const popupResizeEdges = ['n', 's', 'e', 'w', 'ne', 'nw', 'se', 'sw'] as const;
 const popupManipulating = ref(false);
 let manualPopupPosition: {left: number; top: number} | null = null;
 let manualPopupSize: {width: number; height: number} | null = null;
+// 自动卡只在生成和播放语音期间锁住当前外框；不能把临时高度记成用户手动尺寸。
+let audioPopupHeight: number | null = null;
+let audioPopupHeightRevision = 0;
 let popupGesture: {pointerId: number; x: number; y: number; rect: DOMRect; edge: string; element: HTMLElement} | null = null;
+let pendingPopupPoint: {x: number; y: number} | null = null;
+let popupGestureFrame: number | null = null;
+let popupGestureRevision = 0;
 
 function stopPopupGesture(event?: PointerEvent): void {
   const gesture = popupGesture;
   if (event && gesture && event.pointerId !== gesture.pointerId) return;
+  // 松开时提交最后一个已接受的移动；取消、失焦和卸载直接作废未绘制的旧手势。
+  if (event?.type === 'pointerup' && gesture) flushPopupGesture(gesture);
+  popupGestureRevision += 1;
+  if (popupGestureFrame !== null) window.cancelAnimationFrame(popupGestureFrame);
+  popupGestureFrame = null;
+  pendingPopupPoint = null;
   popupGesture = null;
   popupManipulating.value = false;
   if (gesture?.element.hasPointerCapture(gesture.pointerId)) gesture.element.releasePointerCapture(gesture.pointerId);
@@ -663,31 +688,75 @@ function stopPopupGesture(event?: PointerEvent): void {
 
 function resetPopupGeometry(): void {
   stopPopupGesture();
+  cancelPositionUpdate();
+  clearAudioPopupHeightLock();
   manualPopupPosition = null;
   manualPopupSize = null;
 }
 
-function applyManualPopupGeometry(): void {
+function clearAudioPopupHeightLock(): void {
+  audioPopupHeightRevision += 1;
+  const hadLock = audioPopupHeight !== null;
+  audioPopupHeight = null;
+  if (hadLock && !manualPopupSize) {
+    const {height: _height, ...naturalStyle} = tooltipStyle.value;
+    tooltipStyle.value = naturalStyle;
+  }
+}
+
+function beginAudioPopupHeightLock(): void {
+  const element = tooltipRef.value;
+  if (!showTooltip.value || !element || manualPopupSize || audioPopupHeight !== null) return;
+  const height = element.getBoundingClientRect().height;
+  if (!Number.isFinite(height) || height <= 0) return;
+  audioPopupHeightRevision += 1;
+  audioPopupHeight = height;
+  if (manualPopupPosition) applyManualPopupGeometry();
+  else tooltipStyle.value = {...tooltipStyle.value, height: `${height / popupScale.value}px`};
+}
+
+function applyManualPopupGeometry(measured?: Pick<DOMRect, 'width'>): void {
   const element = tooltipRef.value;
   if (!element || !manualPopupPosition) return;
   const scale = popupScale.value;
   const widthLimit = Math.max(1, window.innerWidth - 24);
   const heightLimit = Math.max(1, window.innerHeight - 24);
-  const width = Math.min(manualPopupSize?.width ?? element.getBoundingClientRect().width, widthLimit);
+  const width = Math.min(manualPopupSize?.width ?? measured?.width ?? element.getBoundingClientRect().width, widthLimit);
   const left = Math.max(12, Math.min(manualPopupPosition.left, window.innerWidth - width - 12));
   // 内容变多时保留左上角，以当前位置下方的可用空间限制高度；仅视口缩小时夹回可操作区域。
   const minHeight = Math.min(140 * scale, heightLimit);
   const top = Math.max(12, Math.min(manualPopupPosition.top, window.innerHeight - minHeight - 12));
   const availableHeight = Math.max(1, window.innerHeight - top - 12);
-  const height = Math.min(manualPopupSize?.height ?? element.getBoundingClientRect().height, availableHeight);
+  const preferredHeight = manualPopupSize?.height ?? audioPopupHeight;
+  const height = preferredHeight !== null ? Math.min(preferredHeight, availableHeight) : undefined;
   manualPopupPosition = {left, top};
-  if (manualPopupSize) manualPopupSize = {width, height};
+  if (manualPopupSize) manualPopupSize = {width, height: height!};
   tooltipStyle.value = {
     left: `${left}px`, top: `${top}px`, visibility: 'visible',
     maxWidth: `${widthLimit / scale}px`, maxHeight: `${Math.min(manualPopupSize ? availableHeight : 520 * scale, availableHeight) / scale}px`,
-    ...(manualPopupSize ? {width: `${width / scale}px`, height: `${height / scale}px`} : {}),
+    ...(manualPopupSize ? {width: `${width / scale}px`} : {}),
+    ...(height !== undefined ? {height: `${height / scale}px`} : {}),
   };
 }
+
+// 同步捕获未出现语音栏时的自然高度；prepare -> play 不重新量，也不随着跟读进度变化。
+watch(() => isPreparingAudio.value || isPlaying.value, active => {
+  if (active) beginAudioPopupHeightLock();
+  else clearAudioPopupHeightLock();
+}, {flush: 'sync'});
+watch([readingMode, showTooltip], () => {
+  clearAudioPopupHeightLock();
+  if (!showTooltip.value || (!isPreparingAudio.value && !isPlaying.value)) return;
+  const revision = audioPopupHeightRevision;
+  const owner = snapshot.value;
+  const view = readingMode.value;
+  // 切换视图可使用新正文的自然尺寸；旧视图、旧音频和关闭后的 nextTick 不能重新锁高。
+  void nextTick(() => {
+    if (revision !== audioPopupHeightRevision || snapshot.value !== owner || readingMode.value !== view
+      || !showTooltip.value || (!isPreparingAudio.value && !isPlaying.value)) return;
+    beginAudioPopupHeightLock();
+  });
+}, {flush: 'sync'});
 
 function beginPopupGesture(event: PointerEvent): void {
   const element = tooltipRef.value;
@@ -712,8 +781,22 @@ function movePopupGesture(event: PointerEvent): void {
   if (!event.isTrusted || !gesture || event.pointerId !== gesture.pointerId) return;
   event.preventDefault();
   event.stopPropagation();
-  const dx = event.clientX - gesture.x;
-  const dy = event.clientY - gesture.y;
+  pendingPopupPoint = {x: event.clientX, y: event.clientY};
+  if (popupGestureFrame !== null) return;
+  const revision = ++popupGestureRevision;
+  popupGestureFrame = window.requestAnimationFrame(() => {
+    if (revision !== popupGestureRevision) return;
+    popupGestureFrame = null;
+    flushPopupGesture(gesture);
+  });
+}
+
+function flushPopupGesture(gesture: NonNullable<typeof popupGesture>): void {
+  const point = pendingPopupPoint;
+  if (popupGesture !== gesture || !point) return;
+  pendingPopupPoint = null;
+  const dx = point.x - gesture.x;
+  const dy = point.y - gesture.y;
   const {rect, edge} = gesture;
   if (!edge) {
     manualPopupPosition = {left: rect.left + dx, top: rect.top + dy};
@@ -727,14 +810,19 @@ function movePopupGesture(event: PointerEvent): void {
     if (edge.includes('s')) bottom = Math.min(window.innerHeight - 12, Math.max(rect.bottom + dy, top + minHeight));
     manualPopupPosition = {left, top};
     manualPopupSize = {width: right - left, height: bottom - top};
+    clearAudioPopupHeightLock();
   }
-  applyManualPopupGeometry();
+  // 手势从按下时的矩形算绝对位移，移动帧不用再读取写入后的卡片布局。
+  applyManualPopupGeometry(rect);
 }
 
 
 function updatePosition(refreshSelection = true): void {
   const current = snapshot.value;
   if (!current) return;
+  const revision = positionRevision;
+  // 卡片首次打开后使用自己的锚点；内容、播放或页面滚动不需反复量宿主选区。
+  if (showTooltip.value && manualPopupPosition) { applyManualPopupGeometry(); return; }
   const rects = refreshSelection
     ? Array.from(current.range.getClientRects()).map(toSelectionRect).filter(rect => rect.width > 0 || rect.height > 0)
     : [];
@@ -750,12 +838,12 @@ function updatePosition(refreshSelection = true): void {
   };
   if (showTooltip.value) void nextTick(() => {
     const tooltip = tooltipRef.value;
-    if (!tooltip || !snapshot.value) return;
+    if (!tooltip || !showTooltip.value || snapshot.value !== current || revision !== positionRevision) return;
     if (manualPopupPosition) { applyManualPopupGeometry(); return; }
     const rect = tooltip.getBoundingClientRect();
     const position = calculateSelectionPopupPosition(snapshot.value.anchor, { width: rect.width, height: rect.height }, { width: window.innerWidth, height: window.innerHeight });
     manualPopupPosition = {left: position.left, top: position.top};
-    applyManualPopupGeometry();
+    applyManualPopupGeometry(rect);
     popupPlacement.value = position.placement;
   });
 }
@@ -763,7 +851,18 @@ function updatePosition(refreshSelection = true): void {
 function schedulePositionUpdate(): void {
   if (!showIndicator.value && !showTooltip.value) return;
   if (positionFrame !== null) return;
-  positionFrame = window.requestAnimationFrame(() => { positionFrame = null; updatePosition(); });
+  const revision = ++positionRevision;
+  positionFrame = window.requestAnimationFrame(() => {
+    if (revision !== positionRevision) return;
+    positionFrame = null;
+    updatePosition();
+  });
+}
+
+function cancelPositionUpdate(): void {
+  positionRevision += 1;
+  if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
+  positionFrame = null;
 }
 
 function applyPageZoom(value: unknown): void {
@@ -781,6 +880,7 @@ function applyPageZoom(value: unknown): void {
     width: manualPopupSize.width * ratio,
     height: manualPopupSize.height * ratio,
   };
+  if (audioPopupHeight !== null) audioPopupHeight *= ratio;
   pageZoom.value = nextZoom;
   viewportSize.value = {width: window.innerWidth, height: window.innerHeight};
   schedulePositionUpdate();
@@ -804,6 +904,8 @@ function handlePageZoomChanged(message: unknown): undefined {
 }
 
 function handleViewportResize(): void {
+  // 视口宽度会改变自动卡片的真实宽度，不能继续用按下时的旧矩形夹边。
+  stopPopupGesture();
   viewportSize.value = {width: window.innerWidth, height: window.innerHeight};
   schedulePositionUpdate();
   void requestPageZoom();
@@ -1700,6 +1802,22 @@ function handleSelectionChange(event: Event): void {
   if (!isSelectionReadSuppressed()) scheduleSelectionRead(selectionShortcutHeld);
 }
 // 仅在扩展 UI 内拦住滚轮冒泡；document 级 wheel 会抑制 Chromium 对同节点派发 legacy mousewheel，导致旧播放器收不到音量手势。
+function handleStudyToolbarFocus(event: FocusEvent): void {
+  const toolbar = event.currentTarget;
+  const button = event.target;
+  if (!(toolbar instanceof HTMLElement) || !(button instanceof HTMLElement)
+    || button.tagName !== 'BUTTON' || !toolbar.contains(button)) return;
+  // 浏览器可能只露出聚焦按钮的一部分；仅滚动自己的导航，不移动正文或宿主页。
+  const frame = toolbar.getBoundingClientRect();
+  const item = button.getBoundingClientRect();
+  const style = getComputedStyle(toolbar);
+  const scale = popupScale.value;
+  // 矩形是变换后的视口坐标，client/padding/scrollLeft 仍是布局像素。
+  const left = frame.left + (toolbar.clientLeft + (parseFloat(style.paddingLeft) || 0)) * scale;
+  const right = frame.left + (toolbar.clientLeft + toolbar.clientWidth - (parseFloat(style.paddingRight) || 0)) * scale;
+  if (item.left < left) toolbar.scrollLeft -= (left - item.left) / scale;
+  else if (item.right > right) toolbar.scrollLeft += (item.right - right) / scale;
+}
 function handleUiWheel(event: WheelEvent): void {
   suppressSelectionRead();
   if (event.ctrlKey) return; // 保留浏览器的缩放手势。
@@ -1707,6 +1825,13 @@ function handleUiWheel(event: WheelEvent): void {
   for (const node of event.composedPath()) {
     if (!(node instanceof HTMLElement)) continue;
     const style = getComputedStyle(node);
+    // 鼠标滚轮也能浏览单行导航；只移动卡片自己的横向滚动区。
+    if (node.matches('.fr-study-toolbar') && event.deltaX === 0 && event.deltaY !== 0
+      && node.scrollWidth > node.clientWidth) {
+      node.scrollLeft += event.deltaY;
+      if (event.cancelable) event.preventDefault();
+      return;
+    }
     const canScrollY = event.deltaY !== 0 && /auto|scroll/.test(style.overflowY)
       && (event.deltaY < 0 ? node.scrollTop > 0 : node.scrollTop + node.clientHeight < node.scrollHeight - 1);
     const canScrollX = event.deltaX !== 0 && /auto|scroll/.test(style.overflowX)
@@ -1899,7 +2024,8 @@ onBeforeUnmount(() => {
   releaseContextMenuHandler = null;
   stopPopupGesture();
   if (selectionFrame !== null) window.cancelAnimationFrame(selectionFrame);
-  if (positionFrame !== null) window.cancelAnimationFrame(positionFrame);
+  cancelPositionUpdate();
+  clearAudioPopupHeightLock();
   // 悬停延迟可能跨过卸载；卸载后不能再按旧选区打开阅读卡片。
   cancelReadingHover();
   cancelSelectionLoss();
@@ -1952,13 +2078,15 @@ onBeforeUnmount(() => {
 .fr-popup-resize-se { bottom: 0; right: 0; cursor: nwse-resize; }
 .fr-popup-resize-sw { bottom: 0; left: 0; cursor: nesw-resize; }
 .fr-popup-resize-se::after { content: ''; position: absolute; right: 3px; bottom: 3px; width: 5px; height: 5px; border-right: 2px solid #95858d; border-bottom: 2px solid #95858d; }
-.fr-reading-tooltip { display: flex; flex-direction: column; height: min(520px, calc(100vh - 24px)); }
+.fr-reading-tooltip { display: flex; flex-direction: column; height: auto; }
 .fr-reading-tooltip > .fr-tooltip-header { flex: none; }
-.fr-reading-tooltip > .fr-reading-content { flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
+.fr-reading-tooltip > .fr-reading-content { display: flex; flex-direction: column; flex: 1; min-height: 0; max-height: none; overflow: hidden; padding: 0; }
+/* 自动卡用内在高度收拢；达到外框上限后将收缩量传给真正的阅读滚动区。 */
+.fr-reading-content > :deep(.fr-reading) { flex: 1; height: auto; }
 .fr-tooltip-header { flex: none; display: flex; align-items: center; justify-content: space-between; gap:6px; padding: 5px 8px; border-bottom: 1px solid rgba(44, 43, 53, .06); font-size: 12px; font-weight: 500; }
 .fr-pos-label { display:flex; gap:6px; align-items:center; }
-.fr-study-toolbar { flex:none; display:flex; flex-wrap:wrap; gap:3px; padding:4px 8px; border-bottom:1px solid var(--fr-border, #eeedf0); }
-.fr-study-toolbar button { font:inherit; font-size:11px; border:0; background:transparent; color:#62616c; border-radius:5px; padding:5px 8px; cursor:pointer; }
+.fr-study-toolbar { flex:none; display:flex; flex-wrap:nowrap; overflow-x:auto; overscroll-behavior:contain; scrollbar-width:thin; gap:3px; padding:4px 8px; border-bottom:1px solid var(--fr-border, #eeedf0); }
+.fr-study-toolbar button { flex:none; white-space:nowrap; font:inherit; font-size:11px; border:0; background:transparent; color:#62616c; border-radius:5px; padding:5px 8px; cursor:pointer; }
 .fr-study-toolbar button[aria-pressed=true], .fr-study-toolbar button:hover, .fr-study-toolbar button:focus-visible { background:#f4f0f3; color:#8e4867; outline:1px solid #dcc3d0; }
 .fr-dark-theme .fr-study-toolbar { border-color:#4d404a; }
 .fr-dark-theme .fr-study-toolbar button { background:transparent; color:#cbc2c9; }
@@ -2052,7 +2180,7 @@ onBeforeUnmount(() => {
 .fr-text-block pre { overflow-wrap:anywhere; margin:0; white-space:pre-wrap; word-break:break-word; font:inherit; font-size:14px; line-height:1.7; user-select:text; }
 .fr-original-text pre { font-size:12.5px; line-height:1.65; }
 .fr-playing-status { flex: none; box-sizing: border-box; height: 36px; padding: 4px 14px; display: flex; align-items: center; justify-content: space-between; gap:8px; color: #777780; font-size: 12px; }
-.fr-playing-status.is-idle { visibility: hidden; }
+.fr-playing-status.is-idle { display: none; }
 .fr-playing-status button { border: 1px solid #e8a4bc; border-radius: 7px; padding: 3px 8px; color: #d83e70; }
 .fr-playing-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fr-playback-controls { display:flex; flex:none; align-items:center; gap:5px; }

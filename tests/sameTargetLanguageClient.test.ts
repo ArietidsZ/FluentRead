@@ -3,11 +3,13 @@
  * 共享翻译客户端与页面标题翻译使用真实语言识别的协作验证：多语言同目标文本在发往后台前返回原文、零消息；
  * 其他目标、显式源语言、逐次覆盖的目标语言与 skipLanguageDetection 语义保持不变；标题会话读取冻结的排除语言，
  * 页面把标题改成外语后重新识别并翻译，恢复时写回原标题；损坏整包专项经过真实 client/handler/broker，不以来源包替代空响应。
+ * PR #906 前四段密集技术名称中文也须零请求，旁边外语句子和英文目标仍请求。
  * 只替换浏览器消息、provider、配置存储与页面上下文边界。
  */
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import modelPost from './fixtures/chinese-language-model-post.json';
 import technicalParagraphs from './fixtures/chinese-technical-paragraphs.json';
+import pr906Paragraphs from './fixtures/chinese-technical-pr-906.json';
 
 const mocks = vi.hoisted(() => ({
     sendMessage: vi.fn(),
@@ -190,6 +192,32 @@ describe('共享翻译客户端', () => {
         expect(mocks.sendMessage).toHaveBeenCalledOnce();
         expect(mocks.sendMessage.mock.calls[0]![0].origin).toEqual([foreign]);
     });
+
+    it.each(pr906Paragraphs)('PR #906 中文技术正文经单条与批量客户端都零请求 %#', async text => {
+        await expect(translateText(text)).resolves.toBe(text);
+        await expect(translateTextBatch([text])).resolves.toEqual([text]);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+    });
+
+    it('PR #906 四段中文技术正文批量保留，独立英文句子仍发送且回填原索引', async () => {
+        await expect(translateTextBatch(pr906Paragraphs)).resolves.toEqual(pr906Paragraphs);
+        expect(mocks.sendMessage).not.toHaveBeenCalled();
+        const foreign = 'This English sentence still needs a Chinese translation for the reader.';
+        const texts = [pr906Paragraphs[0]!, foreign, ...pr906Paragraphs.slice(1)];
+        await expect(translateTextBatch(texts)).resolves.toEqual([pr906Paragraphs[0], `T:${foreign}`, ...pr906Paragraphs.slice(1)]);
+        expect(mocks.sendMessage).toHaveBeenCalledOnce();
+        expect(mocks.sendMessage.mock.calls[0]![0].origin).toEqual([foreign]);
+    });
+
+    it('PR #906 中文技术正文换成英文目标时正常发送单条及批量请求', async () => {
+        await expect(translateText(pr906Paragraphs[0]!, '', {targetLanguage: 'en'})).resolves.toBe(`T:${pr906Paragraphs[0]}`);
+        await expect(translateTextBatch(pr906Paragraphs, '', {targetLanguage: 'en'}))
+            .resolves.toEqual(pr906Paragraphs.map(text => `T:${text}`));
+        expect(mocks.sendMessage).toHaveBeenCalledTimes(2);
+        expect(mocks.sendMessage.mock.calls[0]![0]).toMatchObject({origin: pr906Paragraphs[0], targetLanguage: 'en'});
+        expect(mocks.sendMessage.mock.calls[1]![0]).toMatchObject({origin: pr906Paragraphs, targetLanguage: 'en'});
+    });
+
     it.each(sameTarget)('%s 同目标文本直接返回原文且不发送后台消息', async (language, text) => {
         await expect(translateText(text, 'Context', {targetLanguage: language})).resolves.toBe(text);
         expect(mocks.sendMessage).not.toHaveBeenCalled();

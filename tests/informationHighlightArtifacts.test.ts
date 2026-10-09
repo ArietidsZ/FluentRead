@@ -1,4 +1,5 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
+import {huggingFaceDownloadOrigins} from '@/src/platform/http/modelDownloads';
 import {sha256} from '@noble/hashes/sha256';
 import {createModelArtifactStore, MODEL_ARTIFACT_CHUNK_BYTES, type ModelArtifact} from '@/src/platform/storage/modelArtifacts';
 import {INFORMATION_HIGHLIGHT_MODEL_FILES, INFORMATION_HIGHLIGHT_MODEL_REVISION, INFORMATION_HIGHLIGHT_MODEL_BYTES} from '@/src/core/config/informationHighlightModel';
@@ -74,6 +75,6 @@ describe('fixed model artifacts integrity and bounded resumable cache', () => {
         const controller = new AbortController(); controller.abort(); await expect(store.download(file, controller.signal, () => {})).rejects.toMatchObject({name: 'AbortError'});
         const during = new AbortController(); vi.stubGlobal('fetch', vi.fn(async () => {during.abort(); return new Response(body);})); await expect(store.download(file, during.signal, () => {})).rejects.toMatchObject({name: 'AbortError'});
         vi.useFakeTimers(); const fetcher = vi.fn((_url, {signal}: {signal: AbortSignal}) => new Promise<Response>((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('stalled'))))); vi.stubGlobal('fetch', fetcher);
-        const stalled = store.download(file, new AbortController().signal, () => {}); const expectation = expect(stalled).rejects.toThrow('stalled'); await vi.runAllTimersAsync(); await expectation; expect(fetcher).toHaveBeenCalledTimes(3);
+        const stalled = store.download(file, new AbortController().signal, () => {}); const expectation = expect(stalled).rejects.toThrow('stalled'); await vi.runAllTimersAsync(); await expectation; expect(fetcher).toHaveBeenCalledTimes(huggingFaceDownloadOrigins().length);
     });
 });

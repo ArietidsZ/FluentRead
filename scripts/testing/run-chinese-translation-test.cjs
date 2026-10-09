@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-// 中文简繁、--spanish 西班牙语、--wrong-language 错语种恢复及 --multilingual-same-target 多语言同目标生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
+// 中文简繁、--spanish 西班牙语、--wrong-language 错语种恢复、--multilingual-same-target 多语言同目标及 --technical-pr-906 技术中文生产浏览器回归：临时 Edge、无前台焦点启动、真实配置选择和真实快捷键。
 // 默认同时验证截图中文零请求、相邻外语正常翻译和动态评论换语言后的重新识别。
 // loopback AI fixture 只验证请求与 UI 链路；--live-google 独立报告无需凭据的外部服务实译。
 const assert = require('node:assert/strict');
@@ -13,6 +13,13 @@ const chinesePosts = require('../../tests/fixtures/chinese-language-posts.json')
 const modelPost = require('../../tests/fixtures/chinese-language-model-post.json');
 const {multilingualFixtureTranslation, renderMultilingualPage, runMultilingualSameTargetCases} = require('./multilingual-same-target-browser.cjs');
 const multilingualMode = process.argv.includes('--multilingual-same-target');
+const technicalPr906Mode = process.argv.includes('--technical-pr-906');
+const technicalPr906Posts = technicalPr906Mode ? require('../../tests/fixtures/chinese-technical-pr-906.json') : [];
+if (technicalPr906Mode) {
+  assert(!process.argv.some(argument => ['--multilingual-same-target', '--wrong-language', '--spanish', '--excluded-languages', '--live-google'].includes(argument)),
+    '--technical-pr-906 必须单独运行，不能隐式扩大专项范围');
+  assert.equal(technicalPr906Posts.length, 4, 'PR #906 夹具必须保留截图中的四段原文');
+}
 const wrongLanguageMode = process.argv.includes('--wrong-language');
 const wrongLanguageResult = 'このファイルの最初の文字にも制限があります。簡単にするために、最初の文字として文字を使用できます。';
 const releaseNote = '云端模型清单允许清空，且不再连带拒掉无关偏好的保存';
@@ -89,6 +96,42 @@ function fixtureTranslation(source, target) {
   assert(matched, `fixture 收到未知原文：${source}`);
   return result;
 }
+function escapeHtml(value) {
+  return value.replace(/[&<>"]/gu, character => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[character]);
+}
+function renderTechnicalPr906Page(markup) {
+  assert(['plain', 'split'].includes(markup), '未知 PR #906 夹具结构');
+  const posts = technicalPr906Posts.map((text, index) => {
+    let ordinal = 0;
+    let cursor = 0;
+    let content = '';
+    if (markup === 'split') {
+      // 先分词再转义，避免把 && 的 &amp; 实体拆进行内标签而改变原文。
+      for (const match of text.matchAll(/[A-Za-z][A-Za-z0-9_]*(?:[ +→][A-Za-z][A-Za-z0-9_]*)*/gu)) {
+        const tag = ordinal++ % 2 ? 'strong' : 'code';
+        content += escapeHtml(text.slice(cursor, match.index)) + `<${tag}>${escapeHtml(match[0])}</${tag}>`;
+        cursor = match.index + match[0].length;
+      }
+      content += escapeHtml(text.slice(cursor));
+    } else content = escapeHtml(text);
+    return `<p data-technical="${index}">${content}</p>`;
+  }).join('');
+  // 宿主页故意声明英文；以局部正文而非整页语言判断中文，并覆盖普通文本和行内代码/强调结构。
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>技术中文语言识别回归</title></head>`
+    + `<body style="padding:24px;font:18px/1.7 sans-serif"><main>${posts}`
+    + `<p id="english-control">${paragraphs.en[0]}</p><p id="dynamic-comment">${escapeHtml(technicalPr906Posts[0])}</p>`
+    + '</main></body></html>';
+}
+function technicalPr906Translation(source, target) {
+  if (target === 'zh-Hans') return fixtureTranslation(source, target);
+  assert.equal(target, 'en', 'PR #906 专项只测试简体中文与英文目标');
+  const translated = 'The production test validates the translation controls for the current paragraph.';
+  if (source.startsWith('___FLUENTREAD_')) {
+    return source.replace(/(___FLUENTREAD_([a-z0-9_-]+)_(\d+)_BEGIN___)([\s\S]*?)(___FLUENTREAD_\2_\3_END___)/gu,
+      (_match, begin, _nonce, _index, _content, end) => `${begin}${translated}${end}`);
+  }
+  return translated;
+}
 function assertScript(text, target) {
   assert(text.trim(), '译文不能为空');
   // 样例包含多个稳定区分字，不把所有汉字直接判作简体或繁体。
@@ -119,6 +162,17 @@ async function startFixture() {
         const targetName = /TARGET_BEGIN([\s\S]*?)TARGET_END/u.exec(prompt)?.[1];
         const source = /SOURCE_BEGIN([\s\S]*?)SOURCE_END/u.exec(prompt)?.[1];
         assert.equal(typeof source, 'string', '实际模板必须包含原文');
+        if (technicalPr906Mode) {
+          const target = /\bzh-Hans\b/u.test(targetName || '') ? 'zh-Hans' : /\ben\b/u.test(targetName || '') ? 'en' : undefined;
+          const entry = {source, target, targetName, prompt};
+          requests.push(entry);
+          entry.translated = technicalPr906Translation(source, target);
+          response.setHeader('Content-Type', 'application/json');
+          response.end(JSON.stringify({id: 'technical-pr-906-fixture', object: 'chat.completion', created: 1,
+            model: 'chinese-script-fixture', choices: [{index: 0, message: {role: 'assistant', content: entry.translated}, finish_reason: 'stop'}],
+            usage: {prompt_tokens: 20, completion_tokens: 20, total_tokens: 40}}));
+          return;
+        }
         if (multilingualMode) {
           // 多语言专项接受任意目录目标，按确定性标记回填；先记录请求再响应，任何同目标泄漏都会被计数。
           const entry = {source, targetName, prompt};
@@ -154,6 +208,11 @@ async function startFixture() {
     }
     const url = new URL(request.url, 'http://fixture.local');
     const source = url.searchParams.get('source') || 'en';
+    if (source === 'technical-pr-906') {
+      response.setHeader('Content-Type', 'text/html; charset=utf-8');
+      response.end(renderTechnicalPr906Page(url.searchParams.get('markup') || 'plain'));
+      return;
+    }
     if (source === 'same-language') {
       response.setHeader('Content-Type', 'text/html; charset=utf-8');
       // 故意沿用英文页面语言，证明每条评论按原文判断，而非信任宿主整页语言。
@@ -183,6 +242,120 @@ async function startFixture() {
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   return {url: `http://127.0.0.1:${server.address().port}`, requests,
     close: () => new Promise(resolve => server.close(resolve))};
+}
+
+async function runTechnicalPr906Cases({context, createPage, patchConfig, activateExtensionTabWithoutForeground, shot, report, fixture, artifactsDir}) {
+  report.scope = 'PR #906 four technical Chinese paragraphs: plain and code/strong inline DOM, Simplified Chinese hover/full zero requests and zero wrappers, English neighbor restore/retranslate, dynamic Chinese-to-English mutation, target switch to English';
+  report.technicalPr906 = {source: 'https://github.com/FluentRead/FluentRead/pull/906', paragraphs: 4, cases: []};
+  for (const markup of ['plain', 'split']) {
+    await patchConfig({from: 'auto', to: 'zh-Hans', useCache: false, excludedLanguages: [], pageTitleTranslationEnabled: false});
+    const page = await createPage(`${fixture.url}/article?source=technical-pr-906&markup=${markup}`, `technical-pr-906-${markup}`);
+    const caseReport = {markup, status: 'running'};
+    report.technicalPr906.cases.push(caseReport);
+    try {
+      await page.locator('#fluent-read-page-styles').waitFor({state: 'attached'});
+      const initialUrl = page.url();
+      const selectors = technicalPr906Posts.map((_, index) => `[data-technical="${index}"]`);
+      const originalHtml = await Promise.all(selectors.map(selector => page.locator(selector).innerHTML()));
+      assert.deepEqual(await page.locator('[data-technical]').allTextContents(), technicalPr906Posts);
+      if (markup === 'split') {
+        assert(await page.locator('[data-technical] code').count() > 0, '拆分夹具必须包含行内代码');
+        assert(await page.locator('[data-technical] strong').count() > 0, '拆分夹具必须包含强调片段');
+      }
+      const wrappers = selector => page.locator(`${selector} .fluent-read-bilingual-content`).count();
+      const hover = async selector => {
+        await activateExtensionTabWithoutForeground(context, page, 30000);
+        const element = page.locator(selector);
+        await element.click({position: {x: 4, y: 4}}); await element.hover({position: {x: 4, y: 4}});
+        await page.keyboard.down('Control'); await page.keyboard.up('Control');
+      };
+      const full = async () => {
+        await activateExtensionTabWithoutForeground(context, page, 30000);
+        await page.locator('main').click({position: {x: 2, y: 2}});
+        await page.keyboard.down('Alt'); await page.keyboard.press('t'); await page.keyboard.up('Alt');
+      };
+      const start = fixture.requests.length;
+      const assertRetained = async () => {
+        assert.equal(page.url(), initialUrl);
+        assert.equal(await page.locator('[data-technical] .fluent-read-bilingual-content').count(), 0, '四段技术中文不能插入译文');
+        assert.deepEqual(await page.locator('[data-technical]').allTextContents(), technicalPr906Posts);
+        assert.deepEqual(await Promise.all(selectors.map(selector => page.locator(selector).innerHTML())), originalHtml, '中文原始行内 DOM 必须保留');
+        assert.equal(await page.locator('.fluent-read-bilingual-content .fluent-read-bilingual-content').count(), 0);
+        // 标准段落以外的任何请求（包括只含英文标识符的拆分槽）均属于泄漏。
+        const leaked = fixture.requests.slice(start).filter(request => !paragraphs.en.some(text => request.source.includes(text)));
+        assert.deepEqual(leaked.map(request => request.source), [], '同目标技术中文及拆分槽不得进入翻译请求');
+      };
+      for (const selector of selectors) {
+        await hover(selector); await wait(400); await assertRetained();
+      }
+      assert.equal(fixture.requests.length, start, '技术中文悬浮必须零请求');
+      caseReport.sameTargetHoverRequests = 0;
+      caseReport.sameTargetWrappers = 0;
+      const hoverCounts = [];
+      for (const expected of [1, 0, 1, 0]) {
+        await hover('#english-control');
+        await page.waitForFunction(expected => document.querySelectorAll('#english-control .fluent-read-bilingual-content').length === expected, expected);
+        hoverCounts.push(await wrappers('#english-control'));
+        if (expected) assert.equal((await page.locator('#english-control .fluent-read-bilingual-content').innerText()).trim(), paragraphs['zh-Hans'][0]);
+        else assert.equal(await page.locator('#english-control').innerText(), paragraphs.en[0]);
+        await assertRetained();
+      }
+      caseReport.foreignHoverCounts = hoverCounts;
+      const fullCounts = [];
+      for (const expected of [1, 0, 1]) {
+        await full();
+        await page.waitForFunction(expected => document.querySelectorAll('#english-control .fluent-read-bilingual-content').length === expected, expected);
+        await wait(400);
+        fullCounts.push(await wrappers('#english-control'));
+        assert.equal(await wrappers('#dynamic-comment'), 0);
+        await assertRetained();
+      }
+      caseReport.foreignFullPageCounts = fullCounts;
+      caseReport.sameTargetFullRequests = 0;
+      const beforeDynamic = fixture.requests.length;
+      await page.locator('#dynamic-comment').evaluate((element, text) => {element.textContent = text;}, paragraphs.en[1]);
+      await page.locator('#dynamic-comment .fluent-read-bilingual-content').waitFor({state: 'visible'});
+      assert(fixture.requests.slice(beforeDynamic).some(request => request.source.includes(paragraphs.en[1])), '动态中文改成英文后必须重新请求');
+      assert.equal((await page.locator('#dynamic-comment .fluent-read-bilingual-content').innerText()).trim(), paragraphs['zh-Hans'][1]);
+      await assertRetained();
+      caseReport.dynamicRedetection = true;
+      caseReport.sameTargetRequestSources = fixture.requests.slice(start).map(request => request.source);
+      await shot(page, `technical-pr-906-${markup}-retained`, {fullPage: true});
+      fs.writeFileSync(path.join(artifactsDir, `technical-pr-906-${markup}-retained.html`), await page.content());
+      await full();
+      await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0);
+      assert.equal(await page.locator('#dynamic-comment').innerText(), paragraphs.en[1]);
+      await assertRetained();
+      caseReport.restored = true;
+      await patchConfig({to: 'en'}); await wait(300);
+      const switchStart = fixture.requests.length;
+      await full();
+      await page.waitForFunction(() => Array.from(document.querySelectorAll('[data-technical]')).every(element =>
+        element.querySelectorAll('.fluent-read-bilingual-content').length === 1));
+      await wait(400);
+      assert.equal(await wrappers('#english-control'), 0, '英文目标下英文相邻段落必须保留');
+      assert.equal(await wrappers('#dynamic-comment'), 0, '英文目标下动态英文必须保留');
+      assert(fixture.requests.slice(switchStart).some(request => /\p{Script=Han}/u.test(request.source)), '英文目标下中文原文必须请求');
+      assert(!fixture.requests.slice(switchStart).some(request => paragraphs.en.some(text => request.source.includes(text))), '英文目标下不得请求英文正文');
+      assert.equal(await page.locator('.fluent-read-bilingual-content .fluent-read-bilingual-content').count(), 0);
+      assert.equal(page.url(), initialUrl);
+      caseReport.targetSwitch = {from: 'zh-Hans', to: 'en', translatedChineseParagraphs: 4, requestCount: fixture.requests.length - switchStart};
+      await shot(page, `technical-pr-906-${markup}-english-target`, {fullPage: true});
+      fs.writeFileSync(path.join(artifactsDir, `technical-pr-906-${markup}-english-target.html`), await page.content());
+      await full();
+      await page.waitForFunction(() => document.querySelectorAll('.fluent-read-bilingual-content').length === 0);
+      assert.deepEqual(await Promise.all(selectors.map(selector => page.locator(selector).innerHTML())), originalHtml);
+      caseReport.targetSwitchRestored = true;
+      caseReport.urlStable = true;
+      caseReport.originalInlineDomPreserved = true;
+      caseReport.status = 'passed';
+    } catch (error) {
+      caseReport.status = 'failed'; caseReport.error = error.stack || String(error);
+      await shot(page, `technical-pr-906-${markup}-failure`).catch(() => {});
+      fs.writeFileSync(path.join(artifactsDir, `technical-pr-906-${markup}-failure.html`), await page.content().catch(() => ''));
+      throw error;
+    } finally {await page.close();}
+  }
 }
 
 async function main() {
@@ -260,9 +433,9 @@ async function main() {
       assert.equal(result?.success, true, result?.error);
       await waitConfig(config => Object.keys(patch).filter(key => key !== 'token').every(key => matchesSubset(config[key], patch[key])));
     };
-    const shot = async (page, name) => {
+    const shot = async (page, name, options = {}) => {
       const file = path.join(artifactsDir, `${name}.png`);
-      await page.screenshot({path: file, animations: 'disabled'}); report.screenshots.push(file);
+      await page.screenshot({path: file, animations: 'disabled', ...options}); report.screenshots.push(file);
     };
     const service = 'custom:chinese-script-fixture';
     await patchConfig({uiLanguage: 'zh-CN', uiLanguageSetupCompleted: true, on: true, service,
@@ -274,6 +447,18 @@ async function main() {
       hotkey: 'Control', floatingBallHotkey: 'Alt+T', fullPageTranslationMode: 'all',
       mouseHoverTranslationDelay: 0, selectionTranslatorMode: 'disabled', disableSelectionTranslator: true,
       animations: false});
+    if (technicalPr906Mode) {
+      report.ui.configuration = {on: true, from: 'auto', to: 'zh-Hans', display: 1, service,
+        hotkey: 'Control', floatingBallHotkey: 'Alt+T', useCache: false, fullPageTranslationMode: 'all'};
+      await runTechnicalPr906Cases({context, createPage, patchConfig, activateExtensionTabWithoutForeground, shot, report, fixture, artifactsDir});
+      report.fixture.cases = report.technicalPr906.cases;
+      report.fixture.ok = report.fixture.cases.every(item => item.status === 'passed');
+      assert.equal(report.consoleErrors.length, 0, JSON.stringify(report.consoleErrors));
+      assert.equal(report.windowPlacement.mode, 'background-visible-no-focus');
+      assert.equal(report.windowPlacement.browserFrontmost, false);
+      report.ok = report.fixture.ok;
+      return;
+    }
     if (multilingualMode) {
       report.scope = 'Multilingual same-target skipping: de/pt/it/fr/en/ru/ja/ko/zh-Hans hover and full-page zero requests, neighbor [1,0,1], titles, GitHub commit links, dynamic redetection, target switch and excluded-language parity';
       await runMultilingualSameTargetCases({context, createPage, patchConfig, activateExtensionTabWithoutForeground, shot, report, fixture, artifactsDir});

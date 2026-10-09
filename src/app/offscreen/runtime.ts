@@ -113,7 +113,7 @@ export function startOffscreenApp(): void {
                 ? prepareLocalVideoTranscriptionModel(request.model, {keepWarm: true, streamId: request.streamId})
                 : downloads.track(
                     videoModelDownloadId(normalizeVideoLocalTranscriptionModel(request.model)),
-                    onProgress => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: false, onProgress}),
+                    onProgress => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: false, onProgress, preference: request.preference}),
                 ),
             cancel: cancelLocalVideoTranscription,
             removeModel: request => removeLocalVideoTranscriptionModel(request.model),
