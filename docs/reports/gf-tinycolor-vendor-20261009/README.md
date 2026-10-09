@@ -26,6 +26,12 @@ GF原SHA256：71212a32ad6c707e6659c4cb5db7d1bf6ab0e2b86d95c03e02f34a0dd32026f5�
 
 ## 原资源流程与交付范围
 
-源码/测试维护提交：d9abfc98b8dd2df77ab5516f2e168e08ddd0e0df。两个生成资源单独提交：323d3cb11f0e7dde655e5919d5558167e57499b5。原 scripts/build-userscript-greasyfork.mjs --prepare-resources 生成vendor/data；随后无参数正式流程核验vendor源与锁文件、Git资源字节、tracked与built资源字节一致。两个HTTPS @require都绑定资源提交323d3cb11f0e7dde655e5919d5558167e57499b5，原CDN仓库路径不变。正式脚本退出1仅因原2MB预算断言；未放宽预算或修改verifier。资源固定与数据一致性已在此候选分支闭合，GF整体体积仍未闭合。
+源码/测试维护提交：d9abfc98b8dd2df77ab5516f2e168e08ddd0e0df。两个生成资源单独提交：323d3cb11f0e7dde655e5919d5558167e57499b5。原 scripts/build-userscript-greasyfork.mjs --prepare-resources 生成vendor/data；随后无参数正式流程核验vendor源与锁文件、Git资源字节、tracked与built资源字节一致。两个HTTPS @require都绑定资源提交323d3cb11f0e7dde655e5919d5558167e57499b5，原CDN仓库路径不变。正式脚本退出1仅因原2MB预算断言；未放宽预算或修改verifier。本地资源固定与数据一致性通过；原始固定CDN URL也已返回200，下载字节数与SHA256逐项匹配资源提交。GF整体体积仍未闭合。
 
 复用9b原三出口/模块基线，没有重跑既有Options导航或扩展构建。本批只做CW现有依赖、CPU60%、单worker、并发1；没有新环境、权限、真实模型/搜索调用或Recovery操作。未安装脚本、开放127端口、操作用户profile或声称WebGPU验证。阶段命令、退出码、源码/资源SHA、固定commit元数据见 [candidate-manifest.json](./candidate-manifest.json)。
+
+## 固定 CDN 分发检查
+
+2026-10-09T16:04:41Z，原上游路径和资源提交保持不变，两份HTTPS资源均返回200：vendor为596048字节、SHA256 3e7a86f3566595d37610bbb48901ac4911a75b6ad4dbcdada4c932a04fd7b248；data为898082字节、SHA256 34bcb22e60894c88d3b45f4b23c3c6e1c03d1e21614a23caf896ad7333140951。它们与实际构建和Git资源完全一致。GitHub原上游API也解析到相同资源blob。先前请求曾返回403，随后读取错误正文超时；原因未确认，历史失败保留，不把最终200解释为已查明先前原因。[原URL、状态和完整核验记录](./cdn-distribution-check.json)。
+
+此后续提交只补报告，没有变更生产源码、资源、URL或预算，没有重复构建、测试或实际安装。分发检查通过不改变GF仍超2MB门禁的结果。

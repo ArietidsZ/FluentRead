@@ -277,5 +277,10 @@
   "diffWhitespaceCheck": "Source and reports checked; original patch context space markers retained as data.",
   "moduleIdNormalization": "Raw attribution keys are preserved. Removing repo prefix inside virtual IDs matches complete module-proof ID arrays with no omitted modules.",
   "docsBuildPassed": true,
-  "sourceResourcesAndFullModuleIdsVerified": true
+  "sourceResourcesAndFullModuleIdsVerified": true,
+  "actualCdnDistributionVerified": true,
+  "actualCdnDistributionEvidence": "cdn-distribution-check.json",
+  "actualCdnDistributionCheckedAtUtc": "2026-10-09T16:04:41.015058+00:00",
+  "cdnEarlierFailuresRetained": "Initial HTTP 403 and subsequent error-body timeout; cause not established. Final original immutable URLs both HTTP 200 with exact resource SHA256.",
+  "reportOnlyFollowup": "CDN evidence added after completed docs build; no production source/resource changes and no repeated builds or tests."
 }

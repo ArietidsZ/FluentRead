@@ -1,0 +1,47 @@
+{
+  "checkedAtUtc": "2026-10-09T16:04:41.015058+00:00",
+  "resourceCommit": "323d3cb11f0e7dde655e5919d5558167e57499b5",
+  "originalUrlPolicyUnchanged": true,
+  "previousAttempt": {
+    "httpStatus": 403,
+    "subsequentErrorBodyRead": "TimeoutError after 30 seconds; no cause established"
+  },
+  "results": [
+    {
+      "name": "fluentread-vendor.v1.js",
+      "url": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@323d3cb11f0e7dde655e5919d5558167e57499b5/userscript/resources/fluentread-vendor.v1.js",
+      "httpStatus": "200",
+      "curlExit": 0,
+      "transportError": "",
+      "responseBytes": 596048,
+      "sha256": "3e7a86f3566595d37610bbb48901ac4911a75b6ad4dbcdada4c932a04fd7b248",
+      "matchesCommittedResourceSha256": true
+    },
+    {
+      "name": "fluentread-data.v1.js",
+      "url": "https://cdn.jsdelivr.net/gh/FluentRead/FluentRead@323d3cb11f0e7dde655e5919d5558167e57499b5/userscript/resources/fluentread-data.v1.js",
+      "httpStatus": "200",
+      "curlExit": 0,
+      "transportError": "",
+      "responseBytes": 898082,
+      "sha256": "34bcb22e60894c88d3b45f4b23c3c6e1c03d1e21614a23caf896ad7333140951",
+      "matchesCommittedResourceSha256": true
+    }
+  ],
+  "actualCdnVerified": true,
+  "actualCdnHashesMatchCommittedResources": true,
+  "upstreamGitHubResourceResolution": [
+    {
+      "path": "userscript/resources/fluentread-vendor.v1.js",
+      "sha": "f72f48d4210897188f6a70d33ab784f68a0073ae",
+      "size": 596048,
+      "upstreamApiResolvesSharedForkCommit": true
+    },
+    {
+      "path": "userscript/resources/fluentread-data.v1.js",
+      "sha": "d2b5add615b5b71f3cc453ba48824d3685867c5c",
+      "size": 898082,
+      "upstreamApiResolvesSharedForkCommit": true
+    }
+  ]
+}
