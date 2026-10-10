@@ -188,6 +188,13 @@ describe('read-only body collection and native mapping', () => {
         run.parent.appendChild(run.node); expect(isInformationParagraphCurrent({...paragraph, root: f.document.querySelector('slot')!.attachShadow({mode: 'open'})})).toBe(false);
         expect(informationSliceEnd('abc\u0301x', 0, 3)).toBe(2);
     });
+    it('reads a line-laid PDF translation as one paragraph, spacing Latin line breaks but not CJK ones', () => {
+        const f = fixture('<p data-fluentread-pdf-lines><span style="display:block">Translated</span><span style="display:block">paragraphs</span><span style="display:block">保持可读的</span><span style="display:block">科学词汇，</span><span style="display:block">and stay whole.</span></p>');
+        const before = f.document.body.innerHTML, paragraph = collect(f).paragraphs.at(-1)!;
+        expect(paragraph.text).toBe('Translated paragraphs 保持可读的科学词汇， and stay whole.');
+        expect(informationRanges(f.document, paragraph, [{start: 11, end: 21, score: 1}]).map(r => r.toString())).toEqual(['paragraphs']);
+        expect(f.document.body.innerHTML).toBe(before);
+    });
 });
 
 describe('page-owned scoring, paint and cancellation', () => {

@@ -6,6 +6,7 @@ import {describe, expect, it, vi} from 'vitest';
 
 import {
     getDocumentAcceptAttribute,
+    getDocumentMaxBytes,
     getDocumentFormat,
     getDocumentMimeType,
 } from '@/src/features/document-translation/core/document';
@@ -15,6 +16,7 @@ import {
     parseDocumentFile,
     type PdfPageRasterizer,
 } from '@/src/features/document-translation/services/binary';
+import {pdfPagesNeedingOcr} from '@/src/features/document-translation/services/pdfOcr';
 
 const exampleRoot = new URL('../examples/document-translation/', import.meta.url);
 const onePixelPng = Uint8Array.from(Buffer.from(
@@ -124,7 +126,8 @@ describe('binary document translation formats', () => {
 
     it.each(['bilingual', 'translated'] as const)('exports 40 PDF pages in %s mode with ordered progress', async mode => {
         const source = await PDFDocument.create();
-        for (let page = 1; page <= 40; page += 1) source.addPage([400, 600]).drawText(`Page ${page}`);
+        // 正文位置的一句话；页面边缘的孤立短行是页眉页脚，按原样保留而不参与翻译。
+        for (let page = 1; page <= 40; page += 1) source.addPage([400, 600]).drawText(`Page ${page}`, {x: 50, y: 300});
         const parsed = await parseBinaryDocument('long.pdf', await source.save());
         const progress: Array<{phase: string; completedPages: number; totalPages: number}> = [];
         const rasterizer = vi.fn(testRasterizer);
@@ -137,6 +140,26 @@ describe('binary document translation formats', () => {
         expect(rasterizer.mock.calls.map(([input]) => input.pageNumber)).toEqual(Array.from({length: 40}, (_, index) => index + 1));
         expect(progress.slice(0, -1).map(value => value.completedPages)).toEqual(Array.from({length: 41}, (_, index) => index));
         expect(progress.at(-1)).toEqual({phase: 'saving', completedPages: 40, totalPages: 40});
+    });
+
+    it('reports progress for untouched bilingual pages and for reading pages, and tolerates a page index that has no segment', async () => {
+        const parsed = await parseBinaryDocument('sample.pdf', loadBytes('sample.pdf'));
+        const binary = parsed.binary as Extract<NonNullable<typeof parsed.binary>, {kind: 'pdf'}>;
+        // 页面引用了一个不存在的片段：按“没有原文”处理，不影响其余页面。
+        const loose = {...parsed, binary: {...binary, pages: binary.pages.map((page, index) => index ? page : {...page, segmentIndexes: [999, ...page.segmentIndexes]})}};
+        // 没有任何译文：双语下载逐页保留原页，并逐页上报进度。
+        const untouchedProgress: number[] = [];
+        const untouched = await createDocumentDownload(loose, [], 'bilingual', {pdfPageRasterizer: testRasterizer, onPdfProgress: value => {if (value.phase === 'rendering') untouchedProgress.push(value.completedPages);}});
+        expect((await PDFDocument.load(untouched.data as Uint8Array)).getPageCount()).toBe(2);
+        expect(untouchedProgress).toEqual(expect.arrayContaining([1, 2]));
+        // 固定字号续页的下载同样逐页上报进度。
+        const readingProgress: number[] = [];
+        const reading = await createDocumentDownload(parsed, parsed.segments.map(segment => `译 ${segment.source}`), 'translated', {
+            pdfReadingRasterizer: async function* () {yield {bytes: onePixelPng, width: 612, height: 792};},
+            onPdfProgress: value => {if (value.phase === 'rendering') readingProgress.push(value.completedPages);},
+        });
+        expect((await PDFDocument.load(reading.data as Uint8Array)).getPageCount()).toBe(2);
+        expect(readingProgress).toEqual(expect.arrayContaining([1, 2]));
     });
 
     it('cancels between PDF pages and retries without changing translations', async () => {
@@ -187,6 +210,9 @@ describe('binary document translation formats', () => {
         expect(getDocumentMimeType('epub')).toBe('application/epub+zip');
         expect(getDocumentMimeType('docx')).toContain('wordprocessingml.document');
         expect(getDocumentAcceptAttribute()).toContain('.pdf');
+        // PDF 单独放宽到 50 MB，其余格式（含无法识别的扩展名）沿用 10 MB。
+        expect(getDocumentMaxBytes('paper.PDF')).toBe(50 * 1024 * 1024);
+        expect([getDocumentMaxBytes('book.epub'), getDocumentMaxBytes('notes.md'), getDocumentMaxBytes('unknown.bin')]).toEqual([10 * 1024 * 1024, 10 * 1024 * 1024, 10 * 1024 * 1024]);
         expect(getDocumentAcceptAttribute()).toContain('.epub');
         expect(getDocumentAcceptAttribute()).toContain('.docx');
     });
@@ -369,13 +395,18 @@ describe('binary document translation formats', () => {
         await expect(parseBinaryDocument('broken.docx', new TextEncoder().encode('not a zip'))).rejects.toThrow('DOCX 解析失败');
     });
 
-    it('扫描版或空白 PDF 不会产生空译文，而是提示需要文字层或 OCR', async () => {
+    it('扫描版或空白 PDF 照常打开且不产生空译文，等待页面在开始翻译时识别文字', async () => {
         const pdf = await PDFDocument.create();
         pdf.addPage([320, 480]);
+        // 第二页是一张盖满整页的图像：这才是扫描页；空白页和只有一小块图像的页不是。
+        const picture = await pdf.embedPng(Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9ZlY4AAAAASUVORK5CYII=', 'base64'));
+        pdf.addPage([320, 480]).drawImage(picture, {x: 0, y: 0, width: 320, height: 480});
+        pdf.addPage([320, 480]).drawImage(picture, {x: 20, y: 20, width: 60, height: 60});
 
-        await expect(parseBinaryDocument('scanned.pdf', await pdf.save())).rejects.toThrow(
-            '扫描版 PDF 暂不支持 OCR',
-        );
+        const parsed = await parseBinaryDocument('scanned.pdf', await pdf.save());
+        expect(parsed.segments).toEqual([]);
+        expect(parsed.binary?.kind === 'pdf' && parsed.binary.pages.map(page => [page.width, page.height, page.blocks.length, page.scanned])).toEqual([[320, 480, 0, undefined], [320, 480, 0, true], [320, 480, 0, undefined]]);
+        expect(pdfPagesNeedingOcr(parsed)).toEqual([1]);
     });
 
     it('拒绝解压后单项过大的 ePub/DOCX 压缩包', async () => {

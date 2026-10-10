@@ -151,7 +151,8 @@ describe('documentbinaryAudit actual DocumentApp SFC ownership', () => {
         const taskCount = ports.tasks.length; const cleanup = vi.fn();
         pagePending.resolve({cleanup}); await flush();
         expect(cleanup).toHaveBeenCalledOnce(); expect(ports.tasks).toHaveLength(taskCount);
-        expect(state.parsedDocument).toBe(reviewed); expect(state.translatedSegments).toEqual(['保留校订']);
+        // 重试成功的 PDF 成为当前文档；先前校订过的文件连同校订留在队列里。
+        expect(state.parsedDocument?.fileName).toBe('retry.pdf'); expect(state.documentQueue[0].document).toBe(reviewed); expect(state.documentQueue[0].translations).toEqual(['保留校订']);
         expect(state.documentQueue.map((item: any) => item.name)).toEqual(['reviewed.txt', 'retry.pdf']);
         expect(state.errorMessage).toBe(''); expect(state.importProgress).toBe('');
     });

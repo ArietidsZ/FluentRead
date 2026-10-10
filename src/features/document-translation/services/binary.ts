@@ -9,11 +9,11 @@ import type JSZip from 'jszip';
 import type {PDFEmbeddedPage} from 'pdf-lib';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {generateDocumentArchive} from './archive';
-import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom} from '../core/pdfLayoutAnalysis';
+import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom, type PdfLayoutBlock} from '../core/pdfLayoutAnalysis';
 import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation} from '../core/pdfReadingPlan';
 
 import {
-    DOCUMENT_MAX_BYTES,
+    getDocumentMaxBytes,
     createDocumentDownloadName,
     getDocumentFormat,
     getDocumentFormatLabel,
@@ -103,9 +103,10 @@ function awaitDocumentRead<T>(promise: Promise<T>, signal?: AbortSignal, release
     });
 }
 
-function assertDocumentSize(size: number): void {
-    if (!Number.isFinite(size) || size < 0 || size > DOCUMENT_MAX_BYTES) {
-        throw new Error('文件大小超过 10 MB，或文件大小无效，请先拆分文件后再翻译');
+function assertDocumentSize(size: number, fileName: string): void {
+    const limit = getDocumentMaxBytes(fileName);
+    if (!Number.isFinite(size) || size < 0 || size > limit) {
+        throw new Error(`文件大小超过 ${Math.round(limit / 1024 / 1024)} MB，或文件大小无效，请先拆分文件后再翻译`);
     }
 }
 
@@ -600,23 +601,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     ? extractPdfGraphicsShapes(await awaitDocumentRead(page.getOperatorList(), signal), pdfJs.OPS, viewport) : [];
                 signal?.throwIfAborted();
                 const {blocks: layoutBlocks, preservedRegions} = analyzePdfPageLayout({atoms, graphics, width: viewport.width, height: viewport.height});
-                const segmentIndexes: number[] = [];
-                const blocks: PdfDocumentBlock[] = [];
-                layoutBlocks.forEach((block, blockIndex) => {
-                    if (block.kind === 'formula' || block.kind === 'table' || block.kind === 'figure-label') {
-                        blocks.push({...block, segmentIndex: -1});
-                        return;
-                    }
-                    const id = segments.length;
-                    segments.push({
-                        id,
-                        source: block.source,
-                        contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined,
-                        role: block.fontWeight === 700 ? 'heading' : 'paragraph',
-                    });
-                    segmentIndexes.push(id);
-                    blocks.push({...block, segmentIndex: id});
-                });
+                const {blocks, segmentIndexes} = pdfPageSegments(layoutBlocks, pageNumber, segments);
                 pages.push({
                     pageNumber,
                     width: displayViewport.width,
@@ -625,6 +610,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     segmentIndexes,
                     blocks,
                     preservedRegions,
+                    // 没有任何文字、且有一张图像盖住半页以上：这是扫描页。空白页和只有矢量图形的页不算。
+                    ...(atoms.length === 0 && graphics.some(shape => shape.kind === 'image' && shape.width * shape.height >= viewport.width * viewport.height * 0.5) ? {scanned: true} : {}),
                 });
                 onProgress?.({completed: pageNumber, total: pdf.numPages});
             } finally {
@@ -641,9 +628,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         await destroy();
     }
 
-    if (segments.length === 0 && !pages.some(page => page.blocks.length > 0)) {
-        throw new Error('PDF 中没有可提取的文字；扫描版 PDF 暂不支持 OCR，请上传包含文本层的 PDF');
-    }
+    // 没有文字层的扫描件照常打开：原页可以阅读，文字识别由页面在开始翻译时按页进行（见 services/pdfOcr）。
 
     return {
         fileName,
@@ -653,6 +638,26 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         segments,
         binary: {kind: 'pdf', bytes, pages},
     };
+}
+
+/**
+ * 把一页的版面块登记为待翻译片段：表格里含词语的单元格作为独立片段翻译，数字、符号单元格与公式、图内文字保留原样；
+ * 页眉页脚和作者信息在阅读与导出时都按原文显示，不占用翻译请求。片段追加到传入的列表末尾。
+ */
+export function pdfPageSegments(layoutBlocks: readonly PdfLayoutBlock[], pageNumber: number, segments: DocumentSegment[]): {blocks: PdfDocumentBlock[]; segmentIndexes: number[]} {
+    const segmentIndexes: number[] = [];
+    const blocks: PdfDocumentBlock[] = [];
+    layoutBlocks.forEach((block, blockIndex) => {
+        if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label' || block.kind === 'footer' || block.kind === 'metadata') {
+            blocks.push({...block, segmentIndex: -1});
+            return;
+        }
+        const id = segments.length;
+        segments.push({id, source: block.source, contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined, role: block.fontWeight === 700 ? 'heading' : 'paragraph'});
+        segmentIndexes.push(id);
+        blocks.push({...block, segmentIndex: id});
+    });
+    return {blocks, segmentIndexes};
 }
 
 export function chapterTitle(source: string, fallback: string): string {
@@ -862,7 +867,7 @@ export async function parseBinaryDocument(fileName: string, input: ArrayBuffer |
     if (!format || !isBinaryDocumentFormat(format)) {
         throw new Error('该文件不是 PDF、ePub 或 DOCX 二进制文档');
     }
-    assertDocumentSize(input.byteLength);
+    assertDocumentSize(input.byteLength, fileName);
     const bytes = toUint8Array(input);
     const parsed = await (format === 'pdf' ? parsePdf(fileName, bytes, options.signal, options.onPdfProgress)
         : format === 'epub' ? parseEpub(fileName, bytes, options.signal) : parseDocx(fileName, bytes, options.signal));
@@ -876,13 +881,14 @@ export async function parseDocumentFile(file: DocumentFileLike, options: ParseDo
     if (!format) {
         throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件');
     }
-    if (file.size !== undefined) assertDocumentSize(file.size);
+    if (file.size !== undefined) assertDocumentSize(file.size, file.name);
     if (isBinaryDocumentFormat(format)) return parseBinaryDocument(file.name, await awaitDocumentRead(file.arrayBuffer(), options.signal), options);
     const source = await awaitDocumentRead(file.text(), options.signal);
     options.signal?.throwIfAborted();
-    assertDocumentSize(source.length);
-    assertDocumentSize(new TextEncoder().encode(source).byteLength);
-    return parseDocument(file.name, source);
+    assertDocumentSize(source.length, file.name);
+    assertDocumentSize(new TextEncoder().encode(source).byteLength, file.name);
+    // 文档翻译页面按整句翻译 Markdown：一句话不会被行内链接和代码拆散。
+    return parseDocument(file.name, source, {markdownSentences: true});
 }
 
 
@@ -939,6 +945,7 @@ async function renderPdf(
         const embedded = await outputPdf.embedPages(pages.map(({page}) => page), boundingBoxes);
         pages.forEach(({pageNumber}, index) => sourcePages.set(pageNumber, embedded[index]));
     }
+    // 导出进行中页面可能释放已解析的片段；找不到片段时按“没有原文”处理，不能让下载中断。
     const visibleTranslations = translations.map((translation, segmentIndex) =>
         hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
     for (const [index, pageData] of binary.pages.entries()) {

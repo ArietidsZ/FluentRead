@@ -64,8 +64,11 @@ describe('real PDF structural parsing', () => {
         expect(page.preservedRegions?.find(region => region.kind === 'table')).toMatchObject({x: 40, width: 520});
         expect(page.preservedRegions?.find(region => region.kind === 'figure')).toMatchObject({x: 400, y: 332, width: 100, height: 80});
         expect(page.preservedRegions?.find(region => region.kind === 'formula')?.source).toContain('F(x) = QK');
-        const preserved = page.blocks.filter(block => ['table', 'formula', 'figure-label'].includes(block.kind || ''));
+        const preserved = page.blocks.filter(block => ['formula', 'figure-label'].includes(block.kind || '') || (block.kind === 'table' && block.preserveSource));
         expect(preserved.length).toBeGreaterThan(0); expect(preserved.every(block => block.segmentIndex === -1 && block.preserveSource)).toBe(true);
+        // 表头与文字单元格进入翻译队列，数字单元格不进入。
+        const cells = page.blocks.filter(block => block.kind === 'table' && !block.preserveSource).map(block => parsed.segments[block.segmentIndex].source);
+        expect(cells).toEqual(expect.arrayContaining(['Model', 'Value', 'Baseline']));
         const segments = page.segmentIndexes.map(index => parsed.segments[index].source);
         expect(segments.some(source => source.includes('24.9') || source.includes('F(x)'))).toBe(false);
         expect(segments).toContain('Table 1: unchanged measurements'); expect(segments).toContain('The prose after the table remains translatable.'); expect(segments).toContain('Figure 1: original diagram');
@@ -74,7 +77,7 @@ describe('real PDF structural parsing', () => {
         expect(vector.blocks.find(block => block.kind === 'figure-label')?.segmentIndex).toBe(-1);
         expect(vector.segmentIndexes.map(index => parsed.segments[index].source)).toContain('Figure 2: vector geometry is retained');
     });
-    it('opens a valid math-only text layer for source reading without creating provider segments, while rejecting graphic-only scans', async () => {
+    it('opens a valid math-only text layer for source reading without creating provider segments, and opens graphic-only scans with nothing to translate yet', async () => {
         const pdf = await PDFDocument.create(); const font = await pdf.embedFont(StandardFonts.Helvetica);
         const page = pdf.addPage([612, 792]);
         page.drawText('F(x) = QK', {x: 220, y: 560, size: 12, font});
@@ -85,6 +88,9 @@ describe('real PDF structural parsing', () => {
         expect(parsed.binary.pages[0].blocks).toMatchObject([{kind: 'formula', preserveSource: true, segmentIndex: -1}]);
         expect(parsed.binary.pages[0].preservedRegions?.[0].source).toBe('F(x) = QK');
         const scan = await PDFDocument.create(); scan.addPage([612, 792]).drawRectangle({x: 100, y: 500, width: 180, height: 100, color: rgb(.9, .7, .6)});
-        await expect(parseBinaryDocument('scanned.pdf', await scan.save())).rejects.toThrow('没有可提取的文字');
+        // 只有图形的扫描页照常打开：没有片段也没有版面块，文字识别留给页面在开始翻译时进行。
+        const scanned = await parseBinaryDocument('scanned.pdf', await scan.save());
+        expect(scanned.segments).toEqual([]);
+        expect(scanned.binary?.kind === 'pdf' && scanned.binary.pages[0].blocks).toEqual([]);
     });
 });

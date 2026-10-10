@@ -1,7 +1,7 @@
 /**
  * @file src/features/information-highlight/content/readingText.ts
  * 文件职责：以只读、有界工作迭代器收集页面可见正文和独立译文，并保存原生 Text 到 UTF-16 段落坐标的映射。
- * 主要内容：保留内联链接与强调文字，排除交互界面、编辑器、代码和公式，以及过短的片段和由多个链接组成的标签或导航列表；按块及翻译边界流式分段，限制单段字符与映射节点，不截去长段剩余正文；块按自身位置裁剪到阅读区域，超高的块（整篇文章只用换行分段的页面）再按文字片段的位置裁剪，检查原节点身份与快照后才生成 Range。
+ * 主要内容：保留内联链接与强调文字，排除交互界面、编辑器、代码和公式，以及过短的片段和由多个链接组成的标签或导航列表；按块及翻译边界流式分段，PDF 原文定位层与按行排好的 PDF 译文把各行并回同一段，行间只在分析字符串里补空格（中日韩文字之间不补），限制单段字符与映射节点，不截去长段剩余正文；块按自身位置裁剪到阅读区域，超高的块（整篇文章只用换行分段的页面）再按文字片段的位置裁剪，检查原节点身份与快照后才生成 Range。
  * 模块边界：不监听页面、不改写宿主属性或原文、不调用模型；闭合译文根由调用方通过只读端口提供，评分与生命周期由 content runtime 管理。
  */
 import type {InformationHighlightSpan} from '../protocol';
@@ -12,6 +12,9 @@ export interface InformationReadingScan {roots: Array<Document | ShadowRoot>}
 export const INFORMATION_PARAGRAPH_CHARACTERS = 2400;
 const nonReadingSubtrees = 'textarea,input,select,button,form,pre,code,kbd,samp,[role="button"],[role="textbox"],[role="menu"],[role="navigation"],[contenteditable]:not([contenteditable="false"])';
 const excluded = 'script,style,noscript,template,' + nonReadingSubtrees + ',nav,header,footer,svg,math,mjx-container,.katex,.MathJax,.mwe-math-element,[hidden],[inert],[aria-hidden="true"],[data-fluent-read-ui],[data-fluentread-pdf-decoration],[id^="fluent-read-"]';
+/** PDF.js 的原文定位层与阅读器按行排好的译文：每行一个元素，同属一个段落。 */
+const pdfLines = '[data-fluentread-pdf-text],[data-fluentread-pdf-lines]';
+const unspaced = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}，。、；：！？（）《》“”‘’]/u;
 const blocks = /^(?:ADDRESS|ARTICLE|ASIDE|BLOCKQUOTE|BODY|DD|DETAILS|DIV|DL|DT|FIGCAPTION|FIGURE|H[1-6]|HR|LI|MAIN|OL|P|SECTION|TABLE|TD|TH|TR|UL)$/u;
 interface Frame {next: Node | null; endGroup: boolean; assigned?: Node[]; index: number; translation: boolean; shortTranslation: boolean; tall: boolean}
 
@@ -61,8 +64,9 @@ export function* collectInformationParagraphs(document: Document, readTranslatio
                     current = {text: '', runs: [], root, distance, continuation: offset > 0 || frame.shortTranslation};
                 }
                 // PDF.js 的定位 span 常省略词间空格：空格只存在于分析字符串，永不生成 Text 或写入 DOM。
-                if (offset === 0 && current.runs.length && text.parentElement?.closest('[data-fluentread-pdf-text]')
-                    && !/\s/u.test(current.text.at(-1)!) && !/\s/u.test(data[0])) current.text += ' ';
+                // 按行排好的 PDF 译文同理，但中日韩文字换行处本来就没有空格，补了反而把一个词拆开。
+                if (offset === 0 && current.runs.length && text.parentElement?.closest(pdfLines)
+                    && !/\s/u.test(current.text.at(-1)!) && !/\s/u.test(data[0]) && !(unspaced.test(current.text.at(-1)!) && unspaced.test(data[0]))) current.text += ' ';
                 const length = informationSliceEnd(data, offset, INFORMATION_PARAGRAPH_CHARACTERS - current.text.length) - offset;
                 if (current.text.length && current.text.length + length > INFORMATION_PARAGRAPH_CHARACTERS) {
                     end(); while (pending.length) yield pending.shift()!; continue;
@@ -99,7 +103,7 @@ export function* collectInformationParagraphs(document: Document, readTranslatio
         }
         const style = view.getComputedStyle(element);
         if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse') {end(); continue;}
-        const block = blockTag || Boolean(translated) || element.tagName === 'BR' || (!element.closest('[data-fluentread-pdf-text]') &&
+        const block = blockTag || Boolean(translated) || element.tagName === 'BR' || (!element.closest(pdfLines) &&
             (Boolean(style.display) && !['inline', 'contents', 'inline-block', 'inline-flex', 'inline-grid'].includes(style.display)));
         if (block) end();
         const shadow = translationRoot ?? element.shadowRoot;

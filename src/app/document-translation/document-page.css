@@ -1,7 +1,7 @@
 /**
  * @file src/app/document-translation/document-page.css
  * 文件职责：定义文档翻译独立页面的完整布局与主题表现，使导入区、阅读器、翻译进度、格式预览和导出操作在桌面与窄屏下保持可读。
- * 主要内容：声明页面级颜色变量与暗色覆盖，设置可收起的文件队列、本地范例、品牌头部、拖放卡片、工具栏、PDF 连续页及其不可见字体测量画布、EPUB/DOCX 分区、字幕与 JSON 行、设置摘要、下载预览和响应式断点。
+ * 主要内容：声明页面级颜色变量与暗色覆盖，打开文档后的单行工具栏（内含翻译服务与目标语言选择）、可折叠的文件与目录侧栏和铺满窗口的阅读区，设置可收起的文件队列、本地范例、品牌头部、拖放卡片、工具栏、PDF 连续页及其不可见字体测量画布、EPUB/DOCX 分区、字幕与 JSON 行、设置摘要、下载预览和响应式断点。
  * 模块边界：样式仅服务 DocumentApp 的 class 结构，不解析文档、不控制翻译状态，也不覆盖 content 宿主页面；跨页面基础视觉 token 仍由 src/ui/styles/tokens.css 管理。
  */
 @import "../../ui/styles/feedback.css";
@@ -382,4 +382,277 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
   .subtitle-document-reader th:nth-child(2), .subtitle-document-reader td:nth-child(2) { width: 112px; }
   .subtitle-timing time, .subtitle-timing > span { display: block; }
   .subtitle-document-reader th, .subtitle-document-reader td { padding: 12px 8px; }
+}
+
+/* 工作区：一行工具栏承载文件、阅读方式、页面控件、翻译与下载，其余空间全部留给正文。 */
+.document-app.is-workspace { --reader-canvas: #eceff5; background: var(--reader-canvas); }
+.document-app.is-workspace.dark { --reader-canvas: #12161d; }
+.is-workspace .document-main { width: 100%; max-width: none; padding: 0; }
+.is-workspace .workspace-section { gap: 0; }
+.is-workspace .document-batch { margin: 8px 12px 0; }
+.document-taskbar { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: 48px; padding: 6px 12px; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: var(--surface); }
+.document-taskbar .workspace-heading { display: flex; align-items: center; justify-content: flex-start; flex: 0 1 auto; gap: 10px; min-width: 0; max-width: min(30vw, 420px); }
+.taskbar-logo { flex: none; width: 26px; height: 26px; border-radius: 8px; }
+.document-taskbar .file-heading { gap: 8px; min-width: 0; }
+.document-taskbar .task-file-format { width: auto; height: 20px; padding: 0 6px; border-radius: 5px; font-size: 9px; letter-spacing: .04em; }
+.document-taskbar h1 { overflow: hidden; margin: 0; max-width: none; font-size: 13px; font-weight: 650; line-height: 1.3; letter-spacing: 0; text-overflow: ellipsis; white-space: nowrap; }
+.document-taskbar .document-status { margin: 1px 0 0; font-size: 10.5px; line-height: 1.3; white-space: nowrap; }
+.document-taskbar .reader-toolbar { position: static; display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; margin: 0; padding: 0; border: 0; background: none; }
+.document-taskbar .mode-buttons { height: 32px; min-height: 32px; flex-wrap: nowrap; padding: 2px; border-radius: 9px; }
+.document-taskbar .mode-buttons button { min-width: 0; padding: 0 11px; border-radius: 7px; font-size: 12px; white-space: nowrap; }
+.reader-controls-slot { display: flex; align-items: center; min-width: 0; }
+.reader-controls-slot:empty { display: none; }
+.document-taskbar .taskbar-actions { flex: 0 0 auto; gap: 8px; margin-left: auto; }
+.document-taskbar .document-settings-button { display: inline-flex; align-items: center; max-width: 260px; height: 32px; padding: 0 10px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 11.5px; line-height: 1.2; text-align: left; }
+.document-taskbar .document-settings-button:hover { border-color: rgba(239, 71, 118, .42); color: var(--ink); }
+.document-taskbar .document-settings-button > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }
+.document-taskbar .document-settings-button small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.document-app .document-taskbar :is(.ghost-button, .translate-document-button, .download-button) { min-width: 0; min-height: 32px; height: 32px; padding: 0 12px; border-radius: 9px; font-size: 12px; white-space: nowrap; }
+.document-taskbar .translation-actions { margin: 0; }
+.document-taskbar .translation-actions button { min-height: 32px; }
+.document-taskbar .pause-button .spinner { width: 11px; height: 11px; margin-right: 6px; border-width: 1.5px; vertical-align: -1px; }
+.document-taskbar .download-button:enabled { border-color: var(--line); color: var(--ink); background: var(--surface); font-weight: 700; }
+.document-taskbar .download-button:enabled:hover { border-color: rgba(239, 71, 118, .42); color: var(--brand-strong); background: var(--brand-soft); }
+.document-taskbar .download-button:disabled { border-color: var(--line); color: var(--muted); background: transparent; cursor: not-allowed; opacity: .5; }
+.document-taskbar .add-file-button { border-color: transparent; color: var(--muted); background: transparent; font-weight: 600; }
+.document-taskbar .task-progress { position: absolute; inset: auto 0 -1px; height: 2px; border-radius: 0; background: transparent; }
+.document-taskbar .task-notice, .document-taskbar .document-import-progress { flex-basis: 100%; margin: 0; padding: 2px 0 4px; font-size: 11.5px; }
+.is-workspace .document-reading-pane { border: 0; border-radius: 0; background: var(--reader-canvas); }
+.is-workspace .document-reading-pane .reading-content { padding: 16px max(16px, calc((100% - 1180px) / 2)); }
+.is-workspace .document-reading-pane .reading-content.reading-pdf { padding: 0; }
+.is-workspace .document-reading-pane .segment-editor { width: min(1180px, 100%); margin: 0 auto; background: var(--surface); }
+.is-workspace .document-reading-pane .rich-preview-frame { height: calc(100dvh - 130px); }
+@media (max-width: 1100px) {
+  .document-taskbar .workspace-heading { max-width: 100%; flex: 1 1 100%; }
+  .document-taskbar .taskbar-actions { margin-left: 0; flex-wrap: wrap; }
+}
+@media (max-width: 760px) {
+  .document-taskbar { display: flex; padding: 8px 10px; gap: 8px; }
+  .document-taskbar .document-settings-button { max-width: 100%; flex: 1 1 auto; }
+  .document-reading-pane .reader-toolbar > .mode-buttons { flex: 0 1 auto; }
+  .document-reading-pane .reading-content.reading-pdf { height: auto; flex: 1; min-height: 60dvh; }
+  .document-app.is-workspace { height: 100dvh; overflow: hidden; }
+  .is-workspace .document-main { display: flex; width: 100%; padding: 0; }
+}
+
+.document-app.is-workspace { position: relative; }
+
+/* 左侧栏：文件与目录两个页签；收起时不占宽度，正文铺满窗口。 */
+.document-layout { min-width: 0; }
+.is-workspace .document-layout { display: grid; flex: 1; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.is-workspace .document-content, .is-workspace .workspace-section { display: contents; }
+.is-workspace .document-taskbar { grid-column: 1 / -1; grid-row: 1; }
+.is-workspace .document-reading-pane { grid-column: 2; grid-row: 2; }
+.is-workspace .document-sidebar { display: flex; grid-column: 1; grid-row: 2; flex-direction: column; width: 272px; min-height: 0; overflow-y: auto; padding: 10px; border-right: 1px solid var(--line); background: var(--surface); scrollbar-width: thin; }
+.sidebar-tabs { display: flex; flex: none; margin-bottom: 10px; padding: 3px; border-radius: 10px; background: var(--surface-soft); }
+.sidebar-tabs button { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: 6px; height: 30px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; font-size: 12.5px; cursor: pointer; }
+.sidebar-tabs button.selected { color: var(--brand-strong); background: var(--surface); box-shadow: 0 2px 6px rgba(35, 47, 82, .1); font-weight: 700; }
+.sidebar-tabs small, .sidebar-toggle small { min-width: 16px; padding: 0 4px; border-radius: 8px; color: #fff; background: var(--brand); font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+.sidebar-toggle { position: relative; display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; }
+.sidebar-toggle svg { width: 18px; height: 18px; }
+.sidebar-toggle:hover { color: var(--ink); background: var(--surface-soft); }
+.sidebar-toggle.active { color: var(--brand-strong); background: var(--brand-soft); }
+.sidebar-toggle small { position: absolute; top: -3px; right: -5px; }
+.is-workspace .document-sidebar .document-batch { position: static; width: auto; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; overflow: visible; }
+.is-workspace .document-sidebar .batch-toggle { display: none; }
+.is-workspace .document-sidebar .batch-toolbar { gap: 6px; padding: 0 2px 8px; }
+.is-workspace .document-sidebar .batch-toolbar:not(:has(> button:not(.batch-toggle), > label)) > span[role="status"] { display: none; }
+.is-workspace .document-sidebar .batch-toolbar > span { flex-basis: 100%; }
+.is-workspace .document-sidebar .batch-toolbar button { padding: 6px 10px; font-size: 11.5px; cursor: pointer; }
+.is-workspace .document-sidebar .batch-files { display: grid !important; grid-template-columns: 1fr; gap: 4px; max-height: none; margin: 0; overflow: visible; }
+.is-workspace .document-sidebar .batch-files li { padding: 8px 6px 8px 10px; border-color: transparent; border-radius: 9px; }
+.is-workspace .document-sidebar .batch-files li:hover { background: var(--surface-soft); }
+.is-workspace .document-sidebar .batch-files li.selected { border-color: transparent; background: var(--brand-soft); }
+.is-workspace .document-sidebar .batch-files li.selected .batch-file > span { color: var(--brand-strong); }
+.is-workspace .document-sidebar .batch-files li > button:not(.batch-file) { padding: 4px 6px; border-color: transparent; color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }
+.is-workspace .document-sidebar .batch-file { cursor: pointer; }
+.is-workspace .document-sidebar .batch-file > span { font-size: 12.5px; font-weight: 600; }
+.document-app .sidebar-add-file { width: 100%; min-height: 34px; margin-top: 10px; border-style: dashed; color: var(--muted); font-size: 12px; font-weight: 600; }
+.sidebar-outline { min-height: 0; }
+/* 工具栏内直接选择翻译服务与目标语言。 */
+.document-taskbar .toolbar-select { flex: none; width: 150px; }
+.document-taskbar .toolbar-language { width: 128px; }
+.document-taskbar .toolbar-select .el-select__wrapper { min-height: 32px; padding: 0 8px 0 10px; border-radius: 9px; background: var(--surface); }
+.document-taskbar .document-settings-button { display: inline-grid; flex: none; place-items: center; width: 32px; max-width: none; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); }
+.document-taskbar .document-settings-button svg { width: 17px; height: 17px; }
+.document-taskbar .document-settings-button > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.document-taskbar .download-button:enabled { border-color: var(--brand); color: #fff; background: var(--brand); font-weight: 700; }
+.document-taskbar .download-button:enabled:hover { border-color: var(--brand-strong); color: #fff; background: var(--brand-strong); }
+.document-taskbar .workspace-heading { max-width: min(26vw, 360px); }
+@media (max-width: 760px) {
+  .is-workspace .document-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); }
+  .is-workspace .document-sidebar { grid-column: 1; grid-row: 2; width: auto; max-height: 40dvh; border-right: 0; border-bottom: 1px solid var(--line); }
+  .is-workspace .document-reading-pane { grid-column: 1; grid-row: 3; }
+  .document-taskbar .toolbar-select { flex: 1 1 120px; width: auto; }
+}
+
+.document-taskbar .toolbar-select, .document-taskbar .toolbar-language { width: auto; min-width: 104px; max-width: 190px; }
+.document-taskbar .toolbar-select .el-select__selected-item { overflow: visible; text-overflow: clip; }
+
+/* 工具栏分三组：文件 · 阅读控件 · 翻译与下载；组间用细线分隔，控件统一 30px 高。 */
+.document-taskbar { gap: 6px 12px; padding: 7px 14px; }
+.document-taskbar .reader-toolbar { gap: 6px 10px; padding-left: 12px; border-left: 1px solid var(--line); }
+.document-taskbar .reader-controls-slot { padding-left: 10px; border-left: 1px solid var(--line); }
+.document-taskbar .mode-buttons { height: 30px; min-height: 30px; }
+.document-taskbar .reader-tabs { background: var(--surface-soft); }
+.document-app .document-taskbar :is(.ghost-button, .translate-document-button, .download-button) { min-height: 30px; height: 30px; }
+.document-taskbar .taskbar-actions { gap: 8px; }
+.document-taskbar .toolbar-select { width: 138px; min-width: 0; max-width: none; }
+.document-taskbar .toolbar-language { width: 112px; min-width: 0; }
+.document-taskbar .toolbar-model { width: 132px; }
+.document-taskbar .toolbar-select .el-select__wrapper { min-height: 30px; }
+.document-taskbar .toolbar-select .el-select__wrapper.is-disabled { opacity: 1; background: var(--surface-soft); }
+.document-taskbar .toolbar-select .el-select__wrapper.is-disabled .el-select__selected-item { color: var(--muted); }
+.document-taskbar .toolbar-select .el-select__selected-item { overflow: hidden; text-overflow: ellipsis; }
+.sidebar-toggle { width: 32px; height: 32px; border: 1px solid var(--line); color: var(--ink); background: var(--surface); box-shadow: 0 1px 2px #1018280f; }
+.sidebar-toggle:hover { border-color: rgba(239, 71, 118, .5); color: var(--brand-strong); background: var(--brand-soft); }
+.sidebar-toggle.active { border-color: rgba(239, 71, 118, .45); }
+.is-workspace .document-sidebar { width: 264px; padding: 12px 10px; }
+.document-sidebar .document-settings-button { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; max-width: none; margin-top: auto; padding: 10px 10px 2px; border: 0; border-top: 1px solid var(--line); color: var(--muted); background: none; font-size: 11px; line-height: 1.5; text-align: left; cursor: pointer; }
+.document-sidebar .document-settings-button > span { overflow-wrap: anywhere; }
+.document-sidebar .document-settings-button small { color: var(--brand-strong); font-size: 11px; }
+.document-sidebar .sidebar-outline { margin-bottom: 10px; }
+.document-sidebar .document-batch { margin-bottom: 10px; }
+
+/* 文件页：每份文件一行（名称、状态、进度条），批量操作收在列表下方。 */
+.is-workspace .document-sidebar .document-batch { display: flex; flex-direction: column; }
+.is-workspace .document-sidebar .batch-toolbar { order: 3; flex-direction: column; align-items: stretch; gap: 8px; margin-top: 10px; padding: 10px 0 0; border-top: 1px solid var(--line); }
+.is-workspace .document-sidebar .batch-toolbar:not(:has(> button:not(.batch-toggle), > label, > .batch-status:not(.idle), > .queue-error)) { display: none; }
+.is-workspace .document-sidebar .batch-status.idle { display: none; }
+.is-workspace .document-sidebar .batch-toolbar > button { width: 100%; min-height: 32px; border-radius: 9px; font-weight: 650; }
+.is-workspace .document-sidebar .batch-toolbar > .batch-start { border-color: var(--brand); color: #fff; background: var(--brand); }
+.is-workspace .document-sidebar .batch-toolbar > label { justify-content: space-between; color: var(--muted); }
+.is-workspace .document-sidebar .batch-files { order: 1; }
+.is-workspace .document-sidebar .sidebar-add-file { order: 2; }
+.is-workspace .document-sidebar .document-batch > .notice { order: 4; }
+.batch-file .batch-progress { display: block; height: 3px; margin-top: 2px; overflow: hidden; border-radius: 3px; background: var(--line); }
+.batch-file .batch-progress b { display: block; height: 100%; border-radius: 3px; background: var(--brand); transition: width .2s; }
+.is-workspace .document-sidebar .batch-remove { visibility: hidden; }
+.is-workspace .document-sidebar .batch-files li:is(:hover, :focus-within) .batch-remove { visibility: visible; }
+.is-workspace .document-sidebar .batch-remove:hover:not(:disabled) { color: #ce365e; }
+/* 首页的最近翻译：点一下恢复原文与已有译文。 */
+.document-history { max-width: 780px; margin: 28px auto 0; }
+.document-history header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.document-history h2 { margin: 0; font-size: 14px; }
+.document-history header button { padding: 0; border: 0; color: var(--muted); background: none; font-size: 11px; cursor: pointer; }
+.document-history header button:hover { color: var(--brand-strong); }
+.document-history ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin: 0; padding: 0; list-style: none; }
+.document-history li { position: relative; min-width: 0; }
+.history-open { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 34px 12px 12px; border: 1px solid var(--line); border-radius: 13px; color: var(--ink); background: var(--surface); text-align: left; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.history-open:hover:not(:disabled) { border-color: rgba(239, 71, 118, .45); box-shadow: 0 6px 18px rgba(239, 71, 118, .1); }
+.history-open:disabled { cursor: wait; opacity: .6; }
+.history-open b { display: grid; flex: none; place-items: center; width: 40px; height: 28px; border-radius: 7px; color: var(--brand-strong); background: var(--brand-soft); font-size: 9.5px; letter-spacing: .04em; }
+.history-open span { display: grid; gap: 4px; min-width: 0; }
+.history-open strong { overflow: hidden; font-size: 12.5px; text-overflow: ellipsis; white-space: nowrap; }
+.history-open small { color: var(--muted); font-size: 11px; }
+.history-remove { position: absolute; top: 50%; right: 8px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; color: var(--muted); background: transparent; font-size: 15px; line-height: 1; transform: translateY(-50%); cursor: pointer; visibility: hidden; }
+.document-history li:is(:hover, :focus-within) .history-remove { visibility: visible; }
+.history-remove:hover { color: #ce365e; background: var(--surface-soft); }
+
+/* 选择器前写明它是什么：翻译服务 / 模型 / 目标语言。 */
+.toolbar-field { display: inline-flex; flex: none; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.document-taskbar .toolbar-service { width: 168px; }
+/* 侧栏只有中间的列表滚动；页签在上、设置入口在下，各自固定，互不遮挡。 */
+.is-workspace .document-sidebar { overflow: hidden; }
+.is-workspace .document-sidebar .document-batch, .is-workspace .document-sidebar .sidebar-outline { flex: 1 1 0; min-height: 0; margin-bottom: 0; overflow-y: auto; scrollbar-width: thin; }
+.document-sidebar .document-settings-button { margin-top: 10px; background: var(--surface); }
+/* 专注阅读：只留文档；退出按钮平时隐去，指针移到顶部才出现。 */
+.focus-toggle { display: inline-grid; flex: none; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; }
+.focus-toggle svg { width: 17px; height: 17px; }
+.focus-toggle:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.is-focus .document-taskbar, .is-focus .document-sidebar { display: none !important; }
+.is-focus .document-reading-pane { grid-column: 1 / -1; grid-row: 1 / -1; }
+.focus-exit { position: fixed; top: 0; left: 50%; z-index: 40; display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 12px 12px; color: var(--ink); background: var(--surface); box-shadow: 0 8px 24px #10182826; font-size: 12px; transform: translate(-50%, -100%); opacity: 0; transition: transform .18s, opacity .18s; cursor: pointer; }
+.focus-exit::before { content: ""; position: absolute; inset: 100% -200px -18px; }
+.focus-exit:hover, .focus-exit:focus-visible { transform: translate(-50%, 0); opacity: 1; }
+.focus-exit kbd { padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); font: 10.5px ui-monospace, SFMono-Regular, Menlo, monospace; }
+/* 侧栏底部只留一行“源语言与术语库”入口；工具栏已能直接选服务与目标语言。 */
+.document-sidebar .document-settings-button { flex-direction: row; align-items: center; gap: 8px; height: 36px; margin-top: 8px; padding: 0 10px; border: 0; border-radius: 9px; color: var(--muted); font-size: 12px; }
+.document-sidebar .document-settings-button:hover { color: var(--brand-strong); background: var(--brand-soft); }
+.document-sidebar .document-settings-button svg { flex: none; width: 16px; height: 16px; }
+.document-sidebar .document-settings-button strong { font-weight: 500; }
+.document-sidebar .document-settings-button > span, .document-sidebar .document-settings-button small { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.is-workspace .document-sidebar { position: relative; }
+/* 刷新恢复期间保持阅读区底色；瞬时提示以浮层出现，不推动版面。 */
+.document-app.is-restoring { background: #eceff5; }
+.document-app.is-restoring.dark { background: #12161d; }
+.restoring-section { display: grid; place-items: center; min-height: 100dvh; }
+.restoring-section .spinner { width: 22px; height: 22px; margin: 0; }
+.is-restoring .document-main { width: 100%; padding: 0; }
+.taskbar-toast { position: absolute; top: calc(100% + 10px); left: 50%; z-index: 25; margin: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; color: var(--ink); background: var(--surface); box-shadow: 0 10px 28px #10182826; font-size: 12px; white-space: nowrap; transform: translateX(-50%); pointer-events: none; }
+.taskbar-toast { animation: taskbar-toast-in .2s ease-out; }
+@keyframes taskbar-toast-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+/* 导入中：进度条 + 次要的取消链接。 */
+.import-progress { width: min(320px, 80%); height: 6px; margin-top: 4px; overflow: hidden; border-radius: 6px; background: var(--brand-soft); }
+.import-progress i { display: block; height: 100%; border-radius: 6px; background: var(--brand); transition: width .2s; }
+.import-progress.indeterminate i { width: 35% !important; animation: import-slide 1.2s ease-in-out infinite alternate; }
+@keyframes import-slide { from { transform: translateX(-20%); } to { transform: translateX(210%); } }
+.import-cancel { margin-top: 12px; padding: 0; border: 0; color: var(--muted); background: none; font-size: 12px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.import-cancel:hover { color: var(--brand-strong); }
+/* 工具栏提示：浮在工具栏下方的提示条，不占行、不推动正文。 */
+.taskbar-notices { position: absolute; top: calc(100% + 10px); left: 50%; z-index: 25; display: flex; flex-direction: column; align-items: center; gap: 8px; width: max-content; max-width: min(720px, calc(100% - 32px)); transform: translateX(-50%); pointer-events: none; }
+.taskbar-notices:empty { display: none; }
+.document-taskbar .taskbar-notices > * { position: static; flex: none; margin: 0; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: 0 10px 28px #10182826; font-size: 12px; line-height: 1.5; white-space: normal; transform: none; pointer-events: auto; animation: taskbar-notice-in .2s ease-out; }
+.document-taskbar .taskbar-notices > .notice.warning { border-color: #f1dfb4; background: #fffaf0; }
+.document-taskbar .taskbar-notices > .notice.error { border-color: #f3c8d2; background: #fff5f7; }
+.dark .document-taskbar .taskbar-notices > .notice.warning, .dark .document-taskbar .taskbar-notices > .notice.error { background: var(--surface); }
+@keyframes taskbar-notice-in { from { opacity: 0; transform: translateY(-6px); } }
+/* 窄窗口：依次收起次要元素，尽量保持一行。 */
+.document-taskbar .workspace-heading { max-width: 300px; }
+@media (max-width: 1760px) {
+  .reader-controls-slot .pdf-zoom-control > button { display: none; }
+  .document-taskbar .workspace-heading { max-width: 230px; }
+}
+@media (max-width: 1600px) {
+  .document-taskbar .toolbar-field > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .document-taskbar .toolbar-service { width: 140px; }
+}
+@media (max-width: 1400px) {
+  .document-taskbar .workspace-heading { max-width: 170px; }
+  .document-taskbar .document-status { display: none; }
+  .document-taskbar .toolbar-service { width: 118px; }
+  .document-taskbar .toolbar-language { width: 96px; }
+  .reader-controls-slot .pdf-page-total { display: none; }
+}
+@media (max-width: 1240px) {
+  .document-taskbar .taskbar-logo { display: none; }
+  .document-taskbar .workspace-heading { max-width: 130px; }
+  .document-taskbar .reader-tabs button:not(.selected) { display: none; }
+}
+@media (max-width: 1320px) {
+  .document-taskbar { gap: 6px 8px; padding-inline: 10px; }
+  .document-taskbar .taskbar-logo { display: none; }
+  .document-taskbar .workspace-heading { max-width: 120px; }
+  .document-taskbar .reader-toolbar { gap: 6px; padding-left: 8px; }
+  .document-taskbar .reader-controls-slot { padding-left: 6px; }
+  .document-taskbar .mode-buttons button { padding: 0 8px; }
+  .reader-controls-slot .pdf-viewer-toolbar { gap: 6px; }
+  .reader-controls-slot .pdf-style, .document-taskbar .focus-toggle { display: none; }
+  .reader-controls-slot .pdf-page-navigation > button { display: none; }
+}
+
+/* 非 PDF 文档的目录：与 PDF 目录同样的密度和选中样式。 */
+.document-outline { padding: 2px 6px 8px; }
+.document-outline-language { display: flex; margin: 0 4px 8px; padding: 2px; border-radius: 8px; background: var(--surface-soft); }
+.document-outline-language button { flex: 1; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); font: inherit; font-size: 12px; cursor: pointer; }
+.document-outline-language button.selected { color: var(--brand-strong); background: var(--surface); box-shadow: 0 1px 4px rgba(35, 47, 82, .1); font-weight: 700; }
+.document-outline-item { display: block; width: 100%; padding: 6px 10px 6px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--ink); font: inherit; font-size: 12.5px; line-height: 1.45; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+.document-outline-item:hover { background: var(--surface-soft); }
+
+/* HTML、Markdown、纯文本与 ePub 的预览占满阅读区：不留卡片外边距，把空间交给正文。 */
+.is-workspace .document-reading-pane .reading-content:has(> .rich-document-reader) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.is-workspace .document-reading-pane .rich-document-reader { display: flex; flex: 1; flex-direction: column; min-height: 0; border: 0; border-radius: 0; }
+.is-workspace .document-reading-pane .rich-document-reader .rich-preview-frame { flex: 1; height: auto; min-height: 0; }
+.is-workspace .document-reading-pane .reading-content:has(> .rich-document-reader) > .reader-empty { flex: none; margin: 0; padding: 8px 20px; }
+
+/* Word 文档：阅读区铺满，双语在宽窗口按段落左右对照。 */
+.is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) { display: flex; flex-direction: column; padding: 0; overflow: hidden; }
+.is-workspace .document-reading-pane .docx-document-reader { display: flex; flex: 1; flex-direction: column; min-height: 0; border: 0; border-radius: 0; }
+.is-workspace .document-reading-pane .docx-document-reader .docx-page-stage { flex: 1; min-height: 0; padding: 20px 20px 32px; }
+.is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) > .reader-empty, .is-workspace .document-reading-pane .reading-content:has(> .docx-document-reader) > .reader-pagination { flex: none; margin: 0; padding: 8px 20px; }
+@media (min-width: 1100px) {
+  .docx-document-reader.bilingual .docx-page { width: min(1360px, 100%); padding: 56px 60px 72px; }
+  .docx-document-reader.bilingual .docx-paragraph { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 44px; align-items: start; }
+  .docx-document-reader.bilingual .docx-source, .docx-document-reader.bilingual .docx-translation { margin: 0; }
+  .docx-document-reader.bilingual .docx-role-paragraph .docx-translation, .docx-document-reader.bilingual .docx-role-list-item .docx-translation { font-weight: 500; }
 }

@@ -20,6 +20,12 @@ Expand **No file yet? Try a sample** to open a local article, subtitle, or langu
 2. Check the preview, then start translation.
 3. Switch between original, bilingual, and translated views.
 
+You do not wait for the whole file: each finished batch appears as soon as it returns, starting from where you are reading (the current PDF page, ePub chapter, Word part, or subtitle/JSON page). Services that accept batches receive several at once, so the whole document finishes sooner.
+
+The sidebar lists your files and, for PDFs and for Markdown, HTML, ePub, and Word documents that have headings, an outline you can show in the original or the translation and click to jump. Markdown, plain text, and Word show each paragraph beside its translation on wide windows and below it on narrow ones.
+
+In HTML, ePub, and Markdown, a sentence that contains links, bold, italics, or inline code is translated as one sentence: links and emphasis stay on the matching words, and in Markdown the link text is translated while link targets, inline code, and URLs are kept as they are. If a service does not keep those markers, you still get the complete sentence, with code and URLs appended at its end.
+
 Pause a long job if needed. Completed passages remain available after a pause or request failure; continuing processes the remainder. Changing languages, services, models, or glossary settings requires a fresh translation, with a prompt first.
 
 Once translation finishes, the workspace focuses on reading, proofreading, and downloading. Open **Adjust settings** to retranslate, configure service connections, or replace files. Confirmation prompts protect results you have not downloaded.
@@ -32,8 +38,8 @@ Download starts with your current bilingual or translated reading mode. Reading 
 
 Translation-only subtitle output replaces the cue text while preserving numbering, timing, and formatting tags. Bilingual output keeps both texts in each cue. Downloads include your corrections. Confirm partial downloads explicitly; untranslated or cleared passages retain the source text. Changing settings does not retranslate existing results, so downloads still use the translations currently kept on the page.
 
-::: tip Download before leaving
-Results stay in the current page. Download what you want to keep before refreshing, closing, or opening another document.
+::: tip Refreshing keeps your progress
+Documents, translations and edits are stored in this browser: a refresh returns to the document you were reading, and **Recent translations** on the start page restores earlier ones. Download a file when you need to keep or share it.
 :::
 
 ## PDF limits
@@ -42,9 +48,11 @@ Online and imported PDFs share the same reader. Select or copy text on the origi
 
 The reader prioritizes visible pages and retains canvases and text layers for at most five pages. Pages outside that window are released and rendered again when needed. Zoom keeps your current page position. Import shows downloaded bytes or parsed pages and supports cancellation and retry.
 
-Use a PDF with selectable text. Scanned PDFs are not directly recognized; convert them to a text document first, or use image translation for a few pages.
+Papers, reports, slide decks exported to PDF, notes, and word-processor exports are each segmented by their own layout: text inside slide content frames and title bands is translated, and body text set at 1.5 to 2 line spacing still translates as whole paragraphs. A PDF may be up to 50 MB; other formats up to 10 MB.
 
-PDFs default to **Readable** presentation: complete paragraphs keep a readable font size and appear as translation progresses. You can select and copy the translation. Formulas, tables, and figures retain their original images; body text follows column and section order. Check complex layouts against the source. **Original layout** adds a position preview with the complete translation below it, so long text is not squeezed into tiny fonts or clipped.
+Scanned PDFs without a text layer can be translated too: after you start translation, text is recognized page by page from the current page with visible progress, then translated in the same layout; you can pause at any time. Recognition uses the image-translation language packs, which download automatically when missing, so choose the correct source language first. Text on scanned pages cannot be selected. Scanned pages inside an otherwise typed PDF are recognized too, blank pages are not, and rotated scanned pages are not recognized yet.
+
+PDFs default to the **Original layout**, side by side: each translated paragraph is placed back at the position and size of its source paragraph and appears as it arrives, while waiting paragraphs show the loading style chosen in your interface settings. Formulas, figures and numeric table cells stay as they are; table headers, text cells and captions are translated. Hover a long translation to expand it; hovering also highlights the matching source paragraph (switch it off under **Translation style**). Translation starts from the page you are reading, retries automatically for up to two minutes when a service is briefly unavailable, and reports the reason if it still fails. Switch to **Reflowed text** for complete paragraphs at a fixed size. The toolbar also offers **Search** across source and translation, an **Outline** in the sidebar, and **Focus reading**.
 
 PDF downloads paginate the full translation at a fixed font size. Bilingual output keeps each original page followed by its translated pages; original-layout output also includes a position preview. Downloaded Chinese pages remain images, so copy translation from the reader. Progress counts source pages, followed by a saving stage. Choose **Cancel export** to stop generation; translations and edits are kept for retry. The reader retains nearby pages, while export encodes and releases one output canvas at a time to control memory use.
 
@@ -68,13 +76,13 @@ FluentRead also has an [experimental Obsidian desktop plugin](https://github.com
 
 ## Batch translation
 
-Select or drop multiple files, or use **Add files** at the top of the page to keep existing files and translations. Collapse the multi-file queue for more reading space. Confirm the languages, service and model, then choose **Translate remaining files** to process unfinished documents in order.
+Select or drop multiple files, or use **Add files** in the sidebar's **Files** tab to keep existing files and translations; a newly added file becomes the current document. Confirm the service and target language, then use the batch action to translate the remaining files in order.
 
 Each file has its own progress. An import or translation failure does not stop other files. **Pause all** preserves completed segments; starting again resumes the remaining work. If settings change, confirm restarting each partially translated file before continuing the batch, so reviewed text is not silently replaced.
 
 When the queue stops, select a file to read, review or download it individually. Choose bilingual or translation-only output and click **Download completed files (ZIP)** to bundle completed documents. Incomplete files are excluded, and files with the same name use separate numbered folders. Switching files preserves your work; removing undownloaded translations asks for confirmation.
 
-Files and translations stay in this page only. Download your results before refreshing or closing it.
+Files and translations are stored in this browser and can be restored from **Recent translations**; download what you need to take with you.
 
 </details>
 
