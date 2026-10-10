@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
+ * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签、给出带占位符片段替换前的原文供校订显示、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -1115,6 +1115,18 @@ function preserveSubtitleMarkup(source: string, translation: string): string {
 
 function originalPartSource(part: SegmentPart): string {
     return part.rawSource ?? part.source;
+}
+
+/**
+ * 整句送翻的片段，原文里的行内标签和 Markdown 语法已换成编号占位符；这里给出这些片段未替换前的原文，
+ * 供校订视图显示读者认得出的文字。没有占位符的片段不在结果里。
+ */
+export function documentSegmentMarkupSources(document: ParsedDocument): Map<number, string> {
+    const sources = new Map<number, string>();
+    for (const part of document.parts) {
+        if (part.kind === 'segment' && (part.htmlTags || part.markdownTokens)) sources.set(part.segmentIndex, originalPartSource(part));
+    }
+    return sources;
 }
 
 /** 字幕样式标记不属于可见正文，服务省略标记时仍按相同文字处理。 */

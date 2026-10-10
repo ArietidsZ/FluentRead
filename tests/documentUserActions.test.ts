@@ -615,6 +615,18 @@ describe('document user actions: real editor events and parent consumers', () =>
         expect(walk(editor()).find(node => node.props['data-segment-id'] === 1)).toBeUndefined();
     });
 
+    it('shows the original wording for whole-sentence segments and explains the markers only where a translation carries them', async () => {
+        apps.pop()!.unmount();
+        const current = parseDocument('note.md', 'Read the [setup guide](https://example.com/setup) first.\n\nPlain sentence.', {markdownSentences: true});
+        expect(current.segments[0].source).toBe('Read the <g1>setup guide</g1> first.');
+        mount({setup: () => () => h(DocumentSegmentEditor, {document: current, translations: ['先读<g1>安装指南</g1>。', '普通句子。'], disabled: false})});
+        const nodes = () => walk(editor());
+        const sourceTexts = nodes().filter(node => node.props.class === 'document-source').map(node => walk(node).map(child => child.text ?? '').join(''));
+        expect(sourceTexts).toEqual(['Read the setup guide first.', 'Plain sentence.']);
+        expect(textarea(0).value).toBe('先读<g1>安装指南</g1>。');
+        expect(nodes().filter(node => node.props.class === 'segment-placeholder-hint')).toHaveLength(1);
+    });
+
     it('disables editing while translating and enables it after an external global pause with no late result commit', async () => {
         await importFiles(file('editor-busy.txt'));
         const late = deferred<string[]>(['late']); ports.batch.mockReturnValueOnce(late.promise);

@@ -2876,6 +2876,7 @@ export const frFRLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "Conserver original et traduction",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "Traduction en cours. Consultez les segments terminés ; suspendez pour réviser.",
     "修改即时用于本页预览和下载，下载文件后再离开。": "Les modifications s’appliquent à l’aperçu et au téléchargement. Téléchargez avant de partir.",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "Les marques comme <g1>…</g1> représentent les liens, le gras et les autres mises en forme de l’original. Conservez-les pour que la traduction garde cette mise en forme.",
     "没有找到匹配内容，试试其他关键词。": "Aucun résultat. Essayez d’autres mots-clés.",
     "所有片段都已有译文。": "Tous les segments ont une traduction.",
     "已有译文": "Traduit",

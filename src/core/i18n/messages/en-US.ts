@@ -2881,6 +2881,7 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "Keep both original and translation",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "Translation in progress. View completed segments; pause to edit.",
     "修改即时用于本页预览和下载，下载文件后再离开。": "Edits apply immediately to this preview and download. Download before leaving.",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "Markers like <g1>…</g1> stand for links, bold text and other formatting in the original. Keep them so the translation keeps that formatting.",
     "没有找到匹配内容，试试其他关键词。": "No matches. Try other keywords.",
     "所有片段都已有译文。": "All segments have translations.",
     "已有译文": "Translated",

@@ -3,6 +3,7 @@ import {describe, expect, it} from 'vitest';
 import {parseDocument, type BinaryDocumentData, type DocumentFormat, type ParsedDocument} from '@/src/features/document-translation/core/document';
 import {
     formatDocumentReaderText,
+    hasDocumentPlaceholder,
     DOCUMENT_QUICK_SAMPLES,
     getDocumentExportPreview,
     getDocumentEmptyReaderHint,
@@ -90,6 +91,9 @@ describe('document translation presentation', () => {
             .toBe('Read guide now cover');
         expect(formatDocumentReaderText('ass', ' {\\i1}<i>Hello</i> ')).toBe('Hello');
         expect(formatDocumentReaderText(undefined, '  Plain text  ')).toBe('Plain text');
+        expect(formatDocumentReaderText('epub', ' Read <a href="#n">the note</a> ')).toBe('Read the note');
+        expect(formatDocumentReaderText('markdown', '阅读<g1>指南</g1>并运行<g2/>')).toBe('阅读指南并运行');
+        expect([hasDocumentPlaceholder('阅读<g1>指南</g1>'), hasDocumentPlaceholder('运行<g2/>'), hasDocumentPlaceholder('a < g1 > b'), hasDocumentPlaceholder(''), hasDocumentPlaceholder(undefined)]).toEqual([true, true, false, false, false]);
         expect(getDocumentReaderSourceClass('markdown', '## Heading')).toBe('reader-heading');
         expect(getDocumentReaderSourceClass('markdown', 'Paragraph')).toBe('');
         expect(getDocumentReaderSourceClass('html', '## Heading')).toBe('');
