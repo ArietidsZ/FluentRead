@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；没有文字层的扫描版 PDF 在开始翻译时先逐页识别文字并显示进度；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，ePub 的全部章节列在侧栏目录里、当前章节下接着它的各级标题，正文上方不再占一行章节按钮，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；没有文字层的扫描版 PDF 在开始翻译时先逐页识别文字并显示进度；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，ePub 的全部章节列在侧栏目录里（按译文显示时用章内标题的译文）、当前章节下接着它其余的各级标题，正文上方不再占一行章节按钮，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -1054,9 +1054,15 @@ const outlineRows = computed(() => {
   const label = (item: RichOutlineItem) => richOutlineLanguage.value === 'translated' && item.translation ? item.translation : item.source;
   const headings = (offset: number) => documentOutline.value.map(item => ({key: `h${item.index}`, level: item.level + offset, label: label(item), title: item.source, item, chapter: undefined as number | undefined, current: false}));
   if (!isEpubDocument.value) return headings(0);
+  const segments = parsedDocument.value!.segments, wanted = richOutlineLanguage.value === 'translated';
   return epubChapters.value.flatMap((chapter, index) => {
     const current = index === epubChapterIndex.value;
-    return [{key: `c${index}`, level: 1, label: chapter.title, title: chapter.title, item: undefined as RichOutlineItem | undefined, chapter: index, current}, ...(current ? headings(1) : [])];
+    // 章节名取自章内开头的标题；按译文显示时用那个标题的译文（翻译停下后），没有就仍显示原名。
+    const name = chapter.title.toLocaleLowerCase();
+    const heading = segments.slice(chapter.segmentOffset, chapter.segmentOffset + Math.min(3, chapter.segmentCount)).find(segment => segment.source.toLocaleLowerCase().includes(name));
+    const row = {key: `c${index}`, level: 1, label: (wanted && heading && settledTranslations.value[heading.id]) || chapter.title, title: chapter.title, item: undefined as RichOutlineItem | undefined, chapter: index, current};
+    // 当前章节下面不重复列出作为章节名的那个标题。
+    return [row, ...(current ? headings(1).filter(entry => entry.title !== row.title && entry.title !== heading?.source) : [])];
   });
 });
 const hasOutline = computed(() => isPdfDocument.value || outlineRows.value.length > 0);
