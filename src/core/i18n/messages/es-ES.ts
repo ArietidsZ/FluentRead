@@ -2518,6 +2518,7 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "翻译完成": "Traducción completada",
     "翻译中断": "Traducción interrumpida",
     "部分完成": "Completado parcialmente",
+    "译文与原文相同，可换目标语言": "La traducción coincide con el original; prueba otro idioma de destino",
     "准备就绪": "Listo",
     "已完成的片段可在「校订译文」中查看，可随时暂停。": "Consulta los segmentos completados en Revisar traducción. Puedes pausar cuando quieras.",
     "可阅读、校订并下载结果。": "Lee, revisa y descarga los resultados.",

@@ -627,6 +627,26 @@ describe('document user actions: real editor events and parent consumers', () =>
         expect(nodes().filter(node => node.props.class === 'segment-placeholder-hint')).toHaveLength(1);
     });
 
+    it('says so when the finished translation is the same as the original, but not for short files or real translations', async () => {
+        const lines = ['第一行已经是中文。', '第二行也是中文。', '第三行还是中文。', '第四行同样是中文。', '第五行仍然是中文。', '第六行是中文。'];
+        // 服务把每一段都原样返回：文档多半已经是目标语言。
+        ports.batch.mockImplementation(async (sources: string[]) => sources);
+        await importFiles(file('same.txt', lines.join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('译文与原文相同，可换目标语言'));
+        // 片段很少时不下这个判断。
+        await importFiles(file('short.txt', lines.slice(0, 2).join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(textOf(taskbar())).not.toContain('译文与原文相同');
+        // 大部分片段有了不同的译文时照常显示完成。
+        ports.batch.mockImplementation(async (sources: string[]) => sources.map(source => `T:${source}`));
+        await importFiles(file('real.txt', lines.join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(textOf(taskbar())).not.toContain('译文与原文相同');
+    });
+
     it('disables editing while translating and enables it after an external global pause with no late result commit', async () => {
         await importFiles(file('editor-busy.txt'));
         const late = deferred<string[]>(['late']); ports.batch.mockReturnValueOnce(late.promise);
