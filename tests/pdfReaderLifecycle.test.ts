@@ -992,7 +992,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         expect(items().map(item => item.style.getPropertyValue('paddingLeft'))).toEqual(['12px', '26px', '40px', '12px']);
         expect(current()).toEqual(['1 Introduction']);
         click(languages[0]); await componentFlush();
-        expect(titles()).toEqual(['1 Introduction', '1.1 Background', '2.3.4.5 Deep dive', 'Appendix']); expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual(['true', null]); expect(classes(languages[0])).toContain('selected');
+        expect(titles()).toEqual(['1 Introduction', '1.1 Background', '2.3.4.5 Deep dive', 'Appendix']); expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual(['true', 'false']); expect(classes(languages[0])).toContain('selected');
         click(languages[1]); await componentFlush(); expect(titles()).toEqual(['1 引言', '1.1 Background', '2.3.4.5 深入', 'Appendix']);
         currentTranslations.value = ['1 引言', '1.1 背景', '正文', '2.3.4.5 深入', '附录', '', '']; await componentFlush(); flushFrames(); await componentFlush();
         expect(titles()).toEqual(['1 引言', '1.1 背景', '2.3.4.5 深入', '附录']);
