@@ -1,7 +1,7 @@
 /**
  * @file tests/documentHtmlInline.test.ts
  * 文件职责：验证 HTML 与 ePub 章节里带链接、强调等行内标签的句子作为一个片段整体翻译，并在导出与预览时把行内标签还原到译文里。
- * 主要内容：行内标签换成编号占位符、嵌套标签按开闭配对编号；包在整段文字外面的标签、无法配对的标签、换行与自闭合标签不合并；译文里的占位符按编号还原（容忍多余空格），丢失、重复、错位或多余的占位符一律退回不带行内标签的整句译文且文字不丢；实体在送翻时解码、在输出时转义；与原文相同的译文保留原文。
+ * 主要内容：行内标签换成编号占位符、嵌套标签按开闭配对编号；包在整段文字外面的标签、无法配对的标签、换行与自闭合标签不合并；句中的行内代码整个保留在句子里且不翻译；译文里的占位符按编号还原（容忍多余空格），丢失、重复、错位或多余的占位符一律退回不带行内标签的整句译文且文字不丢；实体在送翻时解码、在输出时转义；与原文相同的译文保留原文。
  * 模块边界：只测试纯解析与渲染，不发起翻译；预览外壳与页面交互由各自的测试覆盖。
  */
 import {describe, expect, it} from 'vitest';
@@ -67,7 +67,27 @@ describe('HTML sentences with inline markup', () => {
         expect(sources('<p> <span> </span> </p>')).toEqual([]);
         // 文字本身含有占位符写法时不合并，避免与真实占位符混淆。
         expect(sources('<p>literal &lt;g1&gt; and <b>bold</b> text</p>')).toEqual(['literal <g1> and', 'bold', 'text']);
-        // 受保护标签里的内容与行内标签都原样保留。
-        expect(sources('<pre>keep <b>this</b> as is</pre><p>after <code>x</code> code</p>')).toEqual(['after', 'code']);
+        // pre 里的内容与行内标签都原样保留；只有代码、没有别的文字的句子不产生片段。
+        expect(sources('<pre>keep <b>this</b> as is</pre><p><code>x</code></p><td> <code>a &lt; b</code> </td>')).toEqual([]);
+        // 没有闭合的 code 仍按受保护内容处理，后面的文字不翻译。
+        expect(sources('<p>before <code>never closed</p><p>still code</p>')).toEqual(['before']);
+    });
+
+    it('keeps inline code inside its sentence, untranslated, wherever the service puts it', () => {
+        const html = '<p>Run <code class="sh">app --migrate &amp;&amp; <b>exit</b></code> once after <em>upgrading</em>.</p>';
+        // 代码的文字写在占位符之间给翻译服务当上下文；自闭合写法的 code 不算代码元素。
+        expect(sources(html)).toEqual(['Run <g1>app --migrate && exit</g1> once after <g2>upgrading</g2>.']);
+        expect(renderDocument(parseDocument('page.html', html), [], 'translated')).toBe(html);
+        const code = '<code class="sh">app --migrate &amp;&amp; <b>exit</b></code>';
+        // 占位符之间被服务翻译或清空，都换回原来的代码元素；语序可以变化。
+        expect(translated(html, ['<g2>升级</g2>后运行一次<g1>应用 --迁移</g1>。'])).toBe(`<p><em>升级</em>后运行一次${code}。</p>`);
+        expect(translated(html, ['<g2>升级</g2>后运行一次<g1></g1>。'])).toBe(`<p><em>升级</em>后运行一次${code}。</p>`);
+        expect(translated(html, ['升级后运行一次。'], 'bilingual')).toContain(`<span data-fluent-read-document-translation="true">升级后运行一次。 ${code}</span>`);
+        // 占位符丢失、或被塞进代码占位符里面时退回纯文字，代码以原样补在句末。
+        expect(translated(html, ['<g1>应用<g2>升级</g2></g1>后运行一次。'])).toBe(`<p>应用升级后运行一次。 ${code}</p>`);
+        // 句首、句末是代码时同样成句，两端的空白留在句子外面。
+        expect(sources('<li> <code>npm test</code> runs the suite </li><li>Then call <code>done()</code></li>')).toEqual(['<g1>npm test</g1> runs the suite', 'Then call <g1>done()</g1>']);
+        expect(translated('<li> <code>npm test</code> runs the suite </li>', ['<g1>npm test</g1>运行测试'])).toBe('<li> <code>npm test</code>运行测试 </li>');
+        expect(translated('<li>Then call <code>done()</code></li>', ['然后调用<g1>done()</g1>'])).toBe('<li>Then call <code>done()</code></li>'.replace('Then call ', '然后调用'));
     });
 });

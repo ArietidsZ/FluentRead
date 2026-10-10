@@ -108,10 +108,10 @@ describe('userscript browser shim injection', () => {
         const base64 = moduleSource?.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)?.[1];
         expect(base64).toBeTruthy();
         const restored = JSON.parse(gunzipSync(Buffer.from(base64!, 'base64')).toString('utf8'));
-        // PDF 阅读器只存在于扩展的文档翻译页面，油猴脚本不含该页面：内嵌目录恰好是全部中文文案去掉这一组键，其余一条不少、内容无损。
-        const readerOnly = Object.keys(zhCNMessages).filter(key => key.startsWith('document.pdfReading.'));
+        // 文档翻译页面（含 PDF 阅读器）只存在于扩展里，油猴脚本不含该页面：内嵌目录恰好是全部中文文案去掉 document. 这一组键，其余一条不少、内容无损。
+        const readerOnly = Object.keys(zhCNMessages).filter(key => key.startsWith('document.'));
         expect(readerOnly.length).toBeGreaterThan(0);
-        const embedded = Object.fromEntries(Object.entries(zhCNMessages).filter(([key]) => !key.startsWith('document.pdfReading.')));
+        const embedded = Object.fromEntries(Object.entries(zhCNMessages).filter(([key]) => !key.startsWith('document.')));
         expect(Object.keys(embedded)).toHaveLength(Object.keys(zhCNMessages).length - readerOnly.length);
         expect(restored).toEqual(embedded);
         vi.stubGlobal('pako', {ungzip});

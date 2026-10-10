@@ -5,7 +5,7 @@
  * 模块边界：只测试纯解析与渲染；Obsidian 等其他调用方使用默认方式，由各自的测试覆盖。
  */
 import {describe, expect, it} from 'vitest';
-import {parseDocument, renderDocument} from '@/src/features/document-translation/core/document';
+import {documentSegmentMarkupSources, parseDocument, renderDocument} from '@/src/features/document-translation/core/document';
 
 const parse = (markdown: string) => parseDocument('note.md', markdown, {markdownSentences: true});
 const sources = (markdown: string) => parse(markdown).segments.map(segment => segment.source);
@@ -13,6 +13,12 @@ const output = (markdown: string, translations: string[], mode: 'translated' | '
 
 describe('Markdown whole-sentence translation', () => {
     const line = 'Read the [setup guide](https://example.com/setup) before `npm install` starts, and keep **bold** words.';
+
+    it('gives the proofreading view the original markup of placeholder segments only', () => {
+        expect([...documentSegmentMarkupSources(parse(`${line}\n\nPlain sentence.`))]).toEqual([[0, line]]);
+        const html = parseDocument('page.html', '<p>Read the <a href="/g">guide</a> first.</p><p>Plain.</p>');
+        expect([...documentSegmentMarkupSources(html)]).toEqual([[0, 'Read the <a href="/g">guide</a> first.']]);
+    });
 
     it('keeps one segment per line and protects link targets, code, URLs and tags with placeholders', () => {
         expect(sources(line)).toEqual(['Read the <g1>setup guide</g1> before <g2/> starts, and keep **bold** words.']);

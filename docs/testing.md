@@ -994,7 +994,7 @@ FLUENTREAD_PDF_CORPUS=/path/to/papers pnpm exec vitest run tests/pdfPaperLayouts
 
 ## 扫描版 PDF 识别
 
-`tests/pdfOcr.test.ts` 覆盖“识别结果 → 版面段落 → 片段编号”，`tests/documentPageRecognizer.test.ts` 覆盖页面识别器的坐标换算。真实浏览器里的整条流程是文档翻译脚本的一个单独套件，它会现场生成一份“一页文字 + 两页扫描图像”的 PDF，核对打开时不发请求、开始翻译后先识别扫描页再翻译、文字页照常翻译、三句印刷文字都被认出、译文块落在扫描页内：
+`tests/pdfOcr.test.ts` 覆盖“识别结果 → 版面段落 → 片段编号”，`tests/documentPageRecognizer.test.ts` 覆盖页面识别器的坐标换算。真实浏览器里的整条流程是文档翻译脚本的一个单独套件，它会现场生成一份“一页文字 + 两页扫描 + 三页旋转扫描（90、180、270 度）图像”的 PDF，核对打开时不发请求、开始翻译后先识别扫描页再翻译、文字页照常翻译、三句印刷文字都被认出、译文块落在扫描页内：
 
 ```bash
 node scripts/run-document-translation-test.cjs --suite scanned --playwright-root <playwright>/node_modules --artifacts-dir <目录>

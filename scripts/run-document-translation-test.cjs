@@ -241,6 +241,25 @@ async function main() {
       const typed = 'A typed first page already has a real text layer.';
       scan.addPage([595, 842]).drawText(typed, {x: 60, y: 600, size: 16});
       for (let index = 0; index < 2; index++) scan.addPage([595, 842]).drawImage(picture, {x: 0, y: 0, width: 595, height: 842});
+      // 第 4～6 页是旋转 90、180、270 度的扫描页：图像反向转好放进竖页，再用 /Rotate 摆正；90 与 270 度展示出来是横页。
+      const {degrees} = require('pdf-lib');
+      const turnedPages = [
+        {angle: 90, landscape: true, lines: ['Sideways scans are turned upright first.', 'Rotated pages translate like the others.'], place: {x: 595, y: 0, width: 842, height: 595, rotate: degrees(90)}},
+        {angle: 180, landscape: false, lines: ['Upside down scans read normally again.', 'Half turns keep the portrait shape.'], place: {x: 595, y: 842, width: 595, height: 842, rotate: degrees(180)}},
+        {angle: 270, landscape: true, lines: ['Three quarter turns also end upright.', 'Every scanned angle reaches the translator.'], place: {x: 0, y: 842, width: 842, height: 595, rotate: degrees(-90)}},
+      ];
+      for (const turned of turnedPages) {
+        const turnedPng = await page.evaluate(({lines, landscape}) => {
+          const canvas = document.createElement('canvas'); canvas.width = landscape ? 1754 : 1240; canvas.height = landscape ? 1240 : 1754;
+          const context = canvas.getContext('2d'); context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
+          context.fillStyle = '#111111'; context.font = '44px Georgia, serif';
+          lines.forEach((line, index) => context.fillText(line, 130, 300 + index * 170));
+          return canvas.toDataURL('image/png').split(',')[1];
+        }, {lines: turned.lines, landscape: turned.landscape});
+        const turnedPage = scan.addPage([595, 842]);
+        turnedPage.drawImage(await scan.embedPng(Buffer.from(turnedPng, 'base64')), turned.place);
+        turnedPage.setRotation(degrees(turned.angle));
+      }
       const requestsBeforeScan = fixture.state.requests.length;
       await load('scanned.pdf', Buffer.from(await scan.save()));
       await page.locator('.pdf-page-row[data-page-number="1"]').waitFor();
@@ -266,8 +285,29 @@ async function main() {
       assert(scannedBlocks.every(block => block.text && block.inside), `译文块必须有内容且不超出页面：${JSON.stringify(scannedBlocks)}`);
       assert.equal(await page.locator('.pdf-translation-spinner, .pdf-translation-block.pending').count(), 0, '翻译完成后不能残留等待动画');
       await shot('scanned-translated');
-      report.scanned = {pages: 3, scannedPages: 2, recognizedSources: [...new Set(recognized)], blocksOnFirstScannedPage: scannedBlocks.length};
-      report.cases.push('a PDF with one typed page and two scanned pages opens without requests, recognises the scanned pages when translation starts, translates the typed page as usual and shows translations inside the scanned page');
+      const turnedReport = [];
+      for (const [index, turned] of turnedPages.entries()) {
+        const number = 4 + index;
+        for (const line of turned.lines) {
+          const phrase = new RegExp(line.split(' ').slice(0, 3).join(' '), 'iu');
+          assert(recognized.some(source => phrase.test(source)), `旋转 ${turned.angle} 度的扫描页没有认出“${line}”：${JSON.stringify(recognized)}`);
+        }
+        await pageInput.fill(String(number)); await pageInput.press('Enter');
+        await page.locator(`.pdf-page-row[data-page-number="${number}"] .pdf-translation-block`).first().waitFor();
+        const turnedBlocks = await page.locator(`.pdf-page-row[data-page-number="${number}"] .pdf-translation-block`).evaluateAll(blocks => blocks.map(block => {
+          const frame = block.closest('.pdf-page-frame, .pdf-page-column').getBoundingClientRect(), box = block.getBoundingClientRect();
+          // 段落框可以向下留出余量，是否横排要看第一行文字本身的形状。
+          const range = document.createRange(); range.selectNodeContents(block.querySelector('.pdf-translation-text span')); const line = range.getBoundingClientRect();
+          return {text: block.innerText.trim(), width: Math.round(line.width), height: Math.round(line.height), upright: line.width > line.height * 3, landscape: frame.width > frame.height,
+            inside: box.left >= frame.left - 2 && box.right <= frame.right + 2 && box.top >= frame.top - 2 && box.bottom <= frame.bottom + 2};
+        }));
+        await shot(`scanned-rotated-${turned.angle}-translated`);
+        assert(turnedBlocks.length >= 2, `旋转 ${turned.angle} 度的扫描页上应有两段译文：${JSON.stringify(turnedBlocks)}`);
+        assert(turnedBlocks.every(block => block.text && block.inside && block.upright && block.landscape === turned.landscape), `旋转 ${turned.angle} 度的扫描页，译文必须横排、摆正并留在页面内：${JSON.stringify(turnedBlocks)}`);
+        turnedReport.push({angle: turned.angle, blocks: turnedBlocks.length});
+      }
+      report.scanned = {pages: 6, scannedPages: 5, rotatedScannedPages: turnedReport, recognizedSources: [...new Set(recognized)], blocksOnFirstScannedPage: scannedBlocks.length};
+      report.cases.push('a PDF with one typed page, two scanned pages and three rotated scanned pages (90, 180 and 270 degrees) opens without requests, recognises the scanned pages when translation starts, translates the typed page as usual and shows upright translations inside the scanned pages');
       assert.equal(report.consoleErrors.length, 0);
       report.ok = true;
       return;
@@ -518,6 +558,13 @@ async function main() {
       } else if (name.endsWith('.epub') || name.endsWith('.docx')) {
         const zip = await require('jszip').loadAsync(bytes);
         assert(zip.file(name.endsWith('.epub') ? 'OEBPS/chapter-1.xhtml' : 'word/document.xml'));
+        if (name.endsWith('.epub')) {
+          // ePub 的章节列在侧栏目录里，当前章节有标记；正文上方不再有章节按钮。
+          const chapters = await page.locator('.document-outline-item.chapter').evaluateAll(items => items.map(item => ({text: item.innerText.trim(), current: item.classList.contains('current')})));
+          assert(chapters.length >= 1 && chapters.filter(chapter => chapter.current).length === 1, `ePub 目录应列出章节并标出当前章节：${JSON.stringify(chapters)}`);
+          assert.equal(await page.locator('.rich-document-reader .reader-native-toolbar').count(), 0, 'ePub 正文上方不应再有章节按钮');
+          report.epubOutline = chapters;
+        }
       } else assert(bytes.toString().includes('人工校订'));
       report.exampleLoads[name] = {translated: true, edited: true, exported: true, bytes: bytes.length};
       if (['sample.pdf', 'sample.epub', 'sample.docx', 'sample.md', 'sample.srt', 'sample.json'].includes(name)) await shot(`reader-${name.replace('.', '-')}`);
