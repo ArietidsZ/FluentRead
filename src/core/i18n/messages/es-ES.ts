@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/es-ES.json';
 import settingsCopyText from './settings-copy/es-ES.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationSpanishMessages} from './localTranslation';
 
 export const esESMessages = {
     ...pdfReadingMessages['es-ES'],
+    ...informationHighlightMessages['es-ES'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Eliminar cabeceras de origen",
@@ -2474,6 +2476,15 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "文件在本地解析，待译文字会发送给你选择的翻译服务。扫描版 PDF 暂不支持文字识别。": "Los archivos se analizan localmente; el texto se envía al servicio elegido. Aún no se admite OCR de PDF escaneados.",
     "当前文档": "Documento actual",
     "更换文件": "Cambiar archivo",
+    "翻译服务暂时没有响应，将自动重试": "El servicio de traducción no responde; se reintentará automáticamente",
+    "源语言与术语库": "Idioma de origen y glosario",
+    "专注阅读": "Lectura concentrada",
+    "退出专注阅读": "Salir de la lectura concentrada",
+    "尚未翻译": "Sin traducir",
+    "文件": "Archivos",
+    "文件与目录": "Archivos e índice",
+    "最近翻译": "Traducciones recientes",
+    "移除记录": "Quitar del historial",
     "设置已更改。现有译文仍保留，按新设置翻译会从头开始。": "Ajustes modificados. Se conservan las traducciones; traducir con los nuevos ajustes empieza de cero.",
     "文件在本地解析，文字发送至所选服务。": "Archivos analizados localmente; texto enviado al servicio elegido.",
     "文档翻译进度": "Progreso de traducción del documento",
@@ -2507,6 +2518,7 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "翻译完成": "Traducción completada",
     "翻译中断": "Traducción interrumpida",
     "部分完成": "Completado parcialmente",
+    "译文与原文相同，可换目标语言": "La traducción coincide con el original; prueba otro idioma de destino",
     "准备就绪": "Listo",
     "已完成的片段可在「校订译文」中查看，可随时暂停。": "Consulta los segmentos completados en Revisar traducción. Puedes pausar cuando quieras.",
     "可阅读、校订并下载结果。": "Lee, revisa y descarga los resultados.",
@@ -2867,6 +2879,7 @@ export const esESLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "Conservar original y traducción",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "Traducción en curso. Consulta segmentos completados; pausa para revisar.",
     "修改即时用于本页预览和下载，下载文件后再离开。": "Los cambios se aplican a vista previa y descarga. Descarga antes de salir.",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "Las marcas como <g1>…</g1> representan enlaces, negritas y otros formatos del original. Consérvalas para que la traducción mantenga ese formato.",
     "没有找到匹配内容，试试其他关键词。": "No hay coincidencias. Prueba otras palabras.",
     "所有片段都已有译文。": "Todos los segmentos tienen traducción.",
     "已有译文": "Traducido",

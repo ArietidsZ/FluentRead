@@ -8,9 +8,10 @@ import type {Config} from '@/src/core/config/model'
 import {getSiteBaseDomain} from '@/src/core/site-rules/domain'
 import {isBrowserTabId} from '@/src/platform/browser/ids'
 import {getPdfSourceUrl} from '@/src/features/document-translation/core/pdfSource'
+import type {PopupActiveTab} from './pageContracts'
+export type {PopupActiveTab} from './pageContracts'
 
 export interface PopupPageState {tabId: number | null; windowId?: number; url: string; domain: string; translated: boolean; busy: boolean}
-export interface PopupActiveTab {id?: number; windowId?: number; url?: string; pendingUrl?: string}
 export interface PopupPagePorts {
   state: PopupPageState
   config: () => Config

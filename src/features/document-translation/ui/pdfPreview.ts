@@ -211,7 +211,7 @@ async function renderPdfSourceCanvas(bytes: Uint8Array, pageNumber: number, widt
     }
 }
 
-function sampledBackgroundRgb(
+export function sampledBackgroundRgb(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -241,7 +241,7 @@ function sampledBackgroundRgb(
     ];
 }
 
-function sampledForegroundColor(
+export function sampledForegroundColor(
     context: CanvasRenderingContext2D,
     x: number,
     y: number,
@@ -413,6 +413,16 @@ export async function createPdfPagePreview(
         return {original, translated: await canvasToPng(translatedCanvas, signal)};
     } finally {
         sourceCanvas.width = sourceCanvas.height = 0;
+    }
+}
+
+/** 把一页渲染成图像供文字识别使用；画布用完立即释放，只返回编码后的图像与它的像素尺寸。 */
+export async function renderPdfPageImage(bytes: Uint8Array, pageNumber: number, width: number, signal?: AbortSignal): Promise<{image: string; width: number; height: number}> {
+    const canvas = await renderPdfSourceCanvas(bytes, pageNumber, width, signal);
+    try {
+        return {image: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height};
+    } finally {
+        canvas.width = canvas.height = 0;
     }
 }
 

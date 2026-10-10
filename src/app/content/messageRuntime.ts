@@ -29,9 +29,8 @@ import {forwardLegacyCacheClear} from './cacheMessage';
 import {respondToAreaContextMenu} from './areaContextMenuResponse';
 import {browserCapabilities, type BrowserCapabilities} from '@/src/platform/browser/capabilities';
 import {rejectUnsupportedContentFeature} from './featureRegistry';
-export interface ContentRuntimeMessageState {
-    isSiteDisabled(): boolean;
-    isPageSuspended?(): boolean;
+import {handleInformationHighlightMessage, type InformationHighlightMessageState} from './informationHighlight';
+export interface ContentRuntimeMessageState extends InformationHighlightMessageState {
     updateSiteDisabled(disabled: boolean): Promise<void>;
 }
 export type ContentRuntimeMessageHandler = (message: unknown, sender: unknown, sendResponse: (response?: unknown) => void) => boolean;
@@ -41,6 +40,10 @@ export function createContentRuntimeMessageHandler(ctx: ContentScriptContext, st
     return (message, _sender, sendResponse) => {
         if (!message || typeof message !== 'object') return false;
         const payload = message as Record<string, unknown>;
+        if (import.meta.env.BROWSER !== 'userscript') {
+            const handled = handleInformationHighlightMessage(payload, state, ctx.isInvalid || config.on === false, sendResponse);
+            if (handled !== undefined) return handled;
+        }
         if (payload.type === 'qqMailFrameCommand' || payload.type === 'qqMailFrameRefresh' ||
             payload.type === 'embeddedFrameCommand' || payload.type === 'embeddedFrameRefresh') return false;
         if (payload.message === 'clearCache') {

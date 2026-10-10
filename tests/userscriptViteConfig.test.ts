@@ -6,7 +6,9 @@ import {gunzipSync} from 'node:zlib';
 import {runInNewContext} from 'node:vm';
 import {describe, expect, it, vi} from 'vitest';
 import {ungzip} from 'pako';
-import {zhCNMessages} from '@/src/core/i18n/messages/zh-CN';
+import {zhCNMessages, userscriptMessages} from '@/userscript/languageBundles';
+import {zhCNMessages as extensionChinese} from '@/src/core/i18n/messages/zh-CN';
+import {installInformationHighlight} from '@/userscript/informationHighlight';
 import {inflateWithPako} from '@/userscript/pakoRuntime';
 import * as chineseCharacterData from '@/src/core/language/chineseVariants';
 import * as functionWordData from '@/src/core/language/functionWordData';
@@ -92,6 +94,16 @@ describe('authoritative site catalogs with an external pinned data asset', () =>
 });
 
 describe('userscript browser shim injection', () => {
+    it('excludes unreachable highlight code and copy while keeping an explicitly unavailable state', () => {
+        expect(userscriptMessages(extensionChinese)).toEqual(zhCNMessages);
+        expect(Object.keys(zhCNMessages).some(key => key.startsWith('informationHighlight.'))).toBe(false);
+        const controller = installInformationHighlight({} as Document, {enabled: true, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'amber', style: 'background', intensity: 'standard'});
+        expect(controller.setEnabled(true)).toMatchObject({enabled: false, phase: 'unsupported', mode: 'keywords'});
+        controller.updatePreferences({enabled: true, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'surprisal-local', density: 'low', color: 'mint', style: 'underline', intensity: 'standard'});
+        expect(controller.retry()).toMatchObject({enabled: false, mode: 'surprisal-local'});
+        controller.refresh();controller.dispose();expect(controller.getState().enabled).toBe(false);
+        expect(userscriptAliases.find(alias => alias.find === '@/src/features/information-highlight/public')?.replacement).toMatch(/userscript\/informationHighlight\.ts$/u);
+    });
     it('pins each remote language file to a commit containing exactly its built contents', () => {
         const defines = (userscriptConfig as {define: Record<string, string>}).define;
         const commit = JSON.parse(defines.__FLUENTREAD_USERSCRIPT_RESOURCE_COMMIT__);
@@ -104,7 +116,7 @@ describe('userscript browser shim injection', () => {
             expect(committed).toBe(readFileSync(resolve(process.cwd(), path), 'utf8'));
         }
     });
-    it('embeds the complete Chinese fallback catalog as lossless static data', () => {
+    it('embeds the Chinese fallback catalog, minus the reader-only keys of the extension document page, as lossless static data', () => {
         const plugin = createUserscriptCatalogCompressionPlugin() as unknown as {
             resolveId: (source: string, importer: string) => string | null;
             load: (id: string) => string | null;
@@ -115,10 +127,15 @@ describe('userscript browser shim injection', () => {
         const base64 = moduleSource?.match(/atob\("([A-Za-z0-9+/=]+)"\)/u)?.[1];
         expect(base64).toBeTruthy();
         const restored = JSON.parse(gunzipSync(Buffer.from(base64!, 'base64')).toString('utf8'));
-        expect(restored).toEqual(zhCNMessages);
+        // 文档翻译页面（含 PDF 阅读器）只存在于扩展里，油猴脚本不含该页面：内嵌目录恰好是全部中文文案去掉 document. 这一组键，其余一条不少、内容无损。
+        const readerOnly = Object.keys(zhCNMessages).filter(key => key.startsWith('document.'));
+        expect(readerOnly.length).toBeGreaterThan(0);
+        const embedded = Object.fromEntries(Object.entries(zhCNMessages).filter(([key]) => !key.startsWith('document.')));
+        expect(Object.keys(embedded)).toHaveLength(Object.keys(zhCNMessages).length - readerOnly.length);
+        expect(restored).toEqual(embedded);
         vi.stubGlobal('pako', {ungzip});
         try {
-            expect(JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(base64!, 'base64'))))).toEqual(zhCNMessages);
+            expect(JSON.parse(inflateWithPako(new Uint8Array(Buffer.from(base64!, 'base64'))))).toEqual(embedded);
         } finally {
             vi.unstubAllGlobals();
         }

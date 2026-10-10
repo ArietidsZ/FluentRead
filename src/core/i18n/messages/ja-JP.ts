@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/ja-JP.json';
 import settingsCopyText from './settings-copy/ja-JP.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationJapaneseMessages} from './localTranslation';
 
 export const jaJPMessages = {
     ...pdfReadingMessages['ja-JP'],
+    ...informationHighlightMessages['ja-JP'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "送信元リクエストヘッダーを削除",
@@ -2478,6 +2480,15 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "文件在本地解析，待译文字会发送给你选择的翻译服务。扫描版 PDF 暂不支持文字识别。": "ファイルは端末内で解析し、翻訳する文字を選択サービスに送信します。スキャン PDF の文字認識は未対応です。",
     "当前文档": "現在の文書",
     "更换文件": "ファイルを変更",
+    "翻译服务暂时没有响应，将自动重试": "翻訳サービスが応答しないため、自動的に再試行します",
+    "源语言与术语库": "原文の言語と用語集",
+    "专注阅读": "集中モード",
+    "退出专注阅读": "集中モードを終了",
+    "尚未翻译": "未翻訳",
+    "文件": "ファイル",
+    "文件与目录": "ファイルと目次",
+    "最近翻译": "最近の翻訳",
+    "移除记录": "履歴から削除",
     "设置已更改。现有译文仍保留，按新设置翻译会从头开始。": "設定が変わりました。既存の訳文は保持されていますが、新設定での翻訳は最初から行います。",
     "文件在本地解析，文字发送至所选服务。": "ファイルは端末内で解析し、文字を選択サービスに送信します。",
     "文档翻译进度": "文書翻訳の進捗",
@@ -2511,6 +2522,7 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "翻译完成": "翻訳完了",
     "翻译中断": "翻訳が中断されました",
     "部分完成": "一部完了",
+    "译文与原文相同，可换目标语言": "訳文が原文と同じです。別の翻訳先言語をお試しください",
     "准备就绪": "準備完了",
     "已完成的片段可在「校订译文」中查看，可随时暂停。": "完了した部分は「訳文を校訂」で確認できます。いつでも一時停止できます。",
     "可阅读、校订并下载结果。": "結果を読み、校訂・ダウンロードできます。",
@@ -2866,6 +2878,7 @@ export const jaJPLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "原文と訳文を両方保持",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "翻訳中です。完了部分を確認でき、一時停止後に校訂できます。",
     "修改即时用于本页预览和下载，下载文件后再离开。": "変更はプレビューと保存に即反映されます。離れる前にダウンロードしてください。",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "<g1>…</g1> のような記号は、原文のリンクや太字などの書式を表します。残しておくと、訳文にも同じ書式が付きます。",
     "没有找到匹配内容，试试其他关键词。": "一致する内容がありません。別の語で検索してください。",
     "所有片段都已有译文。": "すべての部分に訳文があります。",
     "已有译文": "翻訳済み",

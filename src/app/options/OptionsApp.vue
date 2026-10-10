@@ -1,7 +1,7 @@
 <!--
  @file src/app/options/OptionsApp.vue
  文件职责：实现扩展 Options 页的顶层布局，组织设置导航、全局搜索结果和学习中心入口，并把选中分区交给对应 feature UI。
- 主要内容：侧栏展示品牌与多语言宣传语；关于页以随界面语言显示产品名的宽幅品牌介绍、项目链接卡片、开源项目下方的微信交流按钮和独立赞赏区组织内容，联系二维码与赞赏码在当前页弹窗展示；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，服务目录使用完整工作区，统计与网站规则按任务保留视图切换，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接；界面根节点注册在卸载时只释放本页面句柄。
+ 主要内容：侧栏展示品牌与多语言宣传语；关于页以随界面语言显示产品名的宽幅品牌介绍、项目链接卡片、开源项目下方的微信交流按钮和独立赞赏区组织内容，联系二维码与赞赏码在当前页弹窗展示；渲染默认展开的分组侧栏、窄屏分类选择和全局搜索；普通设置连续展示并提供顶部滚动定位导航，统计保留任务视图切换，智能高亮锚点及搜索入口随脚本版能力隐藏，服务目录使用完整工作区，复用 settingsNavigation 的项目解析/过滤逻辑，在 SettingsSections 与 LearningCenter 之间切换并重置内容区滚动，同步 URL hash 的深链接与前进后退导航，兼容模型用量迁入翻译统计后的旧链接；界面根节点注册在卸载时只释放本页面句柄。
  模块边界：组件负责页面壳、导航状态和主题、界面皮肤根属性同步，不定义具体配置字段、不直接写 browser.storage，也不实现词汇仓库；设置表单、收藏与阅读记录业务由各 feature 组件拥有。
 -->
 <template>
@@ -59,7 +59,7 @@
           ref="sectionNavigationElement"
           :container="settingsContentElement"
           :section-id="activeSection"
-          :panels="settingsPagePanels[activeSection] || []"
+          :panels="sectionPanels"
           @availability-change="hasSectionAnchors = $event"
           @navigate="cancelPendingSearchReveal?.()"
         />
@@ -259,6 +259,10 @@ function toggleGroup(index: number): void {
   expandedGroups.value = next
 }
 const selectedPanels = ref<Record<string, string>>({[activeSection.value]: resolveSettingsPanel(initialDestination)})
+const informationHighlightAvailable = import.meta.env.BROWSER !== 'userscript' && browserCapabilities.browser !== 'userscript'
+const isAvailableSettingsEntry = (entry: {id: string}) => entry.id !== 'information-highlight' || informationHighlightAvailable
+const sectionPanels = computed(() => (settingsPagePanels[activeSection.value] || [])
+  .filter(isAvailableSettingsEntry))
 const activePanels = computed(() => SETTINGS_TABBED_SECTION_IDS.has(activeSection.value) ? settingsPagePanels[activeSection.value] : [])
 const activePanel = computed(() => resolveSettingsPanel(activeSection.value, selectedPanels.value[activeSection.value]))
 function selectPanel(id: string): void {
@@ -321,9 +325,9 @@ const localizedNavigationGroups = computed(() => navigationGroups.map((group) =>
   })),
 })))
 const localizedNavigationItems = computed(() => localizedNavigationGroups.value.flatMap((group) => group.items))
-const localizedSearchTargets = computed(() => settingsSearchTargets.map((target) => ({
+const localizedSearchTargets = computed(() => settingsSearchTargets.filter(isAvailableSettingsEntry).map((target) => ({
   ...target,
-  label: translateLegacy(target.label),
+  label: target.id === 'information-highlight' ? t('informationHighlight.title') : translateLegacy(target.label),
   description: translateLegacy(target.description),
   searchTerms: `${target.label} ${target.searchTerms}`,
 })))
@@ -353,7 +357,7 @@ void configReady
 type SearchResult = {id: string; sectionId: string; targetId?: string; panelId?: string; label: string; searchDescription: string}
 const filteredResults = computed<SearchResult[]>(() => [
   ...Object.entries(settingsPagePanels).flatMap(([sectionId, panels]) => panels
-    .filter(panel => query.value && `${t(panel.labelKey)} ${panel.searchTerms}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase()))
+    .filter(panel => isAvailableSettingsEntry(panel) && query.value && `${t(panel.labelKey)} ${panel.searchTerms}`.toLocaleLowerCase().includes(query.value.toLocaleLowerCase()))
     .map(panel => ({id: `${sectionId}/${panel.id}`, sectionId, panelId: panel.id, label: t(panel.labelKey), searchDescription: localizedNavigationItems.value.find(item => item.id === sectionId)?.label ?? ''}))),
   ...filterSettingsSearchTargets(query.value, localizedSearchTargets.value).map(target => ({
     id: target.id,
@@ -490,7 +494,12 @@ function handleMobileNavigationChange() {
 }
 
 function syncSectionFromHash() {
-  selectSection(sectionFromHash(window.location.hash))
+  const requested = sectionFromHash(window.location.hash)
+  const section = resolveRequestedSection(requested)
+  const targetId = new URLSearchParams(window.location.search).get('target')
+  // 仅允许导航目录中登记且属于当前分区的目标；不把 URL 当任意 CSS 选择器。
+  const target = localizedSearchTargets.value.find(item => item.sectionId === section && item.targetId === targetId)
+  selectSection(requested, target?.targetId)
 }
 
 onMounted(() => {
