@@ -142,6 +142,11 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, [role="butto
 .docx-page { overflow-wrap: anywhere; position: relative; width: min(794px, 100%); min-height: 980px; margin: 0 auto; padding: 78px 82px 92px; color: #20242d; background: #fff; box-shadow: 0 9px 28px rgba(28, 38, 61, .18); }
 .docx-page-label { position: absolute; top: 28px; right: 34px; padding: 4px 8px; border-radius: 999px; color: #7b8393; background: #f2f4f8; font-size: 9px; font-weight: 800; }
 .docx-paragraph { margin: 0 0 15px; }
+.docx-table { width: 100%; margin: 4px 0 20px; border-collapse: collapse; table-layout: fixed; }
+.docx-table td { padding: 9px 12px; border: 1px solid var(--line); vertical-align: top; }
+.docx-table .docx-paragraph { margin: 0; }
+.docx-table .docx-paragraph + .docx-paragraph { margin-top: 8px; }
+.docx-table .docx-translation { margin-top: 3px; }
 .docx-source { margin: 0 0 5px; font-family: Calibri, "PingFang SC", sans-serif; font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
 .docx-translation { margin: 4px 0 0; white-space: pre-wrap; display: block; width: 100%; min-height: 28px; padding: 0; resize: vertical; border: 0; color: #20242d; background: transparent; font-family: Calibri, "PingFang SC", sans-serif; font-size: 15px; font-weight: 650; line-height: 1.55; outline: 0; }
 .docx-translation:not(:disabled):focus { padding: 7px 9px; border-radius: 8px; background: #fff0f4; }
@@ -656,6 +661,7 @@ input { accent-color: var(--brand); }input:focus-visible { outline: 3px solid va
 @media (min-width: 1100px) {
   .docx-document-reader.bilingual .docx-page { width: min(1360px, 100%); padding: 56px 60px 72px; }
   .docx-document-reader.bilingual .docx-paragraph { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 44px; align-items: start; }
+  .docx-document-reader.bilingual .docx-table .docx-paragraph { display: block; }
   .docx-document-reader.bilingual .docx-source, .docx-document-reader.bilingual .docx-translation { margin: 0; }
   .docx-document-reader.bilingual .docx-role-paragraph .docx-translation, .docx-document-reader.bilingual .docx-role-list-item .docx-translation { font-weight: 500; }
 }

@@ -336,6 +336,31 @@ describe('binary document translation formats', () => {
         expect(reparsed.segments.length).toBeGreaterThan(parsed.segments.length);
     });
 
+    it('DOCX 段落记下所在的表格、行与单元格，嵌套表格归到外层那一格', async () => {
+        const p = (text: string) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`;
+        const cell = (...content: string[]) => `<w:tc><w:tcPr/>${content.join('')}</w:tc>`;
+        const zip = new JSZip();
+        zip.file('[Content_Types].xml', '<Types/>');
+        zip.file('word/document.xml', [
+            '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>',
+            // 文档开头多出来的闭合标签不影响后面的定位。
+            '</w:tbl>', p('Before'),
+            '<w:tbl><w:tblPr/><w:tblGrid/>',
+            `<w:tr><w:trPr/>${cell(p('Name'))}${cell(p('Status'))}</w:tr>`,
+            `<w:tr>${cell(p('Migration'), p('Second line'))}${cell(p(''))}${cell(`<w:tbl><w:tr>${cell(p('Nested'))}</w:tr></w:tbl>`, p('After nested'))}</w:tr>`,
+            '</w:tbl>', p('Between'),
+            `<w:tbl><w:tr>${cell(p('Other table'))}</w:tr></w:tbl>`,
+            p('End'), '</w:body></w:document>',
+        ].join(''));
+        const parsed = await parseBinaryDocument('table.docx', await zip.generateAsync({type: 'uint8array'}));
+        if (parsed.binary?.kind !== 'docx') throw new Error('Expected parsed DOCX');
+        const places = parsed.binary.parts[0].paragraphSegments.map(entry => [parsed.segments[entry.segmentIndex].source, entry.table ? `${entry.table.table}:${entry.table.row}:${entry.table.cell}` : '-']);
+        expect(places).toEqual([
+            ['Before', '-'], ['Name', '0:0:0'], ['Status', '0:0:1'], ['Migration', '0:1:0'], ['Second line', '0:1:0'],
+            ['Nested', '0:1:2'], ['After nested', '0:1:2'], ['Between', '-'], ['Other table', '1:0:0'], ['End', '-'],
+        ]);
+    });
+
     it('DOCX 仅译文导出不会重复原段落的换行和制表符', async () => {
         const zip = new JSZip();
         zip.file('[Content_Types].xml', '<Types/>');

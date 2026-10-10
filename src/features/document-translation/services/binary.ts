@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/binary.ts
  * 文件职责：处理 PDF、EPUB 与 DOCX 二进制文档的受限解析和导出，把压缩包或页面文本转换为统一 ParsedDocument，并生成可下载的双语产物。
- * 主要内容：相同译文保留原文且不重复展示；按实际字节限制导入、按需加载二进制依赖，包含归档安全上限、可取消 PDF 提取与译文回填；PDF 在未旋转内容坐标中解析，展示和双语源页导出保留页面旋转，导出逐页压缩释放解码像素；ePub/DOCX 导出让出主线程并使用可取消归档流，ePub 保持首项 mimetype 无压缩。
+ * 主要内容：相同译文保留原文且不重复展示；Word 段落记下所在的表格、行与单元格供阅读视图按表格排版；按实际字节限制导入、按需加载二进制依赖，包含归档安全上限、可取消 PDF 提取与译文回填；PDF 在未旋转内容坐标中解析，展示和双语源页导出保留页面旋转，导出逐页压缩释放解码像素；ePub/DOCX 导出让出主线程并使用可取消归档流，ePub 保持首项 mimetype 无压缩。
  * 模块边界：此服务可以依赖 JSZip、pdf-lib 和二进制 I/O，但不负责调用翻译服务或渲染设置页；文本格式规则归 core/document，浏览器 Canvas 光栅实现由 ui/pdfPreview 通过接口注入。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -33,6 +33,26 @@ import {
 
 const BINARY_DOCUMENT_FORMATS = new Set<DocumentFormat>(['pdf', 'epub', 'docx']);
 const DOCX_PARAGRAPH_PATTERN = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/gu;
+
+/**
+ * 按文档顺序回答“这个位置在哪个表格的第几行第几格”。位置必须递增地询问；嵌套表格里的段落归到外层表格的那一格。
+ */
+function docxTableLocator(source: string): (position: number) => {table: number; row: number; cell: number} | undefined {
+    const tags = /<w:(tbl|tr|tc)(?=[\s>/])|<\/w:tbl>/gu;
+    let next = tags.exec(source), depth = 0, table = -1, row = -1, cell = -1;
+    return position => {
+        for (; next && next.index < position; next = tags.exec(source)) {
+            if (!next[1]) depth = Math.max(0, depth - 1);
+            else if (next[1] === 'tbl') {
+                depth += 1;
+                if (depth === 1) {table += 1; row = -1;}
+            } else if (depth === 1) {
+                if (next[1] === 'tr') {row += 1; cell = -1;} else cell += 1;
+            }
+        }
+        return depth > 0 ? {table, row, cell} : undefined;
+    };
+}
 const DOCX_TEXT_TOKEN_PATTERN = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:(?:br|cr)\b[^>]*\/>/gu;
 const ARCHIVE_ENTRY_LIMIT = 4_000;
 const ARCHIVE_ENTRY_BYTES_LIMIT = 24 * 1024 * 1024;
@@ -825,7 +845,8 @@ async function parseDocx(fileName: string, bytes: Uint8Array, signal?: AbortSign
 
     for (const path of partPaths) {
         const source = await readArchiveText(zip.file(path)!, signal);
-        const paragraphSegments: Array<{paragraphIndex: number; segmentIndex: number}> = [];
+        const paragraphSegments: DocxDocumentPart['paragraphSegments'] = [];
+        const tableAt = docxTableLocator(source);
         let paragraphIndex = 0;
         let partSegmentIndex = 0;
         DOCX_PARAGRAPH_PATTERN.lastIndex = 0;
@@ -841,7 +862,8 @@ async function parseDocx(fileName: string, bytes: Uint8Array, signal?: AbortSign
                     pathLabel: docxPartTitle(path),
                     role: docxParagraphRole(paragraphMatch[0], path),
                 });
-                paragraphSegments.push({paragraphIndex, segmentIndex});
+                const table = tableAt(paragraphMatch.index);
+                paragraphSegments.push({paragraphIndex, segmentIndex, ...(table ? {table} : {})});
                 partSegmentIndex += 1;
             }
             paragraphIndex += 1;

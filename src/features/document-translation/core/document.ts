@@ -131,7 +131,8 @@ export interface EpubDocumentChapter {
 export interface DocxDocumentPart {
     path: string;
     source: string;
-    paragraphSegments: Array<{paragraphIndex: number; segmentIndex: number}>;
+    /** table：段落位于表格里时，它所在的表格、行与单元格序号（从 0 开始），供阅读视图按表格排版；旧模型没有这项。 */
+    paragraphSegments: Array<{paragraphIndex: number; segmentIndex: number; table?: {table: number; row: number; cell: number}}>;
 }
 
 export type BinaryDocumentData =

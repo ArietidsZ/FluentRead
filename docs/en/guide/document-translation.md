@@ -22,7 +22,7 @@ Expand **No file yet? Try a sample** to open a local article, subtitle, or langu
 
 You do not wait for the whole file: each finished batch appears as soon as it returns, starting from where you are reading (the current PDF page, ePub chapter, Word part, or subtitle/JSON page). Services that accept batches receive several at once, so the whole document finishes sooner.
 
-The sidebar lists your files and, for PDFs and for Markdown, HTML, ePub, and Word documents that have headings, an outline you can show in the original or the translation and click to jump; an ePub lists every chapter there, with the current chapter’s headings beneath it. Markdown, plain text, and Word show each paragraph beside its translation on wide windows and below it on narrow ones.
+The sidebar lists your files and, for PDFs and for Markdown, HTML, ePub, and Word documents that have headings, an outline you can show in the original or the translation and click to jump; an ePub lists every chapter there, with the current chapter’s headings beneath it. Markdown, plain text, and Word show each paragraph beside its translation on wide windows and below it on narrow ones; tables in Word stay tables, with each translation inside its own cell.
 
 In HTML, ePub, and Markdown, a sentence that contains links, bold, italics, or inline code is translated as one sentence: links and emphasis stay on the matching words, and in Markdown the link text is translated while link targets, inline code, and URLs are kept as they are. If a service does not keep those markers, you still get the complete sentence, with code and URLs appended at its end.
 
