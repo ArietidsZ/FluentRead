@@ -460,6 +460,7 @@ import {
   models,
   options,
   parseDocument,
+  restoreSubtitleTags,
   parseDocumentFile,
   requestConfigPatch,
   resolveConfiguredModel,
@@ -941,8 +942,9 @@ const credentialWarning = computed(() => {
   };
   return getMissingCredentialMessage(effectiveDocumentService.value, credentialConfig);
 });
+// 字幕的样式标签被翻译服务改写时（实体或括号写法）先还原，阅读视图才能像原文一样把它们当作样式而不是文字。
 const rowForSegment = (segment: ParsedDocument['segments'][number]) => ({
-  ...segment, index: segment.id, translation: translatedSegments.value[segment.id] || '',
+  ...segment, index: segment.id, translation: isSubtitleDocument.value ? restoreSubtitleTags(segment.source, translatedSegments.value[segment.id] || '') : translatedSegments.value[segment.id] || '',
 });
 const pageRows = <T,>(rows: readonly T[]) => rows.slice((readerPage.value - 1) * READER_PAGE_SIZE, readerPage.value * READER_PAGE_SIZE);
 const previewRows = computed(() => pageRows(parsedDocument.value?.segments || []).map(rowForSegment));

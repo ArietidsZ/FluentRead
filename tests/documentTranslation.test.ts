@@ -115,6 +115,16 @@ describe('document translation parser', () => {
         expect(vtt.segments.map((segment) => segment.source)).toEqual(['Hello']);
         expect(renderDocument(vtt, ['你好'], 'translated')).toContain('WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n你好\n');
 
+        // 翻译服务把样式标签转成实体返回时还原成标签并去掉标签内侧的空格；原文没有的标签、正文里的“&lt;”不动。
+        const cue = (text: string) => parseDocument('talk.vtt', `WEBVTT\n\n00:00:01.000 --> 00:00:04.000\n${text}\n`);
+        const restored = (text: string, translation: string) => renderDocument(cue(text), [translation], 'translated').split('\n').at(-2);
+        expect(restored('Today we build a <i>small</i> weather station.', '今天我们搭一个 &lt;i&gt; 小 &lt;/i&gt; 气象站。')).toBe('今天我们搭一个 <i>小</i> 气象站。');
+        expect(restored('<v Host>Welcome <b>back</b>.</v>', '&lt;v Host&gt;欢迎&lt;B&gt;回来&lt;/B&gt;。&lt;/v&gt;')).toBe('<v Host>欢迎<B>回来</B>。</v>');
+        expect(restored('Keep it under <i>five</i> degrees.', '温度要 &lt; 5 度，&lt;u&gt;务必&lt;/u&gt; &lt;i&gt;五&lt;/i&gt;。')).toBe('温度要 &lt; 5 度，&lt;u&gt;务必&lt;/u&gt; <i>五</i>。');
+        // 括号写法只有在同名标签的闭合形式也出现时才还原；列表里的 (i)、(a) 不动。
+        expect(restored('Today we build a <i>small</i> weather station.', '今天我们搭一个 (i)small(/i) 气象站。')).toBe('今天我们搭一个 <i>small</i> 气象站。');
+        expect(restored('Today we build a <i>small</i> weather station.', '今天我们搭一个（i）小（／i）气象站。')).toBe('今天我们搭一个<i>小</i>气象站。');
+        expect(restored('Choose <i>one</i>: tea or coffee.', '选<i>一个</i>：(i) 茶 (a) 咖啡')).toBe('选<i>一个</i>：(i) 茶 (a) 咖啡');
         // 翻译服务丢掉硬换行时，按原文的行数把译文重新断开；服务保留了换行、原文没有换行或找不到断点时不动。
         const line = (text: string) => parseDocument('breaks.ass', `[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,${text}`);
         const rebroken = (text: string, translation: string) => renderDocument(line(text), [translation], 'translated').split(',,').at(-1);

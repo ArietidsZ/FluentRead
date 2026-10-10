@@ -86,7 +86,8 @@ export function formatDocumentReaderText(format: DocumentFormat | undefined, val
     }
     if (format !== undefined && ['srt', 'vtt', 'ass'].includes(format)) {
         // ASS 用 \N、\n 表示换行、\h 表示不换行空格：阅读时显示成真正的换行和空格，而不是这几个字符。
-        const text = value.replace(/<[^>]+>/gu, '').replace(/\{\\[^}]+\}/gu, '');
+        // 被翻译服务转成实体的样式标签（&lt;i&gt;）同样不属于可见文字。
+        const text = value.replace(/<[^>]+>/gu, '').replace(/&lt;\s*\/?\s*[a-z][^&<>]*&gt;/giu, '').replace(/\{\\[^}]+\}/gu, '');
         return (format === 'ass' ? text.replace(/\\[Nn]/gu, '\n').replace(/\\h/gu, ' ') : text).trim();
     }
     return value.trim();

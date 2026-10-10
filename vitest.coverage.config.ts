@@ -155,6 +155,7 @@ export default defineConfig({
             'tests/pdfOcr.test.ts',
             'tests/documentHtmlInline.test.ts',
             'tests/documentMarkdownSentences.test.ts',
+            'tests/documentTextWrappedParagraphs.test.ts',
             'tests/pdfLayoutAnalysis.test.ts',
             'tests/pdfPaperLayouts.test.ts',
             'tests/documentPdfLayoutParsing.test.ts',

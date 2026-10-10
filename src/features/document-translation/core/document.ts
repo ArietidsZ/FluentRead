@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签（句中的行内代码整个保留、不翻译）、给出带占位符片段替换前的原文供校订显示、字幕译文丢了硬换行时按原文行数重新断行、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
+ * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签（句中的行内代码整个保留、不翻译）、给出带占位符片段替换前的原文供校订显示、字幕译文丢了硬换行时按原文行数重新断行、被翻译服务转成实体的字幕样式标签还原成标签、纯文本里按固定宽度折行的段落合成一个片段、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -550,6 +550,26 @@ function stripMarkdownCodeContainer(line: string, quoteDepth: number, indent: nu
     return line.slice(cursor);
 }
 
+const UNSPACED_SCRIPT = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}，。、；：！？（）《》“”‘’]/u;
+
+/**
+ * 纯文本里按固定宽度折行的段落：哪些行在下一行接着写。只在把握较大时才认定——这一行接近全文的折行宽度、
+ * 没有以句末标点结束、不是全大写的标题；下一行缩进相同、不是列表项或编号。认不出来时各行照旧单独翻译。
+ */
+function wrappedTextLines(lines: readonly string[]): boolean[] {
+    const lengths = lines.map(line => line.trimEnd().length).filter(Boolean).sort((left, right) => left - right);
+    // 取九成位的行长当作折行宽度，个别没有折行的超长行不影响判断。
+    const width = lengths[Math.floor((lengths.length - 1) * 0.9)] ?? 0;
+    const indent = (line: string) => line.length - line.trimStart().length;
+    return lines.map((line, index) => {
+        const text = line.trim(), next = lines[index + 1]?.trim();
+        const wide = UNSPACED_SCRIPT.test(text);
+        if (!next || text.length < Math.max(wide ? 16 : 40, width * 0.7)) return false;
+        if (/[.!?:;。！？：；…][)\]"'’”）】》]*$/u.test(text) || (/\p{Lu}/u.test(text) && !/\p{Ll}/u.test(text))) return false;
+        return indent(line) === indent(lines[index + 1]) && !/^(?:[-*+•·▪◦]|\(?\w{1,3}[.)）]|（\w{1,3}）|[=_~#>|]|-{3,})(?:\s|$)/u.test(next);
+    });
+}
+
 function parseTextDocument(content: string, format: 'txt' | 'markdown', sentences = false): Pick<ParsedDocument, 'parts' | 'segments' | 'markdownCodeBlocks'> {
     const parts: DocumentPart[] = [];
     const segments: DocumentSegment[] = [];
@@ -563,6 +583,8 @@ function parseTextDocument(content: string, format: 'txt' | 'markdown', sentence
     let indented: (Container & {indent: number; block: CodeBlock}) | null = null;
     let paragraph: Container | null = null;
     let inFrontmatter = format === 'markdown' && /^\uFEFF?---\s*$/u.test(lines[0]?.text ?? '');
+    const wrapped = format === 'txt' ? wrappedTextLines(lines.map(line => line.text)) : undefined;
+    let wrapStart: number | undefined;
 
     lines.forEach((line, lineIndex) => {
         if (inFrontmatter) {
@@ -654,6 +676,15 @@ function parseTextDocument(content: string, format: 'txt' | 'markdown', sentence
             }
             (sentences ? addMarkdownSentence : addMarkdownProtectedText)(parts, segments, line.text, lineIndex);
             if (info.content) paragraph = /^#{1,6}\s/u.test(info.content) ? null : container;
+        } else if (wrapped?.[lineIndex]) {
+            // 这一行在下一行接着写：攒起来，到段落的最后一行再一起处理。
+            wrapStart ??= lineIndex;
+            return;
+        } else if (wrapStart !== undefined) {
+            // 按固定宽度折行的一段话作为一个片段翻译；折行处在送翻的原文里是空格（中日韩文字之间不留空格）。
+            addSegment(parts, segments, content.slice(lines[wrapStart].start, line.textEnd), {}, source => source.replace(/[^\S\r\n]*\r?\n[^\S\r\n]*/gu, (_, offset: number, text: string) =>
+                UNSPACED_SCRIPT.test(text[offset - 1]) && UNSPACED_SCRIPT.test(text.slice(offset).trimStart()[0]) ? '' : ' '));
+            wrapStart = undefined;
         } else {
             addSegment(parts, segments, line.text);
         }
@@ -1173,7 +1204,22 @@ function restoreSubtitleBreaks(source: string, translation: string): string {
     return chosen.reduceRight((text, index) => `${text.slice(0, index).trimEnd()}\\N${text.slice(index)}`, translation);
 }
 
-function preserveSubtitleMarkup(source: string, translation: string): string {
+/**
+ * 有的翻译服务把字幕里的样式标签改写后再返回：转成实体（&lt;i&gt; … &lt;/i&gt;），或换成括号（(i) … (/i)、（i）…（/i））。
+ * 原文里确实有同名标签时还原成标签，并去掉服务加在标签内侧的空格；括号写法还要求译文里同时有它的闭合形式，
+ * 原文没有的写法不动，避免把正文里的“&lt;”或“(a)”误当成标签。
+ */
+export function restoreSubtitleTags(source: string, translation: string): string {
+    if (!/&lt;|[(（＜]\s*\/?\s*[a-z]/iu.test(translation)) return translation;
+    const names = new Set(Array.from(source.matchAll(/<\s*\/?\s*([a-z][\w.]*)/giu), match => match[1].toLowerCase()));
+    const closed = (name: string) => new RegExp(`[(（＜]\\s*[/／]\\s*${name}\\s*[)）＞]`, 'iu').test(translation);
+    return translation.replace(/(\s?)(&lt;|[(（＜])\s*([\/／]?)\s*([a-z][\w.]*)([^&<>()（）＜＞]*?)\s*(?:&gt;|[)）＞])(\s?)/giu,
+        (whole, before: string, open: string, slash: string, name: string, rest: string, after: string) =>
+            names.has(name.toLowerCase()) && (open === '&lt;' || closed(name)) ? `${slash ? '' : before}<${slash ? '/' : ''}${name}${rest}>${slash ? after : ''}` : whole);
+}
+
+function preserveSubtitleMarkup(source: string, received: string): string {
+    const translation = restoreSubtitleTags(source, received);
     const assPrefix = source.match(/^(?:\{[^}]*\})+/u)?.[0];
     if (assPrefix && !translation.startsWith(assPrefix)) return restoreSubtitleBreaks(source, `${assPrefix}${translation}`);
 
