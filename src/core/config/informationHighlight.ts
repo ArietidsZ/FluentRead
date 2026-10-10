@@ -24,7 +24,7 @@ export interface InformationHighlightPreferences {
 }
 
 export const DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES: Readonly<InformationHighlightPreferences> = Object.freeze({
-    enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'rose', style: 'heatmap', intensity: 'standard',
+    enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'rose', style: 'heatmap', intensity: 'standard',
 });
 
 const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T => allowed.includes(value as T) ? value as T : allowed[0];
@@ -39,7 +39,7 @@ export function normalizeInformationHighlightPreferences(value: unknown): Inform
         hotkey: hotkey === '' ? '' : (typeof hotkey === 'string' && canonicalizeHotkey(hotkey)) || 'Alt+H',
         hotkeyEnabled: record.hotkeyEnabled !== false,
         mode: oneOf(record.mode, ['keywords', 'surprisal-local']),
-        density: oneOf(record.density, ['medium', 'low', 'high']),
+        density: oneOf(record.density, ['high', 'low', 'medium']),
         color: oneOf(record.color, ['rose', 'amber', 'mint', 'blue', 'violet', 'slate']),
         style: oneOf(record.style, ['heatmap', 'background', 'underline']),
         intensity: oneOf(record.intensity, ['standard', 'soft', 'strong']),

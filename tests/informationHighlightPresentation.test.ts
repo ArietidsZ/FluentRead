@@ -49,13 +49,14 @@ describe('词项热力呈现的评分与密度边界', () => {
     it('默认热力广泛柔和覆盖，三档只增加完整词项，并保留每个词的原分数和层次', () => {
         const raw = sampleScores(), snapshot = structuredClone(raw);
         const results = ['low', 'medium', 'high'].map(density => presentInformationHeatmap(sample, raw, density as 'low' | 'medium' | 'high'));
-        expect(results.map(result => result.length)).toEqual([7, 14, 16]);
-        for (let index = 0; index < 2; index++) {
-            const next = new Map(results[index + 1].map(span => [span.start, span]));
-            for (const span of results[index]) expect(next.get(span.start)).toEqual(span);
-        }
+        expect(results.map(result => result.length)).toEqual([4, 8, 16]);
+        // 词的层次不随密度变化：少只留最深的词，适中加上中间层，多把最浅的词抬到看得见的第 3 档。
+        const medium = new Map(results[1].map(span => [span.start, span])), high = new Map(results[2].map(span => [span.start, span]));
+        for (const span of results[0]) expect(medium.get(span.start)).toEqual(span);
+        for (const span of results[1]) expect(high.get(span.start)).toEqual(span);
+        expect(results.map(result => Math.min(...result.map(span => span.level)))).toEqual([5, 3, 3]);
         expect(results[2].map(span => span.score)).toEqual(raw.map(span => span.score));
-        expect(new Set(results[2].map(span => span.level)).size).toBe(8);
+        expect(new Set(results[2].map(span => span.level)).size).toBe(5);
         expect(results[2].map(span => sample.slice(span.start, span.end))).toEqual(sample.split(' '));
         expect(raw).toEqual(snapshot);
         expect(selectInformationSpans(sample, raw, 'high').reduce((size, span) => size + span.end - span.start, 0)).toBeLessThan(results[1].reduce((size, span) => size + span.end - span.start, 0));
@@ -63,10 +64,10 @@ describe('词项热力呈现的评分与密度边界', () => {
     it('同分使用同一平均秩次，单词或整段等分使用中间柔和色阶，密度仍保持选择性', () => {
         const text = 'alpha bravo charlie delta';
         const spans = sampleScores(text).map((span, index) => ({...span, score: index < 2 ? 1 : 10}));
-        expect(presentInformationHeatmap(text, spans, 'high').map(span => span.level)).toEqual([0, 0, 5, 5]);
+        expect(presentInformationHeatmap(text, spans, 'high').map(span => span.level)).toEqual([3, 3, 5, 5]);
         const equal = spans.map(span => ({...span, score: 7}));
         expect(presentInformationHeatmap(text, equal, 'high').map(span => span.level)).toEqual([3, 3, 3, 3]);
-        expect(presentInformationHeatmap(text, equal, 'low')).toHaveLength(2);
+        expect(presentInformationHeatmap(text, equal, 'low')).toHaveLength(1);
         expect(presentInformationHeatmap('alpha', [{start: 0, end: 5, score: 1000}], 'high')).toEqual([{start: 0, end: 5, score: 1000, level: 3}]);
     });
     it('极端离群值保留原分数，不挤压其它词的可辨层次或制造固定重要性阈值', () => {
