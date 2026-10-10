@@ -241,6 +241,19 @@ async function main() {
       const typed = 'A typed first page already has a real text layer.';
       scan.addPage([595, 842]).drawText(typed, {x: 60, y: 600, size: 16});
       for (let index = 0; index < 2; index++) scan.addPage([595, 842]).drawImage(picture, {x: 0, y: 0, width: 595, height: 842});
+      // 第 4 页是旋转的扫描页：横向的图像逆时针转 90 度放进竖页，再用 /Rotate 90 摆正，展示出来是横页。
+      const sideways = ['Sideways scans are turned upright first.', 'Rotated pages translate like the others.'];
+      const widePng = await page.evaluate(lines => {
+        const canvas = document.createElement('canvas'); canvas.width = 1754; canvas.height = 1240;
+        const context = canvas.getContext('2d'); context.fillStyle = '#ffffff'; context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = '#111111'; context.font = '44px Georgia, serif';
+        lines.forEach((line, index) => context.fillText(line, 130, 300 + index * 170));
+        return canvas.toDataURL('image/png').split(',')[1];
+      }, sideways);
+      const {degrees} = require('pdf-lib');
+      const turned = scan.addPage([595, 842]);
+      turned.drawImage(await scan.embedPng(Buffer.from(widePng, 'base64')), {x: 595, y: 0, width: 842, height: 595, rotate: degrees(90)});
+      turned.setRotation(degrees(90));
       const requestsBeforeScan = fixture.state.requests.length;
       await load('scanned.pdf', Buffer.from(await scan.save()));
       await page.locator('.pdf-page-row[data-page-number="1"]').waitFor();
@@ -266,8 +279,19 @@ async function main() {
       assert(scannedBlocks.every(block => block.text && block.inside), `译文块必须有内容且不超出页面：${JSON.stringify(scannedBlocks)}`);
       assert.equal(await page.locator('.pdf-translation-spinner, .pdf-translation-block.pending').count(), 0, '翻译完成后不能残留等待动画');
       await shot('scanned-translated');
-      report.scanned = {pages: 3, scannedPages: 2, recognizedSources: [...new Set(recognized)], blocksOnFirstScannedPage: scannedBlocks.length};
-      report.cases.push('a PDF with one typed page and two scanned pages opens without requests, recognises the scanned pages when translation starts, translates the typed page as usual and shows translations inside the scanned page');
+      for (const phrase of [/sideways scans are turned/iu, /rotated pages translate/iu]) assert(recognized.some(source => phrase.test(source)), `旋转扫描页的印刷文字没有被认出 ${phrase}：${JSON.stringify(recognized)}`);
+      await pageInput.fill('4'); await pageInput.press('Enter');
+      await page.locator('.pdf-page-row[data-page-number="4"] .pdf-translation-block').first().waitFor();
+      const turnedBlocks = await page.locator('.pdf-page-row[data-page-number="4"] .pdf-translation-block').evaluateAll(blocks => blocks.map(block => {
+        const frame = block.closest('.pdf-page-frame, .pdf-page-column').getBoundingClientRect(), box = block.getBoundingClientRect();
+        return {text: block.innerText.trim(), width: Math.round(box.width), height: Math.round(box.height), upright: box.width > box.height, landscape: frame.width > frame.height,
+          inside: box.left >= frame.left - 2 && box.right <= frame.right + 2 && box.top >= frame.top - 2 && box.bottom <= frame.bottom + 2};
+      }));
+      await shot('scanned-rotated-translated');
+      assert(turnedBlocks.length >= 2, `旋转扫描页上应有两段译文：${JSON.stringify(turnedBlocks)}`);
+      assert(turnedBlocks.every(block => block.text && block.inside && block.upright && block.landscape), `旋转扫描页的译文必须横排、摆正并留在页面内：${JSON.stringify(turnedBlocks)}`);
+      report.scanned = {pages: 4, scannedPages: 3, blocksOnRotatedScannedPage: turnedBlocks.length, recognizedSources: [...new Set(recognized)], blocksOnFirstScannedPage: scannedBlocks.length};
+      report.cases.push('a PDF with one typed page, two scanned pages and one rotated scanned page opens without requests, recognises the scanned pages when translation starts, translates the typed page as usual and shows upright translations inside the scanned pages');
       assert.equal(report.consoleErrors.length, 0);
       report.ok = true;
       return;

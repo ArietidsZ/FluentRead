@@ -914,7 +914,7 @@ async function renderPdf(
     // 一次复制共享资源；逐页 embedPage 会反复复制同一套字体与图片。
     const sourcePages = new Map<number, PDFEmbeddedPage>();
     const drawSourcePage = (target: ReturnType<typeof outputPdf.addPage>, source: PDFEmbeddedPage, pageData: PdfDocumentPage) => {
-        const rotation = pageData.rotation ?? 0;
+        const rotation = pageData.rotation ?? pageData.sourceRotation ?? 0;
         if (!rotation) {target.drawPage(source, {x: 0, y: 0, width: pageData.width, height: pageData.height}); return;}
         const quarterTurn = rotation === 90 || rotation === 270;
         // embedPage 只包含内容流，/Rotate 不会被嵌入；在 PDF 底部向上的坐标系中顺时针旋转并移回正象限。

@@ -108,6 +108,8 @@ export interface PdfDocumentPage {
     pageNumber: number;
     /** 保留 PDF 页面的实际展示方向；旧模型与未旋转页面可以省略。 */
     rotation?: 0 | 90 | 180 | 270;
+    /** 文字识别过的旋转扫描页：版面块已经按展示方向给出（因此不再带 rotation），这里只记下原页的旋转角，供导出时摆正嵌入的原页。 */
+    sourceRotation?: 90 | 180 | 270;
     /** 展示方向的尺寸；90/270 度时，内容坐标系的宽高与这里交换。 */
     width: number;
     height: number;

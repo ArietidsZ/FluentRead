@@ -16,22 +16,22 @@ const pdf = (pages: PdfDocumentPage[], sources: string[] = []): ParsedDocument =
 const paragraph = (tag: string): PdfOcrLine[] => [0, 1, 2].map(row => ({text: `${tag} line ${row} is a complete recognised line of ordinary body text`, x: 60, y: 100 + row * 14, width: 440, height: 12}));
 
 describe('scanned PDF recognition', () => {
-    it('lists only empty, unrotated PDF pages', () => {
-        // 文字页、旋转的扫描页和空白页都不识别；夹在文字页之间的扫描页要识别。
-        expect(pdfPagesNeedingOcr(pdf([page(1, [block(0)]), page(2), page(3, [], {rotation: 90}), page(4), page(5, [], {scanned: false})], ['kept']))).toEqual([1, 3]);
+    it('lists scanned PDF pages, rotated ones included', () => {
+        // 文字页和空白页不识别；夹在文字页之间的扫描页、旋转的扫描页都要识别。
+        expect(pdfPagesNeedingOcr(pdf([page(1, [block(0)]), page(2), page(3, [], {rotation: 90}), page(4), page(5, [], {scanned: false})], ['kept']))).toEqual([1, 2, 3]);
         expect(pdfPagesNeedingOcr({fileName: 'a.txt', format: 'txt', segments: [], parts: []} as unknown as ParsedDocument)).toEqual([]);
         expect(pdfPagesNeedingOcr(null)).toEqual([]);
     });
 
     it('recognises from the reading position, rebuilds paragraphs and renumbers every segment in page order', async () => {
-        const source = pdf([page(1), page(2, [block(0), block(-1, {kind: 'formula', preserveSource: true}), block(1, {y: 200})]), page(3), page(4, [], {rotation: 180})], ['existing first', 'existing second']);
+        const source = pdf([page(1), page(2, [block(0), block(-1, {kind: 'formula', preserveSource: true}), block(1, {y: 200})]), page(3), page(4, [], {rotation: 180, scanned: false})], ['existing first', 'existing second']);
         const before = JSON.stringify(source);
         const recognize = vi.fn(async ({pageNumber}: {pageNumber: number}) => pageNumber === 1
             ? [...paragraph('First'), {text: '   ', x: 60, y: 300, width: 40, height: 12}, {text: 'ghost', x: 60, y: 320, width: 0, height: 12}, {text: 'flat', x: 60, y: 340, width: 40, height: 0}]
             : [{text: 'A  short\nheading', x: 60, y: 80, width: 120, height: 22}, ...paragraph('Third')]);
         const progress: Array<[number, number]> = [];
         const result = await recognizePdfDocument(source, recognize, {startPage: 2, onProgress: ({completed, total}) => progress.push([completed, total])});
-        // 从第 3 页（下标 2）开始，回绕到第 1 页；已有文字的页和旋转页不识别。
+        // 从第 3 页（下标 2）开始，回绕到第 1 页；已有文字的页和空白页不识别。
         expect(recognize.mock.calls.map(([input]) => input.pageNumber)).toEqual([3, 1]);
         expect(recognize.mock.calls[0][0]).toMatchObject({width: 600, height: 800, bytes: new Uint8Array([1, 2, 3])});
         expect(progress).toEqual([[0, 2], [1, 2], [2, 2]]);
@@ -45,10 +45,24 @@ describe('scanned PDF recognition', () => {
         expect(pages[0].blocks[0]).toMatchObject({segmentIndex: 0, lineCount: 3});
         expect(pages[1].blocks.map(entry => [entry.segmentIndex, entry.kind, entry.y])).toEqual([[1, undefined, 60], [-1, 'formula', 60], [2, undefined, 200]]);
         expect(pages[2].blocks.find(entry => entry.segmentIndex === 3)?.kind).toBe('heading');
-        // 识别过的页不再是扫描页，已有文字的页与旋转页的标记不变。
-        expect(pages.map(entry => entry.scanned)).toEqual([false, undefined, false, true]);
+        // 识别过的页不再是扫描页，已有文字的页与空白页的标记不变。
+        expect(pages.map(entry => entry.scanned)).toEqual([false, undefined, false, false]);
+        expect(pages.map(entry => [entry.rotation, entry.sourceRotation])).toEqual([[undefined, undefined], [undefined, undefined], [undefined, undefined], [180, undefined]]);
         expect(pdfPagesNeedingOcr(result)).toEqual([]);
         expect(JSON.stringify(source)).toBe(before);
+    });
+
+    it('recognises a rotated scan in its display orientation and keeps the page angle only for export', async () => {
+        // 展示方向是 800×600 的横页；识别器收到展示尺寸，返回的也是展示坐标。
+        const source = pdf([{...page(1, [], {rotation: 90}), width: 800, height: 600}]);
+        const recognize = vi.fn(async (_input: unknown) => paragraph('Sideways'));
+        const result = await recognizePdfDocument(source, recognize);
+        expect((recognize.mock.calls as any[])[0][0]).toMatchObject({pageNumber: 1, width: 800, height: 600});
+        const [recognised] = (result.binary as {pages: PdfDocumentPage[]}).pages;
+        expect(recognised).toMatchObject({width: 800, height: 600, sourceRotation: 90, scanned: false, segmentIndexes: [0]});
+        expect('rotation' in recognised).toBe(false);
+        expect(recognised.blocks[0]).toMatchObject({segmentIndex: 0, lineCount: 3, x: 60});
+        expect(pdfPagesNeedingOcr(result)).toEqual([]);
     });
 
     it('starts from the first empty page by default and returns the same document when nothing needs recognition', async () => {
