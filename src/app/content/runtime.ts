@@ -53,6 +53,7 @@ import {installContentPageLifecycle, waitForContentDocument} from './pageLifecyc
 import {syncBilingualSentenceHighlight} from './bilingualSentenceHighlight';
 import {applyCoreTranslationPreferences, createContentSiteAdaptationRuntime} from './siteAdaptationRuntime';
 import {createOptionalContentFeatureRuntime, type OptionalContentFeatureRuntime} from './optionalFeatures';
+import {createPageInformationHighlightRuntime} from './informationHighlight';
 export async function startContentApp(ctx: ContentScriptContext,
     capabilities: BrowserCapabilities = browserCapabilities): Promise<void> {
     if (isRawXmlContentDocument(document) || ctx.isInvalid) return;
@@ -82,6 +83,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     let removePageStyles: (() => void) | null = null;
     let inputBoxConfigGeneration = 0;
     let previousInputBoxConfigKey = inputBoxTranslationConfigKey(config);
+    const informationHighlight = import.meta.env.BROWSER === 'userscript' ? undefined : createPageInformationHighlightRuntime({document, config, send: message => browser.runtime.sendMessage(message), canToggle: () => !currentPageSiteDisabled && !pageLifecycle.isSuspended()});
     const hotkeys = createContentHotkeyRuntime(() => currentPageSiteDisabled);
     const inputTranslationFeature = createInputTranslationContentFeature({
         context: ctx,
@@ -185,6 +187,7 @@ export async function startContentApp(ctx: ContentScriptContext,
                 unmount: unmountTranslationProgressPanel,
                 isMounted: () => Boolean(document.getElementById('fluent-read-translation-status-container')),
             },
+            ...(import.meta.env.BROWSER === 'userscript' ? [] : [informationHighlight!.feature]),
         ], {capabilities,
             onError: (featureId, phase, error) => {
                 console.error(`[FluentRead] 内容功能 ${featureId} ${phase} 失败:`, error);
@@ -218,6 +221,7 @@ export async function startContentApp(ctx: ContentScriptContext,
     document.addEventListener('fluentread-route-change', () => {
         if (currentRouteHref === window.location.href) return;
         currentRouteHref = window.location.href;
+        informationHighlight?.routeChanged();
         siteAdaptation.routeChanged(new URL(window.location.href));
         resetPageTranslationContextCache(); resetFullPageTranslationRouteState();
         pageAvailability!.syncVideoSubtitlePage();
@@ -239,13 +243,14 @@ export async function startContentApp(ctx: ContentScriptContext,
     };
     runtimeMessageListener = createContentRuntimeMessageHandler(ctx, {
         isSiteDisabled: () => currentPageSiteDisabled, updateSiteDisabled: applySiteDisabledState,
-        isPageSuspended: pageLifecycle.isSuspended,
+        isPageSuspended: pageLifecycle.isSuspended, ...(import.meta.env.BROWSER === 'userscript' ? {} : {informationHighlight}),
     }, capabilities);
     runtimeMessages.addListener(runtimeMessageListener);
     void reportSiteDisabledState();
     unsubscribeContentConfig = subscribeConfig((nextConfig) => {
         void ensureUiLanguageBundle(nextConfig.uiLanguage); applyCoreTranslationPreferences(nextConfig);
         siteAdaptation.update(nextConfig.siteAdaptation, new URL(window.location.href));
+        informationHighlight?.updatePreferences(nextConfig.informationHighlight);
         syncBilingualSentenceHighlight(document, isPageRuntimeEnabled() && nextConfig.bilingualSentenceHighlightEnabled === true, nextConfig.bilingualSentenceHighlightStyle, nextConfig.bilingualSentenceHighlightAppearance);
         const nextInputBoxConfigKey = inputBoxTranslationConfigKey(nextConfig);
         if (nextInputBoxConfigKey !== previousInputBoxConfigKey) {

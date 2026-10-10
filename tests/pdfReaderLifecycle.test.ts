@@ -5,6 +5,9 @@ import PdfReader from '@/src/features/document-translation/ui/PdfReader.vue';
 import type {ParsedDocument, PdfDocumentPage} from '@/src/features/document-translation/core/document';
 import {createPdfReaderRenderPort, PDF_READER_MAX_CANVAS_EDGE, PDF_READER_MAX_PAGE_PIXELS, PDF_READER_MAX_RESIDENT_PAGES, pdfReaderCanvasSize, pdfReaderDisplayRect, pdfReaderPageHasTranslation, pdfReaderPageKey, pdfReaderPageWindow, PdfReaderScheduler, type PdfReaderPageState, type PdfReaderRenderedPage, type PdfReaderSettings} from '@/src/features/document-translation/ui/pdfReader';
 import {acquirePdfDocument, releasePdfDocument} from '@/src/features/document-translation/ui/pdfPreview';
+import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES} from '@/src/core/config/informationHighlight';
+import {scoreInformationKeywords} from '@/src/features/information-highlight/domain/keywords';
+import {INFORMATION_HIGHLIGHT_NAME} from '@/src/features/information-highlight/public';
 
 const ports = vi.hoisted(() => ({getDocument: vi.fn(), textLayers: [] as any[], textPending: undefined as any}));
 vi.mock('@/src/ui/i18n', () => ({useUiI18n: () => ({t: (key: string, params?: {page?: number}) => params?.page ? `${key}:${params.page}` : key})}));
@@ -324,9 +327,10 @@ describe('PDF reader actual PDF.js resource adapter', () => {
     });
 });
 
-function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = []) {
+function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = [], information?: {preferences: typeof DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES; scoreLocal: (text: string, signal: AbortSignal) => Promise<any>; available: boolean}) {
     const currentDocument = ref(value); const currentMode = ref(mode); const currentTranslations = ref(translations);
     const currentPresentation = ref<'readable' | 'layout'>('readable'); const presentations: string[] = [];
+    const currentInformation = ref(information);
     const renderer = createRenderer<any, any>({
         createElement: tag => document.createElement(tag), createText: value => document.createTextNode(value), createComment: value => document.createComment(value),
         setText: (node, value) => {node.nodeValue = value;}, setElementText: (node, value) => {node.textContent = value;},
@@ -336,21 +340,102 @@ function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings
             if (key.startsWith('on')) {if (key.includes(':')) return; const name = key.slice(2).replace(/(?:Once|Passive|Capture)+$/, '').toLowerCase(); if (previous) element.removeEventListener(name, previous); if (value) element.addEventListener(name, value);}
             else if (key === 'style') {for (const [name, entry] of Object.entries(value || {})) element.style.setProperty(name, String(entry));}
             else if (key === 'value') element.value = value;
-            else if (value == null || value === false) element.removeAttribute(key);
+            else if (value == null || (value === false && !key.startsWith('aria-'))) element.removeAttribute(key);
             else element.setAttribute(key, String(value));
         },
     });
     const root = document.createElement('div'); document.body.append(root);
     mountedApp = renderer.createApp({setup: () => () => h(PdfReader, {document: currentDocument.value, translations: currentTranslations.value, mode: currentMode.value, presentation: currentPresentation.value,
-        'onUpdate:presentation': value => {presentations.push(value); currentPresentation.value = value;}, sourceUrl: 'https://arxiv.org/pdf/1706.03762'})});
+        'onUpdate:presentation': value => {presentations.push(value); currentPresentation.value = value;}, sourceUrl: 'https://arxiv.org/pdf/1706.03762', informationHighlight: currentInformation.value})});
     mountedApp.mount(root);
     const state = mountedApp._instance.subTree.component.setupState;
     const viewport = root.querySelector('[data-pdf-scroll]') as HTMLElement;
     Object.defineProperties(viewport, {clientWidth: {value: 920, writable: true}, clientHeight: {value: 600, writable: true}});
-    return {root, viewport, state, currentDocument, currentMode, currentTranslations, currentPresentation, presentations};
+    return {root, viewport, state, currentDocument, currentMode, currentTranslations, currentPresentation, presentations, currentInformation};
 }
 async function componentFlush(): Promise<void> {for (let index = 0; index < 12; index += 1) {await nextTick(); await Promise.resolve();}}
 function flushFrames(): void {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0));}
+
+function nativeInformationPaint() {
+    const original = document.defaultView!; const registry = new Map<string, Set<Range>>();
+    Object.defineProperty(document, 'defaultView', {configurable: true, value: new Proxy(original, {get(target, key) {
+        if (key === 'CSS') return {highlights: registry}; if (key === 'Highlight') return Set;
+        if (key === 'requestAnimationFrame' || key === 'cancelAnimationFrame') return (win as any)[key];
+        if (key === 'innerHeight') return 720;
+        if (key === 'getComputedStyle') return (element: HTMLElement) => ({display: element.style.display || 'inline', visibility: 'visible'});
+        return Reflect.get(target, key);
+    }})});
+    document.createRange = () => {let text: Text, start = 0, end = 0; return {setStart(node: Text, value: number) {text = node; start = value;}, setEnd(_node: Text, value: number) {end = value;}, toString() {return text.data.slice(start, end);}} as unknown as Range;};
+    return registry;
+}
+function clickInformation(root: HTMLElement): void {const event = document.createEvent('Event'); event.initEvent('click', true, true); root.querySelector('.pdf-information-highlight')!.dispatchEvent(event);}
+
+describe('PDF reader information highlight composition', () => {
+    it('starts by explicit action, independently scores selectable original and translated text, and cleans paint across zoom and document replacement', async () => {
+        const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const reader = mountReader(model(8), 'bilingual', Array(8).fill('Translated paragraphs preserve readable scientific vocabulary.'), {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true});
+        await componentFlush(); flushFrames(); await componentFlush();
+        expect(score).not.toHaveBeenCalled(); expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('false');
+        const before = reader.viewport.innerHTML;
+        clickInformation(reader.root);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        expect(score.mock.calls.some(([text]) => text === 'Original PDF words')).toBe(true);
+        expect(score.mock.calls.some(([text]) => text.includes('Translated paragraphs'))).toBe(true);
+        expect(registry.get(INFORMATION_HIGHLIGHT_NAME)!.size).toBeGreaterThan(0); expect(reader.viewport.innerHTML).toBe(before);
+        reader.state.zoom = '1.5'; await componentFlush(); expect(registry.get(INFORMATION_HIGHLIGHT_NAME)?.size ?? 0).toBe(0);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        reader.currentInformation.value = {...reader.currentInformation.value!, available: false}; await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, available: true}; await componentFlush(); clickInformation(reader.root); await componentFlush();
+        reader.currentDocument.value = model(2); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(document.querySelector('[data-fr-information-highlight-style]')).toBeNull();
+    });
+    it('follows the saved switch on open and on document replacement while the toolbar still toggles the current document', async () => {
+        const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const painted = () => [...registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME)).reduce((total, [, paint]) => total + paint.size, 0);
+        const reader = mountReader(model(2), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, enabled: true}, scoreLocal: score, available: true});
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('true'); expect(painted()).toBeGreaterThan(0);
+        expect(score).not.toHaveBeenCalled();
+        clickInformation(reader.root); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, color: 'mint'}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentDocument.value = model(2);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, enabled: false}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush();
+    });
+    it('toggles the current document with the configured shortcut and ignores it when disabled, repeated, untrusted or unavailable', async () => {
+        nativeInformationPaint(); const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const reader = mountReader(model(2), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, scoreLocal: score, available: true});
+        await componentFlush(); flushFrames(); await componentFlush();
+        const press = (init: Record<string, unknown> = {}, trusted = true) => {
+            const event = document.createEvent('Event'); event.initEvent('keydown', true, true);
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false, ...init});
+            Object.defineProperty(event, 'isTrusted', {value: trusted}); document.dispatchEvent(event); return event;
+        };
+        expect(press().defaultPrevented).toBe(true); await componentFlush(); expect(reader.state.informationState.enabled).toBe(true);
+        for (const ignored of [press({}, false), press({repeat: true}), press({key: 'j', code: 'KeyJ'})]) expect(ignored.defaultPrevented).toBe(false);
+        expect(reader.state.informationState.enabled).toBe(true);
+        press(); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, hotkeyEnabled: false}}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, available: false}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(press().defaultPrevented).toBe(false);
+    });
+    it('aborts pending model scoring on document change and rejects stale text-layer results', async () => {
+        const registry = nativeInformationPaint(), pending = deferred<any>(), signals: AbortSignal[] = [];
+        const score = vi.fn((_text: string, signal: AbortSignal) => {signals.push(signal); return pending.promise;});
+        const reader = mountReader(model(), 'source', [], {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true});
+        await componentFlush(); flushFrames(); await componentFlush(); clickInformation(reader.root);
+        await vi.waitFor(() => {flushFrames(); expect(score).toHaveBeenCalledOnce();});
+        reader.currentDocument.value = model(); await componentFlush(); expect(signals[0].aborted).toBe(true);
+        pending.resolve(scoreInformationKeywords('Original PDF words')); await componentFlush(); flushFrames(); await componentFlush();
+        expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = undefined; await componentFlush(); expect(reader.root.querySelector('.pdf-information-highlight')).toBeNull();
+    });
+});
 
 describe('PDF reader actual Vue component reading interaction', () => {
     it.each([60, 120])('preserves page %i through narrow 120-page reading mode switches before the browser clamps a shorter document', async pageNumber => {

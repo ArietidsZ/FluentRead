@@ -125,6 +125,7 @@
           v-model:presentation="pdfPresentation"
           :mode="effectivePreviewMode"
           :source-url="documentQueue.find(item => item.id === activeDocumentId)?.sourceUrl"
+          :information-highlight="{preferences: config.informationHighlight, scoreLocal: scoreDocumentInformation, available: config.on && hydrated && readerTab === 'read'}"
         />
 
         <section
@@ -345,6 +346,7 @@ import browser from 'webextension-polyfill';
 import {
   Config,
   PdfReader,
+  scoreDocumentInformation,
   hasDistinctTranslation,
   TranslationRequestError,
   buildGlossaryRevision,

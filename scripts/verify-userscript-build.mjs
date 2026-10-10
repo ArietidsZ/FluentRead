@@ -10,7 +10,9 @@ const source = fs.readFileSync(artifactPath, 'utf8');
 const artifactBytes = Buffer.byteLength(source);
 // 合入 PDF 与字幕更新并修正语言资源固定提交后，本轮 UI 产物实测 1,963,242 字节；
 // 相对 main 的 1,960,000 字节预算增加 4 KB，继续校验协议、体积和运行边界。
-const MAX_USERSCRIPT_BYTES = 1_964_000;
+// 智能高亮的共享偏好（快捷键、开关、配色与浓度的归一化）使脚本增至 1,964,630 字节；功能本身不进入脚本。
+// 为保持与扩展的配置导入导出兼容，预算再放宽 1 KB。
+const MAX_USERSCRIPT_BYTES = 1_965_000;
 const preludeStartMarker = '/* FluentRead userscript compatibility prelude:start */';
 const preludeEndMarker = '/* FluentRead userscript compatibility prelude:end */';
 const preludeStart = source.indexOf(preludeStartMarker);

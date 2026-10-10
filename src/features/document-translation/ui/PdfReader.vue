@@ -1,7 +1,7 @@
 <!--
  @file src/features/document-translation/ui/PdfReader.vue
  文件职责：显示可划词 PDF 原页和完整可复制的清晰译文，并保留原版面预览的可选入口。
- 主要内容：清晰阅读按统一计划显示完整段落与公式图表原图，不压缩或裁剪译文；动态测量页面高度并保留阅读位置，只挂载附近五页；源 Canvas 与译文更新独立，页码跳转、缩放、重试和卸载释放所有页面资源。
+ 主要内容：清晰阅读按统一计划显示完整段落与公式图表原图，不压缩或裁剪译文；动态测量页面高度并保留阅读位置，只挂载附近五页；源 Canvas 与译文更新独立，页码跳转、缩放、重试和卸载释放页面资源；显式开启的信息高亮只评分真实可选文字，配置、页面和文档失效时取消旧绘制。
  模块边界：组件只组织阅读布局与页面调度，文档由组合根导入、翻译由既有服务提供，划词交互由页面组合根复用统一翻译卡。
 -->
 <template>
@@ -14,6 +14,8 @@
         <button type="button" :aria-label="t('document.pdfReading.nextPage')" :disabled="currentPage >= pages.length" @click="jumpTo(currentPage + 1)">›</button>
       </div>
       <span class="pdf-selection-hint">{{ t('document.pdfReading.selectionHint') }}</span>
+      <button v-if="informationHighlight" class="pdf-information-highlight" type="button" :aria-pressed="informationState.enabled" :disabled="!informationHighlight.available" @click="informationController?.setEnabled(!informationState.enabled)">{{ t('informationHighlight.title') }}</button>
+      <span v-if="informationState.enabled" class="pdf-information-status" role="status" :title="t('informationHighlight.progress', {paragraphs: informationState.processedParagraphs, spans: informationState.highlightedSpans})">{{ t(`informationHighlight.phase.${informationState.phase}`) }} <button v-if="informationState.phase === 'error'" type="button" @click="informationController?.retry()">{{ t('informationHighlight.retry') }}</button></span>
       <label class="pdf-presentation-control"><span>{{ t('document.pdfReading.presentationLabel') }}</span><select v-model="presentation" :aria-label="t('document.pdfReading.presentationLabel')" @change="emit('update:presentation', presentation)"><option value="readable">{{ t('document.pdfReading.readablePresentation') }}</option><option value="layout">{{ t('document.pdfReading.layoutPresentation') }}</option></select></label>
       <label class="pdf-zoom-control"><span>{{ t('document.pdfReading.zoom') }}</span><select v-model="zoom" :aria-label="t('document.pdfReading.zoomLabel')"><option value="fit">{{ t('document.pdfReading.fitWidth') }}</option><option value="1">100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></label>
     </div>
@@ -60,8 +62,12 @@ import {useUiI18n} from '@/src/ui/i18n';
 import type {ParsedDocument, PdfDocumentPage} from '@/src/features/document-translation/core/document';
 import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation, type PdfReadingTextEntry} from '@/src/features/document-translation/core/pdfReadingPlan';
 import {createPdfReaderRenderPort, pdfReaderPageHasTranslation, pdfReaderPageKey, pdfReaderPageWindow, PdfReaderScheduler, type PdfReaderMode, type PdfReaderPageState} from '@/src/features/document-translation/ui/pdfReader';
+import {installInformationHighlight, type InformationHighlightController} from '@/src/features/information-highlight/public';
+import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, type InformationHighlightPreferences} from '@/src/core/config/informationHighlight';
+import {matchesConfiguredHotkey} from '@/src/core/hotkey';
+import type {InformationHighlightResult, InformationHighlightState} from '@/src/features/information-highlight/protocol';
 
-const props = withDefaults(defineProps<{document: ParsedDocument; translations?: readonly string[]; mode: PdfReaderMode; sourceUrl?: string; presentation?: PdfReadingPresentation}>(), {translations: () => [], sourceUrl: '', presentation: 'readable'});
+const props = withDefaults(defineProps<{document: ParsedDocument; translations?: readonly string[]; mode: PdfReaderMode; sourceUrl?: string; presentation?: PdfReadingPresentation; informationHighlight?: {preferences: InformationHighlightPreferences; scoreLocal(text: string, signal: AbortSignal): Promise<InformationHighlightResult>; available: boolean}}>(), {translations: () => [], sourceUrl: '', presentation: 'readable'});
 const emit = defineEmits<{ 'update:presentation': [value: PdfReadingPresentation] }>();
 function paragraphClasses(entry: PdfReadingTextEntry): Record<string, boolean> {
   return {'pdf-reading-heading': entry.role === 'heading', 'pdf-reading-caption': entry.role === 'caption', 'pdf-reading-metadata': entry.role === 'metadata', 'pdf-reading-footer': entry.role === 'footer', 'pdf-reading-untranslated': !entry.translated};
@@ -70,6 +76,31 @@ const presentation = ref<PdfReadingPresentation>(props.presentation);
 watch(() => props.presentation, value => {presentation.value = value;});
 const {t} = useUiI18n();
 const viewport = ref<HTMLElement>();
+let informationController: InformationHighlightController | undefined, informationWanted = false;
+const informationState = shallowRef<InformationHighlightState>({enabled: false, phase: 'idle', sessionId: '0', processedParagraphs: 0, queuedParagraphs: 0, highlightedSpans: 0, mode: props.informationHighlight?.preferences.mode ?? DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES.mode});
+/** 与网页相同的快捷键开关当前文档，等同于点击工具栏按钮。 */
+function handleInformationHotkey(event: KeyboardEvent): void {
+  const settings = props.informationHighlight;
+  if (!event.isTrusted || event.repeat || !settings?.available || !settings.preferences.hotkeyEnabled || !informationController
+    || !matchesConfiguredHotkey(event, 'custom', settings.preferences.hotkey)) return;
+  event.preventDefault(); event.stopPropagation();
+  informationController.setEnabled(!informationState.value.enabled);
+}
+function syncInformationHighlight(): void {
+  const settings = props.informationHighlight;
+  if (!settings || !viewport.value) {informationController?.dispose(); informationController = undefined; informationWanted = false; return;}
+  informationController ??= installInformationHighlight(viewport.value.ownerDocument, settings.preferences, {
+    scope: viewport.value, isCurrent: () => !closed && Boolean(props.informationHighlight?.available),
+    scoreLocal: (text, signal) => props.informationHighlight!.scoreLocal(text, signal), changed: state => {informationState.value = state;},
+  });
+  informationController.updatePreferences(settings.preferences);
+  // 设置中的开关决定文档打开时的初始状态；工具栏按钮只临时切换当前文档。
+  const wanted = settings.available && settings.preferences.enabled;
+  if (!settings.available) informationController.setEnabled(false);
+  else if (wanted !== informationWanted) informationController.setEnabled(wanted);
+  informationWanted = wanted;
+}
+watch(() => [props.informationHighlight?.available, props.informationHighlight?.preferences.enabled, props.informationHighlight?.preferences.mode, props.informationHighlight?.preferences.density, props.informationHighlight?.preferences.color, props.informationHighlight?.preferences.style, props.informationHighlight?.preferences.intensity], syncInformationHighlight, {flush: 'post'});
 const zoom = ref('fit');
 const pageInput = ref(1);
 const currentPage = ref(1);
@@ -300,7 +331,8 @@ function createScheduler(): void {
   currentPage.value = pageInput.value = 1;
   updateViewport();
 }
-watch(() => props.document, () => {if (mounted) createScheduler();}, {flush: 'post'});
+watch(() => props.document, () => {informationController?.setEnabled(false); informationWanted = false; if (mounted) {createScheduler(); syncInformationHighlight();}}, {flush: 'post'});
+watch([zoom, presentation, () => props.mode], () => informationController?.refresh(), {flush: 'pre'});
 watch([presentation, () => props.translations, () => props.mode], () => {if (mounted) scheduleViewport();}, {flush: 'post'});
 // 在 DOM 更新前记录可见段落；新译文或换行只移动其前后的内容，不能把同页阅读点按比例移走。
 watch([readingPlans, zoom, presentation, viewportWidth, () => props.mode], () => {
@@ -330,9 +362,11 @@ watch(layouts, async (_next, previous) => {
 }, {flush: 'pre'});
 onMounted(() => {
   mounted = true;
+  syncInformationHighlight();
   viewportWidth.value = viewport.value?.clientWidth || 920;
   createScheduler();
   globalThis.document.addEventListener('selectionchange', handleSelectionChange);
+  globalThis.document.addEventListener('keydown', handleInformationHotkey, true);
   globalThis.document.addEventListener('pointerdown', handlePointerDown, true);
   globalThis.document.addEventListener('pointerup', handlePointerUp, true);
   globalThis.document.body.addEventListener('fluentread-pdf-selection-range-change', handleCardRange);
@@ -348,9 +382,11 @@ onMounted(() => {
 });
 onBeforeUnmount(() => {
   closed = true;
+  informationController?.dispose(); informationController = undefined;
   readingUpdateGeneration += 1;
   observer?.disconnect();
   globalThis.document.removeEventListener('selectionchange', handleSelectionChange);
+  globalThis.document.removeEventListener('keydown', handleInformationHotkey, true);
   globalThis.document.removeEventListener('pointerdown', handlePointerDown, true);
   globalThis.document.removeEventListener('pointerup', handlePointerUp, true);
   globalThis.document.body.removeEventListener('fluentread-pdf-selection-range-change', handleCardRange);
@@ -371,6 +407,11 @@ onBeforeUnmount(() => {
 .pdf-page-navigation input {width: 56px; padding: 5px; border: 1px solid var(--line); border-radius: 6px; text-align: center; color: inherit; background: transparent;}
 .pdf-control-label, .pdf-page-total, .pdf-zoom-control, .pdf-presentation-control {font-size: 12px;}
 .pdf-selection-hint {flex: 1; color: var(--muted); font-size: 12px;}
+.pdf-information-highlight, .pdf-information-status button {padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: inherit; font-size: 12px; cursor: pointer;}
+.pdf-information-highlight[aria-pressed="true"] {border-color: var(--brand); color: var(--brand-strong); background: var(--brand-soft);}
+.pdf-information-highlight:focus-visible, .pdf-information-status button:focus-visible {outline: 2px solid var(--brand); outline-offset: 2px;}
+.pdf-information-highlight:disabled {opacity: .4; cursor: default;}
+.pdf-information-status {font-size: 12px; color: var(--muted);}
 .pdf-zoom-control select, .pdf-presentation-control select {max-width: 120px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: inherit;}
 .pdf-page-scroll {flex: 1; height: 0; min-height: 0; overflow: auto; background: var(--surface-soft); overscroll-behavior: contain; scrollbar-gutter: stable; overflow-anchor: none;}
 .pdf-page-list {position: relative; min-width: 100%;}

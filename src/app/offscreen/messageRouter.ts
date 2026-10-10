@@ -28,6 +28,10 @@ import {
 export type OffscreenSendResponse = (response: unknown) => void;
 
 export interface OffscreenMessageDependencies {
+    readonly informationHighlight?: {
+        status(): Promise<unknown>; prepare(): Promise<unknown>; pause(): Promise<unknown>; remove(): Promise<unknown>;
+        score(text: string, signal: AbortSignal): Promise<unknown>;
+    };
     /** 生产组合根注入自身扩展 ID，TTS 播放控制仅接受同扩展且无 tab 的发送方。 */
     readonly runtimeId?: string;
     readonly translate: (data: unknown, signal: AbortSignal) => Promise<string>;
@@ -277,6 +281,8 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
     const ttsAdmission = createSelectionTtsPlaybackAdmission();
     const activeChromeTranslations = new Map<string, AbortController>();
     const activeLocalTranslations = new Map<string, AbortController>();
+    const activeInformationHighlights = new Map<string, AbortController>();
+    const cancelledInformationHighlights = new Set<string>();
     const activeLocalTts = new Map<string, AbortController>();
     let removingOcrModels = false;
     const activeImageOperations = new Map<string, AbortController>();
@@ -324,6 +330,33 @@ export function createOffscreenMessageListener(dependencies: OffscreenMessageDep
     return (message, sender, sendResponse) => {
         if (!isRecord(message) || typeof message.type !== 'string') return false;
         if (message.target !== 'offscreen') return false;
+        if (typeof message.type === 'string' && message.type.startsWith('INFORMATION_HIGHLIGHT_')) {
+            const source = sender as {id?: string; tab?: unknown};
+            if (source?.id !== dependencies.runtimeId || source.tab || !dependencies.informationHighlight) {
+                sendResponse({success: false, error: 'INFORMATION_HIGHLIGHT_UNTRUSTED_SENDER'}); return true;
+            }
+            const feature = dependencies.informationHighlight;
+            const commands: Record<string, () => Promise<unknown>> = {
+                INFORMATION_HIGHLIGHT_STATUS_OFFSCREEN: () => feature.status(), INFORMATION_HIGHLIGHT_PREPARE_OFFSCREEN: () => feature.prepare(),
+                INFORMATION_HIGHLIGHT_PAUSE_OFFSCREEN: () => feature.pause(), INFORMATION_HIGHLIGHT_REMOVE_OFFSCREEN: () => feature.remove(),
+            };
+            if (commands[message.type]) {respondWith(commands[message.type], sendResponse, status => ({success: true, status})); return true;}
+            let requestId: string;
+            try {requestId = requiredRequestId(message.requestId);}
+            catch (error) {sendResponse({success: false, error: errorMessage(error)}); return true;}
+            if (message.type === 'INFORMATION_HIGHLIGHT_CANCEL_OFFSCREEN') {
+                cancelRequest(activeInformationHighlights, message, sendResponse, id => {
+                    cancelledInformationHighlights.add(id);
+                    if (cancelledInformationHighlights.size > 512) cancelledInformationHighlights.delete(cancelledInformationHighlights.values().next().value!);
+                }); return true;
+            }
+            if (message.type !== 'INFORMATION_HIGHLIGHT_SCORE_OFFSCREEN' || typeof message.text !== 'string' || !message.text || message.text.length > 12_000
+                || activeInformationHighlights.has(requestId)) {sendResponse({success: false, error: 'INFORMATION_HIGHLIGHT_INVALID_REQUEST'}); return true;}
+            if (cancelledInformationHighlights.delete(requestId)) {sendResponse({success: false, error: '信息高亮已取消'}); return true;}
+            runCancellableRequest(activeInformationHighlights, requestId, sendResponse, '信息高亮已取消',
+                signal => feature.score(message.text as string, signal), result => ({success: true, result}), error => ({success: false, error: errorMessage(error)}));
+            return true;
+        }
         if (dependencies.runtimeId !== undefined
             && ['READ_SELECTION_TTS_REVISION', 'RESERVE_SELECTION_TTS', 'PLAY_SELECTION_TTS', 'STOP_SELECTION_TTS', 'SEEK_SELECTION_TTS'].includes(message.type)
             && (!isRecord(sender) || sender.id !== dependencies.runtimeId || sender.tab !== undefined)) {

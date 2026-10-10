@@ -920,12 +920,12 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
 
 // 配置订阅是内容功能的唯一状态来源；避免无 revision 的广播晚到后覆盖新快照。
 function openDrawer(name: DrawerName) {if (!popupContext.active.value || (!config.value.on && name !== 'services' && name !== 'aiContext')) return;activeDrawer.value = name;drawerMounted.value = true;drawerVisible.value = true;}
-async function openOptions(section?: SettingsSection) {
+async function openOptions(section?: SettingsSection, target?: string) {
   if (!popupContext.active.value) return;
   const current = popupContext.capture();
   try {
     if (section) {
-      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}#${section}` });
+      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}${target ? `?target=${encodeURIComponent(target)}` : ''}#${section}` });
     } else {
       await browser.runtime.openOptionsPage();
     }

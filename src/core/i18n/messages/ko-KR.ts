@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/ko-KR.json';
 import settingsCopyText from './settings-copy/ko-KR.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     ...pdfReadingMessages['ko-KR'],
+    ...informationHighlightMessages['ko-KR'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "출처 요청 헤더 제거",

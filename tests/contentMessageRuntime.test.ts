@@ -107,6 +107,28 @@ beforeEach(() => {
 });
 
 describe('内容脚本 runtime 消息协议', () => {
+    it('信息高亮状态在暂停或关闭时仍可读，关闭可抢占，开启和重试遵循当前页面门禁', async () => {
+        const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
+        const respond = vi.fn(); let disabled = false, suspended = false, invalid = false;
+        const snapshot = {enabled: false, phase: 'idle', sessionId: '0', processedParagraphs: 0, queuedParagraphs: 0, highlightedSpans: 0, mode: 'keywords'} as const;
+        const feature = {getState: vi.fn(() => snapshot), setEnabled: vi.fn((enabled: boolean) => ({...snapshot, enabled})), retry: vi.fn(() => snapshot)};
+        const handler = createContentRuntimeMessageHandler({get isInvalid() {return invalid;}} as ContentScriptContext, {
+            isSiteDisabled: () => disabled, isPageSuspended: () => suspended, updateSiteDisabled: vi.fn(), informationHighlight: feature,
+        });
+        expect(handler({type: 'SET_INFORMATION_HIGHLIGHT_ENABLED', enabled: 'true'}, {}, respond)).toBe(false);
+        for (const restriction of ['config', 'site', 'suspend', 'context']) {
+            mocks.config.on = restriction !== 'config'; disabled = restriction === 'site'; suspended = restriction === 'suspend'; invalid = restriction === 'context';
+            handler({type: 'GET_INFORMATION_HIGHLIGHT_STATE'}, {}, respond); expect(respond).toHaveBeenLastCalledWith({success: true, state: snapshot});
+            handler({type: 'SET_INFORMATION_HIGHLIGHT_ENABLED', enabled: true}, {}, respond); expect(respond).toHaveBeenLastCalledWith({success: false, state: snapshot, error: 'INFORMATION_HIGHLIGHT_PAGE_DISABLED'});
+            handler({type: 'RETRY_INFORMATION_HIGHLIGHT'}, {}, respond); expect(feature.retry).not.toHaveBeenCalled();
+            handler({type: 'SET_INFORMATION_HIGHLIGHT_ENABLED', enabled: false}, {}, respond); expect(respond).toHaveBeenLastCalledWith({success: true, state: snapshot});
+        }
+        mocks.config.on = true; disabled = suspended = invalid = false;
+        handler({type: 'SET_INFORMATION_HIGHLIGHT_ENABLED', enabled: true}, {}, respond); expect(respond).toHaveBeenLastCalledWith({success: true, state: {...snapshot, enabled: true}});
+        handler({type: 'RETRY_INFORMATION_HIGHLIGHT'}, {}, respond); expect(feature.retry).toHaveBeenCalledOnce();
+        const unavailable = createContentRuntimeMessageHandler({} as ContentScriptContext, {isSiteDisabled: () => false, updateSiteDisabled: vi.fn()});
+        unavailable({type: 'GET_INFORMATION_HIGHLIGHT_STATE'}, {}, respond); expect(respond).toHaveBeenLastCalledWith({success: false, error: 'INFORMATION_HIGHLIGHT_PAGE_UNAVAILABLE'});
+    });
     it('往返缓存暂停时拒绝迟到的功能挂载，恢复后允许新的用户操作', async () => {
         const {createContentRuntimeMessageHandler} = await import('@/src/app/content/messageRuntime');
         const respond = vi.fn();

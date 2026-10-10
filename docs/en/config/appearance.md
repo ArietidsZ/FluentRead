@@ -64,5 +64,6 @@ This works in bilingual mode. Restoring the original, disabling the option, leav
 
 ## Related guides
 
+- [Smart Highlighting: keywords and local surprisal](/en/guide/information-highlight)
 - [Settings overview](/en/config/)
 - [Page translation](/en/guide/webpage-translation)
