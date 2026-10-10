@@ -1036,6 +1036,17 @@ function cloneJsonValue(value: unknown): unknown {
     return output;
 }
 
+/**
+ * JSON 里给程序看的字符串不送去翻译，原样留在文件里：没有任何文字的值（版本号、日期、数字）、网址与邮箱链接、
+ * 十六进制颜色，以及不含空格却带数字的标识符（ID、哈希、带编号的键名）。单个普通单词仍然翻译。
+ */
+function jsonMachineValue(value: string): boolean {
+    return !/\p{L}/u.test(value)
+        || /^(?:https?:\/\/|mailto:|www\.)\S+$/iu.test(value)
+        || /^#[0-9a-f]{3,8}$/iu.test(value)
+        || (/\d/u.test(value) && /^[\w.\-:/+]+$/u.test(value));
+}
+
 function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | 'jsonValue' | 'jsonEntries'> {
     let jsonValue: unknown;
     try {
@@ -1048,14 +1059,14 @@ function parseJsonDocument(content: string): Pick<ParsedDocument, 'segments' | '
 
     const segments: DocumentSegment[] = [];
     const jsonEntries: JsonSegmentEntry[] = [];
-    // 只把字符串叶节点送去翻译，并记录路径与首尾空白；渲染时在深拷贝上回填，原对象始终不变。
+    // 只把字符串叶节点送去翻译（给程序看的值除外），并记录路径与首尾空白；渲染时在深拷贝上回填，原对象始终不变。
     const stack: Array<{value: unknown; path: Array<string | number>}> = [{value: jsonValue, path: []}];
     while (stack.length) {
         const {value, path} = stack.pop()!;
         if (path.length > MAX_JSON_DEPTH) throw new Error('JSON 文件嵌套过深，请拆分后重试');
         if (typeof value === 'string') {
             const trimmed = trimSource(value);
-            if (!trimmed) continue;
+            if (!trimmed || jsonMachineValue(trimmed.source)) continue;
             const segmentIndex = segments.length;
             const pathLabel = formatJsonPath(path);
             segments.push({id: segmentIndex, source: trimmed.source, pathLabel});

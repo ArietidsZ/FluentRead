@@ -56,7 +56,7 @@ PDFs default to the **Original layout**, side by side: each translated paragraph
 
 PDF downloads paginate the full translation at a fixed font size. Bilingual output keeps each original page followed by its translated pages; original-layout output also includes a position preview. Downloaded Chinese pages remain images, so copy translation from the reader. Progress counts source pages, followed by a saving stage. Choose **Cancel export** to stop generation; translations and edits are kept for retry. The reader retains nearby pages, while export encodes and releases one output canvas at a time to control memory use.
 
-ePub, DOCX and batch ZIP downloads show packaging progress and allow cancellation without losing translations or edits. Large JSON download previews show text excerpts while the exported file keeps its complete structure. Text download previews only encode the excerpt needed by the dialog. PDF translation appears as it progresses; other reading previews refresh after translation pauses or finishes to reduce repeated work on long documents.
+ePub, DOCX and batch ZIP downloads show packaging progress and allow cancellation without losing translations or edits. Large JSON download previews show text excerpts while the exported file keeps its complete structure. In JSON, strings meant for programs (version numbers, URLs, colour values, and identifiers containing digits) are left as they are and not sent for translation. Text download previews only encode the excerpt needed by the dialog. PDF translation appears as it progresses; other reading previews refresh after translation pauses or finishes to reduce repeated work on long documents.
 
 ## Does the file leave my computer?
 

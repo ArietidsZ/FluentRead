@@ -133,6 +133,12 @@ describe('document translation parser', () => {
         expect(json.segments.map((segment) => segment.pathLabel)).toEqual(['$.title', '$.items[0].label']);
         const output = JSON.parse(renderDocument(json, ['你好', '世界'], 'translated')) as {title: string; items: Array<{label: string}>; keep: number};
         expect(output).toEqual({title: '你好', items: [{label: '世界'}], keep: 42});
+        // 给程序看的值不产生片段，导出时原样保留；单个普通单词、带占位符的句子照常翻译。
+        const machine = {version: '2.4.1', date: '2026-10-10', home: 'https://example.com/trail', mail: 'mailto:hi@example.com', site: 'WWW.example.com', colour: '#ff8800', short: '#FFF', id: 'a8f3-22b1', key: 'btn_primary_2', path: 'v2/api:8080+x',
+            word: 'Light', sentence: 'Welcome back, {name}!', count: '%d kilometres remaining', tag: '#general', mixed: 'Route 66'};
+        const settings = parseDocument('en.json', JSON.stringify(machine));
+        expect(settings.segments.map(segment => segment.source)).toEqual(['Light', 'Welcome back, {name}!', '%d kilometres remaining', '#general', 'Route 66']);
+        expect(JSON.parse(renderDocument(settings, ['浅色', '欢迎回来，{name}！', '还剩 %d 公里', '#综合', '66 号公路'], 'translated'))).toEqual({...machine, word: '浅色', sentence: '欢迎回来，{name}！', count: '还剩 %d 公里', tag: '#综合', mixed: '66 号公路'});
         expect(() => parseDocument('broken.json', '{')).toThrow('JSON 文件格式无效');
     });
 
