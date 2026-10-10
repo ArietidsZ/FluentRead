@@ -91,6 +91,8 @@ describe('document translation presentation', () => {
             .toBe('Read guide now cover');
         expect(formatDocumentReaderText('ass', ' {\\i1}<i>Hello</i> ')).toBe('Hello');
         expect(formatDocumentReaderText(undefined, '  Plain text  ')).toBe('Plain text');
+        expect(formatDocumentReaderText('ass', '{\\i1}Today{\\i0} we build a small\\Nweather\\hstation\\nnow')).toBe('Today we build a small\nweather station\nnow');
+        expect(formatDocumentReaderText('srt', 'C:\\New folder\\notes')).toBe('C:\\New folder\\notes');
         expect(formatDocumentReaderText('epub', ' Read <a href="#n">the note</a> ')).toBe('Read the note');
         expect(formatDocumentReaderText('markdown', '阅读<g1>指南</g1>并运行<g2/>')).toBe('阅读指南并运行');
         expect([hasDocumentPlaceholder('阅读<g1>指南</g1>'), hasDocumentPlaceholder('运行<g2/>'), hasDocumentPlaceholder('a < g1 > b'), hasDocumentPlaceholder(''), hasDocumentPlaceholder(undefined)]).toEqual([true, true, false, false, false]);
