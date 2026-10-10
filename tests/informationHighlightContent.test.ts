@@ -318,7 +318,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         expect(metrics).toMatchObject({modelRequests: 1, registrations: 1, segmentations: 3});
         expect(frames).toBeLessThan(25); expect(controller.getState().processedParagraphs).toBe(100);
         const painted = f.painted(); controller.refresh(); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(segment).toHaveBeenCalledTimes(3); expect(f.painted()).toEqual(painted);
-        controller.updatePreferences({...defaults, mode: 'surprisal-local', density: 'high'}); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(segment).toHaveBeenCalledTimes(5);
+        controller.updatePreferences({...defaults, mode: 'surprisal-local', density: 'low'}); await f.settle(); expect(score).toHaveBeenCalledOnce(); expect(segment).toHaveBeenCalledTimes(5);
         controller.updatePreferences({...defaults, mode: 'surprisal-local'}); await f.settle(); expect(segment).toHaveBeenCalledTimes(5);
         controller.dispose(); register.mockRestore(); segment.mockRestore();
     });
@@ -373,7 +373,7 @@ describe('page-owned scoring, paint and cancellation', () => {
         attribute(paragraph.getAttribute('style')!); controller.updatePreferences({...defaults});
         expect(changed).toHaveBeenCalledTimes(count); expect(controller.getState().phase).toBe('active');
         const oldValue = paragraph.getAttribute('style')!; paragraph.setAttribute('style', '--pdf-page-width: 620px'); attribute(oldValue);
-        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual(['extraordinary']);
+        expect(controller.getState().phase).toBe('paused'); expect(f.painted()).toEqual(['extraordinary', 'paragraphs']);
         const paused = changed.mock.calls.length;
         for (let i = 0; i < 20; i++) attribute(paragraph.getAttribute('style')!);
         expect(changed).toHaveBeenCalledTimes(paused);

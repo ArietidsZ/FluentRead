@@ -36,8 +36,8 @@ describe('信息高亮偏好与配置迁移', () => {
         expect(normalizeInformationHighlightPreferences({...old, hotkeyEnabled: false}).hotkeyEnabled).toBe(false);
         for (const hotkeyEnabled of [0, 'no', null, undefined]) expect(normalizeInformationHighlightPreferences({...old, hotkeyEnabled}).hotkeyEnabled).toBe(true);
         for (const hotkey of ['not a key', 7, null]) expect(normalizeInformationHighlightPreferences({...old, hotkey}).hotkey).toBe('Alt+H');
-        expect(normalizeInformationHighlightPreferences({color: 'blue', style: 'underline', intensity: 'standard'})).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'blue', style: 'underline', intensity: 'standard'});
-        expect(normalizeInformationHighlightPreferences({})).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'rose', style: 'heatmap', intensity: 'standard'});
-        expect(DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'medium', color: 'rose', style: 'heatmap', intensity: 'standard'});
+        expect(normalizeInformationHighlightPreferences({color: 'blue', style: 'underline', intensity: 'standard'})).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'blue', style: 'underline', intensity: 'standard'});
+        expect(normalizeInformationHighlightPreferences({})).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'rose', style: 'heatmap', intensity: 'standard'});
+        expect(DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES).toEqual({enabled: false, hotkey: 'Alt+H', hotkeyEnabled: true, mode: 'keywords', density: 'high', color: 'rose', style: 'heatmap', intensity: 'standard'});
     });
 });

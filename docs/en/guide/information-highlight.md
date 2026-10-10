@@ -31,7 +31,7 @@ Surprisal is `−log₂ P(word | preceding text)`. A higher value means the mode
 
 Manage mode, density, colour and drawing style in **Settings → Translation settings → Smart Highlighting**. In local-model mode, model status and download actions appear immediately after the mode selector. You can explicitly choose **Use keywords instead** when the model is unavailable. The preview illustrates appearance rather than model output.
 
-Choose low, medium or high density, amber, mint or blue, and a soft background or underline. Appearance and density changes reuse existing scores.
+Choose low, medium or high density (high by default; low marks only the key words, medium adds the next tier, high tints every informative word), amber, mint or blue, and a soft background or underline. Appearance and density changes reuse existing scores.
 
 The local model is downloaded and run by FluentRead. It does not depend on AI built into Edge, Firefox or another browser. The current Qwen2.5 0.5B model needs about 490 MB on first download. The extension uses ONNX Runtime Web in a dedicated Worker and your device's WebGPU to compute scores; analysis works offline once the files are downloaded.
 
