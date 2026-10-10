@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/core/document.ts
  * 文件职责：定义文档翻译的纯领域模型，并负责把多种文本格式解析为可翻译片段，再按双语或纯译文模式无损还原原格式结构。
- * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签（句中的行内代码整个保留、不翻译）、给出带占位符片段替换前的原文供校订显示、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
+ * 主要内容：覆盖文本格式识别、片段切分、HTML 中被链接或强调等行内标签隔开的文字合成整句并以编号占位符保留标签（句中的行内代码整个保留、不翻译）、给出带占位符片段替换前的原文供校订显示、字幕译文丢了硬换行时按原文行数重新断行、Markdown 可选地把一行作为一个片段整句翻译并以占位符保护链接地址、行内代码与网址、Markdown 容器围栏及受控缩进代码与行内位置保护、字幕标签保留、有界深度的非递归 JSON 遍历、空译文回退、MIME 信息、按格式区分的文件大小上限和下载文件命名；文本导出支持有界编码，下载摘录无需处理全文；相同译文保留原文且不重复展示。
  * 模块边界：该文件不读取 File、不解析 PDF/EPUB/DOCX 二进制，也不发起翻译请求；文件 I/O 与压缩包处理归 services/binary，批处理归 services/translation，展示归 preview/presentation。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -1139,16 +1139,50 @@ function escapeHtml(value: string): string {
         .replace(/'/g, '&#39;');
 }
 
+/**
+ * 原文用 \N 硬换行分成几行、而翻译服务把换行丢掉时，按同样的行数把译文重新断开：优先断在标点或空格之后，
+ * 中日韩文字之间在词的边界也可以断；不在样式代码 {…} 里面断，也不拆开一个拉丁单词。找不到合适的位置就保持一行。
+ */
+function restoreSubtitleBreaks(source: string, translation: string): string {
+    const breaks = source.split('\\N').length - 1;
+    if (!breaks || /\\[Nn]/u.test(translation)) return translation;
+    const wide = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+    // 中日韩文字之间只在词的边界断开；环境不提供分词时退回任意两个字之间。
+    const words = typeof Intl.Segmenter === 'function' ? new Set(Array.from(new Intl.Segmenter(undefined, {granularity: 'word'}).segment(translation), entry => entry.index)) : undefined;
+    // 候选断点：断在这个下标之前；值越小越好（标点后 0，空格处 1，中日韩文字之间 2）。
+    const candidates: Array<{index: number; cost: number}> = [];
+    let depth = 0;
+    for (let index = 1; index < translation.length; index += 1) {
+        const previous = translation[index - 1], current = translation[index];
+        if (previous === '{') depth += 1;
+        if (previous === '}') depth = Math.max(0, depth - 1);
+        if (depth || current === '{' && translation.indexOf('}', index) < 0) continue;
+        if (/[，。！？；、,.!?;:：]/u.test(previous) && !/[\s，。！？；、,.!?;:：]/u.test(current)) candidates.push({index, cost: 0});
+        else if (/\s/u.test(previous) && !/\s/u.test(current)) candidates.push({index, cost: 1});
+        else if (wide.test(previous) && wide.test(current) && (words?.has(index) ?? true)) candidates.push({index, cost: 2});
+    }
+    const chosen: number[] = [];
+    for (let line = 1; line <= breaks; line += 1) {
+        const target = translation.length * line / (breaks + 1), floor = chosen.at(-1) ?? 0;
+        // 偏离理想位置越远越差；标点和空格可以多偏离几个字。
+        const best = candidates.filter(candidate => candidate.index > floor)
+            .sort((left, right) => Math.abs(left.index - target) + left.cost * 2 - (Math.abs(right.index - target) + right.cost * 2))[0];
+        if (!best) return translation;
+        chosen.push(best.index);
+    }
+    return chosen.reduceRight((text, index) => `${text.slice(0, index).trimEnd()}\\N${text.slice(index)}`, translation);
+}
+
 function preserveSubtitleMarkup(source: string, translation: string): string {
     const assPrefix = source.match(/^(?:\{[^}]*\})+/u)?.[0];
-    if (assPrefix && !translation.startsWith(assPrefix)) return `${assPrefix}${translation}`;
+    if (assPrefix && !translation.startsWith(assPrefix)) return restoreSubtitleBreaks(source, `${assPrefix}${translation}`);
 
     const htmlOpen = source.match(/^(?:<([a-z][a-z0-9-]*)\b[^>]*>)+/iu)?.[0];
     const htmlClose = source.match(/(?:<\/([a-z][a-z0-9-]*)>)+(?=\s|$)/iu)?.[0];
     if (htmlOpen && htmlClose && !translation.includes(htmlOpen)) {
         return `${htmlOpen}${translation}${htmlClose}`;
     }
-    return translation;
+    return restoreSubtitleBreaks(source, translation);
 }
 
 function originalPartSource(part: SegmentPart): string {

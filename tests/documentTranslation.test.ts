@@ -115,6 +115,24 @@ describe('document translation parser', () => {
         expect(vtt.segments.map((segment) => segment.source)).toEqual(['Hello']);
         expect(renderDocument(vtt, ['你好'], 'translated')).toContain('WEBVTT\n\n00:00:01.000 --> 00:00:02.000\n你好\n');
 
+        // 翻译服务丢掉硬换行时，按原文的行数把译文重新断开；服务保留了换行、原文没有换行或找不到断点时不动。
+        const line = (text: string) => parseDocument('breaks.ass', `[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,${text}`);
+        const rebroken = (text: string, translation: string) => renderDocument(line(text), [translation], 'translated').split(',,').at(-1);
+        expect(rebroken('Today we build a small\\Nweather station.', '今天我们搭一个小型气象站。')).toBe('今天我们搭一个\\N小型气象站。');
+        expect(rebroken('Is the power off,\\Nor should I check again?', '电源关了吗，还是要我再检查一下？')).toBe('电源关了吗，\\N还是要我再检查一下？');
+        expect(rebroken('First line\\Nsecond line\\Nthird line', 'Erste Zeile zweite Zeile dritte Zeile')).toBe('Erste Zeile\\Nzweite Zeile\\Ndritte Zeile');
+        expect(rebroken('{\\i1}Today{\\i0} we build\\Na station.', '{\\i1}今天{\\i0}我们搭{\\b1}一个{\\b0}站。')).toBe('{\\i1}今天{\\i0}我们\\N搭{\\b1}一个{\\b0}站。');
+        expect(rebroken('{\\an8}Check\\Nagain', '再查')).toBe('{\\an8}再\\N查');
+        expect(rebroken('Keep\\Nthis', '保留\\N这个')).toBe('保留\\N这个');
+        expect(rebroken('One\\Ntwo\\Nthree', 'Unbreakable')).toBe('Unbreakable');
+        expect(rebroken('Broken\\Nstyle', '样{\\i1式 }}{坏')).toBe('样{\\i1式 }}{坏');
+        expect(rebroken('No break here', '这里没有换行')).toBe('这里没有换行');
+        // 环境没有分词能力时，中日韩文字退回在最接近均分的位置断开。
+        const segmenter = Intl.Segmenter;
+        try {
+            (Intl as {Segmenter?: unknown}).Segmenter = undefined;
+            expect(rebroken('Today we build a small\\Nweather station.', '今天我们搭一个小型气象站。')).toBe('今天我们搭一\\N个小型气象站。');
+        } finally {(Intl as {Segmenter?: unknown}).Segmenter = segmenter;}
         const ass = parseDocument('episode.ass', '[Events]\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\i1}Hello');
         expect(ass.segments.map((segment) => segment.source)).toEqual(['{\\i1}Hello']);
         expect(ass.segments[0]).toMatchObject({timeStart: '0:00:01.00', timeEnd: '0:00:02.00'});
