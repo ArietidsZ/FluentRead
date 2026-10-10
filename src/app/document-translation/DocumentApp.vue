@@ -1,7 +1,7 @@
 <!--
  @file src/app/document-translation/DocumentApp.vue
  文件职责：实现独立文档翻译页面的完整 Vue 应用，承载文件导入、格式化预览、分段翻译、人工校订和双语文件导出的用户流程。
- 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；没有文字层的扫描版 PDF 在开始翻译时先逐页识别文字并显示进度；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
+ 主要内容：相同译文保留原文且不重复展示；文档打开后用一行工具栏承载文件、阅读方式、页码缩放、翻译服务与目标语言、翻译与下载，左侧可折叠的侧栏放文件列表与目录，其余空间留给正文；首页列出保存在本机的最近翻译，重新打开同一份文件时接着上次的译文继续；PDF 默认按原版排版左右对照，各种格式都从正在阅读的位置开始翻译；没有文字层的扫描版 PDF 在开始翻译时先逐页识别文字并显示进度；HTML、Markdown、纯文本与 ePub 的隔离预览只载入一次，译文逐段到达后原位更新并保留滚动位置，带标题的文档（含 Word）在侧栏提供可按原文或译文显示的目录，ePub 的全部章节列在侧栏目录里、当前章节下接着它的各级标题，正文上方不再占一行章节按钮，Word 与文本类预览在宽窗口左右对照；组织文档阅读与翻译、增量统计和人工校订；导入与在线下载绑定独立取消所有权；PDF 清晰阅读流式显示完整段落和原图区域，源页文字层与译文更新分离，下载按固定字号续页；切换、删除、重置及卸载释放 PDF 任务和 URL；PDF/ePub/DOCX/ZIP 导出显示进度、支持取消重试，迟到结果不得回写。
  模块边界：组件负责页面交互与响应式状态，不自行解析二进制格式、不实现片段翻译队列、配置存储协议或导出编码；解析渲染来自 document-translation feature，配置协调来自 services/config，运行时适配由本目录 runtime 注入。
 -->
 <!-- 文档页面归 app 层所有；WXT 入口只负责启动。 -->
@@ -57,12 +57,12 @@
           <p v-if="batchNotice" class="notice" role="status">{{ batchNotice }}</p>
         </section>
         <div v-if="parsedDocument" v-show="activeSidebarTab === 'outline' && isPdfDocument" ref="outlineHost" class="sidebar-outline" />
-        <nav v-if="parsedDocument && !isPdfDocument && documentOutline.length" v-show="activeSidebarTab === 'outline'" class="sidebar-outline document-outline" :aria-label="t('document.pdfReading.outline')">
+        <nav v-if="parsedDocument && !isPdfDocument && outlineRows.length" v-show="activeSidebarTab === 'outline'" class="sidebar-outline document-outline" :aria-label="t('document.pdfReading.outline')">
           <div class="document-outline-language" role="group" :aria-label="t('document.pdfReading.outline')">
             <button type="button" :class="{selected: richOutlineLanguage === 'source'}" :aria-pressed="richOutlineLanguage === 'source'" @click="richOutlineLanguage = 'source'">{{ t('document.pdfReading.original') }}</button>
             <button type="button" :class="{selected: richOutlineLanguage === 'translated'}" :aria-pressed="richOutlineLanguage === 'translated'" @click="richOutlineLanguage = 'translated'">{{ t('document.pdfReading.translated') }}</button>
           </div>
-          <button v-for="item in documentOutline" :key="item.index" type="button" class="document-outline-item" :style="{paddingLeft: `${12 + (item.level - 1) * 14}px`}" :title="item.source" data-i18n-ignore @click="jumpOutline(item)">{{ richOutlineLanguage === 'translated' && item.translation ? item.translation : item.source }}</button>
+          <button v-for="row in outlineRows" :key="row.key" type="button" class="document-outline-item" :class="{chapter: row.chapter !== undefined, current: row.current}" :aria-current="row.current ? 'location' : undefined" :style="{paddingLeft: `${12 + (row.level - 1) * 14}px`}" :title="row.title" data-i18n-ignore @click="row.item ? jumpOutline(row.item) : epubChapterIndex = row.chapter!">{{ row.label }}</button>
         </nav>
         <button v-if="parsedDocument" class="document-settings-button" type="button" aria-label="调整文档翻译设置" @click="openDocumentSettings"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 3-1 3-3 1-2 3 2 2-1 3 3 2 2-1 2 3h3l1-3 3-1 2-3-2-2 1-3-3-2-2 1-2-3H9Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><circle cx="11.5" cy="11" r="3" stroke="currentColor" stroke-width="1.5"/></svg><strong>{{ translateLegacy('源语言与术语库') }}</strong><span data-i18n-ignore>{{ translationSettingsSummary }}</span><small>调整设置</small></button>
       </aside>
@@ -199,17 +199,6 @@
           :data-segment-count="parsedDocument.segments.length"
           aria-label="排版文档双语阅读预览"
         >
-          <nav v-if="isEpubDocument" class="reader-native-toolbar" aria-label="ePub 章节导航">
-            <button
-              v-for="(chapter, index) in epubChapters"
-              :key="chapter.path"
-              type="button"
-              :class="{ selected: epubChapterIndex === index }"
-              @click="epubChapterIndex = index"
-            >
-              <span>{{ index + 1 }}</span>{{ chapter.title }}
-            </button>
-          </nav>
           <iframe
             ref="richFrame"
             class="rich-preview-frame"
@@ -1057,7 +1046,20 @@ async function jumpOutline(item: RichOutlineItem): Promise<void> {
 }
 /** PDF 里还有没识别的扫描页（整份扫描件，或文字 PDF 里夹着的扫描页）：开始翻译时先识别文字。空白页不触发识别。 */
 const needsOcr = computed(() => pdfPagesNeedingOcr(parsedDocument.value).length > 0);
-const hasOutline = computed(() => isPdfDocument.value || documentOutline.value.length > 0);
+/**
+ * 侧栏目录的行。ePub 列出全部章节，当前章节下面接着它的各级标题：章节多的书也能一眼看到位置并直接跳转，
+ * 正文上方不再占一行章节按钮；其他格式就是文档自己的标题。
+ */
+const outlineRows = computed(() => {
+  const label = (item: RichOutlineItem) => richOutlineLanguage.value === 'translated' && item.translation ? item.translation : item.source;
+  const headings = (offset: number) => documentOutline.value.map(item => ({key: `h${item.index}`, level: item.level + offset, label: label(item), title: item.source, item, chapter: undefined as number | undefined, current: false}));
+  if (!isEpubDocument.value) return headings(0);
+  return epubChapters.value.flatMap((chapter, index) => {
+    const current = index === epubChapterIndex.value;
+    return [{key: `c${index}`, level: 1, label: chapter.title, title: chapter.title, item: undefined as RichOutlineItem | undefined, chapter: index, current}, ...(current ? headings(1) : [])];
+  });
+});
+const hasOutline = computed(() => isPdfDocument.value || outlineRows.value.length > 0);
 const activeSidebarTab = computed(() => hasOutline.value ? sidebarTab.value : 'files');
 onUnmounted(() => clearTimeout(richPreviewTimer));
 const docxParts = computed(() => parsedDocument.value?.binary?.kind === 'docx'

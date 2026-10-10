@@ -558,6 +558,13 @@ async function main() {
       } else if (name.endsWith('.epub') || name.endsWith('.docx')) {
         const zip = await require('jszip').loadAsync(bytes);
         assert(zip.file(name.endsWith('.epub') ? 'OEBPS/chapter-1.xhtml' : 'word/document.xml'));
+        if (name.endsWith('.epub')) {
+          // ePub 的章节列在侧栏目录里，当前章节有标记；正文上方不再有章节按钮。
+          const chapters = await page.locator('.document-outline-item.chapter').evaluateAll(items => items.map(item => ({text: item.innerText.trim(), current: item.classList.contains('current')})));
+          assert(chapters.length >= 1 && chapters.filter(chapter => chapter.current).length === 1, `ePub 目录应列出章节并标出当前章节：${JSON.stringify(chapters)}`);
+          assert.equal(await page.locator('.rich-document-reader .reader-native-toolbar').count(), 0, 'ePub 正文上方不应再有章节按钮');
+          report.epubOutline = chapters;
+        }
       } else assert(bytes.toString().includes('人工校订'));
       report.exampleLoads[name] = {translated: true, edited: true, exported: true, bytes: bytes.length};
       if (['sample.pdf', 'sample.epub', 'sample.docx', 'sample.md', 'sample.srt', 'sample.json'].includes(name)) await shot(`reader-${name.replace('.', '-')}`);
