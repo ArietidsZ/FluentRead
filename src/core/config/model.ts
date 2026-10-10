@@ -7,6 +7,7 @@
  */
 
 import {DEFAULT_SENTENCE_HIGHLIGHT_STYLE, DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE, normalizeSentenceHighlightStyle, normalizeSentenceHighlightAppearance, normalizeSentenceHighlightProfiles, type SentenceHighlightStyle, type SentenceHighlightAppearance, type SentenceHighlightProfile} from './sentenceHighlight';
+import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, normalizeInformationHighlightPreferences, type InformationHighlightPreferences} from './informationHighlight';
 import {normalizeMangaSiteRules, normalizeMangaPrefetchPages, normalizeMangaCachePages, type MangaSiteRule} from './manga';
 import {normalizeShareCardPreferences, type ShareCardPreferences} from '@/src/core/config/shareCard';
 import type {TranslationScope} from '@/src/core/translation/types';
@@ -418,6 +419,7 @@ export class Config {
     documentGlossaryIds: string[] | null; // 文档术语选择；null 跟随全局，空数组停用
     videoGlossaryIds: string[] | null; // 字幕术语选择；null 跟随全局，空数组停用
     enableAIMultiSegment: boolean; // 是否把相邻全文段落合并为一次 AI 翻译请求
+    informationHighlight: InformationHighlightPreferences; // 信息高亮偏好；当前页面开启状态不持久化
     bilingualSentenceHighlightEnabled: boolean; // 是否在双语翻译中同步高亮原文与译文
     bilingualSentenceHighlightProfiles: SentenceHighlightProfile[]; // 命名的逐句高亮快照，包含 CSS
     activeSentenceHighlightProfileId: string; // 当前选中快照，编辑草稿不覆盖已保存内容
@@ -620,6 +622,7 @@ export class Config {
         this.documentGlossaryIds = null;
         this.videoGlossaryIds = null;
         this.enableAIMultiSegment = false; // 默认逐段请求，由用户按需开启 AI 多段翻译
+        this.informationHighlight = {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES};
         this.bilingualSentenceHighlightEnabled = false; // 默认关闭双语逐句高亮，避免改变现有网页视觉
         this.bilingualSentenceHighlightStyle = DEFAULT_SENTENCE_HIGHLIGHT_STYLE;
         this.bilingualSentenceHighlightAppearance = {...DEFAULT_SENTENCE_HIGHLIGHT_APPEARANCE};
@@ -1060,6 +1063,7 @@ export function normalizeConfig(value: unknown): Config {
             ? legacyTranslationStatus
             : false;
     }
+    normalized.informationHighlight = normalizeInformationHighlightPreferences(source.informationHighlight);
     normalized.bilingualSentenceHighlightEnabled = source.bilingualSentenceHighlightEnabled === true;
     normalized.bilingualSentenceHighlightStyle = normalizeSentenceHighlightStyle(source.bilingualSentenceHighlightStyle);
     normalized.bilingualSentenceHighlightAppearance = normalizeSentenceHighlightAppearance(source.bilingualSentenceHighlightAppearance);
@@ -1236,10 +1240,9 @@ export function normalizeConfig(value: unknown): Config {
     }
     normalized.videoMeetingAutoEnabled = typeof source.videoMeetingAutoEnabled === 'boolean' ? source.videoMeetingAutoEnabled : true;
     normalized.videoPreferHumanSubtitles = typeof source.videoPreferHumanSubtitles === 'boolean' ? source.videoPreferHumanSubtitles : true;
-    // 已有配置没有这个字段时保留过去的轻量默认；新配置推荐多语种质量模型。
-    if (!hasOwn(source, 'videoLocalModel') && Object.keys(source).length > 0
-        || normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
-        normalized.videoLocalModel = 'tiny';
+    // 缺失或非法选择统一使用质量默认；明确保存的 Tiny/Base/Small 继续保留。
+    if (normalized.videoLocalModel !== 'tiny' && normalized.videoLocalModel !== 'base' && normalized.videoLocalModel !== 'small') {
+        normalized.videoLocalModel = 'small';
     }
     if (!VIDEO_SOURCE_LANGUAGE_OPTIONS.some((item) => item.value === normalized.videoSourceLanguage)) {
         normalized.videoSourceLanguage = 'auto';

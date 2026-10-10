@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/ko-KR.json';
 import settingsCopyText from './settings-copy/ko-KR.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationKoreanMessages} from './localTranslation';
 
 export const koKRMessages = {
     ...pdfReadingMessages['ko-KR'],
+    ...informationHighlightMessages['ko-KR'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "출처 요청 헤더 제거",
@@ -900,6 +902,10 @@ export const koKRMessages = {
     'video.aiDownloadingModel': '모델 다운로드 중…',
     'video.aiModelDownloadFailed': '모델 다운로드 실패: {error}',
     'video.modelPromptTitle': 'AI 자막 모델 다운로드',
+    'video.modelSelection': "인식 모델: {model}",
+    'video.modelSelectionAria': "인식 모델 선택, 현재 {model}",
+    'video.modelSelectionTitle': "AI 자막 모델 선택",
+    'video.modelSelectionDescription': "모델을 선택하여 현재 영상의 자막을 다시 생성하세요.",
     'video.modelPromptDescription': '음성 인식은 이 기기에서 실행됩니다. 모델은 처음 한 번만 다운로드하며 오디오는 업로드되지 않습니다.',
     'video.modelTinyName': 'Tiny · 경량',
     'video.modelTinyHint': '빠르고 메모리를 적게 사용',
@@ -2474,6 +2480,15 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "文件在本地解析，待译文字会发送给你选择的翻译服务。扫描版 PDF 暂不支持文字识别。": "파일은 로컬에서 분석하고 번역할 텍스트는 선택한 서비스로 전송합니다. 스캔 PDF의 문자 인식은 아직 지원하지 않습니다.",
     "当前文档": "현재 문서",
     "更换文件": "파일 변경",
+    "翻译服务暂时没有响应，将自动重试": "번역 서비스가 응답하지 않아 자동으로 다시 시도합니다",
+    "源语言与术语库": "원문 언어 및 용어집",
+    "专注阅读": "집중 읽기",
+    "退出专注阅读": "집중 읽기 종료",
+    "尚未翻译": "아직 번역하지 않음",
+    "文件": "파일",
+    "文件与目录": "파일 및 목차",
+    "最近翻译": "최근 번역",
+    "移除记录": "기록에서 삭제",
     "设置已更改。现有译文仍保留，按新设置翻译会从头开始。": "설정이 변경되었습니다. 기존 번역은 유지되지만 새 설정으로 번역하면 처음부터 시작합니다.",
     "文件在本地解析，文字发送至所选服务。": "파일은 로컬에서 분석하고 텍스트는 선택한 서비스로 전송합니다.",
     "文档翻译进度": "문서 번역 진행률",
@@ -2507,6 +2522,7 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "翻译完成": "번역 완료",
     "翻译中断": "번역 중단됨",
     "部分完成": "일부 완료",
+    "译文与原文相同，可换目标语言": "번역문이 원문과 같습니다. 다른 대상 언어를 선택해 보세요",
     "准备就绪": "준비 완료",
     "已完成的片段可在「校订译文」中查看，可随时暂停。": "완료된 구간은 번역 교정에서 확인할 수 있습니다. 언제든 일시 중지할 수 있습니다.",
     "可阅读、校订并下载结果。": "결과를 읽고 교정하고 다운로드할 수 있습니다.",
@@ -2862,6 +2878,7 @@ export const koKRLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "원문과 번역 모두 유지",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "번역 중입니다. 완료된 구간을 볼 수 있으며 일시 중지 후 교정할 수 있습니다.",
     "修改即时用于本页预览和下载，下载文件后再离开。": "수정은 미리보기와 다운로드에 즉시 적용됩니다. 나가기 전에 다운로드하세요.",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "<g1>…</g1> 같은 표시는 원문의 링크, 굵은 글씨 등 서식을 나타냅니다. 그대로 두어야 번역문에도 같은 서식이 적용됩니다.",
     "没有找到匹配内容，试试其他关键词。": "일치하는 내용이 없습니다. 다른 검색어를 사용하세요.",
     "所有片段都已有译文。": "모든 구간에 번역이 있습니다.",
     "已有译文": "번역됨",

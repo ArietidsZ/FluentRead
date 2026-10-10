@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入、提示词或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/en-US.json';
 import settingsCopyText from './settings-copy/en-US.json';
 import brandTaglines from './brand-taglines.json';
@@ -24,6 +25,7 @@ import {localTranslationEnglishMessages} from './localTranslation';
 
 export const enUSMessages = {
     ...pdfReadingMessages['en-US'],
+    ...informationHighlightMessages['en-US'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Remove source request headers",
@@ -1128,6 +1130,10 @@ export const enUSMessages = {
     'video.aiDownloadingModel': 'Downloading model…',
     'video.aiModelDownloadFailed': 'Model download failed: {error}',
     'video.modelPromptTitle': 'Download AI subtitle model',
+    'video.modelSelection': "Recognition model: {model}",
+    'video.modelSelectionAria': "Choose a recognition model, currently {model}",
+    'video.modelSelectionTitle': "Choose AI subtitle model",
+    'video.modelSelectionDescription': "Select a model to regenerate captions for this video.",
     'video.modelPromptDescription': 'Speech recognition runs on this device. The model is downloaded once, and audio is never uploaded.',
     'video.modelTinyName': 'Tiny · Fast',
     'video.modelTinyHint': 'Quicker, uses less memory',
@@ -2473,6 +2479,15 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "文件在本地解析，待译文字会发送给你选择的翻译服务。扫描版 PDF 暂不支持文字识别。": "Files are parsed locally; text is sent to your selected translation service. OCR for scanned PDFs is not yet supported.",
     "当前文档": "Current document",
     "更换文件": "Change file",
+    "翻译服务暂时没有响应，将自动重试": "Service not responding; retrying automatically",
+    "源语言与术语库": "Source and glossary",
+    "专注阅读": "Focus reading",
+    "退出专注阅读": "Exit focus reading",
+    "尚未翻译": "Not translated yet",
+    "文件": "Files",
+    "文件与目录": "Files and outline",
+    "最近翻译": "Recent translations",
+    "移除记录": "Remove from history",
     "设置已更改。现有译文仍保留，按新设置翻译会从头开始。": "Settings changed. Existing translations are preserved; translating with the new settings starts over.",
     "文件在本地解析，文字发送至所选服务。": "Files are parsed locally; text is sent to the selected service.",
     "文档翻译进度": "Document translation progress",
@@ -2506,6 +2521,7 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "翻译完成": "Translation complete",
     "翻译中断": "Translation interrupted",
     "部分完成": "Partially complete",
+    "译文与原文相同，可换目标语言": "Translation matches the original; try another target language",
     "准备就绪": "Ready",
     "已完成的片段可在「校订译文」中查看，可随时暂停。": "View completed segments in Edit translation. You can pause at any time.",
     "可阅读、校订并下载结果。": "Read, edit and download the results.",
@@ -2866,6 +2882,7 @@ export const enUSLegacyText: Readonly<Record<string, string>> = {
     "同时保留原文和译文": "Keep both original and translation",
     "翻译进行中，可查看已完成的片段；暂停后即可校订。": "Translation in progress. View completed segments; pause to edit.",
     "修改即时用于本页预览和下载，下载文件后再离开。": "Edits apply immediately to this preview and download. Download before leaving.",
+    "<g1>…</g1> 这类标记对应原文里的链接、加粗等格式，保留它们，译文才带有这些格式。": "Markers like <g1>…</g1> stand for links, bold text and other formatting in the original. Keep them so the translation keeps that formatting.",
     "没有找到匹配内容，试试其他关键词。": "No matches. Try other keywords.",
     "所有片段都已有译文。": "All segments have translations.",
     "已有译文": "Translated",

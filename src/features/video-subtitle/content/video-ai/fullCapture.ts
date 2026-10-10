@@ -1,7 +1,7 @@
 /**
  * @file src/features/video-subtitle/content/video-ai/fullCapture.ts
  * 文件职责：执行完整视频 AI 字幕的独立音频读取、分窗识别和最终 cue 整理。
- * 主要内容：支持 HLS PCM 注入、限额流式媒体读取与可取消的 16 kHz 原生解码、隐藏扫描副本、有界串行 Whisper 窗口、完整模式字幕整理和取消清理。
+ * 主要内容：支持 HLS PCM 注入、限额流式媒体读取与可取消的 16 kHz 原生解码、可取消元数据等待的隐藏扫描副本、有界串行 Whisper 窗口、完整模式字幕整理和取消清理。
  * 模块边界：不得接管用户可见 video 的播放状态；页面源隔离由调用方通过选项注入。
  */
 import {
@@ -430,8 +430,8 @@ export class VideoAiFullCaptureController {
       let audioVideo: HTMLVideoElement;
       try {
         audioVideo = this.options.getIsolatedVideo
-          ? await this.options.getIsolatedVideo(video, session) || await this.createScanVideo(video, session)
-          : await this.createScanVideo(video, session);
+          ? await this.options.getIsolatedVideo(video, session) || await this.createScanVideo(video, session, signal)
+          : await this.createScanVideo(video, session, signal);
         scanVideo = audioVideo;
         if (!this.isCurrentSession(session) || signal.aborted) throw new Error(FULL_CANCELLED_ERROR);
         this.scanVideo = audioVideo;
@@ -658,7 +658,8 @@ export class VideoAiFullCaptureController {
     return null;
   }
 
-  private async createScanVideo(sourceVideo: HTMLVideoElement, session: number): Promise<HTMLVideoElement> {
+  private async createScanVideo(sourceVideo: HTMLVideoElement, session: number, signal: AbortSignal): Promise<HTMLVideoElement> {
+    if (signal.aborted) throw new Error(FULL_CANCELLED_ERROR);
     const scanVideo = document.createElement('video');
     try {
       scanVideo.preload = 'auto';
@@ -680,6 +681,7 @@ export class VideoAiFullCaptureController {
       }
       document.documentElement.appendChild(scanVideo);
       scanVideo.load();
+      if (signal.aborted) throw new Error(FULL_CANCELLED_ERROR);
       if (scanVideo.readyState < 1) {
         await new Promise<void>((resolve, reject) => {
           let timeout: number | undefined;
@@ -687,13 +689,16 @@ export class VideoAiFullCaptureController {
             scanVideo.removeEventListener('loadedmetadata', onReady);
             scanVideo.removeEventListener('canplay', onReady);
             scanVideo.removeEventListener('error', onError);
+            signal.removeEventListener('abort', onAbort);
             if (timeout !== undefined) window.clearTimeout(timeout);
           };
           const onReady = () => { cleanup(); resolve(); };
           const onError = () => { cleanup(); reject(new Error('扫描副本无法加载 X 视频音频')); };
+          const onAbort = () => { cleanup(); reject(new Error(FULL_CANCELLED_ERROR)); };
           scanVideo.addEventListener('loadedmetadata', onReady, { once: true });
           scanVideo.addEventListener('canplay', onReady, { once: true });
           scanVideo.addEventListener('error', onError, { once: true });
+          signal.addEventListener('abort', onAbort, {once: true});
           timeout = window.setTimeout(() => {
             cleanup();
             reject(new Error('扫描副本加载 X 视频音频超时'));

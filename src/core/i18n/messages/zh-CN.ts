@@ -7,6 +7,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；翻译服务的源文本、目标文本和用户内容不属于这里。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/zh-CN.json';
 import settingsCopyText from './settings-copy/zh-CN.json';
 import brandTaglines from './brand-taglines.json';
@@ -21,6 +22,7 @@ import {localTranslationChineseMessages} from './localTranslation';
 
 export const zhCNMessages = {
     ...pdfReadingMessages['zh-CN'],
+    ...informationHighlightMessages['zh-CN'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "移除来源请求头",
@@ -1125,6 +1127,10 @@ export const zhCNMessages = {
     'video.aiDownloadingModel': '正在下载模型…',
     'video.aiModelDownloadFailed': '模型下载失败：{error}',
     'video.modelPromptTitle': '下载 AI 字幕模型',
+    'video.modelSelection': "识别模型：{model}",
+    'video.modelSelectionAria': "选择识别模型，当前为 {model}",
+    'video.modelSelectionTitle': "选择 AI 字幕模型",
+    'video.modelSelectionDescription': "选择模型后重新识别当前视频。",
     'video.modelPromptDescription': '首次使用需下载识别模型，识别在本机完成，音频不会上传。',
     'video.modelTinyName': 'Tiny · 轻量',
     'video.modelTinyHint': '速度快，占用内存少',

@@ -1,7 +1,7 @@
 /**
  * @file tests/documentPdfRotation.test.ts
  * 文件职责：以真实 PDF.js 解析验证旋转和页面裁剪在 PDF 导入、光栅端口与矢量原页导出之间保持一致。
- * 主要内容：四种页面旋转、有效 CropBox 与 MediaBox 交集、非零原点、空交集回退；验证原始字节不变、裁掉的字形不可见以及显示尺寸和字形矩阵精确保持。
+ * 主要内容：四种页面旋转、有效 CropBox 与 MediaBox 交集、非零原点、空交集回退；识别过的旋转扫描页只用原页旋转角摆正嵌入的原页；验证原始字节不变、裁掉的字形不可见以及显示尺寸和字形矩阵精确保持。
  * 模块边界：实际生成并读取 PDF 文件，不以 Canvas 端口模拟原页字形几何，不调用浏览器或翻译服务。
  */
 import {degrees, PDFDocument} from 'pdf-lib';
@@ -170,6 +170,23 @@ describe('real rotated PDF import and download', () => {
         else expect(text).toEqual([[], [], [], []]);
         expect(bytes).toEqual(originalBytes);
         expect(parsed.binary.bytes).toEqual(originalBytes);
+    });
+
+    it('keeps recognised rotated scans upright in bilingual downloads: display-space blocks for the rasterizer, the page angle only for the embedded original', async () => {
+        const parsed = await parseBinaryDocument('rotated.pdf', await rotatedPdf());
+        if (parsed.binary?.kind !== 'pdf') throw new Error('Expected parsed PDF');
+        // 文字识别之后的旋转扫描页：版面块已是展示坐标，rotation 换成 sourceRotation。
+        const pages = parsed.binary.pages.map(({rotation, ...page}) => ({...page, ...(rotation ? {sourceRotation: rotation} : {})}));
+        const recognised = {...parsed, binary: {...parsed.binary, pages}} as typeof parsed;
+        const captured: PdfRasterPageInput[] = [];
+        const download = await createDocumentDownload(recognised, parsed.segments.map(segment => `Translated: ${segment.source}`), 'bilingual', {
+            pdfPageRasterizer: async input => {captured.push(input); return onePixelPng;},
+        });
+        expect(captured.map(input => input.rotation ?? 0)).toEqual([0, 0, 0, 0]);
+        expect(captured.map(input => [input.width, input.height])).toEqual([[420, 640], [640, 420], [420, 640], [640, 420]]);
+        const output = await PDFDocument.load(download.data as Uint8Array);
+        expect(output.getPages().map(page => page.getSize().height)).toEqual([640, 420, 640, 420]);
+        expectRotatedSources(await outputText(download.data as Uint8Array));
     });
 
     it('keeps unchanged rotated bilingual pages as correctly oriented originals without rasterizing', async () => {

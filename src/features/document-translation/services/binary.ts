@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/binary.ts
  * 文件职责：处理 PDF、EPUB 与 DOCX 二进制文档的受限解析和导出，把压缩包或页面文本转换为统一 ParsedDocument，并生成可下载的双语产物。
- * 主要内容：相同译文保留原文且不重复展示；按实际字节限制导入、按需加载二进制依赖，包含归档安全上限、可取消 PDF 提取与译文回填；PDF 在未旋转内容坐标中解析，展示和双语源页导出保留页面旋转，导出逐页压缩释放解码像素；ePub/DOCX 导出让出主线程并使用可取消归档流，ePub 保持首项 mimetype 无压缩。
+ * 主要内容：相同译文保留原文且不重复展示；Word 段落记下所在的表格、行与单元格供阅读视图按表格排版；按实际字节限制导入、按需加载二进制依赖，包含归档安全上限、可取消 PDF 提取与译文回填；PDF 在未旋转内容坐标中解析，展示和双语源页导出保留页面旋转，导出逐页压缩释放解码像素；ePub/DOCX 导出让出主线程并使用可取消归档流，ePub 保持首项 mimetype 无压缩。
  * 模块边界：此服务可以依赖 JSZip、pdf-lib 和二进制 I/O，但不负责调用翻译服务或渲染设置页；文本格式规则归 core/document，浏览器 Canvas 光栅实现由 ui/pdfPreview 通过接口注入。
  */
 import {hasDistinctTranslation} from '@/src/core/translation/result';
@@ -9,11 +9,11 @@ import type JSZip from 'jszip';
 import type {PDFEmbeddedPage} from 'pdf-lib';
 import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.min.mjs?url';
 import {generateDocumentArchive} from './archive';
-import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom} from '../core/pdfLayoutAnalysis';
+import {analyzePdfPageLayout, extractPdfGraphicsShapes, type PdfLayoutAtom, type PdfLayoutBlock} from '../core/pdfLayoutAnalysis';
 import {buildPdfReadingPlan, type PdfReadingPlan, type PdfReadingPresentation} from '../core/pdfReadingPlan';
 
 import {
-    DOCUMENT_MAX_BYTES,
+    getDocumentMaxBytes,
     createDocumentDownloadName,
     getDocumentFormat,
     getDocumentFormatLabel,
@@ -33,6 +33,26 @@ import {
 
 const BINARY_DOCUMENT_FORMATS = new Set<DocumentFormat>(['pdf', 'epub', 'docx']);
 const DOCX_PARAGRAPH_PATTERN = /<w:p\b[^>]*>[\s\S]*?<\/w:p>/gu;
+
+/**
+ * 按文档顺序回答“这个位置在哪个表格的第几行第几格”。位置必须递增地询问；嵌套表格里的段落归到外层表格的那一格。
+ */
+function docxTableLocator(source: string): (position: number) => {table: number; row: number; cell: number} | undefined {
+    const tags = /<w:(tbl|tr|tc)(?=[\s>/])|<\/w:tbl>/gu;
+    let next = tags.exec(source), depth = 0, table = -1, row = -1, cell = -1;
+    return position => {
+        for (; next && next.index < position; next = tags.exec(source)) {
+            if (!next[1]) depth = Math.max(0, depth - 1);
+            else if (next[1] === 'tbl') {
+                depth += 1;
+                if (depth === 1) {table += 1; row = -1;}
+            } else if (depth === 1) {
+                if (next[1] === 'tr') {row += 1; cell = -1;} else cell += 1;
+            }
+        }
+        return depth > 0 ? {table, row, cell} : undefined;
+    };
+}
 const DOCX_TEXT_TOKEN_PATTERN = /<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/>|<w:(?:br|cr)\b[^>]*\/>/gu;
 const ARCHIVE_ENTRY_LIMIT = 4_000;
 const ARCHIVE_ENTRY_BYTES_LIMIT = 24 * 1024 * 1024;
@@ -103,9 +123,10 @@ function awaitDocumentRead<T>(promise: Promise<T>, signal?: AbortSignal, release
     });
 }
 
-function assertDocumentSize(size: number): void {
-    if (!Number.isFinite(size) || size < 0 || size > DOCUMENT_MAX_BYTES) {
-        throw new Error('文件大小超过 10 MB，或文件大小无效，请先拆分文件后再翻译');
+function assertDocumentSize(size: number, fileName: string): void {
+    const limit = getDocumentMaxBytes(fileName);
+    if (!Number.isFinite(size) || size < 0 || size > limit) {
+        throw new Error(`文件大小超过 ${Math.round(limit / 1024 / 1024)} MB，或文件大小无效，请先拆分文件后再翻译`);
     }
 }
 
@@ -600,23 +621,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     ? extractPdfGraphicsShapes(await awaitDocumentRead(page.getOperatorList(), signal), pdfJs.OPS, viewport) : [];
                 signal?.throwIfAborted();
                 const {blocks: layoutBlocks, preservedRegions} = analyzePdfPageLayout({atoms, graphics, width: viewport.width, height: viewport.height});
-                const segmentIndexes: number[] = [];
-                const blocks: PdfDocumentBlock[] = [];
-                layoutBlocks.forEach((block, blockIndex) => {
-                    if (block.kind === 'formula' || block.kind === 'table' || block.kind === 'figure-label') {
-                        blocks.push({...block, segmentIndex: -1});
-                        return;
-                    }
-                    const id = segments.length;
-                    segments.push({
-                        id,
-                        source: block.source,
-                        contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined,
-                        role: block.fontWeight === 700 ? 'heading' : 'paragraph',
-                    });
-                    segmentIndexes.push(id);
-                    blocks.push({...block, segmentIndex: id});
-                });
+                const {blocks, segmentIndexes} = pdfPageSegments(layoutBlocks, pageNumber, segments);
                 pages.push({
                     pageNumber,
                     width: displayViewport.width,
@@ -625,6 +630,8 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
                     segmentIndexes,
                     blocks,
                     preservedRegions,
+                    // 没有任何文字、且有一张图像盖住半页以上：这是扫描页。空白页和只有矢量图形的页不算。
+                    ...(atoms.length === 0 && graphics.some(shape => shape.kind === 'image' && shape.width * shape.height >= viewport.width * viewport.height * 0.5) ? {scanned: true} : {}),
                 });
                 onProgress?.({completed: pageNumber, total: pdf.numPages});
             } finally {
@@ -641,9 +648,7 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         await destroy();
     }
 
-    if (segments.length === 0 && !pages.some(page => page.blocks.length > 0)) {
-        throw new Error('PDF 中没有可提取的文字；扫描版 PDF 暂不支持 OCR，请上传包含文本层的 PDF');
-    }
+    // 没有文字层的扫描件照常打开：原页可以阅读，文字识别由页面在开始翻译时按页进行（见 services/pdfOcr）。
 
     return {
         fileName,
@@ -653,6 +658,26 @@ async function parsePdf(fileName: string, bytes: Uint8Array, signal?: AbortSigna
         segments,
         binary: {kind: 'pdf', bytes, pages},
     };
+}
+
+/**
+ * 把一页的版面块登记为待翻译片段：表格里含词语的单元格作为独立片段翻译，数字、符号单元格与公式、图内文字保留原样；
+ * 页眉页脚和作者信息在阅读与导出时都按原文显示，不占用翻译请求。片段追加到传入的列表末尾。
+ */
+export function pdfPageSegments(layoutBlocks: readonly PdfLayoutBlock[], pageNumber: number, segments: DocumentSegment[]): {blocks: PdfDocumentBlock[]; segmentIndexes: number[]} {
+    const segmentIndexes: number[] = [];
+    const blocks: PdfDocumentBlock[] = [];
+    layoutBlocks.forEach((block, blockIndex) => {
+        if (block.kind === 'formula' || (block.kind === 'table' && block.preserveSource) || block.kind === 'figure-label' || block.kind === 'footer' || block.kind === 'metadata') {
+            blocks.push({...block, segmentIndex: -1});
+            return;
+        }
+        const id = segments.length;
+        segments.push({id, source: block.source, contextLabel: blockIndex === 0 ? `第 ${pageNumber} 页` : undefined, role: block.fontWeight === 700 ? 'heading' : 'paragraph'});
+        segmentIndexes.push(id);
+        blocks.push({...block, segmentIndex: id});
+    });
+    return {blocks, segmentIndexes};
 }
 
 export function chapterTitle(source: string, fallback: string): string {
@@ -820,7 +845,8 @@ async function parseDocx(fileName: string, bytes: Uint8Array, signal?: AbortSign
 
     for (const path of partPaths) {
         const source = await readArchiveText(zip.file(path)!, signal);
-        const paragraphSegments: Array<{paragraphIndex: number; segmentIndex: number}> = [];
+        const paragraphSegments: DocxDocumentPart['paragraphSegments'] = [];
+        const tableAt = docxTableLocator(source);
         let paragraphIndex = 0;
         let partSegmentIndex = 0;
         DOCX_PARAGRAPH_PATTERN.lastIndex = 0;
@@ -836,7 +862,8 @@ async function parseDocx(fileName: string, bytes: Uint8Array, signal?: AbortSign
                     pathLabel: docxPartTitle(path),
                     role: docxParagraphRole(paragraphMatch[0], path),
                 });
-                paragraphSegments.push({paragraphIndex, segmentIndex});
+                const table = tableAt(paragraphMatch.index);
+                paragraphSegments.push({paragraphIndex, segmentIndex, ...(table ? {table} : {})});
                 partSegmentIndex += 1;
             }
             paragraphIndex += 1;
@@ -862,7 +889,7 @@ export async function parseBinaryDocument(fileName: string, input: ArrayBuffer |
     if (!format || !isBinaryDocumentFormat(format)) {
         throw new Error('该文件不是 PDF、ePub 或 DOCX 二进制文档');
     }
-    assertDocumentSize(input.byteLength);
+    assertDocumentSize(input.byteLength, fileName);
     const bytes = toUint8Array(input);
     const parsed = await (format === 'pdf' ? parsePdf(fileName, bytes, options.signal, options.onPdfProgress)
         : format === 'epub' ? parseEpub(fileName, bytes, options.signal) : parseDocx(fileName, bytes, options.signal));
@@ -876,13 +903,14 @@ export async function parseDocumentFile(file: DocumentFileLike, options: ParseDo
     if (!format) {
         throw new Error('暂不支持该文件格式，请选择 PDF、ePub、HTML、JSON、TXT、DOCX、Markdown 或字幕文件');
     }
-    if (file.size !== undefined) assertDocumentSize(file.size);
+    if (file.size !== undefined) assertDocumentSize(file.size, file.name);
     if (isBinaryDocumentFormat(format)) return parseBinaryDocument(file.name, await awaitDocumentRead(file.arrayBuffer(), options.signal), options);
     const source = await awaitDocumentRead(file.text(), options.signal);
     options.signal?.throwIfAborted();
-    assertDocumentSize(source.length);
-    assertDocumentSize(new TextEncoder().encode(source).byteLength);
-    return parseDocument(file.name, source);
+    assertDocumentSize(source.length, file.name);
+    assertDocumentSize(new TextEncoder().encode(source).byteLength, file.name);
+    // 文档翻译页面按整句翻译 Markdown：一句话不会被行内链接和代码拆散。
+    return parseDocument(file.name, source, {markdownSentences: true});
 }
 
 
@@ -908,7 +936,7 @@ async function renderPdf(
     // 一次复制共享资源；逐页 embedPage 会反复复制同一套字体与图片。
     const sourcePages = new Map<number, PDFEmbeddedPage>();
     const drawSourcePage = (target: ReturnType<typeof outputPdf.addPage>, source: PDFEmbeddedPage, pageData: PdfDocumentPage) => {
-        const rotation = pageData.rotation ?? 0;
+        const rotation = pageData.rotation ?? pageData.sourceRotation ?? 0;
         if (!rotation) {target.drawPage(source, {x: 0, y: 0, width: pageData.width, height: pageData.height}); return;}
         const quarterTurn = rotation === 90 || rotation === 270;
         // embedPage 只包含内容流，/Rotate 不会被嵌入；在 PDF 底部向上的坐标系中顺时针旋转并移回正象限。
@@ -939,6 +967,7 @@ async function renderPdf(
         const embedded = await outputPdf.embedPages(pages.map(({page}) => page), boundingBoxes);
         pages.forEach(({pageNumber}, index) => sourcePages.set(pageNumber, embedded[index]));
     }
+    // 导出进行中页面可能释放已解析的片段；找不到片段时按“没有原文”处理，不能让下载中断。
     const visibleTranslations = translations.map((translation, segmentIndex) =>
         hasDistinctTranslation(document.segments[segmentIndex]?.source ?? '', translation) ? translation : '');
     for (const [index, pageData] of binary.pages.entries()) {

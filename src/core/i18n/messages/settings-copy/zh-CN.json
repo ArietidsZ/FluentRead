@@ -98,7 +98,19 @@
     "settings.fullPage.multiSegmentHelp": "仅对支持通用提示词的 AI 服务生效；机器翻译、悬浮、划词和输入框翻译不受影响",
     "glossary.builtin.helpDisabled": "术语库尚未启用，添加后需打开上方开关才会生效",
     "image.settings.languageServiceTitle": "语言与服务",
-    "settings.floatingBall.disabledNote": "悬浮球已关闭；这些偏好会保留，重新开启后生效"
+    "settings.floatingBall.disabledNote": "悬浮球已关闭；这些偏好会保留，重新开启后生效",
+    "video.downloadSourceLabel": "下载来源",
+    "video.downloadSourceAuto": "自动选择",
+    "video.downloadSourceMirror": "国内优先",
+    "video.downloadSourceOfficial": "官方优先",
+    "video.downloadSourceHint": "仅影响后续下载；连接失败会自动切换来源。",
+    "video.downloadSourcePages": "模型来源页面：",
+    "video.downloadSourceOther": "备用来源",
+    "video.downloadWaiting": "正在连接下载来源…",
+    "video.downloadConnecting": "正在连接 {source} · {attempt}/{attempts}",
+    "video.downloadSwitching": "正在切换至 {source} · {attempt}/{attempts}",
+    "video.downloadReceiving": "正在从 {source} 下载",
+    "video.downloadRetry": "重试下载"
   },
   "legacy": {}
 }

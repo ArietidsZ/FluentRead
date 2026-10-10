@@ -7,6 +7,7 @@ import {parseDocument, type ParsedDocument} from '@/src/features/document-transl
 import type {CreateDocumentDownloadOptions, DocumentDownload} from '@/src/features/document-translation/services/binary';
 import {TranslationRequestError, serializeTranslationError} from '@/src/services/translation/errors';
 import DocumentApp from '@/src/app/document-translation/DocumentApp.vue';
+import {documentRetryBackoff} from '@/src/app/document-translation/runtime';
 import DocumentSegmentEditor from '@/src/app/document-translation/DocumentSegmentEditor.vue';
 
 // Only external ports are controlled. Both original client SFC templates, the app adapter,
@@ -184,6 +185,8 @@ async function downloadReady() {
 }
 beforeEach(async () => {
     cleanups = []; actions = []; apps = []; anchors = []; blobs = []; revoked = []; browserTimers = new Set();
+    // 既有用例验证“失败即停止并可手动重试”；自动退避由专门的用例打开。
+    Object.assign(documentRetryBackoff, {maxWaitMs: 0, sleep: undefined});
     Object.assign(ports.config, new Config(), {service: 'microsoft'});
     ports.ready = Promise.resolve(); ports.observer = undefined;
     ports.send.mockReset().mockResolvedValue(undefined); ports.unsubscribe.mockReset(); ports.tabs.mockReset().mockResolvedValue(undefined);
@@ -612,6 +615,38 @@ describe('document user actions: real editor events and parent consumers', () =>
         expect(walk(editor()).find(node => node.props['data-segment-id'] === 1)).toBeUndefined();
     });
 
+    it('shows the original wording for whole-sentence segments and explains the markers only where a translation carries them', async () => {
+        apps.pop()!.unmount();
+        const current = parseDocument('note.md', 'Read the [setup guide](https://example.com/setup) first.\n\nPlain sentence.', {markdownSentences: true});
+        expect(current.segments[0].source).toBe('Read the <g1>setup guide</g1> first.');
+        mount({setup: () => () => h(DocumentSegmentEditor, {document: current, translations: ['先读<g1>安装指南</g1>。', '普通句子。'], disabled: false})});
+        const nodes = () => walk(editor());
+        const sourceTexts = nodes().filter(node => node.props.class === 'document-source').map(node => walk(node).map(child => child.text ?? '').join(''));
+        expect(sourceTexts).toEqual(['Read the setup guide first.', 'Plain sentence.']);
+        expect(textarea(0).value).toBe('先读<g1>安装指南</g1>。');
+        expect(nodes().filter(node => node.props.class === 'segment-placeholder-hint')).toHaveLength(1);
+    });
+
+    it('says so when the finished translation is the same as the original, but not for short files or real translations', async () => {
+        const lines = ['第一行已经是中文。', '第二行也是中文。', '第三行还是中文。', '第四行同样是中文。', '第五行仍然是中文。', '第六行是中文。'];
+        // 服务把每一段都原样返回：文档多半已经是目标语言。
+        ports.batch.mockImplementation(async (sources: string[]) => sources);
+        await importFiles(file('same.txt', lines.join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('译文与原文相同，可换目标语言'));
+        // 片段很少时不下这个判断。
+        await importFiles(file('short.txt', lines.slice(0, 2).join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(textOf(taskbar())).not.toContain('译文与原文相同');
+        // 大部分片段有了不同的译文时照常显示完成。
+        ports.batch.mockImplementation(async (sources: string[]) => sources.map(source => `T:${source}`));
+        await importFiles(file('real.txt', lines.join('\n\n')));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(textOf(taskbar())).not.toContain('译文与原文相同');
+    });
+
     it('disables editing while translating and enables it after an external global pause with no late result commit', async () => {
         await importFiles(file('editor-busy.txt'));
         const late = deferred<string[]>(['late']); ports.batch.mockReturnValueOnce(late.promise);
@@ -653,9 +688,11 @@ describe('document user actions: confirmation and task consumers', () => {
         await fire(input, 'change', {files: [file('picked-second.txt')], value: 'fake-path'});
         expect(input.value).toBe('');
         await vi.waitFor(() => expect(textOf(root)).toContain('picked-second.txt'));
-        expect(textOf(taskbar())).toContain('picked-first.txt');
-        await selectFile('picked-second.txt');
+        // 新添加的文件立即成为当前文档；先前的文件留在侧栏文件列表里，可以随时切回。
         expect(textOf(taskbar())).toContain('picked-second.txt');
+        expect(textOf(taskbar())).not.toContain('picked-first.txt');
+        await selectFile('picked-first.txt');
+        expect(textOf(taskbar())).toContain('picked-first.txt');
     });
 
     it('continues the queue after a file fails and retries only that file through the batch action', async () => {
@@ -755,12 +792,14 @@ describe('document user actions: confirmation and task consumers', () => {
         const content = Array.from({length: 18}, (_, i) => `Paragraph ${i}`).join('\n\n');
         await importFiles(file('resume.txt', content));
         const late = deferred<string[]>(['late 16', 'late 17']);
-        ports.batch.mockResolvedValueOnce(Array.from({length: 16}, (_, i) => `kept ${i}`)).mockReturnValueOnce(late.promise);
+        // 每批 8 段、三批同时在途：前两批完成并保留，第三批在暂停之后才返回。
+        ports.batch.mockResolvedValueOnce(Array.from({length: 8}, (_, i) => `kept ${i}`)).mockResolvedValueOnce(Array.from({length: 8}, (_, i) => `kept ${i + 8}`)).mockReturnValueOnce(late.promise);
         await fire(translateButton(), 'click');
-        expect(ports.batch).toHaveBeenCalledTimes(2);
+        expect(ports.batch).toHaveBeenCalledTimes(3);
+        expect(ports.batch.mock.calls.map(call => call[0].length)).toEqual([8, 8, 2]);
         expect(labelled('文档翻译进度').props['aria-valuenow']).toBe(88);
         await fire(button('暂停翻译'), 'click');
-        const signal = ports.batch.mock.calls[1][2].signal;
+        const signal = ports.batch.mock.calls[2][2].signal;
         expect(signal.aborted).toBe(true);
         late.resolve(['late 16', 'late 17']); await flush();
         expect(textOf(taskbar())).toContain('已暂停');
@@ -782,6 +821,27 @@ describe('document user actions: confirmation and task consumers', () => {
         expect(textOf(taskbar())).toContain('翻译完成');
         expect(textOf(taskbar())).not.toContain('provider offline');
         expect(ports.batch).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits and retries by itself when the service is briefly unavailable, showing why, and only stops with the reason once the budget is spent', async () => {
+        let release: (() => void) | undefined; const waits: number[] = [];
+        Object.assign(documentRetryBackoff, {maxWaitMs: 120_000, sleep: (milliseconds: number) => new Promise<void>(resolve => {waits.push(milliseconds); release = resolve;})});
+        await importFiles(file('busy.txt'));
+        ports.batch.mockRejectedValueOnce(new Error('429 rate limited'));
+        await fire(translateButton(), 'click');
+        // 没有点击任何按钮：页面仍在翻译，并说明正在等待重试及原因。
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('429 rate limited'));
+        expect(textOf(taskbar())).toContain('翻译服务暂时没有响应，将自动重试'); expect(textOf(taskbar())).toContain('2s'); expect(textOf(taskbar())).toContain('正在翻译');
+        expect(waits).toEqual([2000]); expect(ports.batch).toHaveBeenCalledTimes(1);
+        release!(); await vi.waitFor(() => expect(textOf(taskbar())).toContain('翻译完成'));
+        expect(ports.batch).toHaveBeenCalledTimes(2); expect(textOf(taskbar())).not.toContain('429 rate limited');
+        // 预算用尽后停下，并给出最后一次失败的原因。
+        Object.assign(documentRetryBackoff, {maxWaitMs: 6000, sleep: async (milliseconds: number) => {waits.push(milliseconds);}});
+        await importFiles(file('down.txt'));
+        ports.batch.mockReset().mockRejectedValue(new Error('service unavailable'));
+        await fire(translateButton(), 'click');
+        await vi.waitFor(() => expect(textOf(taskbar())).toContain('第 1 段文档翻译失败：service unavailable'));
+        expect(waits.slice(1)).toEqual([2000, 4000]); expect(textOf(taskbar())).toContain('翻译中断'); expect(textOf(taskbar())).not.toContain('将自动重试');
     });
 
     it('turns a typed disabled-service result into pause before the configuration broadcast arrives', async () => {

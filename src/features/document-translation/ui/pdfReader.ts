@@ -1,18 +1,19 @@
 /**
  * @file src/features/document-translation/ui/pdfReader.ts
  * 文件职责：为 PDF 阅读器提供有界页面调度和浏览器原页渲染，使用锁定版本的 PDF.js TextLayer 让文字选择与原版面一致。
- * 主要内容：按可见页优先维护五页窗口与两项并发；离屏、缩放、译文更新和卸载取消迟到任务；直接绘制 Canvas 而不编码 PNG，单页总像素与边长有上限；共享 PDF 加载租约，失败可重试且资源只释放一次。
+ * 主要内容：按可见页优先维护五页窗口与两项并发；离屏、缩放和卸载取消迟到任务；译文页只复制一次原页像素，译文文字由阅读器叠加而不重绘；直接绘制 Canvas 而不编码 PNG，单页总像素与边长有上限；共享 PDF 加载租约，失败可重试且资源只释放一次。
  * 模块边界：调度器只调用注入的渲染端口；浏览器渲染端口依赖 PDF.js 和文档预览资源，不发起翻译请求、不修改原始文件或负责入口挂载。
  */
 import type {PDFPageProxy, TextLayer} from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {hasDistinctTranslation} from '@/src/core/translation/result';
 import type {DocumentRenderMode, ParsedDocument, PdfDocumentPage} from '@/src/features/document-translation/core/document';
-import {acquirePdfDocument, paintPdfTranslation} from '@/src/features/document-translation/ui/pdfPreview';
+import {acquirePdfDocument} from '@/src/features/document-translation/ui/pdfPreview';
 import {buildPdfReadingPlan, type PdfReadingPresentation, type PdfReadingRect} from '@/src/features/document-translation/core/pdfReadingPlan';
 
 export type PdfReaderMode = 'source' | DocumentRenderMode;
 export const PDF_READER_MAX_RESIDENT_PAGES = 5;
-export const PDF_READER_MAX_PAGE_PIXELS = 2_500_000;
+/** 一页的全部画布（对照阅读时是原文与译文两张）合计的像素上限：足够在高分屏上按 2 倍像素比渲染整页，又只有 PDF.js 默认单页上限的一半。 */
+export const PDF_READER_MAX_PAGE_PIXELS = 8_000_000;
 export const PDF_READER_MAX_CANVAS_EDGE = 8192;
 export const PDF_READER_RENDER_CONCURRENCY = 2;
 let pdfJsModule: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')>;
@@ -20,9 +21,8 @@ let pdfJsModule: Promise<typeof import('pdfjs-dist/legacy/build/pdf.mjs')>;
 export interface PdfReaderSettings {
     scale: number;
     mode: PdfReaderMode;
-    translations: readonly string[];
     presentation?: PdfReadingPresentation;
-    /** 单页源文及译文变化才使该页失效，不在流式翻译时重绘无关页面。 */
+    /** 缩放、阅读方式或版面变化才使该页失效；译文更新不触发重绘。 */
     key: string;
 }
 
@@ -58,14 +58,15 @@ export function pdfReaderPageWindow(pageCount: number, currentIndex: number, vis
     return [...new Set(candidates)].slice(0, PDF_READER_MAX_RESIDENT_PAGES);
 }
 
-/** 画布像素限制在源文与译文的合计预算中，CSS 缩放与文本层不受 DPR 上限影响。 */
+/** 画布像素限制在源文与译文的合计预算中；预算内固定按 2 倍像素比渲染，CSS 缩放与文本层不受影响。 */
 export function pdfReaderCanvasSize(width: number, height: number, devicePixelRatio: number, canvasCount = 1, pixelBudget = PDF_READER_MAX_PAGE_PIXELS): {width: number; height: number; outputScale: number} {
     if (!Number.isFinite(pixelBudget) || pixelBudget < 1) throw new RangeError('PDF 页面像素预算不足');
     const pixelLimit = Math.floor(pixelBudget);
     const safeWidth = Math.max(1, Number.isFinite(width) ? width : 1);
     const safeHeight = Math.max(1, Number.isFinite(height) ? height : 1);
     const outputScale = Math.min(
-        Math.max(1, Math.min(2, Number.isFinite(devicePixelRatio) ? devicePixelRatio : 1)),
+        // 至少按 2 倍超采样：1 倍屏上细小的论文字形经缩小后更锐利，窗口报告的像素比偏低时也不会发虚。
+        Math.max(2, Math.min(2, Number.isFinite(devicePixelRatio) ? devicePixelRatio : 2)),
         Math.sqrt(pixelLimit / Math.max(1, canvasCount) / safeWidth / safeHeight),
         PDF_READER_MAX_CANVAS_EDGE / Math.max(safeWidth, safeHeight),
         pixelLimit / Math.max(safeWidth, safeHeight),
@@ -77,10 +78,10 @@ export function pdfReaderPageHasTranslation(document: ParsedDocument, page: PdfD
     return page.segmentIndexes.some(index => hasDistinctTranslation(document.segments[index]?.source ?? '', translations[index]));
 }
 
-/** 使用片段索引编码避免全数组比较；流式译文只失效自己所在的一页。 */
-export function pdfReaderPageKey(page: PdfDocumentPage, scale: number, mode: PdfReaderMode, translations: readonly string[], presentation?: PdfReadingPresentation): string {
+/** 页面像素只取决于缩放、阅读方式和版面；译文由阅读器叠加在页面之上，流式到达时不重绘任何 Canvas。 */
+export function pdfReaderPageKey(page: PdfDocumentPage, scale: number, mode: PdfReaderMode, presentation?: PdfReadingPresentation): string {
     if (presentation === 'readable') return JSON.stringify([scale, mode, presentation, page.blocks, (page as PdfDocumentPage & {preservedRegions?: unknown}).preservedRegions]);
-    return JSON.stringify([scale, mode, mode === 'source' ? [] : page.segmentIndexes.map(index => translations[index] || '')]);
+    return JSON.stringify([scale, mode]);
 }
 
 /** 原坐标裁剪映射到实际展示旋转，不改变原画布或源文件。 */
@@ -168,12 +169,11 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                 controller.signal.throwIfAborted();
                 const viewport = page.getViewport({scale: settings.scale});
                 const readable = settings.presentation === 'readable';
-                const hasTranslation = settings.mode !== 'source' && pdfReaderPageHasTranslation(document, model, settings.translations);
-                const showSource = settings.mode !== 'translated' || (!readable && !hasTranslation);
+                const showSource = settings.mode !== 'translated';
                 const plan = readable && settings.mode !== 'source' ? buildPdfReadingPlan(document, model, []) : undefined;
                 const regionEntries = plan?.entries.filter(entry => entry.kind === 'region') ?? [];
                 const regionArea = regionEntries.reduce((sum, entry) => sum + entry.sourceRect.width * entry.sourceRect.height * settings.scale ** 2, 0);
-                const canvasCount = readable ? 1 + regionArea / Math.max(1, viewport.width * viewport.height) : hasTranslation && showSource ? 2 : 1;
+                const canvasCount = readable ? 1 + regionArea / Math.max(1, viewport.width * viewport.height) : settings.mode === 'bilingual' ? 2 : 1;
                 // 每个原图至少占一个像素；先预留，防止超细区域的向上取整累积突破上限。
                 const size = pdfReaderCanvasSize(viewport.width, viewport.height, window.devicePixelRatio, canvasCount, PDF_READER_MAX_PAGE_PIXELS - regionEntries.length);
                 canvas = globalThis.document.createElement('canvas');
@@ -232,7 +232,8 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                         crop.setAttribute('data-pdf-region-id', entry.id);
                     }
                     if (!showSource) canvas.width = canvas.height = 0;
-                } else if (hasTranslation) {
+                } else if (settings.mode !== 'source') {
+                    // 译文页以原页像素为底：图表、公式和尚未翻译的段落保持原样，译文段落由阅读器的文字层覆盖。
                     if (showSource) {
                         translatedCanvas = globalThis.document.createElement('canvas');
                         translatedCanvas.width = canvas.width;
@@ -240,17 +241,11 @@ export function createPdfReaderRenderPort(document: ParsedDocument): PdfReaderRe
                         translatedCanvas.style.width = canvas.style.width;
                         translatedCanvas.style.height = canvas.style.height;
                         translatedCanvas.setAttribute('aria-hidden', 'true');
-                        translatedCanvas.setAttribute('data-pdf-resource', 'translation');
                         const translatedContext = translatedCanvas.getContext('2d', {alpha: false});
                         if (!translatedContext) throw new Error('浏览器 Canvas 初始化失败');
                         translatedContext.drawImage(canvas, 0, 0);
-                    } else {translatedCanvas = canvas; translatedCanvas.setAttribute('data-pdf-resource', 'translation');}
-                    const visibleTranslations: string[] = [];
-                    model.segmentIndexes.forEach(index => {if (hasDistinctTranslation(document.segments[index]?.source ?? '', settings.translations[index])) visibleTranslations[index] = settings.translations[index];});
-                    paintPdfTranslation(translatedCanvas, {
-                        ...model, sourceBytes: binary.bytes,
-                        translations: visibleTranslations,
-                    });
+                    } else translatedCanvas = canvas;
+                    translatedCanvas.setAttribute('data-pdf-resource', 'translation');
                 }
                 controller.signal.throwIfAborted();
                 completed = true;

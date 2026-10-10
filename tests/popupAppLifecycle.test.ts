@@ -63,7 +63,7 @@ beforeEach(async()=>{
     return null
   }}]})
 })
-afterEach(async()=>{app?.unmount();await settle();await server?.close();delete(globalThis as any).__popupFixture;vi.unstubAllGlobals()})
+afterEach(async()=>{app?.unmount();await settle();await server?.close();delete(globalThis as any).__popupFixture;vi.useRealTimers();vi.unstubAllGlobals()})
 async function mount(){
   const component=(await server.ssrLoadModule('/src/app/popup/PopupApp.vue')).default;shown=runtime.ref(true)
   const renderer=runtime.createRenderer({patchProp(el:any,key:string,previous:any,next:any){const handlers=events.get(el)||{};events.set(el,handlers);if(/^on[A-Z]/u.test(key)){handlers[key]=next;const name=key.slice(2).toLowerCase();if(previous)el.removeEventListener(name,previous);if(next)el.addEventListener(name,next);return}if(key==='class'){el.className=next??'';return}if(next===undefined||next===null||(next===false&&!/^(?:aria-|data-)/u.test(key)))el.removeAttribute(key);else el.setAttribute(key,String(next))},
@@ -72,6 +72,18 @@ async function mount(){
   app=renderer.createApp({setup:()=>()=>runtime.h(runtime.KeepAlive,null,{default:()=>shown.value?runtime.h(component,{ref:(vm:any)=>{if(vm)state=vm.$.setupState}}):runtime.h({render:()=>null},{key:'other'})})});app.component('OwnedTransition',{setup:(_:unknown,{slots}:any)=>()=>slots.default?.()});app.config.warnHandler=()=>{};app.mount(document.getElementById('app')!);await drain()
 }
 describe('实际 Popup 缓存模板与页面操作',()=>{
+  it.each(['keywords','surprisal-local'] as const)('信息高亮 %s 偏好与旧入口配置不进入 Popup，也不启动页面或模型消息',async mode=>{
+    config.informationHighlight.mode=mode;Object.assign(config.popupQuickFeatureVisibility,{highlight:true});(config.popupQuickFeatureOrder as string[]).push('highlight')
+    vi.useFakeTimers({toFake:['setInterval','clearInterval']});await mount()
+    expect(document.querySelector('[data-popup-quick-feature="highlight"]')).toBeNull()
+    expect(document.querySelector('[data-information-highlight-drawer]')).toBeNull()
+    expect(state.visiblePopupQuickFeatureIds).not.toContain('highlight')
+    await openFeature('hover');state.config.informationHighlight.mode=mode==='keywords'?'surprisal-local':'keywords';state.config.on=false;state.config.on=true
+    getTab.mockResolvedValue([{id:8,windowId:3,url:'https://example.net/b'}]);tabEvent('onUpdated',7,{status:'loading'},{id:7,windowId:3,active:true});await drain()
+    vi.advanceTimersByTime(10000);await drain()
+    const messages=[...send.mock.calls.map(call=>call[1]),...runtimeSend.mock.calls.map(call=>call[0])]
+    expect(messages.filter(message=>String(message?.type).includes('INFORMATION_HIGHLIGHT'))).toEqual([])
+  })
   it('启动状态晚到不覆盖完成的翻译；原有站点规则也不让读取自行失效',async()=>{
     config.alwaysTranslateDomains=['example.com'];const old=deferred();send.mockImplementationOnce(()=>old.promise);await mount();await eventOf(button('page-translation'))();old.resolve({isTranslated:false});await drain();expect(button('page-translation').getAttribute('aria-pressed')).toBe('true');expect(commands()).toHaveLength(1)
   })

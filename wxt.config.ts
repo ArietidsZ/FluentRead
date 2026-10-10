@@ -73,7 +73,7 @@ export function extendRemoteConfigBuildConfig(
 
 /** 这些入口都由 new Worker(..., {type: 'module'}) 启动，可共享一次 ESM 构建及依赖 chunk。 */
 export function groupModuleWorkers(groups: EntrypointGroup[]): void {
-    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'mangaInferenceWorker']);
+    const moduleWorkers = new Set(['localTranslationWorker', 'localTtsWorker', 'videoTranscriptionWorker', 'mangaInferenceWorker', 'informationHighlightWorker']);
     const workers = groups.filter((group): group is Entrypoint =>
         !Array.isArray(group) && group.type === 'unlisted-script' && moduleWorkers.has(group.name));
     if (workers.length < 2) return;

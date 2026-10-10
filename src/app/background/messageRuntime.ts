@@ -27,7 +27,7 @@ import {createInputBoxTranslationHandler} from './handlers/inputTranslation';
 import {createLocalInsightsHandlers} from './localInsightsHandlers';
 import {createFreeTranslationWeightsHandler} from './handlers/freeTranslationWeights';
 import {createOpenOptionsPageHandler} from './handlers/openOptions';
-import {createDownloadProgressHandler} from './handlers/downloadProgress';
+import {createDownloadProgressHandler, createDownloadProgressQueryHandler} from './handlers/downloadProgress';
 import {createTranslationCancelHandler, createTranslationRequestFallback, createTranslationRequestRegistry} from './handlers/translation';
 import {createSelectionTtsBackgroundHandlers, type SelectionTtsContext} from './handlers/selectionTts';
 import {createSelectionWordLookupHandler} from './handlers/selectionWordLookup';
@@ -42,8 +42,7 @@ import {createConfigBackgroundHandlers} from './configMessageHandlers';
 import {createConfigImageOcrLanguageStorage, installBrowserConfigStorageBroadcast} from './configStorageRuntime';
 import {releaseVideoSubtitleOwnerForTab} from '@/src/features/video-subtitle/background/handlers';
 import {createVideoSubtitleBackgroundRuntime} from '@/src/features/video-subtitle/background/runtime';
-import {createLocalTranslationBackgroundRuntime} from '@/src/features/local-translation/background/runtime';
-import {createLocalTtsBackgroundRuntime} from '@/src/features/local-tts/background/runtime';
+import {createLocalModelMessageHandlers} from './localModelMessageRuntime';
 import {localTtsOffscreenAdapter} from '@/src/features/local-tts/background/offscreenAdapter';
 import {createSelectionTtsSynthesizer} from '@/src/features/selection-translation/background/selectionTtsSynthesis';
 import {installWritingBackgroundRuntime} from './writingRuntime';
@@ -160,9 +159,8 @@ export function installBackgroundMessageRuntime(options: BackgroundMessageRuntim
             logOperationFailure: (error) => console.error('[FluentRead] vocabulary book operation failed:', error),
         }),
         ...createVideoSubtitleBackgroundRuntime(),
-        ...createLocalTranslationBackgroundRuntime(),
-        ...createLocalTtsBackgroundRuntime(),
-        createDownloadProgressHandler({runtimeId: browser.runtime.id, offscreenUrl: browser.runtime.getURL('/offscreen.html'), storage: browser.storage.local}),
+        ...createLocalModelMessageHandlers<BackgroundRuntimeContext>(),
+        createDownloadProgressHandler({runtimeId: browser.runtime.id, offscreenUrl: browser.runtime.getURL('/offscreen.html'), storage: browser.storage.local}), createDownloadProgressQueryHandler({runtimeId: browser.runtime.id, storage: browser.storage.local}),
     ];
     const router = createBackgroundMessageRouter(
         handlers,

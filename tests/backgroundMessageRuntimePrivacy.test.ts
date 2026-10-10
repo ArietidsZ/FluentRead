@@ -21,7 +21,7 @@ vi.mock('@/src/app/background/handlers/imageTranslation', () => ({createImageOcr
 vi.mock('@/src/app/background/localInsightsHandlers', () => ({createLocalInsightsHandlers: () => []}));
 vi.mock('@/src/app/background/handlers/freeTranslationWeights', () => ({createFreeTranslationWeightsHandler: () => ({type: 'fixture-weights', handle: vi.fn()})}));
 vi.mock('@/src/app/background/handlers/openOptions', () => ({createOpenOptionsPageHandler: () => ({type: 'fixture-options', handle: vi.fn()})}));
-vi.mock('@/src/app/background/handlers/downloadProgress', () => ({createDownloadProgressHandler: () => ({type: 'fixture-download', handle: vi.fn()})}));
+vi.mock('@/src/app/background/handlers/downloadProgress', () => ({createDownloadProgressHandler: () => ({type: 'fixture-download', handle: vi.fn()}), createDownloadProgressQueryHandler: () => ({type: 'fixture-download-query', handle: vi.fn()})}));
 vi.mock('@/src/app/background/handlers/selectionTts', () => ({createSelectionTtsBackgroundHandlers: () => []}));
 vi.mock('@/src/app/background/handlers/selectionWordLookup', () => ({createSelectionWordLookupHandler: () => ({type: 'fixture-word', handle: vi.fn()})}));
 vi.mock('@/src/app/background/handlers/vocabulary', () => ({createBrowserVocabularyBookChangedBroadcaster: vi.fn(), createVocabularyBackgroundHandlers: () => []}));

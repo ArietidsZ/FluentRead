@@ -16,6 +16,10 @@ import {
     disposeMangaModels,
 } from './imageTranslation';
 import {createOffscreenMessageListener} from './messageRouter';
+import {createInformationHighlightModelRuntime, probeInformationHighlightWebGpu} from '@/src/features/information-highlight/offscreen/runtime';
+import {informationHighlightArtifactStore} from '@/src/features/information-highlight/offscreen/artifacts';
+import {INFORMATION_HIGHLIGHT_DOWNLOAD_ID} from '@/src/features/information-highlight/protocol';
+import {withLocalInferenceBudget} from '@/src/shared/onnx/resources';
 import {parseSelectionTtsRoute} from '@/src/features/selection-translation/protocol';
 import {createDownloadProgressPublisher, LOCAL_TTS_DOWNLOAD_ID, ocrLanguageDownloadId, videoModelDownloadId} from '@/src/core/download/progress';
 import {normalizeVideoLocalTranscriptionModel} from '@/src/features/video-subtitle/transcription';
@@ -58,6 +62,13 @@ export function startOffscreenApp(): void {
     const downloads = createDownloadProgressPublisher((message) => {
         chrome.runtime.sendMessage(message, () => void chrome.runtime.lastError);
     });
+    const informationHighlight = createInformationHighlightModelRuntime({
+        store: informationHighlightArtifactStore,
+        createWorker: () => new Worker(chrome.runtime.getURL('informationHighlightWorker.js'), {type: 'module'}),
+        probe: probeInformationHighlightWebGpu,
+        budget: withLocalInferenceBudget,
+        notify: progress => progress ? downloads.report(INFORMATION_HIGHLIGHT_DOWNLOAD_ID, progress) : downloads.finish(INFORMATION_HIGHLIGHT_DOWNLOAD_ID),
+    });
     const ttsPlayer = createSelectionTtsPlayer({
         createAudio: () => new Audio(),
         decodeBase64: decodeAudioBase64,
@@ -80,6 +91,7 @@ export function startOffscreenApp(): void {
     });
     const listener = createOffscreenMessageListener({
         runtimeId: chrome.runtime.id,
+        informationHighlight,
         translate: (data, signal) => translateWithChromeApi(data, self as ChromeTranslationEnvironment, signal),
         ttsPlayer,
         translateImage: translateImageInOffscreen,
@@ -101,7 +113,7 @@ export function startOffscreenApp(): void {
                 ? prepareLocalVideoTranscriptionModel(request.model, {keepWarm: true, streamId: request.streamId})
                 : downloads.track(
                     videoModelDownloadId(normalizeVideoLocalTranscriptionModel(request.model)),
-                    onProgress => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: false, onProgress}),
+                    onProgress => prepareLocalVideoTranscriptionModel(request.model, {keepWarm: false, onProgress, preference: request.preference}),
                 ),
             cancel: cancelLocalVideoTranscription,
             removeModel: request => removeLocalVideoTranscriptionModel(request.model),
@@ -134,5 +146,6 @@ export function startOffscreenApp(): void {
         disposeLocalTranslationWorker();
         disposeLocalTtsWorker();
         disposeMangaModels();
+        informationHighlight.dispose();
     }, {once: true});
 }

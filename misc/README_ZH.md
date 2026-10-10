@@ -94,6 +94,7 @@ FluentRead 的成长离不开开源社区。感谢以下项目及其贡献者的
 - [陪读蛙](https://github.com/mengxi-ream/read-frog)
 - [简约翻译](https://github.com/fishjar/kiss-translator)
 - [Duo Translator](https://github.com/linuxscreen/duo-translator)
+- [InfoLens](https://github.com/dqy08/InfoLens) —— 智能高亮的设计参考了它的意外度热力图思路（Apache-2.0）
 
 <!-- contributors:start -->
 <a href="https://github.com/FluentRead/FluentRead/graphs/contributors">

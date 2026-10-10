@@ -1,7 +1,7 @@
 <!--
  @file src/app/popup/PopupApp.vue
  文件职责：实现浏览器 Popup 的主交互界面，连接当前标签页状态、翻译配置、可插拔皮肤、功能抽屉和高频操作，让现场开关与显示操作保持简短，将长期偏好引导到对应设置页。
- 主要内容：在配置 hydration 后汇总翻译服务，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；赞赏码在当前弹窗内切换放大与还原，关闭后重置；悬停、划词与图片抽屉优先展示开关和操作示意，首次语言引导独占内容；页面操作、抽屉和导航绑定活跃会话，等待期间独占请求，关闭和配置切换使旧回复失效。
+ 主要内容：在配置 hydration 后汇总翻译服务，直接展示网页默认服务与适用的配置模型，保留版本、赞赏、网页翻译与恢复、局部选择及站点开关；赞赏码在当前弹窗内切换放大与还原，关闭后重置；悬停、划词与图片抽屉优先展示开关和操作示意，首次语言引导独占内容；页面操作、抽屉和导航绑定活跃会话，等待期间独占请求，关闭和配置切换使旧回复失效。
  模块边界：组件编排 UI、浏览器导航事件与生命周期；页面消息归属由 pageActions 管理，不实现翻译 provider、缓存存储或 content 挂载；公共配置由 services/store 管理。
 -->
 <!-- Popup 页面归 app 层所有；WXT 入口只负责调用挂载函数。 -->
@@ -98,15 +98,18 @@
         </label>
       </div>
 
-      <button class="provider-summary" type="button" data-testid="popup-feature-services"
-        :aria-label="t('featureServices.open')" :title="providerSummaryTitle" aria-haspopup="dialog"
+      <button class="provider-summary" type="button" data-testid="popup-feature-services" data-i18n-ignore
+        :aria-label="providerSummaryLabel" :title="providerSummaryTitle" aria-haspopup="dialog"
         :aria-expanded="drawerVisible && activeDrawer === 'services'" :onClick="popupActions.services">
-        <strong>{{ t('popup.providers.title') }}</strong>
+        <span class="provider-summary-copy">
+          <span class="provider-summary-heading"><small>{{ t('popup.providers.title') }}</small><strong>{{ providerLabel(config.service) }}</strong></span>
+          <small v-if="providerSummaryModel" class="provider-summary-model" :title="providerSummaryModelLabel">{{ providerSummaryModel }}</small>
+        </span>
         <span class="provider-summary-icons" aria-hidden="true">
-          <span v-for="service in assignedProviders.slice(0, 4)" :key="service" class="provider-avatar">
-            <ServiceIcon :service="service" :label="providerLabel(service)" size="small" />
+          <span class="provider-avatar">
+            <ServiceIcon :service="config.service" :label="providerLabel(config.service)" size="small" />
           </span>
-          <span v-if="assignedProviders.length > 4" class="provider-avatar provider-overflow">+{{ assignedProviders.length - 4 }}</span>
+          <span v-if="assignedProviders.length > 1" class="provider-avatar provider-overflow">+{{ assignedProviders.length - 1 }}</span>
           <span class="provider-summary-chevron">›</span>
         </span>
       </button>
@@ -481,14 +484,16 @@ const sectionTranslationLabel = computed(() => {
   const shortcut = sectionTranslationHotkeyDisplayName(config.value.sectionTranslationHotkey, config.value.customSectionTranslationHotkey);
   return `${title} · ${t('popup.sectionTranslationShortcut', {shortcut})}`;
 });
+// 自定义接口名称属于用户配置；内置服务才复用旧 UI 名称的本地化。
+const customProviderNames = computed(() => new Map(config.value.customOpenAIProviders.map(provider => [provider.id, provider.name])));
 const allServiceOptions = computed(() => withCustomOpenAIServiceOptions(
   options.services,
   config.value.customOpenAIProviders,
 ).filter((item: any) => !item.disabled).map((item: any) => ({
   ...item,
-  label: translateLegacy(item.label),
+  label: customProviderNames.value.get(item.value) ?? translateLegacy(item.label),
   description: item.description ? translateLegacy(item.description) : item.description,
-  searchTerms: [...(item.searchTerms || []), translateLegacy(item.label)],
+  searchTerms: [...(item.searchTerms || []), customProviderNames.value.get(item.value) ?? translateLegacy(item.label)],
 })));
 const providerLabels = computed(() => new Map(allServiceOptions.value.map(item => [item.value, item.label])));
 const providerLabel = (service: string) => providerLabels.value.get(service) || service;
@@ -497,7 +502,6 @@ const assignedProviders = computed(() => [...new Set([
   ...featureServiceDefinitions.map(feature => getFeatureService(config.value, feature) || config.value.service),
   ...enabledQuickTranslationProfiles(config.value.quickTranslationProfiles).map(profile => profile.service).filter(Boolean),
 ])]);
-const providerSummaryTitle = computed(() => `${t('featureServices.shortHelp')}\n${assignedProviders.value.map(providerLabel).join(' · ')}`);
 const selectedServiceUnavailableMessage = computed(() => getTranslationServiceUnavailableMessage(config.value.service));
 const selectedCustomOpenAIProvider = computed(() => getCustomOpenAIProvider(
   config.value.customOpenAIProviders,
@@ -509,6 +513,13 @@ const aiContextModel = computed(() => selectedCustomOpenAIProvider.value
     config.value.model[config.value.service],
     config.value.customModel[config.value.service],
   ));
+// 服务摘要只呈现该服务支持的配置模型；附加请求体仍可能覆盖最终请求模型。
+const providerSummaryModel = computed(() => servicesType.isUseModel(config.value.service) ? aiContextModel.value : '');
+const providerSummaryModelLabel = computed(() => providerSummaryModel.value
+  ? t('featureServices.configuredModel', {model: providerSummaryModel.value}) : '');
+const providerSummaryLabel = computed(() => [t('featureServices.open'), t('featureServices.default'),
+  providerLabel(config.value.service), providerSummaryModelLabel.value].filter(Boolean).join(' · '));
+const providerSummaryTitle = computed(() => `${providerSummaryLabel.value}\n${t('featureServices.shortHelp')}\n${assignedProviders.value.map(providerLabel).join(' · ')}`);
 const canUseAIContext = computed(() => servicesType.isUseAIContext(
   selectedCustomOpenAIProvider.value ? 'custom' : config.value.service,
   aiContextModel.value,
@@ -909,12 +920,12 @@ function showNotice(message: string, type: 'success' | 'error' = 'success') {
 
 // 配置订阅是内容功能的唯一状态来源；避免无 revision 的广播晚到后覆盖新快照。
 function openDrawer(name: DrawerName) {if (!popupContext.active.value || (!config.value.on && name !== 'services' && name !== 'aiContext')) return;activeDrawer.value = name;drawerMounted.value = true;drawerVisible.value = true;}
-async function openOptions(section?: SettingsSection) {
+async function openOptions(section?: SettingsSection, target?: string) {
   if (!popupContext.active.value) return;
   const current = popupContext.capture();
   try {
     if (section) {
-      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}#${section}` });
+      await browser.tabs.create({ url: `${browser.runtime.getURL('options.html')}${target ? `?target=${encodeURIComponent(target)}` : ''}#${section}` });
     } else {
       await browser.runtime.openOptionsPage();
     }

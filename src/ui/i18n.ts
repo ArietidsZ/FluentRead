@@ -5,7 +5,7 @@
  * 订阅共享配置、即时切换语言和安全迁移尚未 key 化的旧文案。
  * 主要内容：提供 createUiI18nPlugin、useUiI18n 和 v-ui-i18n 指令；语言切换时按需加载资源包，
  * 选择以调用身份串行提交字段补丁，旧资源、旧失败和已销毁 runtime 不得回写新选择；资源到达后通过 bundleRevision 刷新渲染与旧文案扫描；源语言界面跳过无效全树扫描，切回源语言时仍恢复旧文案。指令只扫描
- * 显式标记的扩展 UI 根节点，插件在正常卸载或构建失败时释放订阅、watch、observer 和延迟扫描；跳过代码、文本编辑器和用户内容，避免把网页正文
+ * 显式标记的扩展 UI 根节点，插件在正常卸载或构建失败时释放订阅、watch、observer 和延迟扫描；跳过代码、文本编辑器和用户内容及其后代文本，避免把网页正文
  * 或翻译结果误当成扩展文案。
  * 模块边界：这里负责 Vue 响应式和配置 patch，不定义语言文案；文案资源与纯
  * fallback 规则在 src/core/i18n，配置持久化仍由 services/config/store 负责。
@@ -250,7 +250,7 @@ interface UiI18nDirectiveState {
 }
 
 const TRANSLATABLE_ATTRIBUTES = ['aria-label', 'aria-description', 'placeholder', 'title', 'alt'] as const;
-const NON_UI_TEXT_TAGS = new Set(['CODE', 'PRE', 'SCRIPT', 'STYLE', 'TEXTAREA']);
+const NON_UI_TEXT_SELECTOR = '[data-i18n-ignore], code, pre, script, style, textarea';
 const NON_UI_ELEMENT_TAGS = new Set(['SCRIPT', 'STYLE']);
 
 function isIgnoredElement(element: Element | null): boolean {
@@ -259,8 +259,8 @@ function isIgnoredElement(element: Element | null): boolean {
 }
 
 function isIgnoredTextElement(element: Element | null): boolean {
-    return Boolean(element?.closest('[data-i18n-ignore]'))
-        || (element ? NON_UI_TEXT_TAGS.has(element.tagName) : true);
+    // 跟读等正文组件会嵌套 span；内容祖先的排除规则必须继续保护这些后代文本。
+    return !element || Boolean(element.closest(NON_UI_TEXT_SELECTOR));
 }
 
 const UI_MUTATION_OBSERVER_OPTIONS: MutationObserverInit = {
