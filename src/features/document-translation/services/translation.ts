@@ -1,7 +1,7 @@
 /**
  * @file src/features/document-translation/services/translation.ts
  * 文件职责：编排文档片段的批量翻译流程，在固定语言和服务快照下按数量及字符预算拆批，并向调用方持续报告确定性进度。
- * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，支持批量的服务同时保持数批请求在途、先返回的先提交，提交前移除服务凭空加入的表情符号，请求失败时可按退避间隔自动重试并向页面报告原因，被服务原样返回的专名与短词保留原文而不中断全文，复用已有译文继续未完成片段，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
+ * 主要内容：定义进度与逐段提交契约，按阅读位置重排待译片段并可收紧单批大小，支持批量的服务同时保持数批请求在途、先返回的先提交，提交前移除服务凭空加入的表情符号，请求失败时可按退避间隔自动重试并向页面报告原因，被服务原样返回的专名与短词保留原文而不中断全文，复用已有译文继续未完成片段，原文完全相同的片段只翻译一次并同时提交，提供文件解析所有权，固定文件级上下文，透传全局暂停状态、校验批次结果并阻止取消和失败后的迟到提交。
  * 模块边界：该层不解析文件、不持久化配置，也不直接绑定具体 provider；上层负责冻结用户设置并注入 gateway，文档结构由 core 提供，网络和缓存语义由应用翻译客户端承担。
  */
 import {TranslationRequestError} from '@/src/services/translation/errors';
@@ -231,16 +231,32 @@ export function createDocumentSegmentTranslator(
         let completed = segments.length - pending.length;
         const reportProgress = () => options.onProgress?.({completed, total: segments.length});
         const sources = new Map(segments.map(segment => [segment.id, segment.source]));
+        // 原文完全相同的片段（字幕里重复的台词、表格里重复的单元格）只翻译一次：一处有了译文，其余同时提交，用词也保持一致。
+        const twins = new Map<string, number[]>();
+        for (const {id, source} of pending) twins.set(source, [...(twins.get(source) ?? []), id]);
         const commit = (id: number, received: string) => {
             throwIfAborted(options.signal);
-            const translation = stripInventedPictographs(sources.get(id)!, received);
-            translations[id] = translation;
-            completed += 1;
-            options.onSegment?.({id, translation});
+            const source = sources.get(id)!;
+            const translation = stripInventedPictographs(source, received);
+            for (const twin of twins.get(source)!) {
+                translations[twin] = translation;
+                completed += 1;
+                options.onSegment?.({id: twin, translation});
+            }
         };
+        // 继续未完成的任务时，已有译文的原文直接复用给后面相同的片段，不再请求。
+        const known = new Map<string, string>();
+        for (const {id, source} of segments) if (translations[id].trim() && !known.has(source)) known.set(source, translations[id]);
+        for (const {id, source} of pending) if (!translations[id].trim() && known.has(source)) commit(id, known.get(source)!);
         reportProgress();
 
-        let queue = [...pending];
+        /** 认领一批（或一段）之后，把队列里原文相同的片段一并拿走；它们随这一批的结果提交。 */
+        const claim = (taken: DocumentSegment[]): DocumentSegment[] => {
+            const claimed = new Set(taken.map(segment => segment.source));
+            queue = queue.filter(segment => !claimed.has(segment.source));
+            return taken.filter((segment, index) => taken.findIndex(other => other.source === segment.source) === index);
+        };
+        let queue = pending.filter(({id}) => !translations[id].trim());
         if (gateway.supportsBatch(service)) {
             const itemLimit = boundedLimit(options.batchLimits?.items, BATCH_ITEM_LIMIT);
             const characterLimit = boundedLimit(options.batchLimits?.characters, BATCH_CHARACTER_LIMIT);
@@ -250,7 +266,7 @@ export function createDocumentSegmentTranslator(
             while (queue.length > 0 && !failed) {
                 throwIfAborted(options.signal);
                 queue = prioritized(queue, options.prioritize);
-                const batch = takeBatch(queue, itemLimit, characterLimit);
+                const batch = claim(takeBatch(queue, itemLimit, characterLimit));
                 try {
                     const result = await withRetryBackoff(async () => {
                     const result = await gateway.translateTextBatch(
@@ -309,13 +325,14 @@ export function createDocumentSegmentTranslator(
         }
 
         let stopped = false;
-        const workerCount = Math.min(3, pending.length);
+        const workerCount = Math.min(3, queue.length);
         const worker = async () => {
             while (true) {
                 throwIfAborted(options.signal);
                 queue = prioritized(queue, options.prioritize);
                 const segment = queue.shift();
                 if (!segment) return;
+                claim([segment]);
 
                 try {
                     const translation = await withRetryBackoff(async () => {

@@ -437,11 +437,35 @@ describe('document translation reading-order priority and batch sizing', () => {
         await translateDocumentSegments(long, {fileName: 'paper.pdf', batchLimits: {characters: 10}});
         expect(mocks.translateTextBatch.mock.calls.map(call => call[0].length)).toEqual([1, 1, 1]);
         mocks.translateTextBatch.mockClear();
-        const many = Array.from({length: 20}, (_, id) => ({id, source: 'x'}));
+        const many = Array.from({length: 20}, (_, id) => ({id, source: `x${id}`}));
         await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 0, characters: Number.NaN}});
         await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 500, characters: 1e9}});
         await translateDocumentSegments(many, {fileName: 'paper.pdf', batchLimits: {items: 2.9}});
         expect(mocks.translateTextBatch.mock.calls.map(call => call[0].length)).toEqual([16, 4, 16, 4, ...Array.from({length: 10}, () => 2)]);
+    });
+
+    it('translates identical sources once, commits every repeat together and reuses earlier translations on resume', async () => {
+        mocks.translateTextBatch.mockImplementation(async (sources: string[]) => sources.map((source, index) => `译${mocks.translateTextBatch.mock.calls.length}-${index} ${source}`));
+        const lines = ['Hello.', 'Bye.', 'Hello.', 'Wait.', 'Bye.', 'Hello.'].map((source, id) => ({id, source}));
+        const committed: number[] = [], progress: number[] = [];
+        // 每批一段：重复的台词不再各占一批，也不会因为落在不同批次而译法不同。
+        const result = await translateDocumentSegments(lines, {fileName: 'show.srt', batchLimits: {items: 1}, batchConcurrency: 1, onSegment: ({id}) => committed.push(id), onProgress: ({completed}) => progress.push(completed)});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0])).toEqual([['Hello.'], ['Bye.'], ['Wait.']]);
+        expect(result).toEqual(['译1-0 Hello.', '译2-0 Bye.', '译1-0 Hello.', '译3-0 Wait.', '译2-0 Bye.', '译1-0 Hello.']);
+        expect(committed).toEqual([0, 2, 5, 1, 4, 3]); expect(progress).toEqual([0, 3, 5, 6]);
+        // 同一批里的重复原文只发送一次。
+        mocks.translateTextBatch.mockClear();
+        await translateDocumentSegments(lines, {fileName: 'show.srt'});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0])).toEqual([['Hello.', 'Bye.', 'Wait.']]);
+        // 继续任务：已有译文的原文直接复用，只请求真正没译过的。
+        mocks.translateTextBatch.mockClear();
+        const resumed = await translateDocumentSegments(lines, {fileName: 'show.srt', initialTranslations: ['你好。', '', '', '', '', '']});
+        expect(mocks.translateTextBatch.mock.calls.map(call => call[0])).toEqual([['Bye.', 'Wait.']]);
+        expect([resumed[0], resumed[2], resumed[5]]).toEqual(['你好。', '你好。', '你好。']); expect(resumed[1]).toBe(resumed[4]);
+        // 不支持批量的服务同样只翻译一次。
+        mocks.defaultService = 'deepseek'; mocks.translateText.mockImplementation(async (source: string) => `单 ${source}`);
+        expect(await translateDocumentSegments(lines, {fileName: 'show.srt'})).toEqual(['单 Hello.', '单 Bye.', '单 Hello.', '单 Wait.', '单 Bye.', '单 Hello.']);
+        expect(mocks.translateText.mock.calls.map(call => call[0]).sort()).toEqual(['Bye.', 'Hello.', 'Wait.']);
     });
 
     it('keeps every segment when a prioritizer drops, duplicates or invents segments', async () => {
