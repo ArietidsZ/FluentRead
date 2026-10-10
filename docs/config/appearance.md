@@ -64,5 +64,6 @@ text-decoration-thickness: 2px;
 
 ## 相关文档
 
+- [智能高亮：关键词与本地预测意外度](/guide/information-highlight)
 - [界面主题与菜单布局](/config/)
 - [网页翻译](/guide/webpage-translation)

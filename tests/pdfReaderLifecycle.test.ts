@@ -5,6 +5,9 @@ import PdfReader from '@/src/features/document-translation/ui/PdfReader.vue';
 import type {ParsedDocument, PdfDocumentPage} from '@/src/features/document-translation/core/document';
 import {createPdfReaderRenderPort, PDF_READER_MAX_CANVAS_EDGE, PDF_READER_MAX_PAGE_PIXELS, PDF_READER_MAX_RESIDENT_PAGES, pdfReaderCanvasSize, pdfReaderDisplayRect, pdfReaderPageHasTranslation, pdfReaderPageKey, pdfReaderPageWindow, PdfReaderScheduler, type PdfReaderPageState, type PdfReaderRenderedPage, type PdfReaderSettings} from '@/src/features/document-translation/ui/pdfReader';
 import {acquirePdfDocument, releasePdfDocument} from '@/src/features/document-translation/ui/pdfPreview';
+import {DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES} from '@/src/core/config/informationHighlight';
+import {scoreInformationKeywords} from '@/src/features/information-highlight/domain/keywords';
+import {INFORMATION_HIGHLIGHT_NAME} from '@/src/features/information-highlight/public';
 
 const ports = vi.hoisted(() => ({getDocument: vi.fn(), textLayers: [] as any[], textPending: undefined as any}));
 vi.mock('@/src/ui/i18n', () => ({useUiI18n: () => ({t: (key: string, params?: {page?: number}) => params?.page ? `${key}:${params.page}` : key})}));
@@ -360,11 +363,12 @@ describe('PDF reader actual PDF.js resource adapter', () => {
     });
 });
 
-function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = [], options: {presentation?: 'readable' | 'layout'; translating?: boolean; outlineTarget?: HTMLElement} = {}) {
+function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings['mode'], translations: readonly string[] = [], options: {presentation?: 'readable' | 'layout'; translating?: boolean; outlineTarget?: HTMLElement; information?: {preferences: typeof DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES; scoreLocal: (text: string, signal: AbortSignal) => Promise<any>; available: boolean}} = {}) {
     const currentDocument = ref(value); const currentMode = ref(mode); const currentTranslations = ref(translations);
     // 不传 presentation 时使用组件默认的原版排版。
     const currentPresentation = ref<'readable' | 'layout' | undefined>(options.presentation); const presentations: string[] = [];
     const currentTranslating = ref(options.translating ?? false); const pageChanges: number[] = [];
+    const currentInformation = ref(options.information);
     const renderer = createRenderer<any, any>({
         createElement: tag => document.createElement(tag), createText: value => document.createTextNode(value), createComment: value => document.createComment(value),
         setText: (node, value) => {node.nodeValue = value;}, setElementText: (node, value) => {node.textContent = value;},
@@ -374,23 +378,104 @@ function mountReader(value: ParsedDocument, mode = 'source' as PdfReaderSettings
             if (key.startsWith('on')) {if (key.includes(':')) return; const name = key.slice(2).replace(/(?:Once|Passive|Capture)+$/, '').toLowerCase(); if (previous) element.removeEventListener(name, previous); if (value) element.addEventListener(name, value);}
             else if (key === 'style') {for (const [name, entry] of Object.entries(value || {})) element.style.setProperty(name, String(entry));}
             else if (key === 'value') element.value = value;
-            else if (value == null || value === false) element.removeAttribute(key);
+            else if (value == null || (value === false && !key.startsWith('aria-'))) element.removeAttribute(key);
             else element.setAttribute(key, String(value));
         },
     });
     const root = document.createElement('div'); document.body.append(root);
     mountedApp = renderer.createApp({setup: () => () => h(PdfReader, {document: currentDocument.value, translations: currentTranslations.value, mode: currentMode.value, presentation: currentPresentation.value, translating: currentTranslating.value, outlineTarget: options.outlineTarget ?? null,
-        'onUpdate:presentation': (value: 'readable' | 'layout') => {presentations.push(value); currentPresentation.value = value;}, onPageChange: (page: number) => {pageChanges.push(page);}, sourceUrl: 'https://arxiv.org/pdf/1706.03762'})});
+        'onUpdate:presentation': (value: 'readable' | 'layout') => {presentations.push(value); currentPresentation.value = value;}, onPageChange: (page: number) => {pageChanges.push(page);}, sourceUrl: 'https://arxiv.org/pdf/1706.03762', informationHighlight: currentInformation.value})});
     mountedApp.mount(root);
     const state = mountedApp._instance.subTree.component.setupState;
     const viewport = root.querySelector('[data-pdf-scroll]') as HTMLElement;
     Object.defineProperties(viewport, {clientWidth: {value: 920, writable: true}, clientHeight: {value: 600, writable: true}});
-    return {root, viewport, state, currentDocument, currentMode, currentTranslations, currentPresentation, currentTranslating, presentations, pageChanges};
+    return {root, viewport, state, currentDocument, currentMode, currentTranslations, currentPresentation, currentTranslating, presentations, pageChanges, currentInformation};
 }
 async function componentFlush(): Promise<void> {for (let index = 0; index < 12; index += 1) {await nextTick(); await Promise.resolve();}}
 const click = (element: Element | null | undefined): void => {element!.dispatchEvent(new document.defaultView!.Event('click'));};
 const classes = (element: Element | null | undefined): string[] => (element!.getAttribute('class') ?? '').split(/\s+/).filter(Boolean);
 function flushFrames(): void {const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach(callback => callback(0));}
+
+function nativeInformationPaint() {
+    const original = document.defaultView!; const registry = new Map<string, Set<Range>>();
+    Object.defineProperty(document, 'defaultView', {configurable: true, value: new Proxy(original, {get(target, key) {
+        if (key === 'CSS') return {highlights: registry}; if (key === 'Highlight') return Set;
+        if (key === 'requestAnimationFrame' || key === 'cancelAnimationFrame') return (win as any)[key];
+        if (key === 'innerHeight') return 720;
+        if (key === 'getComputedStyle') return (element: HTMLElement) => ({display: element.style.display || 'inline', visibility: 'visible'});
+        return Reflect.get(target, key);
+    }})});
+    document.createRange = () => {let text: Text, start = 0, end = 0; return {setStart(node: Text, value: number) {text = node; start = value;}, setEnd(_node: Text, value: number) {end = value;}, toString() {return text.data.slice(start, end);}} as unknown as Range;};
+    return registry;
+}
+function clickInformation(root: HTMLElement): void {const event = document.createEvent('Event'); event.initEvent('click', true, true); root.querySelector('.pdf-information-highlight')!.dispatchEvent(event);}
+
+describe('PDF reader information highlight composition', () => {
+    it('starts by explicit action, independently scores selectable original and translated text, and cleans paint across zoom and document replacement', async () => {
+        const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const reader = mountReader(model(8), 'bilingual', Array(8).fill('Translated paragraphs preserve readable scientific vocabulary.'), {information: {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true}});
+        await componentFlush(); flushFrames(); await componentFlush();
+        expect(score).not.toHaveBeenCalled(); expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('false');
+        const before = reader.viewport.innerHTML;
+        clickInformation(reader.root);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        expect(score.mock.calls.some(([text]) => text === 'Original PDF words')).toBe(true);
+        expect(score.mock.calls.some(([text]) => text.includes('Translated paragraphs'))).toBe(true);
+        expect(registry.get(INFORMATION_HIGHLIGHT_NAME)!.size).toBeGreaterThan(0); expect(reader.viewport.innerHTML).toBe(before);
+        reader.state.zoom = '1.5'; await componentFlush(); expect(registry.get(INFORMATION_HIGHLIGHT_NAME)?.size ?? 0).toBe(0);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        reader.currentInformation.value = {...reader.currentInformation.value!, available: false}; await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, available: true}; await componentFlush(); clickInformation(reader.root); await componentFlush();
+        reader.currentDocument.value = model(2); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(document.querySelector('[data-fr-information-highlight-style]')).toBeNull();
+    });
+    it('follows the saved switch on open and on document replacement while the toolbar still toggles the current document', async () => {
+        const registry = nativeInformationPaint(), score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const painted = () => [...registry].filter(([name]) => name.startsWith(INFORMATION_HIGHLIGHT_NAME)).reduce((total, [, paint]) => total + paint.size, 0);
+        const reader = mountReader(model(2), 'source', [], {information: {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, enabled: true}, scoreLocal: score, available: true}});
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        expect(reader.root.querySelector('.pdf-information-highlight')!.getAttribute('aria-pressed')).toBe('true'); expect(painted()).toBeGreaterThan(0);
+        expect(score).not.toHaveBeenCalled();
+        clickInformation(reader.root); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, color: 'mint'}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentDocument.value = model(2);
+        await vi.waitFor(async () => {flushFrames(); await componentFlush(); expect(reader.state.informationState.phase).toBe('active');}, {timeout: 3000});
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...reader.currentInformation.value!.preferences, enabled: false}}; await componentFlush();
+        expect(reader.state.informationState.enabled).toBe(false); expect(painted()).toBe(0);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush();
+    });
+    it('toggles the current document with the configured shortcut and ignores it when disabled, repeated, untrusted or unavailable', async () => {
+        nativeInformationPaint(); const score = vi.fn(async (text: string) => scoreInformationKeywords(text));
+        const reader = mountReader(model(2), 'source', [], {information: {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, scoreLocal: score, available: true}});
+        await componentFlush(); flushFrames(); await componentFlush();
+        const press = (init: Record<string, unknown> = {}, trusted = true) => {
+            const event = document.createEvent('Event'); event.initEvent('keydown', true, true);
+            Object.assign(event, {key: 'h', code: 'KeyH', altKey: true, ctrlKey: false, shiftKey: false, metaKey: false, repeat: false, ...init});
+            Object.defineProperty(event, 'isTrusted', {value: trusted}); document.dispatchEvent(event); return event;
+        };
+        expect(press().defaultPrevented).toBe(true); await componentFlush(); expect(reader.state.informationState.enabled).toBe(true);
+        for (const ignored of [press({}, false), press({repeat: true}), press({key: 'j', code: 'KeyJ'})]) expect(ignored.defaultPrevented).toBe(false);
+        expect(reader.state.informationState.enabled).toBe(true);
+        press(); await componentFlush(); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, hotkeyEnabled: false}}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = {...reader.currentInformation.value!, preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES}, available: false}; await componentFlush();
+        expect(press().defaultPrevented).toBe(false);
+        mountedApp.unmount(); mountedApp = undefined; await componentFlush(); expect(press().defaultPrevented).toBe(false);
+    });
+    it('aborts pending model scoring on document change and rejects stale text-layer results', async () => {
+        const registry = nativeInformationPaint(), pending = deferred<any>(), signals: AbortSignal[] = [];
+        const score = vi.fn((_text: string, signal: AbortSignal) => {signals.push(signal); return pending.promise;});
+        const reader = mountReader(model(), 'source', [], {information: {preferences: {...DEFAULT_INFORMATION_HIGHLIGHT_PREFERENCES, mode: 'surprisal-local', style: 'background'}, scoreLocal: score, available: true}});
+        await componentFlush(); flushFrames(); await componentFlush(); clickInformation(reader.root);
+        await vi.waitFor(() => {flushFrames(); expect(score).toHaveBeenCalledOnce();});
+        reader.currentDocument.value = model(); await componentFlush(); expect(signals[0].aborted).toBe(true);
+        pending.resolve(scoreInformationKeywords('Original PDF words')); await componentFlush(); flushFrames(); await componentFlush();
+        expect(registry.has(INFORMATION_HIGHLIGHT_NAME)).toBe(false); expect(reader.state.informationState.enabled).toBe(false);
+        reader.currentInformation.value = undefined; await componentFlush(); expect(reader.root.querySelector('.pdf-information-highlight')).toBeNull();
+    });
+});
 
 describe('PDF reader actual Vue component reading interaction', () => {
     it.each([60, 120])('preserves page %i through narrow 120-page reading mode switches before the browser clamps a shorter document', async pageNumber => {
@@ -767,7 +852,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const open = () => ['zoom', 'presentation', 'search', 'style'].filter((_name, index) => classes([zoom, presentation, root.querySelector('.pdf-search'), root.querySelector('.pdf-style')][index]).includes('open'));
         const press = (target: EventTarget) => target.dispatchEvent(new document.defaultView!.Event('pointerdown', {bubbles: true}));
         const key = (value: string) => document.dispatchEvent(Object.assign(new document.defaultView!.Event('keydown', {bubbles: true}), {key: value}));
-        expect(open()).toEqual([]); expect(root.querySelectorAll('.pdf-menu-list, .pdf-menu-panel')).toHaveLength(0); expect(zoomButton.getAttribute('aria-expanded')).toBeNull();
+        expect(open()).toEqual([]); expect(root.querySelectorAll('.pdf-menu-list, .pdf-menu-panel')).toHaveLength(0); expect(zoomButton.getAttribute('aria-expanded')).toBe('false');
         click(zoomButton); await componentFlush();
         expect(open()).toEqual(['zoom']); expect(zoomButton.getAttribute('aria-expanded')).toBe('true'); expect(zoom.querySelector('.pdf-menu-list')!.getAttribute('aria-label')).toBe('document.pdfReading.zoomLabel');
         const selected = () => [...zoom.querySelectorAll('li')].filter(option => option.getAttribute('aria-selected') === 'true' && classes(option).includes('selected')).map(option => option.getAttribute('data-value'));
@@ -785,7 +870,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         press(root.querySelector('[data-pdf-scroll]')!); await componentFlush(); expect(open()).toEqual([]); expect(root.querySelector('.pdf-menu-list')).toBeNull(); expect(state.zoom).toBe('fit');
         click(presentationButton); await componentFlush(); expect(open()).toEqual(['presentation']);
         press(document.body); await componentFlush(); expect(open()).toEqual([]);
-        click(zoomButton); await componentFlush(); key('Escape'); await componentFlush(); expect(open()).toEqual([]); expect(zoomButton.getAttribute('aria-expanded')).toBeNull();
+        click(zoomButton); await componentFlush(); key('Escape'); await componentFlush(); expect(open()).toEqual([]); expect(zoomButton.getAttribute('aria-expanded')).toBe('false');
         key('Escape'); press(document.body); await componentFlush(); expect(open()).toEqual([]);
         click(zoomButton); await componentFlush(); click(zoom.querySelector('li[data-value="2"]')); await componentFlush();
         expect(open()).toEqual([]); expect(state.zoom).toBe('2'); expect(state.scale).toBe(2); expect(zoomButton.textContent).toBe('200%');
@@ -866,7 +951,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const single = (920 - 24) / 612;
         expect(font(second.root)).toEqual({size: px(12 * single * 0.8), family: SERIF});
         click(second.root.querySelector('.pdf-style .pdf-tool-button')); await componentFlush();
-        expect(second.root.querySelector('.pdf-style-stepper output')!.textContent).toBe('80%'); expect(Array.from(second.root.querySelectorAll('.pdf-style-fonts button')).map(button => button.getAttribute('aria-pressed'))).toEqual([null, 'true', null]);
+        expect(second.root.querySelector('.pdf-style-stepper output')!.textContent).toBe('80%'); expect(Array.from(second.root.querySelectorAll('.pdf-style-fonts button')).map(button => button.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false']);
         mountedApp.unmount(); await componentFlush();
         storage.set('fluentread.pdfReader.textStyle', JSON.stringify({scale: 9, font: 'comic'}));
         const clamped = mountReader(model(), 'translated', ['第一段译文']); await componentFlush();
@@ -890,7 +975,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const {root, viewport, state, currentTranslations} = mountReader(doc, 'bilingual', ['1 引言', '1.1 Background', '正文', '2.3.4.5 深入', '', '', '']); await componentFlush();
         const s = (920 - 36) / 2 / 612; const secondTop = 12 + 792 * s + 12;
         const toggle = root.querySelector('.pdf-outline-toggle') as HTMLElement;
-        expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBeNull(); expect(toggle.getAttribute('aria-label')).toBe('document.pdfReading.outline');
+        expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBe('false'); expect(toggle.getAttribute('aria-label')).toBe('document.pdfReading.outline');
         click(toggle); await componentFlush(); flushFrames(); await componentFlush();
         const nav = root.querySelector('nav.pdf-reader-outline#pdf-reader-outline') as HTMLElement;
         expect(toggle.getAttribute('aria-expanded')).toBe('true'); expect(toggle.getAttribute('aria-label')).toBe('document.pdfReading.outline'); expect(classes(toggle)).toContain('active'); expect(classes(nav)).not.toContain('hosted');
@@ -899,7 +984,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         const current = () => items().filter(item => classes(item).includes('current') && item.getAttribute('aria-current') === 'location').map(item => item.getAttribute('title'));
         const languages = Array.from(nav.querySelectorAll('.pdf-outline-language button'));
         expect(languages.map(button => button.textContent)).toEqual(['document.pdfReading.original', 'document.pdfReading.translated']);
-        expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual([null, 'true']);
+        expect(languages.map(button => button.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
         // 默认显示译文标题；与原文相同或尚未译出的标题先显示原文。
         expect(titles()).toEqual(['1 引言', '1.1 Background', '2.3.4.5 深入', 'Appendix']);
         expect(items().map(item => item.getAttribute('title'))).toEqual(['1 Introduction', '1.1 Background', '2.3.4.5 Deep dive', 'Appendix']);
@@ -921,7 +1006,7 @@ describe('PDF reader actual Vue component reading interaction', () => {
         click(items()[0]); await componentFlush(); expect(viewport.scrollTop).toBeCloseTo(12 + 70 * s - 24, 8); expect(state.currentPage).toBe(1); expect(current()).toEqual(['1 Introduction']);
         // 滚动同样更新当前章节；第一处标题之前没有当前项。
         viewport.scrollTop = 12 + 300 * s - 100; viewport.dispatchEvent(new document.defaultView!.Event('scroll')); flushFrames(); await componentFlush(); expect(current()).toEqual(['1.1 Background']);
-        click(toggle); await componentFlush(); expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBeNull();
+        click(toggle); await componentFlush(); expect(root.querySelector('.pdf-reader-outline')).toBeNull(); expect(toggle.getAttribute('aria-expanded')).toBe('false');
     });
 
     it('falls back to one outline item per page without headings and renders the outline into a host target without its own toggle', async () => {

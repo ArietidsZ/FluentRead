@@ -42,6 +42,7 @@ vi.mock('@/src/app/content/features', () => ({
         'isImageTranslatorNeeded', 'isMangaReaderPage', 'mountMangaEntry', 'unmountMangaEntry',
         'mountTranslationProgressPanel', 'mountVideoSubtitleTranslation', 'isSupportedVideoPage',
         'mountParagraphCopyContentFeature', 'mountSectionTranslationContentFeature',
+        'readVisibleTranslationRoot',
         'unmountAreaTranslator', 'unmountFloatingBall',
         'unmountImageTranslator', 'unmountSelectionTranslator', 'unmountTranslationProgressPanel',
     ].map(name => [name, vi.fn()])),
@@ -73,6 +74,10 @@ vi.mock('@/src/app/content/embeddedFrameRuntime', () => ({installEmbeddedTopFram
 vi.mock('@/src/app/content/mainWorldBridgeLifecycle', () => ({setMainWorldBridgesEnabled: mocks.setBridges}));
 vi.mock('@/src/app/content/messageRuntime', () => ({createContentRuntimeMessageHandler: mocks.createMessageHandler}));
 vi.mock('@/src/app/content/bilingualSentenceHighlight', () => ({syncBilingualSentenceHighlight: mocks.syncHighlight}));
+vi.mock('@/src/app/content/informationHighlight', () => ({createPageInformationHighlightRuntime: () => ({
+    mount: vi.fn(), unmount: vi.fn(), updatePreferences: vi.fn(), routeChanged: vi.fn(), getState: vi.fn(), setEnabled: vi.fn(), retry: vi.fn(),
+    feature: {id: 'information-highlight', isEnabled: () => mocks.config.on, mount: vi.fn(), unmount: vi.fn()},
+})}));
 vi.mock('@/src/app/content/siteAdaptationRuntime', () => ({
     createContentSiteAdaptationRuntime: () => ({routeChanged: vi.fn(), update: vi.fn()}),
     applyCoreTranslationPreferences: vi.fn(() => false),

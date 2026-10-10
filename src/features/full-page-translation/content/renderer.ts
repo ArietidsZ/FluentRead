@@ -10,6 +10,7 @@ import { config } from "@/src/services/config/store";
 import {ensureTranslationTruncationLayout} from "@/src/features/full-page-translation/content/layout";
 import {applyLongParagraphLineBreaks} from "@/src/core/translation/lineBreak";
 import {resolveTranslationFontFamily} from "@/src/core/translation/font";
+import {registerVisibleTranslationRoot} from './visibleTranslation';
 
 /**
  * 译文允许保留的内联元素。
@@ -247,6 +248,7 @@ export function appendSingleTranslationSlots(
         host.dir = "auto";
 
         const shadow = host.attachShadow({mode: "closed"});
+        if (import.meta.env.BROWSER !== 'userscript') registerVisibleTranslationRoot(host, shadow);
         const translated = owner.ownerDocument.createElement("span");
         translated.setAttribute("data-fr-translation-owned", "true");
         translated.setAttribute("translate", "no");

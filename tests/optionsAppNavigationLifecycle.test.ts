@@ -51,7 +51,7 @@ afterEach(async () => {
   if (scope) await closeFixture(scope);
 }, 5000);
 
-function createFixtureServer() {
+function createFixtureServer(browser = 'chrome') {
   const mocks: Plugin = {
     name: 'options-navigation-lifecycle-mocks',
     enforce: 'pre',
@@ -60,24 +60,27 @@ function createFixtureServer() {
       if (id.endsWith('/src/ui/i18n')) return '\0options-i18n';
       if (id.endsWith('/src/services/config/store')) return '\0options-config';
       if (id.endsWith('/src/ui/interfaceAppearance')) return '\0options-appearance';
+      if (id.endsWith('/src/platform/browser/capabilities')) return '\0options-capabilities';
       return null;
     },
     load(id) {
       if (id === '\0options-child-component') return 'export default {render: () => null};';
-      if (id === '\0options-i18n') return 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});';
+      if (id === '\0options-i18n') return 'export const useUiI18n = () => ({t: key => key === "informationHighlight.title" ? "Smart Highlighting" : key, translateLegacy: text => text});';
       if (id === '\0options-config') return `export const {config, configReady, subscribeConfig} = globalThis.${TEST_KEY};`;
       if (id === '\0options-appearance') return `export const {theme: applyInterfaceTheme, skin: applyInterfaceSkin, font: applyInterfaceFont, registerAppearance: registerInterfaceAppearanceRoot} = globalThis.${TEST_KEY};`;
+      if (id === '\0options-capabilities') return `export const {browserCapabilities} = globalThis.${TEST_KEY};`;
       return null;
     },
   };
   return createServer({
     configFile: false, appType: 'custom', logLevel: 'silent', root: process.cwd(),
     plugins: [mocks, vue()], resolve: {alias: {'@': resolve(process.cwd())}},
+    define: {'import.meta.env.BROWSER': JSON.stringify(browser)},
     server: {hmr: false, middlewareMode: true},
   });
 }
 
-async function mountOptions(hash = '#settings-selection', ready = Promise.resolve(), appearanceRoot?: HTMLElement, load?: (server: ViteDevServer) => Promise<Record<string, any>>) {
+async function mountOptions(hash = '#settings-selection', ready = Promise.resolve(), appearanceRoot?: HTMLElement, load?: (server: ViteDevServer) => Promise<Record<string, any>>, browser = 'chrome') {
   const scope = current;
   if (!scope || !owns(scope) || !scope.server) throw inactive();
   const ownedServer = scope.server;
@@ -106,6 +109,7 @@ async function mountOptions(hash = '#settings-selection', ready = Promise.resolv
     configReady: ready,
     subscribeConfig: () => unsubscribeConfig,
     theme, skin, font, registerAppearance,
+    browserCapabilities: {browser},
   };
   let loaded: Record<string, any>;
   try {
@@ -125,7 +129,8 @@ async function mountOptions(hash = '#settings-selection', ready = Promise.resolv
     nextSibling: () => null, querySelector: () => null, setScopeId: () => undefined,
     cloneNode: () => ({}), insertStaticContent: () => [{}, {}],
   });
-  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; activePanels: {id: string}[]; contentComponentProps: {activePanel?: string}; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null};
+  type SearchResult = {id: string; sectionId: string; targetId?: string; panelId?: string; label: string; searchDescription: string};
+  let state!: {activeSection: string; query: string; activeItem: {id: string}; selectSection: (id: string, target?: string) => void; activePanel: string; activePanels: {id: string}[]; sectionPanels: {id: string}[]; contentComponentProps: {activePanel?: string}; selectPanel: (id: string) => void; isGroupOpen: (index: number) => boolean; toggleGroup: (index: number) => void; settingsContentElement: {scrollTo: typeof scrollTo} | null; filteredResults: SearchResult[]; selectResult: (result: SearchResult) => Promise<void>};
   const app = renderer.createApp({
     setup: () => () => runtime.h(component, {
       appearanceRoot,
@@ -177,6 +182,80 @@ describe('OptionsApp mounted hash navigation', () => {
     expect(state.contentComponentProps.activePanel).toBeUndefined();
     state.selectSection('settings-image-translation');
     expect(state.activePanels).toEqual([]);
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
+  });
+
+  it('scrolls smart-highlighting searches within the continuous form without hiding any translation groups', async () => {
+    const {state} = await mountOptions('#settings-translation');
+    expect(state.activePanel).toBe('reading');
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
+    expect(state.activePanels).toEqual([]);
+    expect(state.sectionPanels.map(panel => panel.id)).toEqual(expect.arrayContaining(['reading', 'information-highlight', 'hover', 'input']));
+    vi.stubGlobal('MutationObserver', class {observe() {} disconnect() {}});
+    vi.stubGlobal('ResizeObserver', class {observe() {} disconnect() {}});
+    Object.assign(window, {setTimeout: vi.fn(() => 1), clearTimeout: vi.fn()});
+    const groups = ['reading', 'information-highlight', 'hover', 'input'].map(name => ({
+      name, style: {display: ''}, getClientRects() {return this.style.display === 'none' ? [] : [{}];},
+    }));
+    const container = Object.assign(new EventTarget(), {
+      scrollTop: 0, clientHeight: 600, firstElementChild: {},
+      scrollTo: vi.fn(({top}: {top: number}) => {container.scrollTop = top;}),
+      getBoundingClientRect: () => ({top: 30}),
+      querySelectorAll: vi.fn((selector: string) => [{
+        getClientRects: () => [{}], getBoundingClientRect: () => ({top: 530 - container.scrollTop, height: 240}),
+        matches: () => selector.startsWith('[data-settings-panel'), querySelector: () => null,
+      }]),
+    });
+    state.settingsContentElement = container;
+    for (const keyword of ['智能高亮', 'Smart Highlighting', '意外度', 'surprisal', '关键词']) {
+      state.query = keyword;
+      expect(state.filteredResults.length).toBeGreaterThan(0);
+      expect(state.filteredResults.every(result => result.panelId === 'information-highlight' || result.targetId === 'information-highlight-settings')).toBe(true);
+      await state.selectResult(state.filteredResults[0]);
+      expect(state.activePanel).toBe('information-highlight');
+      expect(state.contentComponentProps.activePanel).toBeUndefined();
+      expect(container.querySelectorAll).toHaveBeenLastCalledWith('[data-settings-panel="information-highlight"]');
+      expect(container.scrollTo).toHaveBeenLastCalledWith({top: 500, behavior: 'instant'});
+      expect(groups.every(group => group.getClientRects().length === 1)).toBe(true);
+    }
+    state.query = 'Smart Highlighting';
+    await state.selectResult(state.filteredResults.find(result => result.targetId === 'information-highlight-settings')!);
+    expect(container.querySelectorAll).toHaveBeenLastCalledWith('#information-highlight-settings');
+    expect(container.scrollTo).toHaveBeenLastCalledWith({top: 320, behavior: 'instant'});
+    state.selectSection('settings-translation', 'translation-sentence-highlight');
+    expect(state.activePanel).toBe('reading');
+    state.selectSection('settings-translation', 'information-highlight-settings');
+    expect(state.activePanel).toBe('information-highlight');
+    state.selectSection('settings-translation', 'floating-ball-settings');
+    expect(state.activePanel).toBe('floating-ball');
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
+  });
+
+  it('excludes unsupported smart-highlighting anchors and all their search results in userscript', async () => {
+    const {state} = await mountOptions('#settings-translation', Promise.resolve(), undefined, undefined, 'userscript');
+    expect(state.activePanels).toEqual([]);
+    expect(state.sectionPanels.map(panel => panel.id)).toContain('reading');
+    expect(state.sectionPanels.map(panel => panel.id)).not.toContain('information-highlight');
+    for (const keyword of ['智能高亮', 'Smart Highlighting', '意外度', 'surprisal', '关键词']) {
+      state.query = keyword;
+      expect(state.filteredResults).toEqual([]);
+    }
+    state.settingsContentElement = null;
+    state.selectSection('settings-translation', 'information-highlight-settings');
+    expect(state.contentComponentProps.activePanel).toBeUndefined();
+    state.query = '双语逐句高亮';
+    expect(state.filteredResults.some(result => result.targetId === 'translation-sentence-highlight')).toBe(true);
+  });
+
+  it('keeps userscript builds excluded even when the runtime capability port reports chrome', async () => {
+    await closeFixture(current!);
+    const scope: FixtureScope = {active: true};current = scope;
+    await prepareFixture(scope, () => createFixtureServer('userscript'));
+    const {state} = await mountOptions('#settings-translation');
+    expect(state.sectionPanels.map(panel => panel.id)).not.toContain('information-highlight');
+    state.query = 'Smart Highlighting';expect(state.filteredResults).toEqual([]);
+    state.settingsContentElement = null;
+    state.selectSection('settings-translation', 'information-highlight');
     expect(state.contentComponentProps.activePanel).toBeUndefined();
   });
 

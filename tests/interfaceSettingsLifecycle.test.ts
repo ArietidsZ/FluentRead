@@ -8,13 +8,27 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 const runtime = createRequire(import.meta.url)('vue') as typeof import('vue')
 const key = '__frInterfaceSettingsLifecycle'
 let server: ViteDevServer, app: import('vue').App, state: Record<string, any>
+let mocks: Plugin
 let props: {config: Record<string, any>; active: boolean; activePanel?: string}, visible: import('vue').Ref<boolean>
 let cache: import('vue').Ref<string[]>, status: import('vue').Ref<{font: string; status: string}>
+let capabilities: {browser: string}
 let acceptLegacy!: () => void, cancelLegacy!: () => void, legacyOpen = false, begun: Promise<void> | undefined
 const feedback = vi.fn(), clear = vi.fn(), refresh = vi.fn(), retry = vi.fn(), confirm = vi.fn()
 function deferred() {let resolve!: () => void;let reject!: (error: unknown) => void
   const promise = new Promise<void>((yes, no) => {resolve = yes;reject = no});return {promise, resolve, reject}}
 async function settle() {await runtime.nextTick();await runtime.nextTick()}
+function createTestRenderer() {
+  return runtime.createRenderer<Record<string, never>, Record<string, unknown>>({patchProp: () => {}, insert: () => {},
+    remove: () => {}, createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: () => {},
+    setElementText: () => {}, parentNode: () => null, nextSibling: () => null, querySelector: () => null,
+    setScopeId: () => {}, cloneNode: () => ({}), insertStaticContent: () => [{}, {}]})
+}
+function createFixtureServer(buildBrowser = 'chrome') {
+  return createServer({root: process.cwd(), configFile: false, appType: 'custom', logLevel: 'silent',
+    define: {'import.meta.env.BROWSER': JSON.stringify(buildBrowser)},
+    plugins: [mocks, vue()], resolve: {alias: {'@': resolve(process.cwd())}}, ssr: {noExternal: ['element-plus']},
+    server: {hmr: false, middlewareMode: true}})
+}
 function begin(font = 'inter') {const result = state.confirmClearFont(font);if (result?.then) begun = result}
 async function accept() {
   if (state.performClearFont) await state.performClearFont()
@@ -43,10 +57,11 @@ beforeEach(async () => {
     legacyOpen = true;const pending = deferred();acceptLegacy = () => {legacyOpen = false;pending.resolve()}
     cancelLegacy = () => {legacyOpen = false;pending.reject('cancel')};return pending.promise
   })
-  Object.assign(globalThis, {[key]: {cache, status, feedback, clear, refresh, retry, confirm}})
-  const mocks: Plugin = {name: 'interface-settings-ports', enforce: 'pre', resolveId(id) {
+  capabilities = runtime.reactive({browser: 'chrome'})
+  Object.assign(globalThis, {[key]: {cache, status, feedback, clear, refresh, retry, confirm, capabilities}})
+  mocks = {name: 'interface-settings-ports', enforce: 'pre', resolveId(id) {
     if (id === 'element-plus') return '\0interface-element'
-    if (id.endsWith('.vue') && !id.endsWith('InterfaceSettings.vue')) return '\0interface-child'
+    if (id.endsWith('.vue') && !id.endsWith('InterfaceSettings.vue') && !id.endsWith('PopupPreview.vue')) return '\0interface-child'
     if (/\/src\/ui\/i18n(?:\.ts)?$/u.test(id)) return '\0interface-i18n'
     if (id.includes('platform/browser/capabilities')) return '\0interface-capabilities'
     if (/\/src\/ui\/interfaceAppearance(?:\.ts)?$/u.test(id)) return '\0interface-appearance'
@@ -55,25 +70,21 @@ beforeEach(async () => {
     if (id === '\0interface-element') return `export const ElMessage = globalThis.${key}.feedback;export const ElMessageBox = {confirm: globalThis.${key}.confirm};`
     if (id === '\0interface-child') return 'export default {}'
     if (id === '\0interface-i18n') return 'export const useUiI18n = () => ({t: key => key, translateLegacy: text => text});'
-    if (id === '\0interface-capabilities') return 'export const browserCapabilities = {browser: "chrome"};'
+    if (id === '\0interface-capabilities') return `export const browserCapabilities = globalThis.${key}.capabilities;`
     if (id === '\0interface-appearance') return `export const {cache: availableInterfaceFonts, cache: cachedInterfaceFonts,
       status: interfaceFontLoadState, clear: clearInterfaceFont, refresh: refreshInterfaceFontAvailability, retry: retryInterfaceFont} = globalThis.${key};`
     return null
   }}
-  server = await createServer({root: process.cwd(), configFile: false, appType: 'custom', logLevel: 'silent',
-    plugins: [mocks, vue()], resolve: {alias: {'@': resolve(process.cwd())}}, ssr: {noExternal: ['element-plus']},
-    server: {hmr: false, middlewareMode: true}})
+  server = await createFixtureServer()
   const component = (await server.ssrLoadModule('/src/features/settings/ui/InterfaceSettings.vue')).default
   component.ssrRender = undefined;component.render = () => null
-  const renderer = runtime.createRenderer<Record<string, never>, Record<string, unknown>>({patchProp: () => {}, insert: () => {},
-    remove: () => {}, createElement: () => ({}), createText: () => ({}), createComment: () => ({}), setText: () => {},
-    setElementText: () => {}, parentNode: () => null, nextSibling: () => null, querySelector: () => null,
-    setScopeId: () => {}, cloneNode: () => ({}), insertStaticContent: () => [{}, {}]})
+  const renderer = createTestRenderer()
   props = runtime.reactive({active: true, config: {interfaceFont: 'inter', interfaceSkin: 'default',
     interfaceVisibility: {popupQuickFeatures: true, popupSiteRule: true, popupFooter: true},
     popupModuleOrder: ['translation', 'siteRule', 'quickFeatures', 'footer'],
-    popupQuickFeatureOrder: ['hover', 'selection', 'appearance', 'image', 'document'],
-    popupQuickFeatureVisibility: {hover: true, selection: true, appearance: false, image: true, document: true}}})
+    popupQuickFeatureOrder: ['hover', 'selection', 'appearance', 'image', 'document', 'highlight'],
+    popupQuickFeatureVisibility: {hover: true, selection: true, appearance: false, image: true, document: true, highlight: true},
+    informationHighlight: {mode: 'surprisal-local', density: 'high', color: 'mint', style: 'underline'}}})
   visible = runtime.ref(true);app = renderer.createApp({setup: () => () => runtime.h(runtime.KeepAlive, null, {default: () => visible.value
     ? runtime.h(component, {...props, ref: (vm: any) => {if (vm) state = vm.$.setupState}}) : runtime.h({render: () => null}, {key: 'other'})})})
   app.provide(runtime.ssrContextKey, {modules: new Set<string>()});app.config.warnHandler = () => {};app.mount({});await settle()
@@ -162,5 +173,57 @@ describe('实际界面字体设置与所属确认', () => {
     expect(preventDefault).toHaveBeenCalledTimes(4);expect(focus[0]).toHaveBeenCalledTimes(2);expect(focus[1]).toHaveBeenCalledTimes(2)
     state.handleLayoutTabKeydown(key('Escape'));expect(preventDefault).toHaveBeenCalledTimes(4)
     expect(state.activeLayoutPanel).toBe('popupModule')
+  })
+  it('扩展和 userscript 的 Popup 布局均隐藏历史高亮入口，不写回非法 id 或改动阅读偏好', async () => {
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+    const saved = JSON.stringify(props.config)
+    state.setPopupQuickFeatureVisibility('highlight', false); expect(JSON.stringify(props.config)).toBe(saved)
+    capabilities.browser = 'userscript'; await settle()
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+    state.setPopupQuickFeatureVisibility('highlight', false)
+    expect(JSON.stringify(props.config)).toBe(saved)
+    capabilities.browser = 'chrome'; await settle()
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+  })
+  it('所有皮肤样例与传入布局都不预览已移除的高亮或未知入口，保留传入对象', async () => {
+    const component = (await server.ssrLoadModule('/src/features/settings/ui/components/PopupPreview.vue')).default
+    component.ssrRender = undefined; component.render = () => null
+    let preview: Record<string, any> = {}
+    const inputs = runtime.reactive({skin: {value: 'default'}, quickFeatures: undefined as undefined | {id: string; label: string}[]})
+    const previewApp = createTestRenderer().createApp({setup: () => () => runtime.h(component, {...inputs, ref: (vm: any) => {if (vm) preview = vm.$.setupState}})})
+    previewApp.provide(runtime.ssrContextKey, {modules: new Set<string>()}); previewApp.config.warnHandler = () => {}
+    try {
+      previewApp.mount({}); await settle()
+      expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+      capabilities.browser = 'userscript'; await settle()
+      expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+      inputs.quickFeatures = [{id: 'highlight', label: 'Saved extension preference'}, {id: 'selection', label: 'Selection'}, {id: 'future', label: 'Unknown'}]; await settle()
+      expect(preview.orderedQuickFeatures.map((item: {id: string}) => item.id)).toEqual(['selection'])
+      capabilities.browser = 'chrome'; await settle()
+      expect(preview.orderedQuickFeatures.map((item: {id: string}) => item.id)).toEqual(['selection'])
+      expect(inputs.quickFeatures.map(item => item.id)).toEqual(['highlight', 'selection', 'future'])
+    } finally {previewApp.unmount()}
+  })
+  it('userscript 构建条件独立阻止高亮配置与预览，并移除专属图标数据', async () => {
+    app.unmount(); await server.close(); server = await createFixtureServer('userscript')
+    const saved = JSON.stringify(props.config)
+    const component = (await server.ssrLoadModule('/src/features/settings/ui/InterfaceSettings.vue')).default
+    component.ssrRender = undefined; component.render = () => null
+    app = createTestRenderer().createApp({setup: () => () => runtime.h(component, {...props, ref: (vm: any) => {if (vm) state = vm.$.setupState}})})
+    app.provide(runtime.ssrContextKey, {modules: new Set<string>()}); app.config.warnHandler = () => {}; app.mount({}); await settle()
+    expect(capabilities.browser).toBe('chrome')
+    expect(state.popupQuickFeatureEditorItems.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+    state.setPopupQuickFeatureVisibility('highlight', false); expect(JSON.stringify(props.config)).toBe(saved)
+    const previewComponent = (await server.ssrLoadModule('/src/features/settings/ui/components/PopupPreview.vue')).default
+    previewComponent.ssrRender = undefined; previewComponent.render = () => null
+    let preview: Record<string, any> = {}
+    const previewApp = createTestRenderer().createApp({setup: () => () => runtime.h(previewComponent,
+      {skin: {value: 'default'}, ref: (vm: any) => {if (vm) preview = vm.$.setupState}})})
+    previewApp.provide(runtime.ssrContextKey, {modules: new Set<string>()}); previewApp.config.warnHandler = () => {}
+    try {
+      previewApp.mount({}); await settle()
+      expect(preview.orderedQuickFeatures.some((item: {id: string}) => item.id === 'highlight')).toBe(false)
+      expect((await server.ssrLoadModule('/src/ui/popupQuickFeatureIcons.ts')).popupQuickFeatureIconPaths).not.toHaveProperty('highlight')
+    } finally {previewApp.unmount()}
   })
 })

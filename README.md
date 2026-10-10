@@ -92,6 +92,7 @@ FluentRead grows alongside a vibrant open-source community. We are grateful to t
 - [Read Frog](https://github.com/mengxi-ream/read-frog)
 - [KISS Translator](https://github.com/fishjar/kiss-translator)
 - [Duo Translator](https://github.com/linuxscreen/duo-translator)
+- [InfoLens](https://github.com/dqy08/InfoLens) — Smart Highlighting is inspired by its surprisal heatmap idea (Apache-2.0)
 
 <!-- contributors:start -->
 <a href="https://github.com/FluentRead/FluentRead/graphs/contributors">

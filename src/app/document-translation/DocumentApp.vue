@@ -188,6 +188,7 @@
           :outline-target="outlineHost"
           :source-url="documentQueue.find(item => item.id === activeDocumentId)?.sourceUrl"
           @page-change="pdfPage = $event"
+          :information-highlight="{preferences: config.informationHighlight, scoreLocal: scoreDocumentInformation, available: config.on && hydrated && readerTab === 'read'}"
         />
 
         <section
@@ -422,6 +423,7 @@ import {
   pdfPagesNeedingOcr,
   recognizePdfDocument,
   type RichOutlineItem,
+  scoreDocumentInformation,
   hasDistinctTranslation,
   TranslationRequestError,
   buildGlossaryRevision,

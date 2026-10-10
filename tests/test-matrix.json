@@ -394,7 +394,14 @@
       "tests/pdfPaperLayouts.test.ts",
       "tests/documentPdfLayoutParsing.test.ts",
       "tests/pdfSource.test.ts",
-      "tests/pdfTextLayout.test.ts"
+      "tests/pdfTextLayout.test.ts",
+      "tests/informationHighlightConfig.test.ts",
+      "tests/informationHighlightPresentation.test.ts",
+      "tests/informationHighlightArtifacts.test.ts",
+      "tests/informationHighlightBackend.test.ts",
+      "tests/informationHighlightComposition.test.ts",
+      "tests/informationHighlightScoring.test.ts",
+      "tests/informationHighlightWorker.test.ts"
     ],
     "functional": [
       "tests/finalCoveragePublicBoundariesA.test.ts",
@@ -588,7 +595,10 @@
       "tests/selectionTtsReceiverRecovery.test.ts",
       "tests/translationEchoValidationRegression.test.ts",
       "tests/translationSlotEchoRegression.test.ts",
-      "tests/xModernSiteAdaptationRegression.test.ts"
+      "tests/xModernSiteAdaptationRegression.test.ts",
+      "tests/informationHighlightContent.test.ts",
+      "tests/informationHighlightUiLifecycle.test.ts",
+      "tests/informationHighlightSettingsLifecycle.test.ts"
     ],
     "regression": [
       "tests/discordServerIconBoundary.test.ts",

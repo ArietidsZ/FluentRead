@@ -6,6 +6,7 @@
  * 模块边界：资源只描述扩展自己的界面文本；不会翻译网页正文、用户输入或翻译结果。
  */
 import {pdfReadingMessages} from './pdfReading';
+import {informationHighlightMessages} from './informationHighlight';
 import reencounterText from './reencounter/fr-FR.json';
 import settingsCopyText from './settings-copy/fr-FR.json';
 import brandTaglines from './brand-taglines.json';
@@ -22,6 +23,7 @@ import {localTranslationFrenchMessages} from './localTranslation';
 
 export const frFRMessages = {
     ...pdfReadingMessages['fr-FR'],
+    ...informationHighlightMessages['fr-FR'],
     ...reencounterText,
     ...settingsCopyText.messages,
     "settings.headers.title": "Supprimer les en-têtes de provenance",
