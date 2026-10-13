@@ -1,0 +1,960 @@
+From b758f218671e07e320fdfae5aee389268e6a3ad6 Mon Sep 17 00:00:00 2001
+From: ArietidsZ <69024461+ArietidsZ@users.noreply.github.com>
+Date: Tue, 13 Oct 2026 10:30:47 +0800
+Subject: [PATCH] =?UTF-8?q?fix(translation):=20=E6=A0=A1=E9=AA=8C=20Respon?=
+ =?UTF-8?q?ses=20=E7=BB=88=E6=80=81=E5=B9=B6=E5=9C=A8=E5=A4=B1=E8=B4=A5?=
+ =?UTF-8?q?=E6=97=B6=E4=BF=9D=E7=95=99=E7=9C=9F=E5=AE=9E=E7=94=A8=E9=87=8F?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+- responses-api 新增 checkResponsesApiCompleteness/createResponsesApiBlockedError：
+  仅显式 completed 放行；incomplete/failed/cancelled/queued/in_progress 与无法识别
+  的显式 status（null/空串/数字不等于缺省）一律拒绝；非空 error、refusal、显式未
+  完成的 message 即使带部分文本也不算成功；缺省 status 的旧代理沿用原有文本规则。
+- 阻断错误统一携带 kind:'response'/retryable:false，不回显上游状态文本或错误对象；
+  远端 cancelled 不再伪装成用户取消（AbortError）。
+- deepseek Responses 路径在 JSON 解析后先归一 actualModel 与用量：终态拒绝与空文本
+  等失败都上报带真实用量的单条 error 观察，不再降级为 unreported；Chat 路径行为不变。
+- doubao-seed 同样先做终态校验再读文本；批量原文任一条失败即整批拒绝，不交出部分
+  成功数组；每次 HTTP 尝试恰好一条用量观察。
+
+测试：tests/deepseekResponsesIntegrity.test.ts 新增（functional），
+tests/doubaoSeedTranslation.test.ts 增补终态/用量/取消用例；旧代码下 27 例失败（红），
+修复后 55 例全绿；responses-api.ts 四维覆盖率 100%。
+---
+ src/providers/translation/deepseek.ts         |  47 ++-
+ .../translation/doubao-seed-translation.ts    |  21 +-
+ src/providers/translation/responses-api.ts    |  81 ++++-
+ tests/deepseekResponsesIntegrity.test.ts      | 333 ++++++++++++++++++
+ tests/doubaoSeedTranslation.test.ts           | 328 ++++++++++++++++-
+ tests/test-matrix.json                        |   1 +
+ 6 files changed, 797 insertions(+), 14 deletions(-)
+ create mode 100644 tests/deepseekResponsesIntegrity.test.ts
+
+diff --git a/src/providers/translation/deepseek.ts b/src/providers/translation/deepseek.ts
+index 7384e2f2..6d487ed8 100644
+--- a/src/providers/translation/deepseek.ts
++++ b/src/providers/translation/deepseek.ts
+@@ -2,7 +2,7 @@
+  * @file src/providers/translation/deepseek.ts
+  *
+  * 文件职责：适配 DeepSeek 官方或代理端点，并根据配置选择 Chat Completions 或 Responses 协议进行翻译。
+- * 主要内容：从快照解析 thinking/API 模式和 endpoint，将受信选区图片传给 Chat/Responses 多模态模板，执行 Bearer 请求、HTTP/JSON 校验、上报协议对应的 token 用量并清理模型推理标记；路由改写与 Responses 输出读取复用 responses-api 共享模块。 可核对的公开符号包括 buildDeepSeekEndpoint、default:deepseek。
++ * 主要内容：从快照解析 thinking/API 模式和 endpoint，将受信选区图片传给 Chat/Responses 多模态模板，执行 Bearer 请求、HTTP/JSON 校验与 Responses 终态校验，上报协议对应的 token 用量（Responses 失败也保留真实用量）并清理模型推理标记；路由改写、终态校验与 Responses 输出读取复用 responses-api 共享模块。 可核对的公开符号包括 buildDeepSeekEndpoint、default:deepseek。
+  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
+  */
+ 
+@@ -26,7 +26,7 @@ import {
+ } from '@/src/services/translation/requestSnapshot';
+ import type {TranslationProviderConfigSnapshot} from '@/src/services/translation/types';
+ import {normalizeDeepSeekResponsesUsage, normalizeOpenAICompatibleUsage} from './usage';
+-import {buildOpenAIApiEndpoint, readResponsesApiText} from './responses-api';
++import {buildOpenAIApiEndpoint, checkResponsesApiCompleteness, createResponsesApiBlockedError, readResponsesApiText} from './responses-api';
+ 
+ // 官方已支持 Chat Completion 和 Responses；保留用户所选协议，auto 继续使用 Chat。
+ function useResponsesApi(current: TranslationProviderConfigSnapshot) {
+@@ -71,13 +71,44 @@ async function deepseek(message: TranslationProviderRequest<string>) {
+         const actualModel = typeof result?.model === 'string' && result.model.trim()
+             ? result.model
+             : configuredModel;
+-        const translatedText = isResponses
+-            ? extractResponsesContent(result)
+-            : extractChatContent(result);
++        if (isResponses) {
++            // Responses 路径先归一 actualModel 与用量，再做终态校验与文本提取：
++            // 即使结果不完整或格式异常，真实 token 用量也必须随失败观察保留。
++            const usage = normalizeDeepSeekResponsesUsage(result?.usage, actualModel);
++            const failureObservation = (): Parameters<typeof reportTranslationModelUsage>[1] => ({
++                ...usage,
++                startedAt,
++                durationMs: Math.max(0, Date.now() - startedAt),
++                outcome: 'error',
++                statusCode: resp.status,
++            });
++            const blocked = checkResponsesApiCompleteness(result);
++            if (blocked) {
++                reportTranslationModelUsage(message, failureObservation());
++                attemptReported = true;
++                throw createResponsesApiBlockedError(blocked, 'DeepSeek');
++            }
++            let translatedText: string;
++            try {
++                translatedText = extractResponsesContent(result);
++            } catch (error) {
++                reportTranslationModelUsage(message, failureObservation());
++                attemptReported = true;
++                throw error;
++            }
++            reportTranslationModelUsage(message, {
++                ...usage,
++                startedAt,
++                durationMs: Math.max(0, Date.now() - startedAt),
++                outcome: 'success',
++                statusCode: resp.status,
++            });
++            attemptReported = true;
++            return translatedText;
++        }
++        const translatedText = extractChatContent(result);
+         reportTranslationModelUsage(message, {
+-            ...(isResponses
+-                ? normalizeDeepSeekResponsesUsage(result?.usage, actualModel)
+-                : normalizeOpenAICompatibleUsage(result?.usage, actualModel)),
++            ...normalizeOpenAICompatibleUsage(result?.usage, actualModel),
+             startedAt,
+             durationMs: Math.max(0, Date.now() - startedAt),
+             outcome: 'success',
+diff --git a/src/providers/translation/doubao-seed-translation.ts b/src/providers/translation/doubao-seed-translation.ts
+index e891bb19..db2615bf 100644
+--- a/src/providers/translation/doubao-seed-translation.ts
++++ b/src/providers/translation/doubao-seed-translation.ts
+@@ -2,7 +2,7 @@
+  * @file src/providers/translation/doubao-seed-translation.ts
+  *
+  * 文件职责：适配火山方舟 Doubao-Seed-Translation 翻译专用模型，把统一翻译请求转换为 Responses API 的 translation_options 协议。
+- * 主要内容：buildDoubaoSeedTranslationRequestBody 生成 input/translation_options 载荷，provider 解析端点与语言对、逐条执行批量原文、校验 HTTP 与 JSON、读取 Responses 输出文本并上报 token 用量。 可核对的公开符号包括 buildDoubaoSeedTranslationRequestBody、resolveDoubaoSeedTranslationEndpoint、default:doubaoSeedTranslation。
++ * 主要内容：buildDoubaoSeedTranslationRequestBody 生成 input/translation_options 载荷，provider 解析端点与语言对、逐条执行批量原文、校验 HTTP、JSON 与 Responses 终态、读取输出文本并上报 token 用量（失败观察同样保留真实用量，任一条失败即整批拒绝）。 可核对的公开符号包括 buildDoubaoSeedTranslationRequestBody、resolveDoubaoSeedTranslationEndpoint、default:doubaoSeedTranslation。
+  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
+  */
+ 
+@@ -16,7 +16,7 @@ import {getTranslationLanguages} from '@/src/services/translation/languages';
+ import {createHttpStatusError, readJsonResponse} from '@/src/platform/http/errors';
+ import {abortErrorFromSignal, runtimeFetch} from '@/src/platform/http/runtime';
+ import {appendOptionalBearer} from './auth';
+-import {buildOpenAIApiEndpoint, readResponsesApiText} from './responses-api';
++import {buildOpenAIApiEndpoint, checkResponsesApiCompleteness, createResponsesApiBlockedError, readResponsesApiText} from './responses-api';
+ import {
+     getTranslationProviderConfig,
+     reportTranslationModelUsage,
+@@ -103,9 +103,24 @@ async function translateSingle(
+         const actualModel = typeof result?.model === 'string' && result.model.trim()
+             ? result.model
+             : configuredModel;
++        // 先归一 actualModel 与用量，再做终态校验与文本读取：失败观察同样保留真实用量。
++        const usage = normalizeResponsesApiUsage(result?.usage, actualModel);
++        const blocked = checkResponsesApiCompleteness(result);
++        if (blocked) {
++            reportTranslationModelUsage(message, {
++                ...usage,
++                actualModel: configuredModel,
++                startedAt,
++                durationMs: Math.max(0, Date.now() - startedAt),
++                outcome: 'error',
++                statusCode: response.status,
++            });
++            attemptReported = true;
++            throw createResponsesApiBlockedError(blocked, '火山方舟');
++        }
+         const text = readResponsesApiText(result);
+         reportTranslationModelUsage(message, {
+-            ...normalizeResponsesApiUsage(result?.usage, actualModel),
++            ...usage,
+             startedAt,
+             durationMs: Math.max(0, Date.now() - startedAt),
+             outcome: text.trim() ? 'success' : 'error',
+diff --git a/src/providers/translation/responses-api.ts b/src/providers/translation/responses-api.ts
+index 668e18da..70d54677 100644
+--- a/src/providers/translation/responses-api.ts
++++ b/src/providers/translation/responses-api.ts
+@@ -1,8 +1,8 @@
+ /**
+  * @file src/providers/translation/responses-api.ts
+  *
+- * 文件职责：集中处理 OpenAI Responses 协议的共用细节，让 DeepSeek、火山方舟等多家兼容端点复用同一套路由改写与输出文本读取规则。
+- * 主要内容：buildOpenAIApiEndpoint 在 chat/completions 与 responses 之间互换路径并保留查询与 hash，readResponsesApiText 优先读取 output_text，其次按 output[].content[].output_text 拼接助手文本。 可核对的公开符号包括 OpenAIApiRoute、buildOpenAIApiEndpoint、readResponsesApiText。
++ * 文件职责：集中处理 OpenAI Responses 协议的共用细节，让 DeepSeek、火山方舟等多家兼容端点复用同一套路由改写、终态校验与输出文本读取规则。
++ * 主要内容：buildOpenAIApiEndpoint 在 chat/completions 与 responses 之间互换路径并保留查询与 hash；checkResponsesApiCompleteness 只在显式 completed 或无显式异常时放行，拒绝非空 error、incomplete/failed/cancelled/queued/in_progress、无法识别的显式 status（null、空串、数字等不等于缺省）、refusal 与未完成的 message 项；createResponsesApiBlockedError 产出带安全 kind/retryable 的本地错误；readResponsesApiText 优先读取 output_text，其次按 output[].content[].output_text 拼接助手文本。 可核对的公开符号包括 OpenAIApiRoute、buildOpenAIApiEndpoint、ResponsesApiBlockReason、checkResponsesApiCompleteness、createResponsesApiBlockedError、readResponsesApiText。
+  * 模块边界：本文件位于 provider 适配层，只把统一翻译请求转换为外部或浏览器服务协议；不管理页面 DOM、UI 生命周期或配置持久化，缓存、去重和超时总预算由 translation broker 统一协调。
+  */
+ 
+@@ -50,3 +50,80 @@ export function readResponsesApiText(result: unknown): string {
+         .map((part: any) => part.text)
+         .join('');
+ }
++
++/**
++ * Responses 终态阻断原因。全部是本地枚举，绝不携带上游 status 原文、错误对象或响应正文，
++ * 以便各 provider 用同一套语义决定拒绝原因。
++ */
++export type ResponsesApiBlockReason =
++    | 'error'               // 顶层 error 载荷非空，即使同时附带文本
++    | 'incomplete'          // status=incomplete（max_output_tokens、content_filter 等原因）
++    | 'failed'              // status=failed
++    | 'cancelled'           // status=cancelled（远端取消，不能伪装成用户取消）
++    | 'pending'             // status=queued/in_progress，同步请求尚未生成完成
++    | 'refusal'             // 输出消息含 refusal 内容，即使附带部分文本
++    | 'message-incomplete'  // message 项带显式非 completed 状态
++    | 'unknown-status';     // 显式但无法识别的 status（null、空串、数字都不是“缺省”）
++
++/** error 缺省（null/undefined）或为空字符串时才算无错误；其余载荷一律视为显式错误。 */
++function hasResponsesApiErrorPayload(error: unknown): boolean {
++    if (error === null || error === undefined) return false;
++    if (typeof error === 'string') return error.trim().length > 0;
++    return true;
++}
++
++/**
++ * 校验 Responses 结果的终态完整性：返回 null 表示可以继续按原有文本读取规则处理，
++ * 否则返回阻断原因。只有显式 completed 才算完整响应；缺省/undefined status 为旧代理
++ * 保留原有规则，但仍要求没有错误载荷、没有显式未完成的 message、也没有 refusal。
++ */
++export function checkResponsesApiCompleteness(result: unknown): ResponsesApiBlockReason | null {
++    const payload = result as {error?: unknown; status?: unknown; output?: unknown} | null | undefined;
++    if (!payload || typeof payload !== 'object') return null;
++
++    if (hasResponsesApiErrorPayload(payload.error)) return 'error';
++
++    if (payload.status !== undefined) {
++        const status = payload.status;
++        if (typeof status !== 'string' || !status) return 'unknown-status';
++        if (status === 'incomplete') return 'incomplete';
++        if (status === 'failed') return 'failed';
++        if (status === 'cancelled') return 'cancelled';
++        if (status === 'queued' || status === 'in_progress') return 'pending';
++        if (status !== 'completed') return 'unknown-status';
++    }
++
++    if (!Array.isArray(payload.output)) return null;
++    for (const item of payload.output as any[]) {
++        if (!item || typeof item !== 'object') continue;
++        if (item.type !== 'message') continue;
++        // message 的显式非 completed 状态（含 null）不是“缺省”，不能把未完成消息当作成功。
++        if (item.status !== undefined && item.status !== 'completed') return 'message-incomplete';
++        if (Array.isArray(item.content)
++            && item.content.some((part: any) => part?.type === 'refusal')) return 'refusal';
++    }
++    return null;
++}
++
++const BLOCK_REASON_MESSAGES: Readonly<Record<ResponsesApiBlockReason, string>> = Object.freeze({
++    error: '上游返回了错误',
++    incomplete: '响应未完整生成',
++    failed: '上游报告响应失败',
++    cancelled: '响应被上游取消',
++    pending: '响应尚未生成完成',
++    refusal: '模型拒绝生成内容',
++    'message-incomplete': '响应消息未完整生成',
++    'unknown-status': '响应状态无法识别',
++});
++
++/**
++ * 构造终态阻断错误。kind/retryable 与 services/translation/errors 的结构化错误协议对齐：
++ * max_output_tokens、content_filter、refusal 与无法识别的响应都不能带着原参数盲目重试，
++ * 远端取消也绝不使用 AbortError，避免被误记为用户主动取消。
++ */
++export function createResponsesApiBlockedError(reason: ResponsesApiBlockReason, label: string): Error {
++    return Object.assign(new Error(`${label}：${BLOCK_REASON_MESSAGES[reason]}`), {
++        kind: 'response',
++        retryable: false,
++    });
++}
+diff --git a/tests/deepseekResponsesIntegrity.test.ts b/tests/deepseekResponsesIntegrity.test.ts
+new file mode 100644
+index 00000000..0d162f94
+--- /dev/null
++++ b/tests/deepseekResponsesIntegrity.test.ts
+@@ -0,0 +1,333 @@
++import {afterEach, describe, expect, it, vi} from 'vitest';
++
++import {Config} from '@/src/core/config/model';
++import {setRuntimeFetch} from '@/src/platform/http/runtime';
++import {
++    attachTranslationModelUsageObserver,
++    attachTranslationProviderConfig,
++    createTranslationProviderConfigSnapshot,
++} from '@/src/services/translation/requestSnapshot';
++import deepseek from '@/src/providers/translation/deepseek';
++
++const DEEPSEEK_RESPONSES_URL = 'https://api.deepseek.com/responses';
++const DEEPSEEK_CHAT_URL = 'https://api.deepseek.com/chat/completions';
++
++const json = (value: unknown, init?: ResponseInit) => new Response(JSON.stringify(value), init);
++
++function setup(apiType: 'responses' | 'chat' = 'responses') {
++    const config = new Config();
++    config.service = 'deepseek';
++    config.deepseekApiType = apiType;
++    config.token.deepseek = 'test-secret';
++    config.model.deepseek = 'deepseek-chat';
++
++    const observations: unknown[] = [];
++    const message: any = {origin: 'hello', targetLanguage: 'zh-Hans', requestTimeoutMs: 5000};
++    attachTranslationProviderConfig(message, createTranslationProviderConfigSnapshot(config as any));
++    attachTranslationModelUsageObserver(message, observation => observations.push(observation));
++
++    const fetchMock = vi.fn<typeof fetch>();
++    setRuntimeFetch(fetchMock);
++    return {message, observations, fetchMock};
++}
++
++afterEach(() => setRuntimeFetch());
++
++describe('DeepSeek Responses 终态校验与失败用量保留', () => {
++    it('completed 状态拼接多条消息文本、忽略推理项，并只上报一次成功用量', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async (input) => {
++            expect(String(input)).toBe(DEEPSEEK_RESPONSES_URL);
++            return json({
++                id: 'resp_ds_1',
++                model: 'deepseek-chat-2026-01',
++                status: 'completed',
++                output: [
++                    {type: 'reasoning', summary: [{type: 'summary_text', text: '内部思考'}]},
++                    // 工具调用项即使携带形似 output_text 的内容也不得进入正文。
++                    {type: 'function_call', call_id: 'call_1', content: [{type: 'output_text', text: '工具泄漏'}]},
++                    {type: 'message', status: 'completed', content: [{type: 'output_text', text: '你'}]},
++                    {type: 'message', status: 'completed', content: [{type: 'output_text', text: '好'}]},
++                ],
++                usage: {input_tokens: 10, output_tokens: 4, total_tokens: 14, output_tokens_details: {reasoning_tokens: 2}},
++            });
++        });
++
++        await expect(deepseek(message)).resolves.toBe('你好');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'success',
++            usageAvailability: 'reported',
++            inputTokens: 10,
++            outputTokens: 4,
++            totalTokens: 14,
++            reasoningTokens: 2,
++            actualModel: 'deepseek-chat-2026-01',
++            statusCode: 200,
++        });
++    });
++
++    it('HTTP 200 但 status=incomplete 且带部分文本时拒绝成功，并保留真实用量', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_2',
++            // 上游实际模型与配置不同：失败观察也必须保留 actualModel。
++            model: 'deepseek-chat-0905',
++            status: 'incomplete',
++            incomplete_details: {reason: 'max_output_tokens'},
++            output: [{type: 'message', status: 'incomplete', content: [{type: 'output_text', text: '部分译文'}]}],
++            usage: {input_tokens: 10, output_tokens: 128, total_tokens: 138},
++        }));
++
++        const error = await deepseek(message).catch((caught: unknown) => caught);
++        expect(error).toBeInstanceOf(Error);
++        expect((error as Error).message).toContain('响应未完整生成');
++        // 错误文案不得回显上游 incomplete_details 或响应正文内容。
++        expect((error as Error).message).not.toContain('max_output_tokens');
++        expect((error as Error).message).not.toContain('部分译文');
++        expect(error).toMatchObject({kind: 'response', retryable: false});
++        // 一次 HTTP 尝试只产生一条观察：失败结果保留归一化后的真实用量。
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'error',
++            usageAvailability: 'reported',
++            inputTokens: 10,
++            outputTokens: 128,
++            totalTokens: 138,
++            actualModel: 'deepseek-chat-0905',
++            statusCode: 200,
++        });
++    });
++
++    it('顶层 completed 但 message 显式未完成时拒绝成功并保留用量', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_2b',
++            model: 'deepseek-chat',
++            status: 'completed',
++            output: [
++                {type: 'message', status: 'incomplete', content: [{type: 'output_text', text: '半截译文'}]},
++            ],
++            usage: {input_tokens: 6, output_tokens: 9, total_tokens: 15},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow('响应消息未完整生成');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', outputTokens: 9});
++    });
++
++    it.each([
++        ['failed', '上游报告响应失败'],
++        ['cancelled', '响应被上游取消'],
++        ['queued', '响应尚未生成完成'],
++        ['in_progress', '响应尚未生成完成'],
++        ['almost-done', '响应状态无法识别'],
++    ] as const)('显式 status=%s 不产生成功结果或部分译文', async (status, snippet) => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_3',
++            model: 'deepseek-chat',
++            status,
++            output: [{type: 'message', status: 'completed', content: [{type: 'output_text', text: '部分译文'}]}],
++            usage: {input_tokens: 7, output_tokens: 5, total_tokens: 12},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow(snippet);
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', inputTokens: 7});
++    });
++
++    it('远端 cancelled 不伪装成用户取消', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_4',
++            model: 'deepseek-chat',
++            status: 'cancelled',
++            output: [],
++            usage: {input_tokens: 7, output_tokens: 0, total_tokens: 7},
++        }));
++
++        const error = await deepseek(message).catch((caught: unknown) => caught);
++        expect((error as Error).name).not.toBe('AbortError');
++        expect((error as Error).message).toContain('响应被上游取消');
++        expect(error).toMatchObject({kind: 'response', retryable: false});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', inputTokens: 7});
++    });
++
++    it.each([null, '', 0, 200] as const)('status=%s 不属于“缺省”，不得按旧代理规则放行', async status => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_5',
++            model: 'deepseek-chat',
++            status,
++            output: [{type: 'message', content: [{type: 'output_text', text: '部分译文'}]}],
++            usage: {input_tokens: 7, output_tokens: 5, total_tokens: 12},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow('响应状态无法识别');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('缺省 status 的旧代理响应沿用原有文本读取规则', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_6',
++            model: 'deepseek-chat',
++            output: [{type: 'message', content: [{type: 'output_text', text: '旧代理译文'}]}],
++            usage: {input_tokens: 3, output_tokens: 2, total_tokens: 5},
++        }));
++
++        await expect(deepseek(message)).resolves.toBe('旧代理译文');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'success', usageAvailability: 'reported'});
++    });
++
++    it('顶层 error 非空时即使有文本也拒绝成功，且不回显上游错误内容', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_7',
++            model: 'deepseek-chat',
++            status: 'failed',
++            error: {code: 'server_error', message: 'internal trace with sk-live-FAKEKEY-001 inside'},
++            output: [{type: 'message', content: [{type: 'output_text', text: '部分译文'}]}],
++            usage: {input_tokens: 7, output_tokens: 5, total_tokens: 12},
++        }));
++
++        const error = await deepseek(message).catch((caught: unknown) => caught);
++        expect((error as Error).message).toContain('上游返回了错误');
++        expect((error as Error).message).not.toContain('sk-live-FAKEKEY-001');
++        expect((error as Error).message).not.toContain('server_error');
++        expect(error).toMatchObject({kind: 'response', retryable: false});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('HTTP 错误与无效 JSON 保持既有解析前回退：单条无用量失败观察', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({error: {message: 'upstream boom'}}, {status: 500}));
++        await expect(deepseek(message)).rejects.toThrow('翻译失败: 500');
++        expect(observations).toEqual([expect.objectContaining({outcome: 'error', statusCode: 500, usageAvailability: 'unreported'})]);
++
++        observations.length = 0;
++        fetchMock.mockImplementation(async () => new Response('not json', {status: 200}));
++        await expect(deepseek(message)).rejects.toThrow('DeepSeek 返回的不是有效 JSON');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'unreported'});
++        expect(observations[0]).not.toHaveProperty('statusCode');
++    });
++
++    it('refusal 即使附带部分文本也拒绝成功并保留用量', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_8',
++            model: 'deepseek-chat',
++            status: 'completed',
++            output: [{type: 'message', status: 'completed', content: [
++                {type: 'output_text', text: '前半句'},
++                {type: 'refusal', refusal: 'I cannot help with that'},
++            ]}],
++            usage: {input_tokens: 9, output_tokens: 6, total_tokens: 15},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow('模型拒绝生成内容');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', outputTokens: 6});
++    });
++
++    it('只有推理项没有正文时抛出格式错误，但真实用量不再丢失', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_9',
++            model: 'deepseek-chat',
++            status: 'completed',
++            output: [{type: 'reasoning', summary: [{type: 'summary_text', text: '只推理不回答'}]}],
++            usage: {input_tokens: 10, output_tokens: 50, total_tokens: 60, output_tokens_details: {reasoning_tokens: 50}},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow('缺少 Responses API 输出文本');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'error',
++            usageAvailability: 'reported',
++            inputTokens: 10,
++            outputTokens: 50,
++            totalTokens: 60,
++            reasoningTokens: 50,
++            actualModel: 'deepseek-chat',
++            statusCode: 200,
++        });
++    });
++
++    it('空输出但带用量时同样保留用量且不重复上报', async () => {
++        const {message, observations, fetchMock} = setup();
++        fetchMock.mockImplementation(async () => json({
++            id: 'resp_ds_10',
++            model: 'deepseek-chat',
++            status: 'completed',
++            output: [],
++            usage: {input_tokens: 4, output_tokens: 0, total_tokens: 4},
++        }));
++
++        await expect(deepseek(message)).rejects.toThrow('缺少 Responses API 输出文本');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', totalTokens: 4});
++    });
++
++    it('请求前已取消直接抛 AbortError，不发请求也不上报', async () => {
++        const {message, observations, fetchMock} = setup();
++        const controller = new AbortController();
++        controller.abort();
++        message.abortSignal = controller.signal;
++
++        await expect(deepseek(message)).rejects.toMatchObject({name: 'AbortError'});
++        expect(fetchMock).not.toHaveBeenCalled();
++        expect(observations).toHaveLength(0);
++    });
++
++    it('响应读取后取消只交付取消结果，不产生迟到成功', async () => {
++        const {message, observations, fetchMock} = setup();
++        const controller = new AbortController();
++        message.abortSignal = controller.signal;
++        fetchMock.mockImplementation(async () => {
++            controller.abort();
++            return json({
++                id: 'resp_ds_11',
++                model: 'deepseek-chat',
++                status: 'completed',
++                output: [{type: 'message', content: [{type: 'output_text', text: '迟到译文'}]}],
++            });
++        });
++
++        await expect(deepseek(message)).rejects.toMatchObject({name: 'AbortError'});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'cancelled', usageAvailability: 'unreported'});
++    });
++});
++
++describe('DeepSeek Chat 路径保持原有行为', () => {
++    it('chat 成功返回 message.content 并上报一次成功用量', async () => {
++        const {message, observations, fetchMock} = setup('chat');
++        fetchMock.mockImplementation(async (input) => {
++            expect(String(input)).toBe(DEEPSEEK_CHAT_URL);
++            return json({
++                choices: [{message: {role: 'assistant', content: '你好'}}],
++                usage: {prompt_tokens: 5, completion_tokens: 2, total_tokens: 7},
++            });
++        });
++
++        await expect(deepseek(message)).resolves.toBe('你好');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'success', usageAvailability: 'reported', totalTokens: 7});
++    });
++
++    it('chat 缺少 content 时维持原有失败语义：一条无用量失败观察', async () => {
++        const {message, observations, fetchMock} = setup('chat');
++        fetchMock.mockImplementation(async () => json({choices: []}));
++
++        await expect(deepseek(message)).rejects.toThrow('返回数据格式异常');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'unreported'});
++    });
++});
+diff --git a/tests/doubaoSeedTranslation.test.ts b/tests/doubaoSeedTranslation.test.ts
+index 42834130..90f96716 100644
+--- a/tests/doubaoSeedTranslation.test.ts
++++ b/tests/doubaoSeedTranslation.test.ts
+@@ -14,11 +14,12 @@ import {
+     isDoubaoSeedTranslationModel,
+     resolveDoubaoSeedTranslationLanguage,
+ } from '@/src/core/config/doubaoSeedTranslation';
+-import {buildOpenAIApiEndpoint, readResponsesApiText} from '@/src/providers/translation/responses-api';
++import {buildOpenAIApiEndpoint, checkResponsesApiCompleteness, createResponsesApiBlockedError, readResponsesApiText} from '@/src/providers/translation/responses-api';
+ import doubaoSeedTranslation, {
+     buildDoubaoSeedTranslationRequestBody,
+     resolveDoubaoSeedTranslationEndpoint,
+ } from '@/src/providers/translation/doubao-seed-translation';
++import {attachTranslationModelUsageObserver} from '@/src/services/translation/requestSnapshot';
+ import {translationProviderRegistry} from '@/src/providers/translation/registry';
+ 
+ const ARK_RESPONSES_URL = 'https://ark.cn-beijing.volces.com/api/v3/responses';
+@@ -115,6 +116,85 @@ describe('OpenAI Responses 协议共享工具', () => {
+         expect(readResponsesApiText(null)).toBe('');
+         expect(readResponsesApiText(undefined)).toBe('');
+     });
++
++    it('只有显式 completed 或兼容缺省才放行，其余终态一律阻断', () => {
++        expect(checkResponsesApiCompleteness({status: 'completed', output: []})).toBeNull();
++        // 旧代理缺省 status：沿用原有文本读取规则。
++        expect(checkResponsesApiCompleteness({output: []})).toBeNull();
++        // null、空串、数字都不是“缺省”。
++        expect(checkResponsesApiCompleteness({status: null})).toBe('unknown-status');
++        expect(checkResponsesApiCompleteness({status: ''})).toBe('unknown-status');
++        expect(checkResponsesApiCompleteness({status: 0})).toBe('unknown-status');
++        expect(checkResponsesApiCompleteness({status: 'almost-done'})).toBe('unknown-status');
++        expect(checkResponsesApiCompleteness({status: 'incomplete'})).toBe('incomplete');
++        expect(checkResponsesApiCompleteness({status: 'failed'})).toBe('failed');
++        expect(checkResponsesApiCompleteness({status: 'cancelled'})).toBe('cancelled');
++        expect(checkResponsesApiCompleteness({status: 'queued'})).toBe('pending');
++        expect(checkResponsesApiCompleteness({status: 'in_progress'})).toBe('pending');
++    });
++
++    it('顶层 error 非空即阻断，空字符串与缺省不算错误', () => {
++        expect(checkResponsesApiCompleteness({status: 'completed', error: {code: 'x'}})).toBe('error');
++        expect(checkResponsesApiCompleteness({error: 'boom'})).toBe('error');
++        expect(checkResponsesApiCompleteness({error: {}})).toBe('error');
++        expect(checkResponsesApiCompleteness({error: 0})).toBe('error');
++        expect(checkResponsesApiCompleteness({status: 'completed', error: null})).toBeNull();
++        expect(checkResponsesApiCompleteness({error: ''})).toBeNull();
++        expect(checkResponsesApiCompleteness({error: '   '})).toBeNull();
++    });
++
++    it('message 显式未完成状态与 refusal 内容都会阻断，推理项不受影响', () => {
++        expect(checkResponsesApiCompleteness({output: [
++            {type: 'reasoning', summary: []},
++            {type: 'message', status: 'completed', content: [{type: 'output_text', text: '好'}]},
++        ]})).toBeNull();
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [
++            {type: 'message', content: [{type: 'output_text', text: '好'}]},
++        ]})).toBeNull();
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [
++            {type: 'message', status: 'incomplete', content: [{type: 'output_text', text: '半'}]},
++        ]})).toBe('message-incomplete');
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [
++            {type: 'message', status: null, content: [{type: 'output_text', text: '半'}]},
++        ]})).toBe('message-incomplete');
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [
++            {type: 'message', status: 'completed', content: [
++                {type: 'output_text', text: '半'},
++                {type: 'refusal', refusal: 'no'},
++            ]},
++        ]})).toBe('refusal');
++        // 缺省 status 的兼容路径同样拒绝 refusal。
++        expect(checkResponsesApiCompleteness({output: [
++            {type: 'message', content: [{type: 'refusal', refusal: 'no'}]},
++        ]})).toBe('refusal');
++        // 非数组 output 与非对象条目跳过逐消息检查。
++        expect(checkResponsesApiCompleteness({status: 'completed', output: 'text'})).toBeNull();
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [null, 'junk']})).toBeNull();
++        expect(checkResponsesApiCompleteness({status: 'completed', output: [
++            {type: 'message', status: 'completed', content: 'not-array'},
++        ]})).toBeNull();
++        // 非对象结果交给原有文本读取规则兜底。
++        expect(checkResponsesApiCompleteness(null)).toBeNull();
++        expect(checkResponsesApiCompleteness('plain')).toBeNull();
++    });
++
++    it('阻断错误使用安全的 kind/retryable，不回显上游状态或错误对象', () => {
++        const cases = [
++            ['error', '上游返回了错误'],
++            ['incomplete', '响应未完整生成'],
++            ['failed', '上游报告响应失败'],
++            ['cancelled', '响应被上游取消'],
++            ['pending', '响应尚未生成完成'],
++            ['refusal', '模型拒绝生成内容'],
++            ['message-incomplete', '响应消息未完整生成'],
++            ['unknown-status', '响应状态无法识别'],
++        ] as const;
++        for (const [reason, text] of cases) {
++            const error = createResponsesApiBlockedError(reason, '测试服务');
++            expect(error.message).toBe(`测试服务：${text}`);
++            expect(error).toMatchObject({kind: 'response', retryable: false});
++        }
++    });
+ });
+ 
+ describe('Doubao-Seed-Translation provider', () => {
+@@ -206,3 +286,249 @@ describe('Doubao-Seed-Translation provider', () => {
+         expect(lastCall().url).toBe('https://ark.cn-beijing.volces.com/api/v3/chat/completions');
+     });
+ });
++
++describe('Doubao-Seed-Translation 终态校验与失败用量保留', () => {
++    const terminalBody = (extra: Record<string, unknown>) => ({
++        id: 'resp_seed_terminal',
++        model: DOUBAO_SEED_TRANSLATION_MODEL_ID,
++        ...extra,
++    });
++    const messageOutput = (text: string, status?: string) => [{
++        type: 'message',
++        ...(status === undefined ? {} : {status}),
++        content: [{type: 'output_text', text}],
++    }];
++    const usage = {input_tokens: 12, output_tokens: 3, total_tokens: 15};
++    const observe = (message: any) => {
++        const observations: unknown[] = [];
++        attachTranslationModelUsageObserver(message, observation => observations.push(observation));
++        return observations;
++    };
++
++    it('completed 状态拼接多条消息文本、忽略推理项，并只上报一次成功用量', async () => {
++        respond(terminalBody({
++            status: 'completed',
++            output: [
++                {type: 'reasoning', summary: []},
++                // 工具调用项即使携带形似 output_text 的内容也不得进入正文。
++                {type: 'function_call', call_id: 'call_1', content: [{type: 'output_text', text: '工具泄漏'}]},
++                {type: 'message', status: 'completed', content: [{type: 'output_text', text: '你'}]},
++                {type: 'message', status: 'completed', content: [{type: 'output_text', text: '好'}]},
++            ],
++            usage,
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).resolves.toBe('你好');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'success',
++            usageAvailability: 'reported',
++            inputTokens: 12,
++            outputTokens: 3,
++            totalTokens: 15,
++            actualModel: DOUBAO_SEED_TRANSLATION_MODEL_ID,
++            statusCode: 200,
++        });
++    });
++
++    it('HTTP 200 且 status=incomplete 时拒绝部分译文并保留真实用量', async () => {
++        respond(terminalBody({
++            status: 'incomplete',
++            incomplete_details: {reason: 'content_filter'},
++            output: messageOutput('部分译文', 'incomplete'),
++            usage,
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        const error = await doubaoSeedTranslation(message).catch((caught: unknown) => caught);
++        expect(error).toBeInstanceOf(Error);
++        expect((error as Error).message).toContain('响应未完整生成');
++        // 错误文案不得回显上游 incomplete_details 或部分译文。
++        expect((error as Error).message).not.toContain('content_filter');
++        expect((error as Error).message).not.toContain('部分译文');
++        expect(error).toMatchObject({kind: 'response', retryable: false});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'error',
++            usageAvailability: 'reported',
++            inputTokens: 12,
++            outputTokens: 3,
++            statusCode: 200,
++        });
++    });
++
++    it.each([
++        ['failed', '上游报告响应失败'],
++        ['queued', '响应尚未生成完成'],
++        ['in_progress', '响应尚未生成完成'],
++        ['almost-done', '响应状态无法识别'],
++    ] as const)('显式 status=%s 不产生成功结果或部分译文', async (status, snippet) => {
++        respond(terminalBody({status, output: messageOutput('部分译文'), usage}));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow(snippet);
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('远端 cancelled 不伪装成用户取消', async () => {
++        respond(terminalBody({status: 'cancelled', output: [], usage}));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        const error = await doubaoSeedTranslation(message).catch((caught: unknown) => caught);
++        expect((error as Error).name).not.toBe('AbortError');
++        expect((error as Error).message).toContain('响应被上游取消');
++        expect(error).toMatchObject({kind: 'response', retryable: false});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', inputTokens: 12});
++    });
++
++    it('顶层 completed 但 message 显式未完成时拒绝成功并保留用量', async () => {
++        respond(terminalBody({status: 'completed', output: messageOutput('半截译文', 'incomplete'), usage}));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow('响应消息未完整生成');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported', outputTokens: 3});
++    });
++
++    it('HTTP 错误与无效 JSON 保持既有解析前回退：单条无用量失败观察', async () => {
++        respond({error: {message: 'bad model'}}, {status: 400});
++        const messageA: any = {origin: 'hello'};
++        const observationsA = observe(messageA);
++        await expect(doubaoSeedTranslation(messageA)).rejects.toThrow('火山方舟翻译请求失败: 400');
++        expect(observationsA).toEqual([expect.objectContaining({outcome: 'error', statusCode: 400, usageAvailability: 'unreported'})]);
++
++        fetchMock.mockImplementation(async () => new Response('not json', {status: 200}));
++        const messageB: any = {origin: 'hello'};
++        const observationsB = observe(messageB);
++        await expect(doubaoSeedTranslation(messageB)).rejects.toThrow('火山方舟返回的不是有效 JSON');
++        expect(observationsB).toHaveLength(1);
++        expect(observationsB[0]).toMatchObject({outcome: 'error', usageAvailability: 'unreported'});
++        expect(observationsB[0]).not.toHaveProperty('statusCode');
++    });
++
++    it.each([null, '', 0] as const)('status=%s 不属于“缺省”，不得按旧代理规则放行', async status => {
++        respond(terminalBody({status, output: messageOutput('部分译文'), usage}));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow('响应状态无法识别');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('缺省 status 的旧代理响应沿用原有文本读取规则并上报一次成功用量', async () => {
++        respond(terminalBody({output: messageOutput('旧代理译文'), usage}));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).resolves.toBe('旧代理译文');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'success', usageAvailability: 'reported'});
++    });
++
++    it('顶层 error 非空时即使有文本也拒绝成功，且不回显上游错误内容', async () => {
++        respond(terminalBody({
++            status: 'failed',
++            error: {code: 'server_error', message: 'trace with sk-fake-ark-key-009 inside'},
++            output: messageOutput('部分译文'),
++            usage,
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        const error = await doubaoSeedTranslation(message).catch((caught: unknown) => caught);
++        expect((error as Error).message).toContain('上游返回了错误');
++        expect((error as Error).message).not.toContain('sk-fake-ark-key-009');
++        expect((error as Error).message).not.toContain('server_error');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('refusal 即使附带部分文本也拒绝成功并保留用量', async () => {
++        respond(terminalBody({
++            status: 'completed',
++            output: [{type: 'message', status: 'completed', content: [
++                {type: 'output_text', text: '前半句'},
++                {type: 'refusal', refusal: 'cannot translate'},
++            ]}],
++            usage,
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow('模型拒绝生成内容');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('只有推理项没有正文时维持格式错误且保留真实用量', async () => {
++        respond(terminalBody({
++            status: 'completed',
++            output: [{type: 'reasoning', summary: [{type: 'summary_text', text: '只推理'}]}],
++            usage: {input_tokens: 8, output_tokens: 20, total_tokens: 28, output_tokens_details: {reasoning_tokens: 20}},
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow('缺少 Responses API 输出文本');
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            outcome: 'error',
++            usageAvailability: 'reported',
++            inputTokens: 8,
++            outputTokens: 20,
++            reasoningTokens: 20,
++        });
++    });
++
++    it('批量原文中任一终态失败都不会交出“成功”的部分数组', async () => {
++        fetchMock.mockImplementation(async (_url, init) => {
++            const text = JSON.parse(String(init?.body)).input[0].content[0].text as string;
++            if (text === 'a') {
++                return json(terminalBody({status: 'incomplete', output: messageOutput('甲', 'incomplete'), usage}));
++            }
++            return json(terminalBody({status: 'completed', output: messageOutput('乙', 'completed'), usage}));
++        });
++        const message: any = {origin: ['a', 'b']};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toThrow('响应未完整生成');
++        // 第一条失败后整批拒绝，第二条不再发出请求，数组结果不会以成功形式交付。
++        expect(fetchMock).toHaveBeenCalledTimes(1);
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'error', usageAvailability: 'reported'});
++    });
++
++    it('请求前已取消直接抛 AbortError，不发请求也不上报', async () => {
++        const controller = new AbortController();
++        controller.abort();
++        const message: any = {origin: 'hello', abortSignal: controller.signal};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toMatchObject({name: 'AbortError'});
++        expect(fetchMock).not.toHaveBeenCalled();
++        expect(observations).toHaveLength(0);
++    });
++
++    it('响应读取后取消只交付取消结果，不产生迟到成功', async () => {
++        const controller = new AbortController();
++        fetchMock.mockImplementation(async () => {
++            controller.abort();
++            return json(terminalBody({status: 'completed', output: messageOutput('迟到译文'), usage}));
++        });
++        const message: any = {origin: 'hello', abortSignal: controller.signal};
++        const observations = observe(message);
++
++        await expect(doubaoSeedTranslation(message)).rejects.toMatchObject({name: 'AbortError'});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({outcome: 'cancelled', usageAvailability: 'unreported'});
++    });
++});
+diff --git a/tests/test-matrix.json b/tests/test-matrix.json
+index 84208135..edec44cf 100644
+--- a/tests/test-matrix.json
++++ b/tests/test-matrix.json
+@@ -449,6 +449,7 @@
+       "tests/chineseTranslationProviders.test.ts",
+       "tests/cloudVendorProviders.test.ts",
+       "tests/doubaoSeedTranslation.test.ts",
++      "tests/deepseekResponsesIntegrity.test.ts",
+       "tests/aiSdkOpenAICompatible.test.ts",
+       "tests/config.test.ts",
+       "tests/configAutoBackupStore.test.ts",
+-- 
+2.53.0
+
+
