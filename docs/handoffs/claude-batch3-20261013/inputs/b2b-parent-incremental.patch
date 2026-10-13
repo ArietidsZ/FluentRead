@@ -1,0 +1,104 @@
+--- a/src/providers/translation/doubao-seed-translation.ts
++++ b/src/providers/translation/doubao-seed-translation.ts
+@@ -37,7 +37,7 @@
+     model: string,
+     customBody?: unknown,
+ ) {
+-    return mergeCustomBody({
++    const body = mergeCustomBody({
+         model,
+         input: [{
+             role: 'user',
+@@ -51,6 +51,8 @@
+             }],
+         }],
+     }, customBody);
++    // This adapter reads one JSON response; custom options cannot switch it to SSE.
++    return {...body, stream: false};
+ }
+ 
+ /** 方舟只在 /responses 上提供翻译模型；用户填写的 chat/completions 代理地址会被改写。 */
+@@ -109,7 +111,6 @@
+         if (blocked) {
+             reportTranslationModelUsage(message, {
+                 ...usage,
+-                actualModel: configuredModel,
+                 startedAt,
+                 durationMs: Math.max(0, Date.now() - startedAt),
+                 outcome: 'error',
+--- a/tests/doubaoSeedTranslation.test.ts
++++ b/tests/doubaoSeedTranslation.test.ts
+@@ -201,12 +201,42 @@
+     it('构造 Responses API 的 translation_options 载荷，自动源语言时省略 source_language', () => {
+         expect(buildDoubaoSeedTranslationRequestBody('hello', 'zh', undefined, 'm')).toEqual({
+             model: 'm',
++            stream: false,
+             input: [{role: 'user', content: [{type: 'input_text', text: 'hello', translation_options: {target_language: 'zh'}}]}],
+         });
+         expect(buildDoubaoSeedTranslationRequestBody('hello', 'zh', 'en', 'm', '{"thinking":{"type":"disabled"}}'))
+             .toMatchObject({thinking: {type: 'disabled'}});
+         expect(buildDoubaoSeedTranslationRequestBody('hello', 'zh', 'en', 'm').input[0].content[0].translation_options)
+             .toEqual({source_language: 'en', target_language: 'zh'});
++    });
++
++    it.each([
++        {label: 'omitted', customBody: undefined},
++        {label: 'JSON true', customBody: '{"stream":true,"temperature":0}'},
++        {label: 'JSON false', customBody: '{"stream":false,"temperature":0}'},
++        {label: 'JSON null', customBody: '{"stream":null,"temperature":0}'},
++        {label: 'JSON string true', customBody: '{"stream":"true","temperature":0}'},
++        {label: 'JSON numeric true', customBody: '{"stream":1,"temperature":0}'},
++        {label: 'unsupported raw object', customBody: {stream: true, temperature: 0}},
++    ])('keeps the real provider JSON-only after custom merge: $label', async ({customBody}) => {
++        const original = JSON.stringify(customBody);
++        Object.assign(config, {customBody: {[services.doubao]: customBody}});
++        fetchMock.mockImplementation(async (_url, init) => {
++            const body = JSON.parse(String(init?.body));
++            // A protocol-sensitive mock: a streaming request cannot return JSON success.
++            if (body.stream === true) {
++                return new Response('data: {"type":"response.output_text.delta","delta":"partial"}\n\n', {
++                    status: 200, headers: {'Content-Type': 'text/event-stream'},
++                });
++            }
++            return json(responsesBody('你好'));
++        });
++        await expect(doubaoSeedTranslation({origin: 'hello'} as any)).resolves.toBe('你好');
++        expect(fetchMock).toHaveBeenCalledTimes(1);
++        expect(lastCall().body.stream).toBe(false);
++        if (typeof customBody === 'string') expect(lastCall().body.temperature).toBe(0);
++        else expect(lastCall().body).not.toHaveProperty('temperature');
++        expect(JSON.stringify(customBody)).toBe(original);
+     });
+ 
+     it('把配置端点改写到 /responses，并在缺少端点时报错', () => {
+@@ -229,6 +259,7 @@
+         expect(call.signal).toBe(signal);
+         expect(call.body).toEqual({
+             model: DOUBAO_SEED_TRANSLATION_MODEL_ID,
++            stream: false,
+             input: [{role: 'user', content: [{type: 'input_text', text: 'hello', translation_options: {target_language: 'zh'}}]}],
+         });
+     });
+@@ -333,6 +364,22 @@
+         });
+     });
+ 
++    it.each(['incomplete', 'failed'])('keeps the returned model on blocked %s observations', async status => {
++        respond(terminalBody({
++            model: '  doubao-seed-translation-returned-version  ',
++            status, output: messageOutput('partial'), usage,
++        }));
++        const message: any = {origin: 'hello'};
++        const observations = observe(message);
++        await expect(doubaoSeedTranslation(message)).rejects.toMatchObject({kind: 'response', retryable: false});
++        expect(observations).toHaveLength(1);
++        expect(observations[0]).toMatchObject({
++            actualModel: 'doubao-seed-translation-returned-version',
++            outcome: 'error', usageAvailability: 'reported',
++            inputTokens: 12, outputTokens: 3, totalTokens: 15, statusCode: 200,
++        });
++    });
++
+     it('HTTP 200 且 status=incomplete 时拒绝部分译文并保留真实用量', async () => {
+         respond(terminalBody({
+             status: 'incomplete',
