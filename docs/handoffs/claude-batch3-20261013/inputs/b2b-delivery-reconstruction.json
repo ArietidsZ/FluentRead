@@ -1,0 +1,35 @@
+{
+  "scope": "six final file blobs match delivered patch indexes; does not bind historical logs to final tree",
+  "files": [
+    {
+      "path": "src/providers/translation/deepseek.ts",
+      "post_patch_git_blob": "6d487ed8e69dd98a1adc837d5949cf472e5a0c25",
+      "matches_delivery_patch_index": true
+    },
+    {
+      "path": "src/providers/translation/doubao-seed-translation.ts",
+      "post_patch_git_blob": "db2615bf686ccb6ee59731875f30c56d31874805",
+      "matches_delivery_patch_index": true
+    },
+    {
+      "path": "src/providers/translation/responses-api.ts",
+      "post_patch_git_blob": "70d54677f8710a895f1ce0bd14a0a700ef03d866",
+      "matches_delivery_patch_index": true
+    },
+    {
+      "path": "tests/deepseekResponsesIntegrity.test.ts",
+      "post_patch_git_blob": "0d162f94cf27a528efba18782859c145c5863f91",
+      "matches_delivery_patch_index": true
+    },
+    {
+      "path": "tests/doubaoSeedTranslation.test.ts",
+      "post_patch_git_blob": "90f9671611e0956393d9e0b1fd497d716ec69e04",
+      "matches_delivery_patch_index": true
+    },
+    {
+      "path": "tests/test-matrix.json",
+      "post_patch_git_blob": "edec44cf6f9898810c7721f20789d22b1a36ac50",
+      "matches_delivery_patch_index": true
+    }
+  ]
+}
