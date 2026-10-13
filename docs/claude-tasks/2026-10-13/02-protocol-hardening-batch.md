@@ -1,13 +1,13 @@
-# Claude Code 第二批：协议可靠性小范围修复
+# Claude Code 第二批：协议可靠性修复与首批验收补齐
 
 ## 批次边界
 
-用户于 2026-10-13 批准派发下一批 Claude Code 任务。本批仅包含下列 B2-A、B2-B 两项，可独立并行；不包含新增通用协议入口或迁移全部 provider。由用户在自己的 Claude Code 中执行。
+用户于 2026-10-13 批准派发下一批 Claude Code 任务。本批仅包含下列 B2-A、B2-B、B2-C 三项，可独立并行；不包含新增通用协议入口或迁移全部 provider。由用户在自己的 Claude Code 中执行。
 
 - 交付仓库：ArietidsZ/FluentRead
-- 两项实现的共同固定基线：FluentRead/FluentRead@cf52fdd80e2d39ad1f4b1a413c9660d45edddec6
+- B2-A/B2-B 实现的共同固定基线：FluentRead/FluentRead@cf52fdd80e2d39ad1f4b1a413c9660d45edddec6
 - 本文档所在 handoff 分支只用于交接，不能作为实现基线。
-- 分别从固定基线建立独立实现分支，不自动更新 fork 默认分支，不混入第一批搜索修复 0063acfdd3ae512737beadf0622a7ea40c324b12，也不覆盖其他候选补丁。
+- B2-A/B2-B 分别从固定基线建立独立实现分支，不自动更新 fork 默认分支，不混入第一批搜索修复 0063acfdd3ae512737beadf0622a7ea40c324b12，也不覆盖其他候选补丁。
 - 若本地没有基线，可获取该公开上游提交；不得 reset、stash、清理或改写用户现有工作区。使用独立工作目录或 worktree。
 - 不调用真实或付费模型，不读真实凭据，不部署，不发布或合并 PR，不推送实现。任务文档的发布授权不等于实现发布授权。
 - 复用仓库锁定依赖和现有测试方式，不升级依赖、不改权限或安全配置。遵守基线 AGENTS.md 与 docs/testing.md。
@@ -80,7 +80,25 @@ DeepSeek 与 Doubao Seed 的非流式 Responses 路径只检查 HTTP ok，再抽
 
 本项排除：stream 参数覆盖问题、完整 SSE 支持、通用 OpenAI Responses 入口、Anthropic stop_reason、协议配置/缓存迁移、store 策略、Doubao 调度与重试分类修复。不得为完成本项直接删掉 doubao 的 SDK 服务分类。
 
-## 两项共同验证及交付
+## B2-C：补齐首批搜索任务的重开验证与原始证据
+
+难度：低；与 B2-A/B2-B 不共享生产改动。
+
+- 独立基线：第一批本地提交 0063acfdd3ae512737beadf0622a7ea40c324b12，原基线 0652ce2309c76a09310868acb45e71990533b500。不能切到 B2-A/B2-B 的上游基线后宣称第一批已验收。
+- 已交付补丁：Workspace/Temp/fluentread-search-parity-0063acfd.patch。父助手通过 Dropbox 静态核对了 6 文件 +520/−16 及与原基线的上下文；未发现明确生产逻辑缺陷。
+- 首批任务要求关闭后重开，但 tests/serviceSearchComponent.test.ts 的 ElPopover 替身始终渲染内容且忽略 visible，11 个组件用例没有执行打开→关闭→重开；最后一例只测选择后清空及 props 替换。因此这一条尚无测试证据。
+
+### 最小补齐
+1. 保持真实 SFC 的脚本、模板与绑定，采用能遵守 visible 生命周期的边界替身，驱动打开、输入搜索、关闭、重新打开；检查实际产品约定的筛选重置/保留行为和当前选项。不得用总是渲染两套 slot 的替身代替重开行为。
+2. 如检查表明这项生命周期要求不适用于某个组件，具体解释并对实际有该生命周期的入口验证；不要制造并不存在的 UI 契约。
+3. 只运行新增/受影响的窄范围测试，复用已有 63 条结果和构建证据。没有相关改动时不要重跑完整扫描或所有构建。
+4. 从原运行目录补交已有 red/green、基线对照、每项命令及退出码、coverage 结果、unify-onnx.cjs 与实际 NODE_OPTIONS 命令。先检查现有文件；缺失如实标注，不重建虚假的旧日志。
+5. 修正交付表：pnpm test:coverage 原退出码为 1，目标 serviceCatalog.ts 四维100%仅为局部覆盖率；build/Firefox 是据报告使用临时 shim 后通过，不能写成原依赖环境无条件通过。
+6. 给出更新补丁和准确新提交。首批源码仍不推送、不合并。无需修正原有无关 22 项及4项失败。
+
+以上原始日志尚未由父助手读取；作者报告的 63/63、构建及局部覆盖率不等于父助手独立运行验证。
+
+## 共同验证及交付
 
 - 先读基线 docs/testing.md 与 package.json，复用真实函数/SDK的现有 mock 方式。
 - 新测试在 tests/test-matrix.json 中唯一归类；两分支若同时改该索引，最终集成时仅合并各自条目，不覆盖另一项。
