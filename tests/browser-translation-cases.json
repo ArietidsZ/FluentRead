@@ -2582,7 +2582,11 @@
       "textarea",
       "[contenteditable]:not([contenteditable=\"false\"])"
     ],
-    "dynamicForbiddenSelectors": [],
+    "dynamicForbiddenSelectors": [
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"button\"]"
+    ],
     "interactionSelectors": [
       "[role=\"article\"][aria-posinset=\"1\"] a[role=\"link\"][aria-label=\"NASA - National Aeronautics and Space Administration\"]",
       "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"] a[href]",

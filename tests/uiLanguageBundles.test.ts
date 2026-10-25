@@ -155,9 +155,11 @@ describe('界面语言注册表', () => {
             expect(pdf.pdfReadingMessages[language]).toBe(pdfMessages);
             expect(highlight.informationHighlightMessages[language]).toBe(highlightMessages);
             const catalog = language === 'zh-CN' ? chinese.zhCNMessages : bundles.UI_LANGUAGE_BUNDLES[language].messages;
-            for (const [key, value] of Object.entries({...pdfMessages, ...highlightMessages,
-                ...composite.compositeTranslationMessages[language], ...timeout.aiRequestTimeoutMessages[language],
-                ...corrections.personalCorrectionMessages[language]})) {
+            for (const [key, value] of Object.entries({...(pdfMessages as Readonly<Record<string, string>>),
+                ...(highlightMessages as Readonly<Record<string, string>>),
+                ...(composite.compositeTranslationMessages[language] as Readonly<Record<string, string>>),
+                ...(timeout.aiRequestTimeoutMessages[language] as Readonly<Record<string, string>>),
+                ...(corrections.personalCorrectionMessages[language] as Readonly<Record<string, string>>)})) {
                 expect(catalog[key as keyof typeof catalog], `${language}: ${key}`).toBe(value);
             }
         }

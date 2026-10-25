@@ -2,6 +2,7 @@
 import {createRequire} from 'node:module';
 import {parseHTML} from 'linkedom';
 import {afterEach, describe, expect, it, vi} from 'vitest';
+import cases from './browser-translation-cases.json';
 
 const require = createRequire(import.meta.url);
 const {prepareFacebookPublicPost} = require('../scripts/site-translation/facebook-public-post-preparation.cjs');
@@ -71,6 +72,23 @@ afterEach(() => {vi.unstubAllGlobals();vi.restoreAllMocks();});
 describe('Facebook case configuration', () => {
     const base = {url, requiredSelectors: ['#caption'], forbiddenSelectors: ['input'], interactionSelectors: ['a'],
         coverageRules: rules, modes: ['hover', 'full']};
+    it('allows clean native comment additions only in the three observed metadata groups', () => {
+        const configured = cases['facebook-nasa-public-post'];
+        expect(configured.dynamicForbiddenSelectors).toEqual([
+            '[role="article"][aria-posinset="1"] [role="article"][aria-label] span:has(+ div > span[dir="auto"][lang]):not(span[dir="auto"][lang] *)',
+            '[role="article"][aria-posinset="1"] [role="article"][aria-label] ul[aria-hidden="false"] a[role="link"]',
+            '[role="article"][aria-posinset="1"] [role="button"]',
+        ]);
+        for (const selector of configured.dynamicForbiddenSelectors) {
+            expect(configured.forbiddenSelectors).toContain(selector);
+            expect(configured.forbiddenMustExistSelectors).toContain(selector);
+            expect(configured.optionalForbiddenSelectors).not.toContain(selector);
+        }
+        expect(configured).not.toHaveProperty('mutableForbiddenSelectors');
+        expect(configured.coverageRules.map(rule => [rule.minInitial, rule.minSeen])).toEqual([[2, 2], [13, 13]]);
+        expect(configured.hoverTargets).toHaveLength(15);
+        expect(collectBaseCaseConfigErrors('facebook-nasa-public-post', configured)).toEqual([]);
+    });
     it('only enables the reviewed preparation explicitly', () => {
         expect(normalizeCaseConfig('facebook', base)).not.toHaveProperty('prepareFacebookPublicPost');
         expect(normalizeCaseConfig('facebook', {...base, prepareFacebookPublicPost: true}).prepareFacebookPublicPost).toBe(true);
