@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：共享本次原图背景分类，完整确认均匀的页面不等待其他页面的模型修补队列；默认返回独立像素副本，仅显式持有独占像素的调用方可在均匀页复用原缓冲，复杂页始终保留原图与输出分离；按识别行及其有界描边余量建立局部蒙版，以同样的最近邻源坐标将每个行框投影为补丁行段，避免每个补丁像素遍历全部文字行；截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；透明补丁仅在原始蒙版完整外周透明度一致时压低 source-over 字形增加的 alpha，保留更透明的孔洞，不把 RGB 模型当作 alpha 预测器，非均匀或触边透明度保守保留；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、滚动取消保留模型端口并由 owner 有界收尾，三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，完整确认均匀的页面不等待其他页面的模型修补队列；默认返回独立像素副本，仅显式持有独占像素的调用方可在均匀页复用原缓冲，复杂页始终保留原图与输出分离；按识别行及其有界描边余量建立局部蒙版，以同样的最近邻源坐标将每个行框投影为补丁行段，避免每个补丁像素遍历全部文字行；截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；所有区域共同跳过原图阶段冻结的低 alpha 行段并保留其四通道，透明补丁仅在完整外周透明度一致时压低 source-over 字形增加的 alpha，不把 RGB 模型当作 alpha 预测器；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、滚动取消保留模型端口并由 owner 有界收尾，三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
@@ -13,9 +13,10 @@ import {assertMangaOcrActive, loadMangaInpaintAsset, MANGA_INPAINT_ASSET, withMa
 import {mangaRegionBackground, type MangaBackground} from './mangaRendering';
 import type {MangaRegion} from './mangaRegions';
 import {mangaMaskBoxes as maskBoxes} from '../mangaPatchResult';
+import {isMangaAlphaProtected,type MangaAlphaProtection} from './mangaAlphaProtection';
 
 export type {MangaPatch} from './mangaInferenceClient';
-interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number; alpha?: number}
+interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number; alpha?: number; protection?:MangaAlphaProtection}
 interface InpaintPort {run(patch: MangaPatch, signal?:AbortSignal, progress?:(percent?:number,initializing?:boolean)=>void): Promise<Float32Array>; release(): Promise<void>}
 
 /** 完整一像素外周包含并集的真实边界；重叠内周也要求一致，只会更保守，不读取图外像素。 */
@@ -39,7 +40,7 @@ function uniformMaskAlpha(pixels: Uint8ClampedArray, width: number, height: numb
 }
 
 /** 识别框已有字形留白，蒙版按原始行分别构造，避免把整个段落之间的画面也擦除。 */
-export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion): PatchMapping {
+export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion, protection?:MangaAlphaProtection): PatchMapping {
     const box = region.bbox, padding = Math.max(24, Math.round(region.fontSize));
     const left = Math.max(0, Math.floor(box.x0) - padding), top = Math.max(0, Math.floor(box.y0) - padding);
     const sourceWidth = Math.min(width, Math.ceil(box.x1) + padding) - left;
@@ -69,15 +70,16 @@ export function createMangaPatch(pixels: Uint8ClampedArray, width: number, heigh
     }
     // 不增加整页扫描或像素数组；采样已确认不透明的补丁沿用原路径。
     const alpha = transparent ? uniformMaskAlpha(pixels,width,height,boxes) : undefined;
-    return {patch:{image,mask,width:patchWidth,height:patchHeight},left,top,sourceWidth,sourceHeight,alpha};
+    return {patch:{image,mask,width:patchWidth,height:patchHeight},left,top,sourceWidth,sourceHeight,alpha,protection};
 }
 
 /** 只回写字形及描边蒙版内的像素，蒙版以外始终使用原图。 */
 export function applyMangaPatch(pixels: Uint8ClampedArray, width: number, region: MangaRegion, mapping: PatchMapping, output: Float32Array): void {
-    const {patch,left,top,sourceWidth,sourceHeight,alpha} = mapping, count = patch.width * patch.height;
+    const {patch,left,top,sourceWidth,sourceHeight,alpha,protection} = mapping, count = patch.width * patch.height;
     if (output.length !== count * 3 || !output.every(Number.isFinite)) throw new Error('漫画背景修补结果无效');
     for (const box of maskBoxes(region,width,pixels.length/(width*4))) {
         for (let y = Math.floor(box.y0); y < box.y1; y += 1) for (let x = Math.floor(box.x0); x < box.x1; x += 1) {
+            if(protection&&isMangaAlphaProtected(protection,x,y))continue;
             const px = Math.min(patch.width-1, Math.floor((x-left) * patch.width / sourceWidth));
             const py = Math.min(patch.height-1, Math.floor((y-top) * patch.height / sourceHeight));
             const sample = py * patch.width + px, destination = (y * width + x) * 4;
@@ -93,7 +95,7 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
     function queue<T>(operation:()=>Promise<T>) {const result=tail.then(operation);tail=result.then(()=>undefined,()=>undefined);return result;}
     async function release() {clearTimeout(idle);idle=undefined;const current=service;service=undefined;await current?.release();}
     return {
-        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number,initializing?:boolean)=>void,onRepair?:(done:number,total:number)=>void,backgrounds?:MangaBackground[],options?:{reuseUniformPixels?:boolean}) {
+        repair(pixels:Uint8ClampedArray,width:number,height:number,regions:MangaRegion[],signal?:AbortSignal,onPreparing?:(percent?:number,initializing?:boolean)=>void,onRepair?:(done:number,total:number)=>void,backgrounds?:MangaBackground[],options?:{reuseUniformPixels?:boolean;protection?:MangaAlphaProtection}) {
             return withMangaModelAdmission(() => {
                 // 不同标签页的图片任务可以并发到达这里。已确认无需模型的页面
                 // 默认复制像素；只有独占调用方显式选择时复用完整均匀页。
@@ -113,7 +115,7 @@ export function createMangaInpaintingRuntime(create: (signal?: AbortSignal,progr
                             if (!service) {onPreparing?.();service=await create(signal,onPreparing);}
                             assertMangaOcrActive(signal);
                             onRepair?.(completed,pending.length);
-                            const mapping=createMangaPatch(pixels,width,height,region);
+                            const mapping=createMangaPatch(pixels,width,height,region,options?.protection);
                             const output=await service.run(mapping.patch,signal,onPreparing);
                             assertMangaOcrActive(signal);applyMangaPatch(result,width,region,mapping,output);
                             completed++;onRepair?.(completed,pending.length);

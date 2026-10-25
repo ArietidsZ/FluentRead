@@ -1,13 +1,14 @@
 /**
  * @file src/features/image-translation/services/mangaRendering.ts
  * 文件职责：在整段漫画区域中绘制适合阅读的译文，避免整行逐框放大和复杂背景扩散条纹。
- * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；边缘采样全部不透明时才允许均匀背景按原始行及描边蒙版清字，保留行间画面；页内度量以固定字体族下的字重、字号与全文短键复用，连续字号复用字体前缀，仍按原完整字体键扣除预算；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
+ * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；边缘采样全部不透明时才允许均匀背景按原始行及描边蒙版清字；清字和绘字共同扣除原图冻结的低 alpha 并集，再在原框内无孔连续矩形完整重排，选择最大可用字号而不切除译文字形；页内度量以固定字体族下的字重、字号与全文短键复用，仍保持有界缓存；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
  * 模块边界：只操作调用方提供的画布和像素，不运行 OCR/翻译、不修改宿主页面；绘制区域局限于识别框，完整原图仍可通过现有按钮对照。
  */
 import type {MangaRegion} from './mangaRegions';
 import {getImageTextColor, getImageTextBackgroundColor} from './rendering';
 import {layoutMangaTranslationText, MANGA_TEXT_FONT} from './mangaTypography';
 import {mangaMaskBoxes} from '../mangaPatchResult';
+import {mangaAlphaClearRects,type MangaAlphaProtection} from './mangaAlphaProtection';
 
 export interface MangaBackground {color: string; uniform: boolean}
 
@@ -38,15 +39,24 @@ export function sampleMangaBackgrounds(pixels: Uint8ClampedArray, width: number,
 
 /** 短对白有统一上限，标题根据源字号保持层次；所有文字依然限制在原识别范围内。 */
 export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels: Uint8ClampedArray,
-    width: number, height: number, regions: Array<MangaRegion & {sourceText?: string}>, repaired = false, backgrounds?: MangaBackground[]) {
+    width: number, height: number, regions: Array<MangaRegion & {sourceText?: string}>, repaired = false, backgrounds?: MangaBackground[],protection?:MangaAlphaProtection) {
     if (![width, height].every(value => Number.isSafeInteger(value) && value > 0) || pixels.length < width * height * 4) return;
     // 本次绘制的字体族固定；短键保留字重、实际字号和全文，不跨页面或设备复用。
     const measurements = new Map<string, {width:number;ascent:number;descent:number}>();
     let cachedCharacters = 0;
+    const alphaLayoutBudget={remaining:1_048_576};let additionalLayouts=0;
+    if(protection)context.save();
+    try {
+    // 共享全页裁剪只构造一次；区域恢复继续沿用已有 save/restore，避免路径按区域数放大。
+    if(protection){
+        context.beginPath();context.rect(0,0,width,height);
+        for(const hole of protection.rectangles)context.rect(hole.x0,hole.y0,hole.x1-hole.x0,hole.y1-hole.y0);
+        context.clip('evenodd');
+    }
     for (const [index,region] of regions.entries()) {
         const box = region.bbox;
-        const left = Math.max(0, box.x0), top = Math.max(0, box.y0);
-        const right = Math.min(width, box.x1), bottom = Math.min(height, box.y1);
+        let left = Math.max(0, box.x0), top = Math.max(0, box.y0);
+        let right = Math.min(width, box.x1), bottom = Math.min(height, box.y1);
         if (right <= left || bottom <= top) continue;
         const sampled = backgrounds?.[index] ?? mangaRegionBackground(pixels, width, height, {x0:left,y0:top,x1:right,y1:bottom});
         const background = sampled.uniform ? sampled.color : 'rgb(255,255,255)';
@@ -65,7 +75,6 @@ export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels:
             const weight = display ? 800 : 600;
             const maxSize = Math.min(region.fontSize * 1.05,width * (display ? .10 : .034));
             // 保留横向余量；OCR 框是字形边界，竖向空间由实际字形和描边适配，不再重复扣除内边距。
-            const inset = Math.min(display ? Math.max(3,maxSize * .12) : Math.min(4,maxSize * .1),(right-left) / 4,(bottom-top) / 4);
             let measuredFont = '', keyFontSize = NaN, font = '', keyPrefix = '', logicalPrefixLength = 0;
             context.textBaseline = 'alphabetic';
             const measure = (text:string,size:number) => {
@@ -85,12 +94,33 @@ export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels:
                 return value;
             };
             const lineWidth = (size:number)=>Math.max(.5,size*(sampled.uniform ? .035 : .14));
-            const layout = layoutMangaTranslationText(region.text,right-left-inset*2,bottom-top,(text,size)=>measure(text,size).width,maxSize,(text,size)=>{
+            const fit=(bounds:MangaRegion['bbox'])=>{
+                const w=bounds.x1-bounds.x0,h=bounds.y1-bounds.y0;
+                const inset=Math.min(display ? Math.max(3,maxSize*.12) : Math.min(4,maxSize*.1),w/4,h/4);
+                const layout=layoutMangaTranslationText(region.text,w-inset*2,h,(text,size)=>measure(text,size).width,maxSize,(text,size)=>{
                 const {ascent,descent} = measure(text,size);
                 if (![ascent,descent].every(Number.isFinite) || ascent+descent<=0) return undefined;
                 const padding = lineWidth(size)/2+.5;
                 return {ascent:ascent+padding,descent:descent+padding};
-            });
+                });
+                const fits=(layout.ink?.height??layout.lines.length*layout.lineHeight)<=h&&layout.lines.every(line=>measure(line,layout.fontSize).width<=w-inset*2);
+                return {bounds,layout,fits};
+            };
+            const bounds={x0:left,y0:top,x1:right,y1:bottom};
+            const available=protection?mangaAlphaClearRects(protection,bounds,alphaLayoutBudget):[bounds];
+            if(!available.length)throw new Error('漫画透明图案遮挡译文区域，已保留原图');
+            const affected=available.length!==1||available[0]!==bounds;
+            let best:ReturnType<typeof fit>|undefined=fit(available[0]);
+            if(affected&&!best.fits)best=undefined;
+            for(let candidate=1;candidate<available.length;candidate++){
+                if(best?.layout.fontSize===maxSize)break;
+                if(++additionalLayouts>512)throw new Error('漫画透明图案过于复杂，已保留原图');
+                const next=fit(available[candidate]);
+                if(next.fits&&(!best||next.layout.fontSize>best.layout.fontSize))best=next;
+            }
+            if(!best)throw new Error('漫画透明图案遮挡译文区域，已保留原图');
+            const layout=best.layout;
+            ({x0:left,y0:top,x1:right,y1:bottom}=best.bounds);
             if (!layout.lines.length) continue;
             context.beginPath();context.rect(left,top,right-left,bottom-top);context.clip();
             context.font = `${weight} ${layout.fontSize}px ${MANGA_TEXT_FONT}`;
@@ -106,4 +136,5 @@ export function drawMangaTranslations(context: CanvasRenderingContext2D, pixels:
             });
         } finally { context.restore(); }
     }
+    } finally {if(protection)context.restore();}
 }

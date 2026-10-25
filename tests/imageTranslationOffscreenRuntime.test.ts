@@ -1,6 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 
-const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn(), sampleManga:vi.fn(), encode:vi.fn()}));
+const mocks = vi.hoisted(() => ({recognize: vi.fn(), inpaint: vi.fn(), background: vi.fn(), draw: vi.fn(), mangaRecognize:vi.fn(), repair:vi.fn(), mangaDraw:vi.fn(), sampleManga:vi.fn(), alphaProtection:vi.fn(), encode:vi.fn()}));
+vi.mock('@/src/features/image-translation/services/mangaAlphaProtection',()=>({planMangaAlphaProtection:mocks.alphaProtection}));
 vi.mock('@/src/features/image-translation/services/imageEncoding',()=>({encodeImageCanvas:mocks.encode}));
 vi.mock('@/src/features/image-translation/services/mangaOcr',()=>({mangaOcrRuntime:{recognize:mocks.mangaRecognize}}));
 vi.mock('@/src/features/image-translation/services/mangaInpainting',()=>({mangaInpaintingRuntime:{repair:mocks.repair}}));
@@ -134,7 +135,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
         mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_lines,_signal,onPreparing,onRepair)=>{onPreparing();onPreparing(undefined,true);onRepair(1,2);return pixels;});
         const result=await translateImageInOffscreen('manga','en','Page',undefined,'manga-page',true);
         expect(mocks.recognize).not.toHaveBeenCalled();expect(mocks.inpaint).not.toHaveBeenCalled();expect(mocks.draw).not.toHaveBeenCalled();
-        expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true,[{color:'rgb(255,255,255)',uniform:false}]);
+        expect(mocks.mangaDraw).toHaveBeenCalledWith(canvases[0].context,expect.any(Uint8ClampedArray),32,16,[expect.objectContaining({text:'你好',sourceBoxes:regions[0].sourceBoxes})],true,[{color:'rgb(255,255,255)',uniform:false}],undefined);
         expect(mocks.sampleManga.mock.invocationCallOrder[0]).toBeLessThan(mocks.repair.mock.invocationCallOrder[0]);
         expect(mocks.repair.mock.calls[0][7]).toBe(mocks.mangaDraw.mock.calls[0][6]);
         expect(result.lines[0]).toMatchObject({text:'你好',sourceText:'Hello'});
@@ -144,6 +145,31 @@ describe('Offscreen 图片完整操作生命周期', () => {
         expect(sendMessage.mock.calls.filter(([m])=>m.type==='fluentReadImageProgress').map(([m])=>m.stage)).toEqual(['preparing','recognizing','translating','cleaning','preparing','initializing','cleaning','rendering']);
         expect(sendMessage).toHaveBeenCalledWith({type:'fluentReadImageProgress',requestId:'manga-page',stage:'cleaning',progress:50},expect.any(Function));
         expect(images[0].src).toBe('');expect(canvases[0].width).toBe(0);
+    });
+    it('漫画在原像素拷回前冻结同一保护计划，修补与所有绘字共用而不重新推断',async()=>{
+        mocks.mangaRecognize.mockResolvedValue([{...lines[0],fontSize:10}]);
+        const protection=Object.freeze({originalPixels:true});
+        let source:Uint8ClampedArray|undefined;
+        mocks.alphaProtection.mockImplementationOnce((pixels,width,height,regions)=>{
+            expect([width,height]).toEqual([32,16]);expect(regions[0].text).toBe('你好');
+            expect(pixels[0]).toBe(0);source=pixels;return protection;
+        });
+        mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_regions,_signal,_preparing,_repair,_backgrounds,options)=>{
+            expect(pixels).toBe(source);expect(options.protection).toBe(protection);
+            return new Uint8ClampedArray(pixels.length).fill(31);
+        });
+        await translateImageInOffscreen('manga','en','Page',undefined,'shared-protection',true);
+        expect(mocks.alphaProtection).toHaveBeenCalledOnce();
+        expect(mocks.alphaProtection.mock.invocationCallOrder[0]).toBeLessThan(mocks.repair.mock.invocationCallOrder[0]);
+        expect(mocks.mangaDraw.mock.calls[0][1]).toBe(source);expect(source![0]).toBe(31);
+        expect(mocks.mangaDraw.mock.calls[0][7]).toBe(protection);
+    });
+    it('保护计划失败时不启动模型或发布部分译图，并清理原图和画布',async()=>{
+        mocks.mangaRecognize.mockResolvedValue([{...lines[0],fontSize:10}]);
+        mocks.alphaProtection.mockImplementationOnce(()=>{throw new Error('透明孔保护超出预算');});
+        await expect(translateImageInOffscreen('manga','en','Page',undefined,'protection-failed',true)).rejects.toThrow('透明孔保护超出预算');
+        expect(mocks.repair).not.toHaveBeenCalled();expect(mocks.mangaDraw).not.toHaveBeenCalled();expect(mocks.encode).not.toHaveBeenCalled();
+        expect(images[0].src).toBe('');expect(canvases.every(canvas=>canvas.width===0&&canvas.height===0)).toBe(true);
     });
     it('漫画修补完成后取消，不能编码或返回迟到译图',async()=>{
         const controller=new AbortController();mocks.mangaRecognize.mockResolvedValue([{...lines[0],fontSize:10}]);
@@ -159,7 +185,7 @@ describe('Offscreen 图片完整操作生命周期', () => {
         })});
         mocks.sampleManga.mockReturnValue([{color:'rgb(255,255,255)',uniform:reuse}]);
         mocks.repair.mockImplementationOnce(async(pixels,_w,_h,_regions,_signal,_preparing,_repair,backgrounds,options)=>{
-            expect(pixels).toBe(input);expect(backgrounds[0].uniform).toBe(reuse);expect(options).toEqual({reuseUniformPixels:true});
+            expect(pixels).toBe(input);expect(backgrounds[0].uniform).toBe(reuse);expect(options).toEqual({reuseUniformPixels:true,protection:undefined});
             if(reuse)return pixels;const result=new Uint8ClampedArray(pixels);result[0]=173;return result;
         });
         await translateImageInOffscreen('manga','en','',undefined,'owned-pixels',true);

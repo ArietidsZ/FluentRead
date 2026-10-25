@@ -614,6 +614,7 @@
       "tests/localModelSettingsLifecycle.test.ts",
       "tests/localTranslationModelSettingsLifecycle.test.ts",
       "tests/localTranslationWorker.test.ts",
+      "tests/mangaAlphaProtection.test.ts",
       "tests/mangaBackground.test.ts",
       "tests/mangaBubbles.test.ts",
       "tests/mangaCanvas.test.ts",

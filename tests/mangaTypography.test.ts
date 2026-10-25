@@ -1,9 +1,52 @@
 import {describe,expect,it,vi} from 'vitest';
 import {layoutMangaTranslationText,MANGA_TEXT_FONT} from '@/src/features/image-translation/services/mangaTypography';
 import {drawMangaTranslations,sampleMangaBackgrounds} from '@/src/features/image-translation/services/mangaRendering';
+import type {MangaAlphaProtection} from '@/src/features/image-translation/services/mangaAlphaProtection';
 const measure = (text: string,size: number) => Array.from(text).length * size;
 function context() {return {save:vi.fn(),restore:vi.fn(),fillRect:vi.fn(),font:'',fillStyle:'',strokeStyle:'',lineWidth:0,
     beginPath:vi.fn(),rect:vi.fn(),clip:vi.fn(),measureText:vi.fn(function(this:{font:string},text:string){return {width:measure(text,Number(this.font.match(/ ([\d.]+)px/)![1]))};}),strokeText:vi.fn(),fillText:vi.fn()};}
+function inkContext(){const c=context();c.measureText.mockImplementation(function(this:{font:string},text:string){
+    const size=Number(this.font.match(/ ([\d.]+)px/)![1]);return {width:measure(text,size),actualBoundingBoxAscent:size*.7,actualBoundingBoxDescent:size*.2};
+});return c;}
+function protection(rectangles:MangaAlphaProtection['rectangles']):MangaAlphaProtection{return {rectangles,runs:new Uint16Array(),rowStarts:new Uint32Array()};}
+
+describe('透明图案与完整译文共同排版',()=>{
+    const width=320,height=160,pixels=new Uint8ClampedArray(width*height*4).fill(255);
+    const region={text:'完整保留每个字',fontSize:20,bbox:{x0:20,y0:20,x1:300,y1:140}};
+    it('任何清字前只构建一次全局减孔clip，选择孔侧完整高度并保留全部文字',()=>{
+        const c=inkContext(),hole={x0:100,y0:40,x1:110,y1:70};
+        drawMangaTranslations(c as any,pixels,width,height,[{...region,sourceBoxes:[region.bbox]}],true,[{uniform:true,color:'#fff'}],protection([hole]));
+        expect(c.clip.mock.calls.filter(args=>args[0]==='evenodd')).toHaveLength(1);
+        expect(c.clip.mock.invocationCallOrder[0]).toBeLessThan(c.fillRect.mock.invocationCallOrder[0]);
+        expect(c.rect.mock.calls[0]).toEqual([0,0,width,height]);
+        const [x,y,w,h]=c.rect.mock.calls.at(-1)!;
+        expect(w>0&&h>0).toBe(true);expect(x+w<=hole.x0||x>=hole.x1||y+h<=hole.y0||y>=hole.y1).toBe(true);
+        expect(c.fillText.mock.calls.map(args=>args[0]).join('')).toBe(region.text);
+        expect(c.save).toHaveBeenCalledTimes(2);expect(c.restore).toHaveBeenCalledTimes(2);
+    });
+    it('多个区域共用一次clip，框外孔不改变既有布局，异常仍恢复两层上下文',()=>{
+        const p=protection([{x0:1,y0:1,x1:8,y1:8}]),c=inkContext();
+        drawMangaTranslations(c as any,pixels,width,height,[region,region],true,undefined,p);
+        expect(c.clip.mock.calls.filter(args=>args[0]==='evenodd')).toHaveLength(1);
+        expect(c.save).toHaveBeenCalledTimes(3);expect(c.restore).toHaveBeenCalledTimes(3);
+        const failed=inkContext();failed.strokeText.mockImplementationOnce(()=>{throw new Error('draw failed');});
+        expect(()=>drawMangaTranslations(failed as any,pixels,width,height,[region],true,undefined,p)).toThrow('draw failed');
+        expect(failed.restore).toHaveBeenCalledTimes(2);
+    });
+    it('保护遮满区域或只剩一像素时明确失败，不能把带全文的绘制调用当作可读成功',()=>{
+        for(const hole of [region.bbox,{...region.bbox,y0:21}]){
+            const c=inkContext();
+            expect(()=>drawMangaTranslations(c as any,pixels,width,height,[region],true,undefined,protection([hole]))).toThrow('已保留原图');
+            expect(c.fillText).not.toHaveBeenCalled();expect(c.restore).toHaveBeenCalledTimes(2);
+        }
+    });
+    it('整页额外候选超过预算会失败，不无限重复完整长文排版或静默截断',()=>{
+        const c=inkContext(),item={text:'完整长译文'.repeat(30),fontSize:20,bbox:{x0:20,y0:20,x1:300,y1:140}};
+        const p=protection([{x0:100,y0:40,x1:110,y1:70}]);
+        expect(()=>drawMangaTranslations(c as any,pixels,width,height,Array(200).fill(item),true,undefined,p)).toThrow('过于复杂');
+        expect(c.restore.mock.calls.length).toBe(c.save.mock.calls.length);
+    });
+});
 describe('漫画专用完整排版',()=>{
     it('单行按实际字形上下界适配，行距不再重复挤掉识别框高度',()=>{
         const layout=layoutMangaTranslationText('你好',100,10,measure,10,(_text,size)=>({ascent:size*.7,descent:size*.2}));
