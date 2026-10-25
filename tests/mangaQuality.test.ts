@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
 import {groupMangaText, groupMangaOcrLines, type MangaOcrItem} from '@/src/features/image-translation/services/mangaRegions';
-import {drawMangaTranslations} from '@/src/features/image-translation/services/mangaRendering';
+import {drawMangaTranslations,mangaRegionBackground} from '@/src/features/image-translation/services/mangaRendering';
 import {layoutImageTranslationText} from '@/src/features/image-translation/services/rendering';
 
 const item = (text: string, x = 20, y = 20, width = 80, height = 20, confidence = 0.99): MangaOcrItem =>
@@ -141,6 +141,31 @@ describe('漫画整段识别与噪声边界', () => {
 });
 
 describe('漫画字号和安全绘制', () => {
+    it.each([128,180,254,255])('同 RGB 边缘的 alpha=%i 仅完全不透明时才可作为均匀清字依据', alpha => {
+        const width=64,height=48,pixels=new Uint8ClampedArray(width*height*4);
+        for(let offset=0;offset<pixels.length;offset+=4)pixels.set([160,176,192,alpha],offset);
+        const before=pixels.slice(),bbox={x0:16,y0:12,x1:48,y1:36};
+        expect(mangaRegionBackground(pixels,width,height,bbox)).toEqual({color:'rgb(160,176,192)',uniform:alpha===255});
+        expect(pixels).toEqual(before);
+    });
+    it.each([0,254])('单个 alpha=%i 的已采样边缘点否决均匀底色，不套用 RGB 的九成容差', alpha => {
+        const width=64,height=48,pixels=new Uint8ClampedArray(width*height*4).fill(255),bbox={x0:16,y0:12,x1:48,y1:36};
+        pixels[(11*width+16)*4+3]=alpha;
+        expect(mangaRegionBackground(pixels,width,height,bbox)).toEqual({color:'rgb(255,255,255)',uniform:false});
+    });
+    it('混合半透明与不透明边缘仍走复杂背景，纯不透明边缘保留既有 RGB 噪声容差',()=>{
+        const width=64,height=48,pixels=new Uint8ClampedArray(width*height*4).fill(255),bbox={x0:16,y0:12,x1:48,y1:36};
+        for(let y=0;y<height;y++)for(let x=0;x<width;x++)pixels[(y*width+x)*4+3]=(x+y)%2?180:255;
+        expect(mangaRegionBackground(pixels,width,height,bbox).uniform).toBe(false);
+        for(let offset=3;offset<pixels.length;offset+=4)pixels[offset]=255;
+        pixels[(11*width+16)*4]=0;
+        expect(mangaRegionBackground(pixels,width,height,bbox)).toEqual({color:'rgb(255,255,255)',uniform:true});
+    });
+    it('边缘采样不能证明框内透明孔洞安全，保留该局限而不新增内部扫描',()=>{
+        const width=64,height=48,pixels=new Uint8ClampedArray(width*height*4).fill(255),bbox={x0:16,y0:12,x1:48,y1:36};
+        for(let y=20;y<28;y++)for(let x=24;x<40;x++)pixels[(y*width+x)*4+3]=0;
+        expect(mangaRegionBackground(pixels,width,height,bbox)).toEqual({color:'rgb(255,255,255)',uniform:true});
+    });
     it('短译文限制为统一字号，长译文继续完整换行', () => {
         const measure = (text: string, size: number) => Array.from(text).length * size;
         expect(layoutImageTranslationText('你好', 300, 500, measure, 26).fontSize).toBe(26);
