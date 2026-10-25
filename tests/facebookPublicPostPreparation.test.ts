@@ -78,9 +78,93 @@ function fakePage(state: Fixture, options: {onClick?: () => void; clickError?: u
     return page;
 }
 
+function loadingPostShell(state: Fixture) {
+    // 同轮原生失败结构：标题已挂载，article 尚无 posinset/message，内部只有空加载占位。
+    const d = state.document, post = d.getElementById('post-dialog'), article = post.querySelector('[role="article"]');
+    const content = [...article.childNodes];
+    post.setAttribute('aria-labelledby', 'native-post-label');
+    post.insertAdjacentHTML('afterbegin', '<h2 dir="auto"><span id="native-post-label" dir="auto">Fixture Publisher 的帖子</span></h2>');
+    article.removeAttribute('aria-posinset');
+    article.innerHTML = '<div role="status" data-visualcompletion="loading-state" aria-label="正在加载..." tabindex="-1"><div><div></div></div></div>';
+    return {post, article, status: article.firstElementChild, heading: post.querySelector('h2'),
+        label: d.getElementById('native-post-label'), hydrate() {article.setAttribute('aria-posinset', '1');article.replaceChildren(...content);}};
+}
+
 afterEach(() => {vi.unstubAllGlobals();vi.restoreAllMocks();});
 
 describe('bounded native Facebook hydration before strict preparation', () => {
+    it('waits for the exact native loading article and IDREF title, then applies every original preparation guard', async () => {
+        const state = fixture(), shell = loadingPostShell(state), source = state.document.documentElement.outerHTML;
+        expect(readHydration({expectedUrl})).toBe(false);
+        expect(state.document.documentElement.outerHTML).toBe(source);
+        const page = fakePage(state, {beforeWait(fn) {if (fn === readHydration) shell.hydrate();}});
+        const result = await prepareFacebookPublicPost(page, expectedUrl, 1000);
+        expect(result).toMatchObject({hydrationWaited: true, nativeClicks: 1, sourceAndLinksUnchanged: true});
+        expect(result.captionParts.map((part: {text: string}) => part.text).join('')).toBe(message);
+        expect(page.calls.map(call => call.action)).toEqual(['native-state-poll', 'native-click', 'native-state-poll']);
+        expect(page.handleDisposals).toBe(2);
+        expect(isVerifiedFacebookPublicPostPreparation(result, page)).toBe(true);
+    });
+
+    it('keeps a permanently empty native loading article bounded and never authorizes a close', async () => {
+        const state = fixture();loadingPostShell(state);
+        const failure: any = new Error('Original native loading shell timeout'), page = fakePage(state, {waitError: failure});
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toBe(failure);
+        expect(failure.facebookPreparation).toMatchObject({stage: 'hydration', hydrationWaited: true, nativeClicks: 0, nativeClickAttempts: 0});
+        expect(page.calls.map(call => call.action)).toEqual(['native-state-poll']);
+        expect(isVerifiedFacebookPublicPostPreparation(failure.facebookPreparation, page)).toBe(false);
+    });
+
+    it.each(['article-text', 'outside-heading-text', 'missing-status', 'wrong-status-role', 'wrong-loading-marker',
+        'unknown-loading-locale', 'multiple-status', 'multiple-article', 'wrong-posinset', 'reading-markup',
+        'missing-heading', 'multiple-heading', 'wrong-idref', 'multiple-idrefs', 'duplicate-id', 'label-outside-heading',
+        'extra-heading-text', 'missing-promotion', 'nested-promotion', 'outside-scrollview', 'another-dialog',
+        'alertdialog', 'form', 'editor', 'link', 'owned-root', 'owned-child', 'owned-ancestor', 'extra-close', 'wrong-close'])
+    ('refuses an unrecognized loading-shell relationship before any pointer action: %s', async variant => {
+        const state = fixture(), d = state.document, shell = loadingPostShell(state);
+        if (variant === 'article-text') shell.status.append('Public-looking content is not an empty shell');
+        if (variant === 'outside-heading-text') shell.post.append('An unknown dialog message');
+        if (variant === 'missing-status') shell.status.remove();
+        if (variant === 'wrong-status-role') shell.status.setAttribute('role', 'region');
+        if (variant === 'wrong-loading-marker') shell.status.setAttribute('data-visualcompletion', 'other');
+        if (variant === 'unknown-loading-locale') shell.status.setAttribute('aria-label', 'Loading...');
+        if (variant === 'multiple-status') shell.article.append(shell.status.cloneNode(true));
+        if (variant === 'multiple-article') shell.article.after(shell.article.cloneNode(true));
+        if (variant === 'wrong-posinset') shell.article.setAttribute('aria-posinset', '2');
+        if (variant === 'reading-markup') shell.status.insertAdjacentHTML('beforeend', '<p></p>');
+        if (variant === 'missing-heading') shell.heading.remove();
+        if (variant === 'multiple-heading') shell.heading.after(shell.heading.cloneNode(true));
+        if (variant === 'wrong-idref') shell.post.setAttribute('aria-labelledby', 'different-native-post-label');
+        if (variant === 'multiple-idrefs') shell.post.setAttribute('aria-labelledby', 'native-post-label different-label');
+        if (variant === 'duplicate-id') d.body.insertAdjacentHTML('beforeend', '<span id="native-post-label"></span>');
+        if (variant === 'label-outside-heading') shell.post.append(shell.label);
+        if (variant === 'extra-heading-text') shell.heading.append('Additional header content');
+        if (variant === 'missing-promotion') d.getElementById('promotion').remove();
+        if (variant === 'nested-promotion') shell.post.append(d.getElementById('promotion'));
+        if (variant === 'outside-scrollview') d.body.append(shell.post);
+        if (variant === 'another-dialog') d.body.insertAdjacentHTML('beforeend', '<div role="dialog" aria-modal="true"></div>');
+        if (variant === 'alertdialog') shell.post.setAttribute('role', 'alertdialog');
+        if (variant === 'form') shell.post.insertAdjacentHTML('beforeend', '<form><input></form>');
+        if (variant === 'editor') shell.post.insertAdjacentHTML('beforeend', '<div contenteditable="true"></div>');
+        if (variant === 'link') shell.post.insertAdjacentHTML('beforeend', '<a href="https://public.example/"></a>');
+        if (variant === 'owned-root') shell.post.setAttribute('data-fr-translation-owned', 'true');
+        if (variant === 'owned-child') shell.status.firstElementChild.setAttribute('data-fr-translation-segment', 'true');
+        if (variant === 'owned-ancestor') d.getElementById('scrollview').setAttribute('data-fr-translation-owned', 'true');
+        if (variant === 'extra-close') shell.post.append(shell.post.querySelector('[role="button"]').cloneNode(true));
+        if (variant === 'wrong-close') shell.post.querySelector('[role="button"]').setAttribute('aria-label', 'Close');
+        const page = fakePage(state);
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toThrow(variant === 'nested-promotion'
+            ? 'hydration refused: promotion ambiguous' : 'hydration refused: unrecognized dialog');
+        expect(page.calls).toEqual([]);
+    });
+
+    it('refuses new dialog content during the same bounded shell poll instead of proceeding to a click', async () => {
+        const state = fixture(), shell = loadingPostShell(state);
+        const page = fakePage(state, {beforeWait(fn) {if (fn === readHydration) shell.post.append('An unknown security notice');}});
+        await expect(prepareFacebookPublicPost(page, expectedUrl, 1000)).rejects.toThrow('hydration refused: unrecognized dialog');
+        expect(page.calls.map(call => call.action)).toEqual(['native-state-poll']);
+    });
+
     it('waits on an initially empty public shell then runs the same strict source/links/native close protocol', async () => {
         const state = fixture(), children = [...state.document.body.childNodes];state.document.body.replaceChildren();
         expect(readHydration({expectedUrl})).toBe(false);

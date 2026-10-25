@@ -57,7 +57,40 @@ function readFacebookPublicPostHydrationInPage({expectedUrl}) {
   const message = messages[0], promotion = promotions[0];
   const postDialog = message?.closest('[role="dialog"][aria-modal="true"]');
   const allDialogs = [...document.querySelectorAll('[role="dialog"],[role="alertdialog"],dialog[open],[aria-modal="true"]')];
-  if (allDialogs.some(node => node !== promotion && node !== postDialog)) reject('unrecognized dialog');
+  // 已观察到正文挂载前先出现带标题的帖子壳。它只授权继续等候，不授权正文或关闭动作。
+  // 不能仅凭“空 dialog”放行：原生加载 article、唯一标题 IDREF 与独立推广必须同时成立。
+  let loadingPostDialog;
+  if (!message && canonicals.length === 1 && promotion && allDialogs.length === 2) {
+    const candidate = allDialogs.find(node => node !== promotion);
+    const articles = [...candidate.querySelectorAll('[role="article"]')];
+    const headings = [...candidate.querySelectorAll('h2')];
+    const ids = (candidate.getAttribute('aria-labelledby') || '').trim().split(/\s+/u).filter(Boolean);
+    const labels = ids.length === 1 ? [...document.querySelectorAll('[id]')].filter(node => node.id === ids[0]) : [];
+    const article = articles[0], heading = headings[0], label = labels[0];
+    const status = article?.firstElementChild;
+    const closes = [...candidate.querySelectorAll('[role="button"]')];
+    const close = closes[0], scrollviews = [...document.querySelectorAll('#scrollview')];
+    const owned = '[data-fr-translation-owned="true"],[data-fr-translation-segment="true"],.fluent-read-bilingual-content,.fluent-read-loading,.fluent-read-retry-wrapper';
+    const text = node => (node?.textContent || '').replace(/\s+/gu, ' ').trim();
+    if (candidate.localName === 'div' && candidate.getAttribute('role') === 'dialog' && candidate.getAttribute('aria-modal') === 'true' &&
+        !candidate.contains(promotion) && !promotion.contains(candidate) && scrollviews.length === 1 &&
+        scrollviews[0].getAttribute('aria-hidden') === 'true' && scrollviews[0].contains(candidate) && !scrollviews[0].contains(promotion) &&
+        articles.length === 1 && !article.hasAttribute('aria-posinset') && article.closest('[role="dialog"]') === candidate &&
+        !text(article) && article.children.length === 1 && status?.localName === 'div' && status.getAttribute('role') === 'status' &&
+        status.getAttribute('data-visualcompletion') === 'loading-state' && status.getAttribute('aria-label') === '正在加载...' &&
+        [...article.querySelectorAll('*')].every(node => node.localName === 'div' && (!node.hasAttribute('role') || node === status)) &&
+        headings.length === 1 && heading.getAttribute('dir') === 'auto' && !article.contains(heading) && labels.length === 1 &&
+        (label === heading || (label.localName === 'span' && label.parentElement === heading)) && text(label) &&
+        text(candidate) === text(heading) && text(heading) === text(label) &&
+        [...heading.querySelectorAll('*')].every(node => node.localName === 'span') &&
+        closes.length === 1 && close.localName === 'div' && close.getAttribute('aria-label') === '关闭' && close.getAttribute('tabindex') === '0' &&
+        close.closest('[role="dialog"]') === candidate && !article.contains(close) && !heading.contains(close) &&
+        !candidate.closest(owned) && !candidate.querySelector(owned) &&
+        !candidate.querySelector('a,[href],[role="link"],form,input,textarea,select,button,[contenteditable]:not([contenteditable="false" i]),iframe,object,embed,video,audio')) {
+      loadingPostDialog = candidate;
+    }
+  }
+  if (allDialogs.some(node => node !== promotion && node !== postDialog && node !== loadingPostDialog)) reject('unrecognized dialog');
   if (!message) return false;
   const article = message.closest('[role="article"][aria-posinset="1"]');
   if (!article || !postDialog || article.closest('[role="dialog"]') !== postDialog || promotion === postDialog ||
