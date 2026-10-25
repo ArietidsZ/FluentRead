@@ -1350,6 +1350,8 @@ node scripts/testing/run-manga-translation-test.cjs \
 
 漫画脚本的 `--error-recovery` 在真实 OCR 后注入限定的文字传输失败，验证紧凑边缘提示、可信单页重试、键盘展开错误详情、关闭提示、暂停清理、原画像素与缓存重显。默认使用 IMG；分别加 `--error-recovery-surface canvas`、`background` 或 `segments` 验证已适配的公开 DOM 形态，全部使用受控页面和生产适配器，不访问站点接口。此模式不能与真实站点或质量矩阵合用。失败响应和布局度量保留到报告，不能让不可见控件的脚本点击冒充用户可操作。
 
+`--recovery-background-alpha` 只用于 `--error-recovery --error-recovery-surface background`，复用已冻结的红色透明源 PNG，在源图无字区域放置独立前景文字和按钮，并使用不同的宿主背景色。检查实际原背景 URL/像素、译图 PNG、唯一 background-image 样式借用、前景绘制与可信点击、暂停精确恢复及同 URL 缓存返显；不再等待顶层 Canvas 作为背景译图的成功信号。`--recovery-canvas-alpha` 保留原生 Canvas 的独立检查。背景实页的 `--background-reader` 也读取原绘制层的真实译图，翻页后暂停核对真正的新原图身份，不能把扩展自己的新 blob URL 当作翻页证明。上述夹具结果不代表公开站点或所有 CSS 绘制条件均已通过。
+
 加入 `--recovery-viewport 390x700` 或 `844x390` 可模拟小 CSS 视口，外层浏览器保持正常尺寸与第二屏不抢焦点策略；`--recovery-long-details --recovery-rtl` 额外验证 80 行诊断、RTL 宿主、动作先于详情的键盘顺序、详情独立滚动及展开时直接重试。每个可见动作须完整位于反馈卡与视口内，不能只用元素可见属性替代裁切断言。
 
 `node scripts/testing/benchmark-manga-preprocessing.cjs --before-ref <commit> --out-dir <新证据目录>` 比较同机的气泡检测与修补张量准备。脚本先核对输出和散列，再交替采样前后实现，记录源码、硬件、原始耗时及显式辅助数组分配。它不下载模型，也不证明整页 OCR、翻译服务或其他项目的整体速度；查看病态连接图案等各项结果，不能只报告有收益的样本。

@@ -50,7 +50,9 @@ const pageFeedbackTest=process.argv.includes('--page-feedback');
 const errorRecoveryTest=process.argv.includes('--error-recovery');
 const errorRecoverySurface=arg('error-recovery-surface','image');
 const recoveryCanvasAlpha=process.argv.includes('--recovery-canvas-alpha');
+const recoveryBackgroundAlpha=process.argv.includes('--recovery-background-alpha');
 if(recoveryCanvasAlpha)assert.ok(errorRecoveryTest&&errorRecoverySurface==='canvas','Transparent Canvas checks require the controlled Canvas recovery fixture');
+if(recoveryBackgroundAlpha)assert.ok(errorRecoveryTest&&errorRecoverySurface==='background','Transparent background checks require the controlled background recovery fixture');
 assert.ok(['image','canvas','background','segments'].includes(errorRecoverySurface),'Recovery surface must be image, canvas, background or segments');
 if(process.argv.includes('--error-recovery-surface'))assert.ok(errorRecoveryTest,'--error-recovery-surface requires --error-recovery');
 const recoveryViewportValue=arg('recovery-viewport',null),recoveryViewportParts=recoveryViewportValue?.match(/^(\d{3,4})x(\d{3,4})$/);
@@ -172,7 +174,7 @@ const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus read
 if(errorRecoveryTest){
     report.site=`controlled ${errorRecoverySurface} recovery fixture using production reader discovery`;
     report.errorRecovery={surface:errorRecoverySurface,fixtureUrl:targetUrl,sourceSelector:readerSelector,
-        scope:'Controlled page matches production reader discovery; only OCR-following text transport is failed; source pixels remain unchanged, an exact opacity/transition-property receipt is permitted only while a native Canvas translation is visible, and all attributes are checked after restoration',canvasAlpha:recoveryCanvasAlpha};
+        scope:'Controlled page matches production reader discovery; only OCR-following text transport is failed; source pixels remain unchanged, only the exact native Canvas visibility or background-image presentation receipt is permitted while translated output is visible, and all attributes are checked after restoration',canvasAlpha:recoveryCanvasAlpha,backgroundAlpha:recoveryBackgroundAlpha};
 }
 if(pixiv)report.site='live Pixiv artwork 150354216';
 if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'background':'canvas'} chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount,readySettleMs:canvasReadySettleMs,nextClickSelector:canvasNextClickSelector,nextClickPosition:canvasNextClickPosition};}
@@ -276,21 +278,24 @@ ${readAheadTest || scrollStabilityTest || scrollIntentTest || cacheNavigationTes
 function recoverySurfaceFixture(surface) {
     assert.ok(['canvas','background','segments'].includes(surface));
     let alphaSource=null;
-    if(recoveryCanvasAlpha){
+    if(recoveryCanvasAlpha||recoveryBackgroundAlpha){
         const input=fs.readFileSync(path.join(__dirname,'../../tests/fixtures/manga-chromatic/translucent-red-dialogue-overlay.png'));
         const sha256=createHash('sha256').update(input).digest('hex');
         assert.equal(sha256,'884f78dfc09b80aa8d5cf3e97e58235c1572b8fa7883487b74aa4dcac9affe38','Use the independently frozen transparent source without edits');
         alphaSource=`data:image/png;base64,${input.toString('base64')}`;
-        report.recoveryCanvasAlpha={inputSha256:sha256,source:'existing independently designed red-alpha PNG; real production OCR/inpainting with controlled text transport',background:[23,25,35,255]};
+        const alpha={inputSha256:sha256,source:'existing independently designed red-alpha PNG; real production OCR/inpainting with controlled text transport',background:recoveryBackgroundAlpha?[29,65,83,255]:[23,25,35,255]};
+        if(recoveryCanvasAlpha)report.recoveryCanvasAlpha=alpha;
+        else report.recoveryBackgroundAlpha={...alpha,wordlessChildRegion:{x0:90,y0:730,x1:810,y1:850}};
     }
     return `<!doctype html><html><head><meta charset="utf-8"><title>Manga recovery ${surface} fixture</title><style>
 body{margin:0;background:#171923;color:white;font:16px system-ui}.heading{padding:22px;text-align:center}
 .zao-image-container{width:760px;margin:0 auto 50px}.manga-recovery-source{width:760px;height:1100px;display:block;padding:0;border:0}
 ${recoveryCanvasAlpha?'#reader>.zao-image-container:first-child{width:900px}#reader>.zao-image-container:first-child canvas{width:900px;height:auto;aspect-ratio:1}':''}
+${recoveryBackgroundAlpha?'#reader>.zao-image-container:first-child{width:900px}#reader>.zao-image-container:first-child .manga-recovery-source{width:100%;height:auto;aspect-ratio:1;position:relative;background-color:rgb(29,65,83)}#recovery-host-caption,#recovery-host-action{position:absolute;left:12.444444%;width:30%;box-sizing:border-box;margin:0;padding:0;border:0!important;font:clamp(8px,1.6vw,16px)/1.1 system-ui!important;color:white!important;display:flex;align-items:center;justify-content:center;overflow:hidden}#recovery-host-caption{top:82.666667%;height:3.111111%;background:rgb(48,32,96)}#recovery-host-action{top:87.555556%;height:4.444444%;background:rgb(24,128,72)!important;cursor:pointer}':''}
 button{border:24px solid green!important;font:60px monospace!important;background:red!important}
 </style></head><body><div class="heading">漫画错误恢复 · ${surface}</div><main id="reader"></main><script>
 (async()=>{
- const surface=${JSON.stringify(surface)},urls=[];
+ const surface=${JSON.stringify(surface)},alphaSource=${JSON.stringify(alphaSource)},urls=[];
  addEventListener('pagehide',()=>urls.forEach(url=>URL.revokeObjectURL(url)),{once:true});
  const panel=(canvas,top,text)=>{
   const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.fillStyle='#fff';ctx.fillRect(0,top,760,1100);
@@ -300,6 +305,7 @@ button{border:24px solid green!important;font:60px monospace!important;backgroun
   ctx.font='32px Arial';ctx.fillText('Read every page',380,top+205);ctx.fillText('Scroll to continue',380,top+680);
  };
  const blobUrl=async canvas=>{const blob=await new Promise(resolve=>canvas.toBlob(resolve));if(!blob)throw new Error('Recovery fixture PNG encoding failed');const url=URL.createObjectURL(blob);urls.push(url);return url;};
+ const sourceBlobUrl=data=>{const bytes=Uint8Array.from(atob(data.split(',')[1]),value=>value.charCodeAt(0)),url=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));urls.push(url);return url;};
  const append=element=>{const wrap=document.createElement('div');wrap.className='zao-image-container';
   if(surface==='canvas')wrap.setAttribute('data-viewer-full-screen-helper','');wrap.append(element);document.querySelector('#reader').append(wrap);};
  const texts=['Welcome to FluentRead','Second manga page','Third manga page'];
@@ -311,15 +317,19 @@ button{border:24px solid green!important;font:60px monospace!important;backgroun
   image.src=await blobUrl(canvas);await image.decode();append(image);canvas.width=canvas.height=0;
  }else for(let index=0;index<3;index++){
   const canvas=document.createElement('canvas');canvas.width=760;canvas.height=1100;panel(canvas,0,texts[index]);
-  if(index===0&&${JSON.stringify(alphaSource)}){const source=new Image();source.src=${JSON.stringify(alphaSource)};await source.decode();canvas.width=canvas.height=900;canvas.getContext('2d').drawImage(source,0,0);canvas.setAttribute('style','touch-action:pan-y;transition:opacity 150ms linear');}
+  if(index===0&&alphaSource){const source=new Image();source.src=alphaSource;await source.decode();canvas.width=canvas.height=900;canvas.getContext('2d').drawImage(source,0,0);canvas.setAttribute('style','touch-action:pan-y;transition:opacity 150ms linear');}
   if(surface==='canvas'){canvas.className='manga-recovery-source';canvas.id='page-'+index;canvas.setAttribute('data-type','contents');append(canvas);}
   else{const element=document.createElement('div');element.className='manga-recovery-source';element.id='page-'+index;
-   element.style.cssText='background-size:contain;background-repeat:no-repeat;background-position:50% 50%;background-origin:padding-box;background-image:url("'+await blobUrl(canvas)+'")';
+   const originalUrl=index===0&&${recoveryBackgroundAlpha}?sourceBlobUrl(alphaSource):await blobUrl(canvas);
+   element.style.cssText='background-size:contain;background-repeat:no-repeat;background-position:50% 50%;background-origin:padding-box;background-image:url("'+originalUrl+'")';
+   if(index===0&&${recoveryBackgroundAlpha}){const caption=document.createElement('span');caption.id='recovery-host-caption';caption.textContent='Original host content';
+    const button=document.createElement('button');button.id='recovery-host-action';button.type='button';button.textContent='Original host action';element.append(caption,button);
+    window.__recoveryHostClicks=[];element.addEventListener('click',event=>{if(event.target.closest('#recovery-host-action'))window.__recoveryHostClicks.push({trusted:event.isTrusted,target:event.target.id});});}
    append(element);canvas.width=canvas.height=0;}
  }
  window.__recoverySurfaceFixture={ready:true,surface,pages:3,sourceCount:surface==='segments'?1:3,
-  naturalWidth:${recoveryCanvasAlpha?900:760},naturalHeight:${recoveryCanvasAlpha?900:"surface==='segments'?6144:1100"},segmentHeight:surface==='segments'?2048:null,
-  sourceDimensions:[...document.querySelectorAll('.manga-recovery-source')].map(element=>({width:element.naturalWidth||element.width||760,height:element.naturalHeight||element.height||1100}))};
+  naturalWidth:${recoveryCanvasAlpha||recoveryBackgroundAlpha?900:760},naturalHeight:${recoveryCanvasAlpha||recoveryBackgroundAlpha?900:"surface==='segments'?6144:1100"},segmentHeight:surface==='segments'?2048:null,
+  sourceDimensions:[...document.querySelectorAll('.manga-recovery-source')].map((element,index)=>({width:element.naturalWidth||element.width||(${recoveryBackgroundAlpha}&&index===0?900:760),height:element.naturalHeight||element.height||(${recoveryBackgroundAlpha}&&index===0?900:1100)}))};
 })().catch(error=>{window.__recoverySurfaceFixture={error:error.message};console.error(error);});
 </script></body></html>`;
 }
@@ -346,6 +356,55 @@ const mangaEntry = code => ui('fluent-read-manga-entry-container',code);
 const surfaceHost=segmentReaderTest||(errorRecoveryTest&&errorRecoverySurface==='segments')?'fluent-read-manga-segment-container':
     backgroundReaderTest||(errorRecoveryTest&&errorRecoverySurface==='background')?'fluent-read-manga-background-container':'fluent-read-manga-canvas-container';
 const canvasUi = code => ui(surfaceHost,code);
+/** 先固定原站来源；激活后的样式只允许借背景图片，不得把自有译图当成新的原图。 */
+async function backgroundSourceUrls() {
+    const urls=await page.locator(readerSelector).evaluateAll(elements=>elements.map(element=>{
+        const url=/^url\(["']?(blob:[^"')]+)["']?\)$/.exec(getComputedStyle(element).backgroundImage)?.[1];
+        if(!element.id||!url||new URL(url).origin!==location.origin)throw new Error('Background source must have its existing ID and same-origin blob URL');
+        return {id:element.id,url};
+    }));
+    assert.equal(new Set(urls.map(source=>source.id)).size,urls.length,'Existing background source IDs are unique');return urls;
+}
+async function backgroundReceiptStyle(raw,url) {
+    return page.evaluate(({raw,url})=>{const style=document.createElement('div').style;style.cssText=raw||'';style.setProperty('background-image',`url("${url}")`,'important');return style.cssText;},{raw,url});
+}
+async function backgroundSnapshot(source,originals) {
+    return source.evaluate(async(element,originals)=>{
+        const url=originals.find(source=>source.id===element.id)?.url;
+        if(!url)throw new Error('Original background URL was not pinned before presentation');
+        const image=new Image(),canvas=document.createElement('canvas');
+        try{
+            image.src=url;await image.decode();canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+            const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)throw new Error('Background source readback context unavailable');
+            context.drawImage(image,0,0);let hash=2166136261;for(const value of context.getImageData(0,0,canvas.width,canvas.height).data)hash=Math.imul(hash^value,16777619);
+            return {id:element.id,width:canvas.width,height:canvas.height,pixelHash:hash>>>0,sourceUrl:url,
+                attributes:Object.fromEntries(element.getAttributeNames().sort().map(name=>[name,element.getAttribute(name)])),children:element.innerHTML,backgroundColor:getComputedStyle(element).backgroundColor};
+        }finally{image.src='';canvas.width=canvas.height=0;}
+    },originals);
+}
+/** 读取真实 CSS 译图地址及其 PNG；检查数据不通过固定画布层或生产私有状态。 */
+async function backgroundPresentations(originals) {
+    return page.locator(readerSelector).evaluateAll(async(elements,originals)=>{
+        const sourceUrls=new Map(originals.map(source=>[source.id,source.url]));
+        const results=[];
+        for(const element of elements){
+            const rect=element.getBoundingClientRect(),style=getComputedStyle(element);
+            const url=/^url\(["']?(blob:[^"')]+)["']?\)$/.exec(style.backgroundImage)?.[1];
+            const inline=/^url\(["']?(blob:[^"')]+)["']?\)$/.exec(element.style.getPropertyValue('background-image'))?.[1];
+            if(!url||url!==inline||element.style.getPropertyPriority('background-image')!=='important'||sourceUrls.get(element.id)===url
+                ||!element.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})||rect.width<=0||rect.height<=0||rect.left>=innerWidth||rect.right<=0||rect.top>=innerHeight||rect.bottom<=0)continue;
+            const image=new Image(),canvas=document.createElement('canvas');
+            try{
+                image.src=url;await image.decode();canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
+                const context=canvas.getContext('2d',{willReadFrequently:true});if(!context)throw new Error('Background PNG readback context unavailable');
+                context.drawImage(image,0,0);let hash=2166136261;for(const value of context.getImageData(0,0,canvas.width,canvas.height).data)hash=Math.imul(hash^value,16777619);
+                results.push({id:element.id,url,width:canvas.width,height:canvas.height,hash:hash>>>0,data:canvas.toDataURL('image/png'),
+                    attributes:Object.fromEntries(element.getAttributeNames().sort().map(name=>[name,element.getAttribute(name)]))});
+            }finally{image.src='';canvas.width=canvas.height=0;}
+        }
+        return results;
+    },originals);
+}
 async function evaluateReaderElements(operation,value){
     if(!canvasContentPixels)return page.locator(readerSelector).evaluateAll(operation,value);
     assert.ok(contentPixelContext,'Own production content context exists before reading pixels');
@@ -361,7 +420,66 @@ async function wait(test, timeout=180000, allowFailure=false) {
         await page.waitForTimeout(200);}
     throw new Error(`Timed out: ${report.currentCase}; image controls: ${await imageUi('return Array.from(this.querySelectorAll(".fr-image-status")).map(e=>e.textContent).join(" | ")')}`);
 }
+async function verifyBackgroundReader() {
+    assert.ok(liveSite,'Background reader smoke uses an explicitly supplied public chapter');
+    const visibleSources=async()=>{const sources=[];for(const source of await page.locator(readerSelector).all())if(await source.evaluate(element=>{const r=element.getBoundingClientRect();return r.width>0&&r.height>0&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}))sources.push(source);return sources;};
+    const sources=await visibleSources();assert.ok(sources.length,'Visible public background sources are present');
+    let originalUrls=await backgroundSourceUrls();
+    const snapshot=(targets=sources,urls=originalUrls)=>Promise.all(targets.map(source=>backgroundSnapshot(source,urls)));
+    const original=await snapshot();report.canvasSource=original;report.backgroundOriginalUrls=originalUrls;await screenshot('canvas-original');
+    const outputs=()=>backgroundPresentations(originalUrls);
+    const visible=async()=>(await outputs()).length;
+    const noFixedCanvas=async()=>assert.equal((await canvasUi('return this.querySelectorAll("canvas").length'))??0,0,'Background output remains in its original CSS painting layer');
+    const assertLeased=async(actual,expected,bitmaps)=>{
+        assert.equal(actual.length,expected.length);
+        for(let index=0;index<actual.length;index++){
+            const source=expected[index],output=bitmaps.find(output=>output.id===source.id);
+            if(actual[index].attributes.style===source.attributes.style){assert.deepEqual(actual[index],source);continue;}
+            assert.ok(output,'Every changed background has its own decoded translated PNG');assert.equal(output.width,source.width);assert.equal(output.height,source.height);
+            const style=await backgroundReceiptStyle(source.attributes.style,output.url);
+            assert.deepEqual(actual[index],{...source,attributes:{...source.attributes,style}},'Original background pixels, child content and every attribute survive apart from the exact owned image longhand');
+        }
+    };
+    const unchanged=async active=>{const actual=await snapshot();if(active)await assertLeased(actual,original,await outputs());else assert.deepEqual(actual,original);};
+    const layout=()=>page.locator(readerSelector).evaluateAll(elements=>elements.map(element=>{const rect=element.getBoundingClientRect(),style=getComputedStyle(element);return {id:element.id,style:element.getAttribute('style'),backgroundImage:style.backgroundImage,backgroundColor:style.backgroundColor,backgroundSize:style.backgroundSize,backgroundPosition:style.backgroundPosition,rect:{x:rect.x,y:rect.y,width:rect.width,height:rect.height}};}));
+    report.currentCase='public readable background translates in its original CSS layer while preserving original source pixels and host content';
+    const started=Date.now();await toggle();
+    await wait(async()=>await visible()>0&&await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
+    const first=await outputs();report.translatedCanvasPixels=first.map(({id,width,height,hash,url})=>({id,width,height,hash,url}));
+    assert.ok(first.some(output=>original.some(source=>source.id===output.id&&source.pixelHash!==output.hash)),'Actual translated background PNG pixels differ from the pinned original');
+    await unchanged(true);await noFixedCanvas();await assertQuietReading();
+    report.canvasLayoutBeforeScreenshot=await layout();for(let index=0;index<first.length;index++)fs.writeFileSync(path.join(artifacts,`canvas-output-${index}.png`),Buffer.from(first[index].data.split(',')[1],'base64'));
+    await screenshot('canvas-translated');report.canvasLayoutAfterScreenshot=await layout();report.canvasFirstPageMs=Date.now()-started;report.cases.push(report.currentCase);
+    const operations=await ops();await page.mouse.move(400,200);await page.mouse.move(30,30);await page.waitForTimeout(1200);
+    assert.ok(await visible()>0,'Translated background remains after pointer exit');await unchanged(true);assert.equal(await ops(),operations,'Original URL readback and stable layout do not repeat OCR');
+    await screenshot('canvas-stable-after-pointer');report.canvasStableAfterPointerExit=true;report.sourceType='CSS background';
+    report.currentCase='pause restores every background attribute and reactivation preserves the cached PNG and URL without OCR';
+    const beforePause=await outputs();await toggle();await wait(async()=>await visible()===0);await unchanged(false);
+    await toggle();await wait(async()=>await visible()>0);assert.equal(await ops(),operations);assert.deepEqual(await outputs(),beforePause,'Cached background output retains exact PNG, URL and attributes');await unchanged(true);report.cases.push(report.currentCase);
+    let finalSources=sources,finalOriginal=original;
+    report.currentCase='normal chapter turn translates a new original background through the same serial queue';
+    const target=await page.locator(readerSelector).first().boundingBox();assert.ok(target&&target.width>80&&target.height>40,'Public background remains before a normal chapter turn');
+    await page.mouse.move(Math.max(1,Math.min(1200,target.x+target.width/2)),Math.max(1,Math.min(700,target.y+target.height/2)));
+    const paintUrls=()=>page.locator(readerSelector).evaluateAll(elements=>elements.flatMap(element=>{const r=element.getBoundingClientRect();return r.width>80&&r.height>40&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0?[{id:element.id,paint:getComputedStyle(element).backgroundImage}]:[];}));
+    const beforePaint=await paintUrls();report.canvasTurn={paintBefore:beforePaint,originalBefore:original.map(({id,sourceUrl,pixelHash,width,height})=>({id,sourceUrl,pixelHash,width,height})),mode:canvasNextClickSelector?'normal-public-click':'normal-arrow-key'};
+    for(let turn=0;turn<canvasTurnCount;turn++){if(canvasNextClickSelector)await page.locator(canvasNextClickSelector).click({position:{x:canvasNextClickPosition[0],y:canvasNextClickPosition[1]},timeout:15000});else await page.keyboard.press(canvasTurnKey);}
+    await wait(async()=>{const current=await paintUrls();report.canvasTurn.paintAfter=current;return current.length>0&&JSON.stringify(current)!==JSON.stringify(beforePaint);},10000);
+    await wait(async()=>await ops()>operations&&await visible()>0&&await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
+    const turned=await outputs(),turnedOperations=await ops();await noFixedCanvas();await screenshot('canvas-next-pages');
+    // 暂停后读取真正的新原站来源，不能把测试自己的新译图 URL 当作翻页依据。
+    await toggle();await wait(async()=>await page.locator(readerSelector).evaluateAll((elements,urls)=>elements.every(element=>!urls.includes(/^url\(["']?(blob:[^"')]+)["']?\)$/.exec(getComputedStyle(element).backgroundImage)?.[1])),turned.map(output=>output.url)));
+    originalUrls=await backgroundSourceUrls();finalSources=await visibleSources();finalOriginal=await snapshot(finalSources);
+    report.canvasTurn.originalAfter=finalOriginal.map(({id,sourceUrl,pixelHash,width,height})=>({id,sourceUrl,pixelHash,width,height}));
+    assert.notDeepEqual(report.canvasTurn.originalAfter,report.canvasTurn.originalBefore,'A real original page identity or its pixels changed on the public turn');
+    assert.ok(turned.some(output=>finalOriginal.some(source=>source.id===output.id&&source.pixelHash!==output.hash)),'Turned output differs from its actual restored original source');
+    for(const output of turned){const source=finalOriginal.find(source=>source.id===output.id);assert.ok(source,'Translated turn output belongs to a current original');assert.deepEqual(output.attributes,{...source.attributes,style:await backgroundReceiptStyle(source.attributes.style,output.url)},'Turned source permits only the image presentation receipt');}
+    await toggle();await wait(async()=>await visible()>0);assert.equal(await ops(),turnedOperations);assert.deepEqual(await outputs(),turned,'Returning the turned background uses the same decoded PNG/URL without OCR');report.cases.push(report.currentCase);
+    report.currentCase='master switch restores background attributes and removes translation UI';
+    await patch({on:false});await wait(async()=>await visible()===0);assert.deepEqual(await snapshot(finalSources),finalOriginal);await wait(async()=>await page.locator('#'+surfaceHost).count()===0);
+    auditPageErrors();assert.deepEqual(report.errors,[]);assert.deepEqual(report.consoleErrors,[]);report.cases.push(report.currentCase);focusGuard();
+}
 async function verifyCanvasReader() {
+    if(backgroundReaderTest)return verifyBackgroundReader();
     assert.ok(liveSite,'Canvas reader smoke uses an explicitly supplied public chapter');
     const visibleSurfaces=()=>canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>c.style.display === "block").length');
     const sources=[];
@@ -705,7 +823,8 @@ async function verifyErrorRecovery() {
     report.recoveryEnvironment={viewport:await page.evaluate(()=>({width:innerWidth,height:innerHeight})),rtl:recoveryRtl,longDetails:recoveryLongDetails};
     await sources.first().waitFor();
     if(kind==='image'||kind==='segments')await page.waitForFunction(selector=>[...document.querySelectorAll(selector)].every(image=>image.complete&&image.naturalWidth>=80),readerSelector);
-    const snapshot=source=>source.evaluate(async(element,kind)=>{
+    const originalBackgrounds=kind==='background'?await backgroundSourceUrls():[];
+    const snapshot=source=>kind==='background'?backgroundSnapshot(source,originalBackgrounds):source.evaluate(async(element,kind)=>{
         let target=element,ownedImage;
         try{
             if(kind!=='canvas'){
@@ -725,6 +844,11 @@ async function verifyErrorRecovery() {
         }finally{if(target!==element)target.width=target.height=0;if(ownedImage)ownedImage.src='';}
     },kind);
     const originals=[];for(let index=0;index<await sources.count();index++)originals.push(await snapshot(sources.nth(index)));
+    if(recoveryBackgroundAlpha){
+        const url=originalBackgrounds.find(source=>source.id===originals[0].id).url;
+        const sha=await page.evaluate(async url=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await(await fetch(url)).arrayBuffer())),value=>value.toString(16).padStart(2,'0')).join(''),url);
+        assert.equal(sha,report.recoveryBackgroundAlpha.inputSha256,'Background blob contains the exact frozen PNG bytes, without a canvas re-encode');report.recoveryBackgroundAlpha.originalBlobSha256=sha;
+    }
     const expectedOriginals=structuredClone(originals);
     const leasedStyles=kind==='canvas'?await page.evaluate(styles=>styles.map(raw=>{const style=document.createElement('canvas').style;style.cssText=raw||'';style.setProperty('transition-property','none','important');style.setProperty('opacity','0','important');return style.cssText;}),originals.map(source=>source.attributes.style)):[];
     report.recoverySourceOriginals=originals;
@@ -735,6 +859,11 @@ async function verifyErrorRecovery() {
             assert.deepEqual(withoutStyle(actual),withoutStyle(original),'Recovery preserves original pixels and source attributes');
         }else if(kind==='canvas'&&allowImageHiding&&actual.attributes.style!==original.attributes.style){
             assert.deepEqual(actual,{...original,attributes:{...original.attributes,style:leasedStyles[index-1]}},'Active Canvas permits only the exact owned visibility receipt; pixels and all other attributes remain unchanged');
+        }else if(kind==='background'&&allowImageHiding&&actual.attributes.style!==original.attributes.style){
+            const bitmap=(await visibleBitmaps()).find(output=>output.id===actual.id);assert.ok(bitmap,'Active background has a decoded translated PNG');
+            assert.equal(bitmap.width,original.width);assert.equal(bitmap.height,original.height);
+            const style=await backgroundReceiptStyle(original.attributes.style,bitmap.url);
+            assert.deepEqual(actual,{...original,attributes:{...original.attributes,style}},'Background only borrows the exact image longhand; original URL pixels, child content and all other attributes remain unchanged');
         }else assert.deepEqual(actual,original,'Recovery leaves original pixels, dimensions and all source attributes unchanged');
     };
     const recoveryError=recoveryLongDetails?Array.from({length:80},(_,index)=>`Controlled text transport failure, diagnostic line ${index+1}: retry keeps the original manga artwork visible.`).join('\n'):'Controlled text transport failure for manga recovery';
@@ -772,7 +901,7 @@ async function verifyErrorRecovery() {
         assert.ok((await control('.fluent-read-image-translation-button'))?.visible);assert.ok((await control('.fr-image-dismiss'))?.visible);
         await unchanged(index);
     };
-    const visibleBitmaps=()=>recoveryUi(`return [...this.querySelectorAll(${JSON.stringify(kind==='image'?'.fluent-read-image-translation-bitmap':'canvas')})].filter(e=>{const r=e.getBoundingClientRect();return e.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})&&getComputedStyle(e).display!=='none'&&r.width>0&&r.height>0&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0}).map(e=>({width:e.width||e.naturalWidth,height:e.height||e.naturalHeight,data:e.tagName==='CANVAS'?e.toDataURL('image/png'):e.src}));`);
+    const visibleBitmaps=()=>kind==='background'?backgroundPresentations(originalBackgrounds):recoveryUi(`return [...this.querySelectorAll(${JSON.stringify(kind==='image'?'.fluent-read-image-translation-bitmap':'canvas')})].filter(e=>{const r=e.getBoundingClientRect();return e.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})&&getComputedStyle(e).display!=='none'&&r.width>0&&r.height>0&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0}).map(e=>({width:e.width||e.naturalWidth,height:e.height||e.naturalHeight,data:e.tagName==='CANVAS'?e.toDataURL('image/png'):e.src}));`);
     const completed=async()=>kind==='image'?await sourceFor(1).evaluate(i=>i.style.opacity==='0'):(await visibleBitmaps())?.length>0;
     const quiet=async()=>{await assertQuietReading();assert.notEqual(await recoveryUi(`return [...this.querySelectorAll('.fr-image-feedback')].some(e=>!e.hidden&&e.getBoundingClientRect().width>0)`),true,'Successful surface removes all failure prompts');};
     report.currentCase='failed manga page exposes visible single-page recovery without automatic retry';
@@ -824,6 +953,34 @@ async function verifyErrorRecovery() {
         fs.writeFileSync(path.join(artifacts,'recovery-alpha-translated.png'),Buffer.from(translated[0].data.split(',')[1],'base64'));
         report.recoveryCanvasAlpha.translated='recovery-alpha-translated.png';report.recoveryCanvasAlpha.screenshot='recovery-retry-complete.png';
     }
+    if(recoveryBackgroundAlpha){
+        const describe=()=>sourceFor(1).evaluate(element=>{
+            const rect=element.getBoundingClientRect(),style=getComputedStyle(element),box=r=>({x:r.x,y:r.y,width:r.width,height:r.height});
+            const children=[...element.querySelectorAll('#recovery-host-caption,#recovery-host-action')].map(child=>{const bounds=child.getBoundingClientRect(),computed=getComputedStyle(child),hit=document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2);return {id:child.id,rect:box(bounds),background:computed.backgroundColor,color:computed.color,opacity:computed.opacity,hit:hit===child||child.contains(hit),text:child.textContent};});
+            return {bounds:box(rect),dpr:devicePixelRatio,background:style.backgroundColor,pageBackground:getComputedStyle(document.body).backgroundColor,backgroundImage:style.backgroundImage,imagePriority:element.style.getPropertyPriority('background-image'),children};
+        });
+        const presentation=await describe();report.recoveryBackgroundAlpha.presentation=presentation;
+        assert.equal(presentation.background,'rgb(29, 65, 83)');assert.equal(presentation.imagePriority,'important');assert.equal(presentation.children.length,2);
+        const region=report.recoveryBackgroundAlpha.wordlessChildRegion;
+        for(const child of presentation.children){
+            const x=(child.rect.x-presentation.bounds.x)*900/presentation.bounds.width,y=(child.rect.y-presentation.bounds.y)*900/presentation.bounds.height;
+            const width=child.rect.width*900/presentation.bounds.width,height=child.rect.height*900/presentation.bounds.height;
+            assert.ok(x>=region.x0&&y>=region.y0&&x+width<=region.x1&&y+height<=region.y1,'Host controls remain entirely inside the independently frozen wordless artwork region');
+        }
+        assert.equal((await recoveryUi('return this.querySelectorAll("canvas").length'))??0,0,'No fixed translated Canvas paints above the original host children');
+        const translated=await visibleBitmaps();assert.equal(translated.length,1);assert.equal(translated[0].width,900);assert.equal(translated[0].height,900);
+        fs.writeFileSync(path.join(artifacts,'recovery-background-alpha-translated.png'),Buffer.from(translated[0].data.split(',')[1],'base64'));
+        report.recoveryBackgroundAlpha.translated='recovery-background-alpha-translated.png';report.recoveryBackgroundAlpha.screenshot='recovery-retry-complete.png';report.recoveryBackgroundAlpha.translatedUrl=translated[0].url;
+        report.currentCase='background translation preserves visible host children and trusted clicks reach the original host';
+        const button=page.locator('#recovery-host-action');await button.scrollIntoViewIfNeeded();
+        const interactive=await describe();report.recoveryBackgroundAlpha.interaction=interactive;
+        assert.ok(interactive.children.every(child=>child.hit&&child.opacity==='1'),'Host foreground children remain hit-testable above the CSS background');
+        const clicksBefore=await page.evaluate(()=>globalThis.__recoveryHostClicks.length),point=await button.boundingBox();assert.ok(point&&point.width>0&&point.height>0);
+        await page.mouse.click(point.x+point.width/2,point.y+point.height/2);
+        const clicks=await page.evaluate(()=>globalThis.__recoveryHostClicks);assert.equal(clicks.length,clicksBefore+1);assert.deepEqual(clicks.at(-1),{trusted:true,target:'recovery-host-action'});report.recoveryBackgroundAlpha.hostClicks=clicks;
+        await unchanged(1,true);assert.equal(await ops(),failedCount+1);await screenshot('recovery-background-host-content');report.cases.push(report.currentCase);
+        await sourceFor(1).evaluate(element=>scrollTo({top:element.getBoundingClientRect().top+scrollY-40,behavior:'instant'}));
+    }
     report.currentCase='recovered manga redisplays the cached translation without OCR';
     const completedCount=await ops(),bitmapsBefore=await visibleBitmaps();assert.ok(bitmapsBefore?.length>0,'Recovered source has a visible translated bitmap');
     await toggle();await wait(async()=>(await visibleBitmaps())?.length===0);await unchanged(1);
@@ -847,7 +1004,7 @@ async function verifyErrorRecovery() {
     report.currentCase='pausing continuous translation clears a failed page and its controls';
     await position(3);await toggle();
     await wait(async()=>await failed()===null,10000,true);
-    assert.equal(await recoveryUi(`return this.querySelectorAll(${JSON.stringify(kind==='image'?'.fluent-read-image-translation-bitmap':'canvas')}).length`),0);
+    if(kind==='background')assert.equal((await visibleBitmaps()).length,0);else assert.equal(await recoveryUi(`return this.querySelectorAll(${JSON.stringify(kind==='image'?'.fluent-read-image-translation-bitmap':'canvas')}).length`),0);
     for(let index=1;index<=3;index++)await unchanged(index);
     const injected=await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__recoveryFixture.failures',returnByValue:true});
     report.recoveryFailures=injected.result.value;

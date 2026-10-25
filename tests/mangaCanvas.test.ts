@@ -93,6 +93,87 @@ function readerFor(f: ReturnType<typeof fixture>) {
 }
 afterEach(() => {while (restoreAnimationPorts.length) restoreAnimationPorts.pop()!();vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();});
 
+function presentationFixture() {
+    const f=fixture();f.runtime.dispose();
+    const handle={show:vi.fn(()=>true),hide:vi.fn(),dispose:vi.fn()};
+    const presentation=vi.fn(async(_element:HTMLCanvasElement,_surface:HTMLCanvasElement,_signal:AbortSignal)=>handle);
+    const source={identity:vi.fn(()=>'source-1'),bounds:()=>f.bounds as DOMRect,
+        capture:vi.fn(async(_element:HTMLCanvasElement,target:HTMLCanvasElement)=>{target.width=400;target.height=300;}),presentation};
+    const runtime=createMangaCanvas({...f.ports,source});
+    return {...f,handle,presentation,source,runtime};
+}
+
+describe('宿主原绘制层的异步展示资源',()=>{
+    it('准备成功才发布，释放合成画布，暂停保留资源且缓存复显不重编码或重识别',async()=>{
+        const f=presentationFixture(),original=f.canvas.outerHTML;await f.runtime.translate(f.canvas);
+        expect(f.presentation).toHaveBeenCalledOnce();expect(f.presentation.mock.calls[0]).toEqual([f.canvas,f.outputs[0],expect.any(AbortSignal)]);
+        expect(f.outputs[0].width).toBe(0);expect(f.outputs[0].height).toBe(0);expect(f.outputs[0].isConnected).toBe(false);
+        expect(f.roots).toHaveLength(0);expect(f.handle.show).toHaveBeenCalledOnce();expect(f.canvas.outerHTML).toBe(original);
+        f.runtime.restore(f.canvas);expect(f.handle.hide).toHaveBeenCalledOnce();expect(f.handle.dispose).not.toHaveBeenCalled();
+        expect(f.runtime.reuse(f.canvas)).toBe(true);expect(f.handle.show).toHaveBeenCalledTimes(2);
+        await f.runtime.translate(f.canvas);expect(f.presentation).toHaveBeenCalledOnce();expect(f.ports.translate).toHaveBeenCalledOnce();
+        f.runtime.release(f.canvas);expect(f.handle.dispose).toHaveBeenCalledOnce();f.runtime.dispose();expect(f.handle.dispose).toHaveBeenCalledOnce();
+    });
+    it.each(['offscreen','hidden','disabled','occluded'])('只有展示资源而无fixed Canvas时仍执行 %s 可见性与恢复判断',async mode=>{
+        const f=presentationFixture();await f.runtime.translate(f.canvas);
+        if(mode==='offscreen')Object.assign(f.bounds,{left:1500,right:1900});
+        if(mode==='hidden')Object.defineProperty(f.document,'hidden',{configurable:true,value:true});
+        if(mode==='disabled')f.ports.enabled.mockReturnValue(false);
+        if(mode==='occluded')f.hit.mockReturnValue(f.document.createElement('dialog'));
+        f.runtime.update();expect(f.handle.hide).toHaveBeenCalledOnce();expect(f.handle.dispose).not.toHaveBeenCalled();
+        Object.assign(f.bounds,{left:100,right:500});Object.defineProperty(f.document,'hidden',{configurable:true,value:false});
+        f.ports.enabled.mockReturnValue(true);f.hit.mockReturnValue(f.canvas);f.runtime.update();
+        expect(f.handle.show).toHaveBeenCalledTimes(2);expect(f.presentation).toHaveBeenCalledOnce();f.runtime.dispose();
+    });
+    it('展示所有权被拒绝后停止自动再借用，显式复显仍复用同一资源',async()=>{
+        const f=presentationFixture();f.handle.show.mockReturnValueOnce(false);await f.runtime.translate(f.canvas);
+        expect(f.handle.hide).toHaveBeenCalledOnce();expect(f.runtime.failed(f.canvas)).toBe(false);
+        f.runtime.update();f.runtime.update();expect(f.handle.show).toHaveBeenCalledOnce();
+        expect(f.runtime.reuse(f.canvas)).toBe(true);expect(f.handle.show).toHaveBeenCalledTimes(2);expect(f.presentation).toHaveBeenCalledOnce();f.runtime.dispose();
+    });
+    it.each(['source','configuration','remove','reset','dispose'])('已发布资源在 %s 后永久释放一次',async mode=>{
+        const f=presentationFixture();await f.runtime.translate(f.canvas);
+        if(mode==='source')f.source.identity.mockReturnValue('source-2');
+        if(mode==='configuration')f.ports.configurationIdentity.mockReturnValue('config-2');
+        if(mode==='remove')f.canvas.remove();
+        if(mode==='reset')f.runtime.resetCache();
+        if(mode==='dispose')f.runtime.dispose();
+        f.runtime.update();expect(f.handle.dispose).toHaveBeenCalledOnce();f.runtime.dispose();expect(f.handle.dispose).toHaveBeenCalledOnce();
+    });
+    it.each(['pause','release','dispose','configuration','source','remove','disabled'])('异步编码期间 %s，迟到资源不展示并归还，合成画布清零',async mode=>{
+        const f=presentationFixture(),pending=deferred<typeof f.handle>();f.presentation.mockReturnValueOnce(pending.promise);
+        const task=f.runtime.translate(f.canvas);await flush();expect(f.presentation).toHaveBeenCalledOnce();expect(f.handle.show).not.toHaveBeenCalled();
+        const signal=f.presentation.mock.calls[0][2];
+        if(mode==='pause')f.runtime.restore(f.canvas);
+        if(mode==='release')f.runtime.release(f.canvas);
+        if(mode==='dispose')f.runtime.dispose();
+        if(mode==='configuration')f.ports.configurationIdentity.mockReturnValue('config-2');
+        if(mode==='source')f.source.identity.mockReturnValue('source-2');
+        if(mode==='remove')f.canvas.remove();
+        if(mode==='disabled')f.ports.enabled.mockReturnValue(false);
+        if(['pause','release','dispose'].includes(mode))expect(signal.aborted).toBe(true);
+        pending.resolve(f.handle);await task;
+        expect(f.handle.show).not.toHaveBeenCalled();expect(f.handle.dispose).toHaveBeenCalledOnce();expect(f.outputs[0].width).toBe(0);
+        f.runtime.dispose();expect(f.handle.dispose).toHaveBeenCalledOnce();
+    });
+    it('编码拒绝按原失败流程暴露，不伪造完成或泄露临时画布',async()=>{
+        const f=presentationFixture();f.presentation.mockRejectedValueOnce(new Error('encoding failed'));
+        await expect(f.runtime.translate(f.canvas)).rejects.toThrow('encoding failed');
+        expect(f.runtime.failed(f.canvas)).toBe(true);expect(f.runtime.reuse(f.canvas)).toBe(false);
+        expect(f.outputs[0].width).toBe(0);expect(f.handle.show).not.toHaveBeenCalled();f.runtime.dispose();
+    });
+    it('发布回调意外失败也释放已转交的资源，不保留已失败的显示句柄',async()=>{
+        const f=presentationFixture();f.handle.show.mockImplementationOnce(()=>{throw new Error('presentation failed');});
+        await expect(f.runtime.translate(f.canvas)).rejects.toThrow('presentation failed');
+        expect(f.handle.dispose).toHaveBeenCalledOnce();expect(f.runtime.failed(f.canvas)).toBe(true);f.runtime.dispose();expect(f.handle.dispose).toHaveBeenCalledOnce();
+    });
+    it('无文字页不创建空背景展示资源，缓存复用仍不重识别',async()=>{
+        const f=presentationFixture();f.ports.translate.mockResolvedValue({lines:[]});
+        await f.runtime.translate(f.canvas);expect(f.presentation).not.toHaveBeenCalled();expect(f.runtime.reuse(f.canvas)).toBe(true);
+        f.runtime.release(f.canvas);await f.runtime.translate(f.canvas);expect(f.ports.translate).toHaveBeenCalledOnce();expect(f.presentation).not.toHaveBeenCalled();f.runtime.dispose();
+    });
+});
+
 describe('公开可读漫画画布的任务与显示所有权', () => {
     it('画布、背景和分段共用的错误反馈只从可信动作请求原会话重试，关闭不伪造成功或循环识别', async () => {
         const recovery={retry:vi.fn(()=>false),openSettings:vi.fn(async()=>{}),translateUi:(text:string)=>`本地化:${text}`};
