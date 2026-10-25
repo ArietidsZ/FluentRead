@@ -744,11 +744,16 @@ describe('网站正文规则目录', () => {
                 expect(standalone.exclude, rule.id).toContain('nav');
             } else {
                 // 只补元数据边界的规则保留通用发现，独立夹具必须证明正文没有被白名单收窄。
-                expect(rule.id).toBe(blueskyMetadataFixture.id);
                 expect(rule.profile).toBeUndefined();
                 expect(standalone.mode).toBe('augment');
-                expect(standalone.exclude?.length, rule.id).toBeGreaterThan(0);
-                expect(standalone.watchIgnore, rule.id).toEqual(expect.arrayContaining(standalone.exclude!));
+                if (rule.id === 'facebook-public-post') {
+                    expect(standalone.protect?.length).toBe(2);
+                    expect(standalone.watchIgnore).toEqual(standalone.protect);
+                } else {
+                    expect(rule.id).toBe(blueskyMetadataFixture.id);
+                    expect(standalone.exclude?.length, rule.id).toBeGreaterThan(0);
+                    expect(standalone.watchIgnore, rule.id).toEqual(expect.arrayContaining(standalone.exclude!));
+                }
             }
         }
     });

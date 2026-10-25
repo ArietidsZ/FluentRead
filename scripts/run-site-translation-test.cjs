@@ -10,6 +10,8 @@ const {guardBrowserClose} = require('./testing/owned-browser-close.cjs');
 const {installControlledProvider} = require('./site-translation/controlled-provider.cjs');
 const {interactionHrefsEquivalent} = require('./site-translation/interaction-url.cjs');
 const {runStabilityProbes, runNativeCommentToggle} = require('./site-translation/stability-probes.cjs');
+const {FACEBOOK_PUBLIC_POST_SELECTORS, prepareFacebookPublicPost, isVerifiedFacebookPublicPostPreparation} =
+  require('./site-translation/facebook-public-post-preparation.cjs');
 const {reportErrorCodes, siteTestExitCode} = require('./testing/site-error-diagnostics.cjs');
 const fs = require('node:fs');
 const {createHash} = require('node:crypto');
@@ -33,6 +35,8 @@ const ownerCompletionLedgers = new WeakMap();
 const trustedCompletionStatuses = new WeakMap();
 // Exact LearnOpenGL baseline/page handles only; context teardown destroys their DOM references.
 const protectedNavContractHandles = new WeakMap();
+// 仅成功的原生准备可以绑定本页原始帖子 dialog；选择器近似或后续替换的 dialog 不继承豁免。
+const facebookReadingDialogs = new WeakMap();
 const SINGLE_TOKEN_TECHNICAL_WORDS = new Set([
   'accept', 'api', 'authorization', 'cookie', 'css', 'etag', 'host', 'html', 'http', 'https', 'json',
   'referer', 'referrer', 'sql', 'tcp', 'tls', 'udp', 'uri', 'url', 'user-agent', 'xml',
@@ -316,9 +320,61 @@ const COVERAGE_EXCLUDED_SELECTOR_LIST = [
 ];
 const COVERAGE_EXCLUDED_ANCESTORS = COVERAGE_EXCLUDED_SELECTOR_LIST.join(', ');
 const COVERAGE_PROTECTED_DESCENDANTS = [...COVERAGE_EXCLUDED_SELECTOR_LIST, 'math', 'svg'].join(', ');
+const COVERAGE_NON_DIALOG_EXCLUSIONS = COVERAGE_EXCLUDED_SELECTOR_LIST
+  .filter(selector => selector !== 'dialog' && selector !== '[role="dialog"]');
+
+function coverageEligibilityContext(page) {
+  return {
+    excludedSelector: COVERAGE_EXCLUDED_ANCESTORS,
+    protectedSelector: COVERAGE_PROTECTED_DESCENDANTS,
+    nonDialogExcludedSelector: COVERAGE_NON_DIALOG_EXCLUSIONS.join(', '),
+    nonDialogProtectedSelector: [...COVERAGE_NON_DIALOG_EXCLUSIONS, 'math', 'svg'].join(', '),
+    readingPostDialog: facebookReadingDialogs.get(page),
+  };
+}
+
+async function authorizeFacebookReadingDialog(page, preparation) {
+  if (!isVerifiedFacebookPublicPostPreparation(preparation, page)) {
+    throw new Error('Facebook reading scope requires a successful native preparation');
+  }
+  if (facebookReadingDialogs.has(page)) throw new Error('Facebook reading scope is already bound');
+  const readingPostDialog = await page.evaluateHandle(({expectedUrl, selectors}) => {
+    const messages = [...document.querySelectorAll(selectors.message)];
+    const dialogs = [...document.querySelectorAll(selectors.readingDialog)];
+    const canonicals = [...document.querySelectorAll('link[rel="canonical"][href]')];
+    const message = messages[0], dialog = dialogs[0];
+    const article = message?.closest(selectors.publicArticle);
+    if (location.href !== expectedUrl || messages.length !== 1 || dialogs.length !== 1 ||
+        message.closest('[role="dialog"]') !== dialog || article?.closest('[role="dialog"]') !== dialog ||
+        canonicals.length !== 1 || new URL(canonicals[0].getAttribute('href'), location.href).href !== expectedUrl ||
+        dialog.closest('[hidden],[inert],[aria-hidden="true"]')) {
+      throw new Error('Facebook reading scope changed after native preparation');
+    }
+    return dialog;
+  }, {expectedUrl: preparation.url, selectors: FACEBOOK_PUBLIC_POST_SELECTORS});
+  if (!readingPostDialog.asElement()) {
+    await readingPostDialog.dispose();
+    throw new Error('Facebook reading scope has no native dialog identity');
+  }
+  facebookReadingDialogs.set(page, readingPostDialog);
+}
+
+async function releaseFacebookReadingDialog(page) {
+  const handle = facebookReadingDialogs.get(page);
+  facebookReadingDialogs.delete(page);
+  await handle?.dispose();
+}
 
 // Predicate and failure details share exactly the same eligibility decisions.
-function readCoverageReadinessInPage({coverageRules, excludedSelector, protectedSelector, technicalWords, diagnostics = false}) {
+function readCoverageReadinessInPage({coverageRules, excludedSelector, protectedSelector,
+  nonDialogExcludedSelector, readingPostDialog, technicalWords, diagnostics = false}) {
+  const excludedAncestor = node => {
+    let ancestor = node.closest(excludedSelector);
+    while (ancestor && ancestor === readingPostDialog && !ancestor.matches(nonDialogExcludedSelector)) {
+      ancestor = ancestor.parentElement?.closest(excludedSelector) || null;
+    }
+    return ancestor;
+  };
   const technicalWordSet = new Set(technicalWords);
   const naturalLanguage = value => {
     const text = String(value || '').replace(/\s+/gu, ' ').trim();
@@ -344,11 +400,14 @@ function readCoverageReadinessInPage({coverageRules, excludedSelector, protected
     const nodes = [...document.querySelectorAll(rule.selector)].map((node, index) => {
       const text = sourceText(node), reasons = [];
       const isHtml = node instanceof HTMLElement;
-      const excluded = node.closest(excludedSelector);
+      const excluded = excludedAncestor(node);
+      const outsideReadingScope = readingPostDialog && (!readingPostDialog.isConnected ||
+        !readingPostDialog.matches('[role="dialog"][aria-modal="true"]') || !readingPostDialog.contains(node));
       const artifact = node.closest('.fluent-read-bilingual-content, [data-fr-translation-owned="true"]');
       const rect = node.getBoundingClientRect(), style = getComputedStyle(node);
       if (!isHtml) reasons.push('not-html-element');
       if (excluded) reasons.push('excluded-ancestor');
+      if (outsideReadingScope) reasons.push('unverified-reading-scope');
       if (artifact) reasons.push('translation-artifact');
       if (!(rect.width > 0 && rect.height > 0)) reasons.push('no-rect');
       if (style.display === 'none' || style.visibility === 'hidden') reasons.push('hidden-style');
@@ -377,8 +436,8 @@ function readCoverageReadinessInPage({coverageRules, excludedSelector, protected
 }
 
 async function waitForCoverageReady(page, rules, timeout) {
-  const argument = {coverageRules: rules, excludedSelector: COVERAGE_EXCLUDED_ANCESTORS,
-    protectedSelector: COVERAGE_PROTECTED_DESCENDANTS, technicalWords: [...SINGLE_TOKEN_TECHNICAL_WORDS]};
+  const argument = {coverageRules: rules, ...coverageEligibilityContext(page),
+    technicalWords: [...SINGLE_TOKEN_TECHNICAL_WORDS]};
   try {
     await page.waitForFunction(readCoverageReadinessInPage, argument, {timeout});
   } catch (error) {
@@ -392,7 +451,8 @@ async function waitForCoverageReady(page, rules, timeout) {
 }
 
 async function installCoverageTracker(page, rules) {
-  await page.evaluate(({coverageRules, trackerKey, excludedSelector, protectedSelector, technicalWords}) => {
+  await page.evaluate(({coverageRules, trackerKey, excludedSelector, protectedSelector,
+    nonDialogExcludedSelector, nonDialogProtectedSelector, readingPostDialog, technicalWords}) => {
     window[trackerKey]?.stop?.();
     const ownedSelector = [
       '.fluent-read-bilingual-content',
@@ -402,6 +462,13 @@ async function installCoverageTracker(page, rules) {
     ].join(', ');
     const artifactSelector = `${ownedSelector}, [data-fr-translation-segment="true"]`;
     const normalizeText = (value) => String(value || '').replace(/\s+/gu, ' ').trim();
+    const guardedAncestor = (node, selector, nonDialogSelector) => {
+      let ancestor = node.closest(selector);
+      while (ancestor && ancestor === readingPostDialog && !ancestor.matches(nonDialogSelector)) {
+        ancestor = ancestor.parentElement?.closest(selector) || null;
+      }
+      return ancestor;
+    };
     const technicalWordSet = new Set(technicalWords);
     const naturalLanguage = (text) => {
       if (/^https?:\/\/\S+$/iu.test(text)) return false;
@@ -456,7 +523,9 @@ async function installCoverageTracker(page, rules) {
       return {sourceText, structure: JSON.stringify(visit(clone))};
     };
     const isEligible = (node, rule, text) => {
-      if (!(node instanceof HTMLElement) || node.closest(excludedSelector)) return false;
+      if (!(node instanceof HTMLElement) || guardedAncestor(node, excludedSelector, nonDialogExcludedSelector)) return false;
+      if (readingPostDialog && (!readingPostDialog.isConnected ||
+          !readingPostDialog.matches('[role="dialog"][aria-modal="true"]') || !readingPostDialog.contains(node))) return false;
       if (node.closest(ownedSelector)) return false;
       const rect = node.getBoundingClientRect();
       const style = getComputedStyle(node);
@@ -563,7 +632,7 @@ async function installCoverageTracker(page, rules) {
     const initialScan = () => {
       for (const state of states) {
         for (const node of document.querySelectorAll(state.rule.selector)) {
-          if (!(node instanceof HTMLElement) || node.closest(excludedSelector) || node.closest(ownedSelector)) continue;
+          if (!(node instanceof HTMLElement) || guardedAncestor(node, excludedSelector, nonDialogExcludedSelector) || node.closest(ownedSelector)) continue;
           const snapshot = canonicalSnapshot(node, 'initial');
           if (isEligible(node, state.rule, snapshot.sourceText)) attachRecord(state, node, snapshot, 'initial', false);
         }
@@ -576,6 +645,9 @@ async function installCoverageTracker(page, rules) {
     const elementFor = (node) => node?.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
     const isWithin = (node, selector) => {
       const element = elementFor(node);
+      if (selector === protectedSelector) {
+        return Boolean(element && guardedAncestor(element, protectedSelector, nonDialogProtectedSelector));
+      }
       return Boolean(element && (element.matches?.(selector) || element.closest?.(selector)));
     };
     const isArtifactOnlyMutation = (mutation) => {
@@ -657,7 +729,7 @@ async function installCoverageTracker(page, rules) {
           }
           continue;
         }
-        if (elementFor(mutation.target)?.closest?.(protectedSelector) || onlyCanonicalIgnoredChildren(mutation)) {
+        if (isWithin(mutation.target, protectedSelector) || onlyCanonicalIgnoredChildren(mutation)) {
           metrics.ignoredProtectedMutationCount += 1;
           continue;
         }
@@ -1012,8 +1084,7 @@ async function installCoverageTracker(page, rules) {
   }, {
     coverageRules: rules,
     trackerKey: COVERAGE_TRACKER_KEY,
-    excludedSelector: COVERAGE_EXCLUDED_ANCESTORS,
-    protectedSelector: COVERAGE_PROTECTED_DESCENDANTS,
+    ...coverageEligibilityContext(page),
     technicalWords: [...SINGLE_TOKEN_TECHNICAL_WORDS],
   });
 }
@@ -2655,6 +2726,8 @@ function findHoverTargetInPage({
   sourceIncludes,
   excludedSelector,
   protectedSelector,
+  nonDialogExcludedSelector,
+  readingPostDialog,
   technicalWords,
 }) {
   const normalizeText = (value) => String(value || '').replace(/\s+/gu, ' ').trim();
@@ -2682,7 +2755,14 @@ function findHoverTargetInPage({
   };
   const raw = [...document.querySelectorAll(selector)];
   const matches = raw.map((node, rawIndex) => ({node, rawIndex, text: sourceText(node)})).filter(({node, text}) => {
-    if (!(node instanceof HTMLElement) || node.closest(excludedSelector)) return false;
+    if (!(node instanceof HTMLElement)) return false;
+    if (readingPostDialog && (!readingPostDialog.isConnected ||
+        !readingPostDialog.matches('[role="dialog"][aria-modal="true"]') || !readingPostDialog.contains(node))) return false;
+    let ancestor = node.closest(excludedSelector);
+    while (ancestor && ancestor === readingPostDialog && !ancestor.matches(nonDialogExcludedSelector)) {
+      ancestor = ancestor.parentElement?.closest(excludedSelector) || null;
+    }
+    if (ancestor) return false;
     const rect = node.getBoundingClientRect();
     const style = getComputedStyle(node);
     return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' &&
@@ -2700,8 +2780,7 @@ async function resolveHoverTarget(page, targetConfig, timeout) {
     selector: targetConfig.selector,
     eligibleIndex: targetConfig.index,
     sourceIncludes: targetConfig.sourceIncludes || [],
-    excludedSelector: COVERAGE_EXCLUDED_ANCESTORS,
-    protectedSelector: COVERAGE_PROTECTED_DESCENDANTS,
+    ...coverageEligibilityContext(page),
     technicalWords: [...SINGLE_TOKEN_TECHNICAL_WORDS],
   };
   await page.waitForFunction(findHoverTargetInPage, argument, {timeout});
@@ -3414,6 +3493,7 @@ async function main() {
   let diagnosticService = args.service;
   let controlledProvider;
   let promotionPreparation;
+  let facebookPreparation;
   let failureDomEvidence;
   let runtimeStarted = false;
   const attemptStartedAt = Date.now();
@@ -3496,6 +3576,13 @@ async function main() {
       promotionPreparation = await prepareDismissiblePromotion(page, args.prepareDismissiblePromotion, args.url, args.timeout);
       reportProgress(`公开推广准备完成：${promotionPreparation.status}`);
     }
+    if (args.prepareFacebookPublicPost) {
+      runtimeDiagnostics.setPhase(`${args.case}/${args.mode}/facebook-public-post-preparation`);
+      facebookPreparation = {status: 'started'};
+      facebookPreparation = await prepareFacebookPublicPost(page, args.url, args.timeout);
+      await authorizeFacebookReadingDialog(page, facebookPreparation);
+      reportProgress(`Facebook 公开帖子准备完成：${facebookPreparation.status}，绑定原生正文 dialog`);
+    }
     const hostMathRendering = await waitForHostMathRendering(page, args.timeout);
     await waitForStableTarget(page, args.selector, args.timeout);
     await waitForPageContract(
@@ -3577,6 +3664,7 @@ async function main() {
       mode: args.mode,
       hostMathRendering,
       promotionPreparation,
+      facebookPreparation,
       url: args.url,
       selector: args.selector,
       requiredSelectors: args.requiredSelectors,
@@ -3806,9 +3894,11 @@ async function main() {
     output ||= {ok: false, artifactsDir, case: args.case, mode: args.mode, url: args.url,
       launchMode: launched?.launchMode, focusPolicy: launched?.focusPolicy, windowPlacement: launched?.windowPlacement};
     if (promotionPreparation) output.promotionPreparation = promotionPreparation;
+    if (facebookPreparation) output.facebookPreparation = facebookPreparation;
     if (primaryError) {output.ok = false; output.error = redact(primaryError.message || primaryError);}
     if (primaryError?.readinessDiagnostic) output.coverageReadinessDiagnostic = primaryError.readinessDiagnostic;
     if (primaryError?.promotionDiagnostic) output.promotionDiagnostic = primaryError.promotionDiagnostic;
+    if (primaryError?.facebookPreparation) output.facebookPreparation = primaryError.facebookPreparation;
     if (failureDomEvidence) output.failureNativeDom = failureDomEvidence;
     try {
       output.unload = await unloadRuntimePage(page, runtimeDiagnostics, `${args.case}/${args.mode}/unload`);
@@ -3825,6 +3915,7 @@ async function main() {
       output.runtimeDiagnostics = {...output.runtimeDiagnostics, passed: false, status: 'not-started'};
     }
     if (diagnosticFailures.length) output.finalizationErrors = diagnosticFailures.map(({stage, error}) => ({stage, message: redact(error.message || error)}));
+    try {await releaseFacebookReadingDialog(page);} catch (error) {cleanupErrors.push(error);}
     let browserClosed = false;
     try {
       if (launched?.close) {await launched.close(); browserClosed = true;}
@@ -3869,6 +3960,9 @@ if (require.main === module) {
 module.exports = {
   parseArgs,
   prepareDismissiblePromotion,
+  authorizeFacebookReadingDialog,
+  releaseFacebookReadingDialog,
+  coverageEligibilityContext,
   readDismissiblePromotionStateInPage,
   loadRuntimeDiagnostics,
   finishRuntimeDiagnostics,

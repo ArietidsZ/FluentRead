@@ -2537,5 +2537,314 @@
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation",
     "notes": "Public closed/locked official Vue issue:1 issue+14 comments=15 logical bodies;30 .markdown-body elements are nested pairs, not30 messages. Native core owners are30P+5H3=35;33 rawP include1URL-only reproduction link+2image-only anchors. All eligible P are verified through both finite-page passes, exact-owner completion, complete controlled per-owner decoded attribution and restoration. Four numbered steps already use P owners; do not double-count their ol/li. Strict pre-translation Text+BR source partitions bind title/all5H3/selected hover P. No strict partition over the complete rawP set is claimed because it contains nontext/URL-only roots. All baseline identity/header/actor/code/custom-time nodes receive individual forbidden signatures. Exactly17 author links and5Markdown reading/image links have22unique interaction selectors, so their href/focusability is checked per link. The31time elements are signature-only guards, not31interaction tests; all34user links are not claimed. No editor/checklist/load-more/streaming interaction is present or claimed; no external demo/source link is opened. Derived runtime ownership requires exact3native404 requests with same-session Log.requestId binding and version-pinned full6/277/226-frame stacks after accepted explicit2048capture; preserve raw diagnostics. This proposal adds no acceptance until both standard modes pass."
+  },
+  "facebook-nasa-public-post": {
+    "url": "https://www.facebook.com/NASA/posts/look-up-this-week-you-might-spot-the-international-space-stationskywatchers-in-t/1116021799893195/",
+    "tier": "required",
+    "selector": "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] div[dir=\"auto\"]",
+    "modes": [
+      "hover",
+      "full"
+    ],
+    "fullPageScope": "initial-corpus",
+    "prepareFacebookPublicPost": true,
+    "requiredSelectors": [
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] div[dir=\"auto\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]"
+    ],
+    "forbiddenSelectors": [
+      "[role=\"dialog\"][aria-modal=\"true\"][aria-labelledby]:has([role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"]) h2[dir=\"auto\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] a[role=\"link\"][tabindex=\"0\"][aria-label][href*=\"/posts/\"]:not([data-ad-preview=\"message\"] *):not([role=\"article\"][aria-label] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"button\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"toolbar\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"toolbar\"] ~ span[aria-hidden=\"true\"]",
+      "input[type=\"email\"]",
+      "input[type=\"password\"]",
+      "textarea",
+      "[contenteditable]:not([contenteditable=\"false\"])"
+    ],
+    "forbiddenMustExistSelectors": [
+      "[role=\"dialog\"][aria-modal=\"true\"][aria-labelledby]:has([role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"]) h2[dir=\"auto\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] a[role=\"link\"][tabindex=\"0\"][aria-label][href*=\"/posts/\"]:not([data-ad-preview=\"message\"] *):not([role=\"article\"][aria-label] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"button\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"toolbar\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"toolbar\"] ~ span[aria-hidden=\"true\"]",
+      "input[type=\"email\"]",
+      "input[type=\"password\"]"
+    ],
+    "optionalForbiddenSelectors": [
+      "textarea",
+      "[contenteditable]:not([contenteditable=\"false\"])"
+    ],
+    "dynamicForbiddenSelectors": [
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span:has(+ div > span[dir=\"auto\"][lang]):not(span[dir=\"auto\"][lang] *)",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"button\"]"
+    ],
+    "interactionSelectors": [
+      "[role=\"article\"][aria-posinset=\"1\"] a[role=\"link\"][aria-label=\"NASA - National Aeronautics and Space Administration\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-rendering-role=\"profile_name\"] a[href]",
+      "[role=\"article\"][aria-posinset=\"1\"] a[role=\"link\"][aria-label=\"2024年11月14日\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] a[href^=\"https://www.facebook.com/ISS\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] a[href^=\"https://l.facebook.com/l.php\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] a[href^=\"https://www.facebook.com/photo/\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Mary Pat Berry1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Mike Ramirez1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Bonita Weiler1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Sue Delaune1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Darla Jones1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Everything Science 1 年前\"] a[href^=\"https://www.facebook.com/people/Everything-Science/61568246023876/\"][aria-hidden=\"true\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Everything Science 1 年前\"] a[href^=\"https://www.facebook.com/people/Everything-Science/61568246023876/\"][aria-hidden=\"false\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Everything Science 1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Sierra Cheyenne1 年前\"] a[href^=\"https://www.facebook.com/dakota.cox.549221\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Sierra Cheyenne1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Ileana Escalante1 年前\"] a[href^=\"https://www.facebook.com/ileana.escalante.9\"][aria-hidden=\"true\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Ileana Escalante1 年前\"] a[href^=\"https://www.facebook.com/ileana.escalante.9\"][aria-hidden=\"false\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Ileana Escalante1 年前\"] a[href^=\"https://www.facebook.com/hashtag/nasa\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Ileana Escalante1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Miki Maruyama1 年前\"] a[href^=\"https://www.facebook.com/miki.maruyama.524\"][aria-hidden=\"true\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Miki Maruyama1 年前\"] a[href^=\"https://www.facebook.com/miki.maruyama.524\"][aria-hidden=\"false\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Miki Maruyama1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Victoria Martinez1 年前\"] a[href^=\"https://www.facebook.com/victoria.martinez.552946\"][aria-hidden=\"true\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Victoria Martinez1 年前\"] a[href^=\"https://www.facebook.com/victoria.martinez.552946\"][aria-hidden=\"false\"]",
+      "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label=\"评论者：Victoria Martinez1 年前\"] ul[aria-hidden=\"false\"] a[role=\"link\"]",
+      "input[type=\"email\"]",
+      "input[type=\"password\"]"
+    ],
+    "coverageRules": [
+      {
+        "name": "post-caption-paragraphs",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] div[dir=\"auto\"]",
+        "kind": "content",
+        "minInitial": 2,
+        "minSeen": 2,
+        "trackDynamic": false,
+        "sourceIncludes": [
+          "Look up this week — you might spot the International Space Station!",
+          "Skywatchers in the eastern United States, among other locations, may be able to see the station pass overhead in the early evening hours. Download our free Spot the Station app for notifications: https://spotthestation.nasa.gov/"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "loaded-comment-paragraphs",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "kind": "content",
+        "minInitial": 13,
+        "minSeen": 13,
+        "trackDynamic": false,
+        "sourceIncludes": [
+          "but that's not it in the picture",
+          "saw it this am over so maryland",
+          "it's a bright dot not a streak",
+          "Will it ever be visible from the low desert from Imperial valley CA. Southern California.",
+          "A Maxfield Parrish painting immediately comes to mind. Thanks for ISS information.",
+          "Saw it in south Louisiana but mosquitoes were hungry. Plus a little overcast",
+          "Over my house tonight @6:41 EST (Raleigh NC area). Yes-I get the email 12 hrs before.",
+          "So it was international space station? Not ufo?",
+          "Dakota Cox",
+          "En la Península de Yucatán se verá",
+          "#NASA-National Aeronautics",
+          "I hope the astronauts are enjoying their lives in the space station.",
+          "Cuando pasan por Argentina casi siempre la veíamos por Mendoza !!!"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      }
+    ],
+    "hoverTargets": [
+      {
+        "name": "caption-1",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] div[dir=\"auto\"]",
+        "index": 0,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Look up this week — you might spot "
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "caption-2",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [data-ad-preview=\"message\"][data-ad-comet-preview=\"message\"] div[dir=\"auto\"]",
+        "index": 1,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Skywatchers in the eastern United S"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-1",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 0,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "but that's not it in the picture"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-2",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 1,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "saw it this am over so maryland"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-3",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 2,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "it's a bright dot not a streak"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-4",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 3,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Will it ever be visible from the lo"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-5",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 4,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "A Maxfield Parrish painting immedia"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-6",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 5,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Saw it in south Louisiana but mosqu"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-7",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 6,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Over my house tonight @6:41 EST"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-8",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 7,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "So it was international space stati"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-9",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 8,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Dakota Cox"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-10",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 9,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "En la Península de Yucatán se verá"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-11",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 10,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "#NASA"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-12",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 11,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "I hope the astronauts are enjoying "
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      },
+      {
+        "name": "comment-13",
+        "selector": "[role=\"article\"][aria-posinset=\"1\"] [role=\"article\"][aria-label] span[dir=\"auto\"][lang] > div > div[dir=\"auto\"]",
+        "index": 12,
+        "sourceIncludes": [],
+        "textIncludes": [
+          "Cuando pasan por Argentina casi sie"
+        ],
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      }
+    ],
+    "notes": "Exact public NASA permalink; after verified normal promotion dismissal only. Full freezes every eligible loaded caption/comment paragraph at each pass: saved baseline2 caption +13 comment paragraphs, including Spanish, hashtag and body profile mention. Each paragraph has a complete Text+BR source partition with no excludes;15 selected hover targets require1/0/1 and all other body owners0. Preserve dialog author-copy, author/date/reaction/reply/control semantics and26 individual native hrefs. Login fields are guard-only: no typing, submit, navigation or account action. New replies, pagination, signed-in/editor/mobile flows and whole Facebook are unverified; no claims based on live39 vs saved41/30 core counts.",
+    "hoverHotkey": "Control",
+    "fullPageHotkey": "Alt+T",
+    "service": "freeTranslation"
   }
 }

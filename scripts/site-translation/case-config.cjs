@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const {isSupportedFacebookPublicPostUrl} = require('./facebook-public-post-preparation.cjs');
 
 const CASES_PATH = path.join(__dirname, '..', '..', 'tests', 'browser-translation-cases.json');
 const CASES = JSON.parse(fs.readFileSync(CASES_PATH, 'utf8'));
@@ -32,6 +33,12 @@ function normalizeDismissiblePromotion(value) {
     throw new Error('prepareDismissiblePromotion 必须仅声明非空字符串 dialogSelector/buttonSelector/contentSelector');
   }
   return Object.fromEntries(fields.map(key => [key, value[key].trim()]));
+}
+
+function normalizeFacebookPublicPostPreparation(value) {
+  if (value === undefined) return undefined;
+  if (value !== true) throw new Error('prepareFacebookPublicPost 必须为 true，且仅用于已核对的公开帖子准备流程');
+  return true;
 }
 
 function normalizeSourcePartition(value) {
@@ -226,6 +233,9 @@ function normalizeCaseConfig(caseName, caseConfig) {
     ...(caseConfig.prepareDismissiblePromotion === undefined ? {} : {
       prepareDismissiblePromotion: normalizeDismissiblePromotion(caseConfig.prepareDismissiblePromotion),
     }),
+    ...(caseConfig.prepareFacebookPublicPost === undefined ? {} : {
+      prepareFacebookPublicPost: normalizeFacebookPublicPostPreparation(caseConfig.prepareFacebookPublicPost),
+    }),
     ...(typeof caseConfig.prepareScrollSelector === 'string' && caseConfig.prepareScrollSelector.trim()
       ? {prepareScrollSelector: caseConfig.prepareScrollSelector.trim()} : {}),
     ...(caseConfig.hoverSettleMs !== undefined ? {hoverSettleMs: caseConfig.hoverSettleMs} : {}),
@@ -248,6 +258,14 @@ function normalizeCaseConfig(caseName, caseConfig) {
 
 function collectBaseCaseConfigErrors(caseName, caseConfig, normalized = normalizeCaseConfig(caseName, caseConfig)) {
   const errors = [];
+  if (caseConfig.prepareFacebookPublicPost !== undefined) {
+    if (!isSupportedFacebookPublicPostUrl(caseConfig.url)) {
+      errors.push(`${caseName} 的 prepareFacebookPublicPost 仅支持 https://www.facebook.com 的公开 posts URL`);
+    }
+    if (caseConfig.prepareClickText !== undefined || caseConfig.prepareDismissiblePromotion !== undefined) {
+      errors.push(`${caseName} 的 prepareFacebookPublicPost 不得与其他推广关闭动作同时使用`);
+    }
+  }
   if (caseConfig.prepareDismissiblePromotion !== undefined && caseConfig.prepareClickText !== undefined) {
     errors.push(`${caseName} 的 prepareDismissiblePromotion 不得与 prepareClickText 同时使用`);
   }
@@ -336,6 +354,7 @@ module.exports = {
   collectBaseCaseConfigErrors,
   normalizeCaseConfig,
   normalizeDismissiblePromotion,
+  normalizeFacebookPublicPostPreparation,
   normalizeCoverageRules,
   normalizeHoverTargets,
   normalizeInteractionScenarios,

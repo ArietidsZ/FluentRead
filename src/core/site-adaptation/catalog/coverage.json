@@ -1325,6 +1325,16 @@
       "verification": "site-fixture",
       "fixture": "bluesky-profile-metadata",
       "liveVerification": "not-performed"
+    },
+    {
+      "id": "facebook-public-post",
+      "category": "community",
+      "verification": "site-fixture",
+      "fixtures": [
+        "tests/fixtures/translation-pages/facebook-public-post-metadata.json"
+      ],
+      "notes": "公开 posts 原生作者组件与 dialog label 的独立夹具；标准浏览器契约保留完整帖文/已加载评论和元数据边界，未执行的契约不代表实站通过。登录信息流、移动版及无限新增回复待验证。",
+      "liveVerification": "pending-native-public-post-contract"
     }
   ],
   "remainingCapabilities": [
@@ -2068,6 +2078,9 @@
       "reviewSurfaces": [
         "公开帖子与回复",
         "登录信息流与虚拟列表"
+      ],
+      "browserCases": [
+        "facebook-nasa-public-post"
       ]
     },
     {

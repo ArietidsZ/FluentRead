@@ -2689,7 +2689,8 @@ describe('site translation coverage contract', () => {
     })).toContain('可选 forbidden DOM 在静态 contract 后出现');
   });
 
-  it.each(['changed-duplicate', 'clean-appended-node', 'owned-original'])(
+  it.each(['changed-duplicate', 'clean-appended-node', 'owned-original',
+    'missing-duplicate-with-clean-append', 'owned-appended-node', 'translated-appended-node'])(
     'preserves every duplicate dynamic forbidden occurrence for %s', async mode => {
       const {document, window} = parseHTML('<html><body><main><time>2 hours ago</time><time>2 hours ago</time></main></body></html>');
       const url = 'https://news.google.com/home';
@@ -2707,10 +2708,24 @@ describe('site translation coverage contract', () => {
           const appended = document.createElement('time');appended.textContent = '5 hours ago';
           document.querySelector('main')!.append(appended);
         }
+        if (mode === 'missing-duplicate-with-clean-append') {
+          second.remove();
+          const appended = document.createElement('time');appended.textContent = '5 hours ago';
+          document.querySelector('main')!.append(appended);
+        }
+        if (mode === 'owned-appended-node' || mode === 'translated-appended-node') {
+          const appended = document.createElement('time');appended.textContent = '5 hours ago';
+          if (mode === 'owned-appended-node') appended.setAttribute('data-fr-translation-owned', 'true');
+          else {
+            const translation = document.createElement('span');translation.className = 'fluent-read-bilingual-content';
+            translation.textContent = 'Unexpected translated metadata';appended.append(translation);
+          }
+          document.querySelector('main')!.append(appended);
+        }
         if (mode === 'owned-original') second.setAttribute('data-fr-translation-owned', 'true');
         const check = assertPageContract(page, baseline, [], url, mode);
         if (mode === 'clean-appended-node') await expect(check).resolves.toBeDefined();
-        else await expect(check).rejects.toThrow(mode === 'owned-original'
+        else await expect(check).rejects.toThrow(mode === 'owned-original' || mode === 'owned-appended-node' || mode === 'translated-appended-node'
           ? 'forbidden DOM 出现译文' : '动态 forbidden DOM 基线丢失');
       } finally {vi.unstubAllGlobals();}
     });
