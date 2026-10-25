@@ -108,7 +108,7 @@ describe('共享分词的有界漫画候选搜索',()=>{
 });
 
 function context(){return {font:'',lineWidth:0,save:vi.fn(),restore:vi.fn(),beginPath:vi.fn(),rect:vi.fn(),clip:vi.fn(),fillRect:vi.fn(),strokeText:vi.fn(),fillText:vi.fn(),
-    measureText:vi.fn(function(this:{font:string},text:string){const size=Number(this.font.match(/ ([\d.e+-]+)px/)![1]);return {width:measure(text,size),actualBoundingBoxAscent:size*.7,actualBoundingBoxDescent:size*.2};})};}
+    measureText:vi.fn(function(this:{font:string},text:string):{width:number;actualBoundingBoxAscent?:number;actualBoundingBoxDescent?:number}{const size=Number(this.font.match(/ ([\d.e+-]+)px/)![1]);return {width:measure(text,size),actualBoundingBoxAscent:size*.7,actualBoundingBoxDescent:size*.2};})};}
 const protection=(rectangles:MangaAlphaProtection['rectangles']):MangaAlphaProtection=>({rectangles,runs:new Uint16Array(),rowStarts:new Uint32Array()});
 describe('原生Canvas候选编排',()=>{
     const w=320,h=160,pixels=new Uint8ClampedArray(w*h*4).fill(255),region={text:'完整保留译文 Alpha Beta',fontSize:20,bbox:{x0:20,y0:20,x1:300,y1:140}},backgrounds=[{uniform:false,color:'rgb(255,255,255)'}];
