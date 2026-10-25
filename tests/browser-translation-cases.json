@@ -983,8 +983,24 @@
     "url": "https://www.youtube.com/results?search_query=machine+translation&hl=en",
     "fullPageScope": "initial-corpus",
     "hoverSelector": "ytd-video-renderer h3",
+    "hoverTargets": [
+      {
+        "name": "video-title",
+        "selector": "ytd-video-renderer h3",
+        "index": 0
+      },
+      {
+        "name": "video-description-snippet",
+        "selector": "ytd-video-renderer .metadata-snippet-text",
+        "index": 0,
+        "sourcePartition": {
+          "excludeSelectors": []
+        }
+      }
+    ],
     "requiredSelectors": [
-      "ytd-video-renderer h3"
+      "ytd-video-renderer h3",
+      "ytd-video-renderer .metadata-snippet-text"
     ],
     "coverageRules": [
       {
@@ -992,6 +1008,14 @@
         "selector": "ytd-video-renderer h3",
         "kind": "heading",
         "minInitial": 2
+      },
+      {
+        "name": "video-description-snippets",
+        "selector": "ytd-video-renderer .metadata-snippet-text",
+        "kind": "content",
+        "minInitial": 2,
+        "minSeen": 2,
+        "trackDynamic": false
       }
     ],
     "forbiddenSelectors": [
@@ -1013,7 +1037,7 @@
     "hoverHotkey": "Control",
     "fullPageHotkey": "Alt+T",
     "service": "freeTranslation",
-    "notes": "YouTube 搜索视频标题可读，频道名、播放量和发布时间保持原文；不代表首页、登录态或视频字幕验收。"
+    "notes": "YouTube 搜索视频标题与普通卡片简介分别验证悬浮，全文覆盖初始可翻译正文集合；频道名、播放量和发布时间保持原文。时间导航摘录尚需独立验证；不代表首页、登录态或视频字幕验收。"
   },
   "bing-search-results": {
     "url": "https://www.bing.com/search?q=machine+translation&setlang=en-us",
