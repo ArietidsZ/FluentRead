@@ -1,8 +1,8 @@
 /**
  * @file src/features/image-translation/content/mangaCanvas.ts
  * 文件职责：把可读正文画布、背景图片和长图分段快照接入既有漫画识别与局部译图合成，保留宿主正文及翻页交互。
- * 主要内容：自动布局以小尺寸指纹提示重绘，显式操作先隐藏旧译层并以完整 PNG 摘要验证来源；任务复用独立快照编码，合成后复核完整来源再发布；注入正文锚点、绘制范围及核心裁切支持背景与分段；会话端口串行调度，失败时复用图片的紧凑恢复控件并通过原会话重试，取消、来源变化和关闭释放控件且不伪造成功；缓存只保留有界压缩图块。最后捕获之后的无事件重绘不作逐帧一致性承诺。
- * 模块边界：只读取公开 DOM 画布或注入的已展示正文快照，不访问站点接口、不读取受污染像素、不更改原画布或宿主样式；识别和翻译由注入的现有图片客户端完成。
+ * 主要内容：自动布局以小尺寸指纹提示重绘，显式操作先隐藏旧译层并以完整 PNG 摘要验证来源；任务复用独立快照编码，合成后复核完整来源再发布；原生画布仅在译层真正显示时借用透明度与过渡样式隐藏下层原字，撤层时归还并保留宿主后续改写；背景等载体可异步准备自身绘制层资源，发布前复核任务归属，暂停时隐藏复用、取消或淘汰时销毁；注入正文锚点、绘制范围及核心裁切支持背景与分段；会话端口串行调度，失败时复用图片的紧凑恢复控件并通过原会话重试，取消、来源变化和关闭释放控件且不伪造成功；缓存只保留有界压缩图块。最后捕获之后的无事件重绘不作逐帧一致性承诺。
+ * 模块边界：只读取公开 DOM 画布或注入的已展示正文快照，不访问站点接口、不读取受污染像素、不更改原画布像素；本模块仅为原生画布借用透明度，背景资源与样式归还由载体端口负责，不隐藏背景元素或共享长图宿主；识别和翻译由注入的现有图片客户端完成。
  */
 import {compressMangaPage, createMangaLightCache, type MangaCompressedPage, type MangaPatchPacket} from '../mangaPatchResult';
 import {encodeImageCanvas} from '../services/imageEncoding';
@@ -21,6 +21,52 @@ interface CanvasState {
     recovery: ReturnType<typeof createImageControls> | null;
     validationPending: boolean;
     contentKey?: string;
+    presentation?: MangaSurfacePresentation;
+    sourceLease?: {
+        opacity: StyleProperty;
+        transition: StyleProperty;
+        ownedTransition: StyleProperty[];
+        computedOpacity: string;
+        originalStyleAttribute: string | null;
+        ownedStyleAttribute: string | null;
+        classAttribute: string | null;
+    };
+}
+
+/** 背景等载体在自身绘制层展示已完成译图；隐藏保留缓存，释放归还宿主并销毁资源。 */
+export interface MangaSurfacePresentation {
+    show(): boolean;
+    hide(): void;
+    dispose(): void;
+}
+
+interface StyleProperty {property: string; value: string; priority: string}
+const TRANSITION_PROPERTIES = ['transition-property', 'transition-duration', 'transition-timing-function', 'transition-delay', 'transition-behavior'];
+const readStyleProperty = (style: CSSStyleDeclaration, property: string): StyleProperty => ({property, value: style.getPropertyValue(property), priority: style.getPropertyPriority(property)});
+const matchesStyleProperty = (style: CSSStyleDeclaration, saved: StyleProperty) => style.getPropertyValue(saved.property) === saved.value && style.getPropertyPriority(saved.property) === saved.priority;
+function writeStyleProperty(style: CSSStyleDeclaration, saved: StyleProperty): void {
+    if (saved.value) style.setProperty(saved.property, saved.value, saved.priority);
+    else style.removeProperty(saved.property);
+}
+
+/** 固定译层只能等价替代简单画布；复杂绘制继续保留原来的叠层，不隐藏宿主。 */
+function simpleCanvasStyle(style: CSSStyleDeclaration, source: boolean): boolean {
+    if ([style.transform, style.translate, style.rotate, style.scale, style.filter, style.backdropFilter, style.maskImage, style.webkitMaskImage, style.clipPath, style.perspective]
+        .some(value => value && value !== 'none')) return false;
+    if ((style.zoom && style.zoom !== '1' && style.zoom !== 'normal') || (style.clip && style.clip !== 'auto')) return false;
+    if (style.mixBlendMode && style.mixBlendMode !== 'normal') return false;
+    if (!source) return true;
+    if (style.objectFit && style.objectFit !== 'fill') return false;
+    if (style.outlineStyle && style.outlineStyle !== 'none' && Number.parseFloat(style.outlineWidth) > 0) return false;
+    if ([style.backgroundImage, style.boxShadow].some(value => value && value !== 'none')) return false;
+    if (style.backgroundColor && style.backgroundColor !== 'transparent' && !/^rgba\([^()]+,\s*0(?:\.0+)?\s*\)$/.test(style.backgroundColor)) return false;
+    return ![style.borderTopWidth, style.borderRightWidth, style.borderBottomWidth, style.borderLeftWidth,
+        style.paddingTop, style.paddingRight, style.paddingBottom, style.paddingLeft,
+        style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomLeftRadius, style.borderBottomRightRadius].some(value => Number.parseFloat(value) > 0);
+}
+
+function inactiveCanvas(element: Element): boolean {
+    return typeof element.getAnimations === 'function' && !element.getAnimations().some(animation => animation.pending || animation.playState === 'running');
 }
 
 /** HTTPS 复用异步原生摘要；HTTP 内容环境沿用项目已有的本地 SHA-256。 */
@@ -47,6 +93,7 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
         capture: (element: T, target: HTMLCanvasElement, signal: AbortSignal) => Promise<void>;
         bounds: (element: T) => DOMRect;
         viewport?: (element: T) => {x: number; y: number; width: number; height: number};
+        presentation?: (element: T, surface: HTMLCanvasElement, signal: AbortSignal) => Promise<MangaSurfacePresentation>;
     };
     hostId?: string;
     recovery?: {
@@ -66,6 +113,36 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
     let recoveryStyled = false;
     let disposed = false;
     const anchor = (element: T) => ports.source?.anchor ? ports.source.anchor(element) : element as unknown as HTMLElement;
+
+    function restoreSource(canvas: T, state: CanvasState): void {
+        const lease = state.sourceLease;
+        if (!lease) return;
+        const element = anchor(canvas), style = element.style;
+        const ownsOpacity = style.getPropertyValue('opacity') === '0' && style.getPropertyPriority('opacity') === 'important';
+        const ownsTransition = style.getPropertyValue('transition-property') === 'none' && style.getPropertyPriority('transition-property') === 'important';
+        const unchanged = ownsOpacity && ownsTransition && element.getAttribute('style') === lease.ownedStyleAttribute;
+        if (ownsOpacity) {
+            writeStyleProperty(style, lease.opacity);
+            if (ownsTransition) void getComputedStyle(element).opacity;
+        }
+        // 只借用并归还一个 longhand；不写派生 shorthand，宿主新的 duration 等声明原样保留。
+        if (ownsTransition) writeStyleProperty(style, lease.transition);
+        if (unchanged) {
+            if (lease.originalStyleAttribute === null) element.removeAttribute('style');
+            else element.setAttribute('style', lease.originalStyleAttribute);
+        }
+        state.sourceLease = undefined;
+    }
+
+    function hideSource(canvas: T, state: CanvasState, computedOpacity: string): void {
+        if (state.sourceLease) return;
+        const element = anchor(canvas), style = element.style;
+        const opacity = readStyleProperty(style, 'opacity'), transition = readStyleProperty(style, 'transition-property');
+        const originalStyleAttribute = element.getAttribute('style');
+        style.setProperty('transition-property', 'none', 'important');
+        style.setProperty('opacity', '0', 'important');
+        state.sourceLease = {opacity, transition, ownedTransition: TRANSITION_PROPERTIES.map(property => readStyleProperty(style, property)), computedOpacity, originalStyleAttribute, ownedStyleAttribute: element.getAttribute('style'), classAttribute: element.getAttribute('class')};
+    }
 
     function identity(element: T): string | null {
         if (disposed) return null;
@@ -101,6 +178,8 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
     function release(canvas: T): void {
         const state = states.get(canvas);
         if (!state) return;
+        restoreSource(canvas, state);
+        state.presentation?.dispose();
         state.controller?.abort();
         state.recovery?.dispose();
         releaseSurface(state.surface);
@@ -112,14 +191,23 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
             const element = anchor(canvas);
             if (!element.isConnected || identity(canvas) !== state.identity) {release(canvas);continue;}
             const surface = state.surface;
-            if (!surface && !state.recovery) continue;
+            if (state.sourceLease && (element.style.getPropertyValue('opacity') !== '0' || element.style.getPropertyPriority('opacity') !== 'important'
+                || element.getAttribute('class') !== state.sourceLease.classAttribute
+                || state.sourceLease.ownedTransition.some(saved => !matchesStyleProperty(element.style, saved)))) {
+                restoreSource(canvas, state);state.showing = false;surface?.remove();
+            }
+            if (!surface && !state.presentation && !state.recovery) continue;
             const rect = ports.source ? ports.source.bounds(canvas) : element.getBoundingClientRect();
             let left = Math.max(0, rect.left), right = Math.min(window.innerWidth, rect.right);
             let top = Math.max(0, rect.top), bottom = Math.min(window.innerHeight, rect.bottom);
             let visible = state.showing && !state.validationPending && ports.enabled() && !document.hidden && rect.width > 0 && rect.height > 0;
+            let canHide = !ports.source, sourceOpacity = '1';
             for (let parent: Element | null = element; parent; parent = parent.parentElement) {
                 const style = getComputedStyle(parent);
-                if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || style.opacity === '0') visible = false;
+                const alpha = parent === element && state.sourceLease ? state.sourceLease.computedOpacity : style.opacity;
+                if (parent === element) sourceOpacity = alpha || '1';
+                if (canHide) canHide = (parent === element || !alpha || alpha === '1') && simpleCanvasStyle(style, parent === element) && inactiveCanvas(parent);
+                if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || alpha === '0') visible = false;
                 if (parent === document.documentElement || parent === document.scrollingElement) continue;
                 const bounds = parent.getBoundingClientRect();
                 if (/^(hidden|clip|auto|scroll)$/.test(style.overflowX)) {left = Math.max(left, bounds.left);right = Math.min(right, bounds.right);}
@@ -133,6 +221,15 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
                 visible = !!hit && (hit === element || hit.contains(element) || ports.acceptsInteractionLayer?.(canvas, hit) === true);
             }
             if (surface) surface.style.cssText = `position:fixed;pointer-events:none;display:${visible ? 'block' : 'none'};left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;clip-path:inset(${Math.max(0, top - rect.top)}px ${Math.max(0, rect.right - right)}px ${Math.max(0, rect.bottom - bottom)}px ${Math.max(0, left - rect.left)}px);`;
+            if (surface && !ports.source) {
+                surface.style.opacity = canHide ? sourceOpacity : '1';
+                if (visible && canHide && state.completed && surface.isConnected) hideSource(canvas, state, sourceOpacity);
+                else restoreSource(canvas, state);
+            }
+            if (state.presentation) {
+                if (!visible) state.presentation.hide();
+                else if (!state.presentation.show()) {state.presentation.hide();state.showing = false;}
+            }
             if (state.recovery) {
                 const feedback = state.recovery.feedback;
                 feedback.hidden = !visible;
@@ -199,7 +296,7 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
         if (disposed || ports.source) return;
         revisions.set(canvas, (revisions.get(canvas) ?? 0) + 1);
         const state = states.get(canvas);
-        if (state) {state.controller?.abort();state.validationPending = true;state.showing = false;state.surface?.remove();state.recovery?.dispose();state.recovery = null;}
+        if (state) {restoreSource(canvas, state);state.controller?.abort();state.validationPending = true;state.showing = false;state.surface?.remove();state.recovery?.dispose();state.recovery = null;}
     }
 
     function captureNative(canvas: T, target: HTMLCanvasElement): void {
@@ -216,7 +313,7 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
         if (!owner || !ports.enabled() || !anchor(canvas).isConnected) return;
         const previous = states.get(canvas);
         const retained = !ports.source && previous?.completed && !previous.failed ? previous : undefined;
-        if (retained) retained.surface?.remove();
+        if (retained) {restoreSource(canvas, retained);retained.surface?.remove();}
         else release(canvas);
         const controller = new AbortController();
         const revision = revisions.get(canvas) ?? 0;
@@ -224,6 +321,7 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
         states.set(canvas, state);
         const original = document.createElement('canvas');
         let surface: HTMLCanvasElement | null = null;
+        let presentation: MangaSurfacePresentation | undefined;
         const current = () => !disposed && !controller.signal.aborted && states.get(canvas) === state
             && (revisions.get(canvas) ?? 0) === revision && anchor(canvas).isConnected && ports.enabled() && identity(canvas) === owner;
         try {
@@ -279,10 +377,17 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
                 finally {surface.width = surface.height = 0;}
                 surface = cropped;
             }
+            if (surface && ports.source?.presentation) {
+                presentation = await ports.source.presentation(canvas, surface, controller.signal);
+                if (!current()) return;
+                releaseSurface(surface);surface = null;
+            }
+            state.presentation = presentation;presentation = undefined;
             state.surface = surface;surface = null;state.contentKey = key;state.completed = true;state.validationPending = false;show(state);
         } catch (error) {
-            if (current()) {state.failed = true;state.validationPending = false;releaseSurface(state.surface);state.surface = null;showFailure(canvas, state, error);throw error;}
+            if (current()) {restoreSource(canvas, state);state.presentation?.dispose();state.presentation = undefined;state.failed = true;state.validationPending = false;releaseSurface(state.surface);state.surface = null;showFailure(canvas, state, error);throw error;}
         } finally {
+            presentation?.dispose();
             releaseSurface(surface);
             original.width = original.height = 0;
             if (states.get(canvas) === state) state.controller = null;
@@ -296,7 +401,7 @@ export function createMangaCanvas<T extends object = HTMLCanvasElement>(ports: {
         failed: (canvas: T) => states.get(canvas)?.failed === true,
         restore(canvas: T) {
             const state = states.get(canvas);
-            if (state) {state.controller?.abort();state.showing = false;state.surface?.remove();state.recovery?.dispose();state.recovery = null;}
+            if (state) {restoreSource(canvas, state);state.presentation?.hide();state.controller?.abort();state.showing = false;state.surface?.remove();state.recovery?.dispose();state.recovery = null;}
         },
         resetCache: clear,
         dispose() {disposed = true;clear();if (sample) sample.width = sample.height = 0;host?.remove();host = null;root = null;},

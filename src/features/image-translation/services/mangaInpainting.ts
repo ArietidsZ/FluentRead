@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaInpainting.ts
  * 文件职责：用按需加载的本地 LaMa 漫画模型修补复杂背景上的原字形，保留气泡之外和蒙版之外的原始像素。
- * 主要内容：共享本次原图背景分类，完整确认均匀的页面不等待其他页面的模型修补队列；默认返回独立像素副本，仅显式持有独占像素的调用方可在均匀页复用原缓冲，复杂页始终保留原图与输出分离；按识别行及其有界描边余量建立局部蒙版，以同样的最近邻源坐标将每个行框投影为补丁行段，避免每个补丁像素遍历全部文字行；截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、滚动取消保留模型端口并由 owner 有界收尾，三分钟空闲释放约束资源。
+ * 主要内容：共享本次原图背景分类，完整确认均匀的页面不等待其他页面的模型修补队列；默认返回独立像素副本，仅显式持有独占像素的调用方可在均匀页复用原缓冲，复杂页始终保留原图与输出分离；按识别行及其有界描边余量建立局部蒙版，以同样的最近邻源坐标将每个行框投影为补丁行段，避免每个补丁像素遍历全部文字行；截取有上下文且最长边不超过 512 的有界补丁，归一化 ONNX 张量并仅回写蒙版区域；透明补丁仅在原始蒙版完整外周透明度一致时压低 source-over 字形增加的 alpha，保留更透明的孔洞，不把 RGB 模型当作 alpha 预测器，非均匀或触边透明度保守保留；融合 ONNX 执行图，兼容的硬件 GPU 加速修补、设备失效有界切换 CPU；独立 Worker 串行推理、70% 计算时间预算、滚动取消保留模型端口并由 owner 有界收尾，三分钟空闲释放约束资源。
  * 模块边界：不读取网页 DOM、不上传图像、不翻译文字；均匀气泡无需加载模型，最后的译文排版由 mangaRendering 处理，模型生成内容始终局限于检测文字蒙版。
  */
 import {localWasmThreads, paceLocalInference} from '@/src/shared/onnx/resources';
@@ -15,8 +15,28 @@ import type {MangaRegion} from './mangaRegions';
 import {mangaMaskBoxes as maskBoxes} from '../mangaPatchResult';
 
 export type {MangaPatch} from './mangaInferenceClient';
-interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number}
+interface PatchMapping {patch: MangaPatch; left: number; top: number; sourceWidth: number; sourceHeight: number; alpha?: number}
 interface InpaintPort {run(patch: MangaPatch, signal?:AbortSignal, progress?:(percent?:number,initializing?:boolean)=>void): Promise<Float32Array>; release(): Promise<void>}
+
+/** 完整一像素外周包含并集的真实边界；重叠内周也要求一致，只会更保守，不读取图外像素。 */
+function uniformMaskAlpha(pixels: Uint8ClampedArray, width: number, height: number, boxes: ReturnType<typeof maskBoxes>): number | undefined {
+    let alpha: number | undefined;
+    const matches = (x: number, y: number) => {
+        const value = pixels[(y * width + x) * 4 + 3];
+        if (alpha === undefined) alpha = value;
+        return alpha === value;
+    };
+    for (const box of boxes) {
+        if (box.x0 <= 0 || box.y0 <= 0 || box.x1 >= width || box.y1 >= height || box.x1 <= box.x0 || box.y1 <= box.y0) return;
+        for (let x = box.x0 - 1; x <= box.x1; x += 1) {
+            if (!matches(x, box.y0 - 1) || !matches(x, box.y1)) return;
+        }
+        for (let y = box.y0; y < box.y1; y += 1) {
+            if (!matches(box.x0 - 1, y) || !matches(box.x1, y)) return;
+        }
+    }
+    return alpha;
+}
 
 /** 识别框已有字形留白，蒙版按原始行分别构造，避免把整个段落之间的画面也擦除。 */
 export function createMangaPatch(pixels: Uint8ClampedArray, width: number, height: number, region: MangaRegion): PatchMapping {
@@ -29,27 +49,32 @@ export function createMangaPatch(pixels: Uint8ClampedArray, width: number, heigh
     const patchHeight = Math.max(64, Math.ceil(sourceHeight * scale / 64) * 64);
     const count = patchWidth * patchHeight;
     const image = new Float32Array(count * 3), mask = new Float32Array(count);
+    let transparent = false;
     for (let y = 0; y < patchHeight; y += 1) for (let x = 0; x < patchWidth; x += 1) {
         const sx = left + Math.min(sourceWidth - 1, Math.floor(x * sourceWidth / patchWidth));
         const sy = top + Math.min(sourceHeight - 1, Math.floor(y * sourceHeight / patchHeight));
         const input = (sy * width + sx) * 4, output = y * patchWidth + x;
         for (let channel = 0; channel < 3; channel += 1) image[channel * count + output] = pixels[input + channel] / 255;
+        transparent ||= pixels[input + 3] !== 255;
     }
     // sx=left+floor(x*sourceWidth/patchWidth)：对整数源框反解其半开区间，
     // 边界使用 ceil，保证上下采样时都与逐像素包含判断完全一致。
-    for (const box of maskBoxes(region,width,height)) {
+    const boxes = maskBoxes(region,width,height);
+    for (const box of boxes) {
         const x0 = Math.min(patchWidth, Math.max(0, Math.ceil((box.x0-left)*patchWidth/sourceWidth)));
         const x1 = Math.min(patchWidth, Math.max(0, Math.ceil((box.x1-left)*patchWidth/sourceWidth)));
         const y0 = Math.min(patchHeight, Math.max(0, Math.ceil((box.y0-top)*patchHeight/sourceHeight)));
         const y1 = Math.min(patchHeight, Math.max(0, Math.ceil((box.y1-top)*patchHeight/sourceHeight)));
         for (let y = y0; y < y1; y += 1) mask.fill(1,y*patchWidth+x0,y*patchWidth+x1);
     }
-    return {patch:{image,mask,width:patchWidth,height:patchHeight},left,top,sourceWidth,sourceHeight};
+    // 不增加整页扫描或像素数组；采样已确认不透明的补丁沿用原路径。
+    const alpha = transparent ? uniformMaskAlpha(pixels,width,height,boxes) : undefined;
+    return {patch:{image,mask,width:patchWidth,height:patchHeight},left,top,sourceWidth,sourceHeight,alpha};
 }
 
 /** 只回写字形及描边蒙版内的像素，蒙版以外始终使用原图。 */
 export function applyMangaPatch(pixels: Uint8ClampedArray, width: number, region: MangaRegion, mapping: PatchMapping, output: Float32Array): void {
-    const {patch,left,top,sourceWidth,sourceHeight} = mapping, count = patch.width * patch.height;
+    const {patch,left,top,sourceWidth,sourceHeight,alpha} = mapping, count = patch.width * patch.height;
     if (output.length !== count * 3 || !output.every(Number.isFinite)) throw new Error('漫画背景修补结果无效');
     for (const box of maskBoxes(region,width,pixels.length/(width*4))) {
         for (let y = Math.floor(box.y0); y < box.y1; y += 1) for (let x = Math.floor(box.x0); x < box.x1; x += 1) {
@@ -57,6 +82,7 @@ export function applyMangaPatch(pixels: Uint8ClampedArray, width: number, region
             const py = Math.min(patch.height-1, Math.floor((y-top) * patch.height / sourceHeight));
             const sample = py * patch.width + px, destination = (y * width + x) * 4;
             for (let channel = 0; channel < 3; channel += 1) pixels[destination+channel] = Math.round(Math.max(0,Math.min(1,output[channel*count+sample]))*255);
+            if (alpha !== undefined) pixels[destination+3] = Math.min(pixels[destination+3],alpha);
         }
     }
 }

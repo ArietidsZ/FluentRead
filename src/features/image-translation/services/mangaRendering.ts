@@ -1,7 +1,7 @@
 /**
  * @file src/features/image-translation/services/mangaRendering.ts
  * 文件职责：在整段漫画区域中绘制适合阅读的译文，避免整行逐框放大和复杂背景扩散条纹。
- * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；均匀背景按原始行及描边蒙版清字，保留行间画面；页内度量以固定字体族下的字重、字号与全文短键复用，连续字号复用字体前缀，仍按原完整字体键扣除预算；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
+ * 主要内容：保留整段内容和裁剪边界，对白保留横向内边距，按真实 Canvas 整行字形上下界、描边与有界像素余量适配并居中，缺少完整指标时保守沿用行框；原始大标题使用有界大字与高对比描边；边缘采样全部不透明时才允许均匀背景按原始行及描边蒙版清字，保留行间画面；页内度量以固定字体族下的字重、字号与全文短键复用，连续字号复用字体前缀，仍按原完整字体键扣除预算；复用原图背景分类，避免修补后被误判成均匀底色而二次铺板。
  * 模块边界：只操作调用方提供的画布和像素，不运行 OCR/翻译、不修改宿主页面；绘制区域局限于识别框，完整原图仍可通过现有按钮对照。
  */
 import type {MangaRegion} from './mangaRegions';
@@ -14,10 +14,13 @@ export interface MangaBackground {color: string; uniform: boolean}
 export function mangaRegionBackground(pixels: Uint8ClampedArray, width: number, height: number, box: MangaRegion['bbox']) {
     const sampled = getImageTextBackgroundColor(pixels, width, height, box);
     const channels = sampled.match(/\d+/g)!.map(Number);
-    let matching = 0, samples = 0;
+    let matching = 0, samples = 0, opaque = true;
     const sample = (x: number, y: number) => {
         const offset = (y * width + x) * 4; samples += 1;
-        if (pixels[offset + 3] >= 128 && channels.every((value, index) => Math.abs(pixels[offset + index] - value) <= 20)) matching += 1;
+        const alpha = pixels[offset + 3];
+        // RGB 的少量噪声容差不能用于透明度，否则 fillRect 会把半透明原图铺成不透明色块。
+        if (alpha !== 255) opaque = false;
+        if (alpha === 255 && channels.every((value, index) => Math.abs(pixels[offset + index] - value) <= 20)) matching += 1;
     };
     for (let x = Math.floor(box.x0); x < box.x1; x += Math.max(1, Math.floor((box.x1 - box.x0) / 32))) {
         sample(x, Math.max(0, Math.floor(box.y0) - 1)); sample(x, Math.min(height - 1, Math.ceil(box.y1)));
@@ -25,7 +28,7 @@ export function mangaRegionBackground(pixels: Uint8ClampedArray, width: number, 
     for (let y = Math.floor(box.y0); y < box.y1; y += Math.max(1, Math.floor((box.y1 - box.y0) / 32))) {
         sample(Math.max(0, Math.floor(box.x0) - 1), y); sample(Math.min(width - 1, Math.ceil(box.x1)), y);
     }
-    return {color: sampled, uniform: matching / samples >= 0.9};
+    return {color: sampled, uniform: opaque && matching / samples >= 0.9};
 }
 
 /** 背景判断取自原图；修补模型生成的平滑像素不应改变该区域的绘制策略。 */
