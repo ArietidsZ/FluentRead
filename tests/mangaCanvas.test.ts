@@ -12,18 +12,37 @@ const packet = {width: 400, height: 300, patches: [{x: 0, y: 0, width: 1, height
 const result = {mangaPatches: packet, lines: [{text: '译文', bbox: {x0: 0, y0: 0, x1: 1, y1: 1}, backgroundColor: '#fff'}]};
 const deferred = <T,>() => {let resolve!: (value: T) => void, reject!: (error: Error) => void;const promise = new Promise<T>((yes, no) => {resolve = yes;reject = no;});return {promise, resolve, reject};};
 const flush = async () => {for (let n = 0; n < 30; n++) await Promise.resolve();};
+const restoreAnimationPorts: Array<() => void> = [];
 
 function fixture(recovery?: Parameters<typeof createMangaCanvas>[0]['recovery']) {
     encode.mockResolvedValue('data:image/png;base64,AQ==');
     const {document, window} = parseHTML('<html><body><div id="reader"></div></body></html>');
+    const prototype = window.Element.prototype, animationPort = Object.getOwnPropertyDescriptor(prototype, 'getAnimations');
+    Object.defineProperty(prototype, 'getAnimations', {configurable: true, value: () => []});
+    restoreAnimationPorts.push(() => {if (animationPort) Object.defineProperty(prototype, 'getAnimations', animationPort);else Reflect.deleteProperty(prototype, 'getAnimations');});
     const create = document.createElement.bind(document);
     const snapshots: HTMLCanvasElement[] = [], outputs: HTMLCanvasElement[] = [], roots: ShadowRoot[] = [];
+    // linkedom 缺少浏览器 CSSStyleDeclaration priority，保留其序列化并补齐原生单属性契约。
+    const decorateStyle = (element: HTMLElement) => {
+        const actual = element.style, priorities = new Map<string, string>();
+        Object.defineProperty(element, 'style', {value: new Proxy(actual, {
+            get(target, property) {
+                if (property === 'getPropertyPriority') return (name: string) => priorities.get(name) || '';
+                if (property === 'getPropertyValue') return (name: string) => actual.getPropertyValue(name) || '';
+                if (property === 'setProperty') return (name: string, value: string, priority = '') => {priorities.set(name, priority);actual.setProperty(name, value);};
+                if (property === 'removeProperty') return (name: string) => {priorities.delete(name);return actual.removeProperty(name);};
+                const value = Reflect.get(target, property);return typeof value === 'function' ? value.bind(target) : value;
+            },
+            set(target, property, value) {if (property === 'cssText') priorities.clear();else priorities.delete(String(property));return Reflect.set(target, property, value);},
+        })});
+    };
     let missingCaptureContext = false;
     vi.spyOn(document, 'createElement').mockImplementation(((tag: string) => {
         const element = create(tag);
         if (tag === 'div') {const attach = element.attachShadow.bind(element);element.attachShadow = options => {const root = attach(options);roots.push(root);return root;};}
         if (tag === 'canvas') {
             const canvas = element as HTMLCanvasElement;
+            decorateStyle(canvas);
             let drawn: HTMLCanvasElement | null = null;
             canvas.getContext = vi.fn(() => missingCaptureContext && canvas.width > 8 ? null : {
                 drawImage: (source: HTMLCanvasElement) => {drawn = source;canvas.dataset.content = source.dataset.content || 'A';},
@@ -39,7 +58,7 @@ function fixture(recovery?: Parameters<typeof createMangaCanvas>[0]['recovery'])
     }) as typeof document.createElement);
     const canvas = document.createElement('canvas') as HTMLCanvasElement;
     canvas.width = 400;canvas.height = 300;canvas.dataset.pixel = '1';
-    canvas.style.cssText = 'border:1px solid red;';document.getElementById('reader')!.append(canvas);
+    canvas.style.setProperty('--reader-page', 'source');document.getElementById('reader')!.append(canvas);
     const bounds = {left: 100, top: 50, right: 500, bottom: 350, width: 400, height: 300};
     canvas.getBoundingClientRect = () => bounds as DOMRect;
     const styles = new Map<Element, Record<string, string>>();
@@ -49,7 +68,7 @@ function fixture(recovery?: Parameters<typeof createMangaCanvas>[0]['recovery'])
     vi.stubGlobal('window', {innerWidth: 1280, innerHeight: 900});
     // 同时覆盖不具备 WebCrypto 的 HTTP 内容环境；原生 digest 由专门用例验证。
     vi.stubGlobal('crypto', {});
-    vi.stubGlobal('getComputedStyle', (element: Element) => ({display: 'block', visibility: 'visible', opacity: '1', overflowX: 'visible', overflowY: 'visible', ...styles.get(element)}));
+    vi.stubGlobal('getComputedStyle', (element: Element) => ({display: 'block', visibility: 'visible', opacity: (element as HTMLElement).style.opacity || '1', overflowX: 'visible', overflowY: 'visible', ...styles.get(element)}));
     compose.mockImplementation(async () => {const output = document.createElement('canvas') as HTMLCanvasElement;output.width = 400;output.height = 300;outputs.push(output);return output;});
     const ports = {enabled: vi.fn(() => true), configurationIdentity: vi.fn(() => 'config-1'), cacheEnabled: vi.fn(() => true), recovery, acceptsInteractionLayer:vi.fn((_canvas:HTMLCanvasElement,_hit:Element)=>false), translate: vi.fn().mockResolvedValue(result)};
     const runtime = createMangaCanvas(ports);
@@ -72,7 +91,7 @@ function readerFor(f: ReturnType<typeof fixture>) {
     const reader = createMangaReader({enabled: () => true, identity: () => 'unused-image', translate: vi.fn(), restore: vi.fn(), release: vi.fn(), failed: () => false, changed: vi.fn(), canvas: f.runtime});
     return reader;
 }
-afterEach(() => {vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();});
+afterEach(() => {while (restoreAnimationPorts.length) restoreAnimationPorts.pop()!();vi.restoreAllMocks();vi.resetAllMocks();vi.unstubAllGlobals();});
 
 describe('公开可读漫画画布的任务与显示所有权', () => {
     it('画布、背景和分段共用的错误反馈只从可信动作请求原会话重试，关闭不伪造成功或循环识别', async () => {
@@ -388,7 +407,7 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
     it.each([[79,300],[400,39],[8193,100],[100,8193],[5000,5000]])('像素尺寸边界拒绝不可处理画布 %sx%s', (width,height) => {
         const f = fixture();f.canvas.width = width;f.canvas.height = height;expect(f.runtime.identity(f.canvas)).toBeNull();f.runtime.dispose();
     });
-    it('独立快照经现有端口翻译，译图只覆盖正文，暂停和重复开启不改宿主且不重跑模型', async () => {
+    it('独立快照经现有端口翻译，仅在译层显示时隐藏原绘制，暂停归还宿主且重复开启不重跑模型', async () => {
         const f = fixture(), original = f.canvas.outerHTML;
         await f.runtime.translate(f.canvas);
         expect(f.ports.translate).toHaveBeenCalledOnce();expect(compose.mock.calls[0][0]).not.toBe(f.canvas);
@@ -400,8 +419,8 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
         expect(host.style.cssText).toMatch(/all:\s*initial\s*!important/);
         expect(host.style.cssText).toMatch(/display:\s*block\s*!important/);
         expect(host.style.cssText).toMatch(/pointer-events:\s*none\s*!important/);
-        expect(f.canvas.outerHTML).toBe(original);expect(f.runtime.failed(f.canvas)).toBe(false);
-        f.runtime.restore(f.canvas);expect(output.isConnected).toBe(false);
+        expect(f.canvas.style.opacity).toBe('0');expect(f.canvas.style.getPropertyPriority('opacity')).toBe('important');expect(f.runtime.failed(f.canvas)).toBe(false);
+        f.runtime.restore(f.canvas);expect(output.isConnected).toBe(false);expect(f.canvas.outerHTML).toBe(original);
         expect(f.runtime.reuse(f.canvas)).toBe(true);expect(output.isConnected).toBe(true);
         await f.runtime.translate(f.canvas);expect(f.ports.translate).toHaveBeenCalledOnce();
         f.runtime.dispose();expect(output.width).toBe(0);expect(f.document.getElementById('fluent-read-manga-canvas-container')).toBeNull();
@@ -479,5 +498,137 @@ describe('公开可读漫画画布的任务与显示所有权', () => {
         f.ports.acceptsInteractionLayer.mockImplementation((_canvas,hit)=>hit===nav);await f.runtime.translate(f.canvas);
         expect(f.outputs[0].style.display).toBe('block');expect(f.outputs[0].style.pointerEvents).toBe('none');
         f.hit.mockReturnValue(f.document.createElement('dialog'));f.runtime.update();expect(f.outputs[0].style.display).toBe('none');f.runtime.dispose();
+    });
+    it('发布前不隐藏原绘制，译层挂载后才交接，重复update不把自己的opacity0当宿主隐藏', async () => {
+        const f=fixture(),pending=deferred<HTMLCanvasElement>();compose.mockReturnValueOnce(pending.promise);
+        const original=f.canvas.outerHTML,task=f.runtime.translate(f.canvas);await flush();
+        expect(f.canvas.outerHTML).toBe(original);
+        const output=f.document.createElement('canvas') as HTMLCanvasElement;output.width=400;output.height=300;
+        pending.resolve(output);await task;
+        expect(output.isConnected).toBe(true);expect(f.canvas.style.opacity).toBe('0');
+        for(let i=0;i<3;i++)f.runtime.update();
+        expect(output.style.display).toBe('block');expect(f.canvas.style.opacity).toBe('0');
+        f.runtime.restore(f.canvas);expect(f.canvas.outerHTML).toBe(original);f.runtime.dispose();
+    });
+    it('简单Canvas译层沿用源本身透明度，恢复只归还inline而不回写computed值', async () => {
+        const f=fixture(),parent=f.canvas.parentElement!;
+        f.canvas.style.setProperty('opacity','.5','important');f.styles.set(parent,{opacity:'1'});
+        f.canvas.dataset.pixel='123';const content=f.canvas.dataset.pixel;
+        await f.runtime.translate(f.canvas);const output=f.outputs[0];
+        expect(output.style.opacity).toBe('.5');expect(f.canvas.style.opacity).toBe('0');
+        f.runtime.update();expect(output.style.opacity).toBe('.5');
+        expect(f.canvas.dataset.pixel).toBe(content);expect([f.canvas.width,f.canvas.height]).toEqual([400,300]);
+        f.runtime.restore(f.canvas);expect(f.canvas.style.opacity).toBe('.5');expect(f.canvas.style.getPropertyPriority('opacity')).toBe('important');
+        expect(f.runtime.reuse(f.canvas)).toBe(true);expect(f.ports.translate).toHaveBeenCalledOnce();f.runtime.dispose();
+    });
+    it('计算样式端口未给透明度时沿用不透明默认值，不将缺值写回原样式',async()=>{
+        const f=fixture();f.styles.set(f.canvas,{opacity:''});await f.runtime.translate(f.canvas);
+        expect(f.outputs[0].style.opacity).toBe('1');f.runtime.restore(f.canvas);expect(f.canvas.style.opacity).toBeUndefined();f.runtime.dispose();
+    });
+    it.each(['restore','invalidate','source','remove','reset','dispose','disabled','hidden','offscreen','occluded','detached-output','class'] as const)('原生Canvas撤层%s归还原绘制且没有迟到租约',async change=>{
+        const f=fixture(),original=f.canvas.outerHTML;await f.runtime.translate(f.canvas);const output=f.outputs[0];
+        expect(f.canvas.style.opacity).toBe('0');
+        if(change==='restore')f.runtime.restore(f.canvas);
+        else if(change==='invalidate')f.runtime.invalidate(f.canvas);
+        else if(change==='reset')f.runtime.resetCache();
+        else if(change==='dispose')f.runtime.dispose();
+        else {
+            if(change==='source')f.canvas.dataset.pixel='2';
+            if(change==='remove')f.canvas.remove();
+            if(change==='disabled')f.ports.enabled.mockReturnValue(false);
+            if(change==='hidden')Object.defineProperty(f.document,'hidden',{value:true,configurable:true});
+            if(change==='offscreen'){f.bounds.top=1000;f.bounds.bottom=1300;}
+            if(change==='occluded')f.hit.mockReturnValue(null);
+            if(change==='detached-output')output.remove();
+            if(change==='class'){f.canvas.className='host-hidden';f.styles.set(f.canvas,{opacity:'0'});}
+            f.runtime.update();
+        }
+        expect(f.canvas.style.opacity).not.toBe('0');expect(f.canvas.style.getPropertyPriority('transition-property')).not.toBe('important');
+        if(change==='restore')expect(f.canvas.outerHTML).toBe(original);
+        if(change==='class')expect(output.isConnected).toBe(false);
+        f.runtime.dispose();expect(f.canvas.style.opacity).not.toBe('0');
+    });
+    it.each([{value:'.3',priority:''},{value:'0',priority:''},{value:'.8',priority:'important'}])('宿主改写opacity=$value/$priority时撤层且不覆盖新值',async ({value,priority})=>{
+        const f=fixture();f.canvas.style.setProperty('opacity','.7');await f.runtime.translate(f.canvas);
+        f.canvas.style.setProperty('opacity',value,priority);f.runtime.update();
+        expect(f.outputs[0].isConnected).toBe(false);expect(f.canvas.style.opacity).toBe(value);expect(f.canvas.style.getPropertyPriority('opacity')).toBe(priority);
+        f.runtime.dispose();expect(f.canvas.style.opacity).toBe(value);expect(f.canvas.style.getPropertyPriority('opacity')).toBe(priority);
+    });
+    it.each(['transition-property','transition-duration','transition-timing-function','transition-delay','transition-behavior','remove-duration'] as const)('宿主改写canonical过渡%s保留其新值，借用仅归还transition-property',async property=>{
+        const f=fixture(),values=[['transition','opacity 2s ease 1s'],['transition-property','opacity'],['transition-duration','2s'],['transition-timing-function','ease'],['transition-delay','1s'],['transition-behavior','allow-discrete']];
+        for(const [key,value]of values)f.canvas.style.setProperty(key,value,'important');
+        await f.runtime.translate(f.canvas);
+        const key=property==='remove-duration'?'transition-duration':property;
+        const replacement:Record<string,string>={'transition':'opacity 4s linear','transition-property':'transform','transition-duration':'8s','transition-timing-function':'linear','transition-delay':'3s','transition-behavior':'normal'};
+        const expected=property==='remove-duration'?'':replacement[key];
+        if(property==='remove-duration')f.canvas.style.removeProperty(key);else f.canvas.style.setProperty(key,expected,'important');
+        f.runtime.update();expect(f.outputs[0].isConnected).toBe(false);
+        for(const [name,value]of values)expect(f.canvas.style.getPropertyValue(name)).toBe(name===key?expected:value);
+        expect(f.canvas.style.opacity).toBeUndefined();f.runtime.dispose();
+    });
+    it.each([false,true])('原无style属性时恢复只移除自己的声明，保留宿主新增样式=%s',async hostWrite=>{
+        const f=fixture();f.canvas.style.cssText='';f.canvas.removeAttribute('style');await f.runtime.translate(f.canvas);
+        if(hostWrite)f.canvas.style.setProperty('border','2px solid blue');
+        f.runtime.restore(f.canvas);expect(f.canvas.hasAttribute('style')).toBe(hostWrite);
+        if(hostWrite)expect(f.canvas.style.border).toBe('2px solid blue');
+        f.runtime.dispose();
+    });
+    it('归还租约后重新识别失败或无字时不隐藏源，自定义background/segment source也不借用宿主样式',async()=>{
+        const f=fixture();await f.runtime.translate(f.canvas);f.ports.configurationIdentity.mockReturnValue('config-2');
+        const pending=deferred<typeof result>();f.ports.translate.mockReturnValueOnce(pending.promise);
+        const retry=f.runtime.translate(f.canvas);await flush();expect(f.canvas.style.opacity).not.toBe('0');
+        pending.reject(new Error('failed'));await expect(retry).rejects.toThrow('failed');expect(f.canvas.style.opacity).not.toBe('0');
+        f.ports.translate.mockResolvedValue({...result,lines:[]});await f.runtime.translate(f.canvas);expect(f.canvas.style.opacity).not.toBe('0');
+        const original=f.canvas.outerHTML;f.ports.translate.mockResolvedValue(result);
+        const custom=createMangaCanvas({...f.ports,source:{identity:()=> 'shared-image',bounds:()=>f.bounds as DOMRect,capture:async(_element,target)=>{target.width=400;target.height=300;}}});
+        await custom.translate(f.canvas);expect(f.canvas.outerHTML).toBe(original);custom.restore(f.canvas);custom.dispose();f.runtime.dispose();
+    });
+    it.each([
+        ['backgroundImage','url(page.png)'],['backgroundColor','rgb(255, 255, 255)'],['backgroundColor','rgba(0, 0, 0, 0.5)'],
+        ['boxShadow','0 0 2px red'],['borderTopWidth','1px'],['borderRightWidth','2px'],['borderBottomWidth','1px'],['borderLeftWidth','1px'],
+        ['paddingTop','1px'],['paddingRight','1px'],['paddingBottom','1px'],['paddingLeft','1px'],
+        ['borderTopLeftRadius','4px'],['borderTopRightRadius','4px'],['borderBottomLeftRadius','4px'],['borderBottomRightRadius','4px'],
+        ['objectFit','contain'],['objectFit','cover'],['outlineStyle','solid'],
+    ])('源Canvas复杂绘制%s=%s保留原叠层，不隐藏宿主也不继承其opacity',async(property,value)=>{
+        const f=fixture();f.styles.set(f.canvas,{[property]:value,outlineWidth:'2px',opacity:'.6'});
+        const original=f.canvas.getAttribute('style');await f.runtime.translate(f.canvas);
+        expect(f.canvas.getAttribute('style')).toBe(original);expect(f.outputs[0].style.display).toBe('block');expect(f.outputs[0].style.opacity).toBe('1');
+        f.runtime.restore(f.canvas);expect(f.canvas.getAttribute('style')).toBe(original);f.runtime.dispose();
+    });
+    it.each(['source','ancestor'] as const)('所有%s几何、混合或滤镜guard动态复核；恢复简单样式后才重新借用',async level=>{
+        const f=fixture(),target=level==='source'?f.canvas:f.canvas.parentElement!;
+        await f.runtime.translate(f.canvas);
+        for(const [property,value] of Object.entries({transform:'matrix(1,0,0,1,1,0)',translate:'1px',rotate:'1deg',scale:'2',filter:'blur(1px)',backdropFilter:'blur(1px)',maskImage:'url(mask.png)',webkitMaskImage:'url(mask.png)',clipPath:'circle(50%)',perspective:'10px',zoom:'2',clip:'rect(0, 10px, 10px, 0)',mixBlendMode:'multiply'})){
+            f.styles.set(target,{[property]:value});f.runtime.update();
+            expect(f.canvas.style.opacity,property).not.toBe('0');expect(f.outputs[0].style.display,property).toBe('block');expect(f.outputs[0].style.opacity,property).toBe('1');
+            f.styles.delete(target);f.runtime.update();expect(f.canvas.style.opacity,property).toBe('0');
+        }
+        f.runtime.dispose();
+    });
+    it('不透明默认CSS可借用，祖先半透明与有背景的分组恢复旧叠层而不复制opacity乘积',async()=>{
+        const f=fixture(),parent=f.canvas.parentElement!;
+        f.styles.set(f.canvas,{transform:'none',translate:'none',rotate:'none',scale:'none',filter:'none',backdropFilter:'none',maskImage:'none',webkitMaskImage:'none',clipPath:'none',perspective:'none',zoom:'normal',clip:'auto',mixBlendMode:'normal',objectFit:'fill',outlineStyle:'solid',outlineWidth:'0px',backgroundImage:'none',boxShadow:'none',backgroundColor:'rgba(0, 0, 0, 0.0)',paddingTop:'0px',borderTopWidth:'0px'});
+        f.styles.set(parent,{backgroundColor:'rgb(128, 64, 0)',opacity:'1'});await f.runtime.translate(f.canvas);
+        expect(f.canvas.style.opacity).toBe('0');expect(f.outputs[0].style.opacity).toBe('1');
+        f.styles.set(parent,{backgroundColor:'rgb(128, 64, 0)',opacity:'.4'});f.runtime.update();
+        expect(f.canvas.style.opacity).not.toBe('0');expect(f.outputs[0].style.display).toBe('block');expect(f.outputs[0].style.opacity).toBe('1');
+        f.styles.set(parent,{opacity:'1',zoom:'1'});f.styles.set(f.canvas,{backgroundColor:'transparent',outlineStyle:'none'});f.runtime.update();expect(f.canvas.style.opacity).toBe('0');f.runtime.dispose();
+    });
+    it.each(['source','ancestor'] as const)('%s动画运行、待启动或API缺失时不借用；暂停和结束动画不改变源像素合同',async level=>{
+        const f=fixture(),target=level==='source'?f.canvas:f.canvas.parentElement!;
+        await f.runtime.translate(f.canvas);
+        for(const animation of [{pending:false,playState:'running'},{pending:true,playState:'idle'}]){
+            Object.defineProperty(target,'getAnimations',{configurable:true,value:()=>[animation]});f.runtime.update();expect(f.canvas.style.opacity).not.toBe('0');expect(f.outputs[0].style.display).toBe('block');
+        }
+        Object.defineProperty(target,'getAnimations',{configurable:true,value:undefined});f.runtime.update();expect(f.canvas.style.opacity).not.toBe('0');
+        for(const playState of ['paused','finished']){
+            Object.defineProperty(target,'getAnimations',{configurable:true,value:()=>[{pending:false,playState}]});f.runtime.update();expect(f.canvas.style.opacity).toBe('0');
+        }
+        f.runtime.dispose();
+    });
+    it.each([null,'','width:400px;height:300px','opacity:.5;transition-property:opacity;transition-duration:2s'])('没有宿主inline改写时精确归还原style属性%s，不保留CSSOM重序列化',async original=>{
+        const f=fixture();if(original===null)f.canvas.removeAttribute('style');else f.canvas.setAttribute('style',original);
+        await f.runtime.translate(f.canvas);expect(f.canvas.style.opacity).toBe('0');f.runtime.restore(f.canvas);
+        expect(f.canvas.getAttribute('style')).toBe(original);f.runtime.dispose();
     });
 });

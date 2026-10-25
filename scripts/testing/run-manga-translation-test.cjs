@@ -49,6 +49,8 @@ const tieredCacheTest=process.argv.includes('--tiered-cache');
 const pageFeedbackTest=process.argv.includes('--page-feedback');
 const errorRecoveryTest=process.argv.includes('--error-recovery');
 const errorRecoverySurface=arg('error-recovery-surface','image');
+const recoveryCanvasAlpha=process.argv.includes('--recovery-canvas-alpha');
+if(recoveryCanvasAlpha)assert.ok(errorRecoveryTest&&errorRecoverySurface==='canvas','Transparent Canvas checks require the controlled Canvas recovery fixture');
 assert.ok(['image','canvas','background','segments'].includes(errorRecoverySurface),'Recovery surface must be image, canvas, background or segments');
 if(process.argv.includes('--error-recovery-surface'))assert.ok(errorRecoveryTest,'--error-recovery-surface requires --error-recovery');
 const recoveryViewportValue=arg('recovery-viewport',null),recoveryViewportParts=recoveryViewportValue?.match(/^(\d{3,4})x(\d{3,4})$/);
@@ -170,7 +172,7 @@ const report = {site: liveSite ? 'live MANGA Plus' : 'controlled MANGA Plus read
 if(errorRecoveryTest){
     report.site=`controlled ${errorRecoverySurface} recovery fixture using production reader discovery`;
     report.errorRecovery={surface:errorRecoverySurface,fixtureUrl:targetUrl,sourceSelector:readerSelector,
-        scope:'Controlled page matches production reader discovery; only OCR-following text transport is failed; source pixels and attributes are asserted unchanged'};
+        scope:'Controlled page matches production reader discovery; only OCR-following text transport is failed; source pixels remain unchanged, an exact opacity/transition-property receipt is permitted only while a native Canvas translation is visible, and all attributes are checked after restoration',canvasAlpha:recoveryCanvasAlpha};
 }
 if(pixiv)report.site='live Pixiv artwork 150354216';
 if(surfaceReaderTest){report.site=`live readable ${backgroundReaderTest?'background':'canvas'} chapter: ${targetUrl}`;report.canvasReader={selector:readerSelector,openSelector:canvasOpenSelector,initialTurns:canvasInitialTurns,turnKey:canvasTurnKey,turnCount:canvasTurnCount,readySettleMs:canvasReadySettleMs,nextClickSelector:canvasNextClickSelector,nextClickPosition:canvasNextClickPosition};}
@@ -273,9 +275,18 @@ ${readAheadTest || scrollStabilityTest || scrollIntentTest || cacheNavigationTes
 /** 夹具只绘制站点公开 DOM；canvas/background 复用现有适配，长图由生产 2048px 分段规则自行发现。 */
 function recoverySurfaceFixture(surface) {
     assert.ok(['canvas','background','segments'].includes(surface));
+    let alphaSource=null;
+    if(recoveryCanvasAlpha){
+        const input=fs.readFileSync(path.join(__dirname,'../../tests/fixtures/manga-chromatic/translucent-red-dialogue-overlay.png'));
+        const sha256=createHash('sha256').update(input).digest('hex');
+        assert.equal(sha256,'884f78dfc09b80aa8d5cf3e97e58235c1572b8fa7883487b74aa4dcac9affe38','Use the independently frozen transparent source without edits');
+        alphaSource=`data:image/png;base64,${input.toString('base64')}`;
+        report.recoveryCanvasAlpha={inputSha256:sha256,source:'existing independently designed red-alpha PNG; real production OCR/inpainting with controlled text transport',background:[23,25,35,255]};
+    }
     return `<!doctype html><html><head><meta charset="utf-8"><title>Manga recovery ${surface} fixture</title><style>
 body{margin:0;background:#171923;color:white;font:16px system-ui}.heading{padding:22px;text-align:center}
 .zao-image-container{width:760px;margin:0 auto 50px}.manga-recovery-source{width:760px;height:1100px;display:block;padding:0;border:0}
+${recoveryCanvasAlpha?'#reader>.zao-image-container:first-child{width:900px}#reader>.zao-image-container:first-child canvas{width:900px;height:auto;aspect-ratio:1}':''}
 button{border:24px solid green!important;font:60px monospace!important;background:red!important}
 </style></head><body><div class="heading">漫画错误恢复 · ${surface}</div><main id="reader"></main><script>
 (async()=>{
@@ -300,13 +311,15 @@ button{border:24px solid green!important;font:60px monospace!important;backgroun
   image.src=await blobUrl(canvas);await image.decode();append(image);canvas.width=canvas.height=0;
  }else for(let index=0;index<3;index++){
   const canvas=document.createElement('canvas');canvas.width=760;canvas.height=1100;panel(canvas,0,texts[index]);
+  if(index===0&&${JSON.stringify(alphaSource)}){const source=new Image();source.src=${JSON.stringify(alphaSource)};await source.decode();canvas.width=canvas.height=900;canvas.getContext('2d').drawImage(source,0,0);canvas.setAttribute('style','touch-action:pan-y;transition:opacity 150ms linear');}
   if(surface==='canvas'){canvas.className='manga-recovery-source';canvas.id='page-'+index;canvas.setAttribute('data-type','contents');append(canvas);}
   else{const element=document.createElement('div');element.className='manga-recovery-source';element.id='page-'+index;
    element.style.cssText='background-size:contain;background-repeat:no-repeat;background-position:50% 50%;background-origin:padding-box;background-image:url("'+await blobUrl(canvas)+'")';
    append(element);canvas.width=canvas.height=0;}
  }
  window.__recoverySurfaceFixture={ready:true,surface,pages:3,sourceCount:surface==='segments'?1:3,
-  naturalWidth:760,naturalHeight:surface==='segments'?6144:1100,segmentHeight:surface==='segments'?2048:null};
+  naturalWidth:${recoveryCanvasAlpha?900:760},naturalHeight:${recoveryCanvasAlpha?900:"surface==='segments'?6144:1100"},segmentHeight:surface==='segments'?2048:null,
+  sourceDimensions:[...document.querySelectorAll('.manga-recovery-source')].map(element=>({width:element.naturalWidth||element.width||760,height:element.naturalHeight||element.height||1100}))};
 })().catch(error=>{window.__recoverySurfaceFixture={error:error.message};console.error(error);});
 </script></body></html>`;
 }
@@ -372,12 +385,27 @@ async function verifyCanvasReader() {
         return {id:c.id,width:c.width,height:c.height,style:c.getAttribute('style'),className:c.className,hash:hash>>>0};
     })):mainSnapshot;
     const original=await snapshot();report.canvasSource=original;await screenshot('canvas-original');
+    const leasedStyles=await page.evaluate(styles=>styles.map(raw=>{const style=document.createElement('canvas').style;style.cssText=raw||'';style.setProperty('transition-property','none','important');style.setProperty('opacity','0','important');return style.cssText;}),original.map(source=>source.style));
+    const unchanged=async(allowReceipt=false)=>{
+        const actual=await snapshot();assert.equal(actual.length,original.length);
+        const visible=allowReceipt&&!backgroundReaderTest?await canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>{const r=c.getBoundingClientRect();return c.isConnected&&c.checkVisibility({checkOpacity:true,checkVisibilityCSS:true})&&getComputedStyle(c).display!=="none"&&r.width>0&&r.height>0&&r.left<innerWidth&&r.right>0&&r.top<innerHeight&&r.bottom>0;}).map(c=>{const r=c.getBoundingClientRect();return {width:c.width,height:c.height,x:r.x,y:r.y,w:r.width,h:r.height};})'):[];
+        for(let index=0;index<actual.length;index++){
+            const leased=allowReceipt&&!backgroundReaderTest&&actual[index].style!==original[index].style;
+            const expected=leased?{...original[index],style:leasedStyles[index]}:original[index];
+            assert.deepEqual(actual[index],expected,'Canvas pixels and attributes are unchanged apart from the exact owned visibility receipt');
+            if(leased){
+                const rect=await sources[index].evaluate(c=>{const r=c.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height};});
+                const match=visible.findIndex(output=>output.width===actual[index].width&&output.height===actual[index].height&&Object.keys(rect).every(key=>Math.abs(output[key]-rect[key])<.5));
+                assert.ok(match>=0,'Each hidden source must have its own visible translated surface with matching dimensions and geometry');visible.splice(match,1);
+            }
+        }
+    };
     report.currentCase=`public readable ${backgroundReaderTest?'background':'canvas'} runs real manga OCR and translated overlay without changing the source`;
     const started=Date.now();await toggle();
     await wait(async()=>(await visibleSurfaces())>0 && await ball('return this.querySelector(".floating-ball-manga").getAttribute("aria-busy") === "false"'),300000);
     report.translatedCanvasPixels=await canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>c.style.display === "block").map(c=>{const data=c.getContext("2d").getImageData(0,0,c.width,c.height).data;let hash=2166136261;for(const v of data)hash=Math.imul(hash^v,16777619);return {width:c.width,height:c.height,hash:hash>>>0}})');
     assert.ok(report.translatedCanvasPixels.some(output=>!original.some(source=>source.hash===output.hash)),'Translated canvas pixels differ from the original');
-    assert.deepEqual(await snapshot(),original);await assertQuietReading();
+    await unchanged(true);await assertQuietReading();
     const layout=()=>canvasUi('return [...this.querySelectorAll("canvas")].map(c=>{const r=c.getBoundingClientRect();return {style:c.style.cssText,rect:{x:r.x,y:r.y,width:r.width,height:r.height},parentStyle:c.parentNode.host.style.cssText}})');
     report.canvasLayoutBeforeScreenshot=await layout();
     const outputs=await canvasUi('return [...this.querySelectorAll("canvas")].filter(c=>c.style.display === "block").map(c=>c.toDataURL("image/png"))');
@@ -388,10 +416,10 @@ async function verifyCanvasReader() {
     const operations=await ops();
     await page.mouse.move(400,200);await page.mouse.move(30,30);await page.waitForTimeout(1200);
     assert.ok((await visibleSurfaces())>0,'The translated canvas remains visible after pointer exit and source pixel readback');
-    assert.deepEqual(await snapshot(),original);assert.equal(await ops(),operations,'Unchanged canvas does not repeat OCR after resampling');
+    await unchanged(true);assert.equal(await ops(),operations,'Unchanged canvas does not repeat OCR after resampling');
     await screenshot('canvas-stable-after-pointer');report.canvasStableAfterPointerExit=true;report.sourceType=backgroundReaderTest?'CSS background':'canvas';
     report.currentCase='pause restores the original canvas and repeated activation reuses the translated page';
-    await toggle();await wait(async()=>(await visibleSurfaces())===0);assert.deepEqual(await snapshot(),original);
+    await toggle();await wait(async()=>(await visibleSurfaces())===0);await unchanged();
     await toggle();await wait(async()=>(await visibleSurfaces())>0);assert.equal(await ops(),operations);report.cases.push(report.currentCase);
     if(!canvasFirstSpreadOnly){
     report.currentCase='normal chapter turn translates new canvas pages through the same serial queue';
@@ -697,12 +725,16 @@ async function verifyErrorRecovery() {
         }finally{if(target!==element)target.width=target.height=0;if(ownedImage)ownedImage.src='';}
     },kind);
     const originals=[];for(let index=0;index<await sources.count();index++)originals.push(await snapshot(sources.nth(index)));
+    const expectedOriginals=structuredClone(originals);
+    const leasedStyles=kind==='canvas'?await page.evaluate(styles=>styles.map(raw=>{const style=document.createElement('canvas').style;style.cssText=raw||'';style.setProperty('transition-property','none','important');style.setProperty('opacity','0','important');return style.cssText;}),originals.map(source=>source.attributes.style)):[];
     report.recoverySourceOriginals=originals;
     const unchanged=async(index,allowImageHiding=false)=>{
-        const actual=await snapshot(sourceFor(index)),original=originals[kind==='segments'?0:index-1];
+        const actual=await snapshot(sourceFor(index)),original=expectedOriginals[kind==='segments'?0:index-1];
         if(kind==='image'&&allowImageHiding){
             const withoutStyle=value=>({...value,attributes:Object.fromEntries(Object.entries(value.attributes).filter(([key])=>key!=='style'))});
             assert.deepEqual(withoutStyle(actual),withoutStyle(original),'Recovery preserves original pixels and source attributes');
+        }else if(kind==='canvas'&&allowImageHiding&&actual.attributes.style!==original.attributes.style){
+            assert.deepEqual(actual,{...original,attributes:{...original.attributes,style:leasedStyles[index-1]}},'Active Canvas permits only the exact owned visibility receipt; pixels and all other attributes remain unchanged');
         }else assert.deepEqual(actual,original,'Recovery leaves original pixels, dimensions and all source attributes unchanged');
     };
     const recoveryError=recoveryLongDetails?Array.from({length:80},(_,index)=>`Controlled text transport failure, diagnostic line ${index+1}: retry keeps the original manga artwork visible.`).join('\n'):'Controlled text transport failure for manga recovery';
@@ -784,11 +816,30 @@ async function verifyErrorRecovery() {
     assert.notEqual(await recoveryUi(`return [...this.querySelectorAll('.fr-image-feedback[data-phase="loading"] .fr-image-actions')].some(e=>getComputedStyle(e).display!=='none'&&e.getBoundingClientRect().width>0)`),true);
     await wait(completed);
     assert.equal(await ops(),failedCount+1);await unchanged(1,true);await quiet();await screenshot('recovery-retry-complete');report.cases.push(report.currentCase);
+    if(recoveryCanvasAlpha){
+        report.recoveryCanvasAlpha.presentation=await sourceFor(1).evaluate(element=>{const rect=element.getBoundingClientRect();return {bounds:{x:rect.x,y:rect.y,width:rect.width,height:rect.height},opacity:element.style.getPropertyValue('opacity'),opacityPriority:element.style.getPropertyPriority('opacity'),transitionProperty:element.style.getPropertyValue('transition-property'),transitionPriority:element.style.getPropertyPriority('transition-property'),background:getComputedStyle(document.body).backgroundColor,dpr:devicePixelRatio};});
+        const {opacity,opacityPriority,transitionProperty,transitionPriority}=report.recoveryCanvasAlpha.presentation;
+        assert.deepEqual({opacity,opacityPriority,transitionProperty,transitionPriority},{opacity:'0',opacityPriority:'important',transitionProperty:'none',transitionPriority:'important'},'The transparent source is hidden only by the two explicitly owned properties');
+        const translated=await visibleBitmaps();assert.equal(translated.length,1);
+        fs.writeFileSync(path.join(artifacts,'recovery-alpha-translated.png'),Buffer.from(translated[0].data.split(',')[1],'base64'));
+        report.recoveryCanvasAlpha.translated='recovery-alpha-translated.png';report.recoveryCanvasAlpha.screenshot='recovery-retry-complete.png';
+    }
     report.currentCase='recovered manga redisplays the cached translation without OCR';
     const completedCount=await ops(),bitmapsBefore=await visibleBitmaps();assert.ok(bitmapsBefore?.length>0,'Recovered source has a visible translated bitmap');
     await toggle();await wait(async()=>(await visibleBitmaps())?.length===0);await unchanged(1);
     await toggle();await wait(completed);assert.equal(await ops(),completedCount);
     assert.deepEqual(await visibleBitmaps(),bitmapsBefore,'Cached redisplay preserves exact translated pixels');await unchanged(1,true);report.cases.push(report.currentCase);
+    if(recoveryCanvasAlpha){
+        report.currentCase='real CSSOM preserves a host transition-duration change when the source visibility receipt is returned';
+        // 预期只从事先快照和明确的宿主改写构造，不用被测结果反推或放宽样式归还断言。
+        const plannedStyle=await page.evaluate(raw=>{const style=document.createElement('canvas').style;style.cssText=raw||'';style.setProperty('transition-duration','2s');const restored=style.cssText;style.setProperty('transition-property','none','important');style.setProperty('opacity','0','important');return {restored,leased:style.cssText};},originals[0].attributes.style);
+        await sourceFor(1).evaluate(element=>element.style.setProperty('transition-duration','2s'));
+        expectedOriginals[0].attributes.style=plannedStyle.restored;leasedStyles[0]=plannedStyle.leased;
+        await toggle();await wait(async()=>(await visibleBitmaps())?.length===0);await unchanged(1);
+        report.recoveryCanvasAlpha.hostTransitionAfterRestore=await snapshot(sourceFor(1));
+        await toggle();await wait(completed);assert.equal(await ops(),completedCount);await unchanged(1,true);
+        assert.deepEqual(await visibleBitmaps(),bitmapsBefore,'Host CSS changes do not rerun OCR or alter cached translated pixels');report.cases.push(report.currentCase);
+    }
     report.currentCase='dismissing a later failed page removes its prompt without retrying it';
     await modelObserver.command('Runtime.evaluate',{expression:'globalThis.__recoveryFixture.fail=true'});
     await position(2);const beforeDismiss=await ops();await click('.fr-image-dismiss');
