@@ -3053,7 +3053,7 @@ async function runInteractionScenarios(page, scenarios, timeout, phase) {
 
 async function captureEvidence(page, outputPath) {
   try {
-    await page.screenshot({path: outputPath, fullPage: false, timeout: 10000});
+    await page.screenshot({path: outputPath, fullPage: false, timeout: 10000, caret: 'initial'});
   } catch (error) {
     process.stderr.write(`证据截图失败（不影响 DOM/交互断言）：${error.message}\n`);
   }
@@ -3966,6 +3966,7 @@ if (require.main === module) {
 
 module.exports = {
   parseArgs,
+  captureEvidence,
   prepareDismissiblePromotion,
   authorizeFacebookReadingDialog,
   releaseFacebookReadingDialog,
